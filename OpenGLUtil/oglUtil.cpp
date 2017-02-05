@@ -178,7 +178,7 @@ void _oglProgram::usethis(const GLuint programID)
 void _oglProgram::setMat(const GLuint pos, const Mat4x4& mat) const
 {
 	if (pos != GL_INVALID_INDEX)
-		glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat);
+		glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
 }
 
 void _oglProgram::addShader(oglShader && shader)

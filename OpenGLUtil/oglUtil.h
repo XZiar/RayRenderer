@@ -1,7 +1,8 @@
 #pragma once
 
 #include "../3dBasic/3dElement.hpp"
-#include "oglRely.h"
+
+#include <GL/glew.h>
 
 #include <cstdio>
 #include <memory>

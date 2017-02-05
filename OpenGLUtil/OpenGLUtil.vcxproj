@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglUtil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="glewSupport.cpp" />
     <ClCompile Include="oglUtil.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

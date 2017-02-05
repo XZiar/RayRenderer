@@ -15,15 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="oglRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oglUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglUtil.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="glewSupport.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

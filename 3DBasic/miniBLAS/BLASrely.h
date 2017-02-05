@@ -15,7 +15,6 @@
 
 #ifdef __SSE4_2__
 #   define __SSE2__
-#   define MINIBLAS_INTRIN AVX2
 #endif
 
 
@@ -39,23 +38,29 @@
 #   define VECCALL 
 #endif
 
-namespace miniBLAS
-{
-inline static const char* miniBLAS_intrin()
-{
 #ifdef __AVX2__
-	return "AVX2";
+#   define MINIBLAS_INTRIN AVX2
 #elif defined(__AVX__)
-	return "AVX";
 #   define MINIBLAS_INTRIN AVX
 #elif defined(__SSE4_2__)
-	return "SSE42";
+#   define MINIBLAS_INTRIN SSE4.2
 #elif defined(__SSE2__)
-	return "SSE2";
-#   define MINIBLAS_INTRIN 
+#   define MINIBLAS_INTRIN SSE2
 #else
-	return "NONE";
+#   define MINIBLAS_INTRIN NONE
 #endif
+
+#define TO_STR(a) #a
+#define GET_STR(a) TO_STR(a)
+#pragma message("Compiling miniBLAS with " GET_STR(MINIBLAS_INTRIN) )
+
+namespace miniBLAS
+{
+inline constexpr char* miniBLAS_intrin()
+{
+	return GET_STR(MINIBLAS_INTRIN);
+#undef GET_STR
+#undef TO_STR
 }
 /*make struct's heap allocation align to N bytes boundary*/
 template<uint32_t N = 32>
