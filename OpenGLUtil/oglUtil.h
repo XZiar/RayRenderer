@@ -398,9 +398,9 @@ private:
 		const _oglProgram& prog;
 		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat) :prog(prog_)
 		{
-			_oglProgram::usethis(prog.programID);
-			prog.setMat(prog.IDX_modelMat, modelMat);
-			prog.setMat(prog.IDX_normMat, normMat);
+			_oglProgram::usethis(prog);
+			prog.setMat(prog.Uni_modelMat, modelMat);
+			prog.setMat(prog.Uni_normMat, normMat);
 		}
 	public:
 		void end()
@@ -414,26 +414,26 @@ private:
 	vector<oglShader> shaders;
 	map<string, GLint> uniLocs;
 	vector<oglTexture> texs;
-	Mat4x4 matrix_Proj, matrix_View, matrix_Model, matrix_Norm;
 	GLuint ID_lgtVBO, ID_mtVBO;
 	GLuint
-		IDX_projMat = GL_INVALID_INDEX,
-		IDX_viewMat = GL_INVALID_INDEX,
-		IDX_modelMat = GL_INVALID_INDEX,
-		IDX_normMat = GL_INVALID_INDEX,
-		IDX_camPos = GL_INVALID_INDEX;
+		Uni_projMat = GL_INVALID_INDEX,
+		Uni_viewMat = GL_INVALID_INDEX,
+		Uni_modelMat = GL_INVALID_INDEX,
+		Uni_normMat = GL_INVALID_INDEX,
+		Uni_camPos = GL_INVALID_INDEX;
 	GLuint
-		IDX_Uni_Texture = GL_INVALID_INDEX,
-		IDX_Uni_Light = GL_INVALID_INDEX,
-		IDX_Uni_Material = GL_INVALID_INDEX;
-	static void usethis(const GLuint programID);
+		Uni_Texture = GL_INVALID_INDEX,
+		Uni_Light = GL_INVALID_INDEX,
+		Uni_Material = GL_INVALID_INDEX;
+	static void usethis(const _oglProgram& programID);
 	void setMat(const GLuint pos, const Mat4x4& mat) const;
 public:
 	GLuint
-		IDX_Vert_Pos = 0,
-		IDX_Vert_Norm = GL_INVALID_INDEX,
-		IDX_Vert_Color = GL_INVALID_INDEX,
-		IDX_Vert_Texc = GL_INVALID_INDEX;
+		Attr_Vert_Pos = 0,
+		Attr_Vert_Norm = 1,
+		Attr_Vert_Color = GL_INVALID_INDEX,
+		Attr_Vert_Texc = 2;
+	Mat4x4 matrix_Proj, matrix_View;
 	_oglProgram();
 	~_oglProgram();
 

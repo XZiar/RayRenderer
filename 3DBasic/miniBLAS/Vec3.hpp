@@ -9,11 +9,12 @@ namespace miniBLAS
 /*vector contains 4 float, while only xyz are considered in some calculation*/
 class alignas(16) Vec3 :public Vec4Base<float>
 {
+private:
 protected:
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z;
 
-	Vec3(const bool setZero = false)
+	explicit Vec3(const bool setZero = false)
 	{
 		if (setZero)
 		{
@@ -31,8 +32,8 @@ public:
 	explicit Vec3(const T *ptr) :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) { };
 #ifdef __SSE2__
 	explicit Vec3(const float *ptr) { float_dat = _mm_loadu_ps(ptr); }
-#endif
 	Vec3(const __m128& dat_) { float_dat = dat_; };
+#endif
 
 	VECCALL operator float*() { return data; };
 	VECCALL operator const float*() const { return data; };

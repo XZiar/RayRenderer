@@ -166,12 +166,24 @@ _oglProgram::~_oglProgram()
 	}
 }
 
-void _oglProgram::usethis(const GLuint programID)
+void _oglProgram::usethis(const _oglProgram& prog)
 {
 	static thread_local GLuint curPID = static_cast<GLuint>(-1);
-	if (curPID != programID)
+	//static thread_local vector<oglTexture> curtexs(255);
+	if (curPID != prog.programID)
 	{
-		glUseProgram(curPID = programID);
+		glUseProgram(curPID = prog.programID);
+		for (auto a = prog.texs.size(); a--;)
+		{
+			const auto& tex = prog.texs[a];
+			if (tex)
+			{
+				glActiveTexture(GL_TEXTURE0 + a);
+				glBindTexture((GLenum)tex->type, tex->tID);
+			}
+			else;//lazy set
+		}
+		
 	}
 }
 
@@ -204,20 +216,20 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUn
 
 	//initialize uniform location
 	if (MatrixName[0] != "")//projectMatrix
-		IDX_projMat = getUniLoc(MatrixName[0]);
+		Uni_projMat = getUniLoc(MatrixName[0]);
 	if (MatrixName[1] != "")//viewMatrix
-		IDX_viewMat = getUniLoc(MatrixName[1]);
+		Uni_viewMat = getUniLoc(MatrixName[1]);
 	if (MatrixName[2] != "")//modelMatrix
-		IDX_modelMat = getUniLoc(MatrixName[2]);
+		Uni_modelMat = getUniLoc(MatrixName[2]);
 	if (MatrixName[3] != "")//normalMatrix
 
-	IDX_normMat = getUniLoc(MatrixName[3]);
+	Uni_normMat = getUniLoc(MatrixName[3]);
 	if (BasicUniform[0] != "")//textureUniform
 	{
-		IDX_Uni_Texture = getUniLoc(BasicUniform[0]);
+		Uni_Texture = getUniLoc(BasicUniform[0]);
 		texs.resize(texcount);
 		for (uint8_t a = 0; a < texcount; ++a)
-			glProgramUniform1i(programID, IDX_Uni_Texture + a, a);
+			glProgramUniform1i(programID, Uni_Texture + a, a);
 	}
 
 	return true;
@@ -241,31 +253,27 @@ void _oglProgram::setProject(const Camera & cam, const int wdWidth, const int wd
 	//mat4 projMat = glm::frustum(-RProjZ, +RProjZ, -Aspect*RProjZ, +Aspect*RProjZ, 1.0, 32768.0);
 
 	assert(cam.aspect > std::numeric_limits<float>::epsilon());
-	const float tanHalfFovy = tan(cam.fovy / 2);
+	const float tanHalfFovy = tan(b3d::ang2rad(cam.fovy / 2));
+	const float viewDepthN = cam.zNear - cam.zFar;
 
-	matrix_Proj = Mat4x4::zero();
-	matrix_Proj(0, 0) = 1 / (cam.aspect*tanHalfFovy);
-	matrix_Proj(1, 1) = 1 / tanHalfFovy;
-	matrix_Proj(2, 3) = 1;
-	matrix_Proj(2, 2) = -(cam.zFar + cam.zNear) / (cam.zFar - cam.zNear);
-	matrix_Proj(3, 2) = -(2 * cam.zFar * cam.zNear) / (cam.zFar - cam.zNear);
+	matrix_Proj = Mat4x4(Vec4(1 / (cam.aspect*tanHalfFovy), 0.f, 0.f, 0.f),
+		Vec4(0.f, 1 / tanHalfFovy, 0.f, 0.f),
+		Vec4(0.f, 0.f, (cam.zFar + cam.zNear) / viewDepthN, (2 * cam.zFar * cam.zNear) / viewDepthN),
+		Vec4(0.f, 0.f, -1.f, 0.f));
 
-	setMat(IDX_projMat, matrix_Proj);
+	setMat(Uni_projMat, matrix_Proj);
 }
 
 void _oglProgram::setCamera(const Camera & cam)
 {
 	//LookAt
 	//matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
-	matrix_View = Mat4x4(
-		Vec4(cam.u, -(cam.u.dot(cam.position))),
-		Vec4(cam.v, -(cam.v.dot(cam.position))),
-		Vec4(cam.n*-1, cam.n.dot(cam.position)),
-		Vec4(1, 1, 1, 1)).inved();
+	const auto rMat = Mat3x3(cam.u, cam.v, cam.n * -1).inved();
+	matrix_View = Mat4x4(rMat) * Mat4x4::TranslateMat(cam.position * -1);
 
-	setMat(IDX_viewMat, matrix_View);
-	if (IDX_camPos != GL_INVALID_INDEX)
-		glProgramUniform3fv(programID, IDX_camPos, 1, cam.position);
+	setMat(Uni_viewMat, matrix_View);
+	if (Uni_camPos != GL_INVALID_INDEX)
+		glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
 void _oglProgram::setLight(const uint8_t id, const Light & light)
@@ -283,11 +291,7 @@ void _oglProgram::setMaterial(const Material & mt)
 void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
 {
 	if (tex)
-	{
 		texs[pos] = tex;
-		glActiveTexture(GL_TEXTURE0 + pos);
-		glBindTexture((GLenum)tex->type, tex->tID);
-	}
 	else
 		texs[pos].release();
 }

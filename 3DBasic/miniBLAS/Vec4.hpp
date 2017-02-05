@@ -10,11 +10,12 @@ namespace miniBLAS
 /*vector contains 4 float*/
 class alignas(16) Vec4 :public Vec4Base<float>
 {
+private:
 protected:
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
 
-	Vec4(const bool setZero = false)
+	explicit Vec4(const bool setZero = false)
 	{
 		if (setZero)
 		{
@@ -37,8 +38,8 @@ public:
 	};
 #ifdef __SSE2__
 	explicit Vec4(const float *ptr) { float_dat = _mm_loadu_ps(ptr); }
-#endif
 	Vec4(const __m128& dat_) { float_dat = dat_; };
+#endif
 	explicit Vec4(const Vec3& v, const float w_)
 	{
 		x = v.x, y = v.y, z = v.z, w = w_;
@@ -59,8 +60,6 @@ public:
 	VECCALL operator const float*() const { return data; };
 	VECCALL operator __m128&() { return float_dat; };
 	VECCALL operator const __m128&() const { return float_dat; };
-	VECCALL operator Vec3&() { return *this; }
-	VECCALL operator const Vec3&() const { return *this; }
 	
 
 	float VECCALL dot(const Vec4& v) const//dot product

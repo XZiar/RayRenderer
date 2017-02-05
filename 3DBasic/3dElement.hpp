@@ -45,17 +45,21 @@ public:
 class alignas(16) Vec3 : public miniBLAS::Vec3
 {
 public:
+	using miniBLAS::Vec3::Vec3;
 	Vec3() : miniBLAS::Vec3(true) { }
-	Vec3(const float x_, const float y_, const float z_) :miniBLAS::Vec3(x_, y_, z_) { }
 	Vec3(const miniBLAS::Vec3& v) { *(miniBLAS::Vec3*)this = v; }
-
-	Vec3 operator*(const Vec3& right) const
-	{
-		return this->cross(right);
-	}
 };
 
-using Vec4 = miniBLAS::Vec4;
+
+class alignas(16) Vec4 : public miniBLAS::Vec4
+{
+public:
+	using miniBLAS::Vec4::Vec4;
+	Vec4() : miniBLAS::Vec4(true) { }
+	Vec4(const miniBLAS::Vec4& v) { *(miniBLAS::Vec4*)this = v; }
+	Vec4(const Vec3& v) :miniBLAS::Vec4(v, true) { }
+};
+
 
 class alignas(16) Normal : public Vec3
 {
@@ -65,7 +69,8 @@ public:
 	{
 		*(Vec3*)this = v.normalize();
 	}
-	Normal(const float& ix, const float& iy, const float& iz) :Vec3(ix, iy, iz) { normalized(); };
+	template<class T>
+	Normal(const T& ix, const T& iy, const T& iz) :Vec3(ix, iy, iz) { normalized(); };
 
 	Normal& operator=(const Vec3& v)
 	{
@@ -183,6 +188,7 @@ public:
 	Point() { };
 	Point(const Vec3 &v, const Normal &n, const Coord2D &t) : pos(v), norm(n), tcoord(t) { };
 };
+//constexpr int k = sizeof(Point);
 
 struct alignas(32) Triangle : public AlignBase<>
 {
@@ -201,6 +207,7 @@ public:
 	{
 	}
 };
+constexpr int kg = sizeof(Triangle);
 
 class alignas(16) Light : public AlignBase<>
 {
@@ -298,7 +305,7 @@ public:
 	{
 		width = w, height = h;
 		aspect = (float)w / h;
-		fovy = 45.0, zNear = 1.0, zFar = 100.0;
+		fovy = 45.0f, zNear = 1.0f, zFar = 100.0f;
 
 		position = Vec3(0, 4, 15);
 		u = Vec3(1, 0, 0);
@@ -325,7 +332,7 @@ public:
 		yawRotate(u, angz);
 
 		//rotate v(up)
-		const Vec3 vt = n * u;
+		const Vec3 vt = n.cross(u);
 		if (vt.y*v.y < 0)
 			v = vt * -1;
 		else
@@ -345,7 +352,7 @@ public:
 		n.normalized();
 
 		//rotate v(up)
-		v = u * n;
+		v = u.cross(n);
 	}
 };
 
