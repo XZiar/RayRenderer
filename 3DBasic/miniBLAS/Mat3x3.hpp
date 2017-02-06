@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include "BLASrely.h"
 #include "MatBase.hpp"
 #include "Vec3.hpp"
@@ -88,13 +86,17 @@ public:
 
 	Mat3x3() { }
 	Mat3x3(const Vec3& x_, const Vec3& y_, const Vec3& z_) :SQMat4Base(x_, y_, z_) { };
+#ifdef __AVX__
 	Mat3x3(const __m256 xy_, const __m256 zw_) :SQMat4Base(xy_, zw_) { };
 	Mat3x3(const __m256 xy_, const __m128 z_) { xy = xy_, z = z_; };
+#endif
 	Mat3x3(const Vec3 *ptr) :SQMat4Base(ptr[0], ptr[1], ptr[2]) { };
+#ifdef __SSE2__
 	Mat3x3(const __m128x3& dat)
 	{
 		x = dat[0]; y = dat[1]; z = dat[2];
 	};
+#endif
 	template<class T>
 	Mat3x3(const T *ptr)
 	{

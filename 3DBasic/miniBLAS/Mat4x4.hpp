@@ -99,10 +99,12 @@ public:
 	Mat4x4(const Vec4& x_, const Vec4& y_, const Vec4& z_, const Vec4& w_) :SQMat4Base(x_, y_, z_, w_) { };
 	Mat4x4(const __m256 xy_, const __m256 zw_) :SQMat4Base(xy_, zw_) { };
 	explicit Mat4x4(const Vec4 *ptr) :SQMat4Base(ptr[0], ptr[1], ptr[2], ptr[3]) { };
+#ifdef __SSE2__
 	Mat4x4(const __m128x4& dat)
 	{
 		x = dat[0]; y = dat[1]; z = dat[2]; w = dat[3];
 	};
+#endif
 	template<class T>
 	explicit Mat4x4(const T *ptr)
 	{

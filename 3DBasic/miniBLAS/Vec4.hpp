@@ -7,6 +7,14 @@
 namespace miniBLAS
 {
 
+Vec4 VECCALL operator+(const Vec4& left, const Vec4& right);
+Vec4 VECCALL operator-(const Vec4& left, const Vec4& right);
+Vec4 VECCALL operator*(const Vec4& left, const float& right);
+Vec4 VECCALL operator*(const Vec4& left, const Vec4& right);
+Vec4 VECCALL operator*(const float left, const Vec4& right);
+Vec4 VECCALL operator/(const Vec4& left, const float& right);
+Vec4 VECCALL operator/(const Vec4& left, const Vec4& right);
+
 /*vector contains 4 float*/
 class alignas(16) Vec4 :public Vec4Base<float>
 {
@@ -58,9 +66,10 @@ public:
 
 	VECCALL operator float*() { return data; };
 	VECCALL operator const float*() const { return data; };
+#ifdef __SSE2__
 	VECCALL operator __m128&() { return float_dat; };
 	VECCALL operator const __m128&() const { return float_dat; };
-	
+#endif
 
 	float VECCALL dot(const Vec4& v) const//dot product
 	{
@@ -104,6 +113,15 @@ public:
 	#endif
 	}
 
+	Vec4& VECCALL operator+=(const float right)
+	{
+	#ifdef __SSE2__
+		return *this = _mm_add_ps(float_dat, _mm_set1_ps(right));
+	#else
+		x += right, y += right, z += right, w += right;
+		return *this;
+	#endif
+	}
 
 	Vec4& VECCALL operator+=(const Vec4& right)
 	{
@@ -111,6 +129,16 @@ public:
 		return *this = _mm_add_ps(float_dat, right);
 	#else
 		x += right.x, y += right.y, z += right.z, w += right.w;
+		return *this;
+	#endif
+	}
+
+	Vec4& VECCALL operator-=(const float right)
+	{
+	#ifdef __SSE2__
+		return *this = _mm_sub_ps(float_dat, _mm_set1_ps(right));
+	#else
+		x -= right, y -= right, z -= right, w -= right;
 		return *this;
 	#endif
 	}
@@ -184,8 +212,16 @@ public:
 	#endif
 	}
 
-
 };
+
+inline Vec4 VECCALL operator+(const Vec4& left, const float right)
+{
+#ifdef __SSE2__
+	return _mm_add_ps(left, _mm_set1_ps(right));
+#else
+	return Vec4(left.x + right, left.y + right, left.z + right, left.w + right);
+#endif
+}
 
 inline Vec4 VECCALL operator+(const Vec4& left, const Vec4& right)
 {
@@ -193,6 +229,15 @@ inline Vec4 VECCALL operator+(const Vec4& left, const Vec4& right)
 	return _mm_add_ps(left, right);
 #else
 	return Vec4(left.x + right.x, left.y + right.y, left.z + right.z, left.w + right.w);
+#endif
+}
+
+inline Vec4 VECCALL operator-(const Vec4& left, const float right)
+{
+#ifdef __SSE2__
+	return _mm_sub_ps(left, _mm_set1_ps(right));
+#else
+	return Vec4(left.x - right, left.y - right, left.z - right, left.w - right);
 #endif
 }
 

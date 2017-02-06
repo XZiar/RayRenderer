@@ -6,6 +6,15 @@
 namespace miniBLAS
 {
 
+Vec3 VECCALL operator+(const Vec3& left, const float right);
+Vec3 VECCALL operator+(const Vec3& left, const Vec3& right);
+Vec3 VECCALL operator-(const Vec3& left, const float right);
+Vec3 VECCALL operator-(const Vec3& left, const Vec3& right);
+Vec3 VECCALL operator*(const Vec3& left, const float right);
+Vec3 VECCALL operator*(const float left, const Vec3& right);
+Vec3 VECCALL operator/(const Vec3& left, const float right);
+Vec3 VECCALL operator/(const Vec3& left, const Vec3& right);
+
 /*vector contains 4 float, while only xyz are considered in some calculation*/
 class alignas(16) Vec3 :public Vec4Base<float>
 {
@@ -37,8 +46,10 @@ public:
 
 	VECCALL operator float*() { return data; };
 	VECCALL operator const float*() const { return data; };
+#ifdef __SSE2__
 	VECCALL operator __m128&() { return float_dat; };
 	VECCALL operator const __m128&() const { return float_dat; };
+#endif
 
 
 	Vec3 VECCALL cross(const Vec3& v) const
@@ -104,8 +115,17 @@ public:
 		return Vec3(std::sqrt(x), std::sqrt(y), std::sqrt(z));
 	#endif
 	}
-
 	
+	Vec3& VECCALL operator+=(const float right)
+	{
+	#ifdef __SSE2__
+		return *this = _mm_add_ps(float_dat, _mm_set1_ps(right));
+	#else
+		x += right, y += right, z += right;
+		return *this;
+	#endif
+	}
+
 	Vec3& VECCALL operator+=(const Vec3& right)
 	{
 	#ifdef __SSE2__
@@ -116,6 +136,16 @@ public:
 	#endif
 	}
 	
+	Vec3& VECCALL operator-=(const float right)
+	{
+	#ifdef __SSE2__
+		return *this = _mm_sub_ps(float_dat, _mm_set1_ps(right));
+	#else
+		x -= right, y -= right, z -= right;
+		return *this;
+	#endif
+	}
+
 	Vec3& VECCALL operator-=(const Vec3& right)
 	{
 	#ifdef __SSE2__
@@ -178,12 +208,30 @@ public:
 
 };
 
+inline Vec3 VECCALL operator+(const Vec3& left, const float right)
+{
+#ifdef __SSE2__
+	return _mm_add_ps(left, _mm_set1_ps(right));
+#else
+	return Vec3(left.x + right, left.y + right, left.z + right);
+#endif
+}
+
 inline Vec3 VECCALL operator+(const Vec3& left, const Vec3& right)
 {
 #ifdef __SSE2__
 	return _mm_add_ps(left, right);
 #else
 	return Vec3(left.x + right.x, left.y + right.y, left.z + right.z);
+#endif
+}
+
+inline Vec3 VECCALL operator-(const Vec3& left, const float right)
+{
+#ifdef __SSE2__
+	return _mm_sub_ps(left, _mm_set1_ps(right));
+#else
+	return Vec3(left.x - right, left.y - right, left.z - right);
 #endif
 }
 
@@ -196,7 +244,7 @@ inline Vec3 VECCALL operator-(const Vec3& left, const Vec3& right)
 #endif
 }
 
-inline Vec3 VECCALL operator*(const Vec3& left, const float& right)
+inline Vec3 VECCALL operator*(const Vec3& left, const float right)
 {
 #ifdef __SSE2__
 	return _mm_mul_ps(left, _mm_set1_ps(right));
@@ -210,7 +258,7 @@ inline Vec3 VECCALL operator*(const float left, const Vec3& right)
 	return right*left;
 }
 
-inline Vec3 VECCALL operator/(const Vec3& left, const float& right)
+inline Vec3 VECCALL operator/(const Vec3& left, const float right)
 {
 #ifdef __SSE2__
 	return _mm_div_ps(left, _mm_set1_ps(right));
