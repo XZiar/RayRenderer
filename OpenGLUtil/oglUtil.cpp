@@ -1,4 +1,5 @@
 #include "oglUtil.h"
+#include "privateAPI.h"
 
 
 namespace oglu
@@ -29,7 +30,7 @@ _oglShader::_oglShader(const ShaderType type, const string & txt) : shaderType(t
 
 _oglShader::~_oglShader()
 {
-	if (shaderID)
+	if (shaderID != GL_INVALID_INDEX)
 		glDeleteShader(shaderID);
 }
 
@@ -95,6 +96,17 @@ void _oglTexture::parseFormat(const TextureFormat format, GLint & intertype, GLe
 	}
 }
 
+void _oglTexture::bind(const uint16_t pos) const
+{
+	glActiveTexture(GL_TEXTURE0 + pos);
+	glBindTexture((GLenum)type, tID);
+}
+
+void _oglTexture::unbind() const
+{
+	glBindTexture((GLenum)type, 0);
+}
+
 _oglTexture::_oglTexture(const TextureType _type) : type(_type)
 {
 	glGenTextures(1, &tID);
@@ -105,20 +117,29 @@ _oglTexture::~_oglTexture()
 	glDeleteTextures(1, &tID);
 }
 
+void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
+{
+	bind();
+	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_S, (GLint)wraptype);
+	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_T, (GLint)wraptype);
+	glTexParameteri((GLenum)type, GL_TEXTURE_MAG_FILTER, (GLint)filtertype);
+	glTexParameteri((GLenum)type, GL_TEXTURE_MIN_FILTER, (GLint)filtertype);
+	unbind();
+}
+
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void * data)
 {
-	glBindTexture((GLenum)type, tID);
-
+	bind();
 	GLint intertype;
 	GLenum datatype, comptype;
 	parseFormat(format, intertype, datatype, comptype);
 	glTexImage2D((GLenum)type, 0, intertype, w, h, 0, comptype, datatype, data);
-	//glBindTexture((GLenum)type, 0);
+	//unbind();
 }
 
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
-	glBindTexture((GLenum)type, tID);
+	bind();
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buf->bID);
 
 	GLint intertype;
@@ -127,7 +148,7 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 	glTexImage2D((GLenum)type, 0, intertype, w, h, 0, comptype, datatype, NULL);
 
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-	//glBindTexture((GLenum)type, 0);
+	//unbind();
 }
 
 
@@ -150,41 +171,60 @@ _oglVAO::~_oglVAO()
 }
 
 
+_oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat) :prog(prog_)
+{
+	_oglProgram::usethis(prog);
+	prog.setMat(prog.Uni_modelMat, modelMat);
+	prog.setMat(prog.Uni_normMat, normMat);
+}
+
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const GLsizei size, const GLint offset)
+{
+	glBindVertexArray(vao->vaoID);
+	glDrawArrays((GLenum)vao->vaoMode, offset, size);
+	return *this;
+}
+
+
+
 _oglProgram::_oglProgram()
 {
-	static _Init init;
 	programID = glCreateProgram();
-	glGenBuffers(1, &ID_lgtVBO);
-	glGenBuffers(1, &ID_mtVBO);
 }
 
 _oglProgram::~_oglProgram()
 {
-	if (programID)
+	if (programID != GL_INVALID_INDEX)
 	{
 		glDeleteProgram(programID);
 	}
 }
 
-void _oglProgram::usethis(const _oglProgram& prog)
+oglu::TextureManager& _oglProgram::getTexMan()
+{
+	static thread_local TextureManager texMan;
+	return texMan;
+}
+
+bool _oglProgram::usethis(const _oglProgram& prog, const bool change)
 {
 	static thread_local GLuint curPID = static_cast<GLuint>(-1);
-	//static thread_local vector<oglTexture> curtexs(255);
 	if (curPID != prog.programID)
 	{
+		if (!change)//only return status
+			return false;
 		glUseProgram(curPID = prog.programID);
-		for (auto a = prog.texs.size(); a--;)
+		auto& texMan = getTexMan();
+		for (uint32_t a = 0; a < prog.texs.size(); ++a)
 		{
-			const auto& tex = prog.texs[a];
-			if (tex)
+			if (prog.texs[a].tid != UINT32_MAX)
 			{
-				glActiveTexture(GL_TEXTURE0 + a);
-				glBindTexture((GLenum)tex->type, tex->tID);
+				const auto tupos = texMan.bindTexture(prog, prog.texs[a].tex);
+				glProgramUniform1i(prog.programID, prog.Uni_Texture + a, tupos);
 			}
-			else;//lazy set
 		}
-		
 	}
+	return true;
 }
 
 void _oglProgram::setMat(const GLuint pos, const Mat4x4& mat) const
@@ -228,8 +268,6 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUn
 	{
 		Uni_Texture = getUniLoc(BasicUniform[0]);
 		texs.resize(texcount);
-		for (uint8_t a = 0; a < texcount; ++a)
-			glProgramUniform1i(programID, Uni_Texture + a, a);
 	}
 
 	return true;
@@ -290,10 +328,24 @@ void _oglProgram::setMaterial(const Material & mt)
 
 void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
 {
-	if (tex)
-		texs[pos] = tex;
-	else
-		texs[pos].release();
+	auto& texMan = getTexMan();
+	auto& obj = texs[pos];
+	if (obj.tid != UINT32_MAX)//has old tex, unbind it
+	{
+		//unbind operation should always be done, since it may release the true texture and the tID may be recycled later
+		texMan.unbindTexture(*this, obj.tex);
+		obj = TexPair(tex);
+	}
+	if (tex)//bind the new tex
+	{
+		if (usethis(*this, false))//bind it
+		{
+			const auto tupos = texMan.bindTexture(*this, tex);
+			glProgramUniform1i(programID, Uni_Texture + pos, tupos);
+		}
+		//or, just virtually bind it
+		obj = TexPair(tex);
+	}
 }
 
 _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat4x4& normMat)
@@ -302,13 +354,12 @@ _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat4x4& no
 }
 
 
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const GLsizei size, const GLint offset)
+void oglUtil::init()
 {
-	glBindVertexArray(vao->vaoID);
-	glDrawArrays((GLenum)vao->vaoMode, offset, size);
-	return *this;
+	glewInit();
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
 }
-
 
 OPResult<GLenum> oglUtil::getError()
 {
@@ -374,5 +425,7 @@ OPResult<string> oglUtil::loadShader(oglProgram& prog, const string& fname)
 	}
 	return true;
 }
+
+
 
 }

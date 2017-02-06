@@ -1,33 +1,20 @@
 #pragma once
 
-#include "../3dBasic/3dElement.hpp"
-
+#include "oglRely.h"
 #include <GL/glew.h>
 
-#include <cstdio>
 #include <memory>
 #include <functional>
 #include <type_traits>
 #include <assert.h>
 #include <iterator>
-#include <string>
+#include <algorithm>
 #include <vector>
 #include <map>
 #include <tuple>
 
 
-#ifdef OGLU_EXPORT
-#   define OGLUAPI _declspec(dllexport)
-#   define OGLUTPL _declspec(dllexport) 
-#else
-#   define OGLUAPI _declspec(dllimport)
-#   define OGLUTPL
-#endif
 
-namespace oclu
-{
-class _oclMem;
-}
 
 namespace oglu
 {
@@ -47,202 +34,6 @@ using b3d::Material;
 using b3d::Light;
 
 
-struct OGLUAPI NonCopyable
-{
-	NonCopyable() { }
-	NonCopyable(const NonCopyable & other) = delete;
-	NonCopyable(NonCopyable && other) = default;
-	NonCopyable& operator= (const NonCopyable & other) = delete;
-	NonCopyable& operator= (NonCopyable && other) = default;
-};
-
-
-template<class T, bool isNonCopy = std::is_base_of<NonCopyable, T>::value>
-class OGLUTPL Wrapper;
-
-template<class T>
-class OGLUTPL Wrapper<T, true>
-{
-private:
-	T *instance = nullptr;
-public:
-	Wrapper() { }
-	template<class... ARGS>
-	Wrapper(ARGS... args) : instance(new T(args...)) { }
-	~Wrapper()
-	{
-		release();
-	}
-	Wrapper(const Wrapper<T>& other) = delete;
-	Wrapper(Wrapper<T>&& other)
-	{
-		*this = std::move(other);
-	}
-	Wrapper& operator=(const Wrapper& other) = delete;
-	Wrapper& operator=(Wrapper&& other)
-	{
-		release();
-		instance = other.instance;
-		other.instance = nullptr;
-		return *this;
-	}
-	
-	void release()
-	{
-		if (instance != nullptr)
-		{
-			delete instance;
-			instance = nullptr;
-		}
-	}
-
-	template<class... ARGS>
-	void reset(ARGS... args)
-	{
-		release();
-		instance = new T(args...);
-	}
-	void reset()
-	{
-		release();
-		instance = new T();
-	}
-
-	T* operator-> ()
-	{
-		return instance;
-	}
-	const T* operator-> () const
-	{
-		return instance;
-	}
-	operator bool()
-	{
-		return instance != nullptr;
-	}
-	operator const bool() const
-	{
-		return instance != nullptr;
-	}
-};
-
-template<class T>
-class OGLUTPL Wrapper<T, false>
-{
-private:
-	struct ControlBlock
-	{
-		T *instance = nullptr;;
-		uint32_t count = 0;
-		ControlBlock(T *dat) :instance(dat) { }
-		~ControlBlock() { delete instance; }
-	};
-	ControlBlock *cb = nullptr;;
-	void create(T* instance)
-	{
-		cb = new ControlBlock(instance);
-	}
-public:
-	Wrapper() : cb(nullptr) { }
-	template<class... ARGS>
-	Wrapper(ARGS... args)
-	{
-		create(new T(args...));
-	}
-	~Wrapper()
-	{
-		release();
-	}
-	Wrapper(const Wrapper<T>& other)
-	{
-		*this = std::forward(other);
-	}
-	Wrapper(Wrapper<T>&& other)
-	{
-		*this = std::move(other);
-	}
-	Wrapper& operator=(const Wrapper<T>& other)
-	{
-		release();
-		cb = other.cb;
-		if (cb != nullptr)
-			cb->count++;
-		return *this;
-	}
-	Wrapper& operator=(Wrapper<T>&& other)
-	{
-		release();
-		cb = other.cb;
-		other.cb = nullptr;
-		return *this;
-	}
-
-	void release()
-	{
-		if (cb != nullptr)
-		{
-			if (!(--cb->count))
-			{
-				delete cb;
-				cb = nullptr;
-			}
-		}
-	}
-
-	template<class... ARGS>
-	void reset(ARGS... args)
-	{
-		release();
-		create(new T(args...));
-	}
-	void reset()
-	{
-		release();
-		create(new T());
-	}
-
-	T* operator-> ()
-	{
-		return cb->instance;
-	}
-	const T* operator-> () const
-	{
-		return cb->instance;
-	}
-	operator bool()
-	{
-		return cb != nullptr;
-	}
-	operator const bool() const
-	{
-		return cb != nullptr;
-	}
-};
-
-class _Init
-{
-private:
-	friend class _oglProgram;
-	_Init()
-	{
-		glewInit();
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-	}
-};
-
-template<class T = char>
-class OGLUTPL OPResult
-{
-private:
-	bool isSuc;
-public:
-	string msg;
-	T data;
-	OPResult(const bool isSuc_, const string& msg_ = "") :isSuc(isSuc_), msg(msg_) { }
-	OPResult(const bool isSuc_, const T& dat_, const string& msg_ = "") :isSuc(isSuc_), msg(msg_), data(dat_) { }
-	operator bool() { return isSuc; }
-};
 
 enum class ShaderType : GLenum
 {
@@ -256,7 +47,7 @@ class OGLUAPI _oglShader : public NonCopyable
 private:
 	friend class _oglProgram;
 	ShaderType shaderType;
-	GLuint shaderID = 0;
+	GLuint shaderID = GL_INVALID_INDEX;
 	string src;
 	static string loadFromFile(FILE *fp);
 public:
@@ -303,43 +94,23 @@ enum class TextureFormat : GLenum
 {
 	RGB = GL_RGB, RGBA = GL_RGBA, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F
 };
-enum class TexturePropType { Wrap, Filter };
-enum class TexturePropVal : GLint
-{
-	Linear = GL_LINEAR, Nearest = GL_NEAREST,
-	Repeat = GL_REPEAT, Clamp = GL_CLAMP,
-};
+enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
+enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 class OGLUAPI _oglTexture
 {
 private:
 	friend class _oglProgram;
+	friend class TextureManager;
 	friend class oclu::_oclMem;
 	TextureType type;
+	GLuint tID = GL_INVALID_INDEX;
 	static void parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype);
+	void bind(const uint16_t pos = 0) const;
+	void unbind() const;
 public:
-	GLuint tID;
 	_oglTexture(const TextureType _type);
 	~_oglTexture();
-	template<uint8_t N>
-	void setProperty(const tuple<TexturePropType, TexturePropVal>(&params)[N])
-	{
-		glBindTexture((GLenum)type, tID);
-		for (uint8_t a = 0; a < N; ++a)
-		{
-			TexturePropType ptype; TexturePropVal pval;
-			std::tie(ptype, pval) = params[a];
-			GLenum pname1, pname2;
-			if (ptype == TexturePropType::Wrap)
-				pname1 = GL_TEXTURE_WRAP_S, pname2 = GL_TEXTURE_WRAP_T;
-			else if (ptype == TexturePropType::Filter)
-				pname1 = GL_TEXTURE_MAG_FILTER, pname2 = GL_TEXTURE_MIN_FILTER;
-			else
-				return;
-			glTexParameteri((GLenum)type, pname1, (GLint)pval);
-			glTexParameteri((GLenum)type, pname2, (GLint)pval);
-		}
-		glBindTexture((GLenum)type, 0);
-	}
+	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void *);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf);
 };
@@ -373,7 +144,7 @@ private:
 		VAOPrep& set(const oglBuffer& vbo, const GLuint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
 	};
 	VAODrawMode vaoMode;
-	GLuint vaoID;
+	GLuint vaoID = GL_INVALID_INDEX;
 public:
 	_oglVAO(const VAODrawMode);
 	~_oglVAO();
@@ -388,20 +159,17 @@ using oglVAO = Wrapper<_oglVAO>;
 
 enum class TransformType { Rotate, Translate, Scale };
 using TransformOP = std::pair<TransformType, Vec3>;
+class TextureManager;
 class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public AlignBase<>
 {
 private:
+	friend class TextureManager;
 	class OGLUAPI ProgDraw : public NonCopyable
 	{
 	private:
 		friend _oglProgram;
 		const _oglProgram& prog;
-		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat) :prog(prog_)
-		{
-			_oglProgram::usethis(prog);
-			prog.setMat(prog.Uni_modelMat, modelMat);
-			prog.setMat(prog.Uni_normMat, normMat);
-		}
+		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat);
 	public:
 		void end()
 		{
@@ -410,10 +178,17 @@ private:
 		*-param vao, size, offset*/
 		ProgDraw& draw(const oglVAO& vao, const GLsizei size, const GLint offset = 0);
 	};
-	GLuint programID = 0;
+	
+	GLuint programID = GL_INVALID_INDEX;
 	vector<oglShader> shaders;
 	map<string, GLint> uniLocs;
-	vector<oglTexture> texs;
+	struct TexPair
+	{
+		oglTexture tex;
+		GLuint tid;
+		TexPair(const oglTexture& tex_ = oglTexture()) :tex(tex_), tid(tex_ ? tex_->tID : UINT32_MAX) { }
+	};
+	vector<TexPair> texs;
 	GLuint ID_lgtVBO, ID_mtVBO;
 	GLuint
 		Uni_projMat = GL_INVALID_INDEX,
@@ -425,7 +200,8 @@ private:
 		Uni_Texture = GL_INVALID_INDEX,
 		Uni_Light = GL_INVALID_INDEX,
 		Uni_Material = GL_INVALID_INDEX;
-	static void usethis(const _oglProgram& programID);
+	static TextureManager& getTexMan();
+	static bool usethis(const _oglProgram& programID, const bool change = true);
 	void setMat(const GLuint pos, const Mat4x4& mat) const;
 public:
 	GLuint
@@ -476,6 +252,7 @@ using oglProgram = Wrapper<_oglProgram>;
 class OGLUAPI oglUtil
 {
 public:
+	static void init();
 	static OPResult<GLenum> getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
 	static OPResult<string> loadShader(oglProgram& prog, const string& fname);
