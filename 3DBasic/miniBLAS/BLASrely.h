@@ -14,7 +14,7 @@
 #endif
 
 #ifdef __SSE4_2__
-#   define __SSE2__
+#   define __SSE2__ 1
 #endif
 
 
@@ -31,6 +31,9 @@
 #   include <intrin.h>
 #   define malloc_align(size, align) _aligned_malloc((size), (align))
 #   define free_align(ptr) _aligned_free(ptr)
+#   if (_M_IX86_FP == 2)
+#      define __SSE2__ 1
+#   endif
 #endif
 #if !defined(__GNUC__) && defined(__SSE2__)
 #   define VECCALL __vectorcall
