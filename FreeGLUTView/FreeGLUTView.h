@@ -1,18 +1,21 @@
 #pragma once
 
-#include "../3DBasic/3dElement.hpp"
-#include <string>
-#include <functional>
-
 #ifdef GLUTVIEW_EXPORT
 #   define GLUTVIEWAPI _declspec(dllexport)
+#   define COMMON_EXPORT
 #else
 #   define GLUTVIEWAPI _declspec(dllimport)
 #endif
 
+#include "../3DBasic/3dElement.hpp"
+#include "../3DBasic/CommonBase.hpp"
+#include <string>
+#include <functional>
+
 namespace glutview
 {
 
+using namespace common;
 using std::string;
 using namespace b3d;
 
@@ -56,7 +59,7 @@ public:
 	}
 };
 
-class GLUTVIEWAPI FreeGLUTView
+class GLUTVIEWAPI _FreeGLUTView : public NonCopyable
 {
 	friend class GLUTHacker;
 public:
@@ -74,7 +77,7 @@ private:
 	FuncReshape funReshape = nullptr;
 	FuncKeyEvent funKeyEvent = nullptr;
 	FuncMouseEvent funMouseEvent = nullptr;
-	static void usethis(FreeGLUTView& wd);
+	static void usethis(_FreeGLUTView& wd);
 	void display();
 	void reshape(const int w, const int h);
 	void onKeyboard(int key, int x, int y);
@@ -85,15 +88,18 @@ private:
 	void onMouse(int button, int state, int x, int y);
 public:
 	bool deshake = true;
-	static void init(const int w = 1280, const int h = 720, const int x = 50, const int y = 50);
-	static void run(FuncBasic onExit = nullptr);
-	FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_);
-	~FreeGLUTView();
+	_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_);
+	~_FreeGLUTView();
 
 	void setKeyEventlback(FuncKeyEvent funKey);
 	void setMouseEventlback(FuncMouseEvent funMouse);
 	void setTitle(const string& title);
 	void refresh();
 };
+using FreeGLUTView = Wrapper<_FreeGLUTView>;
+
+GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720, const int x = 50, const int y = 50);
+GLUTVIEWAPI void FreeGLUTViewRun();
+
 
 }

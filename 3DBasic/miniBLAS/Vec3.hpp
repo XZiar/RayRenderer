@@ -166,6 +166,16 @@ public:
 	#endif
 	}
 
+	Vec3& VECCALL operator*=(const Vec3& right)
+	{
+	#ifdef __SSE2__
+		return *this = _mm_mul_ps(float_dat, right);
+	#else
+		x *= right.x, y *= right.y, z *= right.z;
+		return *this;
+	#endif
+	}
+
 	Vec3& VECCALL operator/=(const float right)
 	{
 	#ifdef __SSE2__
@@ -250,6 +260,15 @@ inline Vec3 VECCALL operator*(const Vec3& left, const float right)
 	return _mm_mul_ps(left, _mm_set1_ps(right));
 #else
 	return Vec3(left.x * right, left.y * right, left.z * right);
+#endif
+}
+
+inline Vec3 VECCALL operator*(const Vec3& left, const Vec3& right)
+{
+#ifdef __SSE2__
+	return _mm_mul_ps(left, right);
+#else
+	return Vec3(left.x * right.x, left.y * right.y, left.z * right.z);
 #endif
 }
 

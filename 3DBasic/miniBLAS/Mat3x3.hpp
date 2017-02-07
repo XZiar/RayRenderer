@@ -100,8 +100,8 @@ public:
 	template<class T>
 	Mat3x3(const T *ptr)
 	{
-		for (int32_t a = 0, b = 0; b < 3; ++b, ++a)
-			for (int32_t c = 0; c < 3; ++c)
+		for (int32_t a = 0, b = 0; b < 3; ++b)
+			for (int32_t c = 0; c < 3; ++c, ++a)
 				element[b * 4 + c] = static_cast<float>(ptr[a]);
 	}
 	Mat3x3(const float(&dat)[12])

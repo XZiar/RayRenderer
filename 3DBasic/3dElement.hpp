@@ -87,33 +87,34 @@ public:
 	using miniBLAS::Mat3x3::Mat3x3;
 	Mat3x3() :miniBLAS::Mat3x3() { }
 	Mat3x3(const miniBLAS::Mat3x3& m) :miniBLAS::Mat3x3(m) { }
-	static Mat3x3 RotateMat(const Vec3& rv)
+	//Vec4's xyz define axis, w define angle(in degree)
+	static Mat3x3 RotateMat(const Vec4& rv)
 	{
-		const float sinx = std::sin(ang2rad(rv.x)), cosx = std::cos(ang2rad(rv.x));
-		const float ax[9] =
-		{
-			1,    0,     0,
-			0, cosx, -sinx,
-			0, sinx,  cosx
-		};
-		const Mat3x3 rx(ax);
-		const float siny = std::sin(ang2rad(rv.y)), cosy = std::cos(ang2rad(rv.y));
-		const float ay[9] =
-		{
-			cosy , 0, siny,
-			0    , 1, 0   ,
-			-siny, 0, cosy
-		};
-		const Mat3x3 ry(ay);
-		const float sinz = std::sin(ang2rad(rv.z)), cosz = std::cos(ang2rad(rv.z));
-		const float az[9] =
-		{
-			cosz, -sinz, 0,
-			sinz,  cosz, 0,
-			0   , 0    , 1
-		};
-		const Mat3x3 rz(az);
-		return rx*ry*rz;
+		const auto sqr = rv * rv;
+		const float rad = ang2rad(rv.w);
+		const float sinx = std::sin(rad), cosx = std::cos(rad);
+		const float OMcosx = 1 - cosx;
+		/*  (1-cos)x^2+cos  xy(1-cos)-zsin  xz(1-cos)+ysin
+		 *  xy(1-cos)+zsin  (1-cos)y^2+cos  yz(1-cos)-xsin
+		 *  xz(1-cos)-ysin  yz(1-cos)+xsin  (1-cos)z^2+cos
+		 **/
+		return Mat3x3(
+			Vec3(sqr.x*OMcosx + cosx, rv.x*rv.y*OMcosx - rv.z*sinx, rv.x*rv.z*OMcosx + rv.y*sinx),
+			Vec3(rv.x*rv.y*OMcosx + rv.z*sinx, sqr.y*OMcosx + cosx, rv.y*rv.z*OMcosx - rv.x*sinx),
+			Vec3(rv.x*rv.z*OMcosx - rv.y*sinx, rv.y*rv.z*OMcosx + rv.x*sinx, sqr.z*OMcosx + cosx));
+		/*  Rotate x-axis
+		 *  1     0      0
+		 *  0  cosx  -sinx
+		 *  0  sinx   cosx
+		 *  Rotate y-axis
+		 *   cosy  0  siny
+		 *      0  1     0
+		 *  -siny  0  cosy
+		 *  Rotate z-axis
+		 *  cosz  -sinz  0
+		 *  sinz   cosz  0
+		 *     0      0  1
+		 **/
 	}
 	static Mat3x3 ScaleMat(const Vec3& sv)
 	{
@@ -153,29 +154,6 @@ inline float mod(const float &l, const float &r)
 	e = t*r;
 	return l - e;
 }
-/*
-inline void Coord_sph2car(float &angy, float &angz, const float dis, Vec3 &v)
-{
-	v.z = dis * sin(angy*M_PI / 180) * cos(angz*M_PI / 180.0);
-	v.x = dis * sin(angy*M_PI / 180) * sin(angz*M_PI / 180);
-	v.y = dis * cos(angy*M_PI / 180);
-}
-
-inline void Coord_sph2car2(float &angy, float &angz, const float dis, Vec3 &v)
-{
-	bool fix = false;
-	if (angz >= 180)
-		angz = mod(angz, 180), angy = mod(360 - angy, 360), fix = true;
-	if (angy < 1e-6)
-		angy = 360;
-	v.z = dis * sin(angy*M_PI / 180) * cos(angz*M_PI / 180.0);
-	v.x = dis * sin(angy*M_PI / 180) * sin(angz*M_PI / 180);
-	if (fix && mod(angy, 180) < 1e-6)
-		v.z *= -1, v.x *= -1;
-	v.y = dis * cos(angy*M_PI / 180);
-}
-*/
-
 
 class alignas(16) Point : public AlignBase<>
 {
@@ -296,6 +274,12 @@ protected:
 		const float ang = ang2rad(oangz + angz);
 		v.x = sin(ang) * radius, v.z = cos(ang) * radius;
 	}
+	void rotate(const Mat3x3& rMat)
+	{
+		u = rMat * u;
+		v = rMat * v;
+		n = rMat * n;
+	}
 public:
 	Normal u, v, n;//to right,up,toward
 	Vec3 position;
@@ -323,7 +307,22 @@ public:
 		position += v*y;
 		position += n*z;
 	}
-	void yaw(const float angz)
+	//rotate along x-axis
+	void pitch(const float angx)
+	{
+		rotate(Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, angx)));
+	}
+	//rotate along y-axis
+	void yaw(const float angy)
+	{
+		rotate(Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, angy)));
+	}
+	//rotate along z-axis
+	void roll(const float angz)
+	{
+		rotate(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, angz)));
+	}
+	void yaw2(const float angz)
 	{
 		//rotate n(toward)
 		yawRotate(n, angz);
@@ -338,7 +337,7 @@ public:
 		else
 			v = vt;
 	}
-	void pitch(float angy)
+	void pitch2(float angy)
 	{
 		//rotate n(toward)
 		float oangy = rad2ang(acos(n.y)),

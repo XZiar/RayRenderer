@@ -174,7 +174,15 @@ _oglVAO::~_oglVAO()
 _oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat) :prog(prog_)
 {
 	_oglProgram::usethis(prog);
-	prog.setMat(prog.Uni_modelMat, modelMat);
+	if (prog.Uni_mvpMat != GL_INVALID_INDEX)
+	{
+		const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
+		prog.setMat(prog.Uni_mvpMat, mvpMat);
+	}
+	else
+	{
+		prog.setMat(prog.Uni_modelMat, modelMat);
+	}
 	prog.setMat(prog.Uni_normMat, normMat);
 }
 
@@ -239,7 +247,7 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUniform)[3], const uint8_t texcount)
+OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUniform)[3], const uint8_t texcount)
 {
 	glLinkProgram(programID);
 
@@ -261,9 +269,11 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUn
 		Uni_viewMat = getUniLoc(MatrixName[1]);
 	if (MatrixName[2] != "")//modelMatrix
 		Uni_modelMat = getUniLoc(MatrixName[2]);
-	if (MatrixName[3] != "")//normalMatrix
+	if (MatrixName[3] != "")//model-view-project-Matrix
+		Uni_mvpMat = getUniLoc(MatrixName[3]);
+	if (MatrixName[4] != "")//normalMatrix
+		Uni_normMat = getUniLoc(MatrixName[4]);
 
-	Uni_normMat = getUniLoc(MatrixName[3]);
 	if (BasicUniform[0] != "")//textureUniform
 	{
 		Uni_Texture = getUniLoc(BasicUniform[0]);
@@ -288,15 +298,25 @@ void _oglProgram::setProject(const Camera & cam, const int wdWidth, const int wd
 {
 	glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
 
-	//mat4 projMat = glm::frustum(-RProjZ, +RProjZ, -Aspect*RProjZ, +Aspect*RProjZ, 1.0, 32768.0);
-
 	assert(cam.aspect > std::numeric_limits<float>::epsilon());
-	const float tanHalfFovy = tan(b3d::ang2rad(cam.fovy / 2));
-	const float viewDepthN = cam.zNear - cam.zFar;
-
-	matrix_Proj = Mat4x4(Vec4(1 / (cam.aspect*tanHalfFovy), 0.f, 0.f, 0.f),
-		Vec4(0.f, 1 / tanHalfFovy, 0.f, 0.f),
-		Vec4(0.f, 0.f, (cam.zFar + cam.zNear) / viewDepthN, (2 * cam.zFar * cam.zNear) / viewDepthN),
+	const float cotHalfFovy = 1 / tan(b3d::ang2rad(cam.fovy / 2));
+	const float viewDepthNR = 1 / (cam.zNear - cam.zFar);
+	/*   cot(fovy/2)
+	 *  -------------		0			0			0
+	 *     aspect
+	 *     
+	 *       0         cot(fovy/2)		0			0
+	 *       
+	 *								   F+N         2*F*N
+	 *       0              0		- -----		- -------
+	 *								   F-N          F-N
+	 *								   
+	 *       0              0          -1			0
+	 *  
+	 **/
+	matrix_Proj = Mat4x4(Vec4(cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f),
+		Vec4(0.f, cotHalfFovy, 0.f, 0.f),
+		Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthNR, (2 * cam.zFar * cam.zNear) * viewDepthNR),
 		Vec4(0.f, 0.f, -1.f, 0.f));
 
 	setMat(Uni_projMat, matrix_Proj);

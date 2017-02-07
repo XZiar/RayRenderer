@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)3dElement.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)CommonBase.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS\BLASrely.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS\Mat3x3.hpp" />

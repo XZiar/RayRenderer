@@ -194,6 +194,7 @@ private:
 		Uni_projMat = GL_INVALID_INDEX,
 		Uni_viewMat = GL_INVALID_INDEX,
 		Uni_modelMat = GL_INVALID_INDEX,
+		Uni_mvpMat = GL_INVALID_INDEX,
 		Uni_normMat = GL_INVALID_INDEX,
 		Uni_camPos = GL_INVALID_INDEX;
 	GLuint
@@ -214,7 +215,8 @@ public:
 	~_oglProgram();
 
 	void addShader(oglShader && shader);
-	OPResult<> link(const string(&MatrixName)[4] = { "","","","" }, const string(&BasicUniform)[3] = { "tex","","" }, const uint8_t texcount = 16);
+	//
+	OPResult<> link(const string(&MatrixName)[5] = { "","","","","" }, const string(&BasicUniform)[3] = { "tex","","" }, const uint8_t texcount = 16);
 	GLint getUniLoc(const string &);
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
@@ -233,14 +235,18 @@ public:
 			{
 			case TransformType::Rotate:
 				const auto rMat = Mat4x4(Mat3x3::RotateMat(trans.second));
-				matModel *= rMat;
-				matNorm *= rMat;
+				matModel = rMat * matModel;
+				matNorm = rMat * matNorm;
 				break;
 			case TransformType::Translate:
-				matModel *= Mat4x4::TranslateMat(trans.second);
+				matModel = Mat4x4::TranslateMat(trans.second) * matModel;
 				break;
 			case TransformType::Scale:
-				matModel *= Mat3x3::ScaleMat(trans.second);
+				const auto sMat = Mat4x4(Mat3x3::ScaleMat(trans.second));
+				matModel = sMat * matModel;
+				if (trans.second.x != trans.second.y || trans.second.x != trans.second.z || trans.second.y = trans.second.z)
+					matNorm = sMat * matNorm;
+				break;
 			}
 		}
 		return ProgDraw(*this);

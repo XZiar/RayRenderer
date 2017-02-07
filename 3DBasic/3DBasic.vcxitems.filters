@@ -27,6 +27,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS\BLASrely.h">
       <Filter>miniBLAS</Filter>
     </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)CommonBase.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="miniBLAS">

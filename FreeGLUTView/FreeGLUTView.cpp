@@ -4,14 +4,14 @@
 namespace glutview
 {
 
-void FreeGLUTView::usethis(FreeGLUTView& wd)
+void _FreeGLUTView::usethis(_FreeGLUTView& wd)
 {
 	static thread_local int curID = -1;
 	if (curID != wd.wdID)
 		glutSetWindow(curID = wd.wdID);
 }
 
-void FreeGLUTView::display()
+void _FreeGLUTView::display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (funDisp != nullptr)
@@ -19,7 +19,7 @@ void FreeGLUTView::display()
 	glutSwapBuffers();
 }
 
-void FreeGLUTView::reshape(const int w, const int h)
+void _FreeGLUTView::reshape(const int w, const int h)
 {
 	width = w; height = h;
 	if (funReshape != nullptr)
@@ -27,7 +27,7 @@ void FreeGLUTView::reshape(const int w, const int h)
 	refresh();
 }
 
-void FreeGLUTView::onKeyboard(int key, int x, int y)
+void _FreeGLUTView::onKeyboard(int key, int x, int y)
 {
 	uint8_t newkey;
 	switch (key)
@@ -70,12 +70,12 @@ void FreeGLUTView::onKeyboard(int key, int x, int y)
 	onKey(newkey, x, y);
 }
 
-void FreeGLUTView::onKeyboard(unsigned char key, int x, int y)
+void _FreeGLUTView::onKeyboard(unsigned char key, int x, int y)
 {
 	onKey(key, x, y);
 }
 
-void FreeGLUTView::onKey(uint8_t key, const int x, const int y)
+void _FreeGLUTView::onKey(uint8_t key, const int x, const int y)
 {
 	if (funKeyEvent != nullptr)
 	{
@@ -98,7 +98,7 @@ void FreeGLUTView::onKey(uint8_t key, const int x, const int y)
 	}
 }
 
-void FreeGLUTView::onWheel(int button, int dir, int x, int y)
+void _FreeGLUTView::onWheel(int button, int dir, int x, int y)
 {
 	if (funMouseEvent == nullptr)
 		return;
@@ -106,7 +106,7 @@ void FreeGLUTView::onWheel(int button, int dir, int x, int y)
 	funMouseEvent(MouseEvent(MouseEventType::Wheel, MouseButton::None, x, height - y, dir, 0));
 }
 
-void FreeGLUTView::onMouse(int x, int y)
+void _FreeGLUTView::onMouse(int x, int y)
 {
 	if (funMouseEvent == nullptr)
 		return;
@@ -127,7 +127,7 @@ void FreeGLUTView::onMouse(int x, int y)
 	}
 }
 
-void FreeGLUTView::onMouse(int button, int state, int x, int y)
+void _FreeGLUTView::onMouse(int button, int state, int x, int y)
 {
 	if (funMouseEvent == nullptr)
 		return;
@@ -151,24 +151,7 @@ void FreeGLUTView::onMouse(int button, int state, int x, int y)
 	}
 }
 
-void FreeGLUTView::init(const int w, const int h, const int x, const int y)
-{
-	int args = 0; char **argv = nullptr;
-	glutInit(&args, argv);
-	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(w, h);
-	glutInitWindowPosition(x, y);
-}
-
-void FreeGLUTView::run(FuncBasic onExit)
-{
-	glutMainLoop();
-	if (onExit != nullptr)
-		onExit();
-}
-
-FreeGLUTView::FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_) :funDisp(funDisp_), funReshape(funReshape_)
+_FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_) :funDisp(funDisp_), funReshape(funReshape_)
 {
 	wdID = glutCreateWindow("");
 	GLUTHacker::regist(this);
@@ -184,31 +167,47 @@ FreeGLUTView::FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape fu
 }
 
 
-FreeGLUTView::~FreeGLUTView()
+_FreeGLUTView::~_FreeGLUTView()
 {
 	glutDestroyWindow(wdID);
 	GLUTHacker::unregist(this);
 }
 
-void FreeGLUTView::setKeyEventlback(FuncKeyEvent funKey)
+void _FreeGLUTView::setKeyEventlback(FuncKeyEvent funKey)
 {
 	funKeyEvent = funKey;
 }
 
-void FreeGLUTView::setMouseEventlback(FuncMouseEvent funMouse)
+void _FreeGLUTView::setMouseEventlback(FuncMouseEvent funMouse)
 {
 	funMouseEvent = funMouse;
 }
 
-void FreeGLUTView::setTitle(const string& title)
+void _FreeGLUTView::setTitle(const string& title)
 {
 	usethis(*this);
 	glutSetWindowTitle(title.c_str());
 }
 
-void FreeGLUTView::refresh()
+void _FreeGLUTView::refresh()
 {
 	glutPostWindowRedisplay(wdID);
+}
+
+
+void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/, const int x /*= 50*/, const int y /*= 50*/)
+{
+	int args = 0; char **argv = nullptr;
+	glutInit(&args, argv);
+	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(w, h);
+	glutInitWindowPosition(x, y);
+}
+
+void FreeGLUTViewRun()
+{
+	glutMainLoop();
 }
 
 }

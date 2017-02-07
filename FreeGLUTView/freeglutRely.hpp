@@ -22,8 +22,8 @@ namespace glutview
 
 class GLUTHacker final
 {
-	friend class FreeGLUTView;
-	static FreeGLUTView* table[8];
+	friend class _FreeGLUTView;
+	static _FreeGLUTView* table[8];
 	static HGLRC rcs[8];
 	static void makeshare(HGLRC rc, const uint8_t pos)
 	{
@@ -33,7 +33,7 @@ class GLUTHacker final
 				wglShareLists(rcs[a], rc);
 		}
 	}
-	static void regist(FreeGLUTView* view)
+	static void regist(_FreeGLUTView* view)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
 			if (table[a] == nullptr)
@@ -44,7 +44,7 @@ class GLUTHacker final
 				return;
 			}
 	}
-	static void unregist(FreeGLUTView* view)
+	static void unregist(_FreeGLUTView* view)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
 			if (table[a] == view)
@@ -88,7 +88,7 @@ class GLUTHacker final
 	{
 		table[N]->onMouse(button, state, x, y);
 	}
-	static void(*getDisplay(FreeGLUTView* view))(void)
+	static void(*getDisplay(_FreeGLUTView* view))(void)
 	{
 		if (table[0] == view)
 			return display<0>;
@@ -108,7 +108,7 @@ class GLUTHacker final
 			return display<7>;
 		return nullptr;
 	}
-	static void(*getReshape(FreeGLUTView* view))(int w, int h)
+	static void(*getReshape(_FreeGLUTView* view))(int w, int h)
 	{
 		if (table[0] == view)
 			return reshape<0>;
@@ -128,7 +128,7 @@ class GLUTHacker final
 			return reshape<7>;
 		return nullptr;
 	}
-	static void(*getOnKey1(FreeGLUTView* view))(unsigned char key, int x, int y)
+	static void(*getOnKey1(_FreeGLUTView* view))(unsigned char key, int x, int y)
 	{
 		if (table[0] == view)
 			return onKey1<0>;
@@ -148,7 +148,7 @@ class GLUTHacker final
 			return onKey1<7>;
 		return nullptr;
 	}
-	static void(*getOnkey2(FreeGLUTView* view))(int key, int x, int y)
+	static void(*getOnkey2(_FreeGLUTView* view))(int key, int x, int y)
 	{
 		if (table[0] == view)
 			return onkey2<0>;
@@ -168,7 +168,7 @@ class GLUTHacker final
 			return onkey2<7>;
 		return nullptr;
 	}
-	static void(*getOnWheel(FreeGLUTView* view))(int button, int dir, int x, int y)
+	static void(*getOnWheel(_FreeGLUTView* view))(int button, int dir, int x, int y)
 	{
 		if (table[0] == view)
 			return onWheel<0>;
@@ -188,7 +188,7 @@ class GLUTHacker final
 			return onWheel<7>;
 		return nullptr;
 	}
-	static void(*getOnMouse1(FreeGLUTView* view))(int x, int y)
+	static void(*getOnMouse1(_FreeGLUTView* view))(int x, int y)
 	{
 		if (table[0] == view)
 			return onMouse1<0>;
@@ -208,7 +208,7 @@ class GLUTHacker final
 			return onMouse1<7>;
 		return nullptr;
 	}
-	static void(*getOnMouse2(FreeGLUTView* view))(int button, int state, int x, int y)
+	static void(*getOnMouse2(_FreeGLUTView* view))(int button, int state, int x, int y)
 	{
 		if (table[0] == view)
 			return onMouse2<0>;
@@ -230,6 +230,6 @@ class GLUTHacker final
 	}
 };
 
-FreeGLUTView* GLUTHacker::table[8] = { nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr };
+_FreeGLUTView* GLUTHacker::table[8] = { nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr };
 HGLRC GLUTHacker::rcs[8];
 }
