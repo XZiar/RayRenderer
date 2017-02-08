@@ -158,7 +158,12 @@ using oglVAO = Wrapper<_oglVAO>;
 
 
 enum class TransformType { Rotate, Translate, Scale };
-using TransformOP = std::pair<TransformType, Vec3>;
+struct alignas(Vec4) TransformOP : public AlignBase<>
+{
+	Vec4 vec;
+	TransformType type;
+	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
+};
 class TextureManager;
 class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public AlignBase<>
 {
@@ -181,7 +186,8 @@ private:
 	
 	GLuint programID = GL_INVALID_INDEX;
 	vector<oglShader> shaders;
-	map<string, GLint> uniLocs;
+	map<string, GLuint> uniLocs;
+	map<string, GLuint> attrLocs;
 	struct TexPair
 	{
 		oglTexture tex;
@@ -206,51 +212,28 @@ private:
 	void setMat(const GLuint pos, const Mat4x4& mat) const;
 public:
 	GLuint
-		Attr_Vert_Pos = 0,
-		Attr_Vert_Norm = 1,
-		Attr_Vert_Color = GL_INVALID_INDEX,
-		Attr_Vert_Texc = 2;
+		Attr_Vert_Pos = GL_INVALID_INDEX,
+		Attr_Vert_Norm = GL_INVALID_INDEX,
+		Attr_Vert_Texc = GL_INVALID_INDEX,
+		Attr_Vert_Color = GL_INVALID_INDEX;
 	Mat4x4 matrix_Proj, matrix_View;
 	_oglProgram();
 	~_oglProgram();
 
 	void addShader(oglShader && shader);
 	//
-	OPResult<> link(const string(&MatrixName)[5] = { "","","","","" }, const string(&BasicUniform)[3] = { "tex","","" }, const uint8_t texcount = 16);
-	GLint getUniLoc(const string &);
+	OPResult<> link(const string(&MatrixName)[5] = { "","","","","" }, const string(&BasicUniform)[3] = { "tex","","" },
+		const string(&VertAttrName)[4] = { "vertPos","","",""}, const uint8_t texcount = 16);
+	GLuint getAttrLoc(const string &);
+	GLuint getUniLoc(const string &);
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
 	void setLight(const uint8_t id, const Light &);
 	void setMaterial(const Material &);
 	void setTexture(const oglTexture& tex, const uint8_t pos);
 	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity(), const Mat4x4& normMat = Mat4x4::identity());
-	template<class IT, class = typename std::enable_if<std::is_same<std::iterator_traits<TI>::value_type, TransformOP>::type>>
-	ProgDraw draw(IT begin, IT end)
-	{
-		Mat4x4 matModel = Mat4x4::identity(), matNorm = Mat4x4::identity();
-		for (TI cur = begin; cur != end; ++cur)
-		{
-			const TransformOP& trans = *cur;
-			switch (trans.first)
-			{
-			case TransformType::Rotate:
-				const auto rMat = Mat4x4(Mat3x3::RotateMat(trans.second));
-				matModel = rMat * matModel;
-				matNorm = rMat * matNorm;
-				break;
-			case TransformType::Translate:
-				matModel = Mat4x4::TranslateMat(trans.second) * matModel;
-				break;
-			case TransformType::Scale:
-				const auto sMat = Mat4x4(Mat3x3::ScaleMat(trans.second));
-				matModel = sMat * matModel;
-				if (trans.second.x != trans.second.y || trans.second.x != trans.second.z || trans.second.y = trans.second.z)
-					matNorm = sMat * matNorm;
-				break;
-			}
-		}
-		return ProgDraw(*this);
-	}
+	using topIT = vector_<TransformOP>::const_iterator;
+	ProgDraw draw(topIT begin, topIT end);
 };
 using oglProgram = Wrapper<_oglProgram>;
 

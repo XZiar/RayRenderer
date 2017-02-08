@@ -87,29 +87,56 @@ struct AlignBase
 	}
 };
 
-template <class T, class = typename std::enable_if<std::is_base_of<AlignBase<>,T>::value>::type>
+template <class T>
 struct AlignAllocator
 {
-	typedef T value_type;
-	AlignAllocator() noexcept { }
-	template<class U> AlignAllocator(const AlignAllocator<U>&) noexcept { }
+	using value_type = T;
+	AlignAllocator() noexcept = default;
+	template<class U> 
+	AlignAllocator(const AlignAllocator<U>&) noexcept { }
 
-	template<class U> bool operator==(const AlignAllocator<U>&) const noexcept
+	template<class U> 
+	bool operator==(const AlignAllocator<U>&) const noexcept
 	{
-		return true;
+		return std::is_base_of<AlignBase<>, U>::value == std::is_base_of<AlignBase<>, T>::value;
 	}
-	template<class U> bool operator!=(const AlignAllocator<U>&) const noexcept
+	template<class U> 
+	bool operator!=(const AlignAllocator<U>&) const noexcept
 	{
-		return false;
+		return std::is_base_of<AlignBase<>, U>::value != std::is_base_of<AlignBase<>, T>::value;
 	}
-	T* allocate(const size_t n) const
+	T* allocate(const std::size_t n) const
 	{
-		T *ptr = (T*)T::operator new(n * sizeof(T));
-		return ptr;
+		T *ptr = nullptr;
+		if (n == 0)
+			return ptr;
+		if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
+			throw std::bad_array_new_length();
+		ptr = allocate(n, std::is_base_of<AlignBase<>, T>());
+		if (!ptr)
+			throw std::bad_alloc();
+		else
+			return ptr;
 	}
-	void deallocate(T* const p, size_t) const noexcept
+	T* allocate(const std::size_t n, std::true_type) const
+	{
+		return (T*)T::operator new(n * sizeof(T));
+	}
+	T* allocate(const std::size_t n, std::false_type) const
+	{
+		return (T*)malloc_align(n * sizeof(T), 32);
+	}
+	void deallocate(T* p, const std::size_t) const noexcept
+	{
+		deallocate(p, std::is_base_of<AlignBase<>, T>());
+	}
+	void deallocate(T* p, std::true_type) const noexcept
 	{
 		T::operator delete(p);
+	}
+	void deallocate(T* p, std::false_type) const noexcept
+	{
+		free_align(p);
 	}
 };
 

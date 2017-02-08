@@ -58,6 +58,9 @@ public:
 	Vec4() : miniBLAS::Vec4(true) { }
 	Vec4(const miniBLAS::Vec4& v) { *(miniBLAS::Vec4*)this = v; }
 	Vec4(const Vec3& v) :miniBLAS::Vec4(v, true) { }
+
+	operator Vec3& () { return *(Vec3*)this; }
+	operator const Vec3& () const { return *(const Vec3*)this; }
 };
 
 
@@ -267,13 +270,6 @@ public:
 class alignas(16) Camera : public AlignBase<>
 {
 protected:
-	static void yawRotate(Vec3& v, const float angz)
-	{
-		float oangz = rad2ang(atan2(v.x, v.z));
-		const float radius = sqrt(1 - v.y*v.y);
-		const float ang = ang2rad(oangz + angz);
-		v.x = sin(ang) * radius, v.z = cos(ang) * radius;
-	}
 	void rotate(const Mat3x3& rMat)
 	{
 		u = rMat * u;
@@ -303,9 +299,7 @@ public:
 	}
 	void move(const float &x, const float &y, const float &z)
 	{
-		position += u*x;
-		position += v*y;
-		position += n*z;
+		position += Vec3(x, y, -z);
 	}
 	//rotate along x-axis
 	void pitch(const float angx)
@@ -321,37 +315,6 @@ public:
 	void roll(const float angz)
 	{
 		rotate(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, angz)));
-	}
-	void yaw2(const float angz)
-	{
-		//rotate n(toward)
-		yawRotate(n, angz);
-
-		//rotate u(right)
-		yawRotate(u, angz);
-
-		//rotate v(up)
-		const Vec3 vt = n.cross(u);
-		if (vt.y*v.y < 0)
-			v = vt * -1;
-		else
-			v = vt;
-	}
-	void pitch2(float angy)
-	{
-		//rotate n(toward)
-		float oangy = rad2ang(acos(n.y)),
-			oangz = rad2ang(atan2(n.x, n.z));
-		oangy -= angy;
-		if (oangy - angy < 1.0)
-			oangy = 1.0;
-		else if (oangy - angy > 179.0)
-			oangy = 179.0;
-		n.y = cos(ang2rad(oangy));
-		n.normalized();
-
-		//rotate v(up)
-		v = u.cross(n);
 	}
 };
 

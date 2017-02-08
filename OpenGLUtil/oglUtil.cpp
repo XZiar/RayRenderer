@@ -247,7 +247,7 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUniform)[3], const uint8_t texcount)
+OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUniform)[3], const string(&VertAttrName)[4], const uint8_t texcount)
 {
 	glLinkProgram(programID);
 
@@ -280,16 +280,37 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUn
 		texs.resize(texcount);
 	}
 
+	//initialize vertex attribute location
+	if (VertAttrName[0] != "")//Vertex Position
+		Attr_Vert_Pos = getAttrLoc(VertAttrName[0]);
+	if (VertAttrName[1] != "")//Vertex Normal
+		Attr_Vert_Norm = getAttrLoc(VertAttrName[1]);
+	if (VertAttrName[2] != "")//Vertex Texture Coordinate
+		Attr_Vert_Texc = getAttrLoc(VertAttrName[2]);
+	if (VertAttrName[3] != "")//Vertex Color
+		Attr_Vert_Color = getAttrLoc(VertAttrName[3]);
+
 	return true;
 }
 
-GLint _oglProgram::getUniLoc(const string & name)
+GLuint _oglProgram::getAttrLoc(const string & name)
+{
+	auto it = attrLocs.find(name);
+	if (it != attrLocs.end())
+		return it->second;
+	//not existed yet
+	GLuint loc = glGetAttribLocation(programID, name.c_str());
+	attrLocs.insert(make_pair(name, loc));
+	return loc;
+}
+
+GLuint _oglProgram::getUniLoc(const string & name)
 {
 	auto it = uniLocs.find(name);
 	if (it != uniLocs.end())
 		return it->second;
 	//not existed yet
-	GLint loc = glGetUniformLocation(programID, name.c_str());
+	GLuint loc = glGetUniformLocation(programID, name.c_str());
 	uniLocs.insert(make_pair(name, loc));
 	return loc;
 }
@@ -373,6 +394,37 @@ _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat4x4& no
 	return ProgDraw(*this, modelMat, normMat);
 }
 
+
+oglu::_oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
+{
+	Mat4x4 matModel = Mat4x4::identity(), matNorm = Mat4x4::identity();
+	for (topIT cur = begin; cur != end; ++cur)
+	{
+		const TransformOP& trans = *cur;
+		switch (trans.type)
+		{
+		case TransformType::Rotate:
+		{
+			const auto rMat = Mat4x4(Mat3x3::RotateMat(trans.vec));
+			matModel = rMat * matModel;
+			matNorm = rMat * matNorm;
+			break;
+		}
+		case TransformType::Translate:
+			matModel = Mat4x4::TranslateMat(trans.vec) * matModel;
+			break;
+		case TransformType::Scale:
+		{
+			const auto sMat = Mat4x4(Mat3x3::ScaleMat(trans.vec));
+			matModel = sMat * matModel;
+			if (trans.vec.x != trans.vec.y || trans.vec.x != trans.vec.z || trans.vec.y != trans.vec.z)
+				matNorm = sMat * matNorm;
+			break;
+		}
+		}
+	}
+	return ProgDraw(*this, matModel, matNorm);
+}
 
 void oglUtil::init()
 {

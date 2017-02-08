@@ -7,14 +7,6 @@
 namespace miniBLAS
 {
 
-Vec4 VECCALL operator+(const Vec4& left, const Vec4& right);
-Vec4 VECCALL operator-(const Vec4& left, const Vec4& right);
-Vec4 VECCALL operator*(const Vec4& left, const float& right);
-Vec4 VECCALL operator*(const Vec4& left, const Vec4& right);
-Vec4 VECCALL operator*(const float left, const Vec4& right);
-Vec4 VECCALL operator/(const Vec4& left, const float& right);
-Vec4 VECCALL operator/(const Vec4& left, const Vec4& right);
-
 /*vector contains 4 float*/
 class alignas(16) Vec4 :public Vec4Base<float>
 {
