@@ -7,6 +7,8 @@
 namespace miniBLAS
 {
 
+Vec4 VECCALL operator/(const Vec4& left, const float right);
+
 /*vector contains 4 float*/
 class alignas(16) Vec4 :public Vec4Base<float>
 {
@@ -242,7 +244,7 @@ inline Vec4 VECCALL operator-(const Vec4& left, const Vec4& right)
 #endif
 }
 
-inline Vec4 VECCALL operator*(const Vec4& left, const float& right)
+inline Vec4 VECCALL operator*(const Vec4& left, const float right)
 {
 #ifdef __SSE2__
 	return _mm_mul_ps(left, _mm_set1_ps(right));
@@ -265,7 +267,7 @@ inline Vec4 VECCALL operator*(const float left, const Vec4& right)
 	return right*left;
 }
 
-inline Vec4 VECCALL operator/(const Vec4& left, const float& right)
+inline Vec4 VECCALL operator/(const Vec4& left, const float right)
 {
 #ifdef __SSE2__
 	return _mm_div_ps(left, _mm_set1_ps(right));

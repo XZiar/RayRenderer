@@ -1,10 +1,13 @@
 #pragma once
 
-#define _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES 1
 #include <cmath>
 #include <string>
 #include "miniBLAS.hpp"
 
+#ifndef M_PI
+#   define M_PI 3.14159265358979323846   // pi
+#endif
 
 namespace b3d
 {
