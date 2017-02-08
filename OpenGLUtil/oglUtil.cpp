@@ -4,7 +4,6 @@
 
 namespace oglu
 {
-using std::forward;
 
 string _oglShader::loadFromFile(FILE * fp)
 {
@@ -53,17 +52,17 @@ OPResult<> _oglShader::compile()
 
 _oglBuffer::_oglBuffer(const BufferType _type) :bufferType(_type)
 {
-	glGenBuffers(1, &bID);
+	glGenBuffers(1, &bufferID);
 }
 
 _oglBuffer::~_oglBuffer()
 {
-	glDeleteBuffers(1, &bID);
+	glDeleteBuffers(1, &bufferID);
 }
 
 void _oglBuffer::write(const void * dat, const size_t size, const DrawMode mode)
 {
-	glBindBuffer((GLenum)bufferType, bID);
+	glBindBuffer((GLenum)bufferType, bufferID);
 	glBufferData((GLenum)bufferType, size, dat, (GLenum)mode);
 	glBindBuffer((GLenum)bufferType, 0);
 }
@@ -99,7 +98,7 @@ void _oglTexture::parseFormat(const TextureFormat format, GLint & intertype, GLe
 void _oglTexture::bind(const uint16_t pos) const
 {
 	glActiveTexture(GL_TEXTURE0 + pos);
-	glBindTexture((GLenum)type, tID);
+	glBindTexture((GLenum)type, textureID);
 }
 
 void _oglTexture::unbind() const
@@ -109,12 +108,12 @@ void _oglTexture::unbind() const
 
 _oglTexture::_oglTexture(const TextureType _type) : type(_type)
 {
-	glGenTextures(1, &tID);
+	glGenTextures(1, &textureID);
 }
 
 _oglTexture::~_oglTexture()
 {
-	glDeleteTextures(1, &tID);
+	glDeleteTextures(1, &textureID);
 }
 
 void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
@@ -140,7 +139,7 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
 	bind();
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buf->bID);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buf->bufferID);
 
 	GLint intertype;
 	GLenum datatype, comptype;
@@ -154,7 +153,7 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLuint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
 {
-	glBindBuffer((GLenum)vbo->bufferType, vbo->bID);
+	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
 	glEnableVertexAttribArray(attridx);//vertex attr index
 	glVertexAttribPointer(attridx, size, GL_FLOAT, GL_FALSE, stride, (void*)offset);
 	return *this;
@@ -171,7 +170,7 @@ _oglVAO::~_oglVAO()
 }
 
 
-_oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat) :prog(prog_)
+_oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat) :prog(prog_)
 {
 	_oglProgram::usethis(prog);
 	if (prog.Uni_mvpMat != GL_INVALID_INDEX)
@@ -179,11 +178,7 @@ _oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat
 		const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
 		prog.setMat(prog.Uni_mvpMat, mvpMat);
 	}
-	else
-	{
-		prog.setMat(prog.Uni_modelMat, modelMat);
-	}
-	prog.setMat(prog.Uni_normMat, normMat);
+	prog.setMat(prog.Uni_modelMat, modelMat);
 }
 
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const GLsizei size, const GLint offset)
@@ -247,7 +242,7 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUniform)[3], const string(&VertAttrName)[4], const uint8_t texcount)
+OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUniform)[3], const string(&VertAttrName)[4], const uint8_t texcount)
 {
 	glLinkProgram(programID);
 
@@ -271,8 +266,6 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[5], const string(&BasicUn
 		Uni_modelMat = getUniLoc(MatrixName[2]);
 	if (MatrixName[3] != "")//model-view-project-Matrix
 		Uni_mvpMat = getUniLoc(MatrixName[3]);
-	if (MatrixName[4] != "")//normalMatrix
-		Uni_normMat = getUniLoc(MatrixName[4]);
 
 	if (BasicUniform[0] != "")//textureUniform
 	{
@@ -355,18 +348,6 @@ void _oglProgram::setCamera(const Camera & cam)
 		glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
-void _oglProgram::setLight(const uint8_t id, const Light & light)
-{
-	glBindBuffer(GL_UNIFORM_BUFFER, ID_lgtVBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 96 * id, 96, &light);
-}
-
-void _oglProgram::setMaterial(const Material & mt)
-{
-	glBindBuffer(GL_UNIFORM_BUFFER, ID_mtVBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, 80, &mt);
-}
-
 void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
 {
 	auto& texMan = getTexMan();
@@ -389,41 +370,37 @@ void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
 	}
 }
 
-_oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat4x4& normMat)
+_oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat)
 {
-	return ProgDraw(*this, modelMat, normMat);
+	return ProgDraw(*this, modelMat);
 }
 
 
 oglu::_oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
 {
-	Mat4x4 matModel = Mat4x4::identity(), matNorm = Mat4x4::identity();
+	Mat4x4 matModel = Mat4x4::identity();
 	for (topIT cur = begin; cur != end; ++cur)
 	{
 		const TransformOP& trans = *cur;
 		switch (trans.type)
 		{
-		case TransformType::Rotate:
-		{
-			const auto rMat = Mat4x4(Mat3x3::RotateMat(trans.vec));
-			matModel = rMat * matModel;
-			matNorm = rMat * matNorm;
+		case TransformType::RotateXYZ:
+			matModel =  Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, trans.vec.z))) * 
+				Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, trans.vec.y))) * 
+				Mat4x4(Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, trans.vec.x))) * matModel;
 			break;
-		}
+		case TransformType::Rotate:
+			matModel = Mat4x4(Mat3x3::RotateMat(trans.vec)) * matModel;
+			break;
 		case TransformType::Translate:
 			matModel = Mat4x4::TranslateMat(trans.vec) * matModel;
 			break;
 		case TransformType::Scale:
-		{
-			const auto sMat = Mat4x4(Mat3x3::ScaleMat(trans.vec));
-			matModel = sMat * matModel;
-			if (trans.vec.x != trans.vec.y || trans.vec.x != trans.vec.z || trans.vec.y != trans.vec.z)
-				matNorm = sMat * matNorm;
+			matModel = Mat4x4(Mat3x3::ScaleMat(trans.vec)) * matModel;
 			break;
 		}
-		}
 	}
-	return ProgDraw(*this, matModel, matNorm);
+	return ProgDraw(*this, matModel);
 }
 
 void oglUtil::init()

@@ -15,7 +15,7 @@ TextureManager::TextureManager()
 
 uint8_t TextureManager::allocPos(const _oglProgram& prog, const oglTexture& tex)
 {
-	const auto tid = tex->tID;
+	const auto tid = tex->textureID;
 	const auto ret = mapcache.find(tid);
 	if (ret != mapcache.end())
 		return ret->second;
@@ -70,7 +70,7 @@ uint8_t TextureManager::bindTexture(const _oglProgram& prog, const oglTexture& t
 
 bool TextureManager::unbindTexture(const _oglProgram& prog, const oglTexture& tex)
 {
-	const auto tid = tex->tID;
+	const auto tid = tex->textureID;
 	const auto ret = mapcache.find(tid);
 	if (ret == mapcache.end())
 		return false;

@@ -59,7 +59,7 @@ public:
 	}
 };
 
-class GLUTVIEWAPI _FreeGLUTView : public NonCopyable
+class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public NonMovable
 {
 	friend class GLUTHacker;
 public:
@@ -67,7 +67,9 @@ public:
 	using FuncReshape = std::function<void(const int, const int)>;
 	using FuncKeyEvent = std::function<void(KeyEvent)>;
 	using FuncMouseEvent = std::function<void(MouseEvent)>;
+	using FuncTimer = std::function<bool()>;
 private:
+	uint8_t instanceID = UINT8_MAX;
 	int wdID;
 	int width, height;
 	int sx, sy, lx, ly;//record x/y, last x/y
@@ -77,6 +79,7 @@ private:
 	FuncReshape funReshape = nullptr;
 	FuncKeyEvent funKeyEvent = nullptr;
 	FuncMouseEvent funMouseEvent = nullptr;
+	FuncTimer funTimer = nullptr;
 	static void usethis(_FreeGLUTView& wd);
 	void display();
 	void reshape(const int w, const int h);
@@ -86,17 +89,19 @@ private:
 	void onWheel(int button, int dir, int x, int y);
 	void onMouse(int x, int y);
 	void onMouse(int button, int state, int x, int y);
+	void onTimer(const uint16_t lastms);
 public:
 	bool deshake = true;
 	_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_);
 	~_FreeGLUTView();
-
-	void setKeyEventlback(FuncKeyEvent funKey);
-	void setMouseEventlback(FuncMouseEvent funMouse);
+	uint8_t getWindowID();
+	void setKeyEventCallback(FuncKeyEvent funKey);
+	void setMouseEventCallback(FuncMouseEvent funMouse);
+	void setTimerCallback(FuncTimer funTime, const uint16_t ms);
 	void setTitle(const string& title);
 	void refresh();
 };
-using FreeGLUTView = Wrapper<_FreeGLUTView>;
+using FreeGLUTView = Wrapper<_FreeGLUTView, true>;
 
 GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720, const int x = 50, const int y = 50);
 GLUTVIEWAPI void FreeGLUTViewRun();

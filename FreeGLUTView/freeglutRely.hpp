@@ -3,12 +3,8 @@
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
 
-#include <commdlg.h>
-#include <conio.h>
+#include <cstdint>
 #include <cstdio>
-#include <locale>
-#include <vector>
-#include <thread>
 
 #ifndef _DEBUG
 #   define NDEBUG 1
@@ -25,6 +21,8 @@ class GLUTHacker final
 	friend class _FreeGLUTView;
 	static _FreeGLUTView* table[8];
 	static HGLRC rcs[8];
+	static HWND hwnds[8];
+	static WNDPROC oldWndProc;
 	static void makeshare(HGLRC rc, const uint8_t pos)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
@@ -33,16 +31,22 @@ class GLUTHacker final
 				wglShareLists(rcs[a], rc);
 		}
 	}
-	static void regist(_FreeGLUTView* view)
+	static uint8_t regist(_FreeGLUTView* view)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
+		{
 			if (table[a] == nullptr)
 			{
 				table[a] = view;
 				rcs[a] = wglGetCurrentContext();
+				const auto hdc = wglGetCurrentDC();
+				hwnds[a] = WindowFromDC(hdc);
+				oldWndProc = (WNDPROC)SetWindowLongPtr(hwnds[a], GWLP_WNDPROC, (intptr_t)&HackWndProc);
 				makeshare(rcs[a], a);
-				return;
+				return a;
 			}
+		}
+		return UINT8_MAX;
 	}
 	static void unregist(_FreeGLUTView* view)
 	{
@@ -87,6 +91,15 @@ class GLUTHacker final
 	static void onMouse2(int button, int state, int x, int y)
 	{
 		table[N]->onMouse(button, state, x, y);
+	}
+	static void onTimer(int value)
+	{
+		const uint8_t vid = value & UINT8_MAX;
+		table[vid]->onTimer(value / 256);
+	}
+	static void setTimer(_FreeGLUTView* view, const uint16_t ms)
+	{
+		glutTimerFunc(ms, onTimer, (ms * 256) + view->instanceID);
 	}
 	static void(*getDisplay(_FreeGLUTView* view))(void)
 	{
@@ -228,8 +241,15 @@ class GLUTHacker final
 			return onMouse2<7>;
 		return nullptr;
 	}
+
+	static LRESULT CALLBACK HackWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	{
+		return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
+	}
 };
 
 _FreeGLUTView* GLUTHacker::table[8] = { nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr };
 HGLRC GLUTHacker::rcs[8];
+HWND GLUTHacker::hwnds[8];
+WNDPROC GLUTHacker::oldWndProc;
 }

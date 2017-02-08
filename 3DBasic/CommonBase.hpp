@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <type_traits>
+//#include <type_traits>
 
 #ifdef COMMON_EXPORT
 #   define COMMONAPI _declspec(dllexport) 
@@ -23,8 +23,17 @@ struct COMMONAPI NonCopyable
 	NonCopyable& operator= (NonCopyable && other) = default;
 };
 
+struct COMMONAPI NonMovable
+{
+	NonMovable() { }
+	NonMovable(const NonMovable & other) = default;
+	NonMovable(NonMovable && other) = delete;
+	NonMovable& operator= (const NonMovable & other) = default;
+	NonMovable& operator= (NonMovable && other) = delete;
+};
 
-template<class T, bool isNonCopy = std::is_base_of<NonCopyable, T>::value>
+
+template<class T, bool isUnique>
 class COMMONTPL Wrapper;
 
 template<class T>
@@ -40,13 +49,13 @@ public:
 	{
 		release();
 	}
-	Wrapper(const Wrapper<T>& other) = delete;
-	Wrapper(Wrapper<T>&& other)
+	Wrapper(const Wrapper<T, true>& other) = delete;
+	Wrapper(Wrapper<T, true>&& other)
 	{
 		*this = std::move(other);
 	}
-	Wrapper& operator=(const Wrapper& other) = delete;
-	Wrapper& operator=(Wrapper&& other)
+	Wrapper& operator=(const Wrapper<T, true>& other) = delete;
+	Wrapper& operator=(Wrapper<T, true>&& other)
 	{
 		release();
 		instance = other.instance;
@@ -120,15 +129,15 @@ public:
 	{
 		release();
 	}
-	Wrapper(const Wrapper<T>& other)
+	Wrapper(const Wrapper<T, false>& other)
 	{
 		*this = other;
 	}
-	Wrapper(Wrapper<T>&& other)
+	Wrapper(Wrapper<T, false>&& other)
 	{
 		*this = std::move(other);
 	}
-	Wrapper& operator=(const Wrapper<T>& other)
+	Wrapper& operator=(const Wrapper<T, false>& other)
 	{
 		release();
 		cb = other.cb;
@@ -136,14 +145,14 @@ public:
 			cb->count++;
 		return *this;
 	}
-	Wrapper& operator=(Wrapper<T>&& other)
+	Wrapper& operator=(Wrapper<T, false>&& other)
 	{
 		release();
 		cb = other.cb;
 		other.cb = nullptr;
 		return *this;
 	}
-	bool operator==(const Wrapper<T>& other) const
+	bool operator==(const Wrapper<T, false>& other) const
 	{
 		return cb == other.cb;
 	}

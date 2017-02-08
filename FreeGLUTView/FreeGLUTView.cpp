@@ -1,5 +1,8 @@
 #include "FreeGLUTView.h"
 #include "freeglutRely.hpp"
+#include <commdlg.h>
+#include <conio.h>
+#include <vector>
 
 namespace glutview
 {
@@ -151,10 +154,21 @@ void _FreeGLUTView::onMouse(int button, int state, int x, int y)
 	}
 }
 
+void _FreeGLUTView::onTimer(const uint16_t lastms)
+{
+	if (funTimer == nullptr)
+		return;
+	const bool isCon = funTimer();
+	if (isCon)
+		GLUTHacker::setTimer(this, lastms);
+}
+
 _FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_) :funDisp(funDisp_), funReshape(funReshape_)
 {
 	wdID = glutCreateWindow("");
-	GLUTHacker::regist(this);
+	instanceID = GLUTHacker::regist(this);
+	if (instanceID == UINT8_MAX)
+		throw std::exception("exceed max window count limit");
 	usethis(*this);
 	funInit();
 	glutDisplayFunc(GLUTHacker::getDisplay(this));
@@ -173,14 +187,25 @@ _FreeGLUTView::~_FreeGLUTView()
 	GLUTHacker::unregist(this);
 }
 
-void _FreeGLUTView::setKeyEventlback(FuncKeyEvent funKey)
+uint8_t _FreeGLUTView::getWindowID()
+{
+	return instanceID;
+}
+
+void _FreeGLUTView::setKeyEventCallback(FuncKeyEvent funKey)
 {
 	funKeyEvent = funKey;
 }
 
-void _FreeGLUTView::setMouseEventlback(FuncMouseEvent funMouse)
+void _FreeGLUTView::setMouseEventCallback(FuncMouseEvent funMouse)
 {
 	funMouseEvent = funMouse;
+}
+
+void _FreeGLUTView::setTimerCallback(FuncTimer funTime, const uint16_t ms)
+{
+	funTimer = funTime;
+	GLUTHacker::setTimer(this, ms);
 }
 
 void _FreeGLUTView::setTitle(const string& title)

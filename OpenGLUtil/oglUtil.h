@@ -7,13 +7,9 @@
 #include <functional>
 #include <type_traits>
 #include <assert.h>
-#include <iterator>
-#include <algorithm>
 #include <vector>
 #include <map>
 #include <tuple>
-
-
 
 
 namespace oglu
@@ -30,9 +26,6 @@ using b3d::Vec4;
 using b3d::Mat3x3;
 using b3d::Mat4x4;
 using b3d::Camera;
-using b3d::Material;
-using b3d::Light;
-
 
 
 enum class ShaderType : GLenum
@@ -42,7 +35,7 @@ enum class ShaderType : GLenum
 	Compute = GL_COMPUTE_SHADER
 };
 
-class OGLUAPI _oglShader : public NonCopyable
+class OGLUAPI _oglShader : public NonCopyable, public NonMovable
 {
 private:
 	friend class _oglProgram;
@@ -53,13 +46,11 @@ private:
 public:
 	_oglShader(const ShaderType type, const string& txt);
 	_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, loadFromFile(fp)) { };
-	_oglShader(_oglShader &&) = default;
-	_oglShader & operator= (_oglShader &&) = default;
 	~_oglShader();
 
 	OPResult<> compile();
 };
-using oglShader = Wrapper<_oglShader>;
+using oglShader = Wrapper<_oglShader, true>;
 
 
 enum class BufferType : GLenum
@@ -72,21 +63,21 @@ enum class DrawMode : GLenum
 	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
 	DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
-class OGLUAPI _oglBuffer
+class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
 private:
 	friend class _oglVAO;
 	friend class oclu::_oclMem;
 	friend class _oglTexture;
 	BufferType bufferType;
-	GLuint bID = GL_INVALID_INDEX;
+	GLuint bufferID = GL_INVALID_INDEX;
 public:
 	_oglBuffer(const BufferType type);
 	~_oglBuffer();
 
 	void write(const void *, const size_t, const DrawMode = DrawMode::StaticDraw);
 };
-using oglBuffer = Wrapper<_oglBuffer>;
+using oglBuffer = Wrapper<_oglBuffer, false>;
 
 
 enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, };
@@ -96,32 +87,33 @@ enum class TextureFormat : GLenum
 };
 enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
 enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
-class OGLUAPI _oglTexture
+class OGLUAPI _oglTexture : public NonCopyable, public NonMovable
 {
 private:
 	friend class _oglProgram;
 	friend class TextureManager;
 	friend class oclu::_oclMem;
 	TextureType type;
-	GLuint tID = GL_INVALID_INDEX;
+	GLuint textureID = GL_INVALID_INDEX;
 	static void parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype);
 	void bind(const uint16_t pos = 0) const;
 	void unbind() const;
 public:
 	_oglTexture(const TextureType _type);
 	~_oglTexture();
+
 	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void *);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf);
 };
-using oglTexture = Wrapper<_oglTexture>;
+using oglTexture = Wrapper<_oglTexture, false>;
 
 
 enum class VAODrawMode : GLenum
 {
 	Triangles = GL_TRIANGLES
 };
-class OGLUAPI _oglVAO
+class OGLUAPI _oglVAO : public NonCopyable, public NonMovable
 {
 private:
 	friend class _oglProgram;
@@ -154,10 +146,10 @@ public:
 		return VAOPrep(*this);
 	}
 };
-using oglVAO = Wrapper<_oglVAO>;
+using oglVAO = Wrapper<_oglVAO, false>;
 
 
-enum class TransformType { Rotate, Translate, Scale };
+enum class TransformType { RotateXYZ, Rotate, Translate, Scale };
 struct alignas(Vec4) TransformOP : public AlignBase<>
 {
 	Vec4 vec;
@@ -165,7 +157,7 @@ struct alignas(Vec4) TransformOP : public AlignBase<>
 	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
 class TextureManager;
-class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public AlignBase<>
+class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, public AlignBase<>
 {
 private:
 	friend class TextureManager;
@@ -174,7 +166,7 @@ private:
 	private:
 		friend _oglProgram;
 		const _oglProgram& prog;
-		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat, const Mat4x4& normMat);
+		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat);
 	public:
 		void end()
 		{
@@ -192,21 +184,16 @@ private:
 	{
 		oglTexture tex;
 		GLuint tid;
-		TexPair(const oglTexture& tex_ = oglTexture()) :tex(tex_), tid(tex_ ? tex_->tID : UINT32_MAX) { }
+		TexPair(const oglTexture& tex_ = oglTexture()) :tex(tex_), tid(tex_ ? tex_->textureID : UINT32_MAX) { }
 	};
 	vector<TexPair> texs;
-	GLuint ID_lgtVBO, ID_mtVBO;
 	GLuint
 		Uni_projMat = GL_INVALID_INDEX,
 		Uni_viewMat = GL_INVALID_INDEX,
 		Uni_modelMat = GL_INVALID_INDEX,
 		Uni_mvpMat = GL_INVALID_INDEX,
-		Uni_normMat = GL_INVALID_INDEX,
-		Uni_camPos = GL_INVALID_INDEX;
-	GLuint
 		Uni_Texture = GL_INVALID_INDEX,
-		Uni_Light = GL_INVALID_INDEX,
-		Uni_Material = GL_INVALID_INDEX;
+		Uni_camPos = GL_INVALID_INDEX;
 	static TextureManager& getTexMan();
 	static bool usethis(const _oglProgram& programID, const bool change = true);
 	void setMat(const GLuint pos, const Mat4x4& mat) const;
@@ -222,20 +209,18 @@ public:
 
 	void addShader(oglShader && shader);
 	//
-	OPResult<> link(const string(&MatrixName)[5] = { "","","","","" }, const string(&BasicUniform)[3] = { "tex","","" },
+	OPResult<> link(const string(&MatrixName)[4] = { "","","","" }, const string(&BasicUniform)[3] = { "tex","","" },
 		const string(&VertAttrName)[4] = { "vertPos","","",""}, const uint8_t texcount = 16);
 	GLuint getAttrLoc(const string &);
 	GLuint getUniLoc(const string &);
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
-	void setLight(const uint8_t id, const Light &);
-	void setMaterial(const Material &);
 	void setTexture(const oglTexture& tex, const uint8_t pos);
-	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity(), const Mat4x4& normMat = Mat4x4::identity());
+	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
 	using topIT = vector_<TransformOP>::const_iterator;
 	ProgDraw draw(topIT begin, topIT end);
 };
-using oglProgram = Wrapper<_oglProgram>;
+using oglProgram = Wrapper<_oglProgram, true>;
 
 
 class OGLUAPI oglUtil
