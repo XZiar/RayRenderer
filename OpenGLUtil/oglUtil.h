@@ -1,5 +1,4 @@
 #pragma once
-
 #include "oglRely.h"
 #include <GL/glew.h>
 

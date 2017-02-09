@@ -25,6 +25,7 @@ void _FreeGLUTView::display()
 void _FreeGLUTView::reshape(const int w, const int h)
 {
 	width = w; height = h;
+	glViewport((w & 0x3f) / 2, (h & 0x3f) / 2, w & 0xffc0, h & 0xffc0);
 	if (funReshape != nullptr)
 		funReshape(w, h);
 	refresh();

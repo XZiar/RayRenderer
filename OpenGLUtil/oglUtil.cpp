@@ -310,9 +310,10 @@ GLuint _oglProgram::getUniLoc(const string & name)
 
 void _oglProgram::setProject(const Camera & cam, const int wdWidth, const int wdHeight)
 {
-	glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
-
-	assert(cam.aspect > std::numeric_limits<float>::epsilon());
+	//glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
+	//assert(cam.aspect > std::numeric_limits<float>::epsilon());
+	if (cam.aspect <= std::numeric_limits<float>::epsilon())
+		return;
 	const float cotHalfFovy = 1 / tan(b3d::ang2rad(cam.fovy / 2));
 	const float viewDepthNR = 1 / (cam.zNear - cam.zFar);
 	/*   cot(fovy/2)

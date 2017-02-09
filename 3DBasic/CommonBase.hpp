@@ -108,7 +108,7 @@ private:
 	struct ControlBlock
 	{
 		T *instance = nullptr;
-		uint32_t count = 0;
+		uint32_t count = 1;
 		ControlBlock(T *dat) :instance(dat) { }
 		~ControlBlock() { delete instance; }
 	};

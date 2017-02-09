@@ -43,7 +43,7 @@
 #      define __SSE2__ 1
 #   endif
 #endif
-#if !defined(__GNUC__) && defined(__SSE2__)
+#if !defined(__GNUC__) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)
 #   define VECCALL __vectorcall
 #else
 #   define VECCALL 

@@ -13,8 +13,11 @@
 #include <cstdio>
 #include <string>
 #include "../3DBasic/3dElement.hpp"
-#include "../OpenGLUtil/oglUtil.h"
-
+//#if defined(_MANAGED) || defined(_M_CEE)
+//#   include "../OpenGLUtil/ogluDeclare.h"
+//#else
+#   include "../OpenGLUtil/oglUtil.h"
+//#endif
 
 namespace rayr
 {

@@ -242,9 +242,6 @@ ModelManifest.xml
 .fake/
 
 # Project Exception
-OpenGLView/
-RayRendererGLUT/
-RenderCoreWrap/
-
+/RayRendererGLUT
 /GLUTTest
 /WinFormTest
