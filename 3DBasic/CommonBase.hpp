@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-//#include <type_traits>
 
 #ifdef COMMON_EXPORT
 #   define COMMONAPI _declspec(dllexport) 
@@ -16,7 +15,7 @@ namespace common
 
 struct COMMONAPI NonCopyable
 {
-	NonCopyable() { }
+	NonCopyable() = default;
 	NonCopyable(const NonCopyable & other) = delete;
 	NonCopyable(NonCopyable && other) = default;
 	NonCopyable& operator= (const NonCopyable & other) = delete;
@@ -25,7 +24,7 @@ struct COMMONAPI NonCopyable
 
 struct COMMONAPI NonMovable
 {
-	NonMovable() { }
+	NonMovable() = default;
 	NonMovable(const NonMovable & other) = default;
 	NonMovable(NonMovable && other) = delete;
 	NonMovable& operator= (const NonMovable & other) = default;

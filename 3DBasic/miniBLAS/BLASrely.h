@@ -5,6 +5,14 @@
 #include <cmath>
 #include <vector>
 
+#ifdef COMMON_EXPORT
+#   define COMMONAPI _declspec(dllexport) 
+#   define COMMONTPL _declspec(dllexport) 
+#else
+#   define COMMONAPI _declspec(dllimport) 
+#   define COMMONTPL
+#endif
+
 #ifdef __AVX2__
 #   define __AVX__ 1
 #endif
@@ -67,7 +75,7 @@ inline constexpr char* miniBLAS_intrin()
 }
 /*make struct's heap allocation align to N bytes boundary*/
 template<uint32_t N = 32>
-struct AlignBase
+struct COMMONTPL AlignBase
 {
 	void* operator new(size_t size)
 	{
