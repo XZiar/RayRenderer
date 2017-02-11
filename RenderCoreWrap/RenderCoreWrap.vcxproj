@@ -140,11 +140,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="b3d.h" />
+    <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
+    <ClCompile Include="b3d.cpp" />
     <ClCompile Include="RenderCoreWrap.cpp" />
   </ItemGroup>
   <ItemGroup>

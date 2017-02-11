@@ -210,11 +210,23 @@ void BasicTest::resize(const int w, const int h)
 	prog3D->setProject(cam, w, h);
 }
 
-void BasicTest::rfsData(const Vec4& rvec_, const Vec4& tvec_)
+void BasicTest::moveobj(const float x, const float y, const float z)
+{
+	tvec += Vec4(x, y, z, 0.0f);
+	rfsData();
+}
+
+void BasicTest::rotateobj(const float x, const float y, const float z)
+{
+	rvec += Vec4(x, y, z, 0.0f);
+	rfsData();
+}
+
+void BasicTest::rfsData()
 {
 	prog3D->setCamera(cam);
-	transf[0].vec /*= rvec*/ = rvec_;
-	transf[1].vec /*= tvec*/ = tvec_;
+	transf[0].vec = rvec;
+	transf[1].vec = tvec;
 }
 
 }

@@ -8,16 +8,11 @@
 #endif
 
 
-
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include "../3DBasic/3dElement.hpp"
-//#if defined(_MANAGED) || defined(_M_CEE)
-//#   include "../OpenGLUtil/ogluDeclare.h"
-//#else
-#   include "../OpenGLUtil/oglUtil.h"
-//#endif
+#include "../OpenGLUtil/oglUtil.h"
 
 namespace rayr
 {
@@ -35,7 +30,6 @@ private:
 	oglTexture picTex, mskTex;
 	oglBuffer picBuf, screenBox, testTri;
 	oglVAO picVAO, testVAO;
-	//Vec4 rvec, tvec;
 	vector_<TransformOP> transf;
 	void init2d(const string pname);
 	void init3d(const string pname);
@@ -43,10 +37,13 @@ private:
 public:
 	bool mode = true;
 	Camera cam;
+	Vec4 rvec, tvec;
 	BasicTest(const string sname2d = "", const string sname3d = "");
 	void draw();
 	void resize(const int w, const int h);
-	void rfsData(const Vec4& rvec_, const Vec4& tvec_);
+	void moveobj(const float x, const float y, const float z);
+	void rotateobj(const float x, const float y, const float z);
+	void rfsData();
 };
 
 }

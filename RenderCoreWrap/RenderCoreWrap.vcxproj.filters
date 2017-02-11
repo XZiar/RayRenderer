@@ -21,12 +21,21 @@
     <ClInclude Include="resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="RenderCoreRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="b3d.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RenderCoreWrap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="AssemblyInfo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="b3d.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

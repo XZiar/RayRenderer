@@ -23,7 +23,7 @@ enum class Key : uint8_t
 {
 	Space = ' ', ESC = 27, Enter = 13, Delete = 127, Backspace = 8,
 	F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-	Left, Right, Up, Down, Home, End, PageUp, PageDown, Insert,
+	Left, Up, Right, Down, Home, End, PageUp, PageDown, Insert,
 	ERROR = 255
 };
 class GLUTVIEWAPI KeyEvent
