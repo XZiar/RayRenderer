@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::Wrapper&lt;*&gt;,false">
+    <SmartPointer Usage="Minimal">cb->instance</SmartPointer>
+    <DisplayString Condition="cb == nullptr">empty</DisplayString>
+    <DisplayString Condition="cb != nullptr">{{{cb->count} ref, {cb->instance}}}</DisplayString>
+    <Expand>
+      <Item Condition="cb != nullptr" Name="[Control Block]">cb</Item>
+      <Item Condition="cb != nullptr" Name="[instance]">cb->instance</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::Wrapper&lt;*&gt;,true">
+    <SmartPointer Usage="Minimal">instance</SmartPointer>
+    <DisplayString Condition="instance == nullptr">empty</DisplayString>
+    <DisplayString Condition="instance != nullptr">{{{instance}}}</DisplayString>
+  </Type>
+  <Type Name="common::OPResult&lt;*&gt;">
+    <DisplayString Condition="isSuc == true">success</DisplayString>
+    <DisplayString Condition="isSuc != true">fail</DisplayString>
+  </Type>
+</AutoVisualizer>

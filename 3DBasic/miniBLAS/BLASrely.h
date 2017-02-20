@@ -148,6 +148,19 @@ struct AlignAllocator
 	}
 };
 
+template<class T, bool isAlign = std::is_base_of<miniBLAS::AlignBase<>, T>::value>
+class vector;
+
+template<class T>
+class vector<T, true> : public std::vector<T, miniBLAS::AlignAllocator<T>>
+{
+};
+
+template<class T>
+class vector<T, false> : public std::vector<T, std::allocator<T>>
+{
+};
+
 }
 
 
@@ -156,6 +169,5 @@ namespace std
 
 template<class T>
 using vector_ = vector<T, miniBLAS::AlignAllocator<T>>;
-
 
 }

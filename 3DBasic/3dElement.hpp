@@ -17,13 +17,13 @@ using miniBLAS::AlignBase;
 template<typename T>
 inline T ang2rad(T in)
 {
-	return in * static_cast<T>(M_PI / 180);
+	return static_cast<T>(in * M_PI / 180);
 }
 
 template<typename T>
 inline T rad2ang(T in)
 {
-	return in * static_cast<T>(180 / M_PI);
+	return static_cast<T>(in * 180 / M_PI);
 }
 
 class Coord2D
@@ -191,7 +191,7 @@ public:
 	{
 	}
 };
-constexpr int kg = sizeof(Triangle);
+
 
 class alignas(16) Light : public AlignBase<>
 {

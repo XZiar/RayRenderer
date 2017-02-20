@@ -30,6 +30,18 @@
     <ClInclude Include="ResourceHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="RenderCoreRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderElement.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Basic3DObject.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BasicTest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -41,6 +53,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ResourceHelper.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderElement.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Basic3DObject.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

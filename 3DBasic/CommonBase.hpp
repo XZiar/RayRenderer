@@ -61,6 +61,10 @@ public:
 		other.instance = nullptr;
 		return *this;
 	}
+	bool operator==(const Wrapper<T, true>& other) const
+	{
+		return instance == other.instance;
+	}
 
 	void release()
 	{
@@ -102,20 +106,22 @@ public:
 };
 
 template<class T>
+struct ControlBlock
+{
+	T *instance = nullptr;
+	uint32_t count = 1;
+	ControlBlock(T *dat) :instance(dat) { }
+	~ControlBlock() { delete instance; }
+};
+
+template<class T>
 class COMMONTPL Wrapper<T, false>
 {
 private:
-	struct ControlBlock
-	{
-		T *instance = nullptr;
-		uint32_t count = 1;
-		ControlBlock(T *dat) :instance(dat) { }
-		~ControlBlock() { delete instance; }
-	};
-	ControlBlock *cb = nullptr;;
+	ControlBlock<T> *cb = nullptr;;
 	void create(T* instance)
 	{
-		cb = new ControlBlock(instance);
+		cb = new ControlBlock<T>(instance);
 	}
 public:
 	Wrapper() : cb(nullptr) { }
@@ -135,6 +141,11 @@ public:
 	Wrapper(Wrapper<T, false>&& other)
 	{
 		*this = std::move(other);
+	}
+	template<class U, class = typename std::enable_if<std::is_base_of<T, U>::value>::type>
+	Wrapper(Wrapper<U, false>&& other)
+	{
+		*this = std::move(*(Wrapper<T, false>*)&other);
 	}
 	Wrapper& operator=(const Wrapper<T, false>& other)
 	{
@@ -161,10 +172,8 @@ public:
 		if (cb != nullptr)
 		{
 			if (!(--cb->count))
-			{
 				delete cb;
-				cb = nullptr;
-			}
+			cb = nullptr;
 		}
 	}
 
@@ -196,6 +205,25 @@ public:
 	{
 		return cb != nullptr;
 	}
+	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
+	operator Wrapper<U, false>()
+	{
+		return *(Wrapper<U, false>*)this;
+	}
+};
+
+
+template<class T = char>
+class COMMONTPL OPResult
+{
+private:
+	bool isSuc;
+public:
+	std::string msg;
+	T data;
+	OPResult(const bool isSuc_, const std::string& msg_ = "") :isSuc(isSuc_), msg(msg_) { }
+	OPResult(const bool isSuc_, const T& dat_, const std::string& msg_ = "") :isSuc(isSuc_), msg(msg_), data(dat_) { }
+	operator bool() { return isSuc; }
 };
 
 }

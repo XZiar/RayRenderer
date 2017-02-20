@@ -129,7 +129,11 @@
     <None Include="3d.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Basic3DObject.h" />
+    <ClInclude Include="BasicTest.h" />
     <ClInclude Include="RenderCore.h" />
+    <ClInclude Include="RenderCoreRely.h" />
+    <ClInclude Include="RenderElement.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ResourceHelper.h" />
   </ItemGroup>
@@ -137,7 +141,10 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Basic3DObject.cpp" />
+    <ClCompile Include="BasicTest.cpp" />
     <ClCompile Include="RenderCore.cpp" />
+    <ClCompile Include="RenderElement.cpp" />
     <ClCompile Include="ResourceHelper.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

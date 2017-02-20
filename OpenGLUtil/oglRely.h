@@ -19,25 +19,3 @@ namespace oclu
 {
 class _oclMem;
 }
-
-
-namespace oglu
-{
-
-using std::string;
-using namespace common;
-
-template<class T = char>
-class OGLUTPL OPResult
-{
-private:
-	bool isSuc;
-public:
-	string msg;
-	T data;
-	OPResult(const bool isSuc_, const string& msg_ = "") :isSuc(isSuc_), msg(msg_) { }
-	OPResult(const bool isSuc_, const T& dat_, const string& msg_ = "") :isSuc(isSuc_), msg(msg_), data(dat_) { }
-	operator bool() { return isSuc; }
-};
-
-}

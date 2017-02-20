@@ -34,4 +34,10 @@
       <UniqueIdentifier>{48c90d2d-65aa-4a0c-a700-84ed5c294ed7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="$(MSBuildThisFileDirectory)miniBLAS\miniBLAS.natvis">
+      <Filter>miniBLAS</Filter>
+    </Natvis>
+    <Natvis Include="$(MSBuildThisFileDirectory)CommonBase.natvis" />
+  </ItemGroup>
 </Project>

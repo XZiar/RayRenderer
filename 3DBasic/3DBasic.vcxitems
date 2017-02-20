@@ -26,4 +26,8 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS\VecBase.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)miniBLAS\VecI4.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="$(MSBuildThisFileDirectory)CommonBase.natvis" />
+    <Natvis Include="$(MSBuildThisFileDirectory)miniBLAS\miniBLAS.natvis" />
+  </ItemGroup>
 </Project>

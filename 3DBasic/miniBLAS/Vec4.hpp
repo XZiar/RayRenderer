@@ -206,6 +206,23 @@ public:
 	#endif
 	}
 
+	static Vec4 VECCALL zero()
+	{
+	#ifdef __SSE2__
+		return _mm_setzero_ps();
+	#else
+		return Vec4(0, 0, 0, 0);
+	#endif
+	}
+
+	static Vec4 VECCALL one()
+	{
+	#ifdef __SSE2__
+		return _mm_set1_ps(1);
+	#else
+		return Vec4(1, 1, 1, 1);
+	#endif
+	}
 };
 
 inline Vec4 VECCALL operator+(const Vec4& left, const float right)

@@ -14,8 +14,8 @@
 namespace oglu
 {
 using std::string;
-using std::vector;
-using std::vector_;
+using miniBLAS::vector;
+//using std::vector_;
 using std::tuple;
 using std::map;
 using std::function;
@@ -25,7 +25,7 @@ using b3d::Vec4;
 using b3d::Mat3x3;
 using b3d::Mat4x4;
 using b3d::Camera;
-
+using namespace common;
 
 enum class ShaderType : GLenum
 {
@@ -54,9 +54,10 @@ using oglShader = Wrapper<_oglShader, true>;
 
 enum class BufferType : GLenum
 {
-	Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER, Pixel = GL_PIXEL_UNPACK_BUFFER
+	Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER, 
+	Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER,
 };
-enum class DrawMode : GLenum
+enum class BufferWriteMode : GLenum
 {
 	StreamDraw = GL_STREAM_DRAW, StreamRead = GL_STREAM_READ, StreamCopy = GL_STREAM_COPY,
 	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
@@ -65,21 +66,24 @@ enum class DrawMode : GLenum
 class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
 private:
-	friend class _oglVAO;
 	friend class oclu::_oclMem;
 	friend class _oglTexture;
+	friend class _oglVAO;
+	friend class _oglProgram;
 	BufferType bufferType;
 	GLuint bufferID = GL_INVALID_INDEX;
+	void bind() const;
+	void unbind() const;
 public:
 	_oglBuffer(const BufferType type);
 	~_oglBuffer();
 
-	void write(const void *, const size_t, const DrawMode = DrawMode::StaticDraw);
+	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
 };
 using oglBuffer = Wrapper<_oglBuffer, false>;
 
 
-enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, };
+enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, TexBuf = GL_TEXTURE_BUFFER, };
 enum class TextureFormat : GLenum
 {
 	RGB = GL_RGB, RGBA = GL_RGBA, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F
@@ -94,6 +98,7 @@ private:
 	friend class oclu::_oclMem;
 	TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
+	oglBuffer innerBuf;
 	static void parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype);
 	void bind(const uint16_t pos = 0) const;
 	void unbind() const;
@@ -104,6 +109,7 @@ public:
 	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void *);
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf);
+	OPResult<> setBuffer(const TextureFormat format, const oglBuffer& tbo);
 };
 using oglTexture = Wrapper<_oglTexture, false>;
 
@@ -112,6 +118,7 @@ enum class VAODrawMode : GLenum
 {
 	Triangles = GL_TRIANGLES
 };
+enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 class OGLUAPI _oglVAO : public NonCopyable, public NonMovable
 {
 private:
@@ -120,8 +127,8 @@ private:
 	{
 	private:
 		friend class _oglVAO;
-		const _oglVAO& vao;
-		VAOPrep(const _oglVAO& vao_) :vao(vao_)
+		_oglVAO& vao;
+		VAOPrep(_oglVAO& vao_) :vao(vao_)
 		{
 			glBindVertexArray(vao.vaoID);
 		}
@@ -130,20 +137,24 @@ private:
 		{
 			glBindVertexArray(0);
 		}
-		/*-param  vbo buffer, vertex attr index, size(number), stride(number), offset(byte)
+		/*-param  vbo buffer, vertex attr index, stride(number), size(number), offset(byte)
 		 *Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
 		VAOPrep& set(const oglBuffer& vbo, const GLuint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
+		/*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
+		VAOPrep& set(const oglBuffer& vbo, const GLuint(&attridx)[3], const GLint offset);
+		VAOPrep& setIndex(const oglBuffer& vbo, const IndexSize idxSize);
 	};
 	VAODrawMode vaoMode;
 	GLuint vaoID = GL_INVALID_INDEX;
+	oglBuffer index;
+	IndexSize indexType;
+	uint16_t offset, size;
 public:
 	_oglVAO(const VAODrawMode);
 	~_oglVAO();
 
-	VAOPrep prepare()
-	{
-		return VAOPrep(*this);
-	}
+	VAOPrep prepare();
+	void setDrawSize(const uint16_t offset_, const uint16_t size_);
 };
 using oglVAO = Wrapper<_oglVAO, false>;
 
@@ -173,6 +184,7 @@ private:
 		/*draw vao
 		*-param vao, size, offset*/
 		ProgDraw& draw(const oglVAO& vao, const GLsizei size, const GLint offset = 0);
+		ProgDraw& draw(const oglVAO& vao);
 	};
 	
 	GLuint programID = GL_INVALID_INDEX;
@@ -216,7 +228,7 @@ public:
 	void setCamera(const Camera &);
 	void setTexture(const oglTexture& tex, const uint8_t pos);
 	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
-	using topIT = vector_<TransformOP>::const_iterator;
+	using topIT = vector<TransformOP>::const_iterator;
 	ProgDraw draw(topIT begin, topIT end);
 };
 using oglProgram = Wrapper<_oglProgram, true>;
@@ -226,6 +238,7 @@ class OGLUAPI oglUtil
 {
 public:
 	static void init();
+	static string getVersion();
 	static OPResult<GLenum> getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
 	static OPResult<string> loadShader(oglProgram& prog, const string& fname);
