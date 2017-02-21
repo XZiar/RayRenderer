@@ -5,7 +5,7 @@ namespace rayr
 
 
 
-std::vector<uint16_t> Sphere::CreateSphere(std::vector<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
+vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
 {
 	const float rstep = 1.0f / (rings - 1);
 	const float sstep = 1.0f / (sectors - 1);
@@ -26,7 +26,7 @@ std::vector<uint16_t> Sphere::CreateSphere(std::vector<Point>& pts, const float 
 			pts.push_back(pt);
 		}
 	}
-	std::vector<uint16_t> indexs;
+	vector<uint16_t> indexs;
 	indexs.reserve(rings*sectors * 6);
 	for (uint16_t r = 0; r < rings - 1; r++)
 	{
@@ -48,7 +48,6 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 {
 	static DrawableHelper helper("Sphere");
 	helper.InitDrawable(this);
-	using std::vector;
 	vector<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
@@ -64,6 +63,111 @@ void Sphere::prepareGL(const GLuint(&attrLoc)[3])
 	vao->prepare().set(vbo, attrLoc, 0)
 		.setIndex(ebo, oglu::IndexSize::Short)//index draw
 		.end();
+}
+
+
+/*
+ *      v4-------v7
+ *      /:       /|
+ *     / :      / |
+ *   v0--:----v3  |
+ *    | v5-----|-v6
+ *    | /      | /
+ *    |/       |/
+ *   v1-------v2
+ *
+ **/
+const Point Box::basePts[] = 
+{ 
+	{ { +0.5f,+0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
+	{ { +0.5f,-0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 0.0f } },//v2
+	{ { +0.5f,-0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
+	{ { +0.5f,+0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
+	{ { +0.5f,-0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
+	{ { +0.5f,+0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 0.0f } },//v7
+
+	{ { -0.5f,+0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
+	{ { -0.5f,-0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } },//v5
+	{ { -0.5f,-0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
+	{ { -0.5f,+0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
+	{ { -0.5f,-0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
+	{ { -0.5f,+0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f } },//v0
+
+	{ { -0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
+	{ { -0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f, 2.0f } },//v0
+	{ { +0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
+	{ { -0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
+	{ { +0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
+	{ { +0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 1.0f, 2.0f } },//v7
+
+	{ { -0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
+	{ { -0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 3.0f } },//v5
+	{ { +0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
+	{ { -0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
+	{ { +0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
+	{ { +0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 1.0f, 3.0f } },//v2
+
+	{ { -0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
+	{ { -0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 0.0f, 4.0f } },//v1
+	{ { +0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
+	{ { -0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
+	{ { +0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
+	{ { +0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 1.0f, 4.0f } },//v3
+
+	{ { +0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
+	{ { +0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 0.0f, 5.0f } },//v6
+	{ { -0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
+	{ { +0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
+	{ { -0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
+	{ { -0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
+};
+
+Box::Box(const float length, const float height, const float width)
+{
+	static DrawableHelper helper("Box");
+	helper.InitDrawable(this);
+	size = Vec3(length, height, width);
+	vector<Point> pts;
+	pts.assign(basePts, basePts + 36);
+	for (auto& pt : pts)
+		pt.pos *= size;
+	vbo.reset(oglu::BufferType::Array);
+	vbo->write(pts.data(), pts.size() * sizeof(Point));
+	vao.reset(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, 36);
+}
+
+void Box::prepareGL(const GLuint(&attrLoc)[3])
+{
+	vao->prepare().set(vbo, attrLoc[0], sizeof(Point), 3, 0)
+		.set(vbo, attrLoc[1], sizeof(Point), 3, 16)
+		.set(vbo, attrLoc[2], sizeof(Point), 3, 32)
+		.end();
+}
+
+
+Plane::Plane(const float len, const float texRepeat)
+{
+	static DrawableHelper helper("Plane");
+	helper.InitDrawable(this);
+	vbo.reset(oglu::BufferType::Array);
+	const Point pts[] =
+	{
+		{ { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, texRepeat } },//v4
+		{ { -len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f } },//v0
+		{ { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
+		{ { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, texRepeat } },//v4
+		{ { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
+		{ { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, texRepeat } },//v7
+	};
+	vbo->write(pts, sizeof(pts));
+	vao.reset(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, 6);
+}
+
+void Plane::prepareGL(const GLuint(&attrLoc)[3])
+{
+	vao->prepare().set(vbo, attrLoc, 0).end();
 }
 
 }

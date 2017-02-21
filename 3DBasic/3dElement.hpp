@@ -176,13 +176,16 @@ class alignas(16) Point : public AlignBase<>
 public:
 	Vec3 pos;
 	Normal norm;
-	Coord2D tcoord;
-	float dummy[2];
+	union
+	{
+		Coord2D tcoord;
+		Vec3 tcoord3;
+	};
 
 	Point() { };
 	Point(const Vec3 &v, const Normal &n, const Coord2D &t) : pos(v), norm(n), tcoord(t) { };
+	Point(const Vec3 &v, const Normal &n, const Vec3 &t3) : pos(v), norm(n), tcoord3(t3) { };
 };
-//constexpr int k = sizeof(Point);
 
 struct alignas(32) Triangle : public AlignBase<>
 {

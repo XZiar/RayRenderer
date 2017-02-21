@@ -189,8 +189,8 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLuint(&attr
 	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
 	glEnableVertexAttribArray(attridx[0]);//VertPos
 	glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)offset);
-	//glEnableVertexAttribArray(attridx[1]);//VertNorm
-	//glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 16));
+	glEnableVertexAttribArray(attridx[1]);//VertNorm
+	glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 16));
 	glEnableVertexAttribArray(attridx[2]);//TexPos
 	glVertexAttribPointer(attridx[2], 2, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 32));
 	return *this;

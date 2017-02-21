@@ -34,6 +34,8 @@ public:
 	void moveobj(const float x, const float y, const float z);
 	void rotateobj(const float x, const float y, const float z);
 	void rfsData();
+	uint16_t objectCount() const;
+	void showObject(uint16_t objIdx) const;
 };
 
 }

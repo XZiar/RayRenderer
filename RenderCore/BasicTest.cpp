@@ -149,13 +149,24 @@ void BasicTest::init3d(const string pname)
 	prog3D->setCamera(cam);
 	transf.push_back({ Vec4(true),TransformType::RotateXYZ });
 	transf.push_back({ Vec4(true),TransformType::Translate });
-	Wrapper<Sphere, false> ball(0.75f);
-	ball->position = { 1,0,0,0 };
-	drawables.push_back(ball);
-	const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
-	for (auto& d : drawables)
 	{
-		d->prepareGL(attrs);
+		Wrapper<Sphere, false> ball(0.75f);
+		ball->name = "Ball";
+		ball->position = { 1,0,0,0 };
+		drawables.push_back(ball);
+		Wrapper<Box, false> box(0.5f, 1.0f, 2.0f);
+		box->name = "Box";
+		box->position = { 0,1,0,0 };
+		drawables.push_back(box);
+		Wrapper<Plane, false> ground(500.0f, 50.0f);
+		ground->name = "Ground";
+		ground->position = { 0,-2,0,0 };
+		drawables.push_back(ground);
+		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
+		for (auto& d : drawables)
+		{
+			d->prepareGL(attrs);
+		}
 	}
 }
 
@@ -224,9 +235,12 @@ void BasicTest::draw()
 		transf[0].vec = rvec; transf[1].vec = tvec;
 		prog3D->draw(transf.begin(), transf.end()).draw(testVAO);
 		prog3D->setTexture(picTex, 0);
-		transf[0].vec = drawables[0]->rotation;
-		transf[1].vec = drawables[0]->position;
-		prog3D->draw(transf.begin(), transf.end()).draw(drawables[0]->vao);
+		for (const auto& d : drawables)
+		{
+			transf[0].vec = d->rotation;
+			transf[1].vec = d->position;
+			prog3D->draw(transf.begin(), transf.end()).draw(d->vao);
+		}
 	}
 	else
 	{
@@ -258,6 +272,17 @@ void BasicTest::rfsData()
 	prog3D->setCamera(cam);
 	transf[0].vec = rvec;
 	transf[1].vec = tvec;
+}
+
+uint16_t BasicTest::objectCount() const
+{
+	return (uint16_t)drawables.size();
+}
+
+void BasicTest::showObject(uint16_t objIdx) const
+{
+	const auto& d = drawables[objIdx];
+	printf("@@Drawable %d:\t %s  [%s]\n", objIdx, d->name.c_str(), DrawableHelper::getType(*d).c_str());
 }
 
 }

@@ -197,6 +197,15 @@ public:
 	{
 		return cb->instance;
 	}
+	T& operator* ()
+	{
+		return *cb->instance;
+	}
+	const T& operator* () const
+	{
+		return *cb->instance;
+	}
+
 	operator bool()
 	{
 		return cb != nullptr;
