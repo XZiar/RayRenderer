@@ -139,15 +139,25 @@ public:
 	Mat4x4() :miniBLAS::Mat4x4() { }
 	Mat4x4(const miniBLAS::Mat3x3& m) :miniBLAS::Mat4x4(m, true) { }
 	Mat4x4(const miniBLAS::Mat4x4& m) :miniBLAS::Mat4x4(m) { }
+	/*pure translate(translata DOT identity-rotate)*/
 	static Mat4x4 TranslateMat(const Vec3& tv)
 	{
 		static Mat4x4 idmat = miniBLAS::Mat4x4::identity();
-		return TranslateMat(tv, idmat);
+		return TranslateMat(idmat, tv);
 	}
-	static Mat4x4 TranslateMat(const Vec3& tv, const Mat4x4& rMat)
+	/*translate DOT rotate*/
+	static Mat4x4 TranslateMat(const Mat4x4& rMat, const Vec3& tv)
 	{
-		Mat4x4 tMat = rMat;
+		Mat4x4 tMat(rMat);
 		tMat.x.w = tv.x, tMat.y.w = tv.y, tMat.z.w = tv.z;
+		return tMat;
+	}
+	/*rotate DOT translate*/
+	static Mat4x4 TranslateMat(const Vec3& tv, const Mat3x3& rMat)
+	{
+		const auto rtv = rMat * tv;
+		Mat4x4 tMat(rMat);
+		tMat.x.w = rtv.x, tMat.y.w = rtv.y, tMat.z.w = rtv.z;
 		return tMat;
 	}
 };
@@ -270,7 +280,7 @@ public:
 	}
 };
 
-class alignas(16) Camera : public AlignBase<>
+class alignas(32) Camera : public AlignBase<>
 {
 protected:
 	void rotate(const Mat3x3& rMat)
@@ -280,7 +290,14 @@ protected:
 		n = rMat * n;
 	}
 public:
-	Normal u, v, n;//to right,up,toward
+	union
+	{
+		Mat3x3 camMat;
+		struct
+		{
+			Normal u, v, n;//to right,up,toward
+		};
+	};
 	Vec3 position;
 	int width, height;
 	float fovy, aspect, zNear, zFar;
@@ -290,7 +307,7 @@ public:
 		aspect = (float)w / h;
 		fovy = 45.0f, zNear = 1.0f, zFar = 100.0f;
 
-		position = Vec3(0, 4, 15);
+		position = Vec3(0, 0, 10);
 		u = Vec3(1, 0, 0);
 		v = Vec3(0, 1, 0);
 		n = Vec3(0, 0, -1);
@@ -302,7 +319,7 @@ public:
 	}
 	void move(const float &x, const float &y, const float &z)
 	{
-		position += Vec3(x, y, -z);
+		position += camMat * Vec3(x, y, z);
 	}
 	//rotate along x-axis
 	void pitch(const float angx)

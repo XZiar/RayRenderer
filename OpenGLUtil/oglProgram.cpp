@@ -163,24 +163,24 @@ void _oglProgram::setProject(const Camera & cam, const int wdWidth, const int wd
 	if (cam.aspect <= std::numeric_limits<float>::epsilon())
 		return;
 	const float cotHalfFovy = 1 / tan(b3d::ang2rad(cam.fovy / 2));
-	const float viewDepthNR = 1 / (cam.zNear - cam.zFar);
+	const float viewDepthR = 1 / (cam.zFar - cam.zNear);
 	/*   cot(fovy/2)
-	*  -------------		0			0			0
+	*  -------------		0		   0			0
 	*     aspect
 	*
-	*       0         cot(fovy/2)		0			0
+	*       0         cot(fovy/2)	   0			0
 	*
-	*								   F+N         2*F*N
-	*       0              0		- -----		- -------
-	*								   F-N          F-N
+	*								  F+N         2*F*N
+	*       0              0		 -----	   - -------
+	*								  F-N          F-N
 	*
-	*       0              0          -1			0
+	*       0              0           1			0
 	*
 	**/
 	matrix_Proj = Mat4x4(Vec4(cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f),
 		Vec4(0.f, cotHalfFovy, 0.f, 0.f),
-		Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthNR, (2 * cam.zFar * cam.zNear) * viewDepthNR),
-		Vec4(0.f, 0.f, -1.f, 0.f));
+		Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthR, (-2 * cam.zFar * cam.zNear) * viewDepthR),
+		Vec4(0.f, 0.f, 1.f, 0.f));
 
 	setMat(Uni_projMat, matrix_Proj);
 }
@@ -189,8 +189,8 @@ void _oglProgram::setCamera(const Camera & cam)
 {
 	//LookAt
 	//matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
-	const auto rMat = Mat3x3(cam.u, cam.v, cam.n * -1).inved();
-	matrix_View = Mat4x4(rMat) * Mat4x4::TranslateMat(cam.position * -1);
+	const auto rMat = cam.camMat.inv();
+	matrix_View = Mat4x4::TranslateMat(cam.position * -1, rMat);
 
 	setMat(Uni_viewMat, matrix_View);
 	if (Uni_camPos != GL_INVALID_INDEX)

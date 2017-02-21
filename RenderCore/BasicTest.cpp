@@ -119,6 +119,7 @@ void BasicTest::init3d(const string pname)
 	testVAO.reset(VAODrawMode::Triangles);
 	testTri.reset(BufferType::Array);
 	triIdx.reset(BufferType::Element);
+	if(true)
 	{
 		const Point pa({ 0.0f,2.0f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
 			pb({ 1.155f,0.0f,-1.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
@@ -133,11 +134,22 @@ void BasicTest::init3d(const string pname)
 		testVAO->prepare().set(testTri, attrs, 0).setIndex(triIdx, IndexSize::Byte).end();
 		testVAO->setDrawSize(0, 12);
 	}
+	else
+	{
+		const Point pa({ -0.5f,0.5f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
+			pb({ -0.5f,-0.5f,0.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
+			pc({ 0.5f,-0.5f,0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f });
+		Point DatVert[] = { pa,pb,pc };
+		testTri->write(DatVert, sizeof(DatVert));
+		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
+		testVAO->prepare().set(testTri, attrs, 0).end();
+		testVAO->setDrawSize(0, 3);
+	}
 	cam.position = Vec3(0.0f, 0.0f, 4.0f);
 	prog3D->setCamera(cam);
 	transf.push_back({ Vec4(true),TransformType::RotateXYZ });
 	transf.push_back({ Vec4(true),TransformType::Translate });
-	Wrapper<Sphere, false> ball(1.0f);
+	Wrapper<Sphere, false> ball(0.75f);
 	ball->position = { 1,0,0,0 };
 	drawables.push_back(ball);
 	const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
@@ -209,9 +221,12 @@ void BasicTest::draw()
 	if (mode)
 	{
 		prog3D->setTexture(mskTex, 0);
+		transf[0].vec = rvec; transf[1].vec = tvec;
 		prog3D->draw(transf.begin(), transf.end()).draw(testVAO);
 		prog3D->setTexture(picTex, 0);
-		prog3D->draw().draw(drawables[0]->vao);
+		transf[0].vec = drawables[0]->rotation;
+		transf[1].vec = drawables[0]->position;
+		prog3D->draw(transf.begin(), transf.end()).draw(drawables[0]->vao);
 	}
 	else
 	{

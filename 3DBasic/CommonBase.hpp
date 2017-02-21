@@ -206,7 +206,12 @@ public:
 		return cb != nullptr;
 	}
 	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
-	operator Wrapper<U, false>()
+	operator Wrapper<U, false>&()
+	{
+		return *(Wrapper<U, false>*)this;
+	}
+	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
+	operator const Wrapper<U, false>&() const
 	{
 		return *(Wrapper<U, false>*)this;
 	}

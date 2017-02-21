@@ -11,9 +11,11 @@ std::vector<uint16_t> Sphere::CreateSphere(std::vector<Point>& pts, const float 
 	const float sstep = 1.0f / (sectors - 1);
 	pts.clear();
 	pts.reserve(rings*sectors);
-	for (float r = 0; r < 1; r += rstep)
+	uint16_t rcnt = rings, scnt = sectors;
+	for (float r = 0; rcnt--; r += rstep)
 	{
-		for (float s = 0; s < 1; s += sstep)
+		scnt = sectors;
+		for (float s = 0; scnt--; s += sstep)
 		{
 			const auto x = cos(2 * M_PI * s) * sin(M_PI * r);
 			const auto y = sin(M_PI * r - M_PI / 2);
@@ -54,7 +56,7 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 	ebo.reset(oglu::BufferType::Element);
 	ebo->write(indexs.data(), indexs.size() * sizeof(uint16_t));
 	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, indexs.size());
+	vao->setDrawSize(0, (uint16_t)indexs.size());
 }
 
 void Sphere::prepareGL(const GLuint(&attrLoc)[3])

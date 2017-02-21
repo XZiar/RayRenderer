@@ -12,7 +12,7 @@ using miniBLAS::AlignBase;
 using std::string;
 
 
-class RAYCOREAPI alignas(16) BasicTest : public NonMovable, public NonCopyable, public AlignBase<>
+class RAYCOREAPI alignas(32) BasicTest : public NonMovable, public NonCopyable, public AlignBase<>
 {
 private:
 	oglProgram prog2D, prog3D;
