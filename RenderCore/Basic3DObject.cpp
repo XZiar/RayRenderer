@@ -46,7 +46,7 @@ vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, co
 
 Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 {
-	static DrawableHelper helper("Sphere");
+	static DrawableHelper helper(L"Sphere");
 	helper.InitDrawable(this);
 	vector<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
@@ -124,7 +124,7 @@ const Point Box::basePts[] =
 
 Box::Box(const float length, const float height, const float width)
 {
-	static DrawableHelper helper("Box");
+	static DrawableHelper helper(L"Box");
 	helper.InitDrawable(this);
 	size = Vec3(length, height, width);
 	vector<Point> pts;
@@ -148,7 +148,7 @@ void Box::prepareGL(const GLuint(&attrLoc)[3])
 
 Plane::Plane(const float len, const float texRepeat)
 {
-	static DrawableHelper helper("Plane");
+	static DrawableHelper helper(L"Plane");
 	helper.InitDrawable(this);
 	vbo.reset(oglu::BufferType::Array);
 	const Point pts[] =

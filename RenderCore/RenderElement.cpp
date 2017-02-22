@@ -5,22 +5,22 @@ namespace rayr
 
 
 
-vector<string> DrawableHelper::typeMap;
-DrawableHelper::DrawableHelper(string name)
+vector<wstring> DrawableHelper::typeMap;
+DrawableHelper::DrawableHelper(const wstring& name)
 {
 	typeMap.push_back(name);
 	id = typeMap.size() - 1;
 #ifdef _DEBUG
-	printf("@@@@regist Drawable %s with id %d\n", name.c_str(), id);
+	printf("@@@@regist Drawable %ls with id %d\n", name.c_str(), id);
 #endif
 }
 
-void DrawableHelper::InitDrawable(Drawable *d)
+void DrawableHelper::InitDrawable(Drawable *d) const
 {
 	d->drawableID = id;
 }
 
-string DrawableHelper::getType(const Drawable& d)
+wstring DrawableHelper::getType(const Drawable& d)
 {
 	return typeMap[d.drawableID];
 }

@@ -5,7 +5,7 @@
 namespace rayr
 {
 
-static string getShaderFromDLL(int32_t id)
+static std::string getShaderFromDLL(int32_t id)
 {
 	std::vector<uint8_t> data;
 	if (ResourceHelper::getData(data, L"SHADER", id) != ResourceHelper::Result::Success)
@@ -24,10 +24,10 @@ struct Init
 };
 
 
-void BasicTest::init2d(const string pname)
+void BasicTest::init2d(const wstring pname)
 {
 	prog2D.reset();
-	if(pname == "")
+	if(pname == L"")
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_2DVERT));
 		auto ret = vert->compile();
@@ -35,7 +35,7 @@ void BasicTest::init2d(const string pname)
 			prog2D->addShader(std::move(vert));
 		else
 		{
-			printf("ERROR on Vertex Shader Compiler:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Vertex Shader Compiler:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_2DFRAG));
@@ -44,7 +44,7 @@ void BasicTest::init2d(const string pname)
 			prog2D->addShader(std::move(frag));
 		else
 		{
-			printf("ERROR on Fragment Shader Compiler:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Fragment Shader Compiler:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 	}
@@ -53,7 +53,7 @@ void BasicTest::init2d(const string pname)
 		auto ret = oglUtil::loadShader(prog2D, pname);
 		if (!ret)
 		{
-			printf("%s\n%s\n", ret.msg.c_str(), ret.data.c_str());
+			printf("%ls\n%ls\n", ret.msg.c_str(), ret.data.c_str());
 			getchar();
 		}
 	}
@@ -61,7 +61,7 @@ void BasicTest::init2d(const string pname)
 		auto ret = prog2D->link();
 		if (!ret)
 		{
-			printf("ERROR on Program Linker:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 	}
@@ -75,10 +75,10 @@ void BasicTest::init2d(const string pname)
 	}
 }
 
-void BasicTest::init3d(const string pname)
+void BasicTest::init3d(const wstring pname)
 {
 	prog3D.reset();
-	if (pname == "")
+	if (pname == L"")
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_3DVERT));
 		auto ret = vert->compile();
@@ -86,7 +86,7 @@ void BasicTest::init3d(const string pname)
 			prog3D->addShader(std::move(vert));
 		else
 		{
-			printf("ERROR on Vertex Shader Compiler:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Vertex Shader Compiler:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_3DFRAG));
@@ -95,7 +95,7 @@ void BasicTest::init3d(const string pname)
 			prog3D->addShader(std::move(frag));
 		else
 		{
-			printf("ERROR on Fragment Shader Compiler:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Fragment Shader Compiler:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 	}
@@ -104,7 +104,7 @@ void BasicTest::init3d(const string pname)
 		auto ret = oglUtil::loadShader(prog3D, pname);
 		if (!ret)
 		{
-			printf("%s\n%s\n", ret.msg.c_str(), ret.data.c_str());
+			printf("%ls\n%ls\n", ret.msg.c_str(), ret.data.c_str());
 			getchar();
 		}
 	}
@@ -112,7 +112,7 @@ void BasicTest::init3d(const string pname)
 		auto ret = prog3D->link({ "matProj","matView","matModel","matMVP" }, { "tex","","" }, { "vertPos","vertNorm","texPos","" });
 		if (!ret)
 		{
-			printf("ERROR on Program Linker:\n%s\n", ret.msg.c_str());
+			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 	}
@@ -151,15 +151,15 @@ void BasicTest::init3d(const string pname)
 	transf.push_back({ Vec4(true),TransformType::Translate });
 	{
 		Wrapper<Sphere, false> ball(0.75f);
-		ball->name = "Ball";
+		ball->name = L"Ball";
 		ball->position = { 1,0,0,0 };
 		drawables.push_back(ball);
 		Wrapper<Box, false> box(0.5f, 1.0f, 2.0f);
-		box->name = "Box";
+		box->name = L"Box";
 		box->position = { 0,1,0,0 };
 		drawables.push_back(box);
 		Wrapper<Plane, false> ground(500.0f, 50.0f);
-		ground->name = "Ground";
+		ground->name = L"Ground";
 		ground->position = { 0,-2,0,0 };
 		drawables.push_back(ground);
 		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
@@ -216,7 +216,7 @@ void BasicTest::initTex()
 	}
 }
 
-BasicTest::BasicTest(const string sname2d, const string sname3d)
+BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
 	init2d(sname2d);
@@ -282,7 +282,7 @@ uint16_t BasicTest::objectCount() const
 void BasicTest::showObject(uint16_t objIdx) const
 {
 	const auto& d = drawables[objIdx];
-	printf("@@Drawable %d:\t %s  [%s]\n", objIdx, d->name.c_str(), DrawableHelper::getType(*d).c_str());
+	printf("@@Drawable %d:\t %ls  [%ls]\n", objIdx, d->name.c_str(), DrawableHelper::getType(*d).c_str());
 }
 
 }

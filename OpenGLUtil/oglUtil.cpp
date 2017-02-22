@@ -164,9 +164,9 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 OPResult<> _oglTexture::setBuffer(const TextureFormat format, const oglBuffer& tbo)
 {
 	if (type != TextureType::TexBuf)
-		return OPResult<>(false, "Texture is not TextureBuffer");
+		return OPResult<>(false, L"Texture is not TextureBuffer");
 	if(tbo->bufferType != BufferType::Texture)
-		return OPResult<>(false, "Buffer is not TextureBuffer");
+		return OPResult<>(false, L"Buffer is not TextureBuffer");
 	bind();
 	glTexBuffer(GL_TEXTURE_BUFFER, (GLenum)format, tbo->bufferID);
 	innerBuf = tbo;
@@ -243,34 +243,34 @@ OPResult<GLenum> oglUtil::getError()
 	switch (err)
 	{
 	case GL_NO_ERROR:
-		return OPResult<GLenum>(true, err, "GL_NO_ERROR");
+		return OPResult<GLenum>(true, L"GL_NO_ERROR", err);
 	case GL_INVALID_ENUM:
-		return OPResult<GLenum>(false, err, "GL_INVALID_ENUM");
+		return OPResult<GLenum>(false, L"GL_INVALID_ENUM", err);
 	case GL_INVALID_VALUE:
-		return OPResult<GLenum>(false, err, "GL_INVALID_VALUE");
+		return OPResult<GLenum>(false, L"GL_INVALID_VALUE", err);
 	case GL_INVALID_OPERATION:
-		return OPResult<GLenum>(false, err, "GL_INVALID_OPERATION");
+		return OPResult<GLenum>(false, L"GL_INVALID_OPERATION", err);
 	case GL_INVALID_FRAMEBUFFER_OPERATION:
-		return OPResult<GLenum>(false, err, "GL_INVALID_FRAMEBUFFER_OPERATION");
+		return OPResult<GLenum>(false, L"GL_INVALID_FRAMEBUFFER_OPERATION", err);
 	case GL_OUT_OF_MEMORY:
-		return OPResult<GLenum>(false, err, "GL_OUT_OF_MEMORY");
+		return OPResult<GLenum>(false, L"GL_OUT_OF_MEMORY", err);
 	case GL_STACK_UNDERFLOW:
-		return OPResult<GLenum>(false, err, "GL_STACK_UNDERFLOW");
+		return OPResult<GLenum>(false, L"GL_STACK_UNDERFLOW", err);
 	case GL_STACK_OVERFLOW:
-		return OPResult<GLenum>(false, err, "GL_STACK_OVERFLOW");
+		return OPResult<GLenum>(false, L"GL_STACK_OVERFLOW", err);
 	default:
-		return OPResult<GLenum>(false, err, "undefined error with code " + std::to_string(err));
+		return OPResult<GLenum>(false, L"undefined error with code " + std::to_wstring(err), err);
 	}
 }
 
-OPResult<string> oglUtil::loadShader(oglProgram& prog, const string& fname)
+OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 {
 	{
 		FILE *fp = nullptr;
-		string fn = fname + ".vert";
-		fopen_s(&fp, fn.c_str(), "rb");
+		wstring fn = fname + L".vert";
+		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if(fp == nullptr)
-			return OPResult<string>(false, fn, "ERROR on Vertex Shader Compiler");
+			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", fn);
 		oglShader vert(ShaderType::Vertex, fp);
 		auto ret = vert->compile();
 		if (ret)
@@ -278,16 +278,16 @@ OPResult<string> oglUtil::loadShader(oglProgram& prog, const string& fname)
 		else
 		{
 			fclose(fp);
-			return OPResult<string>(false, ret.msg, "ERROR on Vertex Shader Compiler");
+			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", ret.msg);
 		}
 		fclose(fp);
 	}
 	{
 		FILE *fp = nullptr;
-		string fn = fname + ".frag";
-		fopen_s(&fp, fn.c_str(), "rb");
+		wstring fn = fname + L".frag";
+		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if (fp == nullptr)
-			return OPResult<string>(false, fn, "ERROR on Vertex Shader Compiler");
+			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", fn);
 		oglShader frag(ShaderType::Fragment, fp);
 		auto ret = frag->compile();
 		if (ret)
@@ -295,7 +295,7 @@ OPResult<string> oglUtil::loadShader(oglProgram& prog, const string& fname)
 		else
 		{
 			fclose(fp);
-			return OPResult<string>(false, ret.msg, "ERROR on Fragment Shader Compiler");
+			return OPResult<wstring>(false, L"ERROR on Fragment Shader Compiler", ret.msg);
 		}
 		fclose(fp);
 	}

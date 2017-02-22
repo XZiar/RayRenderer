@@ -233,9 +233,9 @@ _oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
 		switch (trans.type)
 		{
 		case TransformType::RotateXYZ:
-			matModel = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, trans.vec.z))) *
-				Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, trans.vec.y))) *
-				Mat4x4(Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, trans.vec.x))) * matModel;
+			matModel = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, trans.vec.z)) *
+				Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, trans.vec.y)) *
+				Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, trans.vec.x))) * matModel;
 			break;
 		case TransformType::Rotate:
 			matModel = Mat4x4(Mat3x3::RotateMat(trans.vec)) * matModel;

@@ -5,8 +5,6 @@
 namespace rayr
 {
 
-using miniBLAS::vector;
-
 class alignas(16) Sphere : public Drawable
 {
 protected:

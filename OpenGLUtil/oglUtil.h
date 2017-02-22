@@ -14,6 +14,7 @@
 namespace oglu
 {
 using std::string;
+using std::wstring;
 using miniBLAS::vector;
 //using std::vector_;
 using std::tuple;
@@ -241,7 +242,7 @@ public:
 	static string getVersion();
 	static OPResult<GLenum> getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
-	static OPResult<string> loadShader(oglProgram& prog, const string& fname);
+	static OPResult<wstring> loadShader(oglProgram& prog, const wstring& fname);
 };
 
 
