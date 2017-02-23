@@ -2,6 +2,7 @@
 
 #include "RenderCoreRely.h"
 #include "Basic3DObject.h"
+#include "Model.h"
 
 namespace rayr
 {

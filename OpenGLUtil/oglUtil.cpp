@@ -174,7 +174,7 @@ OPResult<> _oglTexture::setBuffer(const TextureFormat format, const oglBuffer& t
 	return true;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLuint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
 {
 	assert(vbo->bufferType == BufferType::Array);
 	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
@@ -183,7 +183,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLuint attri
 	return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLuint(&attridx)[3], const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset)
 {
 	assert(vbo->bufferType == BufferType::Array);
 	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
@@ -219,7 +219,7 @@ _oglVAO::VAOPrep _oglVAO::prepare()
 	return VAOPrep(*this);
 }
 
-void _oglVAO::setDrawSize(const uint16_t offset_, const uint16_t size_)
+void _oglVAO::setDrawSize(const uint32_t offset_, const uint32_t size_)
 {
 	offset = offset_, size = size_;
 }

@@ -14,6 +14,7 @@
 
 #include <cstdio>
 #include <string>
+#include <cstring>
 
 namespace oclu
 {

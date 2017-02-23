@@ -51,14 +51,16 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 	vector<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts.data(), pts.size() * sizeof(Point));
+	//vbo->write(pts.data(), pts.size() * sizeof(Point));
+	vbo->write(pts);
 	ebo.reset(oglu::BufferType::Element);
-	ebo->write(indexs.data(), indexs.size() * sizeof(uint16_t));
+	//ebo->write(indexs.data(), indexs.size() * sizeof(uint16_t));
+	ebo->write(indexs);
 	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, (uint16_t)indexs.size());
+	vao->setDrawSize(0, (uint32_t)indexs.size());
 }
 
-void Sphere::prepareGL(const GLuint(&attrLoc)[3])
+void Sphere::prepareGL(const GLint(&attrLoc)[3])
 {
 	vao->prepare().set(vbo, attrLoc, 0)
 		.setIndex(ebo, oglu::IndexSize::Short)//index draw
@@ -137,7 +139,7 @@ Box::Box(const float length, const float height, const float width)
 	vao->setDrawSize(0, 36);
 }
 
-void Box::prepareGL(const GLuint(&attrLoc)[3])
+void Box::prepareGL(const GLint(&attrLoc)[3])
 {
 	vao->prepare().set(vbo, attrLoc[0], sizeof(Point), 3, 0)
 		.set(vbo, attrLoc[1], sizeof(Point), 3, 16)
@@ -165,7 +167,7 @@ Plane::Plane(const float len, const float texRepeat)
 	vao->setDrawSize(0, 6);
 }
 
-void Plane::prepareGL(const GLuint(&attrLoc)[3])
+void Plane::prepareGL(const GLint(&attrLoc)[3])
 {
 	vao->prepare().set(vbo, attrLoc, 0).end();
 }

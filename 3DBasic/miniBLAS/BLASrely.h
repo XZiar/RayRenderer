@@ -73,6 +73,20 @@ inline constexpr char* miniBLAS_intrin()
 #undef GET_STR
 #undef TO_STR
 }
+
+
+template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+constexpr const T& max(const T& left, const T& right)
+{
+	return left < right ? right : left;
+}
+template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+constexpr const T& min(const T& left, const T& right)
+{
+	return left < right ? left : right;
+}
+
+
 /*make struct's heap allocation align to N bytes boundary*/
 template<uint32_t N = 32>
 struct COMMONTPL AlignBase
@@ -154,11 +168,15 @@ class vector;
 template<class T>
 class vector<T, true> : public std::vector<T, miniBLAS::AlignAllocator<T>>
 {
+public:
+	using std::vector<T, miniBLAS::AlignAllocator<T>>::vector;
 };
 
 template<class T>
 class vector<T, false> : public std::vector<T, std::allocator<T>>
 {
+public:
+	using std::vector<T, std::allocator<T>>::vector;
 };
 
 }

@@ -11,17 +11,32 @@ protected:
 	class OBJLoder
 	{
 		wstring filename;
-		FILE *fp;
-		char tmpdat[8][256];
+		FILE *fp = nullptr;
 	public:
+		char curline[256];
+		const char* param[5];
+		struct TextLine
+		{
+			uint64_t type;
+			uint8_t pcount;
+			operator const bool() const
+			{
+				return type != "EOF"_hash;
+			}
+		};
 		OBJLoder(const wstring &fname);
 		~OBJLoder();
-		int8_t read(string data[]);
-		int8_t parseFloat(const string &in, float out[]);
-		int8_t parseInt(const string &in, int out[]);
+		TextLine readLine();
+		int8_t parseFloat(const uint8_t idx, float *output);
+		int8_t parseInt(const uint8_t idx, int32_t *output);
 	};
+	vector<Point> pts;
+	vector<uint32_t> indexs;
+	oglu::oglBuffer vbo, ebo;
+	void loadOBJ(OBJLoder& ldr);
 public:
-
+	Model(const wstring& fname);
+	virtual void prepareGL(const GLint(&attrLoc)[3]) override;
 };
 
 }

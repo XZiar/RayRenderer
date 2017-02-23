@@ -65,6 +65,8 @@ public:
 	VECCALL operator const __m128&() const { return float_dat; };
 #endif
 
+	bool operator<(const Vec4& other) const = delete;
+
 	float VECCALL dot(const Vec4& v) const//dot product
 	{
 	#ifdef __SSE4_2__

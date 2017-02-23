@@ -44,6 +44,7 @@ public:
 	VECCALL operator const __m128&() const { return float_dat; };
 #endif
 
+	bool operator<(const Vec3& other) const = delete;
 
 	Vec3 VECCALL cross(const Vec3& v) const
 	{
@@ -304,5 +305,22 @@ inline Vec3 VECCALL operator/(const Vec3& left, const Vec3& right)
 #endif
 }
 
+inline Vec3 VECCALL max(const Vec3& left, const Vec3& right)
+{
+#ifdef __SSE2__
+	return _mm_max_ps(left, right);
+#else
+	return Vec3(max(left.x, right.x), max(left.y, right.y), max(left.z, right.z));
+#endif
+}
+
+inline Vec3 VECCALL min(const Vec3& left, const Vec3& right)
+{
+#ifdef __SSE2__
+	return _mm_min_ps(left, right);
+#else
+	return Vec3(min(left.x, right.x), min(left.y, right.y), min(left.z, right.z));
+#endif
+}
 
 }

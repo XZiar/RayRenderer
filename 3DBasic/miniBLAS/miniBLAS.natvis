@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?> 
-<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="miniBLAS::VecI4">
+    <DisplayString>{{{x},{y},{z},{w}}}</DisplayString>
+    <Expand>
+      <Item Name="x" ExcludeView="simple">x</Item>
+      <Item Name="y" ExcludeView="simple">y</Item>
+      <Item Name="z" ExcludeView="simple">z</Item>
+      <Item Name="w" ExcludeView="simple">w</Item>
+    </Expand>
+  </Type>
   <Type Name="miniBLAS::Vec4">
     <DisplayString>{{{x},{y},{z},{w}}}</DisplayString>
     <Expand>

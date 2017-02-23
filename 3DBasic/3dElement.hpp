@@ -30,8 +30,9 @@ class Coord2D
 {
 public:
 	float u, v;
-	Coord2D() { u = v = 0.0; };
-	Coord2D(const float &iu, const float &iv) :u(iu), v(iv) { };
+	Coord2D() { u = v = 0.0f; };
+	template<class T>
+	Coord2D(const T& u_, const T& v_) :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { };
 
 	Coord2D operator+(const Coord2D &c) const
 	{

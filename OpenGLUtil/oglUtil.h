@@ -15,12 +15,11 @@ namespace oglu
 {
 using std::string;
 using std::wstring;
-using miniBLAS::vector;
-//using std::vector_;
 using std::tuple;
 using std::map;
 using std::function;
 using miniBLAS::AlignBase;
+using miniBLAS::vector;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Mat3x3;
@@ -80,6 +79,11 @@ public:
 	~_oglBuffer();
 
 	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
+	template<class T>
+	void write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	{
+		write(dat.data(), sizeof(T)*dat.size(), mode);
+	}
 };
 using oglBuffer = Wrapper<_oglBuffer, false>;
 
@@ -140,22 +144,22 @@ private:
 		}
 		/*-param  vbo buffer, vertex attr index, stride(number), size(number), offset(byte)
 		 *Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
-		VAOPrep& set(const oglBuffer& vbo, const GLuint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
+		VAOPrep& set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
 		/*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
-		VAOPrep& set(const oglBuffer& vbo, const GLuint(&attridx)[3], const GLint offset);
+		VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
 		VAOPrep& setIndex(const oglBuffer& vbo, const IndexSize idxSize);
 	};
 	VAODrawMode vaoMode;
 	GLuint vaoID = GL_INVALID_INDEX;
 	oglBuffer index;
 	IndexSize indexType;
-	uint16_t offset, size;
+	uint32_t offset, size;
 public:
 	_oglVAO(const VAODrawMode);
 	~_oglVAO();
 
 	VAOPrep prepare();
-	void setDrawSize(const uint16_t offset_, const uint16_t size_);
+	void setDrawSize(const uint32_t offset_, const uint32_t size_);
 };
 using oglVAO = Wrapper<_oglVAO, false>;
 
@@ -184,14 +188,14 @@ private:
 		}
 		/*draw vao
 		*-param vao, size, offset*/
-		ProgDraw& draw(const oglVAO& vao, const GLsizei size, const GLint offset = 0);
+		ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
 		ProgDraw& draw(const oglVAO& vao);
 	};
 	
 	GLuint programID = GL_INVALID_INDEX;
 	vector<oglShader> shaders;
-	map<string, GLuint> uniLocs;
-	map<string, GLuint> attrLocs;
+	map<string, GLint> uniLocs;
+	map<string, GLint> attrLocs;
 	struct TexPair
 	{
 		oglTexture tex;
@@ -199,7 +203,7 @@ private:
 		TexPair(const oglTexture& tex_ = oglTexture()) :tex(tex_), tid(tex_ ? tex_->textureID : UINT32_MAX) { }
 	};
 	vector<TexPair> texs;
-	GLuint
+	GLint
 		Uni_projMat = GL_INVALID_INDEX,
 		Uni_viewMat = GL_INVALID_INDEX,
 		Uni_modelMat = GL_INVALID_INDEX,
@@ -208,9 +212,10 @@ private:
 		Uni_camPos = GL_INVALID_INDEX;
 	static TextureManager& getTexMan();
 	static bool usethis(const _oglProgram& programID, const bool change = true);
-	void setMat(const GLuint pos, const Mat4x4& mat) const;
+	void setMat(const GLint pos, const Mat4x4& mat) const;
+	void initLocs();
 public:
-	GLuint
+	GLint
 		Attr_Vert_Pos = GL_INVALID_INDEX,
 		Attr_Vert_Norm = GL_INVALID_INDEX,
 		Attr_Vert_Texc = GL_INVALID_INDEX,
@@ -223,8 +228,8 @@ public:
 	//
 	OPResult<> link(const string(&MatrixName)[4] = { "","","","" }, const string(&BasicUniform)[3] = { "tex","","" },
 		const string(&VertAttrName)[4] = { "vertPos","","",""}, const uint8_t texcount = 16);
-	GLuint getAttrLoc(const string &);
-	GLuint getUniLoc(const string &);
+	GLint getAttrLoc(const string &) const;
+	GLint getUniLoc(const string &) const;
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
 	void setTexture(const oglTexture& tex, const uint8_t pos);

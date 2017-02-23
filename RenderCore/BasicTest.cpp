@@ -130,7 +130,7 @@ void BasicTest::init3d(const wstring pname)
 		testTri->write(DatVert, sizeof(DatVert));
 		uint8_t idxmap[] = { 0,1,2, 0,1,3, 0,2,3, 1,2,3 };
 		triIdx->write(idxmap, sizeof(idxmap));
-		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
+		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
 		testVAO->prepare().set(testTri, attrs, 0).setIndex(triIdx, IndexSize::Byte).end();
 		testVAO->setDrawSize(0, 12);
 	}
@@ -141,7 +141,7 @@ void BasicTest::init3d(const wstring pname)
 			pc({ 0.5f,-0.5f,0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f });
 		Point DatVert[] = { pa,pb,pc };
 		testTri->write(DatVert, sizeof(DatVert));
-		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
+		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
 		testVAO->prepare().set(testTri, attrs, 0).end();
 		testVAO->setDrawSize(0, 3);
 	}
@@ -162,7 +162,11 @@ void BasicTest::init3d(const wstring pname)
 		ground->name = L"Ground";
 		ground->position = { 0,-2,0,0 };
 		drawables.push_back(ground);
-		const GLuint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
+		Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\objs\\0.obj");
+		mod1->name = L"DOD3-0";
+		mod1->position = { -1,3,0,0 };
+		drawables.push_back(mod1);
+		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
 		for (auto& d : drawables)
 		{
 			d->prepareGL(attrs);

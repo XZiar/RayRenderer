@@ -36,15 +36,15 @@ public:
 	};
 #ifdef __SSE2__
 	VecI4(const int32_t *ptr) { int_dat = _mm_loadu_si128((__m128i*)ptr); }
-#endif
 	VecI4(const __m128i& dat_) { int_dat = dat_; };
+#endif
 
 	operator int*() { return data; };
 	operator const int*() const { return data; };
+#ifdef __SSE2__
 	operator __m128i&() { return int_dat; };
 	operator const __m128i&() const { return int_dat; };
-	operator Vec3&() { return *this; }
-	operator const Vec3&() const { return *this; }
+#endif
 
 	VecI4 operator+(const VecI4& v) const
 	{

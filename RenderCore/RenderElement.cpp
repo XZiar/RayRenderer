@@ -11,7 +11,7 @@ DrawableHelper::DrawableHelper(const wstring& name)
 	typeMap.push_back(name);
 	id = typeMap.size() - 1;
 #ifdef _DEBUG
-	printf("@@@@regist Drawable %ls with id %d\n", name.c_str(), id);
+	printf("@@@@regist Drawable [%ls] -> %2d\n", name.c_str(), id);
 #endif
 }
 

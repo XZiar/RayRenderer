@@ -16,18 +16,18 @@ _oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat
 	prog.setMat(prog.Uni_modelMat, modelMat);
 }
 
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const GLsizei size, const GLint offset)
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
 	glBindVertexArray(vao->vaoID);
 	if (vao->index)
 	{
 		vao->index->bind();
 		const uint16_t perEle = (vao->indexType == IndexSize::Byte ? 1 : (vao->indexType == IndexSize::Short ? 2 : 4));
-		glDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, (void*)(offset*perEle));
+		glDrawElements((GLenum)vao->vaoMode, (GLsizei)size, (GLenum)vao->indexType, (void*)(offset*perEle));
 		//vao->index->unbind();
 	}
 	else//draw array
-		glDrawArrays((GLenum)vao->vaoMode, offset, size);
+		glDrawArrays((GLenum)vao->vaoMode, (GLint)offset, (GLsizei)size);
 	return *this;
 }
 
@@ -78,10 +78,65 @@ bool _oglProgram::usethis(const _oglProgram& prog, const bool change)
 	return true;
 }
 
-void _oglProgram::setMat(const GLuint pos, const Mat4x4& mat) const
+void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const
 {
 	if (pos != GL_INVALID_INDEX)
 		glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
+}
+
+void _oglProgram::initLocs()
+{
+	GLchar name[256];
+	{
+		GLint cnt = 0;
+		glGetProgramiv(programID, GL_ACTIVE_UNIFORMS, &cnt);
+		for (GLint a = 0; a < cnt; ++a)
+		{
+			GLsizei len = 0;
+			GLint size = 0;
+			GLenum type;
+			glGetActiveUniform(programID, a, 250, &len, &size, &type, name);
+			name[len] = '\0';
+			char* chpos = nullptr;
+			chpos = strchr(name, '[');
+			if (chpos != nullptr)
+				*chpos = '\0';
+			chpos = strchr(name, '.');
+			if (chpos != nullptr)
+				*chpos = '\0';
+
+			const GLint loc = glGetUniformLocation(programID, name);
+			uniLocs.insert_or_assign(name, loc);
+		#ifdef _DEBUG
+			printf("@@@@\tuniform%2d:  [%2d]  %s\n", a, loc, name);
+		#endif
+		}
+	}
+	{
+		GLint cnt = 0;
+		glGetProgramiv(programID, GL_ACTIVE_ATTRIBUTES, &cnt);
+		for (GLint a = 0; a < cnt; ++a)
+		{
+			GLsizei len = 0;
+			GLint size = 0;
+			GLenum type;
+			glGetActiveAttrib(programID, a, 250, &len, &size, &type, name);
+			name[len] = '\0';
+			char* chpos = nullptr;
+			chpos = strchr(name, '[');
+			if (chpos != nullptr)
+				*chpos = '\0';
+			chpos = strchr(name, '.');
+			if (chpos != nullptr)
+				*chpos = '\0';
+
+			const GLint loc = glGetAttribLocation(programID, name);
+			attrLocs.insert_or_assign(name, loc);
+		#ifdef _DEBUG
+			printf("@@@@\tattrib %2d:  [%2d]  %s\n", a, loc, name);
+		#endif
+		}
+	}
 }
 
 void _oglProgram::addShader(oglShader && shader)
@@ -105,58 +160,44 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUn
 		return OPResult<>(false, logstr);
 	}
 
-	//initialize uniform location
-	if (MatrixName[0] != "")//projectMatrix
-		Uni_projMat = getUniLoc(MatrixName[0]);
-	if (MatrixName[1] != "")//viewMatrix
-		Uni_viewMat = getUniLoc(MatrixName[1]);
-	if (MatrixName[2] != "")//modelMatrix
-		Uni_modelMat = getUniLoc(MatrixName[2]);
-	if (MatrixName[3] != "")//model-view-project-Matrix
-		Uni_mvpMat = getUniLoc(MatrixName[3]);
+	initLocs();
 
-	if (BasicUniform[0] != "")//textureUniform
-	{
-		Uni_Texture = getUniLoc(BasicUniform[0]);
-		texs.resize(texcount);
-	}
+	//initialize uniform location
+	Uni_projMat = getUniLoc(MatrixName[0]);//projectMatrix
+	Uni_viewMat = getUniLoc(MatrixName[1]);//viewMatrix
+	Uni_modelMat = getUniLoc(MatrixName[2]);//modelMatrix
+	Uni_mvpMat = getUniLoc(MatrixName[3]);//model-view-project-Matrix
+	Uni_Texture = getUniLoc(BasicUniform[0]);//textureUniform
+	texs.resize(texcount);
 
 	//initialize vertex attribute location
-	if (VertAttrName[0] != "")//Vertex Position
-		Attr_Vert_Pos = getAttrLoc(VertAttrName[0]);
-	if (VertAttrName[1] != "")//Vertex Normal
-		Attr_Vert_Norm = getAttrLoc(VertAttrName[1]);
-	if (VertAttrName[2] != "")//Vertex Texture Coordinate
-		Attr_Vert_Texc = getAttrLoc(VertAttrName[2]);
-	if (VertAttrName[3] != "")//Vertex Color
-		Attr_Vert_Color = getAttrLoc(VertAttrName[3]);
+	Attr_Vert_Pos = getAttrLoc(VertAttrName[0]);//Vertex Position
+	Attr_Vert_Norm = getAttrLoc(VertAttrName[1]);//Vertex Normal
+	Attr_Vert_Texc = getAttrLoc(VertAttrName[2]);//Vertex Texture Coordinate
+	Attr_Vert_Color = getAttrLoc(VertAttrName[3]);//Vertex Color
 
 	return true;
 }
 
-GLuint _oglProgram::getAttrLoc(const string & name)
+GLint _oglProgram::getAttrLoc(const string& name) const
 {
 	auto it = attrLocs.find(name);
 	if (it != attrLocs.end())
 		return it->second;
-	//not existed yet
-	GLuint loc = glGetAttribLocation(programID, name.c_str());
-	attrLocs.insert(make_pair(name, loc));
-	return loc;
+	else //not existed
+		return -1;
 }
 
-GLuint _oglProgram::getUniLoc(const string & name)
+GLint _oglProgram::getUniLoc(const string& name) const
 {
 	auto it = uniLocs.find(name);
 	if (it != uniLocs.end())
 		return it->second;
-	//not existed yet
-	GLuint loc = glGetUniformLocation(programID, name.c_str());
-	uniLocs.insert(make_pair(name, loc));
-	return loc;
+	else //not existed
+		return -1;
 }
 
-void _oglProgram::setProject(const Camera & cam, const int wdWidth, const int wdHeight)
+void _oglProgram::setProject(const Camera& cam, const int wdWidth, const int wdHeight)
 {
 	//glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
 	//assert(cam.aspect > std::numeric_limits<float>::epsilon());

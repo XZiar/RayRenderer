@@ -42,7 +42,7 @@ public:
 	/*prepare VAO with given Vertex Attribute Location
 	 *-param: VertPos,VertNorm,TexPos
 	 */
-	virtual void prepareGL(const GLuint(&AttrLoc)[3]) = 0;
+	virtual void prepareGL(const GLint(&AttrLoc)[3]) = 0;
 protected:
 	uint32_t drawableID;
 };

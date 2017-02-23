@@ -246,4 +246,32 @@ public:
 	operator bool() { return isSuc; }
 };
 
+
+/** @brief calculate simple hash for string, used for switch-string
+** @param str std-string for the text
+** @return uint64_t the hash
+**/
+inline uint64_t hash_(const std::string& str)
+{
+	uint64_t hash = 0;
+	for (size_t a = 0; a < str.length(); ++a)
+		hash = hash * 33 + str[a];
+	return hash;
+}
+/** @brief calculate simple hash for string, used for switch-string
+** @param str std-string for the text
+** @return uint64_t the hash
+**/
+constexpr uint64_t hash_(const char *str, const uint64_t last = 0)
+{
+	return *str == '\0' ? last : hash_(str + 1, *str + last * 33);
+}
+/** @brief calculate simple hash for string, used for switch-string
+** @return uint64_t the hash
+**/
+constexpr uint64_t operator "" _hash(const char *str, size_t)
+{
+	return hash_(str);
+}
+
 }
