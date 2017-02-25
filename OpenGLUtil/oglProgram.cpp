@@ -16,26 +16,54 @@ _oglProgram::ProgDraw::ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat
 	prog.setMat(prog.Uni_modelMat, modelMat);
 }
 
+void _oglProgram::ProgDraw::drawIndex(const oglVAO& vao, const GLsizei size, const void *offset)
+{
+	vao->bind();
+	glDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, offset);
+}
+
+void _oglProgram::ProgDraw::drawIndexs(const oglVAO& vao, const GLsizei count, const GLsizei *size, const void * const *offset)
+{
+	vao->bind();
+	glMultiDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, offset, count);
+}
+
+void _oglProgram::ProgDraw::drawArray(const oglVAO& vao, const GLsizei size, const GLint offset)
+{
+	vao->bind();
+	glDrawArrays((GLenum)vao->vaoMode, offset, size);
+}
+
+void _oglProgram::ProgDraw::drawArrays(const oglVAO& vao, const GLsizei count, const GLsizei *size, const GLint *offset)
+{
+	vao->bind();
+	glMultiDrawArrays((GLenum)vao->vaoMode, offset, size, count);
+}
+
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
-	glBindVertexArray(vao->vaoID);
 	if (vao->index)
-	{
-		vao->index->bind();
-		const uint16_t perEle = (vao->indexType == IndexSize::Byte ? 1 : (vao->indexType == IndexSize::Short ? 2 : 4));
-		glDrawElements((GLenum)vao->vaoMode, (GLsizei)size, (GLenum)vao->indexType, (void*)(offset*perEle));
-		//vao->index->unbind();
-	}
-	else//draw array
-		glDrawArrays((GLenum)vao->vaoMode, (GLint)offset, (GLsizei)size);
+		drawIndex(vao, size, (void*)(offset * vao->indexSizeof));
+	else
+		drawArray(vao, size, offset);
 	return *this;
 }
 
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 {
-	return draw(vao, vao->size, vao->offset);
+	switch (vao->drawMethod)
+	{
+	case _oglVAO::DrawMethod::Array:
+		drawArray(vao, vao->sizes[0], vao->ioffsets[0]); break;
+	case _oglVAO::DrawMethod::Index:
+		drawIndex(vao, vao->sizes[0], vao->poffsets[0]); break;
+	case _oglVAO::DrawMethod::Arrays:
+		drawArrays(vao, (GLsizei)vao->sizes.size(), vao->sizes.data(), vao->ioffsets.data()); break;
+	case _oglVAO::DrawMethod::Indexs:
+		drawIndexs(vao, (GLsizei)vao->sizes.size(), vao->sizes.data(), vao->poffsets.data()); break;
+	}
+	return *this;
 }
-
 
 
 _oglProgram::_oglProgram()
@@ -48,6 +76,8 @@ _oglProgram::~_oglProgram()
 	if (programID != GL_INVALID_INDEX)
 	{
 		glDeleteProgram(programID);
+		programID = GL_INVALID_INDEX;
+		usethis(*this, true);
 	}
 }
 
@@ -65,6 +95,8 @@ bool _oglProgram::usethis(const _oglProgram& prog, const bool change)
 		if (!change)//only return status
 			return false;
 		glUseProgram(curPID = prog.programID);
+		if (curPID == GL_INVALID_INDEX)//quick return
+			return true;
 		auto& texMan = getTexMan();
 		for (uint32_t a = 0; a < prog.texs.size(); ++a)
 		{

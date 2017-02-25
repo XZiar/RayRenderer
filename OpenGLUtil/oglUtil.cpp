@@ -148,15 +148,15 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
+	assert(buf->bufferType == BufferType::Pixel);
 	bind();
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buf->bufferID);
+	buf->bind();
 
 	GLint intertype;
 	GLenum datatype, comptype;
 	parseFormat(format, intertype, datatype, comptype);
 	glTexImage2D((GLenum)type, 0, intertype, w, h, 0, comptype, datatype, NULL);
 
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	//unbind();
 }
 
@@ -174,10 +174,21 @@ OPResult<> _oglTexture::setBuffer(const TextureFormat format, const oglBuffer& t
 	return true;
 }
 
+
+_oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) :vao(vao_)
+{
+	vao.bind();
+}
+
+void _oglVAO::VAOPrep::end()
+{
+	vao.unbind();
+}
+
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
 {
 	assert(vbo->bufferType == BufferType::Array);
-	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
+	vbo->bind();
 	glEnableVertexAttribArray(attridx);//vertex attr index
 	glVertexAttribPointer(attridx, size, GL_FLOAT, GL_FALSE, stride, (void*)offset);
 	return *this;
@@ -186,7 +197,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attrid
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset)
 {
 	assert(vbo->bufferType == BufferType::Array);
-	glBindBuffer((GLenum)vbo->bufferType, vbo->bufferID);
+	vbo->bind();
 	glEnableVertexAttribArray(attridx[0]);//VertPos
 	glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)offset);
 	glEnableVertexAttribArray(attridx[1]);//VertNorm
@@ -196,12 +207,44 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
 	return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglBuffer& vbo, const IndexSize idxSize)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglBuffer& ebo, const IndexSize idxSize)
 {
-	assert(vbo->bufferType == BufferType::Element);
+	assert(ebo->bufferType == BufferType::Element);
+	ebo->bind();
 	vao.indexType = idxSize;
-	vao.index = vbo;
+	vao.indexSizeof = (idxSize == IndexSize::Byte ? 1 : (idxSize == IndexSize::Short ? 2 : 4));
+	vao.index = ebo;
+	vao.initSize();
 	return *this;
+}
+
+
+void _oglVAO::bind() const
+{
+	glBindVertexArray(vaoID);
+}
+
+void _oglVAO::unbind() const
+{
+	glBindVertexArray(0);
+}
+
+void _oglVAO::initSize()
+{
+	if (index)
+	{
+		drawMethod = sizes.size() > 1 ? DrawMethod::Indexs : DrawMethod::Index;
+		poffsets.clear();
+		for (const auto& off : offsets)
+			poffsets.push_back((void*)(off * indexSizeof));
+	}
+	else
+	{
+		drawMethod = sizes.size() > 1 ? DrawMethod::Arrays : DrawMethod::Array;
+		ioffsets.clear();
+		for (const auto& off : offsets)
+			ioffsets.push_back((GLint)off);
+	}
 }
 
 _oglVAO::_oglVAO(const VAODrawMode _mode) :vaoMode(_mode)
@@ -221,7 +264,18 @@ _oglVAO::VAOPrep _oglVAO::prepare()
 
 void _oglVAO::setDrawSize(const uint32_t offset_, const uint32_t size_)
 {
-	offset = offset_, size = size_;
+	sizes = { (GLsizei)size_ };
+	offsets = { offset_ };
+	initSize();
+}
+
+void _oglVAO::setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_)
+{
+	offsets = offset_;
+	sizes.clear();
+	for (const auto& s : size_)
+		sizes.push_back((GLsizei)s);
+	initSize();
 }
 
 
@@ -301,6 +355,7 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 	}
 	return true;
 }
+
 
 
 

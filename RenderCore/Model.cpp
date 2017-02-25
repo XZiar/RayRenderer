@@ -6,11 +6,11 @@ namespace rayr
 
 
 
-Model::OBJLoder::OBJLoder(const wstring &fname)
+Model::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
 {
-	_wfopen_s(&fp, fname.c_str(), L"r");
+	_wfopen_s(&fp, fpath.c_str(), L"r");
 	if (fp == nullptr)
-		throw std::exception("cannot open file");
+		throw std::runtime_error("cannot open file");
 }
 
 Model::OBJLoder::~OBJLoder()
@@ -25,7 +25,6 @@ Model::OBJLoder::TextLine Model::OBJLoder::readLine()
 	if (fgets(curline, 255, fp) == nullptr)
 		return{ "EOF"_hash, 0 };
 	const char *end = &curline[strlen(curline)];
-	//printf("@@\t%s", curline);
 
 	char prefix[256] = { 0 };
 	if (sscanf_s(curline, "%s", prefix, 240) == 0)
@@ -35,7 +34,8 @@ Model::OBJLoder::TextLine Model::OBJLoder::readLine()
 	uint8_t pcnt = 0;
 	for (char *cur = &curline[strlen(prefix)]; cur < end; ++cur)
 	{
-		if (*cur < 0x21 || *cur == 0x7f)//non-graph character
+		const uint8_t curch = *(uint8_t*)cur;
+		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
 		{
 			*cur = '\0';
 			inParam = false;
@@ -65,29 +65,9 @@ int8_t Model::OBJLoder::parseFloat(const uint8_t idx, float *output)
 
 int8_t Model::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 {
-	const char *&obj = param[idx];
 	int8_t cnt = 0;
-	uint8_t len = (uint8_t)strlen(obj);
-	int32_t num = 0;
-	bool isDummy = false;
-	for (uint8_t a = 0; a <= len; ++a)
-	{
-		if (obj[a] >= '0' && obj[a] <= '9')
-		{
-			num = num * 10 + (obj[a] - '0');
-			isDummy = false;
-		}
-		else if (!isDummy)//first non-number
-		{
-			output[cnt++] = num;
-			num = 0;
-			isDummy = true;
-		}
-	}
-	//if (!isDummy)//first non-number
-	//{
-	//	output[cnt++] = num;
-	//}
+	for (const char *obj = param[idx] - 1; obj != nullptr; obj = strchr(obj, '/'))
+		output[cnt++] = atoi(++obj);
 	return cnt;
 }
 
@@ -120,15 +100,31 @@ struct PTstubHasher
 };
 
 
-void Model::loadOBJ(OBJLoder& ldr)
+bool Model::loadMTL(const Path& mtlpath) try
+{
+	OBJLoder ldr(mtlpath);
+	printf("@@opened mtl file %ls\n", mtlpath.c_str());
+	return true;
+}
+catch (const std::runtime_error& e)
+{
+#ifdef _DEBUG
+	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
+	return false;
+#endif
+}
+
+bool Model::loadOBJ(const Path& objpath) try
 {
 	using miniBLAS::VecI4;
+	OBJLoder ldr(objpath);
 	vector<Vec3> points{ Vec3(0,0,0) };
 	vector<Normal> normals{ Normal(0,0,0) };
 	vector<Coord2D> texcs{ Coord2D(0,0) };
 	std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
 	pts.clear();
 	indexs.clear();
+	groups.clear();
 	Vec3 tmp;
 	Coord2D tmpc;
 	Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
@@ -191,6 +187,12 @@ void Model::loadOBJ(OBJLoder& ldr)
 				indexs.push_back(tmpidx.w);
 			}
 			break;
+		case "usemtl"_hash://each mtl is a group
+			groups.push_back({ string(ldr.param[0]),(uint32_t)indexs.size() });
+			break;
+		case "mtllib"_hash://import mtl file
+			loadMTL(objpath.parent_path() / ldr.param[0]);
+			break;
 		default:
 			break;
 		}
@@ -202,13 +204,21 @@ void Model::loadOBJ(OBJLoder& ldr)
 	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(sizev.x, sizev.y), sizev.z);
 	for (auto& p : pts)
 		p.pos *= resizer;
+	return true;
+}
+catch (const std::runtime_error& e)
+{
+#ifdef _DEBUG
+	printf("@@cannot open obj file:%ls\n", objpath.c_str());
+	return false;
+#endif
 }
 
 Model::Model(const wstring& fname)
 {
 	static DrawableHelper helper(L"Model");
 	helper.InitDrawable(this);
-	loadOBJ(OBJLoder(fname));
+	loadOBJ(fname);
 
 	vbo.reset(oglu::BufferType::Array);
 	//vbo->write(pts.data(), pts.size() * sizeof(Point));
@@ -217,7 +227,21 @@ Model::Model(const wstring& fname)
 	//ebo->write(indexs.data(), indexs.size() * sizeof(uint32_t));
 	ebo->write(indexs);
 	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, (uint32_t)indexs.size());
+	if(groups.empty())
+		vao->setDrawSize(0, (uint32_t)indexs.size());
+	else
+	{
+		vector<uint32_t> offs, sizs;
+		uint32_t last = 0;
+		for (const auto& g : groups)
+		{
+			if (!offs.empty())
+				sizs.push_back(g.second - last);
+			offs.push_back(last = g.second);
+		}
+		sizs.push_back(indexs.size() - last);
+		vao->setDrawSize(offs, sizs);
+	}
 }
 
 void Model::prepareGL(const GLint(&attrLoc)[3])

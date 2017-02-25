@@ -1,16 +1,18 @@
 #pragma once
 
 #include "RenderElement.h"
+#include <filesystem>
 
 namespace rayr
 {
 
 class alignas(16) Model : public Drawable
 {
+	using Path = std::experimental::filesystem::path;
 protected:
 	class OBJLoder
 	{
-		wstring filename;
+		Path fpath;
 		FILE *fp = nullptr;
 	public:
 		char curline[256];
@@ -24,7 +26,7 @@ protected:
 				return type != "EOF"_hash;
 			}
 		};
-		OBJLoder(const wstring &fname);
+		OBJLoder(const Path &fpath_);
 		~OBJLoder();
 		TextLine readLine();
 		int8_t parseFloat(const uint8_t idx, float *output);
@@ -32,8 +34,10 @@ protected:
 	};
 	vector<Point> pts;
 	vector<uint32_t> indexs;
+	vector<std::pair<string, uint32_t>> groups;
 	oglu::oglBuffer vbo, ebo;
-	void loadOBJ(OBJLoder& ldr);
+	bool loadMTL(const Path& mtlfname);
+	bool loadOBJ(const Path& objfname);
 public:
 	Model(const wstring& fname);
 	virtual void prepareGL(const GLint(&attrLoc)[3]) override;

@@ -9,6 +9,7 @@ uniform mat4 matNorm;
 in perVert
 {
 	vec3 pos;
+	vec3 dat;
 	vec2 tpos;
 };
 out vec4 FragColor;
@@ -16,5 +17,6 @@ out vec4 FragColor;
 void main() 
 {
 	FragColor = texture(tex[0], tpos);
-	FragColor.w = 1.0f;
+	FragColor.rgb = dat.xyz * vec3(0.5f) + vec3(0.5f);
+	FragColor.a = 1.0f;
 }

@@ -141,9 +141,9 @@ void BasicTest::init3d(const wstring pname)
 			pc({ 0.5f,-0.5f,0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f });
 		Point DatVert[] = { pa,pb,pc };
 		testTri->write(DatVert, sizeof(DatVert));
+		testVAO->setDrawSize(0, 3);
 		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
 		testVAO->prepare().set(testTri, attrs, 0).end();
-		testVAO->setDrawSize(0, 3);
 	}
 	cam.position = Vec3(0.0f, 0.0f, 4.0f);
 	prog3D->setCamera(cam);

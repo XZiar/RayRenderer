@@ -126,40 +126,45 @@ enum class VAODrawMode : GLenum
 enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 class OGLUAPI _oglVAO : public NonCopyable, public NonMovable
 {
-private:
+protected:
 	friend class _oglProgram;
+	enum class DrawMethod { UnPrepared, Array, Arrays, Index, Indexs };
 	class OGLUAPI VAOPrep : public NonCopyable
 	{
 	private:
 		friend class _oglVAO;
 		_oglVAO& vao;
-		VAOPrep(_oglVAO& vao_) :vao(vao_)
-		{
-			glBindVertexArray(vao.vaoID);
-		}
+		VAOPrep(_oglVAO& vao_);
 	public:
-		void end()
-		{
-			glBindVertexArray(0);
-		}
+		void end();
 		/*-param  vbo buffer, vertex attr index, stride(number), size(number), offset(byte)
 		 *Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
 		VAOPrep& set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
 		/*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
 		VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
-		VAOPrep& setIndex(const oglBuffer& vbo, const IndexSize idxSize);
+		VAOPrep& setIndex(const oglBuffer& ebo, const IndexSize idxSize);
 	};
 	VAODrawMode vaoMode;
+	DrawMethod drawMethod = DrawMethod::UnPrepared;
 	GLuint vaoID = GL_INVALID_INDEX;
 	oglBuffer index;
 	IndexSize indexType;
-	uint32_t offset, size;
+	uint8_t indexSizeof;
+	vector<GLsizei> sizes;
+	vector<void*> poffsets;
+	vector<GLint> ioffsets;
+	vector<uint32_t> offsets;
+	//uint32_t offset, size;
+	void bind() const;
+	void unbind() const;
+	void initSize();
 public:
 	_oglVAO(const VAODrawMode);
 	~_oglVAO();
 
 	VAOPrep prepare();
 	void setDrawSize(const uint32_t offset_, const uint32_t size_);
+	void setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_);
 };
 using oglVAO = Wrapper<_oglVAO, false>;
 
@@ -182,6 +187,10 @@ private:
 		friend _oglProgram;
 		const _oglProgram& prog;
 		ProgDraw(const _oglProgram& prog_, const Mat4x4& modelMat);
+		void drawIndex(const oglVAO& vao, const GLsizei size, const void *offset);
+		void drawIndexs(const oglVAO& vao, const GLsizei count, const GLsizei *size, const void * const *offset);
+		void drawArray(const oglVAO& vao, const GLsizei size, const GLint offset);
+		void drawArrays(const oglVAO& vao, const GLsizei count, const GLsizei *size, const GLint *offset);
 	public:
 		void end()
 		{
