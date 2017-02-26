@@ -50,6 +50,7 @@ private:
 	friend class UBOManager;
 	BufferType bufferType;
 	GLuint bufferID = GL_INVALID_INDEX;
+	static UBOManager& getUBOMan();
 	void bind() const;
 	void unbind() const;
 public:
@@ -76,14 +77,17 @@ enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 class OGLUAPI _oglTexture : public NonCopyable, public NonMovable
 {
 private:
-	friend class _oglProgram;
 	friend class TextureManager;
+	friend class _oglProgram;
 	friend class oclu::_oclMem;
 	TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
 	oglBuffer innerBuf;
+	static TextureManager& getTexMan();
+	static uint8_t getDefaultPos();
+	const uint8_t defPos;
 	static void parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype);
-	void bind(const uint16_t pos = 0) const;
+	void bind(const uint8_t pos) const;
 	void unbind() const;
 public:
 	_oglTexture(const TextureType _type);

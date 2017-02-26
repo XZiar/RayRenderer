@@ -27,7 +27,7 @@
     <ClInclude Include="oglUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ResDister.hpp">
+    <ClInclude Include="BindingManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -42,6 +42,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglRely.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BindingManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

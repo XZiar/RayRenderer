@@ -73,21 +73,9 @@ private:
 	GLuint programID = GL_INVALID_INDEX;
 	vector<oglShader> shaders;
 	map<string, DataInfo> dataMap;
-	struct TexPair
-	{
-		oglTexture tex;
-		GLuint tid;
-		TexPair(const oglTexture& tex_ = oglTexture()) :tex(tex_), tid(tex_ ? tex_->textureID : UINT32_MAX) { }
-	};
-	vector<TexPair> texs;
+	vector<oglTexture> texs;
 	vector<GLint> texvals;
-	struct UBOPair
-	{
-		oglBuffer ubo;
-		GLuint bid;
-		UBOPair(const oglBuffer& ubo_ = oglBuffer()) :ubo(ubo_), bid(ubo_ ? ubo_->bufferID : UINT32_MAX) { }
-	};
-	vector<UBOPair> ubos;
+	vector<oglBuffer> ubos;
 	vector<GLint> ubovals;
 	GLint
 		Uni_projMat = GL_INVALID_INDEX,
@@ -96,8 +84,6 @@ private:
 		Uni_mvpMat = GL_INVALID_INDEX,
 		Uni_Texture = GL_INVALID_INDEX,
 		Uni_camPos = GL_INVALID_INDEX;
-	static TextureManager& getTexMan();
-	static UBOManager& getUBOMan();
 	static bool usethis(_oglProgram& programID, const bool change = true);
 	void setMat(const GLint pos, const Mat4x4& mat) const;
 	void initLocs();

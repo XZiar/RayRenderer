@@ -1,5 +1,5 @@
-#include "oglUtil.h"
-
+#include "oglComponent.h"
+#include "BindingManager.h"
 
 namespace oglu
 {
@@ -59,6 +59,12 @@ _oglBuffer::~_oglBuffer()
 	glDeleteBuffers(1, &bufferID);
 }
 
+oglu::UBOManager& _oglBuffer::getUBOMan()
+{
+	static thread_local UBOManager uboMan;
+	return uboMan;
+}
+
 void _oglBuffer::bind() const
 {
 	glBindBuffer((GLenum)bufferType, bufferID);
@@ -76,6 +82,19 @@ void _oglBuffer::write(const void *dat, const size_t size, const BufferWriteMode
 	unbind();
 }
 
+
+TextureManager& _oglTexture::getTexMan()
+{
+	static thread_local TextureManager texMan;
+	return texMan;
+}
+
+uint8_t _oglTexture::getDefaultPos()
+{
+	GLint maxtexs;
+	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxtexs);
+	return (uint8_t)(maxtexs > 255 ? 255 : maxtexs - 1);
+}
 
 void _oglTexture::parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype)
 {
@@ -104,7 +123,7 @@ void _oglTexture::parseFormat(const TextureFormat format, GLint & intertype, GLe
 	}
 }
 
-void _oglTexture::bind(const uint16_t pos) const
+void _oglTexture::bind(const uint8_t pos) const
 {
 	glActiveTexture(GL_TEXTURE0 + pos);
 	glBindTexture((GLenum)type, textureID);
@@ -115,19 +134,21 @@ void _oglTexture::unbind() const
 	glBindTexture((GLenum)type, 0);
 }
 
-_oglTexture::_oglTexture(const TextureType _type) : type(_type)
+_oglTexture::_oglTexture(const TextureType _type) : type(_type), defPos(getDefaultPos())
 {
 	glGenTextures(1, &textureID);
 }
 
 _oglTexture::~_oglTexture()
 {
+	//force unbind texture, since texID may be reused after releasaed
+	getTexMan().forcePop(textureID);
 	glDeleteTextures(1, &textureID);
 }
 
 void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
 {
-	bind();
+	bind(defPos);
 	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_S, (GLint)wraptype);
 	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_T, (GLint)wraptype);
 	glTexParameteri((GLenum)type, GL_TEXTURE_MAG_FILTER, (GLint)filtertype);
@@ -137,7 +158,7 @@ void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWr
 
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void * data)
 {
-	bind();
+	bind(defPos);
 	GLint intertype;
 	GLenum datatype, comptype;
 	parseFormat(format, intertype, datatype, comptype);
@@ -148,7 +169,7 @@ void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLs
 void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
 	assert(buf->bufferType == BufferType::Pixel);
-	bind();
+	bind(defPos);
 	buf->bind();
 
 	GLint intertype;
@@ -166,7 +187,7 @@ OPResult<> _oglTexture::setBuffer(const TextureFormat format, const oglBuffer& t
 		return OPResult<>(false, L"Texture is not TextureBuffer");
 	if(tbo->bufferType != BufferType::Texture)
 		return OPResult<>(false, L"Buffer is not TextureBuffer");
-	bind();
+	bind(defPos);
 	glTexBuffer(GL_TEXTURE_BUFFER, (GLenum)format, tbo->bufferID);
 	innerBuf = tbo;
 	//unbind();

@@ -23,13 +23,14 @@
     <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglComponent.h" />
     <ClInclude Include="oglUtil.h" />
-    <ClInclude Include="ResDister.hpp" />
+    <ClInclude Include="BindingManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglRely.cpp" />
     <ClCompile Include="oglProgram.cpp" />
     <ClCompile Include="oglComponent.cpp" />
     <ClCompile Include="oglUtil.cpp" />
+    <ClCompile Include="BindingManager.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CC937530-6B2A-4538-B764-71DFE8D84C89}</ProjectGuid>

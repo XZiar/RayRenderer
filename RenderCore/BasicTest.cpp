@@ -178,6 +178,7 @@ void BasicTest::initTex()
 {
 	picTex.reset(TextureType::Tex2D);
 	picBuf.reset(BufferType::Pixel);
+	oglTexture tmpTex(TextureType::Tex2D);
 	{
 		picTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 		Vec4 empty[128][128];
@@ -194,6 +195,7 @@ void BasicTest::initTex()
 		}
 		empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
 		picTex->setData(TextureFormat::RGBAf, 128, 128, empty);
+		tmpTex->setData(TextureFormat::RGBAf, 128, 128, empty);
 		picBuf->write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
 	}
 
@@ -218,6 +220,7 @@ void BasicTest::initTex()
 		}
 		mskTex->setData(TextureFormat::RGBAf, 128, 128, empty);
 	}
+	prog3D->setTexture(tmpTex, 0);
 }
 
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
@@ -227,8 +230,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	init3d(sname3d);
 	initTex();
 	prog2D->setTexture(picTex, 0);
-	prog3D->setTexture(mskTex, 0);
-	
+	//prog3D->setTexture(mskTex, 0);
 }
 
 void BasicTest::draw()

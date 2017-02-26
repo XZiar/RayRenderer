@@ -1,61 +1,8 @@
 #include "oglProgram.h"
-#include "ResDister.hpp"
-#include "oglUtil.h"
+#include "BindingManager.h"
 
 namespace oglu
 {
-
-//----ResourceDistrubutor
-class TextureManager : public ResDister<TextureManager, oglTexture>
-{
-	friend class ResDister<TextureManager, oglTexture>;
-protected:
-	GLuint getID(const oglTexture& obj) const
-	{
-		return obj->textureID;
-	}
-	void innerBind(const oglTexture& obj, const uint8_t pos) const
-	{
-		obj->bind(pos);
-	}
-	bool hasRes(const _oglProgram& prog, const GLuint id) const
-	{
-		for (const auto& t : prog.texs)
-			if (t.tid == id)
-				return true;
-		return false;
-	}
-public:
-	TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }
-	using ResDister::bind;
-	using ResDister::unbind;
-};
-
-class UBOManager : public ResDister<UBOManager, oglBuffer>
-{
-	friend class ResDister<UBOManager, oglBuffer>;
-protected:
-	GLuint getID(const oglBuffer& obj) const
-	{
-		return obj->bufferID;
-	}
-	void innerBind(const oglBuffer& obj, const uint8_t pos) const
-	{
-		//obj->bind(pos);
-	}
-	bool hasRes(const _oglProgram& prog, const GLuint id) const
-	{
-		for (const auto& b : prog.ubos)
-			if (b.bid == id)
-				return true;
-		return false;
-	}
-public:
-	UBOManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }
-	using ResDister::bind;
-	using ResDister::unbind;
-};
-//ResourceDistrubutor----
 
 
 _oglProgram::ProgDraw::ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat) :prog(prog_)
@@ -143,28 +90,12 @@ _oglProgram::~_oglProgram()
 {
 	if (programID != GL_INVALID_INDEX)
 	{
-		auto& texMan = getTexMan();
-		for (const auto& tex : texs)
-			if (tex.tid != UINT32_MAX)
-				texMan.unbind(*this, tex.tex);
 		bool shouldUnUse = usethis(*this, false);
 		glDeleteProgram(programID);
 		programID = GL_INVALID_INDEX;
 		if(shouldUnUse)
 			usethis(*this, true);
 	}
-}
-
-oglu::TextureManager& _oglProgram::getTexMan()
-{
-	static thread_local TextureManager texMan;
-	return texMan;
-}
-
-oglu::UBOManager& _oglProgram::getUBOMan()
-{
-	static thread_local UBOManager uboMan;
-	return uboMan;
 }
 
 bool _oglProgram::usethis(_oglProgram& prog, const bool change)
@@ -243,13 +174,22 @@ void _oglProgram::recoverTexMap()
 {
 	if (Uni_Texture == GL_INVALID_INDEX)
 		return;
-	auto& texMan = getTexMan();
-	uint32_t a = 0;
+	auto& texMan = _oglTexture::getTexMan();
+	uint8_t rebinds[256];
+	uint8_t a = 0, rebindcnt = 0;
 	for (const auto& tex : texs)
 	{
-		if(tex.tid != UINT32_MAX)
-			texvals[a] = texMan.bind(*this, tex.tex);
+		if (tex)
+		{
+			texvals[a] = texMan.trybind(*this, tex);
+			if (texvals[a] == 0)
+				rebinds[rebindcnt++] = a;
+		}
 		a++;
+	}
+	for (a = 0; a < rebindcnt; ++a)
+	{
+		texvals[a] = texMan.bind(*this, texs[a]);
 	}
 	glProgramUniform1iv(programID, Uni_Texture, (GLsizei)texvals.size(), texvals.data());
 }
@@ -354,16 +294,12 @@ void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
 {
 	if (Uni_Texture == GL_INVALID_INDEX || pos >= texvals.size())
 		return;
-	auto& texMan = getTexMan();
-	auto& obj = texs[pos];
-	if (obj.tid != UINT32_MAX)//has old tex, unbind it
-	{//unbind operation should always be done, since it may release the true texture and the tID may be recycled later
-		texMan.unbind(*this, obj.tex);
-	}
-	//update texture-hold map
-	obj = TexPair(tex);
+	if (texs[pos] == tex)//no change
+		return;
+	texs[pos] = tex;//update texture-hold map
 	if (tex && usethis(*this, false))//need to bind the new tex
 	{//already in use, then really change value
+		auto& texMan = _oglTexture::getTexMan();
 		glProgramUniform1i(programID, Uni_Texture + pos, texvals[pos] = texMan.bind(*this, tex));
 	}
 }
@@ -372,16 +308,13 @@ void _oglProgram::setUBO(const oglBuffer& ubo, const uint8_t pos)
 {
 	if (Uni_Texture == GL_INVALID_INDEX || pos >= ubovals.size())
 		return;
-	auto& uboMan = getUBOMan();
-	auto& obj = ubos[pos];
-	if (obj.bid != UINT32_MAX)//has old tex, unbind it
-	{//unbind operation should always be done, since it may release the true ubo and the bID may be recycled later
-		uboMan.unbind(*this, obj.ubo);
-	}
-	//update texture-hold map
-	obj = UBOPair(ubo);
+	if (ubos[pos] == ubo)//no change
+		return;
+	ubos[pos] = ubo;//update texture-hold map
 	if (ubo && usethis(*this, false))//need to bind the new ubo
 	{//already in use, then really change value
+		auto& uboMan = _oglBuffer::getUBOMan();
+		glUniformBlockBinding(programID, pos, ubovals[pos] = uboMan.bind(*this, ubo));
 		//glBindBufferBase();
 		//glUniformBlockBinding(programID)
 		//glProgramUniform1i(programID, Uni_Texture + pos, texvals[pos] = texMan.bind(*this, tex));
