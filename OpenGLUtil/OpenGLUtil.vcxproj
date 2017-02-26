@@ -19,15 +19,17 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
+    <ClInclude Include="oglComponent.h" />
     <ClInclude Include="oglUtil.h" />
-    <ClInclude Include="privateAPI.h" />
+    <ClInclude Include="ResDister.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="glewSupport.cpp" />
+    <ClCompile Include="oglRely.cpp" />
     <ClCompile Include="oglProgram.cpp" />
+    <ClCompile Include="oglComponent.cpp" />
     <ClCompile Include="oglUtil.cpp" />
-    <ClCompile Include="privateAPI.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CC937530-6B2A-4538-B764-71DFE8D84C89}</ProjectGuid>

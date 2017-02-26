@@ -138,7 +138,7 @@ bool Model::loadOBJ(const Path& objpath) try
 			break;
 		case "#"_hash:
 		#ifdef _DEBUG
-			printf("@@obj-note\t%s\n", ldr.param[0]);
+			printf("@@obj-note\t%s", ldr.param[0]);
 		#endif
 			break;
 		case "v"_hash://vertex
