@@ -8,7 +8,7 @@
 #endif
 
 #include "../3DBasic/3dElement.hpp"
-#include "../3DBasic/CommonBase.hpp"
+#include "../common/CommonBase.hpp"
 #include <string>
 #include <functional>
 

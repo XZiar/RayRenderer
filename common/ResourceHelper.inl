@@ -1,25 +1,27 @@
+#define WIN32_LEAN_AND_MEAN 1
+#include <Windows.h>
 #include "ResourceHelper.h"
-#include "string"
 
 namespace common
 {
 
-HINSTANCE ResourceHelper::thisdll = nullptr;
+void* ResourceHelper::thisdll = nullptr;
 
-void ResourceHelper::init(HINSTANCE dll)
+void ResourceHelper::init(void* dll)
 {
 	thisdll = dll;
 }
 
 ResourceHelper::Result ResourceHelper::getData(std::vector<uint8_t>& data, const wchar_t *type, const int32_t id)
 {
-	const auto hRsrc = FindResource(thisdll, (wchar_t*)id, type);
+	HMODULE hdll = (HMODULE)thisdll;
+	const auto hRsrc = FindResource(hdll, (wchar_t*)id, type);
 	if (NULL == hRsrc)
 		return Result::FindFail;
-	DWORD dwSize = SizeofResource(thisdll, hRsrc);
+	DWORD dwSize = SizeofResource(hdll, hRsrc);
 	if (0 == dwSize)
 		return Result::ZeroSize;
-	HGLOBAL hGlobal = LoadResource(thisdll, hRsrc);
+	HGLOBAL hGlobal = LoadResource(hdll, hRsrc);
 	if (NULL == hGlobal)
 		return Result::LoadFail;
 	LPVOID pBuffer = LockResource(hGlobal);
@@ -30,11 +32,4 @@ ResourceHelper::Result ResourceHelper::getData(std::vector<uint8_t>& data, const
 	return Result::Success;
 }
 
-}
-
-
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
-{
-	common::ResourceHelper::init(hinstDLL);
-	return TRUE;
 }

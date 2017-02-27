@@ -27,9 +27,6 @@
     <ClInclude Include="RenderCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceHelper.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="RenderCoreRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -55,9 +52,6 @@
     <ClCompile Include="RenderCore.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ResourceHelper.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="RenderElement.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -68,6 +62,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Model.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dllmain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

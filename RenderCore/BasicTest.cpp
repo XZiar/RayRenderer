@@ -1,17 +1,17 @@
 #include "resource.h"
 #include "BasicTest.h"
-#include "ResourceHelper.h"
+#include "../common/ResourceHelper.h"
 
 namespace rayr
 {
 
-static std::string getShaderFromDLL(int32_t id)
+static string getShaderFromDLL(int32_t id)
 {
 	std::vector<uint8_t> data;
 	if (ResourceHelper::getData(data, L"SHADER", id) != ResourceHelper::Result::Success)
 		return "";
 	data.push_back('\0');
-	return std::string((const char*)data.data());
+	return string((const char*)data.data());
 }
 
 

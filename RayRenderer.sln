@@ -13,8 +13,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RenderCoreWrap", "RenderCor
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RayRendererGLUT", "RayRendererGLUT\RayRendererGLUT.vcxproj", "{C5ACBDCF-D02A-4449-8F5B-B079D88DBEE9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "3DBasic", "3DBasic\3DBasic.vcxitems", "{45D41ACC-2C3C-43D2-BC10-02AA73FFC7C7}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FreeGLUTView", "FreeGLUTView\FreeGLUTView.vcxproj", "{944B3981-336E-4807-B5BE-55B8F05920D4}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GLUTTest", "GLUTTest\GLUTTest.vcxproj", "{77EF1FBD-1484-45C8-B7B9-3C61E65E48BA}"
@@ -32,6 +30,43 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 		License\boost.txt = License\boost.txt
 		License\freeglut.txt = License\freeglut.txt
 		License\glew.txt = License\glew.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
+	ProjectSection(SolutionItems) = preProject
+		common\CommonBase.hpp = common\CommonBase.hpp
+		common\CommonBase.natvis = common\CommonBase.natvis
+		common\ResourceHelper.h = common\ResourceHelper.h
+		common\ResourceHelper.inl = common\ResourceHelper.inl
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3DBasic", "3DBasic", "{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}"
+	ProjectSection(SolutionItems) = preProject
+		3DBasic\3dElement.hpp = 3DBasic\3dElement.hpp
+		3DBasic\miniBLAS.hpp = 3DBasic\miniBLAS.hpp
+		3DBasic\miniBLAS.natvis = 3DBasic\miniBLAS.natvis
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CSharp", "CSharp", "{ECC412A1-998E-4715-BA83-E8C12C9BAB39}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPP", "CPP", "{B6204FB0-DC48-4C02-8453-BAEF3D033ACB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreLibrary", "CoreLibrary", "{89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BaseLibrary", "BaseLibrary", "{4D08E485-9B7A-4B9B-9204-4289C1092C0D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "miniBLAS", "miniBLAS", "{B24F83C0-74C0-470B-A83B-6F1B8A83E0E2}"
+	ProjectSection(SolutionItems) = preProject
+		3DBasic\miniBLAS\BLASrely.h = 3DBasic\miniBLAS\BLASrely.h
+		3DBasic\miniBLAS\Mat3x3.hpp = 3DBasic\miniBLAS\Mat3x3.hpp
+		3DBasic\miniBLAS\Mat4x4.hpp = 3DBasic\miniBLAS\Mat4x4.hpp
+		3DBasic\miniBLAS\MatBase.hpp = 3DBasic\miniBLAS\MatBase.hpp
+		3DBasic\miniBLAS\Vec3.hpp = 3DBasic\miniBLAS\Vec3.hpp
+		3DBasic\miniBLAS\Vec4.hpp = 3DBasic\miniBLAS\Vec4.hpp
+		3DBasic\miniBLAS\VecBase.hpp = 3DBasic\miniBLAS\VecBase.hpp
+		3DBasic\miniBLAS\VecI4.hpp = 3DBasic\miniBLAS\VecI4.hpp
 	EndProjectSection
 EndProject
 Global
@@ -131,5 +166,18 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2D168E14-C22D-4429-B97C-AF5D41010E48} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{CC937530-6B2A-4538-B764-71DFE8D84C89} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
+		{2C2FBE4D-B211-473E-9A93-3393C5E3BC4F} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
+		{49B581B8-58E2-4E1F-A0EF-1A83A9224B40} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{C5ACBDCF-D02A-4449-8F5B-B079D88DBEE9} = {B6204FB0-DC48-4C02-8453-BAEF3D033ACB}
+		{944B3981-336E-4807-B5BE-55B8F05920D4} = {B6204FB0-DC48-4C02-8453-BAEF3D033ACB}
+		{77EF1FBD-1484-45C8-B7B9-3C61E65E48BA} = {B6204FB0-DC48-4C02-8453-BAEF3D033ACB}
+		{DCBA4154-B0E9-4D78-846B-7F8489EC6B59} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
+		{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
+		{B24F83C0-74C0-470B-A83B-6F1B8A83E0E2} = {A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}
 	EndGlobalSection
 EndGlobal

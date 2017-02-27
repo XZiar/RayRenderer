@@ -10,7 +10,7 @@
 #endif
 
 #include "../3dBasic/3dElement.hpp"
-#include "../3DBasic/CommonBase.hpp"
+#include "../common/CommonBase.hpp"
 
 #include <GL/glew.h>
 
