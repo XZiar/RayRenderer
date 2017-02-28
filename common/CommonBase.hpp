@@ -191,6 +191,14 @@ public:
 		create(new T());
 	}
 
+	uint32_t refCount() const
+	{
+		if (cb == nullptr)
+			return 0;
+		else
+			return cb->count;
+	}
+
 	T* operator-> ()
 	{
 		return cb->instance;

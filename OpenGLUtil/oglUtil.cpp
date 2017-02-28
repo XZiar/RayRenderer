@@ -10,7 +10,9 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 {
 	DebugMessage msg(source, type, severity);
 	const DBGLimit& limit = *(DBGLimit*)userParam;
-	if ((limit.src & (uint8_t)msg.from != 0) && (limit.type & (uint16_t)msg.type != 0) && limit.minLV <= (uint8_t)msg.level)
+	if (((limit.src & (uint8_t)msg.from) != 0) 
+		&& ((limit.type & (uint16_t)msg.type) != 0) 
+		&& limit.minLV <= (uint8_t)msg.level)
 	{
 		auto theMsg = std::make_shared<DebugMessage>(msg);
 		theMsg->msg.assign(message, message + length);

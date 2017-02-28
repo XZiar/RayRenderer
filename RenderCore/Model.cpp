@@ -110,8 +110,8 @@ catch (const std::runtime_error& e)
 {
 #ifdef _DEBUG
 	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
-	return false;
 #endif
+	return false;
 }
 
 bool Model::loadOBJ(const Path& objpath) try
@@ -210,8 +210,8 @@ catch (const std::runtime_error& e)
 {
 #ifdef _DEBUG
 	printf("@@cannot open obj file:%ls\n", objpath.c_str());
-	return false;
 #endif
+	return false;
 }
 
 Model::Model(const wstring& fname)
@@ -239,7 +239,7 @@ Model::Model(const wstring& fname)
 				sizs.push_back(g.second - last);
 			offs.push_back(last = g.second);
 		}
-		sizs.push_back(indexs.size() - last);
+		sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
 		vao->setDrawSize(offs, sizs);
 	}
 }

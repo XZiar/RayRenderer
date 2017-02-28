@@ -36,6 +36,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 	ProjectSection(SolutionItems) = preProject
 		common\CommonBase.hpp = common\CommonBase.hpp
 		common\CommonBase.natvis = common\CommonBase.natvis
+		common\CommonMacro.h = common\CommonMacro.h
+		common\DelayLoader.h = common\DelayLoader.h
+		common\DelayLoader.inl = common\DelayLoader.inl
+		common\FileMapper.h = common\FileMapper.h
+		common\FileMapper.inl = common\FileMapper.inl
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 	EndProjectSection
