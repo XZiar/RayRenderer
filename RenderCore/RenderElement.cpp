@@ -25,4 +25,11 @@ wstring DrawableHelper::getType(const Drawable& d)
 	return typeMap[d.drawableID];
 }
 
+void Drawable::draw(const oglu::oglProgram& prog)
+{
+	//transf[0].vec = d->rotation;
+	//transf[1].vec = d->position;
+	//prog->draw(transf.begin(), transf.end()).draw(d->vao);
+}
+
 }

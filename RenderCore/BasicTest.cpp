@@ -109,7 +109,7 @@ void BasicTest::init3d(const wstring pname)
 		}
 	}
 	{
-		auto ret = prog3D->link({ "matProj","matView","matModel","matMVP" }, { "tex","","" }, { "vertPos","vertNorm","texPos","" });
+		auto ret = prog3D->link({ "matProj","matView","matModel","matMVP" }, { "vertPos","vertNorm","texPos","" });
 		if (!ret)
 		{
 			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
@@ -178,7 +178,7 @@ void BasicTest::initTex()
 {
 	picTex.reset(TextureType::Tex2D);
 	picBuf.reset(BufferType::Pixel);
-	oglTexture tmpTex(TextureType::Tex2D);
+	tmpTex.reset(TextureType::Tex2D);
 	{
 		picTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 		Vec4 empty[128][128];
@@ -220,7 +220,6 @@ void BasicTest::initTex()
 		}
 		mskTex->setData(TextureFormat::RGBAf, 128, 128, empty);
 	}
-	prog3D->setTexture(tmpTex, 0);
 }
 
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
@@ -229,28 +228,24 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	init2d(sname2d);
 	init3d(sname3d);
 	initTex();
-	prog2D->setTexture(picTex, 0);
-	//prog3D->setTexture(mskTex, 0);
 }
 
 void BasicTest::draw()
 {
 	if (mode)
 	{
-		prog3D->setTexture(mskTex, 0);
 		transf[0].vec = rvec; transf[1].vec = tvec;
-		prog3D->draw(transf.begin(), transf.end()).draw(testVAO);
-		prog3D->setTexture(picTex, 0);
+		prog3D->draw(transf.begin(), transf.end()).setTexture(mskTex, "tex").draw(testVAO);
 		for (const auto& d : drawables)
 		{
 			transf[0].vec = d->rotation;
 			transf[1].vec = d->position;
-			prog3D->draw(transf.begin(), transf.end()).draw(d->vao);
+			prog3D->draw(transf.begin(), transf.end()).setTexture(picTex, "tex").draw(d->vao);
 		}
 	}
 	else
 	{
-		prog2D->draw().draw(picVAO, 6);
+		prog2D->draw().setTexture(picTex, "tex").draw(picVAO, 6);
 	}
 }
 

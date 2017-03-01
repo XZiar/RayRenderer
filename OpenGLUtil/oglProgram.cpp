@@ -16,6 +16,58 @@ _oglProgram::ProgDraw::ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat) :pro
 	prog.setMat(prog.Uni_modelMat, modelMat);
 }
 
+void _oglProgram::ProgDraw::setTexture(const GLint pos, const oglTexture& tex)
+{
+	auto& obj = prog.uniCache[pos];
+	const auto val = tex ? _oglTexture::getTexMan().bind(tex) : 0;
+	if (obj == val)//no change
+		return;
+	//change value and update uniform-hold map
+	glProgramUniform1i(prog.programID, pos, obj = val);
+}
+
+void _oglProgram::ProgDraw::setTexture()
+{
+	switch (texCache.size())
+	{
+	case 0:
+		return;
+	case 1:
+		setTexture(texCache.begin()->first, texCache.begin()->second);
+		break;
+	default:
+		_oglTexture::getTexMan().bindAll(prog.programID, texCache, prog.uniCache);
+		break;
+	}
+	texCache.clear();
+}
+
+void _oglProgram::ProgDraw::setUBO(const GLint pos, const oglBuffer& ubo)
+{
+	auto& obj = prog.uniCache[pos];
+	const auto val = ubo ? _oglBuffer::getUBOMan().bind(ubo) : 0;
+	if (obj == val)//no change
+		return;
+	//change value and update uniform-hold map
+	glUniformBlockBinding(prog.programID, pos, obj = val);
+}
+
+void _oglProgram::ProgDraw::setUBO()
+{
+	switch (uboCache.size())
+	{
+	case 0:
+		return;
+	case 1:
+		setUBO(uboCache.begin()->first, uboCache.begin()->second);
+		break;
+	default:
+		_oglBuffer::getUBOMan().bindAll(prog.programID, uboCache, prog.uniCache);
+		break;
+	}
+	uboCache.clear();
+}
+
 void _oglProgram::ProgDraw::drawIndex(const oglVAO& vao, const GLsizei size, const void *offset)
 {
 	glDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, offset);
@@ -36,8 +88,63 @@ void _oglProgram::ProgDraw::drawArrays(const oglVAO& vao, const GLsizei count, c
 	glMultiDrawArrays((GLenum)vao->vaoMode, offset, size, count);
 }
 
+
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx, const bool immediate)
+{
+	const auto it = prog.texMap.find(name);
+	if (it != prog.texMap.end() && idx < it->second.len)//legal
+	{
+		const auto pos = it->second.location + idx;
+		if (immediate)
+			setTexture(pos, tex);
+		else
+			texCache.insert_or_assign(pos, tex);
+	}
+	return *this;
+}
+
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const GLuint pos, const bool immediate)
+{
+	if (pos < prog.uniCache.size())
+	{
+		if (immediate)
+			setTexture(pos, tex);
+		else
+			texCache.insert_or_assign(pos, tex);
+	}
+	return *this;
+}
+
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglBuffer& ubo, const string& name, const GLuint idx, const bool immediate)
+{
+	const auto it = prog.uboMap.find(name);
+	if (it != prog.uboMap.end() && idx < it->second.len)//legal
+	{
+		const auto pos = it->second.location + idx;
+		if (immediate)
+			setUBO(pos, ubo);
+		else
+			uboCache.insert_or_assign(pos, ubo);
+	}
+	return *this;
+}
+
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglBuffer& ubo, const GLuint pos, const bool immediate)
+{
+	if (pos < prog.uniCache.size())
+	{
+		if (immediate)
+			setUBO(pos, ubo);
+		else
+			uboCache.insert_or_assign(pos, ubo);
+	}
+	return *this;
+}
+
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
+	setTexture();
+	setUBO();
 	vao->bind();
 	if (vao->index)
 		drawIndex(vao, size, (void*)(offset * vao->indexSizeof));
@@ -48,6 +155,8 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint
 
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 {
+	setTexture();
+	setUBO();
 	vao->bind();
 	switch (vao->drawMethod)
 	{
@@ -67,17 +176,38 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 GLint _oglProgram::DataInfo::getValue(const GLuint pid, const GLenum prop)
 {
 	GLint ret;
-	glGetProgramResourceiv(pid, (GLenum)iftype, ifidx, 1, &prop, 1, NULL, &ret);
+	glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
 	return ret;
 }
 
 void _oglProgram::DataInfo::initData(const GLuint pid, const GLint idx)
 {
 	ifidx = (uint8_t)idx;
-	if (iftype != DataInfo::IFType::UniformBlock)
+	if (type == GL_UNIFORM_BLOCK)
+	{
+		valtype = GL_UNIFORM_BLOCK;
+	}
+	else
 	{
 		len = getValue(pid, GL_ARRAY_SIZE);
+		valtype = (GLenum)getValue(pid, GL_TYPE);
 	}
+}
+
+bool _oglProgram::DataInfo::isTexture() const
+{
+	if (type != GL_UNIFORM)
+		return false;
+	if (valtype >= GL_SAMPLER_1D && valtype <= GL_SAMPLER_2D_RECT_SHADOW)
+		return true;
+	else if(valtype >= GL_SAMPLER_1D_ARRAY && valtype <= GL_SAMPLER_CUBE_SHADOW)
+		return true;
+	else if (valtype >= GL_INT_SAMPLER_1D && valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
+		return true;
+	else if (valtype >= GL_SAMPLER_2D_MULTISAMPLE && valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY)
+		return true;
+	else
+		return false;
 }
 
 
@@ -112,7 +242,7 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 		else
 		{
 			glUseProgram(curPID = prog.programID);
-			prog.recoverTexMap();
+			//prog.recoverBindings();
 		}
 	}
 	return true;
@@ -126,18 +256,18 @@ void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const
 
 void _oglProgram::initLocs()
 {
-	dataMap.clear();
+	map<string, DataInfo> dataMap;
 	GLchar name[256];
-	DataInfo baseinfo[] = { DataInfo::IFType::UniformBlock,DataInfo::IFType::Uniform,DataInfo::IFType::Attrib };
+	DataInfo baseinfo[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
 	for(const DataInfo& binfo : baseinfo)
 	{
 		GLint cnt = 0;
-		glGetProgramInterfaceiv(programID, (GLenum)binfo.iftype, GL_ACTIVE_RESOURCES, &cnt);
+		glGetProgramInterfaceiv(programID, binfo.type, GL_ACTIVE_RESOURCES, &cnt);
 		for (GLint a = 0; a < cnt; ++a)
 		{
 			int arraylen = 0;
 			DataInfo datinfo(binfo);
-			glGetProgramResourceName(programID, (GLenum)binfo.iftype, a, 240, nullptr, name);
+			glGetProgramResourceName(programID, binfo.type, a, 240, nullptr, name);
 			char* chpos = nullptr;
 			//printf("@@query %d\t\t%s\n", binfo.iftype, name);
 			datinfo.initData(programID, a);
@@ -156,42 +286,34 @@ void _oglProgram::initLocs()
 				it->second.len = miniBLAS::max(it->second.len, arraylen);
 				continue;
 			}
-			datinfo.location = glGetProgramResourceIndex(programID, (GLenum)datinfo.iftype, name);
+			datinfo.location = glGetProgramResourceIndex(programID, datinfo.type, name);
 			if (datinfo.location != GL_INVALID_INDEX)//record index
 			{
 				dataMap.insert_or_assign(name, datinfo);
+				locMap.insert_or_assign(name, datinfo.location);
 			}
 		}
 	}
-#ifdef _DEBUG
+	GLint maxUniLoc = 0;
 	for (const auto& di : dataMap)
-		printf("@@@@%7s%2d:  [%2d][%6s%3d]\t%s\n", di.second.getTypeName(), di.second.ifidx, di.second.location,
-			di.second.isArray() ? "Array-" : "Single", di.second.len, di.first.c_str());
-#endif
-}
-
-void _oglProgram::recoverTexMap()
-{
-	if (Uni_Texture == GL_INVALID_INDEX)
-		return;
-	auto& texMan = _oglTexture::getTexMan();
-	uint8_t rebinds[256];
-	uint8_t a = 0, rebindcnt = 0;
-	for (const auto& tex : texs)
 	{
-		if (tex)
+		const auto& info = di.second;
+		if (info.isAttrib())
+			attrMap.insert(di);
+		else
 		{
-			texvals[a] = texMan.trybind(*this, tex);
-			if (texvals[a] == 0)
-				rebinds[rebindcnt++] = a;
+			maxUniLoc = miniBLAS::max(maxUniLoc, info.location + info.len);
+			if (info.isUniformBlock())
+				uboMap.insert(di);
+			else if (info.isTexture())
+				texMap.insert(di);
 		}
-		a++;
+	#ifdef _DEBUG
+		printf("@@@@%7s%2d:  [%2d][%3dele]\t%s\n", info.getTypeName(), info.ifidx, info.location,
+			info.len, di.first.c_str());
+	#endif
 	}
-	for (a = 0; a < rebindcnt; ++a)
-	{
-		texvals[a] = texMan.bind(*this, texs[a]);
-	}
-	glProgramUniform1iv(programID, Uni_Texture, (GLsizei)texvals.size(), texvals.data());
+	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
 
 void _oglProgram::addShader(oglShader && shader)
@@ -200,7 +322,7 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUniform)[3], const string(&VertAttrName)[4])
+OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&VertAttrName)[4])
 {
 	glLinkProgram(programID);
 
@@ -222,29 +344,27 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&BasicUn
 	Uni_viewMat = getLoc(MatrixName[1]);//viewMatrix
 	Uni_modelMat = getLoc(MatrixName[2]);//modelMatrix
 	Uni_mvpMat = getLoc(MatrixName[3]);//model-view-project-Matrix
-	Uni_Texture = getLoc(BasicUniform[0]);//textureUniform
-	texs.clear();
-	if (Uni_Texture != GL_INVALID_INDEX)
-	{
-		const auto size = dataMap.find(BasicUniform[0])->second.len;
-		texs.resize(size);
-		texvals.resize(size);
-	}
 
 	//initialize vertex attribute location
-	Attr_Vert_Pos = getLoc(VertAttrName[0]);//Vertex Position
-	Attr_Vert_Norm = getLoc(VertAttrName[1]);//Vertex Normal
-	Attr_Vert_Texc = getLoc(VertAttrName[2]);//Vertex Texture Coordinate
-	Attr_Vert_Color = getLoc(VertAttrName[3]);//Vertex Color
+	for (auto a = 0; a < 4; ++a)
+	{
+		auto it = attrMap.find(VertAttrName[a]);
+		if (it != attrMap.end())
+			(&Attr_Vert_Pos)[a] = it->second.location;
+	}
+	Attr_Vert_Pos = getLoc(VertAttrName[0]);
+	Attr_Vert_Norm = getLoc(VertAttrName[1]);
+	Attr_Vert_Texc = getLoc(VertAttrName[2]);
+	Attr_Vert_Color = getLoc(VertAttrName[3]);
 
 	return true;
 }
 
 GLint _oglProgram::getLoc(const string& name) const
 {
-	auto it = dataMap.find(name);
-	if (it != dataMap.end())
-		return it->second.location;
+	auto it = locMap.find(name);
+	if (it != locMap.end())
+		return it->second;
 	else //not existed
 		return GL_INVALID_INDEX;
 }
@@ -288,37 +408,6 @@ void _oglProgram::setCamera(const Camera & cam)
 	setMat(Uni_viewMat, matrix_View);
 	if (Uni_camPos != GL_INVALID_INDEX)
 		glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
-}
-
-void _oglProgram::setTexture(const oglTexture& tex, const uint8_t pos)
-{
-	if (Uni_Texture == GL_INVALID_INDEX || pos >= texvals.size())
-		return;
-	if (texs[pos] == tex)//no change
-		return;
-	texs[pos] = tex;//update texture-hold map
-	if (tex && usethis(*this, false))//need to bind the new tex
-	{//already in use, then really change value
-		auto& texMan = _oglTexture::getTexMan();
-		glProgramUniform1i(programID, Uni_Texture + pos, texvals[pos] = texMan.bind(*this, tex));
-	}
-}
-
-void _oglProgram::setUBO(const oglBuffer& ubo, const uint8_t pos)
-{
-	if (Uni_Texture == GL_INVALID_INDEX || pos >= ubovals.size())
-		return;
-	if (ubos[pos] == ubo)//no change
-		return;
-	ubos[pos] = ubo;//update texture-hold map
-	if (ubo && usethis(*this, false))//need to bind the new ubo
-	{//already in use, then really change value
-		auto& uboMan = _oglBuffer::getUBOMan();
-		glUniformBlockBinding(programID, pos, ubovals[pos] = uboMan.bind(*this, ubo));
-		//glBindBufferBase();
-		//glUniformBlockBinding(programID)
-		//glProgramUniform1i(programID, Uni_Texture + pos, texvals[pos] = texMan.bind(*this, tex));
-	}
 }
 
 _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat)

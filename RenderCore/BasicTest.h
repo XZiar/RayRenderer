@@ -16,7 +16,7 @@ class RAYCOREAPI alignas(32) BasicTest : public NonMovable, public NonCopyable, 
 {
 private:
 	oglProgram prog2D, prog3D;
-	oglTexture picTex, mskTex;
+	oglTexture picTex, mskTex, tmpTex;
 	oglBuffer picBuf, screenBox, testTri, triIdx;
 	oglVAO picVAO, testVAO;
 	vector<TransformOP> transf;

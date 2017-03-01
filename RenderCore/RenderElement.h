@@ -15,7 +15,6 @@ class alignas(16) Material : public AlignBase<>
 public:
 	Vec4 ambient, diffuse, specular, emission;
 	float shiness, reflect, refract, rfr;//高光权重，反射比率，折射比率，折射率
-	wstring name;
 };
 
 
@@ -43,6 +42,7 @@ public:
 	 *-param: VertPos,VertNorm,TexPos
 	 */
 	virtual void prepareGL(const GLint(&AttrLoc)[3]) = 0;
+	virtual void draw(const oglu::oglProgram& prog);
 protected:
 	uint32_t drawableID;
 };

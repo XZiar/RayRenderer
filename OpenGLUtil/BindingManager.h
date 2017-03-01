@@ -168,12 +168,16 @@ private:
 	{
 		((const D*)this)->innerBind(obj, pos);
 	}
+	void outterBind(const GLuint prog, const GLuint pos, const uint8_t val) const
+	{
+		((const D*)this)->outterBind(prog, pos, val);
+	}
 protected:
 	LRUPos<GLuint> cache;
 	ResDister(uint8_t size) :cache(size) { }
 	ResDister(GLenum prop, uint8_t preserveCnt = 0) :ResDister(uint8_t(getSize(prop) - preserveCnt)) { }
 public:
-	uint8_t trybind(const _oglProgram& prog, const T& obj)
+	uint8_t trybind(const T& obj)
 	{
 		const auto pos = cache.touch(getID(obj));
 		if (pos == UINT16_MAX)
@@ -182,7 +186,33 @@ public:
 			return (uint8_t)(pos + 1);
 	}
 
-	uint8_t bind(const _oglProgram& prog, const T& obj)
+	void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, miniBLAS::vector<GLint>& poss)
+	{
+		std::vector<const std::pair<const GLuint, T>*> rebinds;
+		rebinds.reserve(objs.size());
+		for (const auto& item : objs)
+		{
+			GLuint val = 0;
+			if (item.second)
+			{
+				const auto ret = cache.touch(getID(item.second));
+				if (ret == UINT16_MAX)
+				{
+					rebinds.push_back(&item);
+					continue;
+				}
+				else
+					val = static_cast<GLint>(ret);
+			}
+			if (poss[item.first] != val)
+				outterBind(prog, item.first, poss[item.first] == val);
+		}
+		for (const auto& item : rebinds)
+		{
+			outterBind(prog, item->first, poss[item->first] = bind(item->second));
+		}
+	}
+	uint8_t bind(const T& obj)
 	{
 		bool shouldBind = false;
 		const uint8_t pos = (uint8_t)(cache.push(getID(obj), &shouldBind) + 1);
@@ -206,6 +236,7 @@ class TextureManager : public ResDister<TextureManager, oglTexture>
 protected:
 	GLuint getID(const oglTexture& obj) const;
 	void innerBind(const oglTexture& obj, const uint8_t pos) const;
+	void outterBind(const GLuint pid, const GLuint pos, const uint8_t val) const;
 public:
 	TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 4) { }
 };
@@ -216,6 +247,7 @@ class UBOManager : public ResDister<UBOManager, oglBuffer>
 protected:
 	GLuint getID(const oglBuffer& obj) const;
 	void innerBind(const oglBuffer& obj, const uint8_t pos) const;
+	void outterBind(const GLuint pid, const GLuint pos, const uint8_t val) const;
 public:
 	UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS, 4) { }
 };
