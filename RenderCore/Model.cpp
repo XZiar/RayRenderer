@@ -109,7 +109,7 @@ bool Model::loadMTL(const Path& mtlpath) try
 catch (const std::runtime_error& e)
 {
 #ifdef _DEBUG
-	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
+	printf("@@cannot open mtl file:%ls\n%s\n", mtlpath.c_str(), e.what());
 #endif
 	return false;
 }
@@ -209,7 +209,7 @@ bool Model::loadOBJ(const Path& objpath) try
 catch (const std::runtime_error& e)
 {
 #ifdef _DEBUG
-	printf("@@cannot open obj file:%ls\n", objpath.c_str());
+	printf("@@cannot open obj file:%ls\n%s\n", objpath.c_str(), e.what());
 #endif
 	return false;
 }

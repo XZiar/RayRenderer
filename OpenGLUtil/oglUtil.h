@@ -20,18 +20,18 @@ struct OGLUAPI DebugMessage
 {
 	friend class oglUtil;
 private:
-	static MsgSrc parseSrc(const GLenum src)
+	static MsgSrc __cdecl parseSrc(const GLenum src)
 	{
 		return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
 	}
-	static MsgType parseType(const GLenum type)
+	static MsgType __cdecl parseType(const GLenum type)
 	{
 		if(type <= GL_DEBUG_TYPE_OTHER)
 			return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
 		else
 			return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
 	}
-	static MsgLevel parseLv(const GLenum lv)
+	static MsgLevel __cdecl parseLv(const GLenum lv)
 	{
 		switch (lv)
 		{
@@ -70,12 +70,12 @@ private:
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> errlist;
 	static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 public:
-	static void init();
-	static void setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
-	static string getVersion();
-	static OPResult<GLenum> getError();
+	static void __cdecl init();
+	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
+	static string __cdecl getVersion();
+	static OPResult<GLenum> __cdecl getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
-	static OPResult<wstring> loadShader(oglProgram& prog, const wstring& fname);
+	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
 };
 
 }

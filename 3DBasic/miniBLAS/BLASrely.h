@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../common/CommonMacro.h"
 #include <cstdint>
 #include <type_traits>
 #include <cmath>
@@ -25,7 +26,6 @@
 #   define __SSE2__ 1
 #endif
 
-
 #if defined(__GNUC__)
 #   include <x86intrin.h>
 #   define _mm256_set_m128(/* __m128 */ hi, /* __m128 */ lo)  _mm256_insertf128_ps(_mm256_castps128_ps256(lo), (hi), 0x1)
@@ -34,7 +34,6 @@
 #   include <malloc.h>
 #   define malloc_align(size, align) memalign((align), (size))
 #   define free_align(ptr) free(ptr)
-#   define VECCALL 
 #else
 #   include <intrin.h>
 #   define malloc_align(size, align) _aligned_malloc((size), (align))
@@ -43,7 +42,8 @@
 #      define __SSE2__ 1
 #   endif
 #endif
-#if !defined(__GNUC__) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)
+
+#if defined(_WIN32) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)
 #   define VECCALL __vectorcall
 #else
 #   define VECCALL 
@@ -60,18 +60,13 @@
 #else
 #   define MINIBLAS_INTRIN NONE
 #endif
-
-#define TO_STR(a) #a
-#define GET_STR(a) TO_STR(a)
-#pragma message("Compiling miniBLAS with " GET_STR(MINIBLAS_INTRIN) )
+#pragma message("Compiling miniBLAS with " STRINGIZE(MINIBLAS_INTRIN) )
 
 namespace miniBLAS
 {
 inline constexpr char* miniBLAS_intrin()
 {
-	return GET_STR(MINIBLAS_INTRIN);
-#undef GET_STR
-#undef TO_STR
+	return STRINGIZE(MINIBLAS_INTRIN);
 }
 
 
