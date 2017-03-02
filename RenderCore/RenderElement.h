@@ -5,8 +5,6 @@
 
 namespace rayr
 {
-using std::wstring;
-using miniBLAS::vector;
 using namespace common;
 using namespace b3d;
 
@@ -41,10 +39,11 @@ public:
 	/*prepare VAO with given Vertex Attribute Location
 	 *-param: VertPos,VertNorm,TexPos
 	 */
-	virtual void prepareGL(const GLint(&AttrLoc)[3]) = 0;
-	virtual void draw(const oglu::oglProgram& prog);
+	virtual void prepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
+	virtual void draw(oglu::oglProgram& prog);
 protected:
 	uint32_t drawableID;
+	auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
 };
 
 }

@@ -115,4 +115,25 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 	return true;
 }
 
+void oglUtil::applyTransform(Mat4x4& matModel, const TransformOP& op)
+{
+	switch (op.type)
+	{
+	case TransformType::RotateXYZ:
+		matModel = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, op.vec.z)) *
+			Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, op.vec.y)) *
+			Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, op.vec.x))) * matModel;
+		return;
+	case TransformType::Rotate:
+		matModel = Mat4x4(Mat3x3::RotateMat(op.vec)) * matModel;
+		return;
+	case TransformType::Translate:
+		matModel = Mat4x4::TranslateMat(op.vec) * matModel;
+		return;
+	case TransformType::Scale:
+		matModel = Mat4x4(Mat3x3::ScaleMat(op.vec)) * matModel;
+		return;
+	}
+}
+
 }

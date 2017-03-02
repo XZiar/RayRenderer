@@ -40,7 +40,7 @@ protected:
 	bool loadOBJ(const Path& objfname);
 public:
 	Model(const wstring& fname);
-	virtual void prepareGL(const GLint(&attrLoc)[3]) override;
+	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
 };
 
 }

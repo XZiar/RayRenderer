@@ -177,15 +177,6 @@ protected:
 	ResDister(uint8_t size) :cache(size) { }
 	ResDister(GLenum prop, uint8_t preserveCnt = 0) :ResDister(uint8_t(getSize(prop) - preserveCnt)) { }
 public:
-	uint8_t trybind(const T& obj)
-	{
-		const auto pos = cache.touch(getID(obj));
-		if (pos == UINT16_MAX)
-			return 0;
-		else
-			return (uint8_t)(pos + 1);
-	}
-
 	void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, miniBLAS::vector<GLint>& poss)
 	{
 		std::vector<const std::pair<const GLuint, T>*> rebinds;
@@ -241,12 +232,12 @@ public:
 	TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 4) { }
 };
 
-class UBOManager : public ResDister<UBOManager, oglBuffer>
+class UBOManager : public ResDister<UBOManager, oglUBO>
 {
-	friend class ResDister<UBOManager, oglBuffer>;
+	friend class ResDister<UBOManager, oglUBO>;
 protected:
-	GLuint getID(const oglBuffer& obj) const;
-	void innerBind(const oglBuffer& obj, const uint8_t pos) const;
+	GLuint getID(const oglUBO& obj) const;
+	void innerBind(const oglUBO& obj, const uint8_t pos) const;
 	void outterBind(const GLuint pid, const GLuint pos, const uint8_t val) const;
 public:
 	UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS, 4) { }

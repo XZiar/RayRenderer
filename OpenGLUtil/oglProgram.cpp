@@ -1,22 +1,16 @@
 #include "oglProgram.h"
+#include "oglUtil.h"
 #include "BindingManager.h"
 
 namespace oglu
 {
 
 
-_oglProgram::ProgDraw::ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat) :prog(prog_)
+_oglProgram::ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 {
-	_oglProgram::usethis(prog);
-	if (prog.Uni_mvpMat != GL_INVALID_INDEX)
-	{
-		const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
-		prog.setMat(prog.Uni_mvpMat, mvpMat);
-	}
-	prog.setMat(prog.Uni_modelMat, modelMat);
 }
 
-void _oglProgram::ProgDraw::setTexture(const GLint pos, const oglTexture& tex)
+void _oglProgram::ProgState::setTexture(const GLint pos, const oglTexture& tex) const
 {
 	auto& obj = prog.uniCache[pos];
 	const auto val = tex ? _oglTexture::getTexMan().bind(tex) : 0;
@@ -26,7 +20,7 @@ void _oglProgram::ProgDraw::setTexture(const GLint pos, const oglTexture& tex)
 	glProgramUniform1i(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgDraw::setTexture()
+void _oglProgram::ProgState::setTexture() const
 {
 	switch (texCache.size())
 	{
@@ -39,20 +33,19 @@ void _oglProgram::ProgDraw::setTexture()
 		_oglTexture::getTexMan().bindAll(prog.programID, texCache, prog.uniCache);
 		break;
 	}
-	texCache.clear();
 }
 
-void _oglProgram::ProgDraw::setUBO(const GLint pos, const oglBuffer& ubo)
+void _oglProgram::ProgState::setUBO(const GLint pos, const oglUBO& ubo) const
 {
 	auto& obj = prog.uniCache[pos];
-	const auto val = ubo ? _oglBuffer::getUBOMan().bind(ubo) : 0;
+	const auto val = ubo ? _oglUniformBuffer::getUBOMan().bind(ubo) : 0;
 	if (obj == val)//no change
 		return;
 	//change value and update uniform-hold map
 	glUniformBlockBinding(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgDraw::setUBO()
+void _oglProgram::ProgState::setUBO() const
 {
 	switch (uboCache.size())
 	{
@@ -62,11 +55,74 @@ void _oglProgram::ProgDraw::setUBO()
 		setUBO(uboCache.begin()->first, uboCache.begin()->second);
 		break;
 	default:
-		_oglBuffer::getUBOMan().bindAll(prog.programID, uboCache, prog.uniCache);
+		_oglUniformBuffer::getUBOMan().bindAll(prog.programID, uboCache, prog.uniCache);
 		break;
 	}
-	uboCache.clear();
 }
+
+void _oglProgram::ProgState::end()
+{
+}
+
+
+_oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
+{
+	const auto it = prog.texMap.find(name);
+	if (it != prog.texMap.end() && idx < it->second.len)//legal
+	{
+		const auto pos = it->second.location + idx;
+		texCache.insert_or_assign(pos, tex);
+	}
+	return *this;
+}
+
+_oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex, const GLuint pos)
+{
+	if (pos < prog.uniCache.size())
+	{
+		texCache.insert_or_assign(pos, tex);
+	}
+	return *this;
+}
+
+_oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+{
+	const auto it = prog.uboMap.find(name);
+	if (it != prog.uboMap.end() && idx < it->second.len)//legal
+	{
+		const auto pos = it->second.location + idx;
+		uboCache.insert_or_assign(pos, ubo);
+	}
+	return *this;
+}
+
+_oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const GLuint pos)
+{
+	if (pos < prog.uniCache.size())
+	{
+		uboCache.insert_or_assign(pos, ubo);
+	}
+	return *this;
+}
+
+
+_oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat) :ProgState(pstate.prog)
+{
+	_oglProgram::usethis(prog);
+	if (prog.Uni_mvpMat != GL_INVALID_INDEX)
+	{
+		const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
+		prog.setMat(prog.Uni_mvpMat, mvpMat);
+	}
+	prog.setMat(prog.Uni_modelMat, modelMat);
+	pstate.setTexture();
+	pstate.setUBO();
+}
+
+void _oglProgram::ProgDraw::end()
+{
+}
+
 
 void _oglProgram::ProgDraw::drawIndex(const oglVAO& vao, const GLsizei size, const void *offset)
 {
@@ -89,62 +145,12 @@ void _oglProgram::ProgDraw::drawArrays(const oglVAO& vao, const GLsizei count, c
 }
 
 
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx, const bool immediate)
-{
-	const auto it = prog.texMap.find(name);
-	if (it != prog.texMap.end() && idx < it->second.len)//legal
-	{
-		const auto pos = it->second.location + idx;
-		if (immediate)
-			setTexture(pos, tex);
-		else
-			texCache.insert_or_assign(pos, tex);
-	}
-	return *this;
-}
-
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const GLuint pos, const bool immediate)
-{
-	if (pos < prog.uniCache.size())
-	{
-		if (immediate)
-			setTexture(pos, tex);
-		else
-			texCache.insert_or_assign(pos, tex);
-	}
-	return *this;
-}
-
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglBuffer& ubo, const string& name, const GLuint idx, const bool immediate)
-{
-	const auto it = prog.uboMap.find(name);
-	if (it != prog.uboMap.end() && idx < it->second.len)//legal
-	{
-		const auto pos = it->second.location + idx;
-		if (immediate)
-			setUBO(pos, ubo);
-		else
-			uboCache.insert_or_assign(pos, ubo);
-	}
-	return *this;
-}
-
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglBuffer& ubo, const GLuint pos, const bool immediate)
-{
-	if (pos < prog.uniCache.size())
-	{
-		if (immediate)
-			setUBO(pos, ubo);
-		else
-			uboCache.insert_or_assign(pos, ubo);
-	}
-	return *this;
-}
-
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
-	setTexture();
-	setUBO();
+	ProgState::setTexture();
+	texCache.clear();
+	ProgState::setUBO();
+	uboCache.clear();
 	vao->bind();
 	if (vao->index)
 		drawIndex(vao, size, (void*)(offset * vao->indexSizeof));
@@ -155,8 +161,10 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint
 
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 {
-	setTexture();
-	setUBO();
+	ProgState::setTexture();
+	texCache.clear();
+	ProgState::setUBO();
+	uboCache.clear();
 	vao->bind();
 	switch (vao->drawMethod)
 	{
@@ -211,7 +219,7 @@ bool _oglProgram::DataInfo::isTexture() const
 }
 
 
-_oglProgram::_oglProgram()
+_oglProgram::_oglProgram() :gState(*this)
 {
 	programID = glCreateProgram();
 }
@@ -412,7 +420,7 @@ void _oglProgram::setCamera(const Camera & cam)
 
 _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat)
 {
-	return ProgDraw(*this, modelMat);
+	return ProgDraw(gState, modelMat);
 }
 
 _oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
@@ -421,25 +429,14 @@ _oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
 	for (topIT cur = begin; cur != end; ++cur)
 	{
 		const TransformOP& trans = *cur;
-		switch (trans.type)
-		{
-		case TransformType::RotateXYZ:
-			matModel = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, trans.vec.z)) *
-				Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, trans.vec.y)) *
-				Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, trans.vec.x))) * matModel;
-			break;
-		case TransformType::Rotate:
-			matModel = Mat4x4(Mat3x3::RotateMat(trans.vec)) * matModel;
-			break;
-		case TransformType::Translate:
-			matModel = Mat4x4::TranslateMat(trans.vec) * matModel;
-			break;
-		case TransformType::Scale:
-			matModel = Mat4x4(Mat3x3::ScaleMat(trans.vec)) * matModel;
-			break;
-		}
+		oglUtil::applyTransform(matModel, trans);
 	}
-	return ProgDraw(*this, matModel);
+	return ProgDraw(gState, matModel);
+}
+
+_oglProgram::ProgState& _oglProgram::globalState()
+{
+	return gState;
 }
 
 }

@@ -76,6 +76,7 @@ public:
 	static OPResult<GLenum> __cdecl getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
+	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 };
 
 }

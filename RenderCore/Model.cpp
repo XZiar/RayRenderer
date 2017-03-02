@@ -244,9 +244,9 @@ Model::Model(const wstring& fname)
 	}
 }
 
-void Model::prepareGL(const GLint(&attrLoc)[3])
+void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-	vao->prepare().set(vbo, attrLoc, 0)
+	defaultBind(prog,vao,vbo)
 		.setIndex(ebo, oglu::IndexSize::Int)//index draw
 		.end();
 }

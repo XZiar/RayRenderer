@@ -71,6 +71,7 @@ void BasicTest::init2d(const wstring pname)
 		Vec3 DatVert[] = { { -1.0f, -1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },
 		{ 1.0f, 1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f } };
 		screenBox->write(DatVert, sizeof(DatVert));
+		picVAO->setDrawSize(0, 6);
 		picVAO->prepare().set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0).end();
 	}
 }
@@ -166,10 +167,9 @@ void BasicTest::init3d(const wstring pname)
 		mod1->name = L"DOD3-0";
 		mod1->position = { -1,3,0,0 };
 		drawables.push_back(mod1);
-		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
 		for (auto& d : drawables)
 		{
-			d->prepareGL(attrs);
+			d->prepareGL(prog3D);
 		}
 	}
 }
@@ -228,6 +228,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	init2d(sname2d);
 	init3d(sname3d);
 	initTex();
+	prog2D->globalState().setTexture(picTex, "tex").end();
 }
 
 void BasicTest::draw()
@@ -245,7 +246,7 @@ void BasicTest::draw()
 	}
 	else
 	{
-		prog2D->draw().setTexture(picTex, "tex").draw(picVAO, 6);
+		prog2D->draw().draw(picVAO);
 	}
 }
 

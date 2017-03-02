@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglComponent.h" />
@@ -26,6 +27,7 @@
     <ClInclude Include="BindingManager.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglRely.cpp" />
     <ClCompile Include="oglProgram.cpp" />
     <ClCompile Include="oglComponent.cpp" />

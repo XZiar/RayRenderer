@@ -30,6 +30,9 @@
     <ClInclude Include="BindingManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
@@ -45,6 +48,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="BindingManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglBuffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

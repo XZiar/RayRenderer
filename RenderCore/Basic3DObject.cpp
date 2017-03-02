@@ -60,9 +60,9 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 	vao->setDrawSize(0, (uint32_t)indexs.size());
 }
 
-void Sphere::prepareGL(const GLint(&attrLoc)[3])
+void Sphere::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-	vao->prepare().set(vbo, attrLoc, 0)
+	defaultBind(prog,vao,vbo)//bind vertex attribute
 		.setIndex(ebo, oglu::IndexSize::Short)//index draw
 		.end();
 }
@@ -139,12 +139,9 @@ Box::Box(const float length, const float height, const float width)
 	vao->setDrawSize(0, 36);
 }
 
-void Box::prepareGL(const GLint(&attrLoc)[3])
+void Box::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-	vao->prepare().set(vbo, attrLoc[0], sizeof(Point), 3, 0)
-		.set(vbo, attrLoc[1], sizeof(Point), 3, 16)
-		.set(vbo, attrLoc[2], sizeof(Point), 3, 32)
-		.end();
+	defaultBind(prog, vao, vbo).end();
 }
 
 
@@ -167,9 +164,9 @@ Plane::Plane(const float len, const float texRepeat)
 	vao->setDrawSize(0, 6);
 }
 
-void Plane::prepareGL(const GLint(&attrLoc)[3])
+void Plane::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-	vao->prepare().set(vbo, attrLoc, 0).end();
+	defaultBind(prog, vao, vbo).end();
 }
 
 }

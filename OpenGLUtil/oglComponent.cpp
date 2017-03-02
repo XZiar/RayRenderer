@@ -49,40 +49,6 @@ OPResult<> _oglShader::compile()
 }
 
 
-_oglBuffer::_oglBuffer(const BufferType _type) :bufferType(_type)
-{
-	glGenBuffers(1, &bufferID);
-}
-
-_oglBuffer::~_oglBuffer()
-{
-	glDeleteBuffers(1, &bufferID);
-}
-
-oglu::UBOManager& _oglBuffer::getUBOMan()
-{
-	static thread_local UBOManager uboMan;
-	return uboMan;
-}
-
-void _oglBuffer::bind() const
-{
-	glBindBuffer((GLenum)bufferType, bufferID);
-}
-
-void _oglBuffer::unbind() const
-{
-	glBindBuffer((GLenum)bufferType, 0);
-}
-
-void _oglBuffer::write(const void *dat, const size_t size, const BufferWriteMode mode)
-{
-	bind();
-	glBufferData((GLenum)bufferType, size, dat, (GLenum)mode);
-	unbind();
-}
-
-
 TextureManager& _oglTexture::getTexMan()
 {
 	static thread_local TextureManager texMan;
@@ -234,7 +200,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
 	if (attridx[2] != GL_INVALID_INDEX)
 	{
 		glEnableVertexAttribArray(attridx[2]);//TexPos
-		glVertexAttribPointer(attridx[2], 2, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 32));
+		glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 32));
 	}
 	return *this;
 }

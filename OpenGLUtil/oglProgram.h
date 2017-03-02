@@ -18,36 +18,60 @@ class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, p
 private:
 	friend class TextureManager;
 	friend class UBOManager;
-	class OGLUAPI ProgDraw : public NonCopyable
+	class OGLUAPI ProgState : public NonCopyable
 	{
-	private:
+	protected:
 		friend _oglProgram;
 		_oglProgram& prog;
 		map<GLuint, oglTexture> texCache;
-		map<GLuint, oglBuffer> uboCache;
-		ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat);
-		void setTexture(const GLint pos, const oglTexture& tex);
-		void setTexture();
-		void setUBO(const GLint pos, const oglBuffer& ubo);
-		void setUBO();
+		map<GLuint, oglUBO> uboCache;
+		explicit ProgState(_oglProgram& prog_);
+		void setTexture(const GLint pos, const oglTexture& tex) const;
+		void setTexture() const;
+		void setUBO(const GLint pos, const oglUBO& ubo) const;
+		void setUBO() const;
+	public:
+		void end();
+		ProgState& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+		//no check on pos, carefully use
+		ProgState& setTexture(const oglTexture& tex, const GLuint pos);
+		ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
+		//no check on pos, carefully use
+		ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
+	};
+
+	class OGLUAPI ProgDraw : public ProgState
+	{
+	private:
+		friend _oglProgram;
+		ProgDraw(const ProgState& pstate, const Mat4x4& modelMat);
+		
 		void drawIndex(const oglVAO& vao, const GLsizei size, const void *offset);
 		void drawIndexs(const oglVAO& vao, const GLsizei count, const GLsizei *size, const void * const *offset);
 		void drawArray(const oglVAO& vao, const GLsizei size, const GLint offset);
 		void drawArrays(const oglVAO& vao, const GLsizei count, const GLsizei *size, const GLint *offset);
 	public:
-		void end()
-		{
-		}
-		ProgDraw& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0, const bool immediate = false);
-		//no check on pos, carefully use
-		ProgDraw& setTexture(const oglTexture& tex, const GLuint pos, const bool immediate = false);
-		ProgDraw& setUBO(const oglBuffer& ubo, const string& name, const GLuint idx = 0, const bool immediate = false);
-		//no check on pos, carefully use
-		ProgDraw& setUBO(const oglBuffer& ubo, const GLuint pos, const bool immediate = false);
+		void end();
 		/*draw vao
 		*-param vao, size, offset*/
 		ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
 		ProgDraw& draw(const oglVAO& vao);
+		ProgDraw& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0)
+		{
+			return *(ProgDraw*)&ProgState::setTexture(tex, name, idx);
+		}
+		ProgState& setTexture(const oglTexture& tex, const GLuint pos)
+		{
+			return *(ProgDraw*)&ProgState::setTexture(tex, pos);
+		}
+		ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0)
+		{
+			return *(ProgDraw*)&ProgState::setUBO(ubo, name, idx);
+		}
+		ProgState& setUBO(const oglUBO& ubo, const GLuint pos)
+		{
+			return *(ProgDraw*)&ProgState::setUBO(ubo, pos);
+		}
 	};
 
 	struct DataInfo
@@ -100,6 +124,7 @@ private:
 		Uni_Texture = GL_INVALID_INDEX,
 		Uni_camPos = GL_INVALID_INDEX;
 	Mat4x4 matrix_Proj, matrix_View;
+	ProgState gState;
 	static bool usethis(_oglProgram& programID, const bool change = true);
 	void setMat(const GLint pos, const Mat4x4& mat) const;
 	void initLocs();
@@ -120,6 +145,7 @@ public:
 	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
 	using topIT = vector<TransformOP>::const_iterator;
 	ProgDraw draw(topIT begin, topIT end);
+	ProgState& globalState();
 };
 using oglProgram = Wrapper<_oglProgram, true>;
 

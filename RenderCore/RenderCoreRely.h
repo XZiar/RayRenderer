@@ -11,5 +11,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <map>
 #include "../3DBasic/3dElement.hpp"
 #include "../OpenGLUtil/oglUtil.h"
+
+namespace rayr
+{
+using std::wstring;
+using std::string;
+using std::map;
+using miniBLAS::vector;
+}
