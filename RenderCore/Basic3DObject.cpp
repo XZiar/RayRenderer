@@ -51,20 +51,20 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 	vector<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
-	//vbo->write(pts.data(), pts.size() * sizeof(Point));
 	vbo->write(pts);
 	ebo.reset(oglu::BufferType::Element);
-	//ebo->write(indexs.data(), indexs.size() * sizeof(uint16_t));
 	ebo->write(indexs);
-	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, (uint32_t)indexs.size());
+	ptcount = static_cast<uint32_t>(indexs.size());
 }
 
 void Sphere::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, ptcount);
 	defaultBind(prog,vao,vbo)//bind vertex attribute
 		.setIndex(ebo, oglu::IndexSize::Short)//index draw
 		.end();
+	setVAO(prog, vao);
 }
 
 
@@ -134,14 +134,15 @@ Box::Box(const float length, const float height, const float width)
 	for (auto& pt : pts)
 		pt.pos *= size;
 	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts.data(), pts.size() * sizeof(Point));
-	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, 36);
+	vbo->write(pts);
 }
 
 void Box::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, 36);
 	defaultBind(prog, vao, vbo).end();
+	setVAO(prog, vao);
 }
 
 
@@ -160,13 +161,14 @@ Plane::Plane(const float len, const float texRepeat)
 		{ { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, texRepeat } },//v7
 	};
 	vbo->write(pts, sizeof(pts));
-	vao.reset(oglu::VAODrawMode::Triangles);
-	vao->setDrawSize(0, 6);
 }
 
 void Plane::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, 6);
 	defaultBind(prog, vao, vbo).end();
+	setVAO(prog, vao);
 }
 
 }

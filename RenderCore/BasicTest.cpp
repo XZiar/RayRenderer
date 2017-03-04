@@ -239,9 +239,7 @@ void BasicTest::draw()
 		prog3D->draw(transf.begin(), transf.end()).setTexture(mskTex, "tex").draw(testVAO);
 		for (const auto& d : drawables)
 		{
-			transf[0].vec = d->rotation;
-			transf[1].vec = d->position;
-			prog3D->draw(transf.begin(), transf.end()).setTexture(picTex, "tex").draw(d->vao);
+			d->draw(prog3D);
 		}
 	}
 	else

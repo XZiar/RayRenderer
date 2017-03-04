@@ -89,6 +89,11 @@ public:
 		instance = new T();
 	}
 
+	const T* pointer() const
+	{
+		return instance;
+	}
+
 	T* operator-> ()
 	{
 		return instance;
@@ -197,6 +202,11 @@ public:
 			return 0;
 		else
 			return cb->count;
+	}
+
+	const T* pointer() const
+	{
+		return cb->instance;
 	}
 
 	T* operator-> ()

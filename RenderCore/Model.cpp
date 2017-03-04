@@ -221,13 +221,16 @@ Model::Model(const wstring& fname)
 	loadOBJ(fname);
 
 	vbo.reset(oglu::BufferType::Array);
-	//vbo->write(pts.data(), pts.size() * sizeof(Point));
 	vbo->write(pts);
 	ebo.reset(oglu::BufferType::Element);
-	//ebo->write(indexs.data(), indexs.size() * sizeof(uint32_t));
 	ebo->write(indexs);
-	vao.reset(oglu::VAODrawMode::Triangles);
-	if(groups.empty())
+	
+}
+
+void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+{
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	if (groups.empty())
 		vao->setDrawSize(0, (uint32_t)indexs.size());
 	else
 	{
@@ -242,13 +245,10 @@ Model::Model(const wstring& fname)
 		sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
 		vao->setDrawSize(offs, sizs);
 	}
-}
-
-void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
-{
 	defaultBind(prog,vao,vbo)
 		.setIndex(ebo, oglu::IndexSize::Int)//index draw
 		.end();
+	setVAO(prog, vao);
 }
 
 }
