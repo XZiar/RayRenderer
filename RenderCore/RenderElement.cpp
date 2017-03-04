@@ -7,7 +7,6 @@ namespace rayr
 
 vector<wstring> DrawableHelper::typeMap;
 
-rayr::VAOMap DrawableHelper::vaoMap;
 
 DrawableHelper::DrawableHelper(const wstring& name)
 {
@@ -30,15 +29,16 @@ wstring DrawableHelper::getType(const Drawable& d)
 
 void DrawableHelper::releaseAll(const oglu::oglProgram& prog)
 {
-	const auto its = vaoMap.equal_range(prog.pointer());
-	vaoMap.erase(its.first, its.second);
+	const auto its = Drawable::vaoMap.equal_range(prog.pointer());
+	Drawable::vaoMap.erase(its.first, its.second);
 }
 
 
+Drawable::VAOMap Drawable::vaoMap;
 
 Drawable::~Drawable()
 {
-	auto& key = DrawableHelper::vaoMap.get<1>();
+	auto& key = vaoMap.get<1>();
 	const auto its = key.equal_range(this);
 	key.erase(its.first, its.second);
 }
@@ -65,13 +65,13 @@ b3d::Mat4x4 Drawable::getModelMat() const
 
 void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
 {
-	DrawableHelper::vaoMap.insert({ prog.pointer(),this,vao });
+	vaoMap.insert({ prog.pointer(),this,vao });
 }
 
 const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram& prog) const
 {
-	auto& it = DrawableHelper::vaoMap.find(std::make_tuple(prog.pointer(), this));
-	if (it == DrawableHelper::vaoMap.end())
+	auto& it = vaoMap.find(std::make_tuple(prog.pointer(), this));
+	if (it == vaoMap.end())
 		return defaultVAO;
 	else
 		return it->vao;

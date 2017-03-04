@@ -20,27 +20,12 @@ public:
 };
 
 class Drawable;
-struct VAOPack
-{
-	const oglu::_oglProgram *prog;
-	const Drawable *drawable;
-	oglu::oglVAO vao;
-};
-using VAOKey = boost::multi_index::composite_key<VAOPack,
-	boost::multi_index::member<VAOPack, const oglu::_oglProgram*, &VAOPack::prog>,
-	boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>
->;
-using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
-	boost::multi_index::ordered_unique<VAOKey>,
-	boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
-	>
->;
+
 class DrawableHelper
 {
 private:
 	friend class Drawable;
 	static vector<wstring> typeMap;
-	static VAOMap vaoMap;
 public:
 	uint32_t id;
 	DrawableHelper(const wstring& name);
@@ -52,6 +37,21 @@ public:
 class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonMovable
 {
 	friend class DrawableHelper;
+	struct VAOPack
+	{
+		const oglu::inner::_oglProgram *prog;
+		const Drawable *drawable;
+		oglu::oglVAO vao;
+	};
+	using VAOKey = boost::multi_index::composite_key<VAOPack,
+		boost::multi_index::member<VAOPack, const oglu::inner::_oglProgram*, &VAOPack::prog>,
+		boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>
+	>;
+	using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
+		boost::multi_index::ordered_unique<VAOKey>,
+		boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
+	>>;
+	static VAOMap vaoMap;
 public:
 	Vec4 position = Vec4::zero(), rotation = Vec4::zero(), scale = Vec4::one();
 	//oglu::oglVAO vao;

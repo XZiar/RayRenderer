@@ -1,7 +1,7 @@
 #include "BindingManager.h"
 
 
-namespace oglu
+namespace oglu::inner
 {
 
 

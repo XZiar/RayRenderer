@@ -12,6 +12,29 @@ enum class ShaderType : GLenum
 	Compute = GL_COMPUTE_SHADER
 };
 
+enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, TexBuf = GL_TEXTURE_BUFFER, };
+
+enum class TextureFormat : GLenum
+{
+	RGB = GL_RGB, RGBA = GL_RGBA, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F
+};
+
+enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
+
+enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
+
+enum class VAODrawMode : GLenum
+{
+	Triangles = GL_TRIANGLES
+};
+
+enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
+
+
+namespace inner
+{
+
+
 class OGLUAPI _oglShader : public NonCopyable, public NonMovable
 {
 private:
@@ -27,16 +50,8 @@ public:
 
 	OPResult<> compile();
 };
-using oglShader = Wrapper<_oglShader, true>;
 
 
-enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, TexBuf = GL_TEXTURE_BUFFER, };
-enum class TextureFormat : GLenum
-{
-	RGB = GL_RGB, RGBA = GL_RGBA, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F
-};
-enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
-enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 class OGLUAPI _oglTexture : public NonCopyable, public NonMovable
 {
 private:
@@ -61,14 +76,8 @@ public:
 	void setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf);
 	OPResult<> setBuffer(const TextureFormat format, const oglBuffer& tbo);
 };
-using oglTexture = Wrapper<_oglTexture, false>;
 
 
-enum class VAODrawMode : GLenum
-{
-	Triangles = GL_TRIANGLES
-};
-enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 class OGLUAPI _oglVAO : public NonCopyable, public NonMovable
 {
 protected:
@@ -83,7 +92,7 @@ protected:
 	public:
 		void end();
 		/*-param  vbo buffer, vertex attr index, stride(number), size(number), offset(byte)
-		 *Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
+		*Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
 		VAOPrep& set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
 		/*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
 		VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
@@ -110,8 +119,17 @@ public:
 	VAOPrep prepare();
 	void setDrawSize(const uint32_t offset_, const uint32_t size_);
 	void setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_);
+	void draw(const uint32_t size, const uint32_t offset = 0) const;
+	void draw() const;
 };
-using oglVAO = Wrapper<_oglVAO, false>;
+
+
+}
+
+
+using oglShader = Wrapper<inner::_oglShader, true>;
+using oglTexture = Wrapper<inner::_oglTexture, false>;
+using oglVAO = Wrapper<inner::_oglVAO, false>;
 
 }
 

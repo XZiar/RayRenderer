@@ -12,7 +12,11 @@ struct OGLUAPI alignas(Vec4) TransformOP : public AlignBase<>
 	TransformType type;
 	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
-//class TextureManager;
+
+namespace inner
+{
+
+
 class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, public AlignBase<>
 {
 private:
@@ -45,11 +49,6 @@ private:
 	private:
 		friend _oglProgram;
 		ProgDraw(const ProgState& pstate, const Mat4x4& modelMat);
-		
-		void drawIndex(const oglVAO& vao, const GLsizei size, const void *offset);
-		void drawIndexs(const oglVAO& vao, const GLsizei count, const GLsizei *size, const void * const *offset);
-		void drawArray(const oglVAO& vao, const GLsizei size, const GLint offset);
-		void drawArrays(const oglVAO& vao, const GLsizei count, const GLsizei *size, const GLint *offset);
 	public:
 		void end();
 		/*draw vao
@@ -97,7 +96,7 @@ private:
 		}
 		GLint location = GL_INVALID_INDEX;
 		//length of array
-		GLint len = 1;
+		GLuint len = 1;
 		GLenum type;
 		GLenum valtype;
 		uint16_t size = 0;
@@ -147,6 +146,11 @@ public:
 	ProgDraw draw(topIT begin, topIT end);
 	ProgState& globalState();
 };
-using oglProgram = Wrapper<_oglProgram, true>;
+
+
+}
+
+
+using oglProgram = Wrapper<inner::_oglProgram, true>;
 
 }

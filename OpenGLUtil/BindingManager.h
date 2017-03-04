@@ -4,8 +4,9 @@
 #include "oglComponent.h"
 #include "oglProgram.h"
 
-namespace oglu
+namespace oglu::inner
 {
+
 
 union NodeBlock
 {
@@ -243,6 +244,7 @@ public:
 	UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS, 4) { }
 };
 //ResourceDistrubutor----
+
 
 }
 

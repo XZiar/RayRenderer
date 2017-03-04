@@ -2,7 +2,7 @@
 #include "oglUtil.h"
 #include "BindingManager.h"
 
-namespace oglu
+namespace oglu::inner
 {
 
 
@@ -124,38 +124,13 @@ void _oglProgram::ProgDraw::end()
 }
 
 
-void _oglProgram::ProgDraw::drawIndex(const oglVAO& vao, const GLsizei size, const void *offset)
-{
-	glDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, offset);
-}
-
-void _oglProgram::ProgDraw::drawIndexs(const oglVAO& vao, const GLsizei count, const GLsizei *size, const void * const *offset)
-{
-	glMultiDrawElements((GLenum)vao->vaoMode, size, (GLenum)vao->indexType, offset, count);
-}
-
-void _oglProgram::ProgDraw::drawArray(const oglVAO& vao, const GLsizei size, const GLint offset)
-{
-	glDrawArrays((GLenum)vao->vaoMode, offset, size);
-}
-
-void _oglProgram::ProgDraw::drawArrays(const oglVAO& vao, const GLsizei count, const GLsizei *size, const GLint *offset)
-{
-	glMultiDrawArrays((GLenum)vao->vaoMode, offset, size, count);
-}
-
-
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
 	ProgState::setTexture();
 	texCache.clear();
 	ProgState::setUBO();
 	uboCache.clear();
-	vao->bind();
-	if (vao->index)
-		drawIndex(vao, size, (void*)(offset * vao->indexSizeof));
-	else
-		drawArray(vao, size, offset);
+	vao->draw(size, offset);
 	return *this;
 }
 
@@ -165,18 +140,7 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 	texCache.clear();
 	ProgState::setUBO();
 	uboCache.clear();
-	vao->bind();
-	switch (vao->drawMethod)
-	{
-	case _oglVAO::DrawMethod::Array:
-		drawArray(vao, vao->sizes[0], vao->ioffsets[0]); break;
-	case _oglVAO::DrawMethod::Index:
-		drawIndex(vao, vao->sizes[0], vao->poffsets[0]); break;
-	case _oglVAO::DrawMethod::Arrays:
-		drawArrays(vao, (GLsizei)vao->sizes.size(), vao->sizes.data(), vao->ioffsets.data()); break;
-	case _oglVAO::DrawMethod::Indexs:
-		drawIndexs(vao, (GLsizei)vao->sizes.size(), vao->sizes.data(), vao->poffsets.data()); break;
-	}
+	vao->draw();
 	return *this;
 }
 
@@ -273,7 +237,7 @@ void _oglProgram::initLocs()
 		glGetProgramInterfaceiv(programID, binfo.type, GL_ACTIVE_RESOURCES, &cnt);
 		for (GLint a = 0; a < cnt; ++a)
 		{
-			int arraylen = 0;
+			uint32_t arraylen = 0;
 			DataInfo datinfo(binfo);
 			glGetProgramResourceName(programID, binfo.type, a, 240, nullptr, name);
 			char* chpos = nullptr;
@@ -302,7 +266,7 @@ void _oglProgram::initLocs()
 			}
 		}
 	}
-	GLint maxUniLoc = 0;
+	GLuint maxUniLoc = 0;
 	for (const auto& di : dataMap)
 	{
 		const auto& info = di.second;

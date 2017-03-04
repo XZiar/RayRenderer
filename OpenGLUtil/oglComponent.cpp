@@ -1,7 +1,7 @@
 #include "oglComponent.h"
 #include "BindingManager.h"
 
-namespace oglu
+namespace oglu::inner
 {
 
 string _oglShader::loadFromFile(FILE * fp)
@@ -276,5 +276,33 @@ void _oglVAO::setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t>
 	initSize();
 }
 
+void _oglVAO::draw(const uint32_t size, const uint32_t offset) const
+{
+	bind();
+	if (index)
+		glDrawElements((GLenum)vaoMode, size, (GLenum)indexType, (void*)(offset * indexSizeof));
+	else
+		glDrawArrays((GLenum)vaoMode, offset, size);
+}
+
+void _oglVAO::draw() const
+{
+	bind();
+	switch (drawMethod)
+	{
+	case DrawMethod::Array:
+		glDrawArrays((GLenum)vaoMode, ioffsets[0], sizes[0]);
+		break;
+	case DrawMethod::Index:
+		glDrawElements((GLenum)vaoMode, sizes[0], (GLenum)indexType, poffsets[0]);
+		break;
+	case DrawMethod::Arrays:
+		glMultiDrawArrays((GLenum)vaoMode, ioffsets.data(), sizes.data(), (GLsizei)sizes.size());
+		break;
+	case DrawMethod::Indexs:
+		glMultiDrawElements((GLenum)vaoMode, sizes.data(), (GLenum)indexType, poffsets.data(), (GLsizei)sizes.size());
+		break;
+	}
+}
 
 }

@@ -15,6 +15,11 @@ enum class BufferWriteMode : GLenum
 	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
 	DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
+
+namespace inner
+{
+
+
 class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
 protected:
@@ -37,7 +42,6 @@ public:
 		write(dat.data(), sizeof(T)*dat.size(), mode);
 	}
 };
-using oglBuffer = Wrapper<_oglBuffer, false>;
 
 
 class OGLUAPI _oglUniformBuffer : public _oglBuffer
@@ -51,7 +55,12 @@ public:
 	_oglUniformBuffer();
 	~_oglUniformBuffer();
 };
-using oglUBO = Wrapper<_oglUniformBuffer, false>;
+
+
+}
+
+using oglBuffer = Wrapper<inner::_oglBuffer, false>;
+using oglUBO = Wrapper<inner::_oglUniformBuffer, false>;
 
 
 }

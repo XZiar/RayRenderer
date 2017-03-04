@@ -1,7 +1,7 @@
 #include "oglBuffer.h"
 #include "BindingManager.h"
 
-namespace oglu
+namespace oglu::inner
 {
 
 _oglBuffer::_oglBuffer(const BufferType _type) :bufferType(_type)
@@ -45,7 +45,7 @@ _oglUniformBuffer::~_oglUniformBuffer()
 	bufferID = GL_INVALID_INDEX;
 }
 
-oglu::UBOManager& _oglUniformBuffer::getUBOMan()
+UBOManager& _oglUniformBuffer::getUBOMan()
 {
 	static thread_local UBOManager uboMan;
 	return uboMan;
