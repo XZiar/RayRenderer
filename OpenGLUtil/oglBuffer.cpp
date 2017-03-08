@@ -29,7 +29,8 @@ void _oglBuffer::write(const void *dat, const size_t size, const BufferWriteMode
 {
 	bind();
 	glBufferData((GLenum)bufferType, size, dat, (GLenum)mode);
-	//unbind();
+	if(bufferType == BufferType::Pixel)//in case of invalid operation
+		unbind();
 }
 
 _oglUniformBuffer::_oglUniformBuffer() : _oglBuffer(BufferType::Uniform)
@@ -54,6 +55,12 @@ UBOManager& _oglUniformBuffer::getUBOMan()
 void _oglUniformBuffer::bind(const uint8_t pos) const
 {
 	glBindBufferBase(GL_UNIFORM_BUFFER, pos, bufferID);
+}
+
+
+_oglElementBuffer::_oglElementBuffer(const IndexSize idxsize_) : _oglBuffer(BufferType::Element),
+	idxtype(idxsize_), idxsize(idxsize_ == IndexSize::Byte ? 1 : (idxsize_ == IndexSize::Short ? 2 : 4))
+{
 }
 
 }

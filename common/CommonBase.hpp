@@ -41,9 +41,10 @@ template<class T>
 class COMMONTPL Wrapper<T, true>
 {
 private:
-	T *instance = nullptr;
+	T *instance;
 public:
-	Wrapper() { }
+	Wrapper() noexcept : instance(nullptr) { }
+	Wrapper(T * const src) noexcept : instance(src) { }
 	template<class... ARGS>
 	Wrapper(ARGS... args) : instance(new T(args...)) { }
 	~Wrapper()
@@ -51,21 +52,17 @@ public:
 		release();
 	}
 	Wrapper(const Wrapper<T, true>& other) = delete;
-	Wrapper(Wrapper<T, true>&& other)
+	Wrapper(Wrapper<T, true>&& other) noexcept : instance(other.instance)
 	{
-		*this = std::move(other);
+		other.instance = nullptr;
 	}
-	Wrapper& operator=(const Wrapper<T, true>& other) = delete;
-	Wrapper& operator=(Wrapper<T, true>&& other)
+	Wrapper& operator= (const Wrapper<T, true>& other) = delete;
+	Wrapper& operator= (Wrapper<T, true>&& other)
 	{
 		release();
 		instance = other.instance;
 		other.instance = nullptr;
 		return *this;
-	}
-	bool operator==(const Wrapper<T, true>& other) const
-	{
-		return instance == other.instance;
 	}
 
 	void release()
@@ -89,49 +86,67 @@ public:
 		instance = new T();
 	}
 
-	const T* pointer() const
+	const T* pointer() const noexcept
 	{
 		return instance;
+	}
+	T* operator-> () noexcept
+	{
+		return instance;
+	}
+	const T* operator-> () const noexcept
+	{
+		return instance;
+	}
+	T& operator* () noexcept
+	{
+		return *instance;
+	}
+	const T& operator* () const noexcept
+	{
+		return *instance;
 	}
 
-	T* operator-> ()
-	{
-		return instance;
-	}
-	const T* operator-> () const
-	{
-		return instance;
-	}
-	operator bool()
+	operator const bool() const noexcept
 	{
 		return instance != nullptr;
 	}
-	operator const bool() const
+	bool operator== (const Wrapper<T, true>& other) const noexcept
 	{
-		return instance != nullptr;
+		return instance == other.instance;
+	}
+	bool operator== (const T *pointer) const noexcept
+	{
+		return instance == pointer;
 	}
 };
 
-template<class T>
-struct ControlBlock
-{
-	T *instance = nullptr;
-	uint32_t count = 1;
-	ControlBlock(T *dat) :instance(dat) { }
-	~ControlBlock() { delete instance; }
-};
 
 template<class T>
 class COMMONTPL Wrapper<T, false>
 {
 private:
-	ControlBlock<T> *cb = nullptr;;
-	void create(T* instance)
+	struct ControlBlock
 	{
-		cb = new ControlBlock<T>(instance);
+		T * const instance;
+		uint32_t count = 1;
+		ControlBlock(T * const pointer) noexcept :instance(pointer) { }
+		~ControlBlock() noexcept { delete instance; }
+	};
+	ControlBlock *cb;
+	void create(T * const instance) noexcept
+	{
+		cb = new ControlBlock(instance);
 	}
 public:
-	Wrapper() : cb(nullptr) { }
+	Wrapper() noexcept : cb(nullptr) { }
+	Wrapper(T * const src) noexcept
+	{
+		if (src == nullptr)
+			cb = nullptr;
+		else
+			create(src);
+	}
 	template<class... ARGS>
 	Wrapper(ARGS... args)
 	{
@@ -141,18 +156,19 @@ public:
 	{
 		release();
 	}
-	Wrapper(const Wrapper<T, false>& other)
+	Wrapper(const Wrapper<T, false>& other) noexcept : cb(other.cb)
 	{
-		*this = other;
+		if (cb != nullptr)
+			cb->count++;
 	}
-	Wrapper(Wrapper<T, false>&& other)
+	Wrapper(Wrapper<T, false>&& other) noexcept : cb(other.cb)
 	{
-		*this = std::move(other);
+		other.cb = nullptr;
 	}
 	template<class U, class = typename std::enable_if<std::is_base_of<T, U>::value>::type>
-	Wrapper(Wrapper<U, false>&& other)
+	Wrapper(Wrapper<U, false>&& other) noexcept : cb((ControlBlock*)other.cb)
 	{
-		*this = std::move(*(Wrapper<T, false>*)&other);
+		other.cb = nullptr;
 	}
 	Wrapper& operator=(const Wrapper<T, false>& other)
 	{
@@ -169,16 +185,12 @@ public:
 		other.cb = nullptr;
 		return *this;
 	}
-	bool operator==(const Wrapper<T, false>& other) const
-	{
-		return cb == other.cb;
-	}
 
 	void release()
 	{
 		if (cb != nullptr)
 		{
-			if (!(--cb->count))
+			if (--cb->count == 0)
 				delete cb;
 			cb = nullptr;
 		}
@@ -196,7 +208,7 @@ public:
 		create(new T());
 	}
 
-	uint32_t refCount() const
+	uint32_t refCount() const noexcept
 	{
 		if (cb == nullptr)
 			return 0;
@@ -204,43 +216,47 @@ public:
 			return cb->count;
 	}
 
-	const T* pointer() const
+	const T* pointer() const noexcept
 	{
 		return cb->instance;
 	}
-
-	T* operator-> ()
+	T* operator-> () noexcept
 	{
 		return cb->instance;
 	}
-	const T* operator-> () const
+	const T* operator-> () const noexcept
 	{
 		return cb->instance;
 	}
-	T& operator* ()
+	T& operator* () noexcept
 	{
 		return *cb->instance;
 	}
-	const T& operator* () const
+	const T& operator* () const noexcept
 	{
 		return *cb->instance;
 	}
 
-	operator bool()
+	operator const bool() const noexcept
 	{
 		return cb != nullptr;
 	}
-	operator const bool() const
+	bool operator== (const Wrapper<T, true>& other) const noexcept
 	{
-		return cb != nullptr;
+		return instance == other.instance;
 	}
+	bool operator== (const T *pointer) const noexcept
+	{
+		return instance == pointer;
+	}
+
 	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
-	operator Wrapper<U, false>&()
+	operator Wrapper<U, false>&() noexcept
 	{
 		return *(Wrapper<U, false>*)this;
 	}
 	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
-	operator const Wrapper<U, false>&() const
+	operator const Wrapper<U, false>&() const noexcept
 	{
 		return *(Wrapper<U, false>*)this;
 	}

@@ -6,10 +6,18 @@
 namespace rayr
 {
 
-class alignas(16) Model : public Drawable
+class Model;
+namespace inner
 {
+
+class _ModelData
+{
+	friend class ::rayr::Model;
+private:
 	using Path = std::experimental::filesystem::path;
-protected:
+	static map<wstring, Wrapper<_ModelData, false>> models;
+	static Wrapper<_ModelData, false> getModel(const wstring& fname);
+	static void releaseModel(const wstring& fname);
 	class OBJLoder
 	{
 		Path fpath;
@@ -35,11 +43,28 @@ protected:
 	vector<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
-	oglu::oglBuffer vbo, ebo;
+	oglu::oglBuffer vbo;
+	oglu::oglEBO ebo;
+	const wstring mfnane;
 	bool loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
+	_ModelData(const wstring& fname);
+public:
+	~_ModelData();
+	oglu::oglVAO getVAO() const;
+};
+
+}
+
+using ModelData = Wrapper<inner::_ModelData, false>;
+
+class alignas(16) Model : public Drawable
+{
+protected:
+	ModelData data;
 public:
 	Model(const wstring& fname);
+	~Model();
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
 };
 

@@ -28,8 +28,6 @@ enum class VAODrawMode : GLenum
 	Triangles = GL_TRIANGLES
 };
 
-enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
-
 
 namespace inner
 {
@@ -96,14 +94,14 @@ protected:
 		VAOPrep& set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
 		/*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
 		VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
-		VAOPrep& setIndex(const oglBuffer& ebo, const IndexSize idxSize);
+		VAOPrep& setIndex(const oglEBO& ebo);
 	};
 	VAODrawMode vaoMode;
 	DrawMethod drawMethod = DrawMethod::UnPrepared;
 	GLuint vaoID = GL_INVALID_INDEX;
-	oglBuffer index;
-	IndexSize indexType;
-	uint8_t indexSizeof;
+	oglEBO index;
+	//IndexSize indexType;
+	//uint8_t indexSizeof;
 	vector<GLsizei> sizes;
 	vector<void*> poffsets;
 	vector<GLint> ioffsets;

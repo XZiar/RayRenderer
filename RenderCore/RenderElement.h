@@ -54,7 +54,6 @@ class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonM
 	static VAOMap vaoMap;
 public:
 	Vec4 position = Vec4::zero(), rotation = Vec4::zero(), scale = Vec4::one();
-	//oglu::oglVAO vao;
 	wstring name;
 	virtual ~Drawable();
 	/*prepare VAO with given Vertex Attribute Location

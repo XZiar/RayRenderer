@@ -205,12 +205,9 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
 	return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglBuffer& ebo, const IndexSize idxSize)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglEBO& ebo)
 {
-	assert(ebo->bufferType == BufferType::Element);
 	ebo->bind();
-	vao.indexType = idxSize;
-	vao.indexSizeof = (idxSize == IndexSize::Byte ? 1 : (idxSize == IndexSize::Short ? 2 : 4));
 	vao.index = ebo;
 	vao.initSize();
 	return *this;
@@ -234,7 +231,7 @@ void _oglVAO::initSize()
 		drawMethod = sizes.size() > 1 ? DrawMethod::Indexs : DrawMethod::Index;
 		poffsets.clear();
 		for (const auto& off : offsets)
-			poffsets.push_back((void*)(off * indexSizeof));
+			poffsets.push_back((void*)(off * index->idxsize));
 	}
 	else
 	{
@@ -280,7 +277,7 @@ void _oglVAO::draw(const uint32_t size, const uint32_t offset) const
 {
 	bind();
 	if (index)
-		glDrawElements((GLenum)vaoMode, size, (GLenum)indexType, (void*)(offset * indexSizeof));
+		glDrawElements((GLenum)vaoMode, size, (GLenum)index->idxtype, (void*)(offset * index->idxsize));
 	else
 		glDrawArrays((GLenum)vaoMode, offset, size);
 }
@@ -294,13 +291,13 @@ void _oglVAO::draw() const
 		glDrawArrays((GLenum)vaoMode, ioffsets[0], sizes[0]);
 		break;
 	case DrawMethod::Index:
-		glDrawElements((GLenum)vaoMode, sizes[0], (GLenum)indexType, poffsets[0]);
+		glDrawElements((GLenum)vaoMode, sizes[0], (GLenum)index->idxtype, poffsets[0]);
 		break;
 	case DrawMethod::Arrays:
 		glMultiDrawArrays((GLenum)vaoMode, ioffsets.data(), sizes.data(), (GLsizei)sizes.size());
 		break;
 	case DrawMethod::Indexs:
-		glMultiDrawElements((GLenum)vaoMode, sizes.data(), (GLenum)indexType, poffsets.data(), (GLsizei)sizes.size());
+		glMultiDrawElements((GLenum)vaoMode, sizes.data(), (GLenum)index->idxtype, poffsets.data(), (GLsizei)sizes.size());
 		break;
 	}
 }

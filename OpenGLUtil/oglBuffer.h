@@ -15,6 +15,7 @@ enum class BufferWriteMode : GLenum
 	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
 	DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
+enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 
 namespace inner
 {
@@ -57,10 +58,38 @@ public:
 };
 
 
+class OGLUAPI _oglElementBuffer : public _oglBuffer
+{
+protected:
+	friend class _oglProgram;
+	friend class _oglVAO;
+	const IndexSize idxtype;
+	const uint8_t idxsize;
+public:
+	_oglElementBuffer(const IndexSize idxsize_);
+	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+	OPResult<uint8_t> write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	{
+		if (sizeof(T) != idxsize)
+			return OPResult<uint8_t>(false, L"Unmatch idx size", idxsize);
+		_oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
+		return true;
+	}
+	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+	OPResult<uint8_t> write(const T *dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	{
+		if (sizeof(T) != idxsize)
+			return OPResult<uint8_t>(false, L"Unmatch idx size", idxsize);
+		_oglBuffer::write(dat, idxsize*count, mode);
+		return true;
+	}
+};
+
 }
 
 using oglBuffer = Wrapper<inner::_oglBuffer, false>;
 using oglUBO = Wrapper<inner::_oglUniformBuffer, false>;
+using oglEBO = Wrapper<inner::_oglElementBuffer, false>;
 
 
 }

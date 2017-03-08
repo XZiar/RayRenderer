@@ -13,7 +13,7 @@ _oglProgram::ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 void _oglProgram::ProgState::setTexture(const GLint pos, const oglTexture& tex) const
 {
 	auto& obj = prog.uniCache[pos];
-	const auto val = tex ? _oglTexture::getTexMan().bind(tex) : 0;
+	const GLsizei val = tex ? _oglTexture::getTexMan().bind(tex) : 0;
 	if (obj == val)//no change
 		return;
 	//change value and update uniform-hold map

@@ -52,7 +52,7 @@ Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
 	vbo->write(pts);
-	ebo.reset(oglu::BufferType::Element);
+	ebo.reset(oglu::IndexSize::Short);
 	ebo->write(indexs);
 	ptcount = static_cast<uint32_t>(indexs.size());
 }
@@ -62,7 +62,7 @@ void Sphere::prepareGL(const oglu::oglProgram& prog, const map<string, string>& 
 	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
 	vao->setDrawSize(0, ptcount);
 	defaultBind(prog,vao,vbo)//bind vertex attribute
-		.setIndex(ebo, oglu::IndexSize::Short)//index draw
+		.setIndex(ebo)//index draw
 		.end();
 	setVAO(prog, vao);
 }

@@ -5,21 +5,87 @@ namespace rayr
 {
 
 
+namespace inner
+{
 
-Model::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
+map<wstring, ModelData> _ModelData::models;
+
+ModelData _ModelData::getModel(const wstring& fname)
+{
+	const auto it = models.find(fname);
+	if (it != models.end())
+	{
+		return it->second;
+	}
+	else
+	{
+		auto md = new _ModelData(fname);
+		ModelData m(std::move(md));
+		models.insert_or_assign(fname, m);
+		return m;
+	}
+}
+
+void _ModelData::releaseModel(const wstring& fname)
+{
+	const auto it = models.find(fname);
+	if (it != models.end())
+	{
+		if (it->second.refCount() == 1)
+			models.erase(it);
+	}
+}
+
+_ModelData::_ModelData(const wstring& fname) :mfnane(fname)
+{
+	loadOBJ(fname);
+
+	vbo.reset(oglu::BufferType::Array);
+	vbo->write(pts);
+	ebo.reset(oglu::IndexSize::Int);
+	ebo->write(indexs);
+}
+
+_ModelData::~_ModelData()
+{
+
+}
+
+oglu::oglVAO _ModelData::getVAO() const
+{
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	if (groups.empty())
+		vao->setDrawSize(0, (uint32_t)indexs.size());
+	else
+	{
+		vector<uint32_t> offs, sizs;
+		uint32_t last = 0;
+		for (const auto& g : groups)
+		{
+			if (!offs.empty())
+				sizs.push_back(g.second - last);
+			offs.push_back(last = g.second);
+		}
+		sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
+		vao->setDrawSize(offs, sizs);
+	}
+	return vao;
+}
+
+_ModelData::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
 {
 	_wfopen_s(&fp, fpath.c_str(), L"r");
 	if (fp == nullptr)
 		throw std::runtime_error("cannot open file");
 }
 
-Model::OBJLoder::~OBJLoder()
+_ModelData::OBJLoder::~OBJLoder()
 {
 	if (fp)
 		fclose(fp);
 }
 
-Model::OBJLoder::TextLine Model::OBJLoder::readLine()
+_ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 {
 	using common::hash_;
 	if (fgets(curline, 255, fp) == nullptr)
@@ -40,7 +106,7 @@ Model::OBJLoder::TextLine Model::OBJLoder::readLine()
 			*cur = '\0';
 			inParam = false;
 		}
-		else if(!inParam)
+		else if (!inParam)
 		{
 			param[pcnt++] = cur;
 			inParam = true;
@@ -51,11 +117,11 @@ Model::OBJLoder::TextLine Model::OBJLoder::readLine()
 	return{ hash_(prefix), pcnt };
 }
 
-int8_t Model::OBJLoder::parseFloat(const uint8_t idx, float *output)
+int8_t _ModelData::OBJLoder::parseFloat(const uint8_t idx, float *output)
 {
 	char *endpos = nullptr;
 	int8_t cnt = 0;
-	do 
+	do
 	{
 		output[cnt++] = strtof(param[idx], &endpos);
 	} while (endpos != param[idx]);
@@ -63,7 +129,7 @@ int8_t Model::OBJLoder::parseFloat(const uint8_t idx, float *output)
 	//return sscanf_s(param[idx], "%f/%f/%f/%f", &output[0], &output[1], &output[2], &output[3]);
 }
 
-int8_t Model::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
+int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 {
 	int8_t cnt = 0;
 	for (const char *obj = param[idx] - 1; obj != nullptr; obj = strchr(obj, '/'))
@@ -100,7 +166,7 @@ struct PTstubHasher
 };
 
 
-bool Model::loadMTL(const Path& mtlpath) try
+bool _ModelData::loadMTL(const Path& mtlpath) try
 {
 	OBJLoder ldr(mtlpath);
 	printf("@@opened mtl file %ls\n", mtlpath.c_str());
@@ -114,7 +180,7 @@ catch (const std::runtime_error& e)
 	return false;
 }
 
-bool Model::loadOBJ(const Path& objpath) try
+bool _ModelData::loadOBJ(const Path& objpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(objpath);
@@ -214,39 +280,28 @@ catch (const std::runtime_error& e)
 	return false;
 }
 
-Model::Model(const wstring& fname)
+//ENDOF INNER
+}
+
+
+Model::Model(const wstring& fname) :data(inner::_ModelData::getModel(fname))
 {
 	static DrawableHelper helper(L"Model");
 	helper.InitDrawable(this);
-	loadOBJ(fname);
+}
 
-	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts);
-	ebo.reset(oglu::BufferType::Element);
-	ebo->write(indexs);
-	
+Model::~Model()
+{
+	const auto mfname = data->mfnane;
+	data.release();
+	inner::_ModelData::releaseModel(mfname);
 }
 
 void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-	if (groups.empty())
-		vao->setDrawSize(0, (uint32_t)indexs.size());
-	else
-	{
-		vector<uint32_t> offs, sizs;
-		uint32_t last = 0;
-		for (const auto& g : groups)
-		{
-			if (!offs.empty())
-				sizs.push_back(g.second - last);
-			offs.push_back(last = g.second);
-		}
-		sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
-		vao->setDrawSize(offs, sizs);
-	}
-	defaultBind(prog,vao,vbo)
-		.setIndex(ebo, oglu::IndexSize::Int)//index draw
+	auto vao = data->getVAO();
+	defaultBind(prog, vao, data->vbo)
+		.setIndex(data->ebo)//index draw
 		.end();
 	setVAO(prog, vao);
 }

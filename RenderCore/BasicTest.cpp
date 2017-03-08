@@ -119,7 +119,7 @@ void BasicTest::init3d(const wstring pname)
 	}
 	testVAO.reset(VAODrawMode::Triangles);
 	testTri.reset(BufferType::Array);
-	triIdx.reset(BufferType::Element);
+	triIdx.reset(IndexSize::Byte);
 	if(true)
 	{
 		const Point pa({ 0.0f,2.0f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
@@ -130,9 +130,9 @@ void BasicTest::init3d(const wstring pname)
 		Point DatVert[] = { pa,pb,pc,pd };
 		testTri->write(DatVert, sizeof(DatVert));
 		uint8_t idxmap[] = { 0,1,2, 0,1,3, 0,2,3, 1,2,3 };
-		triIdx->write(idxmap, sizeof(idxmap));
+		triIdx->write(idxmap, 12);
 		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
-		testVAO->prepare().set(testTri, attrs, 0).setIndex(triIdx, IndexSize::Byte).end();
+		testVAO->prepare().set(testTri, attrs, 0).setIndex(triIdx).end();
 		testVAO->setDrawSize(0, 12);
 	}
 	else
@@ -167,6 +167,10 @@ void BasicTest::init3d(const wstring pname)
 		mod1->name = L"DOD3-0";
 		mod1->position = { -1,3,0,0 };
 		drawables.push_back(mod1);
+		Wrapper<Model, false> mod2(L"F:\\Project\\RayTrace\\objs\\0.obj");
+		mod2->name = L"DOD3-0";
+		mod2->position = { 2,3,0,0 };
+		drawables.push_back(mod2);
 		for (auto& d : drawables)
 		{
 			d->prepareGL(prog3D);
