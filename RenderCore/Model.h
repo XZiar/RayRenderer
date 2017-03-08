@@ -10,6 +10,24 @@ class Model;
 namespace inner
 {
 
+namespace fs = std::experimental::filesystem;
+
+class _ModelImage
+{
+	friend class ::rayr::Model;
+	friend class _ModelData;
+private:
+	using Path = fs::path;
+	static map<wstring, Wrapper<_ModelImage, false>> images;
+	static Wrapper<_ModelImage, false> getImage(Path picPath, const Path& curPath);
+	static void shrink();
+	uint16_t width = 0, height = 0;
+	vector<uint32_t> image;
+	_ModelImage(const wstring& pfname);
+public:
+};
+using ModelImage = Wrapper<_ModelImage, false>;
+
 class _ModelData
 {
 	friend class ::rayr::Model;
@@ -37,6 +55,7 @@ private:
 		OBJLoder(const Path &fpath_);
 		~OBJLoder();
 		TextLine readLine();
+		string popString();
 		int8_t parseFloat(const uint8_t idx, float *output);
 		int8_t parseInt(const uint8_t idx, int32_t *output);
 	};

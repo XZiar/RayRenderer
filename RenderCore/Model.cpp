@@ -1,5 +1,7 @@
 #include "Model.h"
+#include "../3rdParty/stblib/stblib.h"
 #include <unordered_map>
+
 
 namespace rayr
 {
@@ -7,6 +9,66 @@ namespace rayr
 
 namespace inner
 {
+
+map<wstring, ModelImage> _ModelImage::images;
+
+ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
+{
+	wstring fname = picPath.filename();
+	const auto it = images.find(fname);
+	if (it != images.end())
+		return it->second;
+
+	if (!fs::exists(picPath))
+	{
+		picPath = curPath / fname;
+		if (!fs::exists(picPath))
+		{
+		#ifdef _DEBUG
+			printf("@@cannot find file, load image error.\n");
+		#endif
+			return ModelImage();
+		}
+	}
+	try
+	{
+		_ModelImage *mi = new _ModelImage(picPath);
+		ModelImage image(std::move(mi));
+		images.insert_or_assign(fname, image);
+		return image;
+	}
+	catch (const std::ios_base::failure& e)
+	{
+	#ifdef _DEBUG
+		printf("@@invalid image file, load image error.\n");
+	#endif
+		return ModelImage();
+	}
+}
+
+void _ModelImage::shrink()
+{
+	auto it = images.cbegin();
+	while (it != images.end())
+	{
+		if (it->second.refCount() == 1)
+			it = images.erase(it);
+		else
+			++it;
+	}
+}
+
+_ModelImage::_ModelImage(const wstring& pfname)
+{
+	int32_t w, h;
+	std::tie(w, h) = ::stb::loadImage(pfname, image);
+	width = static_cast<uint16_t>(w), height = static_cast<uint16_t>(h);
+}
+
+
+
+
+
 
 map<wstring, ModelData> _ModelData::models;
 
@@ -76,7 +138,7 @@ _ModelData::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
 {
 	_wfopen_s(&fp, fpath.c_str(), L"r");
 	if (fp == nullptr)
-		throw std::runtime_error("cannot open file");
+		throw std::ios_base::failure("cannot open file");
 }
 
 _ModelData::OBJLoder::~OBJLoder()
@@ -98,7 +160,9 @@ _ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 	const bool isNote = prefix[0] == '#';
 	bool inParam = false;
 	uint8_t pcnt = 0;
-	for (char *cur = &curline[strlen(prefix)]; cur < end; ++cur)
+	char *cur = &curline[strlen(prefix)];
+	*cur++ = '\0';
+	for (; cur < end; ++cur)
 	{
 		const uint8_t curch = *(uint8_t*)cur;
 		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
@@ -114,7 +178,30 @@ _ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 				break;
 		}
 	}
-	return{ hash_(prefix), pcnt };
+	return{ isNote ? "#"_hash : hash_(prefix), pcnt };
+}
+
+string _ModelData::OBJLoder::popString()
+{
+	const auto bakptr = param[0];
+	const size_t len = strlen(param[0]);
+	size_t objlen = 0;
+	bool inParam = true;
+	for (size_t a=0; a < len; ++a)
+	{
+		const uint8_t curch = *(uint8_t*)param[0][a];
+		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
+		{
+			objlen = a;
+			inParam = false;
+		}
+		else if (!inParam)
+		{
+			param[0] = &param[0][a];
+			break;
+		}
+	}
+	return string(bakptr, objlen);
 }
 
 int8_t _ModelData::OBJLoder::parseFloat(const uint8_t idx, float *output)
@@ -138,23 +225,102 @@ int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 }
 
 
-struct alignas(uint64_t)PTstub
+
+struct alignas(Material) MtlStub
 {
-	union
+	Material mtl;
+	ModelImage diffuse, normal;
+	uint16_t sx = 0, sy = 0;
+};
+
+bool _ModelData::loadMTL(const Path& mtlpath) try
+{
+	using miniBLAS::VecI4;
+	OBJLoder ldr(mtlpath);
+	printf("@@opened mtl file %ls\n", mtlpath.c_str());
+	map<string, MtlStub> mtlmap;
+	//auto curit = mtlmap.begin();
+	MtlStub *curmtl = nullptr;
+	OBJLoder::TextLine line;
+	while (line = ldr.readLine())
 	{
-		uint64_t num;
-		struct
+		switch (line.type)
 		{
-			uint16_t vid, nid, tid, empty;
-		};
-	};
+		case "EMPTY"_hash:
+			break;
+		case "#"_hash:
+		#ifdef _DEBUG
+			printf("@@obj-note\t%s", ldr.param[0]);
+		#endif
+			if (strlen(ldr.curline) > 1)//has extra information
+			{
+				switch (hash_(&ldr.curline[1]))
+				{
+				case "merge"_hash:
+				{
+					string mname = ldr.popString();
+					auto it = mtlmap.find(mname);
+					if (it == mtlmap.end())
+						break;
+					int32_t pos[2];
+					ldr.parseInt(0, pos);
+					it->second.sx = pos[0], it->second.sy = pos[1];
+				}
+				break;
+				}
+			}
+			break;
+		case "newmtl"_hash://vertex
+			curmtl = &mtlmap.insert({ string(ldr.param[0]),MtlStub() }).first->second;
+			break;
+		case "Ka"_hash:
+			curmtl->mtl.ambient = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			break;
+		case "Kd"_hash:
+			curmtl->mtl.diffuse = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			break;
+		case "Ks"_hash:
+			curmtl->mtl.specular = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			break;
+		case "Ke"_hash:
+			curmtl->mtl.emission = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			break;
+		case "Ns"_hash:
+			curmtl->mtl.shiness = (float)atof(ldr.param[0]);
+			break;
+		case "map_Ka"_hash:
+			//curmtl.=loadTex(ldr.param[0], mtlpath.parent_path());
+			//break;
+		case "map_Kd"_hash:
+			curmtl->diffuse = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+			break;
+		case "bump"_hash:
+		case "map_bump"_hash:
+			curmtl->normal = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+			break;
+		}
+	}
+	return true;
+}
+catch (const std::ios_base::failure& e)
+{
+#ifdef _DEBUG
+	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
+#endif
+	return false;
+}
+
+
+struct alignas(uint64_t) PTstub
+{
+	uint16_t vid, nid, tid, empty;
 	PTstub(int32_t vid_, int32_t nid_, int32_t tid_)
 		:vid((uint16_t)vid_), nid((uint16_t)nid_), tid((uint16_t)tid_), empty(0)
 	{
 	}
 	bool operator== (const PTstub& other) const
 	{
-		return num == other.num;
+		return *(uint64_t*)this == *(uint64_t*)&other;
 	}
 };
 struct PTstubHasher
@@ -165,20 +331,6 @@ struct PTstubHasher
 	}
 };
 
-
-bool _ModelData::loadMTL(const Path& mtlpath) try
-{
-	OBJLoder ldr(mtlpath);
-	printf("@@opened mtl file %ls\n", mtlpath.c_str());
-	return true;
-}
-catch (const std::runtime_error& e)
-{
-#ifdef _DEBUG
-	printf("@@cannot open mtl file:%ls\n%s\n", mtlpath.c_str(), e.what());
-#endif
-	return false;
-}
 
 bool _ModelData::loadOBJ(const Path& objpath) try
 {
@@ -272,10 +424,10 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 		p.pos *= resizer;
 	return true;
 }
-catch (const std::runtime_error& e)
+catch (const std::ios_base::failure& e)
 {
 #ifdef _DEBUG
-	printf("@@cannot open obj file:%ls\n%s\n", objpath.c_str(), e.what());
+	printf("@@cannot open obj file:%ls\n", objpath.c_str());
 #endif
 	return false;
 }

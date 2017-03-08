@@ -163,11 +163,11 @@ void BasicTest::init3d(const wstring pname)
 		ground->name = L"Ground";
 		ground->position = { 0,-2,0,0 };
 		drawables.push_back(ground);
-		Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\objs\\0.obj");
+		Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
 		mod1->name = L"DOD3-0";
 		mod1->position = { -1,3,0,0 };
 		drawables.push_back(mod1);
-		Wrapper<Model, false> mod2(L"F:\\Project\\RayTrace\\objs\\0.obj");
+		Wrapper<Model, false> mod2(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
 		mod2->name = L"DOD3-0";
 		mod2->position = { 2,3,0,0 };
 		drawables.push_back(mod2);

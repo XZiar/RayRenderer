@@ -16,6 +16,7 @@ It will contain mini version of BLAS library, C++ wrapper for OpenGL and GLUT, C
 * [GLEW](http://glew.sourceforge.net/)
 * [FreeGLUT](http://freeglut.sourceforge.net)
 * [boost](http://www.boost.org/)
+* [stb](https://github.com/nothings/stb)
 
 ## License
 
