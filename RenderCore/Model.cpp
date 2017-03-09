@@ -239,7 +239,6 @@ bool _ModelData::loadMTL(const Path& mtlpath) try
 	OBJLoder ldr(mtlpath);
 	printf("@@opened mtl file %ls\n", mtlpath.c_str());
 	map<string, MtlStub> mtlmap;
-	//auto curit = mtlmap.begin();
 	MtlStub *curmtl = nullptr;
 	OBJLoder::TextLine line;
 	while (line = ldr.readLine())

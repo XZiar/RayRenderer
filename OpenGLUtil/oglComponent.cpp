@@ -7,7 +7,7 @@ namespace oglu::inner
 string _oglShader::loadFromFile(FILE * fp)
 {
 	fseek(fp, 0, SEEK_END);
-	const auto fsize = ftell(fp);
+	const size_t fsize = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
 	char *dat = new char[fsize + 1];
