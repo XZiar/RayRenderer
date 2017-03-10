@@ -20,11 +20,14 @@ private:
 	using Path = fs::path;
 	static map<wstring, Wrapper<_ModelImage, false>> images;
 	static Wrapper<_ModelImage, false> getImage(Path picPath, const Path& curPath);
+	static Wrapper<_ModelImage, false> getImage(const wstring& pname);
 	static void shrink();
 	uint16_t width = 0, height = 0;
 	vector<uint32_t> image;
 	_ModelImage(const wstring& pfname);
 public:
+	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
+	void placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y);
 };
 using ModelImage = Wrapper<_ModelImage, false>;
 
@@ -65,7 +68,7 @@ private:
 	oglu::oglBuffer vbo;
 	oglu::oglEBO ebo;
 	const wstring mfnane;
-	bool loadMTL(const Path& mtlfname);
+	map<string, Vec4> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
 	_ModelData(const wstring& fname);
 public:

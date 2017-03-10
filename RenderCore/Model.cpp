@@ -15,9 +15,9 @@ map<wstring, ModelImage> _ModelImage::images;
 ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 {
 	wstring fname = picPath.filename();
-	const auto it = images.find(fname);
-	if (it != images.end())
-		return it->second;
+	auto img = getImage(fname);
+	if (img)
+		return img;
 
 	if (!fs::exists(picPath))
 	{
@@ -42,8 +42,17 @@ ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 	#ifdef _DEBUG
 		printf("@@invalid image file, load image error.\n");
 	#endif
-		return ModelImage();
+		return img;
 	}
+}
+
+ModelImage _ModelImage::getImage(const wstring& pname)
+{
+	const auto it = images.find(pname);
+	if (it != images.end())
+		return it->second;
+	else
+		return ModelImage();
 }
 
 void _ModelImage::shrink()
@@ -63,6 +72,21 @@ _ModelImage::_ModelImage(const wstring& pfname)
 	int32_t w, h;
 	std::tie(w, h) = ::stb::loadImage(pfname, image);
 	width = static_cast<uint16_t>(w), height = static_cast<uint16_t>(h);
+}
+
+_ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color) :width(w), height(h)
+{
+	image.resize(width*height, color);
+}
+
+void _ModelImage::placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y)
+{
+	if (!from)
+		return;
+	const auto w = from->width;
+	const size_t lim = from->image.size();
+	for (size_t posf = 0, post = y*width + x; posf < lim; posf += w, post += width)
+		memmove(&image[post], &from->image[posf], sizeof(uint32_t)*w);
 }
 
 
@@ -189,7 +213,7 @@ string _ModelData::OBJLoder::popString()
 	bool inParam = true;
 	for (size_t a=0; a < len; ++a)
 	{
-		const uint8_t curch = *(uint8_t*)param[0][a];
+		const uint8_t curch = *(uint8_t*)&param[0][a];
 		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
 		{
 			objlen = a;
@@ -229,16 +253,22 @@ int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 struct alignas(Material) MtlStub
 {
 	Material mtl;
+	float scalex, offsetx, scaley, offsety;
 	ModelImage diffuse, normal;
 	uint16_t sx = 0, sy = 0;
+	bool hasImage(const ModelImage& img)
+	{
+		return diffuse == img || normal == img;
+	}
 };
 
-bool _ModelData::loadMTL(const Path& mtlpath) try
+map<string, Vec4> _ModelData::loadMTL(const Path& mtlpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
 	printf("@@opened mtl file %ls\n", mtlpath.c_str());
 	map<string, MtlStub> mtlmap;
+	vector<std::tuple<ModelImage, uint16_t, uint16_t>> texposs;
 	MtlStub *curmtl = nullptr;
 	OBJLoder::TextLine line;
 	while (line = ldr.readLine())
@@ -256,16 +286,16 @@ bool _ModelData::loadMTL(const Path& mtlpath) try
 				switch (hash_(&ldr.curline[1]))
 				{
 				case "merge"_hash:
-				{
-					string mname = ldr.popString();
-					auto it = mtlmap.find(mname);
-					if (it == mtlmap.end())
-						break;
-					int32_t pos[2];
-					ldr.parseInt(0, pos);
-					it->second.sx = pos[0], it->second.sy = pos[1];
-				}
-				break;
+					{
+						string mname = ldr.popString();
+						auto img = _ModelImage::getImage(wstring(mname.begin(), mname.end()));
+						if (!img)
+							break;
+						int32_t pos[2];
+						ldr.parseInt(0, pos);
+						texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
+					}
+					break;
 				}
 			}
 			break;
@@ -299,14 +329,46 @@ bool _ModelData::loadMTL(const Path& mtlpath) try
 			break;
 		}
 	}
-	return true;
+	//Merge Textures
+	ModelImage img;
+	uint16_t x, y, maxx = 0, maxy = 0;
+	for (const auto& tp : texposs)
+	{
+		std::tie(img, x, y) = tp;
+		maxx = std::max(maxx, static_cast<uint16_t>(img->width + x));
+		maxy = std::max(maxy, static_cast<uint16_t>(img->height + y));
+		std::for_each(mtlmap.begin(), mtlmap.end(), [&](auto& mp) 
+		{
+			if (mp.second.hasImage(img))
+				mp.second.sx = x, mp.second.sy = y;
+		});
+	}
+	texposs.clear();
+	ModelImage diffuse(maxx, maxy), normal(maxx,maxy);
+	map<string, Vec4> ret;
+	for (auto& mp : mtlmap)
+	{
+		auto& mtl = mp.second;
+		diffuse->placeImage(mtl.diffuse, mtl.sx, mtl.sy);
+		normal->placeImage(mtl.normal, mtl.sx, mtl.sy);
+		Vec4 vec;
+		vec.x = mtl.sx*1.0f / maxx, vec.y = mtl.sy*1.0f / maxy;
+		vec.z = mtl.diffuse->width*1.0f / maxx, vec.w = mtl.diffuse->height*1.0f / maxy;
+		ret.insert({ mp.first, vec });
+		mtl.diffuse = mtl.normal = ModelImage();
+	}
+
+	_ModelImage::shrink();
+	//::stb::saveImage(L"ODiffuse.png", diffuse->image, maxx, maxy);
+	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
+	return ret;
 }
 catch (const std::ios_base::failure& e)
 {
 #ifdef _DEBUG
 	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
 #endif
-	return false;
+	return map<string, Vec4>();
 }
 
 

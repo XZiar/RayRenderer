@@ -241,13 +241,16 @@ public:
 	{
 		return cb != nullptr;
 	}
-	bool operator== (const Wrapper<T, true>& other) const noexcept
+	bool operator== (const Wrapper<T, false>& other) const noexcept
 	{
-		return instance == other.instance;
+		return cb == other.cb;
 	}
 	bool operator== (const T *pointer) const noexcept
 	{
-		return instance == pointer;
+		if (cb == nullptr)
+			return pointer == nullptr;
+		else
+			return cb->instance == pointer;
 	}
 
 	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
