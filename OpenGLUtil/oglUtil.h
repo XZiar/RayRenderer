@@ -77,6 +77,7 @@ public:
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
+	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
 };
 
 }

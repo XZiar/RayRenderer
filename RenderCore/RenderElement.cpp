@@ -45,7 +45,7 @@ Drawable::~Drawable()
 
 void Drawable::draw(oglu::oglProgram& prog) const
 {
-	prog->draw(getModelMat()).draw(getVAO(prog));
+	drawPosition(prog).draw(getVAO(prog));
 }
 
 auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare())
@@ -54,13 +54,12 @@ auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, cons
 	return std::move(vao->prepare().set(vbo, attrs, 0));
 }
 
-b3d::Mat4x4 Drawable::getModelMat() const
+auto Drawable::drawPosition(oglu::oglProgram & prog) const -> decltype(prog -> draw())
 {
-	Mat4x4 matModel = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, rotation.z)) *
+	Mat3x3 matNormal = Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, rotation.z)) *
 		Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, rotation.y)) *
-		Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, rotation.x)));
-	matModel = Mat4x4::TranslateMat(position) * matModel;
-	return matModel;
+		Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, rotation.x));
+	return prog->draw(Mat4x4::TranslateMat(position) * Mat4x4(matNormal * Mat3x3::ScaleMat(scale)), matNormal);
 }
 
 void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const

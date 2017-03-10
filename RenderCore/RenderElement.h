@@ -65,7 +65,7 @@ protected:
 	uint32_t drawableID;
 	oglu::oglVAO defaultVAO;
 	auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
-	Mat4x4 getModelMat() const;
+	auto drawPosition(oglu::oglProgram& prog) const -> decltype(prog->draw());
 	void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;
 	const oglu::oglVAO& getVAO(const oglu::oglProgram& prog) const;
 };

@@ -64,6 +64,7 @@ void BasicTest::init2d(const wstring pname)
 			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
+		prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
 	}
 	picVAO.reset(VAODrawMode::Triangles);
 	screenBox.reset(BufferType::Array);
@@ -110,13 +111,14 @@ void BasicTest::init3d(const wstring pname)
 		}
 	}
 	{
-		auto ret = prog3D->link({ "matProj","matView","matModel","matMVP" }, { "vertPos","vertNorm","texPos","" });
+		auto ret = prog3D->link();
 		if (!ret)
 		{
 			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
 			getchar();
 		}
 	}
+	prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
 	testVAO.reset(VAODrawMode::Triangles);
 	testTri.reset(BufferType::Array);
 	triIdx.reset(IndexSize::Byte);
@@ -229,9 +231,9 @@ void BasicTest::initTex()
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	initTex();
 	init2d(sname2d);
 	init3d(sname3d);
-	initTex();
 	prog2D->globalState().setTexture(picTex, "tex").end();
 	prog3D->globalState().setTexture(mskTex, "tex").end();
 }

@@ -140,8 +140,8 @@ public:
 
 	VECCALL operator float*() { return element; };
 	VECCALL operator const float*() const { return element; };
-	VECCALL operator Mat3x3&() { return *this; }
-	VECCALL operator const Mat3x3&() const { return *this; }
+	VECCALL operator Mat3x3&() { return *(Mat3x3*)this; }
+	VECCALL operator const Mat3x3&() const { return *(Mat3x3*)this; }
 
 
 	Mat4x4 VECCALL inv() const

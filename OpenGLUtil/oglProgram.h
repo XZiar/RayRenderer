@@ -48,7 +48,7 @@ private:
 	{
 	private:
 		friend _oglProgram;
-		ProgDraw(const ProgState& pstate, const Mat4x4& modelMat);
+		ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat);
 	public:
 		void end();
 		/*draw vao
@@ -78,22 +78,6 @@ private:
 	private:
 		GLint getValue(const GLuint pid, const GLenum prop);
 	public:
-		//enum class 
-		const char* getTypeName() const
-		{
-			static const char name[][8] = { "UniBlk","Uniform","Attrib" };
-			switch (type)
-			{
-			case GL_UNIFORM_BLOCK:
-				return name[0];
-			case GL_UNIFORM:
-				return name[1];
-			case GL_PROGRAM_INPUT:
-				return name[2];
-			default:
-				return nullptr;
-			}
-		}
 		GLint location = GL_INVALID_INDEX;
 		//length of array
 		GLuint len = 1;
@@ -102,6 +86,7 @@ private:
 		uint16_t size = 0;
 		uint8_t ifidx;
 		DataInfo(const GLenum type_) :type(type_) { }
+		const char* getTypeName() const;
 		void initData(const GLuint pid, const GLint idx);
 		bool isUniformBlock() const { return type == GL_UNIFORM_BLOCK; }
 		bool isAttrib() const { return type == GL_PROGRAM_INPUT; }
@@ -119,6 +104,7 @@ private:
 		Uni_projMat = GL_INVALID_INDEX,
 		Uni_viewMat = GL_INVALID_INDEX,
 		Uni_modelMat = GL_INVALID_INDEX,
+		Uni_normalMat = GL_INVALID_INDEX,
 		Uni_mvpMat = GL_INVALID_INDEX,
 		Uni_Texture = GL_INVALID_INDEX,
 		Uni_camPos = GL_INVALID_INDEX;
@@ -137,10 +123,12 @@ public:
 
 	void addShader(oglShader && shader);
 	//
-	OPResult<> link(const string(&MatrixName)[4] = { "","","","" }, const string(&VertAttrName)[4] = { "vertPos","","","" });
+	OPResult<> link();
+	void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
 	GLint getLoc(const string& name) const;
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
+	ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);
 	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
 	using topIT = vector<TransformOP>::const_iterator;
 	ProgDraw draw(topIT begin, topIT end);

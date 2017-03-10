@@ -106,7 +106,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const 
 }
 
 
-_oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat) :ProgState(pstate.prog)
+_oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) :ProgState(pstate.prog)
 {
 	_oglProgram::usethis(prog);
 	if (prog.Uni_mvpMat != GL_INVALID_INDEX)
@@ -115,6 +115,7 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat)
 		prog.setMat(prog.Uni_mvpMat, mvpMat);
 	}
 	prog.setMat(prog.Uni_modelMat, modelMat);
+	prog.setMat(prog.Uni_normalMat, normMat);
 	texCache = pstate.texCache;
 	uboCache = pstate.uboCache;
 	pstate.setTexture();
@@ -152,6 +153,23 @@ GLint _oglProgram::DataInfo::getValue(const GLuint pid, const GLenum prop)
 	GLint ret;
 	glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
 	return ret;
+}
+
+
+const char * _oglProgram::DataInfo::getTypeName() const
+{
+	static const char name[][8] = { "UniBlk","Uniform","Attrib" };
+	switch (type)
+	{
+	case GL_UNIFORM_BLOCK:
+		return name[0];
+	case GL_UNIFORM:
+		return name[1];
+	case GL_PROGRAM_INPUT:
+		return name[2];
+	default:
+		return nullptr;
+	}
 }
 
 void _oglProgram::DataInfo::initData(const GLuint pid, const GLint idx)
@@ -299,10 +317,9 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&VertAttrName)[4])
+OPResult<> _oglProgram::link()
 {
 	glLinkProgram(programID);
-
 	int result;
 	char logstr[4096] = { 0 };
 
@@ -315,26 +332,24 @@ OPResult<> _oglProgram::link(const string(&MatrixName)[4], const string(&VertAtt
 	}
 
 	initLocs();
+	return true;
+}
 
+
+void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5])
+{
 	//initialize uniform location
 	Uni_projMat = getLoc(MatrixName[0]);//projectMatrix
 	Uni_viewMat = getLoc(MatrixName[1]);//viewMatrix
 	Uni_modelMat = getLoc(MatrixName[2]);//modelMatrix
-	Uni_mvpMat = getLoc(MatrixName[3]);//model-view-project-Matrix
+	Uni_normalMat = getLoc(MatrixName[3]);//model-view-project-Matrix
+	Uni_mvpMat = getLoc(MatrixName[4]);//model-view-project-Matrix
 
 	//initialize vertex attribute location
-	for (auto a = 0; a < 4; ++a)
-	{
-		auto it = attrMap.find(VertAttrName[a]);
-		if (it != attrMap.end())
-			(&Attr_Vert_Pos)[a] = it->second.location;
-	}
 	Attr_Vert_Pos = getLoc(VertAttrName[0]);
 	Attr_Vert_Norm = getLoc(VertAttrName[1]);
 	Attr_Vert_Texc = getLoc(VertAttrName[2]);
 	Attr_Vert_Color = getLoc(VertAttrName[3]);
-
-	return true;
 }
 
 GLint _oglProgram::getLoc(const string& name) const
@@ -387,20 +402,26 @@ void _oglProgram::setCamera(const Camera & cam)
 		glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
+_oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat3x3& normMat)
+{
+	return ProgDraw(gState, modelMat, normMat);
+}
+
 _oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat)
 {
-	return ProgDraw(gState, modelMat);
+	return draw(modelMat, (Mat3x3)modelMat);
 }
 
 _oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
 {
 	Mat4x4 matModel = Mat4x4::identity();
+	Mat3x3 matNormal = Mat3x3::identity();
 	for (topIT cur = begin; cur != end; ++cur)
 	{
 		const TransformOP& trans = *cur;
-		oglUtil::applyTransform(matModel, trans);
+		oglUtil::applyTransform(matModel, matNormal, trans);
 	}
-	return ProgDraw(gState, matModel);
+	return draw(matModel, matNormal);
 }
 
 _oglProgram::ProgState& _oglProgram::globalState()
@@ -409,3 +430,4 @@ _oglProgram::ProgState& _oglProgram::globalState()
 }
 
 }
+

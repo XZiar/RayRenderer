@@ -6,6 +6,38 @@
 namespace rayr
 {
 
+union alignas(uint64_t)PTstub
+{
+	uint64_t num;
+	struct
+	{
+		uint32_t numhi, numlow;
+	};
+	struct
+	{
+		uint16_t vid, nid, tid, tposid;
+	};
+	PTstub(int32_t vid_, int32_t nid_, int32_t tid_, uint16_t tposid_)
+		:vid((uint16_t)vid_), nid((uint16_t)nid_), tid((uint16_t)tid_), tposid(tposid_)
+	{ }
+	bool operator== (const PTstub& other) const
+	{
+		return num == other.num;
+	}
+	bool operator< (const PTstub& other) const
+	{
+		return num < other.num;
+	}
+};
+
+struct PTstubHasher
+{
+	size_t operator()(const PTstub& p) const
+	{
+		//return p.vid * 33 * 33 + p.nid * 33 + p.tid;
+		return p.numhi * 33 + p.numlow;
+	}
+};
 
 namespace inner
 {
@@ -371,31 +403,6 @@ catch (const std::ios_base::failure& e)
 }
 
 
-struct alignas(uint64_t) PTstub
-{
-	uint16_t vid, nid, tid, tposid;
-	PTstub(int32_t vid_, int32_t nid_, int32_t tid_, uint16_t tposid_)
-		:vid((uint16_t)vid_), nid((uint16_t)nid_), tid((uint16_t)tid_), tposid(tposid_)
-	{
-	}
-	bool operator== (const PTstub& other) const
-	{
-		return *(uint64_t*)this == *(uint64_t*)&other;
-	}
-	bool operator< (const PTstub& other) const
-	{
-		return *(uint64_t*)this < *(uint64_t*)&other;
-	}
-};
-struct PTstubHasher
-{
-	size_t operator()(const PTstub& p) const
-	{
-		return p.vid * 33 * 33 + p.nid * 33 + p.tid;
-	}
-};
-
-
 bool _ModelData::loadOBJ(const Path& objpath) try
 {
 	using miniBLAS::VecI4;
@@ -404,8 +411,8 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	vector<Normal> normals{ Normal(0,0,0) };
 	vector<Coord2D> texcs{ Coord2D(0,0) };
 	map<string, MtlStub> mtlmap;
-	//std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
-	std::map<PTstub, uint32_t> idxmap;
+	std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
+	idxmap.reserve(32768);
 	pts.clear();
 	indexs.clear();
 	groups.clear();
@@ -448,6 +455,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 				{
 					ldr.parseInt(a, tmpi);//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl.posid);
+					//printf("===%zd===\n", hasher(stub));
 					const auto it = idxmap.find(stub);
 					if (it != idxmap.end())
 						tmpidx[a] = it->second;
@@ -495,14 +503,12 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 			break;
 		}
 	}//END of WHILE
-	const auto sizev = maxv - minv;
+	//printf("%zd,%zd,%f,%f\n", idxmap.bucket_count(), idxmap.max_bucket_count(), idxmap.load_factor(), idxmap.max_load_factor());
+	size = maxv - minv;
 	printf("@@read %zd vertex, %zd normal, %zd texcoord\n", points.size(), normals.size(), texcs.size());
 	printf("@@obj: %zd points, %zd indexs, %zd triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-	printf("@@obj size: %f,%f,%f\n", sizev.x, sizev.y, sizev.z);
-	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(sizev.x, sizev.y), sizev.z);
-	for (auto& p : pts)
-		p.pos *= resizer;
-	firstcnt = groups[1].second;
+	printf("@@obj size: %f,%f,%f\n", size.x, size.y, size.z);
+	
 	return true;
 }
 catch (const std::ios_base::failure& e)
@@ -521,6 +527,8 @@ Model::Model(const wstring& fname) :data(inner::_ModelData::getModel(fname))
 {
 	static DrawableHelper helper(L"Model");
 	helper.InitDrawable(this);
+	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(data->size.x, data->size.y), data->size.z);
+	scale = Vec3(resizer, resizer, resizer);
 }
 
 Model::~Model()
@@ -541,7 +549,7 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 
 void Model::draw(oglu::oglProgram & prog) const
 {
-	prog->draw(getModelMat()).setTexture(data->texd, "tex").draw(getVAO(prog));
+	drawPosition(prog).setTexture(data->texd, "tex").draw(getVAO(prog));
 }
 
 }

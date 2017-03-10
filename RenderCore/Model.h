@@ -32,7 +32,7 @@ public:
 };
 using ModelImage = Wrapper<_ModelImage, false>;
 
-class _ModelData
+class _ModelData : public NonCopyable, public AlignBase<>
 {
 	friend class ::rayr::Model;
 private:
@@ -67,13 +67,16 @@ private:
 	{
 		Material mtl;
 		float scalex, offsetx, scaley, offsety;
-		uint16_t sx = 0, sy = 0, posid = 65536;
+		uint16_t sx = 0, sy = 0, posid = UINT16_MAX;
 		ModelImage diffuse, normal;
 		bool hasImage(const ModelImage& img)
 		{
 			return diffuse == img || normal == img;
 		}
 	};
+public:
+	Vec3 size;
+private:
 	vector<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
@@ -81,7 +84,6 @@ private:
 	oglu::oglEBO ebo;
 	oglu::oglTexture texd, texn;
 	const wstring mfnane;
-	uint32_t firstcnt = 0;
 	map<string, MtlStub> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
 	_ModelData(const wstring& fname);
