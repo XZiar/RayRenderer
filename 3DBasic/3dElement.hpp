@@ -42,6 +42,10 @@ public:
 	{
 		return Coord2D(u*n, v*n);
 	}
+	Coord2D repos(const float scalex, const float scaley, const float offsetx, const float offsety)
+	{
+		return Coord2D(u*scalex + offsetx, v*scaley + offsety);
+	}
 	operator float*() { return &u; };
 };
 

@@ -13,6 +13,5 @@ out vec4 FragColor;
 void main() 
 {
 	FragColor = texture(tex[0], tpos);
-	FragColor.rgb = dat.xyz * vec3(0.5f) + vec3(0.5f);
 	FragColor.a = 1.0f;
 }

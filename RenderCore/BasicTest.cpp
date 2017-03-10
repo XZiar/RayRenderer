@@ -233,6 +233,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	init3d(sname3d);
 	initTex();
 	prog2D->globalState().setTexture(picTex, "tex").end();
+	prog3D->globalState().setTexture(mskTex, "tex").end();
 }
 
 void BasicTest::draw()

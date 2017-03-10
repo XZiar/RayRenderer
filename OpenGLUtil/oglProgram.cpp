@@ -115,6 +115,8 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat)
 		prog.setMat(prog.Uni_mvpMat, mvpMat);
 	}
 	prog.setMat(prog.Uni_modelMat, modelMat);
+	texCache = pstate.texCache;
+	uboCache = pstate.uboCache;
 	pstate.setTexture();
 	pstate.setUBO();
 }
@@ -258,7 +260,10 @@ void _oglProgram::initLocs()
 				it->second.len = miniBLAS::max(it->second.len, arraylen);
 				continue;
 			}
-			datinfo.location = glGetProgramResourceIndex(programID, datinfo.type, name);
+			if(datinfo.type == GL_PROGRAM_INPUT)
+				datinfo.location = glGetProgramResourceLocation(programID, datinfo.type, name);
+			else
+				datinfo.location = glGetProgramResourceIndex(programID, datinfo.type, name);
 			if (datinfo.location != GL_INVALID_INDEX)//record index
 			{
 				dataMap.insert_or_assign(name, datinfo);

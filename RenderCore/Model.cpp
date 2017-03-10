@@ -89,6 +89,14 @@ void _ModelImage::placeImage(const Wrapper<_ModelImage, false>& from, const uint
 		memmove(&image[post], &from->image[posf], sizeof(uint32_t)*w);
 }
 
+oglu::oglTexture _ModelImage::genTexture()
+{
+	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
+	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+	tex->setData(oglu::TextureFormat::RGBA, width, height, image.data());
+	return tex;
+}
+
 
 
 
@@ -250,19 +258,7 @@ int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 
 
 
-struct alignas(Material) MtlStub
-{
-	Material mtl;
-	float scalex, offsetx, scaley, offsety;
-	ModelImage diffuse, normal;
-	uint16_t sx = 0, sy = 0;
-	bool hasImage(const ModelImage& img)
-	{
-		return diffuse == img || normal == img;
-	}
-};
-
-map<string, Vec4> _ModelData::loadMTL(const Path& mtlpath) try
+map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
@@ -279,7 +275,7 @@ map<string, Vec4> _ModelData::loadMTL(const Path& mtlpath) try
 			break;
 		case "#"_hash:
 		#ifdef _DEBUG
-			printf("@@obj-note\t%s", ldr.param[0]);
+			printf("@@mtl-note\t%s", ldr.param[0]);
 		#endif
 			if (strlen(ldr.curline) > 1)//has extra information
 			{
@@ -332,56 +328,63 @@ map<string, Vec4> _ModelData::loadMTL(const Path& mtlpath) try
 	//Merge Textures
 	ModelImage img;
 	uint16_t x, y, maxx = 0, maxy = 0;
-	for (const auto& tp : texposs)
+	for (uint16_t idx = 0; idx < texposs.size(); ++idx)
 	{
-		std::tie(img, x, y) = tp;
+		std::tie(img, x, y) = texposs[idx];
 		maxx = std::max(maxx, static_cast<uint16_t>(img->width + x));
 		maxy = std::max(maxy, static_cast<uint16_t>(img->height + y));
-		std::for_each(mtlmap.begin(), mtlmap.end(), [&](auto& mp) 
+		std::for_each(mtlmap.begin(), mtlmap.end(), [&](auto& mp)
 		{
 			if (mp.second.hasImage(img))
-				mp.second.sx = x, mp.second.sy = y;
+				mp.second.sx = x, mp.second.sy = y, mp.second.posid = idx;
 		});
 	}
 	texposs.clear();
+#ifdef _DEBUG
+	printf("@@build merged texture(%d*%d)\n", maxx, maxy);
+#endif
 	ModelImage diffuse(maxx, maxy), normal(maxx,maxy);
-	map<string, Vec4> ret;
 	for (auto& mp : mtlmap)
 	{
 		auto& mtl = mp.second;
 		diffuse->placeImage(mtl.diffuse, mtl.sx, mtl.sy);
 		normal->placeImage(mtl.normal, mtl.sx, mtl.sy);
-		Vec4 vec;
-		vec.x = mtl.sx*1.0f / maxx, vec.y = mtl.sy*1.0f / maxy;
-		vec.z = mtl.diffuse->width*1.0f / maxx, vec.w = mtl.diffuse->height*1.0f / maxy;
-		ret.insert({ mp.first, vec });
+		//texture's uv coordinate system has reversed y-axis
+		//hence y'=(1-y)*scale+offset = -scale*y + (scale+offset)
+		mtl.scalex = mtl.diffuse->width*1.0f / maxx, mtl.scaley = mtl.diffuse->height*-1.0f / maxy;
+		mtl.offsetx = mtl.sx*1.0f / maxx, mtl.offsety = mtl.sy*1.0f / maxy - mtl.scaley;
 		mtl.diffuse = mtl.normal = ModelImage();
 	}
-
 	_ModelImage::shrink();
 	//::stb::saveImage(L"ODiffuse.png", diffuse->image, maxx, maxy);
 	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
-	return ret;
+	texd = diffuse->genTexture();
+	texn = normal->genTexture();
+	return mtlmap;
 }
 catch (const std::ios_base::failure& e)
 {
 #ifdef _DEBUG
 	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
 #endif
-	return map<string, Vec4>();
+	return map<string, MtlStub>();
 }
 
 
 struct alignas(uint64_t) PTstub
 {
-	uint16_t vid, nid, tid, empty;
-	PTstub(int32_t vid_, int32_t nid_, int32_t tid_)
-		:vid((uint16_t)vid_), nid((uint16_t)nid_), tid((uint16_t)tid_), empty(0)
+	uint16_t vid, nid, tid, tposid;
+	PTstub(int32_t vid_, int32_t nid_, int32_t tid_, uint16_t tposid_)
+		:vid((uint16_t)vid_), nid((uint16_t)nid_), tid((uint16_t)tid_), tposid(tposid_)
 	{
 	}
 	bool operator== (const PTstub& other) const
 	{
 		return *(uint64_t*)this == *(uint64_t*)&other;
+	}
+	bool operator< (const PTstub& other) const
+	{
+		return *(uint64_t*)this < *(uint64_t*)&other;
 	}
 };
 struct PTstubHasher
@@ -400,14 +403,15 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	vector<Vec3> points{ Vec3(0,0,0) };
 	vector<Normal> normals{ Normal(0,0,0) };
 	vector<Coord2D> texcs{ Coord2D(0,0) };
-	std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
+	map<string, MtlStub> mtlmap;
+	//std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
+	std::map<PTstub, uint32_t> idxmap;
 	pts.clear();
 	indexs.clear();
 	groups.clear();
-	Vec3 tmp;
-	Coord2D tmpc;
 	Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
 	VecI4 tmpi, tmpidx;
+	MtlStub curmtl;
 	OBJLoder::TextLine line;
 	while (line = ldr.readLine())
 	{
@@ -421,57 +425,72 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 		#endif
 			break;
 		case "v"_hash://vertex
-			tmp = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
-			maxv = miniBLAS::max(maxv, tmp);
-			minv = miniBLAS::min(minv, tmp);
-			points.push_back(tmp);
-			break;
+			{
+				Vec3 tmp(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+				maxv = miniBLAS::max(maxv, tmp);
+				minv = miniBLAS::min(minv, tmp);
+				points.push_back(tmp);
+			}break;
 		case "vn"_hash://normal
-			tmp = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
-			normals.push_back(tmp);
-			break;
+			{
+				Vec3 tmp(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+				normals.push_back(tmp);
+			}break;
 		case "vt"_hash://texcoord
-			tmpc = Coord2D(atof(ldr.param[0]), atof(ldr.param[1]));
-			texcs.push_back(tmpc);
-			break;
+			{
+				Coord2D tmpc(atof(ldr.param[0]), atof(ldr.param[1]));
+				texcs.push_back(tmpc);
+			}break;
 		case "f"_hash://face
-			for (uint32_t a = 0; a < line.pcount; ++a)
 			{
-				ldr.parseInt(a, tmpi);//vert,texc,norm
-				PTstub stub(tmpi.x, tmpi.z, tmpi.y);
-				const auto it = idxmap.find(stub);
-				if (it != idxmap.end())
-					tmpidx[a] = it->second;
-				else
+				VecI4 tmpi, tmpidx;
+				for (uint32_t a = 0; a < line.pcount; ++a)
 				{
-					pts.push_back(Point{ points[stub.vid],normals[stub.nid], texcs[stub.tid] });
-					const uint32_t idx = (uint32_t)(pts.size() - 1);
-					idxmap.insert_or_assign(stub, idx);
-					tmpidx[a] = idx;
+					ldr.parseInt(a, tmpi);//vert,texc,norm
+					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl.posid);
+					const auto it = idxmap.find(stub);
+					if (it != idxmap.end())
+						tmpidx[a] = it->second;
+					else
+					{
+						const uint32_t idx = static_cast<uint32_t>(pts.size());
+						pts.push_back(Point(points[stub.vid], normals[stub.nid],
+							//texcs[stub.tid]));
+							texcs[stub.tid].repos(curmtl.scalex, curmtl.scaley, curmtl.offsetx, curmtl.offsety)));
+						idxmap.insert_or_assign(stub, idx);
+						tmpidx[a] = idx;
+					}
 				}
-			}
-			if (line.pcount == 3)
-			{
-				indexs.push_back(tmpidx.x);
-				indexs.push_back(tmpidx.y);
-				indexs.push_back(tmpidx.z);
-			}
-			else//4 vertex-> 3 vertex
-			{
-				indexs.push_back(tmpidx.x);
-				indexs.push_back(tmpidx.y);
-				indexs.push_back(tmpidx.z);
-				indexs.push_back(tmpidx.x);
-				indexs.push_back(tmpidx.z);
-				indexs.push_back(tmpidx.w);
-			}
-			break;
+				if (line.pcount == 3)
+				{
+					indexs.push_back(tmpidx.x);
+					indexs.push_back(tmpidx.y);
+					indexs.push_back(tmpidx.z);
+				}
+				else//4 vertex-> 3 vertex
+				{
+					indexs.push_back(tmpidx.x);
+					indexs.push_back(tmpidx.y);
+					indexs.push_back(tmpidx.z);
+					indexs.push_back(tmpidx.x);
+					indexs.push_back(tmpidx.z);
+					indexs.push_back(tmpidx.w);
+				}
+			}break;
 		case "usemtl"_hash://each mtl is a group
-			groups.push_back({ string(ldr.param[0]),(uint32_t)indexs.size() });
-			break;
+			{
+				string mtlname(ldr.param[0]);
+				groups.push_back({ mtlname,(uint32_t)indexs.size() });
+				const auto it = mtlmap.find(mtlname);
+				if (it != mtlmap.end())
+					curmtl = it->second;
+			}break;
 		case "mtllib"_hash://import mtl file
-			loadMTL(objpath.parent_path() / ldr.param[0]);
-			break;
+			{
+				const auto mtls = loadMTL(objpath.parent_path() / ldr.param[0]);
+				for (const auto& mtlp : mtls)
+					mtlmap.insert(mtlp);
+			}break;
 		default:
 			break;
 		}
@@ -483,6 +502,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(sizev.x, sizev.y), sizev.z);
 	for (auto& p : pts)
 		p.pos *= resizer;
+	firstcnt = groups[1].second;
 	return true;
 }
 catch (const std::ios_base::failure& e)
@@ -517,6 +537,11 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 		.setIndex(data->ebo)//index draw
 		.end();
 	setVAO(prog, vao);
+}
+
+void Model::draw(oglu::oglProgram & prog) const
+{
+	prog->draw(getModelMat()).setTexture(data->texd, "tex").draw(getVAO(prog));
 }
 
 }

@@ -28,6 +28,7 @@ private:
 public:
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
 	void placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y);
+	oglu::oglTexture genTexture();
 };
 using ModelImage = Wrapper<_ModelImage, false>;
 
@@ -62,13 +63,26 @@ private:
 		int8_t parseFloat(const uint8_t idx, float *output);
 		int8_t parseInt(const uint8_t idx, int32_t *output);
 	};
+	struct alignas(Material) MtlStub
+	{
+		Material mtl;
+		float scalex, offsetx, scaley, offsety;
+		uint16_t sx = 0, sy = 0, posid = 65536;
+		ModelImage diffuse, normal;
+		bool hasImage(const ModelImage& img)
+		{
+			return diffuse == img || normal == img;
+		}
+	};
 	vector<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
 	oglu::oglBuffer vbo;
 	oglu::oglEBO ebo;
+	oglu::oglTexture texd, texn;
 	const wstring mfnane;
-	map<string, Vec4> loadMTL(const Path& mtlfname);
+	uint32_t firstcnt = 0;
+	map<string, MtlStub> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
 	_ModelData(const wstring& fname);
 public:
@@ -88,6 +102,7 @@ public:
 	Model(const wstring& fname);
 	~Model();
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+	virtual void draw(oglu::oglProgram& prog) const override;
 };
 
 }
