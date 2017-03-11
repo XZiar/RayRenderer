@@ -108,7 +108,7 @@ protected:
 	vector<uint32_t> offsets;
 	//uint32_t offset, size;
 	void bind() const;
-	void unbind() const;
+	static void unbind();
 	void initSize();
 public:
 	_oglVAO(const VAODrawMode);

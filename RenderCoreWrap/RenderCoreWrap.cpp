@@ -30,14 +30,19 @@ void BasicTest::rfsData()
 	core->rfsData();
 }
 
-void BasicTest::moveobj(const float x, const float y, const float z)
+void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
 {
-	core->moveobj(x, y, z);
+	core->moveobj(id, x, y, z);
 }
 
-void BasicTest::rotateobj(const float x, const float y, const float z)
+void BasicTest::rotateobj(const uint16_t id, const float x, const float y, const float z)
 {
-	core->rotateobj(x, y, z);
+	core->rotateobj(id, x, y, z);
+}
+
+uint16_t BasicTest::objectCount()
+{
+	return core->objectCount();
 }
 
 }

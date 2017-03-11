@@ -34,8 +34,9 @@ public:
 	void draw();
 	void resize(const int w, const int h);
 	void rfsData();
-	void moveobj(const float x, const float y, const float z);
-	void rotateobj(const float x, const float y, const float z);
+	void moveobj(const uint16_t id, const float x, const float y, const float z);
+	void rotateobj(const uint16_t id, const float x, const float y, const float z);
+	uint16_t objectCount();
 };
 
 }

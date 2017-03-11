@@ -31,6 +31,7 @@ void oglUtil::init()
 	glewInit();
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #ifdef _DEBUG
 	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 #endif

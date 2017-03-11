@@ -124,6 +124,7 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat,
 
 void _oglProgram::ProgDraw::end()
 {
+	_oglVAO::unbind();
 }
 
 
@@ -278,7 +279,7 @@ void _oglProgram::initLocs()
 				it->second.len = miniBLAS::max(it->second.len, arraylen);
 				continue;
 			}
-			if(datinfo.type == GL_PROGRAM_INPUT)
+			if(datinfo.type != GL_UNIFORM_BLOCK)
 				datinfo.location = glGetProgramResourceLocation(programID, datinfo.type, name);
 			else
 				datinfo.location = glGetProgramResourceIndex(programID, datinfo.type, name);

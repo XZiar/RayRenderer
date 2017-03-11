@@ -53,7 +53,7 @@ class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonM
 	>>;
 	static VAOMap vaoMap;
 public:
-	Vec4 position = Vec4::zero(), rotation = Vec4::zero(), scale = Vec4::one();
+	Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
 	wstring name;
 	virtual ~Drawable();
 	/*prepare VAO with given Vertex Attribute Location

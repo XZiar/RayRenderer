@@ -165,7 +165,6 @@ void _ModelData::releaseModel(const wstring& fname)
 _ModelData::_ModelData(const wstring& fname) :mfnane(fname)
 {
 	loadOBJ(fname);
-
 	vbo.reset(oglu::BufferType::Array);
 	vbo->write(pts);
 	ebo.reset(oglu::IndexSize::Int);
@@ -549,7 +548,7 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 
 void Model::draw(oglu::oglProgram & prog) const
 {
-	drawPosition(prog).setTexture(data->texd, "tex").draw(getVAO(prog));
+	drawPosition(prog).setTexture(data->texd, "tex").draw(getVAO(prog)).end();
 }
 
 }

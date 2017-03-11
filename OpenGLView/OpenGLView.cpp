@@ -9,8 +9,7 @@ using namespace System::Windows::Forms;
 
 namespace OpenGLView
 {
-	using std::move;
-	using std::string;
+using std::wstring;
 	public ref class OGLView : public Control
 	{
 	private:
@@ -21,12 +20,6 @@ namespace OpenGLView
 		int lastX, lastY, startX, startY, curX, curY;
 		bool isMoved;
 		bool isCaptital = false;
-		void construct()
-		{
-			glEnable(GL_DEPTH_TEST);							// Enables Depth Testing
-			glDepthFunc(GL_LEQUAL);								// The Type Of Depth Testing To Do
-			glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-		}
 	public:
 		UINT64 rfsCount = 0;
 		property bool ResizeBGDraw;
@@ -74,7 +67,6 @@ namespace OpenGLView
 			SetPixelFormat(hDC, PixelFormat, &pfd);
 			hRC = wglCreateContext(hDC);
 			wglMakeCurrent(hDC, hRC);
-			construct();
 		}
 		~OGLView() { this->!OGLView(); };
 		!OGLView()

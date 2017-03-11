@@ -32,8 +32,9 @@ public:
 	BasicTest(const wstring sname2d = L"", const wstring sname3d = L"");
 	void draw();
 	void resize(const int w, const int h);
-	void moveobj(const float x, const float y, const float z);
-	void rotateobj(const float x, const float y, const float z);
+	OPResult<> addModel(const wstring& fname);
+	void moveobj(const uint16_t id, const float x, const float y, const float z);
+	void rotateobj(const uint16_t id, const float x, const float y, const float z);
 	void rfsData();
 	uint16_t objectCount() const;
 	void showObject(uint16_t objIdx) const;

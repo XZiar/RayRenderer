@@ -219,7 +219,7 @@ void _oglVAO::bind() const
 	glBindVertexArray(vaoID);
 }
 
-void _oglVAO::unbind() const
+void _oglVAO::unbind()
 {
 	glBindVertexArray(0);
 }

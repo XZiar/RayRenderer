@@ -155,24 +155,21 @@ void BasicTest::init3d(const wstring pname)
 	{
 		Wrapper<Sphere, false> ball(0.75f);
 		ball->name = L"Ball";
-		ball->position = { 1,0,0,0 };
+		ball->position = { 1,0,0 };
 		drawables.push_back(ball);
 		Wrapper<Box, false> box(0.5f, 1.0f, 2.0f);
 		box->name = L"Box";
-		box->position = { 0,1,0,0 };
+		box->position = { 0,1,0 };
 		drawables.push_back(box);
 		Wrapper<Plane, false> ground(500.0f, 50.0f);
 		ground->name = L"Ground";
-		ground->position = { 0,-2,0,0 };
+		ground->position = { 0,-2,0 };
 		drawables.push_back(ground);
 		Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
 		mod1->name = L"DOD3-0";
-		mod1->position = { -1,3,0,0 };
+		mod1->position = { -1,1,0 };
+		mod1->rotation = { 270,0,0 };
 		drawables.push_back(mod1);
-		Wrapper<Model, false> mod2(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
-		mod2->name = L"DOD3-0";
-		mod2->position = { 2,3,0,0 };
-		drawables.push_back(mod2);
 		for (auto& d : drawables)
 		{
 			d->prepareGL(prog3D);
@@ -262,15 +259,25 @@ void BasicTest::resize(const int w, const int h)
 	prog3D->setProject(cam, w, h);
 }
 
-void BasicTest::moveobj(const float x, const float y, const float z)
+OPResult<> BasicTest::addModel(const wstring& fname)
 {
-	tvec += Vec4(x, y, z, 0.0f);
+	Wrapper<Model, false> mod(fname);
+	mod->name = L"model";
+	drawables.push_back(mod);
+	mod->prepareGL(prog3D);
+	return true;
+}
+
+
+void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
+{
+	drawables[id]->position += Vec3(x, y, z);
 	rfsData();
 }
 
-void BasicTest::rotateobj(const float x, const float y, const float z)
+void BasicTest::rotateobj(const uint16_t id, const float x, const float y, const float z)
 {
-	rvec += Vec4(x, y, z, 0.0f);
+	drawables[id]->rotation += Vec3(x, y, z);
 	rfsData();
 }
 

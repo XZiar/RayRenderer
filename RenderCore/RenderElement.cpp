@@ -45,7 +45,7 @@ Drawable::~Drawable()
 
 void Drawable::draw(oglu::oglProgram& prog) const
 {
-	drawPosition(prog).draw(getVAO(prog));
+	drawPosition(prog).draw(getVAO(prog)).end();
 }
 
 auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare())

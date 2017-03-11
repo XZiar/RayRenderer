@@ -17,6 +17,7 @@ namespace glutview
 
 using namespace common;
 using std::string;
+using std::wstring;
 using namespace b3d;
 
 enum class Key : uint8_t
@@ -68,6 +69,7 @@ public:
 	using FuncKeyEvent = std::function<void(KeyEvent)>;
 	using FuncMouseEvent = std::function<void(MouseEvent)>;
 	using FuncTimer = std::function<bool()>;
+	using FuncDropFile = std::function<void(wstring filePath)>;
 private:
 	uint8_t instanceID = UINT8_MAX;
 	int wdID;
@@ -90,8 +92,10 @@ private:
 	void onMouse(int x, int y);
 	void onMouse(int button, int state, int x, int y);
 	void onTimer(const uint16_t lastms);
+	void onDropFile(const wstring& fname) const;
 public:
 	bool deshake = true;
+	FuncDropFile funDropFile = nullptr;
 	_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_);
 	~_FreeGLUTView();
 	uint8_t getWindowID();

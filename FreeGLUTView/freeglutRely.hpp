@@ -2,6 +2,7 @@
 
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
+#include <shellapi.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -31,6 +32,13 @@ class GLUTHacker final
 				wglShareLists(rcs[a], rc);
 		}
 	}
+	static _FreeGLUTView* getView(const HWND hwnd)
+	{
+		for (uint8_t a = 0; a < 8; ++a)
+			if (hwnds[a] == hwnd)
+				return table[a];
+		return nullptr;
+	}
 	static uint8_t regist(_FreeGLUTView* view)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
@@ -41,6 +49,7 @@ class GLUTHacker final
 				rcs[a] = wglGetCurrentContext();
 				const auto hdc = wglGetCurrentDC();
 				hwnds[a] = WindowFromDC(hdc);
+				DragAcceptFiles(hwnds[a], TRUE);
 				oldWndProc = (WNDPROC)SetWindowLongPtr(hwnds[a], GWLP_WNDPROC, (intptr_t)&HackWndProc);
 				makeshare(rcs[a], a);
 				return a;
@@ -244,6 +253,19 @@ class GLUTHacker final
 
 	static LRESULT CALLBACK HackWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
+		switch (uMsg)
+		{
+		case WM_DROPFILES:
+			{
+				HDROP hdrop = (HDROP)wParam;
+				wchar_t filePath[MAX_PATH + 1];
+				DragQueryFile(hdrop, 0, filePath, MAX_PATH);
+				DragFinish(hdrop);
+				const auto view = getView(hWnd);
+				view->onDropFile(filePath);
+			}
+			return 0;
+		}
 		return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
 	}
 };

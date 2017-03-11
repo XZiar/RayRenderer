@@ -164,6 +164,13 @@ void _FreeGLUTView::onTimer(const uint16_t lastms)
 		GLUTHacker::setTimer(this, lastms);
 }
 
+void _FreeGLUTView::onDropFile(const wstring& fname) const
+{
+	if (funDropFile == nullptr)
+		return;
+	funDropFile(fname);
+}
+
 _FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_) :funDisp(funDisp_), funReshape(funReshape_)
 {
 	wdID = glutCreateWindow("");
