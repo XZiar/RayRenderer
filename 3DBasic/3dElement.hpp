@@ -46,6 +46,22 @@ public:
 	{
 		return Coord2D(u*scalex + offsetx, v*scaley + offsety);
 	}
+	void regulized_repeat()
+	{
+		float intpart;
+		u = std::modf(u, &intpart);
+		if (u < 0)
+			u += 1.0f;
+		v = std::modf(v, &intpart);
+		if (v < 0)
+			v += 1.0f;
+	}
+	void regulized_mirror()
+	{
+		float intpart;
+		u = std::abs(std::modf(u, &intpart));
+		v = std::abs(std::modf(v, &intpart));
+	}
 	operator float*() { return &u; };
 };
 

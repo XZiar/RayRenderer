@@ -59,7 +59,7 @@ private:
 		OBJLoder(const Path &fpath_);
 		~OBJLoder();
 		TextLine readLine();
-		string popString();
+		wstring toWideString(const uint8_t idx);
 		int8_t parseFloat(const uint8_t idx, float *output);
 		int8_t parseInt(const uint8_t idx, int32_t *output);
 	};
@@ -67,7 +67,7 @@ private:
 	{
 		Material mtl;
 		float scalex, offsetx, scaley, offsety;
-		uint16_t sx = 0, sy = 0, posid = UINT16_MAX;
+		uint16_t width = 0, height = 0, sx = 0, sy = 0, posid = UINT16_MAX;
 		ModelImage diffuse, normal;
 		bool hasImage(const ModelImage& img)
 		{
@@ -77,6 +77,7 @@ private:
 public:
 	Vec3 size;
 private:
+	using TexMergeItem = std::tuple<ModelImage, uint16_t, uint16_t>;
 	vector<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
@@ -84,6 +85,7 @@ private:
 	oglu::oglEBO ebo;
 	oglu::oglTexture texd, texn;
 	const wstring mfnane;
+	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
 	_ModelData(const wstring& fname);

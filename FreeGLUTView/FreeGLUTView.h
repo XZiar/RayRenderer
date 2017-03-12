@@ -12,6 +12,7 @@
 #include <string>
 #include <functional>
 
+
 namespace glutview
 {
 
@@ -107,7 +108,7 @@ public:
 };
 using FreeGLUTView = Wrapper<_FreeGLUTView, true>;
 
-GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720, const int x = 50, const int y = 50);
+GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720);
 GLUTVIEWAPI void FreeGLUTViewRun();
 
 

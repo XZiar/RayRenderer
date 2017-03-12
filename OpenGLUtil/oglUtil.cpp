@@ -34,6 +34,7 @@ void oglUtil::init()
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #ifdef _DEBUG
 	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
+	printf("GL Version:%s\n", getVersion().c_str());
 #endif
 }
 

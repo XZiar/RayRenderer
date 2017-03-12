@@ -1,6 +1,7 @@
 #include "Model.h"
 #include "../3rdParty/stblib/stblib.h"
 #include <unordered_map>
+#include <set>
 
 
 namespace rayr
@@ -213,17 +214,30 @@ _ModelData::OBJLoder::~OBJLoder()
 _ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 {
 	using common::hash_;
+	static std::set<string> specialPrefix{ "mtllib","usemtl","newmtl","g" };
 	if (fgets(curline, 255, fp) == nullptr)
 		return{ "EOF"_hash, 0 };
-	const char *end = &curline[strlen(curline)];
+	char *end = &curline[strlen(curline) - 1];
+	//remove return at the end of a line
+	if (*(end - 1) == '\r' || *(end - 1) == '\n')
+		*--end = '\0';
+	else
+		*end = '\0';
 
 	char prefix[256] = { 0 };
 	if (sscanf_s(curline, "%s", prefix, 240) == 0)
 		return{ "EMPTY"_hash, 0 };
-	const bool isNote = prefix[0] == '#';
+	const string sprefix(prefix);
+	//is-note
+	if (sprefix == "#")
+	{
+		param[0] = &curline[2];
+		return{ "#"_hash, 1 };
+	}
+	bool isOneParam = specialPrefix.count(sprefix) != 0 || sprefix.find_first_of("map_") == 0;
 	bool inParam = false;
 	uint8_t pcnt = 0;
-	char *cur = &curline[strlen(prefix)];
+	char *cur = &curline[sprefix.length()];
 	*cur++ = '\0';
 	for (; cur < end; ++cur)
 	{
@@ -237,35 +251,19 @@ _ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 		{
 			param[pcnt++] = cur;
 			inParam = true;
-			if (isNote)//need only one param
+			if (isOneParam)//need only one param
 				break;
 		}
 	}
-	return{ isNote ? "#"_hash : hash_(prefix), pcnt };
+	return{ hash_(prefix), pcnt };
 }
 
-string _ModelData::OBJLoder::popString()
+wstring _ModelData::OBJLoder::toWideString(const uint8_t idx)
 {
-	const auto bakptr = param[0];
-	const size_t len = strlen(param[0]);
-	size_t objlen = 0;
-	bool inParam = true;
-	for (size_t a=0; a < len; ++a)
-	{
-		const uint8_t curch = *(uint8_t*)&param[0][a];
-		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
-		{
-			objlen = a;
-			inParam = false;
-		}
-		else if (!inParam)
-		{
-			param[0] = &param[0][a];
-			break;
-		}
-	}
-	return string(bakptr, objlen);
+	const auto len = strlen(param[idx]);
+	return wstring(param[idx], param[idx] + len);
 }
+
 
 int8_t _ModelData::OBJLoder::parseFloat(const uint8_t idx, float *output)
 {
@@ -289,13 +287,76 @@ int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 
 
 
+std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs)
+{
+	//Merge Textures
+	vector<std::tuple<ModelImage, uint16_t, uint16_t>> opDiffuse, opNormal;
+	uint16_t maxx = 0, maxy = 0;
+	for (uint16_t idx = 0; idx < texposs.size(); ++idx)
+	{
+		ModelImage img;
+		uint16_t x, y;
+		std::tie(img, x, y) = texposs[idx];
+		maxx = std::max(maxx, static_cast<uint16_t>(img->width + x));
+		maxy = std::max(maxy, static_cast<uint16_t>(img->height + y));
+		bool addedDiffuse = false, addedNormal = false;
+		for (auto& mp : mtlmap)
+		{
+			auto& mtl = mp.second;
+			if (mtl.hasImage(img))
+			{
+				mtl.sx = x, mtl.sy = y, mtl.posid = idx;
+				if (!addedDiffuse && mtl.diffuse)
+				{
+					opDiffuse.push_back({ mtl.diffuse,x,y });
+					addedDiffuse = true;
+				}
+				mtl.diffuse.release();
+				if (!addedNormal && mtl.normal)
+				{
+					opNormal.push_back({ mtl.normal,x,y });
+					addedNormal = true;
+				}
+				mtl.normal.release();
+			}
+		}
+		//ENDOF setting mtl-position AND preparing opSequence
+	}
+	texposs.clear();
+#ifdef _DEBUG
+	printf("@@build merged Diffuse texture(%d*%d)\n", maxx, maxy);
+#endif
+	ModelImage diffuse(maxx, maxy);
+	for (const auto& op : opDiffuse)
+		diffuse->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
+	opDiffuse.clear();
+#ifdef _DEBUG
+	printf("@@build merged Normal texture(%d*%d)\n", maxx, maxy);
+#endif
+	ModelImage normal(maxx, maxy);
+	for (const auto& op : opNormal)
+		normal->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
+	opNormal.clear();
+
+	for (auto& mp : mtlmap)
+	{
+		auto& mtl = mp.second;
+		//texture's uv coordinate system has reversed y-axis
+		//hence y'=(1-y)*scale+offset = -scale*y + (scale+offset)
+		mtl.scalex = mtl.width*1.0f / maxx, mtl.scaley = mtl.height*-1.0f / maxy;
+		mtl.offsetx = mtl.sx*1.0f / maxx, mtl.offsety = mtl.sy*1.0f / maxy - mtl.scaley;
+	}
+	_ModelImage::shrink();
+	return { diffuse,normal };
+}
+
 map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
 	printf("@@opened mtl file %ls\n", mtlpath.c_str());
 	map<string, MtlStub> mtlmap;
-	vector<std::tuple<ModelImage, uint16_t, uint16_t>> texposs;
+	vector<TexMergeItem> texposs;
 	MtlStub *curmtl = nullptr;
 	OBJLoder::TextLine line;
 	while (line = ldr.readLine())
@@ -306,24 +367,20 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 			break;
 		case "#"_hash:
 		#ifdef _DEBUG
-			printf("@@mtl-note\t%s", ldr.param[0]);
+			printf("@@mtl-note\t%s\n", ldr.param[0]);
 		#endif
-			if (strlen(ldr.curline) > 1)//has extra information
+			break;
+		case "#merge"_hash:
 			{
-				switch (hash_(&ldr.curline[1]))
-				{
-				case "merge"_hash:
-					{
-						string mname = ldr.popString();
-						auto img = _ModelImage::getImage(wstring(mname.begin(), mname.end()));
-						if (!img)
-							break;
-						int32_t pos[2];
-						ldr.parseInt(0, pos);
-						texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
-					}
+				auto img = _ModelImage::getImage(ldr.toWideString(0));
+				if (!img)
 					break;
-				}
+				int32_t pos[2];
+				ldr.parseInt(1, pos);
+			#ifdef _DEBUG
+				printf("@@mergeMTL\t%s\t%d,%d\n", ldr.param[0], pos[0], pos[1]);
+			#endif
+				texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
 			}
 			break;
 		case "newmtl"_hash://vertex
@@ -348,47 +405,28 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 			//curmtl.=loadTex(ldr.param[0], mtlpath.parent_path());
 			//break;
 		case "map_Kd"_hash:
-			curmtl->diffuse = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
-			break;
-		case "bump"_hash:
+			{
+				curmtl->diffuse = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				if (curmtl->diffuse)
+					curmtl->width = curmtl->diffuse->width, curmtl->height = curmtl->diffuse->height;
+			}break;
 		case "map_bump"_hash:
-			curmtl->normal = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
-			break;
+			{
+				curmtl->normal = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				if (curmtl->normal)
+					curmtl->width = curmtl->normal->width, curmtl->height = curmtl->normal->height;
+			}break;
 		}
 	}
-	//Merge Textures
-	ModelImage img;
-	uint16_t x, y, maxx = 0, maxy = 0;
-	for (uint16_t idx = 0; idx < texposs.size(); ++idx)
-	{
-		std::tie(img, x, y) = texposs[idx];
-		maxx = std::max(maxx, static_cast<uint16_t>(img->width + x));
-		maxy = std::max(maxy, static_cast<uint16_t>(img->height + y));
-		std::for_each(mtlmap.begin(), mtlmap.end(), [&](auto& mp)
-		{
-			if (mp.second.hasImage(img))
-				mp.second.sx = x, mp.second.sy = y, mp.second.posid = idx;
-		});
-	}
-	texposs.clear();
-#ifdef _DEBUG
-	printf("@@build merged texture(%d*%d)\n", maxx, maxy);
-#endif
-	ModelImage diffuse(maxx, maxy), normal(maxx,maxy);
-	for (auto& mp : mtlmap)
-	{
-		auto& mtl = mp.second;
-		diffuse->placeImage(mtl.diffuse, mtl.sx, mtl.sy);
-		normal->placeImage(mtl.normal, mtl.sx, mtl.sy);
-		//texture's uv coordinate system has reversed y-axis
-		//hence y'=(1-y)*scale+offset = -scale*y + (scale+offset)
-		mtl.scalex = mtl.diffuse->width*1.0f / maxx, mtl.scaley = mtl.diffuse->height*-1.0f / maxy;
-		mtl.offsetx = mtl.sx*1.0f / maxx, mtl.offsety = mtl.sy*1.0f / maxy - mtl.scaley;
-		mtl.diffuse = mtl.normal = ModelImage();
-	}
-	_ModelImage::shrink();
-	//::stb::saveImage(L"ODiffuse.png", diffuse->image, maxx, maxy);
+
+	ModelImage diffuse, normal;
+	std::tie(diffuse, normal) = mergeTex(mtlmap, texposs);
+//#ifndef _DEBUG
+	const auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Diffuse.png");
+	printf("saving diffuse texture to %ls\n", outname.c_str());
+	::stb::saveImage(outname, diffuse->image, diffuse->width, diffuse->height);
 	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
+//#endif
 	texd = diffuse->genTexture();
 	texn = normal->genTexture();
 	return mtlmap;
@@ -427,7 +465,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 			break;
 		case "#"_hash:
 		#ifdef _DEBUG
-			printf("@@obj-note\t%s", ldr.param[0]);
+			printf("@@obj-note\t%s\n", ldr.param[0]);
 		#endif
 			break;
 		case "v"_hash://vertex
@@ -445,6 +483,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 		case "vt"_hash://texcoord
 			{
 				Coord2D tmpc(atof(ldr.param[0]), atof(ldr.param[1]));
+				tmpc.regulized_mirror();
 				texcs.push_back(tmpc);
 			}break;
 		case "f"_hash://face

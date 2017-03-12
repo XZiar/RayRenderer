@@ -228,14 +228,21 @@ void _FreeGLUTView::refresh()
 }
 
 
-void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/, const int x /*= 50*/, const int y /*= 50*/)
+void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
 {
 	int args = 0; char **argv = nullptr;
+	/*if (useNV)
+		NvOptimusEnablement = 0x00000001;
+	else
+		NvOptimusEnablement = 0x00000000;*/
 	glutInit(&args, argv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
+	printf("screen W/H:%d,%d\n", screenWidth, screenHeight);
 	glutInitWindowSize(w, h);
-	glutInitWindowPosition(x, y);
+	glutInitWindowPosition((screenWidth - w) / 2, (screenHeight - h) / 2);
 }
 
 void FreeGLUTViewRun()
