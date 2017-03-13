@@ -94,6 +94,10 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CallingConvention>
       </CallingConvention>
+      <WarningVersion>
+      </WarningVersion>
+      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -112,6 +116,10 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CallingConvention>
       </CallingConvention>
+      <WarningVersion>
+      </WarningVersion>
+      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -129,6 +137,10 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CallingConvention>
       </CallingConvention>
+      <WarningVersion>
+      </WarningVersion>
+      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -144,6 +156,10 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CallingConvention>
       </CallingConvention>
+      <WarningVersion>
+      </WarningVersion>
+      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />

@@ -139,6 +139,7 @@ GLenum _oglTexture::parseFormat(const TextureDataFormat dformat)
 	case 0x57:
 		return GL_RGBA32F;
 	}
+	return GL_INVALID_ENUM;
 }
 
 void _oglTexture::bind(const uint8_t pos) const
