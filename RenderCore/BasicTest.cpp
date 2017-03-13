@@ -165,11 +165,11 @@ void BasicTest::init3d(const wstring pname)
 		ground->name = L"Ground";
 		ground->position = { 0,-2,0 };
 		drawables.push_back(ground);
-		Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
+		/*Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
 		mod1->name = L"DOD3-0";
 		mod1->position = { -1,1,0 };
 		mod1->rotation = { 270,0,0 };
-		drawables.push_back(mod1);
+		drawables.push_back(mod1);*/
 		for (auto& d : drawables)
 		{
 			d->prepareGL(prog3D);
@@ -197,8 +197,8 @@ void BasicTest::initTex()
 			}
 		}
 		empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-		picTex->setData(TextureFormat::RGBAf, 128, 128, empty);
-		tmpTex->setData(TextureFormat::RGBAf, 128, 128, empty);
+		picTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+		tmpTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
 		picBuf->write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
 	}
 
@@ -221,7 +221,7 @@ void BasicTest::initTex()
 				}
 			}
 		}
-		mskTex->setData(TextureFormat::RGBAf, 128, 128, empty);
+		mskTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
 	}
 }
 

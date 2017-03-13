@@ -62,30 +62,82 @@ uint8_t _oglTexture::getDefaultPos()
 	return (uint8_t)(maxtexs > 255 ? 255 : maxtexs - 1);
 }
 
-void _oglTexture::parseFormat(const TextureFormat format, GLint & intertype, GLenum & datatype, GLenum & comptype)
+void _oglTexture::parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype)
 {
-	switch (format)
+	switch ((uint8_t)dformat & 0x0f)
 	{
-	case TextureFormat::RGB:
-		intertype = GL_RGB;
-		datatype = GL_UNSIGNED_BYTE;
-		comptype = GL_RGB;
-		break;
-	case TextureFormat::RGBA:
-		intertype = GL_RGBA;
-		datatype = GL_UNSIGNED_BYTE;
-		comptype = GL_RGBA;
-		break;
-	case TextureFormat::RGBf:
-		intertype = GL_RGB32F;
-		datatype = GL_FLOAT;
-		comptype = GL_RGB;
-		break;
-	case TextureFormat::RGBAf:
-		intertype = GL_RGBA32F;
-		datatype = GL_FLOAT;
-		comptype = GL_RGBA;
-		break;
+	case 0x0:
+		datatype = GL_UNSIGNED_BYTE; break;
+	case 0x1:
+		datatype = GL_BYTE; break;
+	case 0x2:
+		datatype = GL_UNSIGNED_SHORT; break;
+	case 0x3:
+		datatype = GL_SHORT; break;
+	case 0x4:
+		datatype = GL_UNSIGNED_INT; break;
+	case 0x5:
+		datatype = GL_INT; break;
+	case 0x6:
+		datatype = GL_HALF_FLOAT; break;
+	case 0x7:
+		datatype = GL_FLOAT; break;
+	default:
+		return;
+	}
+	switch ((uint8_t)dformat & 0xf0)
+	{
+	case 0x00:
+		comptype = GL_RED; break;
+	case 0x10:
+		comptype = GL_RG; break;
+	case 0x20:
+		comptype = GL_RGB; break;
+	case 0x30:
+		comptype = GL_BGR; break;
+	case 0x40:
+		comptype = GL_RGBA; break;
+	case 0x50:
+		comptype = GL_BGRA; break;
+	case 0x80:
+		comptype = GL_RED_INTEGER; break;
+	case 0x90:
+		comptype = GL_RG_INTEGER; break;
+	case 0xa0:
+		comptype = GL_RGB_INTEGER; break;
+	case 0xb0:
+		comptype = GL_BGR_INTEGER; break;
+	case 0xc0:
+		comptype = GL_RGBA_INTEGER; break;
+	case 0xd0:
+		comptype = GL_BGRA_INTEGER; break;
+	}
+}
+
+GLenum _oglTexture::parseFormat(const TextureDataFormat dformat)
+{
+	switch ((uint8_t)dformat & 0x7f)
+	{
+	case 0x00:
+		return GL_R8;
+	case 0x10:
+		return GL_RG8;
+	case 0x20:
+	case 0x30:
+		return GL_RGB8;
+	case 0x40:
+	case 0x50:
+		return GL_RGBA8;
+	case 0x07:
+		return GL_R32F;
+	case 0x17:
+		return GL_RG32F;
+	case 0x27:
+	case 0x37:
+		return GL_RGB32F;
+	case 0x47:
+	case 0x57:
+		return GL_RGBA32F;
 	}
 }
 
@@ -122,39 +174,37 @@ void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWr
 	unbind();
 }
 
-void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const void * data)
+void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void * data)
 {
 	bind(defPos);
-	GLint intertype;
 	GLenum datatype, comptype;
-	parseFormat(format, intertype, datatype, comptype);
-	glTexImage2D((GLenum)type, 0, intertype, w, h, 0, comptype, datatype, data);
+	parseFormat(dformat, datatype, comptype);
+	glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
 	//unbind();
 }
 
-void _oglTexture::setData(const TextureFormat format, const GLsizei w, const GLsizei h, const oglBuffer& buf)
+void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
 	assert(buf->bufferType == BufferType::Pixel);
 	bind(defPos);
 	buf->bind();
 
-	GLint intertype;
 	GLenum datatype, comptype;
-	parseFormat(format, intertype, datatype, comptype);
-	glTexImage2D((GLenum)type, 0, intertype, w, h, 0, comptype, datatype, NULL);
+	parseFormat(dformat, datatype, comptype);
+	glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, NULL);
 
 	//unbind();
 }
 
 
-OPResult<> _oglTexture::setBuffer(const TextureFormat format, const oglBuffer& tbo)
+OPResult<> _oglTexture::setBuffer(const TextureDataFormat dformat, const oglBuffer& tbo)
 {
 	if (type != TextureType::TexBuf)
 		return OPResult<>(false, L"Texture is not TextureBuffer");
 	if(tbo->bufferType != BufferType::Texture)
 		return OPResult<>(false, L"Buffer is not TextureBuffer");
 	bind(defPos);
-	glTexBuffer(GL_TEXTURE_BUFFER, (GLenum)format, tbo->bufferID);
+	glTexBuffer(GL_TEXTURE_BUFFER, parseFormat(dformat), tbo->bufferID);
 	innerBuf = tbo;
 	//unbind();
 	return true;

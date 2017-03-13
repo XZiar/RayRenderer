@@ -35,7 +35,6 @@ struct PTstubHasher
 {
 	size_t operator()(const PTstub& p) const
 	{
-		//return p.vid * 33 * 33 + p.nid * 33 + p.tid;
 		return p.numhi * 33 + p.numlow;
 	}
 };
@@ -118,15 +117,23 @@ void _ModelImage::placeImage(const Wrapper<_ModelImage, false>& from, const uint
 		return;
 	const auto w = from->width;
 	const size_t lim = from->image.size();
-	for (size_t posf = 0, post = y*width + x; posf < lim; posf += w, post += width)
-		memmove(&image[post], &from->image[posf], sizeof(uint32_t)*w);
+	for (size_t posFrom = 0, posTo = y*width + x; posFrom < lim; posFrom += w, posTo += width)
+		memmove(&image[posTo], &from->image[posFrom], sizeof(uint32_t)*w);
+}
+
+void _ModelImage::resize(const uint16_t w, const uint16_t h)
+{
+	if (width == w || height == h)
+		return;
+	image.swap(::stb::resizeImage(image, width, height, w, h));
+	width = w, height = h;
 }
 
 oglu::oglTexture _ModelImage::genTexture()
 {
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-	tex->setData(oglu::TextureFormat::RGBA, width, height, image.data());
+	tex->setData(oglu::TextureInnerFormat::BC1A, oglu::TextureDataFormat::RGBA8, width, height, image.data());
 	return tex;
 }
 
@@ -289,6 +296,16 @@ int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
 
 std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs)
 {
+	//Resize Texture
+	for (auto& mp : mtlmap)
+	{
+		auto& mtl = mp.second;
+		for (auto& tex : mtl.texs)
+		{
+			if (tex && (tex->width < mtl.width || tex->height < mtl.height))
+				tex->resize(mtl.width, mtl.height);
+		}
+	}
 	//Merge Textures
 	vector<std::tuple<ModelImage, uint16_t, uint16_t>> opDiffuse, opNormal;
 	uint16_t maxx = 0, maxy = 0;
@@ -306,18 +323,18 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 			if (mtl.hasImage(img))
 			{
 				mtl.sx = x, mtl.sy = y, mtl.posid = idx;
-				if (!addedDiffuse && mtl.diffuse)
+				if (!addedDiffuse && mtl.diffuse())
 				{
-					opDiffuse.push_back({ mtl.diffuse,x,y });
+					opDiffuse.push_back({ mtl.diffuse(),x,y });
 					addedDiffuse = true;
 				}
-				mtl.diffuse.release();
-				if (!addedNormal && mtl.normal)
+				mtl.diffuse().release();
+				if (!addedNormal && mtl.normal())
 				{
-					opNormal.push_back({ mtl.normal,x,y });
+					opNormal.push_back({ mtl.normal(),x,y });
 					addedNormal = true;
 				}
-				mtl.normal.release();
+				mtl.normal().release();
 			}
 		}
 		//ENDOF setting mtl-position AND preparing opSequence
@@ -406,27 +423,31 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 			//break;
 		case "map_Kd"_hash:
 			{
-				curmtl->diffuse = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
-				if (curmtl->diffuse)
-					curmtl->width = curmtl->diffuse->width, curmtl->height = curmtl->diffuse->height;
+				auto tex = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				curmtl->diffuse() = tex;
+				if (tex)
+					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
 			}break;
 		case "map_bump"_hash:
 			{
-				curmtl->normal = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
-				if (curmtl->normal)
-					curmtl->width = curmtl->normal->width, curmtl->height = curmtl->normal->height;
+				auto tex = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				curmtl->normal() = tex;
+				if (tex)
+					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
 			}break;
 		}
 	}
 
 	ModelImage diffuse, normal;
 	std::tie(diffuse, normal) = mergeTex(mtlmap, texposs);
-//#ifndef _DEBUG
-	const auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Diffuse.png");
-	printf("saving diffuse texture to %ls\n", outname.c_str());
-	::stb::saveImage(outname, diffuse->image, diffuse->width, diffuse->height);
+#if !defined(_DEBUG) && 0
+	{
+		auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Normal.png");
+		printf("saving normal texture to %ls\n", outname.c_str());
+		::stb::saveImage(outname, normal->image, normal->width, normal->height);
+	}
 	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
-//#endif
+#endif
 	texd = diffuse->genTexture();
 	texn = normal->genTexture();
 	return mtlmap;
@@ -455,7 +476,8 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	groups.clear();
 	Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
 	VecI4 tmpi, tmpidx;
-	MtlStub curmtl;
+	MtlStub tmpmtl;
+	MtlStub *curmtl = &tmpmtl;
 	OBJLoder::TextLine line;
 	while (line = ldr.readLine())
 	{
@@ -492,7 +514,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 				for (uint32_t a = 0; a < line.pcount; ++a)
 				{
 					ldr.parseInt(a, tmpi);//vert,texc,norm
-					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl.posid);
+					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
 					//printf("===%zd===\n", hasher(stub));
 					const auto it = idxmap.find(stub);
 					if (it != idxmap.end())
@@ -502,7 +524,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 						const uint32_t idx = static_cast<uint32_t>(pts.size());
 						pts.push_back(Point(points[stub.vid], normals[stub.nid],
 							//texcs[stub.tid]));
-							texcs[stub.tid].repos(curmtl.scalex, curmtl.scaley, curmtl.offsetx, curmtl.offsety)));
+							texcs[stub.tid].repos(curmtl->scalex, curmtl->scaley, curmtl->offsetx, curmtl->offsety)));
 						idxmap.insert_or_assign(stub, idx);
 						tmpidx[a] = idx;
 					}
@@ -529,7 +551,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 				groups.push_back({ mtlname,(uint32_t)indexs.size() });
 				const auto it = mtlmap.find(mtlname);
 				if (it != mtlmap.end())
-					curmtl = it->second;
+					curmtl = &it->second;
 			}break;
 		case "mtllib"_hash://import mtl file
 			{

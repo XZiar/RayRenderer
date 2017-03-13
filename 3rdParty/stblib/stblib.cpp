@@ -7,6 +7,8 @@
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
 
 
 namespace stb
@@ -30,6 +32,16 @@ std::tuple<int32_t, int32_t> loadImage(const std::wstring& fname, std::vector<ui
 	stbi_image_free(ret);
 	fclose(fp);
 	return{ width,height };
+}
+
+
+std::vector<uint32_t> resizeImage(const std::vector<uint32_t>& input, const uint32_t inw, const uint32_t inh, const uint32_t width, const uint32_t height)
+{
+	std::vector<uint32_t> output(width*height);
+	stbir_resize(input.data(), inw, inh, 0, output.data(), width, height, 0,
+		STBIR_TYPE_UINT8, 4, 3, 0,
+		STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, STBIR_COLORSPACE_LINEAR, nullptr);
+	return output;
 }
 
 

@@ -28,6 +28,7 @@ private:
 public:
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
 	void placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y);
+	void resize(const uint16_t w, const uint16_t h);
 	oglu::oglTexture genTexture();
 };
 using ModelImage = Wrapper<_ModelImage, false>;
@@ -68,10 +69,17 @@ private:
 		Material mtl;
 		float scalex, offsetx, scaley, offsety;
 		uint16_t width = 0, height = 0, sx = 0, sy = 0, posid = UINT16_MAX;
-		ModelImage diffuse, normal;
-		bool hasImage(const ModelImage& img)
+		ModelImage texs[2];
+		ModelImage& diffuse() { return texs[0]; }
+		const ModelImage& diffuse() const { return texs[0]; }
+		ModelImage& normal() { return texs[1]; }
+		const ModelImage& normal() const { return texs[1]; }
+		bool hasImage(const ModelImage& img) const
 		{
-			return diffuse == img || normal == img;
+			for (const auto& tex : texs)
+				if (tex == img)
+					return true;
+			return false;
 		}
 	};
 public:
