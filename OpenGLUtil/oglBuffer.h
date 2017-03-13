@@ -24,7 +24,7 @@ namespace inner
 class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
 protected:
-	friend class oclu::_oclMem;
+	friend class oclu::inner::_oclMem;
 	friend class _oglTexture;
 	friend class _oglVAO;
 	friend class _oglProgram;

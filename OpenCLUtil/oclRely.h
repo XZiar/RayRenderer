@@ -1,18 +1,16 @@
 #pragma once
 
-#ifdef OGLU_EXPORT
-#   define OGLUAPI _declspec(dllexport)
-#   define OGLUTPL _declspec(dllexport) 
+#ifdef OCLU_EXPORT
+#   define OCLUAPI _declspec(dllexport)
+#   define OCLUTPL _declspec(dllexport) 
 #   define COMMON_EXPORT
 #else
-#   define OGLUAPI _declspec(dllimport)
-#   define OGLUTPL
+#   define OCLUAPI _declspec(dllimport)
+#   define OCLUTPL
 #endif
 
-#include "../3dBasic/3dElement.hpp"
+#include "../3dBasic/miniBLAS.hpp"
 #include "../common/CommonBase.hpp"
-
-#include <GL/glew.h>
 
 #include <cstdio>
 #include <memory>
@@ -25,12 +23,13 @@
 #include <map>
 #include <tuple>
 
-namespace oclu::inner
-{
-class _oclMem;
-}
+#define USING_INTEL
+//#define USING_NVIDIA
 
-namespace oglu
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#include <CL\opencl.h>
+
+namespace oclu
 {
 using std::string;
 using std::wstring;
@@ -39,10 +38,5 @@ using std::map;
 using std::function;
 using miniBLAS::AlignBase;
 using miniBLAS::vector;
-using b3d::Vec3;
-using b3d::Vec4;
-using b3d::Mat3x3;
-using b3d::Mat4x4;
-using b3d::Camera;
 using namespace common;
 }

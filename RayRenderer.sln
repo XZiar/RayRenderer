@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLView", "OpenGLView\OpenGLView.vcxproj", "{2D168E14-C22D-4429-B97C-AF5D41010E48}"
 EndProject
@@ -87,6 +87,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-64", "x86-64", "{F35DB8
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stblib", "3rdParty\stblib\stblib.vcxproj", "{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLUtil", "OpenCLUtil\OpenCLUtil.vcxproj", "{45231916-6D39-4FD5-A232-40DAAFEA819B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -182,6 +184,16 @@ Global
 		{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}.Release|x64.Build.0 = Release|x64
 		{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}.Release|x86.ActiveCfg = Release|Win32
 		{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}.Release|x86.Build.0 = Release|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Debug|x64.ActiveCfg = Debug|x64
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Debug|x64.Build.0 = Debug|x64
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Debug|x86.ActiveCfg = Debug|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Debug|x86.Build.0 = Debug|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Release|Any CPU.ActiveCfg = Release|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Release|x64.ActiveCfg = Release|x64
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Release|x64.Build.0 = Release|x64
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Release|x86.ActiveCfg = Release|Win32
+		{45231916-6D39-4FD5-A232-40DAAFEA819B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -201,5 +213,6 @@ Global
 		{5E35180D-1365-4A5E-96BF-5707110FAD01} = {4CB3683E-0F7A-4121-979A-920473AC146E}
 		{F35DB834-493B-4083-8A24-BC2C8CC93474} = {4CB3683E-0F7A-4121-979A-920473AC146E}
 		{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{45231916-6D39-4FD5-A232-40DAAFEA819B} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 	EndGlobalSection
 EndGlobal

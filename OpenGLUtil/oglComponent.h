@@ -74,7 +74,7 @@ class OGLUAPI _oglTexture : public NonCopyable, public NonMovable
 private:
 	friend class TextureManager;
 	friend class _oglProgram;
-	friend class oclu::_oclMem;
+	friend class oclu::inner::_oclMem;
 	TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
 	oglBuffer innerBuf;
