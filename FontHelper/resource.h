@@ -1,12 +1,8 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
-
-#define IDR_DLL_GLEW                     108
-#define IDR_DLL_OGLU                     109
-#define IDR_DLL_OCLU                     110
-#define IDR_DLL_FONTHELP                 111
-#define IDR_DLL_RENDERCORE               112
+#define IDR_SHADER_FONTFRAG                     108
+#define IDR_SHADER_FONTVERT                     109
 
 // 新对象的下一组默认值
 // 

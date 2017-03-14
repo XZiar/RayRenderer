@@ -2,6 +2,7 @@
 #include "BasicTest.h"
 #include "../common/ResourceHelper.h"
 #include "../OpenCLUtil/oclUtil.h"
+#include "../FontHelper/FontHelper.h"
 
 namespace rayr
 {

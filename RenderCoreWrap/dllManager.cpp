@@ -42,6 +42,28 @@ void extractDLL()
 		}
 	}
 	{
+		wstring ocluFile = tmpdir + L"OpenCLUtil.dll";
+		common::ResourceHelper::getData(dlldata, L"DLL", IDR_DLL_OCLU);
+		_wfopen_s(&fp, ocluFile.c_str(), L"wb");
+		if (fp != nullptr)
+		{
+			fwrite(dlldata.data(), dlldata.size(), 1, fp);
+			fclose(fp);
+			LoadLibrary(ocluFile.c_str());
+		}
+	}
+	{
+		wstring fonthelpFile = tmpdir + L"FontHelper.dll";
+		common::ResourceHelper::getData(dlldata, L"DLL", IDR_DLL_FONTHELP);
+		_wfopen_s(&fp, fonthelpFile.c_str(), L"wb");
+		if (fp != nullptr)
+		{
+			fwrite(dlldata.data(), dlldata.size(), 1, fp);
+			fclose(fp);
+			LoadLibrary(fonthelpFile.c_str());
+		}
+	}
+	{
 		wstring coreFile = tmpdir + L"RenderCore.dll";
 		common::ResourceHelper::getData(dlldata, L"DLL", IDR_DLL_RENDERCORE);
 		_wfopen_s(&fp, coreFile.c_str(), L"wb");
