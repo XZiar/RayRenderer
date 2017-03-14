@@ -24,6 +24,9 @@
     <ClInclude Include="oclProgram.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oclComponent.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">
@@ -33,6 +36,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclProgram.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclComponent.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

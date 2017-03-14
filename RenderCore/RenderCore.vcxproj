@@ -160,6 +160,9 @@
     <ProjectReference Include="..\3rdParty\stblib\stblib.vcxproj">
       <Project>{67325dfe-3cba-49ad-b9d8-e04cbca6c7f8}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\OpenCLUtil\OpenCLUtil.vcxproj">
+      <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>

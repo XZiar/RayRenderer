@@ -139,11 +139,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="oclComponent.h" />
     <ClInclude Include="oclProgram.h" />
     <ClInclude Include="oclRely.h" />
     <ClInclude Include="oclUtil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="oclComponent.cpp" />
     <ClCompile Include="oclProgram.cpp" />
     <ClCompile Include="oclRely.cpp" />
     <ClCompile Include="oclUtil.cpp" />

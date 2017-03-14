@@ -9,7 +9,7 @@ namespace inner
 {
 
 
-OCLUAPI class _oclProgram
+class OCLUAPI _oclProgram
 {
 public:
 	_oclProgram();

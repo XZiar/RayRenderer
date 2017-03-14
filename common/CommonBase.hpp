@@ -140,17 +140,17 @@ private:
 	}
 public:
 	Wrapper() noexcept : cb(nullptr) { }
-	Wrapper(T * const src) noexcept
+	template<class... ARGS>
+	Wrapper(ARGS... args)
+	{
+		create(new T(args...));
+	}
+	Wrapper(T *src) noexcept
 	{
 		if (src == nullptr)
 			cb = nullptr;
 		else
 			create(src);
-	}
-	template<class... ARGS>
-	Wrapper(ARGS... args)
-	{
-		create(new T(args...));
 	}
 	~Wrapper()
 	{

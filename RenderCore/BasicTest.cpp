@@ -1,6 +1,7 @@
 #include "resource.h"
 #include "BasicTest.h"
 #include "../common/ResourceHelper.h"
+#include "../OpenCLUtil/oclUtil.h"
 
 namespace rayr
 {
@@ -20,6 +21,7 @@ struct Init
 	Init()
 	{
 		oglUtil::init();
+		oclu::oclUtil::init();
 	}
 };
 
@@ -225,9 +227,25 @@ void BasicTest::initTex()
 	}
 }
 
+static oclu::oclContext clContext;
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	{
+		const auto pltfs = oclu::oclUtil::getPlatforms();
+		for (const auto plt : pltfs)
+		{
+			printf("\nPlatform %s --- %s -- %c\n", plt->name.c_str(), plt->ver.c_str(), plt->isCurrentGL ? 'Y' : 'N');
+			for (const auto dev : plt->getDevices())
+				printf("--Device %s: %s -- %s -- %s\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
+					dev->name.c_str(), dev->vendor.c_str(), dev->version.c_str());
+			if (plt->isCurrentGL)
+			{
+				clContext = plt->createContext();
+				printf("@@Created Context Here!\n");
+			}
+		}
+	}
 	initTex();
 	init2d(sname2d);
 	init3d(sname3d);
