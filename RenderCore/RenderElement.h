@@ -39,16 +39,19 @@ class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonM
 	friend class DrawableHelper;
 	struct VAOPack
 	{
-		const oglu::inner::_oglProgram *prog;
+		const oglu::oglProgram::weak_type prog;
 		const Drawable *drawable;
 		oglu::oglVAO vao;
 	};
 	using VAOKey = boost::multi_index::composite_key<VAOPack,
-		boost::multi_index::member<VAOPack, const oglu::inner::_oglProgram*, &VAOPack::prog>,
+		boost::multi_index::member<VAOPack, const oglu::oglProgram::weak_type, &VAOPack::prog>,
 		boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>
 	>;
+	using VAOKeyComp = boost::multi_index::composite_key_compare<
+		WeakPtrComparerator<const oglu::oglProgram::weak_type>, std::less<const Drawable*>
+	>;
 	using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
-		boost::multi_index::ordered_unique<VAOKey>,
+		boost::multi_index::ordered_unique<VAOKey, VAOKeyComp>,
 		boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
 	>>;
 	static VAOMap vaoMap;

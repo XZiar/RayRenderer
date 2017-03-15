@@ -50,7 +50,7 @@ void CL_CALLBACK _oclContext::onNotify(const char * errinfo, const void * privat
 	ctx.onMessage();
 }
 
-cl_context _oclContext::createContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice, false>>& devices) const
+cl_context _oclContext::createContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice>>& devices) const
 {
 	cl_int ret;
 	vector<cl_device_id> deviceIDs;
@@ -62,7 +62,7 @@ cl_context _oclContext::createContext(const cl_context_properties props[], const
 	return ctx;
 }
 
-_oclContext::_oclContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice, false>>& devices) 
+_oclContext::_oclContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice>>& devices) 
 	: context(createContext(props, devices))
 {
 

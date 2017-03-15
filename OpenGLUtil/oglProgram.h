@@ -139,6 +139,6 @@ public:
 }
 
 
-using oglProgram = Wrapper<inner::_oglProgram, true>;
+using oglProgram = Wrapper<inner::_oglProgram>;
 
 }

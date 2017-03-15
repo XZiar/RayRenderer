@@ -38,8 +38,8 @@ private:
 	static void CL_CALLBACK onNotify(const char *errinfo, const void *private_info, size_t cb, void *user_data);
 	//create OpenCL context
 	const cl_context context;
-	cl_context createContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice, false>>& devices) const;
-	_oclContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice, false>>& devices);
+	cl_context createContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice>>& devices) const;
+	_oclContext(const cl_context_properties props[], const vector<Wrapper<_oclDevice>>& devices);
 public:
 	MessageCallBack onMessage = nullptr;
 	~_oclContext();
@@ -53,20 +53,20 @@ private:
 	bool checkGL() const;
 	string getStr(const cl_platform_info type) const;
 	const cl_platform_id platformID;
-	vector<Wrapper<_oclDevice, false>> devs;
-	Wrapper<_oclDevice, false> defDev;
+	vector<Wrapper<_oclDevice>> devs;
+	Wrapper<_oclDevice> defDev;
 	_oclPlatform(const cl_platform_id pID);
 public:
 	const string name, ver;
 	const bool isCurrentGL;
-	const vector<Wrapper<_oclDevice, false>>& getDevices() const { return devs; }
-	Wrapper<_oclContext, false> createContext() const;
+	const vector<Wrapper<_oclDevice>>& getDevices() const { return devs; }
+	Wrapper<_oclContext> createContext() const;
 };
 
 }
-using oclDevice = Wrapper<inner::_oclDevice, false>;
-using oclContext = Wrapper<inner::_oclContext, false>;
-using oclPlatform = Wrapper<inner::_oclPlatform, false>;
+using oclDevice = Wrapper<inner::_oclDevice>;
+using oclContext = Wrapper<inner::_oclContext>;
+using oclPlatform = Wrapper<inner::_oclPlatform>;
 
 
 

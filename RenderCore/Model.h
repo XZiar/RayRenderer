@@ -18,28 +18,28 @@ class _ModelImage
 	friend class _ModelData;
 private:
 	using Path = fs::path;
-	static map<wstring, Wrapper<_ModelImage, false>> images;
-	static Wrapper<_ModelImage, false> getImage(Path picPath, const Path& curPath);
-	static Wrapper<_ModelImage, false> getImage(const wstring& pname);
+	static map<wstring, Wrapper<_ModelImage>> images;
+	static Wrapper<_ModelImage> getImage(Path picPath, const Path& curPath);
+	static Wrapper<_ModelImage> getImage(const wstring& pname);
 	static void shrink();
 	uint16_t width = 0, height = 0;
 	vector<uint32_t> image;
 	_ModelImage(const wstring& pfname);
 public:
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
-	void placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y);
+	void placeImage(const Wrapper<_ModelImage>& from, const uint16_t x, const uint16_t y);
 	void resize(const uint16_t w, const uint16_t h);
 	oglu::oglTexture genTexture();
 };
-using ModelImage = Wrapper<_ModelImage, false>;
+using ModelImage = Wrapper<_ModelImage>;
 
 class _ModelData : public NonCopyable, public AlignBase<>
 {
 	friend class ::rayr::Model;
 private:
 	using Path = std::experimental::filesystem::path;
-	static map<wstring, Wrapper<_ModelData, false>> models;
-	static Wrapper<_ModelData, false> getModel(const wstring& fname);
+	static map<wstring, Wrapper<_ModelData>> models;
+	static Wrapper<_ModelData> getModel(const wstring& fname);
 	static void releaseModel(const wstring& fname);
 	class OBJLoder
 	{
@@ -104,7 +104,7 @@ public:
 
 }
 
-using ModelData = Wrapper<inner::_ModelData, false>;
+using ModelData = Wrapper<inner::_ModelData>;
 
 class alignas(16) Model : public Drawable
 {

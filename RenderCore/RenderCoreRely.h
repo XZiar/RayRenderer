@@ -12,7 +12,6 @@
 #include <cstdio>
 #include <string>
 #include <map>
-#include <thread>
 #include "../3DBasic/3dElement.hpp"
 #include "../OpenGLUtil/oglUtil.h"
 

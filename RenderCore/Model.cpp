@@ -92,7 +92,7 @@ void _ModelImage::shrink()
 	auto it = images.cbegin();
 	while (it != images.end())
 	{
-		if (it->second.refCount() == 1)
+		if (it->second.unique())
 			it = images.erase(it);
 		else
 			++it;
@@ -111,7 +111,7 @@ _ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t colo
 	image.resize(width*height, color);
 }
 
-void _ModelImage::placeImage(const Wrapper<_ModelImage, false>& from, const uint16_t x, const uint16_t y)
+void _ModelImage::placeImage(const Wrapper<_ModelImage>& from, const uint16_t x, const uint16_t y)
 {
 	if (!from)
 		return;
@@ -165,7 +165,7 @@ void _ModelData::releaseModel(const wstring& fname)
 	const auto it = models.find(fname);
 	if (it != models.end())
 	{
-		if (it->second.refCount() == 1)
+		if (it->second.unique())
 			models.erase(it);
 	}
 }

@@ -21,11 +21,11 @@ private:
 	oglEBO triIdx;
 	oglVAO picVAO, testVAO;
 	vector<TransformOP> transf;
-	vector<Wrapper<Drawable, false>> drawables;
+	vector<Wrapper<Drawable>> drawables;
 	void init2d(const wstring pname);
 	void init3d(const wstring pname);
 	void initTex();
-	Wrapper<Model, false> _addModel(const wstring& fname);
+	Wrapper<Model> _addModel(const wstring& fname);
 public:
 	bool mode = true;
 	Camera cam;

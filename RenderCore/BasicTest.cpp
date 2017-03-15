@@ -3,6 +3,7 @@
 #include "../common/ResourceHelper.h"
 #include "../OpenCLUtil/oclUtil.h"
 #include "../FontHelper/FontHelper.h"
+#include <thread>
 
 namespace rayr
 {
@@ -156,15 +157,15 @@ void BasicTest::init3d(const wstring pname)
 	transf.push_back({ Vec4(true),TransformType::RotateXYZ });
 	transf.push_back({ Vec4(true),TransformType::Translate });
 	{
-		Wrapper<Sphere, false> ball(0.75f);
+		Wrapper<Sphere> ball(0.75f);
 		ball->name = L"Ball";
 		ball->position = { 1,0,0 };
 		drawables.push_back(ball);
-		Wrapper<Box, false> box(0.5f, 1.0f, 2.0f);
+		Wrapper<Box> box(0.5f, 1.0f, 2.0f);
 		box->name = L"Box";
 		box->position = { 0,1,0 };
 		drawables.push_back(box);
-		Wrapper<Plane, false> ground(500.0f, 50.0f);
+		Wrapper<Plane> ground(500.0f, 50.0f);
 		ground->name = L"Ground";
 		ground->position = { 0,-2,0 };
 		drawables.push_back(ground);
@@ -228,9 +229,9 @@ void BasicTest::initTex()
 	}
 }
 
-Wrapper<Model, false> BasicTest::_addModel(const wstring& fname)
+Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 {
-	Wrapper<Model, false> mod(fname);
+	Wrapper<Model> mod(fname);
 	mod->name = L"model";
 	return mod;
 }

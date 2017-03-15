@@ -87,9 +87,9 @@ public:
 
 }
 
-using oglBuffer = Wrapper<inner::_oglBuffer, false>;
-using oglUBO = Wrapper<inner::_oglUniformBuffer, false>;
-using oglEBO = Wrapper<inner::_oglElementBuffer, false>;
+using oglBuffer = Wrapper<inner::_oglBuffer>;
+using oglUBO = Wrapper<inner::_oglUniformBuffer>;
+using oglEBO = Wrapper<inner::_oglElementBuffer>;
 
 
 }

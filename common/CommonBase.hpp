@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
+#include <memory>
 #include <string>
 #include <codecvt>
 
@@ -34,234 +36,54 @@ struct COMMONAPI NonMovable
 };
 
 
-template<class T, bool isUnique>
-class COMMONTPL Wrapper;
+
 
 template<class T>
-class COMMONTPL Wrapper<T, true>
+class COMMONTPL Wrapper : public std::shared_ptr<T>
 {
-private:
-	T *instance;
 public:
-	Wrapper() noexcept : instance(nullptr) { }
-	Wrapper(T * const src) noexcept : instance(src) { }
 	template<class... ARGS>
-	Wrapper(ARGS... args) : instance(new T(args...)) { }
-	~Wrapper()
-	{
-		release();
-	}
-	Wrapper(const Wrapper<T, true>& other) = delete;
-	Wrapper(Wrapper<T, true>&& other) noexcept : instance(other.instance)
-	{
-		other.instance = nullptr;
-	}
-	Wrapper& operator= (const Wrapper<T, true>& other) = delete;
-	Wrapper& operator= (Wrapper<T, true>&& other)
-	{
-		release();
-		instance = other.instance;
-		other.instance = nullptr;
-		return *this;
-	}
-
-	void release()
-	{
-		if (instance != nullptr)
-		{
-			delete instance;
-			instance = nullptr;
-		}
-	}
-
+	Wrapper(ARGS... args) : std::shared_ptr<T>(new T(args...))
+	{ }
+	Wrapper(T *src) noexcept : std::shared_ptr<T>(src)
+	{ }
+	Wrapper() noexcept { }
 	template<class... ARGS>
 	void reset(ARGS... args)
 	{
-		release();
-		instance = new T(args...);
+		std::shared_ptr<T>::reset(new T(args...));
 	}
 	void reset()
 	{
-		release();
-		instance = new T();
+		std::shared_ptr<T>::reset(new T());
 	}
-
-	const T* pointer() const noexcept
+	void release()
 	{
-		return instance;
+		std::shared_ptr<T>::reset((T*)nullptr);
 	}
-	T* operator-> () noexcept
+	weak_type weakRef() const noexcept
 	{
-		return instance;
+		return weak_type(*this);
 	}
-	const T* operator-> () const noexcept
+	template<class U, class = typename std::enable_if<std::is_convertible<T*, U*>::value>::type>
+	operator const Wrapper<U>&() const noexcept
 	{
-		return instance;
+		return *(Wrapper<U>*)this;
 	}
-	T& operator* () noexcept
+	template<class U, class = typename std::enable_if<std::is_convertible<T*, U*>::value>::type>
+	operator Wrapper<U>&() noexcept
 	{
-		return *instance;
-	}
-	const T& operator* () const noexcept
-	{
-		return *instance;
-	}
-
-	operator const bool() const noexcept
-	{
-		return instance != nullptr;
-	}
-	bool operator== (const Wrapper<T, true>& other) const noexcept
-	{
-		return instance == other.instance;
-	}
-	bool operator== (const T *pointer) const noexcept
-	{
-		return instance == pointer;
+		return *(Wrapper<U>*)this;
 	}
 };
 
 
-template<class T>
-class COMMONTPL Wrapper<T, false>
+template<class U, class T = U::element_type>
+struct WeakPtrComparerator
 {
-private:
-	struct ControlBlock
+	bool operator()(const std::weak_ptr<T>& pl, const std::weak_ptr<T>& pr) const
 	{
-		T * const instance;
-		uint32_t count = 1;
-		ControlBlock(T * const pointer) noexcept :instance(pointer) { }
-		~ControlBlock() noexcept { delete instance; }
-	};
-	ControlBlock *cb;
-	void create(T * const instance) noexcept
-	{
-		cb = new ControlBlock(instance);
-	}
-public:
-	Wrapper() noexcept : cb(nullptr) { }
-	template<class... ARGS>
-	Wrapper(ARGS... args)
-	{
-		create(new T(args...));
-	}
-	Wrapper(T *src) noexcept
-	{
-		if (src == nullptr)
-			cb = nullptr;
-		else
-			create(src);
-	}
-	~Wrapper()
-	{
-		release();
-	}
-	Wrapper(const Wrapper<T, false>& other) noexcept : cb(other.cb)
-	{
-		if (cb != nullptr)
-			cb->count++;
-	}
-	Wrapper(Wrapper<T, false>&& other) noexcept : cb(other.cb)
-	{
-		other.cb = nullptr;
-	}
-	template<class U, class = typename std::enable_if<std::is_base_of<T, U>::value>::type>
-	Wrapper(Wrapper<U, false>&& other) noexcept : cb((ControlBlock*)other.cb)
-	{
-		other.cb = nullptr;
-	}
-	Wrapper& operator=(const Wrapper<T, false>& other)
-	{
-		release();
-		cb = other.cb;
-		if (cb != nullptr)
-			cb->count++;
-		return *this;
-	}
-	Wrapper& operator=(Wrapper<T, false>&& other)
-	{
-		release();
-		cb = other.cb;
-		other.cb = nullptr;
-		return *this;
-	}
-
-	void release()
-	{
-		if (cb != nullptr)
-		{
-			if (--cb->count == 0)
-				delete cb;
-			cb = nullptr;
-		}
-	}
-
-	template<class... ARGS>
-	void reset(ARGS... args)
-	{
-		release();
-		create(new T(args...));
-	}
-	void reset()
-	{
-		release();
-		create(new T());
-	}
-
-	uint32_t refCount() const noexcept
-	{
-		if (cb == nullptr)
-			return 0;
-		else
-			return cb->count;
-	}
-
-	const T* pointer() const noexcept
-	{
-		return cb->instance;
-	}
-	T* operator-> () noexcept
-	{
-		return cb->instance;
-	}
-	const T* operator-> () const noexcept
-	{
-		return cb->instance;
-	}
-	T& operator* () noexcept
-	{
-		return *cb->instance;
-	}
-	const T& operator* () const noexcept
-	{
-		return *cb->instance;
-	}
-
-	operator const bool() const noexcept
-	{
-		return cb != nullptr;
-	}
-	bool operator== (const Wrapper<T, false>& other) const noexcept
-	{
-		return cb == other.cb;
-	}
-	bool operator== (const T *pointer) const noexcept
-	{
-		if (cb == nullptr)
-			return pointer == nullptr;
-		else
-			return cb->instance == pointer;
-	}
-
-	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
-	operator Wrapper<U, false>&() noexcept
-	{
-		return *(Wrapper<U, false>*)this;
-	}
-	template<class U, class = typename std::enable_if<std::is_base_of<U, T>::value>::type>
-	operator const Wrapper<U, false>&() const noexcept
-	{
-		return *(Wrapper<U, false>*)this;
+		return pl.lock() < pr.lock();
 	}
 };
 

@@ -61,7 +61,7 @@ public:
 	}
 };
 
-class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public NonMovable
+class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public NonMovable, public std::enable_shared_from_this<_FreeGLUTView>
 {
 	friend class GLUTHacker;
 public:
@@ -107,7 +107,7 @@ public:
 	void refresh();
 	void invoke(std::function<bool(void)> task);
 };
-using FreeGLUTView = Wrapper<_FreeGLUTView, true>;
+using FreeGLUTView = Wrapper<_FreeGLUTView>;
 
 
 GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720);

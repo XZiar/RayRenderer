@@ -145,9 +145,9 @@ public:
 }
 
 
-using oglShader = Wrapper<inner::_oglShader, true>;
-using oglTexture = Wrapper<inner::_oglTexture, false>;
-using oglVAO = Wrapper<inner::_oglVAO, false>;
+using oglShader = Wrapper<inner::_oglShader>;
+using oglTexture = Wrapper<inner::_oglTexture>;
+using oglVAO = Wrapper<inner::_oglVAO>;
 
 }
 

@@ -29,7 +29,7 @@ wstring DrawableHelper::getType(const Drawable& d)
 
 void DrawableHelper::releaseAll(const oglu::oglProgram& prog)
 {
-	const auto its = Drawable::vaoMap.equal_range(prog.pointer());
+	const auto its = Drawable::vaoMap.equal_range(prog.weakRef());
 	Drawable::vaoMap.erase(its.first, its.second);
 }
 
@@ -64,12 +64,12 @@ auto Drawable::drawPosition(oglu::oglProgram & prog) const -> decltype(prog -> d
 
 void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
 {
-	vaoMap.insert({ prog.pointer(),this,vao });
+	vaoMap.insert({ prog.weakRef(),this,vao });
 }
 
 const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram& prog) const
 {
-	auto& it = vaoMap.find(std::make_tuple(prog.pointer(), this));
+	auto& it = vaoMap.find(std::make_tuple(prog.weakRef(), this));
 	if (it == vaoMap.end())
 		return defaultVAO;
 	else
