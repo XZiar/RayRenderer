@@ -105,8 +105,10 @@ public:
 	void setTimerCallback(FuncTimer funTime, const uint16_t ms);
 	void setTitle(const string& title);
 	void refresh();
+	void invoke(std::function<bool(void)> task);
 };
 using FreeGLUTView = Wrapper<_FreeGLUTView, true>;
+
 
 GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720);
 GLUTVIEWAPI void FreeGLUTViewRun();

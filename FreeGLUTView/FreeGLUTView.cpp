@@ -178,7 +178,8 @@ _FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape 
 	if (instanceID == UINT8_MAX)
 		throw std::exception("exceed max window count limit");
 	usethis(*this);
-	funInit();
+	glutSetWindowData(this);
+	glutCloseFunc(GLUTHacker::onClose);
 	glutDisplayFunc(GLUTHacker::getDisplay(this));
 	glutReshapeFunc(GLUTHacker::getReshape(this));
 	glutKeyboardFunc(GLUTHacker::getOnKey1(this));
@@ -186,13 +187,14 @@ _FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape 
 	glutMouseWheelFunc(GLUTHacker::getOnWheel(this));
 	glutMotionFunc(GLUTHacker::getOnMouse1(this));
 	glutMouseFunc(GLUTHacker::getOnMouse2(this));
+	funInit();
 }
 
 
 _FreeGLUTView::~_FreeGLUTView()
 {
-	glutDestroyWindow(wdID);
-	GLUTHacker::unregist(this);
+	if (GLUTHacker::unregist(this))
+		glutDestroyWindow(wdID);
 }
 
 uint8_t _FreeGLUTView::getWindowID()
@@ -228,6 +230,13 @@ void _FreeGLUTView::refresh()
 }
 
 
+void _FreeGLUTView::invoke(std::function<bool(void)> task)
+{
+	auto fut = GLUTHacker::putInvoke(this, task);
+	fut.get();
+	return;
+}
+
 void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
 {
 	int args = 0; char **argv = nullptr;
@@ -237,17 +246,24 @@ void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
 		NvOptimusEnablement = 0x00000000;*/
 	glutInit(&args, argv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+	glutSetOption(GLUT_RENDERING_CONTEXT, GLUT_USE_CURRENT_CONTEXT);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
 	printf("screen W/H:%d,%d\n", screenWidth, screenHeight);
+	std::atomic_bool atmB;
+	std::atomic_int32_t atmI32;
+	printf("Is LOCK-FREE?\tBool:%c\tInt32:%c\n", atmB.is_lock_free() ? 'Y' : 'N', atmI32.is_lock_free() ? 'Y' : 'N');
 	glutInitWindowSize(w, h);
 	glutInitWindowPosition((screenWidth - w) / 2, (screenHeight - h) / 2);
+	glutIdleFunc(GLUTHacker::idle);
 }
 
 void FreeGLUTViewRun()
 {
 	glutMainLoop();
 }
+
+
 
 }

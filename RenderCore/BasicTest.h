@@ -25,6 +25,7 @@ private:
 	void init2d(const wstring pname);
 	void init3d(const wstring pname);
 	void initTex();
+	Wrapper<Model, false> _addModel(const wstring& fname);
 public:
 	bool mode = true;
 	Camera cam;
@@ -33,6 +34,7 @@ public:
 	void draw();
 	void resize(const int w, const int h);
 	OPResult<> addModel(const wstring& fname);
+	void addModelAsync(const wstring& fname, std::function<void(std::function<OPResult<>(void)>)> onFinish);
 	void moveobj(const uint16_t id, const float x, const float y, const float z);
 	void rotateobj(const uint16_t id, const float x, const float y, const float z);
 	void rfsData();

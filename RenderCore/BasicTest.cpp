@@ -228,6 +228,13 @@ void BasicTest::initTex()
 	}
 }
 
+Wrapper<Model, false> BasicTest::_addModel(const wstring& fname)
+{
+	Wrapper<Model, false> mod(fname);
+	mod->name = L"model";
+	return mod;
+}
+
 static oclu::oclContext clContext;
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
@@ -280,13 +287,25 @@ void BasicTest::resize(const int w, const int h)
 
 OPResult<> BasicTest::addModel(const wstring& fname)
 {
-	Wrapper<Model, false> mod(fname);
-	mod->name = L"model";
-	drawables.push_back(mod);
+	auto mod = _addModel(fname);
 	mod->prepareGL(prog3D);
+	drawables.push_back(mod);
 	return true;
 }
 
+void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::function<OPResult<>(void)>)> onFinish)
+{
+	std::thread([this, onFinish](const wstring name)
+	{
+		auto mod = _addModel(name);
+		onFinish([&, mod]()mutable
+		{
+			mod->prepareGL(prog3D);
+			drawables.push_back(mod);
+			return true;
+		});
+	}, fname).detach();
+}
 
 void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
 {

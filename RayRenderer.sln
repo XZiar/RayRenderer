@@ -32,6 +32,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
 	ProjectSection(SolutionItems) = preProject
+		common\BasicUtil.hpp = common\BasicUtil.hpp
 		common\CommonBase.hpp = common\CommonBase.hpp
 		common\CommonBase.natvis = common\CommonBase.natvis
 		common\CommonMacro.h = common\CommonMacro.h

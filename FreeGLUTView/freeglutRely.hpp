@@ -6,6 +6,12 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <tuple>
+#include <functional>
+#include <atomic>
+#include <mutex>
+#include <future>
+#include "../common/BasicUtil.hpp"
 
 #ifndef _DEBUG
 #   define NDEBUG 1
@@ -19,11 +25,14 @@ namespace glutview
 
 class GLUTHacker final
 {
+public:
 	friend class _FreeGLUTView;
 	static _FreeGLUTView* table[8];
 	static HGLRC rcs[8];
 	static HWND hwnds[8];
 	static WNDPROC oldWndProc;
+	static std::atomic_bool shouldInvoke, readyInvoke;
+	static std::tuple<_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> invokeData;
 	static void makeshare(HGLRC rc, const uint8_t pos)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
@@ -47,24 +56,65 @@ class GLUTHacker final
 			{
 				table[a] = view;
 				rcs[a] = wglGetCurrentContext();
+				printf("####HERE: rc %p\n", rcs[a]);
 				const auto hdc = wglGetCurrentDC();
 				hwnds[a] = WindowFromDC(hdc);
 				DragAcceptFiles(hwnds[a], TRUE);
 				oldWndProc = (WNDPROC)SetWindowLongPtr(hwnds[a], GWLP_WNDPROC, (intptr_t)&HackWndProc);
-				makeshare(rcs[a], a);
+				//makeshare(rcs[a], a);
 				return a;
 			}
 		}
 		return UINT8_MAX;
 	}
-	static void unregist(_FreeGLUTView* view)
+	static bool unregist(_FreeGLUTView* view)
 	{
 		for (uint8_t a = 0; a < 8; ++a)
 			if (table[a] == view)
 			{
 				table[a] = nullptr;
-				return;
+				return true;
 			}
+		return false;
+	}
+	static std::future<bool> putInvoke(_FreeGLUTView* view, std::function<bool(void)>& task)
+	{
+		while(shouldInvoke.exchange(true))//keep tring until it acquire the invoke
+		{ }//act like a spin-lock
+		invokeData = { view,task,std::promise<bool>() };
+		auto fut = std::get<2>(invokeData).get_future();
+		readyInvoke.store(true);
+		return fut;
+	}
+	//promise all operation inside this function is in GUI thread
+	static void idle()
+	{
+		if (shouldInvoke.load())//need to invoke
+		{
+			while(!readyInvoke.load())
+			{ }//act like a spin-lock
+			try
+			{
+				if (std::get<1>(invokeData)())
+					std::get<0>(invokeData)->refresh();
+				std::get<2>(invokeData).set_value(true);
+			}
+			catch (std::exception& e)
+			{
+				std::get<2>(invokeData).set_exception(std::current_exception());
+			}
+			readyInvoke.store(false);
+			shouldInvoke.store(false);
+		}
+		else
+		{
+			common::sleepMS(1000 / 120);
+		}
+	}
+	static void onClose()
+	{
+		_FreeGLUTView* view = (_FreeGLUTView*)glutGetWindowData();
+		unregist(view);
 	}
 	template<uint8_t N>
 	static void display()
@@ -274,4 +324,7 @@ _FreeGLUTView* GLUTHacker::table[8] = { nullptr,nullptr,nullptr,nullptr,nullptr,
 HGLRC GLUTHacker::rcs[8];
 HWND GLUTHacker::hwnds[8];
 WNDPROC GLUTHacker::oldWndProc;
+std::atomic_bool GLUTHacker::shouldInvoke{ false };
+std::atomic_bool GLUTHacker::readyInvoke{ false };
+std::tuple<_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> GLUTHacker::invokeData;
 }
