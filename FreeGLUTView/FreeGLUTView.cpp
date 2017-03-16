@@ -7,18 +7,25 @@
 namespace glutview
 {
 
-void _FreeGLUTView::usethis(_FreeGLUTView& wd)
+namespace detail
 {
-	static thread_local int curID = -1;
-	if (curID != wd.wdID)
-		glutSetWindow(curID = wd.wdID);
+
+
+FreeGLUTView _FreeGLUTView::getSelf()
+{
+	return this;
+}
+
+void _FreeGLUTView::usethis()
+{
+	glutSetWindow(wdID);
 }
 
 void _FreeGLUTView::display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (funDisp != nullptr)
-		funDisp();
+		funDisp(this);
 	glutSwapBuffers();
 }
 
@@ -27,7 +34,7 @@ void _FreeGLUTView::reshape(const int w, const int h)
 	width = w; height = h;
 	glViewport((w & 0x3f) / 2, (h & 0x3f) / 2, w & 0xffc0, h & 0xffc0);
 	if (funReshape != nullptr)
-		funReshape(w, h);
+		funReshape(this, w, h);
 	refresh();
 }
 
@@ -98,7 +105,7 @@ void _FreeGLUTView::onKey(uint8_t key, const int x, const int y)
 			else if (key == 127)//delete->backspace
 				key = 8;
 		}
-		funKeyEvent(KeyEvent(key, x, y, isCtrl, isShift, isAlt));
+		funKeyEvent(this, KeyEvent(key, x, y, isCtrl, isShift, isAlt));
 	}
 }
 
@@ -107,7 +114,7 @@ void _FreeGLUTView::onWheel(int button, int dir, int x, int y)
 	if (funMouseEvent == nullptr)
 		return;
 	//forward if dir > 0, backward if dir < 0
-	funMouseEvent(MouseEvent(MouseEventType::Wheel, MouseButton::None, x, height - y, dir, 0));
+	funMouseEvent(this, MouseEvent(MouseEventType::Wheel, MouseButton::None, x, height - y, dir, 0));
 }
 
 void _FreeGLUTView::onMouse(int x, int y)
@@ -127,7 +134,7 @@ void _FreeGLUTView::onMouse(int x, int y)
 		const int dx = x - lx, dy = y - ly;
 		lx = x, ly = y;
 		//origin in GLUT is at TopLeft, While OpenGL choose BottomLeft as origin, hence dy should be fliped
-		funMouseEvent(MouseEvent(MouseEventType::Moving, static_cast<MouseButton>(isMovingMouse), x, height - y, dx, -dy));
+		funMouseEvent(this, MouseEvent(MouseEventType::Moving, static_cast<MouseButton>(isMovingMouse), x, height - y, dx, -dy));
 	}
 }
 
@@ -146,48 +153,42 @@ void _FreeGLUTView::onMouse(int button, int state, int x, int y)
 	{
 		isMovingMouse = (uint8_t)btn;
 		lx = sx = x, ly = sy = y; isMoved = !deshake;
-		funMouseEvent(MouseEvent(MouseEventType::Down, btn, x, height - y, 0, 0));
+		funMouseEvent(this, MouseEvent(MouseEventType::Down, btn, x, height - y, 0, 0));
 	}
 	else
 	{
 		isMovingMouse = (uint8_t)MouseButton::None;
-		funMouseEvent(MouseEvent(MouseEventType::Up, btn, x, height - y, 0, 0));
+		funMouseEvent(this, MouseEvent(MouseEventType::Up, btn, x, height - y, 0, 0));
 	}
 }
 
-void _FreeGLUTView::onTimer(const uint16_t lastms)
+void _FreeGLUTView::onTimer()
 {
 	if (funTimer == nullptr)
 		return;
-	const bool isCon = funTimer();
-	if (isCon)
-		GLUTHacker::setTimer(this, lastms);
+	uitimer.Stop();
+	const bool isCon = funTimer(this, (uint32_t)uitimer.ElapseMs());
+	if (!isCon)
+		funTimer = nullptr, timerus = INT64_MIN;
+	else
+		uitimer.Start();
 }
 
-void _FreeGLUTView::onDropFile(const wstring& fname) const
+void _FreeGLUTView::onDropFile(const wstring& fname)
 {
 	if (funDropFile == nullptr)
 		return;
-	funDropFile(fname);
+	funDropFile(this, fname);
 }
 
-_FreeGLUTView::_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_) :funDisp(funDisp_), funReshape(funReshape_)
+_FreeGLUTView::_FreeGLUTView(const int w, const int h)
 {
+	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
+	glutInitWindowSize(w, h);
+	glutInitWindowPosition((screenWidth - w) / 2, (screenHeight - h) / 2);
 	wdID = glutCreateWindow("");
-	instanceID = GLUTHacker::regist(this);
-	if (instanceID == UINT8_MAX)
-		throw std::exception("exceed max window count limit");
-	usethis(*this);
-	glutSetWindowData(this);
-	glutCloseFunc(GLUTHacker::onClose);
-	glutDisplayFunc(GLUTHacker::getDisplay(this));
-	glutReshapeFunc(GLUTHacker::getReshape(this));
-	glutKeyboardFunc(GLUTHacker::getOnKey1(this));
-	glutSpecialFunc(GLUTHacker::getOnkey2(this));
-	glutMouseWheelFunc(GLUTHacker::getOnWheel(this));
-	glutMotionFunc(GLUTHacker::getOnMouse1(this));
-	glutMouseFunc(GLUTHacker::getOnMouse2(this));
-	funInit();
+	GLUTHacker::regist(this);
 }
 
 
@@ -197,30 +198,16 @@ _FreeGLUTView::~_FreeGLUTView()
 		glutDestroyWindow(wdID);
 }
 
-uint8_t _FreeGLUTView::getWindowID()
-{
-	return instanceID;
-}
-
-void _FreeGLUTView::setKeyEventCallback(FuncKeyEvent funKey)
-{
-	funKeyEvent = funKey;
-}
-
-void _FreeGLUTView::setMouseEventCallback(FuncMouseEvent funMouse)
-{
-	funMouseEvent = funMouse;
-}
-
 void _FreeGLUTView::setTimerCallback(FuncTimer funTime, const uint16_t ms)
 {
 	funTimer = funTime;
-	GLUTHacker::setTimer(this, ms);
+	timerus = ms * 1000;
+	uitimer.Start();
 }
 
 void _FreeGLUTView::setTitle(const string& title)
 {
-	usethis(*this);
+	usethis();
 	glutSetWindowTitle(title.c_str());
 }
 
@@ -237,7 +224,11 @@ void _FreeGLUTView::invoke(std::function<bool(void)> task)
 	return;
 }
 
-void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
+
+}
+
+
+void FreeGLUTViewInit()
 {
 	int args = 0; char **argv = nullptr;
 	/*if (useNV)
@@ -246,7 +237,7 @@ void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
 		NvOptimusEnablement = 0x00000000;*/
 	glutInit(&args, argv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
-	glutSetOption(GLUT_RENDERING_CONTEXT, GLUT_USE_CURRENT_CONTEXT);
+	//glutSetOption(GLUT_RENDERING_CONTEXT, GLUT_USE_CURRENT_CONTEXT);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -254,9 +245,7 @@ void FreeGLUTViewInit(const int w /*= 1280*/, const int h /*= 720*/)
 	std::atomic_bool atmB;
 	std::atomic_int32_t atmI32;
 	printf("Is LOCK-FREE?\tBool:%c\tInt32:%c\n", atmB.is_lock_free() ? 'Y' : 'N', atmI32.is_lock_free() ? 'Y' : 'N');
-	glutInitWindowSize(w, h);
-	glutInitWindowPosition((screenWidth - w) / 2, (screenHeight - h) / 2);
-	glutIdleFunc(GLUTHacker::idle);
+	GLUTHacker::init();
 }
 
 void FreeGLUTViewRun()

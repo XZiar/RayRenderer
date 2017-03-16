@@ -12,6 +12,11 @@
 #include <mutex>
 #include <future>
 #include "../common/BasicUtil.hpp"
+#include "FreeGLUTView.h"
+
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
 
 #ifndef _DEBUG
 #   define NDEBUG 1
@@ -20,64 +25,99 @@
 #define FREEGLUT_STATIC
 #include <GL/freeglut.h>//Free GLUT Header
 
+typedef const char* (WINAPI * PFNWGLGETEXTENSIONSSTRINGEXTPROC) (void);
+typedef BOOL(WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
+
+
 namespace glutview
 {
 
 class GLUTHacker final
 {
-public:
-	friend class _FreeGLUTView;
-	static _FreeGLUTView* table[8];
-	static HGLRC rcs[8];
-	static HWND hwnds[8];
+private:
+	struct FGView
+	{
+		detail::_FreeGLUTView *view;
+		const HWND hwnd;
+		const HGLRC hrc;
+	};
+	using FGViewMap = boost::multi_index_container<FGView, boost::multi_index::indexed_by<
+		boost::multi_index::ordered_unique<boost::multi_index::member<FGView, detail::_FreeGLUTView*, &FGView::view>>,
+		boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const HWND, &FGView::hwnd>>,
+		boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const HGLRC, &FGView::hrc>>
+		>>;
+	static FGViewMap& getMap()
+	{
+		static FGViewMap viewMap;
+		return viewMap;
+	}
+	friend class detail::_FreeGLUTView;
 	static WNDPROC oldWndProc;
 	static std::atomic_bool shouldInvoke, readyInvoke;
-	static std::tuple<_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> invokeData;
-	static void makeshare(HGLRC rc, const uint8_t pos)
+	static std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> invokeData;
+	
+	static detail::_FreeGLUTView* getView()
 	{
-		for (uint8_t a = 0; a < 8; ++a)
+		const auto hrc = wglGetCurrentContext();
+		auto& rckey = getMap().get<2>();
+		auto& it = rckey.find(hrc);
+		if (it == rckey.end())
+			return nullptr;
+		return (*it).view;
+	}
+	static detail::_FreeGLUTView* getView(const HWND hwnd)
+	{
+		auto& wndkey = getMap().get<1>();
+		auto& it = wndkey.find(hwnd);
+		if (it == wndkey.end())
+			return nullptr;
+		return (*it).view;
+	}
+	static void regist(detail::_FreeGLUTView* view)
+	{
+		const auto hdc = wglGetCurrentDC();
+		const auto hwnd = WindowFromDC(hdc);
+		const auto hrc = wglGetCurrentContext();
+		DragAcceptFiles(hwnd, TRUE);
+		oldWndProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (intptr_t)&HackWndProc);
+		auto& rckey = getMap().get<2>();
+		if (!rckey.empty())
+		{//share gl context
+			wglShareLists((*rckey.begin()).hrc, hrc);
+			printf("@@Share GL_RC %p from %p\n", hrc, (*rckey.begin()).hrc);
+		}
+		getMap().insert({ view,hwnd,hrc });
+		//regist glutCallbacks
+		view->usethis();
+		glutCloseFunc(GLUTHacker::onClose);
+		glutDisplayFunc(GLUTHacker::onDisplay);
+		glutReshapeFunc(GLUTHacker::onReshape);
+		glutKeyboardFunc(GLUTHacker::onKeyboard);
+		glutSpecialFunc(GLUTHacker::onSpecial);
+		glutMouseWheelFunc(GLUTHacker::onMouseWheel);
+		glutMotionFunc(GLUTHacker::onMotion);
+		glutMouseFunc(GLUTHacker::onMouse);
+	}
+	static void initExtension()
+	{
+		auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+		const auto exts = wglewGetExtensionsStringEXT();
+		if(strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
 		{
-			if (a != pos && table[a] != nullptr)//can use this
-				wglShareLists(rcs[a], rc);
+			auto wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+			//Adaptive Vsync
+			wglSwapIntervalEXT(-1);
 		}
 	}
-	static _FreeGLUTView* getView(const HWND hwnd)
+	static bool unregist(detail::_FreeGLUTView* view)
 	{
-		for (uint8_t a = 0; a < 8; ++a)
-			if (hwnds[a] == hwnd)
-				return table[a];
-		return nullptr;
+		auto& it = getMap().find(view);
+		if (it == getMap().end())
+			return false;
+		getMap().erase(it);
+		return true;
 	}
-	static uint8_t regist(_FreeGLUTView* view)
-	{
-		for (uint8_t a = 0; a < 8; ++a)
-		{
-			if (table[a] == nullptr)
-			{
-				table[a] = view;
-				rcs[a] = wglGetCurrentContext();
-				printf("####HERE: rc %p\n", rcs[a]);
-				const auto hdc = wglGetCurrentDC();
-				hwnds[a] = WindowFromDC(hdc);
-				DragAcceptFiles(hwnds[a], TRUE);
-				oldWndProc = (WNDPROC)SetWindowLongPtr(hwnds[a], GWLP_WNDPROC, (intptr_t)&HackWndProc);
-				//makeshare(rcs[a], a);
-				return a;
-			}
-		}
-		return UINT8_MAX;
-	}
-	static bool unregist(_FreeGLUTView* view)
-	{
-		for (uint8_t a = 0; a < 8; ++a)
-			if (table[a] == view)
-			{
-				table[a] = nullptr;
-				return true;
-			}
-		return false;
-	}
-	static std::future<bool> putInvoke(_FreeGLUTView* view, std::function<bool(void)>& task)
+	static std::future<bool> putInvoke(detail::_FreeGLUTView* view, std::function<bool(void)>& task)
 	{
 		while(shouldInvoke.exchange(true))//keep tring until it acquire the invoke
 		{ }//act like a spin-lock
@@ -108,197 +148,64 @@ public:
 		}
 		else
 		{
-			common::sleepMS(1000 / 120);
+			int64_t waittime = 1000 * 1000 / 120;//us
+			detail::_FreeGLUTView *objView = nullptr;
+			for (auto& ele : getMap())
+			{
+				auto& view = *ele.view;
+				if (view.timerus >= 0)
+				{
+					view.uitimer.Stop();
+					const auto lefttime = view.timerus - (int64_t)view.uitimer.ElapseUs();
+					if (lefttime < waittime)
+						waittime = lefttime, objView = &view;
+				}
+			}
+			if (waittime > 1000)//should sleep
+				common::sleepMS((uint32_t)(waittime / 1000));
+			if (objView)//should vall timer
+				objView->onTimer();
 		}
 	}
 	static void onClose()
 	{
-		_FreeGLUTView* view = (_FreeGLUTView*)glutGetWindowData();
+		const auto view = getView();
 		unregist(view);
 	}
-	template<uint8_t N>
-	static void display()
+	static void onDisplay()
 	{
-		table[N]->display();
+		const auto view = getView();
+		view->display();
 	}
-	template<uint8_t N>
-	static void reshape(int w, int h)
+	static void onReshape(int w, int h)
 	{
-		table[N]->reshape(w, h);
+		const auto view = getView();
+		view->reshape(w, h);
 	}
-	template<uint8_t N>
-	static void onKey1(unsigned char key, int x, int y)
+	static void onKeyboard(unsigned char key, int x, int y)
 	{
-		table[N]->onKeyboard(key, x, y);
+		const auto view = getView();
+		view->onKeyboard(key, x, y);
 	}
-	template<uint8_t N>
-	static void onkey2(int key, int x, int y)
+	static void onSpecial(int key, int x, int y)
 	{
-		table[N]->onKeyboard(key, x, y);
+		const auto view = getView();
+		view->onKeyboard(key, x, y);
 	}
-	template<uint8_t N>
-	static void onWheel(int button, int dir, int x, int y)
+	static void onMouseWheel(int button, int dir, int x, int y)
 	{
-		table[N]->onWheel(button, dir, x, y);
+		const auto view = getView();
+		view->onWheel(button, dir, x, y);
 	}
-	template<uint8_t N>
-	static void onMouse1(int x, int y)
+	static void onMotion(int x, int y)
 	{
-		table[N]->onMouse(x, y);
+		const auto view = getView();
+		view->onMouse(x, y);
 	}
-	template<uint8_t N>
-	static void onMouse2(int button, int state, int x, int y)
+	static void onMouse(int button, int state, int x, int y)
 	{
-		table[N]->onMouse(button, state, x, y);
-	}
-	static void onTimer(int value)
-	{
-		const uint8_t vid = value & UINT8_MAX;
-		table[vid]->onTimer(value / 256);
-	}
-	static void setTimer(_FreeGLUTView* view, const uint16_t ms)
-	{
-		glutTimerFunc(ms, onTimer, (ms * 256) + view->instanceID);
-	}
-	static void(*getDisplay(_FreeGLUTView* view))(void)
-	{
-		if (table[0] == view)
-			return display<0>;
-		if (table[1] == view)
-			return display<1>;
-		if (table[2] == view)
-			return display<2>;
-		if (table[3] == view)
-			return display<3>;
-		if (table[4] == view)
-			return display<4>;
-		if (table[5] == view)
-			return display<5>;
-		if (table[6] == view)
-			return display<6>;
-		if (table[7] == view)
-			return display<7>;
-		return nullptr;
-	}
-	static void(*getReshape(_FreeGLUTView* view))(int w, int h)
-	{
-		if (table[0] == view)
-			return reshape<0>;
-		if (table[1] == view)
-			return reshape<1>;
-		if (table[2] == view)
-			return reshape<2>;
-		if (table[3] == view)
-			return reshape<3>;
-		if (table[4] == view)
-			return reshape<4>;
-		if (table[5] == view)
-			return reshape<5>;
-		if (table[6] == view)
-			return reshape<6>;
-		if (table[7] == view)
-			return reshape<7>;
-		return nullptr;
-	}
-	static void(*getOnKey1(_FreeGLUTView* view))(unsigned char key, int x, int y)
-	{
-		if (table[0] == view)
-			return onKey1<0>;
-		if (table[1] == view)
-			return onKey1<1>;
-		if (table[2] == view)
-			return onKey1<2>;
-		if (table[3] == view)
-			return onKey1<3>;
-		if (table[4] == view)
-			return onKey1<4>;
-		if (table[5] == view)
-			return onKey1<5>;
-		if (table[6] == view)
-			return onKey1<6>;
-		if (table[7] == view)
-			return onKey1<7>;
-		return nullptr;
-	}
-	static void(*getOnkey2(_FreeGLUTView* view))(int key, int x, int y)
-	{
-		if (table[0] == view)
-			return onkey2<0>;
-		if (table[1] == view)
-			return onkey2<1>;
-		if (table[2] == view)
-			return onkey2<2>;
-		if (table[3] == view)
-			return onkey2<3>;
-		if (table[4] == view)
-			return onkey2<4>;
-		if (table[5] == view)
-			return onkey2<5>;
-		if (table[6] == view)
-			return onkey2<6>;
-		if (table[7] == view)
-			return onkey2<7>;
-		return nullptr;
-	}
-	static void(*getOnWheel(_FreeGLUTView* view))(int button, int dir, int x, int y)
-	{
-		if (table[0] == view)
-			return onWheel<0>;
-		if (table[1] == view)
-			return onWheel<1>;
-		if (table[2] == view)
-			return onWheel<2>;
-		if (table[3] == view)
-			return onWheel<3>;
-		if (table[4] == view)
-			return onWheel<4>;
-		if (table[5] == view)
-			return onWheel<5>;
-		if (table[6] == view)
-			return onWheel<6>;
-		if (table[7] == view)
-			return onWheel<7>;
-		return nullptr;
-	}
-	static void(*getOnMouse1(_FreeGLUTView* view))(int x, int y)
-	{
-		if (table[0] == view)
-			return onMouse1<0>;
-		if (table[1] == view)
-			return onMouse1<1>;
-		if (table[2] == view)
-			return onMouse1<2>;
-		if (table[3] == view)
-			return onMouse1<3>;
-		if (table[4] == view)
-			return onMouse1<4>;
-		if (table[5] == view)
-			return onMouse1<5>;
-		if (table[6] == view)
-			return onMouse1<6>;
-		if (table[7] == view)
-			return onMouse1<7>;
-		return nullptr;
-	}
-	static void(*getOnMouse2(_FreeGLUTView* view))(int button, int state, int x, int y)
-	{
-		if (table[0] == view)
-			return onMouse2<0>;
-		if (table[1] == view)
-			return onMouse2<1>;
-		if (table[2] == view)
-			return onMouse2<2>;
-		if (table[3] == view)
-			return onMouse2<3>;
-		if (table[4] == view)
-			return onMouse2<4>;
-		if (table[5] == view)
-			return onMouse2<5>;
-		if (table[6] == view)
-			return onMouse2<6>;
-		if (table[7] == view)
-			return onMouse2<7>;
-		return nullptr;
+		const auto view = getView();
+		view->onMouse(button, state, x, y);
 	}
 
 	static LRESULT CALLBACK HackWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -318,13 +225,15 @@ public:
 		}
 		return CallWindowProc(oldWndProc, hWnd, uMsg, wParam, lParam);
 	}
+public:
+	static void init()
+	{
+		glutIdleFunc(GLUTHacker::idle);
+	}
 };
 
-_FreeGLUTView* GLUTHacker::table[8] = { nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr };
-HGLRC GLUTHacker::rcs[8];
-HWND GLUTHacker::hwnds[8];
 WNDPROC GLUTHacker::oldWndProc;
 std::atomic_bool GLUTHacker::shouldInvoke{ false };
 std::atomic_bool GLUTHacker::readyInvoke{ false };
-std::tuple<_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> GLUTHacker::invokeData;
+std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> GLUTHacker::invokeData;
 }

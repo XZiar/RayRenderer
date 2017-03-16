@@ -9,6 +9,7 @@
 
 #include "../3DBasic/3dElement.hpp"
 #include "../common/CommonBase.hpp"
+#include "../common/BasicUtil.hpp"
 #include <string>
 #include <functional>
 
@@ -61,29 +62,47 @@ public:
 	}
 };
 
+
+namespace detail
+{
+class _FreeGLUTView;
+}
+using FreeGLUTView = Wrapper<detail::_FreeGLUTView>;
+
+
+using FuncBasic = std::function<void(FreeGLUTView)>;
+using FuncReshape = std::function<void(FreeGLUTView, const int, const int)>;
+using FuncKeyEvent = std::function<void(FreeGLUTView, KeyEvent)>;
+using FuncMouseEvent = std::function<void(FreeGLUTView, MouseEvent)>;
+//-param Window self
+//-param elapse time(ms)
+//-return whether continue this timer
+using FuncTimer = std::function<bool(FreeGLUTView, uint32_t)>;
+using FuncDropFile = std::function<void(FreeGLUTView, wstring filePath)>;
+
+
+class GLUTHacker;
+namespace detail
+{
+
+
 class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public NonMovable, public std::enable_shared_from_this<_FreeGLUTView>
 {
 	friend class GLUTHacker;
 public:
-	using FuncBasic = std::function<void(void)>;
-	using FuncReshape = std::function<void(const int, const int)>;
-	using FuncKeyEvent = std::function<void(KeyEvent)>;
-	using FuncMouseEvent = std::function<void(MouseEvent)>;
-	using FuncTimer = std::function<bool()>;
-	using FuncDropFile = std::function<void(wstring filePath)>;
+
 private:
-	uint8_t instanceID = UINT8_MAX;
+	SimpleTimer uitimer;
+	int64_t timerus = INT64_MIN;
+	FuncTimer funTimer = nullptr;
 	int wdID;
 	int width, height;
 	int sx, sy, lx, ly;//record x/y, last x/y
 	uint8_t isMovingMouse = 0;
 	bool isMoved = false;
-	FuncBasic funDisp = nullptr;
-	FuncReshape funReshape = nullptr;
-	FuncKeyEvent funKeyEvent = nullptr;
-	FuncMouseEvent funMouseEvent = nullptr;
-	FuncTimer funTimer = nullptr;
-	static void usethis(_FreeGLUTView& wd);
+
+	FreeGLUTView getSelf();
+	void usethis();
 	void display();
 	void reshape(const int w, const int h);
 	void onKeyboard(int key, int x, int y);
@@ -92,25 +111,28 @@ private:
 	void onWheel(int button, int dir, int x, int y);
 	void onMouse(int x, int y);
 	void onMouse(int button, int state, int x, int y);
-	void onTimer(const uint16_t lastms);
-	void onDropFile(const wstring& fname) const;
+	void onTimer();
+	void onDropFile(const wstring& fname);
 public:
 	bool deshake = true;
+	FuncBasic funDisp = nullptr;
+	FuncReshape funReshape = nullptr;
+	FuncKeyEvent funKeyEvent = nullptr;
+	FuncMouseEvent funMouseEvent = nullptr;
 	FuncDropFile funDropFile = nullptr;
-	_FreeGLUTView(FuncBasic funInit, FuncBasic funDisp_, FuncReshape funReshape_);
+	_FreeGLUTView(const int w = 1280, const int h = 720);
 	~_FreeGLUTView();
-	uint8_t getWindowID();
-	void setKeyEventCallback(FuncKeyEvent funKey);
-	void setMouseEventCallback(FuncMouseEvent funMouse);
 	void setTimerCallback(FuncTimer funTime, const uint16_t ms);
 	void setTitle(const string& title);
 	void refresh();
 	void invoke(std::function<bool(void)> task);
 };
-using FreeGLUTView = Wrapper<_FreeGLUTView>;
 
 
-GLUTVIEWAPI void FreeGLUTViewInit(const int w = 1280, const int h = 720);
+}
+
+
+GLUTVIEWAPI void FreeGLUTViewInit();
 GLUTVIEWAPI void FreeGLUTViewRun();
 
 

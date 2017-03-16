@@ -45,13 +45,28 @@ public:
 	template<class... ARGS>
 	Wrapper(ARGS... args) : std::shared_ptr<T>(new T(args...))
 	{ }
-	Wrapper(T *src) noexcept : std::shared_ptr<T>(src)
+	Wrapper(const std::shared_ptr<T>& other) noexcept : std::shared_ptr<T>(other)
 	{ }
-	Wrapper() noexcept { }
+	Wrapper(std::shared_ptr<T>&& other) noexcept : std::shared_ptr<T>(other)
+	{ }
+	template<class = typename std::enable_if<std::is_base_of<std::enable_shared_from_this<T>, T>::value>::type>
+	Wrapper(T *src) noexcept : std::shared_ptr<T>(src->shared_from_this())
+	{ }
+	explicit Wrapper(T *src) noexcept : std::shared_ptr<T>(src)
+	{ }
+	constexpr Wrapper() noexcept { }
 	template<class... ARGS>
 	void reset(ARGS... args)
 	{
 		std::shared_ptr<T>::reset(new T(args...));
+	}
+	void reset(const std::shared_ptr<T>& other) noexcept
+	{
+		std::shared_ptr<T>::reset(other);
+	}
+	void reset(std::shared_ptr<T>&& other) noexcept
+	{
+		std::shared_ptr<T>::reset(other);
 	}
 	void reset()
 	{
