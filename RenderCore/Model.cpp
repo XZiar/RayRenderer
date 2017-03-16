@@ -144,7 +144,7 @@ oglu::oglTexture _ModelImage::genTexture()
 
 map<wstring, ModelData> _ModelData::models;
 
-ModelData _ModelData::getModel(const wstring& fname)
+ModelData _ModelData::getModel(const wstring& fname, bool asyncload)
 {
 	const auto it = models.find(fname);
 	if (it != models.end())
@@ -153,7 +153,7 @@ ModelData _ModelData::getModel(const wstring& fname)
 	}
 	else
 	{
-		auto md = new _ModelData(fname);
+		auto md = new _ModelData(fname, asyncload);
 		ModelData m(std::move(md));
 		models.insert_or_assign(fname, m);
 		return m;
@@ -168,20 +168,6 @@ void _ModelData::releaseModel(const wstring& fname)
 		if (it->second.unique())
 			models.erase(it);
 	}
-}
-
-_ModelData::_ModelData(const wstring& fname) :mfnane(fname)
-{
-	loadOBJ(fname);
-	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts);
-	ebo.reset(oglu::IndexSize::Int);
-	ebo->write(indexs);
-}
-
-_ModelData::~_ModelData()
-{
-
 }
 
 oglu::oglVAO _ModelData::getVAO() const
@@ -438,7 +424,6 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 		}
 	}
 
-	ModelImage diffuse, normal;
 	std::tie(diffuse, normal) = mergeTex(mtlmap, texposs);
 #if !defined(_DEBUG) && 0
 	{
@@ -448,8 +433,6 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 	}
 	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
 #endif
-	texd = diffuse->genTexture();
-	texn = normal->genTexture();
 	return mtlmap;
 }
 catch (const std::ios_base::failure& e)
@@ -579,11 +562,39 @@ catch (const std::ios_base::failure& e)
 	return false;
 }
 
+void _ModelData::initData()
+{
+	texd = diffuse->genTexture();
+	texn = normal->genTexture();
+	diffuse.release();
+	normal.release();
+	vbo.reset(oglu::BufferType::Array);
+	vbo->write(pts);
+	ebo.reset(oglu::IndexSize::Int);
+	ebo->write(indexs);
+}
+
+_ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
+{
+	loadOBJ(mfnane);
+	if (asyncload)
+	{
+		oglu::oglUtil::invokeGL(std::bind(&_ModelData::initData, this)).get();
+	}
+	else
+		initData();
+}
+
+_ModelData::~_ModelData()
+{
+
+}
+
 //ENDOF INNER
 }
 
 
-Model::Model(const wstring& fname) :data(inner::_ModelData::getModel(fname))
+Model::Model(const wstring& fname, bool asyncload) :data(inner::_ModelData::getModel(fname, asyncload))
 {
 	static DrawableHelper helper(L"Model");
 	helper.InitDrawable(this);

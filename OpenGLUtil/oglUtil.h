@@ -2,7 +2,8 @@
 #include "oglRely.h"
 #include "oglComponent.h"
 #include "oglProgram.h"
-
+#include <functional>
+#include <future>
 #include <boost/circular_buffer.hpp>
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
@@ -59,6 +60,12 @@ public:
 		:from(parseSrc(from_)), type(parseType(type_)), level(parseLv(lv)) { }
 };
 
+
+namespace detail
+{
+class MTWorker;
+}
+
 class OGLUAPI oglUtil
 {
 private:
@@ -71,6 +78,8 @@ private:
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> msglist;
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> errlist;
 	static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+	static detail::MTWorker& getWorker();
+	static void createRC(void *hdc, void *hrc);
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
@@ -80,6 +89,7 @@ public:
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
+	static std::future<void> __cdecl invokeGL(std::function<void __cdecl(void)> task);
 };
 
 }

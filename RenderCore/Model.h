@@ -39,7 +39,7 @@ class _ModelData : public NonCopyable, public AlignBase<>
 private:
 	using Path = std::experimental::filesystem::path;
 	static map<wstring, Wrapper<_ModelData>> models;
-	static Wrapper<_ModelData> getModel(const wstring& fname);
+	static Wrapper<_ModelData> getModel(const wstring& fname, bool asyncload = false);
 	static void releaseModel(const wstring& fname);
 	class OBJLoder
 	{
@@ -89,14 +89,16 @@ private:
 	vector<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
+	ModelImage diffuse, normal;
+	oglu::oglTexture texd, texn;
 	oglu::oglBuffer vbo;
 	oglu::oglEBO ebo;
-	oglu::oglTexture texd, texn;
 	const wstring mfnane;
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
-	_ModelData(const wstring& fname);
+	void initData();
+	_ModelData(const wstring& fname, bool asyncload = false);
 public:
 	~_ModelData();
 	oglu::oglVAO getVAO() const;
@@ -111,7 +113,7 @@ class alignas(16) Model : public Drawable
 protected:
 	ModelData data;
 public:
-	Model(const wstring& fname);
+	Model(const wstring& fname, bool asyncload = false);
 	~Model();
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
 	virtual void draw(oglu::oglProgram& prog) const override;

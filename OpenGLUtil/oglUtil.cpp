@@ -1,4 +1,6 @@
 #include "oglUtil.h"
+#include "MTWorker.hpp"
+#include <GL/wglew.h>
 
 namespace oglu
 {
@@ -26,12 +28,31 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 	}
 }
 
+detail::MTWorker& oglUtil::getWorker()
+{
+	static detail::MTWorker worker;
+	return worker;
+}
+
+void oglUtil::createRC(void *hdc, void *hrc)
+{
+	printf("Worker Thread use HDC[%p] HRC[%p]\n", hdc, hrc);
+	wglMakeCurrent((HDC)hdc, (HGLRC)hrc);
+	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
+}
+
 void oglUtil::init()
 {
 	glewInit();
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	auto hdc = wglGetCurrentDC();
+	auto hrc = wglGetCurrentContext();
+	auto newhrc = wglCreateContext(hdc);
+	auto ret = wglShareLists(newhrc, hrc);
+	auto errcode = GetLastError();
+	invokeGL(std::bind(createRC, hdc, newhrc)).get();
 #ifdef _DEBUG
 	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 	printf("GL Version:%s\n", getVersion().c_str());
@@ -165,6 +186,11 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 			matModel = Mat4x4(Mat3x3::ScaleMat(op.vec)) * matModel;
 		}return;
 	}
+}
+
+std::future<void> oglUtil::invokeGL(std::function<void __cdecl(void)> task)
+{
+	return getWorker().doWork(task);
 }
 
 }

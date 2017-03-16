@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MTWorker.hpp" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />

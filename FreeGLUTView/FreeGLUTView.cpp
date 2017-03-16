@@ -23,10 +23,13 @@ void _FreeGLUTView::usethis()
 
 void _FreeGLUTView::display()
 {
+	//SimpleTimer timer;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (funDisp != nullptr)
 		funDisp(this);
 	glutSwapBuffers();
+	//timer.Stop();
+	//printf("@@Display cost %lld us\n", timer.ElapseUs());
 }
 
 void _FreeGLUTView::reshape(const int w, const int h)
@@ -219,8 +222,11 @@ void _FreeGLUTView::refresh()
 
 void _FreeGLUTView::invoke(std::function<bool(void)> task)
 {
+	//SimpleTimer timer;
 	auto fut = GLUTHacker::putInvoke(this, task);
 	fut.get();
+	//timer.Stop();
+	//printf("@@Invoke cost %lld us\n", timer.ElapseUs());
 	return;
 }
 

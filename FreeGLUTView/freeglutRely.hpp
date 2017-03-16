@@ -97,6 +97,7 @@ private:
 		glutMouseWheelFunc(GLUTHacker::onMouseWheel);
 		glutMotionFunc(GLUTHacker::onMotion);
 		glutMouseFunc(GLUTHacker::onMouse);
+		initExtension();
 	}
 	static void initExtension()
 	{

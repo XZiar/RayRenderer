@@ -288,7 +288,8 @@ void BasicTest::resize(const int w, const int h)
 
 OPResult<> BasicTest::addModel(const wstring& fname)
 {
-	auto mod = _addModel(fname);
+	Wrapper<Model> mod(fname);
+	mod->name = L"model";
 	mod->prepareGL(prog3D);
 	drawables.push_back(mod);
 	return true;
@@ -298,7 +299,8 @@ void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::func
 {
 	std::thread([this, onFinish](const wstring name)
 	{
-		auto mod = _addModel(name);
+		Wrapper<Model> mod(name, true);
+		mod->name = L"model";
 		onFinish([&, mod]()mutable
 		{
 			mod->prepareGL(prog3D);
