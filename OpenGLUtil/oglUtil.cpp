@@ -21,8 +21,8 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 		if (theMsg->type == MsgType::Error)
 			errlist.push_back(theMsg);
 		msglist.push_back(theMsg);
-	#ifdef _DEBUG
-		if (msg.from == MsgSrc::OpenGL)
+	#if defined(_DEBUG) || 1
+		//if (msg.from == MsgSrc::OpenGL)
 			printf("@@OpenGL API Message:\n%ls\n", theMsg->msg.c_str());
 	#endif
 	}
@@ -34,29 +34,28 @@ detail::MTWorker& oglUtil::getWorker()
 	return worker;
 }
 
-void oglUtil::createRC(void *hdc, void *hrc)
-{
-	printf("Worker Thread use HDC[%p] HRC[%p]\n", hdc, hrc);
-	wglMakeCurrent((HDC)hdc, (HGLRC)hrc);
-	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
-}
-
 void oglUtil::init()
 {
 	glewInit();
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	auto hdc = wglGetCurrentDC();
-	auto hrc = wglGetCurrentContext();
-	auto newhrc = wglCreateContext(hdc);
-	auto ret = wglShareLists(newhrc, hrc);
-	auto errcode = GetLastError();
-	invokeGL(std::bind(createRC, hdc, newhrc)).get();
-#ifdef _DEBUG
+#if defined(_DEBUG) || 1
 	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 	printf("GL Version:%s\n", getVersion().c_str());
 #endif
+	auto hdc = wglGetCurrentDC();
+	auto hrc = wglGetCurrentContext();
+	int ctxAttrb[] =
+	{
+		/*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+		WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
+		WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
+		0
+	};
+	auto newhrc = wglCreateContextAttribsARB(hdc, hrc, ctxAttrb);
+	getWorker().start(hdc, newhrc);
 }
 
 void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
@@ -76,27 +75,10 @@ string oglUtil::getVersion()
 OPResult<GLenum> oglUtil::getError()
 {
 	const auto err = glGetError();
-	switch (err)
-	{
-	case GL_NO_ERROR:
+	if(err == GL_NO_ERROR)
 		return OPResult<GLenum>(true, L"GL_NO_ERROR", err);
-	case GL_INVALID_ENUM:
-		return OPResult<GLenum>(false, L"GL_INVALID_ENUM", err);
-	case GL_INVALID_VALUE:
-		return OPResult<GLenum>(false, L"GL_INVALID_VALUE", err);
-	case GL_INVALID_OPERATION:
-		return OPResult<GLenum>(false, L"GL_INVALID_OPERATION", err);
-	case GL_INVALID_FRAMEBUFFER_OPERATION:
-		return OPResult<GLenum>(false, L"GL_INVALID_FRAMEBUFFER_OPERATION", err);
-	case GL_OUT_OF_MEMORY:
-		return OPResult<GLenum>(false, L"GL_OUT_OF_MEMORY", err);
-	case GL_STACK_UNDERFLOW:
-		return OPResult<GLenum>(false, L"GL_STACK_UNDERFLOW", err);
-	case GL_STACK_OVERFLOW:
-		return OPResult<GLenum>(false, L"GL_STACK_OVERFLOW", err);
-	default:
-		return OPResult<GLenum>(false, L"undefined error with code " + std::to_wstring(err), err);
-	}
+	else
+		return OPResult<GLenum>(false, (char*)glewGetErrorString(err), err);
 }
 
 OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)

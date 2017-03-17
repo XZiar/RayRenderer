@@ -193,38 +193,64 @@ oglu::oglVAO _ModelData::getVAO() const
 
 _ModelData::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
 {
-	_wfopen_s(&fp, fpath.c_str(), L"r");
+	FILE *fp = nullptr;
+	_wfopen_s(&fp, fpath.c_str(), L"rb");
 	if (fp == nullptr)
 		throw std::ios_base::failure("cannot open file");
+	//pre-load data, in case of Acess-Violate while reading file
+	fseek(fp, 0, SEEK_END);
+	flen = (uint32_t)ftell(fp);
+	fdata.resize(flen);
+	fseek(fp, 0, SEEK_SET);
+	fread(fdata.data(), flen, 1, fp);
+	fclose(fp);
+	fcurpos = 0;
 }
 
 _ModelData::OBJLoder::~OBJLoder()
 {
-	if (fp)
-		fclose(fp);
 }
 
 _ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
 {
 	using common::hash_;
 	static std::set<string> specialPrefix{ "mtllib","usemtl","newmtl","g" };
-	if (fgets(curline, 255, fp) == nullptr)
-		return{ "EOF"_hash, 0 };
-	char *end = &curline[strlen(curline) - 1];
-	//remove return at the end of a line
-	if (*(end - 1) == '\r' || *(end - 1) == '\n')
-		*--end = '\0';
-	else
-		*end = '\0';
+	uint32_t frompos = fcurpos, linelen = 0;
+	for (bool isCounting = false; fcurpos < flen;)
+	{
+		const uint8_t curch = fdata[fcurpos++];
+		const bool isLineEnd = (curch == '\r' || curch == '\n');
+		if (isLineEnd)
+		{
+			if (isCounting)//finish line
+				break;
+			else//not even start
+				++frompos;
+		}
+		else
+		{
+			++linelen;//linelen EQUALS count how many ch is not "NEWLINE"
+			isCounting = true;
+		}
+	}
+	if (linelen == 0)
+	{
+		if(fcurpos == flen)//EOF
+			return{ "EOF"_hash, 0 };
+		else
+			return{ "EMPTY"_hash, 0 };
+	}
+	memmove(curline, &fdata[frompos], linelen);
+	char *end = &curline[linelen];
+	*end = '\0';
 
 	char prefix[256] = { 0 };
-	if (sscanf_s(curline, "%s", prefix, 240) == 0)
-		return{ "EMPTY"_hash, 0 };
+	sscanf_s(curline, "%s", prefix, 240);
 	const string sprefix(prefix);
 	//is-note
 	if (sprefix == "#")
 	{
-		param[0] = &curline[2];
+		param[0] = linelen > 1 ? &curline[2] : &curline[1];
 		return{ "#"_hash, 1 };
 	}
 	bool isOneParam = specialPrefix.count(sprefix) != 0 || sprefix.find_first_of("map_") == 0;
@@ -582,7 +608,9 @@ _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
 		oglu::oglUtil::invokeGL(std::bind(&_ModelData::initData, this)).get();
 	}
 	else
+	{
 		initData();
+	}
 }
 
 _ModelData::~_ModelData()

@@ -79,7 +79,6 @@ private:
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> errlist;
 	static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 	static detail::MTWorker& getWorker();
-	static void createRC(void *hdc, void *hrc);
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);

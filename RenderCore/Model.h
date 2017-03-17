@@ -43,8 +43,10 @@ private:
 	static void releaseModel(const wstring& fname);
 	class OBJLoder
 	{
+	private:
 		Path fpath;
-		FILE *fp = nullptr;
+		vector<uint8_t> fdata;
+		uint32_t fcurpos, flen;
 	public:
 		char curline[256];
 		const char* param[5];
@@ -97,9 +99,9 @@ private:
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const Path& mtlfname);
 	bool loadOBJ(const Path& objfname);
-	void initData();
 	_ModelData(const wstring& fname, bool asyncload = false);
 public:
+	void initData();
 	~_ModelData();
 	oglu::oglVAO getVAO() const;
 };
@@ -111,8 +113,8 @@ using ModelData = Wrapper<inner::_ModelData>;
 class alignas(16) Model : public Drawable
 {
 protected:
-	ModelData data;
 public:
+	ModelData data;
 	Model(const wstring& fname, bool asyncload = false);
 	~Model();
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;

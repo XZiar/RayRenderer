@@ -242,9 +242,12 @@ void FreeGLUTViewInit()
 	else
 		NvOptimusEnablement = 0x00000000;*/
 	glutInit(&args, argv);
+	//glutInitContextVersion(3, 2);
+	glutInitContextFlags(GLUT_DEBUG);
+	glutInitContextProfile(GLUT_CORE_PROFILE);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 	//glutSetOption(GLUT_RENDERING_CONTEXT, GLUT_USE_CURRENT_CONTEXT);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL);
 	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
 	printf("screen W/H:%d,%d\n", screenWidth, screenHeight);
