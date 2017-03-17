@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stblib.h" />
+    <ClInclude Include="stb_dxt.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="stb_image_resize.h" />
     <ClInclude Include="stb_image_write.h" />

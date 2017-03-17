@@ -25,14 +25,16 @@ private:
 	std::condition_variable cv;
 	std::function<void(void)> task = nullptr;
 	std::promise<void> pms;
+	const wstring name;
 	SimpleTimer callerTimer;
 	void worker()
 	{
 		SimpleTimer timer;
+		const wstring prefix = L"Worker " + name;
 		std::unique_lock<std::mutex> lck(mtx);
-		printf("Worker Thread use HDC[%p] HRC[%p]\n", hdc, hrc);
+		printf("%ls use HDC[%p] HRC[%p]\n", prefix.c_str(), hdc, hrc);
 		wglMakeCurrent(hdc, hrc);
-		printf("Worker GL Version:%s\n", oglUtil::getVersion().c_str());
+		printf("%ls GL Version:%s\n", prefix.c_str(), oglUtil::getVersion().c_str());
 		oglUtil::setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 		auto err = oglUtil::getError();
 		while (shouldRun.test_and_set())
@@ -45,7 +47,7 @@ private:
 				glFinish();
 				task = nullptr;
 				timer.Stop();
-				printf("@@worker cost %lld us\n", timer.ElapseUs());
+				printf("@@%ls cost %lld us\n", prefix.c_str(), timer.ElapseUs());
 				pms.set_value();
 			}
 		}
@@ -53,7 +55,7 @@ private:
 		wglDeleteContext(hrc);
 	}
 public:
-	MTWorker()
+	MTWorker(wstring name_) : name(name_)
 	{
 	}
 	~MTWorker()
@@ -77,7 +79,7 @@ public:
 		cv.notify_all();
 		mtx.unlock();
 		callerTimer.Stop();
-		printf("@@call worker cost %lld us\n", callerTimer.ElapseUs());
+		printf("@@call worker %ls cost %lld us\n", name.c_str(), callerTimer.ElapseUs());
 		return fut;
 	}
 };

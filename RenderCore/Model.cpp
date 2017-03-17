@@ -137,7 +137,21 @@ oglu::oglTexture _ModelImage::genTexture()
 	return tex;
 }
 
+void _ModelImage::CompressData(vector<uint8_t>& output)
+{
+	auto tex = genTexture();
+	tex->getCompressedData(output);
+}
 
+oglu::oglTexture _ModelImage::genTextureAsync()
+{
+	vector<uint8_t> texdata;
+	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata))).get();
+	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
+	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+	tex->setCompressedData(oglu::TextureInnerFormat::BC1A, width, height, texdata);
+	return tex;
+}
 
 
 
@@ -590,8 +604,8 @@ catch (const std::ios_base::failure& e)
 
 void _ModelData::initData()
 {
-	texd = diffuse->genTexture();
-	texn = normal->genTexture();
+	texd = diffuse->genTextureAsync();
+	texn = normal->genTextureAsync();
 	diffuse.release();
 	normal.release();
 	vbo.reset(oglu::BufferType::Array);
@@ -605,7 +619,7 @@ _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
 	loadOBJ(mfnane);
 	if (asyncload)
 	{
-		oglu::oglUtil::invokeGL(std::bind(&_ModelData::initData, this)).get();
+		oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this)).get();
 	}
 	else
 	{

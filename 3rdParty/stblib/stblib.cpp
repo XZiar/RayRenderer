@@ -9,6 +9,8 @@
 #include "stb_image_write.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
+#define STB_DXT_IMPLEMENTATION
+#include "stb_dxt.h"
 
 
 namespace stb
@@ -60,6 +62,77 @@ void saveImage(const std::wstring& fname, const std::vector<uint32_t>& data, con
 	fclose(fp);
 	if (ret == 0)
 		throw std::ios_base::failure("write failure");
+}
+
+
+static std::vector<uint32_t> buildBlock4x4(const std::vector<uint32_t>& input, const uint32_t w, const uint32_t h, uint32_t& idx)
+{
+	std::vector<uint32_t> ret(input.size() + 64 + 32);
+	intptr_t addr = (intptr_t)ret.data();
+	uint32_t padding = 32 - (addr % 32);
+	idx = 64 + padding;
+	const uint32_t *row1 = input.data(), *row2 = &input[w], *row3 = &input[w * 2], *row4 = &input[w * 3];
+#if defined(__AVX2__)
+	__m256i *dest = (__m256i *)&ret[idx];
+#elif defined(__SSE2__)
+	__m128i *dest = (__m128i *)&ret[idx];
+#else
+	uint32_t *dest = &ret[idx];
+#endif
+	for (uint32_t y = h; y > 0; y -= 4)
+	{
+		for (uint32_t x = w; x > 0; x -= 4)
+		{
+		#if defined(__AVX2__)
+			_mm256_stream_si256(dest++, _mm256_loadu2_m128i((const __m128i*)row1, (const __m128i*)row2));
+			_mm256_stream_si256(dest++, _mm256_loadu2_m128i((const __m128i*)row3, (const __m128i*)row4));
+		#elif defined(__SSE2__)
+			_mm_stream_si128(dest++, _mm_loadu_si128((const __m128i*)row1));
+			_mm_stream_si128(dest++, _mm_loadu_si128((const __m128i*)row2));
+			_mm_stream_si128(dest++, _mm_loadu_si128((const __m128i*)row3));
+			_mm_stream_si128(dest++, _mm_loadu_si128((const __m128i*)row4));
+		#else
+			memmove(dest, row1, 16);
+			memmove(dest + 4, row2, 16);
+			memmove(dest + 8, row3, 16);
+			memmove(dest + 12, row4, 16);
+			dest += 64;
+		#endif
+			row1 += 4, row2 += 4, row3 += 4, row4 += 4;
+		}
+		row1 += 3 * w, row2 += 3 * w, row3 += 3 * w, row4 += 3 * w;
+	}
+	return ret;
+}
+
+std::vector<uint32_t> compressTextureBC1(const std::vector<uint32_t>& input, uint32_t w, uint32_t h)
+{
+	uint32_t inidx = 0, outidx = 0;
+	auto ret = buildBlock4x4(input, w, h, inidx);
+	for (; h > 0; h -= 4)
+	{
+		for (uint32_t px = w; px > 0; inidx += 16, outidx += 4, px -= 4)
+		{
+			stb_compress_dxt_block((unsigned char*)&ret[outidx], (unsigned char*)&ret[inidx], 0, STB_DXT_HIGHQUAL);
+		}
+	}
+	ret.resize(outidx);
+	return ret;
+}
+
+std::vector<uint32_t> compressTextureBC2(const std::vector<uint32_t>& input, uint32_t w, uint32_t h)
+{
+	uint32_t inidx = 0, outidx = 0;
+	auto ret = buildBlock4x4(input, w, h, inidx);
+	for (; h > 0; h -= 4)
+	{
+		for (uint32_t px = w; px > 0; inidx += 16, outidx += 4, px -= 4)
+		{
+			stb_compress_dxt_block((unsigned char*)&ret[outidx], (unsigned char*)&ret[inidx], 1, STB_DXT_HIGHQUAL);
+		}
+	}
+	ret.resize(outidx);
+	return ret;
 }
 
 }

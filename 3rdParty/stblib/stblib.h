@@ -17,4 +17,7 @@ std::vector<uint32_t> resizeImage(const std::vector<uint32_t>& input, const uint
 
 void saveImage(const std::wstring& fname, const std::vector<uint32_t>& data, const uint32_t width, const uint32_t height);
 
+std::vector<uint32_t> compressTextureBC1(const std::vector<uint32_t>& input, uint32_t w, uint32_t h);
+std::vector<uint32_t> compressTextureBC2(const std::vector<uint32_t>& input, uint32_t w, uint32_t h);
+
 }

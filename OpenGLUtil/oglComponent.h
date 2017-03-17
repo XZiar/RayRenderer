@@ -76,13 +76,15 @@ private:
 	friend class _oglProgram;
 	friend class oclu::inner::_oclMem;
 	TextureType type;
+	TextureInnerFormat inFormat;
 	GLuint textureID = GL_INVALID_INDEX;
 	oglBuffer innerBuf;
+	const uint8_t defPos;
 	static TextureManager& getTexMan();
 	static uint8_t getDefaultPos();
-	const uint8_t defPos;
 	static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype);
 	static GLenum parseFormat(const TextureDataFormat dformat);
+	static size_t parseFormatSize(const TextureDataFormat dformat);
 	void bind(const uint8_t pos) const;
 	void unbind() const;
 public:
@@ -92,6 +94,10 @@ public:
 	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *);
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf);
+	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<uint8_t>& data);
+	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size);
+	OPResult<> getCompressedData(vector<uint8_t>& output);
+	OPResult<> getData(vector<uint8_t>& output, const TextureDataFormat dformat);
 	OPResult<> setBuffer(const TextureDataFormat dformat, const oglBuffer& tbo);
 };
 

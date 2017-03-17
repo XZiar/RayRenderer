@@ -78,7 +78,7 @@ private:
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> msglist;
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> errlist;
 	static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
-	static detail::MTWorker& getWorker();
+	static detail::MTWorker& getWorker(const uint8_t idx);
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
@@ -88,7 +88,8 @@ public:
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-	static std::future<void> __cdecl invokeGL(std::function<void __cdecl(void)> task);
+	static std::future<void> __cdecl invokeSyncGL(std::function<void __cdecl(void)> task);
+	static std::future<void> __cdecl invokeAsyncGL(std::function<void __cdecl(void)> task);
 };
 
 }

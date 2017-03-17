@@ -28,10 +28,10 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 	}
 }
 
-detail::MTWorker& oglUtil::getWorker()
+detail::MTWorker& oglUtil::getWorker(const uint8_t idx)
 {
-	static detail::MTWorker worker;
-	return worker;
+	static detail::MTWorker syncGL(L"SYNC"), asyncGL(L"ASYNC");
+	return idx == 0 ? syncGL : asyncGL;
 }
 
 void oglUtil::init()
@@ -54,8 +54,8 @@ void oglUtil::init()
 		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
 		0
 	};
-	auto newhrc = wglCreateContextAttribsARB(hdc, hrc, ctxAttrb);
-	getWorker().start(hdc, newhrc);
+	getWorker(0).start(hdc, wglCreateContextAttribsARB(hdc, hrc, ctxAttrb));
+	getWorker(1).start(hdc, wglCreateContextAttribsARB(hdc, NULL, ctxAttrb));
 }
 
 void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
@@ -170,9 +170,15 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 	}
 }
 
-std::future<void> oglUtil::invokeGL(std::function<void __cdecl(void)> task)
+std::future<void> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
 {
-	return getWorker().doWork(task);
+	return getWorker(0).doWork(task);
 }
+
+std::future<void> oglUtil::invokeAsyncGL(std::function<void __cdecl(void)> task)
+{
+	return getWorker(1).doWork(task);
+}
+
 
 }
