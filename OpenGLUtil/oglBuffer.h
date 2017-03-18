@@ -30,11 +30,11 @@ protected:
 	friend class _oglProgram;
 	const BufferType bufferType;
 	GLuint bufferID = GL_INVALID_INDEX;
-	void bind() const;
-	void unbind() const;
+	void bind() const noexcept;
+	void unbind() const noexcept;
 public:
-	_oglBuffer(const BufferType type);
-	~_oglBuffer();
+	_oglBuffer(const BufferType type) noexcept;
+	~_oglBuffer() noexcept;
 
 	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
 	template<class T>
@@ -42,6 +42,17 @@ public:
 	{
 		write(dat.data(), sizeof(T)*dat.size(), mode);
 	}
+};
+
+
+class OGLUAPI _oglTextureBuffer : public _oglBuffer
+{
+protected:
+	friend class oclu::inner::_oclMem;
+	friend class _oglBufferTexture;
+	friend class _oglProgram;
+public:
+	_oglTextureBuffer() noexcept;
 };
 
 
@@ -53,8 +64,8 @@ protected:
 	static UBOManager& getUBOMan();
 	void bind(const uint8_t pos) const;
 public:
-	_oglUniformBuffer();
-	~_oglUniformBuffer();
+	_oglUniformBuffer() noexcept;
+	~_oglUniformBuffer() noexcept;
 };
 
 
@@ -66,7 +77,7 @@ protected:
 	const IndexSize idxtype;
 	const uint8_t idxsize;
 public:
-	_oglElementBuffer(const IndexSize idxsize_);
+	_oglElementBuffer(const IndexSize idxsize_) noexcept;
 	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
 	OPResult<uint8_t> write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
@@ -88,6 +99,7 @@ public:
 }
 
 using oglBuffer = Wrapper<inner::_oglBuffer>;
+using oglTBO = Wrapper<inner::_oglTextureBuffer>;
 using oglUBO = Wrapper<inner::_oglUniformBuffer>;
 using oglEBO = Wrapper<inner::_oglElementBuffer>;
 

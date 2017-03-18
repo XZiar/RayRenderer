@@ -1,5 +1,6 @@
 #include "oglUtil.h"
 #include "MTWorker.hpp"
+#include "../common/PromiseTask.hpp"
 #include <GL/wglew.h>
 
 namespace oglu
@@ -170,14 +171,16 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 	}
 }
 
-std::future<void> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
+std::unique_ptr<PromiseResult<void>> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
 {
-	return getWorker(0).doWork(task);
+	PromiseResult<void> *ret = new PromiseResultSTD<void>(getWorker(0).doWork(task));
+	return std::unique_ptr<PromiseResult<void>>(ret);
 }
 
-std::future<void> oglUtil::invokeAsyncGL(std::function<void __cdecl(void)> task)
+std::unique_ptr<PromiseResult<void>> oglUtil::invokeAsyncGL(std::function<void __cdecl(void)> task)
 {
-	return getWorker(1).doWork(task);
+	PromiseResult<void> *ret = new PromiseResultSTD<void>(getWorker(1).doWork(task));
+	return std::unique_ptr<PromiseResult<void>>(ret);
 }
 
 

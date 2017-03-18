@@ -36,6 +36,12 @@
     <ClInclude Include="MTWorker.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglTexture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oglVAO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
@@ -54,6 +60,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglBuffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglTexture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglVAO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

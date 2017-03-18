@@ -1,7 +1,8 @@
 #pragma once
 
 #include "oglRely.h"
-#include "oglComponent.h"
+#include "oglTexture.h"
+#include "oglBuffer.h"
 #include "oglProgram.h"
 
 namespace oglu::inner

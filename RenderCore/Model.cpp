@@ -146,7 +146,7 @@ void _ModelImage::CompressData(vector<uint8_t>& output)
 oglu::oglTexture _ModelImage::genTextureAsync()
 {
 	vector<uint8_t> texdata;
-	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata))).get();
+	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata)))->wait();
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
 	tex->setCompressedData(oglu::TextureInnerFormat::BC1A, width, height, texdata);
@@ -619,7 +619,7 @@ _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
 	loadOBJ(mfnane);
 	if (asyncload)
 	{
-		oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this)).get();
+		oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this))->wait();
 	}
 	else
 	{

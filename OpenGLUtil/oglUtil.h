@@ -2,8 +2,8 @@
 #include "oglRely.h"
 #include "oglComponent.h"
 #include "oglProgram.h"
+#include "../common/PromiseTask.h"
 #include <functional>
-#include <future>
 #include <boost/circular_buffer.hpp>
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
@@ -88,8 +88,8 @@ public:
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-	static std::future<void> __cdecl invokeSyncGL(std::function<void __cdecl(void)> task);
-	static std::future<void> __cdecl invokeAsyncGL(std::function<void __cdecl(void)> task);
+	static std::unique_ptr<PromiseResult<void>> __cdecl invokeSyncGL(std::function<void __cdecl(void)> task);
+	static std::unique_ptr<PromiseResult<void>> __cdecl invokeAsyncGL(std::function<void __cdecl(void)> task);
 };
 
 }

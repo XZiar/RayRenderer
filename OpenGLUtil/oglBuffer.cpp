@@ -4,23 +4,23 @@
 namespace oglu::inner
 {
 
-_oglBuffer::_oglBuffer(const BufferType _type) :bufferType(_type)
+_oglBuffer::_oglBuffer(const BufferType _type) noexcept :bufferType(_type)
 {
 	glGenBuffers(1, &bufferID);
 }
 
-_oglBuffer::~_oglBuffer()
+_oglBuffer::~_oglBuffer() noexcept
 {
 	if (bufferID != GL_INVALID_INDEX)
 		glDeleteBuffers(1, &bufferID);
 }
 
-void _oglBuffer::bind() const
+void _oglBuffer::bind() const noexcept
 {
 	glBindBuffer((GLenum)bufferType, bufferID);
 }
 
-void _oglBuffer::unbind() const
+void _oglBuffer::unbind() const noexcept
 {
 	glBindBuffer((GLenum)bufferType, 0);
 }
@@ -33,7 +33,13 @@ void _oglBuffer::write(const void *dat, const size_t size, const BufferWriteMode
 		unbind();
 }
 
-_oglUniformBuffer::_oglUniformBuffer() : _oglBuffer(BufferType::Uniform)
+
+_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Uniform)
+{
+}
+
+
+_oglUniformBuffer::_oglUniformBuffer() noexcept : _oglBuffer(BufferType::Uniform)
 {
 }
 
@@ -58,7 +64,7 @@ void _oglUniformBuffer::bind(const uint8_t pos) const
 }
 
 
-_oglElementBuffer::_oglElementBuffer(const IndexSize idxsize_) : _oglBuffer(BufferType::Element),
+_oglElementBuffer::_oglElementBuffer(const IndexSize idxsize_) noexcept : _oglBuffer(BufferType::Element),
 	idxtype(idxsize_), idxsize(idxsize_ == IndexSize::Byte ? 1 : (idxsize_ == IndexSize::Short ? 2 : 4))
 {
 }

@@ -11,7 +11,7 @@
 
 #include "../3dBasic/3dElement.hpp"
 #include "../common/CommonBase.hpp"
-#include "../common/BasicUtil.hpp"
+#include "../common/BasicUtil.h"
 
 #include <GL/glew.h>
 

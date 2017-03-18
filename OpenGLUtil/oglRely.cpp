@@ -1,3 +1,5 @@
+#include "oglRely.h"
+#include "../common/BasicUtil.hpp"
 
 #pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
 //#pragma comment (lib, "gdi32.lib")    /* link Windows GDI lib        */
