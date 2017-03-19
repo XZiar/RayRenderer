@@ -13,6 +13,7 @@ using std::wstring;
 	public ref class OGLView : public Control
 	{
 	private:
+		static HGLRC baseRC = nullptr, curRC = nullptr;
 		HDC hDC = nullptr;
 		HGLRC hRC = nullptr;
 		MouseButton curMouseBTN = MouseButton::None;
@@ -20,6 +21,29 @@ using std::wstring;
 		int lastX, lastY, startX, startY, curX, curY;
 		bool isMoved;
 		bool isCaptital = false;
+		static void makeCurrent(HDC hDC, HGLRC hRC)
+		{
+			if (curRC != hRC)
+				wglMakeCurrent(hDC, curRC = hRC);
+		}
+		static void initRC(HDC hDC)
+		{
+			if (baseRC != nullptr)
+				return;
+			baseRC = wglCreateContext(hDC);
+			wglMakeCurrent(hDC, curRC = baseRC);
+		}
+		static void initExtension()
+		{
+			auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+			const auto exts = wglewGetExtensionsStringEXT();
+			if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
+			{
+				auto wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+				//Adaptive Vsync
+				wglSwapIntervalEXT(-1);
+			}
+		}
 	public:
 		UINT64 rfsCount = 0;
 		property bool ResizeBGDraw;
@@ -46,18 +70,14 @@ using std::wstring;
 			{
 				sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
 				1,                              // Version Number
-				PFD_DRAW_TO_WINDOW |            // Format Must Support Window
-				PFD_SUPPORT_OPENGL |            // Format Must Support OpenGL
-				PFD_DOUBLEBUFFER,               // Must Support Double Buffering
+				PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/,
 				PFD_TYPE_RGBA,                  // Request An RGBA Format
 				24,                             // Select Our Color Depth
 				0, 0, 0, 0, 0, 0,               // Color Bits Ignored
-				0,                              // No Alpha Buffer
-				0,                              // Shift Bit Ignored
-				0,                              // No Accumulation Buffer
-				0, 0, 0, 0,                     // Accumulation Bits Ignored
-				24,                             // 16Bit Z-Buffer (Depth Buffer) 
-				8,                              // No Stencil Buffer
+				0, 0,                           // No Alpha Buffer, Shift Bit Ignored
+				0, 0, 0, 0, 0,                  // No Accumulation Buffer, Accumulation Bits Ignored
+				24,                             // 24Bit Z-Buffer (Depth Buffer) 
+				8,                              // 8Bit Stencil Buffer
 				0,                              // No Auxiliary Buffer
 				PFD_MAIN_PLANE,                 // Main Drawing Layer
 				0,                              // Reserved
@@ -65,19 +85,31 @@ using std::wstring;
 			};
 			const int PixelFormat = ChoosePixelFormat(hDC, &pfd);
 			SetPixelFormat(hDC, PixelFormat, &pfd);
-			hRC = wglCreateContext(hDC);
-			wglMakeCurrent(hDC, hRC);
+			initRC(hDC);
+			int ctxAttrb[] =
+			{
+				/*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+				WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
+				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+				WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
+				0
+			};
+			auto wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+			hRC = wglCreateContextAttribsARB(hDC, baseRC, ctxAttrb);
+			makeCurrent(hDC, hRC);
+			initExtension();
 		}
 		~OGLView() { this->!OGLView(); };
 		!OGLView()
 		{
-			wglMakeCurrent(NULL, NULL);
+			makeCurrent(nullptr, nullptr);
 			wglDeleteContext(hRC);
 			DeleteDC(hDC);
 		}
 	protected:
 		void OnResize(EventArgs^ e) override
 		{
+			makeCurrent(hDC, hRC);
 			Control::OnResize(e);
 			glViewport((Width & 0x3f) / 2, (Height & 0x3f) / 2, Width & 0xffc0, Height & 0xffc0);
 			Resize((Object^)this, gcnew ResizeEventArgs(Width, Height));
@@ -90,7 +122,7 @@ using std::wstring;
 		}
 		void OnPaint(PaintEventArgs^ e) override
 		{
-			wglMakeCurrent(hDC, hRC);
+			makeCurrent(hDC, hRC);
 			rfsCount++;
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			Draw();

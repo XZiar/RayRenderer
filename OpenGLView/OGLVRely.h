@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
 #include <GL/GL.h>
+#include <GL/wglext.h>
 #include <string>
 
 #pragma comment (lib, "user32.lib")   /* link Windows user lib       */

@@ -4,6 +4,15 @@
 #include <Windows.h>
 #include <shellapi.h>
 
+#ifndef _DEBUG
+#   define NDEBUG 1
+#endif
+
+#define FREEGLUT_STATIC
+#include <GL/freeglut.h>//Free GLUT Header
+
+#include <GL/wglext.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <tuple>
@@ -18,15 +27,6 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
-#ifndef _DEBUG
-#   define NDEBUG 1
-#endif
-
-#define FREEGLUT_STATIC
-#include <GL/freeglut.h>//Free GLUT Header
-
-typedef const char* (WINAPI * PFNWGLGETEXTENSIONSSTRINGEXTPROC) (void);
-typedef BOOL(WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
 
 
 namespace glutview

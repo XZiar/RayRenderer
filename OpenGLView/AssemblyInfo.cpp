@@ -1,4 +1,3 @@
-
 using namespace System;
 using namespace System::Reflection;
 using namespace System::Runtime::CompilerServices;
@@ -15,7 +14,7 @@ using namespace System::Security::Permissions;
 [assembly:AssemblyConfigurationAttribute(L"")];
 [assembly:AssemblyCompanyAttribute(L"")];
 [assembly:AssemblyProductAttribute(L"OpenGLView")];
-[assembly:AssemblyCopyrightAttribute(L"Copyright (c)  2017")];
+[assembly:AssemblyCopyrightAttribute(L"Copyright (c) XZiar 2017")];
 [assembly:AssemblyTrademarkAttribute(L"")];
 [assembly:AssemblyCultureAttribute(L"")];
 
