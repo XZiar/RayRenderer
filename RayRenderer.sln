@@ -28,6 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 		License\boost.txt = License\boost.txt
 		License\freeglut.txt = License\freeglut.txt
 		License\glew.txt = License\glew.txt
+		License\stb.txt = License\stb.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
