@@ -19,8 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{2C2FBE4D-B211-473E-9A93-3393C5E3BC4F}</ProjectGuid>
-    <RootNamespace>RenderCore</RootNamespace>
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}</ProjectGuid>
+    <RootNamespace>miniLogger</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -68,33 +69,15 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <EnableCppCoreCheck>true</EnableCppCoreCheck>
-    <EnableExperimentalCppCoreCheck>false</EnableExperimentalCppCoreCheck>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <EnableCppCoreCheck>true</EnableCppCoreCheck>
-    <EnableExperimentalCppCoreCheck>false</EnableExperimentalCppCoreCheck>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <EnableCppCoreCheck>true</EnableCppCoreCheck>
-    <EnableExperimentalCppCoreCheck>false</EnableExperimentalCppCoreCheck>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <EnableCppCoreCheck>true</EnableCppCoreCheck>
-    <EnableExperimentalCppCoreCheck>false</EnableExperimentalCppCoreCheck>
-  </PropertyGroup>
+  <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>RAYCORE_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -103,13 +86,10 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>RAYCORE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
-      <CallingConvention>Cdecl</CallingConvention>
-      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -120,13 +100,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>RAYCORE_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -141,14 +117,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>RAYCORE_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <CallingConvention>Cdecl</CallingConvention>
-      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -157,49 +129,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\stblib\stblib.vcxproj">
-      <Project>{67325dfe-3cba-49ad-b9d8-e04cbca6c7f8}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
-      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\FontHelper\FontHelper.vcxproj">
-      <Project>{3a51a60c-cc0c-43e9-9a48-fb251edc1135}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\OpenCLUtil\OpenCLUtil.vcxproj">
-      <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
-      <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
-    </ProjectReference>
+    <ClInclude Include="InnerLogger.inl" />
+    <ClInclude Include="miniLogger.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="2d.frag" />
-    <None Include="2d.vert" />
-    <None Include="3d.frag" />
-    <None Include="3d.vert" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Basic3DObject.h" />
-    <ClInclude Include="BasicTest.h" />
-    <ClInclude Include="Model.h" />
-    <ClInclude Include="RenderCore.h" />
-    <ClInclude Include="RenderCoreInternal.h" />
-    <ClInclude Include="RenderCoreRely.h" />
-    <ClInclude Include="RenderElement.h" />
-    <ClInclude Include="resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Resource.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Basic3DObject.cpp" />
-    <ClCompile Include="BasicTest.cpp" />
-    <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="Model.cpp" />
-    <ClCompile Include="RenderCore.cpp" />
-    <ClCompile Include="RenderCoreInternal.cpp" />
-    <ClCompile Include="RenderElement.cpp" />
+    <ClCompile Include="miniLogger.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,5 +1,6 @@
 #include "resource.h"
 #include "BasicTest.h"
+#include "RenderCoreInternal.h"
 #include "../common/ResourceHelper.h"
 #include "../OpenCLUtil/oclUtil.h"
 #include "../FontHelper/FontHelper.h"
@@ -22,8 +23,10 @@ struct Init
 {
 	Init()
 	{
+		basLog().info(L"BasicTest Static Init {}\n", L"Here");
 		oglUtil::init();
 		oclu::oclUtil::init();
+		basLog().success(L"BasicTest Static Init {}\n", L"Sucess");
 	}
 };
 
@@ -240,6 +243,7 @@ static oclu::oclContext clContext;
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	basLog().info(L"Construct BasicTest with 2dShader[{}] AND 3dshader[{}]\n", sname2d, sname3d);
 	{
 		const auto pltfs = oclu::oclUtil::getPlatforms();
 		for (const auto plt : pltfs)

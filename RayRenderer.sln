@@ -26,27 +26,13 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A1798-4D87-4EF2-9CA4-4823AF845810}"
 	ProjectSection(SolutionItems) = preProject
 		License\boost.txt = License\boost.txt
+		License\fmt.rst = License\fmt.rst
 		License\freeglut.txt = License\freeglut.txt
 		License\glew.txt = License\glew.txt
 		License\stb.txt = License\stb.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
-	ProjectSection(SolutionItems) = preProject
-		common\BasicUtil.h = common\BasicUtil.h
-		common\BasicUtil.hpp = common\BasicUtil.hpp
-		common\CommonBase.hpp = common\CommonBase.hpp
-		common\CommonBase.natvis = common\CommonBase.natvis
-		common\CommonMacro.h = common\CommonMacro.h
-		common\DelayLoader.h = common\DelayLoader.h
-		common\DelayLoader.inl = common\DelayLoader.inl
-		common\FileMapper.h = common\FileMapper.h
-		common\FileMapper.inl = common\FileMapper.inl
-		common\PromiseTask.h = common\PromiseTask.h
-		common\PromiseTask.hpp = common\PromiseTask.hpp
-		common\ResourceHelper.h = common\ResourceHelper.h
-		common\ResourceHelper.inl = common\ResourceHelper.inl
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3DBasic", "3DBasic", "{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}"
 	ProjectSection(SolutionItems) = preProject
@@ -96,6 +82,31 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLUtil", "OpenCLUtil\OpenCLUtil.vcxproj", "{45231916-6D39-4FD5-A232-40DAAFEA819B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FontHelper", "FontHelper\FontHelper.vcxproj", "{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniLogger", "common\miniLogger\miniLogger.vcxproj", "{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90E510-49EC-458D-99FC-C11DF3C6710C}"
+	ProjectSection(SolutionItems) = preProject
+		common\BasicUtil.h = common\BasicUtil.h
+		common\BasicUtil.hpp = common\BasicUtil.hpp
+		common\CommonBase.hpp = common\CommonBase.hpp
+		common\CommonBase.natvis = common\CommonBase.natvis
+		common\CommonMacro.h = common\CommonMacro.h
+		common\DelayLoader.h = common\DelayLoader.h
+		common\DelayLoader.inl = common\DelayLoader.inl
+		common\FileMapper.h = common\FileMapper.h
+		common\FileMapper.inl = common\FileMapper.inl
+		common\PromiseTask.h = common\PromiseTask.h
+		common\PromiseTask.hpp = common\PromiseTask.hpp
+		common\ResourceHelper.h = common\ResourceHelper.h
+		common\ResourceHelper.inl = common\ResourceHelper.inl
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{4506C210-FD25-45E5-B326-834E2B92B15B}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\fmt\format.cc = 3rdParty\fmt\format.cc
+		3rdParty\fmt\format.h = 3rdParty\fmt\format.h
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -211,6 +222,16 @@ Global
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}.Release|x64.Build.0 = Release|x64
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}.Release|x86.ActiveCfg = Release|Win32
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}.Release|x86.Build.0 = Release|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Debug|x64.ActiveCfg = Debug|x64
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Debug|x64.Build.0 = Debug|x64
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Debug|x86.ActiveCfg = Debug|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Debug|x86.Build.0 = Debug|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Release|Any CPU.ActiveCfg = Release|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Release|x64.ActiveCfg = Release|x64
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Release|x64.Build.0 = Release|x64
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Release|x86.ActiveCfg = Release|Win32
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -232,5 +253,8 @@ Global
 		{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{45231916-6D39-4FD5-A232-40DAAFEA819B} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
+		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
+		{2D90E510-49EC-458D-99FC-C11DF3C6710C} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
+		{4506C210-FD25-45E5-B326-834E2B92B15B} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal
