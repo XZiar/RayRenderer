@@ -2,9 +2,6 @@
 #include "oglRely.h"
 #include "oglComponent.h"
 #include "oglProgram.h"
-#include "../common/PromiseTask.h"
-#include <functional>
-#include <boost/circular_buffer.hpp>
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
 

@@ -1,3 +1,4 @@
+#include "RenderCoreRely.h"
 #include "Model.h"
 #include "RenderCoreInternal.h"
 #include "../3rdParty/stblib/stblib.h"

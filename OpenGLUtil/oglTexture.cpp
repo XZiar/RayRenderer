@@ -1,3 +1,4 @@
+#include "oglRely.h"
 #include "oglTexture.h"
 #include "BindingManager.h"
 

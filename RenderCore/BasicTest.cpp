@@ -1,3 +1,4 @@
+#include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
 #include "RenderCoreInternal.h"

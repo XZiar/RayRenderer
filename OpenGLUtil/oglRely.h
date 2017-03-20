@@ -12,6 +12,7 @@
 #include "../3dBasic/3dElement.hpp"
 #include "../common/CommonBase.hpp"
 #include "../common/BasicUtil.h"
+#include "../common/PromiseTask.h"
 
 #include <GL/glew.h>
 
@@ -25,6 +26,8 @@
 #include <vector>
 #include <map>
 #include <tuple>
+
+#include <boost/circular_buffer.hpp>
 
 namespace oclu::inner
 {

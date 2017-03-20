@@ -11,9 +11,17 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <tuple>
 #include <map>
+#include <filesystem>
 #include "../3DBasic/3dElement.hpp"
 #include "../OpenGLUtil/oglUtil.h"
+
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/composite_key.hpp>
+
 
 namespace rayr
 {

@@ -1,3 +1,4 @@
+#include "oglRely.h"
 #include "oglUtil.h"
 #include "MTWorker.hpp"
 #include "oglInternal.h"

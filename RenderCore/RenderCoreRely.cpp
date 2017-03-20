@@ -1,3 +1,4 @@
+#include "RenderCoreRely.h"
 #include "RenderCoreInternal.h"
 
 namespace rayr

@@ -1,3 +1,4 @@
+#include "RenderCoreRely.h"
 #include "Basic3DObject.h"
 
 namespace rayr

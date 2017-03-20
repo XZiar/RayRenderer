@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderElement.h"
-#include <filesystem>
 
 namespace rayr
 {
