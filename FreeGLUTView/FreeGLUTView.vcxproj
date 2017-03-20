@@ -136,6 +136,11 @@
   <ItemGroup>
     <ClCompile Include="FreeGLUTView.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

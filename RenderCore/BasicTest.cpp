@@ -34,7 +34,7 @@ struct Init
 void BasicTest::init2d(const wstring pname)
 {
 	prog2D.reset();
-	if(pname == L"")
+	if(pname.empty())
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_2DVERT));
 		auto ret = vert->compile();
@@ -42,8 +42,8 @@ void BasicTest::init2d(const wstring pname)
 			prog2D->addShader(std::move(vert));
 		else
 		{
-			printf("ERROR on Vertex Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", ret.msg);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_2DFRAG));
 		ret = frag->compile();
@@ -51,8 +51,8 @@ void BasicTest::init2d(const wstring pname)
 			prog2D->addShader(std::move(frag));
 		else
 		{
-			printf("ERROR on Fragment Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", ret.msg);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 	}
 	else
@@ -60,16 +60,16 @@ void BasicTest::init2d(const wstring pname)
 		auto ret = oglUtil::loadShader(prog2D, pname);
 		if (!ret)
 		{
-			printf("%ls\n%ls\n", ret.msg.c_str(), ret.data.c_str());
-			getchar();
+			basLog().error(L"{}:\n{}", ret.msg, ret.data);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 	}
 	{
 		auto ret = prog2D->link();
 		if (!ret)
 		{
-			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"Fail to link Program:\n%ls\n", ret.msg);
+			throw std::runtime_error("OpenGL link fail");
 		}
 		prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
 	}
@@ -95,8 +95,8 @@ void BasicTest::init3d(const wstring pname)
 			prog3D->addShader(std::move(vert));
 		else
 		{
-			printf("ERROR on Vertex Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", ret.msg);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_3DFRAG));
 		ret = frag->compile();
@@ -104,8 +104,8 @@ void BasicTest::init3d(const wstring pname)
 			prog3D->addShader(std::move(frag));
 		else
 		{
-			printf("ERROR on Fragment Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", ret.msg);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 	}
 	else
@@ -113,16 +113,17 @@ void BasicTest::init3d(const wstring pname)
 		auto ret = oglUtil::loadShader(prog3D, pname);
 		if (!ret)
 		{
-			printf("%ls\n%ls\n", ret.msg.c_str(), ret.data.c_str());
-			getchar();
+			basLog().error(L"{}:\n{}\n", ret.msg, ret.data);
+			throw std::runtime_error("OpenGL compile fail");
 		}
 	}
 	{
 		auto ret = prog3D->link();
 		if (!ret)
 		{
-			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
-			getchar();
+			basLog().error(L"{}:\n{}\n", ret.msg, ret.data);
+			basLog().error(L"Fail to link Program:\n%ls\n", ret.msg);
+			throw std::runtime_error("OpenGL link fail");
 		}
 	}
 	prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
@@ -172,11 +173,6 @@ void BasicTest::init3d(const wstring pname)
 		ground->name = L"Ground";
 		ground->position = { 0,-2,0 };
 		drawables.push_back(ground);
-		/*Wrapper<Model, false> mod1(L"F:\\Project\\RayTrace\\DOD3model\\0\\0.obj");
-		mod1->name = L"DOD3-0";
-		mod1->position = { -1,1,0 };
-		mod1->rotation = { 270,0,0 };
-		drawables.push_back(mod1);*/
 		for (auto& d : drawables)
 		{
 			d->prepareGL(prog3D);
@@ -243,19 +239,19 @@ static oclu::oclContext clContext;
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
-	basLog().info(L"Construct BasicTest with 2dShader[{}] AND 3dshader[{}]\n", sname2d, sname3d);
 	{
 		const auto pltfs = oclu::oclUtil::getPlatforms();
 		for (const auto plt : pltfs)
 		{
-			printf("\nPlatform %s --- %s -- %c\n", plt->name.c_str(), plt->ver.c_str(), plt->isCurrentGL ? 'Y' : 'N');
+			auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL ? 'Y' : 'N');
 			for (const auto dev : plt->getDevices())
-				printf("--Device %s: %s -- %s -- %s\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
-					dev->name.c_str(), dev->vendor.c_str(), dev->version.c_str());
+				txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
+					dev->name, dev->vendor, dev->version);
+			basLog().verbose(txt);
 			if (plt->isCurrentGL)
 			{
 				clContext = plt->createContext();
-				printf("@@Created Context Here!\n");
+				basLog().success(L"Created Context Here!\n");
 			}
 		}
 	}
@@ -341,7 +337,7 @@ uint16_t BasicTest::objectCount() const
 void BasicTest::showObject(uint16_t objIdx) const
 {
 	const auto& d = drawables[objIdx];
-	printf("@@Drawable %d:\t %ls  [%ls]\n", objIdx, d->name.c_str(), DrawableHelper::getType(*d).c_str());
+	basLog().info(L"Drawable {}:\t {}  [{}]\n", objIdx, d->name, DrawableHelper::getType(*d));
 }
 
 }

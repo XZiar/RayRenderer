@@ -1,5 +1,6 @@
 #include "oglUtil.h"
 #include "MTWorker.hpp"
+#include "oglInternal.h"
 #include "../common/PromiseTask.hpp"
 #include <GL/wglew.h>
 
@@ -19,13 +20,17 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 	{
 		auto theMsg = std::make_shared<DebugMessage>(msg);
 		theMsg->msg.assign(message, message + length);
-		if (theMsg->type == MsgType::Error)
-			errlist.push_back(theMsg);
+		
 		msglist.push_back(theMsg);
-	#if defined(_DEBUG) || 1
-		//if (msg.from == MsgSrc::OpenGL)
-			printf("@@OpenGL API Message:\n%ls\n", theMsg->msg.c_str());
-	#endif
+		if (theMsg->type == MsgType::Error)
+		{
+			errlist.push_back(theMsg);
+			oglLog().error(L"OpenGL ERROR\n{}\n", theMsg->msg);
+		}
+		else
+		{
+			oglLog().debug(L"OpenGL message\n{}\n", theMsg->msg);
+		}
 	}
 }
 
@@ -43,8 +48,8 @@ void oglUtil::init()
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #if defined(_DEBUG) || 1
 	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
-	printf("GL Version:%s\n", getVersion().c_str());
 #endif
+	oglLog().info(L"GL Version:{}\n", getVersion());
 	auto hdc = wglGetCurrentDC();
 	auto hrc = wglGetCurrentContext();
 	int ctxAttrb[] =
@@ -68,9 +73,11 @@ void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
 	glDebugMessageCallback(oglUtil::onMsg, &limit);
 }
 
-string oglUtil::getVersion()
+wstring oglUtil::getVersion()
 {
-	return string((const char*)glGetString(GL_VERSION));
+	const auto str = (const char*)glGetString(GL_VERSION);
+	const auto len = strlen(str);
+	return wstring(str, str + len);
 }
 
 OPResult<GLenum> oglUtil::getError()
@@ -89,7 +96,7 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 		wstring fn = fname + L".vert";
 		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if (fp == nullptr)
-			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", fn);
+			return OPResult<wstring>(false, L"Fail to open Vertex Shader file", fn);
 		oglShader vert(ShaderType::Vertex, fp);
 		auto ret = vert->compile();
 		if (ret)
@@ -97,7 +104,7 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 		else
 		{
 			fclose(fp);
-			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", ret.msg);
+			return OPResult<wstring>(false, L"Fail to compile Vertex Shader", ret.msg);
 		}
 		fclose(fp);
 	}
@@ -106,7 +113,7 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 		wstring fn = fname + L".frag";
 		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if (fp == nullptr)
-			return OPResult<wstring>(false, L"ERROR on Vertex Shader Compiler", fn);
+			return OPResult<wstring>(false, L"Fail to open Fragment Shader file", fn);
 		oglShader frag(ShaderType::Fragment, fp);
 		auto ret = frag->compile();
 		if (ret)
@@ -114,7 +121,7 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 		else
 		{
 			fclose(fp);
-			return OPResult<wstring>(false, L"ERROR on Fragment Shader Compiler", ret.msg);
+			return OPResult<wstring>(false, L"Fail to open Fragment Shader file", ret.msg);
 		}
 		fclose(fp);
 	}

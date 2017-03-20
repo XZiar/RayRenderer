@@ -1,4 +1,5 @@
 #include "RenderElement.h"
+#include "RenderCoreInternal.h"
 
 namespace rayr
 {
@@ -12,9 +13,7 @@ DrawableHelper::DrawableHelper(const wstring& name)
 {
 	typeMap.push_back(name);
 	id = static_cast<uint32_t>(typeMap.size() - 1);
-#ifdef _DEBUG
-	printf("@@@@regist Drawable [%ls] -> %2d\n", name.c_str(), id);
-#endif
+	basLog().debug(L"Regist Drawable [{}] -> {}\n", name, id);
 }
 
 void DrawableHelper::InitDrawable(Drawable *d) const

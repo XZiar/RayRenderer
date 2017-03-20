@@ -29,7 +29,7 @@ void _FreeGLUTView::display()
 		funDisp(this);
 	glutSwapBuffers();
 	//timer.Stop();
-	//printf("@@Display cost %lld us\n", timer.ElapseUs());
+	//fgvLog().debug(L"Display cost {} us\n", timer.ElapseUs());
 }
 
 void _FreeGLUTView::reshape(const int w, const int h)
@@ -222,11 +222,11 @@ void _FreeGLUTView::refresh()
 
 void _FreeGLUTView::invoke(std::function<bool(void)> task)
 {
-	//SimpleTimer timer;
+	SimpleTimer timer;
 	auto fut = GLUTHacker::putInvoke(this, task);
 	fut.get();
-	//timer.Stop();
-	//printf("@@Invoke cost %lld us\n", timer.ElapseUs());
+	timer.Stop();
+	fgvLog().debug(L"Invoke cost {} us\n", timer.ElapseUs());
 	return;
 }
 
@@ -250,10 +250,7 @@ void FreeGLUTViewInit()
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL);
 	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
 	const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
-	printf("screen W/H:%d,%d\n", screenWidth, screenHeight);
-	std::atomic_bool atmB;
-	std::atomic_int32_t atmI32;
-	printf("Is LOCK-FREE?\tBool:%c\tInt32:%c\n", atmB.is_lock_free() ? 'Y' : 'N', atmI32.is_lock_free() ? 'Y' : 'N');
+	fgvLog().info(L"screen W/H [{},{}]\n", screenWidth, screenHeight);
 	GLUTHacker::init();
 }
 

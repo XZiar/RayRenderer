@@ -21,6 +21,7 @@
 #include <mutex>
 #include <future>
 #include "../common/BasicUtil.hpp"
+#include "../common/miniLogger/miniLogger.h"
 #include "FreeGLUTView.h"
 
 #include <boost/multi_index_container.hpp>
@@ -31,6 +32,15 @@
 
 namespace glutview
 {
+
+
+using namespace common::mlog;
+common::mlog::logger& fgvLog()
+{
+	static logger fgvlog(L"FGView", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
+	return fgvlog;
+}
+
 
 class GLUTHacker final
 {
@@ -84,7 +94,7 @@ private:
 		if (!rckey.empty())
 		{//share gl context
 			wglShareLists((*rckey.begin()).hrc, hrc);
-			printf("@@Share GL_RC %p from %p\n", hrc, (*rckey.begin()).hrc);
+			fgvLog().info(L"Share GL_RC {} from {}\n", (void*)hrc, (void*)(*rckey.begin()).hrc);
 		}
 		getMap().insert({ view,hwnd,hrc });
 		//regist glutCallbacks
@@ -233,8 +243,13 @@ public:
 	}
 };
 
+
+
+
 WNDPROC GLUTHacker::oldWndProc;
 std::atomic_bool GLUTHacker::shouldInvoke{ false };
 std::atomic_bool GLUTHacker::readyInvoke{ false };
 std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> GLUTHacker::invokeData;
+
+
 }

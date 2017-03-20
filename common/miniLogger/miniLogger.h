@@ -25,7 +25,7 @@ namespace common::mlog
 {
 
 
-enum class LogLevel : uint8_t { Debug, Verbose, Info, Sucess, Error, None };
+enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Sucess = 80, Error = 100, None = 120 };
 enum class LogOutput : uint8_t { Console = 0x1, File = 0x2, Callback = 0x4, Buffer = 0x8 };
 
 /*
@@ -38,13 +38,13 @@ class MINILOGAPI logger : public NonCopyable
 {
 public:
 	/*-return whether should continue logging*/
-	using LogCallBack = std::function<bool(LogLevel lv, std::wstring content)>;
+	using LogCallBack = std::function<bool __cdecl(LogLevel lv, std::wstring content)>;
 private:
 	std::atomic_flag flagConsole = ATOMIC_FLAG_INIT, flagFile = ATOMIC_FLAG_INIT, flagCallback = ATOMIC_FLAG_INIT, flagBuffer = ATOMIC_FLAG_INIT;
 	std::atomic_uint_least8_t leastLV;
 	std::atomic_uint_least8_t outputs;
 	bool ownFile = false;
-	const std::wstring name;
+	const std::wstring name, prefix;
 	FILE *fp;
 	std::vector<std::pair<LogLevel, std::wstring>> buffer;
 	LogCallBack onLog;
@@ -59,38 +59,38 @@ public:
 	~logger();
 	void setLeastLevel(const LogLevel lv);
 	void setOutput(const LogOutput method, const bool isEnable);
-	std::vector<std::pair<LogLevel, std::wstring>> getLogBuffer();
+	std::vector<std::pair<LogLevel, std::wstring>> __cdecl getLogBuffer();
 	template<class... ARGS>
-	void error(fmt::WCStringRef formater, const ARGS&... args)
+	void error(std::wstring formater, const ARGS&... args)
 	{
 		log(LogLevel::Error, formater, args...);
 	}
 	template<class... ARGS>
-	void success(fmt::WCStringRef formater, const ARGS&... args)
+	void success(std::wstring formater, const ARGS&... args)
 	{
 		log(LogLevel::Sucess, formater, args...);
 	}
 	template<class... ARGS>
-	void verbose(fmt::WCStringRef formater, const ARGS&... args)
+	void verbose(std::wstring formater, const ARGS&... args)
 	{
 		log(LogLevel::Verbose, formater, args...);
 	}
 	template<class... ARGS>
-	void info(fmt::WCStringRef formater, const ARGS&... args)
+	void info(std::wstring formater, const ARGS&... args)
 	{
 		log(LogLevel::Info, formater, args...);
 	}
 	template<class... ARGS>
-	void debug(fmt::WCStringRef formater, const ARGS&... args)
+	void debug(std::wstring formater, const ARGS&... args)
 	{
 		log(LogLevel::Debug, formater, args...);
 	}
 	template<class... ARGS>
-	void log(const LogLevel lv, fmt::WCStringRef formater, const ARGS&... args)
+	void log(const LogLevel lv, std::wstring formater, const ARGS&... args)
 	{
 		if (!checkLevel(lv))
 			return;
-		const std::wstring logstr = fmt::format(formater, args...);
+		const std::wstring logstr = prefix + fmt::format(formater, args...);
 		if (!onCallBack(lv, logstr))
 			return;
 		printBuffer(lv, logstr);

@@ -2,6 +2,7 @@
 
 #include "oglRely.h"
 #include "oglUtil.h"
+#include "oglInternal.h"
 #include <GL/wglew.h>
 #include <memory>
 #include <atomic>
@@ -32,9 +33,8 @@ private:
 		SimpleTimer timer;
 		const wstring prefix = L"Worker " + name;
 		std::unique_lock<std::mutex> lck(mtx);
-		printf("%ls use HDC[%p] HRC[%p]\n", prefix.c_str(), hdc, hrc);
 		wglMakeCurrent(hdc, hrc);
-		printf("%ls GL Version:%s\n", prefix.c_str(), oglUtil::getVersion().c_str());
+		oglLog().info(L"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, (void*)hdc, (void*)hrc, oglUtil::getVersion());
 		oglUtil::setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 		auto err = oglUtil::getError();
 		while (shouldRun.test_and_set())
@@ -47,7 +47,7 @@ private:
 				glFinish();
 				task = nullptr;
 				timer.Stop();
-				printf("@@%ls cost %lld us\n", prefix.c_str(), timer.ElapseUs());
+				oglLog().debug(L"{} cost {} us\n", prefix, timer.ElapseUs());
 				pms.set_value();
 			}
 		}
@@ -79,7 +79,7 @@ public:
 		cv.notify_all();
 		mtx.unlock();
 		callerTimer.Stop();
-		printf("@@call worker %ls cost %lld us\n", name.c_str(), callerTimer.ElapseUs());
+		oglLog().debug(L"CALL {} cost {} us\n", name, callerTimer.ElapseUs());
 		return fut;
 	}
 };

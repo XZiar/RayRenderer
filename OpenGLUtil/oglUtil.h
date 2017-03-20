@@ -82,7 +82,7 @@ private:
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
-	static string __cdecl getVersion();
+	static wstring __cdecl getVersion();
 	static OPResult<GLenum> __cdecl getError();
 	//load Vertex and Fragment Shader(with suffix of (.vert) and (.frag)
 	static OPResult<wstring> __cdecl loadShader(oglProgram& prog, const wstring& fname);

@@ -1,4 +1,5 @@
 #include "oglRely.h"
+#include "oglInternal.h"
 #include "../common/BasicUtil.hpp"
 
 #pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
@@ -11,3 +12,16 @@
 #    pragma comment(lib, "glew32d.lib")
 #endif
 
+
+namespace oglu
+{
+
+using namespace common::mlog;
+logger& oglLog()
+{
+	static logger ogllog(L"OpenGLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
+	return ogllog;
+}
+
+
+}

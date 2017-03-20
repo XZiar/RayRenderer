@@ -7,14 +7,14 @@ namespace common::mlog
 
 
 logger::logger(const std::wstring loggername, const std::wstring logfile, LogCallBack cb, const LogOutput lo, const LogLevel lv)
-	: name(loggername), leastLV((uint8_t)lv), outputs((uint8_t)lo), onLog(cb)
+	: name(loggername), prefix(fmt::format(L"[{}]", loggername)), leastLV((uint8_t)lv), outputs((uint8_t)lo), onLog(cb)
 {
 	const auto ret = _wfopen_s(&fp, logfile.c_str(), L"wt");
 	ownFile = (ret == 0);
 }
 
 logger::logger(const std::wstring loggername, FILE * const logfile, LogCallBack cb, const LogOutput lo, const LogLevel lv) 
-	: name(loggername), leastLV((uint8_t)lv), outputs((uint8_t)lo), fp(logfile), ownFile(false), onLog(cb)
+	: name(loggername), prefix(fmt::format(L"[{}]", loggername)), leastLV((uint8_t)lv), outputs((uint8_t)lo), fp(logfile), ownFile(false), onLog(cb)
 {
 }
 

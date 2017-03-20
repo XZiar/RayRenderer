@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="MTWorker.hpp" />
     <ClInclude Include="oglBuffer.h" />
+    <ClInclude Include="oglInternal.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglComponent.h" />
@@ -38,6 +39,11 @@
     <ClCompile Include="oglUtil.cpp" />
     <ClCompile Include="BindingManager.cpp" />
     <ClCompile Include="oglVAO.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CC937530-6B2A-4538-B764-71DFE8D84C89}</ProjectGuid>

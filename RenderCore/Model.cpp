@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "RenderCoreInternal.h"
 #include "../3rdParty/stblib/stblib.h"
 #include <unordered_map>
 #include <set>
@@ -56,9 +57,7 @@ ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 		picPath = curPath / fname;
 		if (!fs::exists(picPath))
 		{
-		#ifdef _DEBUG
-			printf("@@cannot find file, load image error.\n");
-		#endif
+			basLog().error(L"Fail to open image file\t[{}]\n", fname);
 			return ModelImage();
 		}
 	}
@@ -71,9 +70,7 @@ ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 	}
 	catch (const std::ios_base::failure& e)
 	{
-	#ifdef _DEBUG
-		printf("@@invalid image file, load image error.\n");
-	#endif
+		basLog().error(L"Fail to decode image file\t[{}]\n", picPath.wstring());
 		return img;
 	}
 }
@@ -366,16 +363,12 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 		//ENDOF setting mtl-position AND preparing opSequence
 	}
 	texposs.clear();
-#ifdef _DEBUG
-	printf("@@build merged Diffuse texture(%d*%d)\n", maxx, maxy);
-#endif
+	basLog().verbose(L"Build merged Diffuse texture({}*{})\n", maxx, maxy);
 	ModelImage diffuse(maxx, maxy);
 	for (const auto& op : opDiffuse)
 		diffuse->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
 	opDiffuse.clear();
-#ifdef _DEBUG
-	printf("@@build merged Normal texture(%d*%d)\n", maxx, maxy);
-#endif
+	basLog().verbose(L"Build merged Normal texture({}*{})\n", maxx, maxy);
 	ModelImage normal(maxx, maxy);
 	for (const auto& op : opNormal)
 		normal->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
@@ -397,7 +390,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
-	printf("@@opened mtl file %ls\n", mtlpath.c_str());
+	basLog().verbose(L"Parsing mtl file [{}]\n", mtlpath.wstring());
 	map<string, MtlStub> mtlmap;
 	vector<TexMergeItem> texposs;
 	MtlStub *curmtl = nullptr;
@@ -409,9 +402,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-		#ifdef _DEBUG
-			printf("@@mtl-note\t%s\n", ldr.param[0]);
-		#endif
+			basLog().verbose(L"--mtl-note [{}]\n", ldr.param[0]);
 			break;
 		case "#merge"_hash:
 			{
@@ -420,9 +411,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 					break;
 				int32_t pos[2];
 				ldr.parseInt(1, pos);
-			#ifdef _DEBUG
-				printf("@@mergeMTL\t%s\t%d,%d\n", ldr.param[0], pos[0], pos[1]);
-			#endif
+				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", ldr.param[0], pos[0], pos[1]);
 				texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
 			}
 			break;
@@ -468,7 +457,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 #if !defined(_DEBUG) && 0
 	{
 		auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Normal.png");
-		printf("saving normal texture to %ls\n", outname.c_str());
+		basLog().info(L"Saving Normal texture to [{}]...\n", outname.wstring());
 		::stb::saveImage(outname, normal->image, normal->width, normal->height);
 	}
 	//::stb::saveImage(L"ONormal.png", normal->image, maxx, maxy);
@@ -477,9 +466,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 }
 catch (const std::ios_base::failure& e)
 {
-#ifdef _DEBUG
-	printf("@@cannot open mtl file:%ls\n", mtlpath.c_str());
-#endif
+	basLog().error(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
 	return map<string, MtlStub>();
 }
 
@@ -509,9 +496,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-		#ifdef _DEBUG
-			printf("@@obj-note\t%s\n", ldr.param[0]);
-		#endif
+			basLog().verbose(L"--obj-note [{}]\n", ldr.param[0]);
 			break;
 		case "v"_hash://vertex
 			{
@@ -538,7 +523,6 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 				{
 					ldr.parseInt(a, tmpi);//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
-					//printf("===%zd===\n", hasher(stub));
 					const auto it = idxmap.find(stub);
 					if (it != idxmap.end())
 						tmpidx[a] = it->second;
@@ -586,19 +570,16 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 			break;
 		}
 	}//END of WHILE
-	//printf("%zd,%zd,%f,%f\n", idxmap.bucket_count(), idxmap.max_bucket_count(), idxmap.load_factor(), idxmap.max_load_factor());
 	size = maxv - minv;
-	printf("@@read %zd vertex, %zd normal, %zd texcoord\n", points.size(), normals.size(), texcs.size());
-	printf("@@obj: %zd points, %zd indexs, %zd triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-	printf("@@obj size: %f,%f,%f\n", size.x, size.y, size.z);
+	basLog().success(L"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
+	basLog().success(L"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
+	basLog().info(L"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
 	
 	return true;
 }
 catch (const std::ios_base::failure& e)
 {
-#ifdef _DEBUG
-	printf("@@cannot open obj file:%ls\n", objpath.c_str());
-#endif
+	basLog().error(L"Fail to open obj file\t[{}]\n", objpath.wstring());
 	return false;
 }
 

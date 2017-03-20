@@ -1,6 +1,7 @@
 #include "oglProgram.h"
 #include "oglUtil.h"
 #include "BindingManager.h"
+#include "oglInternal.h"
 
 namespace oglu::inner
 {
@@ -290,6 +291,7 @@ void _oglProgram::initLocs()
 			}
 		}
 	}
+	oglLog().debug(L"Active {} locations", dataMap.size());
 	GLuint maxUniLoc = 0;
 	for (const auto& di : dataMap)
 	{
@@ -304,10 +306,7 @@ void _oglProgram::initLocs()
 			else if (info.isTexture())
 				texMap.insert(di);
 		}
-	#ifdef _DEBUG
-		printf("@@@@%7s%2d:  [%2d][%3dele]\t%s\n", info.getTypeName(), info.ifidx, info.location,
-			info.len, di.first.c_str());
-	#endif
+		oglLog().debug(L"--{:7}{:2}\t{:2}{:3}ele\t{}\n", info.getTypeName(), info.ifidx, info.location, info.len, di.first);
 	}
 	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
