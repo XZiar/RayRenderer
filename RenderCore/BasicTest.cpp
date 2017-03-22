@@ -3,7 +3,6 @@
 #include "BasicTest.h"
 #include "RenderCoreInternal.h"
 #include "../common/ResourceHelper.h"
-#include "../OpenCLUtil/oclUtil.h"
 #include "../FontHelper/FontHelper.h"
 #include <thread>
 
@@ -236,7 +235,6 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 	return mod;
 }
 
-static oclu::oclContext clContext;
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;

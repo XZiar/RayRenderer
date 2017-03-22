@@ -24,8 +24,10 @@ private:
 	std::atomic_flag shouldRun;
 	std::mutex mtx;
 	std::condition_variable cv;
+	std::atomic_bool isFence;
 	std::function<void(void)> task = nullptr;
 	std::promise<void> pms;
+	std::promise<GLsync> syncpms;
 	const wstring name;
 	SimpleTimer callerTimer;
 	void worker()
@@ -44,11 +46,19 @@ private:
 			{
 				timer.Start();
 				task();
-				glFinish();
 				task = nullptr;
+				if (isFence)
+				{
+					const auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, NULL);
+					syncpms.set_value(sync);
+				}
+				else
+				{
+					glFinish();
+					pms.set_value();
+				}
 				timer.Stop();
 				oglLog().debug(L"{} cost {} us\n", prefix, timer.ElapseUs());
-				pms.set_value();
 			}
 		}
 		//exit
@@ -73,6 +83,7 @@ public:
 	{
 		callerTimer.Start();
 		mtx.lock();
+		isFence = false;
 		task = std::move(work);
 		pms = std::promise<void>();
 		auto fut = pms.get_future();
@@ -81,6 +92,20 @@ public:
 		callerTimer.Stop();
 		oglLog().debug(L"CALL {} cost {} us\n", name, callerTimer.ElapseUs());
 		return fut;
+	}
+	GLsync doWork2(std::function<void(void)> work)
+	{
+		callerTimer.Start();
+		mtx.lock();
+		isFence = true;
+		task = std::move(work);
+		syncpms = std::promise<GLsync>();
+		auto fut = syncpms.get_future();
+		cv.notify_all();
+		mtx.unlock();
+		callerTimer.Stop();
+		oglLog().debug(L"CALL {} cost {} us\n", name, callerTimer.ElapseUs());
+		return fut.get();
 	}
 };
 

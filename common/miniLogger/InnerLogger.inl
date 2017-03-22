@@ -31,7 +31,7 @@ private:
 				attrb |= FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;//white
 				break;
 			case LogLevel::Verbose:
-				attrb |= FOREGROUND_BLUE;//blue
+				attrb |= FOREGROUND_RED | FOREGROUND_BLUE;//pink
 				break;
 			case LogLevel::Debug:
 				attrb |= FOREGROUND_GREEN | FOREGROUND_BLUE;//cyan
@@ -44,7 +44,7 @@ public:
 	ConsoleLogger()
 	{
 		hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-		curlevel = (uint8_t)LogLevel::Info;
+		curlevel = (uint8_t)LogLevel::None;
 	}
 	void print(const LogLevel lv, const std::wstring& content)
 	{

@@ -601,7 +601,8 @@ _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
 	loadOBJ(mfnane);
 	if (asyncload)
 	{
-		oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this))->wait();
+		auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this));
+		task->wait();
 	}
 	else
 	{

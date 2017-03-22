@@ -19,6 +19,8 @@ class COMMONTPL PromiseResultSTD : public PromiseResult<T>
 protected:
 	std::future<T> fut;
 public:
+	PromiseResultSTD(std::promise<T>&& pms) : fut(pms.get_future())
+	{ }
 	PromiseResultSTD(std::future<T>&& fut_) : fut(std::move(fut_))
 	{ }
 	T virtual wait() override

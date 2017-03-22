@@ -8,6 +8,33 @@
 namespace oglu
 {
 
+
+namespace detail
+{
+
+class PromiseResultGL : public PromiseResult<void>
+{
+protected:
+	GLsync objSync;
+public:
+	PromiseResultGL(GLsync objSync_) : objSync(objSync_)
+	{ }
+	void virtual wait() override
+	{
+		if (glClientWaitSync(objSync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+		{
+			while (glClientWaitSync(objSync, NULL, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+				;
+		}
+		glDeleteSync(objSync);
+		return;
+	}
+};
+
+
+}
+
+
 boost::circular_buffer<std::shared_ptr<oglu::DebugMessage>> oglUtil::msglist(512);
 boost::circular_buffer<std::shared_ptr<oglu::DebugMessage>> oglUtil::errlist(128);
 
@@ -181,6 +208,7 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 
 std::unique_ptr<PromiseResult<void>> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
 {
+	//PromiseResult<void> *ret = new detail::PromiseResultGL(getWorker(0).doWork2(task));
 	PromiseResult<void> *ret = new PromiseResultSTD<void>(getWorker(0).doWork(task));
 	return std::unique_ptr<PromiseResult<void>>(ret);
 }

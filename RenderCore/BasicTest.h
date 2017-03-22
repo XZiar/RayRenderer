@@ -9,12 +9,14 @@ namespace rayr
 using namespace common;
 using namespace b3d;
 using namespace oglu;
+using namespace oclu;
 using miniBLAS::AlignBase;
 
 
 class RAYCOREAPI alignas(32) BasicTest : public NonMovable, public NonCopyable, public AlignBase<>
 {
 private:
+	oclContext clContext;
 	oglProgram prog2D, prog3D;
 	oglTexture picTex, mskTex, tmpTex;
 	oglBuffer picBuf, screenBox, testTri;
