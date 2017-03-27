@@ -42,6 +42,36 @@ _oclDevice::_oclDevice(const cl_device_id dID)
 }
 
 
+cl_command_queue _oclComQue::createQueue(const cl_context context, const cl_device_id dev)
+{
+	cl_int errcode;
+	const auto que = clCreateCommandQueue(context, dev, NULL, &errcode);
+	if (errcode != CL_SUCCESS)
+		throw std::runtime_error("cannot create command queue");
+	return que;
+}
+
+
+_oclComQue::_oclComQue(const Wrapper<_oclContext>& ctx, const Wrapper<_oclDevice>& dev)
+	: context(ctx), device(dev), comque(createQueue(context->context, dev->deviceID))
+{
+}
+
+
+_oclComQue::~_oclComQue()
+{
+	flush();
+	clReleaseCommandQueue(comque);
+}
+
+
+void _oclComQue::flush() const
+{
+	clFlush(comque);
+	clFinish(comque);
+}
+
+
 void CL_CALLBACK _oclContext::onNotify(const char * errinfo, const void * private_info, size_t cb, void * user_data)
 {
 	const _oclContext& ctx = *(_oclContext*)user_data;
@@ -146,7 +176,6 @@ oclContext _oclPlatform::createContext() const
 	props.push_back(0);
 	return oclContext(new _oclContext(props.data(), devs));
 }
-
 
 
 
