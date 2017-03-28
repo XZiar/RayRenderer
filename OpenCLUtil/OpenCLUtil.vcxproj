@@ -84,6 +84,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CallingConvention>VectorCall</CallingConvention>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -101,6 +103,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CallingConvention>VectorCall</CallingConvention>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -115,6 +119,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CallingConvention>VectorCall</CallingConvention>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -132,6 +138,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CallingConvention>VectorCall</CallingConvention>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -139,15 +147,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="oclComponent.h" />
+    <ClInclude Include="oclDevice.h" />
+    <ClInclude Include="oclComQue.h" />
+    <ClInclude Include="oclContext.h" />
+    <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
     <ClInclude Include="oclRely.h" />
     <ClInclude Include="oclUtil.h" />
+    <ClInclude Include="OpenCLUtil.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="oclComponent.cpp" />
+    <ClCompile Include="oclDevice.cpp" />
+    <ClCompile Include="oclComQue.cpp" />
+    <ClCompile Include="oclContext.cpp" />
+    <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
-    <ClCompile Include="oclRely.cpp" />
+    <ClCompile Include="oclRely.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="oclUtil.cpp" />
   </ItemGroup>
   <ItemGroup>

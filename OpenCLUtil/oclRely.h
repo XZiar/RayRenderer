@@ -39,4 +39,18 @@ using std::function;
 using miniBLAS::AlignBase;
 using miniBLAS::vector;
 using namespace common;
+
+class oclUtil;
+using MessageCallBack = std::function<void(void)>;
+
+namespace inner
+{
+class _oclPlatform;
+class _oclProgram;
+class _oclDevice;
+class _oclComQue;
+class _oclContext;
+}
+
+
 }

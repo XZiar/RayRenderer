@@ -69,11 +69,13 @@ ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 		images.insert_or_assign(fname, image);
 		return image;
 	}
+#pragma warning(disable:4101)
 	catch (const std::ios_base::failure& e)
 	{
 		basLog().error(L"Fail to decode image file\t[{}]\n", picPath.wstring());
 		return img;
 	}
+#pragma warning(default:4101)
 }
 
 ModelImage _ModelImage::getImage(const wstring& pname)
@@ -465,11 +467,13 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 #endif
 	return mtlmap;
 }
+#pragma warning(disable:4101)
 catch (const std::ios_base::failure& e)
 {
 	basLog().error(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
 	return map<string, MtlStub>();
 }
+#pragma warning(default:4101)
 
 
 bool _ModelData::loadOBJ(const Path& objpath) try
@@ -578,11 +582,13 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	
 	return true;
 }
+#pragma warning(disable:4101)
 catch (const std::ios_base::failure& e)
 {
 	basLog().error(L"Fail to open obj file\t[{}]\n", objpath.wstring());
 	return false;
 }
+#pragma warning(default:4101)
 
 void _ModelData::initData()
 {

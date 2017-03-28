@@ -23,10 +23,9 @@ struct Init
 {
 	Init()
 	{
-		basLog().info(L"BasicTest Static Init {}\n", L"Here");
+		basLog().verbose(L"BasicTest Static Init\n");
 		oglUtil::init();
 		oclu::oclUtil::init();
-		basLog().success(L"BasicTest Static Init {}\n", L"Sucess");
 	}
 };
 

@@ -15,8 +15,8 @@
 #include <map>
 #include <filesystem>
 #include "../3DBasic/3dElement.hpp"
-#include "../OpenGLUtil/oglUtil.h"
-#include "../OpenCLUtil/oclUtil.h"
+#include "../OpenGLUtil/OpenGLUtil.h"
+#include "../OpenCLUtil/OpenCLUtil.h"
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>

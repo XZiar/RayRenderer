@@ -29,6 +29,7 @@
     <ClInclude Include="oglUtil.h" />
     <ClInclude Include="BindingManager.h" />
     <ClInclude Include="oglVAO.h" />
+    <ClInclude Include="OpenGLUtil.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglBuffer.cpp" />

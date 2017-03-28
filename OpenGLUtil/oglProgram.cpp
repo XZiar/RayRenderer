@@ -292,7 +292,7 @@ void _oglProgram::initLocs()
 			}
 		}
 	}
-	oglLog().debug(L"Active {} locations", dataMap.size());
+	oglLog().debug(L"Active {} locations\n", dataMap.size());
 	GLuint maxUniLoc = 0;
 	for (const auto& di : dataMap)
 	{
@@ -307,7 +307,7 @@ void _oglProgram::initLocs()
 			else if (info.isTexture())
 				texMap.insert(di);
 		}
-		oglLog().debug(L"--{:7}{:2}\t{:2}{:3}ele\t{}\n", info.getTypeName(), info.ifidx, info.location, info.len, di.first);
+		oglLog().debug(L"--{:>7}{:<3}  -[{:^5}]-  {}[{}]\n", info.getTypeName(), info.ifidx, info.location, di.first, info.len);
 	}
 	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }

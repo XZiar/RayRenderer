@@ -13,5 +13,6 @@
 #include <string>
 #include <map>
 #include "../3DBasic/3dElement.hpp"
-#include "../OpenGLUtil/oglUtil.h"
+#include "../OpenGLUtil/OpenGLUtil.h"
+#include "../OpenCLUtil/OpenCLUtil.h"
 

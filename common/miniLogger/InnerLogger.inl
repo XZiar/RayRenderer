@@ -16,25 +16,41 @@ private:
 	std::atomic_uint_least8_t curlevel;
 	void changeState(const LogLevel lv)
 	{
+		constexpr WORD BLACK = 0;
+		constexpr WORD BLUE = 1;
+		constexpr WORD GREEN = 2;
+		constexpr WORD CYAN = 3;
+		constexpr WORD RED = 4;
+		constexpr WORD MAGENTA = 5;
+		constexpr WORD BROWN = 6;
+		constexpr WORD LIGHTGRAY = 7;
+		constexpr WORD DARKGRAY = 8;
+		constexpr WORD LIGHTBLUE = 9;
+		constexpr WORD LIGHTGREEN = 10;
+		constexpr WORD LIGHTCYAN = 11;
+		constexpr WORD LIGHTRED = 12;
+		constexpr WORD LIGHTMAGENTA = 13;
+		constexpr WORD YELLOW = 14;
+		constexpr WORD WHITE = 15;
 		if (curlevel.exchange((uint8_t)lv) != (uint8_t)lv)
 		{
-			WORD attrb = FOREGROUND_INTENSITY;
+			WORD attrb = BLACK;
 			switch (lv)
 			{
 			case LogLevel::Error:
-				attrb |= FOREGROUND_RED;//red
+				attrb = LIGHTRED;
 				break;
 			case LogLevel::Sucess:
-				attrb |= FOREGROUND_GREEN;//green
+				attrb = LIGHTGREEN;
 				break;
 			case LogLevel::Info:
-				attrb |= FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;//white
+				attrb = WHITE;
 				break;
 			case LogLevel::Verbose:
-				attrb |= FOREGROUND_RED | FOREGROUND_BLUE;//pink
+				attrb = LIGHTMAGENTA;
 				break;
 			case LogLevel::Debug:
-				attrb |= FOREGROUND_GREEN | FOREGROUND_BLUE;//cyan
+				attrb = LIGHTCYAN;
 				break;
 			}
 			SetConsoleTextAttribute(hConsole, attrb);

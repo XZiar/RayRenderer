@@ -24,7 +24,19 @@
     <ClInclude Include="oclProgram.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oclComponent.h">
+    <ClInclude Include="oclContext.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclPlatform.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclComQue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclDevice.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="OpenCLUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -38,7 +50,16 @@
     <ClCompile Include="oclProgram.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="oclComponent.cpp">
+    <ClCompile Include="oclContext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclPlatform.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclComQue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclDevice.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

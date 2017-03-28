@@ -1,7 +1,7 @@
 #pragma once
 
 #include "oclRely.h"
-#include "oclComponent.h"
+#include "oclPlatform.h"
 
 namespace oclu
 {
@@ -9,9 +9,6 @@ namespace oclu
 class oclUtil;
 namespace inner
 {
-
-
-
 
 
 
