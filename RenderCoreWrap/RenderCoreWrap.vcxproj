@@ -98,12 +98,13 @@
       </WarningVersion>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>RenderCore.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -120,12 +121,13 @@
       </WarningVersion>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>RenderCore.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -141,10 +143,11 @@
       </WarningVersion>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>RenderCore.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -160,10 +163,11 @@
       </WarningVersion>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>RenderCore.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -173,6 +177,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="b3d.h" />
+    <ClInclude Include="logger.h" />
     <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />
@@ -186,6 +191,7 @@
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsManaged>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsManaged>
     </ClCompile>
+    <ClCompile Include="logger.cpp" />
     <ClCompile Include="RenderCoreWrap.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -201,6 +207,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>

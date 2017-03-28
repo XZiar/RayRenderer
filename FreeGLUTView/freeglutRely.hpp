@@ -150,10 +150,12 @@ private:
 					std::get<0>(invokeData)->refresh();
 				std::get<2>(invokeData).set_value(true);
 			}
+		#pragma warning(disable:4101)
 			catch (std::exception& e)
 			{
 				std::get<2>(invokeData).set_exception(std::current_exception());
 			}
+		#pragma warning(default:4101)
 			readyInvoke.store(false);
 			shouldInvoke.store(false);
 		}

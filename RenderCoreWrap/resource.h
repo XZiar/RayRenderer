@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
 
+#define IDR_DLL_MLOG                     107
 #define IDR_DLL_GLEW                     108
 #define IDR_DLL_OGLU                     109
 #define IDR_DLL_OCLU                     110

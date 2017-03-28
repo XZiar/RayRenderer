@@ -5,6 +5,11 @@ namespace common::mlog
 {
 
 
+GLogCallBack logger::onGlobalLog = nullptr;
+void logger::setGlobalCallBack(GLogCallBack cb)
+{
+	onGlobalLog = cb;
+}
 
 logger::logger(const std::wstring loggername, const std::wstring logfile, LogCallBack cb, const LogOutput lo, const LogLevel lv)
 	: name(loggername), prefix(fmt::format(L"[{}]", loggername)), leastLV((uint8_t)lv), outputs((uint8_t)lo), onLog(cb)
@@ -65,7 +70,7 @@ void logger::printBuffer(const LogLevel lv, const std::wstring& content)
 
 bool logger::onCallBack(const LogLevel lv, const std::wstring &content)
 {
-	if (onLog == nullptr)
+	if (!onLog)
 		return true;
 	while (!flagCallback.test_and_set())
 		;//spin lock

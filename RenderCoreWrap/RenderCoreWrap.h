@@ -3,6 +3,7 @@
 
 #include "RenderCoreRely.h"
 #include "b3d.h"
+#include "logger.h"
 
 using namespace System;
 
@@ -15,6 +16,10 @@ private:
 	rayr::BasicTest *core;
 	Basic3D::Camera ^cam_;
 public:
+	static BasicTest()
+	{
+		common::mlog::logger::setGlobalCallBack(onLog);
+	}
 	BasicTest();
 	~BasicTest() { this->!BasicTest(); }
 	!BasicTest();

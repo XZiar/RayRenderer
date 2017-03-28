@@ -38,20 +38,17 @@ private:
 			switch (lv)
 			{
 			case LogLevel::Error:
-				attrb = LIGHTRED;
-				break;
+				attrb = LIGHTRED; break;
+			case LogLevel::Warning:
+				attrb = YELLOW; break;
 			case LogLevel::Sucess:
-				attrb = LIGHTGREEN;
-				break;
+				attrb = LIGHTGREEN; break;
 			case LogLevel::Info:
-				attrb = WHITE;
-				break;
+				attrb = WHITE; break;
 			case LogLevel::Verbose:
-				attrb = LIGHTMAGENTA;
-				break;
+				attrb = LIGHTMAGENTA; break;
 			case LogLevel::Debug:
-				attrb = LIGHTCYAN;
-				break;
+				attrb = LIGHTCYAN; break;
 			}
 			SetConsoleTextAttribute(hConsole, attrb);
 		}

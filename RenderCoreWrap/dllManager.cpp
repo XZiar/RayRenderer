@@ -31,6 +31,17 @@ void extractDLL()
 		}
 	}
 	{
+		wstring mlogFile = tmpdir + L"miniLogger.dll";
+		common::ResourceHelper::getData(dlldata, L"DLL", IDR_DLL_MLOG);
+		_wfopen_s(&fp, mlogFile.c_str(), L"wb");
+		if (fp != nullptr)
+		{
+			fwrite(dlldata.data(), dlldata.size(), 1, fp);
+			fclose(fp);
+			LoadLibrary(mlogFile.c_str());
+		}
+	}
+	{
 		wstring ogluFile = tmpdir + L"OpenGLUtil.dll";
 		common::ResourceHelper::getData(dlldata, L"DLL", IDR_DLL_OGLU);
 		_wfopen_s(&fp, ogluFile.c_str(), L"wb");

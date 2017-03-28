@@ -470,7 +470,7 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 #pragma warning(disable:4101)
 catch (const std::ios_base::failure& e)
 {
-	basLog().error(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
+	basLog().warning(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
 	return map<string, MtlStub>();
 }
 #pragma warning(default:4101)
