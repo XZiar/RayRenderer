@@ -18,7 +18,7 @@ private:
 public:
 	static BasicTest()
 	{
-		common::mlog::logger::setGlobalCallBack(onLog);
+		setLogger();
 	}
 	BasicTest();
 	~BasicTest() { this->!BasicTest(); }

@@ -12,6 +12,11 @@ void __cdecl onLog(LogLevel lv, const std::wstring& from, const std::wstring& co
 	logger->log(lv, prefix, cont);
 }
 
+void setLogger()
+{
+	//common::mlog::logger::setGlobalCallBack(onLog);
+}
+
 void ManagedLogger::log(LogLevel lv, String^ from, String^ content)
 {
 	auto txt = String::Format("[{0}]{1}", from, content);

@@ -10,9 +10,11 @@ namespace common
 class DelayLoader
 {
 public:
-	using LoadFunc = std::function<void*(const std::wstring& name)>;
+	using LoadFunc = std::function<void*(const char *name)>;
 	static LoadFunc onLoadDLL;
 	static LoadFunc onGetFuncAddr;
+	static bool unload(const std::string& name);
 };
+
 
 }

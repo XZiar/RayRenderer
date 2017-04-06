@@ -7,6 +7,13 @@
 namespace common
 {
 
+
+
+bool DelayLoader::unload(const std::string& name)
+{
+	return __FUnloadDelayLoadedDLL2(name.c_str()) == TRUE;
+}
+
 DelayLoader::LoadFunc DelayLoader::onLoadDLL = nullptr;
 DelayLoader::LoadFunc DelayLoader::onGetFuncAddr = nullptr;
 
@@ -19,8 +26,7 @@ static FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli)
 	case dliNotePreLoadLibrary:
 		if (DelayLoader::onLoadDLL != nullptr)
 		{
-			const auto name = std::string(pdli->szDll);
-			return (FARPROC)DelayLoader::onLoadDLL(std::wstring(name.begin(),name.end()));
+			return (FARPROC)DelayLoader::onLoadDLL(pdli->szDll);
 		}
 		break;
 	case dliNotePreGetProcAddress:

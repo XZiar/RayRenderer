@@ -8,7 +8,15 @@ namespace common::mlog
 GLogCallBack logger::onGlobalLog = nullptr;
 void logger::setGlobalCallBack(GLogCallBack cb)
 {
-	onGlobalLog = cb;
+	try
+	{
+		onGlobalLog = cb;
+	}
+	catch (std::exception& e)
+	{
+		printf("%s\n", e.what());
+		getchar();
+	}
 }
 
 logger::logger(const std::wstring loggername, const std::wstring logfile, LogCallBack cb, const LogOutput lo, const LogLevel lv)

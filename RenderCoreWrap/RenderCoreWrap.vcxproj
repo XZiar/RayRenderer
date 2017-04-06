@@ -105,6 +105,7 @@
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -128,6 +129,7 @@
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -148,6 +150,7 @@
     <Link>
       <AdditionalDependencies />
       <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -168,6 +171,7 @@
     <Link>
       <AdditionalDependencies />
       <DelayLoadDLLs>RenderCore.dll;miniLogger.dll%(DelayLoadDLLs)</DelayLoadDLLs>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

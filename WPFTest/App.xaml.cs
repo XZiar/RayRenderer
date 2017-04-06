@@ -1,24 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using System.Windows;
 
-namespace WinFormTest
+namespace WPFTest
 {
-    static class Program
+    /// <summary>
+    /// App.xaml 的交互逻辑
+    /// </summary>
+    public partial class App : Application
     {
-        static Program()
+        static App()
         {
             AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
-            AppDomain.CurrentDomain.DomainUnload += UnloadDomain;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
-        }
-
-        private static void UnloadDomain(object sender, EventArgs e)
-        {
-            throw new NotImplementedException();
         }
 
         private static Assembly ResolveDLL(object sender, ResolveEventArgs args)
@@ -35,17 +34,6 @@ namespace WinFormTest
             Console.WriteLine($"resolve Assembly {args.Name}");
             var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
             return Assembly.LoadFrom(dllname);
-        }
-
-        /// <summary>
-        /// 应用程序的主入口点。
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
         }
     }
 }
