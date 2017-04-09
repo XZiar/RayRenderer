@@ -8,9 +8,18 @@
         xmlns:local="clr-namespace:WPFTest"
         mc:Ignorable="d"
         Title="MainWindow" Height="600" Width="800">
-    <DockPanel>
-        <WindowsFormsHost x:Name="wfh">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="70*"/>
+            <ColumnDefinition Width="30*"/>
+        </Grid.ColumnDefinitions>
+        <RichTextBox x:Name="dbgOutput" Grid.Column="1" Margin="5,0,0,0" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas">
+            <FlowDocument>
+                <Paragraph/>
+            </FlowDocument>
+        </RichTextBox>
+        <WindowsFormsHost x:Name="wfh" Grid.Column="0">
             <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyAction="OnKeyAction" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>
-    </DockPanel>
+    </Grid>
 </Window>

@@ -181,7 +181,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="b3d.h" />
-    <ClInclude Include="logger.h" />
     <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />

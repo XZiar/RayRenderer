@@ -1,4 +1,5 @@
-﻿using System;
+﻿using common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,8 @@ namespace WPFTest
         public MainWindow()
         {
             InitializeComponent();
+            par = dbgOutput.Document.Blocks.FirstBlock as Paragraph;
+            Logger.OnLog += OnLog;
 
             Main.test.resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
             //this.SizeChanged += (o, e) => { glMain.Size = new System.Drawing.Size{ Width = (int)e.NewSize.Width,Height = (int)e.NewSize.Height}; };
@@ -30,6 +33,43 @@ namespace WPFTest
 
             glMain.Draw += Main.test.draw;
             glMain.Resize += (o, e) => { Main.test.resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+        }
+
+        private Paragraph par = null;
+        private static SolidColorBrush errBrs = new SolidColorBrush(Colors.Red),
+            warnBrs = new SolidColorBrush(Colors.Yellow),
+            sucBrs = new SolidColorBrush(Colors.Green),
+            infoBrs = new SolidColorBrush(Colors.White),
+            vbBrs = new SolidColorBrush(Colors.Pink),
+            dbgBrs = new SolidColorBrush(Colors.Cyan);
+        private void OnLog(LogLevel lv, string from, string content)
+        {
+            dbgOutput.Dispatcher.Invoke(() => 
+            {
+                Run r = new Run($"[{from}]{content}");
+                switch(lv)
+                {
+                case LogLevel.Error:
+                    r.Foreground = errBrs; break;
+                case LogLevel.Warning:
+                    r.Foreground = warnBrs; break;
+                case LogLevel.Sucess:
+                    r.Foreground = sucBrs; break;
+                case LogLevel.Info:
+                    r.Foreground = infoBrs; break;
+                case LogLevel.Verbose:
+                    r.Foreground = vbBrs; break;
+                case LogLevel.Debug:
+                    r.Foreground = dbgBrs; break;
+                }
+                par.Inlines.Add(r);
+                dbgOutput.ScrollToEnd();
+            });
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
         }
 
         private void OnKeyAction(object sender, KeyBoardEventArgs e)

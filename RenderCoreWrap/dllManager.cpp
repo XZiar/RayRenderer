@@ -70,7 +70,9 @@ void freeDLL()
 		DeleteFile(fpair.second.c_str());
 	}
 	std::error_code errcd;
-	fs::remove_all(RRPath, errcd);
+
+	for (auto& subdir : fs::directory_iterator(RRPath))
+		fs::remove_all(subdir, errcd);
 }
 
 void* delayloaddll(const char *name)
