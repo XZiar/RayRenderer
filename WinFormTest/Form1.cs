@@ -30,7 +30,6 @@ namespace WinFormTest
 
             oglv.Draw += test.draw;
             oglv.Resize += (o, e) => { test.resize(e.Width & 0xffc0, e.Height & 0xffc0); };
-            //oglv.KeyDown += onKeyBoard;
             oglv.KeyAction += OnKeyAction;
             oglv.MouseAction += OnMouse;
         }

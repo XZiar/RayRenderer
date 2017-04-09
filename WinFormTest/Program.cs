@@ -12,13 +12,7 @@ namespace WinFormTest
         static Program()
         {
             AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
-            AppDomain.CurrentDomain.DomainUnload += UnloadDomain;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
-        }
-
-        private static void UnloadDomain(object sender, EventArgs e)
-        {
-            throw new NotImplementedException();
         }
 
         private static Assembly ResolveDLL(object sender, ResolveEventArgs args)

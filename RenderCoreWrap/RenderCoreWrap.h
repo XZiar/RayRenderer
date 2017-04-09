@@ -6,6 +6,7 @@
 #include "logger.h"
 
 using namespace System;
+using namespace System::Threading::Tasks;
 
 namespace RayRender
 {
@@ -42,6 +43,8 @@ public:
 	void moveobj(const uint16_t id, const float x, const float y, const float z);
 	void rotateobj(const uint16_t id, const float x, const float y, const float z);
 	uint16_t objectCount();
+
+	Task<Func<bool>^>^ addModelAsync(String^ name);
 };
 
 }

@@ -10,7 +10,7 @@
         Title="MainWindow" Height="600" Width="800">
     <DockPanel>
         <WindowsFormsHost x:Name="wfh">
-            <oglv:OGLView x:Name="glMain" ResizeBGDraw="False"/>
+            <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyAction="OnKeyAction" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>
     </DockPanel>
 </Window>
