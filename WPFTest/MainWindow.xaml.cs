@@ -28,7 +28,6 @@ namespace WPFTest
             Logger.OnLog += OnLog;
 
             Main.test.resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
-            //this.SizeChanged += (o, e) => { glMain.Size = new System.Drawing.Size{ Width = (int)e.NewSize.Width,Height = (int)e.NewSize.Height}; };
             this.Closed += (o, e) => { Main.test.Dispose(); Main.test = null; };
 
             glMain.Draw += Main.test.draw;
@@ -44,7 +43,7 @@ namespace WPFTest
             dbgBrs = new SolidColorBrush(Colors.Cyan);
         private void OnLog(LogLevel lv, string from, string content)
         {
-            dbgOutput.Dispatcher.Invoke(() => 
+            dbgOutput.Dispatcher.BeginInvoke(new Action(() => 
             {
                 Run r = new Run($"[{from}]{content}");
                 switch(lv)
@@ -64,12 +63,7 @@ namespace WPFTest
                 }
                 par.Inlines.Add(r);
                 dbgOutput.ScrollToEnd();
-            });
-        }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-
+            }), System.Windows.Threading.DispatcherPriority.Normal, null);
         }
 
         private void OnKeyAction(object sender, KeyBoardEventArgs e)
@@ -157,9 +151,11 @@ namespace WPFTest
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
             var cb = await Main.test.addModelAsync((e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString());
-            cb();
-            Main.curObj = ushort.MaxValue;
-            (sender as OGLView).Invalidate();
+            if (cb())
+            {
+                Main.curObj = ushort.MaxValue;
+                (sender as OGLView).Invalidate();
+            }
         }
 
         private void OnDragEnter(object sender, System.Windows.Forms.DragEventArgs e)

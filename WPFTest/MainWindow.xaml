@@ -7,7 +7,7 @@
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView"
         xmlns:local="clr-namespace:WPFTest"
         mc:Ignorable="d"
-        Title="MainWindow" Height="600" Width="800">
+        Title="MainWindow" Height="600" Width="900">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="70*"/>

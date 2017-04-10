@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <memory>
 #include <functional>
 
@@ -8,16 +7,25 @@ namespace common
 {
 
 
+namespace detail
+{
+
+
 template<class T>
-class COMMONTPL PromiseResult : public NonCopyable
+class COMMONTPL PromiseResult_ : public NonCopyable, public std::enable_shared_from_this<PromiseResult_<T>>
 {
 protected:
-	PromiseResult()
+	PromiseResult_()
 	{ }
 public:
 	T virtual wait() = 0;
 };
 
+
+}
+
+template<class T>
+using PromiseResult = std::shared_ptr<detail::PromiseResult_<T>>;
 
 template<class T>
 class COMMONTPL PromiseTask : public NonCopyable
@@ -31,24 +39,8 @@ public:
 	PromiseTask(std::function<T(ARGS...)> task_, ARGS... args) : task(std::bind(task_, args))
 	{ }
 	void virtual dowork() = 0;
-	std::unique_ptr<PromiseResult<T>> virtual getResult() = 0;
+	PromiseResult<T> virtual getResult() = 0;
 };
-
-
-//template<>
-//class COMMONTPL PromiseTask<void> : public NonCopyable
-//{
-//protected:
-//	std::function<void(void)> task;
-//public:
-//	PromiseTask(std::function<void(void)> task_) : task(task_)
-//	{ }
-//	template<class... ARGS>
-//	PromiseTask(std::function<void(ARGS...)> task_, ARGS... args) : task(std::bind(task_, args))
-//	{ }
-//	void virtual dowork() = 0;
-//	std::unique_ptr<PromiseResult<void>> virtual getResult() = 0;
-//};
 
 
 }

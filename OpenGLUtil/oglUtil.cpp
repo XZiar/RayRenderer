@@ -12,7 +12,7 @@ namespace oglu
 namespace detail
 {
 
-class PromiseResultGL : public PromiseResult<void>
+class PromiseResultGL : public common::detail::PromiseResult_<void>
 {
 protected:
 	GLsync objSync;
@@ -206,17 +206,16 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 	}
 }
 
-std::unique_ptr<PromiseResult<void>> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
+PromiseResult<void> oglUtil::invokeSyncGL(std::function<void __cdecl(void)> task)
 {
-	//PromiseResult<void> *ret = new detail::PromiseResultGL(getWorker(0).doWork2(task));
-	PromiseResult<void> *ret = new PromiseResultSTD<void>(getWorker(0).doWork(task));
-	return std::unique_ptr<PromiseResult<void>>(ret);
+	PromiseResult<void> ret(new PromiseResultSTD<void>(getWorker(0).doWork(task)));
+	return ret;
 }
 
-std::unique_ptr<PromiseResult<void>> oglUtil::invokeAsyncGL(std::function<void __cdecl(void)> task)
+PromiseResult<void> oglUtil::invokeAsyncGL(std::function<void __cdecl(void)> task)
 {
-	PromiseResult<void> *ret = new PromiseResultSTD<void>(getWorker(1).doWork(task));
-	return std::unique_ptr<PromiseResult<void>>(ret);
+	PromiseResult<void> ret(new PromiseResultSTD<void>(getWorker(1).doWork(task)));
+	return ret;
 }
 
 
