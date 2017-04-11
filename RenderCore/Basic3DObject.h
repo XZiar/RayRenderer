@@ -5,6 +5,16 @@
 namespace rayr
 {
 
+class alignas(16) Pyramid : public Drawable
+{
+protected:
+	float sidelen;
+	oglu::oglBuffer vbo;
+public:
+	Pyramid(const float len);
+	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+};
+
 class alignas(16) Sphere : public Drawable
 {
 protected:

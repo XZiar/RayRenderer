@@ -101,7 +101,6 @@ namespace WinFormTest
                 }
                 break;
             }
-            test.rfsData();
             oglv.Invalidate();
         }
 
@@ -118,7 +117,6 @@ namespace WinFormTest
             default:
                 return;
             }
-            test.rfsData();
             oglv.Invalidate();
         }
     }

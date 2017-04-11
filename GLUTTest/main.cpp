@@ -97,7 +97,6 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 			tester->cam.u.x, tester->cam.u.y, tester->cam.u.z, tester->cam.v.x, tester->cam.v.y, tester->cam.v.z, tester->cam.n.x, tester->cam.n.y, tester->cam.n.z);
 		break;
 	}
-	tester->rfsData();
 	wd->refresh();
 }
 
@@ -117,14 +116,12 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
 	default:
 		return;
 	}
-	tester->rfsData();
 	wd->refresh();
 }
 
 void autoRotate()
 {
 	tester->rotateobj(curObj, 0, 3, 0);
-	tester->rfsData();
 }
 
 bool onTimer(FreeGLUTView wd, uint32_t elapseMS)

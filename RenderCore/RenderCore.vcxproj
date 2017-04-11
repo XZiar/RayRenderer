@@ -190,6 +190,7 @@
   <ItemGroup>
     <ClInclude Include="Basic3DObject.h" />
     <ClInclude Include="BasicTest.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="RenderCore.h" />
     <ClInclude Include="RenderCoreInternal.h" />
@@ -204,6 +205,7 @@
     <ClCompile Include="Basic3DObject.cpp" />
     <ClCompile Include="BasicTest.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="Light.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="RenderCore.cpp" />
     <ClCompile Include="RenderCoreRely.cpp">

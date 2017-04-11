@@ -126,40 +126,16 @@ void BasicTest::init3d(const wstring pname)
 		}
 	}
 	prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
-	testVAO.reset(VAODrawMode::Triangles);
-	testTri.reset(BufferType::Array);
-	triIdx.reset(IndexSize::Byte);
-	if(true)
-	{
-		const Point pa({ 0.0f,2.0f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
-			pb({ 1.155f,0.0f,-1.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
-			pc({ -1.155f,0.0f,-1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f }),
-			pd({ 0.0f,0.0f,1.0f }, { 0.0f, 0.0f, 0.0f }, { 4.0f, 4.0f });
-		//Point DatVert[] = { pa,pb,pc, pa,pb,pd, pa,pc,pd, pb,pc,pd };
-		Point DatVert[] = { pa,pb,pc,pd };
-		testTri->write(DatVert, sizeof(DatVert));
-		uint8_t idxmap[] = { 0,1,2, 0,1,3, 0,2,3, 1,2,3 };
-		triIdx->write(idxmap, 12);
-		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
-		testVAO->prepare().set(testTri, attrs, 0).setIndex(triIdx).end();
-		testVAO->setDrawSize(0, 12);
-	}
-	else
-	{
-		const Point pa({ -0.5f,0.5f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
-			pb({ -0.5f,-0.5f,0.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
-			pc({ 0.5f,-0.5f,0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f });
-		Point DatVert[] = { pa,pb,pc };
-		testTri->write(DatVert, sizeof(DatVert));
-		testVAO->setDrawSize(0, 3);
-		const GLint attrs[3] = { prog3D->Attr_Vert_Pos,prog3D->Attr_Vert_Norm,prog3D->Attr_Vert_Texc };
-		testVAO->prepare().set(testTri, attrs, 0).end();
-	}
+	
 	cam.position = Vec3(0.0f, 0.0f, 4.0f);
 	prog3D->setCamera(cam);
 	transf.push_back({ Vec4(true),TransformType::RotateXYZ });
 	transf.push_back({ Vec4(true),TransformType::Translate });
 	{
+		Wrapper<Pyramid> pyramid(1.0f);
+		pyramid->name = L"Pyramid";
+		pyramid->position = { 0,0,0 };
+		drawables.push_back(pyramid);
 		Wrapper<Sphere> ball(0.75f);
 		ball->name = L"Ball";
 		ball->position = { 1,0,0 };
@@ -215,16 +191,34 @@ void BasicTest::initTex()
 				auto& obj = empty[a][b];
 				if ((a < 64 && b < 64) || (a >= 64 && b >= 64))
 				{
-					obj = Vec4(1, 1, 1, 1);
+					obj = Vec4(0.05, 0.05, 0.05, 1.0);
 				}
 				else
 				{
-					obj = Vec4(0, 0, 0, 1);
+					obj = Vec4(0.6, 0.6, 0.6, 1.0);
 				}
 			}
 		}
 		mskTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
 	}
+}
+
+void BasicTest::initUBO()
+{
+	materialUBO.reset();
+	lightUBO.reset();
+}
+
+void BasicTest::prepareUBO()
+{
+	vector<uint8_t> data(lights.size() * 96);
+	size_t pos = 0;
+	for (const auto& lgt : lights)
+	{
+		memmove(&data[pos], &(*lgt), 96);
+		pos += 96;
+	}
+	lightUBO->write(data);
 }
 
 Wrapper<Model> BasicTest::_addModel(const wstring& fname)
@@ -254,18 +248,20 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		}
 	}
 	initTex();
+	initUBO();
 	init2d(sname2d);
 	init3d(sname3d);
 	prog2D->globalState().setTexture(picTex, "tex").end();
 	prog3D->globalState().setTexture(mskTex, "tex").end();
+	prog3D->globalState().setUBO(lightUBO, "lightBlock").setUBO(materialUBO, "mat").end();
 }
 
 void BasicTest::draw()
 {
 	if (mode)
 	{
-		transf[0].vec = rvec; transf[1].vec = tvec;
-		prog3D->draw(transf.begin(), transf.end()).setTexture(mskTex, "tex").draw(testVAO);
+		prog3D->setCamera(cam);
+		prepareUBO();
 		for (const auto& d : drawables)
 		{
 			d->draw(prog3D);
@@ -308,28 +304,50 @@ void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::func
 	}, fname).detach();
 }
 
+void BasicTest::addLight(const b3d::LightType type)
+{
+	switch (type)
+	{
+	case LightType::Parallel:
+		lights.push_back(Wrapper<Light>((Light*)new ParallelLight()));
+		break;
+	case LightType::Point:
+		lights.push_back(Wrapper<Light>((Light*)new PointLight()));
+		break;
+	case LightType::Spot:
+		lights.push_back(Wrapper<Light>((Light*)new SpotLight()));
+		break;
+	}
+}
+
 void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
 {
 	drawables[id]->position += Vec3(x, y, z);
-	rfsData();
 }
 
 void BasicTest::rotateobj(const uint16_t id, const float x, const float y, const float z)
 {
 	drawables[id]->rotation += Vec3(x, y, z);
-	rfsData();
 }
 
-void BasicTest::rfsData()
+void BasicTest::movelgt(const uint16_t id, const float x, const float y, const float z)
 {
-	prog3D->setCamera(cam);
-	transf[0].vec = rvec;
-	transf[1].vec = tvec;
+	lights[id]->position += Vec3(x, y, z);
+}
+
+void BasicTest::rotatelgt(const uint16_t id, const float x, const float y, const float z)
+{
+	lights[id]->direction += Vec3(x, y, z);
 }
 
 uint16_t BasicTest::objectCount() const
 {
 	return (uint16_t)drawables.size();
+}
+
+uint16_t BasicTest::lightCount() const
+{
+	return (uint16_t)lights.size();
 }
 
 void BasicTest::showObject(uint16_t objIdx) const

@@ -5,6 +5,27 @@ namespace rayr
 {
 
 
+Pyramid::Pyramid(const float len) : sidelen(len)
+{
+	static DrawableHelper helper(L"Pyramid");
+	helper.InitDrawable(this);
+	vbo.reset(oglu::BufferType::Array);
+	const Point pa({ 0.0f,2.0f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
+		pb({ 1.155f,0.0f,-1.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
+		pc({ -1.155f,0.0f,-1.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 4.0f }),
+		pd({ 0.0f,0.0f,1.0f }, { 0.0f, 0.0f, 0.0f }, { 4.0f, 4.0f });
+	const Point pts[] = { pa,pb,pc, pa,pb,pd, pa,pc,pd, pb,pc,pd };
+	vbo->write(pts);
+}
+
+void Pyramid::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+{
+	oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+	vao->setDrawSize(0, 12);
+	defaultBind(prog, vao, vbo).end();
+	setVAO(prog, vao);
+}
+
 
 vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
 {

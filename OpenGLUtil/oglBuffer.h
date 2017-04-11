@@ -38,9 +38,14 @@ public:
 
 	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
 	template<class T>
-	void write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	inline void write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
 		write(dat.data(), sizeof(T)*dat.size(), mode);
+	}
+	template<class T, size_t N>
+	inline void write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	{
+		write(dat, sizeof(dat), mode);
 	}
 };
 

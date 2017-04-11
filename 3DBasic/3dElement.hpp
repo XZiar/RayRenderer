@@ -227,44 +227,6 @@ public:
 };
 
 
-class alignas(16) Light : public AlignBase<>
-{
-public:
-	enum class Type : uint8_t
-	{
-		Parallel = 0x1, Point = 0x2, Spot = 0x3
-	};
-	enum class Property : uint8_t
-	{
-		Position = 0x1,
-		Ambient = 0x2,
-		Diffuse = 0x4,
-		Specular = 0x8,
-		Atten = 0x10
-	};
-public:
-	Vec3 position,
-		ambient,
-		diffuse,
-		specular,
-		attenuation;
-	float coang, exponent;//for spot light
-	float rangy, rangz, rdis,
-		angy, angz, dis;
-	int type;
-	bool bLight;
-public:
-	Light(const Type type);
-	bool turn();
-	void move(const float dangy, const float dangz, const float ddis);
-	void SetProperty(const uint8_t prop, const float r, const float g, const float b, const float a = 1.0f);
-	void SetProperty(const Property prop, const float r, const float g, const float b, const float a = 1.0f)
-	{
-		SetProperty(uint8_t(prop), r, g, b, a);
-	}
-	void SetLumi(const float lum);
-};
-
 class alignas(16) Material : public AlignBase<>
 {
 public:
@@ -323,8 +285,8 @@ public:
 		};
 	};
 	Vec3 position;
-	int width, height;
 	float fovy, aspect, zNear, zFar;
+	int width, height;
 	Camera(int w = 1120, int h = 630)
 	{
 		width = w, height = h;

@@ -127,7 +127,6 @@ namespace WPFTest
                     }
                     break;
             }
-            Main.test.rfsData();
             (sender as OGLView).Invalidate();
         }
 
@@ -144,7 +143,6 @@ namespace WPFTest
                 default:
                     return;
             }
-            Main.test.rfsData();
             (sender as OGLView).Invalidate();
         }
 

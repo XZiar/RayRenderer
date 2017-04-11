@@ -85,12 +85,6 @@ void BasicTest::resize(const int w, const int h)
 	core->resize(w, h);
 }
 
-
-void BasicTest::rfsData()
-{
-	core->rfsData();
-}
-
 void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
 {
 	core->moveobj(id, x, y, z);
