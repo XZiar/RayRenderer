@@ -14,24 +14,11 @@ public:
 	float shiness, reflect, refract, rfr;//高光权重，反射比率，折射比率，折射率
 };
 
-class Drawable;
 
-class DrawableHelper
-{
-private:
-	friend class Drawable;
-	static vector<wstring> typeMap;
-public:
-	uint32_t id;
-	DrawableHelper(const wstring& name);
-	void InitDrawable(Drawable *d) const;
-	static wstring getType(const Drawable& d);
-	static void releaseAll(const oglu::oglProgram& prog);
-};
+class DrawableHelper;
 
 class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonMovable
 {
-	friend class DrawableHelper;
 	struct VAOPack
 	{
 		const oglu::oglProgram::weak_type prog;
@@ -50,18 +37,22 @@ class alignas(16) Drawable : public AlignBase<>, public NonCopyable, public NonM
 		boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
 	>>;
 	static VAOMap vaoMap;
+	static DrawableHelper& getHelper();
 public:
 	Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
 	wstring name;
+	static void releaseAll(const oglu::oglProgram& prog);
 	virtual ~Drawable();
 	/*prepare VAO with given Vertex Attribute Location
 	 *-param: VertPos,VertNorm,TexPos
 	 */
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
 	virtual void draw(oglu::oglProgram& prog) const;
+	wstring getType() const;
 protected:
 	uint32_t drawableID;
 	oglu::oglVAO defaultVAO;
+	Drawable(const wstring& typeName);
 	auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
 	auto drawPosition(oglu::oglProgram& prog) const -> decltype(prog->draw());
 	void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;

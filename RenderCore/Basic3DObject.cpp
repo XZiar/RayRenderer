@@ -5,10 +5,8 @@ namespace rayr
 {
 
 
-Pyramid::Pyramid(const float len) : sidelen(len)
+Pyramid::Pyramid(const float len) : Drawable(TYPENAME), sidelen(len)
 {
-	static DrawableHelper helper(L"Pyramid");
-	helper.InitDrawable(this);
 	vbo.reset(oglu::BufferType::Array);
 	const Point pa({ 0.0f,2.0f,0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }),
 		pb({ 1.155f,0.0f,-1.0f }, { 1.0f, 0.0f, 0.0f }, { 4.0f, 0.0f }),
@@ -66,10 +64,8 @@ vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, co
 	return indexs;
 }
 
-Sphere::Sphere(const float r) : radius(r), radius_sqr(r*r)
+Sphere::Sphere(const float r) : Drawable(TYPENAME), radius(r), radius_sqr(r*r)
 {
-	static DrawableHelper helper(L"Sphere");
-	helper.InitDrawable(this);
 	vector<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
@@ -146,10 +142,8 @@ const Point Box::basePts[] =
 	{ { -0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
 };
 
-Box::Box(const float length, const float height, const float width)
+Box::Box(const float length, const float height, const float width) : Drawable(TYPENAME)
 {
-	static DrawableHelper helper(L"Box");
-	helper.InitDrawable(this);
 	size = Vec3(length, height, width);
 	vector<Point> pts;
 	pts.assign(basePts, basePts + 36);
@@ -168,10 +162,8 @@ void Box::prepareGL(const oglu::oglProgram& prog, const map<string, string>& tra
 }
 
 
-Plane::Plane(const float len, const float texRepeat)
+Plane::Plane(const float len, const float texRepeat) : Drawable(TYPENAME)
 {
-	static DrawableHelper helper(L"Plane");
-	helper.InitDrawable(this);
 	vbo.reset(oglu::BufferType::Array);
 	const Point pts[] =
 	{

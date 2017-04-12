@@ -27,8 +27,9 @@ It will contain mini version of BLAS library, C++ wrapper for OpenGL and GLUT, C
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm |
 | [RenderCore](./RenderCore) | Core of RayRender |
 | [RenderCoreWrap](./RenderCoreWrap) | C# Wrapper for RayRender core |
-| [GLUTTest](./GLUTTest) | Test Program(C++) using FreeGLUTView |
-| [WinFormTest](./WinFormTest) | Test Program(C#) using OpenGLView |
+| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) |
+| [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) |
+| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) |
 
 
 ## Dependency
@@ -36,15 +37,19 @@ It will contain mini version of BLAS library, C++ wrapper for OpenGL and GLUT, C
 * [GLEW](http://glew.sourceforge.net/)  2.0.0
 
   [Modified BSD & MIT License](./License/glew.txt)
+
 * [FreeGLUT](http://freeglut.sourceforge.net)  3.0.0
 
   [MIT License](./License/freeglut.txt)
-* [boost](http://www.boost.org/)  1.63
+
+* [boost](http://www.boost.org/)  1.64-beta2
 
   [Boost Software License](./License/boost.txt)
+
 * [stb](https://github.com/nothings/stb)
 
   [MIT License](./License/stb.txt)
+
 * [fmt](http://fmtlib.net) 3.0.1
 
   [BSD-2 License](./License/fmt.rst)

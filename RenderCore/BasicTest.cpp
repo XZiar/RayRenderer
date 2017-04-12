@@ -353,7 +353,7 @@ uint16_t BasicTest::lightCount() const
 void BasicTest::showObject(uint16_t objIdx) const
 {
 	const auto& d = drawables[objIdx];
-	basLog().info(L"Drawable {}:\t {}  [{}]\n", objIdx, d->name, DrawableHelper::getType(*d));
+	basLog().info(L"Drawable {}:\t {}  [{}]\n", objIdx, d->name, d->getType());
 }
 
 }

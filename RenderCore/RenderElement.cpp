@@ -1,40 +1,54 @@
 #include "RenderCoreRely.h"
 #include "RenderElement.h"
 #include "RenderCoreInternal.h"
+#include <mutex>
 
 namespace rayr
 {
 
 
-
-vector<wstring> DrawableHelper::typeMap;
-
-
-DrawableHelper::DrawableHelper(const wstring& name)
+class DrawableHelper
 {
-	typeMap.push_back(name);
-	id = static_cast<uint32_t>(typeMap.size() - 1);
-	basLog().debug(L"Regist Drawable [{}] -> {}\n", name, id);
-}
-
-void DrawableHelper::InitDrawable(Drawable *d) const
-{
-	d->drawableID = id;
-}
-
-wstring DrawableHelper::getType(const Drawable& d)
-{
-	return typeMap[d.drawableID];
-}
-
-void DrawableHelper::releaseAll(const oglu::oglProgram& prog)
-{
-	const auto its = Drawable::vaoMap.equal_range(prog.weakRef());
-	Drawable::vaoMap.erase(its.first, its.second);
-}
+	friend class Drawable;
+private:
+	std::mutex mtx;
+	boost::bimap<boost::bimaps::set_of<wstring>, boost::bimaps::set_of<size_t>> typeMap;
+	size_t regist(const wstring& name)
+	{
+		std::lock_guard<std::mutex> locker(mtx);
+		const size_t id = typeMap.size();
+		auto ret = typeMap.insert({ name,id });
+		if (ret.second)
+		{
+			basLog().debug(L"Regist Drawable [{}] -> {}\n", name, id);
+			return id;
+		}
+		else
+			return (*ret.first).right;
+	}
+	wstring getType(const size_t id) const
+	{
+		auto it = typeMap.right.find(id);
+		if (it == typeMap.right.end())
+			return L"";
+		else
+			return (*it).second;
+	}
+};
 
 
 Drawable::VAOMap Drawable::vaoMap;
+
+rayr::DrawableHelper& Drawable::getHelper()
+{
+	static DrawableHelper helper;
+	return helper;
+}
+
+Drawable::Drawable(const wstring& typeName)
+{
+	drawableID = (uint32_t)getHelper().regist(typeName);
+}
 
 Drawable::~Drawable()
 {
@@ -46,6 +60,17 @@ Drawable::~Drawable()
 void Drawable::draw(oglu::oglProgram& prog) const
 {
 	drawPosition(prog).draw(getVAO(prog)).end();
+}
+
+wstring Drawable::getType() const
+{
+	return getHelper().getType(drawableID);
+}
+
+void Drawable::releaseAll(const oglu::oglProgram& prog)
+{
+	const auto its = vaoMap.equal_range(prog.weakRef());
+	vaoMap.erase(its.first, its.second);
 }
 
 auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare())

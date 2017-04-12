@@ -625,10 +625,8 @@ _ModelData::~_ModelData()
 }
 
 
-Model::Model(const wstring& fname, bool asyncload) :data(inner::_ModelData::getModel(fname, asyncload))
+Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(inner::_ModelData::getModel(fname, asyncload))
 {
-	static DrawableHelper helper(L"Model");
-	helper.InitDrawable(this);
 	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(data->size.x, data->size.y), data->size.z);
 	scale = Vec3(resizer, resizer, resizer);
 }

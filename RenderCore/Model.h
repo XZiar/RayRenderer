@@ -115,6 +115,7 @@ class alignas(16) Model : public Drawable
 {
 protected:
 public:
+	static constexpr auto TYPENAME = L"Model";
 	ModelData data;
 	Model(const wstring& fname, bool asyncload = false);
 	~Model();

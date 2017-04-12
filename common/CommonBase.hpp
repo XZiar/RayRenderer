@@ -42,6 +42,7 @@ template<class T>
 class COMMONTPL Wrapper : public std::shared_ptr<T>
 {
 public:
+	using weak_type = std::weak_ptr<T>;
 	template<class... ARGS>
 	Wrapper(ARGS... args) : std::shared_ptr<T>(new T(args...))
 	{ }

@@ -29,9 +29,12 @@
 
 #include <boost/circular_buffer.hpp>
 
-namespace oclu::inner
+namespace oclu
+{
+namespace inner
 {
 class _oclMem;
+}
 }
 
 namespace oglu

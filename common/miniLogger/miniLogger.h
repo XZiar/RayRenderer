@@ -21,7 +21,9 @@
 #include "../../3rdParty/fmt/format.h"
 
 
-namespace common::mlog
+namespace common
+{
+namespace mlog
 {
 
 
@@ -112,5 +114,6 @@ public:
 };
 
 
+}
 }
 
