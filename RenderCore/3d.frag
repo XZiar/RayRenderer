@@ -7,7 +7,6 @@ struct LightInfo
 	float coang, exponent;
 	int type;
 	bool isOn;
-	float padding[4];
 };
 layout(std140) uniform lightBlock
 {

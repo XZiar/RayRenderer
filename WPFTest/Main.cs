@@ -9,8 +9,7 @@ namespace WPFTest
 {
     public static class Main
     {
-        public enum OPObject
-        { Camera, Light, Object };
+        public enum OPObject { Camera, Light, Object };
         public static BasicTest test;
         private static ushort curObj_ = 0;
         public static ushort curObj
@@ -18,10 +17,10 @@ namespace WPFTest
             get { return curObj_; }
             set
             {
-                if (value >= test.objectCount())
+                if (value >= test.objectCount)
                     curObj_ = 0;
                 else if (value == ushort.MaxValue)
-                    curObj_ = (ushort)(test.objectCount() - 1);
+                    curObj_ = (ushort)(test.objectCount - 1);
                 else
                     curObj_ = value;
             }
@@ -39,26 +38,32 @@ namespace WPFTest
         }
         public static void Move(float x, float y, float z, OPObject obj)
         {
-            if(obj == OPObject.Object)
+            switch(obj)
             {
-                test.moveobj((ushort)curObj, x, y, z);
-            }
-            else if(obj == OPObject.Camera)
-            {
-                test.cam.move(x, y, z);
+            case OPObject.Object:
+                test.Moveobj(curObj, x, y, z);
+                break;
+            case OPObject.Camera:
+                test.cam.Move(x, y, z);
+                break;
+            case OPObject.Light:
+                break;
             }
         }
         public static void Rotate(float x, float y, float z, OPObject obj)
         {
-            if (obj == OPObject.Object)
+            switch (obj)
             {
-                test.rotateobj((ushort)curObj, x, y, z);
-            }
-            else if (obj == OPObject.Camera)
-            {
-                test.cam.pitch(x);
-                test.cam.yaw(y);
-                test.cam.roll(z);
+            case OPObject.Object:
+                test.Rotateobj(curObj, x, y, z);
+                break;
+            case OPObject.Camera:
+                test.cam.Pitch(x);
+                test.cam.Yaw(y);
+                test.cam.Roll(z);
+                break;
+            case OPObject.Light:
+                break;
             }
         }
     }

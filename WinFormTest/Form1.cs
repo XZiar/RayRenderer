@@ -22,14 +22,14 @@ namespace WinFormTest
                 ResizeBGDraw = false
             };
             test = new BasicTest();
-            test.resize(ClientSize.Width & 0xffc0, ClientSize.Height & 0xffc0);
+            test.Resize(ClientSize.Width & 0xffc0, ClientSize.Height & 0xffc0);
 
             Controls.Add(oglv);
             Resize += (o, e) => { oglv.Size = ClientSize; };
             FormClosing += (o, e) => { test.Dispose(); test = null; };
 
-            oglv.Draw += test.draw;
-            oglv.Resize += (o, e) => { test.resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+            oglv.Draw += test.Draw;
+            oglv.Resize += (o, e) => { test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
             oglv.KeyAction += OnKeyAction;
             oglv.MouseAction += OnMouse;
         }
@@ -40,44 +40,44 @@ namespace WinFormTest
             switch (e.SpecialKey())
             {
             case Key.Up:
-                test.moveobj(curObj, 0, 0.1f, 0); break;
+                test.Moveobj(curObj, 0, 0.1f, 0); break;
             case Key.Down:
-                test.moveobj(curObj, 0, -0.1f, 0); break;
+                test.Moveobj(curObj, 0, -0.1f, 0); break;
             case Key.Left:
-                test.moveobj(curObj, -0.1f, 0, 0); break;
+                test.Moveobj(curObj, -0.1f, 0, 0); break;
             case Key.Right:
-                test.moveobj(curObj, 0.1f, 0, 0); break;
+                test.Moveobj(curObj, 0.1f, 0, 0); break;
             case Key.PageUp:
-                test.moveobj(curObj, 0, 0, -0.1f); break;
+                test.Moveobj(curObj, 0, 0, -0.1f); break;
             case Key.PageDown:
-                test.moveobj(curObj, 0, 0, 0.1f); break;
+                test.Moveobj(curObj, 0, 0, 0.1f); break;
             default:
                 switch (e.key)
                 {
                 case 'a'://pan to left
-                    test.cam.yaw(3); break;
+                    test.cam.Yaw(3); break;
                 case 'd'://pan to right
-                    test.cam.yaw(-3); break;
+                    test.cam.Yaw(-3); break;
                 case 'w'://pan to up
-                    test.cam.pitch(3); break;
+                    test.cam.Pitch(3); break;
                 case 's'://pan to down
-                    test.cam.pitch(-3); break;
+                    test.cam.Pitch(-3); break;
                 case 'q'://pan to left
-                    test.cam.roll(-3); break;
+                    test.cam.Roll(-3); break;
                 case 'e'://pan to left
-                    test.cam.roll(3); break;
+                    test.cam.Roll(3); break;
                 case 'A':
-                    test.rotateobj(curObj, 0, 3, 0); break;
+                    test.Rotateobj(curObj, 0, 3, 0); break;
                 case 'D':
-                    test.rotateobj(curObj, 0, -3, 0); break;
+                    test.Rotateobj(curObj, 0, -3, 0); break;
                 case 'W':
-                    test.rotateobj(curObj, 3, 0, 0); break;
+                    test.Rotateobj(curObj, 3, 0, 0); break;
                 case 'S':
-                    test.rotateobj(curObj, -3, 0, 0); break;
+                    test.Rotateobj(curObj, -3, 0, 0); break;
                 case 'Q':
-                    test.rotateobj(curObj, 0, 0, 3); break;
+                    test.Rotateobj(curObj, 0, 0, 3); break;
                 case 'E':
-                    test.rotateobj(curObj, 0, 0, -3); break;
+                    test.Rotateobj(curObj, 0, 0, -3); break;
                 case (char)13:
                     if(e.hasShift())
                         isAnimate = !isAnimate;
@@ -109,10 +109,10 @@ namespace WinFormTest
             switch (e.type)
             {
             case MouseEventType.Moving:
-                test.cam.move((e.dx * 10.0f / test.cam.Width), (e.dy * 10.0f / test.cam.Height), 0);
+                test.cam.Move((e.dx * 10.0f / test.cam.Width), (e.dy * 10.0f / test.cam.Height), 0);
                 break;
             case MouseEventType.Wheel:
-                test.cam.move(0, 0, (float)e.dx);
+                test.cam.Move(0, 0, (float)e.dx);
                 break;
             default:
                 return;

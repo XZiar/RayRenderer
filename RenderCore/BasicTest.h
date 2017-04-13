@@ -25,7 +25,7 @@ private:
 	oglUBO lightUBO, materialUBO;
 	vector<TransformOP> transf;
 	vector<Wrapper<Drawable>> drawables;
-	vector<Wrapper<b3d::Light>> lights;
+	vector<Wrapper<Light>> lights;
 	void init2d(const wstring pname);
 	void init3d(const wstring pname);
 	void initTex();
@@ -45,8 +45,10 @@ public:
 	void rotateobj(const uint16_t id, const float x, const float y, const float z);
 	void movelgt(const uint16_t id, const float x, const float y, const float z);
 	void rotatelgt(const uint16_t id, const float x, const float y, const float z);
-	uint16_t objectCount() const;
 	uint16_t lightCount() const;
+	const vector<Wrapper<Light>>& light() const { return lights; }
+	uint16_t objectCount() const;
+	const vector<Wrapper<Drawable>>& object() const { return drawables; }
 	void showObject(uint16_t objIdx) const;
 };
 

@@ -15,24 +15,31 @@ Camera::!Camera()
 		delete cam;
 }
 
-void Camera::move(const float dx, const float dy, const float dz)
+void Camera::Move(const float dx, const float dy, const float dz)
 {
 	cam->move(dx, dy, dz);
 }
 
-void Camera::pitch(const float angx)
+void Camera::Pitch(const float angx)
 {
 	cam->pitch(angx);
 }
 
-void Camera::yaw(const float angy)
+void Camera::Yaw(const float angy)
 {
 	cam->yaw(angy);
 }
 
-void Camera::roll(const float angz)
+void Camera::Roll(const float angz)
 {
 	cam->roll(angz);
+}
+
+
+Light::!Light()
+{
+	if (!isRef)
+		delete light;
 }
 
 }

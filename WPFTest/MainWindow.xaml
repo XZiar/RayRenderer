@@ -13,11 +13,22 @@
             <ColumnDefinition Width="70*"/>
             <ColumnDefinition Width="30*"/>
         </Grid.ColumnDefinitions>
-        <RichTextBox x:Name="dbgOutput" Grid.Column="1" Margin="5,0,0,0" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas">
-            <FlowDocument>
-                <Paragraph/>
-            </FlowDocument>
-        </RichTextBox>
+        <Grid Grid.Column="1" Margin="5,0,0,0" >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                <Button x:Name="btnOpObj" Content="Cam" Click="btnOpObj_Click"/>
+                <Button x:Name="btnAddModel" Content="+Mod" Click="btnAddModel_Click"/>
+                <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
+            </StackPanel>
+            <RichTextBox x:Name="dbgOutput" Grid.Row="1" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas">
+                <FlowDocument>
+                    <Paragraph/>
+                </FlowDocument>
+            </RichTextBox>
+        </Grid>
         <WindowsFormsHost x:Name="wfh" Grid.Column="0">
             <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyAction="OnKeyAction" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>

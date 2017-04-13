@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using OpenGLView;
+using RayRender;
 
 namespace WPFTest
 {
@@ -27,11 +28,29 @@ namespace WPFTest
             par = dbgOutput.Document.Blocks.FirstBlock as Paragraph;
             Logger.OnLog += OnLog;
 
-            Main.test.resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
+            Main.test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
             this.Closed += (o, e) => { Main.test.Dispose(); Main.test = null; };
 
-            glMain.Draw += Main.test.draw;
-            glMain.Resize += (o, e) => { Main.test.resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+            glMain.Draw += Main.test.Draw;
+            glMain.Resize += (o, e) => { Main.test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+        }
+
+        private void btnOpObj_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void btnAddModel_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void btnAddLight_Click(object sender, RoutedEventArgs e)
+        {
+            Main.test.AddLight(Basic3D.LightType.Parallel);
+            glMain.Invalidate();
+            var lgt = Main.test.light[Main.test.lightCount - 1];
+            Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Main.test.lightCount - 1, lgt.name(), lgt);
         }
 
         private Paragraph par = null;
@@ -148,7 +167,7 @@ namespace WPFTest
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
-            var cb = await Main.test.addModelAsync((e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString());
+            var cb = await Main.test.AddModelAsync((e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString());
             if (cb())
             {
                 Main.curObj = ushort.MaxValue;

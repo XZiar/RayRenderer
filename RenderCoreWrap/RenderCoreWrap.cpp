@@ -59,15 +59,11 @@ void coreAddModel(rayr::BasicTest *core, const std::wstring fname, gcroot<TaskCo
 #pragma managed
 
 
-bool testbool(int data)
-{
-	return true;
-}
-
 BasicTest::BasicTest()
 {
 	core = new rayr::BasicTest();
 	cam_ = gcnew Basic3D::Camera(&core->cam);
+	light = gcnew LightHolder(core->light());
 }
 
 BasicTest::!BasicTest()
@@ -75,36 +71,36 @@ BasicTest::!BasicTest()
 	delete core;
 }
 
-void BasicTest::draw()
+void BasicTest::Draw()
 {
 	core->draw();
 }
 
-void BasicTest::resize(const int w, const int h)
+void BasicTest::Resize(const int w, const int h)
 {
 	core->resize(w, h);
 }
 
-void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Moveobj(const uint16_t id, const float x, const float y, const float z)
 {
 	core->moveobj(id, x, y, z);
 }
 
-void BasicTest::rotateobj(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const float z)
 {
 	core->rotateobj(id, x, y, z);
 }
 
-uint16_t BasicTest::objectCount()
-{
-	return core->objectCount();
-}
-
-Task<Func<bool>^>^ BasicTest::addModelAsync(String^ name)
+Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ name)
 {
 	gcroot<TaskCompletionSource<Func<bool>^>^> tsk = gcnew TaskCompletionSource<Func<bool>^>();
 	coreAddModel(core, msclr::interop::marshal_as<std::wstring>(name), tsk);
 	return tsk->Task;
+}
+
+void BasicTest::AddLight(Basic3D::LightType type)
+{
+	core->addLight((b3d::LightType)type);
 }
 
 }

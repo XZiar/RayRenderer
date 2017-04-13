@@ -5,10 +5,30 @@
 #include "b3d.h"
 
 using namespace System;
+using namespace System::Collections::Generic;
 using namespace System::Threading::Tasks;
 
 namespace RayRender
 {
+
+public ref class LightHolder
+{
+private:
+	const miniBLAS::vector<common::Wrapper<b3d::Light>>& src;
+	List<Basic3D::Light^>^ lights;
+internal:
+	LightHolder(const miniBLAS::vector<common::Wrapper<b3d::Light>>& lights_) : src(lights_) {}
+public:
+	property Basic3D::Light^ default[int32_t]
+	{
+		Basic3D::Light^ get(int32_t i)
+		{
+			if(i < 0 || (uint32_t)i >= src.size())
+				throw gcnew System::IndexOutOfRangeException();
+			return gcnew Basic3D::Light(&src[i]);
+		}
+	}
+};
 
 public ref class BasicTest
 {
@@ -32,13 +52,25 @@ public:
 		Basic3D::Camera^ get() { return cam_; }
 	}
 
-	void draw();
-	void resize(const int w, const int h);
-	void moveobj(const uint16_t id, const float x, const float y, const float z);
-	void rotateobj(const uint16_t id, const float x, const float y, const float z);
-	uint16_t objectCount();
+	property uint16_t objectCount
+	{
+		uint16_t get() { return core->objectCount(); }
+	}
 
-	Task<Func<bool>^>^ addModelAsync(String^ name);
+	property uint16_t lightCount
+	{
+		uint16_t get() { return core->lightCount(); }
+	}
+
+	initonly LightHolder^ light;
+
+	void Draw();
+	void Resize(const int w, const int h);
+	void Moveobj(const uint16_t id, const float x, const float y, const float z);
+	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
+
+	Task<Func<bool>^>^ AddModelAsync(String^ name);
+	void AddLight(Basic3D::LightType type);
 };
 
 }

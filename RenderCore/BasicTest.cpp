@@ -318,6 +318,7 @@ void BasicTest::addLight(const b3d::LightType type)
 		lights.push_back(Wrapper<Light>((Light*)new SpotLight()));
 		break;
 	}
+	basLog().info(L"add Light {} type {}\n", lights.size(), (int32_t)lights.back()->type);
 }
 
 void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)

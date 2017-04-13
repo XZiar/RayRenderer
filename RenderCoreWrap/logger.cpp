@@ -60,8 +60,7 @@ void __cdecl LogCallback(common::mlog::LogLevel lv_, const std::wstring& from_, 
 #pragma unmanaged
 void setLogCB()
 {
-	common::mlog::logger::setGlobalCallBack([](common::mlog::LogLevel lv, const std::wstring& from, const std::wstring& content) 
-	{LogCallback(lv, from, content); });
+	common::mlog::logger::setGlobalCallBack(LogCallback);
 }
 void unsetLogCB()
 {
