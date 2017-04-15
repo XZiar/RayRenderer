@@ -19,6 +19,7 @@ protected:
 	{ }
 public:
 	T virtual wait() = 0;
+	virtual ~PromiseResult_() {}
 };
 
 
@@ -38,6 +39,7 @@ public:
 	template<class... ARGS>
 	PromiseTask(std::function<T(ARGS...)> task_, ARGS... args) : task(std::bind(task_, args))
 	{ }
+	virtual ~PromiseTask() {}
 	void virtual dowork() = 0;
 	PromiseResult<T> virtual getResult() = 0;
 };

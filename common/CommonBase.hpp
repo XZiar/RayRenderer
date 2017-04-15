@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <memory>
 #include <string>
-#include <codecvt>
 
 #ifdef COMMON_EXPORT
 #   define COMMONAPI _declspec(dllexport) 
@@ -36,15 +35,20 @@ struct COMMONAPI NonMovable
 };
 
 
-
+struct NoArg {};
 
 template<class T>
 class COMMONTPL Wrapper : public std::shared_ptr<T>
 {
 public:
+#if !defined(_MSVC_LANG) || _MSVC_LANG <= 201403
 	using weak_type = std::weak_ptr<T>;
+#endif
 	template<class... ARGS>
 	Wrapper(ARGS... args) : std::shared_ptr<T>(new T(args...))
+	//Wrapper(ARGS... args) : std::shared_ptr<T>(std::make_shared<T>(args...))
+	{ }
+	Wrapper(NoArg) : std::shared_ptr<T>(std::make_shared<T>())
 	{ }
 	Wrapper(const std::shared_ptr<T>& other) noexcept : std::shared_ptr<T>(other)
 	{ }
@@ -59,23 +63,11 @@ public:
 	template<class... ARGS>
 	void reset(ARGS... args)
 	{
-		std::shared_ptr<T>::reset(new T(args...));
-	}
-	void reset(const std::shared_ptr<T>& other) noexcept
-	{
-		std::shared_ptr<T>::reset(other);
-	}
-	void reset(std::shared_ptr<T>&& other) noexcept
-	{
-		std::shared_ptr<T>::reset(other);
-	}
-	void reset()
-	{
-		std::shared_ptr<T>::reset(new T());
+		*this = std::make_shared<T>(args...);
 	}
 	void release()
 	{
-		std::shared_ptr<T>::reset((T*)nullptr);
+		std::shared_ptr<T>::reset();
 	}
 	weak_type weakRef() const noexcept
 	{

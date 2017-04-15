@@ -53,13 +53,24 @@ namespace WPFTest
             Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Main.test.lightCount - 1, lgt.name(), lgt);
         }
 
-        private Paragraph par = null;
-        private static SolidColorBrush errBrs = new SolidColorBrush(Colors.Red),
-            warnBrs = new SolidColorBrush(Colors.Yellow),
-            sucBrs = new SolidColorBrush(Colors.Green),
-            infoBrs = new SolidColorBrush(Colors.White),
-            vbBrs = new SolidColorBrush(Colors.Pink),
-            dbgBrs = new SolidColorBrush(Colors.Cyan);
+        
+        private void btnTryExp_Click(object sender, RoutedEventArgs args)
+        {
+            extype++;
+            if (extype > 2 * 2)
+                extype = 1;
+            try
+            {
+                Main.test.TryException(extype);
+            }
+            catch(Exception e)
+            {
+                OnLog(LogLevel.Error, "WPF", e.Message);
+            }
+        }
+
+        int extype = 0;
+
         private void OnLog(LogLevel lv, string from, string content)
         {
             dbgOutput.Dispatcher.BeginInvoke(new Action(() => 
@@ -84,6 +95,13 @@ namespace WPFTest
                 dbgOutput.ScrollToEnd();
             }), System.Windows.Threading.DispatcherPriority.Normal, null);
         }
+        private Paragraph par = null;
+        private static SolidColorBrush errBrs = new SolidColorBrush(Colors.Red),
+            warnBrs = new SolidColorBrush(Colors.Yellow),
+            sucBrs = new SolidColorBrush(Colors.Green),
+            infoBrs = new SolidColorBrush(Colors.White),
+            vbBrs = new SolidColorBrush(Colors.Pink),
+            dbgBrs = new SolidColorBrush(Colors.Cyan);
 
         private void OnKeyAction(object sender, KeyBoardEventArgs e)
         {

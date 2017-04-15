@@ -1,5 +1,5 @@
 #include "oglRely.h"
-#include "oglComponent.h"
+#include "oglShader.h"
 #include "BindingManager.h"
 
 namespace oglu::inner
@@ -44,6 +44,7 @@ OPResult<> _oglShader::compile()
 	if (!result)
 	{
 		glGetShaderInfoLog(shaderID, sizeof(logstr), NULL, logstr);
+		throw BaseException(to_wstring(logstr));
 		return OPResult<>(false, logstr);
 	}
 	return true;

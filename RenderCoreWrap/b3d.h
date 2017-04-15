@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderCoreRely.h"
+#include "RenderCoreWrapRely.h"
 
 using namespace System;
 

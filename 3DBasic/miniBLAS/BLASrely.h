@@ -64,7 +64,7 @@
 
 namespace miniBLAS
 {
-inline constexpr char* miniBLAS_intrin()
+inline constexpr auto miniBLAS_intrin()
 {
 	return STRINGIZE(MINIBLAS_INTRIN);
 }

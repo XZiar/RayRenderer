@@ -1,7 +1,7 @@
 // RenderCoreWrap.h
 #pragma once
 
-#include "RenderCoreRely.h"
+#include "RenderCoreWrapRely.h"
 #include "b3d.h"
 
 using namespace System;
@@ -71,6 +71,8 @@ public:
 
 	Task<Func<bool>^>^ AddModelAsync(String^ name);
 	void AddLight(Basic3D::LightType type);
+
+	void TryException(int type);
 };
 
 }

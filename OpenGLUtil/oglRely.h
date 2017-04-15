@@ -11,7 +11,9 @@
 
 #include "../3dBasic/3dElement.hpp"
 #include "../common/CommonBase.hpp"
+#include "../common/StringEx.hpp"
 #include "../common/BasicUtil.h"
+#include "../common/Exceptions.hpp"
 #include "../common/PromiseTask.h"
 
 #include <GL/glew.h>

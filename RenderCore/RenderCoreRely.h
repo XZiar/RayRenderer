@@ -7,6 +7,7 @@
 #   define RAYCOREAPI _declspec(dllimport)
 #endif
 
+#define _HAS_AUTO_PTR_ETC 1
 
 #include <cstdint>
 #include <cstdio>

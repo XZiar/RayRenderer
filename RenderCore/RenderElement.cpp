@@ -94,7 +94,7 @@ void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) con
 
 const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram& prog) const
 {
-	auto& it = vaoMap.find(std::make_tuple(prog.weakRef(), this));
+	const auto& it = vaoMap.find(std::make_tuple(prog.weakRef(), this));
 	if (it == vaoMap.end())
 		return defaultVAO;
 	else

@@ -21,9 +21,6 @@
     <ClInclude Include="oglProgram.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oglComponent.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oglUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -48,12 +45,12 @@
     <ClInclude Include="OpenGLUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglShader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="oglComponent.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglUtil.cpp">
@@ -72,6 +69,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglVAO.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

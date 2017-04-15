@@ -24,7 +24,7 @@
     <ClInclude Include="oglInternal.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
-    <ClInclude Include="oglComponent.h" />
+    <ClInclude Include="oglShader.h" />
     <ClInclude Include="oglTexture.h" />
     <ClInclude Include="oglUtil.h" />
     <ClInclude Include="BindingManager.h" />
@@ -40,7 +40,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="oglProgram.cpp" />
-    <ClCompile Include="oglComponent.cpp" />
+    <ClCompile Include="oglShader.cpp" />
     <ClCompile Include="oglTexture.cpp" />
     <ClCompile Include="oglUtil.cpp" />
     <ClCompile Include="BindingManager.cpp" />
@@ -126,6 +126,7 @@
       <CallingConvention>VectorCall</CallingConvention>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
@@ -161,6 +162,7 @@
       <CallingConvention>VectorCall</CallingConvention>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <LanguageStandard>stdcpplatest</LanguageStandard>

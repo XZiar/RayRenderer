@@ -1,6 +1,6 @@
 #pragma once
 #include "oglRely.h"
-#include "oglComponent.h"
+#include "oglShader.h"
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"

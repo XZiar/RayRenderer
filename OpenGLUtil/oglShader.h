@@ -20,7 +20,7 @@ class OGLUAPI _oglShader : public NonCopyable, public NonMovable
 {
 private:
 	friend class _oglProgram;
-	ShaderType shaderType;
+	const ShaderType shaderType;
 	GLuint shaderID = GL_INVALID_INDEX;
 	string src;
 	static string loadFromFile(FILE *fp);

@@ -18,13 +18,13 @@
     <ClInclude Include="RenderCoreWrap.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RenderCoreRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="b3d.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderCoreWrapRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -42,6 +42,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="logger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderCoreWrapRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

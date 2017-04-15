@@ -125,7 +125,7 @@ void _ModelImage::resize(const uint16_t w, const uint16_t h)
 {
 	if (width == w || height == h)
 		return;
-	image.swap(::stb::resizeImage(image, width, height, w, h));
+	stb::resizeImage(image, width, height, w, h).swap(image);
 	width = w, height = h;
 }
 

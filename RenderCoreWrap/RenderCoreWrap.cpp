@@ -1,3 +1,4 @@
+#include "RenderCoreWrapRely.h"
 #include "RenderCoreWrap.h"
 #include <msclr/marshal_cppstd.h>
 
@@ -101,6 +102,43 @@ Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ name)
 void BasicTest::AddLight(Basic3D::LightType type)
 {
 	core->addLight((b3d::LightType)type);
+}
+#pragma unmanaged
+void TryThrow(int type)
+{
+	switch (type)
+	{
+	case 1:
+		throw common::BaseException(L"Here's try 1");
+	case 2:
+		throw common::FileException(common::FileException::Reason::NotExist, L"sss", L"here's try 2");
+	}
+}
+#pragma managed
+void BasicTest::TryException(int type)
+{
+	if (type > 2)
+	{
+		TryThrow(type - 2);
+	}
+	else
+	{
+		try
+		{
+			TryThrow(type);
+		}
+		catch (const common::BaseException& ex)
+		{
+			Console::WriteLine(L"msg:{0}", gcnew String(ex.message.c_str()));
+			throw gcnew System::NotImplementedException(gcnew String(ex.message.c_str()));
+		}
+		catch (...)
+		{
+			auto curex = std::current_exception();
+			Console::WriteLine(L"other exception");
+			throw gcnew System::NotImplementedException(L"other exception");
+		}
+	}
 }
 
 }

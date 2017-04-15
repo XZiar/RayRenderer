@@ -2,7 +2,7 @@
 #include "oglUtil.h"
 #include "MTWorker.hpp"
 #include "oglInternal.h"
-#include "../common/PromiseTask.hpp"
+#include "../common/PromiseTask.inl"
 #include <GL/wglew.h>
 
 namespace oglu

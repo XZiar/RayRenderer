@@ -2,7 +2,7 @@
 
 #include "oglRely.h"
 #include "oglBuffer.h"
-#include "oglComponent.h"
+#include "oglShader.h"
 #include "oglVAO.h"
 #include "oglTexture.h"
 #include "oglProgram.h"

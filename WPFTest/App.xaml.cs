@@ -33,7 +33,15 @@ namespace WPFTest
             /* the actual assembly resolver */
             Console.WriteLine($"resolve Assembly {args.Name}");
             var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
-            return Assembly.LoadFrom(dllname);
+            try
+            {
+                return Assembly.LoadFrom(dllname);
+            }
+            catch(Exception e)
+            {
+                e.ToString();
+                return null;
+            }
         }
     }
 }
