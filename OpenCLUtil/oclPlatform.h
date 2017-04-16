@@ -8,7 +8,7 @@
 namespace oclu
 {
 
-namespace inner
+namespace detail
 {
 
 
@@ -32,6 +32,6 @@ public:
 
 
 }
-using oclPlatform = Wrapper<inner::_oclPlatform>;
+using oclPlatform = Wrapper<detail::_oclPlatform>;
 
 }

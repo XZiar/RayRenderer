@@ -5,7 +5,7 @@
 #include "oglBuffer.h"
 #include "oglProgram.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 

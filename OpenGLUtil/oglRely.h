@@ -10,9 +10,9 @@
 #endif
 
 #include "../3dBasic/3dElement.hpp"
-#include "../common/CommonBase.hpp"
+#include "../common/Wrapper.hpp"
 #include "../common/StringEx.hpp"
-#include "../common/BasicUtil.h"
+#include "../common/TimeUtil.h"
 #include "../common/Exceptions.hpp"
 #include "../common/PromiseTask.h"
 
@@ -33,7 +33,7 @@
 
 namespace oclu
 {
-namespace inner
+namespace detail
 {
 class _oclMem;
 }

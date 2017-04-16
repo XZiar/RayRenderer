@@ -5,7 +5,7 @@
 #include "BindingManager.h"
 #include "oglInternal.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 

@@ -2,7 +2,7 @@
 #include "oglTexture.h"
 #include "BindingManager.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 

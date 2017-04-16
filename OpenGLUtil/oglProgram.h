@@ -16,7 +16,7 @@ struct OGLUAPI alignas(Vec4) TransformOP : public AlignBase<>
 	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
 
-namespace inner
+namespace detail
 {
 
 
@@ -141,6 +141,6 @@ public:
 }
 
 
-using oglProgram = Wrapper<inner::_oglProgram>;
+using oglProgram = Wrapper<detail::_oglProgram>;
 
 }

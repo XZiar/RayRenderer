@@ -1,7 +1,7 @@
 #include "oglRely.h"
 #include "oglVAO.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 

@@ -37,7 +37,7 @@ enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, 
 enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 
 
-namespace inner
+namespace detail
 {
 
 
@@ -46,7 +46,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 protected:
 	friend class TextureManager;
 	friend class _oglProgram;
-	friend class oclu::inner::_oclMem;
+	friend class oclu::detail::_oclMem;
 	const TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
 	const uint8_t defPos;
@@ -63,7 +63,7 @@ class OGLUAPI _oglTexture : public _oglTexBase
 protected:
 	friend class TextureManager;
 	friend class _oglProgram;
-	friend class oclu::inner::_oclMem;
+	friend class oclu::detail::_oclMem;
 	TextureInnerFormat inFormat;
 	static TextureManager& getTexMan() noexcept;
 	static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
@@ -91,7 +91,7 @@ class OGLUAPI _oglBufferTexture : public _oglTexBase
 {
 protected:
 	friend class _oglProgram;
-	friend class oclu::inner::_oclMem;
+	friend class oclu::detail::_oclMem;
 	oglTBO innerBuf;
 	static GLenum parseFormat(const TextureDataFormat dformat) noexcept;
 public:
@@ -101,8 +101,8 @@ public:
 
 
 }
-using oglTexture = Wrapper<inner::_oglTexture>;
-using oglBufTex = Wrapper<inner::_oglBufferTexture>;
+using oglTexture = Wrapper<detail::_oglTexture>;
+using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 
 
 }

@@ -12,7 +12,7 @@ enum class ShaderType : GLenum
 };
 
 
-namespace inner
+namespace detail
 {
 
 
@@ -34,7 +34,7 @@ public:
 
 
 }
-using oglShader = Wrapper<inner::_oglShader>;
+using oglShader = Wrapper<detail::_oglShader>;
 
 }
 

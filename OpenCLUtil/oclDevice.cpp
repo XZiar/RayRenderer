@@ -6,7 +6,7 @@ namespace oclu
 {
 
 
-namespace inner
+namespace detail
 {
 
 string _oclDevice::getStr(const cl_device_info type) const

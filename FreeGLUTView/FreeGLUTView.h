@@ -8,8 +8,8 @@
 #endif
 
 #include "../3DBasic/3dElement.hpp"
-#include "../common/CommonBase.hpp"
-#include "../common/BasicUtil.hpp"
+#include "../common/Wrapper.hpp"
+#include "../common/TimeUtil.h"
 #include <string>
 #include <functional>
 

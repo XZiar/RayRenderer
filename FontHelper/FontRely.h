@@ -13,6 +13,8 @@
 #include <string>
 #include <map>
 #include "../3DBasic/3dElement.hpp"
+#include "../common/Wrapper.hpp"
+#include "../common/Exceptions.hpp"
 #include "../OpenGLUtil/OpenGLUtil.h"
 #include "../OpenCLUtil/OpenCLUtil.h"
 

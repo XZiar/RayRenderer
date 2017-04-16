@@ -3,7 +3,7 @@
 #include "oglShader.h"
 #include "BindingManager.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 string _oglShader::loadFromFile(FILE * fp)

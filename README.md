@@ -54,6 +54,10 @@ It will contain mini version of BLAS library, C++ wrapper for OpenGL and GLUT, C
 
   [BSD-2 License](./License/fmt.rst)
 
+* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6
+
+  [MPL 1.1 License](./License/uchardet.txt)
+
 ## License
 
 RayRenderer (including its component) is licensed under the [MIT license](License.txt).

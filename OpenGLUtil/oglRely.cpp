@@ -1,6 +1,6 @@
 #include "oglRely.h"
 #include "oglInternal.h"
-#include "../common/BasicUtil.hpp"
+#include "../common/TimeUtil.inl"
 
 #pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
 //#pragma comment (lib, "gdi32.lib")    /* link Windows GDI lib        */

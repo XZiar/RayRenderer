@@ -20,7 +20,7 @@
 #include <atomic>
 #include <mutex>
 #include <future>
-#include "../common/BasicUtil.hpp"
+#include "../common/TimeUtil.inl"
 #include "../common/miniLogger/miniLogger.h"
 #include "FreeGLUTView.h"
 

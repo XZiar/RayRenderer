@@ -1,10 +1,9 @@
 #pragma once
 
+#include "TimeUtil.h"
 #include <cstdint>
 #include <chrono>
 #include <thread>
-#include "BasicUtil.h"
-
 
 namespace common
 {

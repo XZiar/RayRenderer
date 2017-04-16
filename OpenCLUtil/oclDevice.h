@@ -9,7 +9,7 @@ namespace oclu
 
 enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
 
-namespace inner
+namespace detail
 {
 
 
@@ -32,7 +32,7 @@ public:
 
 
 }
-using oclDevice = Wrapper<inner::_oclDevice>;
+using oclDevice = Wrapper<detail::_oclDevice>;
 
 
 }

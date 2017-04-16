@@ -38,8 +38,8 @@ public:
 	BasicTest(const wstring sname2d = L"", const wstring sname3d = L"");
 	void draw();
 	void resize(const int w, const int h);
-	OPResult<> addModel(const wstring& fname);
-	void addModelAsync(const wstring& fname, std::function<void(std::function<OPResult<>(void)>)> onFinish);
+	bool addModel(const wstring& fname);
+	void addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish);
 	void addLight(const b3d::LightType type);
 	void moveobj(const uint16_t id, const float x, const float y, const float z);
 	void rotateobj(const uint16_t id, const float x, const float y, const float z);

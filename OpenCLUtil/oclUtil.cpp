@@ -5,7 +5,7 @@ namespace oclu
 {
 
 
-namespace inner
+namespace detail
 {
 
 
@@ -25,7 +25,7 @@ void oclUtil::init()
 	clGetPlatformIDs(numPlatforms, platformIDs.data(), NULL);
 	for (const auto& pID : platformIDs)
 	{
-		platforms.push_back(oclPlatform(new inner::_oclPlatform(pID)));
+		platforms.push_back(oclPlatform(new detail::_oclPlatform(pID)));
 	}
 }
 

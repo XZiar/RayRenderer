@@ -2,6 +2,7 @@
 #include "Model.h"
 #include "RenderCoreInternal.h"
 #include "../3rdParty/stblib/stblib.h"
+#include "../3rdParty/uchardetlib/uchardetlib.h"
 #include <unordered_map>
 #include <set>
 
@@ -41,12 +42,12 @@ struct PTstubHasher
 	}
 };
 
-namespace inner
+namespace detail
 {
 
 map<wstring, ModelImage> _ModelImage::images;
 
-ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
+ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 {
 	wstring fname = picPath.filename();
 	auto img = getImage(fname);
@@ -157,7 +158,130 @@ oglu::oglTexture _ModelImage::genTextureAsync()
 }
 
 
+class OBJLoder
+{
+private:
+	fs::path fpath;
+	vector<uint8_t> fdata;
+	uint32_t fcurpos, flen;
+	Charset chset;
+public:
+	char curline[256];
+	const char* param[5];
+	struct TextLine
+	{
+		uint64_t type;
+		uint8_t pcount;
+		operator const bool() const
+		{
+			return type != "EOF"_hash;
+		}
+	};
+	OBJLoder(const fs::path& fpath_) : fpath(fpath_)
+	{
+		FILE *fp = nullptr;
+		_wfopen_s(&fp, fpath.c_str(), L"rb");
+		if (fp == nullptr)
+			COMMON_THROW(FileException, FileException::Reason::OpenFail, fpath, L"cannot open target obj file");
+		//pre-load data, in case of Acess-Violate while reading file
+		fseek(fp, 0, SEEK_END);
+		flen = (uint32_t)ftell(fp);
+		fdata.resize(flen);
+		fseek(fp, 0, SEEK_SET);
+		fread(fdata.data(), flen, 1, fp);
+		fclose(fp);
+		fcurpos = 0;
+		chset = uchdet::detectEncoding(fdata);
+		basLog().debug(L"obj file[{}]--encoding[{}]\n", fpath.wstring(), getCharsetWName(chset));
+	}
+	TextLine readLine()
+	{
+		using common::hash_;
+		static std::set<string> specialPrefix{ "mtllib","usemtl","newmtl","g" };
+		uint32_t frompos = fcurpos, linelen = 0;
+		for (bool isCounting = false; fcurpos < flen;)
+		{
+			const uint8_t curch = fdata[fcurpos++];
+			const bool isLineEnd = (curch == '\r' || curch == '\n');
+			if (isLineEnd)
+			{
+				if (isCounting)//finish line
+					break;
+				else//not even start
+					++frompos;
+			}
+			else
+			{
+				++linelen;//linelen EQUALS count how many ch is not "NEWLINE"
+				isCounting = true;
+			}
+		}
+		if (linelen == 0)
+		{
+			if (fcurpos == flen)//EOF
+				return{ "EOF"_hash, 0 };
+			else
+				return{ "EMPTY"_hash, 0 };
+		}
+		memmove(curline, &fdata[frompos], linelen);
+		char *end = &curline[linelen];
+		*end = '\0';
 
+		char prefix[256] = { 0 };
+		sscanf_s(curline, "%s", prefix, 240);
+		const string sprefix(prefix);
+		//is-note
+		if (sprefix == "#")
+		{
+			param[0] = linelen > 1 ? &curline[2] : &curline[1];
+			return{ "#"_hash, 1 };
+		}
+		bool isOneParam = specialPrefix.count(sprefix) != 0 || sprefix.find_first_of("map_") == 0;
+		bool inParam = false;
+		uint8_t pcnt = 0;
+		char *cur = &curline[sprefix.length()];
+		*cur++ = '\0';
+		for (; cur < end; ++cur)
+		{
+			const uint8_t curch = *(uint8_t*)cur;
+			if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
+			{
+				*cur = '\0';
+				inParam = false;
+			}
+			else if (!inParam)
+			{
+				param[pcnt++] = cur;
+				inParam = true;
+				if (isOneParam)//need only one param
+					break;
+			}
+		}
+		return{ hash_(prefix), pcnt };
+	}
+	wstring getWString(const uint8_t idx)
+	{
+		return to_wstring(param[idx], chset);
+	}
+	int8_t parseFloat(const uint8_t idx, float *output)
+	{
+		char *endpos = nullptr;
+		int8_t cnt = 0;
+		do
+		{
+			output[cnt++] = strtof(param[idx], &endpos);
+		} while (endpos != param[idx]);
+		return cnt;
+		//return sscanf_s(param[idx], "%f/%f/%f/%f", &output[0], &output[1], &output[2], &output[3]);
+	}
+	int8_t parseInt(const uint8_t idx, int32_t *output)
+	{
+		int8_t cnt = 0;
+		for (const char *obj = param[idx] - 1; obj != nullptr; obj = strchr(obj, '/'))
+			output[cnt++] = atoi(++obj);
+		return cnt;
+	}
+};
 
 map<wstring, ModelData> _ModelData::models;
 
@@ -207,120 +331,6 @@ oglu::oglVAO _ModelData::getVAO() const
 	}
 	return vao;
 }
-
-_ModelData::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
-{
-	FILE *fp = nullptr;
-	_wfopen_s(&fp, fpath.c_str(), L"rb");
-	if (fp == nullptr)
-		COMMON_THROW(FileException, FileException::Reason::OpenFail, fpath, L"cannot open target obj file");
-	//pre-load data, in case of Acess-Violate while reading file
-	fseek(fp, 0, SEEK_END);
-	flen = (uint32_t)ftell(fp);
-	fdata.resize(flen);
-	fseek(fp, 0, SEEK_SET);
-	fread(fdata.data(), flen, 1, fp);
-	fclose(fp);
-	fcurpos = 0;
-}
-
-_ModelData::OBJLoder::~OBJLoder()
-{
-}
-
-_ModelData::OBJLoder::TextLine _ModelData::OBJLoder::readLine()
-{
-	using common::hash_;
-	static std::set<string> specialPrefix{ "mtllib","usemtl","newmtl","g" };
-	uint32_t frompos = fcurpos, linelen = 0;
-	for (bool isCounting = false; fcurpos < flen;)
-	{
-		const uint8_t curch = fdata[fcurpos++];
-		const bool isLineEnd = (curch == '\r' || curch == '\n');
-		if (isLineEnd)
-		{
-			if (isCounting)//finish line
-				break;
-			else//not even start
-				++frompos;
-		}
-		else
-		{
-			++linelen;//linelen EQUALS count how many ch is not "NEWLINE"
-			isCounting = true;
-		}
-	}
-	if (linelen == 0)
-	{
-		if(fcurpos == flen)//EOF
-			return{ "EOF"_hash, 0 };
-		else
-			return{ "EMPTY"_hash, 0 };
-	}
-	memmove(curline, &fdata[frompos], linelen);
-	char *end = &curline[linelen];
-	*end = '\0';
-
-	char prefix[256] = { 0 };
-	sscanf_s(curline, "%s", prefix, 240);
-	const string sprefix(prefix);
-	//is-note
-	if (sprefix == "#")
-	{
-		param[0] = linelen > 1 ? &curline[2] : &curline[1];
-		return{ "#"_hash, 1 };
-	}
-	bool isOneParam = specialPrefix.count(sprefix) != 0 || sprefix.find_first_of("map_") == 0;
-	bool inParam = false;
-	uint8_t pcnt = 0;
-	char *cur = &curline[sprefix.length()];
-	*cur++ = '\0';
-	for (; cur < end; ++cur)
-	{
-		const uint8_t curch = *(uint8_t*)cur;
-		if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
-		{
-			*cur = '\0';
-			inParam = false;
-		}
-		else if (!inParam)
-		{
-			param[pcnt++] = cur;
-			inParam = true;
-			if (isOneParam)//need only one param
-				break;
-		}
-	}
-	return{ hash_(prefix), pcnt };
-}
-
-wstring _ModelData::OBJLoder::toWideString(const uint8_t idx)
-{
-	const auto len = strlen(param[idx]);
-	return wstring(param[idx], param[idx] + len);
-}
-
-
-int8_t _ModelData::OBJLoder::parseFloat(const uint8_t idx, float *output)
-{
-	char *endpos = nullptr;
-	int8_t cnt = 0;
-	do
-	{
-		output[cnt++] = strtof(param[idx], &endpos);
-	} while (endpos != param[idx]);
-	return cnt;
-	//return sscanf_s(param[idx], "%f/%f/%f/%f", &output[0], &output[1], &output[2], &output[3]);
-}
-
-int8_t _ModelData::OBJLoder::parseInt(const uint8_t idx, int32_t *output)
-{
-	int8_t cnt = 0;
-	for (const char *obj = param[idx] - 1; obj != nullptr; obj = strchr(obj, '/'))
-		output[cnt++] = atoi(++obj);
-	return cnt;
-}
-
 
 
 std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs)
@@ -392,7 +402,7 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 	return { diffuse,normal };
 }
 
-map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath) try
+map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtlpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
@@ -408,11 +418,11 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--mtl-note [{}]\n", ldr.param[0]);
+			basLog().verbose(L"--mtl-note [{}]\n", ldr.getWString(0));
 			break;
 		case "#merge"_hash:
 			{
-				auto img = _ModelImage::getImage(ldr.toWideString(0));
+				auto img = _ModelImage::getImage(ldr.getWString(0));
 				if (!img)
 					break;
 				int32_t pos[2];
@@ -444,14 +454,14 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 			//break;
 		case "map_Kd"_hash:
 			{
-				auto tex = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(ldr.getWString(0), mtlpath.parent_path());
 				curmtl->diffuse() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
 			}break;
 		case "map_bump"_hash:
 			{
-				auto tex = inner::_ModelImage::getImage(ldr.param[0], mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(ldr.getWString(0), mtlpath.parent_path());
 				curmtl->normal() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
@@ -479,7 +489,7 @@ catch (FileException& fe)
 #pragma warning(default:4101)
 
 
-bool _ModelData::loadOBJ(const Path& objpath) try
+bool _ModelData::loadOBJ(const fs::path& objpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(objpath);
@@ -504,7 +514,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--obj-note [{}]\n", ldr.param[0]);
+			basLog().verbose(L"--obj-note [{}]\n", ldr.getWString(0));
 			break;
 		case "v"_hash://vertex
 			{
@@ -624,11 +634,11 @@ _ModelData::~_ModelData()
 
 }
 
-//ENDOF INNER
+//ENDOF detail
 }
 
 
-Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(inner::_ModelData::getModel(fname, asyncload))
+Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
 {
 	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(data->size.x, data->size.y), data->size.z);
 	scale = Vec3(resizer, resizer, resizer);
@@ -638,7 +648,7 @@ Model::~Model()
 {
 	const auto mfname = data->mfnane;
 	data.release();
-	inner::_ModelData::releaseModel(mfname);
+	detail::_ModelData::releaseModel(mfname);
 }
 
 void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)

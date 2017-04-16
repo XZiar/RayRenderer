@@ -15,7 +15,8 @@
 #include <vector>
 #include <functional>
 
-#include "../CommonBase.hpp"
+#include "../CommonRely.hpp"
+#include "../Wrapper.hpp"
 //#define FMT_SHARED
 #define FMT_HEADER_ONLY
 #include "../../3rdParty/fmt/format.h"

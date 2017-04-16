@@ -2,7 +2,7 @@
 #include "oglBuffer.h"
 #include "BindingManager.h"
 
-namespace oglu::inner
+namespace oglu::detail
 {
 
 _oglBuffer::_oglBuffer(const BufferType _type) noexcept :bufferType(_type)

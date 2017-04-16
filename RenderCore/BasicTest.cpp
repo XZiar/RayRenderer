@@ -295,7 +295,7 @@ void BasicTest::resize(const int w, const int h)
 	prog3D->setProject(cam, w, h);
 }
 
-OPResult<> BasicTest::addModel(const wstring& fname)
+bool BasicTest::addModel(const wstring& fname)
 {
 	Wrapper<Model> mod(fname);
 	mod->name = L"model";
@@ -304,7 +304,7 @@ OPResult<> BasicTest::addModel(const wstring& fname)
 	return true;
 }
 
-void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::function<OPResult<>(void)>)> onFinish)
+void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish)
 {
 	std::thread([this, onFinish](const wstring name)
 	{

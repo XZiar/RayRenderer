@@ -7,7 +7,7 @@ namespace oclu
 {
 
 class oclUtil;
-namespace inner
+namespace detail
 {
 
 

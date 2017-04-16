@@ -17,14 +17,14 @@ enum class BufferWriteMode : GLenum
 };
 enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 
-namespace inner
+namespace detail
 {
 
 
 class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
 protected:
-	friend class oclu::inner::_oclMem;
+	friend class oclu::detail::_oclMem;
 	friend class _oglTexture;
 	friend class _oglVAO;
 	friend class _oglProgram;
@@ -53,7 +53,7 @@ public:
 class OGLUAPI _oglTextureBuffer : public _oglBuffer
 {
 protected:
-	friend class oclu::inner::_oclMem;
+	friend class oclu::detail::_oclMem;
 	friend class _oglBufferTexture;
 	friend class _oglProgram;
 public:
@@ -103,10 +103,10 @@ public:
 
 }
 
-using oglBuffer = Wrapper<inner::_oglBuffer>;
-using oglTBO = Wrapper<inner::_oglTextureBuffer>;
-using oglUBO = Wrapper<inner::_oglUniformBuffer>;
-using oglEBO = Wrapper<inner::_oglElementBuffer>;
+using oglBuffer = Wrapper<detail::_oglBuffer>;
+using oglTBO = Wrapper<detail::_oglTextureBuffer>;
+using oglUBO = Wrapper<detail::_oglUniformBuffer>;
+using oglEBO = Wrapper<detail::_oglElementBuffer>;
 
 
 }

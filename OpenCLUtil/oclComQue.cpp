@@ -7,7 +7,7 @@ namespace oclu
 {
 
 
-namespace inner
+namespace detail
 {
 
 

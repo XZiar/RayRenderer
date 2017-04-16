@@ -6,7 +6,7 @@ namespace rayr
 {
 
 class Model;
-namespace inner
+namespace detail
 {
 
 namespace fs = std::experimental::filesystem;
@@ -16,9 +16,8 @@ class _ModelImage
 	friend class ::rayr::Model;
 	friend class _ModelData;
 private:
-	using Path = fs::path;
 	static map<wstring, Wrapper<_ModelImage>> images;
-	static Wrapper<_ModelImage> getImage(Path picPath, const Path& curPath);
+	static Wrapper<_ModelImage> getImage(fs::path picPath, const fs::path& curPath);
 	static Wrapper<_ModelImage> getImage(const wstring& pname);
 	static void shrink();
 	uint16_t width = 0, height = 0;
@@ -38,35 +37,9 @@ class _ModelData : public NonCopyable, public AlignBase<>
 {
 	friend class ::rayr::Model;
 private:
-	using Path = std::experimental::filesystem::path;
 	static map<wstring, Wrapper<_ModelData>> models;
 	static Wrapper<_ModelData> getModel(const wstring& fname, bool asyncload = false);
 	static void releaseModel(const wstring& fname);
-	class OBJLoder
-	{
-	private:
-		Path fpath;
-		vector<uint8_t> fdata;
-		uint32_t fcurpos, flen;
-	public:
-		char curline[256];
-		const char* param[5];
-		struct TextLine
-		{
-			uint64_t type;
-			uint8_t pcount;
-			operator const bool() const
-			{
-				return type != "EOF"_hash;
-			}
-		};
-		OBJLoder(const Path &fpath_);
-		~OBJLoder();
-		TextLine readLine();
-		wstring toWideString(const uint8_t idx);
-		int8_t parseFloat(const uint8_t idx, float *output);
-		int8_t parseInt(const uint8_t idx, int32_t *output);
-	};
 	struct alignas(Material) MtlStub
 	{
 		Material mtl;
@@ -98,8 +71,8 @@ private:
 	oglu::oglEBO ebo;
 	const wstring mfnane;
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
-	map<string, MtlStub> loadMTL(const Path& mtlfname);
-	bool loadOBJ(const Path& objfname);
+	map<string, MtlStub> loadMTL(const fs::path& mtlfname);
+	bool loadOBJ(const fs::path& objfname);
 	_ModelData(const wstring& fname, bool asyncload = false);
 public:
 	void initData();
@@ -109,7 +82,7 @@ public:
 
 }
 
-using ModelData = Wrapper<inner::_ModelData>;
+using ModelData = Wrapper<detail::_ModelData>;
 
 class alignas(16) Model : public Drawable
 {

@@ -6,7 +6,7 @@
 namespace oclu
 {
 
-namespace inner
+namespace detail
 {
 
 
@@ -28,7 +28,7 @@ public:
 
 
 }
-using oclContext = Wrapper<inner::_oclContext>;
+using oclContext = Wrapper<detail::_oclContext>;
 
 
 }

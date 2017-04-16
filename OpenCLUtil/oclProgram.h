@@ -5,7 +5,7 @@
 namespace oclu
 {
 
-namespace inner
+namespace detail
 {
 
 
@@ -30,7 +30,7 @@ public:
 
 
 }
-using oclProgram = Wrapper<inner::_oclProgram>;
+using oclProgram = Wrapper<detail::_oclProgram>;
 
 
 }

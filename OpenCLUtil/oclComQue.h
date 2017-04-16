@@ -8,7 +8,7 @@
 namespace oclu
 {
 
-namespace inner
+namespace detail
 {
 
 
@@ -29,6 +29,6 @@ public:
 
 
 }
-using oclComQue = Wrapper<inner::_oclComQue>;
+using oclComQue = Wrapper<detail::_oclComQue>;
 
 }

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "CommonBase.hpp"
+#include "CommonRely.hpp"
+#include "Wrapper.hpp"
 #include "StringEx.hpp"
 #include <cstdint>
 #include <string>

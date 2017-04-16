@@ -12,7 +12,7 @@ enum class VAODrawMode : GLenum
 };
 
 
-namespace inner
+namespace detail
 {
 
 
@@ -63,7 +63,7 @@ public:
 
 
 }
-using oglVAO = Wrapper<inner::_oglVAO>;
+using oglVAO = Wrapper<detail::_oglVAO>;
 
 
 }

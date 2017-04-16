@@ -10,7 +10,7 @@
 #endif
 
 #include "../3dBasic/miniBLAS.hpp"
-#include "../common/CommonBase.hpp"
+#include "../common/Wrapper.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -43,7 +43,7 @@ using namespace common;
 class oclUtil;
 using MessageCallBack = std::function<void(void)>;
 
-namespace inner
+namespace detail
 {
 class _oclPlatform;
 class _oclProgram;

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "CommonBase.hpp"
+#include "CommonRely.hpp"
+#include "Wrapper.hpp"
 #include <cstdint>
 #include <string>
 #include <map>
@@ -41,16 +42,16 @@ public:
 class FileMapper
 {
 private:
-	static std::map<std::wstring, Wrapper<FileMapper_, false>>& getMappingMap();
+	static std::map<std::wstring, Wrapper<FileMapper_>>& getMappingMap();
 public:
-	static Wrapper<FileMapper_, false> getMapping(const std::wstring& mname);
+	static Wrapper<FileMapper_> getMapping(const std::wstring& mname);
 	template<class... ARGS>
-	static Wrapper<FileMapper_, false> addMapping(const std::wstring& mname, ARGS... args)
+	static Wrapper<FileMapper_> addMapping(const std::wstring& mname, ARGS... args)
 	{
 		auto& mmap = getMappingMap();
 		if (mmap.find(mname) != mmap.end())
-			return Wrapper<FileMapper_, false>();
-		auto m = Wrapper<FileMapper_, false>(mname, args...);
+			return Wrapper<FileMapper_>();
+		auto m = Wrapper<FileMapper_>(mname, args...);
 		mmap.insert({ mname, m });
 		return m;
 	}

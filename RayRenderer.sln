@@ -30,6 +30,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 		License\freeglut.txt = License\freeglut.txt
 		License\glew.txt = License\glew.txt
 		License\stb.txt = License\stb.txt
+		License\uchardet.txt = License\uchardet.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
@@ -87,11 +88,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniLogger", "common\miniLo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90E510-49EC-458D-99FC-C11DF3C6710C}"
 	ProjectSection(SolutionItems) = preProject
-		common\BasicUtil.h = common\BasicUtil.h
-		common\BasicUtil.hpp = common\BasicUtil.hpp
-		common\CommonBase.hpp = common\CommonBase.hpp
-		common\CommonBase.natvis = common\CommonBase.natvis
 		common\CommonMacro.h = common\CommonMacro.h
+		common\CommonRely.hpp = common\CommonRely.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
 		common\Exceptions.hpp = common\Exceptions.hpp
@@ -102,6 +100,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\StringEx.hpp = common\StringEx.hpp
+		common\TimeUtil.h = common\TimeUtil.h
+		common\TimeUtil.inl = common\TimeUtil.inl
+		common\Wrapper.hpp = common\Wrapper.hpp
+		common\Wrapper.natvis = common\Wrapper.natvis
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{4506C210-FD25-45E5-B326-834E2B92B15B}"
@@ -111,6 +113,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{4506C210-FD2
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFTest", "WPFTest\WPFTest.csproj", "{E05720DB-A5FB-4A0C-9552-F3777E66FE29}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{C42B961C-1C23-45DE-ABA7-410681BC7D13}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardetlib", "3rdParty\uchardetlib\uchardetlib.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -248,6 +254,16 @@ Global
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29}.Release|x64.Build.0 = Release|Any CPU
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29}.Release|x86.ActiveCfg = Release|Any CPU
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29}.Release|x86.Build.0 = Release|Any CPU
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Debug|x64.ActiveCfg = Debug|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Debug|x64.Build.0 = Debug|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Debug|x86.ActiveCfg = Debug|Win32
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Debug|x86.Build.0 = Debug|Win32
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|Any CPU.ActiveCfg = Release|Win32
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x64.ActiveCfg = Release|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x64.Build.0 = Release|x64
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x86.ActiveCfg = Release|Win32
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -273,5 +289,7 @@ Global
 		{2D90E510-49EC-458D-99FC-C11DF3C6710C} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{4506C210-FD25-45E5-B326-834E2B92B15B} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{C42B961C-1C23-45DE-ABA7-410681BC7D13} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal
