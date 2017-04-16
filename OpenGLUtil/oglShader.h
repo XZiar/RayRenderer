@@ -29,7 +29,7 @@ public:
 	_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, loadFromFile(fp)) { };
 	~_oglShader();
 
-	OPResult<> compile();
+	void compile();
 };
 
 

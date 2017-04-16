@@ -17,7 +17,15 @@ namespace WPFTest
         static App()
         {
             AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
+            AppDomain.CurrentDomain.UnhandledException += HandleExceptions;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
+        }
+
+        private static void HandleExceptions(object sender, UnhandledExceptionEventArgs e)
+        {
+            var ex = e.ExceptionObject as Exception;
+            Console.WriteLine($"Unexpected Exception {ex.GetType()}\n{ex.Message}\n");
+            throw ex;
         }
 
         private static Assembly ResolveDLL(object sender, ResolveEventArgs args)
@@ -33,15 +41,7 @@ namespace WPFTest
             /* the actual assembly resolver */
             Console.WriteLine($"resolve Assembly {args.Name}");
             var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
-            try
-            {
-                return Assembly.LoadFrom(dllname);
-            }
-            catch(Exception e)
-            {
-                e.ToString();
-                return null;
-            }
+            return Assembly.LoadFrom(dllname);
         }
     }
 }

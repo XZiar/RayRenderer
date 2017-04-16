@@ -1,4 +1,5 @@
 #include "oglRely.h"
+#include "oglException.h"
 #include "oglProgram.h"
 #include "oglUtil.h"
 #include "BindingManager.h"
@@ -318,7 +319,7 @@ void _oglProgram::addShader(oglShader && shader)
 	shaders.push_back(std::move(shader));
 }
 
-OPResult<> _oglProgram::link()
+void _oglProgram::link()
 {
 	glLinkProgram(programID);
 	int result;
@@ -329,11 +330,9 @@ OPResult<> _oglProgram::link()
 	{
 		glGetProgramInfoLog(programID, sizeof(logstr), NULL, logstr);
 		glDeleteProgram(programID);
-		return OPResult<>(false, logstr);
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, to_wstring(logstr));
 	}
-
 	initLocs();
-	return true;
 }
 
 

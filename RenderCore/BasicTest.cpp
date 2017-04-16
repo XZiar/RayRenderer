@@ -36,41 +36,49 @@ void BasicTest::init2d(const wstring pname)
 	if(pname.empty())
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_2DVERT));
-		auto ret = vert->compile();
-		if (ret)
-			prog2D->addShader(std::move(vert));
-		else
+		try
 		{
-			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", ret.msg);
-			throw std::runtime_error("OpenGL compile fail");
+			vert->compile();
+			prog2D->addShader(std::move(vert));
+		}
+		catch(BaseException& be)
+		{
+			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Vertex Shader error");
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_2DFRAG));
-		ret = frag->compile();
-		if (ret)
-			prog2D->addShader(std::move(frag));
-		else
+		try
 		{
-			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", ret.msg);
-			throw std::runtime_error("OpenGL compile fail");
+			frag->compile();
+			prog2D->addShader(std::move(frag));
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Fragment Shader error");
 		}
 	}
 	else
 	{
-		auto ret = oglUtil::loadShader(prog2D, pname);
-		if (!ret)
+		try
 		{
-			basLog().error(L"{}:\n{}", ret.msg, ret.data);
-			throw std::runtime_error("OpenGL compile fail");
+			oglUtil::loadShader(prog2D, pname);
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"OpenGL compile fail:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
+	try
 	{
-		auto ret = prog2D->link();
-		if (!ret)
-		{
-			basLog().error(L"Fail to link Program:\n%ls\n", ret.msg);
-			throw std::runtime_error("OpenGL link fail");
-		}
+		prog2D->link();
 		prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
+	}
+	catch (BaseException& be)
+	{
+		basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		COMMON_THROW(BaseException, L"link Program error");
 	}
 	picVAO.reset(VAODrawMode::Triangles);
 	screenBox.reset(BufferType::Array);
@@ -89,43 +97,50 @@ void BasicTest::init3d(const wstring pname)
 	if (pname == L"")
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_3DVERT));
-		auto ret = vert->compile();
-		if (ret)
-			prog3D->addShader(std::move(vert));
-		else
+		try
 		{
-			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", ret.msg);
-			throw std::runtime_error("OpenGL compile fail");
+			vert->compile();
+			prog3D->addShader(std::move(vert));
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Vertex Shader error");
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_3DFRAG));
-		ret = frag->compile();
-		if (ret)
-			prog3D->addShader(std::move(frag));
-		else
+		try
 		{
-			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", ret.msg);
-			throw std::runtime_error("OpenGL compile fail");
+			frag->compile();
+			prog3D->addShader(std::move(frag));
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Fragment Shader error");
 		}
 	}
 	else
 	{
-		auto ret = oglUtil::loadShader(prog3D, pname);
-		if (!ret)
+		try
 		{
-			basLog().error(L"{}:\n{}\n", ret.msg, ret.data);
-			throw std::runtime_error("OpenGL compile fail");
+			oglUtil::loadShader(prog3D, pname);
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"OpenGL compile fail:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
+	try
 	{
-		auto ret = prog3D->link();
-		if (!ret)
-		{
-			basLog().error(L"{}:\n{}\n", ret.msg, ret.data);
-			basLog().error(L"Fail to link Program:\n%ls\n", ret.msg);
-			throw std::runtime_error("OpenGL link fail");
-		}
+		prog3D->link();
+		prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
 	}
-	prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
+	catch (BaseException& be)
+	{
+		basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		COMMON_THROW(BaseException, L"link Program error");
+	}
 	
 	cam.position = Vec3(0.0f, 0.0f, 4.0f);
 	prog3D->setCamera(cam);

@@ -2,6 +2,7 @@
 #   define __SSE2__ 1
 #endif
 #include "stblib.h"
+#include "../../common/Exceptions.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -16,18 +17,19 @@
 namespace stb
 {
 
+using namespace common;
 
 std::tuple<int32_t, int32_t> loadImage(const std::wstring& fname, std::vector<uint32_t>& data)
 {
 	FILE *fp = nullptr;
 	if (_wfopen_s(&fp, fname.c_str(), L"rb") != 0)
-		throw std::ios_base::failure("cannot open file");
+		COMMON_THROW(FileException, FileException::Reason::OpenFail, fname, L"cannot open image file");
 	int width, height, comp;
 	auto ret = stbi_load_from_file(fp, &width, &height, &comp, 4);
 	if (ret == nullptr)
 	{
 		fclose(fp);
-		throw std::ios_base::failure("cannot open file");
+		COMMON_THROW(FileException, FileException::Reason::ReadFail, fname, L"cannot parse image");
 	}
 	data.resize(width*height);
 	memmove(data.data(), ret, width*height * 4);

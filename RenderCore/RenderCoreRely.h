@@ -16,6 +16,9 @@
 #include <map>
 #include <filesystem>
 #include "../3DBasic/3dElement.hpp"
+#include "../common/CommonBase.hpp"
+#include "../common/Exceptions.hpp"
+#include "../common/StringEx.hpp"
 #include "../OpenGLUtil/OpenGLUtil.h"
 #include "../OpenCLUtil/OpenCLUtil.h"
 

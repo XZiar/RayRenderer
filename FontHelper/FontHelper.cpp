@@ -25,33 +25,37 @@ FontViewerProgram::FontViewerProgram()
 	prog.reset();
 	{
 		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_FONTVERT));
-		auto ret = vert->compile();
-		if (ret)
-			prog->addShader(std::move(vert));
-		else
+		try
 		{
-			printf("ERROR on Vertex Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			vert->compile();
+			prog->addShader(std::move(vert));
+		}
+		catch (BaseException& be)
+		{
+			//basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Vertex Shader error");
 		}
 		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_FONTFRAG));
-		ret = frag->compile();
-		if (ret)
-			prog->addShader(std::move(frag));
-		else
+		try
 		{
-			printf("ERROR on Fragment Shader Compiler:\n%ls\n", ret.msg.c_str());
-			getchar();
+			frag->compile();
+			prog->addShader(std::move(frag));
+		}
+		catch (BaseException& be)
+		{
+			//basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"compile Fragment Shader error");
 		}
 	}
-
+	try
 	{
-		auto ret = prog->link();
-		if (!ret)
-		{
-			printf("ERROR on Program Linker:\n%ls\n", ret.msg.c_str());
-			getchar();
-		}
+		prog->link();
 		prog->registerLocation({ "vertPos","","vertTexc","vertColor" }, { "","","","","" });
+	}
+	catch (BaseException& be)
+	{
+		//basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		COMMON_THROW(BaseException, L"link Program error");
 	}
 }
 

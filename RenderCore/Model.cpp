@@ -70,9 +70,12 @@ ModelImage _ModelImage::getImage(Path picPath, const Path& curPath)
 		return image;
 	}
 #pragma warning(disable:4101)
-	catch (const std::ios_base::failure& e)
+	catch (FileException& fe)
 	{
-		basLog().error(L"Fail to decode image file\t[{}]\n", picPath.wstring());
+		if(fe.reason == FileException::Reason::ReadFail)
+			basLog().error(L"Fail to decode image file\t[{}]\n", picPath.wstring());
+		else
+			basLog().error(L"Cannot find image file\t[{}]\n", picPath.wstring());
 		return img;
 	}
 #pragma warning(default:4101)
@@ -210,7 +213,7 @@ _ModelData::OBJLoder::OBJLoder(const Path &fpath_) :fpath(fpath_)
 	FILE *fp = nullptr;
 	_wfopen_s(&fp, fpath.c_str(), L"rb");
 	if (fp == nullptr)
-		throw std::ios_base::failure("cannot open file");
+		COMMON_THROW(FileException, FileException::Reason::OpenFail, fpath, L"cannot open target obj file");
 	//pre-load data, in case of Acess-Violate while reading file
 	fseek(fp, 0, SEEK_END);
 	flen = (uint32_t)ftell(fp);
@@ -468,9 +471,9 @@ map<string, inner::_ModelData::MtlStub> _ModelData::loadMTL(const Path& mtlpath)
 	return mtlmap;
 }
 #pragma warning(disable:4101)
-catch (const std::ios_base::failure& e)
+catch (FileException& fe)
 {
-	basLog().warning(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
+	basLog().error(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
 	return map<string, MtlStub>();
 }
 #pragma warning(default:4101)
@@ -583,7 +586,7 @@ bool _ModelData::loadOBJ(const Path& objpath) try
 	return true;
 }
 #pragma warning(disable:4101)
-catch (const std::ios_base::failure& e)
+catch (const FileException& fe)
 {
 	basLog().error(L"Fail to open obj file\t[{}]\n", objpath.wstring());
 	return false;

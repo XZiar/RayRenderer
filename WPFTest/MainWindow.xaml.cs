@@ -57,7 +57,7 @@ namespace WPFTest
         private void btnTryExp_Click(object sender, RoutedEventArgs args)
         {
             extype++;
-            if (extype > 2 * 2)
+            if (extype > 2 * 3)
                 extype = 1;
             try
             {

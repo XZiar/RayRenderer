@@ -125,8 +125,7 @@ public:
 	~_oglProgram();
 
 	void addShader(oglShader && shader);
-	//
-	OPResult<> link();
+	void link();
 	void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
 	GLint getLoc(const string& name) const;
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);

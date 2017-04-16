@@ -1,4 +1,5 @@
 #include "oglRely.h"
+#include "oglException.h"
 #include "oglUtil.h"
 #include "MTWorker.hpp"
 #include "oglInternal.h"
@@ -117,22 +118,24 @@ OPResult<GLenum> oglUtil::getError()
 		return OPResult<GLenum>(false, (char*)glewGetErrorString(err), err);
 }
 
-OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
+void oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 {
 	{
 		FILE *fp = nullptr;
 		wstring fn = fname + L".vert";
 		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if (fp == nullptr)
-			return OPResult<wstring>(false, L"Fail to open Vertex Shader file", fn);
+			COMMON_THROW(FileException, FileException::Reason::OpenFail, fn, L"open Vertex Shader file failed");
 		oglShader vert(ShaderType::Vertex, fp);
-		auto ret = vert->compile();
-		if (ret)
+		try
+		{
+			vert->compile();
 			prog->addShader(std::move(vert));
-		else
+		}
+		catch (BaseException& be)
 		{
 			fclose(fp);
-			return OPResult<wstring>(false, L"Fail to compile Vertex Shader", ret.msg);
+			COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"compile Vertex Shader error");
 		}
 		fclose(fp);
 	}
@@ -141,19 +144,20 @@ OPResult<wstring> oglUtil::loadShader(oglProgram& prog, const wstring& fname)
 		wstring fn = fname + L".frag";
 		_wfopen_s(&fp, fn.c_str(), L"rb");
 		if (fp == nullptr)
-			return OPResult<wstring>(false, L"Fail to open Fragment Shader file", fn);
+			COMMON_THROW(FileException, FileException::Reason::OpenFail, fn, L"open Fragment Shader file failed");
 		oglShader frag(ShaderType::Fragment, fp);
-		auto ret = frag->compile();
-		if (ret)
+		try
+		{
+			frag->compile();
 			prog->addShader(std::move(frag));
-		else
+		}
+		catch (BaseException& be)
 		{
 			fclose(fp);
-			return OPResult<wstring>(false, L"Fail to open Fragment Shader file", ret.msg);
+			COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"compile Fragment Shader error");
 		}
 		fclose(fp);
 	}
-	return true;
 }
 
 void oglUtil::applyTransform(Mat4x4& matModel, const TransformOP& op)

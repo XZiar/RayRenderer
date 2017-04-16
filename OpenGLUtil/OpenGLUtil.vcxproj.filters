@@ -48,6 +48,9 @@
     <ClInclude Include="oglShader.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglException.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
@@ -72,6 +75,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglException.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

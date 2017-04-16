@@ -1,4 +1,5 @@
 #include "oglRely.h"
+#include "oglException.h"
 #include "oglShader.h"
 #include "BindingManager.h"
 
@@ -33,7 +34,7 @@ _oglShader::~_oglShader()
 		glDeleteShader(shaderID);
 }
 
-OPResult<> _oglShader::compile()
+void _oglShader::compile()
 {
 	glCompileShader(shaderID);
 
@@ -44,10 +45,8 @@ OPResult<> _oglShader::compile()
 	if (!result)
 	{
 		glGetShaderInfoLog(shaderID, sizeof(logstr), NULL, logstr);
-		throw BaseException(to_wstring(logstr));
-		return OPResult<>(false, logstr);
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, to_wstring(logstr));
 	}
-	return true;
 }
 
 

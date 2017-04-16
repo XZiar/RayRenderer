@@ -40,51 +40,56 @@ struct NoArg {};
 template<class T>
 class COMMONTPL Wrapper : public std::shared_ptr<T>
 {
+private:
+	using base_type = std::shared_ptr<T>;
 public:
-#if !defined(_MSVC_LANG) || _MSVC_LANG <= 201403
 	using weak_type = std::weak_ptr<T>;
-#endif
-	template<class... ARGS>
-	Wrapper(ARGS... args) : std::shared_ptr<T>(new T(args...))
-	//Wrapper(ARGS... args) : std::shared_ptr<T>(std::make_shared<T>(args...))
+	constexpr Wrapper() noexcept { }
+	Wrapper(NoArg) : base_type(std::make_shared<T>())
 	{ }
-	Wrapper(NoArg) : std::shared_ptr<T>(std::make_shared<T>())
+	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value>::type>
+	Wrapper(const Wrapper<U>& other) noexcept : base_type(std::static_pointer_cast<T>(other))
 	{ }
-	Wrapper(const std::shared_ptr<T>& other) noexcept : std::shared_ptr<T>(other)
+	Wrapper(const base_type& other) noexcept : base_type(other)
 	{ }
-	Wrapper(std::shared_ptr<T>&& other) noexcept : std::shared_ptr<T>(other)
+	Wrapper(base_type&& other) noexcept : base_type(other)
 	{ }
 	template<class = typename std::enable_if<std::is_base_of<std::enable_shared_from_this<T>, T>::value>::type>
-	Wrapper(T *src) noexcept : std::shared_ptr<T>(src->shared_from_this())
+	Wrapper(T *src) noexcept : base_type(src->shared_from_this())
 	{ }
-	explicit Wrapper(T *src) noexcept : std::shared_ptr<T>(src)
+	explicit Wrapper(T *src) noexcept : base_type(src)
 	{ }
-	constexpr Wrapper() noexcept { }
+	template<class... ARGS>
+	Wrapper(ARGS... args) : base_type(std::make_shared<T>(args...))
+	{ }
 	template<class... ARGS>
 	void reset(ARGS... args)
 	{
-		*this = std::make_shared<T>(args...);
+		*this = Wrapper<T>(args...);
+	}
+	void reset()
+	{
+		*this = Wrapper<T>(NoArg());
 	}
 	void release()
 	{
-		std::shared_ptr<T>::reset();
+		base_type::reset();
 	}
 	weak_type weakRef() const noexcept
 	{
 		return weak_type(*this);
 	}
-	template<class U, class = typename std::enable_if<std::is_convertible<T*, U*>::value>::type>
-	operator const Wrapper<U>&() const noexcept
+	template<class U>
+	Wrapper<U> cast_static() const noexcept
 	{
-		return *(Wrapper<U>*)this;
+		return Wrapper<U>(std::static_pointer_cast<U>(*this));
 	}
-	template<class U, class = typename std::enable_if<std::is_convertible<T*, U*>::value>::type>
-	operator Wrapper<U>&() noexcept
+	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value || std::is_convertible<T*, U*>::value>::type>
+	Wrapper<U> cast_dynamic() const noexcept
 	{
-		return *(Wrapper<U>*)this;
+		return Wrapper<U>(std::dynamic_pointer_cast<U>(*this));
 	}
 };
-
 
 template<class U, class T = U::element_type>
 struct WeakPtrComparerator
