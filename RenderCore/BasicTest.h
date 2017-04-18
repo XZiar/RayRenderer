@@ -11,10 +11,9 @@ using namespace common;
 using namespace b3d;
 using namespace oglu;
 using namespace oclu;
-using miniBLAS::AlignBase;
 
 
-class RAYCOREAPI alignas(32) BasicTest : public NonMovable, public NonCopyable, public AlignBase<>
+class RAYCOREAPI alignas(32) BasicTest : public NonCopyable, public AlignBase<BasicTest>
 {
 private:
 	oclContext clContext;
@@ -23,7 +22,7 @@ private:
 	oglBuffer picBuf, screenBox;
 	oglVAO picVAO;
 	oglUBO lightUBO, materialUBO;
-	vector<TransformOP> transf;
+	vectorEx<TransformOP> transf;
 	vector<Wrapper<Drawable>> drawables;
 	vector<Wrapper<Light>> lights;
 	void init2d(const wstring pname);

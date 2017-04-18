@@ -33,7 +33,7 @@ public:
 };
 using ModelImage = Wrapper<_ModelImage>;
 
-class _ModelData : public NonCopyable, public AlignBase<>
+class alignas(Vec3) _ModelData : public NonCopyable, public AlignBase<_ModelData>
 {
 	friend class ::rayr::Model;
 private:
@@ -62,7 +62,7 @@ public:
 	Vec3 size;
 private:
 	using TexMergeItem = std::tuple<ModelImage, uint16_t, uint16_t>;
-	vector<Point> pts;
+	vectorEx<Point> pts;
 	vector<uint32_t> indexs;
 	vector<std::pair<string, uint32_t>> groups;
 	ModelImage diffuse, normal;

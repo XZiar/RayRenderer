@@ -12,7 +12,6 @@
 namespace b3d
 {
 using std::string;
-using miniBLAS::AlignBase;
 
 template<typename T>
 inline T ang2rad(T in)
@@ -192,7 +191,7 @@ inline float mod(const float &l, const float &r)
 	return l - e;
 }
 
-class alignas(16) Point : public AlignBase<>
+class alignas(16) Point : public common::AlignBase<Point>
 {
 public:
 	Vec3 pos;
@@ -208,7 +207,7 @@ public:
 	Point(const Vec3 &v, const Normal &n, const Vec3 &t3) : pos(v), norm(n), tcoord3(t3) { };
 };
 
-struct alignas(32) Triangle : public AlignBase<>
+struct alignas(32) Triangle : public common::AlignBase<Triangle>
 {
 public:
 	Vec3 points[3];
@@ -227,7 +226,7 @@ public:
 };
 
 
-class alignas(16) Material : public AlignBase<>
+class alignas(16) Material : public common::AlignBase<Material>
 {
 public:
 	enum class Property : uint8_t
@@ -266,7 +265,7 @@ public:
 	}
 };
 
-class alignas(32) Camera : public AlignBase<>
+class alignas(32) Camera : public common::AlignBase<Camera>
 {
 protected:
 	void rotate(const Mat3x3& rMat)

@@ -62,11 +62,18 @@ void BasicTest::init2d(const wstring pname)
 	{
 		try
 		{
-			oglUtil::loadShader(prog2D, pname);
+			auto shaders = oglShader::loadFromFiles(pname);
+			if (shaders.size() < 2)
+				COMMON_THROW(BaseException, L"No enough shader loaded from file");
+			for (auto shader : shaders)
+			{
+				shader->compile();
+				prog2D->addShader(std::move(shader));
+			}
 		}
-		catch (BaseException& be)
+		catch (OGLException& gle)
 		{
-			basLog().error(L"OpenGL compile fail:\n{}\n", be.message);
+			basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
 			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
@@ -75,9 +82,9 @@ void BasicTest::init2d(const wstring pname)
 		prog2D->link();
 		prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
 	}
-	catch (BaseException& be)
+	catch (OGLException& gle)
 	{
-		basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		basLog().error(L"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 	picVAO.reset(VAODrawMode::Triangles);
@@ -123,11 +130,18 @@ void BasicTest::init3d(const wstring pname)
 	{
 		try
 		{
-			oglUtil::loadShader(prog3D, pname);
+			auto shaders = oglShader::loadFromFiles(pname);
+			if (shaders.size() < 2)
+				COMMON_THROW(BaseException, L"No enough shader loaded from file");
+			for (auto shader : shaders)
+			{
+				shader->compile();
+				prog3D->addShader(std::move(shader));
+			}
 		}
-		catch (BaseException& be)
+		catch (OGLException& gle)
 		{
-			basLog().error(L"OpenGL compile fail:\n{}\n", be.message);
+			basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
 			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
@@ -136,9 +150,9 @@ void BasicTest::init3d(const wstring pname)
 		prog3D->link();
 		prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
 	}
-	catch (BaseException& be)
+	catch (OGLException& gle)
 	{
-		basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		basLog().error(L"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 	

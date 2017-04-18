@@ -9,7 +9,7 @@ namespace miniBLAS
 /*4x4matrix contains 4 row of 4elements-vector, align to 32bytes for AVX*/
 static constexpr uint32_t SQMat4Align = 32;
 template<typename T1, typename T2, typename T3>
-class alignas(32) SQMat4Base : public AlignBase<SQMat4Align>
+class alignas(SQMat4Align)SQMat4Base : public common::AlignBase<SQMat4Base<T1, T2, T3>>
 {
 	static_assert(sizeof(T1) == 4, "only 4-byte length type(for a element) allowed");
 	static_assert(sizeof(T2) == 16, "only 16-byte length type(for a row) allowed");

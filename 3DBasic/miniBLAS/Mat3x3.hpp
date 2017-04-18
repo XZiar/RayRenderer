@@ -8,7 +8,7 @@ namespace miniBLAS
 {
 
 /*3x3 matrix, row4's value is not promised while calculation.*/
-class alignas(32) Mat3x3 :public SQMat4Base<float, Vec3, __m256>
+class alignas(SQMat4Align) Mat3x3 :public SQMat4Base<float, Vec3, __m256>
 {
 protected:
 	static void VECCALL MatrixTranspose3x3(const Mat3x3& in, Mat3x3& out)

@@ -7,7 +7,7 @@ namespace miniBLAS
 {
 
 /*vector contains 4 int*/
-class alignas(16) VecI4 :public Vec4Base<int>
+class alignas(Vec4Align) VecI4 :public Vec4Base<int>
 {
 protected:
 public:

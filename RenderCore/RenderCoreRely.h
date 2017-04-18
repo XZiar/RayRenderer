@@ -16,7 +16,9 @@
 #include <map>
 #include <filesystem>
 #include "../3DBasic/3dElement.hpp"
+#include "../common/CommonRely.hpp"
 #include "../common/Wrapper.hpp"
+#include "../common/AlignedContainer.hpp"
 #include "../common/Exceptions.hpp"
 #include "../common/StringEx.hpp"
 #include "../OpenGLUtil/OpenGLUtil.h"
@@ -34,5 +36,6 @@ namespace rayr
 using std::wstring;
 using std::string;
 using std::map;
-using miniBLAS::vector;
+using std::vector;
+using namespace common;
 }

@@ -38,7 +38,7 @@ public:
 
 	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
 	template<class T>
-	inline void write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	inline void write(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
 		write(dat.data(), sizeof(T)*dat.size(), mode);
 	}
@@ -84,20 +84,18 @@ protected:
 public:
 	_oglElementBuffer(const IndexSize idxsize_) noexcept;
 	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-	OPResult<uint8_t> write(const miniBLAS::vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	void write(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
 		if (sizeof(T) != idxsize)
-			return OPResult<uint8_t>(false, L"Unmatch idx size", idxsize);
+			COMMON_THROW(BaseException, L"Unmatch idx size");
 		_oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
-		return true;
 	}
 	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-	OPResult<uint8_t> write(const T *dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	void write(const T *dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
 		if (sizeof(T) != idxsize)
-			return OPResult<uint8_t>(false, L"Unmatch idx size", idxsize);
+			COMMON_THROW(BaseException, L"Unmatch idx size");
 		_oglBuffer::write(dat, idxsize*count, mode);
-		return true;
 	}
 };
 

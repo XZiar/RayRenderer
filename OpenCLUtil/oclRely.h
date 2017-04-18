@@ -10,7 +10,9 @@
 #endif
 
 #include "../3dBasic/miniBLAS.hpp"
+#include "../common/CommonRely.hpp"
 #include "../common/Wrapper.hpp"
+#include "../common/AlignedContainer.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -35,9 +37,8 @@ using std::string;
 using std::wstring;
 using std::tuple;
 using std::map;
+using std::vector;
 using std::function;
-using miniBLAS::AlignBase;
-using miniBLAS::vector;
 using namespace common;
 
 class oclUtil;

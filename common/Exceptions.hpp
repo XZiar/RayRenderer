@@ -111,7 +111,11 @@ public:
 		return ret;
 	}
 };
-
+#define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
+	virtual Wrapper<BaseException> clone() const override\
+	{ return Wrapper<type>(*this); }
+#define EXCEPTION_CLONE(type) virtual Wrapper<BaseException> clone() const override\
+	{ return Wrapper<type>(*this); }
 
 inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
 {
@@ -165,10 +169,7 @@ public:
 		: BaseException(TYPENAME, msg, data_), reason(why), filepath(file)
 	{ }
 	virtual ~FileException() {}
-	virtual Wrapper<BaseException> clone() const override
-	{
-		return Wrapper<FileException>(*this);
-	}
+	EXCEPTION_CLONE(FileException);
 };
 
 

@@ -9,7 +9,7 @@ namespace miniBLAS
 Vec3 VECCALL operator/(const Vec3& left, const float right);
 
 /*vector contains 4 float, while only xyz are considered in some calculation*/
-class alignas(16) Vec3 :public Vec4Base<float>
+class alignas(Vec4Align) Vec3 :public Vec4Base<float>
 {
 private:
 protected:

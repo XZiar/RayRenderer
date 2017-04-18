@@ -175,10 +175,10 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 	//unbind();
 }
 
-void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<uint8_t>& data)
+void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size)
 {
 	bind(defPos);
-	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)data.size(), data.data());
+	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
 	inFormat = iformat;
 	//unbind();
 }

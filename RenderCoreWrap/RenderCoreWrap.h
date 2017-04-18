@@ -14,10 +14,10 @@ namespace RayRender
 public ref class LightHolder
 {
 private:
-	const miniBLAS::vector<common::Wrapper<b3d::Light>>& src;
+	const vector<common::Wrapper<b3d::Light>>& src;
 	List<Basic3D::Light^>^ lights;
 internal:
-	LightHolder(const miniBLAS::vector<common::Wrapper<b3d::Light>>& lights_) : src(lights_) {}
+	LightHolder(const vector<common::Wrapper<b3d::Light>>& lights_) : src(lights_) {}
 public:
 	property Basic3D::Light^ default[int32_t]
 	{

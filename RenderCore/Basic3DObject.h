@@ -23,7 +23,7 @@ protected:
 	oglu::oglBuffer vbo;
 	oglu::oglEBO ebo;
 	uint32_t ptcount;
-	static vector<uint16_t> CreateSphere(vector<Point>& pts, const float radius, const uint16_t rings = 31, const uint16_t sectors = 31);
+	static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings = 31, const uint16_t sectors = 31);
 public:
 	static constexpr auto TYPENAME = L"Sphere";
 	Sphere(const float r);

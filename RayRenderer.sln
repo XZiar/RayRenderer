@@ -88,11 +88,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniLogger", "common\miniLo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90E510-49EC-458D-99FC-C11DF3C6710C}"
 	ProjectSection(SolutionItems) = preProject
+		common\AlignedContainer.hpp = common\AlignedContainer.hpp
 		common\CommonMacro.h = common\CommonMacro.h
 		common\CommonRely.hpp = common\CommonRely.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
 		common\Exceptions.hpp = common\Exceptions.hpp
+		common\Exceptions.natvis = common\Exceptions.natvis
 		common\FileMapper.h = common\FileMapper.h
 		common\FileMapper.inl = common\FileMapper.inl
 		common\PromiseTask.h = common\PromiseTask.h

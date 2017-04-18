@@ -8,7 +8,7 @@
 namespace miniBLAS
 {
 
-class alignas(32) Mat4x4 :public SQMat4Base<float, Vec4, __m256>
+class alignas(SQMat4Align) Mat4x4 :public SQMat4Base<float, Vec4, __m256>
 {
 protected:
 	static void VECCALL MatrixTranspose4x4(const Mat4x4& in, Mat4x4& out)

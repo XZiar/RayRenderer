@@ -10,6 +10,7 @@
 #endif
 
 #include "../3dBasic/3dElement.hpp"
+#include "../common/AlignedContainer.hpp"
 #include "../common/Wrapper.hpp"
 #include "../common/StringEx.hpp"
 #include "../common/TimeUtil.h"
@@ -44,10 +45,10 @@ namespace oglu
 using std::string;
 using std::wstring;
 using std::tuple;
+using std::pair;
+using std::vector;
 using std::map;
 using std::function;
-using miniBLAS::AlignBase;
-using miniBLAS::vector;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Mat3x3;

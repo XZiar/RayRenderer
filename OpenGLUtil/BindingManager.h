@@ -179,9 +179,9 @@ protected:
 	ResDister(uint8_t size) :cache(size) { }
 	ResDister(GLenum prop, uint8_t preserveCnt = 0) :ResDister(uint8_t(getSize(prop) - preserveCnt)) { }
 public:
-	void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, miniBLAS::vector<GLint>& poss)
+	void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, vector<GLint>& poss)
 	{
-		std::vector<const std::pair<const GLuint, T>*> rebinds;
+		vector<const std::pair<const GLuint, T>*> rebinds;
 		rebinds.reserve(objs.size());
 		for (const auto& item : objs)
 		{

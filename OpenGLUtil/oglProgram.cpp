@@ -279,7 +279,7 @@ void _oglProgram::initLocs()
 			auto it = dataMap.find(name);
 			if (it != dataMap.end())
 			{
-				it->second.len = miniBLAS::max(it->second.len, arraylen);
+				it->second.len = common::max(it->second.len, arraylen);
 				continue;
 			}
 			if(datinfo.type != GL_UNIFORM_BLOCK)
@@ -302,7 +302,7 @@ void _oglProgram::initLocs()
 			attrMap.insert(di);
 		else
 		{
-			maxUniLoc = miniBLAS::max(maxUniLoc, info.location + info.len);
+			maxUniLoc = common::max(maxUniLoc, info.location + info.len);
 			if (info.isUniformBlock())
 				uboMap.insert(di);
 			else if (info.isTexture())

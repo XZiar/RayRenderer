@@ -71,19 +71,33 @@ protected:
 public:
 	_oglTexture(const TextureType _type) noexcept;
 	~_oglTexture() noexcept;
-
 	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
-	template<class T>
-	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const vector<T>& data)
+	template<class T, class A>
+	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)
 	{
 		setData(iformat, dformat, w, h, data.data());
 	}
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data);
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf);
-	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<uint8_t>& data);
+	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size);
+	template<class T, class A>
+	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)
+	{
+		setCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
+	}
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size);
 	OPResult<> getCompressedData(vector<uint8_t>& output);
+	template<class T, class = typename std::enable_if<sizeof(T) == 1>::type>
+	OPResult<> getCompressedData(vector<T>& output)
+	{
+		return getCompressedData(*(vector<uint8_t>*)&output);
+	}
 	OPResult<> getData(vector<uint8_t>& output, const TextureDataFormat dformat);
+	template<class T, class A>
+	OPResult<> getData(vector<T, A>& output, const TextureDataFormat dformat)
+	{
+		return getData(*(vector<uint8_t>*)&output, dformat);
+	}
 };
 
 

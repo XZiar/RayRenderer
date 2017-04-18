@@ -5,4 +5,8 @@
 #include "../common/Exceptions.hpp"
 #include "../common/miniLogger/miniLogger.h"
 #include "../RenderCore/RenderCore.h"
+
+using common::Wrapper;
+using std::vector;
+
 #pragma managed

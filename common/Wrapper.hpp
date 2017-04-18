@@ -9,36 +9,17 @@
 
 namespace common
 {
-
-struct COMMONAPI NonCopyable
-{
-	NonCopyable() = default;
-	NonCopyable(const NonCopyable & other) = delete;
-	NonCopyable(NonCopyable && other) = default;
-	NonCopyable& operator= (const NonCopyable & other) = delete;
-	NonCopyable& operator= (NonCopyable && other) = default;
-};
-
-struct COMMONAPI NonMovable
-{
-	NonMovable() = default;
-	NonMovable(const NonMovable & other) = default;
-	NonMovable(NonMovable && other) = delete;
-	NonMovable& operator= (const NonMovable & other) = default;
-	NonMovable& operator= (NonMovable && other) = delete;
-};
-
-
 struct NoArg {};
 
 template<class T>
-class COMMONTPL Wrapper : public std::shared_ptr<T>
+class Wrapper : public std::shared_ptr<T>
 {
 private:
 	using base_type = std::shared_ptr<T>;
 public:
 	using weak_type = std::weak_ptr<T>;
 	constexpr Wrapper() noexcept { }
+	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
 	Wrapper(NoArg) : base_type(std::make_shared<T>())
 	{ }
 	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value>::type>
@@ -61,6 +42,7 @@ public:
 	{
 		*this = Wrapper<T>(args...);
 	}
+	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
 	void reset()
 	{
 		*this = Wrapper<T>(NoArg());

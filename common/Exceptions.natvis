@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::BaseException">
+    <DisplayString>{{{TYPENAME},{message},{data}}}</DisplayString>
+    <Expand>
+      <Item Name="message" ExcludeView="simple">message</Item>
+      <Item Name="stack" ExcludeView="simple">stackitem</Item>
+      <Item Name="data" ExcludeView="simple">data</Item>
+      <Item Name="innerException" ExcludeView="simple">innerException</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::FileException">
+    <DisplayString>{{{TYPENAME},{reason},{filepath},{data}}}</DisplayString>
+    <Expand>
+      <Item Name="message" ExcludeView="simple">message</Item>
+      <Item Name="stack" ExcludeView="simple">stackitem</Item>
+      <Item Name="reason" ExcludeView="simple">reason</Item>
+      <Item Name="file" ExcludeView="simple">filepath</Item>
+      <Item Name="data" ExcludeView="simple">data</Item>
+      <Item Name="innerException" ExcludeView="simple">innerException</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

@@ -9,7 +9,7 @@ namespace oglu
 {
 
 enum class TransformType { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI alignas(Vec4) TransformOP : public AlignBase<>
+struct OGLUAPI alignas(Vec4) TransformOP
 {
 	Vec4 vec;
 	TransformType type;
@@ -20,7 +20,7 @@ namespace detail
 {
 
 
-class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, public AlignBase<>
+class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable
 {
 private:
 	friend class TextureManager;
@@ -97,7 +97,7 @@ private:
 	};
 
 	GLuint programID = GL_INVALID_INDEX;
-	vector<oglShader> shaders;
+	vectorEx<oglShader> shaders;
 	map<string, DataInfo> texMap;
 	map<string, DataInfo> uboMap;
 	map<string, DataInfo> attrMap;
@@ -132,7 +132,7 @@ public:
 	void setCamera(const Camera &);
 	ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);
 	ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
-	using topIT = vector<TransformOP>::const_iterator;
+	using topIT = vectorEx<TransformOP>::const_iterator;
 	ProgDraw draw(topIT begin, topIT end);
 	ProgState& globalState();
 };

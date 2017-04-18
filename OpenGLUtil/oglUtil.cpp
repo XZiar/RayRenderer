@@ -118,47 +118,6 @@ OPResult<GLenum> oglUtil::getError()
 		return OPResult<GLenum>(false, (char*)glewGetErrorString(err), err);
 }
 
-void oglUtil::loadShader(oglProgram& prog, const wstring& fname)
-{
-	{
-		FILE *fp = nullptr;
-		wstring fn = fname + L".vert";
-		_wfopen_s(&fp, fn.c_str(), L"rb");
-		if (fp == nullptr)
-			COMMON_THROW(FileException, FileException::Reason::OpenFail, fn, L"open Vertex Shader file failed");
-		oglShader vert(ShaderType::Vertex, fp);
-		try
-		{
-			vert->compile();
-			prog->addShader(std::move(vert));
-		}
-		catch (BaseException& be)
-		{
-			fclose(fp);
-			COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"compile Vertex Shader error");
-		}
-		fclose(fp);
-	}
-	{
-		FILE *fp = nullptr;
-		wstring fn = fname + L".frag";
-		_wfopen_s(&fp, fn.c_str(), L"rb");
-		if (fp == nullptr)
-			COMMON_THROW(FileException, FileException::Reason::OpenFail, fn, L"open Fragment Shader file failed");
-		oglShader frag(ShaderType::Fragment, fp);
-		try
-		{
-			frag->compile();
-			prog->addShader(std::move(frag));
-		}
-		catch (BaseException& be)
-		{
-			fclose(fp);
-			COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"compile Fragment Shader error");
-		}
-		fclose(fp);
-	}
-}
 
 void oglUtil::applyTransform(Mat4x4& matModel, const TransformOP& op)
 {

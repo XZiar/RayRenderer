@@ -6,9 +6,9 @@ namespace miniBLAS
 {
 
 /*a vector contains 4 element(int32 or float), align to 32 boundary for AVX*/
-static constexpr uint32_t Vec4Align = 32;
+static constexpr uint32_t Vec4Align = 16;
 template<typename T>
-class alignas(16) Vec4Base : public AlignBase<Vec4Align>
+class alignas(Vec4Align) Vec4Base : public common::AlignBase<Vec4Base<T>>
 {
 private:
 	static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
@@ -51,8 +51,8 @@ public:
 };
 
 
-class alignas(16) Vec3;
-class alignas(16) Vec4;
+class alignas(Vec4Align) Vec3;
+class alignas(Vec4Align) Vec4;
 
 }
 

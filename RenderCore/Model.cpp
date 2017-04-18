@@ -610,7 +610,7 @@ void _ModelData::initData()
 	diffuse.release();
 	normal.release();
 	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts);
+	vbo->write(pts.std());
 	ebo.reset(oglu::IndexSize::Int);
 	ebo->write(indexs);
 }
@@ -640,7 +640,7 @@ _ModelData::~_ModelData()
 
 Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
 {
-	const auto resizer = 2 / miniBLAS::max(miniBLAS::max(data->size.x, data->size.y), data->size.z);
+	const auto resizer = 2 / max(max(data->size.x, data->size.y), data->size.z);
 	scale = Vec3(resizer, resizer, resizer);
 }
 

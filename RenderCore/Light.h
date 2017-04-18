@@ -8,7 +8,7 @@ namespace b3d
 
 enum class LightType : int32_t { Parallel, Point, Spot };
 
-class alignas(16) Light : public AlignBase<>
+class alignas(16) Light : public common::AlignBase<Light>
 {
 protected:
 	Light(const LightType type_, const std::wstring& name_);

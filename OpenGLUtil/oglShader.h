@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "oglInternal.h"
 
 namespace oglu
 {
@@ -16,7 +17,7 @@ namespace detail
 {
 
 
-class OGLUAPI _oglShader : public NonCopyable, public NonMovable
+class OGLUAPI _oglShader : public NonCopyable
 {
 private:
 	friend class _oglProgram;
@@ -34,7 +35,41 @@ public:
 
 
 }
-using oglShader = Wrapper<detail::_oglShader>;
+class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
+{
+public:
+	using Wrapper::Wrapper;
+	static oglShader __cdecl loadFromFile(const ShaderType type, const fs::path& path);
+	static auto __cdecl loadFromFiles(const wstring& fname);
+};
+auto inline __cdecl oglShader::loadFromFiles(const wstring& fname)
+{
+	static pair<wstring, ShaderType> types[] =
+	{
+		{ L".vert",ShaderType::Vertex },
+		{ L".frag",ShaderType::Fragment },
+		{ L".geom",ShaderType::Geometry },
+		{ L".comp",ShaderType::Compute },
+		{ L".tscl",ShaderType::TessCtrl },
+		{ L".tsev",ShaderType::TessEval }
+	};
+	vectorEx<oglShader> shaders;
+	for (const auto& type : types)
+	{
+		fs::path fpath = fname + type.first;
+		try
+		{
+			auto shader = loadFromFile(type.second, fpath);
+			shaders.push_back(shader);
+		}
+		catch (FileException& fe)
+		{
+			oglLog().warning(L"skip loading {} due to Exception[{}]", fpath.wstring(), fe.message);
+		}
+	}
+	return shaders;
+}
+//using oglShader = Wrapper<detail::_oglShader>;
 
 }
 

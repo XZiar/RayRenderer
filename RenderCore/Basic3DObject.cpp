@@ -25,7 +25,7 @@ void Pyramid::prepareGL(const oglu::oglProgram& prog, const map<string, string>&
 }
 
 
-vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
+vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
 {
 	const float rstep = 1.0f / (rings - 1);
 	const float sstep = 1.0f / (sectors - 1);
@@ -66,10 +66,10 @@ vector<uint16_t> Sphere::CreateSphere(vector<Point>& pts, const float radius, co
 
 Sphere::Sphere(const float r) : Drawable(TYPENAME), radius(r), radius_sqr(r*r)
 {
-	vector<Point> pts;
+	vectorEx<Point> pts;
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts);
+	vbo->write(pts.std());
 	ebo.reset(oglu::IndexSize::Short);
 	ebo->write(indexs);
 	ptcount = static_cast<uint32_t>(indexs.size());
