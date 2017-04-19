@@ -1,15 +1,16 @@
+#include "../RenderCore/RenderCore.h"
 #include <cstdint>
 #include <cstdio>
 #include <memory>
 #include "../FreeGLUTView/FreeGLUTView.h"
-#include "../RenderCore/RenderCore.h"
 
 
 using namespace glutview;
 using namespace b3d;
 using std::string;
 using std::wstring;
-using miniBLAS::vector;
+using std::vector;
+using namespace common;
 
 //OGLU_OPTIMUS_ENABLE_NV
 
@@ -39,7 +40,7 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 		tester->moveobj(curObj, 0, 0, -0.1f); break;
 	case Key::PageDown:
 		tester->moveobj(curObj, 0, 0, 0.1f); break;
-	case Key::ERROR:
+	case Key::UNDEFINE:
 		switch (keyevent.key)
 		{
 		case (uint8_t)Key::ESC:

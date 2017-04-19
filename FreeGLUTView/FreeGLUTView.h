@@ -27,7 +27,7 @@ enum class Key : uint8_t
 	Space = ' ', ESC = 27, Enter = 13, Delete = 127, Backspace = 8,
 	F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
 	Left, Up, Right, Down, Home, End, PageUp, PageDown, Insert,
-	ERROR = 255
+	UNDEFINE = 255
 };
 class GLUTVIEWAPI KeyEvent
 {
@@ -45,7 +45,7 @@ public:
 	bool hasCtrl() const { return (helperKey & 0x1) != 0; }
 	bool hasShift() const { return (helperKey & 0x2) != 0; }
 	bool hasAlt() const { return (helperKey & 0x4) != 0; }
-	Key SpecialKey() const { return (key > 127 ? (Key)key : Key::ERROR); }
+	Key SpecialKey() const { return (key > 127 ? (Key)key : Key::UNDEFINE); }
 };
 
 enum class MouseButton : uint8_t { None = 0, Left = 1, Middle = 2, Right = 3 };

@@ -35,27 +35,19 @@ void BasicTest::init2d(const wstring pname)
 	prog2D.reset();
 	if(pname.empty())
 	{
-		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_2DVERT));
-		try
+		auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_2D));
+		for (auto shader : shaders)
 		{
-			vert->compile();
-			prog2D->addShader(std::move(vert));
-		}
-		catch(BaseException& be)
-		{
-			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Vertex Shader error");
-		}
-		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_2DFRAG));
-		try
-		{
-			frag->compile();
-			prog2D->addShader(std::move(frag));
-		}
-		catch (BaseException& be)
-		{
-			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Fragment Shader error");
+			try
+			{
+				shader->compile();
+				prog2D->addShader(std::move(shader));
+			}
+			catch (OGLException& gle)
+			{
+				basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+				COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
+			}
 		}
 	}
 	else
@@ -103,27 +95,19 @@ void BasicTest::init3d(const wstring pname)
 	prog3D.reset();
 	if (pname == L"")
 	{
-		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_3DVERT));
-		try
+		auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_3D));
+		for (auto shader : shaders)
 		{
-			vert->compile();
-			prog3D->addShader(std::move(vert));
-		}
-		catch (BaseException& be)
-		{
-			basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Vertex Shader error");
-		}
-		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_3DFRAG));
-		try
-		{
-			frag->compile();
-			prog3D->addShader(std::move(frag));
-		}
-		catch (BaseException& be)
-		{
-			basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Fragment Shader error");
+			try
+			{
+				shader->compile();
+				prog3D->addShader(std::move(shader));
+			}
+			catch (OGLException& gle)
+			{
+				basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+				COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
+			}
 		}
 	}
 	else

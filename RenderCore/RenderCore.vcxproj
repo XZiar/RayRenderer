@@ -187,10 +187,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="2d.frag" />
-    <None Include="2d.vert" />
-    <None Include="3d.frag" />
-    <None Include="3d.vert" />
+    <None Include="2d.glsl" />
+    <None Include="3d.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Basic3DObject.h" />

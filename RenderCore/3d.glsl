@@ -1,5 +1,7 @@
 #version 430
 
+//@@$$VERT|FRAG
+
 struct LightInfo
 {
 	vec3 position, direction;
@@ -7,7 +9,6 @@ struct LightInfo
 	float coang, exponent;
 	int type;
 	bool isOn;
-	//float padding[4];
 };
 layout(std140) uniform lightBlock
 {
@@ -25,16 +26,18 @@ layout(std140) uniform materialBlock
 } material[3];
 
 
-layout(location = 0) in vec3 vertPos;
-layout(location = 1) in vec2 vertNorm;
-layout(location = 2) in vec2 texPos;
-
-out perVert
+GLVARY perVert
 {
 	vec3 pos;
 	vec4 dat;
 	vec2 tpos;
 };
+
+#ifdef OGLU_VERT
+
+layout(location = 0) in vec3 vertPos;
+layout(location = 1) in vec2 vertNorm;
+layout(location = 2) in vec2 texPos;
 
 void main() 
 {
@@ -43,3 +46,24 @@ void main()
 	pos = gl_Position.xyz / gl_Position.w;
 	tpos = texPos;
 }
+
+#endif
+
+#ifdef OGLU_FRAG
+
+uniform sampler2D tex[16];
+
+out vec4 FragColor;
+
+void main() 
+{
+	FragColor = texture(tex[0], tpos);
+	FragColor.a = 1.0f;
+	for(int id = 0; id < 16; id++)
+	{
+		if(lights[id].isOn)
+			FragColor.rgb *= 1.1f;
+	}
+}
+
+#endif

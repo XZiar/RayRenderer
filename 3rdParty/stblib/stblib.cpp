@@ -3,6 +3,8 @@
 #endif
 #include "stblib.h"
 #include "../../common/Exceptions.hpp"
+#include <cstdio>
+#include <ios>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
