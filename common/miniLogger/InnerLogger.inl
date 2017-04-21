@@ -67,7 +67,7 @@ public:
 			;//spin lock
 		changeState(lv);
 		DWORD outlen;
-		WriteConsole(hConsole, content.c_str(), content.length(), &outlen, NULL);
+		WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), &outlen, NULL);
 		flagWrite.clear();
 	}
 };

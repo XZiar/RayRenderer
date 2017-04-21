@@ -6,19 +6,26 @@ namespace b3d
 {
 
 
-enum class LightType : int32_t { Parallel, Point, Spot };
+enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
-class alignas(16) Light : public common::AlignBase<Light>
+struct alignas(Vec4) LightData : public common::AlignBase<LightData>
 {
-protected:
-	Light(const LightType type_, const std::wstring& name_);
-public:
-	Vec3 position = Vec3::zero(), direction = Vec3::zero();
+	Vec3 position = Vec3::zero();
+	Vec3 direction = Vec3::zero();
 	Vec4 color = Vec4::one();
 	Vec4 attenuation = Vec4::one();
 	float coang, exponent;
 	const LightType type;
 	bool isOn = true;
+protected:
+	LightData(const LightType type_) : type(type_) {}
+};
+
+class alignas(LightData) Light : public LightData
+{
+protected:
+	Light(const LightType type_, const std::wstring& name_);
+public:
 	std::wstring name;
 };
 

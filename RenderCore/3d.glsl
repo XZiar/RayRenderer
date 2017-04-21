@@ -2,7 +2,7 @@
 
 //@@$$VERT|FRAG
 
-struct LightInfo
+struct LightData
 {
 	vec3 position, direction;
 	vec4 color, attenuation;
@@ -12,7 +12,7 @@ struct LightInfo
 };
 layout(std140) uniform lightBlock
 {
-	LightInfo lights[16];
+	LightData lights[16];
 };
 
 uniform mat4 matProj;
@@ -41,7 +41,7 @@ layout(location = 2) in vec2 texPos;
 
 void main() 
 {
-	dat.w = material[1].ambient.x + material[2].diffuse.y;
+	//dat.w = material[1].ambient.x + material[2].diffuse.y;
 	gl_Position = matMVP * vec4(vertPos, 1.0f);
 	pos = gl_Position.xyz / gl_Position.w;
 	tpos = texPos;
@@ -59,11 +59,13 @@ void main()
 {
 	FragColor = texture(tex[0], tpos);
 	FragColor.a = 1.0f;
+	vec3 clr = vec3(1.0f);
 	for(int id = 0; id < 16; id++)
 	{
 		if(lights[id].isOn)
-			FragColor.rgb *= 1.1f;
+			clr = lights[id].color.rgb;
 	}
+	FragColor.rgb *= clr;
 }
 
 #endif

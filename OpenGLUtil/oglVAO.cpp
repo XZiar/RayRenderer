@@ -22,7 +22,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attrid
 	{
 		vbo->bind();
 		glEnableVertexAttribArray(attridx);//vertex attr index
-		glVertexAttribPointer(attridx, size, GL_FLOAT, GL_FALSE, stride, (void*)offset);
+		glVertexAttribPointer(attridx, size, GL_FLOAT, GL_FALSE, stride, (void*)intptr_t(offset));
 	}
 	return *this;
 }
@@ -34,17 +34,17 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
 	if (attridx[0] != GL_INVALID_INDEX)
 	{
 		glEnableVertexAttribArray(attridx[0]);//VertPos
-		glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)offset);
+		glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset));
 	}
 	if (attridx[1] != GL_INVALID_INDEX)
 	{
 		glEnableVertexAttribArray(attridx[1]);//VertNorm
-		glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 16));
+		glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 16));
 	}
 	if (attridx[2] != GL_INVALID_INDEX)
 	{
 		glEnableVertexAttribArray(attridx[2]);//TexPos
-		glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)(offset + 32));
+		glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 32));
 	}
 	return *this;
 }
@@ -75,7 +75,7 @@ void _oglVAO::initSize()
 		drawMethod = sizes.size() > 1 ? DrawMethod::Indexs : DrawMethod::Index;
 		poffsets.clear();
 		for (const auto& off : offsets)
-			poffsets.push_back((void*)(off * index->idxsize));
+			poffsets.push_back((void*)intptr_t(off * index->idxsize));
 	}
 	else
 	{
@@ -121,7 +121,7 @@ void _oglVAO::draw(const uint32_t size, const uint32_t offset) const noexcept
 {
 	bind();
 	if (index)
-		glDrawElements((GLenum)vaoMode, size, (GLenum)index->idxtype, (void*)(offset * index->idxsize));
+		glDrawElements((GLenum)vaoMode, size, (GLenum)index->idxtype, (void*)intptr_t(offset * index->idxsize));
 	else
 		glDrawArrays((GLenum)vaoMode, offset, size);
 }

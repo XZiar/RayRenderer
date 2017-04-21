@@ -27,7 +27,7 @@ namespace WPFTest
             InitializeComponent();
             par = dbgOutput.Document.Blocks.FirstBlock as Paragraph;
             Logger.OnLog += OnLog;
-
+            
             Main.test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
             this.Closed += (o, e) => { Main.test.Dispose(); Main.test = null; };
 
@@ -47,10 +47,27 @@ namespace WPFTest
 
         private void btnAddLight_Click(object sender, RoutedEventArgs e)
         {
-            Main.test.AddLight(Basic3D.LightType.Parallel);
+            switch (Main.test.Lights.Size)
+            {
+            case 0:
+                Main.test.Lights.Add(Basic3D.LightType.Parallel);
+                break;
+            case 1:
+                Main.test.Lights.Add(Basic3D.LightType.Point);
+                break;
+            case 2:
+                Main.test.Lights.Add(Basic3D.LightType.Spot);
+                break;
+            default:
+                Main.test.Lights.Clear();
+                break;
+            }
             glMain.Invalidate();
-            var lgt = Main.test.light[Main.test.lightCount - 1];
-            Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Main.test.lightCount - 1, lgt.name(), lgt);
+            if (Main.test.Lights.Size > 0)
+            {
+                var lgt = Main.test.Lights[Main.test.Lights.Size - 1];
+                Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Main.test.Lights.Size - 1, lgt.name(), lgt);
+            }
         }
 
         

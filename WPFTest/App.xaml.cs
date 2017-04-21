@@ -25,6 +25,7 @@ namespace WPFTest
         {
             var ex = e.ExceptionObject as Exception;
             Console.WriteLine($"Unexpected Exception {ex.GetType()}\n{ex.Message}\n");
+            MessageBox.Show($"{ex.Message}\n{ex.StackTrace}", ex.GetType().ToString());
             throw ex;
         }
 

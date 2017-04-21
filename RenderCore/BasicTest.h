@@ -22,6 +22,7 @@ private:
 	oglBuffer picBuf, screenBox;
 	oglVAO picVAO;
 	oglUBO lightUBO, materialUBO;
+	uint8_t lightLim, materialLim;
 	vectorEx<TransformOP> transf;
 	vector<Wrapper<Drawable>> drawables;
 	vector<Wrapper<Light>> lights;
@@ -29,7 +30,7 @@ private:
 	void init3d(const wstring pname);
 	void initTex();
 	void initUBO();
-	void prepareUBO();
+	void prepareLight();
 	Wrapper<Model> _addModel(const wstring& fname);
 public:
 	bool mode = true;
@@ -40,6 +41,7 @@ public:
 	bool addModel(const wstring& fname);
 	void addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish);
 	void addLight(const b3d::LightType type);
+	void delAllLight();
 	void moveobj(const uint16_t id, const float x, const float y, const float z);
 	void rotateobj(const uint16_t id, const float x, const float y, const float z);
 	void movelgt(const uint16_t id, const float x, const float y, const float z);

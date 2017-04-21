@@ -218,20 +218,31 @@ void BasicTest::initTex()
 
 void BasicTest::initUBO()
 {
-	materialUBO.reset();
-	lightUBO.reset();
+	if (auto lubo = prog3D->getResource("lightBlock"))
+		lightUBO.reset((*lubo)->size);
+	else
+		lightUBO.reset(0);
+	lightLim = (uint8_t)lightUBO->size / sizeof(LightData);
+	if (auto mubo = prog3D->getResource("materialBlock"))
+		materialUBO.reset((*mubo)->size);
+	else
+		materialUBO.reset(0);
+	materialLim = (uint8_t)materialUBO->size / sizeof(Material);
+	prog3D->globalState().setUBO(lightUBO, "lightBlock").setUBO(materialUBO, "mat").end();
 }
 
-void BasicTest::prepareUBO()
+void BasicTest::prepareLight()
 {
-	vector<uint8_t> data(lights.size() * 96);
+	vector<uint8_t> data(lightUBO->size);
 	size_t pos = 0;
 	for (const auto& lgt : lights)
 	{
-		memmove(&data[pos], &(*lgt), 96);
-		pos += 96;
+		memmove(&data[pos], &(*lgt), sizeof(LightData));
+		pos += sizeof(LightData);
+		if (pos >= lightUBO->size)
+			break;
 	}
-	lightUBO->write(data);
+	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
 Wrapper<Model> BasicTest::_addModel(const wstring& fname)
@@ -261,12 +272,11 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		}
 	}
 	initTex();
-	initUBO();
 	init2d(sname2d);
 	init3d(sname3d);
 	prog2D->globalState().setTexture(picTex, "tex").end();
 	prog3D->globalState().setTexture(mskTex, "tex").end();
-	prog3D->globalState().setUBO(lightUBO, "lightBlock").setUBO(materialUBO, "mat").end();
+	initUBO();
 }
 
 void BasicTest::draw()
@@ -274,7 +284,6 @@ void BasicTest::draw()
 	if (mode)
 	{
 		prog3D->setCamera(cam);
-		prepareUBO();
 		for (const auto& d : drawables)
 		{
 			d->draw(prog3D);
@@ -319,19 +328,33 @@ void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::func
 
 void BasicTest::addLight(const b3d::LightType type)
 {
+	Wrapper<Light> lgt;
 	switch (type)
 	{
 	case LightType::Parallel:
-		lights.push_back(Wrapper<Light>((Light*)new ParallelLight()));
+		lgt = Wrapper<ParallelLight>(NoArg());
+		lgt->color = Vec4(2.0, 0.5, 0.5, 10.0);
 		break;
 	case LightType::Point:
-		lights.push_back(Wrapper<Light>((Light*)new PointLight()));
+		lgt = Wrapper<PointLight>(NoArg());
+		lgt->color = Vec4(0.5, 2.0, 0.5, 10.0);
 		break;
 	case LightType::Spot:
-		lights.push_back(Wrapper<Light>((Light*)new SpotLight()));
+		lgt = Wrapper<SpotLight>(NoArg());
+		lgt->color = Vec4(0.5, 0.5, 2.0, 10.0);
 		break;
+	default:
+		return;
 	}
-	basLog().info(L"add Light {} type {}\n", lights.size(), (int32_t)lights.back()->type);
+	lights.push_back(lgt);
+	prepareLight();
+	basLog().info(L"add Light {} type {}\n", lights.size(), (int32_t)lgt->type);
+}
+
+void BasicTest::delAllLight()
+{
+	lights.clear();
+	prepareLight();
 }
 
 void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)

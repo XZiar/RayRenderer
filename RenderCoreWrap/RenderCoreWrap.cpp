@@ -68,7 +68,7 @@ BasicTest::BasicTest()
 	{
 		core = new rayr::BasicTest();
 		cam_ = gcnew Basic3D::Camera(&core->cam);
-		light = gcnew LightHolder(core->light());
+		Lights = gcnew LightHolder(core, core->light());
 	}
 	catch (BaseException& be)
 	{
@@ -92,6 +92,7 @@ BasicTest::BasicTest()
 
 BasicTest::!BasicTest()
 {
+	delete Lights;
 	delete core;
 }
 
@@ -122,10 +123,7 @@ Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ name)
 	return tsk->Task;
 }
 
-void BasicTest::AddLight(Basic3D::LightType type)
-{
-	core->addLight((b3d::LightType)type);
-}
+
 #pragma unmanaged
 void TryThrow2()
 {
@@ -182,6 +180,16 @@ void BasicTest::TryException(int type)
 			throw gcnew System::NotImplementedException(L"other exception");
 		}
 	}
+}
+
+void LightHolder::Add(Basic3D::LightType type)
+{
+	core->addLight((b3d::LightType)type);
+}
+
+void LightHolder::Clear()
+{
+	core->delAllLight();
 }
 
 }

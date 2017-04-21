@@ -611,8 +611,8 @@ void _ModelData::initData()
 	normal.release();
 	vbo.reset(oglu::BufferType::Array);
 	vbo->write(pts.std());
-	ebo.reset(oglu::IndexSize::Int);
-	ebo->write(indexs);
+	ebo.reset();
+	ebo->writeCompat(indexs);
 }
 
 _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)

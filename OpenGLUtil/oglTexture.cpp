@@ -6,7 +6,7 @@ namespace oglu::detail
 {
 
 
-_oglTexBase::_oglTexBase(const TextureType _type) noexcept : type(_type), defPos(getDefaultPos())
+_oglTexBase::_oglTexBase(const TextureType _type) noexcept : type(_type)
 {
 	glGenTextures(1, &textureID);
 }
@@ -14,13 +14,6 @@ _oglTexBase::_oglTexBase(const TextureType _type) noexcept : type(_type), defPos
 _oglTexBase::~_oglTexBase() noexcept
 {
 	glDeleteTextures(1, &textureID);
-}
-
-uint8_t _oglTexBase::getDefaultPos() noexcept
-{
-	GLint maxtexs;
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxtexs);
-	return (uint8_t)(maxtexs > 255 ? 255 : maxtexs - 1);
 }
 
 void _oglTexBase::bind(const uint8_t pos) const noexcept
@@ -144,7 +137,7 @@ _oglTexture::~_oglTexture() noexcept
 
 void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
 {
-	bind(defPos);
+	bind(0);
 	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_S, (GLint)wraptype);
 	glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_T, (GLint)wraptype);
 	glTexParameteri((GLenum)type, GL_TEXTURE_MAG_FILTER, (GLint)filtertype);
@@ -154,7 +147,7 @@ void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWr
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data)
 {
-	bind(defPos);
+	bind(0);
 	GLenum datatype, comptype;
 	parseFormat(dformat, datatype, comptype);
 	glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
@@ -165,7 +158,7 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
 	assert(buf->bufferType == BufferType::Pixel);
-	bind(defPos);
+	bind(0);
 	buf->bind();
 	GLenum datatype, comptype;
 	parseFormat(dformat, datatype, comptype);
@@ -177,7 +170,7 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size)
 {
-	bind(defPos);
+	bind(0);
 	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
 	inFormat = iformat;
 	//unbind();
@@ -186,7 +179,7 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size)
 {
 	assert(buf->bufferType == BufferType::Pixel);
-	bind(defPos);
+	bind(0);
 	buf->bind();
 	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);
 	inFormat = iformat;
@@ -196,7 +189,7 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 
 OPResult<> _oglTexture::getCompressedData(vector<uint8_t>& output)
 {
-	bind(defPos);
+	bind(0);
 	GLint ret = GL_FALSE;
 	glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_COMPRESSED, &ret);
 	if (ret == GL_FALSE)//non-compressed
@@ -209,7 +202,7 @@ OPResult<> _oglTexture::getCompressedData(vector<uint8_t>& output)
 
 OPResult<> _oglTexture::getData(vector<uint8_t>& output, const TextureDataFormat dformat)
 {
-	bind(defPos);
+	bind(0);
 	GLint w = 0, h = 0;
 	glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
 	glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
@@ -256,7 +249,7 @@ _oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBu
 
 OPResult<> _oglBufferTexture::setBuffer(const TextureDataFormat dformat, const oglTBO& tbo)
 {
-	bind(defPos);
+	bind(0);
 	innerBuf = tbo;
 	glTexBuffer(GL_TEXTURE_BUFFER, parseFormat(dformat), tbo->bufferID);
 	//unbind();

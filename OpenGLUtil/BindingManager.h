@@ -152,7 +152,7 @@ class _oglProgram;
 //**** get obj's inner id
 //void innerBind(const GLuint& id, const uint8_t pos) const
 //**** when an slot is allocatted for an obj whose ID is id
-template<class D, class T>
+template<class D, class T, uint8_t offset>
 class ResDister : public NonCopyable
 {
 private:
@@ -176,8 +176,8 @@ private:
 	}
 protected:
 	LRUPos<GLuint> cache;
-	ResDister(uint8_t size) :cache(size) { }
-	ResDister(GLenum prop, uint8_t preserveCnt = 0) :ResDister(uint8_t(getSize(prop) - preserveCnt)) { }
+	ResDister(uint8_t size) :cache(size), offset(0) { }
+	ResDister(GLenum prop) :cache(uint8_t(getSize(prop) - offset)) { }
 public:
 	void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, vector<GLint>& poss)
 	{
@@ -188,7 +188,7 @@ public:
 			GLuint val = 0;
 			if (item.second)
 			{
-				const auto ret = cache.touch(getID(item.second));
+				const auto ret = cache.touch(getID(item.second) + offset);
 				if (ret == UINT16_MAX)
 				{
 					rebinds.push_back(&item);
@@ -208,7 +208,7 @@ public:
 	uint8_t bind(const T& obj)
 	{
 		bool shouldBind = false;
-		const uint8_t pos = (uint8_t)(cache.push(getID(obj), &shouldBind) + 1);
+		const uint8_t pos = (uint8_t)(cache.push(getID(obj), &shouldBind) + offset);
 		if (shouldBind)
 			innerBind(obj, pos);
 		return pos;
@@ -223,26 +223,26 @@ public:
 
 
 //----ResourceDistrubutor
-class TextureManager : public ResDister<TextureManager, oglTexture>
+class TextureManager : public ResDister<TextureManager, oglTexture, 4>
 {
-	friend class ResDister<TextureManager, oglTexture>;
+	friend class ResDister<TextureManager, oglTexture, 4>;
 protected:
 	GLuint getID(const oglTexture& obj) const;
 	void innerBind(const oglTexture& obj, const uint8_t pos) const;
 	void outterBind(const GLuint pid, const GLuint pos, const uint8_t val) const;
 public:
-	TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, 4) { }
+	TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }
 };
 
-class UBOManager : public ResDister<UBOManager, oglUBO>
+class UBOManager : public ResDister<UBOManager, oglUBO, 4>
 {
-	friend class ResDister<UBOManager, oglUBO>;
+	friend class ResDister<UBOManager, oglUBO, 4>;
 protected:
 	GLuint getID(const oglUBO& obj) const;
 	void innerBind(const oglUBO& obj, const uint8_t pos) const;
 	void outterBind(const GLuint pid, const GLuint pos, const uint8_t val) const;
 public:
-	UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS, 4) { }
+	UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS) { }
 };
 //ResourceDistrubutor----
 

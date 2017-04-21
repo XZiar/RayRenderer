@@ -15,7 +15,6 @@ enum class BufferWriteMode : GLenum
 	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
 	DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
-enum class IndexSize : GLenum { Byte = GL_UNSIGNED_BYTE, Short = GL_UNSIGNED_SHORT, Int = GL_UNSIGNED_INT };
 
 namespace detail
 {
@@ -69,7 +68,8 @@ protected:
 	static UBOManager& getUBOMan();
 	void bind(const uint8_t pos) const;
 public:
-	_oglUniformBuffer() noexcept;
+	const size_t size;
+	_oglUniformBuffer(const size_t size_) noexcept;
 	~_oglUniformBuffer() noexcept;
 };
 
@@ -77,26 +77,83 @@ public:
 class OGLUAPI _oglElementBuffer : public _oglBuffer
 {
 protected:
-	friend class _oglProgram;
 	friend class _oglVAO;
-	const IndexSize idxtype;
-	const uint8_t idxsize;
+	GLenum idxtype;
+	uint8_t idxsize;
+	void setSize(uint8_t elesize)
+	{
+		switch (idxsize = elesize)
+		{
+		case 1:
+			idxtype = GL_UNSIGNED_BYTE; return;
+		case 2:
+			idxtype = GL_UNSIGNED_SHORT; return;
+		case 3:
+			idxtype = GL_UNSIGNED_INT; return;
+		}
+	}
 public:
-	_oglElementBuffer(const IndexSize idxsize_) noexcept;
-	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+	_oglElementBuffer() noexcept;
+	template<class T, class = typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 4>::type>
 	void write(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
-		if (sizeof(T) != idxsize)
-			COMMON_THROW(BaseException, L"Unmatch idx size");
+		setSize(sizeof(T));
 		_oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
 	}
-	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+	template<class T, class = typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 4>::type>
 	void write(const T *dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
-		if (sizeof(T) != idxsize)
-			COMMON_THROW(BaseException, L"Unmatch idx size");
+		setSize(sizeof(T));
 		_oglBuffer::write(dat, idxsize*count, mode);
 	}
+#pragma warning(disable:4244)
+	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+	void writeCompat(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	{
+		auto res = std::minmax_element(dat.begin(), dat.end());
+		if (*res.first < 0)
+			COMMON_THROW(BaseException, L"element buffer cannot appear negatve value");
+		auto maxval = *res.second;
+		if (maxval <= UINT8_MAX)
+		{
+			if (sizeof(T) == 1)
+				write(dat, mode);
+			else
+			{
+				vector<uint8_t> newdat;
+				newdat.reserve(dat.size());
+				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				write(newdat, mode);
+			}
+		}
+		else if (maxval <= UINT16_MAX)
+		{
+			if (sizeof(T) == 2)
+				write(dat, mode);
+			else
+			{
+				vector<uint16_t> newdat;
+				newdat.reserve(dat.size());
+				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				write(newdat, mode);
+			}
+		}
+		else if (maxval <= UINT32_MAX)
+		{
+			if (sizeof(T) == 4)
+				write(dat, mode);
+			else
+			{
+				vector<uint32_t> newdat;
+				newdat.reserve(dat.size());
+				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				write(newdat, mode);
+			}
+		}
+		else
+			COMMON_THROW(BaseException, L"Too much element held for element buffer");
+	}
+#pragma warning(default:4244)
 };
 
 }

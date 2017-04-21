@@ -5,9 +5,68 @@
 #include "BindingManager.h"
 #include "oglInternal.h"
 
-namespace oglu::detail
+namespace oglu
 {
 
+
+GLint ProgramResource::getValue(const GLuint pid, const GLenum prop)
+{
+	GLint ret;
+	glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
+	return ret;
+}
+
+
+const char* ProgramResource::getTypeName() const
+{
+	static const char name[][8] = { "UniBlk","Uniform","Attrib" };
+	switch (type)
+	{
+	case GL_UNIFORM_BLOCK:
+		return name[0];
+	case GL_UNIFORM:
+		return name[1];
+	case GL_PROGRAM_INPUT:
+		return name[2];
+	default:
+		return nullptr;
+	}
+}
+
+void ProgramResource::initData(const GLuint pid, const GLint idx)
+{
+	ifidx = (uint8_t)idx;
+	if (type == GL_UNIFORM_BLOCK)
+	{
+		valtype = GL_UNIFORM_BLOCK;
+		size = getValue(pid, GL_BUFFER_DATA_SIZE);
+	}
+	else
+	{
+		valtype = (GLenum)getValue(pid, GL_TYPE);
+		len = getValue(pid, GL_ARRAY_SIZE);
+	}
+}
+
+bool ProgramResource::isTexture() const
+{
+	if (type != GL_UNIFORM)
+		return false;
+	if (valtype >= GL_SAMPLER_1D && valtype <= GL_SAMPLER_2D_RECT_SHADOW)
+		return true;
+	else if (valtype >= GL_SAMPLER_1D_ARRAY && valtype <= GL_SAMPLER_CUBE_SHADOW)
+		return true;
+	else if (valtype >= GL_INT_SAMPLER_1D && valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
+		return true;
+	else if (valtype >= GL_SAMPLER_2D_MULTISAMPLE && valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY)
+		return true;
+	else
+		return false;
+}
+
+
+namespace detail
+{
 
 _oglProgram::ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 {
@@ -152,60 +211,6 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 }
 
 
-GLint _oglProgram::DataInfo::getValue(const GLuint pid, const GLenum prop)
-{
-	GLint ret;
-	glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
-	return ret;
-}
-
-
-const char * _oglProgram::DataInfo::getTypeName() const
-{
-	static const char name[][8] = { "UniBlk","Uniform","Attrib" };
-	switch (type)
-	{
-	case GL_UNIFORM_BLOCK:
-		return name[0];
-	case GL_UNIFORM:
-		return name[1];
-	case GL_PROGRAM_INPUT:
-		return name[2];
-	default:
-		return nullptr;
-	}
-}
-
-void _oglProgram::DataInfo::initData(const GLuint pid, const GLint idx)
-{
-	ifidx = (uint8_t)idx;
-	if (type == GL_UNIFORM_BLOCK)
-	{
-		valtype = GL_UNIFORM_BLOCK;
-	}
-	else
-	{
-		len = getValue(pid, GL_ARRAY_SIZE);
-		valtype = (GLenum)getValue(pid, GL_TYPE);
-	}
-}
-
-bool _oglProgram::DataInfo::isTexture() const
-{
-	if (type != GL_UNIFORM)
-		return false;
-	if (valtype >= GL_SAMPLER_1D && valtype <= GL_SAMPLER_2D_RECT_SHADOW)
-		return true;
-	else if(valtype >= GL_SAMPLER_1D_ARRAY && valtype <= GL_SAMPLER_CUBE_SHADOW)
-		return true;
-	else if (valtype >= GL_INT_SAMPLER_1D && valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
-		return true;
-	else if (valtype >= GL_SAMPLER_2D_MULTISAMPLE && valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY)
-		return true;
-	else
-		return false;
-}
-
 
 _oglProgram::_oglProgram() :gState(*this)
 {
@@ -219,7 +224,7 @@ _oglProgram::~_oglProgram()
 		bool shouldUnUse = usethis(*this, false);
 		glDeleteProgram(programID);
 		programID = GL_INVALID_INDEX;
-		if(shouldUnUse)
+		if (shouldUnUse)
 			usethis(*this, true);
 	}
 }
@@ -252,18 +257,18 @@ void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const
 
 void _oglProgram::initLocs()
 {
-	map<string, DataInfo> dataMap;
+	map<string, ProgramResource> dataMap;
 	GLchar name[256];
-	DataInfo baseinfo[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
-	for(const DataInfo& binfo : baseinfo)
+	GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
+	for (const GLenum dtype : datatypes)
 	{
 		GLint cnt = 0;
-		glGetProgramInterfaceiv(programID, binfo.type, GL_ACTIVE_RESOURCES, &cnt);
+		glGetProgramInterfaceiv(programID, dtype, GL_ACTIVE_RESOURCES, &cnt);
 		for (GLint a = 0; a < cnt; ++a)
 		{
 			uint32_t arraylen = 0;
-			DataInfo datinfo(binfo);
-			glGetProgramResourceName(programID, binfo.type, a, 240, nullptr, name);
+			ProgramResource datinfo(dtype);
+			glGetProgramResourceName(programID, dtype, a, 240, nullptr, name);
 			char* chpos = nullptr;
 			//printf("@@query %d\t\t%s\n", binfo.iftype, name);
 			datinfo.initData(programID, a);
@@ -282,14 +287,18 @@ void _oglProgram::initLocs()
 				it->second.len = common::max(it->second.len, arraylen);
 				continue;
 			}
-			if(datinfo.type != GL_UNIFORM_BLOCK)
-				datinfo.location = glGetProgramResourceLocation(programID, datinfo.type, name);
+			if (dtype == GL_UNIFORM_BLOCK)
+			{
+				datinfo.location = glGetProgramResourceIndex(programID, dtype, name);
+			}
 			else
-				datinfo.location = glGetProgramResourceIndex(programID, datinfo.type, name);
+			{
+				datinfo.location = glGetProgramResourceLocation(programID, dtype, name);
+			}
 			if (datinfo.location != GL_INVALID_INDEX)//record index
 			{
 				dataMap.insert_or_assign(name, datinfo);
-				locMap.insert_or_assign(name, datinfo.location);
+				//locMap.insert_or_assign(name, datinfo.location);
 			}
 		}
 	}
@@ -308,7 +317,8 @@ void _oglProgram::initLocs()
 			else if (info.isTexture())
 				texMap.insert(di);
 		}
-		oglLog().debug(L"--{:>7}{:<3}  -[{:^5}]-  {}[{}]\n", info.getTypeName(), info.ifidx, info.location, di.first, info.len);
+		resMap.insert(di);
+		oglLog().debug(L"--{:>7}{:<3}  -[{:^5}]-  {}[{}] size[{}]\n", info.getTypeName(), info.ifidx, info.location, di.first, info.len, info.size);
 	}
 	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
@@ -352,11 +362,20 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
 	Attr_Vert_Color = getLoc(VertAttrName[3]);
 }
 
+optional<const ProgramResource*> _oglProgram::getResource(const string& name) const
+{
+	auto it = resMap.find(name);
+	if (it != resMap.end())
+		return &(it->second);
+	else //not existed
+		return {};
+}
+
 GLint _oglProgram::getLoc(const string& name) const
 {
-	auto it = locMap.find(name);
-	if (it != locMap.end())
-		return it->second;
+	auto it = resMap.find(name);
+	if (it != resMap.end())
+		return it->second.location;
 	else //not existed
 		return GL_INVALID_INDEX;
 }
@@ -431,3 +450,4 @@ _oglProgram::ProgState& _oglProgram::globalState()
 
 }
 
+}

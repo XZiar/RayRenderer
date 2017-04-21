@@ -16,6 +16,33 @@ struct OGLUAPI alignas(Vec4) TransformOP
 	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
 
+
+namespace detail
+{
+class _oglProgram;
+}
+
+struct ProgramResource
+{
+	friend detail::_oglProgram;
+private:
+	GLint getValue(const GLuint pid, const GLenum prop);
+	void initData(const GLuint pid, const GLint idx);
+public:
+	GLint location = GL_INVALID_INDEX;
+	//length of array
+	GLuint len = 1;
+	GLenum type;
+	GLenum valtype;
+	uint16_t size = 0;
+	uint8_t ifidx;
+	ProgramResource(const GLenum type_) :type(type_) { }
+	const char* getTypeName() const;
+	bool isUniformBlock() const { return type == GL_UNIFORM_BLOCK; }
+	bool isAttrib() const { return type == GL_PROGRAM_INPUT; }
+	bool isTexture() const;
+};
+
 namespace detail
 {
 
@@ -76,32 +103,15 @@ private:
 		}
 	};
 
-	struct DataInfo
-	{
-	private:
-		GLint getValue(const GLuint pid, const GLenum prop);
-	public:
-		GLint location = GL_INVALID_INDEX;
-		//length of array
-		GLuint len = 1;
-		GLenum type;
-		GLenum valtype;
-		uint16_t size = 0;
-		uint8_t ifidx;
-		DataInfo(const GLenum type_) :type(type_) { }
-		const char* getTypeName() const;
-		void initData(const GLuint pid, const GLint idx);
-		bool isUniformBlock() const { return type == GL_UNIFORM_BLOCK; }
-		bool isAttrib() const { return type == GL_PROGRAM_INPUT; }
-		bool isTexture() const;
-	};
+	
 
 	GLuint programID = GL_INVALID_INDEX;
 	vectorEx<oglShader> shaders;
-	map<string, DataInfo> texMap;
-	map<string, DataInfo> uboMap;
-	map<string, DataInfo> attrMap;
-	map<string, GLint> locMap;
+	map<string, ProgramResource> resMap;
+	map<string, ProgramResource> texMap;
+	map<string, ProgramResource> uboMap;
+	map<string, ProgramResource> attrMap;
+	//map<string, GLint> locMap;
 	vector<GLint> uniCache;
 	GLint
 		Uni_projMat = GL_INVALID_INDEX,
@@ -128,6 +138,7 @@ public:
 	void link();
 	void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
 	GLint getLoc(const string& name) const;
+	optional<const ProgramResource*> getResource(const string& name) const;
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
 	ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);

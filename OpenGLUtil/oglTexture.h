@@ -49,8 +49,6 @@ protected:
 	friend class oclu::detail::_oclMem;
 	const TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
-	const uint8_t defPos;
-	static uint8_t getDefaultPos() noexcept;
 	_oglTexBase(const TextureType _type) noexcept;
 	void bind(const uint8_t pos) const noexcept;
 	void unbind() const noexcept;

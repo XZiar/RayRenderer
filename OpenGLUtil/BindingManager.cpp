@@ -22,6 +22,7 @@ void TextureManager::outterBind(const GLuint pid, const GLuint pos, const uint8_
 	glProgramUniform1i(pid, pos, val);
 }
 
+
 GLuint UBOManager::getID(const oglUBO& obj) const
 {
 	return obj->bufferID;

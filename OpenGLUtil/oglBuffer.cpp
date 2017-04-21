@@ -40,8 +40,10 @@ _oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Uniform
 }
 
 
-_oglUniformBuffer::_oglUniformBuffer() noexcept : _oglBuffer(BufferType::Uniform)
+_oglUniformBuffer::_oglUniformBuffer(const size_t size_) noexcept : _oglBuffer(BufferType::Uniform), size(size_)
 {
+	vector<uint8_t> empty(size);
+	write(empty, BufferWriteMode::StreamDraw);
 }
 
 _oglUniformBuffer::~_oglUniformBuffer()
@@ -65,8 +67,7 @@ void _oglUniformBuffer::bind(const uint8_t pos) const
 }
 
 
-_oglElementBuffer::_oglElementBuffer(const IndexSize idxsize_) noexcept : _oglBuffer(BufferType::Element),
-	idxtype(idxsize_), idxsize(idxsize_ == IndexSize::Byte ? 1 : (idxsize_ == IndexSize::Short ? 2 : 4))
+_oglElementBuffer::_oglElementBuffer() noexcept : _oglBuffer(BufferType::Element)
 {
 }
 

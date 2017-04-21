@@ -29,6 +29,8 @@
 #include <vector>
 #include <map>
 #include <tuple>
+#include <optional>
+#include <algorithm>
 
 #include <boost/circular_buffer.hpp>
 
@@ -49,6 +51,7 @@ using std::pair;
 using std::vector;
 using std::map;
 using std::function;
+using std::optional;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Mat3x3;

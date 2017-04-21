@@ -70,8 +70,8 @@ Sphere::Sphere(const float r) : Drawable(TYPENAME), radius(r), radius_sqr(r*r)
 	auto indexs = CreateSphere(pts, radius);
 	vbo.reset(oglu::BufferType::Array);
 	vbo->write(pts.std());
-	ebo.reset(oglu::IndexSize::Short);
-	ebo->write(indexs);
+	ebo.reset();
+	ebo->writeCompat(indexs);
 	ptcount = static_cast<uint32_t>(indexs.size());
 }
 

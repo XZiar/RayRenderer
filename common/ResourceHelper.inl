@@ -15,7 +15,7 @@ void ResourceHelper::init(void* dll)
 ResourceHelper::Result ResourceHelper::getData(std::vector<uint8_t>& data, const wchar_t *type, const int32_t id)
 {
 	HMODULE hdll = (HMODULE)thisdll;
-	const auto hRsrc = FindResource(hdll, (wchar_t*)id, type);
+	const auto hRsrc = FindResource(hdll, (wchar_t*)intptr_t(id), type);
 	if (NULL == hRsrc)
 		return Result::FindFail;
 	DWORD dwSize = SizeofResource(hdll, hRsrc);

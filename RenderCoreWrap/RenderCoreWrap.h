@@ -11,13 +11,16 @@ using namespace System::Threading::Tasks;
 namespace RayRender
 {
 
+ref class BasicTest;
+
 public ref class LightHolder
 {
 private:
 	const vector<common::Wrapper<b3d::Light>>& src;
 	List<Basic3D::Light^>^ lights;
+	rayr::BasicTest * const core;
 internal:
-	LightHolder(const vector<common::Wrapper<b3d::Light>>& lights_) : src(lights_) {}
+	LightHolder(rayr::BasicTest *core_, const vector<common::Wrapper<b3d::Light>>& lights_) : core(core_), src(lights_) {}
 public:
 	property Basic3D::Light^ default[int32_t]
 	{
@@ -27,7 +30,13 @@ public:
 				throw gcnew System::IndexOutOfRangeException();
 			return gcnew Basic3D::Light(&src[i]);
 		}
+	};
+	property int32_t Size
+	{
+		int32_t get() { return (int32_t)src.size(); }
 	}
+	void Add(Basic3D::LightType type);
+	void Clear();
 };
 
 public ref class BasicTest
@@ -35,6 +44,7 @@ public ref class BasicTest
 private:
 	rayr::BasicTest *core;
 	Basic3D::Camera ^cam_;
+internal:
 public:
 	BasicTest();
 	~BasicTest() { this->!BasicTest(); }
@@ -57,12 +67,7 @@ public:
 		uint16_t get() { return core->objectCount(); }
 	}
 
-	property uint16_t lightCount
-	{
-		uint16_t get() { return core->lightCount(); }
-	}
-
-	initonly LightHolder^ light;
+	initonly LightHolder^ Lights;
 
 	void Draw();
 	void Resize(const int w, const int h);
@@ -70,7 +75,6 @@ public:
 	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
 
 	Task<Func<bool>^>^ AddModelAsync(String^ name);
-	void AddLight(Basic3D::LightType type);
 
 	void TryException(int type);
 };

@@ -58,7 +58,7 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
 		}
 		else
 		{
-			oglLog().debug(L"OpenGL message\n{}\n", theMsg->msg);
+			oglLog().verbose(L"OpenGL message\n{}\n", theMsg->msg);
 		}
 	}
 }
@@ -76,7 +76,7 @@ void oglUtil::init()
 	glDepthFunc(GL_LEQUAL);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #if defined(_DEBUG) || 1
-	setDebug(0x2f, 0x2f, MsgLevel::Notfication);
+	setDebug(0x2f, 0x1ff, MsgLevel::Notfication);
 #endif
 	oglLog().info(L"GL Version:{}\n", getVersion());
 	auto hdc = wglGetCurrentDC();
