@@ -86,7 +86,7 @@ namespace detail
 {
 
 
-class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public NonMovable, public std::enable_shared_from_this<_FreeGLUTView>
+class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public std::enable_shared_from_this<_FreeGLUTView>
 {
 	friend class GLUTHacker;
 public:

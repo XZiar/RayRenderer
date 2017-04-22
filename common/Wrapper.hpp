@@ -29,9 +29,6 @@ public:
 	{ }
 	Wrapper(base_type&& other) noexcept : base_type(other)
 	{ }
-	template<class = typename std::enable_if<std::is_base_of<std::enable_shared_from_this<T>, T>::value>::type>
-	Wrapper(T *src) noexcept : base_type(src->shared_from_this())
-	{ }
 	explicit Wrapper(T *src) noexcept : base_type(src)
 	{ }
 	template<class... ARGS>

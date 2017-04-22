@@ -1,4 +1,5 @@
 #include "oclRely.h"
+#include "oclInternal.h"
 
 #ifdef USING_INTEL
 #   pragma comment(lib, R"(\intel\OpenCL.lib)")
@@ -7,3 +8,16 @@
 #endif
 #pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
 
+
+namespace oclu
+{
+
+using namespace common::mlog;
+logger& oglLog()
+{
+	static logger ocllog(L"OpenGLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
+	return ocllog;
+}
+
+
+}

@@ -189,6 +189,7 @@
   <ItemGroup>
     <None Include="2d.glsl" />
     <None Include="3d.glsl" />
+    <None Include="test.cl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Basic3DObject.h" />

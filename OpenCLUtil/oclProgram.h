@@ -1,5 +1,6 @@
 #pragma once
 #include "oclRely.h"
+#include "oclDevice.h"
 
 
 namespace oclu
@@ -21,11 +22,17 @@ public:
 
 class OCLUAPI _oclProgram
 {
+	friend class _oclContext;
 private:
 	const cl_program progID;
+	const string src;
+	//static void CL_CALLBACK onNotify(const cl_program pid, void *user_data);
+	vector<oclDevice> getDevs() const;
+	wstring getBuildLog(const oclDevice& dev) const;
+	_oclProgram(const cl_program pid, const string& str);
 public:
-	_oclProgram();
 	~_oclProgram();
+	void build() const;
 };
 
 

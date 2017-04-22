@@ -18,16 +18,16 @@ class OCLUAPI _oclDevice : public NonCopyable
 	friend class _oclContext;
 	friend class _oclPlatform;
 	friend class _oclProgram;
-	friend class _oclComQue;
+	friend class _oclCmdQue;
 	friend class ::oclu::oclUtil;
 private:
 	const cl_device_id deviceID;
-	string getStr(const cl_device_info type) const;
+	wstring getStr(const cl_device_info type) const;
 	DeviceType getDevType() const;
 	_oclDevice(const cl_device_id dID);
 public:
 	const DeviceType type;
-	const string name, vendor, version;
+	const wstring name, vendor, version;
 };
 
 

@@ -148,8 +148,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="oclDevice.h" />
-    <ClInclude Include="oclComQue.h" />
+    <ClInclude Include="oclCmdQue.h" />
     <ClInclude Include="oclContext.h" />
+    <ClInclude Include="oclException.h" />
+    <ClInclude Include="oclInternal.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
     <ClInclude Include="oclRely.h" />
@@ -158,7 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclDevice.cpp" />
-    <ClCompile Include="oclComQue.cpp" />
+    <ClCompile Include="oclCmdQue.cpp" />
     <ClCompile Include="oclContext.cpp" />
     <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
@@ -171,6 +173,9 @@
     <ClCompile Include="oclUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>

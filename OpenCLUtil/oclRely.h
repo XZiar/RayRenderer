@@ -12,6 +12,8 @@
 #include "../3dBasic/miniBLAS.hpp"
 #include "../common/CommonRely.hpp"
 #include "../common/Wrapper.hpp"
+#include "../common/Exceptions.hpp"
+#include "../common/StringEx.hpp"
 #include "../common/AlignedContainer.hpp"
 
 #include <cstdio>
@@ -43,15 +45,6 @@ using namespace common;
 
 class oclUtil;
 using MessageCallBack = std::function<void(void)>;
-
-namespace detail
-{
-class _oclPlatform;
-class _oclProgram;
-class _oclDevice;
-class _oclComQue;
-class _oclContext;
-}
 
 
 }

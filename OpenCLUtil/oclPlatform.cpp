@@ -14,7 +14,7 @@ namespace detail
 
 bool _oclPlatform::checkGL() const
 {
-	if (name.find("Experimental") != string::npos)
+	if (name.find(L"Experimental") != wstring::npos)
 		return false;
 	//Additional attributes to OpenCL context creation
 	//which associate an OpenGL context with the OpenCL context 
@@ -34,11 +34,11 @@ bool _oclPlatform::checkGL() const
 	return ret == CL_SUCCESS;
 }
 
-string _oclPlatform::getStr(const cl_platform_info type) const
+wstring _oclPlatform::getStr(const cl_platform_info type) const
 {
 	char str[128] = { 0 };
 	clGetPlatformInfo(platformID, type, 127, str, NULL);
-	return string(str);
+	return to_wstring(str);
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
@@ -63,21 +63,17 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
 oclContext _oclPlatform::createContext() const
 {
 	vector<cl_context_properties> props;
+	//OpenCL platform
+	props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)platformID });
 	if (isCurrentGL)
 	{
-		props.assign(
+		props.insert(props.cend(), 
 		{
-			//OpenCL platform
-			CL_CONTEXT_PLATFORM, (cl_context_properties)platformID,
 			//OpenGL context
 			CL_GL_CONTEXT_KHR,   (cl_context_properties)wglGetCurrentContext(),
 			//HDC used to create the OpenGL context
 			CL_WGL_HDC_KHR,      (cl_context_properties)wglGetCurrentDC()
 		});
-	}
-	else
-	{
-		props.assign({ CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(platformID) });
 	}
 	props.push_back(0);
 	return oclContext(new _oclContext(props.data(), devs));

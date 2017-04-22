@@ -255,7 +255,9 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	try
 	{
+		oclPlatform clPlat;
 		const auto pltfs = oclu::oclUtil::getPlatforms();
 		for (const auto plt : pltfs)
 		{
@@ -266,10 +268,18 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 			basLog().verbose(txt);
 			if (plt->isCurrentGL)
 			{
+				clPlat = plt;
 				clContext = plt->createContext();
 				basLog().success(L"Created Context Here!\n");
 			}
 		}
+		auto clQue = clContext->createCmdQue(clPlat->getDefaultDevice());
+		auto clProg = clContext->loadProgram(getShaderFromDLL(IDR_SHADER_CL));
+		clProg->build();
+	}
+	catch (BaseException& be)
+	{
+		COMMON_THROW(BaseException, L"init OpenCL context failed");
 	}
 	initTex();
 	init2d(sname2d);
