@@ -38,7 +38,7 @@ namespace oclu
 {
 namespace detail
 {
-class _oclMem;
+class _oclGLBuffer;
 }
 }
 

@@ -152,8 +152,10 @@
     <ClInclude Include="oclContext.h" />
     <ClInclude Include="oclException.h" />
     <ClInclude Include="oclInternal.h" />
+    <ClInclude Include="oclBuffer.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
+    <ClInclude Include="oclPromiseTask.h" />
     <ClInclude Include="oclRely.h" />
     <ClInclude Include="oclUtil.h" />
     <ClInclude Include="OpenCLUtil.h" />
@@ -162,6 +164,7 @@
     <ClCompile Include="oclDevice.cpp" />
     <ClCompile Include="oclCmdQue.cpp" />
     <ClCompile Include="oclContext.cpp" />
+    <ClCompile Include="oclBuffer.cpp" />
     <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
     <ClCompile Include="oclRely.cpp">

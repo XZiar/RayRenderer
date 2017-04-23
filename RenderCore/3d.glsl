@@ -66,6 +66,7 @@ void main()
 			clr = lights[id].color.rgb;
 	}
 	FragColor.rgb *= clr;
+	//FragColor.rgb = vec3(pos.z);
 }
 
 #endif

@@ -46,7 +46,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 protected:
 	friend class TextureManager;
 	friend class _oglProgram;
-	friend class oclu::detail::_oclMem;
+	friend class ::oclu::detail::_oclGLBuffer;
 	const TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
 	_oglTexBase(const TextureType _type) noexcept;
@@ -61,7 +61,7 @@ class OGLUAPI _oglTexture : public _oglTexBase
 protected:
 	friend class TextureManager;
 	friend class _oglProgram;
-	friend class oclu::detail::_oclMem;
+	friend class ::oclu::detail::_oclGLBuffer;
 	TextureInnerFormat inFormat;
 	static TextureManager& getTexMan() noexcept;
 	static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
@@ -103,7 +103,6 @@ class OGLUAPI _oglBufferTexture : public _oglTexBase
 {
 protected:
 	friend class _oglProgram;
-	friend class oclu::detail::_oclMem;
 	oglTBO innerBuf;
 	static GLenum parseFormat(const TextureDataFormat dformat) noexcept;
 public:

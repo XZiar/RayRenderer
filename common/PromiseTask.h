@@ -20,6 +20,7 @@ protected:
 public:
 	T virtual wait() = 0;
 	virtual ~PromiseResult_() {}
+	PromiseResult_(PromiseResult_&&) = default;
 };
 
 

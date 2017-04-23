@@ -273,8 +273,8 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 				basLog().success(L"Created Context Here!\n");
 			}
 		}
-		auto clQue = clContext->createCmdQue(clPlat->getDefaultDevice());
-		auto clProg = clContext->loadProgram(getShaderFromDLL(IDR_SHADER_CL));
+		oclCmdQue clQue(clContext, clPlat->getDefaultDevice());
+		oclProgram clProg(clContext, getShaderFromDLL(IDR_SHADER_CL));
 		clProg->build();
 	}
 	catch (BaseException& be)

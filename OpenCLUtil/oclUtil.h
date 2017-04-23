@@ -14,7 +14,7 @@ private:
 public:
 	static void __cdecl init();
 	static const vector<oclPlatform>& __cdecl getPlatforms() { return platforms; }
-	static const char* __cdecl getErrorString(const cl_int err);
+	static const wchar_t* __cdecl getErrorString(const cl_int err);
 };
 
 }

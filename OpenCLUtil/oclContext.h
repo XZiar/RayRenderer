@@ -2,8 +2,6 @@
 
 #include "oclRely.h"
 #include "oclDevice.h"
-#include "oclCmdQue.h"
-#include "oclProgram.h"
 
 
 namespace oclu
@@ -13,10 +11,13 @@ namespace detail
 {
 
 
-class OCLUAPI _oclContext : public NonCopyable
+class OCLUAPI _oclContext : public NonCopyable, public std::enable_shared_from_this<_oclContext>
 {
 	friend class _oclPlatform;
 	friend class _oclCmdQue;
+	friend class _oclProgram;
+	friend class _oclBuffer;
+	friend class _oclGLBuffer;
 private:
 	static void CL_CALLBACK onNotify(const char *errinfo, const void *private_info, size_t cb, void *user_data);
 	const cl_context context;
@@ -25,8 +26,6 @@ private:
 public:
 	MessageCallBack onMessage = nullptr;
 	~_oclContext();
-	oclCmdQue createCmdQue(const oclDevice& dev) const;
-	oclProgram loadProgram(const string& src) const;
 };
 
 }

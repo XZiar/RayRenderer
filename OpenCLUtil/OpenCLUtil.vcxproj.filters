@@ -45,6 +45,12 @@
     <ClInclude Include="oclCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oclPromiseTask.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">
@@ -66,6 +72,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclCmdQue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclBuffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

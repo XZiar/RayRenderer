@@ -20,10 +20,10 @@ namespace detail
 {
 
 
-class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
+class OGLUAPI _oglBuffer : public NonCopyable
 {
 protected:
-	friend class oclu::detail::_oclMem;
+	friend class oclu::detail::_oclGLBuffer;
 	friend class _oglTexture;
 	friend class _oglVAO;
 	friend class _oglProgram;
@@ -52,7 +52,6 @@ public:
 class OGLUAPI _oglTextureBuffer : public _oglBuffer
 {
 protected:
-	friend class oclu::detail::_oclMem;
 	friend class _oglBufferTexture;
 	friend class _oglProgram;
 public:
