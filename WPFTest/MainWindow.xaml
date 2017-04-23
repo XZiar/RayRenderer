@@ -30,7 +30,7 @@
                 </FlowDocument>
             </RichTextBox>
         </Grid>
-        <WindowsFormsHost x:Name="wfh" Grid.Column="0">
+        <WindowsFormsHost x:Name="wfh" Grid.Column="0" KeyUp="wfh_KeyUp">
             <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyAction="OnKeyAction" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>
     </Grid>

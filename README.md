@@ -58,6 +58,10 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MPL 1.1 License](./License/uchardet.txt)
 
+* [FreeType2](https://www.freetype.org/) 2.7.1
+
+  [The FreeType License](./License/ftl.txt)
+
 ## License
 
 RayRenderer (including its component) is licensed under the [MIT license](License.txt).

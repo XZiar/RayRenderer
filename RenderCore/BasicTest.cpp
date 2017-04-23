@@ -281,6 +281,14 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	{
 		COMMON_THROW(BaseException, L"init OpenCL context failed");
 	}
+	try
+	{
+		FontViewer viewer;
+	}
+	catch (BaseException& be)
+	{
+		COMMON_THROW(BaseException, L"init FontViewer failed");
+	}
 	initTex();
 	init2d(sname2d);
 	init3d(sname3d);

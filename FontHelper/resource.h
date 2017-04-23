@@ -1,8 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
-#define IDR_SHADER_FONTFRAG                     108
-#define IDR_SHADER_FONTVERT                     109
+#define IDR_SHADER_PRINTFONT                    108
 
 // 新对象的下一组默认值
 // 

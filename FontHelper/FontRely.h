@@ -17,4 +17,5 @@
 #include "../common/Exceptions.hpp"
 #include "../OpenGLUtil/OpenGLUtil.h"
 #include "../OpenCLUtil/OpenCLUtil.h"
+#include "../3rdParty/freetype2/freetype2.h"
 

@@ -120,6 +120,11 @@ namespace WPFTest
             vbBrs = new SolidColorBrush(Colors.Pink),
             dbgBrs = new SolidColorBrush(Colors.Cyan);
 
+        private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            Console.WriteLine(e.Key);
+        }
+
         private void OnKeyAction(object sender, KeyBoardEventArgs e)
         {
             Console.WriteLine($"KeyAction {e.key}");

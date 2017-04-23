@@ -7,10 +7,10 @@ namespace oglu
 {
 
 class FontViewer;
-namespace inner
+namespace detail
 {
 
-
+namespace fs = std::experimental::filesystem;
 class FONTHELPAPI FontViewerProgram
 {
 private:
@@ -25,10 +25,10 @@ private:
 class FONTHELPAPI FontCreater : public NonCopyable
 {
 private:
-	using Path = std::experimental::filesystem::path;
+	ft::FreeTyper ft2;
 	oglTexture testTex;
 public:
-	FontCreater(Path& fontpath);
+	FontCreater(const fs::path& fontpath);
 	oglTexture getTexture() const;
 };
 
@@ -36,10 +36,10 @@ public:
 class FONTHELPAPI FontViewer : public NonCopyable
 {
 private:
-	static inner::FontViewerProgram& getProgram();
 	oglBuffer viewRect;
 	oglVAO viewVAO;
 public:
+	static detail::FontViewerProgram& getProgram();
 	FontViewer();
 	void draw();
 };

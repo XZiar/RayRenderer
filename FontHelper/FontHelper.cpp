@@ -1,3 +1,5 @@
+#include "FontRely.h"
+#include "FontInternal.h"
 #include "resource.h"
 #include "FontHelper.h"
 #include "../common/ResourceHelper.h"
@@ -16,35 +18,25 @@ static string getShaderFromDLL(int32_t id)
 }
 
 
-namespace inner
+namespace detail
 {
 
 
 FontViewerProgram::FontViewerProgram()
 {
 	prog.reset();
+	auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_PRINTFONT));
+	for (auto shader : shaders)
 	{
-		oglShader vert(ShaderType::Vertex, getShaderFromDLL(IDR_SHADER_FONTVERT));
 		try
 		{
-			vert->compile();
-			prog->addShader(std::move(vert));
+			shader->compile();
+			prog->addShader(std::move(shader));
 		}
-		catch (BaseException& be)
+		catch (OGLException& gle)
 		{
-			//basLog().error(L"Fail to compile Vertex Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Vertex Shader error");
-		}
-		oglShader frag(ShaderType::Fragment, getShaderFromDLL(IDR_SHADER_FONTFRAG));
-		try
-		{
-			frag->compile();
-			prog->addShader(std::move(frag));
-		}
-		catch (BaseException& be)
-		{
-			//basLog().error(L"Fail to compile Fragment Shader:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"compile Fragment Shader error");
+			fntLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+			COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
 		}
 	}
 	try
@@ -52,9 +44,9 @@ FontViewerProgram::FontViewerProgram()
 		prog->link();
 		prog->registerLocation({ "vertPos","","vertTexc","vertColor" }, { "","","","","" });
 	}
-	catch (BaseException& be)
+	catch (OGLException& gle)
 	{
-		//basLog().error(L"Fail to link Program:\n{}\n", be.message);
+		fntLog().error(L"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 }
@@ -64,14 +56,14 @@ FontViewerProgram::FontViewerProgram()
 
 
 
-FontCreater::FontCreater(Path& fontpath)
+FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath)
 {
 
 }
 
-oglu::inner::FontViewerProgram& FontViewer::getProgram()
+detail::FontViewerProgram& FontViewer::getProgram()
 {
-	static inner::FontViewerProgram fvProg;
+	static detail::FontViewerProgram fvProg;
 	return fvProg;
 }
 

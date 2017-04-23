@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.3
+VisualStudioVersion = 15.0.26403.7
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLView", "OpenGLView\OpenGLView.vcxproj", "{2D168E14-C22D-4429-B97C-AF5D41010E48}"
 EndProject
@@ -45,6 +45,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CSharp", "CSharp", "{ECC412A1-998E-4715-BA83-E8C12C9BAB39}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CPP", "CPP", "{B6204FB0-DC48-4C02-8453-BAEF3D033ACB}"
+	ProjectSection(SolutionItems) = preProject
+		RenderCore\test.cl = RenderCore\test.cl
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreLibrary", "CoreLibrary", "{89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}"
 EndProject
@@ -119,6 +122,20 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{C42B961C-1C23-45DE-ABA7-410681BC7D13}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardetlib", "3rdParty\uchardetlib\uchardetlib.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-32", "x86-32", "{97C48F86-2881-41CB-A4EE-802F62A6013F}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\lib\x86-32\freetype271MT.lib = 3rdParty\lib\x86-32\freetype271MT.lib
+		3rdParty\lib\x86-32\freetype271MTd.lib = 3rdParty\lib\x86-32\freetype271MTd.lib
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-64", "x86-64", "{04995791-355D-4E91-8006-E8783B2AB9D9}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\lib\x86-64\freetype271MT.lib = 3rdParty\lib\x86-64\freetype271MT.lib
+		3rdParty\lib\x86-64\freetype271MTd.lib = 3rdParty\lib\x86-64\freetype271MTd.lib
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freetype2", "3rdParty\freetype2\freetype2.vcxproj", "{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -266,6 +283,16 @@ Global
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x64.Build.0 = Release|x64
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x86.ActiveCfg = Release|Win32
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}.Release|x86.Build.0 = Release|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Debug|x64.ActiveCfg = Debug|x64
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Debug|x64.Build.0 = Debug|x64
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Debug|x86.ActiveCfg = Debug|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Debug|x86.Build.0 = Debug|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Release|Any CPU.ActiveCfg = Release|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Release|x64.ActiveCfg = Release|x64
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Release|x64.Build.0 = Release|x64
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Release|x86.ActiveCfg = Release|Win32
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -293,5 +320,8 @@ Global
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{C42B961C-1C23-45DE-ABA7-410681BC7D13} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{97C48F86-2881-41CB-A4EE-802F62A6013F} = {C42B961C-1C23-45DE-ABA7-410681BC7D13}
+		{04995791-355D-4E91-8006-E8783B2AB9D9} = {C42B961C-1C23-45DE-ABA7-410681BC7D13}
+		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal
