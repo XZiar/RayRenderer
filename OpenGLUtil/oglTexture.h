@@ -63,12 +63,14 @@ protected:
 	friend class _oglProgram;
 	friend class ::oclu::detail::_oclGLBuffer;
 	TextureInnerFormat inFormat;
+	uint32_t width, height;
 	static TextureManager& getTexMan() noexcept;
 	static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
 	static size_t parseFormatSize(const TextureDataFormat dformat) noexcept;
 public:
 	_oglTexture(const TextureType _type) noexcept;
 	~_oglTexture() noexcept;
+	std::pair<uint32_t, uint32_t> getSize() const;
 	void setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype);
 	template<class T, class A>
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)
@@ -91,11 +93,6 @@ public:
 		return getCompressedData(*(vector<uint8_t>*)&output);
 	}
 	OPResult<> getData(vector<uint8_t>& output, const TextureDataFormat dformat);
-	template<class T, class A>
-	OPResult<> getData(vector<T, A>& output, const TextureDataFormat dformat)
-	{
-		return getData(*(vector<uint8_t>*)&output, dformat);
-	}
 };
 
 

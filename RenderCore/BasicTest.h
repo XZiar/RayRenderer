@@ -4,6 +4,7 @@
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.h"
+#include "../FontHelper/FontHelper.h"
 
 namespace rayr
 {
@@ -23,7 +24,8 @@ private:
 	oglVAO picVAO;
 	oglUBO lightUBO, materialUBO;
 	uint8_t lightLim, materialLim;
-	vectorEx<TransformOP> transf;
+	Wrapper<FontViewer> fontViewer;
+	Wrapper<FontCreater> fontCreator;
 	vector<Wrapper<Drawable>> drawables;
 	vector<Wrapper<Light>> lights;
 	void init2d(const wstring pname);

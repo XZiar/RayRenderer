@@ -112,10 +112,8 @@ public:
 	}
 };
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
-	virtual Wrapper<BaseException> clone() const override\
-	{ return Wrapper<type>(*this); }
-#define EXCEPTION_CLONE(type) virtual Wrapper<BaseException> clone() const override\
-	{ return Wrapper<type>(*this); }
+	virtual ::common::Wrapper<BaseException> clone() const override\
+	{ return ::common::Wrapper<type>(*this); }
 
 inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
 {
@@ -163,13 +161,12 @@ public:
 private:
 	fs::path filepath;
 public:
-	static constexpr auto TYPENAME = "FileException";
+	EXCEPTION_CLONE_EX(FileException);
 	const Reason reason;
 	FileException(Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
 		: BaseException(TYPENAME, msg, data_), reason(why), filepath(file)
 	{ }
 	virtual ~FileException() {}
-	EXCEPTION_CLONE(FileException);
 };
 
 

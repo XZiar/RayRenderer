@@ -17,7 +17,7 @@ bool DelayLoader::unload(const std::string& name)
 DelayLoader::LoadFunc DelayLoader::onLoadDLL = nullptr;
 DelayLoader::LoadFunc DelayLoader::onGetFuncAddr = nullptr;
 
-static FARPROC WINAPI delayHook(unsigned dliNotify, PDelayLoadInfo pdli)
+static FARPROC WINAPI delayHook(unsigned int dliNotify, PDelayLoadInfo pdli)
 {
 	switch (dliNotify)
 	{

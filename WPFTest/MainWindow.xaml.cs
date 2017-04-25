@@ -123,6 +123,11 @@ namespace WPFTest
         private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             Console.WriteLine(e.Key);
+            if (e.Key == System.Windows.Input.Key.Return)
+            {
+                Main.mode = !Main.mode;
+                glMain.Invalidate();
+            }
         }
 
         private void OnKeyAction(object sender, KeyBoardEventArgs e)

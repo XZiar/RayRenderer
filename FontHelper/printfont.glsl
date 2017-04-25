@@ -30,8 +30,12 @@ out vec4 FragColor;
 
 void main() 
 {
-	float grey = (texture(tex, tpos).r + 1.0f) / 2.0f;
-	FragColor.rgb = color * grey;
+	vec2 texpos = tpos;
+	texpos = vec2((pos.x + 1.0f)/2, (-pos.y + 1.0f)/2);
+	//float grey = (texture(tex, tpos).r + 1.0f) / 2.0f;
+	float grey = texture(tex, tpos).r;
+	//FragColor.rgb = color * grey;
+	FragColor.rgb = vec3(grey);
 	FragColor.w = 1.0f;
 }
 #endif

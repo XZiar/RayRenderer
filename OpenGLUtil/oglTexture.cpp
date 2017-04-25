@@ -1,5 +1,6 @@
 #include "oglRely.h"
 #include "oglTexture.h"
+#include "oglException.h"
 #include "BindingManager.h"
 
 namespace oglu::detail
@@ -147,11 +148,14 @@ void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWr
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data)
 {
+	if ((w*parseFormatSize(dformat)) % 4)
+		COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's data should be aligned to 4byte");
 	bind(0);
 	GLenum datatype, comptype;
 	parseFormat(dformat, datatype, comptype);
 	glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
 	inFormat = iformat;
+	width = w, height = h;
 	//unbind();
 }
 
@@ -164,6 +168,7 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 	parseFormat(dformat, datatype, comptype);
 	glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, nullptr);
 	inFormat = iformat;
+	width = w, height = h;
 	buf->unbind();
 	//unbind();
 }
@@ -173,6 +178,7 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 	bind(0);
 	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
 	inFormat = iformat;
+	width = w, height = h;
 	//unbind();
 }
 
@@ -183,6 +189,7 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 	buf->bind();
 	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);
 	inFormat = iformat;
+	width = w, height = h;
 	buf->unbind();
 	//unbind();
 }
@@ -206,13 +213,19 @@ OPResult<> _oglTexture::getData(vector<uint8_t>& output, const TextureDataFormat
 	GLint w = 0, h = 0;
 	glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
 	glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
-	output.resize(parseFormatSize(dformat) * w * h);
+	auto size = w * h * parseFormatSize(dformat);
+	//output.reserve(size * 2);
+	output.resize(size);
 	GLenum datatype, comptype;
 	parseFormat(dformat, datatype, comptype);
 	glGetTexImage((GLenum)type, 0, comptype, datatype, output.data());
 	return true;
 }
 
+pair<uint32_t, uint32_t> _oglTexture::getSize() const
+{
+	return { width,height };
+}
 
 
 GLenum _oglBufferTexture::parseFormat(const TextureDataFormat dformat) noexcept

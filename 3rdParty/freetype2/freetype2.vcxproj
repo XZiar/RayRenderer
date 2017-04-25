@@ -214,6 +214,7 @@
     <ClInclude Include="freetype\config\ftoption.h" />
     <ClInclude Include="freetype\config\ftstdlib.h" />
     <ClInclude Include="ft2build.h" />
+    <ClInclude Include="ftException.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -36,7 +36,7 @@ GLVARY perVert
 #ifdef OGLU_VERT
 
 layout(location = 0) in vec3 vertPos;
-layout(location = 1) in vec2 vertNorm;
+layout(location = 1) in vec3 vertNorm;
 layout(location = 2) in vec2 texPos;
 
 void main() 

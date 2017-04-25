@@ -2,8 +2,8 @@
 #include "resource.h"
 #include "BasicTest.h"
 #include "RenderCoreInternal.h"
+#include "../3rdParty/stblib/stblib.h"
 #include "../common/ResourceHelper.h"
-#include "../FontHelper/FontHelper.h"
 #include <thread>
 
 namespace rayr
@@ -142,8 +142,6 @@ void BasicTest::init3d(const wstring pname)
 	
 	cam.position = Vec3(0.0f, 0.0f, 4.0f);
 	prog3D->setCamera(cam);
-	transf.push_back({ Vec4(true),TransformType::RotateXYZ });
-	transf.push_back({ Vec4(true),TransformType::Translate });
 	{
 		Wrapper<Pyramid> pyramid(1.0f);
 		pyramid->name = L"Pyramid";
@@ -188,11 +186,13 @@ void BasicTest::initTex()
 			}
 		}
 		empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-		picTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
 		tmpTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+		picTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
 		picBuf->write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
 	}
-
+	{
+		uint32_t empty[4][4] = { 0 };
+	}
 	mskTex.reset(TextureType::Tex2D);
 	{
 		mskTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
@@ -255,6 +255,7 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	
 	try
 	{
 		oclPlatform clPlat;
@@ -283,7 +284,33 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	}
 	try
 	{
-		FontViewer viewer;
+		fontViewer.reset();
+		fontCreator.reset(L"F:\\Software\\Font\\test.ttf");
+		auto fonttex = fontCreator->getTexture();
+		fontCreator->setChar(L'G', false);
+		fontViewer->bindTexture(fonttex);
+		vector<uint8_t> tmper;
+		vector<uint32_t> outer;
+		fonttex->getData(tmper, TextureDataFormat::R8);
+		outer.reserve(tmper.size());
+		for (auto c : tmper)
+			outer.push_back((c * 0x00010101) | 0xff000000);
+		auto ftexsize = fonttex->getSize();
+		::stb::saveImage(L"F:\\Software\\Font\\G.png", outer, ftexsize.first, ftexsize.second);
+		fontCreator->setChar(0x554A, false);
+		fonttex->getData(tmper, TextureDataFormat::R8);
+		outer.clear();
+		for (auto c : tmper)
+			outer.push_back((c * 0x00010101) | 0xff000000);
+		ftexsize = fonttex->getSize();
+		::stb::saveImage(L"F:\\Software\\Font\\A.png", outer, ftexsize.first, ftexsize.second);
+		fontCreator->bmpsdf(0x554A);
+		fonttex->getData(tmper, TextureDataFormat::R8);
+		outer.clear();
+		for (auto c : tmper)
+			outer.push_back((c * 0x00010101) | 0xff000000);
+		ftexsize = fonttex->getSize();
+		::stb::saveImage(L"F:\\Software\\Font\\Asdf.png", outer, ftexsize.first, ftexsize.second);
 	}
 	catch (BaseException& be)
 	{
@@ -309,7 +336,8 @@ void BasicTest::draw()
 	}
 	else
 	{
-		prog2D->draw().draw(picVAO);
+		fontViewer->draw();
+		//prog2D->draw().draw(picVAO);
 	}
 }
 

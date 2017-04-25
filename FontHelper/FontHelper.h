@@ -29,7 +29,11 @@ private:
 	oglTexture testTex;
 public:
 	FontCreater(const fs::path& fontpath);
-	oglTexture getTexture() const;
+	~FontCreater();
+	oglTexture getTexture() const { return testTex; }
+	void setChar(wchar_t ch, bool custom) const;
+	void stroke() const;
+	void bmpsdf(wchar_t ch) const;
 };
 
 
@@ -42,6 +46,7 @@ public:
 	static detail::FontViewerProgram& getProgram();
 	FontViewer();
 	void draw();
+	void bindTexture(const oglTexture& tex);
 };
 
 }
