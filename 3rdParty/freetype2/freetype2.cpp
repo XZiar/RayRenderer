@@ -121,7 +121,7 @@ pair<vector<FreeTyper::PerLine>, pair<uint32_t, uint32_t>> FreeTyper::TryRenderL
 	FT_Outline_Render(&getLibrary(), (FT_Outline*)outline, &params);
 	for (auto& l : lines)
 		l.x -= minw, l.y = maxh - l.y;
-	return { lines,{maxw - minw,maxh - minh} };
+	return { lines,{maxw - minw + 1,maxh - minh + 1} };
 }
 
 static int moveto(const FT_Vector *to, void *user)

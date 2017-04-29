@@ -104,6 +104,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\PromiseTask.inl = common\PromiseTask.inl
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
+		common\SharedResource.hpp = common\SharedResource.hpp
 		common\StringEx.hpp = common\StringEx.hpp
 		common\TimeUtil.h = common\TimeUtil.h
 		common\TimeUtil.inl = common\TimeUtil.inl

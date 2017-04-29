@@ -18,10 +18,12 @@ class OCLUAPI _oclContext : public NonCopyable, public std::enable_shared_from_t
 	friend class _oclProgram;
 	friend class _oclBuffer;
 	friend class _oclGLBuffer;
+public:
+	const vector<oclDevice> devs;
 private:
 	static void CL_CALLBACK onNotify(const char *errinfo, const void *private_info, size_t cb, void *user_data);
 	const cl_context context;
-	cl_context createContext(const cl_context_properties props[], const vector<oclDevice>& devices) const;
+	cl_context createContext(const cl_context_properties props[]) const;
 	_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices);
 public:
 	MessageCallBack onMessage = nullptr;

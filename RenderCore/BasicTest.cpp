@@ -255,32 +255,35 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
-	
-	try
+	if (false)
 	{
-		oclPlatform clPlat;
-		const auto pltfs = oclu::oclUtil::getPlatforms();
-		for (const auto plt : pltfs)
+		try
 		{
-			auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL ? 'Y' : 'N');
-			for (const auto dev : plt->getDevices())
-				txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
-					dev->name, dev->vendor, dev->version);
-			basLog().verbose(txt);
-			if (plt->isCurrentGL)
+			oclPlatform clPlat;
+			const auto pltfs = oclu::oclUtil::getPlatforms();
+			for (const auto plt : pltfs)
 			{
-				clPlat = plt;
-				clContext = plt->createContext();
-				basLog().success(L"Created Context Here!\n");
+				auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL ? 'Y' : 'N');
+				for (const auto dev : plt->getDevices())
+					txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
+						dev->name, dev->vendor, dev->version);
+				basLog().verbose(txt);
+				if (plt->isCurrentGL)
+				{
+					clPlat = plt;
+					clContext = plt->createContext();
+					basLog().success(L"Created Context Here!\n");
+				}
 			}
+			oclCmdQue clQue(clContext, clPlat->getDefaultDevice());
+			oclProgram clProg(clContext, getShaderFromDLL(IDR_SHADER_CL));
+			clProg->build();
 		}
-		oclCmdQue clQue(clContext, clPlat->getDefaultDevice());
-		oclProgram clProg(clContext, getShaderFromDLL(IDR_SHADER_CL));
-		clProg->build();
-	}
-	catch (BaseException& be)
-	{
-		COMMON_THROW(BaseException, L"init OpenCL context failed");
+		catch (BaseException& be)
+		{
+			basLog().error(L"init OpenCL context failed:\n{}\n", be.message);
+			COMMON_THROW(BaseException, L"init OpenCL context failed");
+		}
 	}
 	try
 	{
@@ -304,16 +307,20 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		ftexsize = fonttex->getSize();
 		::stb::saveImage(L"F:\\Software\\Font\\A.png", outer, ftexsize.first, ftexsize.second);
-		fontCreator->bmpsdf(0x554A);
+		//fontCreator->bmpsdf(0x554A);
+		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 256);
+		//fontCreator->clbmpsdf(0x554C);
 		fonttex->getData(tmper, TextureDataFormat::R8);
 		outer.clear();
+		outer.reserve(tmper.size());
 		for (auto c : tmper)
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		ftexsize = fonttex->getSize();
-		::stb::saveImage(L"F:\\Software\\Font\\Asdf.png", outer, ftexsize.first, ftexsize.second);
+		::stb::saveImage(L"F:\\Software\\Font\\256.png", outer, ftexsize.first, ftexsize.second);
 	}
 	catch (BaseException& be)
 	{
+		basLog().error(L"Font Construct failure:\n{}\n", be.message);
 		COMMON_THROW(BaseException, L"init FontViewer failed");
 	}
 	initTex();

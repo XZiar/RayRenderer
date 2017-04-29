@@ -46,5 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="printfont.glsl" />
+    <None Include="sdf.cl" />
   </ItemGroup>
 </Project>

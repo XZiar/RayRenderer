@@ -21,14 +21,14 @@ class OCLUAPI _oclBuffer : public NonCopyable
 	friend class _oclKernel;
 	friend class _oclContext;
 protected:
-	const std::shared_ptr<const _oclContext> ctx;
+	const std::shared_ptr<_oclContext> ctx;
 	const MemType type;
 	const size_t size;
 	const cl_mem memID;
 	cl_mem createMem() const;
-	_oclBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const size_t size_, const cl_mem id);
+	_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_, const cl_mem id);
 public:
-	_oclBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const size_t size_);
+	_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_);
 	virtual ~_oclBuffer();
 	optional<oclPromise> read(const oclCmdQue que, void *buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
 	template<class T>
@@ -42,10 +42,16 @@ public:
 	}
 	optional<oclPromise> write(const oclCmdQue que, const void *buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
 	template<class T>
-	optional<oclPromise> write(const oclCmdQue que, const vector<T>& buf, const size_t offset = 0, const bool shouldBlock = true) const 
+	optional<oclPromise> write(const oclCmdQue que, const vector<T>& buf, const size_t offset = 0, const bool shouldBlock = true) const
 	{
 		auto wsize = buf.size() * sizeof(T);
 		return write(que, buf.data(), wsize, offset, shouldBlock);
+	}
+	template<class T, size_t N>
+	optional<oclPromise> write(const oclCmdQue que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
+	{
+		auto wsize = N * sizeof(T);
+		return write(que, buf, wsize, offset, shouldBlock);
 	}
 };
 
@@ -54,11 +60,11 @@ class OCLUAPI _oclGLBuffer : public _oclBuffer
 private:
 	const oglu::oglBuffer buf;
 	const oglu::oglTexture tex;
-	cl_mem createMem(const std::shared_ptr<const _oclContext>& ctx_, const oglu::oglBuffer buf_) const;
-	cl_mem createMem(const std::shared_ptr<const _oclContext>& ctx_, const oglu::oglTexture tex_) const;
+	cl_mem createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglBuffer buf_) const;
+	cl_mem createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTexture tex_) const;
 public:
-	_oclGLBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_);
-	_oclGLBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_);
+	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_);
+	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_);
 	~_oclGLBuffer() override;
 	optional<int32_t> lock(const oclCmdQue& que) const;
 	optional<int32_t> unlock(const oclCmdQue& que) const;

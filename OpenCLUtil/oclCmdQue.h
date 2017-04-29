@@ -17,6 +17,7 @@ class OCLUAPI _oclCmdQue : public NonCopyable
 	friend class _oclBuffer;
 	friend class _oclGLBuffer;
 	friend class _oclProgram;
+	friend class _oclKernel;
 private:
 	const std::shared_ptr<const _oclContext> ctx;
 	const oclDevice dev;

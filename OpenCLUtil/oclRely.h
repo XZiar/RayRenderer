@@ -53,7 +53,7 @@ using std::optional;
 using namespace common;
 
 class oclUtil;
-using MessageCallBack = std::function<void(void)>;
+using MessageCallBack = std::function<void(wstring)>;
 
 namespace detail
 {

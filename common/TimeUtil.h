@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <chrono>
 
 namespace common
 {
@@ -11,9 +12,10 @@ void sleepMS(uint32_t ms);
 struct SimpleTimer
 {
 private:
-	uint64_t from, to;
+	std::chrono::high_resolution_clock::time_point from, to;
 public:
 	static uint64_t getCurTime();
+	static uint64_t getCurTimeUS();
 	static uint64_t getCurTimeNS();
 	SimpleTimer();
 	uint64_t Start();

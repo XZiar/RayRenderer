@@ -17,6 +17,7 @@ class Wrapper : public std::shared_ptr<T>
 private:
 	using base_type = std::shared_ptr<T>;
 public:
+	using inner_type = T;
 	using weak_type = std::weak_ptr<T>;
 	constexpr Wrapper() noexcept { }
 	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>

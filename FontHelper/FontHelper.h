@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FontRely.h"
-#include <filesystem>
+#include "../common/SharedResource.hpp"
 
 namespace oglu
 {
@@ -27,6 +27,10 @@ class FONTHELPAPI FontCreater : public NonCopyable
 private:
 	ft::FreeTyper ft2;
 	oglTexture testTex;
+	oclu::oclKernel sdfker;
+	static SharedResource<oclu::oclContext> clRes;
+	oclu::oclContext clCtx;
+	oclu::oclCmdQue clQue;
 public:
 	FontCreater(const fs::path& fontpath);
 	~FontCreater();
@@ -34,6 +38,8 @@ public:
 	void setChar(wchar_t ch, bool custom) const;
 	void stroke() const;
 	void bmpsdf(wchar_t ch) const;
+	void clbmpsdf(wchar_t ch) const;
+	void clbmpsdfs(wchar_t ch, uint16_t count) const;
 };
 
 

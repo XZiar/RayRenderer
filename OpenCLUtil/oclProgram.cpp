@@ -48,6 +48,26 @@ optional<wstring> _oclKernel::setArg(const cl_uint idx, const void *dat, const s
 
 
 
+oglu::optional<oclu::oclPromise> _oclKernel::run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
+{
+	cl_int ret;
+	if (isBlock)
+	{
+		ret = clEnqueueNDRangeKernel(que->cmdque, kernel, workdim, workoffset, worksize, localsize, 0, NULL, nullptr);
+		if (ret != CL_SUCCESS)
+			COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
+		return {};
+	}
+	else
+	{
+		cl_event e;
+		ret = clEnqueueNDRangeKernel(que->cmdque, kernel, workdim, workoffset, worksize, localsize, 0, NULL, &e);
+		if (ret != CL_SUCCESS)
+			COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
+		return oclPromise(e);
+	}
+}
+
 _oclProgram::_oclProgram(std::shared_ptr<_oclContext>& ctx_, const string& str) : ctx(ctx_), src(str), progID(loadProgram())
 {
 }

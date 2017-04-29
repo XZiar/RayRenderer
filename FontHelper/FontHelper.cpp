@@ -2,12 +2,15 @@
 #include "FontInternal.h"
 #include "resource.h"
 #include "FontHelper.h"
+#include "../OpenCLUtil/oclException.h"
 #include "../common/ResourceHelper.h"
 #include <cmath>
 
 
 namespace oglu
 {
+
+using namespace oclu;
 
 static string getShaderFromDLL(int32_t id)
 {
@@ -57,8 +60,51 @@ FontViewerProgram::FontViewerProgram()
 
 
 
-FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath)
+oclu::oclContext createOCLContext()
 {
+	oclPlatform clPlat;
+	const auto pltfs = oclUtil::getPlatforms();
+	for (const auto& plt : pltfs)
+	{
+		if (plt->isCurrentGL)
+		{
+			clPlat = plt;
+			auto clCtx = plt->createContext();
+			fntLog().success(L"Created Context in platform {}!\n", plt->name);
+			clCtx->onMessage = [](wstring errtxt) 
+			{
+				fntLog().error(L"Error from context:\t{}\n", errtxt);
+			};
+			return clCtx;
+		}
+	}
+	return oclContext();
+}
+
+SharedResource<oclu::oclContext> FontCreater::clRes(createOCLContext);
+
+
+FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.get())
+{
+	{
+		for (const auto& dev : clCtx->devs)
+			if (dev->type == DeviceType::GPU)
+			{
+				clQue.reset(clCtx, dev);
+				break;
+			}
+		oclProgram clProg(clCtx, getShaderFromDLL(IDR_SHADER_SDTTEST));
+		try
+		{
+			clProg->build();
+		}
+		catch (OCLException& cle)
+		{
+			fntLog().error(L"Fail to build opencl Program:\n{}\n", cle.message);
+			COMMON_THROW(BaseException, L"build Program error");
+		}
+		sdfker = clProg->getKernel("bmpsdf");
+	}
 	testTex.reset(TextureType::Tex2D);
 	testTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
@@ -229,66 +275,141 @@ void FontCreater::bmpsdf(wchar_t ch) const
 
 	for (uint32_t y = 0, lineidx = 0; y < h; lineidx = (++y)*w)
 	{
-		for (uint32_t x = 0, dist = 100; x < w; ++x, ++lineidx, ++dist)
+		uint16_t dist = 100;
+		for (uint32_t x = 0; x < w; ++x, ++lineidx, ++dist)
 		{
 			if (data[lineidx])
 				distx[lineidx] = dist = 0;
 			else
 				distx[lineidx] = dist;
 		}
-		for (uint32_t x = w, dist = distx[--lineidx]; x--; --lineidx, ++dist)
+		dist = distx[--lineidx];
+		for (uint32_t x = w; x--; --lineidx, ++dist)
 		{
 			if (data[lineidx])
 				dist = 0;
 			else
-				distx[lineidx] = min((uint32_t)distx[lineidx], dist);
+				distx[lineidx] = min(distx[lineidx], dist);
 		}
 	}
-	for (int32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
+	for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
 	{
 		distsq[lineidx] = distx[lineidx] * distx[lineidx];
-		lineidx += w;
-		for (int32_t y = 1; y < h; ++y, lineidx += w)
+		for (uint32_t y = 1; y < h; ++y)
 		{
+			auto testidx = lineidx;
+			lineidx += w;
 			auto& obj = distsq[lineidx];
-			uint32_t xd = distx[lineidx];
+			auto xd = distx[lineidx];
 			if (!xd)//0dist,insede
 			{
 				obj = 0; continue;
 			}
-			obj = (uint16_t)(xd*xd);
-			if (!obj && !data[lineidx])
-				getchar();
-			for (int32_t oy = y - 1, dy = 1, maxdy = min(y, (int32_t)distx[lineidx]); dy < maxdy; ++dy, --oy)
+			obj = xd*xd;
+			for (uint32_t dy = 1, maxdy = min((uint32_t)std::ceil(sqrt(obj)), y + 1); dy < maxdy; ++dy, testidx -= w)
 			{
-				auto oxd = distx[oy*w + x];
-				auto newd = oxd*oxd + dy*dy;
-				if (newd < obj)
+				auto oxd = distx[testidx];
+				if (!oxd)
 				{
-					obj = newd;
-					maxdy = min(maxdy, dy + oxd);
+					obj = dy*dy;
+					//further won't be shorter
+					break;
+				}
+				auto dist = oxd*oxd + dy*dy;
+				if (dist < obj)
+				{
+					obj = dist;
+					maxdy = min((uint32_t)std::ceil(sqrt(dist)), maxdy);
 				}
 			}
 		}
-		lineidx -= w * 2;
-		for (int32_t y = h-2; y >= 0; --y, lineidx -= w)
+		for (uint32_t y = h - 1; y--;)
 		{
+			auto testidx = lineidx;
+			lineidx -= w;
 			auto& obj = distsq[lineidx];
 			auto xd = distx[lineidx];
 			if (!xd)//0dist,insede
 				continue;
-			for (int32_t oy = y + 1, dy = 1, maxdy = min((int32_t)h - y - 1, (int32_t)std::ceil(sqrt(obj))); dy < maxdy; ++dy, ++oy)
+			for (uint32_t dy = 1, maxdy = min((uint32_t)std::ceil(sqrt(obj)), h - y - 1); dy < maxdy; ++dy, testidx += w)
 			{
-				auto oxd = distx[oy*w + x];
-				auto newd = oxd*oxd + dy*dy;
-				if (newd < obj)
+				auto oxd = distx[testidx];
+				if (!oxd)
 				{
-					obj = newd;
-					maxdy = min(maxdy, dy + oxd);
+					obj = dy*dy;
+					//further won't be shorter
+					break;
+				}
+				auto dist = oxd*oxd + dy*dy;
+				if (dist < obj)
+				{
+					obj = dist;
+					maxdy = min((uint32_t)std::ceil(sqrt(dist)), maxdy);
 				}
 			}
 		}
 	}
+	/*for (int32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
+	{
+		distsq[lineidx] = distx[lineidx] * distx[lineidx];
+		int32_t lastdx = distx[lineidx], lastdy = 1;//checkpoint for last nearest point
+		lineidx += w;
+		for (int32_t y = 1; y < h; ++y, lineidx += w)
+		{
+			auto& obj = distsq[lineidx];
+			int32_t xd = distx[lineidx];
+			if (!xd)//0dist,insede
+			{
+				obj = lastdx = 0; lastdy = 1; continue;
+			}
+			obj = lastdy*lastdy + lastdx*lastdx;
+			auto curxD = (uint16_t)(xd*xd);
+			auto dxD = (int32_t)obj - (int32_t)curxD;
+			if (dxD < 0)//lastxD < curxD
+			{
+				if(dxD + 2*(lastdy - xd) < 0)//at least lastline is still better for next line
+					lastdy++;
+				else//for later lines, curx will be lesser or at least equal, so update
+					lastdx = xd, lastdy = 1;
+			}
+			else//curxD <= lastxD
+			{
+				obj = curxD;
+				//update(for next line,(dy+1)^2+dx^2 = lastd^2+1+2dy > lastd^2+1^2)
+				//curline's dx^2 smaller, ofcourse update
+				lastdx = xd, lastdy = 1;
+			}
+		}
+		lastdx = distx[(lineidx -= w)], lastdy = 1;//checkpoint for last nearest point
+		lineidx -= w;
+		for (int32_t y = h-2; y >= 0; --y, lineidx -= w)
+		{
+			auto& obj = distsq[lineidx];
+			int32_t xd = distx[lineidx];
+			if (!xd)//0dist,insede
+			{
+				lastdx = 0; lastdy = 1; continue;
+			}
+			uint16_t lastxD = lastdy*lastdy + lastdx*lastdx;
+			auto curxD = (uint16_t)(xd*xd);
+
+			auto dxD = (int32_t)lastxD - (int32_t)curxD;
+			if (dxD < 0)//lastxD < curxD
+			{
+				if (dxD + 2 * (lastdy - xd) < 0)//at least lastline is still better for next line
+					lastdy++;
+				else//for later lines, curx will be lesser or at least equal, so update
+					lastdx = xd, lastdy = 1;
+			}
+			else//curxD <= lastxD
+			{
+				//update(for next line,(dy+1)^2+dx^2 = lastd^2+1+2dy > lastd^2+1^2)
+				//curline's dx^2 smaller, ofcourse update
+				lastdx = xd, lastdy = 1;
+			}
+			obj = min(obj, lastxD);
+		}
+	}*/
 	/*for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
 	{
 		for (uint32_t y = 0, dist = img[lineidx]; y < h; ++y, lineidx += w, ++dist)
@@ -316,6 +437,94 @@ void FontCreater::bmpsdf(wchar_t ch) const
 			fin.push_back((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.));
 	}
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w*2, h, fin);
+}
+
+struct FontInfo 
+{
+	uint32_t offset;
+	uint8_t w, h;
+};
+
+void FontCreater::clbmpsdf(wchar_t ch) const
+{
+	auto ret = ft2.getChBitmap(ch, true);
+	auto data = std::move(ret.first);
+	uint32_t w, h;
+	std::tie(w, h) = ret.second;
+	oclBuffer input(clCtx, MemType::ReadOnly, data.size());
+	oclBuffer output(clCtx, MemType::ReadWrite, data.size() * sizeof(uint16_t));
+	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
+	FontInfo finfo[] = { {0,w,h} };
+	wsize->write(clQue, finfo);
+	sdfker->setArg(0, wsize);
+	input->write(clQue, data);
+	sdfker->setArg(1, input);
+	sdfker->setArg(2, output);
+	size_t worksize[] = { 160 };
+	sdfker->run<1>(clQue, worksize, worksize, true);
+	vector<uint16_t> distsq;
+	output->read(clQue, distsq);
+	vector<uint8_t> fin;
+	for (uint32_t y = 0; y < h; ++y)
+	{
+		fin.insert(fin.end(), &data[y*w], &data[y*w] + w);
+		for (uint32_t x = 0; x < w; ++x)
+			fin.push_back((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.));
+	}
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h, fin);
+}
+
+void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
+{
+	constexpr auto fontsizelim = 132, fontcountlim = 16;
+	vector<FontInfo> finfos;
+	finfos.reserve(fontcountlim * fontcountlim);
+	oclBuffer input(clCtx, MemType::ReadOnly, fontsizelim * fontsizelim * fontcountlim * fontcountlim);
+	oclBuffer output(clCtx, MemType::ReadWrite, fontsizelim * fontsizelim * fontcountlim * fontcountlim * sizeof(uint16_t));
+	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo) * fontcountlim * fontcountlim);
+	SimpleTimer timer;
+	timer.Start();
+	size_t offset = 0;
+	for (uint16_t a = 0; a < count; ++a)
+	{
+		auto ret = ft2.getChBitmap(ch + a, true);
+		auto data = std::move(ret.first);
+		uint32_t w, h;
+		std::tie(w, h) = ret.second;
+		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)w,(uint8_t)h });
+		input->write(clQue, data, offset);
+		offset += data.size();
+	}
+	timer.Stop();
+	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
+	timer.Start();
+	wsize->write(clQue, finfos);
+	sdfker->setArg(0, wsize);
+	sdfker->setArg(1, input);
+	sdfker->setArg(2, output);
+	size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
+	sdfker->run<1>(clQue, worksize, localsize, true);
+	timer.Stop();
+	fntLog().verbose(L"OpenCl cost {} us\n", timer.ElapseUs());
+	vector<uint16_t> distsq;
+	output->read(clQue, distsq);
+	vector<uint8_t> fin(fontsizelim * fontsizelim * fontcountlim * fontcountlim, 255);
+	uint32_t fidx = 0;
+	for (auto fi : finfos)
+	{
+		uint32_t startx = (fidx % fontcountlim) * fontsizelim, starty = (fidx / fontcountlim) * fontsizelim;
+		for (uint32_t y = 0; y < fi.h; ++y)
+		{
+			uint32_t opos = (starty + y) * fontsizelim * fontcountlim + startx;
+			uint32_t ipos = fi.offset + (fi.w*y);
+			for (uint32_t x = 0; x < fi.w; ++x)
+			{
+				fin[opos + x] = (uint8_t)std::clamp(std::sqrt(distsq[ipos + x]) * 16, 0., 255.);
+			}
+		}
+		fidx++;
+	}
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, fontsizelim * fontcountlim, fontsizelim * fontcountlim, fin);
 }
 
 detail::FontViewerProgram& FontViewer::getProgram()

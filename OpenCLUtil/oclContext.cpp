@@ -16,15 +16,15 @@ void CL_CALLBACK _oclContext::onNotify(const char * errinfo, const void * privat
 {
 	const _oclContext& ctx = *(_oclContext*)user_data;
 	if (ctx.onMessage)
-		ctx.onMessage();
+		ctx.onMessage(to_wstring(errinfo));
 	return;
 }
 
-cl_context _oclContext::createContext(const cl_context_properties props[], const vector<oclDevice>& devices) const
+cl_context _oclContext::createContext(const cl_context_properties props[]) const
 {
 	cl_int ret;
 	vector<cl_device_id> deviceIDs;
-	for (const auto&dev : devices)
+	for (const auto&dev : devs)
 		deviceIDs.push_back(dev->deviceID);
 	const auto ctx = clCreateContext(props, 1, deviceIDs.data(), &onNotify, const_cast<_oclContext*>(this), &ret);
 	if (ret != CL_SUCCESS)
@@ -32,7 +32,7 @@ cl_context _oclContext::createContext(const cl_context_properties props[], const
 	return ctx;
 }
 
-_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices) : context(createContext(props, devices))
+_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices) : devs(devices), context(createContext(props))
 {
 }
 

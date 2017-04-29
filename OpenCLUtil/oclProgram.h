@@ -37,25 +37,16 @@ public:
 	{
 		return setArg(idx, dat.data(), dat.size() * sizeof(T));
 	}
-	template<cl_uint N>
-	optional<oclPromise> run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }, const size_t * localsize = nullptr)
+	optional<oclPromise> run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
+	template<uint32_t N>
+	optional<oclPromise> run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
 	{
-		cl_int ret;
-		if (isBlock)
-		{
-			cl_event e;
-			ret = clEnqueueNDRangeKernel(que->cmdque, kernel, N, workoffset, worksize, localsize, 0, NULL, &e);
-			if (ret != CL_SUCCESS)
-				COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
-			return oclPromise(e);
-		}
-		else
-		{
-			ret = clEnqueueNDRangeKernel(que->cmdque, kernel, N, workoffset, worksize, localsize, 0, NULL, NULL);
-			if (ret != CL_SUCCESS)
-				COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
-			return {};
-		}
+		return run(N, que, worksize, isBlock, workoffset, nullptr);
+	}
+	template<uint32_t N>
+	optional<oclPromise> run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+	{
+		return run(N, que, worksize, isBlock, workoffset, localsize);
 	}
 };
 

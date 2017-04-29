@@ -1,5 +1,6 @@
 #include "FontRely.h"
 #include "FontInternal.h"
+#include "../common/TimeUtil.inl"
 
 namespace oglu
 {

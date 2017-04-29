@@ -17,12 +17,12 @@ cl_mem _oclBuffer::createMem() const
 	return id;
 }
 
-_oclBuffer::_oclBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const size_t size_, const cl_mem id)
+_oclBuffer::_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_, const cl_mem id)
 	:ctx(ctx_), type(type_), size(size_), memID(id)
 {
 }
 
-_oclBuffer::_oclBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const size_t size_)
+_oclBuffer::_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_)
 	: ctx(ctx_), type(type_), size(size_), memID(createMem())
 {
 }
@@ -41,9 +41,9 @@ optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size
 	if (ret != CL_SUCCESS)
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
 	if (shouldBlock)
-		return oclPromise(e);
-	else
 		return {};
+	else
+		return oclPromise(e);
 }
 
 optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void *buf, const size_t size_, const size_t offset, const bool shouldBlock) const
@@ -55,14 +55,14 @@ optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void *buf, con
 	if (ret != CL_SUCCESS)
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
 	if (shouldBlock)
-		return oclPromise(e);
-	else
 		return {};
+	else
+		return oclPromise(e);
 }
 
 
 
-cl_mem _oclGLBuffer::createMem(const std::shared_ptr<const _oclContext>& ctx_, const oglu::oglBuffer buf_) const
+cl_mem _oclGLBuffer::createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglBuffer buf_) const
 {
 	cl_int errcode;
 	auto id = clCreateFromGLBuffer(ctx_->context, (cl_mem_flags)type, buf_->bufferID, &errcode);
@@ -71,7 +71,7 @@ cl_mem _oclGLBuffer::createMem(const std::shared_ptr<const _oclContext>& ctx_, c
 	return id;
 }
 
-cl_mem _oclGLBuffer::createMem(const std::shared_ptr<const _oclContext>& ctx_, const oglu::oglTexture tex_) const
+cl_mem _oclGLBuffer::createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTexture tex_) const
 {
 	cl_int errcode;
 	auto id = clCreateFromGLTexture(ctx_->context, (cl_mem_flags)type, (cl_GLenum)tex_->type, 0, tex_->textureID, &errcode);
@@ -80,12 +80,12 @@ cl_mem _oclGLBuffer::createMem(const std::shared_ptr<const _oclContext>& ctx_, c
 	return id;
 }
 
-_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_)
+_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_)
 	: _oclBuffer(ctx_, type_, INT32_MAX, createMem(ctx_, buf_))
 {
 }
 
-_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<const _oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_)
+_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_)
 	: _oclBuffer(ctx_, type_, INT32_MAX, createMem(ctx_, tex_))
 {
 }
