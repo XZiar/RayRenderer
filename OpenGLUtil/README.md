@@ -1,5 +1,4 @@
-OpenGLUtil
-===========================
+# OpenGLUtil
 
 A C++ wrapper of modern OpenGL.
 
@@ -7,29 +6,34 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Componoent
 
-* oglShader
+* **oglShader**
+
   OpenGL shader(loading/data storeage only)
 
-* oglBuffer
+* **oglBuffer**
+
   OpenGL buffer objects
   * oglBuffer -- any buffer object
   * oglTBO -- texture buffer object
   * oglUBO -- unifrom buffer object
   * oglEBO -- element buffer object(indexed element buffer)
 
-* oglTexture
+* **oglTexture**
   OpenGL Texture
 
-* oglVAO
+* **oglVAO**
   OpenGL vertex attribute object
+  
   Draw calls are finally fired by oglVAO
 
-* oglProgram
+* **oglProgram**
   OpenGL program
+  
   It's like a "shader" in other engine, with resources slot binding with UBO or Texture, etc. 
 
-* oglUtil
+* **oglUtil**
   OpenGL utility
+  
   It providing environment initializing, debug message output and multi-thread worker
 
 ## Dependency
@@ -58,14 +62,14 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ### Shader
 
-Despite of standard glsl shader like *.vert(Vertex Sahder), *.frag(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format.
+Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format.
 It's main purpose is to merge multiple shader into one, which reduces redundent codes as well as eliminate bugs caused by careless.
 
 Extended Shader is based on glsl's preprocessor.
 
 A single line strted with `//@@$$` will be used to indicate what component this file should include(`VERT`,`FRAG`,`GEOM`...separated with `|` ).
 
-When compiling vertex shader, OGLU_VERT will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
 
 ### Resource Management
 
@@ -73,7 +77,7 @@ Texture and UBO are binded to oglProgram(main shader), and their binding slot ar
 
 OpenGLUtil include an LRU-policy resource manager to handle the bindings, which aims at least state-changing(binding texture is costy compared with uploading uniform(it may be buffered by driver)).
 
-The manager handles at most 255 slots, and slot 0-3 are always reserved for other use(e.g, slot 0 is for default binding when uploading/dowloading data), hence slot 4-N will be automatically managed.
+The manager handles at most 255 slots, and slot 0-3 are always reserved for other use(e.g, slot 0 is for default binding when uploading/dowloading data), hence slot 4~N will be automatically managed.
 
 For Texture, limit N is get by `GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS`.
 

@@ -1,5 +1,4 @@
-RayRenderer
-===========================
+# RayRenderer
 
 A simple renderer based on my old RayTrace project.
 
@@ -26,7 +25,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm |
 | [RenderCore](./RenderCore) | Core of RayRender |
-| [RenderCoreWrap](./RenderCoreWrap) | C# Wrapper for RayRender core |
+| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) |
@@ -34,7 +33,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 ## Dependency
 
-* [GLEW](http://glew.sourceforge.net/)  2.0.0
+* [GLEW](http://glew.sourceforge.net/)  2.0.1-snapshot
 
   [Modified BSD & MIT License](./License/glew.txt)
 

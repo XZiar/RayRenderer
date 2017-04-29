@@ -45,11 +45,6 @@ void createDLL(const wstring& dllname, const int32_t dllid)
 
 void extractDLL()
 {
-#ifdef _DEBUG
-	createDLL(L"glew32d.dll", IDR_DLL_GLEW);
-#else
-	createDLL(L"glew32.dll", IDR_DLL_GLEW);
-#endif
 	createDLL(L"miniLogger.dll", IDR_DLL_MLOG);
 	createDLL(L"OpenGLUtil.dll", IDR_DLL_OGLU);
 	createDLL(L"OpenCLUtil.dll", IDR_DLL_OCLU);

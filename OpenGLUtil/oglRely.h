@@ -17,7 +17,8 @@
 #include "../common/Exceptions.hpp"
 #include "../common/PromiseTask.h"
 
-#include <GL/glew.h>
+#define GLEW_STATIC
+#include "../3rdParty/glew/glew.h"
 
 #include <cstdio>
 #include <memory>

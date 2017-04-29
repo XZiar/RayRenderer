@@ -49,6 +49,9 @@
     <ClCompile Include="oglVAO.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\glew\glew.vcxproj">
+      <Project>{7025ca4a-22fd-4343-b296-008060483193}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
