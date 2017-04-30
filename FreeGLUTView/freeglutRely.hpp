@@ -9,7 +9,7 @@
 #endif
 
 #define FREEGLUT_STATIC
-#include <GL/freeglut.h>//Free GLUT Header
+#include "../3rdParty/freeglut/freeglut.h"
 
 #include <GL/wglext.h>
 

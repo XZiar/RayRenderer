@@ -3,7 +3,6 @@
 #ifdef MINILOG_EXPORT
 #   define MINILOGAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-//#   define FMT_EXPORT
 #else
 #   define MINILOGAPI _declspec(dllimport)
 #endif
@@ -17,7 +16,7 @@
 
 #include "../CommonRely.hpp"
 #include "../Wrapper.hpp"
-//#define FMT_SHARED
+
 #define FMT_HEADER_ONLY
 #include "../../3rdParty/fmt/format.h"
 

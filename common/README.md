@@ -22,7 +22,7 @@ A collection of useful utilities
 
 * **PromiseTask**
 
-  A wrapper for C\++11's future&promise. 
+  A wrapper for C\++11's future&promise for C++/CLI project. 
   
   It use virtual method to hide STL's `thread`, which is not supported in C++/CLI.
 
@@ -90,13 +90,13 @@ The best practise should be acquiring the resource only once, and keep a copy of
 
 Wrapper can be simply regarded as a combination of shared_ptr and make_shared. It is mostly my own taste and may not be recommanded.
 
-Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper of self in self's declear.
+Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper of self in self's declaration.
 
 ### StringEx
 
 StringEx provide encoding transform using codecvt, which is marked deprecated in C++17. Since there's no alternative presented yet, I stick to it.
 
-Converting encoding need to specify input charset, while StringEx does not provide encoding-detection. If you need it , you should look at [uchardet](../3rdParty/uchardet).
+Converting encoding need to specify input charset, while StringEx does not provide encoding-detection. If you need it , you should look at [uchardet](../3rdParty/uchardetlib).
 
 `split` is simply based on string's find operation, and there's no optimization like KMP or SSE4.2 intrin.
 

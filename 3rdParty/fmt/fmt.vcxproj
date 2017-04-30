@@ -20,8 +20,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}</ProjectGuid>
-    <RootNamespace>uchardetlib</RootNamespace>
+    <ProjectGuid>{F6B26367-636C-48F7-951A-BEE222B06AFE}</ProjectGuid>
+    <RootNamespace>fmt</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -75,12 +75,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Lib>
       <TargetMachine>MachineX86</TargetMachine>
@@ -91,12 +91,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -106,12 +106,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -128,12 +128,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -141,73 +141,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CharDistribution.h" />
-    <ClInclude Include="JpCntx.h" />
-    <ClInclude Include="nsBig5Prober.h" />
-    <ClInclude Include="nsCharSetProber.h" />
-    <ClInclude Include="nsCodingStateMachine.h" />
-    <ClInclude Include="nscore.h" />
-    <ClInclude Include="nsEscCharsetProber.h" />
-    <ClInclude Include="nsEUCJPProber.h" />
-    <ClInclude Include="nsEUCKRProber.h" />
-    <ClInclude Include="nsEUCTWProber.h" />
-    <ClInclude Include="nsGB2312Prober.h" />
-    <ClInclude Include="nsHebrewProber.h" />
-    <ClInclude Include="nsLatin1Prober.h" />
-    <ClInclude Include="nsMBCSGroupProber.h" />
-    <ClInclude Include="nsPkgInt.h" />
-    <ClInclude Include="nsSBCharSetProber.h" />
-    <ClInclude Include="nsSBCSGroupProber.h" />
-    <ClInclude Include="nsSJISProber.h" />
-    <ClInclude Include="nsUniversalDetector.h" />
-    <ClInclude Include="nsUTF8Prober.h" />
-    <ClInclude Include="prmem.h" />
-    <ClInclude Include="uchardet.h" />
-    <ClInclude Include="uchardetlib.h" />
+    <ClInclude Include="format.h" />
+    <ClInclude Include="ostream.h" />
+    <ClInclude Include="posix.h" />
+    <ClInclude Include="time.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CharDistribution.cpp" />
-    <ClCompile Include="JpCntx.cpp" />
-    <ClCompile Include="LangModels\LangArabicModel.cpp" />
-    <ClCompile Include="LangModels\LangBulgarianModel.cpp" />
-    <ClCompile Include="LangModels\LangDanishModel.cpp" />
-    <ClCompile Include="LangModels\LangEsperantoModel.cpp" />
-    <ClCompile Include="LangModels\LangFrenchModel.cpp" />
-    <ClCompile Include="LangModels\LangGermanModel.cpp" />
-    <ClCompile Include="LangModels\LangGreekModel.cpp" />
-    <ClCompile Include="LangModels\LangHebrewModel.cpp" />
-    <ClCompile Include="LangModels\LangHungarianModel.cpp" />
-    <ClCompile Include="LangModels\LangRussianModel.cpp" />
-    <ClCompile Include="LangModels\LangSpanishModel.cpp" />
-    <ClCompile Include="LangModels\LangThaiModel.cpp" />
-    <ClCompile Include="LangModels\LangTurkishModel.cpp" />
-    <ClCompile Include="LangModels\LangVietnameseModel.cpp" />
-    <ClCompile Include="nsBig5Prober.cpp" />
-    <ClCompile Include="nsCharSetProber.cpp" />
-    <ClCompile Include="nsEscCharsetProber.cpp" />
-    <ClCompile Include="nsEscSM.cpp" />
-    <ClCompile Include="nsEUCJPProber.cpp" />
-    <ClCompile Include="nsEUCKRProber.cpp" />
-    <ClCompile Include="nsEUCTWProber.cpp" />
-    <ClCompile Include="nsGB2312Prober.cpp" />
-    <ClCompile Include="nsHebrewProber.cpp" />
-    <ClCompile Include="nsLatin1Prober.cpp" />
-    <ClCompile Include="nsMBCSGroupProber.cpp" />
-    <ClCompile Include="nsMBCSSM.cpp" />
-    <ClCompile Include="nsSBCharSetProber.cpp" />
-    <ClCompile Include="nsSBCSGroupProber.cpp" />
-    <ClCompile Include="nsSJISProber.cpp" />
-    <ClCompile Include="nsUniversalDetector.cpp" />
-    <ClCompile Include="nsUTF8Prober.cpp" />
-    <ClCompile Include="uchardet.cpp" />
-    <ClCompile Include="uchardetlib.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Big5Freq.tab" />
-    <None Include="EUCKRFreq.tab" />
-    <None Include="EUCTWFreq.tab" />
-    <None Include="GB2312Freq.tab" />
-    <None Include="JISFreq.tab" />
+    <ClCompile Include="format.cc" />
+    <ClCompile Include="ostream.cc" />
+    <ClCompile Include="posix.cc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

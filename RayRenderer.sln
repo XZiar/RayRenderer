@@ -28,6 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 		License\boost.txt = License\boost.txt
 		License\fmt.rst = License\fmt.rst
 		License\freeglut.txt = License\freeglut.txt
+		License\freetype.txt = License\freetype.txt
 		License\glew.txt = License\glew.txt
 		License\stb.txt = License\stb.txt
 		License\uchardet.txt = License\uchardet.txt
@@ -52,6 +53,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreLibrary", "CoreLibrary", "{89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\README.md = 3rdParty\README.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BaseLibrary", "BaseLibrary", "{4D08E485-9B7A-4B9B-9204-4289C1092C0D}"
 EndProject
@@ -112,12 +116,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\Wrapper.natvis = common\Wrapper.natvis
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{4506C210-FD25-45E5-B326-834E2B92B15B}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\fmt\format.cc = 3rdParty\fmt\format.cc
-		3rdParty\fmt\format.h = 3rdParty\fmt\format.h
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFTest", "WPFTest\WPFTest.csproj", "{E05720DB-A5FB-4A0C-9552-F3777E66FE29}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{C42B961C-1C23-45DE-ABA7-410681BC7D13}"
@@ -125,20 +123,16 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardetlib", "3rdParty\uchardetlib\uchardetlib.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-32", "x86-32", "{97C48F86-2881-41CB-A4EE-802F62A6013F}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\lib\x86-32\freetype271MT.lib = 3rdParty\lib\x86-32\freetype271MT.lib
-		3rdParty\lib\x86-32\freetype271MTd.lib = 3rdParty\lib\x86-32\freetype271MTd.lib
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-64", "x86-64", "{04995791-355D-4E91-8006-E8783B2AB9D9}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\lib\x86-64\freetype271MT.lib = 3rdParty\lib\x86-64\freetype271MT.lib
-		3rdParty\lib\x86-64\freetype271MTd.lib = 3rdParty\lib\x86-64\freetype271MTd.lib
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freetype2", "3rdParty\freetype2\freetype2.vcxproj", "{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glew", "3rdParty\glew\glew.vcxproj", "{7025CA4A-22FD-4343-B296-008060483193}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "3rdParty\freeglut\freeglut.vcxproj", "{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fmt", "3rdParty\fmt\fmt.vcxproj", "{F6B26367-636C-48F7-951A-BEE222B06AFE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -306,6 +300,26 @@ Global
 		{7025CA4A-22FD-4343-B296-008060483193}.Release|x64.Build.0 = Release|x64
 		{7025CA4A-22FD-4343-B296-008060483193}.Release|x86.ActiveCfg = Release|Win32
 		{7025CA4A-22FD-4343-B296-008060483193}.Release|x86.Build.0 = Release|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|x64.ActiveCfg = Debug|x64
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|x64.Build.0 = Debug|x64
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|x86.ActiveCfg = Debug|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|x86.Build.0 = Debug|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|Any CPU.ActiveCfg = Release|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x64.ActiveCfg = Release|x64
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x64.Build.0 = Release|x64
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x86.ActiveCfg = Release|Win32
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x86.Build.0 = Release|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x64.ActiveCfg = Debug|x64
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x64.Build.0 = Debug|x64
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x86.ActiveCfg = Debug|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x86.Build.0 = Debug|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|Any CPU.ActiveCfg = Release|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x64.ActiveCfg = Release|x64
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x64.Build.0 = Release|x64
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x86.ActiveCfg = Release|Win32
+		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -329,7 +343,6 @@ Global
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{2D90E510-49EC-458D-99FC-C11DF3C6710C} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
-		{4506C210-FD25-45E5-B326-834E2B92B15B} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{C42B961C-1C23-45DE-ABA7-410681BC7D13} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
@@ -337,5 +350,7 @@ Global
 		{04995791-355D-4E91-8006-E8783B2AB9D9} = {C42B961C-1C23-45DE-ABA7-410681BC7D13}
 		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7025CA4A-22FD-4343-B296-008060483193} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{F6B26367-636C-48F7-951A-BEE222B06AFE} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal

@@ -77,7 +77,7 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;FMT_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
@@ -91,7 +91,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/permissive- /favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;FMT_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
@@ -105,7 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;FMT_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
@@ -125,7 +125,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/permissive- /favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>MINILOG_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>MINILOG_EXPORT;FMT_EXPORT;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
     </ClCompile>
@@ -140,6 +140,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="miniLogger.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
+      <Project>{f6b26367-636c-48f7-951a-bee222b06afe}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
