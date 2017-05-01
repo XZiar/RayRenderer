@@ -5,7 +5,7 @@ typedef struct Info
 	uchar h;
 }Info;
 
-kernel void bmpsdf(global const Info *info, global read_only uchar *img, global ushort *result)
+kernel void bmpsdf(global const Info* restrict info, global read_only uchar* restrict img, global ushort* restrict result)
 {
 	private const int gid = get_group_id(0);
 	private const int lid = get_local_id(0);
@@ -18,19 +18,127 @@ kernel void bmpsdf(global const Info *info, global read_only uchar *img, global 
 	if (lid < h)
 	{
 		int idx = lid * w;
-		uchar dist = 64, adder = 0;
+		private uchar rowRaw[160];
+		uchar dist = 64, adder = 0, curimg = 0;
 		for (int x = 0; x < w; ++x, ++idx, dist += adder)
 		{
-			if (img[idx + offset])
-				xdist[idx] = dist = 0, adder = 1;
+			uchar objimg = rowRaw[x] = img[idx + offset];
+			if (objimg != curimg)
+				xdist[idx] = dist = 0, adder = 1, curimg = objimg;
 			else
 				xdist[idx] = dist;
 		}
-		dist = xdist[--idx], adder = 0;
+		dist = xdist[--idx], adder = 0, curimg = 0;
 		for (int x = w; x--; --idx, dist += adder)
 		{
-			if (!xdist[idx])
-				dist = 0, adder = 1;
+			uchar objimg = rowRaw[x];
+			if (objimg != curimg)
+				xdist[idx] = dist = 0, adder = 1, curimg = objimg;
+			else
+				xdist[idx] = min(xdist[idx], dist);
+		}
+	}
+	//synchronize
+	barrier(CLK_LOCAL_MEM_FENCE);
+	if (lid < w)
+	{
+		int idx = lid;
+		private uchar colRaw[160];
+		private ushort perCol[160];
+		ushort obj = 32768;
+		for (int y = 0, tmpidx = lid + offset; y < h; ++y, tmpidx += w)
+			colRaw[y] = img[tmpidx];
+		perCol[0] = sqLUT[xdist[idx]];
+		for (int y = 1; y < h; perCol[y++] = obj)
+		{
+			int testidx = idx;
+			idx += w;
+			uchar curimg = colRaw[y], curxdist = xdist[idx];
+			if (curxdist == 0)// 0 dist = edge
+			{
+				obj = 0; continue;
+			}
+			obj = sqLUT[curxdist];
+			ushort maxdy2 = min(obj, sqLUT[y + 1]);
+			for (ushort dy = 1, dy2 = 1; dy2 < maxdy2; dy2 = sqLUT[++dy], testidx -= w)
+			{
+				uchar oimg = colRaw[y - dy], oxdist = xdist[testidx];
+				if (oimg != curimg)
+				{
+					//dy^2 < obj
+					obj = dy2;
+					break;//further won't be shorter
+				}
+				ushort newdist = sqLUT[oxdist] + dy2;
+				if (newdist < obj)
+				{
+					obj = newdist;
+					maxdy2 = min(newdist, maxdy2);
+				}
+			}
+		}
+		for (int y = h - 1; y--; perCol[y] = obj)
+		{
+			int testidx = idx;
+			idx -= w;
+			uchar curimg = colRaw[y], curxdist = xdist[idx];
+			if (curxdist == 0)// 0 dist = edge
+				continue;
+			obj = perCol[y];
+			ushort maxdy2 = min(obj, sqLUT[h - y - 1]);
+			for (ushort dy = 1, dy2 = 1; dy2 < maxdy2; dy2 = sqLUT[++dy], testidx += w)
+			{
+				uchar oimg = colRaw[y + dy], oxdist = xdist[testidx];
+				if (oimg != curimg)
+				{
+					//dy^2 < obj
+					obj = dy2;
+					break;//further won't be shorter
+				}
+				ushort newdist = sqLUT[oxdist] + dy2;
+				if (newdist < obj)
+				{
+					obj = newdist;
+					maxdy2 = min(newdist, maxdy2);
+				}
+			}
+		}
+		idx = offset + lid;
+		for (int y = 0; y < h; ++y, idx += w)
+			result[idx] = perCol[y];
+			//result[idx] = sqLUT[xdist[idx - offset]];
+	}
+}
+
+
+kernel void greysdf(global const Info *info, global read_only uchar *img, global ushort *result)
+{
+	private const int gid = get_group_id(0);
+	private const int lid = get_local_id(0);
+	local ushort sqLUT[160];
+	local uchar xdist[160 * 160];
+	const int w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
+	//setup square-LUT
+	sqLUT[lid] = lid*lid;
+	//each row operation
+	if (lid < h)
+	{
+		int idx = lid * w;
+		uchar dist = 64, adder = 0, curimg = 0;
+		for (int x = 0; x < w; ++x, ++idx, dist += adder)
+		{
+			uchar objimg = img[idx + offset];
+			if (objimg != curimg)
+				xdist[idx] = dist = 0, adder = 1, curimg = objimg;
+			else
+				xdist[idx] = dist;
+		}
+		dist = xdist[--idx], adder = 0, curimg = 0;
+		for (int x = w; x--; --idx, dist += adder)
+		{
+			uchar objimg = img[idx + offset];
+			if (objimg != curimg)
+				xdist[idx] = dist = 0, adder = 1, curimg = objimg;
 			else
 				xdist[idx] = min(xdist[idx], dist);
 		}
@@ -47,17 +155,17 @@ kernel void bmpsdf(global const Info *info, global read_only uchar *img, global 
 		{
 			int testidx = idx;
 			idx += w;
-			int curxdist = xdist[idx];
-			if (curxdist == 0)// 0 dist = inside
+			uchar curimg = img[idx + offset], curxdist = xdist[idx];
+			if (curxdist == 0)// 0 dist = edge
 			{
 				obj = 0; continue;
 			}
 			obj = sqLUT[curxdist];
-			ushort maxdy = min(obj, sqLUT[y + 1]);
-			for (ushort dy = 1, dy2 = 1; dy2 < maxdy; dy2 = sqLUT[++dy], testidx -= w)
+			ushort maxdy2 = min(obj, sqLUT[y + 1]);
+			for (ushort dy = 1, dy2 = 1; dy2 < maxdy2; dy2 = sqLUT[++dy], testidx -= w)
 			{
-				uchar oxdist = xdist[testidx];
-				if (oxdist == 0)
+				uchar oimg = img[testidx + offset], oxdist = xdist[testidx];
+				if (oimg != curimg)
 				{
 					//dy^2 < obj
 					obj = dy2;
@@ -67,7 +175,7 @@ kernel void bmpsdf(global const Info *info, global read_only uchar *img, global 
 				if (newdist < obj)
 				{
 					obj = newdist;
-					maxdy = min(newdist, maxdy);
+					maxdy2 = min(newdist, maxdy2);
 				}
 			}
 		}
@@ -75,15 +183,15 @@ kernel void bmpsdf(global const Info *info, global read_only uchar *img, global 
 		{
 			int testidx = idx;
 			idx -= w;
-			obj = perCol[y];
-			int curxdist = xdist[idx];
-			if (curxdist == 0)// 0 dist = inside
+			uchar curimg = img[idx + offset], curxdist = xdist[idx];
+			if (curxdist == 0)// 0 dist = edge
 				continue;
-			ushort maxdy = min(obj, sqLUT[h - y - 1]);
-			for (ushort dy = 1, dy2 = 1; dy2 < maxdy; dy2 = sqLUT[++dy], testidx += w)
+			obj = perCol[y];
+			ushort maxdy2 = min(obj, sqLUT[h - y - 1]);
+			for (ushort dy = 1, dy2 = 1; dy2 < maxdy2; dy2 = sqLUT[++dy], testidx += w)
 			{
-				uchar oxdist = xdist[testidx];
-				if (oxdist == 0)
+				uchar oimg = img[testidx + offset], oxdist = xdist[testidx];
+				if (oimg != curimg)
 				{
 					//dy^2 < obj
 					obj = dy2;
@@ -93,13 +201,13 @@ kernel void bmpsdf(global const Info *info, global read_only uchar *img, global 
 				if (newdist < obj)
 				{
 					obj = newdist;
-					maxdy = min(newdist, maxdy);
+					maxdy2 = min(newdist, maxdy2);
 				}
 			}
 		}
 		idx = offset + lid;
 		for (int y = 0; y < h; ++y, idx += w)
 			result[idx] = perCol[y];
-			//result[idx] = sqLUT[xdist[idx - offset]];
+		//result[idx] = sqLUT[xdist[idx - offset]];
 	}
 }

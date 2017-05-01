@@ -153,9 +153,10 @@ void _oclProgram::initKers()
 	kers.assign(names.begin(), names.end());
 }
 
-void _oclProgram::build()
+void _oclProgram::build(const string& options)
 {
-	auto ret = clBuildProgram(progID, 0, nullptr, nullptr, nullptr, nullptr);
+
+	auto ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
 	if (ret != CL_SUCCESS)
 	{
 		wstring buildlog;

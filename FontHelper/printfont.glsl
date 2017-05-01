@@ -12,10 +12,10 @@ GLVARY perVert
 uniform sampler2D tex;
 
 #ifdef OGLU_VERT
+
 layout(location = 0) in vec2 vertPos;
 layout(location = 1) in vec2 vertTexc;
 layout(location = 2) in vec3 vertColor;
-
 void main() 
 {
 	pos = vertPos;
@@ -27,15 +27,31 @@ void main()
 
 #ifdef OGLU_FRAG
 out vec4 FragColor;
+subroutine vec3 fontType(vec2 texpos);
+subroutine uniform fontType fontRenderer;
 
+subroutine(fontType)
+vec3 plainFont(in vec2 texpos)
+{
+	return texture(tex, texpos).rrr;
+}
+subroutine(fontType)
+vec3 sdfMid(in vec2 texpos)
+{
+	float dist = texture(tex, texpos).r;
+	return vec3(smoothstep(0.375f, 0.625f, dist));
+}
+subroutine(fontType)
+vec3 compare(in vec2 texpos)
+{
+	if (texpos.x < 0.5f)
+		return plainFont(vec2(texpos.x * 2.0f, texpos.y));
+	else
+		return sdfMid(vec2(texpos.x * 2.0f - 1.0f, texpos.y));
+}
 void main() 
 {
-	vec2 texpos = tpos;
-	texpos = vec2((pos.x + 1.0f)/2, (-pos.y + 1.0f)/2);
-	//float grey = (texture(tex, tpos).r + 1.0f) / 2.0f;
-	float grey = texture(tex, tpos).r;
-	//FragColor.rgb = color * grey;
-	FragColor.rgb = vec3(grey);
+	FragColor.rgb = fontRenderer(tpos);
 	FragColor.w = 1.0f;
 }
 #endif

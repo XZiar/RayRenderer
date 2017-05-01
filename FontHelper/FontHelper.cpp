@@ -151,27 +151,23 @@ int solveCubic(float a, float b, float c, float* r)
 	return 3;
 }
 
-struct QBLine
-{
-	float p0x, p0y;
-	float p2x, p2y;
-	float p1x, p1y;
-};
-
-struct SLine
-{
-	float p0x, p0y;
-	float p1x, p1y;
-};
 
 inline float dot(float x1, float y1, float x2, float y2)
 {
 	return x1*x2 + y1*y2;
 }
 
-float SignedDistanceSquared(float x, float y, QBLine s, float minDis = 1e20f)
+float SignedDistanceSquared(float x, float y, ft::FreeTyper::QBLine s, float minDis = 1e20f)
 {
 	float res[3];
+
+	{
+		float d0x = x - s.p0x, d0y = y - s.p0y;
+		float d2x = x - s.p2x, d2y = y - s.p2y;
+		float d0 = d0x*d0x + d0y*d0y;
+		float d2 = d2x*d2x + d2y*d2y;
+		minDis = min(minDis, min(d0, d2));
+	}
 
 	float Mx = s.p0x - x, My = s.p0y = y;
 	float Ax = s.p1x - s.p0x, Ay = s.p1y - s.p0y;
@@ -186,16 +182,19 @@ float SignedDistanceSquared(float x, float y, QBLine s, float minDis = 1e20f)
 
 	for (int j = 0; j < n; j++) 
 	{
-		float t = std::clamp(res[j], 0.f, 1.f);
-		float dx = (1 - t*t)*s.p0x + 2 * t*(1 - t)*s.p1x + t*t*s.p2x - x;
-		float dy = (1 - t*t)*s.p0y + 2 * t*(1 - t)*s.p1y + t*t*s.p2y - y;
-		minDis = min(minDis, dx*dx + dy*dy);
+		float t = res[j];
+		if (t >= 0 && t <= 1)
+		{
+			float dx = (1 - t)*(1 - t)*s.p0x + 2 * t*(1 - t)*s.p1x + t*t*s.p2x - x;
+			float dy = (1 - t)*(1 - t)*s.p0y + 2 * t*(1 - t)*s.p1y + t*t*s.p2y - y;
+			minDis = min(minDis, dx*dx + dy*dy);
+		}
 	}
 
 	return minDis;
 }
 
-float LineDistanceSquared(float x, float y, SLine l)
+float LineDistanceSquared(float x, float y, ft::FreeTyper::SLine l)
 {
 	float cross = (l.p1x - l.p0x) * (x - l.p0x) + (l.p1y - l.p0y) * (y - l.p0y);
 	if (cross <= 0) 
@@ -211,55 +210,34 @@ float LineDistanceSquared(float x, float y, SLine l)
 	return (x - px) * (x - px) + (py - l.p0y) * (py - l.p0y);
 }
 
-static pair<vector<QBLine>, vector<SLine>> translateQBLine(const vector<ft::FreeTyper::PerStroke>& strokes)
-{
-	vector<QBLine> qblines;
-	vector<SLine> slines;
-	int32_t curX = 0, curY = 0;
-	for (auto& s : strokes)
-	{
-		switch (s.type)
-		{
-		case 'M':
-			break;
-		case 'L':
-			if (curX != s.x || curY != s.y)
-				slines.push_back({ (float)curX,(float)curY,(float)s.x,(float)s.y });
-			break;
-		case 'Q':
-			qblines.push_back(QBLine{ (float)curX,(float)curY,(float)s.x,(float)s.y,(float)s.xa,(float)s.ya });
-			break;
-		}
-		curX = s.x, curY = s.y;
-	}
-	return { qblines,slines };
-}
-
 void FontCreater::stroke() const
 {
 	auto ret = ft2.TryStroke();
 	auto w = ret.second.first, h = ret.second.second;
 	w = ((w + 3) / 4) * 4;
 	vector<uint8_t> data(w*h);
-	auto lines = translateQBLine(ret.first);
-	lines.first = { QBLine{0.f,0.f,(float)w,(float)h,0.5f*w,.5f*h} };
-	lines.second.clear();
+	auto qlines = ret.first.first;
+	auto slines = ret.first.second;
+	//qlines = { ft::FreeTyper::QBLine{0.f,0.f,(float)w,0.f,0.5f*w,.5f*h} };
+	//slines.clear();
+	qlines.clear();
+	slines = { ft::FreeTyper::SLine{0.f,0.f,(float)w,(float)h} };
 	for(uint32_t a=0;a<h;a++)
 		for (uint32_t b = 0; b < w; b++)
 		{
 			float minDist = 1e20f;
-			for (auto& qline : lines.first)
+			for (auto& qline : qlines)
 			{
 				minDist = SignedDistanceSquared(b, a, qline, minDist);
 			}
-			for (auto& sline : lines.second)
+			for (auto& sline : slines)
 			{
 				auto newDist = LineDistanceSquared(b, a, sline);
 				minDist = min(minDist, newDist);
 			}
 			//data[a*w + b] = minDist < 1.0f ? 0 : 255;
 			auto dist = sqrt(minDist);
-
+			//data[a*w + b] = dist < 1.6f ? 0 : 255;
 			data[a*w + b] = (uint8_t)std::clamp(dist * 4, 0.f, 255.f);
 		}
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w, h, data);
@@ -273,25 +251,26 @@ void FontCreater::bmpsdf(wchar_t ch) const
 	std::tie(w, h) = ret.second;
 	vector<uint16_t> distx(data.size(), 100), distsq(data.size(), 128 * 128);
 
-	for (uint32_t y = 0, lineidx = 0; y < h; lineidx = (++y)*w)
+	/*for (uint32_t y = 0, lineidx = 0; y < h; lineidx = (++y)*w)
 	{
-		uint16_t dist = 100;
-		for (uint32_t x = 0; x < w; ++x, ++lineidx, ++dist)
+		int idx = y * w;
+		uint8_t dist = 64, adder = 0, curimg = 0;
+		for (int x = 0; x < w; ++x, ++idx, dist += adder)
 		{
-			if (data[lineidx])
-				distx[lineidx] = dist = 0;
+			if (data[idx] != curimg)
+				xdist[idx] = dist = 0, adder = 1, curimg = data[idx];
 			else
-				distx[lineidx] = dist;
+				xdist[idx] = dist;
 		}
-		dist = distx[--lineidx];
-		for (uint32_t x = w; x--; --lineidx, ++dist)
+		dist = xdist[--idx], adder = 0, curimg = data[idx];
+		for (int x = w; x--; --idx, dist += adder)
 		{
-			if (data[lineidx])
-				dist = 0;
+			if (xdist[idx] != curimg)
+				dist = 0, adder = 1, curimg = data[idx];
 			else
-				distx[lineidx] = min(distx[lineidx], dist);
+				xdist[idx] = min(xdist[idx], dist);
 		}
-	}
+	}*/
 	for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
 	{
 		distsq[lineidx] = distx[lineidx] * distx[lineidx];
@@ -349,84 +328,6 @@ void FontCreater::bmpsdf(wchar_t ch) const
 			}
 		}
 	}
-	/*for (int32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
-	{
-		distsq[lineidx] = distx[lineidx] * distx[lineidx];
-		int32_t lastdx = distx[lineidx], lastdy = 1;//checkpoint for last nearest point
-		lineidx += w;
-		for (int32_t y = 1; y < h; ++y, lineidx += w)
-		{
-			auto& obj = distsq[lineidx];
-			int32_t xd = distx[lineidx];
-			if (!xd)//0dist,insede
-			{
-				obj = lastdx = 0; lastdy = 1; continue;
-			}
-			obj = lastdy*lastdy + lastdx*lastdx;
-			auto curxD = (uint16_t)(xd*xd);
-			auto dxD = (int32_t)obj - (int32_t)curxD;
-			if (dxD < 0)//lastxD < curxD
-			{
-				if(dxD + 2*(lastdy - xd) < 0)//at least lastline is still better for next line
-					lastdy++;
-				else//for later lines, curx will be lesser or at least equal, so update
-					lastdx = xd, lastdy = 1;
-			}
-			else//curxD <= lastxD
-			{
-				obj = curxD;
-				//update(for next line,(dy+1)^2+dx^2 = lastd^2+1+2dy > lastd^2+1^2)
-				//curline's dx^2 smaller, ofcourse update
-				lastdx = xd, lastdy = 1;
-			}
-		}
-		lastdx = distx[(lineidx -= w)], lastdy = 1;//checkpoint for last nearest point
-		lineidx -= w;
-		for (int32_t y = h-2; y >= 0; --y, lineidx -= w)
-		{
-			auto& obj = distsq[lineidx];
-			int32_t xd = distx[lineidx];
-			if (!xd)//0dist,insede
-			{
-				lastdx = 0; lastdy = 1; continue;
-			}
-			uint16_t lastxD = lastdy*lastdy + lastdx*lastdx;
-			auto curxD = (uint16_t)(xd*xd);
-
-			auto dxD = (int32_t)lastxD - (int32_t)curxD;
-			if (dxD < 0)//lastxD < curxD
-			{
-				if (dxD + 2 * (lastdy - xd) < 0)//at least lastline is still better for next line
-					lastdy++;
-				else//for later lines, curx will be lesser or at least equal, so update
-					lastdx = xd, lastdy = 1;
-			}
-			else//curxD <= lastxD
-			{
-				//update(for next line,(dy+1)^2+dx^2 = lastd^2+1+2dy > lastd^2+1^2)
-				//curline's dx^2 smaller, ofcourse update
-				lastdx = xd, lastdy = 1;
-			}
-			obj = min(obj, lastxD);
-		}
-	}*/
-	/*for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
-	{
-		for (uint32_t y = 0, dist = img[lineidx]; y < h; ++y, lineidx += w, ++dist)
-		{
-			if (data[lineidx])
-				dist = 0;
-			else
-				dist = img[lineidx] = min((uint32_t)img[lineidx], dist);
-		}
-		for (uint32_t y = h, dist = img[lineidx -= w]; y--; lineidx -= w, ++dist)
-		{
-			if (data[lineidx])
-				dist = 0;
-			else
-				dist = img[lineidx] = min((uint32_t)img[lineidx], dist);
-		}
-	}*/
 	
 	vector<uint8_t> fin;
 	for (uint32_t y = 0; y < h; ++y)
@@ -464,21 +365,32 @@ void FontCreater::clbmpsdf(wchar_t ch) const
 	sdfker->run<1>(clQue, worksize, worksize, true);
 	vector<uint16_t> distsq;
 	output->read(clQue, distsq);
-	vector<uint8_t> fin;
+	vector<uint8_t> fin((h * 2) * (w * 2));
 	for (uint32_t y = 0; y < h; ++y)
 	{
-		fin.insert(fin.end(), &data[y*w], &data[y*w] + w);
 		for (uint32_t x = 0; x < w; ++x)
-			fin.push_back((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.));
+		{
+			bool inside = (data[y*w + x] != 0);
+			fin[y*(w * 2) + x] = inside ? 0 : 255;
+			auto rawdist = std::sqrt(distsq[y*w + x]);
+			fin[y*(w * 2) + w + x] = (uint8_t)rawdist * 2;
+			//limit to +/-8 pix
+			auto truedist = std::clamp(rawdist * 16, 0., 127.);
+			fin[(h + y)*(w * 2) + x] = (uint8_t)truedist * 2;
+			auto trueval = (inside ? 127 - truedist : 127 + truedist);
+			fin[(h + y)*(w * 2) + w + x] = (uint8_t)trueval;
+		}
 	}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h, fin);
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
 }
 
 void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
-	constexpr auto fontsizelim = 132, fontcountlim = 16;
+	constexpr auto fontsizelim = 132, fontcountlim = 2;
 	vector<FontInfo> finfos;
+	vector<uint8_t> alldata;
 	finfos.reserve(fontcountlim * fontcountlim);
+	alldata.reserve(fontsizelim * fontsizelim * fontcountlim * fontcountlim);
 	oclBuffer input(clCtx, MemType::ReadOnly, fontsizelim * fontsizelim * fontcountlim * fontcountlim);
 	oclBuffer output(clCtx, MemType::ReadWrite, fontsizelim * fontsizelim * fontcountlim * fontcountlim * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo) * fontcountlim * fontcountlim);
@@ -492,9 +404,11 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 		uint32_t w, h;
 		std::tie(w, h) = ret.second;
 		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)w,(uint8_t)h });
-		input->write(clQue, data, offset);
+		alldata.insert(alldata.end(), data.cbegin(), data.cend());
+		//input->write(clQue, data, offset);
 		offset += data.size();
 	}
+	input->write(clQue, alldata);
 	timer.Stop();
 	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
 	timer.Start();
@@ -519,7 +433,13 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 			uint32_t ipos = fi.offset + (fi.w*y);
 			for (uint32_t x = 0; x < fi.w; ++x)
 			{
-				fin[opos + x] = (uint8_t)std::clamp(std::sqrt(distsq[ipos + x]) * 16, 0., 255.);
+				//fin[opos + x] = (uint8_t)std::clamp(std::sqrt(distsq[ipos + x]) * 16, 0., 255.);
+				bool inside = (alldata[ipos + x] != 0);
+				auto rawdist = std::sqrt(distsq[ipos + x]);
+				//limit to +/-8 pix
+				auto truedist = std::clamp(rawdist * 16, 0., 127.);
+				auto trueval = (inside ? 127 - truedist : 127 + truedist);
+				fin[opos + x] = (uint8_t)trueval;
 			}
 		}
 		fidx++;
@@ -551,6 +471,7 @@ FontViewer::FontViewer()
 			.set(viewRect, getProgram().prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
 			.set(viewRect, getProgram().prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
 	}
+	getProgram().prog->useSubroutine("sdfMid");
 }
 
 void FontViewer::draw()

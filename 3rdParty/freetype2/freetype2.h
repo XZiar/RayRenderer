@@ -29,11 +29,22 @@ public:
 		char type;
 		int32_t x, y, xa, ya;
 	};
+	struct QBLine
+	{
+		float p0x, p0y;
+		float p1x, p1y;
+		float p2x, p2y;
+	};
+	struct SLine
+	{
+		float p0x, p0y;
+		float p1x, p1y;
+	};
 	FreeTyper(const fs::path& fontpath);
 	pair<vector<uint8_t>, pair<uint32_t, uint32_t>> getChBitmap(wchar_t ch, bool custom = false) const;
 	pair<vector<PerLine>, pair<uint32_t, uint32_t>> TryRenderLine(void *outline = nullptr) const;
-	pair<vector<PerStroke>, pair<uint32_t, uint32_t>> TryStroke(void *outline) const;
-	pair<vector<PerStroke>, pair<uint32_t, uint32_t>> TryStroke() const;
+	pair<pair<vector<QBLine>, vector<SLine>>, pair<uint32_t, uint32_t>> TryStroke(void *outline) const;
+	pair<pair<vector<QBLine>, vector<SLine>>, pair<uint32_t, uint32_t>> TryStroke() const;
 };
 
 }

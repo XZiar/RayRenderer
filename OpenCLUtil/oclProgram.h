@@ -76,7 +76,7 @@ public:
 	_oclProgram(std::shared_ptr<_oclContext>& ctx_, const string& str);
 	_oclProgram(std::shared_ptr<_oclContext>& ctx_, FILE *file) : _oclProgram(ctx_, loadFromFile(file)) {};
 	~_oclProgram();
-	void build();
+	void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable");
 	void build(const oclDevice& dev);
 	oclKernel getKernel(const string& name);
 };

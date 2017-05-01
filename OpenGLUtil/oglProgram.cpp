@@ -323,6 +323,35 @@ void _oglProgram::initLocs()
 	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
 
+void _oglProgram::initSubroutines()
+{
+	const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
+	char strbuf[4096];
+	for (auto stage : stages)
+	{
+		GLint count;
+		glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
+		for (int a = 0; a < count; ++a)
+		{
+			glGetActiveSubroutineUniformName(programID, stage, a, sizeof(strbuf), nullptr, strbuf);
+			string uniname(strbuf);
+			GLint srcnt;
+			glGetActiveSubroutineUniformiv(programID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
+			vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
+			vector<SubroutineResource> srs;
+			glGetActiveSubroutineUniformiv(programID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
+			for(auto idx : compSRs)
+			{
+				glGetActiveSubroutineName(programID, stage, idx, sizeof(strbuf), nullptr, strbuf);
+				string subrname(strbuf);
+				SubroutineResource srRes(stage, subrname, idx);
+				srs.push_back(srRes);
+			}
+			subrMap.insert_or_assign(uniname, srs);
+		}
+	}
+}
+
 void _oglProgram::addShader(oglShader && shader)
 {
 	glAttachShader(programID, shader->shaderID);
@@ -343,6 +372,7 @@ void _oglProgram::link()
 		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, to_wstring(logstr));
 	}
 	initLocs();
+	initSubroutines();
 }
 
 
@@ -369,6 +399,34 @@ optional<const ProgramResource*> _oglProgram::getResource(const string& name) co
 		return &(it->second);
 	else //not existed
 		return {};
+}
+
+optional<const vector<SubroutineResource>*> _oglProgram::getSubroutines(const string& name) const
+{
+	auto it = subrMap.find(name);
+	if (it != subrMap.end())
+		return &(it->second);
+	else //not existed
+		return {};
+}
+
+void _oglProgram::useSubroutine(const SubroutineResource& sr)
+{
+	usethis(*this);
+	glUniformSubroutinesuiv(sr.stage, 1, &sr.id);
+}
+
+void _oglProgram::useSubroutine(const string& srname)
+{
+	for (const auto& p : subrMap)
+	{
+		for (const auto& sr : p.second)
+			if (sr.name == srname)
+			{
+				useSubroutine(sr);
+				return;
+			}
+	}
 }
 
 GLint _oglProgram::getLoc(const string& name) const

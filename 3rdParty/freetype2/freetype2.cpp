@@ -124,46 +124,83 @@ pair<vector<FreeTyper::PerLine>, pair<uint32_t, uint32_t>> FreeTyper::TryRenderL
 	return { lines,{maxw - minw + 1,maxh - minh + 1} };
 }
 
+
+class Stroker
+{
+private:
+	float curx, cury;
+	float minx = 255, miny = 255, maxx = 0, maxy = 0;
+public:
+	vector<FreeTyper::QBLine> qlines;
+	vector<FreeTyper::SLine> slines;
+	uint32_t w, h;
+	void moveto(const FT_Vector *to)
+	{
+		curx = to->x / 64.0f, cury = to->y / 64.0f;
+		minx = min(minx, curx), miny = min(miny, cury);
+		maxx = max(maxx, curx), maxy = max(maxy, cury);
+	}
+	void lineto(const FT_Vector *to)
+	{
+		FreeTyper::SLine line{ curx,cury };
+		line.p1x = curx = to->x / 64.0f;
+		line.p1y = cury = to->y / 64.0f;
+		minx = min(minx, curx), miny = min(miny, cury);
+		maxx = max(maxx, curx), maxy = max(maxy, cury);
+		slines.push_back(line);
+	}
+	void conicto(const FT_Vector *ctrl, const FT_Vector *to)
+	{
+		FreeTyper::QBLine line{ curx,cury,ctrl->x / 64.0f,ctrl->y / 64.0f };
+		line.p2x = curx = to->x / 64.0f;
+		line.p2y = cury = to->y / 64.0f;
+		minx = min(minx, curx), miny = min(miny, cury);
+		maxx = max(maxx, curx), maxy = max(maxy, cury);
+		qlines.push_back(line);
+	}
+	void relocate()
+	{
+		for (auto& line : qlines)
+			line.p0x -= minx, line.p1x -= minx, line.p2x -= minx, line.p0y -= miny, line.p1y -= miny, line.p2y -= miny;
+		for (auto& line : slines)
+			line.p0x -= minx, line.p1x -= minx, line.p0y -= miny, line.p1y -= miny;
+		w = (uint32_t)(maxx - minx + 1), h = (uint32_t)(maxy - miny + 1);
+	}
+};
+
 static int moveto(const FT_Vector *to, void *user)
 {
-	auto& strokes = *(vector<FreeTyper::PerStroke>*)user;
-	strokes.push_back({ 'M',to->x >> 6,to->y >> 6,0,0 });
+	((Stroker*)user)->moveto(to);
 	return 0;
 }
 
 static int lineto(const FT_Vector *to, void *user)
 {
-	auto& strokes = *(vector<FreeTyper::PerStroke>*)user;
-	strokes.push_back({ 'L',to->x >> 6,to->y >> 6,0,0 });
+	((Stroker*)user)->lineto(to);
 	return 0;
 }
 
 static int conicto(const FT_Vector *ctrl, const FT_Vector *to, void *user)
 {
-	auto& strokes = *(vector<FreeTyper::PerStroke>*)user;
-	strokes.push_back({ 'Q',to->x >> 6,to->y >> 6,ctrl->x >> 6,ctrl->y >> 6 });
+	((Stroker*)user)->conicto(ctrl, to);
 	return 0;
 }
 
-pair<vector<FreeTyper::PerStroke>, pair<uint32_t, uint32_t>> FreeTyper::TryStroke(void *outline) const
+pair<pair<vector<FreeTyper::QBLine>, vector<FreeTyper::SLine>>, pair<uint32_t, uint32_t>> FreeTyper::TryStroke(void *outline) const
 {
-	vector<FreeTyper::PerStroke> strokes;
+	Stroker stroker;
 	FT_Outline_Funcs cb;
 	cb.shift = 0, cb.delta = 0;
 	cb.move_to = &moveto;
 	cb.line_to = &lineto;
 	cb.conic_to = &conicto;
 	cb.cubic_to = nullptr;
-	FT_Outline_Decompose((FT_Outline*)outline, &cb, &strokes);
-	int32_t maxw = 0, maxh = 0, minw = 65536, minh = 65536;
-	for (auto& ps : strokes)
-		maxw = max(maxw, ps.x), maxh = max(maxh, ps.y), minw = min(minw, ps.x), minh = min(minh, ps.y);
-	for (auto& ps : strokes)
-		ps.x -= minw, ps.y -= minh, ps.xa -= minw, ps.ya -= minh;
-	return { strokes,{maxw - minw,maxh - minh} };
+	FT_Outline_Decompose((FT_Outline*)outline, &cb, &stroker);
+	stroker.relocate();
+	return { {stroker.qlines,stroker.slines},{stroker.w,stroker.h} };
 }
 
-pair<vector<FreeTyper::PerStroke>, pair<uint32_t, uint32_t>> FreeTyper::TryStroke() const
+pair<pair<vector<FreeTyper::QBLine>, vector<FreeTyper::SLine>>, pair<uint32_t, uint32_t>> FreeTyper::TryStroke() const
 {
 	return TryStroke(&((FT_Face)face)->glyph->outline);
 }
