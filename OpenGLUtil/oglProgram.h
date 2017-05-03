@@ -154,7 +154,7 @@ public:
 	optional<const ProgramResource*> getResource(const string& name) const;
 	optional<const vector<SubroutineResource>*> getSubroutines(const string& name) const;
 	void useSubroutine(const SubroutineResource& sr);
-	void useSubroutine(const string& srname);
+	void useSubroutine(const string& sruname, const string& srname);
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
 	ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);

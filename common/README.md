@@ -12,6 +12,10 @@ A collection of useful utilities
 
   A wrapper to manage win32's delay-laod DLL
 
+* **EasyUse**
+
+  A simple library providing some shortcuts to normal algorithm
+
 * **Exception**
 
   Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, unicode message, arbitray extra data...
@@ -63,6 +67,7 @@ A collection of useful utilities
   * `thread` -- only used to provide compatable sleep function
   * `future` -- provide STD PromiseTask
   * `any` -- used for Exception to carry arbitray data
+  * `optional` -- providing "nullable" result
 
 ## Feature
 

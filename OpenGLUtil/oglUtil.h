@@ -80,7 +80,7 @@ public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
 	static wstring __cdecl getVersion();
-	static OPResult<GLenum> __cdecl getError();
+	static optional<wstring> __cdecl getError();
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
 	static PromiseResult<void> __cdecl invokeSyncGL(std::function<void __cdecl(void)> task);

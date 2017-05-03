@@ -78,22 +78,4 @@ struct WeakPtrComparerator
 };
 
 
-template<class T = char>
-class COMMONTPL OPResult
-{
-private:
-	bool isSuc;
-public:
-	std::wstring msg;
-	T data;
-	OPResult(const bool isSuc_, const std::wstring& msg_) :isSuc(isSuc_), msg(msg_) { }
-	OPResult(const bool isSuc_, const std::wstring& msg_, const T& dat_) :isSuc(isSuc_), msg(msg_), data(dat_) { }
-	OPResult(const bool isSuc_, const std::string& msg_ = "")
-		:OPResult(isSuc_, std::wstring(msg_.begin(), msg_.end())) { }
-	OPResult(const bool isSuc_, const std::string& msg_, const T& dat_) 
-		:OPResult(isSuc_, std::wstring(msg_.begin(), msg_.end()), dat_) { }
-	operator bool() { return isSuc; }
-};
-
-
 }

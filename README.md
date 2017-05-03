@@ -61,6 +61,10 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [The FreeType License](./License/ftl.txt)
 
+* [cpplinq](http://cpplinq.codeplex.com/)
+
+  [MS-PL License](./License/cpplinq.html)
+
 ## License
 
 RayRenderer (including its component) is licensed under the [MIT license](License.txt).

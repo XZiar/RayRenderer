@@ -39,7 +39,7 @@ void __cdecl SetToTask(const gcroot<TaskCompletionSource<Func<bool>^>^>& tsk, co
 
 #pragma unmanaged
 
-bool __cdecl OPResultWrapper(rayr::BasicTest *core, std::function<common::OPResult<>(void)> cb)
+bool __cdecl OPResultWrapper(rayr::BasicTest *core, std::function<bool(void)> cb)
 {
 	if (cb())
 	{
@@ -53,7 +53,7 @@ bool __cdecl OPResultWrapper(rayr::BasicTest *core, std::function<common::OPResu
 
 void coreAddModel(rayr::BasicTest *core, const std::wstring fname, gcroot<TaskCompletionSource<Func<bool>^>^> tsk)
 {
-	core->addModelAsync(fname, [core, tsk](std::function<common::OPResult<>(void)> cb)
+	core->addModelAsync(fname, [core, tsk](std::function<bool(void)> cb)
 	{
 		SetToTask(tsk, std::bind(&OPResultWrapper, core, cb));
 	});

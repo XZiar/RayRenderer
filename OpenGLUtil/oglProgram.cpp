@@ -4,6 +4,7 @@
 #include "oglUtil.h"
 #include "BindingManager.h"
 #include "oglInternal.h"
+//#include "../common/Linq.hpp"
 
 namespace oglu
 {
@@ -394,20 +395,12 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
 
 optional<const ProgramResource*> _oglProgram::getResource(const string& name) const
 {
-	auto it = resMap.find(name);
-	if (it != resMap.end())
-		return &(it->second);
-	else //not existed
-		return {};
+	return findmap(resMap, name);
 }
 
 optional<const vector<SubroutineResource>*> _oglProgram::getSubroutines(const string& name) const
 {
-	auto it = subrMap.find(name);
-	if (it != subrMap.end())
-		return &(it->second);
-	else //not existed
-		return {};
+	return findmap(subrMap, name);
 }
 
 void _oglProgram::useSubroutine(const SubroutineResource& sr)
@@ -416,26 +409,24 @@ void _oglProgram::useSubroutine(const SubroutineResource& sr)
 	glUniformSubroutinesuiv(sr.stage, 1, &sr.id);
 }
 
-void _oglProgram::useSubroutine(const string& srname)
+void _oglProgram::useSubroutine(const string& sruname, const string& srname)
 {
-	for (const auto& p : subrMap)
+	if (auto sru = findmap(subrMap, sruname))
 	{
-		for (const auto& sr : p.second)
-			if (sr.name == srname)
-			{
-				useSubroutine(sr);
-				return;
-			}
+		if (auto sr = findvec(**sru, [&srname](auto& srr) { return srr.name == srname; }))
+			useSubroutine(**sr);
+		else
+			oglLog().warning(L"cannot find subroutine {} for {}\n", srname, sruname);
 	}
+	else
+		oglLog().warning(L"cannot find subroutine object {}\n", sruname);
 }
 
 GLint _oglProgram::getLoc(const string& name) const
 {
-	auto it = resMap.find(name);
-	if (it != resMap.end())
-		return it->second.location;
-	else //not existed
-		return GL_INVALID_INDEX;
+	if (auto obj = findmap(resMap, name))
+		return (**obj).location;
+	return GL_INVALID_INDEX;
 }
 
 void _oglProgram::setProject(const Camera& cam, const int wdWidth, const int wdHeight)

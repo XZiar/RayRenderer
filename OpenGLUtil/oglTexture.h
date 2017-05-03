@@ -86,13 +86,8 @@ public:
 		setCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
 	}
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size);
-	OPResult<> getCompressedData(vector<uint8_t>& output);
-	template<class T, class = typename std::enable_if<sizeof(T) == 1>::type>
-	OPResult<> getCompressedData(vector<T>& output)
-	{
-		return getCompressedData(*(vector<uint8_t>*)&output);
-	}
-	OPResult<> getData(vector<uint8_t>& output, const TextureDataFormat dformat);
+	optional<vector<uint8_t>> getCompressedData();
+	vector<uint8_t> getData(const TextureDataFormat dformat);
 };
 
 
@@ -104,7 +99,7 @@ protected:
 	static GLenum parseFormat(const TextureDataFormat dformat) noexcept;
 public:
 	_oglBufferTexture() noexcept;
-	OPResult<> setBuffer(const TextureDataFormat dformat, const oglTBO& tbo);
+	void setBuffer(const TextureDataFormat dformat, const oglTBO& tbo);
 };
 
 

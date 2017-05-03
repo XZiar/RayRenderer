@@ -292,16 +292,15 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		auto fonttex = fontCreator->getTexture();
 		fontCreator->setChar(L'G', false);
 		fontViewer->bindTexture(fonttex);
-		vector<uint8_t> tmper;
 		vector<uint32_t> outer;
-		fonttex->getData(tmper, TextureDataFormat::R8);
+		auto tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.reserve(tmper.size());
 		for (auto c : tmper)
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		auto ftexsize = fonttex->getSize();
 		::stb::saveImage(L"F:\\Software\\Font\\G.png", outer, ftexsize.first, ftexsize.second);
 		fontCreator->setChar(0x554A, false);
-		fonttex->getData(tmper, TextureDataFormat::R8);
+		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		for (auto c : tmper)
 			outer.push_back((c * 0x00010101) | 0xff000000);
@@ -310,7 +309,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		//fontCreator->bmpsdf(0x554A);
 		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4);
 		//fontCreator->clbmpsdf(0x554C);
-		fonttex->getData(tmper, TextureDataFormat::R8);
+		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		outer.reserve(tmper.size());
 		for (auto c : tmper)

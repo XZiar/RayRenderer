@@ -12,6 +12,7 @@
 #include "../3dBasic/3dElement.hpp"
 #include "../common/AlignedContainer.hpp"
 #include "../common/Wrapper.hpp"
+#include "../common/EasyUse.hpp"
 #include "../common/StringEx.hpp"
 #include "../common/TimeUtil.h"
 #include "../common/Exceptions.hpp"
@@ -19,6 +20,8 @@
 
 #define GLEW_STATIC
 #include "../3rdParty/glew/glew.h"
+
+#include "../3rdParty/cpplinq.hpp"
 
 #include <cstdio>
 #include <memory>

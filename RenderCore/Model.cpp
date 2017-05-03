@@ -144,7 +144,8 @@ oglu::oglTexture _ModelImage::genTexture()
 void _ModelImage::CompressData(vector<uint8_t>& output)
 {
 	auto tex = genTexture();
-	tex->getCompressedData(output);
+	if (auto dat = tex->getCompressedData())
+		output = std::move(*dat);
 }
 
 oglu::oglTexture _ModelImage::genTextureAsync()

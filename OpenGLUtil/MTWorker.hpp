@@ -38,7 +38,6 @@ private:
 		wglMakeCurrent(hdc, hrc);
 		oglLog().info(L"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, (void*)hdc, (void*)hrc, oglUtil::getVersion());
 		oglUtil::setDebug(0x2f, 0x2f, MsgLevel::Notfication);
-		auto err = oglUtil::getError();
 		while (shouldRun.test_and_set())
 		{
 			cv.wait(lck);

@@ -471,7 +471,7 @@ FontViewer::FontViewer()
 			.set(viewRect, getProgram().prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
 			.set(viewRect, getProgram().prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
 	}
-	getProgram().prog->useSubroutine("sdfMid");
+	getProgram().prog->useSubroutine("fontRenderer", "sdfMid");
 }
 
 void FontViewer::draw()

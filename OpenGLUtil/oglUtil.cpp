@@ -109,13 +109,13 @@ wstring oglUtil::getVersion()
 	return wstring(str, str + len);
 }
 
-OPResult<GLenum> oglUtil::getError()
+optional<wstring> oglUtil::getError()
 {
 	const auto err = glGetError();
 	if(err == GL_NO_ERROR)
-		return OPResult<GLenum>(true, L"GL_NO_ERROR", err);
+		return {};
 	else
-		return OPResult<GLenum>(false, (char*)glewGetErrorString(err), err);
+		return gluErrorUnicodeStringEXT(err);
 }
 
 

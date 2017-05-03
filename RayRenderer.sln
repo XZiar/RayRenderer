@@ -26,6 +26,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A1798-4D87-4EF2-9CA4-4823AF845810}"
 	ProjectSection(SolutionItems) = preProject
 		License\boost.txt = License\boost.txt
+		License\cpplinq.html = License\cpplinq.html
 		License\fmt.rst = License\fmt.rst
 		License\freeglut.txt = License\freeglut.txt
 		License\freetype.txt = License\freetype.txt
@@ -54,6 +55,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CoreLibrary", "CoreLibrary"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}"
 	ProjectSection(SolutionItems) = preProject
+		3rdParty\cpplinq.hpp = 3rdParty\cpplinq.hpp
 		3rdParty\README.md = 3rdParty\README.md
 	EndProjectSection
 EndProject
@@ -100,10 +102,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\CommonRely.hpp = common\CommonRely.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
+		common\EasyUse.hpp = common\EasyUse.hpp
 		common\Exceptions.hpp = common\Exceptions.hpp
 		common\Exceptions.natvis = common\Exceptions.natvis
 		common\FileMapper.h = common\FileMapper.h
 		common\FileMapper.inl = common\FileMapper.inl
+		common\Linq.hpp = common\Linq.hpp
 		common\PromiseTask.h = common\PromiseTask.h
 		common\PromiseTask.inl = common\PromiseTask.inl
 		common\ResourceHelper.h = common\ResourceHelper.h
