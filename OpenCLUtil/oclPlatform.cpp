@@ -16,6 +16,8 @@ bool _oclPlatform::checkGL() const
 {
 	if (name.find(L"Experimental") != wstring::npos)
 		return false;
+	if (!findvec(devs, [](auto& dev) { return dev->type == DeviceType::GPU; }))// no GPU
+		return false;
 	//Additional attributes to OpenCL context creation
 	//which associate an OpenGL context with the OpenCL context 
 	cl_context_properties props[] =
@@ -42,7 +44,7 @@ wstring _oclPlatform::getStr(const cl_platform_info type) const
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)), isCurrentGL(checkGL())
+	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION))
 {
 	cl_device_id defDevID;
 	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, NULL);
@@ -58,6 +60,7 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
 		if (dID == defDevID)
 			defDev = devs.back();
 	}
+	isCurGL = checkGL();
 }
 
 oclContext _oclPlatform::createContext() const
@@ -65,7 +68,7 @@ oclContext _oclPlatform::createContext() const
 	vector<cl_context_properties> props;
 	//OpenCL platform
 	props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)platformID });
-	if (isCurrentGL)
+	if (isCurGL)
 	{
 		props.insert(props.cend(), 
 		{

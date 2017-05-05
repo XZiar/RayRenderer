@@ -13,6 +13,7 @@
 #include "../common/CommonRely.hpp"
 #include "../common/Wrapper.hpp"
 #include "../common/Exceptions.hpp"
+#include "../common/EasyUse.hpp"
 #include "../common/StringEx.hpp"
 #include "../common/AlignedContainer.hpp"
 #include "../common/PromiseTask.h"

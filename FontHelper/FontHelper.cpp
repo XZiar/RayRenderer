@@ -66,7 +66,7 @@ oclu::oclContext createOCLContext()
 	const auto pltfs = oclUtil::getPlatforms();
 	for (const auto& plt : pltfs)
 	{
-		if (plt->isCurrentGL)
+		if (plt->isCurrentGL())
 		{
 			clPlat = plt;
 			auto clCtx = plt->createContext();

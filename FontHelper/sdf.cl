@@ -116,7 +116,7 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 	private const int gid = get_group_id(0);
 	private const int lid = get_local_id(0);
 	local ushort sqLUT[160];
-	local ushort xdist[160 * 160];
+	local ushort xdist[144 * 144];
 	const int w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
 	//setup square-LUT
 	sqLUT[lid] = lid*lid;

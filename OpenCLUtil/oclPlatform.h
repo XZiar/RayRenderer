@@ -22,11 +22,12 @@ private:
 	vector<oclDevice> devs;
 	oclDevice defDev;
 	_oclPlatform(const cl_platform_id pID);
+	bool isCurGL;
 public:
 	const wstring name, ver;
-	const bool isCurrentGL;
 	const vector<oclDevice>& getDevices() const { return devs; }
 	const oclDevice& getDefaultDevice() const { return defDev; }
+	bool isCurrentGL() const { return isCurGL; }
 	oclContext createContext() const;
 };
 

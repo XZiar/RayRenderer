@@ -160,11 +160,8 @@ void _oclProgram::build(const string& options)
 	if (ret != CL_SUCCESS)
 	{
 		wstring buildlog;
-		if (ret == CL_BUILD_PROGRAM_FAILURE)
-		{
-			for (auto dev : getDevs())
-				buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
-		}
+		for (auto dev : getDevs())
+			buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
 	}
 	initKers();
@@ -175,11 +172,7 @@ void _oclProgram::build(const oclDevice& dev)
 	auto ret = clBuildProgram(progID, 1, &dev->deviceID, nullptr, nullptr, nullptr);
 	if (ret != CL_SUCCESS)
 	{
-		wstring buildlog;
-		if (ret == CL_BUILD_PROGRAM_FAILURE)
-		{
-			buildlog = dev->name + L":\n" + getBuildLog(dev) + L"\n";
-		}
+		wstring buildlog = dev->name + L":\n" + getBuildLog(dev) + L"\n";
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
 	}
 	initKers();
