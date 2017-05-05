@@ -104,6 +104,7 @@ FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.
 			COMMON_THROW(BaseException, L"build Program error");
 		}
 		sdfker = clProg->getKernel("bmpsdf");
+		sdfgreyker = clProg->getKernel("greysdf");
 	}
 	testTex.reset(TextureType::Tex2D);
 	testTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
@@ -384,6 +385,55 @@ void FontCreater::clbmpsdf(wchar_t ch) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
 }
 
+void FontCreater::clbmpsdfgrey(wchar_t ch) const
+{
+	auto ret = ft2.getChBitmap(ch, false);
+	auto data = std::move(ret.first);
+	uint32_t w, h;
+	std::tie(w, h) = ret.second;
+	oclBuffer input(clCtx, MemType::ReadOnly, data.size());
+	oclBuffer output(clCtx, MemType::ReadWrite, data.size() * sizeof(uint16_t));
+	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
+	FontInfo finfo[] = { { 0,w,h } };
+	wsize->write(clQue, finfo);
+	sdfgreyker->setArg(0, wsize);
+	input->write(clQue, data);
+	sdfgreyker->setArg(1, input);
+	sdfgreyker->setArg(2, output);
+	size_t worksize[] = { 160 };
+	sdfgreyker->run<1>(clQue, worksize, worksize, true);
+	vector<uint16_t> distsq;
+	output->read(clQue, distsq);
+	vector<uint8_t> bdata;
+	for (auto& p : data)
+		bdata.push_back(p > 127 ? 255 : 0);
+	input->write(clQue, bdata);
+	sdfker->setArg(0, wsize);
+	sdfker->setArg(1, input);
+	sdfker->setArg(2, output);
+	sdfker->run<1>(clQue, worksize, worksize, true);
+	vector<uint16_t> distsq2;
+	output->read(clQue, distsq2);
+	vector<uint8_t> fin((h * 2) * (w * 2));
+	for (uint32_t y = 0; y < h; ++y)
+	{
+		for (uint32_t x = 0; x < w; ++x)
+		{
+			fin[y*(w * 2) + x] = data[y*w + x];
+			fin[y*(w * 2) + w + x] = bdata[y*w + x];
+			//limit to +/-8 pix
+			auto truedist = std::clamp((int)distsq[y*w + x], 0, 8 * 256 - 1);
+			fin[(h + y)*(w * 2) + x] = (uint8_t)(truedist / 8);
+			//auto trueval = (inside ? 127 - truedist : 127 + truedist);
+			//fin[(h + y)*(w * 2) + w + x] = (uint8_t)trueval;
+			auto rawdist2 = std::sqrt(distsq2[y*w + x]);
+			auto truedist2 = std::clamp(rawdist2 * 16, 0., 127.);
+			fin[(h + y)*(w * 2) + w + x] = (uint8_t)(truedist2 * 2);
+		}
+	}
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
+}
+
 void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
 	constexpr auto fontsizelim = 132, fontcountlim = 2;
@@ -472,6 +522,7 @@ FontViewer::FontViewer()
 			.set(viewRect, getProgram().prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
 	}
 	getProgram().prog->useSubroutine("fontRenderer", "sdfMid");
+	getProgram().prog->useSubroutine("fontRenderer", "plainFont");
 }
 
 void FontViewer::draw()

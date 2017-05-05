@@ -308,7 +308,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		::stb::saveImage(L"F:\\Software\\Font\\A.png", outer, ftexsize.first, ftexsize.second);
 		//fontCreator->bmpsdf(0x554A);
 		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4);
-		//fontCreator->clbmpsdf(0x554C);
+		fontCreator->clbmpsdfgrey(0x554C);
 		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		outer.reserve(tmper.size());
@@ -318,7 +318,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		::stb::saveImage(L"F:\\Software\\Font\\16.png", outer, ftexsize.first, ftexsize.second);
 		//fontCreator->setChar(0x9f8d, false);
 		//fontCreator->stroke();
-		fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+		//fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
 	}
 	catch (BaseException& be)
 	{
