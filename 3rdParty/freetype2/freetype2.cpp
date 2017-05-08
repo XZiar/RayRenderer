@@ -59,24 +59,24 @@ pair<vector<uint8_t>, pair<uint32_t, uint32_t>> FreeTyper::getChBitmap(wchar_t c
 	{
 		FT_Render_Glyph(glyph, FT_RENDER_MODE_NORMAL);
 		auto bmp = glyph->bitmap;
-		//width alignment fix
-		auto w = ((bmp.width + 3) / 4) * 4;
-		vector<uint8_t> dat(w*bmp.rows, 0);
+		//width alignment fix and 1px border
+		auto w = ((bmp.width + 2 + 3) / 4) * 4, h = bmp.rows + 2;
+		vector<uint8_t> dat(w*h, 0);
 		for (uint32_t a = 0; a < bmp.rows; a++)
-			memmove(dat.data() + a*w, bmp.buffer + a*bmp.width, bmp.width);
-		return { dat,{w,bmp.rows} };
+			memmove(dat.data() + (a + 1)*w + 1, bmp.buffer + a*bmp.width, bmp.width);
+		return { dat,{w,h} };
 	}
 	else
 	{
 		//auto stks = TryStroke(&glyph->outline);
 		auto ret = TryRenderLine(&glyph->outline);
 		auto w = ret.second.first, h = ret.second.second;
-		w = ((w + 3) / 4) * 4;
+		w = ((w + 2 + 3) / 4) * 4, h = h + 2;
 		vector<uint8_t> dat(w*h, 0);
 		auto lines = ret.first;
 		for(const auto& l : lines)
 		{
-			auto pdat = &dat[l.y*w + l.x];
+			auto pdat = &dat[(l.y + 1)*w + (l.x + 1)];
 			for (auto a = l.len; a--;)
 				*pdat++ = 255;
 		}

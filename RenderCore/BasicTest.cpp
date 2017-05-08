@@ -288,7 +288,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 	try
 	{
 		fontViewer.reset();
-		fontCreator.reset(L"D:\\Program Temps\\RayRenderer\\test.ttf");
+		fontCreator.reset(L"D:\\Programs Temps\\RayRenderer\\test.ttf");
 		auto fonttex = fontCreator->getTexture();
 		fontCreator->setChar(L'G', false);
 		fontViewer->bindTexture(fonttex);
@@ -298,27 +298,28 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		for (auto c : tmper)
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		auto ftexsize = fonttex->getSize();
-		::stb::saveImage(L"D:\\Program Temps\\RayRenderer\\G.png", outer, ftexsize.first, ftexsize.second);
+		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\G.png", outer, ftexsize.first, ftexsize.second);
 		fontCreator->setChar(0x554A, false);
 		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		for (auto c : tmper)
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		ftexsize = fonttex->getSize();
-		::stb::saveImage(L"D:\\Program Temps\\RayRenderer\\A.png", outer, ftexsize.first, ftexsize.second);
+		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\A.png", outer, ftexsize.first, ftexsize.second);
 		//fontCreator->bmpsdf(0x554A);
-		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4);
-		fontCreator->clbmpsdfgrey(0x554C);
+		//fontCreator->clbmpsdfgrey(0x554A);
+		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
 		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		outer.reserve(tmper.size());
-		for (auto c : tmper)
-			outer.push_back((c * 0x00010101) | 0xff000000);
-		ftexsize = fonttex->getSize();
-		::stb::saveImage(L"D:\\Program Temps\\RayRenderer\\16.png", outer, ftexsize.first, ftexsize.second);
+		//for (auto c : tmper)
+			//outer.push_back((c * 0x00010101) | 0xff000000);
+		//ftexsize = fonttex->getSize();
+		//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\4096-2.png", outer, ftexsize.first, ftexsize.second);
+		
 		//fontCreator->setChar(0x9f8d, false);
 		//fontCreator->stroke();
-		//fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+		fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
 	}
 	catch (BaseException& be)
 	{

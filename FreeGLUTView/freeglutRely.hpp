@@ -20,7 +20,7 @@
 #include <atomic>
 #include <mutex>
 #include <future>
-#include "../common/TimeUtil.inl"
+#include "../common/TimeUtil.hpp"
 #include "../common/miniLogger/miniLogger.h"
 #include "FreeGLUTView.h"
 
@@ -175,7 +175,7 @@ private:
 				}
 			}
 			if (waittime > 1000)//should sleep
-				common::sleepMS((uint32_t)(waittime / 1000));
+				std::this_thread::sleep_for(std::chrono::microseconds(waittime));
 			if (objView)//should vall timer
 				objView->onTimer();
 		}

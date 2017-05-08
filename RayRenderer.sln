@@ -27,6 +27,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 	ProjectSection(SolutionItems) = preProject
 		License\boost.txt = License\boost.txt
 		License\cpplinq.html = License\cpplinq.html
+		License\date.txt = License\date.txt
 		License\fmt.rst = License\fmt.rst
 		License\freeglut.txt = License\freeglut.txt
 		License\freetype.txt = License\freetype.txt
@@ -114,8 +115,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\SharedResource.hpp = common\SharedResource.hpp
 		common\StringEx.hpp = common\StringEx.hpp
-		common\TimeUtil.h = common\TimeUtil.h
-		common\TimeUtil.inl = common\TimeUtil.inl
+		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\Wrapper.hpp = common\Wrapper.hpp
 		common\Wrapper.natvis = common\Wrapper.natvis
 	EndProjectSection
@@ -137,6 +137,20 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "3rdParty\freeglut\freeglut.vcxproj", "{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fmt", "3rdParty\fmt\fmt.vcxproj", "{F6B26367-636C-48F7-951A-BEE222B06AFE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4D13-4944-9024-CC703F56FB75}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\date\chrono_io.h = 3rdParty\date\chrono_io.h
+		3rdParty\date\date.h = 3rdParty\date\date.h
+		3rdParty\date\islamic.h = 3rdParty\date\islamic.h
+		3rdParty\date\iso_week.h = 3rdParty\date\iso_week.h
+		3rdParty\date\julian.h = 3rdParty\date\julian.h
+		3rdParty\date\license.txt = 3rdParty\date\license.txt
+		3rdParty\date\README.md = 3rdParty\date\README.md
+		3rdParty\date\tz.cpp = 3rdParty\date\tz.cpp
+		3rdParty\date\tz.h = 3rdParty\date\tz.h
+		3rdParty\date\tz_private.h = 3rdParty\date\tz_private.h
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -356,5 +370,6 @@ Global
 		{7025CA4A-22FD-4343-B296-008060483193} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{F6B26367-636C-48F7-951A-BEE222B06AFE} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{D36D1F7F-4D13-4944-9024-CC703F56FB75} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal

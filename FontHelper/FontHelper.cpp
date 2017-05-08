@@ -387,6 +387,7 @@ void FontCreater::clbmpsdf(wchar_t ch) const
 
 void FontCreater::clbmpsdfgrey(wchar_t ch) const
 {
+	SimpleTimer timer;
 	auto ret = ft2.getChBitmap(ch, false);
 	auto data = std::move(ret.first);
 	uint32_t w, h;
@@ -401,8 +402,11 @@ void FontCreater::clbmpsdfgrey(wchar_t ch) const
 	sdfgreyker->setArg(1, input);
 	sdfgreyker->setArg(2, output);
 	size_t worksize[] = { 160 };
+	timer.Start();
 	sdfgreyker->run<1>(clQue, worksize, worksize, true);
-	vector<uint16_t> distsq;
+	timer.Stop();
+	fntLog().verbose(L"grey OpenCl cost {} us\n", timer.ElapseUs());
+	vector<int16_t> distsq;
 	output->read(clQue, distsq);
 	vector<uint8_t> bdata;
 	for (auto& p : data)
@@ -420,15 +424,15 @@ void FontCreater::clbmpsdfgrey(wchar_t ch) const
 		for (uint32_t x = 0; x < w; ++x)
 		{
 			fin[y*(w * 2) + x] = data[y*w + x];
-			fin[y*(w * 2) + w + x] = bdata[y*w + x];
+			bool isOutside = (fin[y*(w * 2) + w + x] = bdata[y*w + x]) > 0;
 			//limit to +/-8 pix
-			auto truedist = std::clamp((int)distsq[y*w + x], 0, 8 * 256 - 1);
-			fin[(h + y)*(w * 2) + x] = (uint8_t)(truedist / 8);
+			auto truedist = std::clamp(((int)distsq[y*w + x] + 8 * 256), 0, 16 * 256 - 1);
+			fin[(h + y)*(w * 2) + x] = (uint8_t)(truedist / 16);
 			//auto trueval = (inside ? 127 - truedist : 127 + truedist);
 			//fin[(h + y)*(w * 2) + w + x] = (uint8_t)trueval;
 			auto rawdist2 = std::sqrt(distsq2[y*w + x]);
 			auto truedist2 = std::clamp(rawdist2 * 16, 0., 127.);
-			fin[(h + y)*(w * 2) + w + x] = (uint8_t)(truedist2 * 2);
+			fin[(h + y)*(w * 2) + w + x] = isOutside ? (uint8_t)(128 - truedist2) : (uint8_t)(truedist2 + 128);
 		}
 	}
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
@@ -436,7 +440,7 @@ void FontCreater::clbmpsdfgrey(wchar_t ch) const
 
 void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
-	constexpr auto fontsizelim = 132, fontcountlim = 2;
+	constexpr auto fontsizelim = 136, fontcountlim = 64;
 	vector<FontInfo> finfos;
 	vector<uint8_t> alldata;
 	finfos.reserve(fontcountlim * fontcountlim);
@@ -446,34 +450,41 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo) * fontcountlim * fontcountlim);
 	SimpleTimer timer;
 	timer.Start();
+	fntLog().verbose(L"raster start at {}\n", timer.getCurTimeTxt());
 	size_t offset = 0;
 	for (uint16_t a = 0; a < count; ++a)
 	{
-		auto ret = ft2.getChBitmap(ch + a, true);
+		auto ret = ft2.getChBitmap(ch + a, false);
 		auto data = std::move(ret.first);
 		uint32_t w, h;
 		std::tie(w, h) = ret.second;
 		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)w,(uint8_t)h });
 		alldata.insert(alldata.end(), data.cbegin(), data.cend());
-		//input->write(clQue, data, offset);
 		offset += data.size();
 	}
+	timer.Stop();
+	fntLog().verbose(L"raster cost {} us\n", timer.ElapseUs());
+	timer.Start();
+	fntLog().verbose(L"prepare start at {}\n", timer.getCurTimeTxt());
 	input->write(clQue, alldata);
+	wsize->write(clQue, finfos);
+	sdfgreyker->setArg(0, wsize);
+	sdfgreyker->setArg(1, input);
+	sdfgreyker->setArg(2, output);
 	timer.Stop();
 	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
 	timer.Start();
-	wsize->write(clQue, finfos);
-	sdfker->setArg(0, wsize);
-	sdfker->setArg(1, input);
-	sdfker->setArg(2, output);
+	fntLog().verbose(L"OpenCL start at {}\n", timer.getCurTimeTxt());
 	size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
-	sdfker->run<1>(clQue, worksize, localsize, true);
+	sdfgreyker->run<1>(clQue, worksize, localsize, true);
 	timer.Stop();
 	fntLog().verbose(L"OpenCl cost {} us\n", timer.ElapseUs());
-	vector<uint16_t> distsq;
+	vector<int16_t> distsq;
 	output->read(clQue, distsq);
 	vector<uint8_t> fin(fontsizelim * fontsizelim * fontcountlim * fontcountlim, 255);
 	uint32_t fidx = 0;
+	timer.Start();
+	fntLog().verbose(L"post-process start at {}\n", timer.getCurTimeTxt());
 	for (auto fi : finfos)
 	{
 		uint32_t startx = (fidx % fontcountlim) * fontsizelim, starty = (fidx / fontcountlim) * fontsizelim;
@@ -483,17 +494,14 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 			uint32_t ipos = fi.offset + (fi.w*y);
 			for (uint32_t x = 0; x < fi.w; ++x)
 			{
-				//fin[opos + x] = (uint8_t)std::clamp(std::sqrt(distsq[ipos + x]) * 16, 0., 255.);
-				bool inside = (alldata[ipos + x] != 0);
-				auto rawdist = std::sqrt(distsq[ipos + x]);
-				//limit to +/-8 pix
-				auto truedist = std::clamp(rawdist * 16, 0., 127.);
-				auto trueval = (inside ? 127 - truedist : 127 + truedist);
-				fin[opos + x] = (uint8_t)trueval;
+				auto truedist = std::clamp(((int)distsq[ipos + x] + 8 * 256), 0, 16 * 256 - 1);
+				fin[opos + x] = (uint8_t)(truedist / 16);
 			}
 		}
 		fidx++;
 	}
+	timer.Stop();
+	fntLog().verbose(L"post-process cost {} us\n", timer.ElapseUs());
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, fontsizelim * fontcountlim, fontsizelim * fontcountlim, fin);
 }
 
@@ -522,7 +530,7 @@ FontViewer::FontViewer()
 			.set(viewRect, getProgram().prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
 	}
 	getProgram().prog->useSubroutine("fontRenderer", "sdfMid");
-	getProgram().prog->useSubroutine("fontRenderer", "plainFont");
+	//getProgram().prog->useSubroutine("fontRenderer", "plainFont");
 }
 
 void FontViewer::draw()

@@ -125,7 +125,7 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src)
 		if (to < src.length())
 			part2 = string_view(&src[to], src.length() - to);
 		config.remove_prefix(6);
-		params = str::split(config, '|');
+		params = str::split(config, '|', false);
 		break;
 	}
 	static string glDefs = R"(

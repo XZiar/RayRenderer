@@ -1,9 +1,9 @@
 #pragma unmanaged
 
+#include "../common/TimeUtil.hpp"
 #include "resource.h"
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
-#include "../common/TimeUtil.inl"
 #include "../common/ResourceHelper.inl"
 #include "../common/DelayLoader.inl"
 #include <cstdio>

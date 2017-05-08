@@ -46,24 +46,43 @@ namespace str
 {
 
 template<class T, class charT = T::value_type>
-std::vector<std::basic_string_view<charT>> split(const T& src, const charT delim)
+auto split(const T& src, const charT delim, const bool keepblank = true)
 {
 	using namespace std;
 	vector<basic_string_view<charT>> ret;
-	for (size_t cur = 0; ; )
+	size_t cur = 0, last = 0, len = src.length();
+	for (; cur < len; cur++)
 	{
-		size_t pos = src.find(delim, cur);
-		if (pos != string::npos)
+		if (src[cur] == delim)
 		{
-			ret.push_back(basic_string_view<charT>(&src[cur], pos - cur));
-			cur = pos + 1;
-		}
-		else
-		{
-			ret.push_back(basic_string_view<charT>(&src[cur], src.length() - cur));
-			return ret;
+			if (keepblank || cur != last)
+				ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+			last = cur + 1;
 		}
 	}
+	if (keepblank || cur != last)
+		ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+	return ret;
+}
+
+template<class charT, size_t N>
+auto split(const charT(&src)[N], const charT delim, const bool keepblank = true)
+{
+	using namespace std;
+	vector<basic_string_view<charT>> ret;
+	size_t cur = 0, last = 0, len = N - 1;
+	for (; cur < len; cur++)
+	{
+		if (src[cur] == delim)
+		{
+			if (keepblank || cur != last)
+				ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+			last = cur + 1;
+		}
+	}
+	if (keepblank || cur != last)
+		ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+	return ret;
 }
 
 template<class T, class charT = T::value_type>
