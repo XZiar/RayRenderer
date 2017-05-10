@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "oglInternal.h"
 
 namespace oglu
 {
@@ -24,10 +23,9 @@ private:
 	const ShaderType shaderType;
 	GLuint shaderID = GL_INVALID_INDEX;
 	string src;
-	static string loadFromFile(FILE *fp);
 public:
 	_oglShader(const ShaderType type, const string& txt);
-	_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, loadFromFile(fp)) { };
+	_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, file::readAllTxt(fp)) { };
 	~_oglShader();
 
 	void compile();

@@ -39,9 +39,6 @@
     <ClInclude Include="oglVAO.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oglInternal.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="OpenGLUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>

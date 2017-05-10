@@ -149,26 +149,18 @@ void _oclProgram::initKers()
 	kers.assign(names.begin(), names.end());
 }
 
-void _oclProgram::build(const string& options)
+void _oclProgram::build(const string& options, const oclDevice dev)
 {
-
-	auto ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
+	cl_int ret;
+	if(dev)
+		ret = clBuildProgram(progID, 1, &dev->deviceID, options.c_str(), nullptr, nullptr);
+	else
+		ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
 	if (ret != CL_SUCCESS)
 	{
 		wstring buildlog;
 		for (auto dev : getDevs())
 			buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
-		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
-	}
-	initKers();
-}
-
-void _oclProgram::build(const oclDevice& dev)
-{
-	auto ret = clBuildProgram(progID, 1, &dev->deviceID, nullptr, nullptr, nullptr);
-	if (ret != CL_SUCCESS)
-	{
-		wstring buildlog = dev->name + L":\n" + getBuildLog(dev) + L"\n";
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
 	}
 	initKers();

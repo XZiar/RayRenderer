@@ -1,7 +1,6 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "RenderCoreInternal.h"
 #include "../3rdParty/stblib/stblib.h"
 #include "../common/ResourceHelper.h"
 #include <thread>

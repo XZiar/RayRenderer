@@ -38,7 +38,7 @@ optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size
 		COMMON_THROW(BaseException, L"offset overflow");
 	cl_event e;
 	auto ret = clEnqueueReadBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(size - offset, size_), buf, 0, nullptr, &e);
-	if (ret != CL_SUCCESS)
+	if (ret != CL_SUCCESS && ret != CL_OUT_OF_RESOURCES)
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
 	if (shouldBlock)
 		return {};

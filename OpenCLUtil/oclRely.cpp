@@ -1,5 +1,4 @@
 #include "oclRely.h"
-#include "oclInternal.h"
 #include "../common/PromiseTask.inl"
 
 #ifdef USING_INTEL
@@ -14,9 +13,9 @@ namespace oclu
 {
 
 using namespace common::mlog;
-logger& oglLog()
+logger& oclLog()
 {
-	static logger ocllog(L"OpenGLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
+	static logger ocllog(L"OpenCLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
 	return ocllog;
 }
 

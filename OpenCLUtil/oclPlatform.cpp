@@ -36,6 +36,11 @@ bool _oclPlatform::checkGL() const
 	return ret == CL_SUCCESS;
 }
 
+bool _oclPlatform::isBrand(const wstring& brand) const
+{
+	return str::ifind_first(name, brand).has_value();
+}
+
 wstring _oclPlatform::getStr(const cl_platform_info type) const
 {
 	char str[128] = { 0 };
@@ -44,7 +49,8 @@ wstring _oclPlatform::getStr(const cl_platform_info type) const
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION))
+	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)),
+	isNVIDIA(isBrand(L"nvidia")), isAMD(isBrand(L"amd")), isINTEL(isBrand(L"intel"))
 {
 	cl_device_id defDevID;
 	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, NULL);

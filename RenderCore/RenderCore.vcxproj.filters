@@ -41,9 +41,6 @@
     <ClInclude Include="Model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RenderCoreInternal.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Light.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -116,11 +116,8 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 {
 	private const int gid = get_group_id(0);
 	private const int lid = get_local_id(0);
-	local ushort sqLUT[160];
 	local ushort xdist[144 * 144];
 	const int w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
-	//setup square-LUT
-	sqLUT[lid] = lid*lid;
 	//each row operation
 	if (lid < h)
 	{
@@ -223,8 +220,8 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 			//current pure and last is the same
 			perCol[y] = min(curxdist, dist);
 			float curdist2 = (float)perCol[y] * (float)perCol[y];
-			float maxdy2 = min(curdist2, sqLUT[y + 1] * 65536.0f), dy2 = 65536.0f;
-			for (ushort dy = 1; dy2 < maxdy2; dy2 = sqLUT[++dy] * 65536.0f, testidx -= w)
+			float maxdy2 = min(curdist2, (y + 1)*(y + 1) * 65536.0f), dy2 = 65536.0f;
+			for (ushort dy = 1; dy2 < maxdy2; dy2 = dy * dy * 65536.0f, testidx -= w)
 			{
 				uchar oimg = colRaw[y - dy];
 				if (objimg <= THREDHOLD)//empty
@@ -252,6 +249,7 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 					perCol[y] = (ushort)sqrt(newdist);
 					maxdy2 = min(newdist, maxdy2);
 				}
+				dy++;
 			}
 		}
 		dist = 64 * 256, adder = 0;
@@ -288,8 +286,8 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 			}
 			//current pure and last is the same
 			float curdist2 = (float)perCol[y] * (float)perCol[y];
-			float maxdy2 = min(curdist2, sqLUT[h - y - 1] * 65536.0f), dy2 = 65536.0f;
-			for (ushort dy = 1; dy2 < maxdy2; dy2 = sqLUT[++dy] * 65536.0f, testidx += w)
+			float maxdy2 = min(curdist2, (h - y - 1) * (h - y - 1) * 65536.0f), dy2 = 65536.0f;
+			for (ushort dy = 1; dy2 < maxdy2; dy2 = dy * dy * 65536.0f, testidx += w)
 			{
 				uchar oimg = colRaw[y + dy];
 				if (objimg <= THREDHOLD)//empty
@@ -317,11 +315,11 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 					perCol[y] = (ushort)sqrt(newdist);
 					maxdy2 = min(newdist, maxdy2);
 				}
+				dy++;
 			}
 		}
 		idx = offset + lid;
 		for (int y = 0; y < h; ++y, idx += w)
 			result[idx] = colRaw[y] > 127 ? -(int)perCol[y] : (int)perCol[y];
-		//result[idx] = sqLUT[xdist[idx - offset]];
 	}
 }

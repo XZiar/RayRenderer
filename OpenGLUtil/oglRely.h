@@ -12,8 +12,9 @@
 #include "../3dBasic/3dElement.hpp"
 #include "../common/AlignedContainer.hpp"
 #include "../common/Wrapper.hpp"
-#include "../common/EasyUse.hpp"
+#include "../common/ContainerEx.hpp"
 #include "../common/StringEx.hpp"
+#include "../common/FileEx.hpp"
 #include "../common/TimeUtil.hpp"
 #include "../common/Exceptions.hpp"
 #include "../common/PromiseTask.h"
@@ -63,3 +64,11 @@ using b3d::Mat4x4;
 using b3d::Camera;
 using namespace common;
 }
+
+#ifdef OGLU_EXPORT
+#include "../common/miniLogger/miniLogger.h"
+namespace oglu
+{
+common::mlog::logger& oglLog();
+}
+#endif

@@ -3,7 +3,6 @@
 #include "oglProgram.h"
 #include "oglUtil.h"
 #include "BindingManager.h"
-#include "oglInternal.h"
 //#include "../common/Linq.hpp"
 
 namespace oglu

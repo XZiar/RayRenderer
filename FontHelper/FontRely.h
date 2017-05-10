@@ -21,3 +21,11 @@
 #include "../OpenCLUtil/OpenCLUtil.h"
 #include "../3rdParty/freetype2/freetype2.h"
 
+
+#ifdef FONTHELPER_EXPORT
+#include "../common/miniLogger/miniLogger.h"
+namespace oglu
+{
+common::mlog::logger& fntLog();
+}
+#endif

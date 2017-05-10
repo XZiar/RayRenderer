@@ -151,7 +151,6 @@
     <ClInclude Include="oclCmdQue.h" />
     <ClInclude Include="oclContext.h" />
     <ClInclude Include="oclException.h" />
-    <ClInclude Include="oclInternal.h" />
     <ClInclude Include="oclBuffer.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />

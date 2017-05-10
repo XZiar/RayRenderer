@@ -43,3 +43,11 @@ using std::map;
 using std::vector;
 using namespace common;
 }
+
+#ifdef RAYCORE_EXPORT
+#include "../common/miniLogger/miniLogger.h"
+namespace rayr
+{
+common::mlog::logger& basLog();
+}
+#endif

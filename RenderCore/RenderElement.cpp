@@ -1,6 +1,5 @@
 #include "RenderCoreRely.h"
 #include "RenderElement.h"
-#include "RenderCoreInternal.h"
 #include <mutex>
 
 namespace rayr

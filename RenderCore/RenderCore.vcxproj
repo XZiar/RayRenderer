@@ -197,7 +197,6 @@
     <ClInclude Include="Light.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="RenderCore.h" />
-    <ClInclude Include="RenderCoreInternal.h" />
     <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderElement.h" />
     <ClInclude Include="resource.h" />

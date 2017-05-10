@@ -3,8 +3,11 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <optional>
 #include <type_traits>
 #include <codecvt>
+#include <cctype>
+#include <cwctype>
 
 namespace common
 {
@@ -26,7 +29,7 @@ inline uint64_t hash_(const T& str)
 ** @param str std-string for the text
 ** @return uint64_t the hash
 **/
-constexpr uint64_t hash_(const char *str)
+constexpr inline uint64_t hash_(const char *str)
 {
 	uint64_t hash = 0;
 	for (;*str != '\0'; ++str)
@@ -36,7 +39,7 @@ constexpr uint64_t hash_(const char *str)
 /** @brief calculate simple hash for string, used for switch-string
 ** @return uint64_t the hash
 **/
-constexpr uint64_t operator "" _hash(const char *str, size_t)
+constexpr inline uint64_t operator "" _hash(const char *str, size_t)
 {
 	return hash_(str);
 }
@@ -46,7 +49,7 @@ namespace str
 {
 
 template<class T, class charT = T::value_type>
-auto split(const T& src, const charT delim, const bool keepblank = true)
+inline auto split(const T& src, const charT delim, const bool keepblank = true)
 {
 	using namespace std;
 	vector<basic_string_view<charT>> ret;
@@ -66,7 +69,7 @@ auto split(const T& src, const charT delim, const bool keepblank = true)
 }
 
 template<class charT, size_t N>
-auto split(const charT(&src)[N], const charT delim, const bool keepblank = true)
+inline auto split(const charT(&src)[N], const charT delim, const bool keepblank = true)
 {
 	using namespace std;
 	vector<basic_string_view<charT>> ret;
@@ -86,7 +89,7 @@ auto split(const charT(&src)[N], const charT delim, const bool keepblank = true)
 }
 
 template<class T, class charT = T::value_type>
-bool begin_with(const T& src, const std::basic_string<charT>& prefix)
+inline bool begin_with(const T& src, const std::basic_string<charT>& prefix)
 {
 	const size_t srclen = src.length(), objlen = prefix.length();
 	if (srclen < objlen)
@@ -95,7 +98,7 @@ bool begin_with(const T& src, const std::basic_string<charT>& prefix)
 }
 
 template<class T, class charT = T::value_type, size_t N>
-bool begin_with(const T& src, const charT(&prefix)[N])
+inline bool begin_with(const T& src, const charT(&prefix)[N])
 {
 	constexpr size_t objlen = N - 1;
 	const size_t srclen = src.length();
@@ -107,41 +110,40 @@ bool begin_with(const T& src, const charT(&prefix)[N])
 namespace detail
 {
 template<class T>
-size_t getsize(const size_t size)
+inline size_t getsize(const size_t size)
 {
 	return size;
 }
 template<class T, class... ARGS>
-size_t getsize(const size_t size, const std::basic_string_view<T>& str, ARGS... args)
+inline size_t getsize(const size_t size, const std::basic_string_view<T>& str, ARGS... args)
 {
 	return getsize<T>(size + str.length(), args...);
 }
 template<class T, size_t N, class... ARGS>
-size_t getsize(const size_t size, const T(&str)[N], ARGS... args)
+inline size_t getsize(const size_t size, const T(&str)[N], ARGS... args)
 {
 	return getsize<T>(size + N - 1, args...);
 }
 template<class T>
-void appendstr(std::basic_string<T>& obj)
+inline void appendstr(std::basic_string<T>& obj)
 {
 	return;
 }
 template<class T, class... ARGS>
-void appendstr(std::basic_string<T>& obj, const std::basic_string_view<T>& str, ARGS... args)
+inline void appendstr(std::basic_string<T>& obj, const std::basic_string_view<T>& str, ARGS... args)
 {
 	obj.append(str);
 	appendstr<T>(obj, args...);
 }
 template<class T, size_t N, class... ARGS>
-void appendstr(std::basic_string<T>& obj, const T(&str)[N], ARGS... args)
+inline void appendstr(std::basic_string<T>& obj, const T(&str)[N], ARGS... args)
 {
 	obj.append(str, N - 1);
 	appendstr<T>(obj, args...);
 }
 }
-
 template<class T, class... ARGS>
-std::basic_string<T> concat(ARGS... args)
+inline std::basic_string<T> concat(ARGS... args)
 {
 	std::basic_string<T> ret;
 	size_t size = detail::getsize<T>(0, args...);
@@ -150,6 +152,70 @@ std::basic_string<T> concat(ARGS... args)
 	return ret;
 }
 
+namespace detail
+{
+inline char toUpper(const char ch)
+{
+	return (char)std::toupper(ch);
+}
+inline wchar_t toUpper(const wchar_t ch)
+{
+	return (wchar_t)std::towupper(ch);
+}
+inline std::string toUpper(const std::string& src)
+{
+	std::string ret;
+	ret.reserve(src.length());
+	for (const auto ch : src)
+		ret.push_back((char)std::toupper(ch));
+	return ret;
+}
+inline std::wstring toUpper(const std::wstring& src)
+{
+	std::wstring ret;
+	ret.reserve(src.length());
+	for (const auto ch : src)
+		ret.push_back((wchar_t)std::towupper(ch));
+	return ret;
+}
+inline bool upperComp(const char ch1, const char ch2)
+{
+	return (char)std::toupper(ch1) == ch2;
+}
+inline bool upperComp(const wchar_t ch1, const wchar_t ch2)
+{
+	return (wchar_t)std::towupper(ch1) == ch2;
+}
+}
+template<class T, class charT = T::value_type, class itT = T::const_iterator>
+inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj)
+{
+	const size_t srclen = src.length(), objlen = obj.length();
+	if (srclen < objlen)
+		return {};
+	const size_t morelen = srclen - objlen;
+	for (size_t a = 0; a < objlen; ++a)
+		src[a] = detail::toUpper(src[a]);
+	auto upobj = detail::toUpper(obj);
+	for (size_t a = 0; ; ++a)
+	{
+		if (src.compare(a, objlen, upobj) == 0)
+		{
+			auto it = src.cbegin();
+			std::advance(it, a);
+			return it;
+		}
+		if (a >= morelen)
+			break;
+		src[objlen + a] = detail::toUpper(src[objlen + a]);
+	}
+	return {};
+}
+template<class T, class charT = T::value_type, class itT = T::const_iterator, size_t N>
+inline std::optional<itT> ifind_first(const T& src, const charT(&obj)[N])
+{
+	return ifind_first(src, std::basic_string<charT>(obj));
+}
 }
 
 enum class Charset { ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32 };

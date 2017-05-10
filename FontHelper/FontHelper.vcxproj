@@ -167,7 +167,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FontHelper.h" />
-    <ClInclude Include="FontInternal.h" />
     <ClInclude Include="FontRely.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

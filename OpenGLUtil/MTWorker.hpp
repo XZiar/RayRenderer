@@ -2,7 +2,6 @@
 
 #include "oglRely.h"
 #include "oglUtil.h"
-#include "oglInternal.h"
 #include <GL/wglew.h>
 #include <memory>
 #include <atomic>

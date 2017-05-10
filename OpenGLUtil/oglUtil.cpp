@@ -2,7 +2,6 @@
 #include "oglException.h"
 #include "oglUtil.h"
 #include "MTWorker.hpp"
-#include "oglInternal.h"
 #include "../common/PromiseTask.inl"
 #include <GL/wglew.h>
 

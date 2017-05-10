@@ -68,7 +68,6 @@ private:
 	const cl_program progID;
 	vector<string> kers;
 	vector<oclDevice> getDevs() const;
-	wstring getBuildLog(const oclDevice& dev) const;
 	cl_program loadProgram() const;
 	static string loadFromFile(FILE *fp); 
 	void initKers();
@@ -76,8 +75,8 @@ public:
 	_oclProgram(std::shared_ptr<_oclContext>& ctx_, const string& str);
 	_oclProgram(std::shared_ptr<_oclContext>& ctx_, FILE *file) : _oclProgram(ctx_, loadFromFile(file)) {};
 	~_oclProgram();
-	void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable");
-	void build(const oclDevice& dev);
+	void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
+	wstring getBuildLog(const oclDevice& dev) const;
 	oclKernel getKernel(const string& name);
 };
 

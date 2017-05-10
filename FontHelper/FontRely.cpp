@@ -1,5 +1,4 @@
 #include "FontRely.h"
-#include "FontInternal.h"
 
 namespace oglu
 {

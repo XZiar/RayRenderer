@@ -1,6 +1,5 @@
 #include "oglRely.h"
 #include "oglException.h"
-#include "oglInternal.h"
 #include "oglShader.h"
 #include "BindingManager.h"
 #include <string_view>
@@ -9,21 +8,6 @@ namespace oglu
 {
 namespace detail
 {
-
-string _oglShader::loadFromFile(FILE * fp)
-{
-	fseek(fp, 0, SEEK_END);
-	const size_t fsize = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-
-	char *dat = new char[fsize + 1];
-	fread(dat, fsize, 1, fp);
-	dat[fsize] = '\0';
-	string txt(dat);
-	delete[] dat;
-
-	return txt;
-}
 
 _oglShader::_oglShader(const ShaderType type, const string & txt) : shaderType(type), src(txt)
 {

@@ -1,5 +1,4 @@
 #include "FontRely.h"
-#include "FontInternal.h"
 #include "resource.h"
 #include "FontHelper.h"
 #include "../OpenCLUtil/oclException.h"
@@ -66,7 +65,7 @@ oclu::oclContext createOCLContext()
 	const auto pltfs = oclUtil::getPlatforms();
 	for (const auto& plt : pltfs)
 	{
-		if (plt->isCurrentGL())
+		if (plt->isNVIDIA)
 		{
 			clPlat = plt;
 			auto clCtx = plt->createContext();
@@ -96,7 +95,9 @@ FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.
 		oclProgram clProg(clCtx, getShaderFromDLL(IDR_SHADER_SDTTEST));
 		try
 		{
-			clProg->build();
+			clProg->build("-cl-fast-relaxed-math -cl-mad-enable -cl-nv-verbose");
+			auto log = clProg->getBuildLog(clCtx->devs[0]);
+			fntLog().debug(L"nv-buildlog:{}\n", log);
 		}
 		catch (OCLException& cle)
 		{
@@ -446,7 +447,7 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 	finfos.reserve(fontcountlim * fontcountlim);
 	alldata.reserve(fontsizelim * fontsizelim * fontcountlim * fontcountlim);
 	oclBuffer input(clCtx, MemType::ReadOnly, fontsizelim * fontsizelim * fontcountlim * fontcountlim);
-	oclBuffer output(clCtx, MemType::ReadWrite, fontsizelim * fontsizelim * fontcountlim * fontcountlim * sizeof(uint16_t));
+	oclBuffer output(clCtx, MemType::ReadWrite, fontsizelim * fontsizelim * fontcountlim * fontcountlim * sizeof(int16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo) * fontcountlim * fontcountlim);
 	SimpleTimer timer;
 	timer.Start();

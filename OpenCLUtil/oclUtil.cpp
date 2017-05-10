@@ -17,7 +17,14 @@ void oclUtil::init()
 	clGetPlatformIDs(numPlatforms, platformIDs.data(), NULL);
 	for (const auto& pID : platformIDs)
 	{
-		platforms.push_back(oclPlatform(new detail::_oclPlatform(pID)));
+		auto plt = oclPlatform(new detail::_oclPlatform(pID));
+		platforms.push_back(plt);
+		auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
+		for (const auto dev : plt->getDevices())
+			txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : 
+				dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
+				dev->name, dev->vendor, dev->version);
+		oclLog().verbose(txt);
 	}
 }
 

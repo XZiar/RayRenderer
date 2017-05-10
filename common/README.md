@@ -8,13 +8,13 @@ A collection of useful utilities
 
   A custom allocator that support aligned memory managment
 
+* **ContainerEx**
+
+  A simple library providing some shortcuts for container operations
+
 * **DelayLoader**
 
   A wrapper to manage win32's delay-laod DLL
-
-* **EasyUse**
-
-  A simple library providing some shortcuts to normal algorithm
 
 * **Exception**
 
@@ -23,6 +23,10 @@ A collection of useful utilities
 * **FileMapper** `buggy`
 
   A wrapper to manage win32's file mapper
+
+* **Linq** `buggy`
+
+  A try of implementing linq on C++. It's unfinished and buggy
 
 * **PromiseTask**
 
@@ -63,6 +67,7 @@ A collection of useful utilities
 * C++17 required
   * `chrono` -- TimeUtil
   * `memory` -- shared_ptr and weak_ptr
+  * `tuple` -- used in some container operation
   * `atomic` -- providing thread-safe operation
   * `thread` -- only used to provide compatable sleep function
   * `future` -- provide STD PromiseTask
@@ -103,7 +108,7 @@ StringEx provide encoding transform using codecvt, which is marked deprecated in
 
 Converting encoding need to specify input charset, while StringEx does not provide encoding-detection. If you need it , you should look at [uchardet](../3rdParty/uchardetlib).
 
-`split` is simply based on string's find operation, and there's no optimization like KMP or SSE4.2 intrin.
+`split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
 
 `concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
 
