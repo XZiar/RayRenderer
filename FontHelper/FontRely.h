@@ -27,5 +27,6 @@
 namespace oglu
 {
 common::mlog::logger& fntLog();
+string getShaderFromDLL(int32_t id);
 }
 #endif

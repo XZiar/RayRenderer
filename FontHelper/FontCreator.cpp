@@ -1,63 +1,14 @@
 #include "FontRely.h"
-#include "resource.h"
-#include "FontHelper.h"
+#include "FontCreator.h"
 #include "../OpenCLUtil/oclException.h"
-#include "../common/ResourceHelper.h"
 #include <cmath>
+#include "resource.h"
 
 
 namespace oglu
 {
 
 using namespace oclu;
-
-static string getShaderFromDLL(int32_t id)
-{
-	std::vector<uint8_t> data;
-	if (ResourceHelper::getData(data, L"SHADER", id) != ResourceHelper::Result::Success)
-		return "";
-	data.push_back('\0');
-	return string((const char*)data.data());
-}
-
-
-namespace detail
-{
-
-
-FontViewerProgram::FontViewerProgram()
-{
-	prog.reset();
-	auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_PRINTFONT));
-	for (auto shader : shaders)
-	{
-		try
-		{
-			shader->compile();
-			prog->addShader(std::move(shader));
-		}
-		catch (OGLException& gle)
-		{
-			fntLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
-			COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
-		}
-	}
-	try
-	{
-		prog->link();
-		prog->registerLocation({ "vertPos","","vertTexc","vertColor" }, { "","","","","" });
-	}
-	catch (OGLException& gle)
-	{
-		fntLog().error(L"Fail to link Program:\n{}\n", gle.message);
-		COMMON_THROW(BaseException, L"link Program error");
-	}
-}
-
-
-}
-
-
 
 oclu::oclContext createOCLContext()
 {
@@ -70,7 +21,7 @@ oclu::oclContext createOCLContext()
 			clPlat = plt;
 			auto clCtx = plt->createContext();
 			fntLog().success(L"Created Context in platform {}!\n", plt->name);
-			clCtx->onMessage = [](wstring errtxt) 
+			clCtx->onMessage = [](wstring errtxt)
 			{
 				fntLog().error(L"Error from context:\t{}\n", errtxt);
 			};
@@ -80,43 +31,51 @@ oclu::oclContext createOCLContext()
 	return oclContext();
 }
 
-SharedResource<oclu::oclContext> FontCreater::clRes(createOCLContext);
+SharedResource<oclu::oclContext> FontCreator::clRes(createOCLContext);
 
 
-FontCreater::FontCreater(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.get())
+void FontCreator::loadCL(const string& src)
 {
+	oclProgram clProg(clCtx, src);
+	try
 	{
-		for (const auto& dev : clCtx->devs)
-			if (dev->type == DeviceType::GPU)
-			{
-				clQue.reset(clCtx, dev);
-				break;
-			}
-		oclProgram clProg(clCtx, getShaderFromDLL(IDR_SHADER_SDTTEST));
-		try
-		{
-			clProg->build("-cl-fast-relaxed-math -cl-mad-enable -cl-nv-verbose");
-			auto log = clProg->getBuildLog(clCtx->devs[0]);
-			fntLog().debug(L"nv-buildlog:{}\n", log);
-		}
-		catch (OCLException& cle)
-		{
-			fntLog().error(L"Fail to build opencl Program:\n{}\n", cle.message);
-			COMMON_THROW(BaseException, L"build Program error");
-		}
-		sdfker = clProg->getKernel("bmpsdf");
-		sdfgreyker = clProg->getKernel("greysdf");
+		clProg->build("-cl-fast-relaxed-math -cl-mad-enable -cl-nv-verbose");
+		auto log = clProg->getBuildLog(clCtx->devs[0]);
+		fntLog().debug(L"nv-buildlog:{}\n", log);
 	}
+	catch (OCLException& cle)
+	{
+		fntLog().error(L"Fail to build opencl Program:\n{}\n", cle.message);
+		COMMON_THROW(BaseException, L"build Program error");
+	}
+	sdfker = clProg->getKernel("bmpsdf");
+	sdfgreyker = clProg->getKernel("greysdf");
+}
+
+FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.get())
+{
+	for (const auto& dev : clCtx->devs)
+		if (dev->type == DeviceType::GPU)
+		{
+			clQue.reset(clCtx, dev);
+			break;
+		}
+	loadCL(getShaderFromDLL(IDR_SHADER_SDTTEST));
 	testTex.reset(TextureType::Tex2D);
 	testTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
 
-FontCreater::~FontCreater()
+FontCreator::~FontCreator()
 {
 
 }
 
-void FontCreater::setChar(wchar_t ch, bool custom) const
+void FontCreator::reload(const string& src)
+{
+	loadCL(src);
+}
+
+void FontCreator::setChar(wchar_t ch, bool custom) const
 {
 	auto ret = ft2.getChBitmap(ch, custom);
 	auto data = std::move(ret.first);
@@ -134,7 +93,7 @@ int solveCubic(float a, float b, float c, float* r)
 	float p3 = p*p*p;
 	float d = q*q + 4 * p3 / 27;
 	float offset = -a / 3;
-	if (d >= 0) 
+	if (d >= 0)
 	{ // Single solution
 		float z = sqrtf(d);
 		float u = (-q + z) / 2;
@@ -182,7 +141,7 @@ float SignedDistanceSquared(float x, float y, ft::FreeTyper::QBLine s, float min
 
 	int n = solveCubic(b*a, c*a, d*a, res);
 
-	for (int j = 0; j < n; j++) 
+	for (int j = 0; j < n; j++)
 	{
 		float t = res[j];
 		if (t >= 0 && t <= 1)
@@ -199,11 +158,11 @@ float SignedDistanceSquared(float x, float y, ft::FreeTyper::QBLine s, float min
 float LineDistanceSquared(float x, float y, ft::FreeTyper::SLine l)
 {
 	float cross = (l.p1x - l.p0x) * (x - l.p0x) + (l.p1y - l.p0y) * (y - l.p0y);
-	if (cross <= 0) 
+	if (cross <= 0)
 		return (x - l.p0x) * (x - l.p0x) + (y - l.p0y) * (y - l.p0y);
 
 	float d2 = (l.p1x - l.p0x) * (l.p1x - l.p0x) + (l.p1y - l.p0y) * (l.p1y - l.p0y);
-	if (cross >= d2) 
+	if (cross >= d2)
 		return (x - l.p1x) * (x - l.p1x) + (y - l.p1y) * (y - l.p1y);
 
 	float r = cross / d2;
@@ -212,7 +171,7 @@ float LineDistanceSquared(float x, float y, ft::FreeTyper::SLine l)
 	return (x - px) * (x - px) + (py - l.p0y) * (py - l.p0y);
 }
 
-void FontCreater::stroke() const
+void FontCreator::stroke() const
 {
 	auto ret = ft2.TryStroke();
 	auto w = ret.second.first, h = ret.second.second;
@@ -223,8 +182,8 @@ void FontCreater::stroke() const
 	//qlines = { ft::FreeTyper::QBLine{0.f,0.f,(float)w,0.f,0.5f*w,.5f*h} };
 	//slines.clear();
 	qlines.clear();
-	slines = { ft::FreeTyper::SLine{0.f,0.f,(float)w,(float)h} };
-	for(uint32_t a=0;a<h;a++)
+	slines = { ft::FreeTyper::SLine{ 0.f,0.f,(float)w,(float)h } };
+	for (uint32_t a = 0; a<h; a++)
 		for (uint32_t b = 0; b < w; b++)
 		{
 			float minDist = 1e20f;
@@ -245,7 +204,7 @@ void FontCreater::stroke() const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w, h, data);
 }
 
-void FontCreater::bmpsdf(wchar_t ch) const
+void FontCreator::bmpsdf(wchar_t ch) const
 {
 	auto ret = ft2.getChBitmap(ch, true);
 	auto data = std::move(ret.first);
@@ -253,26 +212,6 @@ void FontCreater::bmpsdf(wchar_t ch) const
 	std::tie(w, h) = ret.second;
 	vector<uint16_t> distx(data.size(), 100), distsq(data.size(), 128 * 128);
 
-	/*for (uint32_t y = 0, lineidx = 0; y < h; lineidx = (++y)*w)
-	{
-		int idx = y * w;
-		uint8_t dist = 64, adder = 0, curimg = 0;
-		for (int x = 0; x < w; ++x, ++idx, dist += adder)
-		{
-			if (data[idx] != curimg)
-				xdist[idx] = dist = 0, adder = 1, curimg = data[idx];
-			else
-				xdist[idx] = dist;
-		}
-		dist = xdist[--idx], adder = 0, curimg = data[idx];
-		for (int x = w; x--; --idx, dist += adder)
-		{
-			if (xdist[idx] != curimg)
-				dist = 0, adder = 1, curimg = data[idx];
-			else
-				xdist[idx] = min(xdist[idx], dist);
-		}
-	}*/
 	for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
 	{
 		distsq[lineidx] = distx[lineidx] * distx[lineidx];
@@ -330,25 +269,25 @@ void FontCreater::bmpsdf(wchar_t ch) const
 			}
 		}
 	}
-	
+
 	vector<uint8_t> fin;
 	for (uint32_t y = 0; y < h; ++y)
 	{
-		fin.insert(fin.end(), &data[y*w], &data[y*w] +w);
+		fin.insert(fin.end(), &data[y*w], &data[y*w] + w);
 		for (uint32_t x = 0; x < w; ++x)
 			//fin.push_back(std::clamp(img[y*w + x] * 16, 0, 255));
 			fin.push_back((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.));
 	}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w*2, h, fin);
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h, fin);
 }
 
-struct FontInfo 
+struct FontInfo
 {
 	uint32_t offset;
 	uint8_t w, h;
 };
 
-void FontCreater::clbmpsdf(wchar_t ch) const
+void FontCreator::clbmpsdf(wchar_t ch) const
 {
 	auto ret = ft2.getChBitmap(ch, true);
 	auto data = std::move(ret.first);
@@ -357,7 +296,7 @@ void FontCreater::clbmpsdf(wchar_t ch) const
 	oclBuffer input(clCtx, MemType::ReadOnly, data.size());
 	oclBuffer output(clCtx, MemType::ReadWrite, data.size() * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
-	FontInfo finfo[] = { {0,w,h} };
+	FontInfo finfo[] = { { 0,w,h } };
 	wsize->write(clQue, finfo);
 	sdfker->setArg(0, wsize);
 	input->write(clQue, data);
@@ -386,7 +325,7 @@ void FontCreater::clbmpsdf(wchar_t ch) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
 }
 
-void FontCreater::clbmpsdfgrey(wchar_t ch) const
+void FontCreator::clbmpsdfgrey(wchar_t ch) const
 {
 	SimpleTimer timer;
 	auto ret = ft2.getChBitmap(ch, false);
@@ -439,7 +378,7 @@ void FontCreater::clbmpsdfgrey(wchar_t ch) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
 }
 
-void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
+void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
 	constexpr auto fontsizelim = 136, fontcountlim = 64;
 	vector<FontInfo> finfos;
@@ -506,42 +445,5 @@ void FontCreater::clbmpsdfs(wchar_t ch, uint16_t count) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, fontsizelim * fontcountlim, fontsizelim * fontcountlim, fin);
 }
 
-detail::FontViewerProgram& FontViewer::getProgram()
-{
-	static detail::FontViewerProgram fvProg;
-	return fvProg;
-}
-
-FontViewer::FontViewer()
-{
-	using b3d::Point;
-	viewVAO.reset(VAODrawMode::Triangles);
-	viewRect.reset(BufferType::Array);
-	{
-		const Point pa({ -1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f }),
-			pb({ 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f }),
-			pc({ -1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }),
-			pd({ 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f });
-		Point DatVert[] = { pa,pb,pc, pd,pc,pb };
-
-		viewRect->write(DatVert, sizeof(DatVert));
-		viewVAO->setDrawSize(0, 6);
-		viewVAO->prepare().set(viewRect, getProgram().prog->Attr_Vert_Pos, sizeof(Point), 2, 0)
-			.set(viewRect, getProgram().prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
-			.set(viewRect, getProgram().prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
-	}
-	getProgram().prog->useSubroutine("fontRenderer", "sdfMid");
-	//getProgram().prog->useSubroutine("fontRenderer", "plainFont");
-}
-
-void FontViewer::draw()
-{
-	getProgram().prog->draw().draw(viewVAO).end();
-}
-
-void FontViewer::bindTexture(const oglTexture& tex)
-{
-	getProgram().prog->globalState().setTexture(tex, "tex").end();
-}
 
 }

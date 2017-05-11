@@ -1,4 +1,5 @@
 #include "RenderCoreRely.h"
+#include "../common/ResourceHelper.h"
 
 namespace rayr
 {
@@ -10,5 +11,11 @@ logger& basLog()
 	return baslog;
 }
 
+string getShaderFromDLL(int32_t id)
+{
+	auto data = ResourceHelper::getData(L"SHADER", id);
+	data.push_back('\0');
+	return string((const char*)data.data());
+}
 
 }

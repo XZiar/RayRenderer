@@ -2,21 +2,10 @@
 #include "resource.h"
 #include "BasicTest.h"
 #include "../3rdParty/stblib/stblib.h"
-#include "../common/ResourceHelper.h"
 #include <thread>
 
 namespace rayr
 {
-
-static string getShaderFromDLL(int32_t id)
-{
-	std::vector<uint8_t> data;
-	if (ResourceHelper::getData(data, L"SHADER", id) != ResourceHelper::Result::Success)
-		return "";
-	data.push_back('\0');
-	return string((const char*)data.data());
-}
-
 
 struct Init
 {
@@ -244,46 +233,8 @@ void BasicTest::prepareLight()
 	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
-Wrapper<Model> BasicTest::_addModel(const wstring& fname)
+void BasicTest::fontTest()
 {
-	Wrapper<Model> mod(fname);
-	mod->name = L"model";
-	return mod;
-}
-
-BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
-{
-	static Init _init;
-	if (false)
-	{
-		try
-		{
-			oclPlatform clPlat;
-			const auto pltfs = oclu::oclUtil::getPlatforms();
-			for (const auto plt : pltfs)
-			{
-				auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
-				for (const auto dev : plt->getDevices())
-					txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
-						dev->name, dev->vendor, dev->version);
-				basLog().verbose(txt);
-				if (plt->isCurrentGL())
-				{
-					clPlat = plt;
-					clContext = plt->createContext();
-					basLog().success(L"Created Context Here!\n");
-				}
-			}
-			oclCmdQue clQue(clContext, clPlat->getDefaultDevice());
-			oclProgram clProg(clContext, getShaderFromDLL(IDR_SHADER_CL));
-			clProg->build();
-		}
-		catch (BaseException& be)
-		{
-			basLog().error(L"init OpenCL context failed:\n{}\n", be.message);
-			COMMON_THROW(BaseException, L"init OpenCL context failed");
-		}
-	}
 	try
 	{
 		fontViewer.reset();
@@ -312,10 +263,10 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		outer.clear();
 		outer.reserve(tmper.size());
 		//for (auto c : tmper)
-			//outer.push_back((c * 0x00010101) | 0xff000000);
+		//outer.push_back((c * 0x00010101) | 0xff000000);
 		//ftexsize = fonttex->getSize();
 		//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\4096-2.png", outer, ftexsize.first, ftexsize.second);
-		
+
 		//fontCreator->setChar(0x9f8d, false);
 		//fontCreator->stroke();
 		fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
@@ -325,6 +276,19 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 		basLog().error(L"Font Construct failure:\n{}\n", be.message);
 		COMMON_THROW(BaseException, L"init FontViewer failed");
 	}
+}
+
+Wrapper<Model> BasicTest::_addModel(const wstring& fname)
+{
+	Wrapper<Model> mod(fname);
+	mod->name = L"model";
+	return mod;
+}
+
+BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
+{
+	static Init _init;
+	fontTest();
 	initTex();
 	init2d(sname2d);
 	init3d(sname3d);
@@ -355,6 +319,13 @@ void BasicTest::resize(const int w, const int h)
 	cam.resize(w, h);
 	prog2D->setProject(cam, w, h);
 	prog3D->setProject(cam, w, h);
+}
+
+void BasicTest::reloadFontLoader(const wstring& fname)
+{
+	auto clsrc = file::readAllTxt(fname);
+	fontCreator->reload(clsrc);
+	fontTest();
 }
 
 bool BasicTest::addModel(const wstring& fname)

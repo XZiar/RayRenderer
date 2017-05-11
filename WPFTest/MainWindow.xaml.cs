@@ -212,11 +212,19 @@ namespace WPFTest
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
-            var cb = await Main.test.AddModelAsync((e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString());
-            if (cb())
+            string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
+            if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
             {
-                Main.curObj = ushort.MaxValue;
-                (sender as OGLView).Invalidate();
+                var cb = await Main.test.AddModelAsync(fname);
+                if (cb())
+                {
+                    Main.curObj = ushort.MaxValue;
+                    (sender as OGLView).Invalidate();
+                }
+            }
+            else
+            {
+                
             }
         }
 

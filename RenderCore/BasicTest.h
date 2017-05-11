@@ -25,13 +25,14 @@ private:
 	oglUBO lightUBO, materialUBO;
 	uint8_t lightLim, materialLim;
 	Wrapper<FontViewer> fontViewer;
-	Wrapper<FontCreater> fontCreator;
+	Wrapper<FontCreator> fontCreator;
 	vector<Wrapper<Drawable>> drawables;
 	vector<Wrapper<Light>> lights;
 	void init2d(const wstring pname);
 	void init3d(const wstring pname);
 	void initTex();
 	void initUBO();
+	void fontTest();
 	void prepareLight();
 	Wrapper<Model> _addModel(const wstring& fname);
 public:
@@ -40,6 +41,7 @@ public:
 	BasicTest(const wstring sname2d = L"", const wstring sname3d = L"");
 	void draw();
 	void resize(const int w, const int h);
+	void reloadFontLoader(const wstring& fname);
 	bool addModel(const wstring& fname);
 	void addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish);
 	void addLight(const b3d::LightType type);

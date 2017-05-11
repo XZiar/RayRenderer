@@ -75,6 +75,7 @@ public:
 	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
 
 	Task<Func<bool>^>^ AddModelAsync(String^ name);
+	Task<Func<bool>^>^ ReloadCL(String^ fname);
 
 	void TryException(int type);
 };

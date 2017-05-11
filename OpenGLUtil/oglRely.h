@@ -63,6 +63,12 @@ using b3d::Mat3x3;
 using b3d::Mat4x4;
 using b3d::Camera;
 using namespace common;
+
+namespace detail
+{
+class TextureManager;
+class UBOManager;
+}
 }
 
 #ifdef OGLU_EXPORT

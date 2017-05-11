@@ -2,14 +2,14 @@
 
 #include "../common/TimeUtil.hpp"
 #include "resource.h"
-#define WIN32_LEAN_AND_MEAN 1
-#include <Windows.h>
-#include "../common/ResourceHelper.inl"
-#include "../common/DelayLoader.inl"
 #include <cstdio>
 #include <vector>
 #include <tuple>
 #include <filesystem>
+#include "../common/ResourceHelper.inl"
+#include "../common/DelayLoader.inl"
+#define WIN32_LEAN_AND_MEAN 1
+#include <Windows.h>
 
 using std::string;
 using std::wstring;
@@ -28,8 +28,7 @@ void createDLL(const wstring& dllname, const int32_t dllid)
 	errno_t errno;
 	if ((errno = _wfopen_s(&fp, dllpath.c_str(), L"wb")) == 0)
 	{
-		vector<uint8_t> dlldata;
-		common::ResourceHelper::getData(dlldata, L"DLL", dllid);
+		auto dlldata = common::ResourceHelper::getData(L"DLL", dllid);
 		fwrite(dlldata.data(), dlldata.size(), 1, fp);
 		fclose(fp);
 	}

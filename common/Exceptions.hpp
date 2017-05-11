@@ -19,12 +19,13 @@ class BaseException;
 namespace detail
 {
 class OtherException;
-class AnyException : protected std::runtime_error, public std::enable_shared_from_this<AnyException>
+class AnyException : public std::runtime_error, public std::enable_shared_from_this<AnyException>
 {
 	friend BaseException;
 	friend OtherException;
 private:
 	explicit AnyException(const std::string& type) : std::runtime_error(type) {}
+	using std::runtime_error::what;
 };
 class OtherException : public AnyException
 {

@@ -49,5 +49,6 @@ using namespace common;
 namespace rayr
 {
 common::mlog::logger& basLog();
+string getShaderFromDLL(int32_t id);
 }
 #endif

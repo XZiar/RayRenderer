@@ -124,6 +124,12 @@ Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ name)
 }
 
 
+Task<Func<bool>^>^ BasicTest::ReloadCL(String^ fname)
+{
+	gcroot<TaskCompletionSource<Func<bool>^>^> tsk = gcnew TaskCompletionSource<Func<bool>^>();
+	return tsk->Task;
+}
+
 #pragma unmanaged
 void TryThrow2()
 {
