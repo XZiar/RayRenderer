@@ -18,11 +18,14 @@
 #include <string>
 #include <tuple>
 #include <map>
+#include <unordered_map>
+#include <set>
 #include <filesystem>
 #include "../3DBasic/3dElement.hpp"
 #include "../common/CommonRely.hpp"
 #include "../common/Wrapper.hpp"
 #include "../common/AlignedContainer.hpp"
+#include "../common/ContainerEx.hpp"
 #include "../common/Exceptions.hpp"
 #include "../common/StringEx.hpp"
 #include "../OpenGLUtil/OpenGLUtil.h"

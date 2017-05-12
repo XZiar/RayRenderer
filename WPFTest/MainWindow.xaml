@@ -23,6 +23,7 @@
                 <Button x:Name="btnAddModel" Content="+Mod" Click="btnAddModel_Click"/>
                 <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
                 <Button x:Name="btnTryExp" Content="Excp" Click="btnTryExp_Click"/>
+                <Button x:Name="btnTryAsync" Content="Async" Click="btnTryAsync_Click"/>
             </StackPanel>
             <RichTextBox x:Name="dbgOutput" Grid.Row="1" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas">
                 <FlowDocument>

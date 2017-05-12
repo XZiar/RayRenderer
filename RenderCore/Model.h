@@ -72,7 +72,7 @@ private:
 	const wstring mfnane;
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const fs::path& mtlfname);
-	bool loadOBJ(const fs::path& objfname);
+	void loadOBJ(const fs::path& objfname);
 	_ModelData(const wstring& fname, bool asyncload = false);
 public:
 	void initData();

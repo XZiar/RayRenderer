@@ -120,6 +120,13 @@ namespace WPFTest
             vbBrs = new SolidColorBrush(Colors.Pink),
             dbgBrs = new SolidColorBrush(Colors.Cyan);
 
+        private async void btnTryAsync_Click(object sender, RoutedEventArgs e)
+        {
+            var ret = await Main.test.TryAsync();
+            ret();
+            Console.WriteLine("finish calling async");
+        }
+
         private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             Console.WriteLine(e.Key);
@@ -219,6 +226,8 @@ namespace WPFTest
                 if (cb())
                 {
                     Main.curObj = ushort.MaxValue;
+                    Main.Rotate(-90, 0, 0, Main.OPObject.Object);
+                    Main.Move(-1, 0, 0, Main.OPObject.Object);
                     (sender as OGLView).Invalidate();
                 }
             }

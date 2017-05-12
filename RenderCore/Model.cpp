@@ -2,8 +2,6 @@
 #include "Model.h"
 #include "../3rdParty/stblib/stblib.h"
 #include "../3rdParty/uchardetlib/uchardetlib.h"
-#include <unordered_map>
-#include <set>
 
 
 namespace rayr
@@ -83,9 +81,8 @@ ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 
 ModelImage _ModelImage::getImage(const wstring& pname)
 {
-	const auto it = images.find(pname);
-	if (it != images.end())
-		return it->second;
+	if (auto img = findmap(images, pname))
+		return **img;
 	else
 		return ModelImage();
 }
@@ -287,28 +284,19 @@ map<wstring, ModelData> _ModelData::models;
 
 ModelData _ModelData::getModel(const wstring& fname, bool asyncload)
 {
-	const auto it = models.find(fname);
-	if (it != models.end())
-	{
-		return it->second;
-	}
-	else
-	{
-		auto md = new _ModelData(fname, asyncload);
-		ModelData m(std::move(md));
-		models.insert_or_assign(fname, m);
-		return m;
-	}
+	if (auto md = findmap(models, fname))
+		return **md;
+	auto md = new _ModelData(fname, asyncload);
+	ModelData m(std::move(md));
+	models.insert_or_assign(fname, m);
+	return m;
 }
 
 void _ModelData::releaseModel(const wstring& fname)
 {
-	const auto it = models.find(fname);
-	if (it != models.end())
-	{
-		if (it->second.unique())
-			models.erase(it);
-	}
+	if (auto md = findmap(models, fname))
+		if ((**md).unique())
+			models.erase(fname);
 }
 
 oglu::oglVAO _ModelData::getVAO() const
@@ -489,7 +477,7 @@ catch (FileException& fe)
 #pragma warning(default:4101)
 
 
-bool _ModelData::loadOBJ(const fs::path& objpath) try
+void _ModelData::loadOBJ(const fs::path& objpath) try
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(objpath);
@@ -541,9 +529,8 @@ bool _ModelData::loadOBJ(const fs::path& objpath) try
 				{
 					ldr.parseInt(a, tmpi);//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
-					const auto it = idxmap.find(stub);
-					if (it != idxmap.end())
-						tmpidx[a] = it->second;
+					if (auto oidx = findmap(idxmap, stub))
+						tmpidx[a] = **oidx;
 					else
 					{
 						const uint32_t idx = static_cast<uint32_t>(pts.size());
@@ -574,9 +561,8 @@ bool _ModelData::loadOBJ(const fs::path& objpath) try
 			{
 				string mtlname(ldr.param[0]);
 				groups.push_back({ mtlname,(uint32_t)indexs.size() });
-				const auto it = mtlmap.find(mtlname);
-				if (it != mtlmap.end())
-					curmtl = &it->second;
+				if (auto omtl = findmap(mtlmap, mtlname))
+					curmtl = &**omtl;
 			}break;
 		case "mtllib"_hash://import mtl file
 			{
@@ -592,14 +578,12 @@ bool _ModelData::loadOBJ(const fs::path& objpath) try
 	basLog().success(L"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
 	basLog().success(L"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
 	basLog().info(L"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
-	
-	return true;
 }
 #pragma warning(disable:4101)
 catch (const FileException& fe)
 {
 	basLog().error(L"Fail to open obj file\t[{}]\n", objpath.wstring());
-	return false;
+	COMMON_THROW(BaseException, L"fail to load model data");
 }
 #pragma warning(default:4101)
 

@@ -17,11 +17,11 @@ namespace WPFTest
             get { return curObj_; }
             set
             {
-                if (value >= test.objectCount)
-                    curObj_ = 0;
-                else if (value == ushort.MaxValue)
+                if (value == ushort.MaxValue)
                     curObj_ = (ushort)(test.objectCount - 1);
-                else
+                else if(value >= test.objectCount)
+                    curObj_ = 0;
+                else 
                     curObj_ = value;
             }
         }

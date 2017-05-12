@@ -3,63 +3,12 @@
 #include <msclr/marshal_cppstd.h>
 
 #include <vcclr.h>
-
+#include "../common/CLIAsync.hpp"
 
 namespace RayRender
 {
 
 using namespace common;
-
-private ref class BoolFuncWrapper
-{
-private:
-	std::function<bool(void)> *func;
-	bool doit()
-	{
-		return (*func)();
-	}
-public:
-	BoolFuncWrapper() {}
-	void setFunc(const std::function<bool(void)> * const func_)
-	{
-		func = new std::function<bool(void)>(*func_);
-	}
-	Func<bool>^ getFunc()
-	{
-		return gcnew Func<bool>(this, &BoolFuncWrapper::doit);
-	}
-};
-
-void __cdecl SetToTask(const gcroot<TaskCompletionSource<Func<bool>^>^>& tsk, const std::function<bool(void)>& func)
-{
-	BoolFuncWrapper^ wrapper = gcnew BoolFuncWrapper();
-	wrapper->setFunc(&func);
-	tsk->SetResult(wrapper->getFunc());
-}
-
-#pragma unmanaged
-
-bool __cdecl OPResultWrapper(rayr::BasicTest *core, std::function<bool(void)> cb)
-{
-	if (cb())
-	{
-		const auto curObj = core->objectCount() - 1;
-		core->rotateobj(curObj, -90, 0, 0);
-		core->moveobj(curObj, -1, 0, 0);
-		return true;
-	}
-	return false;
-}
-
-void coreAddModel(rayr::BasicTest *core, const std::wstring fname, gcroot<TaskCompletionSource<Func<bool>^>^> tsk)
-{
-	core->addModelAsync(fname, [core, tsk](std::function<bool(void)> cb)
-	{
-		SetToTask(tsk, std::bind(&OPResultWrapper, core, cb));
-	});
-}
-
-#pragma managed
 
 
 BasicTest::BasicTest()
@@ -116,18 +65,20 @@ void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const
 	core->rotateobj(id, x, y, z);
 }
 
-Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ name)
+Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ fname)
 {
-	gcroot<TaskCompletionSource<Func<bool>^>^> tsk = gcnew TaskCompletionSource<Func<bool>^>();
-	coreAddModel(core, msclr::interop::marshal_as<std::wstring>(name), tsk);
-	return tsk->Task;
+	return doAsync<bool>(&rayr::BasicTest::addModelAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
 }
 
 
-Task<Func<bool>^>^ BasicTest::ReloadCL(String^ fname)
+Task<Func<bool>^>^ BasicTest::ReloadCLAsync(String^ fname)
 {
-	gcroot<TaskCompletionSource<Func<bool>^>^> tsk = gcnew TaskCompletionSource<Func<bool>^>();
-	return tsk->Task;
+	return doAsync<bool>(&rayr::BasicTest::reloadFontLoaderAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
+}
+
+Task<Func<bool>^>^ BasicTest::TryAsync()
+{
+	return doAsync<bool>(&rayr::BasicTest::tryAsync, core);
 }
 
 #pragma unmanaged
@@ -141,10 +92,8 @@ void TryThrow(int type)
 	{
 	case 1:
 		COMMON_THROW(common::BaseException, L"Here's try 1");
-		//throw common::BaseException(L"Here's try 1");
 	case 2:
 		COMMON_THROW(common::FileException, common::FileException::Reason::NotExist, L"sss", L"here's try 2");
-		//throw common::FileException(common::FileException::Reason::NotExist, L"sss", L"here's try 2");
 	case 3:
 		try
 		{

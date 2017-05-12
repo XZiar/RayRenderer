@@ -74,8 +74,9 @@ public:
 	void Moveobj(const uint16_t id, const float x, const float y, const float z);
 	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
 
-	Task<Func<bool>^>^ AddModelAsync(String^ name);
-	Task<Func<bool>^>^ ReloadCL(String^ fname);
+	Task<Func<bool>^>^ AddModelAsync(String^ fname);
+	Task<Func<bool>^>^ ReloadCLAsync(String^ fname);
+	Task<Func<bool>^>^ TryAsync();
 
 	void TryException(int type);
 };

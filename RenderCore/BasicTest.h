@@ -32,7 +32,7 @@ private:
 	void init3d(const wstring pname);
 	void initTex();
 	void initUBO();
-	void fontTest();
+	void fontTest(const wchar_t word = 0x554A);
 	void prepareLight();
 	Wrapper<Model> _addModel(const wstring& fname);
 public:
@@ -42,6 +42,7 @@ public:
 	void draw();
 	void resize(const int w, const int h);
 	void reloadFontLoader(const wstring& fname);
+	void reloadFontLoaderAsync(const wstring& fname);
 	bool addModel(const wstring& fname);
 	void addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish);
 	void addLight(const b3d::LightType type);
@@ -55,6 +56,7 @@ public:
 	uint16_t objectCount() const;
 	const vector<Wrapper<Drawable>>& object() const { return drawables; }
 	void showObject(uint16_t objIdx) const;
+	void tryAsync(std::function<void(std::function<bool(void)>)> onFinish) const;
 };
 
 }

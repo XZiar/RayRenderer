@@ -233,7 +233,7 @@ void BasicTest::prepareLight()
 	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
-void BasicTest::fontTest()
+void BasicTest::fontTest(const wchar_t word)
 {
 	try
 	{
@@ -249,7 +249,7 @@ void BasicTest::fontTest()
 			outer.push_back((c * 0x00010101) | 0xff000000);
 		auto ftexsize = fonttex->getSize();
 		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\G.png", outer, ftexsize.first, ftexsize.second);
-		fontCreator->setChar(0x554A, false);
+		fontCreator->setChar(word, false);
 		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		for (auto c : tmper)
@@ -258,7 +258,7 @@ void BasicTest::fontTest()
 		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\A.png", outer, ftexsize.first, ftexsize.second);
 		//fontCreator->bmpsdf(0x554A);
 		//fontCreator->clbmpsdfgrey(0x554A);
-		fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
+		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
 		tmper = fonttex->getData(TextureDataFormat::R8);
 		outer.clear();
 		outer.reserve(tmper.size());
@@ -328,6 +328,13 @@ void BasicTest::reloadFontLoader(const wstring& fname)
 	fontTest();
 }
 
+void BasicTest::reloadFontLoaderAsync(const wstring& fname)
+{
+	auto clsrc = file::readAllTxt(fname);
+	fontCreator->reload(clsrc);
+	fontTest();
+}
+
 bool BasicTest::addModel(const wstring& fname)
 {
 	Wrapper<Model> mod(fname);
@@ -341,14 +348,22 @@ void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::func
 {
 	std::thread([this, onFinish](const wstring name)
 	{
-		Wrapper<Model> mod(name, true);
-		mod->name = L"model";
-		onFinish([&, mod]()mutable
+		try
 		{
-			mod->prepareGL(prog3D);
-			drawables.push_back(mod);
-			return true;
-		});
+			Wrapper<Model> mod(name, true);
+			mod->name = L"model";
+			onFinish([&, mod]()mutable
+			{
+				mod->prepareGL(prog3D);
+				drawables.push_back(mod);
+				return true;
+			});
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"failed to load model by file {}", name);
+			onFinish([]() { return false; });
+		}
 	}, fname).detach();
 }
 
@@ -417,6 +432,27 @@ void BasicTest::showObject(uint16_t objIdx) const
 {
 	const auto& d = drawables[objIdx];
 	basLog().info(L"Drawable {}:\t {}  [{}]\n", objIdx, d->name, d->getType());
+}
+
+static uint32_t getTID()
+{
+	auto tid = std::this_thread::get_id();
+	return *(uint32_t*)&tid;
+}
+
+void BasicTest::tryAsync(std::function<void(std::function<bool(void)>)> onFinish) const
+{
+	basLog().debug(L"begin async in pid {}\n", getTID());
+	std::thread([onFinish] ()
+	{
+		std::this_thread::sleep_for(std::chrono::seconds(10)); 
+		basLog().debug(L"async thread in pid {}\n", getTID());
+		onFinish([]() 
+		{
+			basLog().debug(L"async callback in pid {}\n", getTID());
+			return true;
+		});
+	}).detach();
 }
 
 }

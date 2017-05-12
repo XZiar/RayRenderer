@@ -29,7 +29,7 @@ struct EleTyper<const T, Ele>
 
 }
 
-template<class Map, class Key = typename Map::key_type, class Val = typename detail::EleTyper<Map, Map::mapped_type>::type>
+template<class Map, class Key = typename Map::key_type, class Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
 inline std::optional<Val*> findmap(Map& themap, const Key& key)
 {
 	const auto it = themap.find(key);
