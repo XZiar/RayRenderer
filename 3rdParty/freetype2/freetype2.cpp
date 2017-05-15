@@ -47,7 +47,7 @@ FreeTyper::FreeTyper(const fs::path& fontpath)
 	//FT_Set_Char_Size((FT_Face)face, 0, height * 64, 96, 96);
 }
 
-pair<vector<uint8_t>, pair<uint32_t, uint32_t>> FreeTyper::getChBitmap(wchar_t ch, bool custom) const
+common::Image<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool custom) const
 {
 	auto f = (FT_Face)face;
 	auto idx = getGlyphIndex(ch);
@@ -60,11 +60,11 @@ pair<vector<uint8_t>, pair<uint32_t, uint32_t>> FreeTyper::getChBitmap(wchar_t c
 		FT_Render_Glyph(glyph, FT_RENDER_MODE_NORMAL);
 		auto bmp = glyph->bitmap;
 		//width alignment fix and 1px border
-		auto w = ((bmp.width + 2 + 3) / 4) * 4, h = bmp.rows + 2;
-		vector<uint8_t> dat(w*h, 0);
+		auto w = ((bmp.width + 2 + 3) / 4) * 4, h = ((bmp.rows + 2 + 3) / 4) * 4;
+		vectorEx<uint8_t> dat(w*h, 0);
 		for (uint32_t a = 0; a < bmp.rows; a++)
 			memmove(dat.data() + (a + 1)*w + 1, bmp.buffer + a*bmp.width, bmp.width);
-		return { dat,{w,h} };
+		return { w,h,dat };
 	}
 	else
 	{
@@ -72,7 +72,7 @@ pair<vector<uint8_t>, pair<uint32_t, uint32_t>> FreeTyper::getChBitmap(wchar_t c
 		auto ret = TryRenderLine(&glyph->outline);
 		auto w = ret.second.first, h = ret.second.second;
 		w = ((w + 2 + 3) / 4) * 4, h = h + 2;
-		vector<uint8_t> dat(w*h, 0);
+		vectorEx<uint8_t> dat(w*h, 0);
 		auto lines = ret.first;
 		for(const auto& l : lines)
 		{
@@ -80,7 +80,7 @@ pair<vector<uint8_t>, pair<uint32_t, uint32_t>> FreeTyper::getChBitmap(wchar_t c
 			for (auto a = l.len; a--;)
 				*pdat++ = 255;
 		}
-		return { dat,{ w,h } };
+		return { w,h,dat };
 	}
 }
 

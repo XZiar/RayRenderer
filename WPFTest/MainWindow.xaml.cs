@@ -71,23 +71,6 @@ namespace WPFTest
         }
 
         
-        private void btnTryExp_Click(object sender, RoutedEventArgs args)
-        {
-            extype++;
-            if (extype > 2 * 3)
-                extype = 1;
-            try
-            {
-                Main.test.TryException(extype);
-            }
-            catch(Exception e)
-            {
-                OnLog(LogLevel.Error, "WPF", e.Message);
-            }
-        }
-
-        int extype = 0;
-
         private void OnLog(LogLevel lv, string from, string content)
         {
             dbgOutput.Dispatcher.BeginInvoke(new Action(() => 
@@ -122,9 +105,16 @@ namespace WPFTest
 
         private async void btnTryAsync_Click(object sender, RoutedEventArgs e)
         {
-            var ret = await Main.test.TryAsync();
-            ret();
-            Console.WriteLine("finish calling async");
+            try
+            {
+                var ret = await Main.test.TryAsync();
+                ret();
+                Console.WriteLine("finish calling async");
+            }
+            catch(Exception ex)
+            {
+                throw new Exception("received exception", ex);
+            }
         }
 
         private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
@@ -231,9 +221,9 @@ namespace WPFTest
                     (sender as OGLView).Invalidate();
                 }
             }
-            else
+            else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
             {
-                
+                Main.test.ReLoadCL(fname);
             }
         }
 

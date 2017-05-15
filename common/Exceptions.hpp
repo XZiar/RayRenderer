@@ -52,7 +52,7 @@ public:
 	StackTraceItem() : file(L"Undefined"), func(L"Undefined"), line(0) {}
 	StackTraceItem(const char* file_, const char* func_, const size_t pos) : file(to_wstring(file_)), func(to_wstring(func_)), line(pos) {}
 };
-#define GENARATE_STACK_TRACE ::common::StackTraceItem(__FILE__, __func__, __LINE__)
+#define GENARATE_STACK_TRACE ::common::StackTraceItem(__FILE__, __FUNCSIG__, __LINE__)
 
 
 class BaseException : public detail::AnyException
@@ -95,7 +95,7 @@ public:
 	{
 		if (innerException)
 		{
-			const auto beptr = dynamic_cast<BaseException*>(&*innerException);
+			const auto beptr = dynamic_cast<BaseException*>(innerException.get());
 			if (beptr != nullptr)
 				return innerException.cast_static<BaseException>();
 		}
@@ -159,7 +159,7 @@ class FileException : public BaseException
 {
 public:
 	enum class Reason { NotExist, WrongFormat, OpenFail, ReadFail, WriteFail, CloseFail };
-private:
+public:
 	fs::path filepath;
 public:
 	EXCEPTION_CLONE_EX(FileException);
@@ -172,4 +172,5 @@ public:
 
 
 }
+
 #pragma warning(default:4101)

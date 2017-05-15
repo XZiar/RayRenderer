@@ -4,9 +4,9 @@
 #error("CLIAsync should only be used with /clr")
 #endif
 
+#include "CLIException.hpp"
 #include <functional>
 
-#include <msclr/marshal_cppstd.h>
 #include <vcclr.h>
 
 using namespace System;
@@ -36,7 +36,7 @@ public:
 		if (func != nullptr)
 			delete func;
 	}
-	void setFunc(const std::function<RetType(void)> * const func_)
+	void setFunc(const std::function<RetType(void)>* const func_)
 	{
 		func = new std::function<RetType(void)>(*func_);
 	}
@@ -55,6 +55,12 @@ inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<Func<RetType
 	tsk->SetResult(wrapper->getFunc());
 }
 
+template<class RetType>
+inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<Func<RetType>^>^>& tsk, const BaseException& be)
+{
+	tsk->SetException(gcnew CPPException(be));
+}
+
 #pragma managed(push, off)
 
 template<class RetType>
@@ -67,6 +73,9 @@ inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&
 	std::invoke(memfunc, *obj, args..., [tsk](std::function<RetType(void)> cb)
 	{
 		SetTaskResult(tsk, cb);
+	}, [tsk](BaseException be)
+	{
+		SetTaskResult(tsk, be);
 	});
 }
 

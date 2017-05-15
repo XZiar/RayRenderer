@@ -41,7 +41,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MIT License](./License/freeglut.txt)
 
-* [boost](http://www.boost.org/)  1.64-beta2
+* [boost](http://www.boost.org/)  1.64.0
 
   [Boost Software License](./License/boost.txt)
 

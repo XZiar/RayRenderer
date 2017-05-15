@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -25,7 +26,7 @@ namespace WPFTest
         {
             var ex = e.ExceptionObject as Exception;
             Console.WriteLine($"Unexpected Exception {ex.GetType()}\n{ex.Message}\n");
-            MessageBox.Show($"{ex.Message}\n{ex.StackTrace}", ex.GetType().ToString());
+            new ExceptionDialog(ex).ShowDialog();
             throw ex;
         }
 

@@ -325,14 +325,15 @@ void BasicTest::reloadFontLoader(const wstring& fname)
 {
 	auto clsrc = file::readAllTxt(fname);
 	fontCreator->reload(clsrc);
-	fontTest();
+	fontTest(L'Œ“');
 }
 
-void BasicTest::reloadFontLoaderAsync(const wstring& fname)
+void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError)
 {
 	auto clsrc = file::readAllTxt(fname);
 	fontCreator->reload(clsrc);
-	fontTest();
+	fontTest(L'Œ“');
+	onFinish([]() { return true; });
 }
 
 bool BasicTest::addModel(const wstring& fname)
@@ -344,9 +345,9 @@ bool BasicTest::addModel(const wstring& fname)
 	return true;
 }
 
-void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish)
+void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError)
 {
-	std::thread([this, onFinish](const wstring name)
+	std::thread([this, onFinish, onError](const wstring name)
 	{
 		try
 		{
@@ -362,7 +363,10 @@ void BasicTest::addModelAsync(const wstring& fname, std::function<void(std::func
 		catch (BaseException& be)
 		{
 			basLog().error(L"failed to load model by file {}", name);
-			onFinish([]() { return false; });
+			if (onError)
+				onError(be);
+			else
+				onFinish([]() { return false; });
 		}
 	}, fname).detach();
 }
@@ -440,13 +444,22 @@ static uint32_t getTID()
 	return *(uint32_t*)&tid;
 }
 
-void BasicTest::tryAsync(std::function<void(std::function<bool(void)>)> onFinish) const
+void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError) const
 {
 	basLog().debug(L"begin async in pid {}\n", getTID());
-	std::thread([onFinish] ()
+	std::thread([onFinish, onError] ()
 	{
 		std::this_thread::sleep_for(std::chrono::seconds(10)); 
 		basLog().debug(L"async thread in pid {}\n", getTID());
+		try
+		{
+			COMMON_THROW(BaseException, L"ERROR in async call");
+		}
+		catch (BaseException& be)
+		{
+			onError(be);
+			return;
+		}
 		onFinish([]() 
 		{
 			basLog().debug(L"async callback in pid {}\n", getTID());

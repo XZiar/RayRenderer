@@ -85,4 +85,20 @@ using hashmapEx = std::unordered_map<K, H, E, V, common::AlignAllocator<std::pai
 template<class T, class H = std::hash<T>, class E = std::equal_to<K>>
 using hashsetEx = std::unordered_set<T, H, E, common::AlignAllocator<T>>;
 
+
+namespace ImageType
+{
+struct RGBA { using ComponentType = uint32_t; };
+struct GREY { using ComponentType = uint8_t; };
+}
+
+template<class T>
+struct Image
+{
+public:
+	uint32_t width, height;
+	common::vectorEx<typename T::ComponentType> data;
+	size_t size() const { return data.size(); }
+};
+
 }

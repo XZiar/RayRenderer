@@ -148,8 +148,8 @@ void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWr
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data)
 {
-	if ((w*parseFormatSize(dformat)) % 4)
-		COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's data should be aligned to 4byte");
+	if (w % 4)
+		COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
 	bind(0);
 	GLenum datatype, comptype;
 	parseFormat(dformat, datatype, comptype);

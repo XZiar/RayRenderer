@@ -7,7 +7,7 @@
 namespace rayr
 {
 
-union alignas(uint64_t)PTstub
+union alignas(uint64_t) PTstub
 {
 	uint64_t num;
 	struct

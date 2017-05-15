@@ -42,9 +42,9 @@ public:
 	void draw();
 	void resize(const int w, const int h);
 	void reloadFontLoader(const wstring& fname);
-	void reloadFontLoaderAsync(const wstring& fname);
+	void reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError = nullptr);
 	bool addModel(const wstring& fname);
-	void addModelAsync(const wstring& fname, std::function<void(std::function<bool(void)>)> onFinish);
+	void addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError = nullptr);
 	void addLight(const b3d::LightType type);
 	void delAllLight();
 	void moveobj(const uint16_t id, const float x, const float y, const float z);
@@ -56,7 +56,7 @@ public:
 	uint16_t objectCount() const;
 	const vector<Wrapper<Drawable>>& object() const { return drawables; }
 	void showObject(uint16_t objIdx) const;
-	void tryAsync(std::function<void(std::function<bool(void)>)> onFinish) const;
+	void tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError = nullptr) const;
 };
 
 }

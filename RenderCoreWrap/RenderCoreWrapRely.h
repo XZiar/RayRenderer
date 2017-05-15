@@ -9,3 +9,5 @@ using namespace common;
 using std::vector;
 
 #pragma managed
+
+#include <msclr/marshal_cppstd.h>

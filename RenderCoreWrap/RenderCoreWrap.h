@@ -1,4 +1,3 @@
-// RenderCoreWrap.h
 #pragma once
 
 #include "RenderCoreWrapRely.h"
@@ -7,6 +6,8 @@
 using namespace System;
 using namespace System::Collections::Generic;
 using namespace System::Threading::Tasks;
+using namespace msclr::interop;
+
 
 namespace RayRender
 {
@@ -16,11 +17,11 @@ ref class BasicTest;
 public ref class LightHolder
 {
 private:
-	const vector<common::Wrapper<b3d::Light>>& src;
+	const vector<Wrapper<b3d::Light>>& src;
 	List<Basic3D::Light^>^ lights;
 	rayr::BasicTest * const core;
 internal:
-	LightHolder(rayr::BasicTest *core_, const vector<common::Wrapper<b3d::Light>>& lights_) : core(core_), src(lights_) {}
+	LightHolder(rayr::BasicTest *core_, const vector<Wrapper<b3d::Light>>& lights_) : core(core_), src(lights_) {}
 public:
 	property Basic3D::Light^ default[int32_t]
 	{
@@ -74,11 +75,12 @@ public:
 	void Moveobj(const uint16_t id, const float x, const float y, const float z);
 	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
 
+	void ReLoadCL(String^ fname);
+
 	Task<Func<bool>^>^ AddModelAsync(String^ fname);
 	Task<Func<bool>^>^ ReloadCLAsync(String^ fname);
 	Task<Func<bool>^>^ TryAsync();
 
-	void TryException(int type);
 };
 
 }
