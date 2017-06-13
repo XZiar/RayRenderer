@@ -16,7 +16,7 @@ protected:
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z;
 
-	explicit Vec3(const bool setZero = false)
+	explicit Vec3(const bool setZero = false) noexcept
 	{
 		if (setZero)
 		{
@@ -28,20 +28,20 @@ public:
 		}
 	}
 	template<class T>
-	Vec3(const T x_, const T y_, const T z_, const T w_ = static_cast<T>(0))
+	Vec3(const T x_, const T y_, const T z_, const T w_ = static_cast<T>(0)) noexcept
 		:Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_)) { };
 	template<class T>
-	explicit Vec3(const T *ptr) :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) { };
+	explicit Vec3(const T *ptr) noexcept
+		:Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) { };
 #ifdef __SSE2__
-	explicit Vec3(const float *ptr) { float_dat = _mm_loadu_ps(ptr); }
-	Vec3(const __m128& dat_) { float_dat = dat_; };
+	explicit Vec3(const float *ptr) noexcept { float_dat = _mm_loadu_ps(ptr); }
+	Vec3(const __m128& dat_) noexcept { float_dat = dat_; };
 #endif
-
 	VECCALL operator float*() { return data; };
 	VECCALL operator const float*() const { return data; };
 #ifdef __SSE2__
-	VECCALL operator __m128&() { return float_dat; };
-	VECCALL operator const __m128&() const { return float_dat; };
+	VECCALL operator __m128&() noexcept { return float_dat; };
+	VECCALL operator const __m128&() const noexcept { return float_dat; };
 #endif
 
 	bool operator<(const Vec3& other) const = delete;

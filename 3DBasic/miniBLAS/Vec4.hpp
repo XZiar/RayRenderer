@@ -17,7 +17,7 @@ protected:
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
 
-	explicit Vec4(const bool setZero = false)
+	explicit Vec4(const bool setZero = false) noexcept
 	{
 		if (setZero)
 		{
@@ -29,24 +29,24 @@ public:
 		}
 	}
 	template<class T>
-	Vec4(const T x_, const T y_, const T z_, const T w_)
+	Vec4(const T x_, const T y_, const T z_, const T w_) noexcept
 		:Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_))
 	{
 	};
 	template<class T>
-	explicit Vec4(const T *ptr)
+	explicit Vec4(const T *ptr) noexcept
 		:Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2]), static_cast<float>(ptr[3])) 
 	{
 	};
 #ifdef __SSE2__
-	explicit Vec4(const float *ptr) { float_dat = _mm_loadu_ps(ptr); }
-	Vec4(const __m128& dat_) { float_dat = dat_; };
+	explicit Vec4(const float *ptr) noexcept { float_dat = _mm_loadu_ps(ptr); }
+	Vec4(const __m128& dat_) noexcept { float_dat = dat_; };
 #endif
-	explicit Vec4(const Vec3& v, const float w_)
+	explicit Vec4(const Vec3& v, const float w_) noexcept
 	{
 		x = v.x, y = v.y, z = v.z, w = w_;
 	}
-	explicit Vec4(const Vec3& v, const bool isHomogeneous = true)
+	explicit Vec4(const Vec3& v, const bool isHomogeneous = true) noexcept
 	{
 		if (isHomogeneous)
 		{
@@ -58,11 +58,11 @@ public:
 		}
 	}
 
-	VECCALL operator float*() { return data; };
-	VECCALL operator const float*() const { return data; };
+	VECCALL operator float*() noexcept { return data; };
+	VECCALL operator const float*() const noexcept { return data; };
 #ifdef __SSE2__
-	VECCALL operator __m128&() { return float_dat; };
-	VECCALL operator const __m128&() const { return float_dat; };
+	VECCALL operator __m128&() noexcept { return float_dat; };
+	VECCALL operator const __m128&() const noexcept { return float_dat; };
 #endif
 
 	bool operator<(const Vec4& other) const = delete;

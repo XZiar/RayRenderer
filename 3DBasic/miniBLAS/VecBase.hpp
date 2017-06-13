@@ -32,11 +32,11 @@ protected:
 		};
 	};
 
-	Vec4Base() { };
-	Vec4Base(const T x_) :x(x_) { };
-	Vec4Base(const T x_, const T y_) :x(x_), y(y_) { };
-	Vec4Base(const T x_, const T y_, const T z_) :x(x_), y(y_), z(z_) { };
-	Vec4Base(const T x_, const T y_, const T z_, const T w_) :x(x_), y(y_), z(z_), w(w_) { };
+	Vec4Base() noexcept { };
+	Vec4Base(const T x_) noexcept :x(x_) { };
+	Vec4Base(const T x_, const T y_) noexcept :x(x_), y(y_) { };
+	Vec4Base(const T x_, const T y_, const T z_) noexcept :x(x_), y(y_), z(z_) { };
+	Vec4Base(const T x_, const T y_, const T z_, const T w_) noexcept :x(x_), y(y_), z(z_), w(w_) { };
 public:
 	
 	T& operator[](int idx)
@@ -47,7 +47,7 @@ public:
 	{
 		return data[idx];
 	}
-
+	bool operator<(const Vec4Base& other) const = delete;
 };
 
 

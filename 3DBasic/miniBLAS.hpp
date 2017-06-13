@@ -12,8 +12,8 @@
 namespace miniBLAS
 {
 
-template<class T1, class T2, class T3>
-T3 dot(const T1& left, const T2& right)
+template<class T1, class T2>
+auto dot(const T1& left, const T2& right)
 {
 	return left.dot(right);
 }

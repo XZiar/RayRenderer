@@ -7,18 +7,6 @@
 #include <cmath>
 
 
-#ifdef __AVX2__
-#   define __AVX__ 1
-#endif
-
-#ifdef __AVX__
-#   define __SSE4_2__ 1
-#endif
-
-#ifdef __SSE4_2__
-#   define __SSE2__ 1
-#endif
-
 #if defined(__GNUC__)
 #   include <x86intrin.h>
 #   define _mm256_set_m128(/* __m128 */ hi, /* __m128 */ lo)  _mm256_insertf128_ps(_mm256_castps128_ps256(lo), (hi), 0x1)
@@ -29,6 +17,18 @@
 #   if (_M_IX86_FP == 2)
 #      define __SSE2__ 1
 #   endif
+#endif
+
+#ifdef __AVX2__
+#   define __AVX__ 1
+#endif
+
+#ifdef __AVX__
+#   define __SSE4_2__ 1
+#endif
+
+#ifdef __SSE4_2__
+#   define __SSE2__ 1
 #endif
 
 #if defined(_WIN32) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)

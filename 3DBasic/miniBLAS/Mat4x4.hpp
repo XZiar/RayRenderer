@@ -95,23 +95,23 @@ protected:
 public:
 	using SQMat4Base::x; using SQMat4Base::y; using SQMat4Base::z; using SQMat4Base::w;
 
-	Mat4x4() { }
-	Mat4x4(const Vec4& x_, const Vec4& y_, const Vec4& z_, const Vec4& w_) :SQMat4Base(x_, y_, z_, w_) { };
-	Mat4x4(const __m256 xy_, const __m256 zw_) :SQMat4Base(xy_, zw_) { };
-	explicit Mat4x4(const Vec4 *ptr) :SQMat4Base(ptr[0], ptr[1], ptr[2], ptr[3]) { };
+	Mat4x4() noexcept { }
+	Mat4x4(const Vec4& x_, const Vec4& y_, const Vec4& z_, const Vec4& w_) noexcept :SQMat4Base(x_, y_, z_, w_) { };
+	Mat4x4(const __m256 xy_, const __m256 zw_) noexcept :SQMat4Base(xy_, zw_) { };
+	explicit Mat4x4(const Vec4 *ptr) noexcept :SQMat4Base(ptr[0], ptr[1], ptr[2], ptr[3]) { };
 #ifdef __SSE2__
-	Mat4x4(const __m128x4& dat)
+	Mat4x4(const __m128x4& dat) noexcept
 	{
 		x = dat[0]; y = dat[1]; z = dat[2]; w = dat[3];
 	};
 #endif
 	template<class T>
-	explicit Mat4x4(const T *ptr)
+	explicit Mat4x4(const T *ptr) noexcept
 	{
 		for (int32_t a = 0; a < 16; ++a)
 			element[a] = static_cast<float>(ptr[a]);
 	}
-	explicit Mat4x4(const float *ptr)
+	explicit Mat4x4(const float *ptr) noexcept
 	{
 	#ifdef __AVX__
 		float_xy = _mm256_loadu_ps(ptr);
@@ -125,7 +125,7 @@ public:
 		memcpy(element, ptr, sizeof(float) * 16);
 	#endif
 	};
-	explicit Mat4x4(const Mat3x3& m, const bool isHomogeneous = true)
+	explicit Mat4x4(const Mat3x3& m, const bool isHomogeneous = true) noexcept
 	{
 	#ifdef __SSE2__
 		x = Vec4(m.x, .0f), y = Vec4(m.y, .0f), z = Vec4(m.z, .0f);
@@ -138,10 +138,10 @@ public:
 	#endif
 	}
 
-	VECCALL operator float*() { return element; };
-	VECCALL operator const float*() const { return element; };
-	VECCALL operator Mat3x3&() { return *(Mat3x3*)this; }
-	VECCALL operator const Mat3x3&() const { return *(Mat3x3*)this; }
+	VECCALL operator float*() noexcept { return element; };
+	VECCALL operator const float*() const noexcept { return element; };
+	VECCALL operator Mat3x3&() noexcept { return *(Mat3x3*)this; }
+	VECCALL operator const Mat3x3&() const noexcept { return *(Mat3x3*)this; }
 
 
 	Mat4x4 VECCALL inv() const
@@ -276,6 +276,16 @@ public:
 		return Mat4x4(dat);
 	#endif
 	}
+
+	friend Mat4x4 VECCALL operator+(const Mat4x4& left, const float right);
+	friend Mat4x4 VECCALL operator+(const Mat4x4& left, const Mat4x4& right);
+	friend Mat4x4 VECCALL operator-(const Mat4x4& left, const float right);
+	friend Mat4x4 VECCALL operator-(const Mat4x4& left, const Mat4x4& right);
+	friend Mat4x4 VECCALL operator*(const Mat4x4& left, const float right);
+	friend Vec4 VECCALL operator*(const Mat4x4& left, const Vec4& right);
+	friend Mat4x4 VECCALL operator*(const Mat4x4& left, const Mat4x4& right);
+	friend Mat4x4 VECCALL operator/(const Mat4x4& left, const float right);
+
 };
 
 inline Mat4x4 VECCALL operator+(const Mat4x4& left, const float right)
@@ -322,7 +332,7 @@ inline Mat4x4 VECCALL operator-(const Mat4x4& left, const Mat4x4& right)
 #endif
 }
 
-inline Mat4x4 operator*(const Mat4x4& left, const float right)
+inline Mat4x4 VECCALL operator*(const Mat4x4& left, const float right)
 {
 #ifdef __AVX__
 	const __m256 v256 = _mm256_set1_ps(right);

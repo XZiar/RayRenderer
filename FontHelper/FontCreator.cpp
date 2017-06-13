@@ -290,7 +290,7 @@ void FontCreator::clbmpsdf(wchar_t ch) const
 	FontInfo finfo[] = { { 0,w,h } };
 	wsize->write(clQue, finfo);
 	sdfker->setArg(0, wsize);
-	input->write(clQue, ret.data.std());
+	input->write(clQue, ret.data);
 	sdfker->setArg(1, input);
 	sdfker->setArg(2, output);
 	size_t worksize[] = { 160 };
@@ -327,7 +327,7 @@ void FontCreator::clbmpsdfgrey(wchar_t ch) const
 	FontInfo finfo[] = { { 0,w,h } };
 	wsize->write(clQue, finfo);
 	sdfgreyker->setArg(0, wsize);
-	input->write(clQue, ret.data.std());
+	input->write(clQue, ret.data);
 	sdfgreyker->setArg(1, input);
 	sdfgreyker->setArg(2, output);
 	size_t worksize[] = { 160 };

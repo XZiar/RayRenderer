@@ -13,7 +13,7 @@ protected:
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
 
-	VecI4(const bool setZero = false)
+	VecI4(const bool setZero = false) noexcept
 	{
 		if (setZero)
 		{
@@ -25,72 +25,28 @@ public:
 		}
 	}
 	template<class T>
-	VecI4(const T x_, const T y_, const T z_, const T w_)
+	VecI4(const T x_, const T y_, const T z_, const T w_) noexcept
 		:Vec4Base(static_cast<int>(x_), static_cast<int>(y_), static_cast<int>(z_), static_cast<int>(w_))
 	{
 	};
 	template<class T>
-	VecI4(const T *ptr)
+	VecI4(const T *ptr) noexcept
 		:Vec4Base(static_cast<int>(ptr[0]), static_cast<int>(ptr[1]), static_cast<int>(ptr[2]), static_cast<int>(ptr[3]))
 	{
 	};
 #ifdef __SSE2__
-	VecI4(const int32_t *ptr) { int_dat = _mm_loadu_si128((__m128i*)ptr); }
-	VecI4(const __m128i& dat_) { int_dat = dat_; };
+	VecI4(const int32_t *ptr) noexcept { int_dat = _mm_loadu_si128((__m128i*)ptr); }
+	VecI4(const __m128i& dat_) noexcept { int_dat = dat_; };
 #endif
 
-	operator int*() { return data; };
-	operator const int*() const { return data; };
+	operator int*() noexcept { return data; };
+	operator const int*() const noexcept { return data; };
 #ifdef __SSE2__
-	operator __m128i&() { return int_dat; };
-	operator const __m128i&() const { return int_dat; };
+	operator __m128i&() noexcept { return int_dat; };
+	operator const __m128i&() const noexcept { return int_dat; };
 #endif
 
-	VecI4 operator+(const VecI4& v) const
-	{
-	#ifdef __SSE2__
-		return _mm_add_epi32(int_dat, v);
-	#else
-		return VecI4(x + v.x, y + v.y, z + v.z, w + v.w);
-	#endif
-	}
-
-	VecI4 operator-(const VecI4& v) const
-	{
-	#ifdef __SSE2__
-		return _mm_sub_epi32(int_dat, v);
-	#else
-		return VecI4(x - v.x, y - v.y, z - v.z, w - v.w);
-	#endif
-	}
-
-	VecI4 operator*(const int& n) const
-	{
-	#ifdef __SSE2__
-		return _mm_mul_epi32(int_dat, _mm_set1_epi32(n));
-	#else
-		return VecI4(x * n, y * n, z * n, w * n);
-	#endif
-	}
-
-	VecI4 operator*(const VecI4& v) const
-	{
-	#ifdef __SSE2__
-		return _mm_mul_epi32(int_dat, v.int_dat);
-	#else
-		return VecI4(x * v.x, y * v.y, z * v.z, w * v.w);
-	#endif
-	}
-
-	VecI4 operator/(const int& n) const
-	{
-		return VecI4(x / n, y / n, z / n, w / n);
-	}
-
-	VecI4 operator/(const VecI4& v) const
-	{
-		return VecI4(x / v.x, y / v.y, z / v.z, w / v.w);
-	}
+	bool operator<(const VecI4& other) const = delete;
 
 	int32_t dot(const VecI4& v) const//dot product
 	{
@@ -152,10 +108,76 @@ public:
 
 };
 
-inline VecI4 operator*(const int32_t n, const VecI4& v)
+
+inline VecI4 VECCALL operator+(const VecI4& l, const VecI4& r)
+{
+#ifdef __SSE2__
+	return _mm_add_epi32(l, r);
+#else
+	return VecI4(l.x + r.x, l.y + r.y, l.z + r.z, l.w + r.w);
+#endif
+}
+
+inline VecI4 VECCALL operator+(const VecI4& l, const int r)
+{
+#ifdef __SSE2__
+	return _mm_add_epi32(l, _mm_set1_epi32(r));
+#else
+	return VecI4(l.x + r, l.y + r, l.z + r, l.w + r);
+#endif
+}
+
+inline VecI4 VECCALL operator-(const VecI4& l, const VecI4& r)
+{
+#ifdef __SSE2__
+	return _mm_sub_epi32(l, r);
+#else
+	return VecI4(l.x - r.x, l.y - r.y, l.z - r.z, l.w - r.w);
+#endif
+}
+
+inline VecI4 VECCALL operator-(const VecI4& l, const int r)
+{
+#ifdef __SSE2__
+	return _mm_sub_epi32(l, _mm_set1_epi32(r));
+#else
+	return VecI4(l.x - r, l.y - r, l.z - r, l.w - r);
+#endif
+}
+
+inline VecI4 VECCALL operator*(const VecI4& l, const int n)
+{
+#ifdef __SSE2__
+	return _mm_mul_epi32(l, _mm_set1_epi32(n));
+#else
+	return VecI4(l.x * n, l.y * n, l.z * n, l.w * n);
+#endif
+}
+
+inline VecI4 VECCALL operator*(const VecI4& l, const VecI4& r)
+{
+#ifdef __SSE2__
+	return _mm_mul_epi32(l, r);
+#else
+	return VecI4(l.x * r.x, l.y * r.y, l.z * r.z, l.w * r.w);
+#endif
+}
+
+inline VecI4 VECCALL operator*(const int32_t n, const VecI4& v)
 {
 	return v*n;
 }
+
+inline VecI4 VECCALL operator/(const VecI4& l, const int n)
+{
+	return VecI4(l.x / n, l.y / n, l.z / n, l.w / n);
+}
+
+inline VecI4 VECCALL operator/(const VecI4& l, const VecI4& r)
+{
+	return VecI4(l.x / r.x, l.y / r.y, l.z / r.z, l.w / r.w);
+}
+
 
 
 }

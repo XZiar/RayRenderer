@@ -210,20 +210,27 @@ namespace WPFTest
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
             string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
-            if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
+            try
             {
-                var cb = await Main.test.AddModelAsync(fname);
-                if (cb())
+                if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    Main.curObj = ushort.MaxValue;
-                    Main.Rotate(-90, 0, 0, Main.OPObject.Object);
-                    Main.Move(-1, 0, 0, Main.OPObject.Object);
-                    (sender as OGLView).Invalidate();
+                    var cb = await Main.test.AddModelAsync(fname);
+                    if (cb())
+                    {
+                        Main.curObj = ushort.MaxValue;
+                        Main.Rotate(-90, 0, 0, Main.OPObject.Object);
+                        Main.Move(-1, 0, 0, Main.OPObject.Object);
+                        (sender as OGLView).Invalidate();
+                    }
+                }
+                else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    Main.test.ReLoadCL(fname);
                 }
             }
-            else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
+            catch(Exception ex)
             {
-                Main.test.ReLoadCL(fname);
+                new ExceptionDialog(ex).ShowDialog();
             }
         }
 

@@ -29,9 +29,9 @@ class Coord2D
 {
 public:
 	float u, v;
-	Coord2D() { u = v = 0.0f; };
+	Coord2D() noexcept { u = v = 0.0f; };
 	template<class T>
-	Coord2D(const T& u_, const T& v_) :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { };
+	Coord2D(const T& u_, const T& v_) noexcept :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { };
 
 	Coord2D operator+(const Coord2D &c) const
 	{
@@ -69,8 +69,8 @@ class alignas(16) Vec3 : public miniBLAS::Vec3
 {
 public:
 	using miniBLAS::Vec3::Vec3;
-	Vec3() : miniBLAS::Vec3(true) { }
-	Vec3(const miniBLAS::Vec3& v) { *(miniBLAS::Vec3*)this = v; }
+	Vec3() noexcept : miniBLAS::Vec3(true) { }
+	Vec3(const miniBLAS::Vec3& v) noexcept { *(miniBLAS::Vec3*)this = v; }
 };
 
 
@@ -78,25 +78,25 @@ class alignas(16) Vec4 : public miniBLAS::Vec4
 {
 public:
 	using miniBLAS::Vec4::Vec4;
-	Vec4() : miniBLAS::Vec4(true) { }
-	Vec4(const miniBLAS::Vec4& v) { *(miniBLAS::Vec4*)this = v; }
-	Vec4(const Vec3& v) :miniBLAS::Vec4(v, true) { }
+	Vec4() noexcept : miniBLAS::Vec4(true) { }
+	Vec4(const miniBLAS::Vec4& v) noexcept { *(miniBLAS::Vec4*)this = v; }
+	Vec4(const Vec3& v) noexcept :miniBLAS::Vec4(v, true) { }
 
-	operator Vec3& () { return *(Vec3*)this; }
-	operator const Vec3& () const { return *(const Vec3*)this; }
+	operator Vec3& () noexcept { return *(Vec3*)this; }
+	operator const Vec3& () const noexcept { return *(const Vec3*)this; }
 };
 
 
 class alignas(16) Normal : public Vec3
 {
 public:
-	Normal() : Vec3() { };
-	Normal(const Vec3& v)
+	Normal() noexcept : Vec3() { };
+	Normal(const Vec3& v) noexcept
 	{
 		*(Vec3*)this = v.normalize();
 	}
 	template<class T>
-	Normal(const T& ix, const T& iy, const T& iz) :Vec3(ix, iy, iz) { normalized(); };
+	Normal(const T& ix, const T& iy, const T& iz) noexcept :Vec3(ix, iy, iz) { normalized(); };
 
 	Normal& operator=(const Vec3& v)
 	{
@@ -111,8 +111,8 @@ class alignas(32) Mat3x3 : public miniBLAS::Mat3x3
 public:
 	using miniBLAS::Mat3x3::element;
 	using miniBLAS::Mat3x3::Mat3x3;
-	Mat3x3() :miniBLAS::Mat3x3() { }
-	Mat3x3(const miniBLAS::Mat3x3& m) :miniBLAS::Mat3x3(m) { }
+	Mat3x3() noexcept :miniBLAS::Mat3x3() { }
+	Mat3x3(const miniBLAS::Mat3x3& m) noexcept :miniBLAS::Mat3x3(m) { }
 	//Vec4's xyz define axis, w define angle(in degree)
 	static Mat3x3 RotateMat(const Vec4& rv)
 	{
@@ -129,17 +129,17 @@ public:
 			Vec3(rv.x*rv.y*OMcosx + rv.z*sinx, sqr.y*OMcosx + cosx, rv.y*rv.z*OMcosx - rv.x*sinx),
 			Vec3(rv.x*rv.z*OMcosx - rv.y*sinx, rv.y*rv.z*OMcosx + rv.x*sinx, sqr.z*OMcosx + cosx));
 		/*  Rotate x-axis
-		 *  1     0      0
-		 *  0  cosx  -sinx
-		 *  0  sinx   cosx
+		 *  1         0      0
+		 *  0      cosx  -sinx
+		 *  0      sinx   cosx
 		 *  Rotate y-axis
-		 *   cosy  0  siny
-		 *      0  1     0
-		 *  -siny  0  cosy
+		 *   cosy      0  siny
+		 *      0      1     0
+		 *  -siny      0  cosy
 		 *  Rotate z-axis
-		 *  cosz  -sinz  0
-		 *  sinz   cosz  0
-		 *     0      0  1
+		 *  cosz  -sinz      0
+		 *  sinz   cosz      0
+		 *     0      0      1
 		 **/
 	}
 	static Mat3x3 ScaleMat(const Vec3& sv)
@@ -156,9 +156,9 @@ class alignas(32) Mat4x4 : public miniBLAS::Mat4x4
 public:
 	using miniBLAS::Mat4x4::element;
 	using miniBLAS::Mat4x4::Mat4x4;
-	Mat4x4() :miniBLAS::Mat4x4() { }
-	Mat4x4(const miniBLAS::Mat3x3& m) :miniBLAS::Mat4x4(m, true) { }
-	Mat4x4(const miniBLAS::Mat4x4& m) :miniBLAS::Mat4x4(m) { }
+	Mat4x4() noexcept :miniBLAS::Mat4x4() { }
+	Mat4x4(const miniBLAS::Mat3x3& m) noexcept :miniBLAS::Mat4x4(m, true) { }
+	Mat4x4(const miniBLAS::Mat4x4& m) noexcept :miniBLAS::Mat4x4(m) { }
 	/*pure translate(translata DOT identity-rotate)*/
 	static Mat4x4 TranslateMat(const Vec3& tv)
 	{
@@ -202,9 +202,9 @@ public:
 		Vec3 tcoord3;
 	};
 
-	Point() { };
-	Point(const Vec3 &v, const Normal &n, const Coord2D &t) : pos(v), norm(n), tcoord(t) { };
-	Point(const Vec3 &v, const Normal &n, const Vec3 &t3) : pos(v), norm(n), tcoord3(t3) { };
+	Point() noexcept { };
+	Point(const Vec3 &v, const Normal &n, const Coord2D &t) noexcept : pos(v), norm(n), tcoord(t) { };
+	Point(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : pos(v), norm(n), tcoord3(t3) { };
 };
 
 struct alignas(32) Triangle : public common::AlignBase<Triangle>
@@ -215,11 +215,11 @@ public:
 	Coord2D tcoords[3];
 	float dummy[2];
 
-	Triangle() { };
-	Triangle(const Vec3& va, const Vec3& vb, const Vec3& vc) : points{ va, vb, vc } { }
-	Triangle(const Vec3& va, const Normal& na, const Vec3& vb, const Normal& nb, const Vec3& vc, const Normal& nc)
+	Triangle() noexcept { };
+	Triangle(const Vec3& va, const Vec3& vb, const Vec3& vc) noexcept : points{ va, vb, vc } { }
+	Triangle(const Vec3& va, const Normal& na, const Vec3& vb, const Normal& nb, const Vec3& vc, const Normal& nc) noexcept
 		: points{ va, vb, vc }, norms{ na, nb, nc } { }
-	Triangle(const Vec3& va, const Normal& na, const Coord2D& ta, const Vec3& vb, const Normal& nb, const Coord2D& tb, const Vec3& vc, const Normal& nc, const Coord2D& tc)
+	Triangle(const Vec3& va, const Normal& na, const Coord2D& ta, const Vec3& vb, const Normal& nb, const Coord2D& tb, const Vec3& vc, const Normal& nc, const Coord2D& tc) noexcept
 		: points{ va, vb, vc }, norms{ na, nb, nc }, tcoords{ ta, tb, tc }
 	{
 	}
@@ -286,7 +286,7 @@ public:
 	Vec3 position;
 	float fovy, aspect, zNear, zFar;
 	int width, height;
-	Camera(int w = 1120, int h = 630)
+	Camera(int w = 1120, int h = 630) noexcept
 	{
 		width = w, height = h;
 		aspect = (float)w / h;

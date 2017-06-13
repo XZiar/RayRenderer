@@ -84,27 +84,27 @@ protected:
 public:
 	using SQMat4Base::x; using SQMat4Base::y; using SQMat4Base::z;
 
-	Mat3x3() { }
-	Mat3x3(const Vec3& x_, const Vec3& y_, const Vec3& z_) :SQMat4Base(x_, y_, z_) { };
+	Mat3x3() noexcept { }
+	Mat3x3(const Vec3& x_, const Vec3& y_, const Vec3& z_) noexcept :SQMat4Base(x_, y_, z_) { };
 #ifdef __AVX__
-	Mat3x3(const __m256 xy_, const __m256 zw_) :SQMat4Base(xy_, zw_) { };
-	Mat3x3(const __m256 xy_, const __m128 z_) { xy = xy_, z = z_; };
+	Mat3x3(const __m256 xy_, const __m256 zw_) noexcept :SQMat4Base(xy_, zw_) { };
+	Mat3x3(const __m256 xy_, const __m128 z_) noexcept { xy = xy_, z = z_; };
 #endif
-	Mat3x3(const Vec3 *ptr) :SQMat4Base(ptr[0], ptr[1], ptr[2]) { };
+	Mat3x3(const Vec3 *ptr) noexcept :SQMat4Base(ptr[0], ptr[1], ptr[2]) { };
 #ifdef __SSE2__
-	Mat3x3(const __m128x3& dat)
+	Mat3x3(const __m128x3& dat) noexcept
 	{
 		x = dat[0]; y = dat[1]; z = dat[2];
 	};
 #endif
 	template<class T>
-	Mat3x3(const T *ptr)
+	Mat3x3(const T *ptr) noexcept
 	{
 		for (int32_t a = 0, b = 0; b < 3; ++b)
 			for (int32_t c = 0; c < 3; ++c, ++a)
 				element[b * 4 + c] = static_cast<float>(ptr[a]);
 	}
-	Mat3x3(const float(&dat)[12])
+	Mat3x3(const float(&dat)[12]) noexcept
 	{
 	#ifdef __AVX__
 		float_xy = _mm256_loadu_ps(dat);
@@ -118,8 +118,8 @@ public:
 	#endif
 	};
 
-	VECCALL operator float*() { return element; };
-	VECCALL operator const float*() const { return element; };
+	VECCALL operator float*() noexcept { return element; };
+	VECCALL operator const float*() const noexcept { return element; };
 	
 
 	Mat3x3 VECCALL inv() const
@@ -253,6 +253,16 @@ public:
 		return Mat3x3(dat);
 	#endif
 	}
+
+	friend Mat3x3 VECCALL operator+(const Mat3x3& left, const float right);
+	friend Mat3x3 VECCALL operator+(const Mat3x3& left, const Mat3x3& right);
+	friend Mat3x3 VECCALL operator-(const Mat3x3& left, const float right);
+	friend Mat3x3 VECCALL operator-(const Mat3x3& left, const Mat3x3& right);
+	friend Mat3x3 VECCALL operator*(const Mat3x3& left, const float right);
+	friend Vec3 VECCALL operator*(const Mat3x3& left, const Vec3& right);
+	friend Mat3x3 VECCALL operator*(const Mat3x3& left, const Mat3x3& right);
+	friend Mat3x3 VECCALL operator/(const Mat3x3& left, const float right);
+
 };
 
 inline Mat3x3 VECCALL operator+(const Mat3x3& left, const float right)
