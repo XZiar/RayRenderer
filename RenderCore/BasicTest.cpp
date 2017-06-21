@@ -328,7 +328,7 @@ void BasicTest::reloadFontLoader(const wstring& fname)
 	fontTest(L'Œ“');
 }
 
-void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError)
+void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
 	auto clsrc = file::readAllTxt(fname);
 	fontCreator->reload(clsrc);
@@ -345,7 +345,7 @@ bool BasicTest::addModel(const wstring& fname)
 	return true;
 }
 
-void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError)
+void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
 	std::thread([this, onFinish, onError](const wstring name)
 	{
@@ -444,16 +444,18 @@ static uint32_t getTID()
 	return *(uint32_t*)&tid;
 }
 
-void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException)> onError) const
+void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError) const
 {
 	basLog().debug(L"begin async in pid {}\n", getTID());
 	std::thread([onFinish, onError] ()
 	{
-		std::this_thread::sleep_for(std::chrono::seconds(10)); 
 		basLog().debug(L"async thread in pid {}\n", getTID());
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+		basLog().debug(L"sleep finish. async thread in pid {}\n", getTID());
 		try
 		{
-			COMMON_THROW(BaseException, L"ERROR in async call");
+			if (false)
+				COMMON_THROW(BaseException, L"ERROR in async call");
 		}
 		catch (BaseException& be)
 		{

@@ -55,20 +55,20 @@ void BasicTest::ReLoadCL(String^ fname)
 	core->reloadFontLoader(msclr::interop::marshal_as<std::wstring>(fname));
 }
 
-Task<Func<bool>^>^ BasicTest::AddModelAsync(String^ fname)
+Task<bool>^ BasicTest::AddModelAsync(String^ fname)
 {
-	return doAsync<bool>(&rayr::BasicTest::addModelAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
+	return doAsync2<bool>(&rayr::BasicTest::addModelAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
 }
 
 
-Task<Func<bool>^>^ BasicTest::ReloadCLAsync(String^ fname)
+Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 {
-	return doAsync<bool>(&rayr::BasicTest::reloadFontLoaderAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
+	return doAsync2<bool>(&rayr::BasicTest::reloadFontLoaderAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
 }
 
-Task<Func<bool>^>^ BasicTest::TryAsync()
+Task<bool>^ BasicTest::TryAsync()
 {
-	return doAsync<bool>(&rayr::BasicTest::tryAsync, core);
+	return doAsync2<bool>(&rayr::BasicTest::tryAsync, core);
 }
 
 void LightHolder::Add(Basic3D::LightType type)

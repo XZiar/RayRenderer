@@ -108,8 +108,7 @@ namespace WPFTest
             try
             {
                 var ret = await Main.test.TryAsync();
-                ret();
-                Console.WriteLine("finish calling async");
+                Console.WriteLine($"finish calling async, ret is {ret}");
             }
             catch(Exception ex)
             {
@@ -214,8 +213,7 @@ namespace WPFTest
             {
                 if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    var cb = await Main.test.AddModelAsync(fname);
-                    if (cb())
+                    if (await Main.test.AddModelAsync(fname))
                     {
                         Main.curObj = ushort.MaxValue;
                         Main.Rotate(-90, 0, 0, Main.OPObject.Object);
@@ -225,7 +223,7 @@ namespace WPFTest
                 }
                 else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    Main.test.ReLoadCL(fname);
+                    await Main.test.ReloadCLAsync(fname);
                 }
             }
             catch(Exception ex)

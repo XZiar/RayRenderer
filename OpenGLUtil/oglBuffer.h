@@ -36,8 +36,8 @@ public:
 	~_oglBuffer() noexcept;
 
 	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
-	template<class T>
-	inline void write(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	template<class T, class A>
+	inline void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
 		write(dat.data(), sizeof(T)*dat.size(), mode);
 	}

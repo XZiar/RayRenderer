@@ -77,9 +77,9 @@ public:
 
 	void ReLoadCL(String^ fname);
 
-	Task<Func<bool>^>^ AddModelAsync(String^ fname);
-	Task<Func<bool>^>^ ReloadCLAsync(String^ fname);
-	Task<Func<bool>^>^ TryAsync();
+	Task<bool>^ AddModelAsync(String^ fname);
+	Task<bool>^ ReloadCLAsync(String^ fname);
+	Task<bool>^ TryAsync();
 
 };
 

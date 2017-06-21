@@ -62,11 +62,7 @@ public:
 	using std::vector<T, common::AlignAllocator<T>>::vector;
 	operator const std::vector<T>&() const
 	{
-		return std();
-	}
-	const std::vector<T>& std() const
-	{
-		return *(std::vector <T>*)this;
+		return *(const std::vector<T>*)this;
 	}
 };
 

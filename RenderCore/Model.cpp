@@ -594,7 +594,7 @@ void _ModelData::initData()
 	diffuse.release();
 	normal.release();
 	vbo.reset(oglu::BufferType::Array);
-	vbo->write(pts.std());
+	vbo->write(pts);
 	ebo.reset();
 	ebo->writeCompat(indexs);
 }
