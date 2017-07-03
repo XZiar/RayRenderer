@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CommonUtil.hpp"
 #include <cstdint>
 #include <optional>
 #include <tuple>
@@ -7,7 +8,6 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
-
 
 namespace common
 {
@@ -49,67 +49,43 @@ inline std::optional<Val*> findvec(Vec& thevec, const Predictor& pred)
 
 namespace detail
 {
+
 template<class... ARGS>
 class ZIPContainer
 {
 private:
-	static constexpr auto tsize = std::tuple_size<std::tuple<ARGS&&...>>::value;
+	struct Incer
+	{
+		template<typename T>
+		static void Each(T& arg) { ++arg; }
+	};
+	struct Sizer : public func_with_cookie
+	{
+		using CookieType = size_t;
+		static CookieType Init() { return SIZE_MAX; }
+		template<typename T>
+		static void Each(CookieType& cookie, T& arg) { cookie = std::min(arg.size(), cookie); }
+	};
+	struct MapBegin
+	{
+		template<typename T>
+		static auto Map(T& arg) { return arg.begin(); }
+	};
 	const std::tuple<ARGS&&...> srcs;
-	template<size_t index>
-	size_t getSize(const size_t cursize = SIZE_MAX) const
-	{
-		auto newsize = std::min(cursize, std::get<index>(srcs).size());
-		return getSize<index - 1>(newsize);
-	}
-	template<>
-	size_t getSize<0>(const size_t cursize) const
-	{
-		return std::min(cursize, std::get<0>(srcs).size());
-	}
-	template<size_t index>
-	auto getBegin() const
-	{
-		auto cur = std::make_tuple(std::get<index>(srcs).begin());
-		return std::tuple_cat(getBegin<index - 1>(), cur);
-	}
-	template<>
-	auto getBegin<0>() const
-	{
-		auto cur = std::make_tuple(std::get<0>(srcs).begin());
-		return cur;
-	}
-	void inc_helper()
-	{}
-	template<class T, class... ARGS2>
-	void inc_helper(T& arg, ARGS2&&... args)
-	{
-		++arg;
-		inc_helper(args...);
-	}
-	template<class T, std::size_t... indexes>
-	void incer(T& iterators, std::index_sequence<indexes...>)
-	{
-		inc_helper(std::get<indexes>(iterators)...);
-	}
-	template<class T>
-	void inc(T& iterators)
-	{
-		incer(iterators, std::make_index_sequence<tsize>{});
-	}
 public:
 	ZIPContainer(ARGS&&... args) : srcs(std::forward_as_tuple(args...)) {}
 	size_t size() const
 	{
-		return getSize<tsize - 1>();
+		return ForEach<Sizer>::EachTuple(srcs);
 	}
-	template<class T>
-	void foreach(const T& func)
+	template<class Func>
+	void foreach(const Func& func) const
 	{
-		auto begins = getBegin<tsize - 1>();
+		auto begins = Mapping<MapBegin>::MapTuple(srcs);
 		for (auto a = size(); a--;)
 		{
 			std::apply(func, begins);
-			inc(begins);
+			ForEach<Incer>::EachTuple(begins);
 		}
 	}
 };

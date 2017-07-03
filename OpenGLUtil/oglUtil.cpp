@@ -4,6 +4,7 @@
 #include "MTWorker.hpp"
 #include "../common/PromiseTask.inl"
 #include <GL/wglew.h>
+#include <array>
 
 namespace oglu
 {
@@ -70,6 +71,15 @@ detail::MTWorker& oglUtil::getWorker(const uint8_t idx)
 
 void oglUtil::init()
 {
+	{
+		std::array<int, 5> array1{ 1,2,3,4,5 };
+		std::vector<char> vec1{ 6,7,8,9,10 };
+		array1.size();
+		common::zip(array1, vec1).foreach([](auto x, auto y)
+		{
+			*x += *y;
+		});
+	}
 	glewInit();
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
