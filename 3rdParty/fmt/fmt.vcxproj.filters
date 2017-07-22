@@ -15,6 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="string.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="time.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="container.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="format.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -24,11 +33,14 @@
     <ClInclude Include="posix.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="time.h">
+    <ClInclude Include="printf.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="printf.cc">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="format.cc">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -38,5 +50,9 @@
     <ClCompile Include="posix.cc">
       <Filter>源文件</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LICENSE.rst" />
+    <None Include="README.rst" />
   </ItemGroup>
 </Project>

@@ -24,7 +24,7 @@
                 <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
                 <Button x:Name="btnTryAsync" Content="Async" Click="btnTryAsync_Click"/>
             </StackPanel>
-            <RichTextBox x:Name="dbgOutput" Grid.Row="1" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas">
+            <RichTextBox x:Name="dbgOutput" Grid.Row="1" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
                 <FlowDocument>
                     <Paragraph/>
                 </FlowDocument>

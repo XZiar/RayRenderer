@@ -49,7 +49,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MIT License](./License/stb.txt)
 
-* [fmt](http://fmtlib.net) 3.0.1
+* [fmt](http://fmtlib.net) 4.0.0
 
   [BSD-2 License](./License/fmt.rst)
 
@@ -57,9 +57,9 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MPL 1.1 License](./License/uchardet.txt)
 
-* [FreeType2](https://www.freetype.org/) 2.7.1
+* [FreeType2](https://www.freetype.org/) 2.8
 
-  [The FreeType License](./License/ftl.txt)
+  [The FreeType License](./License/freetype.txt)
 
 * [cpplinq](http://cpplinq.codeplex.com/)
 

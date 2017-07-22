@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.14
+VisualStudioVersion = 15.0.26430.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLView", "OpenGLView\OpenGLView.vcxproj", "{2D168E14-C22D-4429-B97C-AF5D41010E48}"
 EndProject
@@ -77,16 +77,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dll", "dll", "{4CB3683E-0F7A-4121-979A-920473AC146E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-32", "x86-32", "{5E35180D-1365-4A5E-96BF-5707110FAD01}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\dll\x86-32\glew32.dll = 3rdParty\dll\x86-32\glew32.dll
-		3rdParty\dll\x86-32\glew32d.dll = 3rdParty\dll\x86-32\glew32d.dll
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "x86-64", "x86-64", "{F35DB834-493B-4083-8A24-BC2C8CC93474}"
-	ProjectSection(SolutionItems) = preProject
-		3rdParty\dll\x86-64\glew32.dll = 3rdParty\dll\x86-64\glew32.dll
-		3rdParty\dll\x86-64\glew32d.dll = 3rdParty\dll\x86-64\glew32d.dll
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stblib", "3rdParty\stblib\stblib.vcxproj", "{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}"
 EndProject
@@ -141,8 +133,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glew", "3rdParty\glew\glew.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "3rdParty\freeglut\freeglut.vcxproj", "{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fmt", "3rdParty\fmt\fmt.vcxproj", "{F6B26367-636C-48F7-951A-BEE222B06AFE}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4D13-4944-9024-CC703F56FB75}"
 	ProjectSection(SolutionItems) = preProject
 		3rdParty\date\chrono_io.h = 3rdParty\date\chrono_io.h
@@ -156,6 +146,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4
 		3rdParty\date\tz.h = 3rdParty\date\tz.h
 		3rdParty\date\tz_private.h = 3rdParty\date\tz_private.h
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fmt", "3rdParty\fmt\fmt.vcxproj", "{70DDE3A9-B057-4AE0-842E-37917F633582}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -333,16 +325,16 @@ Global
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x64.Build.0 = Release|x64
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x86.ActiveCfg = Release|Win32
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x86.Build.0 = Release|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x64.ActiveCfg = Debug|x64
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x64.Build.0 = Debug|x64
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x86.ActiveCfg = Debug|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Debug|x86.Build.0 = Debug|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|Any CPU.ActiveCfg = Release|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x64.ActiveCfg = Release|x64
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x64.Build.0 = Release|x64
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x86.ActiveCfg = Release|Win32
-		{F6B26367-636C-48F7-951A-BEE222B06AFE}.Release|x86.Build.0 = Release|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x64.ActiveCfg = Debug|x64
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x64.Build.0 = Debug|x64
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x86.ActiveCfg = Debug|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x86.Build.0 = Debug|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|Any CPU.ActiveCfg = Release|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x64.ActiveCfg = Release|x64
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x64.Build.0 = Release|x64
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x86.ActiveCfg = Release|Win32
+		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -374,7 +366,7 @@ Global
 		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7025CA4A-22FD-4343-B296-008060483193} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
-		{F6B26367-636C-48F7-951A-BEE222B06AFE} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{D36D1F7F-4D13-4944-9024-CC703F56FB75} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{70DDE3A9-B057-4AE0-842E-37917F633582} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 EndGlobal

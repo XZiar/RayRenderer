@@ -152,6 +152,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
+      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\freetype2\freetype2.vcxproj">
       <Project>{7b5c2843-dedf-44ad-b02a-2af72d78f2e9}</Project>
     </ProjectReference>

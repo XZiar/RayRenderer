@@ -141,6 +141,9 @@
     <ClCompile Include="FreeGLUTView.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
+      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\freeglut\freeglut.vcxproj">
       <Project>{afb20f81-5a02-49ef-b968-4749a2bb4bd5}</Project>
     </ProjectReference>

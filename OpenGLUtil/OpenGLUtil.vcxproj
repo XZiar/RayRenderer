@@ -48,6 +48,9 @@
     <ClCompile Include="oglVAO.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
+      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\glew\glew.vcxproj">
       <Project>{7025ca4a-22fd-4343-b296-008060483193}</Project>
     </ProjectReference>

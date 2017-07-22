@@ -143,7 +143,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{f6b26367-636c-48f7-951a-bee222b06afe}</Project>
+      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

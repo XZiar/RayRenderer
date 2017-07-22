@@ -17,7 +17,7 @@
 #include "../CommonRely.hpp"
 #include "../Wrapper.hpp"
 
-#define FMT_HEADER_ONLY
+//#define FMT_HEADER_ONLY
 #include "../../3rdParty/fmt/format.h"
 
 

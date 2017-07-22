@@ -107,7 +107,7 @@ inline auto split(const T& src, const CharT delim, const bool keepblank = true)
 {
 	using namespace std;
 	vector<basic_string_view<CharT>> ret;
-	SplitAndDo(src, delim, [&ret](const CharT *pos, const size_t len) { ret.push_back(basic_string_view<CharT>(pos, len); }, keepblank);
+	SplitAndDo(src, delim, [&ret](const CharT *pos, const size_t len) { ret.push_back(basic_string_view<CharT>(pos, len)); }, keepblank);
 	return ret;
 }
 

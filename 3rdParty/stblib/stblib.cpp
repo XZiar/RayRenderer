@@ -1,6 +1,4 @@
-#if defined(__AVX2__) || defined(__AVX__) || defined(__SSE4_2__) || (_M_IX86_FP == 2)
-#   define __SSE2__ 1
-#endif
+#define __SSE2__ 1
 #include "stblib.h"
 #include "../../common/Exceptions.hpp"
 #include <cstdio>
