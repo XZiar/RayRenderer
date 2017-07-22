@@ -10,6 +10,7 @@ namespace miniBLAS
 class alignas(Vec4Align) VecI4 :public Vec4Base<int>
 {
 protected:
+	using Raw = int32_t[4];
 public:
 	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
 
@@ -38,9 +39,8 @@ public:
 	VecI4(const int32_t *ptr) noexcept { int_dat = _mm_loadu_si128((__m128i*)ptr); }
 	VecI4(const __m128i& dat_) noexcept { int_dat = dat_; };
 #endif
-
-	operator int*() noexcept { return data; };
-	operator const int*() const noexcept { return data; };
+	operator Raw&() noexcept { return data; }
+	operator const Raw&() const noexcept { return data; }
 #ifdef __SSE2__
 	operator __m128i&() noexcept { return int_dat; };
 	operator const __m128i&() const noexcept { return int_dat; };

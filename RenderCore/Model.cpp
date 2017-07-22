@@ -46,7 +46,7 @@ map<wstring, ModelImage> _ModelImage::images;
 
 ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 {
-	wstring fname = picPath.filename();
+	const wstring fname = picPath.filename();
 	auto img = getImage(fname);
 	if (img)
 		return img;
@@ -158,127 +158,169 @@ oglu::oglTexture _ModelImage::genTextureAsync()
 class OBJLoder
 {
 private:
-	fs::path fpath;
-	vector<uint8_t> fdata;
-	uint32_t fcurpos, flen;
+	static std::set<string> specialPrefix;
+	fs::path FilePath;
 	Charset chset;
+	vector<uint8_t> Content;
+	size_t CurPos, Length;
 public:
-	char curline[256];
-	const char* param[5];
 	struct TextLine
 	{
-		uint64_t type;
-		uint8_t pcount;
+		uint64_t Type;
+		std::string_view Line;
+		vector<std::string_view> Params;
+		Charset charset;
+
+		TextLine() {}
+
+		TextLine(const Charset chset, const string& prefix) : charset(chset), Type(hash_(prefix)) {}
+
+		template<size_t N>
+		TextLine(const Charset chset, const char(&prefix)[N] = "EMPTY") : charset(chset), Type(hash_(prefix)) {}
+
+		TextLine(const Charset chset, const std::string_view& line) : charset(chset), Line(line) { Params.reserve(8); }
+
+		TextLine(const TextLine& other) = default;
+		TextLine(TextLine&& other) = default;
+		TextLine& operator =(const TextLine& other) = default;
+		TextLine& operator =(TextLine&& other) = default;
+
+		template<typename T>
+		void SetType(const T& prefix) { Type = hash_(prefix); }
+
+		std::string_view Rest(const size_t fromIndex = 1) 
+		{
+			if (Params.size() <= fromIndex)
+				return {};
+			const auto lenTotal = Line.length();
+			const auto beginLine = Line.data(), beginRest = Params[fromIndex].data();
+			return std::string_view(beginRest, lenTotal - (beginRest - beginLine));
+		}
+
+		wstring GetWString(const size_t index)
+		{
+			if (Params.size() <= index)
+				return L"";
+			return to_wstring(Params[index], charset);
+		}
+
+		wstring ToWString() { return to_wstring(Line, charset); }
+
+		template<size_t N>
+		int8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
+		{
+			int8_t cnt = 0;
+			/*
+			const auto chBegin = Params[idx].cbegin(), chEnd = Params[idx].cend();
+			bool isInNumber = false;
+			int32_t num = 0;
+			while (chBegin != chEnd && cnt < N)
+			{
+				auto ch = *chBegin++;
+				if (ch < '0' || ch > '9')
+				{
+					if (isInNumber)
+					{
+						output[cnt++] = num;
+						num = 0;
+						isInNumber = false;
+					}
+				}
+				else
+				{
+					isInNumber = true;
+					num = num * 10 + (ch - '0');
+				}
+			}
+			return cnt;
+			*/
+			str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
+			{
+				if (cnt < N)
+				{
+					if (len == 0)
+						output[cnt++] = 0;
+					else
+						output[cnt++] = atoi(substr);
+				}
+			});
+			return cnt;
+		}
+
+		template<size_t N>
+		int8_t ParseFloats(const uint8_t idx, float(&output)[N])
+		{
+			str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
+			{
+				if (cnt < N)
+				{
+					if (len == 0)
+						output[cnt++] = 0;
+					else
+						output[cnt++] = atof(Params[idx]);
+				}
+			});
+		}
+
 		operator const bool() const
 		{
-			return type != "EOF"_hash;
+			return Type != "EOF"_hash;
 		}
 	};
-	OBJLoder(const fs::path& fpath_) : fpath(fpath_)
+
+	OBJLoder(const fs::path& fpath_) : FilePath(fpath_)
 	{
-		FILE *fp = nullptr;
-		_wfopen_s(&fp, fpath.c_str(), L"rb");
-		if (fp == nullptr)
-			COMMON_THROW(FileException, FileException::Reason::OpenFail, fpath, L"cannot open target obj file");
 		//pre-load data, in case of Acess-Violate while reading file
-		fseek(fp, 0, SEEK_END);
-		flen = (uint32_t)ftell(fp);
-		fdata.resize(flen);
-		fseek(fp, 0, SEEK_SET);
-		fread(fdata.data(), flen, 1, fp);
-		fclose(fp);
-		fcurpos = 0;
-		chset = uchdet::detectEncoding(fdata);
-		basLog().debug(L"obj file[{}]--encoding[{}]\n", fpath.wstring(), getCharsetWName(chset));
+		Content = file::readAll(FilePath);
+		Length = Content.size() - 1;
+		CurPos = 0;
+		chset = uchdet::detectEncoding(Content);
+		basLog().debug(L"obj file[{}]--encoding[{}]\n", FilePath.wstring(), getCharsetWName(chset));
 	}
-	TextLine readLine()
+
+	TextLine ReadLine()
 	{
 		using common::hash_;
-		static std::set<string> specialPrefix{ "mtllib","usemtl","newmtl","g" };
-		uint32_t frompos = fcurpos, linelen = 0;
-		for (bool isCounting = false; fcurpos < flen;)
+		using std::string_view;
+		size_t fromPos = CurPos, lineLength = 0;
+		for (bool isInLine = false; CurPos < Length;)
 		{
-			const uint8_t curch = fdata[fcurpos++];
-			const bool isLineEnd = (curch == '\r' || curch == '\n');
+			const uint8_t curChar = Content[CurPos++];
+			const bool isLineEnd = (curChar == '\r' || curChar == '\n');
 			if (isLineEnd)
 			{
-				if (isCounting)//finish line
+				if (isInLine)//finish this line
 					break;
-				else//not even start
-					++frompos;
+				else
+					++fromPos;
 			}
 			else
 			{
-				++linelen;//linelen EQUALS count how many ch is not "NEWLINE"
-				isCounting = true;
+				++lineLength;//linelen EQUALS count how many ch is not "NEWLINE"
+				isInLine = true;
 			}
 		}
-		if (linelen == 0)
+		if (lineLength == 0)
 		{
-			if (fcurpos == flen)//EOF
-				return{ "EOF"_hash, 0 };
+			if (CurPos == Length)//EOF
+				return { chset, "EOF" };
 			else
-				return{ "EMPTY"_hash, 0 };
+				return { chset, "EMPTY" };
 		}
-		memmove(curline, &fdata[frompos], linelen);
-		char *end = &curline[linelen];
-		*end = '\0';
+		TextLine textLine(chset, string_view((const char*)&Content[fromPos], lineLength));
 
-		char prefix[256] = { 0 };
-		sscanf_s(curline, "%s", prefix, 240);
-		const string sprefix(prefix);
-		//is-note
-		if (sprefix == "#")
-		{
-			param[0] = linelen > 1 ? &curline[2] : &curline[1];
-			return{ "#"_hash, 1 };
-		}
-		bool isOneParam = specialPrefix.count(sprefix) != 0 || sprefix.find_first_of("map_") == 0;
-		bool inParam = false;
-		uint8_t pcnt = 0;
-		char *cur = &curline[sprefix.length()];
-		*cur++ = '\0';
-		for (; cur < end; ++cur)
-		{
-			const uint8_t curch = *(uint8_t*)cur;
-			if (curch < uint8_t(0x21) || curch == uint8_t(0x7f))//non-graph character
-			{
-				*cur = '\0';
-				inParam = false;
-			}
-			else if (!inParam)
-			{
-				param[pcnt++] = cur;
-				inParam = true;
-				if (isOneParam)//need only one param
-					break;
-			}
-		}
-		return{ hash_(prefix), pcnt };
-	}
-	wstring getWString(const uint8_t idx)
-	{
-		return to_wstring(param[idx], chset);
-	}
-	int8_t parseFloat(const uint8_t idx, float *output)
-	{
-		char *endpos = nullptr;
-		int8_t cnt = 0;
-		do
-		{
-			output[cnt++] = strtof(param[idx], &endpos);
-		} while (endpos != param[idx]);
-		return cnt;
-		//return sscanf_s(param[idx], "%f/%f/%f/%f", &output[0], &output[1], &output[2], &output[3]);
-	}
-	int8_t parseInt(const uint8_t idx, int32_t *output)
-	{
-		int8_t cnt = 0;
-		for (const char *obj = param[idx] - 1; obj != nullptr; obj = strchr(obj, '/'))
-			output[cnt++] = atoi(++obj);
-		return cnt;
+		str::split(textLine.Line, [](const char ch) 
+		{ 
+			return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
+		}, textLine.Params, false);
+		if (textLine.Params.size() == 0)
+			return { chset, "EMPTY" };
+
+		textLine.SetType(textLine.Params[0]);
+		return textLine;
 	}
 };
+std::set<string> OBJLoder::specialPrefix = { "mtllib","usemtl","newmtl","g" };
 
 map<wstring, ModelData> _ModelData::models;
 
@@ -399,57 +441,57 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 	vector<TexMergeItem> texposs;
 	MtlStub *curmtl = nullptr;
 	OBJLoder::TextLine line;
-	while (line = ldr.readLine())
+	while (line = ldr.ReadLine())
 	{
-		switch (line.type)
+		switch (line.Type)
 		{
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--mtl-note [{}]\n", ldr.getWString(0));
+			basLog().verbose(L"--mtl-note [{}]\n", line.ToWString());
 			break;
 		case "#merge"_hash:
 			{
-				auto img = _ModelImage::getImage(ldr.getWString(0));
+				auto img = _ModelImage::getImage(line.GetWString(1));
 				if (!img)
 					break;
 				int32_t pos[2];
-				ldr.parseInt(1, pos);
-				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", ldr.param[0], pos[0], pos[1]);
+				line.ParseInts(2, pos);
+				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", to_wstring(line.Params[1]), pos[0], pos[1]);
 				texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
 			}
 			break;
 		case "newmtl"_hash://vertex
-			curmtl = &mtlmap.insert({ string(ldr.param[0]),MtlStub() }).first->second;
+			curmtl = &mtlmap.insert({ string(line.Params[1]),MtlStub() }).first->second;
 			break;
 		case "Ka"_hash:
-			curmtl->mtl.ambient = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			curmtl->mtl.ambient = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 			break;
 		case "Kd"_hash:
-			curmtl->mtl.diffuse = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			curmtl->mtl.diffuse = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 			break;
 		case "Ks"_hash:
-			curmtl->mtl.specular = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			curmtl->mtl.specular = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 			break;
 		case "Ke"_hash:
-			curmtl->mtl.emission = Vec3(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+			curmtl->mtl.emission = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 			break;
 		case "Ns"_hash:
-			curmtl->mtl.shiness = (float)atof(ldr.param[0]);
+			curmtl->mtl.shiness = (float)atof(line.Params[1].data());
 			break;
 		case "map_Ka"_hash:
 			//curmtl.=loadTex(ldr.param[0], mtlpath.parent_path());
 			//break;
 		case "map_Kd"_hash:
 			{
-				auto tex = detail::_ModelImage::getImage(ldr.getWString(0), mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->diffuse() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
 			}break;
 		case "map_bump"_hash:
 			{
-				auto tex = detail::_ModelImage::getImage(ldr.getWString(0), mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->normal() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, tex->width), curmtl->height = std::max(curmtl->height, tex->height);
@@ -480,6 +522,12 @@ catch (FileException& fe)
 void _ModelData::loadOBJ(const fs::path& objpath) try
 {
 	using miniBLAS::VecI4;
+	{
+		OBJLoder ldrEx(objpath);
+		auto tmpLine = ldrEx.ReadLine();
+		tmpLine = ldrEx.ReadLine();
+		string rest = string(tmpLine.Rest());
+	}
 	OBJLoder ldr(objpath);
 	vector<Vec3> points{ Vec3(0,0,0) };
 	vector<Normal> normals{ Normal(0,0,0) };
@@ -495,39 +543,43 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 	MtlStub tmpmtl;
 	MtlStub *curmtl = &tmpmtl;
 	OBJLoder::TextLine line;
-	while (line = ldr.readLine())
+	SimpleTimer tstTimer;
+	while (line = ldr.ReadLine())
 	{
-		switch (line.type)
+		switch (line.Type)
 		{
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--obj-note [{}]\n", ldr.getWString(0));
+			basLog().verbose(L"--obj-note [{}]\n", line.ToWString());
 			break;
 		case "v"_hash://vertex
 			{
-				Vec3 tmp(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+				Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 				maxv = miniBLAS::max(maxv, tmp);
 				minv = miniBLAS::min(minv, tmp);
 				points.push_back(tmp);
 			}break;
 		case "vn"_hash://normal
 			{
-				Vec3 tmp(atof(ldr.param[0]), atof(ldr.param[1]), atof(ldr.param[2]));
+				Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
 				normals.push_back(tmp);
 			}break;
 		case "vt"_hash://texcoord
 			{
-				Coord2D tmpc(atof(ldr.param[0]), atof(ldr.param[1]));
+				Coord2D tmpc(atof(line.Params[1].data()), atof(line.Params[2].data()));
 				tmpc.regulized_mirror();
 				texcs.push_back(tmpc);
 			}break;
 		case "f"_hash://face
 			{
 				VecI4 tmpi, tmpidx;
-				for (uint32_t a = 0; a < line.pcount; ++a)
+				const auto lim = min((size_t)4, line.Params.size() - 1);
+				if (lim < 3)
+					basLog().warning(L"too few params for face : {}", to_wstring(line.Line));
+				for (uint32_t a = 0; a < lim; ++a)
 				{
-					ldr.parseInt(a, tmpi);//vert,texc,norm
+					line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
 					if (auto oidx = findmap(idxmap, stub))
 						tmpidx[a] = **oidx;
@@ -541,7 +593,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 						tmpidx[a] = idx;
 					}
 				}
-				if (line.pcount == 3)
+				if (lim == 3)
 				{
 					indexs.push_back(tmpidx.x);
 					indexs.push_back(tmpidx.y);
@@ -559,14 +611,16 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 			}break;
 		case "usemtl"_hash://each mtl is a group
 			{
-				string mtlname(ldr.param[0]);
-				groups.push_back({ mtlname,(uint32_t)indexs.size() });
-				if (auto omtl = findmap(mtlmap, mtlname))
+				string mtlName(line.Rest(1));
+				groups.push_back({ mtlName,(uint32_t)indexs.size() });
+				if (groups.size() == 1)
+					tstTimer.Start();
+				if (auto omtl = findmap(mtlmap, mtlName))
 					curmtl = &**omtl;
 			}break;
 		case "mtllib"_hash://import mtl file
 			{
-				const auto mtls = loadMTL(objpath.parent_path() / ldr.param[0]);
+				const auto mtls = loadMTL(objpath.parent_path() / string(line.Rest(1)));
 				for (const auto& mtlp : mtls)
 					mtlmap.insert(mtlp);
 			}break;
@@ -574,10 +628,12 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 			break;
 		}
 	}//END of WHILE
+	tstTimer.Stop();
 	size = maxv - minv;
 	basLog().success(L"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
 	basLog().success(L"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
 	basLog().info(L"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
+	basLog().debug(L"index-resize cost {} us\n", tstTimer.ElapseUs());
 }
 #pragma warning(disable:4101)
 catch (const FileException& fe)

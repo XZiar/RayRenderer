@@ -20,7 +20,7 @@
             </Grid.RowDefinitions>
             <StackPanel Grid.Row="0" Orientation="Horizontal">
                 <Button x:Name="btnOpObj" Content="Cam" Click="btnOpObj_Click"/>
-                <Button x:Name="btnAddModel" Content="+Mod" Click="btnAddModel_Click"/>
+                <Button x:Name="btnAddModel" Content="+Mod" Click="btnAddModel_ClickAsync"/>
                 <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
                 <Button x:Name="btnTryAsync" Content="Async" Click="btnTryAsync_Click"/>
             </StackPanel>

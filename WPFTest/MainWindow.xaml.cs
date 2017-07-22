@@ -14,6 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using OpenGLView;
 using RayRender;
+using Microsoft.Win32;
 
 namespace WPFTest
 {
@@ -40,9 +41,28 @@ namespace WPFTest
 
         }
 
-        private void btnAddModel_Click(object sender, RoutedEventArgs e)
+        private async void btnAddModel_ClickAsync(object sender, RoutedEventArgs e)
         {
-
+            var dlg = new OpenFileDialog()
+            {
+                Filter = "Wavefront obj files(.obj)|*.obj",
+                Title = "导入obj模型",
+                AddExtension = true,
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false,
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                string fname = dlg.FileName;
+                if (await Main.test.AddModelAsync(fname))
+                {
+                    Main.curObj = ushort.MaxValue;
+                    Main.Rotate(-90, 0, 0, Main.OPObject.Object);
+                    Main.Move(-1, 0, 0, Main.OPObject.Object);
+                    glMain.Invalidate();
+                }
+            }
         }
 
         private void btnAddLight_Click(object sender, RoutedEventArgs e)
@@ -218,7 +238,7 @@ namespace WPFTest
                         Main.curObj = ushort.MaxValue;
                         Main.Rotate(-90, 0, 0, Main.OPObject.Object);
                         Main.Move(-1, 0, 0, Main.OPObject.Object);
-                        (sender as OGLView).Invalidate();
+                        glMain.Invalidate();
                     }
                 }
                 else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))

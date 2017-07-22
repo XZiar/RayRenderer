@@ -13,6 +13,7 @@ class alignas(Vec4Align) Vec4Base : public common::AlignBase<Vec4Base<T>>
 private:
 	static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
+	using RawDataType = T[4];
 	union
 	{
 		T data[4];
@@ -38,7 +39,8 @@ protected:
 	Vec4Base(const T x_, const T y_, const T z_) noexcept :x(x_), y(y_), z(z_) { };
 	Vec4Base(const T x_, const T y_, const T z_, const T w_) noexcept :x(x_), y(y_), z(z_), w(w_) { };
 public:
-	
+	RawDataType& raw() noexcept { return data; }
+	const RawDataType& raw() const noexcept { return data; }
 	T& operator[](int idx)
 	{
 		return data[idx];

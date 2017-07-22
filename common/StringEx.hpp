@@ -13,8 +13,9 @@ namespace common
 {
 
 
-/** @brief calculate simple hash for string, used for switch-string
-** @param str std-string_view for the text
+/** 
+** @brief calculate simple hash for string, used for switch-string
+** @param str std-string_view/string for the text
 ** @return uint64_t the hash
 **/
 template<class T, class = typename std::enable_if<std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value>::type>
@@ -25,8 +26,9 @@ inline uint64_t hash_(const T& str)
 		hash = hash * 33 + str[a];
 	return hash;
 }
-/** @brief calculate simple hash for string, used for switch-string
-** @param str std-string for the text
+/** 
+** @brief calculate simple hash for string, used for switch-string
+** @param str c-string for the text
 ** @return uint64_t the hash
 **/
 constexpr inline uint64_t hash_(const char *str)
@@ -36,7 +38,8 @@ constexpr inline uint64_t hash_(const char *str)
 		hash = hash * 33 + *str;
 	return hash;
 }
-/** @brief calculate simple hash for string, used for switch-string
+/**
+** @brief calculate simple hash for string, used for switch-string
 ** @return uint64_t the hash
 **/
 constexpr inline uint64_t operator "" _hash(const char *str, size_t)
@@ -48,44 +51,70 @@ constexpr inline uint64_t operator "" _hash(const char *str, size_t)
 namespace str
 {
 
-template<class T, class charT = T::value_type>
-inline auto split(const T& src, const charT delim, const bool keepblank = true)
+/**
+** @brief split source using judger, putting slice into container
+** @param src source
+** @param judger a function that accepts one element and return (bool) whether it is delim
+** @param container a container that allows push_back to put a slice of std::basyc_string_view<CharT>
+** @param keepblank whether should keep blank splice
+** @return container
+**/
+template<class T, class CharT = T::value_type, class Judger, class Container>
+inline auto split(const T& src, const Judger judger, Container& container, const bool keepblank = true)
 {
 	using namespace std;
-	vector<basic_string_view<charT>> ret;
+	size_t cur = 0, last = 0, len = src.length();
+	for (; cur < len; cur++)
+	{
+		if (judger(src[cur]))
+		{
+			if (keepblank || cur != last)
+				container.push_back(basic_string_view<CharT>(&src[last], cur - last));
+			last = cur + 1;
+		}
+	}
+	if (keepblank || cur != last)
+		container.push_back(basic_string_view<CharT>(&src[last], cur - last));
+	return container;
+}
+
+/**
+** @brief split source using delim, do something for each slice
+** @param src source
+** @param delim a delim that split source
+** @param consumer a function that accepts start pos AND length for each slice and do something
+** @param keepblank whether should keep blank splice
+**/
+template<class T, class CharT = T::value_type, class Func>
+inline void SplitAndDo(const T& src, const CharT delim, const Func consumer, const bool keepblank = true)
+{
 	size_t cur = 0, last = 0, len = src.length();
 	for (; cur < len; cur++)
 	{
 		if (src[cur] == delim)
 		{
 			if (keepblank || cur != last)
-				ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+				consumer(&src[last], cur - last);
 			last = cur + 1;
 		}
 	}
 	if (keepblank || cur != last)
-		ret.push_back(basic_string_view<charT>(&src[last], cur - last));
+		consumer(&src[last], cur - last);
+}
+
+template<class T, class CharT = T::value_type>
+inline auto split(const T& src, const CharT delim, const bool keepblank = true)
+{
+	using namespace std;
+	vector<basic_string_view<CharT>> ret;
+	SplitAndDo(src, delim, [&ret](const CharT *pos, const size_t len) { ret.push_back(basic_string_view<CharT>(pos, len); }, keepblank);
 	return ret;
 }
 
-template<class charT, size_t N>
-inline auto split(const charT(&src)[N], const charT delim, const bool keepblank = true)
+template<class CharT, size_t N>
+inline auto split(const CharT(&src)[N], const CharT delim, const bool keepblank = true)
 {
-	using namespace std;
-	vector<basic_string_view<charT>> ret;
-	size_t cur = 0, last = 0, len = N - 1;
-	for (; cur < len; cur++)
-	{
-		if (src[cur] == delim)
-		{
-			if (keepblank || cur != last)
-				ret.push_back(basic_string_view<charT>(&src[last], cur - last));
-			last = cur + 1;
-		}
-	}
-	if (keepblank || cur != last)
-		ret.push_back(basic_string_view<charT>(&src[last], cur - last));
-	return ret;
+	return split(std::basic_string_view<CharT>(src, N - 1), delim, keepblank);
 }
 
 template<class T, class charT = T::value_type>
@@ -266,21 +295,22 @@ inline std::wstring to_wstring(const T val)
 	return std::to_wstring(val);
 }
 
-inline std::wstring to_wstring(const std::string& str, const Charset chset = Charset::ASCII)
+template<typename T, typename = std::enable_if<std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value>::type>
+inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCII)
 {
 	switch (chset)
 	{
 	case Charset::ASCII:
-		return std::wstring(str.begin(), str.end());
+		return std::wstring(str.cbegin(), str.cend());
 	case Charset::GB18030:
 		{
 			std::wstring_convert<std::codecvt_byname<wchar_t, char, mbstate_t>> gbk_utf16_cvt(new std::codecvt_byname<wchar_t, char, mbstate_t>(".936"));
-			return gbk_utf16_cvt.from_bytes(str);
+			return gbk_utf16_cvt.from_bytes(str.data(), str.data() + str.length());
 		}
 	case Charset::UTF8:
 		{ 
 			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_utf16_cvt;
-			return utf8_utf16_cvt.from_bytes(str);
+			return utf8_utf16_cvt.from_bytes(str.data(), str.data() + str.length());
 		}
 	}
 	return L"";
