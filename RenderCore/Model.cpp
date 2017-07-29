@@ -270,8 +270,9 @@ public:
 
 	OBJLoder(const fs::path& fpath_) : FilePath(fpath_)
 	{
+		using namespace common::file;
 		//pre-load data, in case of Acess-Violate while reading file
-		Content = file::readAll(FilePath);
+		file::ReadAll(FilePath, Content);
 		Length = Content.size() - 1;
 		CurPos = 0;
 		chset = uchdet::detectEncoding(Content);

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
-        xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView"
+        xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
         xmlns:local="clr-namespace:WPFTest"
         mc:Ignorable="d"
         Title="MainWindow" Height="600" Width="900">

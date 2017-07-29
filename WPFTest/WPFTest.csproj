@@ -121,12 +121,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "$(TargetDir)RenderCoreWrap.*"
-if exist "$(SolutionDir)$(ConfigurationName)\RenderCoreWrap.dll" copy "$(SolutionDir)$(ConfigurationName)\RenderCoreWrap.dll" "$(TargetDir)RenderCoreWrap.x86.dll"
-if exist "$(SolutionDir)x64\$(ConfigurationName)\RenderCoreWrap.dll" copy "$(SolutionDir)x64\$(ConfigurationName)\RenderCoreWrap.dll" "$(TargetDir)RenderCoreWrap.x64.dll"
-del "$(TargetDir)OpenGLView.*"
-if exist "$(SolutionDir)$(ConfigurationName)\OpenGLView.dll" copy "$(SolutionDir)$(ConfigurationName)\OpenGLView.dll" "$(TargetDir)OpenGLView.x86.dll"
-if exist "$(SolutionDir)x64\$(ConfigurationName)\OpenGLView.dll" copy "$(SolutionDir)x64\$(ConfigurationName)\OpenGLView.dll" "$(TargetDir)OpenGLView.x64.dll"
-</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

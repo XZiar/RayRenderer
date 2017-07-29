@@ -20,14 +20,9 @@ struct ForEach<Func, true>
 private:
 	ForEach() {};
 	template<typename Tuple, std::size_t... Indexes>
-	static CookieType EachTuple_impl(Tuple&& args, std::index_sequence<Indexes...>)
-	{
-		return Each(std::get<Indexes>(args)...);
-	}
-	template<typename Tuple, std::size_t... Indexes>
 	static CookieType EachTuple_impl(CookieType cookie, Tuple&& args, std::index_sequence<Indexes...>)
 	{
-		return Each(cookie, std::get<Indexes>(args)...);
+		return Each_impl(cookie, std::get<Indexes>(args)...);
 	}
 	template<typename T>
 	static CookieType Each_impl(CookieType& cookie, T&& arg)
@@ -56,12 +51,13 @@ public:
 	template<typename Tuple>
 	static CookieType EachTuple(Tuple&& args)
 	{
-		return EachTuple_impl(args, std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
+		auto cookie = Func::Init();
+		return EachTuple_impl(cookie, args, std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 	}
 	template<typename Tuple>
-	static CookieType EachTuple(CookieType cookie, Tuple&& args)
+	static CookieType EachTuple2(CookieType cookie, Tuple&& args)
 	{
-		return EachTuple_impl(args, std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
+		return EachTuple_impl(cookie, args, std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 	}
 };
 

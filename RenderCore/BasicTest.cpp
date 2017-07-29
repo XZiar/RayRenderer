@@ -1,7 +1,8 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "../3rdParty/stblib/stblib.h"
+#include "stblib/stblib.h"
+#include "ImageUtil/ImageUtil.h"
 #include <thread>
 
 namespace rayr
@@ -233,8 +234,23 @@ void BasicTest::prepareLight()
 	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
+static void imguTest()
+{
+	auto img = xziar::img::ReadImage(L"D:\\Programs Temps\\RayRenderer\\pngtest.png");
+	auto size = img.Width * img.Height;
+	::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRaw(), img.Width, img.Height, img.ElementSize);
+}
+
 void BasicTest::fontTest(const wchar_t word)
 {
+	try
+	{
+		imguTest();
+	}
+	catch (BaseException& be)
+	{
+		basLog().error(L"ImageUtil ERROR {}\n", be.message);
+	}
 	try
 	{
 		fontViewer.reset();
@@ -323,14 +339,14 @@ void BasicTest::resize(const int w, const int h)
 
 void BasicTest::reloadFontLoader(const wstring& fname)
 {
-	auto clsrc = file::readAllTxt(fname);
+	auto clsrc = file::ReadAllText(fname);
 	fontCreator->reload(clsrc);
 	fontTest(L'Œ“');
 }
 
 void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
-	auto clsrc = file::readAllTxt(fname);
+	auto clsrc = file::ReadAllText(fname);
 	fontCreator->reload(clsrc);
 	fontTest(L'Œ“');
 	onFinish([]() { return true; });

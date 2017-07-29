@@ -25,7 +25,7 @@ private:
 	string src;
 public:
 	_oglShader(const ShaderType type, const string& txt);
-	_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, file::readAllTxt(fp)) { };
+	//_oglShader(const ShaderType type, FILE *fp) : _oglShader(type, file::readAllTxt(fp)) { };
 	~_oglShader();
 
 	void compile();

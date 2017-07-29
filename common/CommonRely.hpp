@@ -37,20 +37,22 @@ constexpr const T& min(const T& left, const T& right)
 
 struct NonCopyable
 {
-	NonCopyable() = default;
-	NonCopyable(const NonCopyable&) = delete;
-	NonCopyable(NonCopyable&&) = default;
-	NonCopyable& operator= (const NonCopyable&) = delete;
-	NonCopyable& operator= (NonCopyable&&) = default;
+	NonCopyable() noexcept = default;
+	~NonCopyable() noexcept = default;
+	NonCopyable(const NonCopyable&) noexcept = delete;
+	NonCopyable& operator= (const NonCopyable&) noexcept = delete;
+	NonCopyable(NonCopyable&&) noexcept = default;
+	NonCopyable& operator= (NonCopyable&&) noexcept = default;
 };
 
 struct NonMovable
 {
-	NonMovable() = default;
-	NonMovable(const NonMovable&) = default;
-	NonMovable(NonMovable&&) = delete;
-	NonMovable& operator= (const NonMovable&) = default;
-	NonMovable& operator= (NonMovable&&) = delete;
+	NonMovable() noexcept = default;
+	~NonMovable() noexcept = default;
+	NonMovable(NonMovable&&) noexcept = delete;
+	NonMovable& operator= (NonMovable&&) noexcept = delete;
+	NonMovable(const NonMovable&) noexcept = default;
+	NonMovable& operator= (const NonMovable&) noexcept = default;
 };
 
 template<class T>

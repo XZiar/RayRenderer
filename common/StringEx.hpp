@@ -181,17 +181,16 @@ inline std::basic_string<T> concat(ARGS... args)
 	return ret;
 }
 
-namespace detail
-{
-inline char toUpper(const char ch)
+
+inline char ToUpper(const char ch)
 {
 	return (char)std::toupper(ch);
 }
-inline wchar_t toUpper(const wchar_t ch)
+inline wchar_t ToUpper(const wchar_t ch)
 {
 	return (wchar_t)std::towupper(ch);
 }
-inline std::string toUpper(const std::string& src)
+inline std::string ToUpper(const std::string& src)
 {
 	std::string ret;
 	ret.reserve(src.length());
@@ -199,7 +198,7 @@ inline std::string toUpper(const std::string& src)
 		ret.push_back((char)std::toupper(ch));
 	return ret;
 }
-inline std::wstring toUpper(const std::wstring& src)
+inline std::wstring ToUpper(const std::wstring& src)
 {
 	std::wstring ret;
 	ret.reserve(src.length());
@@ -207,6 +206,10 @@ inline std::wstring toUpper(const std::wstring& src)
 		ret.push_back((wchar_t)std::towupper(ch));
 	return ret;
 }
+
+namespace detail
+{
+
 inline bool upperComp(const char ch1, const char ch2)
 {
 	return (char)std::toupper(ch1) == ch2;
@@ -215,6 +218,7 @@ inline bool upperComp(const wchar_t ch1, const wchar_t ch2)
 {
 	return (wchar_t)std::towupper(ch1) == ch2;
 }
+
 }
 template<class T, class charT = T::value_type, class itT = T::const_iterator>
 inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj)
@@ -224,8 +228,8 @@ inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj
 		return {};
 	const size_t morelen = srclen - objlen;
 	for (size_t a = 0; a < objlen; ++a)
-		src[a] = detail::toUpper(src[a]);
-	auto upobj = detail::toUpper(obj);
+		src[a] = ToUpper(src[a]);
+	auto upobj = ToUpper(obj);
 	for (size_t a = 0; ; ++a)
 	{
 		if (src.compare(a, objlen, upobj) == 0)
@@ -236,7 +240,7 @@ inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj
 		}
 		if (a >= morelen)
 			break;
-		src[objlen + a] = detail::toUpper(src[objlen + a]);
+		src[objlen + a] = ToUpper(src[objlen + a]);
 	}
 	return {};
 }

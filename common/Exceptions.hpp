@@ -83,6 +83,7 @@ private:
 		stks.push_back(stackitem);
 	}
 public:
+	//BaseException(const BaseException& be) = default;
 	BaseException(const std::wstring& msg, const std::any& data_ = std::any())
 		: BaseException(TYPENAME, msg, data_)
 	{ }
@@ -114,7 +115,7 @@ public:
 };
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
 	virtual ::common::Wrapper<BaseException> clone() const override\
-	{ return ::common::Wrapper<type>(*this); }
+	{ return ::common::Wrapper<type>(*this).cast_static<BaseException>(); }
 
 inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
 {
@@ -127,11 +128,11 @@ inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException(
 	}
 	catch (const BaseException& be)
 	{
-		return be.clone();
+		return be.clone().cast_static<detail::AnyException>();
 	}
 	catch (...)
 	{
-		return Wrapper<detail::OtherException>(new detail::OtherException(cex));
+		return Wrapper<detail::OtherException>(new detail::OtherException(cex)).cast_static<detail::AnyException>();
 	}
 }
 

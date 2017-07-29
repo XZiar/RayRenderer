@@ -1,29 +1,15 @@
 #pragma once
-#include "CommonRely.hpp"
-#include "Wrapper.hpp"
+
 #include <atomic>
 #include <functional>
 #include <exception>
+#include "CommonRely.hpp"
+#include "Wrapper.hpp"
+#include "SpinLock.hpp"
 
 
 namespace common
 {
-
-struct SpinLocker
-{
-private:
-	std::atomic_flag& lock;
-public:
-	SpinLocker(std::atomic_flag& flag) : lock(flag) 
-	{
-		while (!lock.test_and_set())
-		{ }
-	}
-	~SpinLocker()
-	{
-		lock.clear();
-	}
-};
 
 template<class T>
 class SharedResource

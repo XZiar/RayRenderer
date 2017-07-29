@@ -120,21 +120,6 @@ cl_program _oclProgram::loadProgram() const
 	return prog;
 }
 
-string _oclProgram::loadFromFile(FILE *fp)
-{
-	fseek(fp, 0, SEEK_END);
-	const size_t fsize = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-
-	char *dat = new char[fsize + 1];
-	fread(dat, fsize, 1, fp);
-	dat[fsize] = '\0';
-	string txt(dat);
-	delete[] dat;
-
-	return txt;
-}
-
 void _oclProgram::initKers()
 {
 	cl_int ret;
@@ -159,7 +144,7 @@ void _oclProgram::build(const string& options, const oclDevice dev)
 	if (ret != CL_SUCCESS)
 	{
 		wstring buildlog;
-		for (auto dev : getDevs())
+		for (auto& dev : getDevs())
 			buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
 	}

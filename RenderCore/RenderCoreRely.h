@@ -21,15 +21,15 @@
 #include <unordered_map>
 #include <set>
 #include <filesystem>
-#include "../3DBasic/3dElement.hpp"
-#include "../common/CommonRely.hpp"
-#include "../common/Wrapper.hpp"
-#include "../common/AlignedContainer.hpp"
-#include "../common/ContainerEx.hpp"
-#include "../common/Exceptions.hpp"
-#include "../common/StringEx.hpp"
-#include "../OpenGLUtil/OpenGLUtil.h"
-#include "../OpenCLUtil/OpenCLUtil.h"
+#include "3DBasic/3dElement.hpp"
+#include "common/CommonRely.hpp"
+#include "common/Wrapper.hpp"
+#include "common/AlignedContainer.hpp"
+#include "common/ContainerEx.hpp"
+#include "common/Exceptions.hpp"
+#include "common/StringEx.hpp"
+#include "OpenGLUtil/OpenGLUtil.h"
+#include "OpenCLUtil/OpenCLUtil.h"
 
 #include <boost/bimap.hpp>
 #include <boost/multi_index_container.hpp>
@@ -50,7 +50,7 @@ using CallbackInvoke = std::function<void(std::function<T(ARGS...)>)>;
 }
 
 #ifdef RAYCORE_EXPORT
-#include "../common/miniLogger/miniLogger.h"
+#include "common/miniLogger/miniLogger.h"
 namespace rayr
 {
 common::mlog::logger& basLog();

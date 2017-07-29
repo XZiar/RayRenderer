@@ -19,12 +19,18 @@ private:
 public:
 	using inner_type = T;
 	using weak_type = std::weak_ptr<T>;
+
 	constexpr Wrapper() noexcept { }
+	
+
 	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
 	Wrapper(NoArg) : base_type(std::make_shared<T>())
 	{ }
 	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value>::type>
 	Wrapper(const Wrapper<U>& other) noexcept : base_type(std::static_pointer_cast<T>(other))
+	{ }
+	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value>::type>
+	Wrapper(Wrapper<U>&& other) noexcept : base_type(static_cast<Wrapper<T>&&>(other))
 	{ }
 	Wrapper(const base_type& other) noexcept : base_type(other)
 	{ }
@@ -35,13 +41,14 @@ public:
 	{ }
 	explicit Wrapper(T *src) noexcept : base_type(src)
 	{ }
-	template<class... ARGS>
-	Wrapper(ARGS... args) : base_type(std::make_shared<T>(args...))
+	template<typename Arg, typename... Args, typename = typename std::enable_if<
+		sizeof...(Args) != 0 || !std::is_base_of<Wrapper<T>, std::remove_reference<Arg>::type>::value>::type>
+	explicit Wrapper(Arg&& arg, Args&&... args) : base_type(std::make_shared<T>(std::forward<Arg>(arg), std::forward<Args>(args)...))
 	{ }
-	template<class... ARGS>
-	void reset(ARGS... args)
+	template<class... Args>
+	void reset(Args&&... args)
 	{
-		*this = Wrapper<T>(args...);
+		*this = Wrapper<T>(std::forward<Args>(args)...);
 	}
 	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
 	void reset()
@@ -66,6 +73,11 @@ public:
 	{
 		return Wrapper<U>(std::dynamic_pointer_cast<U>(*this));
 	}
+
+	Wrapper(const Wrapper<T>& other) noexcept = default;
+	Wrapper(Wrapper<T>&& other) noexcept = default;
+	Wrapper& operator=(const Wrapper<T>& other) noexcept = default;
+	Wrapper& operator=(Wrapper<T>&& other) noexcept = default;
 };
 
 template<class U, class T = U::element_type>

@@ -14,11 +14,11 @@
 #include <vector>
 #include <functional>
 
-#include "../CommonRely.hpp"
-#include "../Wrapper.hpp"
+#include "common/CommonRely.hpp"
+#include "common/Wrapper.hpp"
 
 //#define FMT_HEADER_ONLY
-#include "../../3rdParty/fmt/format.h"
+#include "fmt/format.h"
 
 
 namespace common

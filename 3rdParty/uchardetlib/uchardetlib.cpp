@@ -25,7 +25,10 @@ std::string getEncoding(const void *data, const size_t len)
 {
 	auto tool = uchardet_new();
 	if (uchardet_handle_data(tool, (const char*)data, len))
+	{
+		uchardet_delete(tool);
 		return "error";
+	}
 	uchardet_data_end(tool);
 	std::string chset(uchardet_get_charset(tool));
 

@@ -1,9 +1,10 @@
 #include "miniLogger.h"
 #include "InnerLogger.inl"
+#include "common/SpinLock.hpp"
 
 namespace common::mlog
 {
-
+using common::SpinLocker;
 
 GLogCallBack logger::onGlobalLog = nullptr;
 void logger::setGlobalCallBack(GLogCallBack cb)
@@ -48,10 +49,10 @@ void logger::printConsole(const LogLevel lv, const std::wstring& content)
 	static ConsoleLogger conlog;
 	if (!(outputs & (uint8_t)LogOutput::Console))
 		return;
-	while (!flagConsole.test_and_set())
-		;//spin lock
-	conlog.print(lv, content);
-	flagConsole.clear();
+	{
+		SpinLocker locker(flagConsole);
+		conlog.print(lv, content);
+	}
 }
 
 void logger::printFile(const LogLevel lv, const std::wstring& content)
@@ -60,31 +61,31 @@ void logger::printFile(const LogLevel lv, const std::wstring& content)
 		return;
 	if (!(outputs & (uint8_t)LogOutput::File))
 		return;
-	while (!flagFile.test_and_set())
-		;//spin lock
-	fwprintf_s(fp, L"%s", content.c_str());
-	flagFile.clear();
+	{
+		SpinLocker locker(flagFile);
+		fwprintf_s(fp, L"%s", content.c_str());
+	}
 }
 
 void logger::printBuffer(const LogLevel lv, const std::wstring& content)
 {
 	if (!(outputs & (uint8_t)LogOutput::Buffer))
 		return;
-	while (!flagBuffer.test_and_set())
-		;//spin lock
-	buffer.push_back({ lv,content });
-	flagBuffer.clear();
+	{
+		SpinLocker locker(flagBuffer);
+		buffer.push_back({ lv,content });
+	}
 }
 
 bool logger::onCallBack(const LogLevel lv, const std::wstring &content)
 {
 	if (!onLog)
 		return true;
-	while (!flagCallback.test_and_set())
-		;//spin lock
-	const bool ret = onLog(lv, content);
-	flagCallback.clear();
-	return ret;
+	{
+		SpinLocker locker(flagCallback);
+		const bool ret = onLog(lv, content);
+		return ret;
+	}
 }
 
 void logger::setLeastLevel(const LogLevel lv)
@@ -111,22 +112,22 @@ void logger::setOutput(const LogOutput method, const bool isEnable)
 	default:
 		return;
 	}
-	while (!flag->test_and_set())
-		;//spin lock
-	if (isEnable)
-		outputs.fetch_add((uint8_t)method);
-	else
-		outputs.fetch_xor((uint8_t)method);
-	flag->clear();
+	{
+		SpinLocker locker(*flag);
+		if (isEnable)
+			outputs.fetch_add((uint8_t)method);
+		else
+			outputs.fetch_xor((uint8_t)method);
+	}
 }
 
 std::vector<std::pair<LogLevel, std::wstring>> logger::getLogBuffer()
 {
 	std::vector<std::pair<LogLevel, std::wstring>> ret;
-	while (!flagBuffer.test_and_set())
-		;//spin lock
-	ret.swap(buffer);
-	flagBuffer.clear();
+	{
+		SpinLocker locker(flagBuffer);
+		ret.swap(buffer);
+	}
 	return ret;
 }
 

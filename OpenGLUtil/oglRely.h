@@ -14,6 +14,7 @@
 #include "../common/Wrapper.hpp"
 #include "../common/ContainerEx.hpp"
 #include "../common/StringEx.hpp"
+#define USING_CHARDET
 #include "../common/FileEx.hpp"
 #include "../common/TimeUtil.hpp"
 #include "../common/Exceptions.hpp"

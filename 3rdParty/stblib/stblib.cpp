@@ -66,6 +66,17 @@ void saveImage(const std::wstring& fname, const std::vector<uint32_t>& data, con
 		throw std::ios_base::failure("write failure");
 }
 
+void saveImage(const std::wstring& fname, const std::vector<uint8_t>& data, const uint32_t width, const uint32_t height, const uint8_t compCount)
+{
+	FILE *fp = nullptr;
+	if (_wfopen_s(&fp, fname.c_str(), L"wb") != 0)
+		throw std::ios_base::failure("cannot open file");
+	const auto ret = stbi_write_png_to_func(&writeToFile, fp, (int)width, (int)height, compCount, data.data(), 0);
+	fclose(fp);
+	if (ret == 0)
+		throw std::ios_base::failure("write failure");
+}
+
 
 static std::vector<uint32_t> buildBlock4x4(const std::vector<uint32_t>& input, const uint32_t w, const uint32_t h, uint32_t& idx)
 {

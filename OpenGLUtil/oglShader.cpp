@@ -41,19 +41,9 @@ void _oglShader::compile()
 
 oglShader __cdecl oglShader::loadFromFile(const ShaderType type, const fs::path& path)
 {
-	if (!fs::exists(path))
-		COMMON_THROW(FileException, FileException::Reason::NotExist, path, L"cannot open file to load shader");
-	FILE *fp = nullptr;
-	if (_wfopen_s(&fp, path.c_str(), L"rb") != 0)
-		COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open file to load shader");
-	fseek(fp, 0, SEEK_END);
-	const size_t fsize = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	vector<uint8_t> data(fsize + 1);
-	fread(data.data(), fsize, 1, fp);
-	fclose(fp);
-	data[fsize] = '\0';
-	string txt((const char*)data.data());
+	using namespace common::file;
+	string txt = FileObject::OpenThrow(path, (OpenFlag)((uint8_t)OpenFlag::BINARY | (uint8_t)OpenFlag::READ))
+		.ReadAllText();
 	oglShader shader(type, txt);
 	return shader;
 }

@@ -88,13 +88,13 @@ namespace WinFormTest
                     break;
                 case '+':
                     curObj++;
-                    if (curObj >= test.objectCount())
+                    if (curObj >= test.objectCount)
                         curObj = 0;
                     //test.showObject(curObj);
                     break;
                 case '-':
                     if (curObj == 0)
-                        curObj = test.objectCount();
+                        curObj = test.objectCount;
                     curObj--;
                     //test.showObject(curObj);
                     break;

@@ -1,6 +1,9 @@
 #pragma once
 
-#include "../../common/StringEx.hpp"
+#ifndef UCHARDETLIB_H_
+#define UCHARDETLIB_H_
+
+#include "common\StringEx.hpp"
 #include <vector>
 #include <string>
 
@@ -15,3 +18,5 @@ std::string getEncoding(const void *data, const size_t len);
 
 
 }
+
+#endif
