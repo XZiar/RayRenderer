@@ -45,8 +45,8 @@ using std::string;
 using std::map;
 using std::vector;
 using namespace common;
-template<class T, class... ARGS>
-using CallbackInvoke = std::function<void(std::function<T(ARGS...)>)>;
+template<class T, class... Args>
+using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
 }
 
 #ifdef RAYCORE_EXPORT

@@ -1,7 +1,7 @@
 #include "RenderCoreRely.h"
 #include "Model.h"
-#include "../3rdParty/stblib/stblib.h"
-#include "../3rdParty/uchardetlib/uchardetlib.h"
+#include "stblib/stblib.h"
+#include "uchardetlib/uchardetlib.h"
 
 
 namespace rayr

@@ -1,5 +1,5 @@
 #include "oclRely.h"
-#include "../common/PromiseTask.inl"
+#include "common/PromiseTask.inl"
 
 #ifdef USING_INTEL
 #   pragma comment(lib, R"(\intel\OpenCL.lib)")

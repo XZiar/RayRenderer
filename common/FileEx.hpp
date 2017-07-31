@@ -46,14 +46,12 @@ private:
 		switch ((uint8_t)flag)
 		{
 		case 0b00001: return L"r";
-		case 0b00010: return L"w";
 		case 0b00011: return L"r+";
 		case 0b00110: return L"w";
 		case 0b00111: return L"w+";
 		case 0b01110: return L"a";
 		case 0b01111: return L"a+";
 		case 0b10001: return L"rb";
-		case 0b10010: return L"wb";
 		case 0b10011: return L"r+b";
 		case 0b10110: return L"wb";
 		case 0b10111: return L"w+b";
@@ -90,6 +88,11 @@ public:
 		return fread(ptr, len, 1, fp) != 0;
 	}
 
+	bool Write(const size_t len, const void *ptr)
+	{
+		return fwrite(ptr, len, 1, fp) != 0;
+	}
+
 	template<class T, size_t N>
 	size_t Read(T(&output)[N], size_t count = N)
 	{
@@ -101,7 +104,15 @@ public:
 		count = std::min(count, N);
 		count = std::min((flen - cur) / elementSize, N);
 		auto ret = Read(count * elementSize, output);
-		auto newcur = CurrentPos();
+		return ret ? count : 0;
+	}
+
+	template<class T, size_t N>
+	size_t Write(T(&input)[N], size_t count = N)
+	{
+		const size_t elementSize = sizeof(T);
+		count = std::min(count, N);
+		auto ret = Write(count * elementSize, output);
 		return ret ? count : 0;
 	}
 
@@ -116,6 +127,14 @@ public:
 		count = std::min((flen - cur) / elementSize, count);
 		output.resize(count);
 		return Read(count * elementSize, output.data()) ? count : 0;
+	}
+
+	template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
+	size_t Write(size_t count, const T& input)
+	{
+		const size_t elementSize = sizeof(T::value_type);
+		count = std::min(input.size(), count);
+		return Write(count * elementSize, output.data()) ? count : 0;
 	}
 
 	template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
@@ -169,7 +188,7 @@ public:
 
 	static FileObject OpenThrow(const fs::path& path, const OpenFlag flag)
 	{
-		if (!fs::exists(path))
+		if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::CREATE))
 			COMMON_THROW(FileException, FileException::Reason::NotExist, path, L"target file not exist");
 		FILE *fp;
 		if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)

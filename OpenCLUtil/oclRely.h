@@ -2,24 +2,22 @@
 
 #ifdef OCLU_EXPORT
 #   define OCLUAPI _declspec(dllexport)
-#   define OCLUTPL _declspec(dllexport) 
 #   define COMMON_EXPORT
 #else
 #   define OCLUAPI _declspec(dllimport)
-#   define OCLUTPL
 #endif
 
-#include "../3dBasic/miniBLAS.hpp"
-#include "../common/CommonRely.hpp"
-#include "../common/Wrapper.hpp"
-#include "../common/Exceptions.hpp"
-#include "../common/ContainerEx.hpp"
-#include "../common/StringEx.hpp"
-#include "../common/AlignedContainer.hpp"
-#include "../common/PromiseTask.h"
+#include "3DBasic/miniBLAS.hpp"
+#include "common/CommonRely.hpp"
+#include "common/Wrapper.hpp"
+#include "common/Exceptions.hpp"
+#include "common/ContainerEx.hpp"
+#include "common/StringEx.hpp"
+#include "common/AlignedContainer.hpp"
+#include "common/PromiseTask.h"
 
-#include "../OpenGLUtil/oglBuffer.h"
-#include "../OpenGLUtil/oglTexture.h"
+#include "OpenGLUtil/oglBuffer.h"
+#include "OpenGLUtil/oglTexture.h"
 
 #include <cstdio>
 #include <memory>
@@ -65,7 +63,7 @@ class _oclKernel;
 }
 
 #ifdef OCLU_EXPORT
-#include "../common/miniLogger/miniLogger.h"
+#include "common/miniLogger/miniLogger.h"
 namespace oclu
 {
 common::mlog::logger& oclLog();

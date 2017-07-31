@@ -1,7 +1,9 @@
 #include "ImageUtilRely.h"
 #include "ImagePNG.h"
+
 #include "libpng/png.h"
 #include "zlib/zlib.h"
+#include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
 
 
@@ -12,37 +14,67 @@ namespace xziar::img::png
 constexpr static size_t PNG_BYTES_TO_CHECK = 8;
 
 
+static void OnReadFile(png_structp pngStruct, uint8_t *data, size_t length)
+{
+	FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
+	file.Read(length, data);
+}
+static void OnWriteFile(png_structp pngStruct, uint8_t *data, size_t length)
+{
+	FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
+	file.Write(length, data);
+}
+static void OnFlushFile(png_structp pngStruct) {}
+
 static void OnError(png_structrp pngStruct, const char *message)
 {
 	ImgLog().error(L"LIBPNG report an error: {}\n", to_wstring(message));
 	COMMON_THROW(BaseException, L"Libpng report an error");
 }
-
 static void OnWarn(png_structrp pngStruct, const char *message)
 {
 	ImgLog().warning(L"LIBPNG warns: {}\n", to_wstring(message));
 }
 
-static png_structp CreateStruct()
+static std::vector<uint8_t*> GetRowPtrs(Image& image, const size_t offset = 0)
+{
+	std::vector<uint8_t*> pointers(image.Height, nullptr);
+	uint8_t *rawPtr = image.GetRawPtr();
+	size_t lineStep = image.ElementSize * image.Width;
+	for (auto& ptr : pointers)
+		ptr = rawPtr + offset, rawPtr += lineStep;
+	return pointers;
+}
+static std::vector<const uint8_t*> GetRowPtrs(const Image& image, const size_t offset = 0)
+{
+	std::vector<const uint8_t*> pointers(image.Height, nullptr);
+	const uint8_t *rawPtr = image.GetRawPtr();
+	size_t lineStep = image.ElementSize * image.Width;
+	for (auto& ptr : pointers)
+		ptr = rawPtr + offset, rawPtr += lineStep;
+	return pointers;
+}
+
+static png_structp CreateReadStruct()
 {
 	auto handle = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, OnError, OnWarn);
 	if (!handle)
 		COMMON_THROW(BaseException, L"Cannot alloc space for png struct");
 	return handle;
 }
-
+static png_structp CreateWriteStruct()
+{
+	auto handle = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, OnError, OnWarn);
+	if (!handle)
+		COMMON_THROW(BaseException, L"Cannot alloc space for png struct");
+	return handle;
+}
 static png_infop CreateInfo(png_structp pngStruct)
 {
 	auto handle = png_create_info_struct(pngStruct);
 	if (!handle)
 		COMMON_THROW(BaseException, L"Cannot alloc space for png info");
 	return handle;
-}
-
-static void OnReadFile(png_structp pngStruct, uint8_t *data, size_t length)
-{
-	FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
-	file.Read(length, data);
 }
 
 
@@ -143,8 +175,9 @@ void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 #undef LOOP_RGB_RGBA
 
 
-PngReader::PngReader(FileObject& file) : ImgFile(file), PngStruct(CreateStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
+PngReader::PngReader(FileObject& file) : ImgFile(file), PngStruct(CreateReadStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
 {
+	png_set_read_fn((png_structp)PngStruct, &ImgFile, OnReadFile);
 }
 
 PngReader::~PngReader()
@@ -171,12 +204,10 @@ Image PngReader::Read(const ImageDataType dataType)
 {
 	auto pngStruct = (png_structp)PngStruct;
 	auto pngInfo = (png_infop)PngInfo;
-	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY)
+	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY || HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
 		//NotSupported Yet
 		return Image(dataType);
-
 	ImgFile.Rewind();
-	png_set_read_fn(pngStruct, &ImgFile, OnReadFile);
 
 	png_read_info(pngStruct, pngInfo);
 	uint32_t width = 0, height = 0;
@@ -239,6 +270,46 @@ Image PngReader::Read(const ImageDataType dataType)
 	png_read_end(pngStruct, pngInfo);
 	return image;
 }
+
+
+PngWriter::PngWriter(FileObject& file) : ImgFile(file), PngStruct(CreateWriteStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
+{
+	png_set_write_fn((png_structp)PngStruct, &ImgFile, OnWriteFile, OnFlushFile);
+}
+
+PngWriter::~PngWriter()
+{
+	if (PngStruct)
+	{
+		if (PngInfo)
+			png_destroy_write_struct((png_structpp)&PngStruct, (png_infopp)&PngInfo);
+		else
+			png_destroy_write_struct((png_structpp)&PngStruct, nullptr);
+	}
+}
+
+void PngWriter::Write(const Image& image)
+{
+	auto pngStruct = (png_structp)PngStruct;
+	auto pngInfo = (png_infop)PngInfo;
+	if (REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY || HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+		//NotSupported Yet
+		return;
+	ImgFile.Rewind();
+
+	const auto colorType = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? PNG_COLOR_TYPE_RGBA : PNG_COLOR_TYPE_RGB;
+	png_set_IHDR(pngStruct, pngInfo, image.Width, image.Height, 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+	png_set_compression_level(pngStruct, 3);
+	png_write_info(pngStruct, pngInfo);
+
+	if (REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::BGR)
+		png_set_swap_alpha(pngStruct);
+
+	auto ptrs = GetRowPtrs(image);
+	png_write_image(pngStruct, (png_bytepp)ptrs.data());
+	png_write_end(pngStruct, pngInfo);
+}
+
 
 
 }

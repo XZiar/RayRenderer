@@ -26,26 +26,26 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -79,6 +79,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>IMGUTIL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -90,6 +91,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>IMGUTIL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -103,6 +105,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>IMGUTIL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -120,6 +123,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>IMGUTIL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -147,8 +151,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ImageInternal.h" />
     <ClInclude Include="ImagePNG.h" />
+    <ClInclude Include="ImageSupport.hpp" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="ImageUtilRely.h" />
   </ItemGroup>

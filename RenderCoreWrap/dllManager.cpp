@@ -1,13 +1,13 @@
 #pragma unmanaged
 
-#include "../common/TimeUtil.hpp"
+#include "common/TimeUtil.hpp"
 #include "resource.h"
 #include <cstdio>
 #include <vector>
 #include <tuple>
 #include <filesystem>
-#include "../common/ResourceHelper.inl"
-#include "../common/DelayLoader.inl"
+#include "common/ResourceHelper.inl"
+#include "common/DelayLoader.inl"
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
 
@@ -21,7 +21,7 @@ static fs::path RRPath, DLLSPath;
 static vector<pair<HMODULE, string>> hdlls;
 static vector<pair<FILE*, wstring>> hfiles;
 
-void createDLL(const wstring& dllname, const int32_t dllid)
+static void createDLL(const wstring& dllname, const int32_t dllid)
 {
 	const wstring dllpath = DLLSPath / dllname;
 	FILE *fp = nullptr;
@@ -42,16 +42,17 @@ void createDLL(const wstring& dllname, const int32_t dllid)
 		throw std::runtime_error("cannot open DLL, errorno:" + std::to_string(errno));
 }
 
-void extractDLL()
+static void extractDLL()
 {
 	createDLL(L"miniLogger.dll", IDR_DLL_MLOG);
 	createDLL(L"OpenGLUtil.dll", IDR_DLL_OGLU);
 	createDLL(L"OpenCLUtil.dll", IDR_DLL_OCLU);
 	createDLL(L"FontHelper.dll", IDR_DLL_FONTHELP);
+	createDLL(L"ImageUtil.dll", IDR_DLL_IMGUTIL);
 	createDLL(L"RenderCore.dll", IDR_DLL_RENDERCORE);
 }
 
-void freeDLL()
+static void freeDLL()
 {
 	for (const auto& dll : hdlls)
 	{
@@ -69,7 +70,7 @@ void freeDLL()
 		fs::remove_all(subdir, errcd);
 }
 
-void* delayloaddll(const char *name)
+static void* delayloaddll(const char *name)
 {
 	GetLastError();
 	const std::string tmpname(name);

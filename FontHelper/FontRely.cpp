@@ -1,5 +1,5 @@
 #include "FontRely.h"
-#include "../common/ResourceHelper.h"
+#include "common/ResourceHelper.h"
 
 namespace oglu
 {

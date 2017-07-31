@@ -1,8 +1,8 @@
-#include "../RenderCore/RenderCore.h"
+#include "RenderCore/RenderCore.h"
 #include <cstdint>
 #include <cstdio>
 #include <memory>
-#include "../FreeGLUTView/FreeGLUTView.h"
+#include "FreeGLUTView/FreeGLUTView.h"
 
 
 using namespace glutview;

@@ -10,7 +10,7 @@
 #endif
 
 #define FREEGLUT_STATIC
-#include "../3rdParty/freeglut/freeglut.h"
+#include "freeglut/freeglut.h"
 
 #include <GL/wglext.h>
 
@@ -21,8 +21,8 @@
 #include <atomic>
 #include <mutex>
 #include <future>
-#include "../common/TimeUtil.hpp"
-#include "../common/miniLogger/miniLogger.h"
+#include "common/TimeUtil.hpp"
+#include "common/miniLogger/miniLogger.h"
 #include "FreeGLUTView.h"
 
 #include <boost/multi_index_container.hpp>

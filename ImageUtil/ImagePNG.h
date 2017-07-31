@@ -1,8 +1,7 @@
 #pragma once
 
 #include "ImageUtilRely.h"
-#include "ImageInternal.h"
-#include "common/StringEx.hpp"
+#include "ImageSupport.hpp"
 
 
 namespace xziar::img::png
@@ -10,22 +9,12 @@ namespace xziar::img::png
 
 using namespace common;
 
-class PngReader : public _ImgReader
+class IMGUTILAPI PngReader : public ImgReader
 {
 private:
 	FileObject& ImgFile;
 	void *PngStruct = nullptr;
 	void *PngInfo = nullptr;
-
-	static std::vector<uint8_t*> GetRowPtrs(Image& image, const size_t offset = 0)
-	{
-		std::vector<uint8_t*> pointers(image.Height, nullptr);
-		uint8_t *rawPtr = image.GetRawPtr();
-		size_t lineStep = image.ElementSize * image.Width;
-		for (auto& ptr : pointers)
-			ptr = rawPtr + offset, rawPtr += lineStep;
-		return pointers;
-	}
 
 	void ReadThrough(uint8_t passes, Image& image);
 	void ReadColorToColorAlpha(uint8_t passes, Image& image);
@@ -36,18 +25,25 @@ public:
 	virtual Image Read(const ImageDataType dataType) override;
 };
 
-class PngWriter : public _ImgWriter
+class IMGUTILAPI PngWriter : public ImgWriter
 {
-
+private:
+	FileObject& ImgFile;
+	void *PngStruct = nullptr;
+	void *PngInfo = nullptr;
+public:
+	PngWriter(FileObject& file);
+	virtual ~PngWriter() override;
+	virtual void Write(const Image& image) override;
 };
 
-class PngSupport : public _ImgSupport
+class IMGUTILAPI PngSupport : public ImgSupport
 {
 public:
-	PngSupport() : _ImgSupport(L"Png") {}
-	virtual ImgReader GetReader(FileObject& file) const override { return Wrapper<PngReader>(file).cast_static<_ImgReader>(); }
-	virtual ImgWriter GetWriter() const override { return (ImgWriter)Wrapper<PngWriter>().cast_static<_ImgWriter>(); }
-	virtual bool MatchExtension(const wstring& ext) const override { return ext == L"PNG"; }
+	PngSupport() : ImgSupport(L"Png") {}
+	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<PngReader>(file).cast_static<ImgReader>(); }
+	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<PngWriter>(file).cast_static<ImgWriter>(); }
+	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".PNG"; }
 	virtual bool MatchType(const wstring& type) const override { return type == L"PNG"; }
 };
 

@@ -2,28 +2,26 @@
 
 #ifdef OGLU_EXPORT
 #   define OGLUAPI _declspec(dllexport)
-#   define OGLUTPL _declspec(dllexport) 
 #   define COMMON_EXPORT
 #else
 #   define OGLUAPI _declspec(dllimport)
-#   define OGLUTPL
 #endif
 
-#include "../3dBasic/3dElement.hpp"
-#include "../common/AlignedContainer.hpp"
-#include "../common/Wrapper.hpp"
-#include "../common/ContainerEx.hpp"
-#include "../common/StringEx.hpp"
+#include "3DBasic/3dElement.hpp"
+#include "common/AlignedContainer.hpp"
+#include "common/Wrapper.hpp"
+#include "common/ContainerEx.hpp"
+#include "common/StringEx.hpp"
 #define USING_CHARDET
-#include "../common/FileEx.hpp"
-#include "../common/TimeUtil.hpp"
-#include "../common/Exceptions.hpp"
-#include "../common/PromiseTask.h"
+#include "common/FileEx.hpp"
+#include "common/TimeUtil.hpp"
+#include "common/Exceptions.hpp"
+#include "common/PromiseTask.h"
 
 #define GLEW_STATIC
-#include "../3rdParty/glew/glew.h"
+#include "glew/glew.h"
 
-#include "../3rdParty/cpplinq.hpp"
+#include "cpplinq.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -73,7 +71,7 @@ class UBOManager;
 }
 
 #ifdef OGLU_EXPORT
-#include "../common/miniLogger/miniLogger.h"
+#include "common/miniLogger/miniLogger.h"
 namespace oglu
 {
 common::mlog::logger& oglLog();

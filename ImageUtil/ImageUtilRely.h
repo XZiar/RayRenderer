@@ -1,5 +1,12 @@
 #pragma once
 
+#ifdef IMGUTIL_EXPORT
+#   define IMGUTILAPI _declspec(dllexport)
+#   define COMMON_EXPORT
+#else
+#   define IMGUTILAPI _declspec(dllimport)
+#endif
+
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -40,7 +47,7 @@ private:
 	uint8_t *Data = nullptr;
 	void Alloc()
 	{
-		if (Data) free_align(Data);
+		Release();
 		Data = (uint8_t*)malloc_align(Width * Height * ElementSize, 32);
 	}
 	void Release() 
@@ -99,4 +106,13 @@ constexpr uint8_t Image::GetElementSize(const ImageDataType dataType)
 	}
 }
 
+
 }
+
+#ifdef IMGUTIL_EXPORT
+#include "common/miniLogger/miniLogger.h"
+namespace xziar::img
+{
+common::mlog::logger& ImgLog();
+}
+#endif

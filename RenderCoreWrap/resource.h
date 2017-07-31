@@ -6,7 +6,8 @@
 #define IDR_DLL_OGLU                     108
 #define IDR_DLL_OCLU                     109
 #define IDR_DLL_FONTHELP                 110
-#define IDR_DLL_RENDERCORE               111
+#define IDR_DLL_IMGUTIL                  111
+#define IDR_DLL_RENDERCORE               112
 
 // 新对象的下一组默认值
 // 

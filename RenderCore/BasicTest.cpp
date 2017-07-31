@@ -247,7 +247,14 @@ static void imguTest()
 	timer.Stop();
 	basLog().debug(L"stbpng read cost {} ms\n", timer.ElapseMs());
 	auto size = img.Width * img.Height + data.size();
-	//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+	timer.Start(); 
+	::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+	timer.Stop();
+	basLog().debug(L"stbpng write cost {} ms\n", timer.ElapseMs());
+	timer.Start();
+	xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\ReadFrom2.png");
+	timer.Stop();
+	basLog().debug(L"libpng write cost {} ms\n", timer.ElapseMs());
 }
 
 void BasicTest::fontTest(const wchar_t word)
