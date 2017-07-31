@@ -241,6 +241,8 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 
+# Asm list
+*.lst
+
 # Project Exception
 
-/3rdParty/freetype2 - 副本

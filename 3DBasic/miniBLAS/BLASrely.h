@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../common/CommonMacro.h"
-#include "../common/CommonRely.hpp"
+#include "common/CommonMacro.hpp"
+#include "common/CommonRely.hpp"
 #include <cstdint>
 #include <type_traits>
 #include <cmath>

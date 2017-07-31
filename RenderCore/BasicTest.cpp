@@ -236,9 +236,18 @@ void BasicTest::prepareLight()
 
 static void imguTest()
 {
-	auto img = xziar::img::ReadImage(L"D:\\Programs Temps\\RayRenderer\\pngtest.png");
-	auto size = img.Width * img.Height;
-	::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRaw(), img.Width, img.Height, img.ElementSize);
+	common::SimpleTimer timer;
+	timer.Start();
+	auto img = xziar::img::ReadImage(L"D:\\Programs Temps\\RayRenderer\\qw11.png");
+	timer.Stop();
+	basLog().debug(L"libpng read cost {} ms\n", timer.ElapseMs());
+	std::vector<uint32_t> data;
+	timer.Start();
+	auto img2 = ::stb::loadImage(L"D:\\Programs Temps\\RayRenderer\\qw11.png", data);
+	timer.Stop();
+	basLog().debug(L"stbpng read cost {} ms\n", timer.ElapseMs());
+	auto size = img.Width * img.Height + data.size();
+	//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
 }
 
 void BasicTest::fontTest(const wchar_t word)

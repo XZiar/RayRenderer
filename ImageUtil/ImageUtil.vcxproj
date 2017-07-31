@@ -148,7 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageInternal.h" />
-    <ClInclude Include="ImagePNG.hpp" />
+    <ClInclude Include="ImagePNG.h" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="ImageUtilRely.h" />
   </ItemGroup>

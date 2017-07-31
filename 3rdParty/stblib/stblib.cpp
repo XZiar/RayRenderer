@@ -55,23 +55,13 @@ void writeToFile(void *context, void *data, int size)
 	fwrite(data, size, 1, fp);
 }
 
-void saveImage(const std::wstring& fname, const std::vector<uint32_t>& data, const uint32_t width, const uint32_t height)
-{
-	FILE *fp = nullptr;
-	if (_wfopen_s(&fp, fname.c_str(), L"wb") != 0)
-		throw std::ios_base::failure("cannot open file");
-	const auto ret = stbi_write_png_to_func(&writeToFile, fp, (int)width, (int)height, 4, data.data(), 0);
-	fclose(fp);
-	if (ret == 0)
-		throw std::ios_base::failure("write failure");
-}
 
-void saveImage(const std::wstring& fname, const std::vector<uint8_t>& data, const uint32_t width, const uint32_t height, const uint8_t compCount)
+void saveImage(const std::wstring& fname, const void *data, const uint32_t width, const uint32_t height, const uint8_t compCount)
 {
 	FILE *fp = nullptr;
 	if (_wfopen_s(&fp, fname.c_str(), L"wb") != 0)
 		throw std::ios_base::failure("cannot open file");
-	const auto ret = stbi_write_png_to_func(&writeToFile, fp, (int)width, (int)height, compCount, data.data(), 0);
+	const auto ret = stbi_write_png_to_func(&writeToFile, fp, (int)width, (int)height, compCount, data, 0);
 	fclose(fp);
 	if (ret == 0)
 		throw std::ios_base::failure("write failure");

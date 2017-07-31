@@ -24,7 +24,7 @@ protected:
 public:
 	virtual ~_ImgReader() {};
 	virtual bool Validate() = 0;
-	virtual Image Read() = 0;
+	virtual Image Read(const ImageDataType dataType) = 0;
 };
 
 class _ImgWriter
@@ -42,6 +42,7 @@ public:
 	virtual Wrapper<_ImgReader> GetReader(FileObject& file) const = 0;
 	virtual Wrapper<_ImgWriter> GetWriter() const = 0;
 	virtual bool MatchExtension(const wstring& ext) const = 0;
+	virtual bool MatchType(const wstring& type) const = 0;
 };
 
 using ImgReader = Wrapper<_ImgReader>;

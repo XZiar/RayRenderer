@@ -55,6 +55,7 @@ struct AlignAllocator
 	}
 };
 
+
 template<class T>
 class vectorEx : public std::vector<T, common::AlignAllocator<T>>
 {

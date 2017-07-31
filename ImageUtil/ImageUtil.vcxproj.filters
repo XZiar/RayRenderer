@@ -30,7 +30,7 @@
     <ClInclude Include="ImageInternal.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ImagePNG.hpp">
+    <ClInclude Include="ImagePNG.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

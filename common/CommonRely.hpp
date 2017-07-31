@@ -9,6 +9,7 @@
 #endif
 
 #include <cstdint>
+#include <cstring>
 #include <new>
 
 #if defined(__GNUC__)
@@ -23,6 +24,7 @@
 namespace common
 {
 
+
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
 constexpr const T& max(const T& left, const T& right)
 {
@@ -33,6 +35,27 @@ constexpr const T& min(const T& left, const T& right)
 {
 	return left < right ? left : right;
 }
+
+
+class FixedArray
+{
+private:
+	uint8_t *Data = nullptr;
+public:
+	static constexpr size_t MIN_ALIGNMENT = alignof(max_align_t);
+	const size_t Size;
+	const size_t Alignment;
+	FixedArray(const size_t size, const size_t alignment = 32) : Size(size), Alignment(max(alignment, MIN_ALIGNMENT)), Data((uint8_t*)malloc_align(Size, Alignment)) {}
+	~FixedArray() { if (Data) free_align(Data); }
+	FixedArray(const FixedArray& other) : Size(other.Size), Alignment(other.Alignment), Data((uint8_t*)malloc_align(Size, Alignment)) 
+	{
+		memmove(Data, other.Data, Size);
+	}
+	FixedArray(FixedArray&& other) : Size(other.Size), Alignment(other.Alignment), Data(other.Data) 
+	{
+		other.Data = nullptr;
+	}
+};
 
 
 struct NonCopyable

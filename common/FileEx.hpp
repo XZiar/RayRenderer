@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <optional>
 
-#include "CommonMacro.h"
+#include "CommonMacro.hpp"
 #include "StringEx.hpp"
 #include "Exceptions.hpp"
 
@@ -34,7 +34,6 @@ using std::wstring;
 
 
 enum class OpenFlag : uint8_t { READ = 0b1, WRITE = 0b10, CREATE = 0b100, APPEND = 0b1110, TRUNC = 0b0110, TEXT = 0b00000, BINARY = 0b10000 };
-
 MAKE_ENUM_BITFIELD(OpenFlag)
 
 class FileObject : public NonCopyable
