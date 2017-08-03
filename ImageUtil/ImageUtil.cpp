@@ -1,29 +1,23 @@
 #include "ImageUtilRely.h"
 #include "ImageUtil.h"
 #include "ImagePNG.h"
-#include "common/CommonUtil.hpp"
-
-#include <map>
-#include <algorithm>
+#include "ImageTGA.h"
 
 
 namespace xziar::img
 {
-using namespace common::mlog;
-logger& ImgLog()
-{
-	static logger imglog(L"ImageUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
-	return imglog;
-}
-
-
+using std::vector;
 using namespace common;
 
-static std::vector<Wrapper<ImgSupport>> SUPPORT_MAP{ Wrapper<png::PngSupport>(NoArg()).cast_static<ImgSupport>() };
-
-static std::vector<Wrapper<ImgSupport>> GenerateSupportList(const wstring& ext, const bool allowDisMatch)
+static vector<Wrapper<ImgSupport>> SUPPORT_MAP
 {
-	std::vector<Wrapper<ImgSupport>> ret;
+	Wrapper<png::PngSupport>(std::in_place).cast_static<ImgSupport>(),
+	Wrapper<tga::TgaSupport>(std::in_place).cast_static<ImgSupport>(),
+};
+
+static vector<Wrapper<ImgSupport>> GenerateSupportList(const wstring& ext, const bool allowDisMatch)
+{
+	vector<Wrapper<ImgSupport>> ret;
 	ret.reserve(SUPPORT_MAP.size());
 	for (auto& support : SUPPORT_MAP)
 	{

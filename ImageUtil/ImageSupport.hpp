@@ -1,9 +1,8 @@
 #pragma once
 
 #include "ImageUtilRely.h"
+#include "ImageCore.hpp"
 
-#include "common/FileEx.hpp"
-#include "common/Wrapper.hpp"
 
 namespace xziar::img
 {

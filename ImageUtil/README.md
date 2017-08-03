@@ -8,6 +8,11 @@ A simple utility for image read/write/process.
 
   [zlib License](./License/zlib.txt)
 
+* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.30
+
+  [libpng License](./License/libpng.txt)
+
+
 ## License
 
 ImageUtil (including its component) is licensed under the [MIT license](License.txt).

@@ -3,13 +3,13 @@
 #include "CommonRely.hpp"
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 #include <memory>
 #include <string>
 
 
 namespace common
 {
-struct NoArg {};
 
 template<class T>
 class Wrapper : public std::shared_ptr<T>
@@ -22,9 +22,8 @@ public:
 
 	constexpr Wrapper() noexcept { }
 	
-
 	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
-	Wrapper(NoArg) : base_type(std::make_shared<T>())
+	Wrapper(std::in_place_t) : base_type(std::make_shared<T>())
 	{ }
 	template<class U, class = typename std::enable_if<std::is_convertible<U*, T*>::value>::type>
 	Wrapper(const Wrapper<U>& other) noexcept : base_type(std::static_pointer_cast<T>(other))
@@ -53,7 +52,7 @@ public:
 	template<class = typename std::enable_if<std::is_default_constructible<T>::value>::type>
 	void reset()
 	{
-		*this = Wrapper<T>(NoArg());
+		*this = Wrapper<T>(std::in_place);
 	}
 	void release()
 	{

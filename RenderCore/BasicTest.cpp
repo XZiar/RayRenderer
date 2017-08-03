@@ -3,6 +3,7 @@
 #include "BasicTest.h"
 #include "stblib/stblib.h"
 #include "ImageUtil/ImageUtil.h"
+#include "ImageUtil/DataConvertor.hpp"
 #include <thread>
 
 namespace rayr
@@ -237,24 +238,65 @@ void BasicTest::prepareLight()
 static void imguTest()
 {
 	common::SimpleTimer timer;
-	timer.Start();
-	auto img = xziar::img::ReadImage(L"D:\\Programs Temps\\RayRenderer\\qw11.png");
-	timer.Stop();
-	basLog().debug(L"libpng read cost {} ms\n", timer.ElapseMs());
-	std::vector<uint32_t> data;
-	timer.Start();
-	auto img2 = ::stb::loadImage(L"D:\\Programs Temps\\RayRenderer\\qw11.png", data);
-	timer.Stop();
-	basLog().debug(L"stbpng read cost {} ms\n", timer.ElapseMs());
-	auto size = img.Width * img.Height + data.size();
-	timer.Start(); 
-	::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
-	timer.Stop();
-	basLog().debug(L"stbpng write cost {} ms\n", timer.ElapseMs());
-	timer.Start();
-	xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\ReadFrom2.png");
-	timer.Stop();
-	basLog().debug(L"libpng write cost {} ms\n", timer.ElapseMs());
+	if(false)
+	{
+		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\qw11.png";
+		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
+		timer.Start();
+		auto img = xziar::img::ReadImage(srcPath);
+		timer.Stop();
+		basLog().debug(L"libpng read cost {} ms\n", timer.ElapseMs());
+		std::vector<uint32_t> data;
+		timer.Start();
+		auto img2 = ::stb::loadImage(srcPath, data);
+		timer.Stop();
+		basLog().debug(L"stbpng read cost {} ms\n", timer.ElapseMs());
+		auto size = img.Width * img.Height + data.size();
+		timer.Start();
+		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+		timer.Stop();
+		basLog().debug(L"stbpng write cost {} ms\n", timer.ElapseMs());
+		timer.Start();
+		xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\ReadFrom2.png");
+		timer.Stop();
+		basLog().debug(L"libpng write cost {} ms\n", timer.ElapseMs());
+	}
+	{
+		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\4096.tga";
+		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
+		timer.Start();
+		auto img = xziar::img::ReadImage(srcPath);
+		timer.Stop();
+		basLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs()); 
+		//xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\tga.png");
+
+		std::vector<uint32_t> data;
+		timer.Start();
+		auto size = stb::loadImage(srcPath, data);
+		timer.Stop();
+		basLog().debug(L"stbtga read cost {} ms\n", timer.ElapseMs()); 
+		xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
+		img2.SetSize(std::get<0>(size), std::get<1>(size));
+		memcpy(img2.GetRawPtr(), data.data(), img2.Size());
+		//xziar::img::WriteImage(img2, L"D:\\Programs Temps\\RayRenderer\\tga2.png");
+	}
+	{
+		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\head.tga";
+		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
+		timer.Start();
+		auto img = xziar::img::ReadImage(srcPath);
+		timer.Stop();
+		basLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs());
+
+		std::vector<uint32_t> data;
+		timer.Start();
+		auto size = stb::loadImage(srcPath, data);
+		timer.Stop();
+		basLog().debug(L"stbtga read cost {} ms\n", timer.ElapseMs());
+		xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
+		img2.SetSize(std::get<0>(size), std::get<1>(size));
+		memcpy(img2.GetRawPtr(), data.data(), img2.Size());
+	}
 }
 
 void BasicTest::fontTest(const wchar_t word)
@@ -409,15 +451,15 @@ void BasicTest::addLight(const b3d::LightType type)
 	switch (type)
 	{
 	case LightType::Parallel:
-		lgt = Wrapper<ParallelLight>(NoArg());
+		lgt = Wrapper<ParallelLight>(std::in_place);
 		lgt->color = Vec4(2.0, 0.5, 0.5, 10.0);
 		break;
 	case LightType::Point:
-		lgt = Wrapper<PointLight>(NoArg());
+		lgt = Wrapper<PointLight>(std::in_place);
 		lgt->color = Vec4(0.5, 2.0, 0.5, 10.0);
 		break;
 	case LightType::Spot:
-		lgt = Wrapper<SpotLight>(NoArg());
+		lgt = Wrapper<SpotLight>(std::in_place);
 		lgt->color = Vec4(0.5, 0.5, 2.0, 10.0);
 		break;
 	default:

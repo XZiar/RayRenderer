@@ -38,8 +38,15 @@ inline constexpr bool HAS_FIELD(const T x, const T obj) { return static_cast<U>(
 inline constexpr T REMOVE_MASK(const T x, const std::initializer_list<T> masks) \
 { \
 	T obj = static_cast<T>(0); \
-	for (const auto mask : masks) obj &= mask; \
+	for (const auto mask : masks) \
+		obj |= mask; \
 	return x & (~obj); \
+} \
+inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) \
+{ \
+	for (const auto obj : objs) \
+		if (x == obj) return true; \
+	return false; \
 }
 
 #define MAKE_ENUM_BITFIELD(T) ENUM_CLASS_BITFIELD_FUNC(T, std::underlying_type_t<T>)

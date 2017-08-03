@@ -1,5 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImagePNG.h"
+#include "DataConvertor.hpp"
 
 #include "libpng/png.h"
 #include "zlib/zlib.h"
@@ -88,19 +89,8 @@ void PngReader::ReadThrough(uint8_t passes, Image& image)
 	}
 }
 
-#define LOOP_RGB_RGBA \
-		*destPtr++ = *srcPtr++; \
-		*destPtr++ = *srcPtr++; \
-		*destPtr++ = *srcPtr++; \
-		*destPtr++ = 0xff;
 void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 {
-#if defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
-	const auto shuffleMask = _mm_setr_epi8(0x0, 0x1, 0x2, 0xff, 0x3, 0x4, 0x5, 0xff, 0x6, 0x7, 0x8, 0xff, 0x9, 0xa, 0xb, 0xff);
-	const auto shuffleMask2 = _mm_setr_epi8(0x4, 0x5, 0x6, 0xff, 0x7, 0x8, 0x9, 0xff, 0xa, 0xb, 0xc, 0xff, 0xd, 0xe, 0xf, 0xff);
-	const auto alphaMask = _mm_set1_epi32(0xff000000);
-#   define SSETRANS 1
-#endif
 	auto ptrs = GetRowPtrs(image, image.Width);
 	common::SimpleTimer timer;
 	timer.Start();
@@ -119,55 +109,7 @@ void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 	{
 		uint8_t * __restrict destPtr = rowPtr;
 		uint8_t * __restrict srcPtr = rowPtr + image.Width;
-		for (uint32_t col = image.Width; col > 0;)
-		{
-#ifdef SSETRANS
-			if (col >= 16)
-			{
-				const auto raw1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;
-				const auto raw2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;
-				const auto raw3 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;
-				//rgb0rgb0rgb0
-				const auto shuffled1 = _mm_shuffle_epi8(raw1, shuffleMask);
-				const auto shuffled2 = _mm_shuffle_epi8(_mm_alignr_epi8(raw2, raw1, 12), shuffleMask);
-				const auto shuffled3 = _mm_shuffle_epi8(_mm_alignr_epi8(raw3, raw2, 8), shuffleMask);
-				const auto shuffled4 = _mm_shuffle_epi8(raw3, shuffleMask2);
-				_mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(shuffled1, alphaMask)); destPtr += 16;
-				_mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(shuffled2, alphaMask)); destPtr += 16;
-				_mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(shuffled3, alphaMask)); destPtr += 16;
-				_mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(shuffled4, alphaMask)); destPtr += 16;
-				col -= 16;
-				continue;
-			}
-			if (col >= 4)
-			{
-				const auto raw = _mm_loadu_si128((const __m128i*)srcPtr);//rgbrgbrgbxxxx
-				const auto shuffled = _mm_shuffle_epi8(raw, shuffleMask);//rgb0rgb0rgb0
-				const auto alphaed = _mm_or_si128(shuffled, alphaMask);
-				_mm_storeu_si128((__m128i*)destPtr, alphaed);
-				destPtr += 16, srcPtr += 12, col -= 4;
-				continue;
-			}
-#   undef SSETRANS
-#endif
-			switch (col)
-			{
-			default:
-				LOOP_RGB_RGBA
-					col--;
-			case 3:
-				LOOP_RGB_RGBA
-					col--;
-			case 2:
-				LOOP_RGB_RGBA
-					col--;
-			case 1:
-				LOOP_RGB_RGBA
-					col--;
-				break;
-			}
-		}
-		//finished a row
+		img::convert::RGBsToRGBAs(destPtr, srcPtr, image.Width);
 	}
 	timer.Stop();
 	ImgLog().debug(L"[png]post 3->4comp cost {} ms\n", timer.ElapseMs());

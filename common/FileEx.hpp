@@ -61,7 +61,10 @@ private:
 		}
 	}
 
-	constexpr FileObject(const fs::path& path, FILE *fp) : filePath(path), fp(fp) {}
+	FileObject(const fs::path& path, FILE *fp) : filePath(path), fp(fp) 
+	{
+		std::setvbuf(fp, NULL, _IOFBF, 16384);
+	}
 public:
 	const fs::path filePath;
 	FileObject(FileObject&& rhs) = default;
@@ -72,7 +75,16 @@ public:
 	FILE* Raw() { return fp; }
 
 	void Rewind(const size_t offset = 0) { fseek(fp, (long)offset, SEEK_SET); }
+	void Skip(const size_t offset = 0) { fseek(fp, (long)offset, SEEK_CUR); }
 	size_t CurrentPos() const { return ftell(fp); }
+	size_t LeftSpace() 
+	{
+		const auto cur = CurrentPos();
+		fseek(fp, 0, SEEK_END);
+		const auto flen = CurrentPos();
+		Rewind(cur);
+		return flen - cur;
+	}
 
 	size_t GetSize()
 	{
@@ -81,6 +93,12 @@ public:
 		const auto flen = CurrentPos();
 		Rewind(cur);
 		return flen;
+	}
+
+	//without checking
+	uint8_t ReadByte()
+	{
+		return (uint8_t)fgetc(fp);
 	}
 
 	bool Read(const size_t len, void *ptr)
@@ -93,16 +111,25 @@ public:
 		return fwrite(ptr, len, 1, fp) != 0;
 	}
 
+	template<typename T>
+	bool Read(T& output)
+	{
+		return Read(sizeof(T), &output);
+	}
+
+	template<typename T>
+	bool Write(const T& output)
+	{
+		return Write(sizeof(T), &output);
+	}
+
 	template<class T, size_t N>
 	size_t Read(T(&output)[N], size_t count = N)
 	{
 		const size_t elementSize = sizeof(T);
-		const auto cur = CurrentPos();
-		fseek(fp, 0, SEEK_END);
-		const auto flen = CurrentPos();
-		Rewind(cur);
+		const auto left = LeftSpace();
 		count = std::min(count, N);
-		count = std::min((flen - cur) / elementSize, N);
+		count = std::min(left / elementSize, N);
 		auto ret = Read(count * elementSize, output);
 		return ret ? count : 0;
 	}
@@ -120,11 +147,8 @@ public:
 	size_t Read(size_t count, T& output)
 	{
 		const size_t elementSize = sizeof(T::value_type);
-		const auto cur = CurrentPos();
-		fseek(fp, 0, SEEK_END);
-		const auto flen = CurrentPos();
-		Rewind(cur);
-		count = std::min((flen - cur) / elementSize, count);
+		const auto left = LeftSpace();
+		count = std::min(left / elementSize, count);
 		output.resize(count);
 		return Read(count * elementSize, output.data()) ? count : 0;
 	}

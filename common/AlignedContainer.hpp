@@ -56,6 +56,53 @@ struct AlignAllocator
 };
 
 
+template<size_t N>
+struct AlignedBuffer
+{
+private:
+	uint8_t *Data = nullptr;
+	size_t Size = 0;
+	void Alloc()
+	{
+		Release();
+		Data = (uint8_t*)malloc_align(Size, N);
+		if (!Data)
+			throw std::bad_alloc();
+	}
+	void Release()
+	{
+		if (Data) free_align(Data);
+		Data = nullptr;
+	};
+public:
+	AlignedBuffer() noexcept : { }
+	AlignedBuffer(const size_t size) : Size(size) { Alloc(); }
+	AlignedBuffer(const AlignedBuffer& other) : Size(other.Size)
+	{
+		Alloc();
+		memcpy(Data, other.Data, Size);
+	}
+	AlignedBuffer(AlignedBuffer&& other) noexcept : Size(other.Size), Data(other.Data)
+	{
+		other.Data = nullptr;
+	}
+	~AlignedBuffer() { Release(); }
+	AlignedBuffer& operator = (const AlignedBuffer& other)
+	{
+		Size = other.Size;
+		Alloc();
+		memcpy(Data, other.Data, Size);
+	}
+	AlignedBuffer& operator = (AlignedBuffer&& other) noexcept
+	{
+		Size = other.Size;
+		Data = other.Data;
+	}
+	uint8_t* GetRawPtr() noexcept { return Data; }
+	size_t GetSize() noexcept { return Size; }
+};
+
+
 template<class T>
 class vectorEx : public std::vector<T, common::AlignAllocator<T>>
 {

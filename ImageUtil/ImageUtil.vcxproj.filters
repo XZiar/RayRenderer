@@ -33,6 +33,15 @@
     <ClInclude Include="ImageSupport.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ImageTGA.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DataConvertor.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageCore.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">
@@ -42,6 +51,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ImagePNG.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageTGA.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

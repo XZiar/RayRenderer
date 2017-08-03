@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <tuple>
 #include <map>
