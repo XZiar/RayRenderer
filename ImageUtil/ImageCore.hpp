@@ -62,13 +62,15 @@ public:
 		Alloc();
 	}
 
-	uint8_t* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) noexcept
+	template<typename T = uint8_t>
+	T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) noexcept
 	{
-		return Data + (row * Width + colum) * ElementSize;
+		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
 	}
-	const uint8_t* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) const noexcept
+	template<typename T = uint8_t>
+	const T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) const noexcept
 	{
-		return Data + (row * Width + colum) * ElementSize;
+		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
 	}
 
 	void FlipVertical();

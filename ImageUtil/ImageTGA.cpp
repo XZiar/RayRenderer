@@ -251,9 +251,156 @@ public:
 		else
 			ReadColorData3(header.PixelDepth, count, image, isOutputRGB, reader);
 	}
+
+	template<typename Writer>
+	static void WriteRLE3(const uint8_t* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
+	{
+		if (isRepeat)
+		{
+			uint8_t color[3];
+			color[0] = ptr[2], color[1] = ptr[1], color[2] = ptr[0];
+			while (len)
+			{
+				const auto size = std::min(128u, len);
+				len -= size;
+				const uint8_t flag = static_cast<uint8_t>(0x80 + (size - 1));
+				writer.Write(flag);
+				writer.Write(color);
+			}
+		}
+		else
+		{
+			AlignedBuffer<32> buffer(3 * 128);
+			while (len)
+			{
+				const auto size = std::min(128u, len);
+				len -= size;
+				const uint8_t flag = static_cast<uint8_t>(size - 1);
+				writer.Write(flag);
+				memcpy(buffer.GetRawPtr(), ptr, 3 * size);
+				ptr += 3 * size;
+				convert::BGRsToRGBs(buffer.GetRawPtr(), size);
+				writer.Write(3 * size, buffer.GetRawPtr());
+			}
+		}
+	}
+
+	template<typename Writer>
+	static void WriteRLE4(const uint8_t* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
+	{
+		if (isRepeat)
+		{
+			uint8_t color[4];
+			color[0] = ptr[2], color[1] = ptr[1], color[2] = ptr[0], color[3] = ptr[3];
+			while (len)
+			{
+				const auto size = std::min(128u, len);
+				len -= size;
+				const uint8_t flag = static_cast<uint8_t>(0x80 + (size - 1));
+				writer.Write(flag);
+				writer.Write(color);
+			}
+		}
+		else
+		{
+			AlignedBuffer<32> buffer(4 * 128);
+			while (len)
+			{
+				const auto size = std::min(128u, len);
+				len -= size;
+				const uint8_t flag = static_cast<uint8_t>(size - 1);
+				writer.Write(flag);
+				memcpy(buffer.GetRawPtr(), ptr, 4 * size);
+				ptr += 4 * size;
+				convert::BGRAsToRGBAs(buffer.GetRawPtr(), size);
+				writer.Write(4 * size, buffer.GetRawPtr());
+			}
+		}
+	}
+
+	template<typename Writer>
+	static void WriteRLEColor3(const Image& image, Writer& writer)
+	{
+		if (image.ElementSize != 3)
+			return;
+		const uint32_t colMax = image.Width * 3;//tga's limit should promise this will not overflow
+		for (uint32_t row = 0; row < image.Height; ++row)
+		{
+			const uint8_t * __restrict data = image.GetRawPtr<uint8_t>(row);
+			uint32_t last;
+			uint32_t len = 0;
+			bool repeat = false;
+			for (uint32_t col = 0; col < colMax; col += 3, ++len)
+			{
+				uint32_t cur = data[col] + (data[col + 1] << 8) + (data[col + 2] << 16);
+				switch (len)
+				{
+				case 0:
+					break;
+				case 1:
+					repeat = (cur == last);
+					break;
+				default:
+					if (cur == last && !repeat)//changed
+					{
+						WriteRLE3((const uint8_t*)&data[col - len], len - 1, false, writer);
+						len = 1, repeat = true;
+					}
+					else if (cur != last && repeat)//changed
+					{
+						WriteRLE3((const uint8_t*)&data[col - len], len, true, writer);
+						len = 0, repeat = false;
+					}
+				}
+				last = cur;
+			}
+			if (len > 0)
+				WriteRLE3((const uint8_t*)&data[image.Width - len], len, repeat, writer);
+		}
+	}
+
+	template<typename Writer>
+	static void WriteRLEColor4(const Image& image, Writer& writer)
+	{
+		if (image.ElementSize != 4)
+			return;
+		for (uint32_t row = 0; row < image.Height; ++row)
+		{
+			const uint32_t * __restrict data = image.GetRawPtr<uint32_t>(row);
+			uint32_t last;
+			uint32_t len = 0;
+			bool repeat = false;
+			for (uint32_t col = 0; col < image.Width; ++col, ++len)
+			{
+				switch (len)
+				{
+				case 0:
+					break;
+				case 1:
+					repeat = (data[col] == last);
+					break;
+				default:
+					if (data[col] == last && !repeat)//changed
+					{
+						WriteRLE4((const uint8_t*)&data[col - len], len - 1, false, writer);
+						len = 1, repeat = true;
+					}
+					else if (data[col] != last && repeat)//changed
+					{
+						WriteRLE4((const uint8_t*)&data[col - len], len, true, writer);
+						len = 0, repeat = false;
+					}
+				}
+				last = data[col];
+			}
+			if (len > 0)
+				WriteRLE4((const uint8_t*)&data[image.Width - len], len, repeat, writer);
+		}
+	}
 };
 
 //implementation promise each read should be at least a line
+//reading from file is the bottleneck
 class RLEFileDecoder
 {
 private:
@@ -423,7 +570,7 @@ Image TgaReader::Read(const ImageDataType dataType)
 			TgaHelper::ReadFromColor(Header, image, ImgFile);
 	}
 	timer.Stop();
-	ImgLog().debug(L"[zextga] read cost {} ms\n", timer.ElapseMs());
+	ImgLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs());
 	timer.Start();
 	switch ((Header.ImageDescriptor & 0x30) >> 4)
 	{
@@ -437,7 +584,7 @@ Image TgaReader::Read(const ImageDataType dataType)
 		break;
 	}
 	timer.Stop();
-	ImgLog().debug(L"[zextga] flip cost {} ms\n", timer.ElapseMs()); 
+	ImgLog().debug(L"zextga flip cost {} ms\n", timer.ElapseMs()); 
 	return image;
 }
 
@@ -447,12 +594,43 @@ TgaWriter::TgaWriter(FileObject& file) : ImgFile(file)
 
 void TgaWriter::Write(const Image& image)
 {
+	constexpr char identity[] = "Truevision TGA file created by zexTGA";
+	if (image.Width > INT16_MAX || image.Height > INT16_MAX)
+		return;
+	if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+		return;
+	if (REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::GREY)
+		return;//not support grey yet
+	detail::TgaHeader header;
+	
+	header.IdLength = sizeof(identity);
+	header.ColorMapType = 0;
+	header.ImageType = detail::TGAImgType::RLE_MASK | detail::TGAImgType::COLOR;
+	memset(&header.ColorMapSpec[0], 0x0, 5);//5 bytes for color map spec
+	convert::WordToLE(header.OriginHorizontal, 0);
+	convert::WordToLE(header.OriginVertical, 0);
+	convert::WordToLE(header.Width, (uint16_t)image.Width);
+	convert::WordToLE(header.Height, (uint16_t)image.Height);
+	header.PixelDepth = image.ElementSize * 8;
+	header.ImageDescriptor = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
+	
+	ImgFile.Write(header);
+	ImgFile.Write(identity);
+	SimpleTimer timer;
+	timer.Start();
+	//next: true image data
+	if (HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK))
+		TgaHelper::WriteRLEColor4(image, ImgFile);
+	else
+		TgaHelper::WriteRLEColor3(image, ImgFile);
+	timer.Stop();
+	ImgLog().debug(L"zextga write cost {} ms\n", timer.ElapseMs());
 }
 
 
 TgaSupport::TgaSupport() : ImgSupport(L"Tga") 
 {
-	common::SimpleTimer timer;
+	SimpleTimer timer;
 	timer.Start();
 	auto& map1 = GetBGR16ToRGBAMap();
 	auto& map2 = GetRGB16ToRGBAMap();

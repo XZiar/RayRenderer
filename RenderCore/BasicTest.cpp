@@ -268,6 +268,7 @@ static void imguTest()
 		auto img = xziar::img::ReadImage(srcPath);
 		timer.Stop();
 		basLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs()); 
+		xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\newtga.tga");
 		//xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\tga.png");
 
 		std::vector<uint32_t> data;

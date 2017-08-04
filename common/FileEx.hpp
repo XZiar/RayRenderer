@@ -135,7 +135,7 @@ public:
 	}
 
 	template<class T, size_t N>
-	size_t Write(T(&input)[N], size_t count = N)
+	size_t Write(T(&output)[N], size_t count = N)
 	{
 		const size_t elementSize = sizeof(T);
 		count = std::min(count, N);

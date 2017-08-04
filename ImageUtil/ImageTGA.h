@@ -23,9 +23,16 @@ struct TgaHeader
 	uint8_t IdLength;
 	uint8_t ColorMapType;
 	TGAImgType ImageType;
-	uint8_t ColorMapOffset[2];
-	uint8_t ColorMapCount[2];
-	uint8_t ColorEntryDepth;
+	union
+	{
+		uint8_t ColorMapSpec[5];
+		struct
+		{
+			uint8_t ColorMapOffset[2];
+			uint8_t ColorMapCount[2];
+			uint8_t ColorEntryDepth;
+		};
+	};
 	uint8_t OriginHorizontal[2];
 	uint8_t OriginVertical[2];
 	uint8_t Width[2];

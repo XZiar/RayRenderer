@@ -7,6 +7,7 @@ namespace xziar::img::convert
 
 inline uint16_t ParseWordLE(const uint8_t *data) { return static_cast<uint16_t>((*(data + 1) << 8) + *data); }
 inline uint16_t ParseWordBE(const uint8_t *data) { return static_cast<uint16_t>(*(data + 1) + ((*data) << 8)); }
+inline void WordToLE(uint8_t *output, const uint16_t data) { output[0] = static_cast<uint8_t>(data & 0xff); output[1] = static_cast<uint8_t>(data >> 8); }
 
 #pragma region RGBA->RGB
 #define LOOP_RGBA_RGB \
