@@ -152,6 +152,9 @@
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\3rdParty\libjpeg-turbo\libjpeg-turbo.vcxproj">
+      <Project>{3797ba95-6625-4483-b63e-3b3f9b845dab}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\libpng\libpng.vcxproj">
       <Project>{506a3438-e8ee-47f6-a4c8-fdf475ebac1e}</Project>
     </ProjectReference>
@@ -165,6 +168,7 @@
   <ItemGroup>
     <ClInclude Include="DataConvertor.hpp" />
     <ClInclude Include="ImageCore.hpp" />
+    <ClInclude Include="ImageJPEG.h" />
     <ClInclude Include="ImagePNG.h" />
     <ClInclude Include="ImageSupport.hpp" />
     <ClInclude Include="ImageTGA.h" />
@@ -172,6 +176,7 @@
     <ClInclude Include="ImageUtilRely.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ImageJPEG.cpp" />
     <ClCompile Include="ImagePNG.cpp" />
     <ClCompile Include="ImageTGA.cpp" />
     <ClCompile Include="ImageUtil.cpp" />

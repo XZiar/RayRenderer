@@ -245,4 +245,4 @@ ModelManifest.xml
 *.lst
 
 # Project Exception
-
+/Tests/

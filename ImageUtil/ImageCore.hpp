@@ -72,6 +72,26 @@ public:
 	{
 		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
 	}
+	template<typename T = uint8_t>
+	std::vector<T*> GetRowPtrs(const size_t offset = 0)
+	{
+		std::vector<T*> pointers(Height, nullptr);
+		T *rawPtr = GetRawPtr<T>();
+		size_t lineStep = ElementSize * Width;
+		for (auto& ptr : pointers)
+			ptr = rawPtr + offset, rawPtr += lineStep;
+		return pointers;
+	}
+	template<typename T = uint8_t>
+	std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
+	{
+		std::vector<const T*> pointers(Height, nullptr);
+		const T *rawPtr = GetRawPtr<T>();
+		size_t lineStep = ElementSize * Width;
+		for (auto& ptr : pointers)
+			ptr = rawPtr + offset, rawPtr += lineStep;
+		return pointers;
+	}
 
 	void FlipVertical();
 	void FlipHorizontal();

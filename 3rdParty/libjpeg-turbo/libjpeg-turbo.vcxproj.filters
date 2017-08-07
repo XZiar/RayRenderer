@@ -1,0 +1,412 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="asm-x64">
+      <UniqueIdentifier>{56b5098e-e0d3-4c23-b448-f80ca9f983a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="asm-x86">
+      <UniqueIdentifier>{4423d0c5-0b00-46fc-9852-3edd236a7979}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="jquant2.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jutils.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="transupp.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="turbojpeg.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jaricom.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcapimin.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcapistd.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcarith.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jccoefct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jccolor.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcdctmgr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jchuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcinit.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcmainct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcmarker.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcmaster.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcomapi.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcparam.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcphuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcprepct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jcsample.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jctrans.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdapimin.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdapistd.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdarith.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdatadst.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdatadst-tj.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdatasrc.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdatasrc-tj.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdcoefct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdcolor.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jddctmgr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdhuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdinput.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdmainct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdmarker.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdmaster.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdmerge.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdphuff.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdpostct.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdsample.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jdtrans.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jerror.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jfdctflt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jfdctfst.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jfdctint.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jidctflt.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jidctfst.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jidctint.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jidctred.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jmemmgr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jmemnobs.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="jquant1.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simd\jsimd_x86_64.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simd\jsimd_i386.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="jerror.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jinclude.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jpegcomp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jpeglib.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tjutil.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jconfigint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jconfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="transupp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jmorecfg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jpegint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="turbojpeg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jsimd.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jsimddct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdcoefct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdhuff.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdmainct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdmaster.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jdsample.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jmemsys.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jversion.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jchuff.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="simd\jcgray-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <NASM Include="simd\jccolor-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jchuff-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jcsample-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jdcolor-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jdmerge-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jdsample-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctflt-sse-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctfst-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctint-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jidctflt-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jidctfst-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jidctint-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jidctred-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jquantf-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jquanti-sse2-64.asm">
+      <Filter>asm-x64</Filter>
+    </NASM>
+    <NASM Include="simd\jsimdcpu.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jccolor-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jccolor-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jcgray-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jcgray-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jchuff-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jcsample-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jcsample-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdcolor-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdcolor-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdmerge-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdmerge-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdsample-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jdsample-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctflt-sse.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctfst-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctfst-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctint-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctint-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctflt-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctfst-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctfst-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctint-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctint-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctred-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctred-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jquantf-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jquanti-sse2.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jquant-mmx.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jquant-3dn.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jfdctflt-3dn.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctflt-3dn.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jidctflt-sse.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jquant-sse.asm">
+      <Filter>asm-x86</Filter>
+    </NASM>
+  </ItemGroup>
+</Project>

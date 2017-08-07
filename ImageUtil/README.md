@@ -12,7 +12,12 @@ A simple utility for image read/write/process.
 
   [libpng License](./License/libpng.txt)
 
+* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.2
+
+  [IJG License, BSD-3 License, zlib License](./License/libjpeg-turbo.txt)
 
 ## License
 
 ImageUtil (including its component) is licensed under the [MIT license](License.txt).
+
+This software is based in part on the work of the Independent JPEG Group.

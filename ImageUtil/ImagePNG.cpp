@@ -37,25 +37,6 @@ static void OnWarn(png_structrp pngStruct, const char *message)
 	ImgLog().warning(L"LIBPNG warns: {}\n", to_wstring(message));
 }
 
-static std::vector<uint8_t*> GetRowPtrs(Image& image, const size_t offset = 0)
-{
-	std::vector<uint8_t*> pointers(image.Height, nullptr);
-	uint8_t *rawPtr = image.GetRawPtr();
-	size_t lineStep = image.ElementSize * image.Width;
-	for (auto& ptr : pointers)
-		ptr = rawPtr + offset, rawPtr += lineStep;
-	return pointers;
-}
-static std::vector<const uint8_t*> GetRowPtrs(const Image& image, const size_t offset = 0)
-{
-	std::vector<const uint8_t*> pointers(image.Height, nullptr);
-	const uint8_t *rawPtr = image.GetRawPtr();
-	size_t lineStep = image.ElementSize * image.Width;
-	for (auto& ptr : pointers)
-		ptr = rawPtr + offset, rawPtr += lineStep;
-	return pointers;
-}
-
 static png_structp CreateReadStruct()
 {
 	auto handle = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, OnError, OnWarn);
@@ -81,7 +62,7 @@ static png_infop CreateInfo(png_structp pngStruct)
 
 void PngReader::ReadThrough(uint8_t passes, Image& image)
 {
-	auto ptrs = GetRowPtrs(image);
+	auto ptrs = image.GetRowPtrs();
 	while (passes--)
 	{
 		//Sparkle, read all rows at a time
@@ -91,7 +72,7 @@ void PngReader::ReadThrough(uint8_t passes, Image& image)
 
 void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 {
-	auto ptrs = GetRowPtrs(image, image.Width);
+	auto ptrs = image.GetRowPtrs(image.Width);
 	common::SimpleTimer timer;
 	timer.Start();
 	while (passes--)
@@ -114,7 +95,6 @@ void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 	timer.Stop();
 	ImgLog().debug(L"[png]post 3->4comp cost {} ms\n", timer.ElapseMs());
 }
-#undef LOOP_RGB_RGBA
 
 
 PngReader::PngReader(FileObject& file) : ImgFile(file), PngStruct(CreateReadStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
@@ -247,7 +227,7 @@ void PngWriter::Write(const Image& image)
 	if (REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::BGR)
 		png_set_swap_alpha(pngStruct);
 
-	auto ptrs = GetRowPtrs(image);
+	auto ptrs = image.GetRowPtrs();
 	png_write_image(pngStruct, (png_bytepp)ptrs.data());
 	png_write_end(pngStruct, pngInfo);
 }
