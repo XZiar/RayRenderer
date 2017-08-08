@@ -36,8 +36,8 @@ static const BGR16ToRGBAMap& GetBGR16ToRGBAMap()
 }
 static RGB16ToRGBAMap GenerateRGB16ToRGBAMap()
 {
-	RGB16ToRGBAMap map = GetBGR16ToRGBAMap();
-	convert::BGRAsToRGBAs(reinterpret_cast<uint8_t*>(map.data()), map.size());
+	RGB16ToRGBAMap map(1 << 16);
+	convert::BGRAsToRGBAs(reinterpret_cast<uint8_t*>(map.data()), reinterpret_cast<const uint8_t*>(GetBGR16ToRGBAMap().data()), map.size());
 	return map;
 }
 static const BGR16ToRGBAMap& GetRGB16ToRGBAMap()
@@ -277,9 +277,8 @@ public:
 				len -= size;
 				const uint8_t flag = static_cast<uint8_t>(size - 1);
 				writer.Write(flag);
-				memcpy(buffer.GetRawPtr(), ptr, 3 * size);
+				convert::BGRsToRGBs(buffer.GetRawPtr(), ptr, size);
 				ptr += 3 * size;
-				convert::BGRsToRGBs(buffer.GetRawPtr(), size);
 				writer.Write(3 * size, buffer.GetRawPtr());
 			}
 		}
@@ -310,9 +309,8 @@ public:
 				len -= size;
 				const uint8_t flag = static_cast<uint8_t>(size - 1);
 				writer.Write(flag);
-				memcpy(buffer.GetRawPtr(), ptr, 4 * size);
+				convert::BGRAsToRGBAs(buffer.GetRawPtr(), ptr, size);
 				ptr += 4 * size;
-				convert::BGRAsToRGBAs(buffer.GetRawPtr(), size);
 				writer.Write(4 * size, buffer.GetRawPtr());
 			}
 		}
@@ -399,7 +397,7 @@ public:
 	}
 };
 
-//implementation promise each read should be at least a line
+//implementation promise each read should be at least a line, so no need for worry about overflow
 //reading from file is the bottleneck
 class RLEFileDecoder
 {

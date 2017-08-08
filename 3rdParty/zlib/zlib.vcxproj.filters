@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="asm">
+      <UniqueIdentifier>{7ef9af17-a42e-453d-b384-7b4a31bef6a3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inflate.h">
@@ -101,5 +104,13 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="liscense.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="masmx64\inffasx64.asm">
+      <Filter>asm</Filter>
+    </MASM>
+    <MASM Include="masmx64\gvmat64.asm">
+      <Filter>asm</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

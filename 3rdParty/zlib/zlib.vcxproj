@@ -53,6 +53,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -83,11 +84,12 @@
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <PreBuildEvent>
-      <Command>cd .\masmx64\
-bld_ml64.bat</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <Lib>
-      <AdditionalDependencies>.\masmx64\inffasx64.obj;.\masmx64\gvmat64.obj</AdditionalDependencies>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -153,11 +155,12 @@ bld_ml64.bat</Command>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PreBuildEvent>
-      <Command>cd .\masmx64\
-bld_ml64.bat</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
     <Lib>
-      <AdditionalDependencies>.\masmx64\inffasx64.obj;.\masmx64\gvmat64.obj</AdditionalDependencies>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -201,7 +204,12 @@ bld_ml64.bat</Command>
   <ItemGroup>
     <Text Include="liscense.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="masmx64\gvmat64.asm" />
+    <MASM Include="masmx64\inffasx64.asm" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>

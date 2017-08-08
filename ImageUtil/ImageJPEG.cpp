@@ -10,7 +10,9 @@ namespace xziar::img::jpeg
 
 struct JpegHelper
 {
-	static void EmptyFunc(j_decompress_ptr cinfo)
+	static void EmptyDecompFunc(j_decompress_ptr cinfo)
+	{ }
+	static void EmptyCompFunc(j_compress_ptr cinfo)
 	{ }
 
 	static uint8_t ReadFromFile(j_decompress_ptr cinfo)
@@ -19,8 +21,11 @@ struct JpegHelper
 		auto& imgFile = reader->ImgFile;
 		auto& buffer = reader->Buffer;
 		const auto readSize = std::min(imgFile.LeftSpace(), buffer.GetSize());
-		cinfo->src->bytes_in_buffer = imgFile.Read(readSize, buffer.GetRawPtr()) ? readSize : 0;
-		cinfo->src->next_input_byte = buffer.GetRawPtr();
+		if (imgFile.Read(readSize, buffer.GetRawPtr()))
+		{
+			cinfo->src->bytes_in_buffer = readSize;
+			cinfo->src->next_input_byte = buffer.GetRawPtr();
+		}
 		return 1;
 	}
 
@@ -31,6 +36,32 @@ struct JpegHelper
 		imgFile.Skip(bytes);
 	}
 
+	static uint8_t WriteToFile(j_compress_ptr cinfo)
+	{
+		auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
+		auto& imgFile = writer->ImgFile;
+		auto& buffer = writer->Buffer;
+		if (imgFile.Write(buffer.GetSize(), buffer.GetRawPtr()))
+		{
+			cinfo->dest->free_in_buffer = buffer.GetSize();
+			cinfo->dest->next_output_byte = buffer.GetRawPtr();
+		}
+		return 1;
+	}
+
+	static void FlushToFile(j_compress_ptr cinfo)
+	{
+		auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
+		auto& imgFile = writer->ImgFile;
+		auto& buffer = writer->Buffer;
+		const auto writeSize = buffer.GetSize() - cinfo->dest->free_in_buffer;
+		if (imgFile.Write(writeSize, buffer.GetRawPtr()))
+		{
+			cinfo->dest->free_in_buffer = buffer.GetSize();
+			cinfo->dest->next_output_byte = buffer.GetRawPtr();
+		}
+	}
+
 	static void OnReport(j_common_ptr cinfo, const int msg_level)
 	{
 		char message[JMSG_LENGTH_MAX];
@@ -38,8 +69,10 @@ struct JpegHelper
 		const auto msg = to_wstring(message);
 		if (msg_level == -1)
 			ImgLog().warning(L"LIBJPEG warns {}\n", msg);
+#ifdef _DEBUG
 		else
 			ImgLog().verbose(L"LIBJPEG trace {}\n", msg);
+#endif
 	}
 
 	static void OnError(j_common_ptr cinfo)
@@ -62,11 +95,11 @@ JpegReader::JpegReader(FileObject& file) : ImgFile(file), Buffer(65536)
 	auto jpegSource = new jpeg_source_mgr();
 	JpegSource = jpegSource;
 	decompStruct->src = jpegSource;
-	jpegSource->init_source = JpegHelper::EmptyFunc;
+	jpegSource->init_source = JpegHelper::EmptyDecompFunc;
 	jpegSource->fill_input_buffer = JpegHelper::ReadFromFile;
 	jpegSource->skip_input_data = JpegHelper::SkipFile;
 	jpegSource->resync_to_restart = jpeg_resync_to_restart;
-	jpegSource->term_source = JpegHelper::EmptyFunc;
+	jpegSource->term_source = JpegHelper::EmptyDecompFunc;
 	jpegSource->bytes_in_buffer = 0;
 
 	auto jpegErrorHandler = new jpeg_error_mgr();
@@ -142,12 +175,74 @@ Image JpegReader::Read(const ImageDataType dataType)
 }
 
 
-JpegWriter::JpegWriter(FileObject& file) : ImgFile(file)
+JpegWriter::JpegWriter(FileObject& file) : ImgFile(file), Buffer(65536)
 {
+	auto compStruct = new jpeg_compress_struct();
+	JpegCompStruct = compStruct;
+	compStruct->client_data = this;
+	jpeg_create_compress(compStruct);
+
+	auto jpegDest = new jpeg_destination_mgr();
+	JpegDest = jpegDest;
+	compStruct->dest = jpegDest;
+	jpegDest->init_destination = JpegHelper::EmptyCompFunc;
+	jpegDest->empty_output_buffer = JpegHelper::WriteToFile;
+	jpegDest->term_destination = JpegHelper::FlushToFile;
+	jpegDest->free_in_buffer = Buffer.GetSize();
+	jpegDest->next_output_byte = Buffer.GetRawPtr();
+
+	auto jpegErrorHandler = new jpeg_error_mgr();
+	JpegErrorHandler = jpegErrorHandler;
+	compStruct->err = jpegErrorHandler;
+	jpeg_std_error(jpegErrorHandler);
+	jpegErrorHandler->error_exit = JpegHelper::OnError;
+	jpegErrorHandler->emit_message = JpegHelper::OnReport;
+}
+
+inline JpegWriter::~JpegWriter() 
+{
+	if (JpegCompStruct)
+	{
+		jpeg_destroy_compress((j_compress_ptr)JpegCompStruct);
+		delete JpegCompStruct;
+	}
+	if (JpegDest)
+		delete JpegDest;
+	if (JpegErrorHandler)
+		delete JpegErrorHandler;
 }
 
 void JpegWriter::Write(const Image& image)
 {
+	if (image.Width > JPEG_MAX_DIMENSION || image.Height > JPEG_MAX_DIMENSION)
+		return;
+	if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+		return;
+	auto compStruct = (j_compress_ptr)JpegCompStruct;
+	const auto dataType = REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK });
+	switch (dataType)
+	{
+	case ImageDataType::BGR:
+		compStruct->in_color_space = JCS_EXT_BGR; break;
+	case ImageDataType::BGRA:
+		compStruct->in_color_space = JCS_EXT_BGRA; break;
+	case ImageDataType::RGB:
+		compStruct->in_color_space = JCS_RGB; break;
+	case ImageDataType::RGBA:
+		compStruct->in_color_space = JCS_EXT_RGBA; break;
+	default:
+		return;
+	}
+	compStruct->image_width = image.Width;
+	compStruct->image_height = image.Height;
+	compStruct->input_components = image.ElementSize;
+	jpeg_set_defaults(compStruct);
+	jpeg_set_quality(compStruct, 90, TRUE);
+
+	jpeg_start_compress(compStruct, TRUE);
+	auto ptrs = image.GetRowPtrs();
+	jpeg_write_scanlines(compStruct, (uint8_t**)ptrs.data(), image.Height);
+	jpeg_finish_compress(compStruct);
 }
 
 }

@@ -33,13 +33,16 @@ public:
 
 class IMGUTILAPI JpegWriter : public ImgWriter
 {
+	friend JpegHelper;
 private:
 	FileObject& ImgFile;
-	void *PngStruct = nullptr;
-	void *PngInfo = nullptr;
+	common::AlignedBuffer<32> Buffer;
+	void *JpegCompStruct = nullptr;
+	void *JpegDest = nullptr;
+	void *JpegErrorHandler = nullptr;
 public:
 	JpegWriter(FileObject& file);
-	virtual ~JpegWriter() override {};
+	virtual ~JpegWriter() override;;
 	virtual void Write(const Image& image) override;
 };
 

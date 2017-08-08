@@ -89,7 +89,36 @@ inline void BGRsToRGBs(uint8_t * __restrict destPtr, uint64_t count)
 	}
 }
 #undef LOOP_BGR_RGB
-#pragma endregion BGR->RGB
+#pragma endregion BGR->RGB(in place)
+
+
+#pragma region BGR->RGB
+#define LOOP_BGR_RGB \
+		{ \
+			destPtr[0] = srcPtr[2]; \
+			destPtr[1] = srcPtr[1]; \
+			destPtr[2] = srcPtr[0]; \
+			destPtr += 3, srcPtr += 3; count--; \
+		}
+inline void BGRsToRGBs(uint8_t * __restrict destPtr, const uint8_t * __restrict srcPtr, uint64_t count)
+{
+	while (count)
+	{
+		switch (count)
+		{
+		default:LOOP_BGR_RGB
+		case 7: LOOP_BGR_RGB
+		case 6: LOOP_BGR_RGB
+		case 5: LOOP_BGR_RGB
+		case 4: LOOP_BGR_RGB
+		case 3: LOOP_BGR_RGB
+		case 2: LOOP_BGR_RGB
+		case 1: LOOP_BGR_RGB
+		}
+	}
+}
+#undef LOOP_BGR_RGB
+#pragma endregion BGR->RGB(copy)
 
 
 #pragma region RGB->RGBA
@@ -268,7 +297,78 @@ inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, uint64_t count)
 	}
 }
 #undef LOOP_BGRA_RGBA
-#pragma endregion BGR->RGBA
+#pragma endregion BGR->RGBA(in place)
+
+
+#pragma region BGRA->RGBA
+#define LOOP_BGRA_RGBA \
+		{ \
+			destPtr[0] = srcPtr[2]; \
+			destPtr[1] = srcPtr[1]; \
+			destPtr[2] = srcPtr[0]; \
+			destPtr[3] = srcPtr[3]; \
+			destPtr += 4, srcPtr += 4; count--; \
+		}
+inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, const uint8_t * __restrict srcPtr, uint64_t count)
+{
+#if defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+#   pragma warning(disable:4309)
+	const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
+#   pragma warning(default:4309)
+#   if defined(__AVX__) || defined(__AVX2__)
+	const auto shuffle256 = _mm256_set_m128i(shuffle128, shuffle128);
+	while (count >= 32)
+	{
+		//bgrabgrabgrabgra -> rgbargbargbargba
+		_mm256_storeu_si256((__m256i*)destPtr, _mm256_shuffle_epi8(_mm256_loadu_si256((const __m256i*)srcPtr), shuffle256)); destPtr += 32, srcPtr += 32;
+		_mm256_storeu_si256((__m256i*)destPtr, _mm256_shuffle_epi8(_mm256_loadu_si256((const __m256i*)srcPtr), shuffle256)); destPtr += 32, srcPtr += 32;
+		_mm256_storeu_si256((__m256i*)destPtr, _mm256_shuffle_epi8(_mm256_loadu_si256((const __m256i*)srcPtr), shuffle256)); destPtr += 32, srcPtr += 32;
+		_mm256_storeu_si256((__m256i*)destPtr, _mm256_shuffle_epi8(_mm256_loadu_si256((const __m256i*)srcPtr), shuffle256)); destPtr += 32, srcPtr += 32;
+		count -= 32;
+		continue;
+	}
+	while (count >= 8)
+	{
+		const auto raw = _mm256_loadu_si256((const __m256i*)srcPtr);//bgrabgrabgra
+		const auto shuffled = _mm256_shuffle_epi8(raw, shuffle256);//rgbargbargba
+		_mm256_storeu_si256((__m256i*)destPtr, shuffled);
+		destPtr += 32, srcPtr += 32, count -= 8;
+		continue;
+	}
+#   else
+	while (count >= 16)
+	{
+		//bgrabgrabgrabgra -> rgbargbargbargba
+		_mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffle128)); destPtr += 16, srcPtr += 16;
+		_mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffle128)); destPtr += 16, srcPtr += 16;
+		_mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffle128)); destPtr += 16, srcPtr += 16;
+		_mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffle128)); destPtr += 16, srcPtr += 16;
+		count -= 16;
+		continue;
+	}
+#   endif
+	while (count >= 4)
+	{
+		const auto raw = _mm_loadu_si128((const __m128i*)srcPtr);//bgrabgrabgra
+		const auto shuffled = _mm_shuffle_epi8(raw, shuffle128);//rgbargbargba
+		_mm_storeu_si128((__m128i*)destPtr, shuffled);
+		destPtr += 16, srcPtr += 16, count -= 4;
+		continue;
+	}
+#endif
+	while (count)
+	{
+		switch (count)
+		{
+		default:LOOP_BGRA_RGBA
+		case 3: LOOP_BGRA_RGBA
+		case 2: LOOP_BGRA_RGBA
+		case 1: LOOP_BGRA_RGBA
+		}
+	}
+}
+#undef LOOP_BGRA_RGBA
+#pragma endregion BGR->RGBA(copy)
 
 
 #pragma region SWAP
@@ -376,7 +476,7 @@ inline bool Swap2Buffer(uint8_t * __restrict ptrA, uint8_t * __restrict ptrB, ui
 	if ((intptr_t)ptrA & 0x7)
 	{
 		const uint64_t offset = 8 - ((intptr_t)ptrA & 0x7);
-		uint8_t count = std::min(bytes, offset);
+		uint8_t count = static_cast<uint8_t>(std::min(bytes, offset));
 		bytes -= count;
 		SWAP_BLOCK(count)
 	}
