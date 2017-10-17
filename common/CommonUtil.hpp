@@ -123,7 +123,7 @@ public:
 	template<typename T>
 	static auto FlatMap(T&& arg)
 	{
-		using RetType = typename decltype(Func::FlatMap(arg));
+		using RetType = /*typename*/ decltype(Func::FlatMap(arg));
 		static_assert(std::is_base_of<std::tuple, RetType>::value, "FlatMap should return a tuple");
 		return Func::FlatMap(arg);
 	}

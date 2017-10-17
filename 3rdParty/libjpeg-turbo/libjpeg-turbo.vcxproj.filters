@@ -256,11 +256,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="simd\jcgray-sse2-64.asm">
-      <Filter>asm-x64</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <NASM Include="simd\jccolor-sse2-64.asm">
       <Filter>asm-x64</Filter>
     </NASM>
@@ -407,6 +402,9 @@
     </NASM>
     <NASM Include="simd\jquant-sse.asm">
       <Filter>asm-x86</Filter>
+    </NASM>
+    <NASM Include="simd\jcgray-sse2-64.asm">
+      <Filter>源文件</Filter>
     </NASM>
   </ItemGroup>
 </Project>

@@ -3,6 +3,7 @@
 #include "ImagePNG.h"
 #include "ImageTGA.h"
 #include "ImageJPEG.h"
+#include "ImageBMP.h"
 
 
 namespace xziar::img
@@ -15,6 +16,7 @@ static vector<Wrapper<ImgSupport>> SUPPORT_MAP
 	Wrapper<png::PngSupport>(std::in_place).cast_static<ImgSupport>(),
 	Wrapper<tga::TgaSupport>(std::in_place).cast_static<ImgSupport>(),
 	Wrapper<jpeg::JpegSupport>(std::in_place).cast_static<ImgSupport>(),
+	Wrapper<bmp::BmpSupport>(std::in_place).cast_static<ImgSupport>(),
 };
 
 static vector<Wrapper<ImgSupport>> GenerateSupportList(const wstring& ext, const bool allowDisMatch)

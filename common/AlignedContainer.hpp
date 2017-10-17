@@ -75,7 +75,7 @@ private:
 		Data = nullptr;
 	};
 public:
-	AlignedBuffer() noexcept : { }
+	AlignedBuffer() noexcept { }
 	AlignedBuffer(const size_t size) : Size(size) { Alloc(); }
 	AlignedBuffer(const AlignedBuffer& other) : Size(other.Size)
 	{
