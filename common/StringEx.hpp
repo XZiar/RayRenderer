@@ -1,5 +1,9 @@
 #pragma once
 
+#pragma warning(disable:4996)
+//Bypass C++17 codecvt deprecation
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING 1
+
 #include <string>
 #include <string_view>
 #include <vector>
@@ -329,3 +333,6 @@ inline std::wstring to_wstring(const char* const str, const Charset chset = Char
 
 
 }
+
+
+#pragma warning(default:4996)

@@ -86,18 +86,19 @@ ModelImage _ModelImage::getImage(const wstring& pname)
 	else
 		return ModelImage();
 }
-
+#pragma warning(disable:4996)
 void _ModelImage::shrink()
 {
 	auto it = images.cbegin();
 	while (it != images.end())
 	{
-		if (it->second.unique())
+		if (it->second.unique()) //deprecated, may lead to bug
 			it = images.erase(it);
 		else
 			++it;
 	}
 }
+#pragma warning(default:4996)
 
 _ModelImage::_ModelImage(const wstring& pfname)
 {

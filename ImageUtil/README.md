@@ -8,11 +8,11 @@ A simple utility for image read/write/process.
 
   [zlib License](./License/zlib.txt)
 
-* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.30
+* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.34
 
   [libpng License](./License/libpng.txt)
 
-* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.2
+* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.3
 
   [IJG License, BSD-3 License, zlib License](./License/libjpeg-turbo.txt)
 

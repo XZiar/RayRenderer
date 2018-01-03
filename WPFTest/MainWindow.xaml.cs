@@ -136,6 +136,17 @@ namespace WPFTest
             }
         }
 
+        private void wfh_DpiChanged(object sender, DpiChangedEventArgs e)
+        {
+            float scaleFactor = (float)(e.NewDpi.PixelsPerDip / e.OldDpi.PixelsPerDip);
+
+            // This method recursively scales all child Controls.
+            glMain.Scale(new System.Drawing.SizeF(scaleFactor, scaleFactor)); ;
+
+            // Scale the root control's font
+            glMain.Font = new System.Drawing.Font(glMain.Font.FontFamily, glMain.Font.Size * scaleFactor, glMain.Font.Style);
+        }
+
         private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             Console.WriteLine(e.Key);

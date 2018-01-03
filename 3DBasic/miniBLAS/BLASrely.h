@@ -31,7 +31,7 @@
 #   define __SSE2__ 1
 #endif
 
-#if defined(_WIN32) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)
+#if defined(_WIN32) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE) && !defined(__cplusplus_cli) && !defined(BAK_M_CEE)
 #   define VECCALL __vectorcall
 #else
 #   define VECCALL 

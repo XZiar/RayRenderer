@@ -34,7 +34,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 ## Dependency
 
-* [GLEW](http://glew.sourceforge.net/)  2.0.1-snapshot
+* [GLEW](http://glew.sourceforge.net/)  2.1.0
 
   [Modified BSD & MIT License](./License/glew.txt)
 
@@ -42,7 +42,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MIT License](./License/freeglut.txt)
 
-* [boost](http://www.boost.org/)  1.64.0
+* [boost](http://www.boost.org/)  1.66.0
 
   [Boost Software License](./License/boost.txt)
 
@@ -50,7 +50,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MIT License](./License/stb.txt)
 
-* [fmt](http://fmtlib.net) 4.0.0
+* [fmt](http://fmtlib.net) 4.1.0
 
   [BSD-2 License](./License/fmt.rst)
 

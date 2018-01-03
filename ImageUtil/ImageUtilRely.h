@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <tuple>
 #include <algorithm>
 #include <filesystem>
 #include "common/CommonRely.hpp"
@@ -26,6 +27,7 @@ namespace xziar::img
 namespace fs = std::experimental::filesystem;
 using std::string;
 using std::wstring;
+using std::tuple;
 }
 
 #ifdef IMGUTIL_EXPORT

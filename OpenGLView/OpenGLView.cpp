@@ -2,6 +2,8 @@
 
 #include <msclr\marshal_cppstd.h>
 #include "OpenGLViewEvents.h"
+#include <string>
+
 
 using namespace msclr::interop;
 using namespace System;
@@ -63,6 +65,7 @@ using std::wstring;
 		}
 		OGLView()
 		{
+            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 			ResizeBGDraw = true;
 			deshake = true;
 			hDC = GetDC(HWND(this->Handle.ToPointer()));

@@ -6,13 +6,13 @@
 #else
 #   define RAYCOREAPI _declspec(dllimport)
 #endif
-
+/**
 #ifndef _HAS_AUTO_PTR_ETC
 #   define _HAS_AUTO_PTR_ETC 1
 #elif !(_HAS_AUTO_PTR_ETC)
 #   error "RenderCore need to be compiled with _HAS_AUTO_PTR_ETC defined to 1"
 #endif
-
+**/
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

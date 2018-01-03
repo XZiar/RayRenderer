@@ -61,6 +61,11 @@ public:
 		Width = width, Height = height;
 		Alloc();
 	}
+	template<typename T>
+	void SetSize(const tuple<T, T>& size)
+	{
+		SetSize(std::get<0>(size), std::get<1>(size));
+	}
 
 	template<typename T = uint8_t>
 	T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) noexcept
