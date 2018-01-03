@@ -50,3 +50,9 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 }
 
 #define MAKE_ENUM_BITFIELD(T) ENUM_CLASS_BITFIELD_FUNC(T, std::underlying_type_t<T>)
+
+
+//for std::byte
+#if _HAS_STD_BYTE
+inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
+#endif

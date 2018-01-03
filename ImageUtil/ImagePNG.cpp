@@ -62,7 +62,7 @@ static png_infop CreateInfo(png_structp pngStruct)
 
 void PngReader::ReadThrough(uint8_t passes, Image& image)
 {
-	auto ptrs = image.GetRowPtrs();
+	auto ptrs = image.GetRowPtrs<uint8_t>();
 	while (passes--)
 	{
 		//Sparkle, read all rows at a time
@@ -72,7 +72,7 @@ void PngReader::ReadThrough(uint8_t passes, Image& image)
 
 void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 {
-	auto ptrs = image.GetRowPtrs(image.Width);
+	auto ptrs = image.GetRowPtrs<uint8_t>(image.Width);
 	common::SimpleTimer timer;
 	timer.Start();
 	while (passes--)
@@ -83,13 +83,13 @@ void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
 	timer.Stop();
 	ImgLog().debug(L"[libpng]decode cost {} ms\n", timer.ElapseMs());
 	//post process, 3-comp ---> 4-comp
-	uint8_t *rowPtr = image.GetRawPtr();
+	auto *rowPtr = image.GetRawPtr();
 	const size_t lineStep = image.ElementSize * image.Width;
 	timer.Start();
 	for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
 	{
-		uint8_t * __restrict destPtr = rowPtr;
-		uint8_t * __restrict srcPtr = rowPtr + image.Width;
+        auto * __restrict destPtr = rowPtr;
+        auto * __restrict srcPtr = rowPtr + image.Width;
 		img::convert::RGBsToRGBAs(destPtr, srcPtr, image.Width);
 	}
 	timer.Stop();

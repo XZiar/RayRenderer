@@ -28,15 +28,15 @@ struct TgaHeader
 		uint8_t ColorMapSpec[5];
 		struct
 		{
-			uint8_t ColorMapOffset[2];
-			uint8_t ColorMapCount[2];
+            byte ColorMapOffset[2];
+            byte ColorMapCount[2];
 			uint8_t ColorEntryDepth;
 		};
 	};
-	uint8_t OriginHorizontal[2];
-	uint8_t OriginVertical[2];
-	uint8_t Width[2];
-	uint8_t Height[2];
+    byte OriginHorizontal[2];
+    byte OriginVertical[2];
+	byte Width[2];
+    byte Height[2];
 	uint8_t PixelDepth;
 	uint8_t ImageDescriptor;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdio>
 #include <cstdint>
 #include <vector>
@@ -25,6 +26,7 @@ namespace common::file
 namespace fs = std::experimental::filesystem;
 using std::string;
 using std::wstring;
+using std::byte;
 
 #if defined(USING_CHARDET) || defined(UCHARDETLIB_H_)
 #   define GET_ENCODING(str, chset) chset = uchdet::detectEncoding(str)
@@ -96,10 +98,21 @@ public:
 	}
 
 	//without checking
-	uint8_t ReadByte()
+    template<typename T = byte>
+    T ReadByteNE()
 	{
-		return (uint8_t)fgetc(fp);
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+		return (T)fgetc(fp);
 	}
+    template<typename T = byte>
+    T ReadByte()
+    {
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+        const auto ret = fgetc(fp);
+        if(ret != EOF)
+            return (T)fgetc(fp);
+        COMMON_THROW(FileException, FileException::Reason::ReadFail, filePath, L"reach end of file");
+    }
 
 	bool Read(const size_t len, void *ptr)
 	{

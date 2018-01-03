@@ -24,7 +24,7 @@ struct JpegHelper
 		if (imgFile.Read(readSize, buffer.GetRawPtr()))
 		{
 			cinfo->src->bytes_in_buffer = readSize;
-			cinfo->src->next_input_byte = buffer.GetRawPtr();
+			cinfo->src->next_input_byte = buffer.GetRawPtr<uint8_t>();
 		}
 		return 1;
 	}
@@ -44,7 +44,7 @@ struct JpegHelper
 		if (imgFile.Write(buffer.GetSize(), buffer.GetRawPtr()))
 		{
 			cinfo->dest->free_in_buffer = buffer.GetSize();
-			cinfo->dest->next_output_byte = buffer.GetRawPtr();
+			cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
 		}
 		return 1;
 	}
@@ -58,7 +58,7 @@ struct JpegHelper
 		if (imgFile.Write(writeSize, buffer.GetRawPtr()))
 		{
 			cinfo->dest->free_in_buffer = buffer.GetSize();
-			cinfo->dest->next_output_byte = buffer.GetRawPtr();
+			cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
 		}
 	}
 
@@ -162,7 +162,7 @@ Image JpegReader::Read(const ImageDataType dataType)
 	auto ptrs = image.GetRowPtrs(needAlpha ? image.Width : 0);
 	while (decompStruct->output_scanline < decompStruct->output_height)
 	{
-		jpeg_read_scanlines(decompStruct, &ptrs[decompStruct->output_scanline], decompStruct->output_height - decompStruct->output_scanline);
+		jpeg_read_scanlines(decompStruct, reinterpret_cast<uint8_t**>(&ptrs[decompStruct->output_scanline]), decompStruct->output_height - decompStruct->output_scanline);
 	}
 	if (needAlpha)
 	{
@@ -189,7 +189,7 @@ JpegWriter::JpegWriter(FileObject& file) : ImgFile(file), Buffer(65536)
 	jpegDest->empty_output_buffer = JpegHelper::WriteToFile;
 	jpegDest->term_destination = JpegHelper::FlushToFile;
 	jpegDest->free_in_buffer = Buffer.GetSize();
-	jpegDest->next_output_byte = Buffer.GetRawPtr();
+	jpegDest->next_output_byte = Buffer.GetRawPtr<uint8_t>();
 
 	auto jpegErrorHandler = new jpeg_error_mgr();
 	JpegErrorHandler = jpegErrorHandler;

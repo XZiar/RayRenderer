@@ -5,9 +5,9 @@
 namespace xziar::img::convert
 {
 
-inline uint16_t ParseWordLE(const uint8_t *data) { return static_cast<uint16_t>((*(data + 1) << 8) + *data); }
-inline uint16_t ParseWordBE(const uint8_t *data) { return static_cast<uint16_t>(*(data + 1) + ((*data) << 8)); }
-inline void WordToLE(uint8_t *output, const uint16_t data) { output[0] = static_cast<uint8_t>(data & 0xff); output[1] = static_cast<uint8_t>(data >> 8); }
+inline uint16_t ParseWordLE(const byte *data) { return static_cast<uint16_t>((std::to_integer<uint16_t>(*(data + 1)) << 8) + std::to_integer<uint16_t>(*data)); }
+inline uint16_t ParseWordBE(const byte *data) { return static_cast<uint16_t>(std::to_integer<uint16_t>(*(data + 1)) + std::to_integer<uint16_t>((*data) << 8)); }
+inline void WordToLE(byte *output, const uint16_t data) { output[0] = static_cast<byte>(data & 0xff); output[1] = static_cast<byte>(data >> 8); }
 
 #pragma region RGBA->RGB
 #define LOOP_RGBA_RGB \
@@ -15,7 +15,7 @@ inline void WordToLE(uint8_t *output, const uint16_t data) { output[0] = static_
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = *srcPtr++; \
 		srcPtr++; count--;
-inline void RGBAsToRGBs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPtr, uint64_t count)
+inline void RGBAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -42,7 +42,7 @@ inline void RGBAsToRGBs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPt
 		*destPtr++ = srcPtr[1]; \
 		*destPtr++ = srcPtr[0]; \
 		srcPtr += 4; count--;
-inline void BGRAsToRGBs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPtr, uint64_t count)
+inline void BGRAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -71,7 +71,7 @@ inline void BGRAsToRGBs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPt
 			destPtr[2] = tmp; \
 			destPtr += 3; count--; \
 		}
-inline void BGRsToRGBs(uint8_t * __restrict destPtr, uint64_t count)
+inline void BGRsToRGBs(byte * __restrict destPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -100,7 +100,7 @@ inline void BGRsToRGBs(uint8_t * __restrict destPtr, uint64_t count)
 			destPtr[2] = srcPtr[0]; \
 			destPtr += 3, srcPtr += 3; count--; \
 		}
-inline void BGRsToRGBs(uint8_t * __restrict destPtr, const uint8_t * __restrict srcPtr, uint64_t count)
+inline void BGRsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -126,8 +126,8 @@ inline void BGRsToRGBs(uint8_t * __restrict destPtr, const uint8_t * __restrict 
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = *srcPtr++; \
-		*destPtr++ = 0xff; count--;
-inline void RGBsToRGBAs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPtr, uint64_t count)
+		*destPtr++ = byte(0xff); count--;
+inline void RGBsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -180,9 +180,9 @@ inline void RGBsToRGBAs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPt
 		*destPtr++ = srcPtr[2]; \
 		*destPtr++ = srcPtr[1]; \
 		*destPtr++ = *srcPtr; \
-		*destPtr++ = 0xff; \
+		*destPtr++ = byte(0xff); \
 		srcPtr += 3; count--;
-inline void BGRsToRGBAs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPtr, uint64_t count)
+inline void BGRsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -238,7 +238,7 @@ inline void BGRsToRGBAs(uint8_t * __restrict destPtr, uint8_t * __restrict srcPt
 			destPtr[2] = tmp; \
 			destPtr += 4; count--; \
 		}
-inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, uint64_t count)
+inline void BGRAsToRGBAs(byte * __restrict destPtr, uint64_t count)
 {
 #if defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -309,7 +309,7 @@ inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, uint64_t count)
 			destPtr[3] = srcPtr[3]; \
 			destPtr += 4, srcPtr += 4; count--; \
 		}
-inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, const uint8_t * __restrict srcPtr, uint64_t count)
+inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -375,11 +375,11 @@ inline void BGRAsToRGBAs(uint8_t * __restrict destPtr, const uint8_t * __restric
 #define SWAP_BLOCK(COUNTER) \
 		while (COUNTER--) \
 		{ \
-			const uint8_t tmp = *ptrA; \
+			const auto tmp = *ptrA; \
 			*ptrA++ = *ptrB; \
 			*ptrB++ = tmp; \
 		} 
-inline bool Swap2Buffer(uint8_t * __restrict ptrA, uint8_t * __restrict ptrB, uint64_t bytes)
+inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t bytes)
 {
 	if (ptrA == ptrB)
 		return false;

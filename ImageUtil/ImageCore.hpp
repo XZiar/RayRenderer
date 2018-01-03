@@ -28,11 +28,11 @@ class Image
 public:
 	static constexpr uint8_t GetElementSize(const ImageDataType dataType);
 private:
-	uint8_t *Data = nullptr;
+	byte *Data = nullptr;
 	void Alloc()
 	{
 		Release();
-		Data = (uint8_t*)malloc_align(Width * Height * ElementSize, 32);
+		Data = (byte*)malloc_align(Width * Height * ElementSize, 32);
 	}
 	void Release()
 	{
@@ -67,17 +67,17 @@ public:
 		SetSize(std::get<0>(size), std::get<1>(size));
 	}
 
-	template<typename T = uint8_t>
+	template<typename T = byte>
 	T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) noexcept
 	{
 		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
 	}
-	template<typename T = uint8_t>
+	template<typename T = byte>
 	const T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) const noexcept
 	{
 		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
 	}
-	template<typename T = uint8_t>
+	template<typename T = byte>
 	std::vector<T*> GetRowPtrs(const size_t offset = 0)
 	{
 		std::vector<T*> pointers(Height, nullptr);
@@ -87,7 +87,7 @@ public:
 			ptr = rawPtr + offset, rawPtr += lineStep;
 		return pointers;
 	}
-	template<typename T = uint8_t>
+	template<typename T = byte>
 	std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
 	{
 		std::vector<const T*> pointers(Height, nullptr);
@@ -123,7 +123,7 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
 inline void Image::FlipVertical()
 {
 	const auto lineStep = Width * ElementSize;
-	uint8_t* rowUp = Data, *rowDown = Data + (Height - 1) * lineStep;
+	auto rowUp = Data, rowDown = Data + (Height - 1) * lineStep;
 	while (rowUp < rowDown)
 	{
 		convert::Swap2Buffer(rowUp, rowDown, lineStep);

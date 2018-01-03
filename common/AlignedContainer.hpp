@@ -60,12 +60,12 @@ template<size_t N>
 struct AlignedBuffer
 {
 private:
-	uint8_t *Data = nullptr;
+	std::byte *Data = nullptr;
 	size_t Size = 0;
 	void Alloc()
 	{
 		Release();
-		Data = (uint8_t*)malloc_align(Size, N);
+		Data = (std::byte*)malloc_align(Size, N);
 		if (!Data)
 			throw std::bad_alloc();
 	}
@@ -98,7 +98,8 @@ public:
 		Size = other.Size;
 		Data = other.Data;
 	}
-	uint8_t* GetRawPtr() noexcept { return Data; }
+    template<typename T = std::byte>
+    T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
 	size_t GetSize() noexcept { return Size; }
 };
 

@@ -37,7 +37,7 @@ static const BGR16ToRGBAMap& GetBGR16ToRGBAMap()
 static RGB16ToRGBAMap GenerateRGB16ToRGBAMap()
 {
 	RGB16ToRGBAMap map(1 << 16);
-	convert::BGRAsToRGBAs(reinterpret_cast<uint8_t*>(map.data()), reinterpret_cast<const uint8_t*>(GetBGR16ToRGBAMap().data()), map.size());
+	convert::BGRAsToRGBAs(reinterpret_cast<byte*>(map.data()), reinterpret_cast<const byte*>(GetBGR16ToRGBAMap().data()), map.size());
 	return map;
 }
 static const BGR16ToRGBAMap& GetRGB16ToRGBAMap()
@@ -113,8 +113,8 @@ public:
 			}break;
 		case 24://BGR
 			{
-				uint8_t * __restrict destPtr = output.GetRawPtr();
-				uint8_t * __restrict srcPtr = destPtr + count;
+                auto * __restrict destPtr = output.GetRawPtr();
+                auto * __restrict srcPtr = destPtr + count;
 				reader.Read(3 * count, srcPtr);
 				if (isOutputRGB)
 					convert::BGRsToRGBAs(destPtr, srcPtr, count);
@@ -143,11 +143,11 @@ public:
 			{
 				std::vector<uint16_t> tmp(count);
 				reader.Read(count, tmp);
-				uint8_t * __restrict destPtr = output.GetRawPtr();
+                auto * __restrict destPtr = output.GetRawPtr();
 				for (auto bgr15 : tmp)
 				{
 					const uint32_t color = color16Map[bgr15 + (1 << 15)];//ignore alpha
-					const uint8_t* __restrict colorPtr = reinterpret_cast<const uint8_t*>(&color);
+					const auto* __restrict colorPtr = reinterpret_cast<const byte*>(&color);
 					*destPtr++ = colorPtr[0];
 					*destPtr++ = colorPtr[1];
 					*destPtr++ = colorPtr[2];
@@ -211,8 +211,8 @@ public:
 		}
 		else
 		{
-			const uint8_t * __restrict const mapPtr = mapper.GetRawPtr();
-			uint8_t * __restrict destPtr = image.GetRawPtr();
+			const auto * __restrict const mapPtr = mapper.GetRawPtr();
+            auto * __restrict destPtr = image.GetRawPtr();
 			if (header.PixelDepth == 8)
 			{
 				std::vector<uint8_t> idxes;
@@ -253,11 +253,11 @@ public:
 	}
 
 	template<typename Writer>
-	static void WriteRLE3(const uint8_t* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
+	static void WriteRLE3(const byte* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
 	{
 		if (isRepeat)
 		{
-			uint8_t color[3];
+            byte color[3];
 			color[0] = ptr[2], color[1] = ptr[1], color[2] = ptr[0];
 			while (len)
 			{
@@ -285,11 +285,11 @@ public:
 	}
 
 	template<typename Writer>
-	static void WriteRLE4(const uint8_t* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
+	static void WriteRLE4(const byte* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
 	{
 		if (isRepeat)
 		{
-			uint8_t color[4];
+            byte color[4];
 			color[0] = ptr[2], color[1] = ptr[1], color[2] = ptr[0], color[3] = ptr[3];
 			while (len)
 			{
@@ -341,19 +341,19 @@ public:
 				default:
 					if (cur == last && !repeat)//changed
 					{
-						WriteRLE3((const uint8_t*)&data[col - len], len - 1, false, writer);
+						WriteRLE3((const byte*)&data[col - len], len - 1, false, writer);
 						len = 1, repeat = true;
 					}
 					else if (cur != last && repeat)//changed
 					{
-						WriteRLE3((const uint8_t*)&data[col - len], len, true, writer);
+						WriteRLE3((const byte*)&data[col - len], len, true, writer);
 						len = 0, repeat = false;
 					}
 				}
 				last = cur;
 			}
 			if (len > 0)
-				WriteRLE3((const uint8_t*)&data[image.Width - len], len, repeat, writer);
+				WriteRLE3((const byte*)&data[image.Width - len], len, repeat, writer);
 		}
 	}
 
@@ -380,19 +380,19 @@ public:
 				default:
 					if (data[col] == last && !repeat)//changed
 					{
-						WriteRLE4((const uint8_t*)&data[col - len], len - 1, false, writer);
+						WriteRLE4((const byte*)&data[col - len], len - 1, false, writer);
 						len = 1, repeat = true;
 					}
 					else if (data[col] != last && repeat)//changed
 					{
-						WriteRLE4((const uint8_t*)&data[col - len], len, true, writer);
+						WriteRLE4((const byte*)&data[col - len], len, true, writer);
 						len = 0, repeat = false;
 					}
 				}
 				last = data[col];
 			}
 			if (len > 0)
-				WriteRLE4((const uint8_t*)&data[image.Width - len], len, repeat, writer);
+				WriteRLE4((const byte*)&data[image.Width - len], len, repeat, writer);
 		}
 	}
 };
@@ -404,19 +404,23 @@ class RLEFileDecoder
 private:
 	FileObject& ImgFile;
 	const uint8_t ElementSize;
+    static inline uint8_t ByteToSize(const byte b)
+    {
+        return std::to_integer<uint8_t>(b & byte(0x7f)) + 1;
+    }
 	bool Read1(size_t limit, uint8_t * __restrict output)
 	{
 		while (limit)
 		{
-			const uint8_t info = ImgFile.ReadByte();
-			const uint8_t size = (info & 0x7f) + 1;
+			const byte info = ImgFile.ReadByte();
+			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
 			limit -= size;
-			if (info > 127)
+			if (::HAS_FIELD(info, 0xf0))
 			{
-				const uint8_t obj = ImgFile.ReadByte();
-				memset(output, obj, size);
+				const byte obj = ImgFile.ReadByte();
+				memset(output, std::to_integer<uint8_t>(obj), size);
 			}
 			else
 			{
@@ -431,12 +435,12 @@ private:
 	{
 		while (limit)
 		{
-			const uint8_t info = ImgFile.ReadByte();
-			const uint8_t size = (info & 0x7f) + 1;
+			const byte info = ImgFile.ReadByte();
+			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
 			limit -= size;
-			if (info > 127)
+            if (::HAS_FIELD(info, 0xf0))
 			{
 				uint16_t obj;
 				if (!ImgFile.Read(obj))
@@ -457,12 +461,12 @@ private:
 	{
 		while (limit)
 		{
-			const uint8_t info = ImgFile.ReadByte();
-			const uint8_t size = (info & 0x7f) + 1;
+			const byte info = ImgFile.ReadByte();
+			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
 			limit -= size;
-			if (info > 127)
+            if (::HAS_FIELD(info, 0xf0))
 			{
 				uint8_t obj[3];
 				if (ImgFile.Read(obj) != 3)
@@ -487,12 +491,12 @@ private:
 	{
 		while (limit)
 		{
-			const uint8_t info = ImgFile.ReadByte();
-			const uint8_t size = (info & 0x7f) + 1;
+			const byte info = ImgFile.ReadByte();
+			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
 			limit -= size;
-			if (info > 127)
+            if (::HAS_FIELD(info, 0xf0))
 			{
 				uint32_t obj;
 				if (!ImgFile.Read(obj))

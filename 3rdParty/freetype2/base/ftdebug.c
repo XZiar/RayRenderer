@@ -2,7 +2,7 @@
 /*                                                                         */
 /*  ftdebug.c                                                              */
 /*                                                                         */
-/*    Debugging and logging component (body).                              */
+/*    Debugging and logging component for Win32 (body).                    */
 /*                                                                         */
 /*  Copyright 1996-2017 by                                                 */
 /*  David Turner, Robert Wilhelm, and Werner Lemberg.                      */
@@ -42,11 +42,17 @@
 
 
 #include <ft2build.h>
-#include FT_FREETYPE_H
 #include FT_INTERNAL_DEBUG_H
 
 
 #ifdef FT_DEBUG_LEVEL_ERROR
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <windows.h>
+
 
   /* documentation is in ftdebug.h */
 
@@ -54,11 +60,15 @@
   FT_Message( const char*  fmt,
               ... )
   {
-    va_list  ap;
+    static char  buf[8192];
+    va_list      ap;
 
 
     va_start( ap, fmt );
-    vfprintf( stderr, fmt, ap );
+    vprintf( fmt, ap );
+    /* send the string to the debugger as well */
+    vsprintf( buf, fmt, ap );
+    OutputDebugStringA( buf );
     va_end( ap );
   }
 
@@ -69,11 +79,13 @@
   FT_Panic( const char*  fmt,
             ... )
   {
-    va_list  ap;
+    static char  buf[8192];
+    va_list      ap;
 
 
     va_start( ap, fmt );
-    vfprintf( stderr, fmt, ap );
+    vsprintf( buf, fmt, ap );
+    OutputDebugStringA( buf );
     va_end( ap );
 
     exit( EXIT_FAILURE );
@@ -94,15 +106,12 @@
     return 0;
   }
 
-#endif /* FT_DEBUG_LEVEL_ERROR */
-
-
 
 #ifdef FT_DEBUG_LEVEL_TRACE
 
+
   /* array of trace levels, initialized to 0 */
   int  ft_trace_levels[trace_count];
-
 
   /* define array of trace toggle names */
 #define FT_TRACE_DEF( x )  #x ,
@@ -116,47 +125,23 @@
 #undef FT_TRACE_DEF
 
 
-  /* documentation is in ftdebug.h */
-
-  FT_BASE_DEF( FT_Int )
-  FT_Trace_Get_Count( void )
-  {
-    return trace_count;
-  }
-
-
-  /* documentation is in ftdebug.h */
-
-  FT_BASE_DEF( const char * )
-  FT_Trace_Get_Name( FT_Int  idx )
-  {
-    int  max = FT_Trace_Get_Count();
-
-
-    if ( idx < max )
-      return ft_trace_toggles[idx];
-    else
-      return NULL;
-  }
-
-
   /*************************************************************************/
   /*                                                                       */
   /* Initialize the tracing sub-system.  This is done by retrieving the    */
-  /* value of the `FT2_DEBUG' environment variable.  It must be a list of  */
-  /* toggles, separated by spaces, `;', or `,'.  Example:                  */
+  /* value of the "FT2_DEBUG" environment variable.  It must be a list of  */
+  /* toggles, separated by spaces, `;' or `,'.  Example:                   */
   /*                                                                       */
-  /*    export FT2_DEBUG="any:3 memory:7 stream:5"                         */
+  /*    "any:3 memory:6 stream:5"                                          */
   /*                                                                       */
-  /* This requests that all levels be set to 3, except the trace level for */
-  /* the memory and stream components which are set to 7 and 5,            */
+  /* This will request that all levels be set to 3, except the trace level */
+  /* for the memory and stream components which are set to 6 and 5,        */
   /* respectively.                                                         */
   /*                                                                       */
-  /* See the file `include/freetype/internal/fttrace.h' for details of     */
-  /* the available toggle names.                                           */
+  /* See the file `include/freetype/internal/fttrace.h' for details of the */
+  /* available toggle names.                                               */
   /*                                                                       */
-  /* The level must be between 0 and 7; 0 means quiet (except for serious  */
-  /* runtime errors), and 7 means _very_ verbose.                          */
+  /* The level must be between 0 and 6; 0 means quiet (except for serious  */
+  /* runtime errors), and 6 means _very_ verbose.                          */
   /*                                                                       */
   FT_BASE_DEF( void )
   ft_debug_init( void )
@@ -186,8 +171,8 @@
 
         if ( *p == ':' && p > q )
         {
-          FT_Int  n, i, len = (FT_Int)( p - q );
-          FT_Int  level = -1, found = -1;
+          int  n, i, len = (int)( p - q );
+          int  level = -1, found = -1;
 
 
           for ( n = 0; n < trace_count; n++ )
@@ -221,7 +206,7 @@
           {
             if ( found == trace_any )
             {
-              /* special case for `any' */
+              /* special case for "any" */
               for ( n = 0; n < trace_count; n++ )
                 ft_trace_levels[n] = level;
             }
@@ -244,23 +229,9 @@
   }
 
 
-  FT_BASE_DEF( FT_Int )
-  FT_Trace_Get_Count( void )
-  {
-    return 0;
-  }
-
-
-  FT_BASE_DEF( const char * )
-  FT_Trace_Get_Name( FT_Int  idx )
-  {
-    FT_UNUSED( idx );
-
-    return NULL;
-  }
-
-
 #endif /* !FT_DEBUG_LEVEL_TRACE */
+
+#endif /* FT_DEBUG_LEVEL_ERROR */
 
 
 /* END */

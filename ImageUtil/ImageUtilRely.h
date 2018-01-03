@@ -7,6 +7,7 @@
 #   define IMGUTILAPI _declspec(dllimport)
 #endif
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -25,6 +26,7 @@
 namespace xziar::img
 {
 namespace fs = std::experimental::filesystem;
+using std::byte;
 using std::string;
 using std::wstring;
 using std::tuple;

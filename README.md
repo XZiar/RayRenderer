@@ -58,7 +58,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MPL 1.1 License](./License/uchardet.txt)
 
-* [FreeType2](https://www.freetype.org/) 2.8
+* [FreeType2](https://www.freetype.org/) 2.8.1
 
   [The FreeType License](./License/freetype.txt)
 

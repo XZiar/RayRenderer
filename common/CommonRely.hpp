@@ -8,6 +8,7 @@
 #   define COMMONTPL
 #endif
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <new>

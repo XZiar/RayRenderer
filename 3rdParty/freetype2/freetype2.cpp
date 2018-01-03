@@ -4,6 +4,9 @@
 #include FT_FREETYPE_H
 #include <freetype/ftoutln.h>
 
+#pragma message("Compiler FreeType2 with FreeType2[" STRINGIZE(FREETYPE2_VERSION) "]")
+
+
 namespace ft
 {
 using namespace common;

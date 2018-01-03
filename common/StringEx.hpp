@@ -1,6 +1,5 @@
 #pragma once
 
-#pragma warning(disable:4996)
 //Bypass C++17 codecvt deprecation
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING 1
 
@@ -303,6 +302,8 @@ inline std::wstring to_wstring(const T val)
 	return std::to_wstring(val);
 }
 
+#pragma warning(disable:4996)
+
 template<typename T, typename = std::enable_if<std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value>::type>
 inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCII)
 {
@@ -312,7 +313,7 @@ inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCI
 		return std::wstring(str.cbegin(), str.cend());
 	case Charset::GB18030:
 		{
-			std::wstring_convert<std::codecvt_byname<wchar_t, char, mbstate_t>> gbk_utf16_cvt(new std::codecvt_byname<wchar_t, char, mbstate_t>(".936"));
+			std::wstring_convert<std::codecvt_byname<wchar_t, char, std::mbstate_t>> gbk_utf16_cvt(new std::codecvt_byname<wchar_t, char, std::mbstate_t>(".936"));
 			return gbk_utf16_cvt.from_bytes(str.data(), str.data() + str.length());
 		}
 	case Charset::UTF8:
@@ -323,6 +324,7 @@ inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCI
 	}
 	return L"";
 }
+#pragma warning(default:4996)
 
 inline std::wstring to_wstring(const char* const str, const Charset chset = Charset::ASCII)
 {
@@ -335,4 +337,3 @@ inline std::wstring to_wstring(const char* const str, const Charset chset = Char
 }
 
 
-#pragma warning(default:4996)
