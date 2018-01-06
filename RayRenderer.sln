@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLView", "OpenGLView\OpenGLView.vcxproj", "{2D168E14-C22D-4429-B97C-AF5D41010E48}"
 EndProject
@@ -91,6 +91,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90E510-49EC-458D-99FC-C11DF3C6710C}"
 	ProjectSection(SolutionItems) = preProject
 		common\AlignedContainer.hpp = common\AlignedContainer.hpp
+		common\AlignedContainer.natvis = common\AlignedContainer.natvis
 		common\CLIAsync.hpp = common\CLIAsync.hpp
 		common\CLIException.hpp = common\CLIException.hpp
 		common\CommonMacro.hpp = common\CommonMacro.hpp
@@ -442,5 +443,8 @@ Global
 		{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3797BA95-6625-4483-B63E-3B3F9B845DAB} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{98F7C4AF-2104-45E6-B205-EA364C317D2E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}
 	EndGlobalSection
 EndGlobal

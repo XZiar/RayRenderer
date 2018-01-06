@@ -2,6 +2,10 @@
 
 A simple utility for image read/write/process.
 
+## Endianness
+
+Since This component is binded with X86 optimization, internal data layout is assumed to be Little-endian.
+
 ## Dependency
 
 * [zlib](http://www.zlib.net/zlib.html)  1.2.11

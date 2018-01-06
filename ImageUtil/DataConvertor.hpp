@@ -5,9 +5,49 @@
 namespace xziar::img::convert
 {
 
-inline uint16_t ParseWordLE(const byte *data) { return static_cast<uint16_t>((std::to_integer<uint16_t>(*(data + 1)) << 8) + std::to_integer<uint16_t>(*data)); }
-inline uint16_t ParseWordBE(const byte *data) { return static_cast<uint16_t>(std::to_integer<uint16_t>(*(data + 1)) + std::to_integer<uint16_t>((*data) << 8)); }
-inline void WordToLE(byte *output, const uint16_t data) { output[0] = static_cast<byte>(data & 0xff); output[1] = static_cast<byte>(data >> 8); }
+inline uint16_t ParseWordLE(const byte *data) { return static_cast<uint16_t>((std::to_integer<uint16_t>(data[1]) << 8) + std::to_integer<uint16_t>(data[0])); }
+inline uint16_t ParseWordBE(const byte *data) { return static_cast<uint16_t>(std::to_integer<uint16_t>(data[1]) + std::to_integer<uint16_t>(data[0] << 8)); }
+inline void WordToLE(byte *output, const uint16_t data) { output[0] = byte(data & 0xff); output[1] = byte(data >> 8); }
+inline void WordToBE(byte *output, const uint16_t data) { output[1] = byte(data & 0xff); output[0] = byte(data >> 8); }
+inline uint32_t ParseDWordLE(const byte *data) 
+{ 
+    return static_cast<uint32_t>(
+        (std::to_integer<uint32_t>(data[3]) << 24) + 
+        (std::to_integer<uint32_t>(data[2]) << 16) + 
+        (std::to_integer<uint32_t>(data[1]) << 8) + 
+        (std::to_integer<uint32_t>(data[0])));
+}
+inline uint32_t ParseDWordBE(const byte *data) 
+{
+    return static_cast<uint32_t>(
+        (std::to_integer<uint32_t>(data[3])) + 
+        (std::to_integer<uint32_t>(data[2]) << 8) + 
+        (std::to_integer<uint32_t>(data[1]) << 16) + 
+        (std::to_integer<uint32_t>(data[0]) << 24));
+}
+inline void DWordToLE(byte *output, const uint32_t data) { output[0] = byte(data & 0xff); output[1] = byte(data >> 8); output[2] = byte(data >> 16); output[3] = byte(data >> 24); }
+inline void DWordToBE(byte *output, const uint32_t data) { output[3] = byte(data & 0xff); output[2] = byte(data >> 8); output[1] = byte(data >> 16); output[0] = byte(data >> 24); }
+
+template<typename T>
+inline T EmptyStruct()
+{
+    T obj;
+    memset(&obj, 0, sizeof(T));
+    return obj;
+}
+inline void FixAlpha(size_t count, uint32_t* destPtr)
+{
+    while (count--)
+        (*destPtr++) |= 0xff000000u;
+}
+
+inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
+{
+    const auto* __restrict colorPtr = reinterpret_cast<const byte*>(&color);
+    *destPtr++ = colorPtr[0];
+    *destPtr++ = colorPtr[1];
+    *destPtr++ = colorPtr[2];
+}
 
 #pragma region RGBA->RGB
 #define LOOP_RGBA_RGB \
@@ -32,6 +72,7 @@ inline void RGBAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uin
 		}
 	}
 }
+inline const auto& BGRAsToBGRs = RGBAsToRGBs;
 #undef LOOP_RGBA_RGB
 #pragma endregion RGBA->RGB
 
@@ -59,11 +100,12 @@ inline void BGRAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uin
 		}
 	}
 }
+inline const auto& RGBAsToBGRs = BGRAsToRGBs;
 #undef LOOP_BGRA_RGB
 #pragma endregion BGRA->RGB
 
 
-#pragma region BGR->RGB
+#pragma region BGR->RGB(in place)
 #define LOOP_BGR_RGB \
 		{ \
 			const auto tmp = destPtr[0]; \
@@ -92,7 +134,7 @@ inline void BGRsToRGBs(byte * __restrict destPtr, uint64_t count)
 #pragma endregion BGR->RGB(in place)
 
 
-#pragma region BGR->RGB
+#pragma region BGR->RGB(copy)
 #define LOOP_BGR_RGB \
 		{ \
 			destPtr[0] = srcPtr[2]; \
@@ -171,6 +213,7 @@ inline void RGBsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uin
 		}
 	}
 }
+inline const auto& BGRsToBGRAs = RGBsToRGBAs;
 #undef LOOP_RGB_RGBA
 #pragma endregion RGB->RGBA
 
@@ -226,11 +269,12 @@ inline void BGRsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uin
 		}
 	}
 }
+inline const auto& RGBsToBGRAs = BGRsToRGBAs;
 #undef LOOP_BGR_RGBA
 #pragma endregion BGR->RGBA
 
 
-#pragma region BGRA->RGBA
+#pragma region BGRA->RGBA(in place)
 #define LOOP_BGRA_RGBA \
 		{ \
 			const auto tmp = destPtr[0]; \
@@ -297,10 +341,10 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, uint64_t count)
 	}
 }
 #undef LOOP_BGRA_RGBA
-#pragma endregion BGR->RGBA(in place)
+#pragma endregion BGRA->RGBA(in place)
 
 
-#pragma region BGRA->RGBA
+#pragma region BGRA->RGBA(copy)
 #define LOOP_BGRA_RGBA \
 		{ \
 			destPtr[0] = srcPtr[2]; \
@@ -368,7 +412,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcP
 	}
 }
 #undef LOOP_BGRA_RGBA
-#pragma endregion BGR->RGBA(copy)
+#pragma endregion BGRA->RGBA(copy)
 
 
 #pragma region SWAP
@@ -503,5 +547,47 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
 #undef SWAP_UINT64
 #undef SWAP_BLOCK
 #pragma endregion SWAP two buffer
+
+
+using BGR16ToRGBAMap = std::vector<uint32_t>;
+using RGB16ToRGBAMap = BGR16ToRGBAMap;
+static BGR16ToRGBAMap GenerateBGR16ToRGBAMap()
+{
+    BGR16ToRGBAMap map(1 << 16);
+    constexpr uint32_t COUNT = 1 << 5, STEP = 256 / COUNT, HALF_SIZE = 1 << 15;
+    constexpr uint32_t RED_STEP = STEP, GREEN_STEP = STEP << 8, BLUE_STEP = STEP << 16;
+    uint32_t idx = 0;
+    uint32_t color = 0;
+    for (uint32_t red = COUNT, colorR = color; red--; colorR += RED_STEP)
+    {
+        for (uint32_t green = COUNT, colorRG = colorR; green--; colorRG += GREEN_STEP)
+        {
+            for (uint32_t blue = COUNT, colorRGB = colorRG; blue--; colorRGB += BLUE_STEP)
+            {
+                map[idx++] = colorRGB;
+            }
+        }
+    }
+    for (uint32_t count = 0; count < HALF_SIZE;)//protential 4k-alignment issue
+        map[idx++] = map[count++] | 0xff000000;
+    return map;
+}
+static const BGR16ToRGBAMap& GetBGR16ToRGBAMap()
+{
+    static const auto map = GenerateBGR16ToRGBAMap();
+    return map;
+}
+static RGB16ToRGBAMap GenerateRGB16ToRGBAMap()
+{
+    RGB16ToRGBAMap map(1 << 16);
+    BGRAsToRGBAs(reinterpret_cast<byte*>(map.data()), reinterpret_cast<const byte*>(GetBGR16ToRGBAMap().data()), map.size());
+    return map;
+}
+static const BGR16ToRGBAMap& GetRGB16ToRGBAMap()
+{
+    static const auto map = GenerateRGB16ToRGBAMap();
+    return map;
+}
+
 
 }

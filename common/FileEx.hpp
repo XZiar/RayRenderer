@@ -183,9 +183,10 @@ public:
 		Read(flen, output);
 	}
 
-	std::vector<uint8_t> ReadAll()
+    template<typename T = byte>
+	std::vector<T> ReadAll()
 	{
-		std::vector<uint8_t> fdata;
+		std::vector<T> fdata;
 		ReadAll(fdata);
 		return fdata;
 	}

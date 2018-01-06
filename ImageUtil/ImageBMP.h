@@ -15,20 +15,20 @@ namespace detail
 struct BmpHeader
 {
 	char Sig[2];
-	uint32_t Size;
+	byte Size[4];
 	union
 	{
 		uint8_t Dummy[4];
 		uint32_t Reserved;
 	};
-	uint32_t Offset;
+    byte Offset[4];
 };
 constexpr size_t BMP_HEADER_SIZE = sizeof(BmpHeader);
 struct BmpInfo
 {
 	uint32_t Size;
-	int32_t Width;
-	int32_t Height;
+	byte Width[4];
+	byte Height[4];
 	uint16_t Planes;
 	uint16_t BitCount;
 	uint32_t Compression;
@@ -71,7 +71,7 @@ public:
 
 class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
-	BmpSupport() : ImgSupport(L"Bmp") {};
+    BmpSupport();
 	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<BmpReader>(file).cast_static<ImgReader>(); }
 	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<BmpWriter>(file).cast_static<ImgWriter>(); }
 	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".BMP"; }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::AlignedBuffer&lt;*&gt;">
+    <Expand>
+      <Item Name="[data]">Data</Item>
+      <Item Name="[size]" ExcludeView="simple">Size</Item>
+      <ArrayItems Condition="Data != nullptr">
+        <Size>Size</Size>
+        <ValuePointer>Data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

@@ -56,6 +56,7 @@ public:
 	}
 	~Image() { Release(); }
 	size_t Size() const { return Width * Height * ElementSize; }
+    size_t RowSize() const { return Width * ElementSize; }
 	void SetSize(const uint32_t width, const uint32_t height)
 	{
 		Width = width, Height = height;
@@ -82,7 +83,7 @@ public:
 	{
 		std::vector<T*> pointers(Height, nullptr);
 		T *rawPtr = GetRawPtr<T>();
-		size_t lineStep = ElementSize * Width;
+		const size_t lineStep = RowSize();
 		for (auto& ptr : pointers)
 			ptr = rawPtr + offset, rawPtr += lineStep;
 		return pointers;
@@ -92,7 +93,7 @@ public:
 	{
 		std::vector<const T*> pointers(Height, nullptr);
 		const T *rawPtr = GetRawPtr<T>();
-		size_t lineStep = ElementSize * Width;
+		const size_t lineStep = RowSize();
 		for (auto& ptr : pointers)
 			ptr = rawPtr + offset, rawPtr += lineStep;
 		return pointers;

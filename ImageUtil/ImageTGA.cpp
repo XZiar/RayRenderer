@@ -6,47 +6,6 @@ namespace xziar::img::tga
 {
 
 
-using BGR16ToRGBAMap = std::vector<uint32_t>;
-using RGB16ToRGBAMap = BGR16ToRGBAMap;
-static BGR16ToRGBAMap GenerateBGR16ToRGBAMap()
-{
-	BGR16ToRGBAMap map(1 << 16);
-	constexpr uint32_t COUNT = 1 << 5, STEP = 256 / COUNT, HALF_SIZE = 1 << 15;
-	constexpr uint32_t RED_STEP = STEP, GREEN_STEP = STEP << 8, BLUE_STEP = STEP << 16;
-	uint32_t idx = 0;
-	uint32_t color = 0;
-	for (uint32_t red = COUNT, colorR = color; red--; colorR += RED_STEP)
-	{
-		for (uint32_t green = COUNT, colorRG = colorR; green--; colorRG += GREEN_STEP)
-		{
-			for (uint32_t blue = COUNT, colorRGB = colorRG; blue--; colorRGB += BLUE_STEP)
-			{
-				map[idx++] = colorRGB;
-			}
-		}
-	}
-	for (uint32_t count = 0; count < HALF_SIZE;)//protential 4k-alignment issue
-		map[idx++] = map[count++] | 0xff000000;
-	return map;
-}
-static const BGR16ToRGBAMap& GetBGR16ToRGBAMap()
-{
-	static const auto map = GenerateBGR16ToRGBAMap();
-	return map;
-}
-static RGB16ToRGBAMap GenerateRGB16ToRGBAMap()
-{
-	RGB16ToRGBAMap map(1 << 16);
-	convert::BGRAsToRGBAs(reinterpret_cast<byte*>(map.data()), reinterpret_cast<const byte*>(GetBGR16ToRGBAMap().data()), map.size());
-	return map;
-}
-static const BGR16ToRGBAMap& GetRGB16ToRGBAMap()
-{
-	static const auto map = GenerateRGB16ToRGBAMap();
-	return map;
-}
-
-
 TgaReader::TgaReader(FileObject& file) : ImgFile(file)
 {
 }
@@ -92,7 +51,7 @@ public:
 	{
 		if (output.ElementSize != 4)
 			return;
-		auto& color16Map = isOutputRGB ? GetBGR16ToRGBAMap() : GetRGB16ToRGBAMap();
+		auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
 		switch (colorDepth)
 		{
 		case 15:
@@ -135,7 +94,7 @@ public:
 	{
 		if (output.ElementSize != 3)
 			return;
-		auto& color16Map = isOutputRGB ? GetBGR16ToRGBAMap() : GetRGB16ToRGBAMap();
+		auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
 		switch (colorDepth)
 		{
 		case 15:
@@ -146,11 +105,8 @@ public:
                 auto * __restrict destPtr = output.GetRawPtr();
 				for (auto bgr15 : tmp)
 				{
-					const uint32_t color = color16Map[bgr15 + (1 << 15)];//ignore alpha
-					const auto* __restrict colorPtr = reinterpret_cast<const byte*>(&color);
-					*destPtr++ = colorPtr[0];
-					*destPtr++ = colorPtr[1];
-					*destPtr++ = colorPtr[2];
+					const uint32_t color = color16Map[bgr15 | (1 << 15)];//ignore alpha
+                    convert::CopyRGBAToRGB(destPtr, color);
 				}
 			}break;
 		case 24://BGR
@@ -185,6 +141,7 @@ public:
 		const detail::ColorMapInfo mapInfo(header);
 		mapperReader.Skip(mapInfo.Offset);
 		Image mapper(needAlpha ? ImageDataType::RGBA : ImageDataType::RGB);
+        mapper.SetSize(mapInfo.Size, 1);
 		if (needAlpha)
 			ReadColorData4(mapInfo.ColorDepth, mapInfo.Size, mapper, isOutputRGB, mapperReader);
 		else
@@ -192,8 +149,8 @@ public:
 
 		if (needAlpha)
 		{
-			const uint32_t * __restrict const mapPtr = reinterpret_cast<uint32_t*>(mapper.GetRawPtr());
-			uint32_t * __restrict destPtr = reinterpret_cast<uint32_t*>(image.GetRawPtr());
+			const uint32_t * __restrict const mapPtr = mapper.GetRawPtr<uint32_t>();
+			uint32_t * __restrict destPtr = image.GetRawPtr<uint32_t>();
 			if (header.PixelDepth == 8)
 			{
 				std::vector<uint8_t> idxes;
@@ -417,7 +374,7 @@ private:
 			if (size > limit)
 				return false;
 			limit -= size;
-			if (::HAS_FIELD(info, 0xf0))
+			if (::HAS_FIELD(info, 0x80))
 			{
 				const byte obj = ImgFile.ReadByte();
 				memset(output, std::to_integer<uint8_t>(obj), size);
@@ -440,7 +397,7 @@ private:
 			if (size > limit)
 				return false;
 			limit -= size;
-            if (::HAS_FIELD(info, 0xf0))
+            if (::HAS_FIELD(info, 0x80))
 			{
 				uint16_t obj;
 				if (!ImgFile.Read(obj))
@@ -466,7 +423,7 @@ private:
 			if (size > limit)
 				return false;
 			limit -= size;
-            if (::HAS_FIELD(info, 0xf0))
+            if (::HAS_FIELD(info, 0x80))
 			{
 				uint8_t obj[3];
 				if (ImgFile.Read(obj) != 3)
@@ -496,7 +453,7 @@ private:
 			if (size > limit)
 				return false;
 			limit -= size;
-            if (::HAS_FIELD(info, 0xf0))
+            if (::HAS_FIELD(info, 0x80))
 			{
 				uint32_t obj;
 				if (!ImgFile.Read(obj))
@@ -634,8 +591,8 @@ TgaSupport::TgaSupport() : ImgSupport(L"Tga")
 {
 	SimpleTimer timer;
 	timer.Start();
-	auto& map1 = GetBGR16ToRGBAMap();
-	auto& map2 = GetRGB16ToRGBAMap();
+	auto& map1 = convert::GetBGR16ToRGBAMap();
+	auto& map2 = convert::GetRGB16ToRGBAMap();
 	timer.Stop();
 	const auto volatile time = timer.ElapseMs();
 }
