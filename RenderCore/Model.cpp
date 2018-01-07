@@ -100,9 +100,9 @@ void _ModelImage::shrink()
 }
 #pragma warning(default:4996)
 
-_ModelImage::_ModelImage(const wstring& pfname) : image(xziar::img::ReadImage(pfname))
+_ModelImage::_ModelImage(const wstring& pfname) : Image(xziar::img::ReadImage(pfname))
 {
-    if(image.Width > UINT16_MAX || image.Height > UINT16_MAX)
+    if(Width > UINT16_MAX || Height > UINT16_MAX)
         COMMON_THROW(BaseException, L"image too big");
     //auto [w, h] = ::stb::loadImage(pfname, image);
 	//width = static_cast<uint16_t>(img.Width), height = static_cast<uint16_t>(img.Height);
@@ -110,26 +110,14 @@ _ModelImage::_ModelImage(const wstring& pfname) : image(xziar::img::ReadImage(pf
 
 _ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color)// :width(w), height(h)
 {
-    image.SetSize(w, h);
-	//image.resize(width*height, color);
+    SetSize(w, h);
 }
-//
-//void _ModelImage::placeImage(const Wrapper<_ModelImage>& from, const uint16_t x, const uint16_t y)
-//{
-//	if (!from)
-//		return;
-//	const auto w = from->width;
-//	const size_t lim = from->image.size();
-//	for (size_t posFrom = 0, posTo = y*width + x; posFrom < lim; posFrom += w, posTo += width)
-//		memmove(&image[posTo], &from->image[posFrom], sizeof(uint32_t)*w);
-//}
-
 
 oglu::oglTexture _ModelImage::genTexture()
 {
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-	tex->setData(oglu::TextureInnerFormat::BC1A, oglu::TextureDataFormat::RGBA8, image.Width, image.Height, image.GetRawPtr());
+	tex->setData(oglu::TextureInnerFormat::BC1A, oglu::TextureDataFormat::RGBA8, Width, Height, GetRawPtr());
 	return tex;
 }
 
@@ -146,7 +134,7 @@ oglu::oglTexture _ModelImage::genTextureAsync()
 	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata)))->wait();
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-	tex->setCompressedData(oglu::TextureInnerFormat::BC1A, image.Width, image.Height, texdata);
+	tex->setCompressedData(oglu::TextureInnerFormat::BC1A, Width, Height, texdata);
 	return tex;
 }
 
@@ -344,8 +332,8 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 		auto& mtl = mp.second;
 		for (auto& tex : mtl.texs)
 		{
-			if (tex && (tex->image.Width < mtl.width || tex->image.Height < mtl.height))
-				tex->image.Resize(mtl.width, mtl.height);
+			if (tex && (tex->Width < mtl.width || tex->Height < mtl.height))
+				tex->Resize(mtl.width, mtl.height);
 		}
 	}
 	//Merge Textures
@@ -356,8 +344,8 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 		ModelImage img;
 		uint16_t x, y;
 		std::tie(img, x, y) = texposs[idx];
-		maxx = std::max(maxx, static_cast<uint16_t>(img->image.Width + x));
-		maxy = std::max(maxy, static_cast<uint16_t>(img->image.Height + y));
+		maxx = std::max(maxx, static_cast<uint16_t>(img->Width + x));
+		maxy = std::max(maxy, static_cast<uint16_t>(img->Height + y));
 		bool addedDiffuse = false, addedNormal = false;
 		for (auto& mp : mtlmap)
 		{
@@ -387,8 +375,7 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
     for (const auto& op : opDiffuse)
     {
         auto[objimg, x, y] = op;
-        diffuse->image.PlaceImage(objimg->image, 0, 0, x, y);
-        //diffuse->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
+        diffuse->PlaceImage(*objimg, 0, 0, x, y);
     }
 	opDiffuse.clear();
 	basLog().verbose(L"Build merged Normal texture({}*{})\n", maxx, maxy);
@@ -396,8 +383,7 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 	for (const auto& op : opNormal)
     {
         auto[objimg, x, y] = op;
-        normal->image.PlaceImage(objimg->image, 0, 0, x, y);
-        //normal->placeImage(std::get<0>(op), std::get<1>(op), std::get<2>(op));
+        normal->PlaceImage(*objimg, 0, 0, x, y);
     }
 	opNormal.clear();
 
@@ -468,14 +454,14 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->diffuse() = tex;
 				if (tex)
-					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->image.Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->image.Height));
+					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
 			}break;
 		case "map_bump"_hash:
 			{
 				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->normal() = tex;
 				if (tex)
-					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->image.Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->image.Height));
+					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
 			}break;
 		}
 	}

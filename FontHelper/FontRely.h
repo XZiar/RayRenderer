@@ -20,6 +20,7 @@
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "freetype2/freetype2.h"
+#include "ImageUtil/ImageUtil.h"
 
 
 #ifdef FONTHELPER_EXPORT

@@ -124,7 +124,26 @@ void _oglTexture::parseFormat(const ImageDataType dformat, const bool normalized
             comptype = GL_BGRA_INTEGER; break;
         }
 }
-
+ImageDataType _oglTexture::convertFormat(const TextureDataFormat dformat) noexcept
+{
+    ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_MASK) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
+    switch (REMOVE_MASK(dformat, { TextureDataFormat::TYPE_MASK,TextureDataFormat::TYPE_MASK }))
+    {
+    case TextureDataFormat::R8:
+        return ImageDataType::RED | isFloat;
+    case TextureDataFormat::RG8:
+        return ImageDataType::RA | isFloat;
+    case TextureDataFormat::RGB8:
+        return ImageDataType::RGB | isFloat;
+    case TextureDataFormat::RGBA8:
+        return ImageDataType::RGBA | isFloat;
+    case TextureDataFormat::BGR8:
+        return ImageDataType::BGR | isFloat;
+    case TextureDataFormat::BGRA8:
+        return ImageDataType::BGRA | isFloat;
+    }
+    return isFloat;//fallback
+}
 
 size_t _oglTexture::parseFormatSize(const TextureDataFormat dformat) noexcept
 {
@@ -269,6 +288,20 @@ vector<uint8_t> _oglTexture::getData(const TextureDataFormat dformat)
 	parseFormat(dformat, datatype, comptype);
 	glGetTexImage((GLenum)type, 0, comptype, datatype, output.data());
 	return output;
+}
+
+Image _oglTexture::getImage(const TextureDataFormat dformat)
+{
+    bind(0);
+    GLint w = 0, h = 0;
+    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
+    Image image(convertFormat(dformat));
+    image.SetSize(w, h);
+    GLenum datatype, comptype;
+    parseFormat(dformat, datatype, comptype);
+    glGetTexImage((GLenum)type, 0, comptype, datatype, image.GetRawPtr());
+    return image;
 }
 
 pair<uint32_t, uint32_t> _oglTexture::getSize() const

@@ -2,6 +2,10 @@
 
 #include "ImageUtilRely.h"
 
+#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+#   define USE_SIMD
+#endif
+
 namespace xziar::img::convert
 {
 
@@ -48,6 +52,274 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
     *destPtr++ = colorPtr[1];
     *destPtr++ = colorPtr[2];
 }
+
+
+#pragma region GRAY->RGBA
+#pragma warning(disable: 4309)
+constexpr auto MAKE_GRAY2RGBA()
+{
+    std::array<uint32_t, 256> ret{ 0 };
+    for (uint32_t i = 0; i < 256u; ++i)
+        ret[i] = (i * 0x00010101u) | 0xff000000u;
+    return ret;
+}
+inline auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
+//#define LOOP_GRAY_RGBA *(uint32_t*)destPtr = (*((uint8_t*)srcPtr++) * 0x00010101) | 0xff000000; destPtr += 4; count--;
+#define LOOP_GRAY_RGBA *(uint32_t*)destPtr = GrayToRGBAMAP[*(uint8_t*)srcPtr++]; destPtr += 4; count--;
+inline void GraysToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__AVX2__)
+    const auto alphaMask = _mm256_set1_epi32(0xff000000);
+    const auto shuffleMask1 = _mm256_setr_epi8(0, 0, 0, 0xff, 1, 1, 1, 0xff, 2, 2, 2, 0xff, 3, 3, 3, 0xff, 0, 0, 0, 0xff, 1, 1, 1, 0xff, 2, 2, 2, 0xff, 3, 3, 3, 0xff);
+    const auto shuffleMask2 = _mm256_setr_epi8(4, 4, 4, 0xff, 5, 5, 5, 0xff, 6, 6, 6, 0xff, 7, 7, 7, 0xff, 4, 4, 4, 0xff, 5, 5, 5, 0xff, 6, 6, 6, 0xff, 7, 7, 7, 0xff);
+    const auto shuffleMask3 = _mm256_setr_epi8(8, 8, 8, 0xff, 9, 9, 9, 0xff, 10, 10, 10, 0xff, 11, 11, 11, 0xff, 8, 8, 8, 0xff, 9, 9, 9, 0xff, 10, 10, 10, 0xff, 11, 11, 11, 0xff);
+    const auto shuffleMask4 = _mm256_setr_epi8(12, 12, 12, 0xff, 13, 13, 13, 0xff, 14, 14, 14, 0xff, 15, 15, 15, 0xff, 12, 12, 12, 0xff, 13, 13, 13, 0xff, 14, 14, 14, 0xff, 15, 15, 15, 0xff);
+    while (count > 32)
+    {
+        const auto in = _mm256_loadu_si256((const __m256i*)srcPtr);//0~32
+        srcPtr += 32; count -= 32;
+        const auto tmp1 = _mm256_or_si256(_mm256_shuffle_epi8(in, shuffleMask1), alphaMask);//0~3,16~19
+        const auto tmp2 = _mm256_or_si256(_mm256_shuffle_epi8(in, shuffleMask2), alphaMask);//4~7,20~23
+        const auto tmp3 = _mm256_or_si256(_mm256_shuffle_epi8(in, shuffleMask3), alphaMask);//8~11,24~27
+        const auto tmp4 = _mm256_or_si256(_mm256_shuffle_epi8(in, shuffleMask4), alphaMask);//12~15,28~31
+
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x20)); destPtr += 32;//0~3,4~7
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x20)); destPtr += 32;//8~11,12~15
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x31)); destPtr += 32;//16~19,20~23
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//24~27,28~31
+    }
+#elif defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__)
+    const auto alphaMask = _mm_set1_epi32(0xff000000);
+    const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 0xff, 1, 1, 1, 0xff, 2, 2, 2, 0xff, 3, 3, 3, 0xff);
+    const auto shuffleMask2 = _mm_setr_epi8(4, 4, 4, 0xff, 5, 5, 5, 0xff, 6, 6, 6, 0xff, 7, 7, 7, 0xff);
+    const auto shuffleMask3 = _mm_setr_epi8(8, 8, 8, 0xff, 9, 9, 9, 0xff, 10, 10, 10, 0xff, 11, 11, 11, 0xff);
+    const auto shuffleMask4 = _mm_setr_epi8(12, 12, 12, 0xff, 13, 13, 13, 0xff, 14, 14, 14, 0xff, 15, 15, 15, 0xff);
+    while (count > 32)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~16
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//17~32
+        count -= 32;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask1), alphaMask)); destPtr += 16;//0~3
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask2), alphaMask)); destPtr += 16;//4~7
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask3), alphaMask)); destPtr += 16;//8~11
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask4), alphaMask)); destPtr += 16;//12~15
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask1), alphaMask)); destPtr += 16;//16~19
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask2), alphaMask)); destPtr += 16;//20~23
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask3), alphaMask)); destPtr += 16;//24~27
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask4), alphaMask)); destPtr += 16;//28~31
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAY_RGBA
+        case 7: LOOP_GRAY_RGBA
+        case 6: LOOP_GRAY_RGBA
+        case 5: LOOP_GRAY_RGBA
+        case 4: LOOP_GRAY_RGBA
+        case 3: LOOP_GRAY_RGBA
+        case 2: LOOP_GRAY_RGBA
+        case 1: LOOP_GRAY_RGBA
+        }
+    }
+}
+inline const auto& GraysToBGRAs = GraysToRGBAs;
+#undef LOOP_GRAY_RGBA
+#pragma warning(default: 4309)
+#pragma endregion GRAY->RGBA
+
+
+#pragma region GRAYA->RGBA
+#pragma warning(disable: 4309)
+constexpr auto MAKE_GRAYA2RGBA()
+{
+    constexpr uint32_t size = 256 * 256;
+    std::array<uint32_t, size> ret{ 0 };
+    for (uint32_t i = 0; i < size; ++i)
+        ret[i] = ((i & 0xffu) * 0x00010101u) | ((i & 0xff00u) << 16);
+    return ret;
+}
+inline auto GrayAToRGBAMAP = MAKE_GRAYA2RGBA();
+//#define LOOP_GRAYA_RGBA *(uint32_t*)destPtr = ((uint8_t)srcPtr[0] * 0x00010101) | ((uint8_t)srcPtr[1] << 24); destPtr += 4; srcPtr +=2; count--;
+#define LOOP_GRAYA_RGBA *(uint32_t*)destPtr = GrayAToRGBAMAP[*(uint16_t*)srcPtr]; destPtr += 4; srcPtr+=2; count--;
+inline void GrayAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__AVX2__)
+    const auto shuffleMask1 = _mm256_setr_epi8(0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7, 0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7);
+    const auto shuffleMask2 = _mm256_setr_epi8(8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15, 8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15);
+    while (count > 64)
+    {
+        const auto in1 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//0~15
+        const auto in2 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//16~31
+        count -= 64;
+        const auto tmp1 = _mm256_shuffle_epi8(in1, shuffleMask1);//0~3,8~11
+        const auto tmp2 = _mm256_shuffle_epi8(in1, shuffleMask2);//4~7,12~15
+        const auto tmp3 = _mm256_shuffle_epi8(in2, shuffleMask1);//16~19,24~27
+        const auto tmp4 = _mm256_shuffle_epi8(in2, shuffleMask2);//20~23,28~31
+
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x20)); destPtr += 32;//0~3,4~7
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x31)); destPtr += 32;//8~11,12~15
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x20)); destPtr += 32;//16~19,20~23
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//24~27,28~31
+    }
+#elif defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || 1
+    const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7);
+    const auto shuffleMask2 = _mm_setr_epi8(8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15);
+    while (count > 64)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~7
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//8~15
+        const auto in3 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//16~23
+        const auto in4 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//24~31
+        count -= 64;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask1)); destPtr += 16;//0~3
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask2)); destPtr += 16;//4~7
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask1)); destPtr += 16;//8~11
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask2)); destPtr += 16;//12~15
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask1)); destPtr += 16;//16~19
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask2)); destPtr += 16;//20~23
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask1)); destPtr += 16;//24~27
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask2)); destPtr += 16;//28~31
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAYA_RGBA
+        case 7: LOOP_GRAYA_RGBA
+        case 6: LOOP_GRAYA_RGBA
+        case 5: LOOP_GRAYA_RGBA
+        case 4: LOOP_GRAYA_RGBA
+        case 3: LOOP_GRAYA_RGBA
+        case 2: LOOP_GRAYA_RGBA
+        case 1: LOOP_GRAYA_RGBA
+        }
+    }
+}
+inline const auto& GrayAsToBGRAs = GrayAsToRGBAs;
+#undef LOOP_GRAYA_RGBA
+#pragma warning(default: 4309)
+#pragma endregion GRAYA->RGBA
+
+
+#pragma region GRAY->RGB
+#pragma warning(disable: 4309)
+#define LOOP_GRAY_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr++; destPtr += 3; count--;
+inline void GraysToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+    const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5);
+    const auto shuffleMask2 = _mm_setr_epi8(5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10);
+    const auto shuffleMask3 = _mm_setr_epi8(10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 15);
+    while (count > 64)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~15
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//16~31
+        const auto in3 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//32~47
+        const auto in4 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//48~63
+        count -= 64;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask1)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask2)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask3)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask1)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask2)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask3)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask1)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask2)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask3)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask1)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask2)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask3)); destPtr += 16;
+    }
+    while (count > 16)
+    {
+        const auto in = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~15
+        count -= 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in, shuffleMask1)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in, shuffleMask2)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in, shuffleMask3)); destPtr += 16;
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAY_RGB
+        case 7: LOOP_GRAY_RGB
+        case 6: LOOP_GRAY_RGB
+        case 5: LOOP_GRAY_RGB
+        case 4: LOOP_GRAY_RGB
+        case 3: LOOP_GRAY_RGB
+        case 2: LOOP_GRAY_RGB
+        case 1: LOOP_GRAY_RGB
+        }
+    }
+}
+inline const auto& GraysToBGRs = GraysToRGBs;
+#undef LOOP_GRAY_RGB
+#pragma warning(default: 4309)
+#pragma endregion GRAY->RGB
+
+
+#pragma region GRAYA->RGB
+#pragma warning(disable: 4309)
+#define LOOP_GRAYA_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr; destPtr += 3; srcPtr += 2; count--;
+inline void GrayAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+    const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10);
+    const auto shuffleMask2 = _mm_setr_epi8(10, 10, 12, 12, 12, 14, 14, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
+    const auto shuffleMask3 = _mm_setr_epi8(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 2, 2, 2, 4, 4);
+    const auto shuffleMask4 = _mm_setr_epi8(4, 6, 6, 6, 8, 8, 8, 10, 10, 10, 12, 12, 12, 14, 14, 14);
+    while (count > 32)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~7
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//8~15
+        const auto in3 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//16~23
+        const auto in4 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//24~31
+        count -= 32;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask1)); destPtr += 16;
+        const auto tmp1 = _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask2), _mm_shuffle_epi8(in2, shuffleMask3));
+        _mm_storeu_si128((__m128i*)destPtr, tmp1); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask4)); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in3, shuffleMask1)); destPtr += 16;
+        const auto tmp2 = _mm_or_si128(_mm_shuffle_epi8(in3, shuffleMask2), _mm_shuffle_epi8(in4, shuffleMask3));
+        _mm_storeu_si128((__m128i*)destPtr, tmp2); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in4, shuffleMask4)); destPtr += 16;
+    }
+    while (count > 16)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~7
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//8~15
+        count -= 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in1, shuffleMask1)); destPtr += 16;
+        const auto tmp1 = _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask2), _mm_shuffle_epi8(in2, shuffleMask3));
+        _mm_storeu_si128((__m128i*)destPtr, tmp1); destPtr += 16;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_shuffle_epi8(in2, shuffleMask4)); destPtr += 16;
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAYA_RGB
+        case 7: LOOP_GRAYA_RGB
+        case 6: LOOP_GRAYA_RGB
+        case 5: LOOP_GRAYA_RGB
+        case 4: LOOP_GRAYA_RGB
+        case 3: LOOP_GRAYA_RGB
+        case 2: LOOP_GRAYA_RGB
+        case 1: LOOP_GRAYA_RGB
+        }
+    }
+}
+inline const auto& GrayAsToBGRs = GrayAsToRGBs;
+#undef LOOP_GRAYA_RGB
+#pragma warning(default: 4309)
+#pragma endregion GRAYA->RGB
+
 
 #pragma region RGBA->RGB
 #define LOOP_RGBA_RGB \
@@ -564,7 +836,7 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
     count = count / 2;
     if (count == 0)
         return false;
-#if defined(__AVX2__)
+#if defined(USE_SIMD)
     if ((intptr_t)ptrA & 0x1f)
     {
         const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
@@ -572,8 +844,10 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
         count -= diff;
         REV_BLOCK(diff)
     }
-    const auto indexer = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
     //ptrA now 32-byte aligned(start from a cache line)
+#endif
+#if defined(__AVX2__)
+    const auto indexer = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
     uint32_t * __restrict ptrC = ptrB - 7;
     while (count > 32)
     {
@@ -614,15 +888,7 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
     ptrB = ptrC + 7;
     REV_BLOCK(count)
 #elif defined(__AVX__)
-    if ((intptr_t)ptrA & 0x1f)
-    {
-        const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
-        uint8_t diff = (uint8_t)std::min(count, offset);
-        count -= diff;
-        REV_BLOCK(diff)
-    }
     const auto indexer = _mm256_setr_epi32(3, 2, 1, 0, 3, 2, 1, 0);
-    //ptrA now 32-byte aligned(start from a cache line)
     uint32_t * __restrict ptrC = ptrB - 7;
     while (count > 32)
     {
@@ -668,14 +934,6 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
     ptrB = ptrC + 7;
     REV_BLOCK(count)
 #elif defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__)
-    if ((intptr_t)ptrA & 0x1f)
-    {
-        const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
-        uint8_t diff = (uint8_t)std::min(count, offset);
-        count -= diff;
-        REV_BLOCK(diff)
-    }
-    //ptrA now 32-byte aligned(start from a cache line)
     uint32_t * __restrict ptrC = ptrB - 3;
     while (count > 16)
     {

@@ -8,6 +8,7 @@
 #endif
 
 #include "3DBasic/3dElement.hpp"
+#include "common/CommonMacro.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
@@ -24,6 +25,7 @@
 
 #include "cpplinq.hpp"
 
+#include <cstddef>
 #include <cstdio>
 #include <memory>
 #include <functional>
@@ -54,6 +56,7 @@ namespace oglu
 {
 using std::string;
 using std::wstring;
+using std::byte;
 using std::tuple;
 using std::pair;
 using std::vector;

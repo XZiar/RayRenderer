@@ -7,8 +7,9 @@
 
 namespace oglu
 {
-
 using namespace oclu;
+using xziar::img::Image;
+using xziar::img::ImageDataType;
 
 oclu::oclContext createOCLContext()
 {
@@ -77,8 +78,8 @@ void FontCreator::reload(const string& src)
 
 void FontCreator::setChar(wchar_t ch, bool custom) const
 {
-	auto img = ft2.getChBitmap(ch, custom);
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, img.width, img.height, img.data);
+    auto[img, width, height] = ft2.getChBitmap(ch, custom);
+	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, width, height, img.GetRawPtr());
 }
 
 int solveCubic(float a, float b, float c, float* r)
@@ -201,9 +202,8 @@ void FontCreator::stroke() const
 
 void FontCreator::bmpsdf(wchar_t ch) const
 {
-	auto ret = ft2.getChBitmap(ch, true);
-	auto w = ret.width, h = ret.height;
-	vector<uint16_t> distx(ret.size(), 100), distsq(ret.size(), 128 * 128);
+    auto [img, w, h] = ft2.getChBitmap(ch, true);
+	vector<uint16_t> distx(img.GetSize(), 100), distsq(img.GetSize(), 128 * 128);
 
 	for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
 	{
@@ -263,13 +263,13 @@ void FontCreator::bmpsdf(wchar_t ch) const
 		}
 	}
 
-	vector<uint8_t> fin;
+	vector<byte> fin;
 	for (uint32_t y = 0; y < h; ++y)
 	{
-		fin.insert(fin.end(), &ret.data[y*w], &ret.data[y*w] + w);
+		fin.insert(fin.end(), &img.GetRawPtr()[y*w], &img.GetRawPtr()[y*w] + w);
 		for (uint32_t x = 0; x < w; ++x)
 			//fin.push_back(std::clamp(img[y*w + x] * 16, 0, 255));
-			fin.push_back((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.));
+			fin.push_back(byte((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.)));
 	}
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h, fin);
 }
@@ -282,15 +282,14 @@ struct FontInfo
 
 void FontCreator::clbmpsdf(wchar_t ch) const
 {
-	auto ret = ft2.getChBitmap(ch, true);
-	auto w = ret.width, h = ret.height;
-	oclBuffer input(clCtx, MemType::ReadOnly, ret.size());
-	oclBuffer output(clCtx, MemType::ReadWrite, ret.size() * sizeof(uint16_t));
+    auto[img, w, h] = ft2.getChBitmap(ch, true);
+	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
+	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
 	FontInfo finfo[] = { { 0,w,h } };
 	wsize->write(clQue, finfo);
 	sdfker->setArg(0, wsize);
-	input->write(clQue, ret.data);
+	input->write(clQue, img.GetRawPtr(), img.GetSize());
 	sdfker->setArg(1, input);
 	sdfker->setArg(2, output);
 	size_t worksize[] = { 160 };
@@ -302,7 +301,7 @@ void FontCreator::clbmpsdf(wchar_t ch) const
 	{
 		for (uint32_t x = 0; x < w; ++x)
 		{
-			bool inside = (ret.data[y*w + x] != 0);
+			bool inside = (img.GetRawPtr<uint8_t>()[y*w + x] != 0);
 			fin[y*(w * 2) + x] = inside ? 0 : 255;
 			auto rawdist = std::sqrt(distsq[y*w + x]);
 			fin[y*(w * 2) + w + x] = (uint8_t)rawdist * 2;
@@ -319,15 +318,14 @@ void FontCreator::clbmpsdf(wchar_t ch) const
 void FontCreator::clbmpsdfgrey(wchar_t ch) const
 {
 	SimpleTimer timer;
-	auto ret = ft2.getChBitmap(ch, false);
-	auto w = ret.width, h = ret.height;
-	oclBuffer input(clCtx, MemType::ReadOnly, ret.size());
-	oclBuffer output(clCtx, MemType::ReadWrite, ret.size() * sizeof(uint16_t));
+    auto[img, w, h] = ft2.getChBitmap(ch, false);
+	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
+	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
 	FontInfo finfo[] = { { 0,w,h } };
 	wsize->write(clQue, finfo);
 	sdfgreyker->setArg(0, wsize);
-	input->write(clQue, ret.data);
+    input->write(clQue, img.GetRawPtr(), img.GetSize());
 	sdfgreyker->setArg(1, input);
 	sdfgreyker->setArg(2, output);
 	size_t worksize[] = { 160 };
@@ -338,8 +336,8 @@ void FontCreator::clbmpsdfgrey(wchar_t ch) const
 	vector<int16_t> distsq;
 	output->read(clQue, distsq);
 	vector<uint8_t> bdata;
-	for (auto& p : ret.data)
-		bdata.push_back(p > 127 ? 255 : 0);
+    for (size_t cnt = 0; cnt < img.GetSize(); ++cnt)
+        bdata.push_back((uint8_t)img[cnt] > 127 ? 255 : 0);
 	input->write(clQue, bdata);
 	sdfker->setArg(0, wsize);
 	sdfker->setArg(1, input);
@@ -352,7 +350,7 @@ void FontCreator::clbmpsdfgrey(wchar_t ch) const
 	{
 		for (uint32_t x = 0; x < w; ++x)
 		{
-			fin[y*(w * 2) + x] = ret.data[y*w + x];
+			fin[y*(w * 2) + x] = (uint8_t)img[y*w + x];
 			bool isOutside = (fin[y*(w * 2) + w + x] = bdata[y*w + x]) > 0;
 			//limit to +/-8 pix
 			auto truedist = std::clamp(((int)distsq[y*w + x] + 8 * 256), 0, 16 * 256 - 1);
@@ -371,7 +369,7 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
 	constexpr auto fontsizelim = 136, fontcountlim = 64;
 	vector<FontInfo> finfos;
-	vector<uint8_t> alldata;
+	vector<byte> alldata;
 	finfos.reserve(fontcountlim * fontcountlim);
 	alldata.reserve(fontsizelim * fontsizelim * fontcountlim * fontcountlim);
 	oclBuffer input(clCtx, MemType::ReadOnly, fontsizelim * fontsizelim * fontcountlim * fontcountlim);
@@ -383,11 +381,10 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 	size_t offset = 0;
 	for (uint16_t a = 0; a < count; ++a)
 	{
-		auto img = ft2.getChBitmap(ch + a, false);
-		auto w = img.width, h = img.height;
-		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)w,(uint8_t)h });
-		alldata.insert(alldata.end(), img.data.cbegin(), img.data.cend());
-		offset += img.size();
+        auto[img, width, height] = ft2.getChBitmap(ch + a, false);
+        finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)width,(uint8_t)height });
+        alldata.insert(alldata.cend(), img.GetRawPtr(), img.GetRawPtr() + img.GetSize());
+        offset += img.GetSize();
 	}
 	timer.Stop();
 	fntLog().verbose(L"raster cost {} us\n", timer.ElapseUs());
@@ -433,11 +430,11 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 }
 
 
-common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint16_t count) const
+Image FontCreator::clgreysdfs(wchar_t ch, uint16_t count) const
 {
 	constexpr auto fontsizelim = 136, fontcountlim = 64, newfontsize = 36;
 	vector<FontInfo> finfos;
-	vector<uint8_t> alldata;
+	vector<byte> alldata;
 	finfos.reserve(fontcountlim * fontcountlim);
 	alldata.reserve(fontsizelim * fontsizelim * fontcountlim * fontcountlim);
 	oclBuffer input(clCtx, MemType::ReadOnly, fontsizelim * fontsizelim * fontcountlim * fontcountlim);
@@ -449,11 +446,10 @@ common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint
 	size_t offset = 0;
 	for (uint16_t a = 0; a < count; ++a)
 	{
-		auto img = ft2.getChBitmap(ch + a, false);
-		auto w = img.width, h = img.height;
-		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)w,(uint8_t)h });
-		alldata.insert(alldata.end(), img.data.cbegin(), img.data.cend());
-		offset += img.size();
+		auto [img, width, height] = ft2.getChBitmap(ch + a, false);
+        finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)width,(uint8_t)height });
+        alldata.insert(alldata.cend(), img.GetRawPtr(), img.GetRawPtr() + img.GetSize());
+		offset += img.GetSize();
 	}
 	timer.Stop();
 	fntLog().verbose(L"raster cost {} us\n", timer.ElapseUs());
@@ -474,7 +470,10 @@ common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint
 	fntLog().verbose(L"OpenCl cost {} us\n", timer.ElapseUs());
 	vector<int16_t> distsq;
 	output->read(clQue, distsq);
-	vectorEx<uint8_t> fin(newfontsize * newfontsize * fontcountlim * fontcountlim, 255);
+    Image fin(ImageDataType::GREY);
+    fin.SetSize(newfontsize * fontcountlim, newfontsize * fontcountlim, byte(255));
+    const auto rowstep = fin.RowSize();
+    uint8_t * __restrict const finPtr = fin.GetRawPtr<uint8_t>();
 	uint32_t fidx = 0;
 	timer.Start();
 	fntLog().verbose(L"post-process start at {}\n", timer.getCurTimeTxt());
@@ -483,7 +482,7 @@ common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint
 		uint32_t startx = (fidx % fontcountlim) * newfontsize + 1, starty = (fidx / fontcountlim) * newfontsize + 1;
 		for (uint32_t y = 0; y < fi.h; y += 4)
 		{
-			uint32_t opos = (starty + y / 4) * newfontsize * fontcountlim + startx;
+			uint32_t opos = (starty + y / 4) * rowstep + startx;
 			uint32_t ipos = fi.offset + (fi.w*y);
 			for (uint32_t x = 0; x < fi.w; x += 4)
 			{
@@ -492,14 +491,14 @@ common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint
 				{
 					distsum += distsq[off] + distsq[off + 1] + distsq[off + 2] + distsq[off + 3];
 				}
-				fin[opos + x / 4] = std::clamp(distsum / 256 + 128, 0, 255);
+                finPtr[opos + x / 4] = std::clamp(distsum / 256 + 128, 0, 255);
 			}
 		}
 		fidx++;
 	}
 	timer.Stop();
 	fntLog().verbose(L"post-process cost {} us\n", timer.ElapseUs());
-	return { newfontsize*fontcountlim,newfontsize*fontcountlim, fin };
+    return fin;
 }
 
 }

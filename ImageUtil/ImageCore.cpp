@@ -75,10 +75,11 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     const auto srcStep = src.RowSize(), destStep = RowSize();
     const auto copypix = std::min(Width - destX, src.Width - srcX);
     auto rowcnt = std::min(Height - destY, src.Height - srcY);
+    const bool isCopyWholeRow = copypix == Width && Width == src.Width;
     if (src.DataType == DataType)
     {
         auto copysize = copypix * ElementSize;
-        if (copysize == srcStep == destStep)
+        if (isCopyWholeRow)
             copysize *= rowcnt, rowcnt = 1;//treat as one row
         for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
             memcpy_s(destPtr, copysize, srcPtr, copysize);
@@ -87,14 +88,12 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     {
         if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK))//not supported yet
             return;
-        if (REMOVE_MASK(src.DataType, { ImageDataType::ALPHA_MASK,ImageDataType::FLOAT_MASK }) == ImageDataType::GREY)//not supported yet
-            return;
         if (REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK,ImageDataType::FLOAT_MASK }) == ImageDataType::GREY)//not supported yet
             return;
 
         const auto diff = DataType ^ src.DataType;
         auto pixcnt = copypix;
-        if (copypix == Width == src.Width)
+        if (isCopyWholeRow)
             pixcnt *= rowcnt, rowcnt = 1;
         if (diff == ImageDataType::ALPHA_MASK)//remove/add alpha only
         {
@@ -109,30 +108,48 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
                     convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
             }
         }
-        else if (HAS_FIELD(diff, ImageDataType::ALPHA_MASK))//remove/add alpha and change byte-order
+        else if (ElementSize == 4)
         {
-            if (ElementSize == 4)
+            switch (src.ElementSize)
             {
+            case 1:
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GraysToRGBAs(destPtr, srcPtr, pixcnt);
+                break;
+            case 2:
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GrayAsToRGBAs(destPtr, srcPtr, pixcnt);
+                break;
+            case 3://change byte-order and add alpha(plain-add, see above) 
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::RGBsToBGRAs(destPtr, srcPtr, pixcnt);
-            }
-            else if (ElementSize == 3)
-            {
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBAsToBGRs(destPtr, srcPtr, pixcnt);
-            }
-        }
-        else//change byte-order only
-        {
-            if (ElementSize == 3)
-            {
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::BGRsToRGBs(destPtr, srcPtr, pixcnt);
-            }
-            else if (ElementSize == 4)
-            {
+                break;
+            case 4://change byte-order only(plain copy, see above*2)
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::BGRAsToRGBAs(destPtr, srcPtr, pixcnt);
+                break;
+            }
+        }
+        else if (ElementSize == 3)
+        {
+            switch (src.ElementSize)
+            {
+            case 1:
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GraysToRGBs(destPtr, srcPtr, pixcnt);
+                break;
+            case 2:
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GrayAsToRGBs(destPtr, srcPtr, pixcnt);
+                break;
+            case 3://change byte-order only(plain copy, see above*2)
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::BGRsToRGBs(destPtr, srcPtr, pixcnt);
+                break;
+            case 4://change byte-order and remove alpha(plain-add, see above) 
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::RGBAsToBGRs(destPtr, srcPtr, pixcnt);
+                break;
             }
         }
     }
@@ -150,8 +167,7 @@ void Image::Resize(const uint32_t width, const uint32_t height)
         datatype, channel, ElementSize - 1, flag,
         STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, STBIR_COLORSPACE_LINEAR, nullptr);
 
-    Release();
-    Data = output.MoveOutData();
+    *reinterpret_cast<common::AlignedBuffer<32>*>(this) = output;
     Width = width, Height = height;
 }
 

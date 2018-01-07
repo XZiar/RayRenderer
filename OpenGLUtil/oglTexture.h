@@ -11,13 +11,15 @@ enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, TexBuf = GL_TEXTURE_BUF
 //upper for format, lower for type
 enum class TextureDataFormat : uint8_t
 {
-	//normalized integer(uint8)
+    FLOAT_MASK = 0x07, NORMAL_MASK = 0x80, TYPE_MASK = 0x0f, FORMAT_MASK = 0xf0,
+    //normalized integer(uint8)
 	R8 = 0x00, RG8 = 0x10, RGB8 = 0x20, BGR8 = 0x30, RGBA8 = 0x40, BGRA8 = 0x50,
 	//non-normalized integer(uint8)
 	R8U = 0x80, RG8U = 0x90, RGB8U = 0xa0, BGR8U = 0xb0, RGBA8U = 0xc0, BGRA8U = 0xd0,
 	//float(FP32)
 	Rf = 0x07, RGf = 0x17, RGBf = 0x27, BGRf = 0x37, RGBAf = 0x47, BGRAf = 0x57,
 };
+MAKE_ENUM_BITFIELD(TextureDataFormat)
 enum class TextureInnerFormat : GLint
 {
 	//normalized integer->as float[0,1]
@@ -68,6 +70,7 @@ protected:
 	static TextureManager& getTexMan() noexcept;
     static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
     static void parseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
+    static ImageDataType convertFormat(const TextureDataFormat dformat) noexcept;
 	static size_t parseFormatSize(const TextureDataFormat dformat) noexcept;
 public:
 	_oglTexture(const TextureType _type) noexcept;
@@ -90,7 +93,8 @@ public:
 	}
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size);
 	optional<vector<uint8_t>> getCompressedData();
-	vector<uint8_t> getData(const TextureDataFormat dformat);
+    vector<uint8_t> getData(const TextureDataFormat dformat);
+    Image getImage(const TextureDataFormat dformat);
 };
 
 

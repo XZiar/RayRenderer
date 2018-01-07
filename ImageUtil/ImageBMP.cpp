@@ -197,7 +197,6 @@ Image BmpReader::Read(const ImageDataType dataType)
         ReadUncompressed(image, ImgFile, needFlip, Info);
     }
     
-
 	return image;
 }
 
@@ -236,7 +235,7 @@ void BmpWriter::Write(const Image& image)
     const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
     if (frowsize == irowsize && isInputBGR)//perfect match, write directly
-        ImgFile.Write(image.Size(), image.GetRawPtr());
+        ImgFile.Write(image.GetSize(), image.GetRawPtr());
     else
     {
         AlignedBuffer<32> buffer(frowsize);

@@ -13,7 +13,7 @@ using xziar::img::Image;
 using xziar::img::ImageDataType;
 namespace fs = std::experimental::filesystem;
 
-class _ModelImage : Image
+class _ModelImage : public Image
 {
 	friend class ::rayr::Model;
 	friend class _ModelData;
@@ -23,14 +23,10 @@ private:
 	static Wrapper<_ModelImage> getImage(const wstring& pname);
 	static void shrink();
     
-	//uint16_t width = 0, height = 0;
-    Image image;
 	_ModelImage(const wstring& pfname);
 	void CompressData(vector<uint8_t>& output);
 public:
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
-	//void placeImage(const Wrapper<_ModelImage>& from, const uint16_t x, const uint16_t y);
-	//void resize(const uint16_t w, const uint16_t h);
 	oglu::oglTexture genTexture();
 	oglu::oglTexture genTextureAsync();
 };

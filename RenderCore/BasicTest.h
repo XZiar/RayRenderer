@@ -12,6 +12,9 @@ using namespace common;
 using namespace b3d;
 using namespace oglu;
 using namespace oclu;
+namespace img = xziar::img;
+using xziar::img::Image;
+using xziar::img::ImageDataType;
 
 
 class RAYCOREAPI alignas(32) BasicTest : public NonCopyable, public AlignBase<BasicTest>

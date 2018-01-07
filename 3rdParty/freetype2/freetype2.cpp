@@ -43,14 +43,14 @@ FreeTyper::FreeTyper(const fs::path& fontpath)
 	case FT_Err_Cannot_Open_Resource:
 		COMMON_THROW(FileException, FileException::Reason::OpenFail, fontpath, L"freetype cannot open file");
 	default:
-		COMMON_THROW(BaseException, L"unknown exception while load freetype face");
+		COMMON_THROW(FTException, L"unknown exception while load freetype face");
 	}
 	int height = 128;
 	FT_Set_Pixel_Sizes((FT_Face)face, 128, 128);
 	//FT_Set_Char_Size((FT_Face)face, 0, height * 64, 96, 96);
 }
 
-common::Image2<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool custom) const
+BMPair FreeTyper::getChBitmap(wchar_t ch, bool custom) const
 {
 	auto f = (FT_Face)face;
 	auto idx = getGlyphIndex(ch);
@@ -64,10 +64,10 @@ common::Image2<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool 
 		auto bmp = glyph->bitmap;
 		//width alignment fix and 1px border
 		auto w = ((bmp.width + 2 + 3) / 4) * 4, h = ((bmp.rows + 2 + 3) / 4) * 4;
-		vectorEx<uint8_t> dat(w*h, 0);
-		for (uint32_t a = 0; a < bmp.rows; a++)
-			memmove(dat.data() + (a + 1)*w + 1, bmp.buffer + a*bmp.width, bmp.width);
-		return { w,h,dat };
+        AlignedBuffer<32> output(w*h);
+        for (uint32_t a = 0; a < bmp.rows; a++)
+            memmove_s(output.GetRawPtr() + (a + 1)*w + 1, bmp.width, bmp.buffer + a * bmp.width, bmp.width);
+		return { output,w,h };
 	}
 	else
 	{
@@ -75,15 +75,15 @@ common::Image2<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool 
 		auto ret = TryRenderLine(&glyph->outline);
 		auto w = ret.second.first, h = ret.second.second;
 		w = ((w + 2 + 3) / 4) * 4, h = h + 2;
-		vectorEx<uint8_t> dat(w*h, 0);
+        AlignedBuffer<32> output(w*h);
 		auto lines = ret.first;
 		for(const auto& l : lines)
 		{
-			auto pdat = &dat[(l.y + 1)*w + (l.x + 1)];
+            auto pdat = &output.GetRawPtr()[(l.y + 1)*w + (l.x + 1)];
 			for (auto a = l.len; a--;)
-				*pdat++ = 255;
+				*pdat++ = std::byte(0xff);
 		}
-		return { w,h,dat };
+        return { output,w,h };
 	}
 }
 

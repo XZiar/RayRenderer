@@ -235,81 +235,8 @@ void BasicTest::prepareLight()
 	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
-static void imguTest()
-{
-	common::SimpleTimer timer;
-	if(false)
-	{
-		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\qw11.png";
-		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
-		timer.Start();
-		auto img = xziar::img::ReadImage(srcPath);
-		timer.Stop();
-		basLog().debug(L"libpng read cost {} ms\n", timer.ElapseMs());
-		std::vector<uint32_t> data;
-		timer.Start();
-		auto img2 = ::stb::loadImage(srcPath, data);
-		timer.Stop();
-		basLog().debug(L"stbpng read cost {} ms\n", timer.ElapseMs());
-		auto size = img.Width * img.Height + data.size();
-		timer.Start();
-		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\ReadFrom.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
-		timer.Stop();
-		basLog().debug(L"stbpng write cost {} ms\n", timer.ElapseMs());
-		timer.Start();
-		xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\ReadFrom2.png");
-		timer.Stop();
-		basLog().debug(L"libpng write cost {} ms\n", timer.ElapseMs());
-	}
-	{
-		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\4096.tga";
-		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
-		timer.Start();
-		auto img = xziar::img::ReadImage(srcPath);
-		timer.Stop();
-		basLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs()); 
-		xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\newtga.tga");
-		//xziar::img::WriteImage(img, L"D:\\Programs Temps\\RayRenderer\\tga.png");
-
-		std::vector<uint32_t> data;
-		timer.Start();
-		auto size = stb::loadImage(srcPath, data);
-		timer.Stop();
-		basLog().debug(L"stbtga read cost {} ms\n", timer.ElapseMs()); 
-		xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
-		img2.SetSize(std::get<0>(size), std::get<1>(size));
-		memcpy(img2.GetRawPtr(), data.data(), img2.Size());
-		//xziar::img::WriteImage(img2, L"D:\\Programs Temps\\RayRenderer\\tga2.png");
-	}
-	{
-		const fs::path srcPath = L"D:\\Programs Temps\\RayRenderer\\head.tga";
-		const auto pftch = file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
-		timer.Start();
-		auto img = xziar::img::ReadImage(srcPath);
-		timer.Stop();
-		basLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs());
-
-		std::vector<uint32_t> data;
-		timer.Start();
-		auto size = stb::loadImage(srcPath, data);
-		timer.Stop();
-		basLog().debug(L"stbtga read cost {} ms\n", timer.ElapseMs());
-		xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
-		img2.SetSize(std::get<0>(size), std::get<1>(size));
-		memcpy(img2.GetRawPtr(), data.data(), img2.Size());
-	}
-}
-
 void BasicTest::fontTest(const wchar_t word)
 {
-	try
-	{
-		imguTest();
-	}
-	catch (BaseException& be)
-	{
-		basLog().error(L"ImageUtil ERROR {}\n", be.message);
-	}
 	try
 	{
 		fontViewer.reset();
@@ -317,29 +244,15 @@ void BasicTest::fontTest(const wchar_t word)
 		auto fonttex = fontCreator->getTexture();
 		fontCreator->setChar(L'G', false);
 		fontViewer->bindTexture(fonttex);
-		vector<uint32_t> outer;
-		auto tmper = fonttex->getData(TextureDataFormat::R8);
-		outer.reserve(tmper.size());
-		for (auto c : tmper)
-			outer.push_back((c * 0x00010101) | 0xff000000);
-		auto ftexsize = fonttex->getSize();
-		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\G.png", outer, ftexsize.first, ftexsize.second);
+        const auto imgG = fonttex->getImage(TextureDataFormat::R8).ConvertTo(ImageDataType::RGBA);
+        img::WriteImage(imgG, L"D:\\Programs Temps\\RayRenderer\\G.png");
 		fontCreator->setChar(word, false);
-		tmper = fonttex->getData(TextureDataFormat::R8);
-		outer.clear();
-		for (auto c : tmper)
-			outer.push_back((c * 0x00010101) | 0xff000000);
-		ftexsize = fonttex->getSize();
-		::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\A.png", outer, ftexsize.first, ftexsize.second);
+        const auto imgA = fonttex->getImage(TextureDataFormat::R8).ConvertTo(ImageDataType::RGBA);
+        img::WriteImage(imgA, L"D:\\Programs Temps\\RayRenderer\\A.png");
 		//fontCreator->bmpsdf(0x554A);
 		//fontCreator->clbmpsdfgrey(0x554A);
 		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
-		tmper = fonttex->getData(TextureDataFormat::R8);
-		outer.clear();
-		outer.reserve(tmper.size());
-		//for (auto c : tmper)
-		//outer.push_back((c * 0x00010101) | 0xff000000);
-		//ftexsize = fonttex->getSize();
+
 		//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\4096-2.png", outer, ftexsize.first, ftexsize.second);
 
 		//fontCreator->setChar(0x9f8d, false);

@@ -27,7 +27,7 @@ public:
 	void clbmpsdf(wchar_t ch) const;
 	void clbmpsdfgrey(wchar_t ch) const;
 	void clbmpsdfs(wchar_t ch, uint16_t count) const;
-	Image2<ImageType::GREY> clgreysdfs(wchar_t ch, uint16_t count) const;
+	xziar::img::Image clgreysdfs(wchar_t ch, uint16_t count) const;
 };
 
 }

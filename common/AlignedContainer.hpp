@@ -57,58 +57,64 @@ struct AlignAllocator
 
 
 template<size_t N>
-struct AlignedBuffer
+struct COMMONTPL AlignedBuffer
 {
-private:
+protected:
 	std::byte *Data = nullptr;
-	size_t Size = 0;
-	void Alloc()
-	{
-		Release();
-		Data = (std::byte*)malloc_align(Size, N);
-		if (!Data)
-			throw std::bad_alloc();
-	}
-	void Release() noexcept
-	{
-		if (Data) free_align(Data);
-		Data = nullptr;
-	};
+	size_t Size_ = 0;
+    void Alloc(const bool zero = false)
+    {
+        Release();
+        Data = (std::byte*)malloc_align(Size_, 32);
+        if (zero)
+            memset(Data, 0x0, Size_);
+    }
+    void Release()
+    {
+        if (Data) free_align(Data);
+        Data = nullptr;
+    };
 public:
 	AlignedBuffer() noexcept { }
-	AlignedBuffer(const size_t size) : Size(size) { Alloc(); }
-	AlignedBuffer(const AlignedBuffer& other) : Size(other.Size)
+    AlignedBuffer(const size_t size) : Size_(size) { Alloc(); }
+    AlignedBuffer(const size_t size, const std::byte fill) : Size_(size) 
+    {
+        Alloc();
+        memset(Data, std::to_integer<uint8_t>(fill), Size_);
+    }
+	AlignedBuffer(const AlignedBuffer& other) : Size_(other.Size_)
 	{
-		Alloc();
-		memcpy_s(Data, Size, other.Data, Size);
+        Alloc();
+		memcpy_s(Data, Size_, other.Data, Size_);
 	}
-	AlignedBuffer(AlignedBuffer&& other) noexcept : Size(other.Size), Data(other.Data)
+	AlignedBuffer(AlignedBuffer&& other) noexcept : Size_(other.Size_), Data(other.Data)
 	{
 		other.Data = nullptr;
 	}
 	~AlignedBuffer() { Release(); }
-	AlignedBuffer& operator = (const AlignedBuffer& other)
+
+	AlignedBuffer& operator= (const AlignedBuffer& other)
 	{
-		Size = other.Size;
+        Size_ = other.Size_;
 		Alloc();
-		memcpy_s(Data, Size, other.Data, Size);
-	}
-	AlignedBuffer& operator = (AlignedBuffer&& other) noexcept
+		memcpy_s(Data, Size_, other.Data, Size_);
+        return *this;
+    }
+	AlignedBuffer& operator= (AlignedBuffer&& other) noexcept
 	{
         Release();
-		Size = other.Size;
+        Size_ = other.Size_;
 		Data = other.Data;
         other.Data = nullptr;
+        return *this;
 	}
+    std::byte& operator[](std::ptrdiff_t idx) { return Data[idx]; }
+    const std::byte& operator[] (std::ptrdiff_t idx) const { return Data[idx]; }
     template<typename T = std::byte>
     T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
-	size_t GetSize() noexcept { return Size; }
-    std::byte* MoveOutData() noexcept //at your own risk
-    {
-        auto ret = Data;
-        Data = nullptr;
-        return ret;
-    }
+    template<typename T = std::byte>
+    const T* GetRawPtr() const noexcept { return reinterpret_cast<const T*>(Data); }
+	size_t GetSize() const noexcept { return Size_; }
 };
 
 
@@ -138,20 +144,5 @@ using hashmapEx = std::unordered_map<K, H, E, V, common::AlignAllocator<std::pai
 template<class T, class H = std::hash<T>, class E = std::equal_to<K>>
 using hashsetEx = std::unordered_set<T, H, E, common::AlignAllocator<T>>;
 
-
-namespace ImageType
-{
-struct RGBA { using ComponentType = uint32_t; };
-struct GREY { using ComponentType = uint8_t; };
-}
-
-template<class T>
-struct Image2
-{
-public:
-	uint32_t width, height;
-	common::vectorEx<typename T::ComponentType> data;
-	size_t size() const { return data.size(); }
-};
 
 }

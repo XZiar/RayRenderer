@@ -18,6 +18,7 @@
 #include <filesystem>
 #include "common/CommonRely.hpp"
 #include "common/CommonMacro.hpp"
+#include "common/Exceptions.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
