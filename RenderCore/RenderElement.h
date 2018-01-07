@@ -36,7 +36,7 @@ class alignas(16) Drawable : public AlignBase<Material>, public NonCopyable
 		boost::multi_index::ordered_unique<VAOKey, VAOKeyComp>,
 		boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
 	>>;
-	static VAOMap vaoMap;
+	static inline VAOMap vaoMap;
 	static DrawableHelper& getHelper();
 public:
 	Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();

@@ -50,7 +50,7 @@ FreeTyper::FreeTyper(const fs::path& fontpath)
 	//FT_Set_Char_Size((FT_Face)face, 0, height * 64, 96, 96);
 }
 
-common::Image<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool custom) const
+common::Image2<common::ImageType::GREY> FreeTyper::getChBitmap(wchar_t ch, bool custom) const
 {
 	auto f = (FT_Face)face;
 	auto idx = getGlyphIndex(ch);

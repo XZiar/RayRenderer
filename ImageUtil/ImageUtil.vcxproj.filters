@@ -42,13 +42,13 @@
     <ClInclude Include="DataConvertor.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ImageCore.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ImageJPEG.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ImageBMP.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ImageCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -69,6 +69,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ImageBMP.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageCore.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

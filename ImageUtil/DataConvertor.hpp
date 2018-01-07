@@ -55,7 +55,7 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = *srcPtr++; \
 		srcPtr++; count--;
-inline void RGBAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
+inline void RGBAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -83,7 +83,7 @@ inline const auto& BGRAsToBGRs = RGBAsToRGBs;
 		*destPtr++ = srcPtr[1]; \
 		*destPtr++ = srcPtr[0]; \
 		srcPtr += 4; count--;
-inline void BGRAsToRGBs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
+inline void BGRAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 	while (count)
 	{
@@ -169,7 +169,7 @@ inline void BGRsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = *srcPtr++; \
 		*destPtr++ = byte(0xff); count--;
-inline void RGBsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
+inline void RGBsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -225,7 +225,7 @@ inline const auto& BGRsToBGRAs = RGBsToRGBAs;
 		*destPtr++ = *srcPtr; \
 		*destPtr++ = byte(0xff); \
 		srcPtr += 3; count--;
-inline void BGRsToRGBAs(byte * __restrict destPtr, byte * __restrict srcPtr, uint64_t count)
+inline void BGRsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
 #   pragma warning(disable:4309)
@@ -415,7 +415,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcP
 #pragma endregion BGRA->RGBA(copy)
 
 
-#pragma region SWAP
+#pragma region SWAP two buffer
 #define SWAP_BLOCK(COUNTER) \
 		while (COUNTER--) \
 		{ \
@@ -547,6 +547,212 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
 #undef SWAP_UINT64
 #undef SWAP_BLOCK
 #pragma endregion SWAP two buffer
+
+
+#pragma region REVERSE one buffer(per 4byte)
+#define REV_BLOCK(COUNTER) \
+		while (COUNTER--) \
+		{ \
+			const auto tmp = *ptrA; \
+			*ptrA++ = *ptrB; \
+			*ptrB-- = tmp; \
+		} 
+inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
+{
+    uint32_t * __restrict ptrA = reinterpret_cast<uint32_t*>(ptr);
+    uint32_t * __restrict ptrB = reinterpret_cast<uint32_t*>(ptr) + (count - 1);
+    count = count / 2;
+    if (count == 0)
+        return false;
+#if defined(__AVX2__)
+    if ((intptr_t)ptrA & 0x1f)
+    {
+        const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
+        uint8_t diff = (uint8_t)std::min(count, offset);
+        count -= diff;
+        REV_BLOCK(diff)
+    }
+    const auto indexer = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
+    //ptrA now 32-byte aligned(start from a cache line)
+    uint32_t * __restrict ptrC = ptrB - 7;
+    while (count > 32)
+    {
+        const auto tmp1 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrA), indexer),
+            tmp8 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrC), indexer);
+        _mm256_store_si256((__m256i*)ptrA, tmp8); ptrA += 8;
+        _mm256_storeu_si256((__m256i*)ptrC, tmp1); ptrC -= 8;
+        const auto tmp2 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrA), indexer),
+            tmp7 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrC), indexer);
+        _mm256_store_si256((__m256i*)ptrA, tmp7); ptrA += 8;
+        _mm256_storeu_si256((__m256i*)ptrC, tmp2); ptrC -= 8;
+        const auto tmp3 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrA), indexer),
+            tmp6 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrC), indexer);
+        _mm256_store_si256((__m256i*)ptrA, tmp6); ptrA += 8;
+        _mm256_storeu_si256((__m256i*)ptrC, tmp3); ptrC -= 8;
+        const auto tmp4 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrA), indexer),
+            tmp5 = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrC), indexer);
+        _mm256_store_si256((__m256i*)ptrA, tmp5); ptrA += 8;
+        _mm256_storeu_si256((__m256i*)ptrC, tmp4); ptrC -= 8;
+        count -= 32;
+        _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 64, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 96, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 64, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 96, _MM_HINT_NTA);
+    }
+    while (count > 8)
+    {
+        const auto tmpA = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrA), indexer),
+            tmpC = _mm256_permutevar8x32_epi32(_mm256_load_si256((const __m256i*)ptrC), indexer);
+        _mm256_store_si256((__m256i*)ptrA, tmpC); ptrA += 8;
+        _mm256_storeu_si256((__m256i*)ptrC, tmpA); ptrC -= 8;
+        count -= 8;
+    }
+    ptrB = ptrC + 7;
+    REV_BLOCK(count)
+#elif defined(__AVX__)
+    if ((intptr_t)ptrA & 0x1f)
+    {
+        const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
+        uint8_t diff = (uint8_t)std::min(count, offset);
+        count -= diff;
+        REV_BLOCK(diff)
+    }
+    const auto indexer = _mm256_setr_epi32(3, 2, 1, 0, 3, 2, 1, 0);
+    //ptrA now 32-byte aligned(start from a cache line)
+    uint32_t * __restrict ptrC = ptrB - 7;
+    while (count > 32)
+    {
+        auto tmp1 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrA), indexer),
+            tmp8 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrC), indexer);
+        tmp1 = _mm256_permute2f128_ps(tmp1, tmp1, 0x01), tmp8 = _mm256_permute2f128_ps(tmp8, tmp8, 0x01);
+        _mm256_store_ps((float*)ptrA, tmp8); ptrA += 8;
+        _mm256_storeu_ps((float*)ptrC, tmp1); ptrC -= 8;
+        auto tmp2 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrA), indexer),
+            tmp7 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrC), indexer);
+        tmp2 = _mm256_permute2f128_ps(tmp2, tmp2, 0x01), tmp7 = _mm256_permute2f128_ps(tmp7, tmp7, 0x01);
+        _mm256_store_ps((float*)ptrA, tmp7); ptrA += 8;
+        _mm256_storeu_ps((float*)ptrC, tmp2); ptrC -= 8;
+        auto tmp3 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrA), indexer),
+            tmp6 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrC), indexer);
+        tmp3 = _mm256_permute2f128_ps(tmp3, tmp3, 0x01), tmp6 = _mm256_permute2f128_ps(tmp6, tmp6, 0x01);
+        _mm256_store_ps((float*)ptrA, tmp6); ptrA += 8;
+        _mm256_storeu_ps((float*)ptrC, tmp3); ptrC -= 8;
+        auto tmp4 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrA), indexer),
+            tmp5 = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrC), indexer);
+        tmp4 = _mm256_permute2f128_ps(tmp4, tmp4, 0x01), tmp5 = _mm256_permute2f128_ps(tmp5, tmp5, 0x01);
+        _mm256_store_ps((float*)ptrA, tmp5); ptrA += 8;
+        _mm256_storeu_ps((float*)ptrC, tmp4); ptrC -= 8;
+        count -= 32;
+        _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 64, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 96, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 64, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 96, _MM_HINT_NTA);
+    }
+    while (count > 8)
+    {
+        auto tmpA = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrA), indexer),
+            tmpC = _mm256_permutevar_ps(_mm256_load_ps((const float*)ptrC), indexer);
+        tmpA = _mm256_permute2f128_ps(tmpA, tmpA, 0x01), tmpC = _mm256_permute2f128_ps(tmpC, tmpC, 0x01);
+        _mm256_store_ps((float*)ptrA, tmpC); ptrA += 8;
+        _mm256_storeu_ps((float*)ptrC, tmpA); ptrC -= 8;
+        count -= 4;
+    }
+    ptrB = ptrC + 7;
+    REV_BLOCK(count)
+#elif defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__)
+    if ((intptr_t)ptrA & 0x1f)
+    {
+        const uint64_t offset = (32 - ((intptr_t)ptrA & 0x1f)) / 4;
+        uint8_t diff = (uint8_t)std::min(count, offset);
+        count -= diff;
+        REV_BLOCK(diff)
+    }
+    //ptrA now 32-byte aligned(start from a cache line)
+    uint32_t * __restrict ptrC = ptrB - 3;
+    while (count > 16)
+    {
+        const auto tmp1 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrA), 0b00011011),
+            tmp8 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrC), 0b00011011);
+        _mm_store_si128((__m128i*)ptrA, tmp8); ptrA += 4;
+        _mm_storeu_si128((__m128i*)ptrC, tmp1); ptrC -= 4;
+        const auto tmp2 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrA), 0b00011011),
+            tmp7 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrC), 0b00011011);
+        _mm_store_si128((__m128i*)ptrA, tmp7); ptrA += 4;
+        _mm_storeu_si128((__m128i*)ptrC, tmp2); ptrC -= 4;
+        const auto tmp3 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrA), 0b00011011),
+            tmp6 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrC), 0b00011011);
+        _mm_store_si128((__m128i*)ptrA, tmp6); ptrA += 4;
+        _mm_storeu_si128((__m128i*)ptrC, tmp3); ptrC -= 4;
+        const auto tmp4 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrA), 0b00011011),
+            tmp5 = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrC), 0b00011011);
+        _mm_store_si128((__m128i*)ptrA, tmp5); ptrA += 4;
+        _mm_storeu_si128((__m128i*)ptrC, tmp4); ptrC -= 4;
+        count -= 16;
+        _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
+        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
+    }
+    while (count > 4)
+    {
+        const auto tmpA = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrA), 0b00011011),
+            tmpC = _mm_shuffle_epi32(_mm_load_si128((const __m128i*)ptrC), 0b00011011);
+        _mm_store_si128((__m128i*)ptrA, tmpC); ptrA += 4;
+        _mm_storeu_si128((__m128i*)ptrC, tmpA); ptrC -= 4;
+        count -= 4;
+    }
+    ptrB = ptrC + 3;
+    REV_BLOCK(count)
+#else
+    REV_BLOCK(count)
+#endif
+    return true;
+}
+#undef REV_BLOCK
+#pragma endregion REVERSE one buffer(per 4byte)
+
+
+#pragma region REVERSE one buffer(per 3byte)
+#define LOOP_REV_BLOCK3 \
+		{ \
+			const auto tmp0 = ptrA[0], tmp1 = ptrA[1], tmp2 = ptrA[2]; \
+			ptrA[0] = ptrB[0], ptrA[1] = ptrB[1], ptrA[2] = ptrB[2]; \
+			ptrB[0] = tmp0, ptrB[1] = tmp1, ptrB[2] = tmp2; \
+            ptrA +=3, ptrB -=3, count --; \
+		} 
+inline bool ReverseBuffer3(byte * __restrict ptr, uint64_t count)
+{
+    uint8_t * __restrict ptrA = reinterpret_cast<uint8_t*>(ptr);
+    uint8_t * __restrict ptrB = reinterpret_cast<uint8_t*>(ptr) + (count - 1) * 3;
+    count = count / 2;
+    if (count == 0)
+        return false;
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_REV_BLOCK3
+        case 7: LOOP_REV_BLOCK3
+        case 6: LOOP_REV_BLOCK3
+        case 5: LOOP_REV_BLOCK3
+        case 4: LOOP_REV_BLOCK3
+        case 3: LOOP_REV_BLOCK3
+        case 2: LOOP_REV_BLOCK3
+        case 1: LOOP_REV_BLOCK3
+        }
+    }
+    return true;
+}
+#undef LOOP_REV_BLOCK3
+#pragma endregion REVERSE one buffer(per 3byte)
 
 
 using BGR16ToRGBAMap = std::vector<uint32_t>;

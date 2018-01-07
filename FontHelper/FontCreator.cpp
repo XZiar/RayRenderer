@@ -433,7 +433,7 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 }
 
 
-common::Image<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint16_t count) const
+common::Image2<common::ImageType::GREY> FontCreator::clgreysdfs(wchar_t ch, uint16_t count) const
 {
 	constexpr auto fontsizelim = 136, fontcountlim = 64, newfontsize = 36;
 	vector<FontInfo> finfos;

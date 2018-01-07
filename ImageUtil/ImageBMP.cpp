@@ -6,141 +6,138 @@ namespace xziar::img::bmp
 {
 
 
-class BmpHelper
+static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, const detail::BmpInfo& info)
 {
-public:
-    static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, const detail::BmpInfo& info)
+    const auto width = image.Width, height = image.Height;
+    const auto dataType = image.DataType;
+    const size_t frowsize = ((info.BitCount * width + 31) / 32) * 4;
+    const size_t irowsize = image.RowSize();
+    AlignedBuffer<32> buffer(frowsize);
+    switch (info.BitCount)
     {
-        const auto width = image.Width, height = image.Height;
-        const auto dataType = image.DataType;
-        const size_t frowsize = ((info.BitCount * width + 31) / 32) * 4;
-        const size_t irowsize = image.RowSize();
-        AlignedBuffer<32> buffer(frowsize);
-        switch (info.BitCount)
+    case 32://BGRA
         {
-        case 32://BGRA
+            const auto bufptr = buffer.GetRawPtr();
+            for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
             {
-                const auto bufptr = buffer.GetRawPtr();
+                imgfile.Read(frowsize, buffer.GetRawPtr());
+                auto imgrow = image.GetRawPtr(needFlip ? j : i);
+                switch (dataType)
+                {
+                case ImageDataType::BGRA:
+                    memmove_s(imgrow, irowsize, bufptr, frowsize); break;
+                case ImageDataType::RGBA:
+                    convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
+                case ImageDataType::BGR:
+                    convert::BGRAsToBGRs(imgrow, bufptr, width); break;
+                case ImageDataType::RGB:
+                    convert::BGRAsToRGBs(imgrow, bufptr, width); break;
+                default:
+                    return;
+                }
+            }
+        }break;
+    case 24://BGR
+        {
+            const auto bufptr = buffer.GetRawPtr();
+            for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
+            {
+                imgfile.Read(frowsize, buffer.GetRawPtr());
+                auto imgrow = image.GetRawPtr(needFlip ? j : i);
+                switch (dataType)
+                {
+                case ImageDataType::BGR:
+                    memmove_s(imgrow, irowsize, bufptr, frowsize); break;
+                case ImageDataType::RGB:
+                    convert::BGRsToRGBs(imgrow, bufptr, width); break;
+                case ImageDataType::BGRA:
+                    convert::BGRsToBGRAs(imgrow, bufptr, width); break;
+                case ImageDataType::RGBA:
+                    convert::BGRsToRGBAs(imgrow, bufptr, width); break;
+                default:
+                    return;
+                }
+            }
+        }break;
+    case 16:
+        {
+            const auto bufptr = buffer.GetRawPtr<uint16_t>();
+            const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
+            if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
+            {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
                     imgfile.Read(frowsize, buffer.GetRawPtr());
-                    auto imgrow = image.GetRawPtr(needFlip ? j : i);
-                    switch (dataType)
+                    auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
+                    for (uint32_t col = 0; col < width; ++col)
                     {
-                    case ImageDataType::BGRA:
-                        memmove_s(imgrow, irowsize, bufptr, frowsize); break;
-                    case ImageDataType::RGBA:
-                        convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
-                    case ImageDataType::BGR:
-                        convert::BGRAsToBGRs(imgrow, bufptr, width); break;
-                    case ImageDataType::RGB:
-                        convert::BGRAsToRGBs(imgrow, bufptr, width); break;
-                    default:
-                        return;
+                        const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
+                        *destPtr++ = color16Map[bgr15];
                     }
                 }
-            }break;
-        case 24://BGR
+            }
+            else//ignore alpha
             {
-                const auto bufptr = buffer.GetRawPtr();
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
                     imgfile.Read(frowsize, buffer.GetRawPtr());
-                    auto imgrow = image.GetRawPtr(needFlip ? j : i);
-                    switch (dataType)
+                    auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
+                    for (uint32_t col = 0; col < width; ++col)
                     {
-                    case ImageDataType::BGR:
-                        memmove_s(imgrow, irowsize, bufptr, frowsize); break;
-                    case ImageDataType::RGB:
-                        convert::BGRsToRGBs(imgrow, bufptr, width); break;
-                    case ImageDataType::BGRA:
-                        convert::BGRsToBGRAs(imgrow, bufptr, width); break;
-                    case ImageDataType::RGBA:
-                        convert::BGRsToRGBAs(imgrow, bufptr, width); break;
-                    default:
-                        return;
+                        const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
+                        const uint32_t color = color16Map[bgr15];
+                        convert::CopyRGBAToRGB(destPtr, color);
                     }
                 }
-            }break;
-        case 16:
+            }
+        }break;
+    case 8:
+        {
+            const auto carraypos = imgfile.CurrentPos();
+            imgfile.Rewind(detail::BMP_HEADER_SIZE + info.Size);
+            const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1 << info.BitCount);
+            AlignedBuffer<32> palette(paletteCount * 4);
+            imgfile.Read(paletteCount * 4, palette.GetRawPtr());
+            convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
+            imgfile.Rewind(carraypos);
+
+            const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            if (isOutputRGB)
+                convert::BGRAsToRGBAs(palette.GetRawPtr(), paletteCount);//to RGBA
+
+            const auto bufptr = buffer.GetRawPtr();
+            const auto pltptr = palette.GetRawPtr<uint32_t>();
+            if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
             {
-                const auto bufptr = buffer.GetRawPtr<uint16_t>();
-                const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
-                auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
-                if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
+                for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
+                    imgfile.Read(frowsize, bufptr);
+                    auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
+                    for (uint32_t col = 0; col < width; ++col)
                     {
-                        imgfile.Read(frowsize, buffer.GetRawPtr());
-                        auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
-                        for (uint32_t col = 0; col < width; ++col)
-                        {
-                            const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
-                            *destPtr++ = color16Map[bgr15];
-                        }
+                        destPtr[col] = pltptr[std::to_integer<uint8_t>(bufptr[col])];
                     }
                 }
-                else//ignore alpha
-                {
-                    for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
-                    {
-                        imgfile.Read(frowsize, buffer.GetRawPtr());
-                        auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
-                        for (uint32_t col = 0; col < width; ++col)
-                        {
-                            const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
-                            const uint32_t color = color16Map[bgr15];
-                            convert::CopyRGBAToRGB(destPtr, color);
-                        }
-                    }
-                }
-            }break;
-        case 8:
+            }
+            else//ignore alpha
             {
-                const auto carraypos = imgfile.CurrentPos();
-                imgfile.Rewind(detail::BMP_HEADER_SIZE + info.Size);
-                const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1 << info.BitCount);
-                AlignedBuffer<32> palette(paletteCount * 4);
-                imgfile.Read(paletteCount * 4, palette.GetRawPtr());
-                convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
-                imgfile.Rewind(carraypos);
-
-                const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
-                if (isOutputRGB)
-                    convert::BGRAsToRGBAs(palette.GetRawPtr(), paletteCount);//to RGBA
-
-                const auto bufptr = buffer.GetRawPtr();
-                const auto pltptr = palette.GetRawPtr<uint32_t>();
-                if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
+                for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
+                    imgfile.Read(frowsize, bufptr);
+                    auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
+                    for (uint32_t col = 0; col < width; ++col)
                     {
-                        imgfile.Read(frowsize, bufptr);
-                        auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
-                        for (uint32_t col = 0; col < width; ++col)
-                        {
-                            destPtr[col] = pltptr[std::to_integer<uint8_t>(bufptr[col])];
-                        }
+                        const uint32_t color = pltptr[std::to_integer<uint8_t>(bufptr[col])];
+                        convert::CopyRGBAToRGB(destPtr, color);
                     }
                 }
-                else//ignore alpha
-                {
-                    for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
-                    {
-                        imgfile.Read(frowsize, bufptr);
-                        auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
-                        for (uint32_t col = 0; col < width; ++col)
-                        {
-                            const uint32_t color = pltptr[std::to_integer<uint8_t>(bufptr[col])];
-                            convert::CopyRGBAToRGB(destPtr, color);
-                        }
-                    }
-                }
-            }break;
-        }
-
+            }
+        }break;
     }
-};
+
+}
+
 
 
 BmpReader::BmpReader(FileObject& file) : ImgFile(file)
@@ -197,7 +194,7 @@ Image BmpReader::Read(const ImageDataType dataType)
     
     if (Info.Compression == 0)//BI_RGB
     {
-        BmpHelper::ReadUncompressed(image, ImgFile, needFlip, Info);
+        ReadUncompressed(image, ImgFile, needFlip, Info);
     }
     
 

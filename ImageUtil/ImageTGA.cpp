@@ -531,16 +531,16 @@ Image TgaReader::Read(const ImageDataType dataType)
 	timer.Stop();
 	ImgLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs());
 	timer.Start();
-	switch ((Header.ImageDescriptor & 0x30) >> 4)
+	switch ((Header.ImageDescriptor & 0x30) >> 4)//origin position
 	{
 	case 0://left-down
 		image.FlipVertical(); break;
 	case 1://right-down
-		break;
+        image.Rotate180(); break;
 	case 2://left-up
-		break;
+		break;//no need to flip
 	case 3://right-up
-		break;
+        image.FlipHorizontal(); break;
 	}
 	timer.Stop();
 	ImgLog().debug(L"zextga flip cost {} ms\n", timer.ElapseMs()); 

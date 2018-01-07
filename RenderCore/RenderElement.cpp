@@ -36,7 +36,7 @@ private:
 };
 
 
-Drawable::VAOMap Drawable::vaoMap;
+//Drawable::VAOMap Drawable::vaoMap;
 
 rayr::DrawableHelper& Drawable::getHelper()
 {

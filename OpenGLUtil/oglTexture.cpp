@@ -6,7 +6,6 @@
 namespace oglu::detail
 {
 
-
 _oglTexBase::_oglTexBase(const TextureType _type) noexcept : type(_type)
 {
 	glGenTextures(1, &textureID);
@@ -85,6 +84,45 @@ void _oglTexture::parseFormat(const TextureDataFormat dformat, GLenum& datatype,
 	case 0xd0:
 		comptype = GL_BGRA_INTEGER; break;
 	}
+}
+void _oglTexture::parseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
+{
+    if (HAS_FIELD(dformat, ImageDataType::FLOAT_MASK))
+        datatype = GL_FLOAT;
+    else
+        datatype = GL_UNSIGNED_BYTE;
+    if(normalized)
+        switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
+        {
+        case ImageDataType::GREY:
+            comptype = GL_RED; break;
+        case ImageDataType::RA:
+            comptype = GL_RG; break;
+        case ImageDataType::RGB:
+            comptype = GL_RGB; break;
+        case ImageDataType::BGR:
+            comptype = GL_BGR; break;
+        case ImageDataType::RGBA:
+            comptype = GL_RGBA; break;
+        case ImageDataType::BGRA:
+            comptype = GL_BGRA; break;
+        }
+    else
+        switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
+        {
+        case ImageDataType::GREY:
+            comptype = GL_RED_INTEGER; break;
+        case ImageDataType::RA:
+            comptype = GL_RG_INTEGER; break;
+        case ImageDataType::RGB:
+            comptype = GL_RGB_INTEGER; break;
+        case ImageDataType::BGR:
+            comptype = GL_BGR_INTEGER; break;
+        case ImageDataType::RGBA:
+            comptype = GL_RGBA_INTEGER; break;
+        case ImageDataType::BGRA:
+            comptype = GL_BGRA_INTEGER; break;
+        }
 }
 
 
@@ -171,6 +209,18 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 	width = w, height = h;
 	buf->unbind();
 	//unbind();
+}
+
+void _oglTexture::setData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized)
+{
+    if (img.Width % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
+    bind(0);
+    GLenum datatype, comptype;
+    parseFormat(img.DataType, normalized, datatype, comptype);
+    glTexImage2D((GLenum)type, 0, (GLint)iformat, img.Width, img.Height, 0, comptype, datatype, img.GetRawPtr());
+    inFormat = iformat;
+    width = img.Width, height = img.Height;
 }
 
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size)

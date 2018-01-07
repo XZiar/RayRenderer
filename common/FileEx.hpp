@@ -109,9 +109,10 @@ public:
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         const auto ret = fgetc(fp);
-        if(ret != EOF)
-            return (T)fgetc(fp);
-        COMMON_THROW(FileException, FileException::Reason::ReadFail, filePath, L"reach end of file");
+        if (ret != EOF)
+            return static_cast<T>(ret);
+        else
+            COMMON_THROW(FileException, FileException::Reason::ReadFail, filePath, L"reach end of file");
     }
 
 	bool Read(const size_t len, void *ptr)

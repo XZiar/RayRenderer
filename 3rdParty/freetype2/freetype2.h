@@ -47,7 +47,7 @@ public:
 		float p1x, p1y;
 	};
 	FreeTyper(const fs::path& fontpath);
-	common::Image<common::ImageType::GREY> getChBitmap(wchar_t ch, bool custom = false) const;
+	common::Image2<common::ImageType::GREY> getChBitmap(wchar_t ch, bool custom = false) const;
 	pair<vector<PerLine>, pair<uint32_t, uint32_t>> TryRenderLine(void *outline = nullptr) const;
 	pair<pair<vector<QBLine>, vector<SLine>>, pair<uint32_t, uint32_t>> TryStroke(void *outline) const;
 	pair<pair<vector<QBLine>, vector<SLine>>, pair<uint32_t, uint32_t>> TryStroke() const;

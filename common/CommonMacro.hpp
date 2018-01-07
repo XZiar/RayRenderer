@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <type_traits>
 #include <initializer_list>
 
@@ -54,5 +55,6 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 
 //for std::byte
 #if _HAS_STD_BYTE
+#   include<cstddef>
 inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
 #endif

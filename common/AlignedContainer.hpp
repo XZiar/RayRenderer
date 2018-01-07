@@ -37,7 +37,7 @@ struct AlignAllocator
 			return ptr;
 		if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
 			throw std::bad_array_new_length();
-		if (AlignBase<T>::judgeStrict())
+		if constexpr(AlignBase<T>::judgeStrict())
 			ptr = (T*)malloc_align(n * sizeof(T), AlignBase<T>::calcAlign());
 		else
 			ptr = (T*)malloc(n * sizeof(T));
@@ -48,7 +48,7 @@ struct AlignAllocator
 	}
 	void deallocate(T* const p, const size_t) const noexcept
 	{
-		if (AlignBase<T>::judgeStrict())
+		if constexpr(AlignBase<T>::judgeStrict())
 			free_align(p);
 		else
 			free(p);
@@ -69,7 +69,7 @@ private:
 		if (!Data)
 			throw std::bad_alloc();
 	}
-	void Release()
+	void Release() noexcept
 	{
 		if (Data) free_align(Data);
 		Data = nullptr;
@@ -80,7 +80,7 @@ public:
 	AlignedBuffer(const AlignedBuffer& other) : Size(other.Size)
 	{
 		Alloc();
-		memcpy(Data, other.Data, Size);
+		memcpy_s(Data, Size, other.Data, Size);
 	}
 	AlignedBuffer(AlignedBuffer&& other) noexcept : Size(other.Size), Data(other.Data)
 	{
@@ -91,16 +91,24 @@ public:
 	{
 		Size = other.Size;
 		Alloc();
-		memcpy(Data, other.Data, Size);
+		memcpy_s(Data, Size, other.Data, Size);
 	}
 	AlignedBuffer& operator = (AlignedBuffer&& other) noexcept
 	{
+        Release();
 		Size = other.Size;
 		Data = other.Data;
+        other.Data = nullptr;
 	}
     template<typename T = std::byte>
     T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
 	size_t GetSize() noexcept { return Size; }
+    std::byte* MoveOutData() noexcept //at your own risk
+    {
+        auto ret = Data;
+        Data = nullptr;
+        return ret;
+    }
 };
 
 
@@ -138,7 +146,7 @@ struct GREY { using ComponentType = uint8_t; };
 }
 
 template<class T>
-struct Image
+struct Image2
 {
 public:
 	uint32_t width, height;

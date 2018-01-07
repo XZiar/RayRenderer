@@ -32,12 +32,14 @@
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 
+#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
+#pragma warning(disable:4996)
 #include <boost/bimap.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/composite_key.hpp>
-
+#pragma warning(default:4996)
 
 namespace rayr
 {

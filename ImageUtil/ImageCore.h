@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ImageUtilRely.h"
-#include "DataConvertor.hpp"
 
 namespace xziar::img
 {
@@ -23,16 +22,19 @@ MAKE_ENUM_BITFIELD(ImageDataType)
 
 
 /*Custom Image Data Holder, with pixel data alignment promise*/
-class Image
+class IMGUTILAPI Image
 {
 public:
 	static constexpr uint8_t GetElementSize(const ImageDataType dataType);
 private:
 	byte *Data = nullptr;
-	void Alloc()
+	void Alloc(const bool zero = false)
 	{
 		Release();
-		Data = (byte*)malloc_align(Width * Height * ElementSize, 32);
+        const auto size = Size();
+		Data = (byte*)malloc_align(size, 32);
+        if (zero)
+            memset(Data, 0x0, size);
 	}
 	void Release()
 	{
@@ -48,19 +50,22 @@ public:
 	Image(const Image& other) : Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
 	{
 		Alloc();
-		memcpy(Data, other.Data, Size());
+        const auto size = Size();
+        memcpy_s(Data, size, other.Data, size);
 	}
 	Image(Image&& other) : Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize), Data(other.Data)
 	{
 		other.Data = nullptr;
 	}
 	~Image() { Release(); }
+
 	size_t Size() const { return Width * Height * ElementSize; }
     size_t RowSize() const { return Width * ElementSize; }
-	void SetSize(const uint32_t width, const uint32_t height)
+    size_t PixelCount() const { return Width * Height; }
+	void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
 	{
 		Width = width, Height = height;
-		Alloc();
+		Alloc(zero);
 	}
 	template<typename T>
 	void SetSize(const tuple<T, T>& size)
@@ -69,14 +74,14 @@ public:
 	}
 
 	template<typename T = byte>
-	T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) noexcept
+	T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
 	{
-		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
+		return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
 	}
 	template<typename T = byte>
-	const T* GetRawPtr(const uint32_t row = 0, const uint32_t colum = 0) const noexcept
+	const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
 	{
-		return reinterpret_cast<T*>(Data + (row * Width + colum) * ElementSize);
+		return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
 	}
 	template<typename T = byte>
 	std::vector<T*> GetRowPtrs(const size_t offset = 0)
@@ -101,6 +106,12 @@ public:
 
 	void FlipVertical();
 	void FlipHorizontal();
+    void Rotate180();
+    void PlaceImage(const Image& other, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY);
+    void Resize(const uint32_t width, const uint32_t height);
+
+    Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
+    Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
 };
 
 constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
@@ -121,20 +132,5 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
 	}
 }
 
-inline void Image::FlipVertical()
-{
-	const auto lineStep = Width * ElementSize;
-	auto rowUp = Data, rowDown = Data + (Height - 1) * lineStep;
-	while (rowUp < rowDown)
-	{
-		convert::Swap2Buffer(rowUp, rowDown, lineStep);
-		rowUp += lineStep, rowDown -= lineStep;
-	}
-}
-
-inline void Image::FlipHorizontal()
-{
-
-}
 
 }

@@ -39,7 +39,8 @@ enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 
 namespace detail
 {
-
+using xziar::img::ImageDataType;
+using xziar::img::Image;
 
 class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 {
@@ -65,7 +66,8 @@ protected:
 	TextureInnerFormat inFormat;
 	uint32_t width, height;
 	static TextureManager& getTexMan() noexcept;
-	static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
+    static void parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
+    static void parseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
 	static size_t parseFormatSize(const TextureDataFormat dformat) noexcept;
 public:
 	_oglTexture(const TextureType _type) noexcept;
@@ -79,6 +81,7 @@ public:
 	}
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data);
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf);
+    void setData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true);
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size);
 	template<class T, class A>
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)

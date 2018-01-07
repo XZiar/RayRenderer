@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ImageUtilRely.h"
-#include "ImageCore.hpp"
+#include "ImageCore.h"
 
 
 namespace xziar::img
