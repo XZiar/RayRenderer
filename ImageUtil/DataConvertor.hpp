@@ -39,6 +39,56 @@ inline T EmptyStruct()
     memset(&obj, 0, sizeof(T));
     return obj;
 }
+
+
+constexpr auto MAKE_BGR16_RGBAMap()
+{
+    constexpr uint32_t size = 256 * 256, half = size / 2;
+    std::array<uint32_t, size> themap{};
+    constexpr uint32_t chCount = 1 << 5, step = 256 / chCount;
+    constexpr uint32_t redStep = step, greenStep = step << 8, blueStep = step << 16;
+    uint32_t idx = 0;
+    uint32_t color = 0;
+    for (uint32_t red = chCount, colorR = color; red--; colorR += redStep)
+    {
+        for (uint32_t green = chCount, colorRG = colorR; green--; colorRG += greenStep)
+        {
+            for (uint32_t blue = chCount, colorRGB = colorRG; blue--; colorRGB += blueStep)
+            {
+                themap[idx++] = colorRGB;
+            }
+        }
+    }
+    for (uint32_t count = 0; count < half;)//protential 4k-alignment issue
+        themap[idx++] = themap[count++] | 0xff000000;
+    return themap;
+}
+inline const auto BGR16ToRGBAMapper = MAKE_BGR16_RGBAMap();
+constexpr auto MAKE_RGB16_RGBAMap()
+{
+    constexpr uint32_t size = 256 * 256, half = size / 2;
+    std::array<uint32_t, size> themap{};
+    constexpr uint32_t chCount = 1 << 5, step = 256 / chCount;
+    constexpr uint32_t redStep = step << 16, greenStep = step << 8, blueStep = step;
+    uint32_t idx = 0;
+    uint32_t color = 0;
+    for (uint32_t blue = chCount, colorB = color; blue--; colorB += blueStep)
+    {
+        for (uint32_t green = chCount, colorGB = colorB; green--; colorGB += greenStep)
+        {
+            for (uint32_t red = chCount, colorRGB = colorGB; red--; colorRGB += redStep)
+            {
+                themap[idx++] = colorRGB;
+            }
+        }
+    }
+    for (uint32_t count = 0; count < half;)//protential 4k-alignment issue
+        themap[idx++] = themap[count++] | 0xff000000;
+    return themap;
+}
+inline const auto RGB16ToRGBAMapper = MAKE_RGB16_RGBAMap();
+
+
 inline void FixAlpha(size_t count, uint32_t* destPtr)
 {
     while (count--)
@@ -54,6 +104,79 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
 }
 
 
+#pragma region GRAY->GRAYA
+#pragma warning(disable: 4309)
+constexpr auto MAKE_GRAY2GRAYA()
+{
+    std::array<uint16_t, 256> ret{ 0 };
+    for (uint16_t i = 0; i < 256u; ++i)
+        ret[i] = i | 0xff00u;
+    return ret;
+}
+inline const auto GrayToGrayAMAP = MAKE_GRAY2GRAYA();
+#define LOOP_GRAY_GRAYA *(uint16_t*)destPtr = GrayToGrayAMAP[*(uint8_t*)srcPtr++]; destPtr += 2; count--;
+inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__AVX2__)
+    const auto alphaMask = _mm256_set1_epi16(0xff00);
+    const auto shuffleMask1 = _mm256_setr_epi8(0, 0xff, 1, 0xff, 2, 0xff, 3, 0xff, 4, 0xff, 5, 0xff, 6, 0xff, 7, 0xff, 0, 0xff, 1, 0xff, 2, 0xff, 3, 0xff, 4, 0xff, 5, 0xff, 6, 0xff, 7, 0xff);
+    const auto shuffleMask2 = _mm256_setr_epi8(8, 0xff, 9, 0xff, 10, 0xff, 11, 0xff, 12, 0xff, 13, 0xff, 14, 0xff, 15, 0xff, 8, 0xff, 9, 0xff, 10, 0xff, 11, 0xff, 12, 0xff, 13, 0xff, 14, 0xff, 15, 0xff);
+    while (count > 64)
+    {
+        const auto in1 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//0~31
+        const auto in2 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//32~63
+        count -= 64;
+        const auto tmp1 = _mm256_or_si256(_mm256_shuffle_epi8(in1, shuffleMask1), alphaMask);//0~7,16~23
+        const auto tmp2 = _mm256_or_si256(_mm256_shuffle_epi8(in1, shuffleMask2), alphaMask);//8~15,24~31
+        const auto tmp3 = _mm256_or_si256(_mm256_shuffle_epi8(in2, shuffleMask1), alphaMask);//0~7,16~23
+        const auto tmp4 = _mm256_or_si256(_mm256_shuffle_epi8(in2, shuffleMask2), alphaMask);//8~15,24~31
+
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x20)); destPtr += 32;//0~7,8~15
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x31)); destPtr += 32;//16~23,24~31
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x20)); destPtr += 32;//0~7,8~15
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//16~23,24~31
+    }
+#elif defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__)
+    const auto alphaMask = _mm_set1_epi16(0xff00);
+    const auto shuffleMask1 = _mm_setr_epi8(0, 0xff, 1, 0xff, 2, 0xff, 3, 0xff, 4, 0xff, 5, 0xff, 6, 0xff, 7, 0xff);
+    const auto shuffleMask2 = _mm_setr_epi8(8, 0xff, 9, 0xff, 10, 0xff, 11, 0xff, 12, 0xff, 13, 0xff, 14, 0xff, 15, 0xff);
+    while (count > 64)
+    {
+        const auto in1 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//0~15
+        const auto in2 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//16~31
+        const auto in3 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//32~47
+        const auto in4 = _mm_loadu_si128((const __m128i*)srcPtr); srcPtr += 16;//48~63
+        count -= 64;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask1), alphaMask)); destPtr += 16;//0~7
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in1, shuffleMask2), alphaMask)); destPtr += 16;//8~15
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask1), alphaMask)); destPtr += 16;//16~23
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in2, shuffleMask2), alphaMask)); destPtr += 16;//24~31
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in3, shuffleMask1), alphaMask)); destPtr += 16;//32~39
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in3, shuffleMask2), alphaMask)); destPtr += 16;//40~47
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in4, shuffleMask1), alphaMask)); destPtr += 16;//48~55
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(_mm_shuffle_epi8(in4, shuffleMask2), alphaMask)); destPtr += 16;//56~63
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAY_GRAYA
+        case 7: LOOP_GRAY_GRAYA
+        case 6: LOOP_GRAY_GRAYA
+        case 5: LOOP_GRAY_GRAYA
+        case 4: LOOP_GRAY_GRAYA
+        case 3: LOOP_GRAY_GRAYA
+        case 2: LOOP_GRAY_GRAYA
+        case 1: LOOP_GRAY_GRAYA
+        }
+    }
+}
+#undef LOOP_GRAY_GRAYA
+#pragma warning(default: 4309)
+#pragma endregion GRAY->GRAYA
+
+
 #pragma region GRAY->RGBA
 #pragma warning(disable: 4309)
 constexpr auto MAKE_GRAY2RGBA()
@@ -63,7 +186,7 @@ constexpr auto MAKE_GRAY2RGBA()
         ret[i] = (i * 0x00010101u) | 0xff000000u;
     return ret;
 }
-inline auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
+inline const auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
 //#define LOOP_GRAY_RGBA *(uint32_t*)destPtr = (*((uint8_t*)srcPtr++) * 0x00010101) | 0xff000000; destPtr += 4; count--;
 #define LOOP_GRAY_RGBA *(uint32_t*)destPtr = GrayToRGBAMAP[*(uint8_t*)srcPtr++]; destPtr += 4; count--;
 inline void GraysToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
@@ -130,6 +253,68 @@ inline const auto& GraysToBGRAs = GraysToRGBAs;
 #pragma endregion GRAY->RGBA
 
 
+#pragma region GRAYA->GRAY
+#pragma warning(disable: 4309)
+#define LOOP_GRAYA_GRAY *destPtr++ = byte(*(uint16_t*)srcPtr & 0xff); srcPtr += 2; count--;
+inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+{
+#if defined(__AVX2__)
+    const auto shuffleMask1 = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
+    const auto shuffleMask2 = _mm256_setr_epi8(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 2, 4, 6, 8, 10, 12, 14);
+    while (count > 64)
+    {
+        const auto in1 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//0~7,8~15
+        const auto in2 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//16~23,24~31
+        const auto tmp1 = _mm256_shuffle_epi8(_mm256_permute2x128_si256(in1, in2, 0x20), shuffleMask1);//0~7,00,16~23,00
+        const auto tmp2 = _mm256_shuffle_epi8(_mm256_permute2x128_si256(in1, in2, 0x31), shuffleMask2);//00,8~15,00,24~31
+        const auto in3 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//32~39,40~47
+        const auto in4 = _mm256_loadu_si256((const __m256i*)srcPtr); srcPtr += 32;//48~55,56~63
+        const auto tmp3 = _mm256_shuffle_epi8(_mm256_permute2x128_si256(in3, in4, 0x20), shuffleMask1);//32~39,00,48~55,00
+        const auto tmp4 = _mm256_shuffle_epi8(_mm256_permute2x128_si256(in3, in4, 0x31), shuffleMask2);//00,40~47,00,56~63
+        count -= 64;
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_or_si256(tmp1, tmp2)); destPtr += 32;//0~15,16~31
+        _mm256_storeu_si256((__m256i*)destPtr, _mm256_or_si256(tmp3, tmp4)); destPtr += 32;//32~47,48~63
+    }
+#elif defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__)
+    const auto shuffleMask1 = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
+    const auto shuffleMask2 = _mm_setr_epi8(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 2, 4, 6, 8, 10, 12, 14);
+    while (count > 64)
+    {
+        const auto in1 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask1); srcPtr += 16;//0~7
+        const auto in2 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask2); srcPtr += 16;//8~15
+        const auto in3 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask1); srcPtr += 16;//16~23
+        const auto in4 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask2); srcPtr += 16;//24~31
+        const auto in5 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask1); srcPtr += 16;//32~39
+        const auto in6 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask2); srcPtr += 16;//40~47
+        const auto in7 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask1); srcPtr += 16;//48~55
+        const auto in8 = _mm_shuffle_epi8(_mm_loadu_si128((const __m128i*)srcPtr), shuffleMask2); srcPtr += 16;//56~63
+        count -= 64;
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(in1, in2)); destPtr += 16;//0~15
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(in3, in4)); destPtr += 16;//16~31
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(in5, in6)); destPtr += 16;//32~47
+        _mm_storeu_si128((__m128i*)destPtr, _mm_or_si128(in7, in8)); destPtr += 16;//48~63
+    }
+#endif
+    while (count)
+    {
+        switch (count)
+        {
+        default:LOOP_GRAYA_GRAY
+        case 7: LOOP_GRAYA_GRAY
+        case 6: LOOP_GRAYA_GRAY
+        case 5: LOOP_GRAYA_GRAY
+        case 4: LOOP_GRAYA_GRAY
+        case 3: LOOP_GRAYA_GRAY
+        case 2: LOOP_GRAYA_GRAY
+        case 1: LOOP_GRAYA_GRAY
+        }
+    }
+}
+#undef LOOP_GRAYA_GRAY
+#pragma warning(default: 4309)
+#pragma endregion GRAYA->GRAY
+
+
 #pragma region GRAYA->RGBA
 #pragma warning(disable: 4309)
 constexpr auto MAKE_GRAYA2RGBA()
@@ -140,7 +325,7 @@ constexpr auto MAKE_GRAYA2RGBA()
         ret[i] = ((i & 0xffu) * 0x00010101u) | ((i & 0xff00u) << 16);
     return ret;
 }
-inline auto GrayAToRGBAMAP = MAKE_GRAYA2RGBA();
+inline const auto GrayAToRGBAMAP = MAKE_GRAYA2RGBA();
 //#define LOOP_GRAYA_RGBA *(uint32_t*)destPtr = ((uint8_t)srcPtr[0] * 0x00010101) | ((uint8_t)srcPtr[1] << 24); destPtr += 4; srcPtr +=2; count--;
 #define LOOP_GRAYA_RGBA *(uint32_t*)destPtr = GrayAToRGBAMAP[*(uint16_t*)srcPtr]; destPtr += 4; srcPtr+=2; count--;
 inline void GrayAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
@@ -728,13 +913,9 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
 		_mm256_storeu_si256((__m256i*)ptrB, tmp4); ptrB += 32;
 		bytes -= 128;
 		_mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
 		_mm_prefetch((const char*)ptrA + 64, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrA + 96, _MM_HINT_NTA);
 		_mm_prefetch((const char*)ptrB, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrB + 32, _MM_HINT_NTA);
 		_mm_prefetch((const char*)ptrB + 64, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrB + 96, _MM_HINT_NTA);
 	}
 	while (bytes >= 32)
 	{
@@ -769,9 +950,7 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
 		_mm_storeu_si128((__m256i*)ptrB, tmp4); ptrB += 16;
 		bytes -= 64;
 		_mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
 		_mm_prefetch((const char*)ptrB, _MM_HINT_NTA);
-		_mm_prefetch((const char*)ptrB + 32, _MM_HINT_NTA);
 	}
 	while (bytes >= 16)
 	{
@@ -869,13 +1048,9 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
         _mm256_storeu_si256((__m256i*)ptrC, tmp4); ptrC -= 8;
         count -= 32;
         _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrA + 64, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrA + 96, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrC - 64, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrC - 96, _MM_HINT_NTA);
     }
     while (count > 8)
     {
@@ -914,13 +1089,9 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
         _mm256_storeu_ps((float*)ptrC, tmp4); ptrC -= 8;
         count -= 32;
         _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrA + 64, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrA + 96, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrC - 64, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrC - 96, _MM_HINT_NTA);
     }
     while (count > 8)
     {
@@ -955,9 +1126,7 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
         _mm_storeu_si128((__m128i*)ptrC, tmp4); ptrC -= 4;
         count -= 16;
         _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrA + 32, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrC, _MM_HINT_NTA);
-        _mm_prefetch((const char*)ptrC - 32, _MM_HINT_NTA);
     }
     while (count > 4)
     {
@@ -1013,45 +1182,6 @@ inline bool ReverseBuffer3(byte * __restrict ptr, uint64_t count)
 #pragma endregion REVERSE one buffer(per 3byte)
 
 
-using BGR16ToRGBAMap = std::vector<uint32_t>;
-using RGB16ToRGBAMap = BGR16ToRGBAMap;
-static BGR16ToRGBAMap GenerateBGR16ToRGBAMap()
-{
-    BGR16ToRGBAMap map(1 << 16);
-    constexpr uint32_t COUNT = 1 << 5, STEP = 256 / COUNT, HALF_SIZE = 1 << 15;
-    constexpr uint32_t RED_STEP = STEP, GREEN_STEP = STEP << 8, BLUE_STEP = STEP << 16;
-    uint32_t idx = 0;
-    uint32_t color = 0;
-    for (uint32_t red = COUNT, colorR = color; red--; colorR += RED_STEP)
-    {
-        for (uint32_t green = COUNT, colorRG = colorR; green--; colorRG += GREEN_STEP)
-        {
-            for (uint32_t blue = COUNT, colorRGB = colorRG; blue--; colorRGB += BLUE_STEP)
-            {
-                map[idx++] = colorRGB;
-            }
-        }
-    }
-    for (uint32_t count = 0; count < HALF_SIZE;)//protential 4k-alignment issue
-        map[idx++] = map[count++] | 0xff000000;
-    return map;
-}
-static const BGR16ToRGBAMap& GetBGR16ToRGBAMap()
-{
-    static const auto map = GenerateBGR16ToRGBAMap();
-    return map;
-}
-static RGB16ToRGBAMap GenerateRGB16ToRGBAMap()
-{
-    RGB16ToRGBAMap map(1 << 16);
-    BGRAsToRGBAs(reinterpret_cast<byte*>(map.data()), reinterpret_cast<const byte*>(GetBGR16ToRGBAMap().data()), map.size());
-    return map;
-}
-static const BGR16ToRGBAMap& GetRGB16ToRGBAMap()
-{
-    static const auto map = GenerateRGB16ToRGBAMap();
-    return map;
-}
 
 
 }

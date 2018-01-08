@@ -88,7 +88,7 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     {
         if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK))//not supported yet
             return;
-        if (REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK,ImageDataType::FLOAT_MASK }) == ImageDataType::GREY)//not supported yet
+        if (isGray() && !src.isGray())//not supported yet
             return;
 
         const auto diff = DataType ^ src.DataType;
@@ -97,15 +97,24 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             pixcnt *= rowcnt, rowcnt = 1;
         if (diff == ImageDataType::ALPHA_MASK)//remove/add alpha only
         {
-            if (ElementSize == 4)//add alpha, 3->4
+            switch (ElementSize)
             {
+            case 4://add alpha, 3->4
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
-            }
-            else if (ElementSize == 3)//remove alpha, 4->3
-            {
+                break;
+            case 3://remove alpha, 4->3
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
+                break;
+            case 2://add alpha, 1->2
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
+                break;
+            case 1://remove alpha, 2->1
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GrayAsToGrays(destPtr, srcPtr, pixcnt);
+                break;
             }
         }
         else if (ElementSize == 4)

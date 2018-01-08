@@ -70,6 +70,7 @@ public:
 	{
 		SetSize(std::get<0>(size), std::get<1>(size), zero);
 	}
+    bool isGray() const { return REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY; }
 
 	template<typename T = byte>
 	T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
@@ -123,6 +124,8 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
 	case ImageDataType::BGRA:
 	case ImageDataType::RGBA:
 		return 4 * baseSize;
+    case ImageDataType::GA:
+        return 2 * baseSize;
 	case ImageDataType::GREY:
 		return 1 * baseSize;
 	default:

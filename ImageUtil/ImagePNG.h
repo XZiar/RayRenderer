@@ -15,9 +15,6 @@ private:
 	FileObject& ImgFile;
 	void *PngStruct = nullptr;
 	void *PngInfo = nullptr;
-
-	void ReadThrough(uint8_t passes, Image& image);
-	void ReadColorToColorAlpha(uint8_t passes, Image& image);
 public:
 	PngReader(FileObject& file);
 	virtual ~PngReader() override;

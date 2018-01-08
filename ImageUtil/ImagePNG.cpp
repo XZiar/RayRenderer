@@ -60,42 +60,42 @@ static png_infop CreateInfo(png_structp pngStruct)
 }
 
 
-void PngReader::ReadThrough(uint8_t passes, Image& image)
+static void ReadPng(void *pngStruct, const uint8_t passes, Image& image, const bool needAlpha, const bool isColor)
 {
-	auto ptrs = image.GetRowPtrs<uint8_t>();
-	while (passes--)
-	{
-		//Sparkle, read all rows at a time
-		png_read_rows((png_structp)PngStruct, ptrs.data(), NULL, image.Height);
-	}
-}
-
-void PngReader::ReadColorToColorAlpha(uint8_t passes, Image& image)
-{
-	auto ptrs = image.GetRowPtrs<uint8_t>(image.Width);
+	auto ptrs = image.GetRowPtrs<uint8_t>(needAlpha ? image.Width : 0);
 	common::SimpleTimer timer;
 	timer.Start();
-	while (passes--)
+    for (auto pass = passes; pass--;)
 	{
 		//Sparkle, read all rows at a time
-		png_read_rows((png_structp)PngStruct, ptrs.data(), NULL, image.Height);
+		png_read_rows((png_structp)pngStruct, ptrs.data(), NULL, image.Height);
 	}
 	timer.Stop();
-	ImgLog().debug(L"[libpng]decode cost {} ms\n", timer.ElapseMs());
-	//post process, 3-comp ---> 4-comp
+	ImgLog().debug(L"[libpng]decode {} pass cost {} ms\n", passes, timer.ElapseMs());
+    if (!needAlpha)
+        return;
+
+	//post process, add alpha
 	auto *rowPtr = image.GetRawPtr();
 	const size_t lineStep = image.ElementSize * image.Width;
 	timer.Start();
-	for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
-	{
-        auto * __restrict destPtr = rowPtr;
-        auto * __restrict srcPtr = rowPtr + image.Width;
-		img::convert::RGBsToRGBAs(destPtr, srcPtr, image.Width);
-	}
+    if (isColor)
+	    for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
+	    {
+            auto * __restrict destPtr = rowPtr;
+            auto * __restrict srcPtr = rowPtr + image.Width;
+		    convert::RGBsToRGBAs(destPtr, srcPtr, image.Width);
+	    }
+    else
+        for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
+        {
+            auto * __restrict destPtr = rowPtr;
+            auto * __restrict srcPtr = rowPtr + image.Width;
+            convert::GraysToGrayAs(destPtr, srcPtr, image.Width);
+        }
 	timer.Stop();
-	ImgLog().debug(L"[png]post 3->4comp cost {} ms\n", timer.ElapseMs());
+	ImgLog().debug(L"[png]post add alpha cost {} ms\n", timer.ElapseMs());
 }
-
 
 PngReader::PngReader(FileObject& file) : ImgFile(file), PngStruct(CreateReadStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
 {
@@ -126,9 +126,10 @@ Image PngReader::Read(const ImageDataType dataType)
 {
 	auto pngStruct = (png_structp)PngStruct;
 	auto pngInfo = (png_infop)PngInfo;
-	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY || HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
+    Image image(dataType);
+	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
 		//NotSupported Yet
-		return Image(dataType);
+		return image;
 	ImgFile.Rewind();
 
 	png_read_info(pngStruct, pngInfo);
@@ -136,7 +137,6 @@ Image PngReader::Read(const ImageDataType dataType)
 	int32_t bitDepth = -1, colorType = -1, interlaceType = -1;
 	png_get_IHDR((png_structp)PngStruct, pngInfo, &width, &height, &bitDepth, &colorType, &interlaceType, nullptr, nullptr);
 
-	Image image(dataType);
 	image.Type = ImageType::PNG;
 	image.SetSize(width, height);
 
@@ -155,6 +155,8 @@ Image PngReader::Read(const ImageDataType dataType)
 	switch (colorType)
 	{
 	case PNG_COLOR_TYPE_PALETTE:
+        if (image.isGray())
+            return image;
 		/* Expand paletted colors into true RGB triplets */
 		png_set_palette_to_rgb(pngStruct);
 		break;
@@ -167,8 +169,12 @@ Image PngReader::Read(const ImageDataType dataType)
 			/* Expand grayscale images to the full 8 bits from 1, 2, or 4 bits/pixel */
 			png_set_expand_gray_1_2_4_to_8(pngStruct);
 		}
-		png_set_gray_to_rgb(pngStruct);
+        if (!image.isGray())
+		    png_set_gray_to_rgb(pngStruct);
 		break;
+    default://color
+        if (image.isGray())
+            return image;
 	}
 	/* Expand paletted or RGB images with transparency to full alpha channels
 	* so the data will be available as RGBA quartets.
@@ -176,7 +182,7 @@ Image PngReader::Read(const ImageDataType dataType)
 	if (png_get_valid(pngStruct, pngInfo, PNG_INFO_tRNS) != 0)
 		png_set_tRNS_to_alpha(pngStruct);
 	/* Strip alpha bytes from the input data */
-	//if (!HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
+	if (!HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
 		png_set_strip_alpha(pngStruct);
 	/* Swap the RGBA or GA data to ARGB or AG (or BGRA to ABGR) */
 	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::BGR)
@@ -185,10 +191,8 @@ Image PngReader::Read(const ImageDataType dataType)
 	//handle interlace
 	const uint8_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
 	png_start_read_image(pngStruct);
-	if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK) && (colorType & PNG_COLOR_MASK_ALPHA) != 0)//3comp->4comp
-		ReadColorToColorAlpha(passes, image);
-	else
-		ReadThrough(passes, image);
+    const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK) && (colorType & PNG_COLOR_MASK_ALPHA) == 0;
+    ReadPng(PngStruct, passes, image, needAlpha, !image.isGray());
 	png_read_end(pngStruct, pngInfo);
 	return image;
 }
@@ -214,12 +218,14 @@ void PngWriter::Write(const Image& image)
 {
 	auto pngStruct = (png_structp)PngStruct;
 	auto pngInfo = (png_infop)PngInfo;
-	if (REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY || HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
 		//NotSupported Yet
 		return;
 	ImgFile.Rewind();
 
-	const auto colorType = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? PNG_COLOR_TYPE_RGBA : PNG_COLOR_TYPE_RGB;
+    const auto alphaMask = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
+    const auto colorMask = image.isGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
+	const auto colorType = alphaMask | colorMask;
 	png_set_IHDR(pngStruct, pngInfo, image.Width, image.Height, 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
 	png_set_compression_level(pngStruct, 3);
 	png_write_info(pngStruct, pngInfo);

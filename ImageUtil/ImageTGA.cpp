@@ -51,7 +51,7 @@ public:
 	{
 		if (output.ElementSize != 4)
 			return;
-		auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
+        auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
 		switch (colorDepth)
 		{
 		case 15:
@@ -94,7 +94,7 @@ public:
 	{
 		if (output.ElementSize != 3)
 			return;
-		auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
+        auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
 		switch (colorDepth)
 		{
 		case 15:
@@ -589,12 +589,6 @@ void TgaWriter::Write(const Image& image)
 
 TgaSupport::TgaSupport() : ImgSupport(L"Tga") 
 {
-	SimpleTimer timer;
-	timer.Start();
-	auto& map1 = convert::GetBGR16ToRGBAMap();
-	auto& map2 = convert::GetRGB16ToRGBAMap();
-	timer.Stop();
-	const auto volatile time = timer.ElapseMs();
 }
 
 }

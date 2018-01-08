@@ -63,7 +63,7 @@ static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, c
         {
             const auto bufptr = buffer.GetRawPtr<uint16_t>();
             const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
-            auto& color16Map = isOutputRGB ? convert::GetBGR16ToRGBAMap() : convert::GetRGB16ToRGBAMap();
+            auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
             if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
@@ -264,12 +264,6 @@ void BmpWriter::Write(const Image& image)
 
 BmpSupport::BmpSupport() : ImgSupport(L"Bmp")
 {
-    SimpleTimer timer;
-    timer.Start();
-    auto& map1 = convert::GetBGR16ToRGBAMap();
-    auto& map2 = convert::GetRGB16ToRGBAMap();
-    timer.Stop();
-    const auto volatile time = timer.ElapseMs();
 }
 
 }
