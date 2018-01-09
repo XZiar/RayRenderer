@@ -51,6 +51,10 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   
   used for logging message and errors, with prefix `OpenGLUtil`
 
+* [ImageUtil](../ImageUtil)
+  
+  used for Image-Texture processing
+
 * [boost](http://www.boost.org/)
   * circular_buffer -- used for GL debug mesasge buffer
 
@@ -62,7 +66,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ### Shader
 
-Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format.
+Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format`*.glsl`.
 It's main purpose is to merge multiple shader into one, which reduces redundent codes as well as eliminate bugs caused by careless.
 
 Extended Shader is based on glsl's preprocessor.

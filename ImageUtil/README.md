@@ -2,9 +2,22 @@
 
 A simple utility for image read/write/process.
 
+Image converting is AVX/SSE optimized.
+
 ## Endianness
 
 Since This component is binded with X86 optimization, internal data layout is assumed to be Little-endian.
+
+## Current Support
+
+| | |
+|:-------|:-------:|
+| Type | Support | Source |
+| PNG | RGB/RGBA/Gray | libpng |
+| TGA | RGB/RGBA/Gray | zextga(self) |
+| JPEG | RGBA | libjpeg-turbo |
+| BMP | RGB/RGBA | zexbmp(self) |
+
 
 ## Dependency
 

@@ -1,6 +1,6 @@
 # RayRenderer
 
-A simple renderer based on my old RayTrace project.
+A messy renderer based on my old RayTrace project.
 
 ### Changes from old project
 
@@ -20,6 +20,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [common](./common) | Basic but useful things |
 | [CommonUtil](./CommonUtil) | Basic utils for C# |
 | [miniLogger](./common/miniLogger) | mini logger |
+| [ImageUtil](./ImageUtil) | Image Read/Write Utility |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL |
@@ -31,6 +32,11 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) |
 
+## Platform
+
+Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
+
+VS2017(15.5.3) needed.
 
 ## Dependency
 
@@ -66,7 +72,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
   [MS-PL License](./License/cpplinq.html)
 
-* [date](https://howardhinnant.github.io/date/date.html)
+* [date](https://howardhinnant.github.io/date/date.html) 2.4
 
   [MIT License](./License/date.txt)
 
