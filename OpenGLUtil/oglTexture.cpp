@@ -127,7 +127,7 @@ void _oglTexture::parseFormat(const ImageDataType dformat, const bool normalized
 ImageDataType _oglTexture::convertFormat(const TextureDataFormat dformat) noexcept
 {
     ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_MASK) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
-    switch (REMOVE_MASK(dformat, { TextureDataFormat::TYPE_MASK,TextureDataFormat::TYPE_MASK }))
+    switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
     {
     case TextureDataFormat::R8:
         return ImageDataType::RED | isFloat;

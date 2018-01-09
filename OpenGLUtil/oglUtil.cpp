@@ -104,7 +104,7 @@ void oglUtil::init()
 
 void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
 {
-	static DBGLimit limit;
+	thread_local DBGLimit limit;
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	limit = { type, src, (uint8_t)minLV };

@@ -12,6 +12,7 @@ namespace WinFormTest
         static Program()
         {
             AppDomain.CurrentDomain.AssemblyResolve += ResolveDLL;
+            //AppDomain.CurrentDomain.UnhandledException += HandleExceptions;
             Console.WriteLine(Environment.Is64BitProcess ? "current in x64" : "current in x86");
         }
 

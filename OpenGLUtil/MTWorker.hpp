@@ -34,7 +34,10 @@ private:
 		SimpleTimer timer;
 		const wstring prefix = L"Worker " + name;
 		std::unique_lock<std::mutex> lck(mtx);
-		wglMakeCurrent(hdc, hrc);
+        if (!wglMakeCurrent(hdc, hrc))
+        {
+            oglLog().error(L"{} with HDC[{}] HRC[{}], error: {}\n", prefix, (void*)hdc, (void*)hrc, GetLastError());
+        }
 		oglLog().info(L"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, (void*)hdc, (void*)hrc, oglUtil::getVersion());
 		oglUtil::setDebug(0x2f, 0x2f, MsgLevel::Notfication);
 		while (shouldRun.test_and_set())

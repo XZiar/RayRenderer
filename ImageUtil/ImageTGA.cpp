@@ -155,7 +155,7 @@ public:
 	static void ReadFromColorMapped(const detail::TgaHeader& header, Image& image, MapperReader& mapperReader, IndexReader& reader)
 	{
 		const uint64_t count = (uint64_t)image.Width * image.Height;
-		const bool isOutputRGB = REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+		const bool isOutputRGB = REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
 		const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
 
 		const detail::ColorMapInfo mapInfo(header);
@@ -236,7 +236,7 @@ public:
         }
         else
         {
-            const bool isOutputRGB = REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            const bool isOutputRGB = REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             if (needAlpha)
                 ReadColorData4(header.PixelDepth, count, image, isOutputRGB, reader);
             else

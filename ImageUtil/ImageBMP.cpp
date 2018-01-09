@@ -62,7 +62,7 @@ static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, c
     case 16:
         {
             const auto bufptr = buffer.GetRawPtr<uint16_t>();
-            const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            const bool isOutputRGB = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
             if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
             {
@@ -102,7 +102,7 @@ static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, c
             convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
             imgfile.Rewind(carraypos);
 
-            const bool isOutputRGB = REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            const bool isOutputRGB = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             if (isOutputRGB)
                 convert::BGRAsToRGBAs(palette.GetRawPtr(), paletteCount);//to RGBA
 
@@ -181,13 +181,13 @@ Image BmpReader::Read(const ImageDataType dataType)
 {
 	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
 		return Image();
-	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GRAY)
-		return Image();
+    Image image(dataType);
+    if (image.isGray())
+		return image;
     const int32_t h = convert::ParseDWordLE(Info.Height);
 	const bool needFlip = h > 0;
     const uint32_t height = std::abs(h);
     const uint32_t width = convert::ParseDWordLE(Info.Width);
-	Image image(dataType);
 	image.SetSize(width, height);
 
 	ImgFile.Rewind(convert::ParseDWordLE(Header.Offset));
@@ -211,10 +211,10 @@ void BmpWriter::Write(const Image& image)
         return;
     if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
         return;
-    if (REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::GRAY)
+    if (image.isGray())
         return;//not support grey yet
 
-    const bool isInputBGR = REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::BGR;
+    const bool isInputBGR = REMOVE_MASK(image.DataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
     const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
 
     auto header = convert::EmptyStruct<detail::BmpHeader>();

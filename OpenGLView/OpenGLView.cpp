@@ -4,6 +4,15 @@
 #include "OpenGLViewEvents.h"
 #include <string>
 
+#pragma unmanaged
+thread_local HGLRC baseRC = nullptr, curRC = nullptr;
+static void makeCurrent(HDC hDC, HGLRC hRC)
+{
+    if (curRC != hRC)
+        wglMakeCurrent(hDC, curRC = hRC);
+}
+#pragma managed
+
 
 using namespace msclr::interop;
 using namespace System;
@@ -15,7 +24,7 @@ using std::wstring;
 	public ref class OGLView : public Control
 	{
 	private:
-		static HGLRC baseRC = nullptr, curRC = nullptr;
+        //thread_local static HGLRC baseRC = nullptr, curRC = nullptr;
 		HDC hDC = nullptr;
 		HGLRC hRC = nullptr;
 		MouseButton curMouseBTN = MouseButton::None;
@@ -23,18 +32,11 @@ using std::wstring;
 		int lastX, lastY, startX, startY, curX, curY;
 		bool isMoved;
 		bool isCaptital = false;
-		static void makeCurrent(HDC hDC, HGLRC hRC)
+		/*static void makeCurrent(HDC hDC, HGLRC hRC)
 		{
 			if (curRC != hRC)
 				wglMakeCurrent(hDC, curRC = hRC);
-		}
-		static void initRC(HDC hDC)
-		{
-			if (baseRC != nullptr)
-				return;
-			baseRC = wglCreateContext(hDC);
-			wglMakeCurrent(hDC, curRC = baseRC);
-		}
+		}*/
 		static void initExtension()
 		{
 			auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
@@ -65,7 +67,7 @@ using std::wstring;
 		}
 		OGLView()
 		{
-            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            //SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 			ResizeBGDraw = true;
 			deshake = true;
 			hDC = GetDC(HWND(this->Handle.ToPointer()));
@@ -73,9 +75,9 @@ using std::wstring;
 			{
 				sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
 				1,                              // Version Number
-				PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/,
+				PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/ | PFD_GENERIC_ACCELERATED,
 				PFD_TYPE_RGBA,                  // Request An RGBA Format
-				24,                             // Select Our Color Depth
+				32,                             // Select Our Color Depth
 				0, 0, 0, 0, 0, 0,               // Color Bits Ignored
 				0, 0,                           // No Alpha Buffer, Shift Bit Ignored
 				0, 0, 0, 0, 0,                  // No Accumulation Buffer, Accumulation Bits Ignored
@@ -88,8 +90,12 @@ using std::wstring;
 			};
 			const int PixelFormat = ChoosePixelFormat(hDC, &pfd);
 			SetPixelFormat(hDC, PixelFormat, &pfd);
-			initRC(hDC);
-			int ctxAttrb[] =
+            if (!baseRC)
+            {
+                baseRC = wglCreateContext(hDC);
+                wglMakeCurrent(hDC, curRC = baseRC);
+            }
+            int ctxAttrb[] =
 			{
 				/*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
 				WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/

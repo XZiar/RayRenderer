@@ -63,9 +63,9 @@ private:
 		return viewMap;
 	}
 	friend class detail::_FreeGLUTView;
-	static WNDPROC oldWndProc;
-	static std::atomic_bool shouldInvoke, readyInvoke;
-	static std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> invokeData;
+	static inline WNDPROC oldWndProc;
+	static inline std::atomic_bool shouldInvoke{ false }, readyInvoke{ false };
+	static inline std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> invokeData;
 	
 	static detail::_FreeGLUTView* getView()
 	{
@@ -247,12 +247,6 @@ public:
 };
 
 
-
-
-WNDPROC GLUTHacker::oldWndProc;
-std::atomic_bool GLUTHacker::shouldInvoke{ false };
-std::atomic_bool GLUTHacker::readyInvoke{ false };
-std::tuple<detail::_FreeGLUTView*, std::function<bool(void)>, std::promise<bool>> GLUTHacker::invokeData;
 
 
 }

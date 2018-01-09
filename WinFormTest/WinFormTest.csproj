@@ -38,7 +38,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -48,7 +48,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
@@ -88,6 +88,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -125,13 +126,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "$(TargetDir)RenderCoreWrap.*"
-if exist "$(SolutionDir)$(ConfigurationName)\RenderCoreWrap.dll" copy "$(SolutionDir)$(ConfigurationName)\RenderCoreWrap.dll" "$(TargetDir)RenderCoreWrap.x86.dll"
-if exist "$(SolutionDir)x64\$(ConfigurationName)\RenderCoreWrap.dll" copy "$(SolutionDir)x64\$(ConfigurationName)\RenderCoreWrap.dll" "$(TargetDir)RenderCoreWrap.x64.dll"
-del "$(TargetDir)OpenGLView.*"
-if exist "$(SolutionDir)$(ConfigurationName)\OpenGLView.dll" copy "$(SolutionDir)$(ConfigurationName)\OpenGLView.dll" "$(TargetDir)OpenGLView.x86.dll"
-if exist "$(SolutionDir)x64\$(ConfigurationName)\OpenGLView.dll" copy "$(SolutionDir)x64\$(ConfigurationName)\OpenGLView.dll" "$(TargetDir)OpenGLView.x64.dll"
-</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

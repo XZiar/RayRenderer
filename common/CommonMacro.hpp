@@ -36,12 +36,18 @@ inline constexpr T  operator ^  (const T x, const T y) { return static_cast<T>(s
 inline constexpr T& operator ^= (T& x, const T y) { x = x ^ y; return x; } \
 inline constexpr T  operator ~  (const T x) { return static_cast<T>(~static_cast<U>(x)); } \
 inline constexpr bool HAS_FIELD(const T x, const T obj) { return static_cast<U>(x & obj) != 0; } \
-inline constexpr T REMOVE_MASK(const T x, const std::initializer_list<T> masks) \
+inline constexpr T REMOVE_MASK(const T x, const T mask) \
 { \
-	T obj = static_cast<T>(0); \
-	for (const auto mask : masks) \
-		obj |= mask; \
-	return x & (~obj); \
+	return x & (~mask); \
+} \
+inline constexpr T REMOVE_MASK(const T x, const T mask, const T mask2) \
+{ \
+	return x & (~(mask | mask2)); \
+} \
+template<typename... Masks> \
+inline constexpr T REMOVE_MASK(const T x, const T mask, const T mask2, const Masks... masks) \
+{ \
+	return REMOVE_MASK(x, mask | mask2, masks...); \
 } \
 inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) \
 { \

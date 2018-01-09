@@ -185,7 +185,7 @@ Image PngReader::Read(const ImageDataType dataType)
 	if (!HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))
 		png_set_strip_alpha(pngStruct);
 	/* Swap the RGBA or GA data to ARGB or AG (or BGRA to ABGR) */
-	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::BGR)
+	if (REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
 		png_set_swap_alpha(pngStruct);
 
 	//handle interlace
@@ -230,7 +230,7 @@ void PngWriter::Write(const Image& image)
 	png_set_compression_level(pngStruct, 3);
 	png_write_info(pngStruct, pngInfo);
 
-	if (REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::BGR)
+	if (REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
 		png_set_swap_alpha(pngStruct);
 
 	auto ptrs = image.GetRowPtrs();

@@ -146,7 +146,7 @@ Image JpegReader::Read(const ImageDataType dataType)
 	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
 		return image;
 	const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK);
-	switch (REMOVE_MASK(dataType, { ImageDataType::FLOAT_MASK,ImageDataType::ALPHA_MASK }))
+	switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK,ImageDataType::ALPHA_MASK))
 	{
 	case ImageDataType::BGR:
 		decompStruct->out_color_space = JCS_EXT_BGR; break;
