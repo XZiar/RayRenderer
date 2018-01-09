@@ -152,7 +152,7 @@ Image JpegReader::Read(const ImageDataType dataType)
 		decompStruct->out_color_space = JCS_EXT_BGR; break;
 	case ImageDataType::RGB:
 		decompStruct->out_color_space = JCS_EXT_RGB; break;
-	case ImageDataType::GREY:
+	case ImageDataType::GRAY:
 		decompStruct->out_color_space = JCS_GRAYSCALE; break;
 	}
 

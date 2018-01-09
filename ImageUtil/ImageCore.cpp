@@ -97,23 +97,23 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
             pixcnt *= rowcnt, rowcnt = 1;
         if (diff == ImageDataType::ALPHA_MASK)//remove/add alpha only
         {
-            switch (ElementSize)
+            switch (src.ElementSize)
             {
-            case 4://add alpha, 3->4
-                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
-                break;
-            case 3://remove alpha, 4->3
+            case 4://remove alpha, 4->3
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::RGBAsToRGBs(destPtr, srcPtr, pixcnt);
                 break;
-            case 2://add alpha, 1->2
+            case 3://add alpha, 3->4
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
-                    convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
+                    convert::RGBsToRGBAs(destPtr, srcPtr, pixcnt);
                 break;
-            case 1://remove alpha, 2->1
+            case 2://remove alpha, 2->1
                 for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
                     convert::GrayAsToGrays(destPtr, srcPtr, pixcnt);
+                break;
+            case 1://add alpha, 1->2
+                for (; rowcnt--; destPtr += destStep, srcPtr += srcStep)
+                    convert::GraysToGrayAs(destPtr, srcPtr, pixcnt);
                 break;
             }
         }

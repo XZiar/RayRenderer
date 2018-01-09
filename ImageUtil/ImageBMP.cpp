@@ -181,7 +181,7 @@ Image BmpReader::Read(const ImageDataType dataType)
 {
 	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
 		return Image();
-	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY)
+	if (REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GRAY)
 		return Image();
     const int32_t h = convert::ParseDWordLE(Info.Height);
 	const bool needFlip = h > 0;
@@ -211,7 +211,7 @@ void BmpWriter::Write(const Image& image)
         return;
     if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
         return;
-    if (REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::GREY)
+    if (REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::GRAY)
         return;//not support grey yet
 
     const bool isInputBGR = REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::BGR;

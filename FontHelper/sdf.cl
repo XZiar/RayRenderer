@@ -112,7 +112,7 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 
 
 #define THREDHOLD 8
-kernel void greysdf(global const Info *info, global read_only uchar *img, global short *result)
+kernel void graysdf(global const Info *info, global read_only uchar *img, global short *result)
 {
 	private const int gid = get_group_id(0);
 	private const int lid = get_local_id(0);
@@ -122,7 +122,7 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 	if (lid < h)
 	{
 		int idx = lid * w;
-		private uchar rowRaw[160];
+		private uchar rowRaw[144];
 		ushort dist = 64 * 256, adder = 0;
 		uchar curimg = 0;
 		for (int x = 0; x < w; ++x, ++idx, dist += adder)
@@ -179,8 +179,8 @@ kernel void greysdf(global const Info *info, global read_only uchar *img, global
 	if (lid < w)
 	{
 		int idx = lid;
-		private uchar colRaw[160];
-		private ushort perCol[160];
+		private uchar colRaw[144];
+		private ushort perCol[144];
 		for (int y = 0, tmpidx = lid + offset; y < h; ++y, tmpidx += w)
 			colRaw[y] = img[tmpidx];
 		perCol[0] = xdist[idx];

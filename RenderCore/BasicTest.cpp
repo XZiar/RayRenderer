@@ -244,12 +244,15 @@ void BasicTest::fontTest(const wchar_t word)
 		auto fonttex = fontCreator->getTexture();
 		fontCreator->setChar(L'G', false);
 		fontViewer->bindTexture(fonttex);
-        const auto imgG = fonttex->getImage(TextureDataFormat::R8).ConvertTo(ImageDataType::RGBA);
+        const auto imgG = fonttex->getImage(TextureDataFormat::R8);
         img::WriteImage(imgG, L"D:\\Programs Temps\\RayRenderer\\G.png");
 		fontCreator->setChar(word, false);
-        const auto imgA = fonttex->getImage(TextureDataFormat::R8).ConvertTo(ImageDataType::RGBA);
+        const auto imgA = fonttex->getImage(TextureDataFormat::R8);
         img::WriteImage(imgA, L"D:\\Programs Temps\\RayRenderer\\A.png");
-		//fontCreator->bmpsdf(0x554A);
+        const auto imgShow = fontCreator->clgraysdfs(word, 16);
+        fonttex->setData(TextureInnerFormat::R8, imgShow);
+        img::WriteImage(imgShow, L"D:\\Programs Temps\\RayRenderer\\Show.png");
+        //fontCreator->bmpsdf(0x554A);
 		//fontCreator->clbmpsdfgrey(0x554A);
 		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
 

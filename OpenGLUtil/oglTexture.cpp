@@ -94,7 +94,7 @@ void _oglTexture::parseFormat(const ImageDataType dformat, const bool normalized
     if(normalized)
         switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
         {
-        case ImageDataType::GREY:
+        case ImageDataType::GRAY:
             comptype = GL_RED; break;
         case ImageDataType::RA:
             comptype = GL_RG; break;
@@ -110,7 +110,7 @@ void _oglTexture::parseFormat(const ImageDataType dformat, const bool normalized
     else
         switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
         {
-        case ImageDataType::GREY:
+        case ImageDataType::GRAY:
             comptype = GL_RED_INTEGER; break;
         case ImageDataType::RA:
             comptype = GL_RG_INTEGER; break;

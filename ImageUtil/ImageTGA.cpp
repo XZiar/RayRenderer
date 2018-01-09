@@ -25,11 +25,17 @@ bool TgaReader::Validate()
 			return false;
 		break;
 	case 0://color image
-		if (!MATCH_ANY(REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }), { TGAImgType::COLOR, TGAImgType::GREY }))
-			return false;
-		if (Header.PixelDepth != 8 && Header.PixelDepth != 15 && Header.PixelDepth != 16 && Header.PixelDepth != 24 && Header.PixelDepth != 32)
-			return false;
-		if (Header.PixelDepth == 8)//not support
+        if (REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }) == TGAImgType::GRAY)
+        {
+            if (Header.PixelDepth != 8)//gray must be 8 bit
+                return false;
+        }
+        else if (REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }) == TGAImgType::COLOR)
+        {
+            if (Header.PixelDepth != 15 && Header.PixelDepth != 16 && Header.PixelDepth != 24 && Header.PixelDepth != 32)//gray must not be 8 bit
+                return false;
+        }
+        else
 			return false;
 		break;
 	default:
@@ -54,11 +60,18 @@ public:
         auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
 		switch (colorDepth)
 		{
+        case 8:
+            {
+                AlignedBuffer<32> tmp(count);
+                reader.Read(count, tmp.GetRawPtr());
+                auto * __restrict destPtr = output.GetRawPtr();
+                convert::GraysToRGBAs(output.GetRawPtr(), tmp.GetRawPtr(), count);
+            }break;
 		case 15:
 			{
 				std::vector<uint16_t> tmp(count);
 				reader.Read(count, tmp);
-				uint32_t * __restrict destPtr = reinterpret_cast<uint32_t*>(output.GetRawPtr());
+				uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
 				for (auto bgr15 : tmp)
 					*destPtr++ = color16Map[bgr15 + (1 << 15)];
 			}break;
@@ -66,7 +79,7 @@ public:
 			{
 				std::vector<uint16_t> tmp(count);
 				reader.Read(count, tmp);
-				uint32_t * __restrict destPtr = reinterpret_cast<uint32_t*>(output.GetRawPtr());
+				uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
 				for (auto bgr16 : tmp)
 					*destPtr++ = color16Map[bgr16];
 			}break;
@@ -97,6 +110,13 @@ public:
         auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
 		switch (colorDepth)
 		{
+        case 8:
+            {
+                AlignedBuffer<32> tmp(count);
+                reader.Read(count, tmp.GetRawPtr());
+                auto * __restrict destPtr = output.GetRawPtr();
+                convert::GraysToRGBs(output.GetRawPtr(), tmp.GetRawPtr(), count);
+            }break;
 		case 15:
 		case 16:
 			{
@@ -198,16 +218,60 @@ public:
 	}
 
 	template<typename ReadFunc>
-	static void ReadFromColor(const detail::TgaHeader& header, Image& image, ReadFunc& reader)
+	static void ReadDirect(const detail::TgaHeader& header, Image& image, ReadFunc& reader)
 	{
 		const uint64_t count = (uint64_t)image.Width * image.Height;
-		const bool isOutputRGB = REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
 		const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
-		if (needAlpha)
-			ReadColorData4(header.PixelDepth, count, image, isOutputRGB, reader);
-		else
-			ReadColorData3(header.PixelDepth, count, image, isOutputRGB, reader);
+        if (image.isGray())
+        {
+            if (needAlpha)
+            {
+                reader.Read(count, image.GetRawPtr() + count);
+                convert::GraysToGrayAs(image.GetRawPtr(), image.GetRawPtr() + count, count);
+            }
+            else
+            {
+                reader.Read(count, image.GetRawPtr());
+            }
+        }
+        else
+        {
+            const bool isOutputRGB = REMOVE_MASK(image.DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::RGB;
+            if (needAlpha)
+                ReadColorData4(header.PixelDepth, count, image, isOutputRGB, reader);
+            else
+                ReadColorData3(header.PixelDepth, count, image, isOutputRGB, reader);
+        }
 	}
+
+    template<typename Writer>
+    static void WriteRLE1(const byte* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
+    {
+        if (isRepeat)
+        {
+            const auto color = *ptr;
+            while (len)
+            {
+                const auto size = std::min(128u, len);
+                len -= size;
+                const auto flag = byte(0x80 + (size - 1));
+                writer.Write(flag);
+                writer.Write(color);
+            }
+        }
+        else
+        {
+            while (len)
+            {
+                const auto size = std::min(128u, len);
+                len -= size;
+                const auto flag = byte(size - 1);
+                writer.Write(flag);
+                writer.Write(size, ptr);
+                ptr += size;
+            }
+        }
+    }
 
 	template<typename Writer>
 	static void WriteRLE3(const byte* __restrict ptr, uint32_t len, const bool isRepeat, Writer& writer)
@@ -220,7 +284,7 @@ public:
 			{
 				const auto size = std::min(128u, len);
 				len -= size;
-				const uint8_t flag = static_cast<uint8_t>(0x80 + (size - 1));
+				const auto flag = byte(0x80 + (size - 1));
 				writer.Write(flag);
 				writer.Write(color);
 			}
@@ -232,7 +296,7 @@ public:
 			{
 				const auto size = std::min(128u, len);
 				len -= size;
-				const uint8_t flag = static_cast<uint8_t>(size - 1);
+				const auto flag = byte(size - 1);
 				writer.Write(flag);
 				convert::BGRsToRGBs(buffer.GetRawPtr(), ptr, size);
 				ptr += 3 * size;
@@ -252,7 +316,7 @@ public:
 			{
 				const auto size = std::min(128u, len);
 				len -= size;
-				const uint8_t flag = static_cast<uint8_t>(0x80 + (size - 1));
+				const auto flag = byte(0x80 + (size - 1));
 				writer.Write(flag);
 				writer.Write(color);
 			}
@@ -264,7 +328,7 @@ public:
 			{
 				const auto size = std::min(128u, len);
 				len -= size;
-				const uint8_t flag = static_cast<uint8_t>(size - 1);
+				const auto flag = byte(size - 1);
 				writer.Write(flag);
 				convert::BGRAsToRGBAs(buffer.GetRawPtr(), ptr, size);
 				ptr += 4 * size;
@@ -352,6 +416,44 @@ public:
 				WriteRLE4((const byte*)&data[image.Width - len], len, repeat, writer);
 		}
 	}
+    template<typename Writer>
+    static void WriteRLEGray(const Image& image, Writer& writer)
+    {
+        if (image.ElementSize != 1)
+            return;
+        for (uint32_t row = 0; row < image.Height; ++row)
+        {
+            const byte * __restrict data = image.GetRawPtr(row);
+            byte last;
+            uint32_t len = 0;
+            bool repeat = false;
+            for (uint32_t col = 0; col < image.Width; ++col, ++len)
+            {
+                switch (len)
+                {
+                case 0:
+                    break;
+                case 1:
+                    repeat = (data[col] == last);
+                    break;
+                default:
+                    if (data[col] == last && !repeat)//changed
+                    {
+                        WriteRLE1(&data[col - len], len - 1, false, writer);
+                        len = 1, repeat = true;
+                    }
+                    else if (data[col] != last && repeat)//changed
+                    {
+                        WriteRLE1(&data[col - len], len, true, writer);
+                        len = 0, repeat = false;
+                    }
+                }
+                last = data[col];
+            }
+            if (len > 0)
+                WriteRLE1(&data[image.Width - len], len, repeat, writer);
+        }
+    }
 };
 
 //implementation promise each read should be at least a line, so no need for worry about overflow
@@ -502,11 +604,12 @@ Image TgaReader::Read(const ImageDataType dataType)
 {
 	common::SimpleTimer timer;
 	timer.Start();
-	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK) || REMOVE_MASK(dataType, { ImageDataType::ALPHA_MASK }) == ImageDataType::GREY)
-		//NotSuported
-		return Image();
+    Image image(dataType);
+    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))//NotSuported 
+		return image;
+    if (image.isGray() && REMOVE_MASK(Header.ImageType, { detail::TGAImgType::RLE_MASK }) != detail::TGAImgType::GRAY)//down-convert, not supported
+        return image;
 	ImgFile.Rewind(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
-	Image image(dataType);
 	image.SetSize(Width, Height);
 	if (Header.ColorMapType)
 	{
@@ -523,10 +626,10 @@ Image TgaReader::Read(const ImageDataType dataType)
 		if (HAS_FIELD(Header.ImageType, detail::TGAImgType::RLE_MASK))
 		{
 			RLEFileDecoder decoder(ImgFile, Header.PixelDepth);
-			TgaHelper::ReadFromColor(Header, image, decoder);
+			TgaHelper::ReadDirect(Header, image, decoder);
 		}
 		else
-			TgaHelper::ReadFromColor(Header, image, ImgFile);
+			TgaHelper::ReadDirect(Header, image, ImgFile);
 	}
 	timer.Stop();
 	ImgLog().debug(L"zextga read cost {} ms\n", timer.ElapseMs());
@@ -558,13 +661,13 @@ void TgaWriter::Write(const Image& image)
 		return;
 	if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
 		return;
-	if (REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK }) == ImageDataType::GREY)
-		return;//not support grey yet
+    if (image.DataType == ImageDataType::GA)
+        return;
 	detail::TgaHeader header;
 	
 	header.IdLength = sizeof(identity);
 	header.ColorMapType = 0;
-	header.ImageType = detail::TGAImgType::RLE_MASK | detail::TGAImgType::COLOR;
+	header.ImageType = detail::TGAImgType::RLE_MASK | (image.isGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
 	memset(&header.ColorMapSpec[0], 0x0, 5);//5 bytes for color map spec
 	convert::WordToLE(header.OriginHorizontal, 0);
 	convert::WordToLE(header.OriginVertical, 0);
@@ -578,7 +681,9 @@ void TgaWriter::Write(const Image& image)
 	SimpleTimer timer;
 	timer.Start();
 	//next: true image data
-	if (HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK))
+    if (image.isGray())
+        TgaHelper::WriteRLEGray(image, ImgFile);
+	else if (HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK))
 		TgaHelper::WriteRLEColor4(image, ImgFile);
 	else
 		TgaHelper::WriteRLEColor3(image, ImgFile);

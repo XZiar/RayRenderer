@@ -14,7 +14,7 @@ namespace detail
 enum class TGAImgType : uint8_t
 {
 	RLE_MASK = 0x8, EMPTY = 0,
-	COLOR_MAP = 1, COLOR = 2, GREY = 3
+	COLOR_MAP = 1, COLOR = 2, GRAY = 3
 };
 MAKE_ENUM_BITFIELD(TGAImgType)
 

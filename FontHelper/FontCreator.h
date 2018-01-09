@@ -11,7 +11,7 @@ class FONTHELPAPI FontCreator : public NonCopyable
 private:
 	ft::FreeTyper ft2;
 	oglTexture testTex;
-	oclu::oclKernel sdfker, sdfgreyker;
+	oclu::oclKernel kerSdf, kerSdfGray;
 	static SharedResource<oclu::oclContext> clRes;
 	oclu::oclContext clCtx;
 	oclu::oclCmdQue clQue;
@@ -25,9 +25,9 @@ public:
 	void stroke() const;
 	void bmpsdf(wchar_t ch) const;
 	void clbmpsdf(wchar_t ch) const;
-	void clbmpsdfgrey(wchar_t ch) const;
+	void clbmpsdfgray(wchar_t ch) const;
 	void clbmpsdfs(wchar_t ch, uint16_t count) const;
-	xziar::img::Image clgreysdfs(wchar_t ch, uint16_t count) const;
+	xziar::img::Image clgraysdfs(wchar_t ch, uint16_t count) const;
 };
 
 }

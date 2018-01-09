@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <tuple>
@@ -18,6 +19,7 @@ namespace fs = std::experimental::filesystem;
 using std::vector;
 using std::pair;
 using std::tuple;
+using std::byte;
 using BMPair = tuple<common::AlignedBuffer<32>, uint32_t, uint32_t>;
 
 class FreeTyper

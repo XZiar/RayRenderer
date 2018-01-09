@@ -17,8 +17,8 @@ enum class ImageDataType : uint8_t
 	ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0,
 	RGB = 0, RGBA = 0x80, RGBf = 0x40, RGBAf = 0xA0,
 	BGR = 1, BGRA = 0x81, BGRf = 0x41, BGRAf = 0xA1,
-	GREY = 2, RED = 2, GA = 0x82, RA = 0x82,
-	GREYf = 0x22, REDf = 0x22, GAf = 0xA2, RAf = 0xA2
+	GRAY = 2, RED = 2, GA = 0x82, RA = 0x82,
+	GRAYf = 0x22, REDf = 0x22, GAf = 0xA2, RAf = 0xA2
 };
 MAKE_ENUM_BITFIELD(ImageDataType)
 
@@ -70,7 +70,7 @@ public:
 	{
 		SetSize(std::get<0>(size), std::get<1>(size), zero);
 	}
-    bool isGray() const { return REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GREY; }
+    bool isGray() const { return REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GRAY; }
 
 	template<typename T = byte>
 	T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
@@ -126,7 +126,7 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
 		return 4 * baseSize;
     case ImageDataType::GA:
         return 2 * baseSize;
-	case ImageDataType::GREY:
+	case ImageDataType::GRAY:
 		return 1 * baseSize;
 	default:
 		return 0;
