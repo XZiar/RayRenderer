@@ -478,7 +478,7 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 	uint32_t fidx = 0;
 	timer.Start();
 	fntLog().verbose(L"post-process start at {}\n", timer.getCurTimeTxt());
-    int32_t distsum[fontsizelim];
+    //int32_t distsum[fontsizelim];
     for (auto fi : finfos)
 	{
 		uint32_t startx = (fidx % fontCount) * newfontsize + 1, starty = (fidx / fontCount) * newfontsize + 1;
@@ -486,11 +486,22 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 		{
             uint32_t opos = (starty + y) * rowstep + startx;
             size_t ipos = fi.offset + (fi.w * y * 4);
-            for (uint32_t x = 0, xlim = fi.w / 4; x < xlim; ipos += 4)
-                distsum[x++] = distsq[ipos + fi.w + 1] * 3 + distsq[ipos + fi.w + 2] * 3 + distsq[ipos + fi.w * 2 + 1] * 3 + distsq[ipos + fi.w * 2 + 2] * 3
-                - distsq[ipos] - distsq[ipos + 3] - distsq[ipos + fi.w * 3] - distsq[ipos + fi.w * 3 + 3];
-            for (uint32_t i = 0, ilim = fi.w / 4; i < ilim; opos++)
-                finPtr[opos] = std::clamp(distsum[i++] / 128 + 128, 0, 255);
+			for (uint32_t xlim = fi.w / 4; xlim--; ipos += 4, ++opos)
+			{
+				const uint64_t data64[4] = { *(uint64_t*)&distsq[ipos],*(uint64_t*)&distsq[ipos + fi.w] ,*(uint64_t*)&distsq[ipos + 2 * fi.w] ,*(uint64_t*)&distsq[ipos + 3 * fi.w] };
+				const int16_t * __restrict const data16 = (int16_t*)data64;
+				const uint32_t x0 = std::abs(data16[5] * 3 - data16[0]), x1 = std::abs(data16[6] * 3 - data16[3]),
+					x2 = std::abs(data16[9] * 3 - data16[12]), x3 = std::abs(data16[10] * 3 - data16[15]);
+				const uint32_t h0 = std::abs((data16[5] + data16[9]) * 3 - (data16[4] + data16[8])), h1 = std::abs((data16[6] + data16[10]) * 3 - (data16[7] + data16[11]));
+				const uint32_t v0 = std::abs((data16[5] + data16[6]) * 3 - (data16[1] + data16[2])), v1 = std::abs((data16[9] + data16[10]) * 3 - (data16[13] + data16[14]));
+				const auto maxx = std::max(std::max(x0, x1), std::max(x2, x3));
+				const auto maxhv = std::max(std::max(h0, h1), std::max(v0, v1)) / 2;
+				const auto maxdist = (int32_t)std::max(maxx, maxhv);
+				const bool isInside = (data16[5] + data16[6] + data16[9] + data16[10]) < 0;
+				//const bool isInside = (data16[5] < 0 ? 1 : 0) + (data16[6] < 0 ? 1 : 0) + (data16[9] < 0 ? 1 : 0) + (data16[10] < 0 ? 1 : 0) > 2;
+				const auto distsum = isInside ? -maxdist * 3 : maxdist * 2;
+				finPtr[opos] = std::clamp(distsum / 64 + 128, 0, 255);
+			}
 		}
 		fidx++;
 	}

@@ -63,6 +63,10 @@ private:
 			}
 		}
 		//exit
+		if (!wglMakeCurrent(hdc, nullptr))
+		{
+			oglLog().error(L"{} terminate with HDC[{}] HRC[{}], error: {}\n", prefix, (void*)hdc, (void*)hrc, GetLastError());
+		}
 		wglDeleteContext(hrc);
 	}
 public:

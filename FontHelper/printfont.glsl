@@ -39,7 +39,7 @@ subroutine(fontType)
 vec3 sdfMid(in vec2 texpos)
 {
 	float dist = texture(tex, texpos).r;
-	return vec3(smoothstep(0.4f, 0.6f, dist));
+	return vec3(smoothstep(0.44f, 0.56f, dist));
 }
 subroutine(fontType)
 vec3 compare(in vec2 texpos)

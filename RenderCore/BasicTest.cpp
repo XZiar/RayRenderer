@@ -279,7 +279,7 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
-	fontTest();
+	fontTest(/*L'‡å'*/);
 	initTex();
 	init2d(sname2d);
 	init3d(sname3d);

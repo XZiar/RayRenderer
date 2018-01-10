@@ -111,7 +111,7 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 }
 
 
-#define THREDHOLD 8
+#define THREDHOLD 16
 kernel void graysdf(global const Info *info, global read_only uchar *img, global short *result)
 {
 	private const int gid = get_group_id(0);
@@ -323,3 +323,5 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 			result[idx] = colRaw[y] > 127 ? -(int)perCol[y] : (int)perCol[y];
 	}
 }
+
+
