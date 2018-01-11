@@ -109,6 +109,8 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <PrecompiledHeaderFile>RenderCoreWrapRely.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -135,6 +137,8 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <PrecompiledHeaderFile>RenderCoreWrapRely.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -160,6 +164,8 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <PrecompiledHeaderFile>RenderCoreWrapRely.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -183,6 +189,8 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <PrecompiledHeaderFile>RenderCoreWrapRely.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\;$(ProjectDir)..\3rdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/Zc:twoPhase- %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <AdditionalDependencies />

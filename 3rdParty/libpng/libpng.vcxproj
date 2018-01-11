@@ -87,6 +87,7 @@
       <TreatWarningAsError>$(TreatWarningAsError)</TreatWarningAsError>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -106,6 +107,7 @@
       <TreatWarningAsError>$(TreatWarningAsError)</TreatWarningAsError>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -125,6 +127,7 @@
       <PrecompiledHeaderFile>pngpriv.h</PrecompiledHeaderFile>
       <TreatWarningAsError>$(TreatWarningAsError)</TreatWarningAsError>
       <CompileAsManaged>false</CompileAsManaged>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -148,6 +151,7 @@
       <PrecompiledHeaderFile>pngpriv.h</PrecompiledHeaderFile>
       <TreatWarningAsError>$(TreatWarningAsError)</TreatWarningAsError>
       <CompileAsManaged>false</CompileAsManaged>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

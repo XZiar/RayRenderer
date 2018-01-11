@@ -40,7 +40,7 @@ public:
 		buf.resize(count);
 		return read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
 	}
-	optional<oclPromise> write(const oclCmdQue que, const void *buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
+	optional<oclPromise> write(const oclCmdQue que, const void * const buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
 	template<class T, class A>
 	optional<oclPromise> write(const oclCmdQue que, const vector<T, A>& buf, const size_t offset = 0, const bool shouldBlock = true) const
 	{

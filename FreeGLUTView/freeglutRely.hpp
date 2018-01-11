@@ -71,7 +71,7 @@ private:
 	{
 		const auto hrc = wglGetCurrentContext();
 		auto& rckey = getMap().get<2>();
-		auto& it = rckey.find(hrc);
+		auto it = rckey.find(hrc);
 		if (it == rckey.end())
 			return nullptr;
 		return (*it).view;
@@ -79,7 +79,7 @@ private:
 	static detail::_FreeGLUTView* getView(const HWND hwnd)
 	{
 		auto& wndkey = getMap().get<1>();
-		auto& it = wndkey.find(hwnd);
+		auto it = wndkey.find(hwnd);
 		if (it == wndkey.end())
 			return nullptr;
 		return (*it).view;
@@ -123,7 +123,7 @@ private:
 	}
 	static bool unregist(detail::_FreeGLUTView* view)
 	{
-		auto& it = getMap().find(view);
+		auto it = getMap().find(view);
 		if (it == getMap().end())
 			return false;
 		getMap().erase(it);

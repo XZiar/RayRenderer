@@ -16,7 +16,6 @@
 
 #include "common/CommonMacro.hpp"
 #include "common/CommonRely.hpp"
-#include "common/Wrapper.hpp"
 
 //#define FMT_HEADER_ONLY
 #include "fmt/format.h"
@@ -29,7 +28,7 @@ namespace mlog
 
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Sucess = 70, Warning = 85, Error = 100, None = 120 };
-enum class LogOutput : uint8_t { Console = 0x1, File = 0x2, Callback = 0x4, Buffer = 0x8 };
+enum class LogOutput : uint8_t { None = 0x0, Console = 0x1, File = 0x2, Callback = 0x4, Buffer = 0x8 };
 MAKE_ENUM_BITFIELD(LogOutput)
 
 /*-return whether should continue logging*/
@@ -47,15 +46,15 @@ class MINILOGAPI logger : public NonCopyable
 public:
 private:
 	std::atomic_flag flagConsole = ATOMIC_FLAG_INIT, flagFile = ATOMIC_FLAG_INIT, flagCallback = ATOMIC_FLAG_INIT, flagBuffer = ATOMIC_FLAG_INIT;
-	std::atomic_uint_least8_t leastLV;
-	std::atomic_uint_least8_t outputs;
+	std::atomic<LogLevel> leastLV;
+	std::atomic<LogOutput> outputs;
 	bool ownFile = false;
 	const std::wstring name, prefix;
 	FILE *fp;
 	std::vector<std::pair<LogLevel, std::wstring>> buffer;
 	static GLogCallBack onGlobalLog;
 	LogCallBack onLog;
-	bool checkLevel(const LogLevel lv);
+	bool checkLevel(const LogLevel lv) { return (uint8_t)lv >= (uint8_t)leastLV.load(); }
 	void printConsole(const LogLevel lv, const std::wstring& content);
 	void printFile(const LogLevel lv, const std::wstring& content);
 	void printBuffer(const LogLevel lv, const std::wstring& content);

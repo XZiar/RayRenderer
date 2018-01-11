@@ -35,7 +35,7 @@ public:
 	_oglBuffer(const BufferType type) noexcept;
 	~_oglBuffer() noexcept;
 
-	void write(const void *dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
+	void write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
 	template<class T, class A>
 	inline void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
@@ -93,22 +93,24 @@ protected:
 	}
 public:
 	_oglElementBuffer() noexcept;
-	template<class T, class = typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 4>::type>
-	void write(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	template<class T, class A>
+	void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
+		static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
 		setSize(sizeof(T));
 		_oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
 	}
-	template<class T, class = typename std::enable_if<std::is_integral<T>::value && sizeof(T) <= 4>::type>
-	void write(const T *dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	template<class T>
+	void write(const T * const dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
+		static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
 		setSize(sizeof(T));
 		_oglBuffer::write(dat, idxsize*count, mode);
 	}
-#pragma warning(disable:4244)
-	template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-	void writeCompat(const vector<T>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+	template<class T, class A>
+	void writeCompat(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
 	{
+		static_assert(std::is_integral_v<T>, "input type should be of integeral type and no more than uint32_t");
 		auto res = std::minmax_element(dat.begin(), dat.end());
 		if (*res.first < 0)
 			COMMON_THROW(BaseException, L"element buffer cannot appear negatve value");
@@ -121,7 +123,9 @@ public:
 			{
 				vector<uint8_t> newdat;
 				newdat.reserve(dat.size());
-				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				for (const auto idx : dat)
+					newdat.push_back((uint8_t)idx);
+				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
 				write(newdat, mode);
 			}
 		}
@@ -133,7 +137,9 @@ public:
 			{
 				vector<uint16_t> newdat;
 				newdat.reserve(dat.size());
-				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				for (const auto idx : dat)
+					newdat.push_back((uint16_t)idx);
+				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
 				write(newdat, mode);
 			}
 		}
@@ -145,14 +151,15 @@ public:
 			{
 				vector<uint32_t> newdat;
 				newdat.reserve(dat.size());
-				std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+				for (const auto idx : dat)
+					newdat.push_back((uint32_t)idx);
+				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
 				write(newdat, mode);
 			}
 		}
 		else
 			COMMON_THROW(BaseException, L"Too much element held for element buffer");
 	}
-#pragma warning(default:4244)
 };
 
 }

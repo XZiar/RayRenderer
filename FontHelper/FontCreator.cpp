@@ -51,6 +51,20 @@ void FontCreator::loadCL(const string& src)
 	}
     kerSdf = clProg->getKernel("bmpsdf");
     kerSdfGray = clProg->getKernel("graysdf");
+	//prepare LUT
+	{
+		std::array<float, 256> lut{};
+		sqlut.reset(clCtx, MemType::ReadOnly, lut.size());
+		sq256lut.reset(clCtx, MemType::ReadOnly, lut.size());
+		for (uint16_t i = 0; i < 256; ++i)
+			lut[i] = float(i * i);
+		sqlut->write(clQue, lut.data(), lut.size() * sizeof(float));
+		for (uint16_t i = 0; i < 256; ++i)
+			lut[i] *= 65536.0f;
+		sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
+	}
+	kerSdfGray->setArg(0, sqlut);
+	kerSdfGray->setArg(1, sq256lut);
 }
 
 FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.get())
@@ -82,198 +96,6 @@ void FontCreator::setChar(wchar_t ch, bool custom) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, width, height, img.GetRawPtr());
 }
 
-int solveCubic(float a, float b, float c, float* r)
-{
-	float p = b - a*a / 3;
-	float q = a * (2 * a*a - 9 * b) / 27 + c;
-	float p3 = p*p*p;
-	float d = q*q + 4 * p3 / 27;
-	float offset = -a / 3;
-	if (d >= 0)
-	{ // Single solution
-		float z = sqrtf(d);
-		float u = (-q + z) / 2;
-		float v = (-q - z) / 2;
-		u = cbrt(u);
-		v = cbrt(v);
-		r[0] = offset + u + v;
-		return 1;
-	}
-	float u = sqrtf(-p / 3);
-	float v = acos(-sqrtf(-27 / p3) * q / 2) / 3;
-	float m = cos(v), n = sin(v)*1.732050808f;
-	r[0] = offset + u * (m + m);
-	r[1] = offset - u * (n + m);
-	r[2] = offset + u * (n - m);
-	return 3;
-}
-
-
-inline float dot(float x1, float y1, float x2, float y2)
-{
-	return x1*x2 + y1*y2;
-}
-
-float SignedDistanceSquared(float x, float y, ft::FreeTyper::QBLine s, float minDis = 1e20f)
-{
-	float res[3];
-
-	{
-		float d0x = x - s.p0x, d0y = y - s.p0y;
-		float d2x = x - s.p2x, d2y = y - s.p2y;
-		float d0 = d0x*d0x + d0y*d0y;
-		float d2 = d2x*d2x + d2y*d2y;
-		minDis = min(minDis, min(d0, d2));
-	}
-
-	float Mx = s.p0x - x, My = s.p0y = y;
-	float Ax = s.p1x - s.p0x, Ay = s.p1y - s.p0y;
-	float Bx = s.p2x - s.p1x - Ax, By = s.p2y - s.p1y - Ay;
-
-	float a = 1.0f / (Bx*Bx + By*By);// 1/dot(B,B);
-	float b = 3 * (Ax * Bx + Ay * By);// 3dot(A,B);
-	float c = 2 * (Ax * Ax + Ay * Ay) + Mx * Bx + My * By;// 2dot(A,A)+dot(M,B)
-	float d = Mx*Ax + My*Ay;// dot(M,A)
-
-	int n = solveCubic(b*a, c*a, d*a, res);
-
-	for (int j = 0; j < n; j++)
-	{
-		float t = res[j];
-		if (t >= 0 && t <= 1)
-		{
-			float dx = (1 - t)*(1 - t)*s.p0x + 2 * t*(1 - t)*s.p1x + t*t*s.p2x - x;
-			float dy = (1 - t)*(1 - t)*s.p0y + 2 * t*(1 - t)*s.p1y + t*t*s.p2y - y;
-			minDis = min(minDis, dx*dx + dy*dy);
-		}
-	}
-
-	return minDis;
-}
-
-float LineDistanceSquared(float x, float y, ft::FreeTyper::SLine l)
-{
-	float cross = (l.p1x - l.p0x) * (x - l.p0x) + (l.p1y - l.p0y) * (y - l.p0y);
-	if (cross <= 0)
-		return (x - l.p0x) * (x - l.p0x) + (y - l.p0y) * (y - l.p0y);
-
-	float d2 = (l.p1x - l.p0x) * (l.p1x - l.p0x) + (l.p1y - l.p0y) * (l.p1y - l.p0y);
-	if (cross >= d2)
-		return (x - l.p1x) * (x - l.p1x) + (y - l.p1y) * (y - l.p1y);
-
-	float r = cross / d2;
-	float px = l.p0x + (l.p1x - l.p0x) * r;
-	float py = l.p0y + (l.p1y - l.p0y) * r;
-	return (x - px) * (x - px) + (py - l.p0y) * (py - l.p0y);
-}
-
-void FontCreator::stroke() const
-{
-	auto ret = ft2.TryStroke();
-	auto w = ret.second.first, h = ret.second.second;
-	w = ((w + 3) / 4) * 4;
-	vector<uint8_t> data(w*h);
-	auto qlines = ret.first.first;
-	auto slines = ret.first.second;
-	//qlines = { ft::FreeTyper::QBLine{0.f,0.f,(float)w,0.f,0.5f*w,.5f*h} };
-	//slines.clear();
-	qlines.clear();
-	slines = { ft::FreeTyper::SLine{ 0.f,0.f,(float)w,(float)h } };
-	for (uint32_t a = 0; a<h; a++)
-		for (uint32_t b = 0; b < w; b++)
-		{
-			float minDist = 1e20f;
-			for (auto& qline : qlines)
-			{
-				minDist = SignedDistanceSquared(b, a, qline, minDist);
-			}
-			for (auto& sline : slines)
-			{
-				auto newDist = LineDistanceSquared(b, a, sline);
-				minDist = min(minDist, newDist);
-			}
-			//data[a*w + b] = minDist < 1.0f ? 0 : 255;
-			auto dist = sqrt(minDist);
-			//data[a*w + b] = dist < 1.6f ? 0 : 255;
-			data[a*w + b] = (uint8_t)std::clamp(dist * 4, 0.f, 255.f);
-		}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w, h, data);
-}
-
-void FontCreator::bmpsdf(wchar_t ch) const
-{
-    auto [img, w, h] = ft2.getChBitmap(ch, true);
-	vector<uint16_t> distx(img.GetSize(), 100), distsq(img.GetSize(), 128 * 128);
-
-	for (uint32_t x = 0, lineidx = 0; x < w; lineidx = ++x)
-	{
-		distsq[lineidx] = distx[lineidx] * distx[lineidx];
-		for (uint32_t y = 1; y < h; ++y)
-		{
-			auto testidx = lineidx;
-			lineidx += w;
-			auto& obj = distsq[lineidx];
-			auto xd = distx[lineidx];
-			if (!xd)//0dist,insede
-			{
-				obj = 0; continue;
-			}
-			obj = xd*xd;
-			for (uint32_t dy = 1, maxdy = min((uint32_t)std::ceil(sqrt(obj)), y + 1); dy < maxdy; ++dy, testidx -= w)
-			{
-				auto oxd = distx[testidx];
-				if (!oxd)
-				{
-					obj = dy*dy;
-					//further won't be shorter
-					break;
-				}
-				auto dist = oxd*oxd + dy*dy;
-				if (dist < obj)
-				{
-					obj = dist;
-					maxdy = min((uint32_t)std::ceil(sqrt(dist)), maxdy);
-				}
-			}
-		}
-		for (uint32_t y = h - 1; y--;)
-		{
-			auto testidx = lineidx;
-			lineidx -= w;
-			auto& obj = distsq[lineidx];
-			auto xd = distx[lineidx];
-			if (!xd)//0dist,insede
-				continue;
-			for (uint32_t dy = 1, maxdy = min((uint32_t)std::ceil(sqrt(obj)), h - y - 1); dy < maxdy; ++dy, testidx += w)
-			{
-				auto oxd = distx[testidx];
-				if (!oxd)
-				{
-					obj = dy*dy;
-					//further won't be shorter
-					break;
-				}
-				auto dist = oxd*oxd + dy*dy;
-				if (dist < obj)
-				{
-					obj = dist;
-					maxdy = min((uint32_t)std::ceil(sqrt(dist)), maxdy);
-				}
-			}
-		}
-	}
-
-	vector<byte> fin;
-	for (uint32_t y = 0; y < h; ++y)
-	{
-		fin.insert(fin.end(), &img.GetRawPtr()[y*w], &img.GetRawPtr()[y*w] + w);
-		for (uint32_t x = 0; x < w; ++x)
-			//fin.push_back(std::clamp(img[y*w + x] * 16, 0, 255));
-			fin.push_back(byte((uint8_t)std::clamp(std::sqrt(distsq[y*w + x]) * 16, 0., 255.)));
-	}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h, fin);
-}
-
 struct FontInfo
 {
 	uint32_t offset;
@@ -286,7 +108,7 @@ void FontCreator::clbmpsdf(wchar_t ch) const
 	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
 	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
-	FontInfo finfo[] = { { 0,w,h } };
+	FontInfo finfo[] = { { 0,(uint8_t)w,(uint8_t)h } };
 	wsize->write(clQue, finfo);
     kerSdf->setArg(0, wsize);
 	input->write(clQue, img.GetRawPtr(), img.GetSize());
@@ -322,12 +144,12 @@ void FontCreator::clbmpsdfgray(wchar_t ch) const
 	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
 	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
 	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
-	FontInfo finfo[] = { { 0,w,h } };
+	FontInfo finfo[] = { { 0,(uint8_t)w,(uint8_t)h } };
 	wsize->write(clQue, finfo);
-    kerSdfGray->setArg(0, wsize);
+	kerSdfGray->setArg(2, wsize);
     input->write(clQue, img.GetRawPtr(), img.GetSize());
-    kerSdfGray->setArg(1, input);
-    kerSdfGray->setArg(2, output);
+    kerSdfGray->setArg(3, input);
+    kerSdfGray->setArg(4, output);
 	size_t worksize[] = { 160 };
 	timer.Start();
     kerSdfGray->run<1>(clQue, worksize, worksize, true);
@@ -367,7 +189,7 @@ void FontCreator::clbmpsdfgray(wchar_t ch) const
 
 void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 {
-	constexpr auto fontsizelim = 136, fontcountlim = 64;
+	constexpr size_t fontsizelim = 136, fontcountlim = 64;
 	vector<FontInfo> finfos;
 	vector<byte> alldata;
 	finfos.reserve(fontcountlim * fontcountlim);
@@ -392,9 +214,9 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 	fntLog().verbose(L"prepare start at {}\n", timer.getCurTimeTxt());
 	input->write(clQue, alldata);
 	wsize->write(clQue, finfos);
-    kerSdfGray->setArg(0, wsize);
-    kerSdfGray->setArg(1, input);
-    kerSdfGray->setArg(2, output);
+    kerSdfGray->setArg(2, wsize);
+    kerSdfGray->setArg(3, input);
+    kerSdfGray->setArg(4, output);
 	timer.Stop();
 	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
 	timer.Start();
@@ -432,7 +254,7 @@ void FontCreator::clbmpsdfs(wchar_t ch, uint16_t count) const
 
 Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 {
-	constexpr auto fontsizelim = 136, fontcountlim = 64, newfontsize = 36;
+	constexpr size_t fontsizelim = 136, fontcountlim = 64, newfontsize = 36;
     const auto fontCount = static_cast<uint16_t>(std::ceil(std::sqrt(count)));
 	vector<FontInfo> finfos;
 	vector<byte> alldata;
@@ -458,9 +280,9 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 	fntLog().verbose(L"prepare start at {}\n", timer.getCurTimeTxt());
 	input->write(clQue, alldata);
 	wsize->write(clQue, finfos);
-    kerSdfGray->setArg(0, wsize);
-    kerSdfGray->setArg(1, input);
-    kerSdfGray->setArg(2, output);
+    kerSdfGray->setArg(2, wsize);
+    kerSdfGray->setArg(3, input);
+    kerSdfGray->setArg(4, output);
 	timer.Stop();
 	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
 	timer.Start();
@@ -473,7 +295,7 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 	output->read(clQue, distsq);
     Image fin(ImageDataType::GRAY);
     fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
-    const auto rowstep = fin.RowSize();
+    const uint32_t rowstep = (uint32_t)fin.RowSize();
     uint8_t * __restrict const finPtr = fin.GetRawPtr<uint8_t>();
 	uint32_t fidx = 0;
 	timer.Start();
@@ -482,7 +304,7 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
     for (auto fi : finfos)
 	{
 		uint32_t startx = (fidx % fontCount) * newfontsize + 1, starty = (fidx / fontCount) * newfontsize + 1;
-        for (uint32_t y = 0, ylim = fi.h/4; y < ylim; y++)
+		for (uint32_t y = 0, ylim = fi.h / 4; y < ylim; y++)
 		{
             uint32_t opos = (starty + y) * rowstep + startx;
             size_t ipos = fi.offset + (fi.w * y * 4);

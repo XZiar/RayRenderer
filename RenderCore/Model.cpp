@@ -113,28 +113,28 @@ _ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t colo
     SetSize(w, h);
 }
 
-oglu::oglTexture _ModelImage::genTexture()
+oglu::oglTexture _ModelImage::genTexture(const oglu::TextureInnerFormat format)
 {
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-	tex->setData(oglu::TextureInnerFormat::BC1A, oglu::TextureDataFormat::RGBA8, Width, Height, GetRawPtr());
+	tex->setData(format, oglu::TextureDataFormat::RGBA8, Width, Height, GetRawPtr());
 	return tex;
 }
 
-void _ModelImage::CompressData(vector<uint8_t>& output)
+void _ModelImage::CompressData(vector<uint8_t>& output, const oglu::TextureInnerFormat format)
 {
-	auto tex = genTexture();
+	auto tex = genTexture(format);
 	if (auto dat = tex->getCompressedData())
 		output = std::move(*dat);
 }
 
-oglu::oglTexture _ModelImage::genTextureAsync()
+oglu::oglTexture _ModelImage::genTextureAsync(const oglu::TextureInnerFormat format)
 {
 	vector<uint8_t> texdata;
-	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata)))->wait();
+	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata), format))->wait();
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-	tex->setCompressedData(oglu::TextureInnerFormat::BC1A, Width, Height, texdata);
+	tex->setCompressedData(format, Width, Height, texdata);
 	return tex;
 }
 

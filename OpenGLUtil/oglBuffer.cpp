@@ -26,7 +26,7 @@ void _oglBuffer::unbind() const noexcept
 	glBindBuffer((GLenum)bufferType, 0);
 }
 
-void _oglBuffer::write(const void *dat, const size_t size, const BufferWriteMode mode)
+void _oglBuffer::write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
 	bind();
 	glBufferData((GLenum)bufferType, size, dat, (GLenum)mode);

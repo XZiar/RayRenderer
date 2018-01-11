@@ -112,7 +112,7 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 
 
 #define THREDHOLD 16
-kernel void graysdf(global const Info *info, global read_only uchar *img, global short *result)
+kernel void graysdf(constant float *sqLUT, constant float *sq256LUT, global const Info *info, global read_only uchar *img, global short *result)
 {
 	private const int gid = get_group_id(0);
 	private const int lid = get_local_id(0);
@@ -125,9 +125,14 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 		private uchar rowRaw[144];
 		ushort dist = 64 * 256, adder = 0;
 		uchar curimg = 0;
+		{
+			global const uchar *rowptr = &img[idx + offset];
+			for (int x = 0, xlim = w / 4; x < xlim; ++x)
+				vstore4(vload4(x, rowptr), x, rowRaw);
+		}
 		for (int x = 0; x < w; ++x, ++idx, dist += adder)
 		{
-			uchar objimg = rowRaw[x] = img[idx + offset];
+			const uchar objimg = rowRaw[x];
 			if (curimg <= THREDHOLD)
 			{
 				if (objimg > THREDHOLD)//enter edge
@@ -150,7 +155,7 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 		dist = xdist[--idx], adder = 0, curimg = 0;
 		for (int x = w; x--; --idx, dist += adder)
 		{
-			uchar objimg = rowRaw[x];
+			const uchar objimg = rowRaw[x];
 			if (curimg <= THREDHOLD)
 			{
 				if (objimg > THREDHOLD)//enter edge
@@ -191,8 +196,8 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 		{
 			int testidx = idx;
 			idx += w;
-			uchar objimg = colRaw[y];
-			ushort curxdist = xdist[idx];
+			const uchar objimg = colRaw[y];
+			const ushort curxdist = xdist[idx];
 			if (objimg <= THREDHOLD)//empty
 			{
 				if (curimg > THREDHOLD)//leave edge
@@ -218,18 +223,18 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 				}
 			}
 			//current pure and last is the same
-			perCol[y] = min(curxdist, dist);
-			float curdist2 = (float)perCol[y] * (float)perCol[y];
-			float maxdy2 = min(curdist2, (y + 1)*(y + 1) * 65536.0f), dy2 = 65536.0f;
-			for (ushort dy = 1; dy2 < maxdy2; dy2 = dy * dy * 65536.0f, testidx -= w)
+			ushort objPix = min(curxdist, dist);
+			float curdist2 = (float)objPix * (float)objPix;
+			float maxdy2 = min(curdist2, sq256LUT[y + 1]), dy2 = 65536.0f;
+			for (ushort dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx -= w)
 			{
-				uchar oimg = colRaw[y - dy];
+				const uchar oimg = colRaw[y - dy];
 				if (objimg <= THREDHOLD)//empty
 				{
 					if (oimg > THREDHOLD)//edge
 					{
-						ushort oydist = dy * 256 + 128 - oimg;
-						perCol[y] = min(min(curxdist, oydist), perCol[y]);
+						const ushort oydist = dy * 256 + 128 - oimg;
+						objPix = min(oydist, objPix);//objPix has been prove <= curxdist
 						break;//further won't be shorter
 					}
 				}
@@ -237,35 +242,38 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 				{
 					if (oimg <= THREDHOLD)//edge
 					{
-						ushort oydist = dy * 256 - 128 + oimg;
-						perCol[y] = min(min(curxdist, oydist), perCol[y]);
+						const ushort oydist = dy * 256 - 128 + oimg;
+						objPix = min(oydist, objPix);//objPix has been prove <= curxdist
 						break;//further won't be shorter
 					}
 				}
-				ushort oxdist = xdist[testidx];
-				float newdist = oxdist * oxdist + dy2;
-				if (newdist < perCol[y] * perCol[y])
+				const ushort oxdist = xdist[testidx];
+				const float newdist = oxdist * oxdist + dy2; //sqLUT[oxdist] + dy2;
+				if (newdist < curdist2)
 				{
-					perCol[y] = (ushort)sqrt(newdist);
+					curdist2 = newdist;
+					objPix = (ushort)sqrt(newdist);
 					maxdy2 = min(newdist, maxdy2);
 				}
 				dy++;
 			}
+			perCol[y] = objPix;
 		}
 		dist = 64 * 256, adder = 0;
 		curimg = colRaw[h - 1];
 		for (int y = h - 1; y--; curimg = colRaw[y], dist += adder)
 		{
+			ushort objPix = perCol[y];
 			int testidx = idx;
 			idx -= w;
-			uchar objimg = colRaw[y];
-			ushort curxdist = xdist[idx];
+			const uchar objimg = colRaw[y];
+			const ushort curxdist = xdist[idx];
 			if (objimg <= THREDHOLD)//empty
 			{
 				if (curimg > THREDHOLD)//leave edge
 				{
 					dist = 256 + 128 - curimg, adder = 256;
-					perCol[y] = min(min(curxdist, dist), perCol[y]);
+					perCol[y] = min(min(curxdist, dist), objPix);
 					continue;
 				}
 			}
@@ -280,22 +288,22 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 				if (curimg < 255 - THREDHOLD)//enter edge
 				{
 					dist = 128 + curimg, adder = 256;
-					perCol[y] = min(min(curxdist, dist), perCol[y]);
+					perCol[y] = min(min(curxdist, dist), objPix);
 					continue;
 				}
 			}
 			//current pure and last is the same
-			float curdist2 = (float)perCol[y] * (float)perCol[y];
-			float maxdy2 = min(curdist2, (h - y - 1) * (h - y - 1) * 65536.0f), dy2 = 65536.0f;
-			for (ushort dy = 1; dy2 < maxdy2; dy2 = dy * dy * 65536.0f, testidx += w)
+			float curdist2 = (float)objPix * (float)objPix;
+			float maxdy2 = min(curdist2, sq256LUT[h - y - 1]), dy2 = 65536.0f;
+			for (ushort dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx += w)
 			{
-				uchar oimg = colRaw[y + dy];
+				const uchar oimg = colRaw[y + dy];
 				if (objimg <= THREDHOLD)//empty
 				{
 					if (oimg > THREDHOLD)//edge
 					{
-						ushort oydist = dy * 256 + 128 - oimg;
-						perCol[y] = min(min(curxdist, oydist), perCol[y]);
+						const ushort oydist = dy * 256 + 128 - oimg;
+						objPix = min(min(curxdist, oydist), objPix);
 						break;//further won't be shorter
 					}
 				}
@@ -303,20 +311,22 @@ kernel void graysdf(global const Info *info, global read_only uchar *img, global
 				{
 					if (oimg <= THREDHOLD)//edge
 					{
-						ushort oydist = dy * 256 - 128 + oimg;
-						perCol[y] = min(min(curxdist, oydist), perCol[y]);
+						const ushort oydist = dy * 256 - 128 + oimg;
+						objPix = min(min(curxdist, oydist), objPix);
 						break;//further won't be shorter
 					}
 				}
-				ushort oxdist = xdist[testidx];
-				float newdist = oxdist * oxdist + dy2;
-				if (newdist < perCol[y] * perCol[y])
+				const ushort oxdist = xdist[testidx];
+				const float newdist = oxdist * oxdist + dy2; //sqLUT[oxdist] + dy2;
+				if (newdist < curdist2)
 				{
-					perCol[y] = (ushort)sqrt(newdist);
+					curdist2 = newdist;
+					objPix = (ushort)sqrt(newdist);
 					maxdy2 = min(newdist, maxdy2);
 				}
 				dy++;
 			}
+			perCol[y] = objPix;
 		}
 		idx = offset + lid;
 		for (int y = 0; y < h; ++y, idx += w)

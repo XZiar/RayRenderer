@@ -97,6 +97,7 @@
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>zlibstaticd.lib;libpng16_staticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -119,6 +120,7 @@
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>zlibstaticd.lib;libpng16_staticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -141,6 +143,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -168,6 +171,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

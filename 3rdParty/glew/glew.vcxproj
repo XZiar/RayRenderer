@@ -81,6 +81,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PreprocessorDefinitions>GLEW_INCLUDE="glew.h";WIN32_LEAN_AND_MEAN;GLEW_STATIC;WIN32;_LIB;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
       <TargetMachine>MachineX86</TargetMachine>
@@ -97,6 +98,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PreprocessorDefinitions>GLEW_INCLUDE="glew.h";WIN32_LEAN_AND_MEAN;GLEW_STATIC;WIN32;_LIB;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -112,6 +114,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <PreprocessorDefinitions>GLEW_INCLUDE="glew.h";WIN32_LEAN_AND_MEAN;GLEW_STATIC;WIN32;_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -134,6 +137,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
       <PreprocessorDefinitions>GLEW_INCLUDE="glew.h";WIN32_LEAN_AND_MEAN;GLEW_STATIC;WIN32;_LIB;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

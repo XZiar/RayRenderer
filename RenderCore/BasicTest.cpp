@@ -249,7 +249,7 @@ void BasicTest::fontTest(const wchar_t word)
 		fontCreator->setChar(word, false);
         const auto imgA = fonttex->getImage(TextureDataFormat::R8);
         img::WriteImage(imgA, L"D:\\Programs Temps\\RayRenderer\\A.png");
-        const auto imgShow = fontCreator->clgraysdfs(word, 16);
+        const auto imgShow = fontCreator->clgraysdfs(word, 256);
         fonttex->setData(TextureInnerFormat::R8, imgShow);
         img::WriteImage(imgShow, L"D:\\Programs Temps\\RayRenderer\\Show.png");
         //fontCreator->bmpsdf(0x554A);

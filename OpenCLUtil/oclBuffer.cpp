@@ -46,7 +46,7 @@ optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size
 		return oclPromise(e);
 }
 
-optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void *buf, const size_t size_, const size_t offset, const bool shouldBlock) const
+optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void * const buf, const size_t size_, const size_t offset, const bool shouldBlock) const
 {
 	if (offset >= size)
 		COMMON_THROW(BaseException, L"offset overflow");

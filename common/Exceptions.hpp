@@ -74,11 +74,16 @@ private:
 	{
 		if (innerException)
 		{
-			const auto beptr = dynamic_cast<BaseException*>(&*innerException);
+			const auto bewapper = innerException.cast_dynamic<BaseException>();
+			if (bewapper)
+				bewapper->exceptionstack(stks);
+			else
+				stks.push_back(StackTraceItem("stdException", "stdException", 0));
+			/*const auto beptr = dynamic_cast<BaseException*>(&*innerException);
 			if(beptr == nullptr)
 				stks.push_back(StackTraceItem("stdException", "stdException", 0));
 			else
-				beptr->exceptionstack(stks);
+				beptr->exceptionstack(stks);*/
 		}
 		stks.push_back(stackitem);
 	}
