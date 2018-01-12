@@ -172,7 +172,7 @@ public:
 	{
 		const size_t elementSize = sizeof(T::value_type);
 		count = std::min(input.size(), count);
-		return Write(count * elementSize, output.data()) ? count : 0;
+		return Write(count * elementSize, input.data()) ? count : 0;
 	}
 
 	template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>

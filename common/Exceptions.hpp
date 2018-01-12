@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <any>
 
-#pragma warning(disable:4101)
+
 namespace common
 {
 
@@ -79,11 +79,6 @@ private:
 				bewapper->exceptionstack(stks);
 			else
 				stks.push_back(StackTraceItem("stdException", "stdException", 0));
-			/*const auto beptr = dynamic_cast<BaseException*>(&*innerException);
-			if(beptr == nullptr)
-				stks.push_back(StackTraceItem("stdException", "stdException", 0));
-			else
-				beptr->exceptionstack(stks);*/
 		}
 		stks.push_back(stackitem);
 	}
@@ -119,8 +114,8 @@ public:
 	}
 };
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
-	virtual ::common::Wrapper<BaseException> clone() const override\
-	{ return ::common::Wrapper<type>(*this).cast_static<BaseException>(); }
+	virtual ::common::Wrapper<::common::BaseException> clone() const override\
+	{ return ::common::Wrapper<type>(*this).cast_static<::common::BaseException>(); }
 
 inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
 {
@@ -147,9 +142,10 @@ namespace detail
 class ExceptionHelper
 {
 public:
-	template<class T, class = typename std::enable_if<std::is_base_of<BaseException, T>::value>::type>
+	template<class T>
 	static T __cdecl setStackItem(T ex, StackTraceItem sti)
 	{
+		static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
 		BaseException *bex = static_cast<BaseException*>(&ex);
 		bex->stackitem = sti;
 		return ex;
@@ -170,7 +166,7 @@ public:
 public:
 	EXCEPTION_CLONE_EX(FileException);
 	const Reason reason;
-	FileException(Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
+	FileException(const Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
 		: BaseException(TYPENAME, msg, data_), reason(why), filepath(file)
 	{ }
 	virtual ~FileException() {}
@@ -179,4 +175,3 @@ public:
 
 }
 
-#pragma warning(default:4101)

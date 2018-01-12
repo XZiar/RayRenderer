@@ -19,16 +19,17 @@ private:
 	String^ stacktrace;
 	static Exception^ formInnerException(const BaseException& be)
 	{
-		if (auto inner = be.nestedException())
+		if (const auto& inner = be.nestedException())
 		{
-			if (auto *fex = dynamic_cast<FileException*>(inner.get()))
+			if (const auto *fex = dynamic_cast<FileException*>(inner.get()))
 			{
+				auto msg = marshal_as<String^>(fex->message);
+				auto fpath = marshal_as<String^>(fex->filepath.wstring());
+				auto innerEx = formInnerException(*fex);
 				if (fex->reason == FileException::Reason::NotExist)
-					return gcnew IO::FileNotFoundException(marshal_as<String^>(fex->message),
-						marshal_as<String^>(fex->filepath.wstring()), formInnerException(*fex));
+					return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
 				else
-					return gcnew IO::FileLoadException(marshal_as<String^>(fex->message),
-						marshal_as<String^>(fex->filepath.wstring()), formInnerException(*fex));
+					return gcnew IO::FileLoadException(msg, fpath, innerEx);
 			}
 			return gcnew CPPException(*inner);
 		}
@@ -42,8 +43,8 @@ public:
 	}
 	CPPException(const BaseException& be) : Exception(marshal_as<String^>(be.message), formInnerException(be))
 	{
-		auto stack = be.stacktrace();
-		stacktrace = String::Format("at {0} : {1}\t({2})\n", marshal_as<String^>(stack.func), stack.line, marshal_as<String^>(stack.file));
+		const auto& stack = be.stacktrace();
+		stacktrace = String::Format("at [{0}] : line {1} ({2})", marshal_as<String^>(stack.func), stack.line, marshal_as<String^>(stack.file));
 	}
 };
 

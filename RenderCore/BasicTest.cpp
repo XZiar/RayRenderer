@@ -237,21 +237,24 @@ void BasicTest::prepareLight()
 
 void BasicTest::fontTest(const wchar_t word)
 {
+	fs::path basepath = L"D:\\Programs Temps\\RayRenderer";
+	if (!fs::exists(basepath))
+		basepath = L"C:\\Programs Temps\\RayRenderer";
 	try
 	{
 		fontViewer.reset();
-		fontCreator.reset(L"D:\\Programs Temps\\RayRenderer\\test.ttf");
+		fontCreator.reset(basepath / L"test.ttf");
 		auto fonttex = fontCreator->getTexture();
 		fontCreator->setChar(L'G', false);
 		fontViewer->bindTexture(fonttex);
         const auto imgG = fonttex->getImage(TextureDataFormat::R8);
-        img::WriteImage(imgG, L"D:\\Programs Temps\\RayRenderer\\G.png");
+        img::WriteImage(imgG, basepath / L"G.png");
 		fontCreator->setChar(word, false);
         const auto imgA = fonttex->getImage(TextureDataFormat::R8);
-        img::WriteImage(imgA, L"D:\\Programs Temps\\RayRenderer\\A.png");
-        const auto imgShow = fontCreator->clgraysdfs(word, 16);
+        img::WriteImage(imgA, basepath / L"A.png");
+        const auto imgShow = fontCreator->clgraysdfs(word, 1024);
         fonttex->setData(TextureInnerFormat::R8, imgShow);
-        img::WriteImage(imgShow, L"D:\\Programs Temps\\RayRenderer\\Show.png");
+        img::WriteImage(imgShow, basepath / L"Show.png");
         //fontCreator->bmpsdf(0x554A);
 		//fontCreator->clbmpsdfgrey(0x554A);
 		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
@@ -259,7 +262,6 @@ void BasicTest::fontTest(const wchar_t word)
 		//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\4096-2.png", outer, ftexsize.first, ftexsize.second);
 
 		//fontCreator->setChar(0x9f8d, false);
-		//fontCreator->stroke();
 		fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
 	}
 	catch (BaseException& be)

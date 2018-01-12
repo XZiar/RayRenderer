@@ -96,7 +96,7 @@ static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, c
         {
             const auto carraypos = imgfile.CurrentPos();
             imgfile.Rewind(detail::BMP_HEADER_SIZE + info.Size);
-            const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1 << info.BitCount);
+            const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1u << info.BitCount);
             AlignedBuffer<32> palette(paletteCount * 4);
             imgfile.Read(paletteCount * 4, palette.GetRawPtr());
             convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
@@ -211,8 +211,8 @@ void BmpWriter::Write(const Image& image)
         return;
     if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
         return;
-    if (image.isGray())
-        return;//not support grey yet
+	if (image.DataType == ImageDataType::GA)
+		return;
 
     const bool isInputBGR = REMOVE_MASK(image.DataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
     const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
@@ -232,9 +232,27 @@ void BmpWriter::Write(const Image& image)
     SimpleTimer timer;
     timer.Start();
 
-    const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
-    const size_t irowsize = image.RowSize();
-    if (frowsize == irowsize && isInputBGR)//perfect match, write directly
+	const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
+	const size_t irowsize = image.RowSize();
+	
+	if (image.isGray())//must be ImageDataType::Gray only
+	{
+		ImgFile.Write(256, convert::GrayToRGBAMAP);
+		if (frowsize == irowsize)
+			ImgFile.Write(image.GetSize(), image.GetRawPtr());
+		else
+		{
+			const byte* __restrict imgptr = image.GetRawPtr();
+			const uint8_t empty[4] = { 0 };
+			const size_t padding = frowsize - irowsize;
+			for (uint32_t i = 0; i < image.Height; ++i)
+			{
+				ImgFile.Write(irowsize, imgptr);
+				ImgFile.Write(padding, empty);
+			}
+		}
+	}
+    else if (frowsize == irowsize && isInputBGR)//perfect match, write directly
         ImgFile.Write(image.GetSize(), image.GetRawPtr());
     else
     {

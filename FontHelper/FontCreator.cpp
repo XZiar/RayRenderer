@@ -11,25 +11,35 @@ using namespace oclu;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
+auto FindPlatform(const std::vector<oclPlatform>& platforms)
+{
+	for (const auto& plt : platforms)
+		if (plt->isNVIDIA)
+			return plt;
+	for (const auto& plt : platforms)
+		if (plt->isAMD)
+			return plt;
+	for (const auto& plt : platforms)
+		if (plt->isINTEL)
+			return plt;
+	return oclPlatform();
+}
+
+static std::atomic_bool isPltNVIDIA = false;
+
 oclu::oclContext createOCLContext()
 {
-	oclPlatform clPlat;
-	const auto pltfs = oclUtil::getPlatforms();
-	for (const auto& plt : pltfs)
+	oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms());
+	if (!clPlat)
+		return oclContext();
+	auto clCtx = clPlat->createContext();
+	isPltNVIDIA = clPlat->isNVIDIA;
+	fntLog().success(L"Created Context in platform {}!\n", clPlat->name);
+	clCtx->onMessage = [](const wstring& errtxt)
 	{
-		if (plt->isNVIDIA)
-		{
-			clPlat = plt;
-			auto clCtx = plt->createContext();
-			fntLog().success(L"Created Context in platform {}!\n", plt->name);
-			clCtx->onMessage = [](wstring errtxt)
-			{
-				fntLog().error(L"Error from context:\t{}\n", errtxt);
-			};
-			return clCtx;
-		}
-	}
-	return oclContext();
+		fntLog().error(L"Error from context:\t{}\n", errtxt);
+	};
+	return clCtx;
 }
 
 SharedResource<oclu::oclContext> FontCreator::clRes(createOCLContext);
@@ -40,9 +50,10 @@ void FontCreator::loadCL(const string& src)
 	oclProgram clProg(clCtx, src);
 	try
 	{
-		clProg->build("-cl-fast-relaxed-math -cl-mad-enable -cl-nv-verbose");
-		auto log = clProg->getBuildLog(clCtx->devs[0]);
-		fntLog().debug(L"nv-buildlog:{}\n", log);
+		const auto options = isPltNVIDIA ? "-cl-fast-relaxed-math -cl-mad-enable -cl-nv-verbose" : "-cl-fast-relaxed-math -cl-mad-enable";
+		clProg->build(options);
+		const auto log = clProg->getBuildLog(clCtx->devs[0]);
+		fntLog().debug(L"buildlog:{}\n", log);
 	}
 	catch (OCLException& cle)
 	{
@@ -54,27 +65,27 @@ void FontCreator::loadCL(const string& src)
 	//prepare LUT
 	{
 		std::array<float, 256> lut{};
-		sqlut.reset(clCtx, MemType::ReadOnly, lut.size());
-		sq256lut.reset(clCtx, MemType::ReadOnly, lut.size());
+		sqlut.reset(clCtx, MemType::ReadOnly, 4);
+		sq256lut.reset(clCtx, MemType::ReadOnly, lut.size() * 4);
 		for (uint16_t i = 0; i < 256; ++i)
-			lut[i] = float(i * i);
-		sqlut->write(clQue, lut.data(), lut.size() * sizeof(float));
-		for (uint16_t i = 0; i < 256; ++i)
-			lut[i] *= 65536.0f;
+			lut[i] = i * i * 65536.0f;
 		sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
 	}
 	kerSdfGray->setArg(0, sqlut);
 	kerSdfGray->setArg(1, sq256lut);
 }
 
-FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath), clCtx(clRes.get())
+FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath)
 {
+	clCtx = clRes.get();
 	for (const auto& dev : clCtx->devs)
 		if (dev->type == DeviceType::GPU)
 		{
 			clQue.reset(clCtx, dev);
 			break;
 		}
+	if(!clQue)
+		COMMON_THROW(BaseException, L"clQueue initialized failed! There may be no GPU device found in platform");
 	loadCL(getShaderFromDLL(IDR_SHADER_SDTTEST));
 	testTex.reset(TextureType::Tex2D);
 	testTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
@@ -317,7 +328,7 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 				dists[0] = data16[5] * 3 - data16[0], dists[1] = data16[6] * 3 - data16[3], dists[2] = data16[9] * 3 - data16[12], dists[3] = data16[10] * 3 - data16[15];
 				dists[4] = ((data16[5] + data16[9]) * 3 - (data16[4] + data16[8])) / 2, dists[5] = ((data16[6] + data16[10]) * 3 - (data16[7] + data16[11])) / 2;
 				dists[6] = ((data16[5] + data16[6]) * 3 - (data16[1] + data16[2])) / 2, dists[7] = ((data16[9] + data16[10]) * 3 - (data16[13] + data16[14])) / 2;
-				int32_t avg4 = data16[5] + data16[6] + data16[9] + data16[10];
+				int32_t avg4 = (data16[5] + data16[6] + data16[9] + data16[10]) / 2;
 				int32_t negsum = 0, possum = 0, negcnt = 0, poscnt = 0;
 				for (const auto dist : dists)
 				{
@@ -333,7 +344,7 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 				else
 				{
 					const bool isInside = avg4 < 0;
-					const auto distsum = isInside ? ((negsum + avg4) * 3 / (negcnt + 2)) : ((possum + avg4) * 2 / (poscnt + 2));
+					const auto distsum = isInside ? ((negsum + avg4) * 4 / (negcnt + 1)) : ((possum + avg4) * 2 / (poscnt + 1));
 					finPtr[opos] = std::clamp(distsum / 64 + 128, 0, 255);
 				}
 			}

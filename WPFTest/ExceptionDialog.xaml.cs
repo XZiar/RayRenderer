@@ -22,9 +22,9 @@ namespace WPFTest
         public ExceptionDialog(Exception ex)
         {
             InitializeComponent();
-            var sb = new StringBuilder($"{ex.Message}\n{ex.StackTrace}\n");
+            var sb = new StringBuilder($"{ex.GetType().Name}\t{ex.Message}\n\t{ex.StackTrace}\n");
             for (var iex = ex.InnerException; iex != null; iex = iex.InnerException)
-                sb.Append($"\nCaused y:\n{iex.Message}\n{iex.StackTrace}\n");
+                sb.Append($"\nCaused by:\n{iex.Message}\n\t{iex.StackTrace}\n");
             extxt.Text = sb.ToString();
             Title = ex.GetType().ToString();
         }

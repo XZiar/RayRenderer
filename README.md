@@ -38,6 +38,18 @@ Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-
 
 VS2017(15.5.3) needed.
 
+## Additional Requirements
+
+Some VC++ default props should be set --- `include path` and `libpath`.
+
+`boost` headers folder should be found inside `include path`.
+
+`gl*.h` headers should be found inside `include path\GL`.
+
+[`opencl*.h` headers](https://github.com/KhronosGroup/OpenCL-Headers) should be found inside `include path\CL`.
+
+`OpenCL.lib` lib should be found inside `libpath\intel` or `libpath\nvidia`. It's determined by macro inside [`OpenCLUtil/oclRely.h`](./OpenCLUtil/oclRely.h)
+
 ## Dependency
 
 * [GLEW](http://glew.sourceforge.net/)  2.1.0
@@ -48,7 +60,7 @@ VS2017(15.5.3) needed.
 
   [MIT License](./License/freeglut.txt)
 
-* [boost](http://www.boost.org/)  1.66.0
+* [boost](http://www.boost.org/)  1.66.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
