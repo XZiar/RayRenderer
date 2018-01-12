@@ -7,7 +7,7 @@ using RayRender;
 
 namespace WPFTest
 {
-    public static class Main
+    public static class Core
     {
         public enum OPObject { Camera, Light, Object };
         public static BasicTest test;
@@ -32,10 +32,16 @@ namespace WPFTest
             set { test.mode = value; }
         }
 
-        static Main()
+        static Core()
+        {
+            //test = new BasicTest();
+        }
+
+        public static void Init()
         {
             test = new BasicTest();
         }
+
         public static void Move(float x, float y, float z, OPObject obj)
         {
             switch(obj)

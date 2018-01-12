@@ -28,12 +28,20 @@ namespace WPFTest
             InitializeComponent();
             par = dbgOutput.Document.Blocks.FirstBlock as Paragraph;
             Logger.OnLog += OnLog;
-            
-            Main.test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
-            this.Closed += (o, e) => { Main.test.Dispose(); Main.test = null; };
 
-            glMain.Draw += Main.test.Draw;
-            glMain.Resize += (o, e) => { Main.test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs rea)
+        {
+            OnLog(LogLevel.Info, "WPF", "Window Loaded\n");
+            Core.Init();
+
+            Core.test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
+            this.Closed += (o, e) => { Core.test.Dispose(); Core.test = null; };
+
+            glMain.Draw += Core.test.Draw;
+            glMain.Resize += (o, e) => { Core.test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
         }
 
         private void btnOpObj_Click(object sender, RoutedEventArgs e)
@@ -55,11 +63,11 @@ namespace WPFTest
             if (dlg.ShowDialog() == true)
             {
                 string fname = dlg.FileName;
-                if (await Main.test.AddModelAsync(fname))
+                if (await Core.test.AddModelAsync(fname))
                 {
-                    Main.curObj = ushort.MaxValue;
-                    Main.Rotate(-90, 0, 0, Main.OPObject.Object);
-                    Main.Move(-1, 0, 0, Main.OPObject.Object);
+                    Core.curObj = ushort.MaxValue;
+                    Core.Rotate(-90, 0, 0, Core.OPObject.Object);
+                    Core.Move(-1, 0, 0, Core.OPObject.Object);
                     glMain.Invalidate();
                 }
             }
@@ -67,26 +75,26 @@ namespace WPFTest
 
         private void btnAddLight_Click(object sender, RoutedEventArgs e)
         {
-            switch (Main.test.Lights.Size)
+            switch (Core.test.Lights.Size)
             {
             case 0:
-                Main.test.Lights.Add(Basic3D.LightType.Parallel);
+                Core.test.Lights.Add(Basic3D.LightType.Parallel);
                 break;
             case 1:
-                Main.test.Lights.Add(Basic3D.LightType.Point);
+                Core.test.Lights.Add(Basic3D.LightType.Point);
                 break;
             case 2:
-                Main.test.Lights.Add(Basic3D.LightType.Spot);
+                Core.test.Lights.Add(Basic3D.LightType.Spot);
                 break;
             default:
-                Main.test.Lights.Clear();
+                Core.test.Lights.Clear();
                 break;
             }
             glMain.Invalidate();
-            if (Main.test.Lights.Size > 0)
+            if (Core.test.Lights.Size > 0)
             {
-                var lgt = Main.test.Lights[Main.test.Lights.Size - 1];
-                Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Main.test.Lights.Size - 1, lgt.name(), lgt);
+                var lgt = Core.test.Lights[Core.test.Lights.Size - 1];
+                Console.WriteLine("get light[{0}], name[{1}] --- [{2}]", Core.test.Lights.Size - 1, lgt.name(), lgt);
             }
         }
 
@@ -127,7 +135,7 @@ namespace WPFTest
         {
             try
             {
-                var ret = await Main.test.TryAsync();
+                var ret = await Core.test.TryAsync();
                 Console.WriteLine($"finish calling async, ret is {ret}");
             }
             catch(Exception ex)
@@ -152,7 +160,7 @@ namespace WPFTest
             Console.WriteLine(e.Key);
             if (e.Key == System.Windows.Input.Key.Return)
             {
-                Main.mode = !Main.mode;
+                Core.mode = !Core.mode;
                 glMain.Invalidate();
             }
         }
@@ -163,57 +171,57 @@ namespace WPFTest
             switch (e.SpecialKey())
             {
                 case Key.Up:
-                    Main.Move(0, 0.1f, 0, Main.OPObject.Object); break;
+                    Core.Move(0, 0.1f, 0, Core.OPObject.Object); break;
                 case Key.Down:
-                    Main.Move(0, -0.1f, 0, Main.OPObject.Object); break;
+                    Core.Move(0, -0.1f, 0, Core.OPObject.Object); break;
                 case Key.Left:
-                    Main.Move(-0.1f, 0, 0, Main.OPObject.Object); break;
+                    Core.Move(-0.1f, 0, 0, Core.OPObject.Object); break;
                 case Key.Right:
-                    Main.Move(0.1f, 0, 0, Main.OPObject.Object); break;
+                    Core.Move(0.1f, 0, 0, Core.OPObject.Object); break;
                 case Key.PageUp:
-                    Main.Move(0, 0, -0.1f, Main.OPObject.Object); break;
+                    Core.Move(0, 0, -0.1f, Core.OPObject.Object); break;
                 case Key.PageDown:
-                    Main.Move(0, 0, 0.1f, Main.OPObject.Object); break;
+                    Core.Move(0, 0, 0.1f, Core.OPObject.Object); break;
                 default:
                     switch (e.key)
                     {
                         case 'a'://pan to left
-                            Main.Rotate(0, 3, 0, Main.OPObject.Camera); break;
+                            Core.Rotate(0, 3, 0, Core.OPObject.Camera); break;
                         case 'd'://pan to right
-                            Main.Rotate(0, -3, 0, Main.OPObject.Camera); break;
+                            Core.Rotate(0, -3, 0, Core.OPObject.Camera); break;
                         case 'w'://pan to up
-                            Main.Rotate(3, 0, 0, Main.OPObject.Camera); break;
+                            Core.Rotate(3, 0, 0, Core.OPObject.Camera); break;
                         case 's'://pan to down
-                            Main.Rotate(-3, 0, 0, Main.OPObject.Camera); break;
+                            Core.Rotate(-3, 0, 0, Core.OPObject.Camera); break;
                         case 'q'://pan to left
-                            Main.Rotate(0, 0, -3, Main.OPObject.Camera); break;
+                            Core.Rotate(0, 0, -3, Core.OPObject.Camera); break;
                         case 'e'://pan to left
-                            Main.Rotate(0, 0, 3, Main.OPObject.Camera); break;
+                            Core.Rotate(0, 0, 3, Core.OPObject.Camera); break;
                         case 'A':
-                            Main.Rotate(0, 3, 0, Main.OPObject.Object); break;
+                            Core.Rotate(0, 3, 0, Core.OPObject.Object); break;
                         case 'D':
-                            Main.Rotate(0, -3, 0, Main.OPObject.Object); break;
+                            Core.Rotate(0, -3, 0, Core.OPObject.Object); break;
                         case 'W':
-                            Main.Rotate(3, 0, 0, Main.OPObject.Object); break;
+                            Core.Rotate(3, 0, 0, Core.OPObject.Object); break;
                         case 'S':
-                            Main.Rotate(-3, 0, 0, Main.OPObject.Object); break;
+                            Core.Rotate(-3, 0, 0, Core.OPObject.Object); break;
                         case 'Q':
-                            Main.Rotate(0, 0, 3, Main.OPObject.Object); break;
+                            Core.Rotate(0, 0, 3, Core.OPObject.Object); break;
                         case 'E':
-                            Main.Rotate(0, 0, -3, Main.OPObject.Object); break;
+                            Core.Rotate(0, 0, -3, Core.OPObject.Object); break;
                         case (char)13:
                             if (e.hasShift())
-                                Main.isAnimate = !Main.isAnimate;
+                                Core.isAnimate = !Core.isAnimate;
                             else
-                                Main.mode = !Main.mode;
+                                Core.mode = !Core.mode;
                             break;
                         default:
                             break;
                         case '+':
-                            Main.curObj++;
+                            Core.curObj++;
                             break;
                         case '-':
-                            Main.curObj--;
+                            Core.curObj--;
                             break;
                     }
                     break;
@@ -226,10 +234,10 @@ namespace WPFTest
             switch (e.type)
             {
                 case MouseEventType.Moving:
-                    Main.Move((e.dx * 10.0f / Main.test.cam.Width), (e.dy * 10.0f / Main.test.cam.Height), 0, Main.OPObject.Camera);
+                    Core.Move((e.dx * 10.0f / Core.test.cam.Width), (e.dy * 10.0f / Core.test.cam.Height), 0, Core.OPObject.Camera);
                     break;
                 case MouseEventType.Wheel:
-                    Main.Move(0, 0, (float)e.dx, Main.OPObject.Camera);
+                    Core.Move(0, 0, (float)e.dx, Core.OPObject.Camera);
                     break;
                 default:
                     return;
@@ -244,17 +252,17 @@ namespace WPFTest
             {
                 if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    if (await Main.test.AddModelAsync(fname))
+                    if (await Core.test.AddModelAsync(fname))
                     {
-                        Main.curObj = ushort.MaxValue;
-                        Main.Rotate(-90, 0, 0, Main.OPObject.Object);
-                        Main.Move(-1, 0, 0, Main.OPObject.Object);
+                        Core.curObj = ushort.MaxValue;
+                        Core.Rotate(-90, 0, 0, Core.OPObject.Object);
+                        Core.Move(-1, 0, 0, Core.OPObject.Object);
                         glMain.Invalidate();
                     }
                 }
                 else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    await Main.test.ReloadCLAsync(fname);
+                    await Core.test.ReloadCLAsync(fname);
                 }
             }
             catch(Exception ex)

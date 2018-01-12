@@ -49,7 +49,7 @@ public:
 	}
 };
 
-void __cdecl LogCallback(common::mlog::LogLevel lv_, const std::wstring& from_, const std::wstring& content_)
+void __cdecl LogCallback(const common::mlog::LogLevel lv_, const std::wstring& from_, const std::wstring& content_)
 {
 	LogLevel lv = (LogLevel)lv_;
 	String^ from = gcnew String(from_.c_str());

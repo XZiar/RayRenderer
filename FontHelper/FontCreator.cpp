@@ -312,17 +312,30 @@ Image FontCreator::clgraysdfs(wchar_t ch, uint16_t count) const
 			{
 				const uint64_t data64[4] = { *(uint64_t*)&distsq[ipos],*(uint64_t*)&distsq[ipos + fi.w] ,*(uint64_t*)&distsq[ipos + 2 * fi.w] ,*(uint64_t*)&distsq[ipos + 3 * fi.w] };
 				const int16_t * __restrict const data16 = (int16_t*)data64;
-				const uint32_t x0 = std::abs(data16[5] * 3 - data16[0]), x1 = std::abs(data16[6] * 3 - data16[3]),
-					x2 = std::abs(data16[9] * 3 - data16[12]), x3 = std::abs(data16[10] * 3 - data16[15]);
-				const uint32_t h0 = std::abs((data16[5] + data16[9]) * 3 - (data16[4] + data16[8])), h1 = std::abs((data16[6] + data16[10]) * 3 - (data16[7] + data16[11]));
-				const uint32_t v0 = std::abs((data16[5] + data16[6]) * 3 - (data16[1] + data16[2])), v1 = std::abs((data16[9] + data16[10]) * 3 - (data16[13] + data16[14]));
-				const auto maxx = std::max(std::max(x0, x1), std::max(x2, x3));
-				const auto maxhv = std::max(std::max(h0, h1), std::max(v0, v1)) / 2;
-				const auto maxdist = (int32_t)std::max(maxx, maxhv);
-				const bool isInside = (data16[5] + data16[6] + data16[9] + data16[10]) < 0;
-				//const bool isInside = (data16[5] < 0 ? 1 : 0) + (data16[6] < 0 ? 1 : 0) + (data16[9] < 0 ? 1 : 0) + (data16[10] < 0 ? 1 : 0) > 2;
-				const auto distsum = isInside ? -maxdist * 3 : maxdist * 2;
-				finPtr[opos] = std::clamp(distsum / 64 + 128, 0, 255);
+				const auto insideCount = (data16[5] < 0 ? 1 : 0) + (data16[6] < 0 ? 1 : 0) + (data16[9] < 0 ? 1 : 0) + (data16[10] < 0 ? 1 : 0);
+				int32_t dists[8];
+				dists[0] = data16[5] * 3 - data16[0], dists[1] = data16[6] * 3 - data16[3], dists[2] = data16[9] * 3 - data16[12], dists[3] = data16[10] * 3 - data16[15];
+				dists[4] = ((data16[5] + data16[9]) * 3 - (data16[4] + data16[8])) / 2, dists[5] = ((data16[6] + data16[10]) * 3 - (data16[7] + data16[11])) / 2;
+				dists[6] = ((data16[5] + data16[6]) * 3 - (data16[1] + data16[2])) / 2, dists[7] = ((data16[9] + data16[10]) * 3 - (data16[13] + data16[14])) / 2;
+				int32_t avg4 = data16[5] + data16[6] + data16[9] + data16[10];
+				int32_t negsum = 0, possum = 0, negcnt = 0, poscnt = 0;
+				for (const auto dist : dists)
+				{
+					if (dist <= 0)
+						negsum += dist, negcnt++;
+					else
+						possum += dist, poscnt++;
+				}
+				if (negcnt == 0)
+					finPtr[opos] = std::clamp(possum / (poscnt * 32) + 128, 0, 255);
+				else if (poscnt == 0)
+					finPtr[opos] = std::clamp(negsum * 3 / (negcnt * 64) + 128, 0, 255);
+				else
+				{
+					const bool isInside = avg4 < 0;
+					const auto distsum = isInside ? ((negsum + avg4) * 3 / (negcnt + 2)) : ((possum + avg4) * 2 / (poscnt + 2));
+					finPtr[opos] = std::clamp(distsum / 64 + 128, 0, 255);
+				}
 			}
 		}
 		fidx++;

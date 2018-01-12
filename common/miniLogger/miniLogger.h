@@ -17,7 +17,6 @@
 #include "common/CommonMacro.hpp"
 #include "common/CommonRely.hpp"
 
-//#define FMT_HEADER_ONLY
 #include "fmt/format.h"
 
 
@@ -32,9 +31,9 @@ enum class LogOutput : uint8_t { None = 0x0, Console = 0x1, File = 0x2, Callback
 MAKE_ENUM_BITFIELD(LogOutput)
 
 /*-return whether should continue logging*/
-using LogCallBack = std::function<bool __cdecl(LogLevel lv, std::wstring content)>;
+using LogCallBack = std::function<bool __cdecl(const LogLevel lv, const std::wstring& content)>;
 /*global log callback*/
-using GLogCallBack = std::function<void __cdecl(LogLevel lv, const std::wstring& from, const std::wstring& content)>;
+using GLogCallBack = std::function<void __cdecl(const LogLevel lv, const std::wstring& from, const std::wstring& content)>;
 /*
 Logging to Buffer is not thread-safe since it's now lack of memmory barrier
 Changing logging file caould is not thread-safe since it's now lack of memmory barrier
@@ -68,37 +67,37 @@ public:
 	void setOutput(const LogOutput method, const bool isEnable);
 	std::vector<std::pair<LogLevel, std::wstring>> __cdecl getLogBuffer();
 	template<class... Args>
-	void error(std::wstring formater, Args&&... args)
+	void error(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Error, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void warning(std::wstring formater, Args&&... args)
+	void warning(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Warning, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void success(std::wstring formater, Args&&... args)
+	void success(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Sucess, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void verbose(std::wstring formater, Args&&... args)
+	void verbose(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Verbose, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void info(std::wstring formater, Args&&... args)
+	void info(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Info, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void debug(std::wstring formater, Args&&... args)
+	void debug(const std::wstring& formater, Args&&... args)
 	{
 		log(LogLevel::Debug, formater, std::forward<Args>(args)...);
 	}
 	template<class... Args>
-	void log(const LogLevel lv, std::wstring formater, Args&&... args)
+	void log(const LogLevel lv, const std::wstring& formater, Args&&... args)
 	{
 		if (!checkLevel(lv))
 			return;

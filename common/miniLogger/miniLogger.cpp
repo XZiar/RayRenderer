@@ -72,7 +72,7 @@ void logger::printBuffer(const LogLevel lv, const std::wstring& content)
 	}
 }
 
-bool logger::onCallBack(const LogLevel lv, const std::wstring &content)
+bool logger::onCallBack(const LogLevel lv, const std::wstring& content)
 {
 	if (!onLog)
 		return true;

@@ -70,16 +70,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -100,7 +100,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
-      <AdditionalDependencies>zlibstaticd.lib;libpng16_staticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <TargetMachine>MachineX86</TargetMachine>
     </Lib>
   </ItemDefinitionGroup>
@@ -123,7 +123,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
-      <AdditionalDependencies>zlibstaticd.lib;libpng16_staticd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -150,7 +150,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>zlibstatic.lib;libpng16_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <TargetMachine>MachineX86</TargetMachine>
     </Lib>
   </ItemDefinitionGroup>
@@ -178,7 +178,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>zlibstatic.lib;libpng16_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -232,6 +232,11 @@
     <ClInclude Include="freetype\config\ftstdlib.h" />
     <ClInclude Include="ft2build.h" />
     <ClInclude Include="ftException.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\libpng\libpng.vcxproj">
+      <Project>{506a3438-e8ee-47f6-a4c8-fdf475ebac1e}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

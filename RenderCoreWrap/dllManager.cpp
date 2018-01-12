@@ -1,8 +1,10 @@
 #pragma unmanaged
 
 #include "common/TimeUtil.hpp"
+#include "3rdParty/fmt/format.h"
 #include "resource.h"
 #include <cstdio>
+#include <string>
 #include <vector>
 #include <tuple>
 #include <filesystem>
@@ -17,9 +19,20 @@ using std::vector;
 using std::pair;
 namespace fs = std::experimental::filesystem;
 using common::DelayLoader;
+using common::SimpleTimer;
 static fs::path RRPath, DLLSPath;
 static vector<pair<HMODULE, string>> hdlls;
 static vector<pair<FILE*, wstring>> hfiles;
+static SimpleTimer timer;
+
+
+template<class... Args>
+void DebugOutput(const std::wstring formater, Args&&... args)
+{
+	timer.Stop();
+	const std::wstring logdat = fmt::format(L"###[{:>7.2f}]" + formater, timer.ElapseMs() / 1000.f, std::forward<Args>(args)...) + L"\n";
+	OutputDebugString(logdat.c_str());
+}
 
 static void createDLL(const wstring& dllname, const int32_t dllid)
 {
@@ -28,7 +41,7 @@ static void createDLL(const wstring& dllname, const int32_t dllid)
 	errno_t errno;
 	if ((errno = _wfopen_s(&fp, dllpath.c_str(), L"wb")) == 0)
 	{
-		auto dlldata = common::ResourceHelper::getData(L"DLL", dllid);
+		const auto dlldata = common::ResourceHelper::getData(L"DLL", dllid);
 		fwrite(dlldata.data(), dlldata.size(), 1, fp);
 		fclose(fp);
 	}
@@ -40,6 +53,8 @@ static void createDLL(const wstring& dllname, const int32_t dllid)
 	}
 	else
 		throw std::runtime_error("cannot open DLL, errorno:" + std::to_string(errno));
+	DebugOutput(L"Excracted DLL [{}]", dllname);
+
 }
 
 static void extractDLL()
@@ -72,13 +87,16 @@ static void freeDLL()
 
 static void* delayloaddll(const char *name)
 {
-	GetLastError();
-	const std::string tmpname(name);
-	const wstring dllpath = DLLSPath / std::wstring(tmpname.begin(), tmpname.end());
+	const auto lasterr = GetLastError();
+	const string tmpname(name);
+	const wstring wname(tmpname.begin(), tmpname.end());
+	DebugOutput(L"Begin delay load DLL [{}]", wname);
+	const wstring dllpath = DLLSPath / wname;
 	const auto hdll = LoadLibraryEx(dllpath.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 	if (hdll == NULL)
 	{
 		const auto err = GetLastError();
+		DebugOutput(L"Fail to load DLL [{}] with error [{:d}]", wname, err);
 		throw std::runtime_error("cannot load DLL, err:" + std::to_string(err));
 	}
 	hdlls.push_back({ hdll,tmpname });
@@ -91,13 +109,17 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
+		DebugOutput(L"DLL_PROCESS_ATTACH");
 		common::ResourceHelper::init(hinstDLL);
+		DebugOutput(L"Res Inited");
 		RRPath = fs::temp_directory_path() / L"RayRenderer";
 		DLLSPath = RRPath / std::to_wstring(common::SimpleTimer::getCurTime());
 		fs::create_directories(DLLSPath);
 		DelayLoader::onLoadDLL = delayloaddll;
+		DebugOutput(L"Begin Excract DLL");
 		extractDLL();
 		SetDllDirectory(DLLSPath.c_str());
+		DebugOutput(L"Initial Finished");
 	}
 	break;
 	case DLL_PROCESS_DETACH:

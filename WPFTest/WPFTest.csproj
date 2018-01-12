@@ -81,7 +81,7 @@
     <Compile Include="ExceptionDialog.xaml.cs">
       <DependentUpon>ExceptionDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Main.cs" />
+    <Compile Include="Core.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
