@@ -6,6 +6,7 @@
 
 namespace xziar::img
 {
+using common::file::BufferedFileReader;
 using common::file::FileObject;
 using common::Wrapper;
 
@@ -14,9 +15,10 @@ class IMGUTILAPI ImgReader
 {
 protected:
 public:
-	virtual ~ImgReader() {};
+	virtual ~ImgReader() {}
 	virtual bool Validate() = 0;
 	virtual Image Read(const ImageDataType dataType) = 0;
+	virtual void Release() {}
 };
 
 class IMGUTILAPI ImgWriter

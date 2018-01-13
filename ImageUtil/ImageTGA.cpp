@@ -6,8 +6,13 @@ namespace xziar::img::tga
 {
 
 
-TgaReader::TgaReader(FileObject& file) : ImgFile(file)
+TgaReader::TgaReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(OriginalFile), 65536)
 {
+}
+
+void TgaReader::Release()
+{
+	OriginalFile = std::move(ImgFile.Release());
 }
 
 bool TgaReader::Validate()
@@ -461,7 +466,7 @@ public:
 class RLEFileDecoder
 {
 private:
-	FileObject& ImgFile;
+	BufferedFileReader& ImgFile;
 	const uint8_t ElementSize;
     static inline uint8_t ByteToSize(const byte b)
     {
@@ -471,22 +476,23 @@ private:
 	{
 		while (limit)
 		{
-			const byte info = ImgFile.ReadByte();
+			const byte info = ImgFile.ReadByteNE();
 			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
 			limit -= size;
 			if (::HAS_FIELD(info, 0x80))
 			{
-				const byte obj = ImgFile.ReadByte();
-				memset(output, std::to_integer<uint8_t>(obj), size);
+				const auto obj = ImgFile.ReadByteNE<uint8_t>();
+				for (auto count = size; count--;)
+					*output++ = obj;
 			}
 			else
 			{
 				if (!ImgFile.Read(size, output))
 					return false;
+				output += size;
 			}
-			output += size;
 		}
 		return true;
 	}
@@ -494,7 +500,7 @@ private:
 	{
 		while (limit)
 		{
-			const byte info = ImgFile.ReadByte();
+			const byte info = ImgFile.ReadByteNE();
 			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
@@ -520,7 +526,7 @@ private:
 	{
 		while (limit)
 		{
-			const byte info = ImgFile.ReadByte();
+			const byte info = ImgFile.ReadByteNE();
 			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
@@ -528,7 +534,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
 			{
 				uint8_t obj[3];
-				if (ImgFile.Read(obj) != 3)
+				if (!ImgFile.Read(3, obj))//use array load will keep invoke ftell(), which serverely decrease the performance
 					return false;
 				for (auto count = size; count--;)
 				{
@@ -550,7 +556,7 @@ private:
 	{
 		while (limit)
 		{
-			const byte info = ImgFile.ReadByte();
+			const byte info = ImgFile.ReadByteNE();
 			const uint8_t size = ByteToSize(info);
 			if (size > limit)
 				return false;
@@ -573,7 +579,7 @@ private:
 		return true;
 	}
 public:
-	RLEFileDecoder(FileObject& file, const uint8_t elementDepth) : ImgFile(file), ElementSize(elementDepth == 15 ? 2 : (elementDepth / 8)) {}
+	RLEFileDecoder(BufferedFileReader& file, const uint8_t elementDepth) : ImgFile(file), ElementSize(elementDepth == 15 ? 2 : (elementDepth / 8)) {}
 	void Skip(const size_t offset = 0) { ImgFile.Skip(offset); }
 
 	template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>

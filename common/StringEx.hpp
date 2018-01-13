@@ -254,7 +254,7 @@ inline std::optional<itT> ifind_first(const T& src, const charT(&obj)[N])
 }
 }
 
-enum class Charset { ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32 };
+enum class Charset { ASCII, GB18030, UTF8, UTF16LE, UTF16 = UTF16LE, UTF16BE, UTF32 };
 
 inline Charset toCharset(const std::string& chset)
 {
@@ -296,7 +296,7 @@ inline std::wstring getCharsetWName(const Charset chset)
 	}
 }
 
-template<class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+template<class T, class = typename std::enable_if<std::is_integral_v<T>>::type>
 inline std::wstring to_wstring(const T val)
 {
 	return std::to_wstring(val);
@@ -304,7 +304,7 @@ inline std::wstring to_wstring(const T val)
 
 #pragma warning(disable:4996)
 
-template<typename T, typename = std::enable_if<std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value>::type>
+template<typename T, typename = std::enable_if<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>>::type>
 inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCII)
 {
 	switch (chset)
@@ -324,6 +324,28 @@ inline std::wstring to_wstring(const T& str, const Charset chset = Charset::ASCI
 	}
 	return L"";
 }
+
+template<typename T, typename = std::enable_if<std::is_same_v<T, std::string> || std::is_same_v<T, std::wstring> || std::is_same_v<T, std::wstring_view>>::type>
+inline std::string to_u8string(const T& str, const Charset chset = Charset::ASCII)
+{
+	switch (chset)
+	{
+	case Charset::ASCII:
+		return str;
+	case Charset::GB18030:
+	{
+		std::wstring_convert<std::codecvt_byname<wchar_t, char, std::mbstate_t>> gbk_utf16_cvt(new std::codecvt_byname<wchar_t, char, std::mbstate_t>(".936"));
+		return gbk_utf16_cvt.from_bytes(str.data(), str.data() + str.length());
+	}
+	case Charset::UTF16:
+	{
+		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf16_utf8_cvt;
+		return utf16_utf8_cvt.to_bytes(str.data(), str.data() + str.length());
+	}
+	}
+	return L"";
+}
+
 #pragma warning(default:4996)
 
 inline std::wstring to_wstring(const char* const str, const Charset chset = Charset::ASCII)

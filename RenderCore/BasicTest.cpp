@@ -1,7 +1,6 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "stblib/stblib.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ImageUtil/DataConvertor.hpp"
 #include <thread>

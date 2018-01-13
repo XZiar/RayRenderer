@@ -45,10 +45,15 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
 		try
 		{
 			auto reader = support->GetReader(imgFile);
-			if(!reader->Validate())
+			if (!reader->Validate())
+			{
+				reader->Release();
 				continue;
+			}
 			ImgLog().debug(L"Using [{}]\n", support->Name);
-			return reader->Read(dataType);
+			const auto img = reader->Read(dataType);
+			reader->Release();
+			return img;
 		}
 		catch (BaseException& be)
 		{

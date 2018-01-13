@@ -6,7 +6,7 @@ namespace xziar::img::bmp
 {
 
 
-static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, const detail::BmpInfo& info)
+static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool needFlip, const detail::BmpInfo& info)
 {
     const auto width = image.Width, height = image.Height;
     const auto dataType = image.DataType;
@@ -140,8 +140,13 @@ static void ReadUncompressed(Image& image, FileObject& imgfile, bool needFlip, c
 
 
 
-BmpReader::BmpReader(FileObject& file) : ImgFile(file)
+BmpReader::BmpReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(OriginalFile), 65536)
 {
+}
+
+void BmpReader::Release()
+{
+	OriginalFile = std::move(ImgFile.Release());
 }
 
 bool BmpReader::Validate()

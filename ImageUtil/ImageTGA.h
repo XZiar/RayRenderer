@@ -58,7 +58,8 @@ struct ColorMapInfo
 class IMGUTILAPI TgaReader : public ImgReader
 {
 private:
-	FileObject& ImgFile;
+	FileObject & OriginalFile;
+	BufferedFileReader ImgFile;
 	detail::TgaHeader Header;
 	int32_t Width, Height;
 	void ReadGrey(Image& image) {};
@@ -67,6 +68,7 @@ public:
 	virtual ~TgaReader() override {};
 	virtual bool Validate() override;
 	virtual Image Read(const ImageDataType dataType) override;
+	virtual void Release() override;
 };
 
 class IMGUTILAPI TgaWriter : public ImgWriter

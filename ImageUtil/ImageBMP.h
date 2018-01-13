@@ -45,7 +45,8 @@ constexpr size_t BMP_INFO_SIZE = sizeof(BmpInfo);
 class IMGUTILAPI BmpReader : public ImgReader
 {
 private:
-	FileObject& ImgFile;
+	FileObject& OriginalFile;
+	BufferedFileReader ImgFile;
 	detail::BmpHeader Header;
 	detail::BmpInfo Info;
 public:
@@ -53,6 +54,7 @@ public:
 	virtual ~BmpReader() override {};
 	virtual bool Validate() override;
 	virtual Image Read(const ImageDataType dataType) override;
+	virtual void Release() override;
 };
 
 

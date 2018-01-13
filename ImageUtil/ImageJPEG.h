@@ -18,7 +18,7 @@ class IMGUTILAPI JpegReader : public ImgReader
 {
 	friend JpegHelper;
 private:
-	FileObject& ImgFile;
+	FileObject & ImgFile;
 	common::AlignedBuffer<32> Buffer;
 	uint32_t Width, Height;
 	void *JpegDecompStruct = nullptr;
