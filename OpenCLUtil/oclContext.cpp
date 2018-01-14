@@ -16,7 +16,7 @@ void CL_CALLBACK _oclContext::onNotify(const char * errinfo, const void * privat
 {
 	const _oclContext& ctx = *(_oclContext*)user_data;
 	if (ctx.onMessage)
-		ctx.onMessage(to_wstring(errinfo));
+		ctx.onMessage(str::to_wstring(errinfo));
 	return;
 }
 

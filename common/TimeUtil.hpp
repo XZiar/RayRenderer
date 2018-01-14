@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <chrono>
 #include <string>
-#include "StringEx.hpp"
 #define HAS_STRING_VIEW 1
 #include "../3rdParty/date/date.h"
 
@@ -32,7 +31,8 @@ public:
 	}
 	static std::wstring getCurTimeTxt()
 	{
-		return to_wstring(date::format("%H:%M:%S", std::chrono::system_clock::now()));
+		const auto str = date::format("%H:%M:%S", std::chrono::system_clock::now());
+		return std::wstring(str.cbegin(), str.cend());
 	}
 	SimpleTimer() { Start(); }
 	uint64_t Start()

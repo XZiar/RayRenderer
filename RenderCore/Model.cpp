@@ -3,7 +3,6 @@
 #include "stblib/stblib.h"
 #include "uchardetlib/uchardetlib.h"
 
-
 namespace rayr
 {
 
@@ -104,11 +103,9 @@ _ModelImage::_ModelImage(const wstring& pfname) : Image(xziar::img::ReadImage(pf
 {
     if(Width > UINT16_MAX || Height > UINT16_MAX)
         COMMON_THROW(BaseException, L"image too big");
-    //auto [w, h] = ::stb::loadImage(pfname, image);
-	//width = static_cast<uint16_t>(img.Width), height = static_cast<uint16_t>(img.Height);
 }
 
-_ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color)// :width(w), height(h)
+_ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color)
 {
     SetSize(w, h);
 }
@@ -241,7 +238,6 @@ public:
 
 	TextLine ReadLine()
 	{
-		using common::hash_;
 		using std::string_view;
 		size_t fromPos = CurPos, lineLength = 0;
 		for (bool isInLine = false; CurPos < Length;)
@@ -424,7 +420,7 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 					break;
 				int32_t pos[2];
 				line.ParseInts(2, pos);
-				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", to_wstring(line.Params[1]), pos[0], pos[1]);
+				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", str::to_wstring(line.Params[1]), pos[0], pos[1]);
 				texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
 			}
 			break;
@@ -451,14 +447,14 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 			//break;
 		case "map_Kd"_hash:
 			{
-				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->diffuse() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
 			}break;
 		case "map_bump"_hash:
 			{
-				auto tex = detail::_ModelImage::getImage(to_wstring(line.Rest(1)), mtlpath.parent_path());
+				auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1)), mtlpath.parent_path());
 				curmtl->normal() = tex;
 				if (tex)
 					curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
@@ -546,7 +542,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 				VecI4 tmpi, tmpidx;
 				const auto lim = min((size_t)4, line.Params.size() - 1);
 				if (lim < 3)
-					basLog().warning(L"too few params for face : {}", to_wstring(line.Line));
+					basLog().warning(L"too few params for face : {}", str::to_wstring(line.Line));
 				for (uint32_t a = 0; a < lim; ++a)
 				{
 					line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm

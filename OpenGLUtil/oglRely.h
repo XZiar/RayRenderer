@@ -13,6 +13,7 @@
 #include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StringEx.hpp"
+#include "common/StrCharset.hpp"
 #define USING_CHARDET
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
@@ -54,6 +55,8 @@ class _oclGLBuffer;
 
 namespace oglu
 {
+namespace str = common::str;
+namespace fs = common::file::fs;
 using std::string;
 using std::wstring;
 using std::byte;
@@ -68,7 +71,14 @@ using b3d::Vec4;
 using b3d::Mat3x3;
 using b3d::Mat4x4;
 using b3d::Camera;
-using namespace common;
+using common::Wrapper;
+using common::SimpleTimer;
+using common::NonCopyable;
+using common::NonMovable;
+using common::vectorEx;
+using common::PromiseResult;
+using common::BaseException;
+using common::FileException;
 
 namespace detail
 {

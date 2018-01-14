@@ -13,7 +13,7 @@ wstring _oclDevice::getStr(const cl_device_info type) const
 {
 	char str[128] = { 0 };
 	clGetDeviceInfo(deviceID, type, 127, str, NULL);
-	return to_wstring(str);
+	return str::to_wstring(str);
 }
 
 DeviceType _oclDevice::getDevType() const

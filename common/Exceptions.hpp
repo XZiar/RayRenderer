@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "CommonMacro.hpp"
 #include "Wrapper.hpp"
-#include "StringEx.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -50,9 +50,9 @@ public:
 	std::wstring func;
 	size_t line;
 	StackTraceItem() : file(L"Undefined"), func(L"Undefined"), line(0) {}
-	StackTraceItem(const char* file_, const char* func_, const size_t pos) : file(to_wstring(file_)), func(to_wstring(func_)), line(pos) {}
+	StackTraceItem(const wchar_t* const file_, const wchar_t* const func_, const size_t pos) : file(file_), func(func_), line(pos) {}
 };
-#define GENARATE_STACK_TRACE ::common::StackTraceItem(__FILE__, __FUNCSIG__, __LINE__)
+#define GENARATE_STACK_TRACE ::common::StackTraceItem(WIDEN(__FILE__), WIDEN(__FUNCSIG__), __LINE__)
 
 
 class BaseException : public detail::AnyException
@@ -78,7 +78,7 @@ private:
 			if (bewapper)
 				bewapper->exceptionstack(stks);
 			else
-				stks.push_back(StackTraceItem("stdException", "stdException", 0));
+				stks.push_back(StackTraceItem(L"stdException", L"stdException", 0));
 		}
 		stks.push_back(stackitem);
 	}

@@ -3,6 +3,7 @@
 
 namespace rayr
 {
+using common::ResourceHelper;
 
 using namespace common::mlog;
 logger& basLog()

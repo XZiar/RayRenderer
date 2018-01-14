@@ -29,6 +29,7 @@
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/StringEx.hpp"
+#include "common/StrCharset.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 
@@ -43,11 +44,24 @@
 
 namespace rayr
 {
+namespace str = common::str;
+namespace fs = common::file::fs;
 using std::wstring;
 using std::string;
 using std::map;
 using std::vector;
-using namespace common;
+using common::min;
+using common::max;
+using common::Wrapper;
+using common::SimpleTimer;
+using common::NonCopyable;
+using common::NonMovable;
+using common::vectorEx;
+using common::PromiseResult;
+using common::BaseException;
+using common::FileException;
+using str::Charset;
+
 template<class T, class... Args>
 using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
 }

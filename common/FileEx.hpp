@@ -10,14 +10,14 @@
 #include <optional>
 
 #include "CommonMacro.hpp"
-#include "StringEx.hpp"
+#include "StrCharset.hpp"
 #include "Exceptions.hpp"
 #include "AlignedContainer.hpp"
 
 #if defined(USING_CHARDET) && !defined(UCHARDETLIB_H_)
 namespace uchdet
 {
-	common::Charset detectEncoding(const std::string& str);
+	common::str::Charset detectEncoding(const std::string& str);
 }
 #endif
 
@@ -28,6 +28,7 @@ namespace fs = std::experimental::filesystem;
 using std::string;
 using std::wstring;
 using std::byte;
+using common::str::Charset;
 
 #if defined(USING_CHARDET) || defined(UCHARDETLIB_H_)
 #   define GET_ENCODING(str, chset) chset = uchdet::detectEncoding(str)
@@ -117,7 +118,7 @@ public:
 		if (rawChar == Charset::UTF8)
 			return text;
 		else
-			return to_u8string(text, rawChar);
+			return str::to_u8string(text, rawChar);
 	}
 };
 

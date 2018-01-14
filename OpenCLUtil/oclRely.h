@@ -13,6 +13,7 @@
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StringEx.hpp"
+#include "common/StrCharset.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/PromiseTask.h"
 
@@ -40,6 +41,8 @@
 
 namespace oclu
 {
+namespace str = common::str;
+namespace fs = common::file::fs;
 using std::string;
 using std::wstring;
 using std::string_view;
@@ -49,7 +52,16 @@ using std::map;
 using std::vector;
 using std::function;
 using std::optional;
-using namespace common;
+using common::min;
+using common::max;
+using common::Wrapper;
+using common::SimpleTimer;
+using common::NonCopyable;
+using common::NonMovable;
+using common::vectorEx;
+using common::PromiseResult;
+using common::BaseException;
+using common::FileException;
 
 class oclUtil;
 using MessageCallBack = std::function<void(const wstring&)>;

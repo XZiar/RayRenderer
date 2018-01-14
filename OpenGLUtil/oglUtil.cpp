@@ -8,6 +8,7 @@
 
 namespace oglu
 {
+using common::PromiseResultSTD;
 
 
 namespace detail

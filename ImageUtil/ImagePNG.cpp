@@ -29,12 +29,12 @@ static void OnFlushFile(png_structp pngStruct) {}
 
 static void OnError(png_structrp pngStruct, const char *message)
 {
-	ImgLog().error(L"LIBPNG report an error: {}\n", to_wstring(message));
+	ImgLog().error(L"LIBPNG report an error: {}\n", str::to_wstring(message));
 	COMMON_THROW(BaseException, L"Libpng report an error");
 }
 static void OnWarn(png_structrp pngStruct, const char *message)
 {
-	ImgLog().warning(L"LIBPNG warns: {}\n", to_wstring(message));
+	ImgLog().warning(L"LIBPNG warns: {}\n", str::to_wstring(message));
 }
 
 static png_structp CreateReadStruct()

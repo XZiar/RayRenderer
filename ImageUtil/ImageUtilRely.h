@@ -20,13 +20,16 @@
 #include "common/CommonMacro.hpp"
 #include "common/Exceptions.hpp"
 #include "common/AlignedContainer.hpp"
+#include "common/StringEx.hpp"
+#include "common/StrCharset.hpp"
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Wrapper.hpp"
 
 namespace xziar::img
 {
-namespace fs = std::experimental::filesystem;
+namespace fs = common::file::fs;
+namespace str = common::str;
 using std::byte;
 using std::string;
 using std::wstring;

@@ -102,7 +102,7 @@ wstring _oclProgram::getBuildLog(const oclDevice & dev) const
 		{
 			char logstr[8192] = { 0 };
 			clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, sizeof(logstr), logstr, nullptr);
-			return to_wstring(logstr);
+			return str::to_wstring(logstr);
 		}
 	default:
 		return L"";

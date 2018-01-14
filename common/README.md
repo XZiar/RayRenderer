@@ -48,7 +48,14 @@ A collection of useful utilities
 
 * **StringEx**
 
-  Some useful utils for string operations like encoding transform, split, concat...
+  Some useful utils for string operations like split, concat...
+
+* **StrCharset**
+  
+  Define text charset and conversions between them. Conversion is self-made, partial optimized, and partial-checked.
+
+  Thanks to `·¥Ä¾¶¡¶¡ÄñÃùàÓàÓ`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `Ð»Õñ±ó`'s work.
+  LUT_gb18030.tab is based on their works.
 
 * **TimeUtil**
 
@@ -104,13 +111,18 @@ Inside Wrapper I used some SFINAE tech to detect type, which may result in some 
 
 ### StringEx
 
-StringEx provide encoding transform using codecvt, which is marked deprecated in C++17. Since there's no alternative presented yet, I stick to it.
-
-Converting encoding need to specify input charset, while StringEx does not provide encoding-detection. If you need it , you should look at [uchardet](../3rdParty/uchardetlib).
-
 `split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
 
 `concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
+
+### StrCharset
+
+StrCharset provide encoding defines and charset transform with self-made conversion class. Correctness check is not completed.
+
+`codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
+
+Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should inlude [uchardet](../3rdParty/uchardetlib).
+
 
 ## License
 

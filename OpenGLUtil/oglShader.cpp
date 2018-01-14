@@ -33,7 +33,7 @@ void _oglShader::compile()
 	if (!result)
 	{
 		glGetShaderInfoLog(shaderID, sizeof(logstr), NULL, logstr);
-		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, to_wstring(logstr));
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, str::to_wstring(logstr));
 	}
 }
 

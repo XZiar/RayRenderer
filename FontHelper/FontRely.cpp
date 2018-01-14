@@ -3,6 +3,8 @@
 
 namespace oglu
 {
+using common::ResourceHelper;
+
 
 using namespace common::mlog;
 logger& fntLog()

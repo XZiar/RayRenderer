@@ -1,10 +1,12 @@
 #pragma once
 
 #include "FontRely.h"
-#include "../common/SharedResource.hpp"
+#include "common/SharedResource.hpp"
 
 namespace oglu
 {
+using common::SharedResource;
+
 
 class FONTHELPAPI FontCreator : public NonCopyable
 {

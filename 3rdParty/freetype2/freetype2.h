@@ -4,8 +4,8 @@
 #include <vector>
 #include <tuple>
 #include <filesystem>
-#include "../../common/CommonMacro.hpp"
-#include "../../common/AlignedContainer.hpp"
+#include "common/CommonMacro.hpp"
+#include "common/AlignedContainer.hpp"
 
 
 #define FREETYPE2_VERSION PPCAT(PPCAT(FREETYPE_MAJOR,PPCAT(.,FREETYPE_MINOR)),PPCAT(.,FREETYPE_PATCH))

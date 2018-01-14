@@ -45,7 +45,7 @@ wstring _oclPlatform::getStr(const cl_platform_info type) const
 {
 	char str[128] = { 0 };
 	clGetPlatformInfo(platformID, type, 127, str, NULL);
-	return to_wstring(str);
+	return str::to_wstring(str);
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)

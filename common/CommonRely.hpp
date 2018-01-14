@@ -22,6 +22,42 @@
 #   define free_align(ptr) _aligned_free(ptr)
 #endif
 
+
+/**
+** @brief calculate simple hash for string, used for switch-string
+** @param str std-string_view/string for the text
+** @return uint64_t the hash
+**/
+template<class T, class = typename std::enable_if<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>>::type>
+inline uint64_t hash_(const T& str)
+{
+	uint64_t hash = 0;
+	for (size_t a = 0, len = str.length(); a < len; ++a)
+		hash = hash * 33 + str[a];
+	return hash;
+}
+/**
+** @brief calculate simple hash for string, used for switch-string
+** @param str c-string for the text
+** @return uint64_t the hash
+**/
+constexpr inline uint64_t hash_(const char *str)
+{
+	uint64_t hash = 0;
+	for (; *str != '\0'; ++str)
+		hash = hash * 33 + *str;
+	return hash;
+}
+/**
+** @brief calculate simple hash for string, used for switch-string
+** @return uint64_t the hash
+**/
+constexpr inline uint64_t operator "" _hash(const char *str, size_t)
+{
+	return hash_(str);
+}
+
+
 namespace common
 {
 

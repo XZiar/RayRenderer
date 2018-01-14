@@ -369,7 +369,7 @@ void _oglProgram::link()
 	{
 		glGetProgramInfoLog(programID, sizeof(logstr), NULL, logstr);
 		glDeleteProgram(programID);
-		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, to_wstring(logstr));
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, str::to_wstring(logstr));
 	}
 	initLocs();
 	initSubroutines();
@@ -394,12 +394,12 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
 
 optional<const ProgramResource*> _oglProgram::getResource(const string& name) const
 {
-	return findmap(resMap, name);
+	return common::findmap(resMap, name);
 }
 
 optional<const vector<SubroutineResource>*> _oglProgram::getSubroutines(const string& name) const
 {
-	return findmap(subrMap, name);
+	return common::findmap(subrMap, name);
 }
 
 void _oglProgram::useSubroutine(const SubroutineResource& sr)
@@ -410,9 +410,9 @@ void _oglProgram::useSubroutine(const SubroutineResource& sr)
 
 void _oglProgram::useSubroutine(const string& sruname, const string& srname)
 {
-	if (auto sru = findmap(subrMap, sruname))
+	if (auto sru = common::findmap(subrMap, sruname))
 	{
-		if (auto sr = findvec(**sru, [&srname](auto& srr) { return srr.name == srname; }))
+		if (auto sr = common::findvec(**sru, [&srname](auto& srr) { return srr.name == srname; }))
 			useSubroutine(**sr);
 		else
 			oglLog().warning(L"cannot find subroutine {} for {}\n", srname, sruname);
@@ -423,7 +423,7 @@ void _oglProgram::useSubroutine(const string& sruname, const string& srname)
 
 GLint _oglProgram::getLoc(const string& name) const
 {
-	if (auto obj = findmap(resMap, name))
+	if (auto obj = common::findmap(resMap, name))
 		return (**obj).location;
 	return GL_INVALID_INDEX;
 }

@@ -26,6 +26,9 @@
 */
 #define STRINGIZE(A) STRINGIZE_NX(A)
 
+#define WIDEN_NX(X) L ## X
+#define WIDEN(X) WIDEN_NX(X)
+
 
 #define ENUM_CLASS_BITFIELD_FUNC(T, U) \
 inline constexpr T  operator &  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) & static_cast<U>(y)); } \

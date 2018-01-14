@@ -3,7 +3,7 @@
 
 namespace uchdet
 {
-using namespace common;
+using namespace common::str;
 
 
 Charset detectEncoding(const std::vector<uint8_t>& str)
