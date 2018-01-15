@@ -9,6 +9,15 @@
 namespace oclu
 {
 
+struct WorkGroupInfo
+{
+	uint64_t LocalMemorySize;
+	uint64_t PrivateMemorySize;
+	uint64_t WorkGroupSize;
+	uint64_t CompiledWorkGroupSize[3];
+	uint64_t PreferredWorkGroupSizeMultiple;
+};
+
 namespace detail
 {
 
@@ -25,6 +34,8 @@ private:
 	_oclKernel(const std::shared_ptr<_oclProgram>& prog_, const string& name_);
 public:
 	~_oclKernel();
+
+	WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
 	optional<wstring> setArg(const cl_uint idx, const oclBuffer& buf);
 	optional<wstring> setArg(const cl_uint idx, const void *dat, const size_t size);
 	template<class T, size_t N>

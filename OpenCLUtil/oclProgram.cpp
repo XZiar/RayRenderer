@@ -30,6 +30,20 @@ _oclKernel::~_oclKernel()
 	clReleaseKernel(kernel);
 }
 
+WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
+{
+	const cl_device_id devid = dev->deviceID;
+	WorkGroupInfo info;
+	size_t size;
+	clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, &size);
+	clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, &size);
+	clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(uint64_t), &info.WorkGroupSize, &size);
+	clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(uint64_t) * 3, &info.CompiledWorkGroupSize, &size);
+	clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(uint64_t), &info.PreferredWorkGroupSizeMultiple, &size);
+	return info;
+}
+
+
 optional<wstring> _oclKernel::setArg(const cl_uint idx, const oclBuffer& buf)
 {
 	auto ret = clSetKernelArg(kernel, idx, sizeof(cl_mem), &buf->memID);

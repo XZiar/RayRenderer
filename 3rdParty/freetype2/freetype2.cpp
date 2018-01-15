@@ -26,12 +26,12 @@ FT_LibraryRec_& FreeTyper::getLibrary()
 	return *lib;
 }
 
-uint32_t FreeTyper::getGlyphIndex(wchar_t ch) const
+uint32_t FreeTyper::getGlyphIndex(char32_t ch) const
 {
 	return FT_Get_Char_Index((FT_Face)face, ch);
 }
 
-FreeTyper::FreeTyper(const fs::path& fontpath)
+FreeTyper::FreeTyper(const fs::path& fontpath, const uint16_t pixSize, const uint16_t border) : PixSize(pixSize), Border(border)
 {
 	auto ret = FT_New_Face(&getLibrary(), fontpath.string().c_str(), 0, (FT_Face*)&face);
 	switch (ret)
@@ -45,12 +45,11 @@ FreeTyper::FreeTyper(const fs::path& fontpath)
 	default:
 		COMMON_THROW(FTException, L"unknown exception while load freetype face");
 	}
-	int height = 128;
-	FT_Set_Pixel_Sizes((FT_Face)face, 128, 128);
+	FT_Set_Pixel_Sizes((FT_Face)face, PixSize, PixSize);
 	//FT_Set_Char_Size((FT_Face)face, 0, height * 64, 96, 96);
 }
 
-BMPair FreeTyper::getChBitmap(wchar_t ch, bool custom) const
+BMPair FreeTyper::getChBitmap(char32_t ch, bool custom) const
 {
 	auto f = (FT_Face)face;
 	auto idx = getGlyphIndex(ch);
@@ -62,8 +61,8 @@ BMPair FreeTyper::getChBitmap(wchar_t ch, bool custom) const
 	{
 		FT_Render_Glyph(glyph, FT_RENDER_MODE_NORMAL);
 		auto bmp = glyph->bitmap;
-		//width alignment fix and 1px border
-		const auto w = ((bmp.width + 2 + 3) / 4) * 4, h = ((bmp.rows + 2 + 3) / 4) * 4;
+		//middle alignment fix and x-px border
+		const auto w = ((bmp.width + Border * 2 + 3) / 4) * 4, h = ((bmp.rows + Border * 2 + 3) / 4) * 4;
         const auto offx = (w - bmp.width) / 2, offy = (h - bmp.rows) / 2;
         AlignedBuffer<32> output(w*h, byte(0));
         byte* __restrict outPtr = output.GetRawPtr() + offy * w + offx;

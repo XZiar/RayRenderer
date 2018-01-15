@@ -29,7 +29,19 @@ _oclBuffer::_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType t
 
 _oclBuffer::~_oclBuffer()
 {
+#ifdef _DEBUG
+	uint32_t refCount = 0;
+	clGetMemObjectInfo(memID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
+	if (refCount == 1)
+	{
+		oclLog().debug(L"oclBuffer {:p} with size {}, has {} reference being release.\n", (void*)memID, size, refCount);
+		clReleaseMemObject(memID);
+	}
+	else
+		oclLog().warning(L"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, size, refCount);
+#else
 	clReleaseMemObject(memID);
+#endif
 }
 
 optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size_t size_, const size_t offset, const bool shouldBlock) const

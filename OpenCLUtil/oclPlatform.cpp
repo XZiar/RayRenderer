@@ -16,7 +16,7 @@ bool _oclPlatform::checkGL() const
 {
 	if (name.find(L"Experimental") != wstring::npos)
 		return false;
-	if (!findvec(devs, [](auto& dev) { return dev->type == DeviceType::GPU; }))// no GPU
+	if (!common::findvec(devs, [](auto& dev) { return dev->type == DeviceType::GPU; }))// no GPU
 		return false;
 	//Additional attributes to OpenCL context creation
 	//which associate an OpenGL context with the OpenCL context 
@@ -36,9 +36,16 @@ bool _oclPlatform::checkGL() const
 	return ret == CL_SUCCESS;
 }
 
-bool _oclPlatform::isBrand(const wstring& brand) const
+Vendor judgeBrand(const wstring& name)
 {
-	return str::ifind_first(name, brand).has_value();
+	if (str::ifind_first(name, L"nvidia").has_value())
+		return Vendor::NVIDIA;
+	else if (str::ifind_first(name, L"amd").has_value())
+		return Vendor::AMD;
+	else if (str::ifind_first(name, L"intel").has_value())
+		return Vendor::Intel;
+	else
+		return Vendor::Other;
 }
 
 wstring _oclPlatform::getStr(const cl_platform_info type) const
@@ -49,8 +56,7 @@ wstring _oclPlatform::getStr(const cl_platform_info type) const
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)),
-	isNVIDIA(isBrand(L"nvidia")), isAMD(isBrand(L"amd")), isINTEL(isBrand(L"intel"))
+	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)), vendor(judgeBrand(name))
 {
 	cl_device_id defDevID;
 	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, NULL);
@@ -85,7 +91,7 @@ oclContext _oclPlatform::createContext() const
 		});
 	}
 	props.push_back(0);
-	return oclContext(new _oclContext(props.data(), devs));
+	return oclContext(new _oclContext(props.data(), devs, vendor));
 }
 
 

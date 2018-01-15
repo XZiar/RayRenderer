@@ -234,7 +234,7 @@ void BasicTest::prepareLight()
 	lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
-void BasicTest::fontTest(const wchar_t word)
+void BasicTest::fontTest(const char32_t word)
 {
 	fs::path basepath = L"D:\\Programs Temps\\RayRenderer";
 	if (!fs::exists(basepath))
@@ -251,9 +251,19 @@ void BasicTest::fontTest(const wchar_t word)
 		fontCreator->setChar(word, false);
         const auto imgA = fonttex->getImage(TextureDataFormat::R8);
         img::WriteImage(imgA, basepath / L"A.png");
-        const auto imgShow = fontCreator->clgraysdfs(word, 1024);
-        fonttex->setData(TextureInnerFormat::R8, imgShow);
-        img::WriteImage(imgShow, basepath / L"Show.png");
+		if (word == 0x0)
+		{
+			SimpleTimer timer;
+			for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
+			{
+				const auto imgShow = fontCreator->clgraysdfs((char32_t)cnt, 4096);
+				fonttex->setData(TextureInnerFormat::R8, imgShow);
+				img::WriteImage(imgShow, basepath / (L"Show-" + std::to_wstring(cnt) + L".png"));
+				basLog().success(L"successfully processed words begin from {}\n", cnt);
+			}
+			timer.Stop();
+			basLog().success(L"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());
+		}
         //fontCreator->bmpsdf(0x554A);
 		//fontCreator->clbmpsdfgrey(0x554A);
 		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
@@ -266,7 +276,7 @@ void BasicTest::fontTest(const wchar_t word)
 	catch (BaseException& be)
 	{
 		basLog().error(L"Font Construct failure:\n{}\n", be.message);
-		COMMON_THROW(BaseException, L"init FontViewer failed");
+		//COMMON_THROW(BaseException, L"init FontViewer failed");
 	}
 }
 
@@ -317,14 +327,14 @@ void BasicTest::reloadFontLoader(const wstring& fname)
 {
 	auto clsrc = file::ReadAllText(fname);
 	fontCreator->reload(clsrc);
-	fontTest(L'Œ“');
+	fontTest(0);
 }
 
 void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
 	auto clsrc = file::ReadAllText(fname);
 	fontCreator->reload(clsrc);
-	fontTest(L'Œ“');
+	fontTest(0);
 	onFinish([]() { return true; });
 }
 

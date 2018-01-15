@@ -93,7 +93,7 @@ struct UTF7
 	}
 	static uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
 	{
-		if (size >=1 && src < 128)
+		if (size >= 1 && src < 128)
 		{
 			dest[0] = char(src);
 			return 1;
@@ -500,8 +500,11 @@ public:
 
 #define CHK_CHAR_SIZE_MOST(TYPE, SIZE) \
 	if constexpr(sizeof(Char) > SIZE) \
-		COMMON_THROW(BaseException, WIDEN(PPCAT(PPCAT(STRINGIZE(TYPE), " string should has type of at most size["), PPCAT(STRINGIZE(SIZE), "]"))));
-
+		COMMON_THROW(BaseException, WIDEN(PPCAT(PPCAT(STRINGIZE(TYPE), " string should has type of at most size["), PPCAT(STRINGIZE(SIZE), "]")))); \
+	else \
+	{
+#define CHK_CHAR_SIZE_END \
+	}
 
 template<class T, typename Char = typename T::value_type>
 inline std::string to_string(const T& str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
@@ -512,67 +515,71 @@ inline std::string to_string(const T& str, const Charset outchset = Charset::ASC
 	{
 	case Charset::ASCII:
 		CHK_CHAR_SIZE_MOST(ASCII, 1)
-		switch (outchset)
-		{
-		case Charset::UTF8:
-			return detail::CharsetConvertor<detail::UTF7, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16LE:
-			return detail::CharsetConvertor<detail::UTF7, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16BE:
-			return detail::CharsetConvertor<detail::UTF7, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
-		case Charset::UTF32:
-			return detail::CharsetConvertor<detail::UTF7, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::GB18030:
-			return detail::CharsetConvertor<detail::UTF7, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
-		}
+			switch (outchset)
+			{
+			case Charset::UTF8:
+				return detail::CharsetConvertor<detail::UTF7, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16LE:
+				return detail::CharsetConvertor<detail::UTF7, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16BE:
+				return detail::CharsetConvertor<detail::UTF7, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
+			case Charset::UTF32:
+				return detail::CharsetConvertor<detail::UTF7, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::GB18030:
+				return detail::CharsetConvertor<detail::UTF7, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
+			}
+		CHK_CHAR_SIZE_END
 		break;
 	case Charset::UTF8:
 		CHK_CHAR_SIZE_MOST(UTF8, 1)
-		switch (outchset)
-		{
-		case Charset::ASCII:
-			return detail::CharsetConvertor<detail::UTF8, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16LE:
-			return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16BE:
-			return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
-		case Charset::UTF32:
-			return detail::CharsetConvertor<detail::UTF8, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::GB18030:
-			return detail::CharsetConvertor<detail::UTF8, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
-		}
+			switch (outchset)
+			{
+			case Charset::ASCII:
+				return detail::CharsetConvertor<detail::UTF8, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16LE:
+				return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16BE:
+				return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
+			case Charset::UTF32:
+				return detail::CharsetConvertor<detail::UTF8, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::GB18030:
+				return detail::CharsetConvertor<detail::UTF8, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
+			}
+		CHK_CHAR_SIZE_END
 		break;
 	case Charset::UTF16LE:
 		CHK_CHAR_SIZE_MOST(UTF16LE, 2)
-		switch (outchset)
-		{
-		case Charset::ASCII:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF8:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16BE:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
-		case Charset::UTF32:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::GB18030:
-			return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
-		}
+			switch (outchset)
+			{
+			case Charset::ASCII:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF8:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16BE:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
+			case Charset::UTF32:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::GB18030:
+				return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str.data(), str.size(), true, true);
+			}
+		CHK_CHAR_SIZE_END
 		break;
 	case Charset::UTF16BE:
 		CHK_CHAR_SIZE_MOST(UTF16BE, 2)
-		switch (outchset)
-		{
-		case Charset::ASCII:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF7, Char, char>::Convert(str.data(), str.size(), false, true);
-		case Charset::UTF8:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF8, Char, char>::Convert(str.data(), str.size(), false, true);
-		case Charset::UTF16LE:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char>::Convert(str.data(), str.size(), false, true);
-		case Charset::UTF32:
-			return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str.data(), str.size(), false, true);
-		case Charset::GB18030:
-			return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str.data(), str.size(), false, true);
-		}
+			switch (outchset)
+			{
+			case Charset::ASCII:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF7, Char, char>::Convert(str.data(), str.size(), false, true);
+			case Charset::UTF8:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF8, Char, char>::Convert(str.data(), str.size(), false, true);
+			case Charset::UTF16LE:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char>::Convert(str.data(), str.size(), false, true);
+			case Charset::UTF32:
+				return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str.data(), str.size(), false, true);
+			case Charset::GB18030:
+				return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str.data(), str.size(), false, true);
+			}
+		CHK_CHAR_SIZE_END
 		break;
 	case Charset::UTF32:
 		switch (outchset)
@@ -591,19 +598,20 @@ inline std::string to_string(const T& str, const Charset outchset = Charset::ASC
 		break;
 	case Charset::GB18030:
 		CHK_CHAR_SIZE_MOST(GB18030, 1)
-		switch (outchset)
-		{
-		case Charset::ASCII:
-			return detail::CharsetConvertor<detail::GB18030, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF8:
-			return detail::CharsetConvertor<detail::GB18030, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16LE:
-			return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
-		case Charset::UTF16BE:
-			return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
-		case Charset::UTF32:
-			return detail::CharsetConvertor<detail::GB18030, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
-		}
+			switch (outchset)
+			{
+			case Charset::ASCII:
+				return detail::CharsetConvertor<detail::GB18030, detail::UTF7, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF8:
+				return detail::CharsetConvertor<detail::GB18030, detail::UTF8, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16LE:
+				return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, true);
+			case Charset::UTF16BE:
+				return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char>::Convert(str.data(), str.size(), true, false);
+			case Charset::UTF32:
+				return detail::CharsetConvertor<detail::GB18030, detail::UTF32, Char, char>::Convert(str.data(), str.size(), true, true);
+			}
+		CHK_CHAR_SIZE_END
 		break;
 	default:
 		COMMON_THROW(BaseException, L"unknow charset", inchset);
@@ -624,21 +632,26 @@ inline std::u16string to_u16string(const T& str, const Charset chset = Charset::
 	{
 	case Charset::ASCII:
 		CHK_CHAR_SIZE_MOST(ASCII, 1)
-		return std::u16string(str.cbegin(), str.cend());
+			return std::u16string(str.cbegin(), str.cend());
+		CHK_CHAR_SIZE_END
 	case Charset::UTF8:
 		CHK_CHAR_SIZE_MOST(UTF8, 1)
-		return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+			return detail::CharsetConvertor<detail::UTF8, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+		CHK_CHAR_SIZE_END
 	case Charset::UTF16LE:
 		CHK_CHAR_SIZE_MOST(UTF16LE, 2)
-		return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+			return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+		CHK_CHAR_SIZE_END
 	case Charset::UTF16BE:
 		CHK_CHAR_SIZE_MOST(UTF16BE, 2)
-		return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), false, true);
+			return detail::CharsetConvertor<detail::UTF16, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), false, true);
+		CHK_CHAR_SIZE_END
 	case Charset::UTF32:
 		return detail::CharsetConvertor<detail::UTF32, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
 	case Charset::GB18030:
 		CHK_CHAR_SIZE_MOST(GB18030, 1)
-		return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+			return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char16_t>::Convert(str.data(), str.size(), true, true);
+		CHK_CHAR_SIZE_END
 	default:
 		return std::u16string();
 	}

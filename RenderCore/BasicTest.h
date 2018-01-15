@@ -35,7 +35,7 @@ private:
 	void init3d(const wstring pname);
 	void initTex();
 	void initUBO();
-	void fontTest(const wchar_t word = 0x554A);
+	void fontTest(const char32_t word = 0x554A);
 	void prepareLight();
 	Wrapper<Model> _addModel(const wstring& fname);
 public:

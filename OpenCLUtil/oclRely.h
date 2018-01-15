@@ -66,6 +66,8 @@ using common::FileException;
 class oclUtil;
 using MessageCallBack = std::function<void(const wstring&)>;
 
+enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
+
 namespace detail
 {
 class _oclContext;

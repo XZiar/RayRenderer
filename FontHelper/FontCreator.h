@@ -14,7 +14,7 @@ private:
 	ft::FreeTyper ft2;
 	oglTexture testTex;
 	oclu::oclKernel kerSdf, kerSdfGray;
-	oclu::oclBuffer sqlut, sq256lut;
+	oclu::oclBuffer sq256lut;
 	static SharedResource<oclu::oclContext> clRes;
 	oclu::oclContext clCtx;
 	oclu::oclCmdQue clQue;
@@ -24,11 +24,11 @@ public:
 	~FontCreator();
 	void reload(const string& src);
 	oglTexture getTexture() const { return testTex; }
-	void setChar(wchar_t ch, bool custom) const;
-	void clbmpsdf(wchar_t ch) const;
-	void clbmpsdfgray(wchar_t ch) const;
-	void clbmpsdfs(wchar_t ch, uint16_t count) const;
-	xziar::img::Image clgraysdfs(wchar_t ch, uint16_t count) const;
+	void setChar(char32_t ch, bool custom) const;
+	void clbmpsdf(char32_t ch) const;
+	void clbmpsdfgray(char32_t ch) const;
+	void clbmpsdfs(char32_t ch, uint32_t count) const;
+	xziar::img::Image clgraysdfs(char32_t ch, uint32_t count) const;
 };
 
 }
