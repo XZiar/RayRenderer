@@ -243,35 +243,33 @@ void BasicTest::fontTest(const char32_t word)
 	{
 		fontViewer.reset();
 		fontCreator.reset(basepath / L"test.ttf");
-		auto fonttex = fontCreator->getTexture();
-		fontCreator->setChar(L'G', false);
-		fontViewer->bindTexture(fonttex);
-        const auto imgG = fonttex->getImage(TextureDataFormat::R8);
-        img::WriteImage(imgG, basepath / L"G.png");
-		fontCreator->setChar(word, false);
-        const auto imgA = fonttex->getImage(TextureDataFormat::R8);
-        img::WriteImage(imgA, basepath / L"A.png");
 		if (word == 0x0)
 		{
 			SimpleTimer timer;
-			for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
+			for (uint32_t cnt = 20480; cnt < 65536; cnt += 4096)
 			{
 				const auto imgShow = fontCreator->clgraysdfs((char32_t)cnt, 4096);
-				fonttex->setData(TextureInnerFormat::R8, imgShow);
 				img::WriteImage(imgShow, basepath / (L"Show-" + std::to_wstring(cnt) + L".png"));
 				basLog().success(L"successfully processed words begin from {}\n", cnt);
 			}
 			timer.Stop();
 			basLog().success(L"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());
 		}
-        //fontCreator->bmpsdf(0x554A);
-		//fontCreator->clbmpsdfgrey(0x554A);
-		//fontCreator->clbmpsdfs(/*0x9f8d*/0x554A, 4096);
-
-		//::stb::saveImage(L"D:\\Programs Temps\\RayRenderer\\4096-2.png", outer, ftexsize.first, ftexsize.second);
-
-		//fontCreator->setChar(0x9f8d, false);
-		fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+		else
+		{
+			auto fonttex = fontCreator->getTexture();
+			fontCreator->setChar(L'G', false);
+			fontViewer->bindTexture(fonttex);
+			const auto imgG = fonttex->getImage(TextureDataFormat::R8);
+			img::WriteImage(imgG, basepath / L"G.png");
+			fontCreator->setChar(word, false);
+			const auto imgA = fonttex->getImage(TextureDataFormat::R8);
+			img::WriteImage(imgA, basepath / L"A.png");
+			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 1024);
+			fonttex->setData(TextureInnerFormat::R8, imgShow);
+			img::WriteImage(imgShow, basepath / (L"Show.png"));
+			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+		}
 	}
 	catch (BaseException& be)
 	{
@@ -332,10 +330,24 @@ void BasicTest::reloadFontLoader(const wstring& fname)
 
 void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
-	auto clsrc = file::ReadAllText(fname);
-	fontCreator->reload(clsrc);
-	fontTest(0);
-	onFinish([]() { return true; });
+	std::thread([this, onFinish, onError](const wstring name)
+	{
+		try
+		{
+			auto clsrc = file::ReadAllText(name);
+			fontCreator->reload(clsrc);
+			fontTest(0);
+			onFinish([]() {return true; });
+		}
+		catch (BaseException& be)
+		{
+			basLog().error(L"failed to reload font test\n");
+			if (onError)
+				;// onError(be);
+			else
+				onFinish([]() { return false; });
+		}
+	}, fname).detach();
 }
 
 bool BasicTest::addModel(const wstring& fname)
@@ -364,7 +376,7 @@ void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinis
 		}
 		catch (BaseException& be)
 		{
-			basLog().error(L"failed to load model by file {}", name);
+			basLog().error(L"failed to load model by file {}\n", name);
 			if (onError)
 				onError(be);
 			else

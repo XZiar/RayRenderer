@@ -49,7 +49,7 @@ optional<wstring> _oclKernel::setArg(const cl_uint idx, const oclBuffer& buf)
 	auto ret = clSetKernelArg(kernel, idx, sizeof(cl_mem), &buf->memID);
 	if (ret == CL_SUCCESS)
 		return {};
-	return oclUtil::getErrorString(ret);
+	COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
 }
 
 optional<wstring> _oclKernel::setArg(const cl_uint idx, const void *dat, const size_t size)
@@ -57,7 +57,7 @@ optional<wstring> _oclKernel::setArg(const cl_uint idx, const void *dat, const s
 	auto ret = clSetKernelArg(kernel, idx, size, dat);
 	if (ret == CL_SUCCESS)
 		return {};
-	return oclUtil::getErrorString(ret);
+	COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"excute kernel error", ret));
 }
 
 
@@ -114,8 +114,10 @@ wstring _oclProgram::getBuildLog(const oclDevice & dev) const
 		return L"Build successfully";
 	case CL_BUILD_ERROR:
 		{
-			char logstr[8192] = { 0 };
-			clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, sizeof(logstr), logstr, nullptr);
+			size_t logsize;
+			clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
+			string logstr(std::max((size_t)1024, logsize), '\0');
+			clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), nullptr);
 			return str::to_wstring(logstr);
 		}
 	default:
@@ -155,13 +157,19 @@ void _oclProgram::build(const string& options, const oclDevice dev)
 		ret = clBuildProgram(progID, 1, &dev->deviceID, options.c_str(), nullptr, nullptr);
 	else
 		ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
-	if (ret != CL_SUCCESS)
+	wstring buildlog;
+	for (auto& dev : getDevs())
+		buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
+	if (ret == CL_SUCCESS)
 	{
-		wstring buildlog;
-		for (auto& dev : getDevs())
-			buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
+		oclLog().success(L"build program {:p} success:\n{}\n", (void*)progID, buildlog);
+	}
+	else
+	{
+		oclLog().error(L"build program {:p} failed:\n{}\n", (void*)progID, buildlog);
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
 	}
+
 	initKers();
 }
 

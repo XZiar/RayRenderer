@@ -14,7 +14,7 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 	const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
 	private uchar raw[160];
 	//setup square-LUT
-	sqLUT[lid] = lid*lid;
+	sqLUT[lid] = lid * lid;
 	//each row operation
 	if (lid < h)
 	{
@@ -105,31 +105,32 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 		idx = offset + lid;
 		for (uint y = 0; y < h; ++y, idx += w)
 			result[idx] = perCol[y];
-			//result[idx] = sqLUT[xdist[idx - offset]];
+		//result[idx] = sqLUT[xdist[idx - offset]];
 	}
 }
 
 
 #define THREDHOLD 16
-
+#define MAX_PIX 128
 #if defined(NVIDIA)//nvidia, don't use local memory optimization
-
-kernel void graysdf(constant float *sq256LUT, global const Info *info, global uchar *img, global short *result)
+#define XD_Stride 129
+kernel void graysdf(global const float * const restrict sq256LUT2, global const Info * const restrict info, global const uchar * const restrict img, global short * const restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);
-	local ushort xdist[144 * 144];
+	local float sq256LUT[MAX_PIX];
+	local ushort xdist[MAX_PIX * XD_Stride];
 	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
-	private uchar raw[144];
-	private ushort perRC[144];
+	private uchar raw[MAX_PIX];
 	//each row operation
 	if (lid < h)
 	{
-		uint idx = lid * w;
+		local ushort * restrict perRC2 = xdist + XD_Stride * lid;
 		ushort dist = 64 * 256, adder = 0;
 		uchar curimg = 0;
 		{
-			global const uchar *rowptr = &img[idx + offset];
+			global const uchar * restrict const rowptr = img + offset + lid * w;
+			prefetch(rowptr, (size_t)w);
 			for (uint x = 0, xlim = w / 4; x < xlim; ++x)
 				vstore4(vload4(x, rowptr), x, raw);
 		}
@@ -141,71 +142,73 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 				if (objimg > THREDHOLD)//enter edge
 				{
 					dist = objimg - 128, adder = 256;
-					perRC[x] = abs(128 - objimg);
+					perRC2[x] = abs(128 - objimg);
 				}
 				else
-					perRC[x] = dist;
+					perRC2[x] = dist;
 			}
 			else
 			{
 				if (objimg <= THREDHOLD)//leave edge
-					perRC[x] = dist = (256 + 128) - curimg, adder = 256;
+					perRC2[x] = dist = (256 + 128) - curimg, adder = 256;
 				else
-					perRC[x] = dist;
+					perRC2[x] = dist;
 			}
 			curimg = objimg;
 		}
-		dist = perRC[w - 1], adder = 0, curimg = 0;
-		idx += w - 1;
-		for (uint x = w; x--; --idx, dist += adder)
+		dist = perRC2[w - 1], adder = 0, curimg = 0;
+		for (uint x = w; x--; dist += adder)
 		{
 			const uchar objimg = raw[x];
-			const ushort objPix = perRC[x];
+			const ushort objPix = perRC2[x];
 			if (curimg <= THREDHOLD)
 			{
 				if (objimg > THREDHOLD)//enter edge
 				{
 					dist = objimg - 128, adder = 256;
-					xdist[idx] = min((ushort)abs(128 - objimg), objPix);
+					perRC2[x] = min((ushort)abs(128 - objimg), objPix);
 				}
 				else
-					xdist[idx] = min(dist, objPix);
+					perRC2[x] = min(dist, objPix);
 			}
 			else
 			{
 				if (objimg <= THREDHOLD)//leave edge
 				{
 					dist = (256 + 128) - curimg, adder = 256;
-					xdist[idx] = min(dist, objPix);
+					perRC2[x] = min(dist, objPix);
 				}
 				else
-					xdist[idx] = min(dist, objPix);
+					perRC2[x] = min(dist, objPix);
 			}
 			curimg = objimg;
 		}
 	}
+	event_t evt = async_work_group_copy(sq256LUT, sq256LUT2, MAX_PIX, 0);
+	wait_group_events(1, &evt);
 	//synchronize
-	barrier(CLK_LOCAL_MEM_FENCE);
+	//barrier(CLK_LOCAL_MEM_FENCE);
 	if (lid < w)
 	{
-		uint idx = lid;
+		private ushort perRC[MAX_PIX];
+		uint xdidx = lid;
+		//global const uchar * const raw = img + offset + lid;
 		for (uint y = 0, tmpidx = lid + offset; y < h; ++y, tmpidx += w)
 			raw[y] = img[tmpidx];
-		perRC[0] = xdist[idx];
-		uchar curimg = raw[0];
+		perRC[0] = xdist[xdidx];
+		uchar lastimg = raw[0];
 		ushort dist = 64 * 256, adder = 0;
-		bool isLastPure = true;
-		for (uint y = 1; y < h; curimg = raw[y++], dist += adder)
+		for (uint y = 1; y < h; lastimg = raw[y++], dist += adder)
 		{
-			uint testidx = idx;
-			idx += w;
+			uint testidx = xdidx;
+			xdidx += XD_Stride;
 			const uchar objimg = raw[y];
-			const ushort curxdist = xdist[idx];
+			const ushort curxdist = xdist[xdidx];
 			if (objimg <= THREDHOLD)//empty
 			{
-				if (curimg > THREDHOLD)//leave edge
+				if (lastimg > THREDHOLD)//leave edge
 				{
-					dist = 256 + 128 - curimg, adder = 256;
+					dist = 256 + 128 - lastimg, adder = 256;
 					perRC[y] = min(curxdist, dist);
 					continue;
 				}
@@ -218,9 +221,9 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 			}
 			else//full
 			{
-				if (curimg < 255 - THREDHOLD)//enter edge
+				if (lastimg < 255 - THREDHOLD)//enter edge
 				{
-					dist = 128 + curimg, adder = 256;
+					dist = 128 + lastimg, adder = 256;
 					perRC[y] = min(curxdist, dist);
 					continue;
 				}
@@ -229,7 +232,7 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 			ushort objPix = min(curxdist, dist);
 			float curdist2 = (float)objPix * (float)objPix;
 			float maxdy2 = min(curdist2, sq256LUT[y + 1]), dy2 = 65536.0f;
-			for (uint dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx -= w)
+			for (uint dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx -= XD_Stride)
 			{
 				const uchar oimg = raw[y - dy];
 				if (objimg <= THREDHOLD)//empty
@@ -251,7 +254,7 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 					}
 				}
 				const ushort oxdist = xdist[testidx];
-				const float newdist = oxdist * oxdist + dy2; //sqLUT[oxdist] + dy2;
+				const float newdist = oxdist * oxdist + dy2;
 				if (newdist < curdist2)
 				{
 					curdist2 = newdist;
@@ -263,41 +266,48 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 			perRC[y] = objPix;
 		}
 		dist = 64 * 256, adder = 0;
-		curimg = raw[h - 1];
-		for (uint y = h - 1; y--; curimg = raw[y], dist += adder)
+		lastimg = raw[h - 1];
+		global short * restrict output = result + offset + w * (h - 1) + lid;
+		for (uint y = h - 1; y--; dist += adder, output -= w)
 		{
-			uint testidx = idx;
-			idx -= w;
+			uint testidx = xdidx;
+			xdidx -= XD_Stride;
 			const uchar objimg = raw[y];
 			ushort objPix = perRC[y];// no need to check xdist[idx], it is checked in previous pass
 			if (objimg <= THREDHOLD)//empty
 			{
-				if (curimg > THREDHOLD)//leave edge
+				if (lastimg > THREDHOLD)//leave edge
 				{
-					dist = 256 + 128 - curimg, adder = 256;
-					perRC[y] = min(dist, objPix);
+					dist = 256 + 128 - lastimg, adder = 256;
+					//sure: outside, posative
+					*output = (short)min(dist, objPix);
+					lastimg = objimg;
 					continue;
 				}
 			}
 			else if (objimg < 255 - THREDHOLD)//not pure white/black -> edge
 			{
 				dist = objimg - 128, adder = 256;
+				*output = objimg > 127 ? -(short)objPix : (short)objPix;
 				//already changed
+				lastimg = objimg;
 				continue;
 			}
 			else//full
 			{
-				if (curimg < 255 - THREDHOLD)//enter edge
+				if (lastimg < 255 - THREDHOLD)//enter edge
 				{
-					dist = 128 + curimg, adder = 256;
-					perRC[y] = min(dist, objPix);
+					dist = 128 + lastimg, adder = 256;
+					//sure: inside, negative
+					*output = -(short)min(dist, objPix);
+					lastimg = objimg;
 					continue;
 				}
 			}
 			//current pure and last is the same
 			float curdist2 = (float)objPix * (float)objPix;
 			float maxdy2 = min(curdist2, sq256LUT[h - y - 1]), dy2 = 65536.0f;
-			for (uint dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx += w)
+			for (uint dy = 1; dy2 < maxdy2; dy2 = sq256LUT[dy], testidx += XD_Stride)
 			{
 				const uchar oimg = raw[y + dy];
 				if (objimg <= THREDHOLD)//empty
@@ -319,7 +329,7 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 					}
 				}
 				const ushort oxdist = xdist[testidx];
-				const float newdist = oxdist * oxdist + dy2; //sqLUT[oxdist] + dy2;
+				const float newdist = oxdist * oxdist + dy2;
 				if (newdist < curdist2)
 				{
 					curdist2 = newdist;
@@ -328,25 +338,23 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global uc
 				}
 				dy++;
 			}
-			perRC[y] = objPix;
+			*output = objimg > 127 ? -(short)objPix : (short)objPix;
+			lastimg = objimg;
 		}
-		idx = offset + lid;
-		for (uint y = 0; y < h; ++y, idx += w)
-			result[idx] = raw[y] > 127 ? -(short)perRC[y] : (short)perRC[y];
 	}
 }
 
 #elif LOC_MEM_SIZE >= 65536 //64k local memory, put image cache to local
 
-kernel void graysdf(constant float *sq256LUT, global const Info *info, global const uchar *img, global short *result)
+kernel void graysdf(global float * restrict sq256LUT2, global const Info * restrict info, global const uchar * restrict img, global short * restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);
 	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
-	local ushort tmp[144 * 144];
-	local uchar imgcache[144 * 144];
-	local uchar * const raw = imgcache + lid * 144;
-	//global ushort *xdist = distcache + 144 * 144 * (gid % 24);
+	local float sq256LUT[MAX_PIX];
+	local ushort tmp[MAX_PIX * MAX_PIX];
+	local uchar imgcache[MAX_PIX * MAX_PIX];
+	local uchar * const raw = imgcache + lid * MAX_PIX;
 	//each row operation
 	if (lid < h)
 	{
@@ -359,7 +367,7 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 				vstore4(vload4(x, rowptr), x, raw);
 		}
 		uint idx = 0;
-		for (uint x = 0, rprc = 0; x < w; ++x, dist += adder, idx += 144)
+		for (uint x = 0, rprc = 0; x < w; ++x, dist += adder, idx += MAX_PIX)
 		{
 			const uchar objimg = raw[x];
 			if (curimg <= THREDHOLD)
@@ -381,9 +389,9 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 			}
 			curimg = objimg;
 		}
-		idx -= 144;
+		idx -= MAX_PIX;
 		dist = rPerRC[idx], adder = 0, curimg = 0;
-		for (uint x = w; x--; dist += adder, idx -= 144)
+		for (uint x = w; x--; dist += adder, idx -= MAX_PIX)
 		{
 			const uchar objimg = raw[x];
 			const ushort objPix = rPerRC[idx];
@@ -410,12 +418,14 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 			curimg = objimg;
 		}
 	}
+	event_t evt = async_work_group_copy(sq256LUT, sq256LUT2, MAX_PIX, 0);
+	wait_group_events(1, &evt);
 	//synchronize
-	barrier(CLK_LOCAL_MEM_FENCE);
+	//barrier(CLK_LOCAL_MEM_FENCE);
 	if (lid < w)
 	{
-		local ushort * const perRC = &tmp[lid * 144];//has been prepared.
-		private float xdist2[144];
+		local ushort * const perRC = &tmp[lid * MAX_PIX];//has been prepared.
+		private float xdist2[MAX_PIX];
 		uint idx = lid;
 		for (uint y = 0, imgidx = lid + offset; y < h; ++y, imgidx += w)
 			raw[y] = img[imgidx];
@@ -562,12 +572,12 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 
 #else//less than 64k local memory, image stays in global
 
-kernel void graysdf(constant float *sq256LUT, global const Info *info, global const uchar *img, global short *result)
+kernel void graysdf(constant float * restrict sq256LUT, global const Info * restrict info, global const uchar *img, global short * restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);
 	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
-	local ushort tmp[144 * 144];
+	local ushort tmp[MAX_PIX * MAX_PIX];
 	//each row operation
 	if (lid < h)
 	{
@@ -576,7 +586,7 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 		uchar curimg = 0;
 		global const uchar * const raw = img + offset + lid * w;
 		uint idx = 0;
-		for (uint x = 0, rprc = 0; x < w; ++x, dist += adder, idx += 144)
+		for (uint x = 0, rprc = 0; x < w; ++x, dist += adder, idx += MAX_PIX)
 		{
 			const uchar objimg = raw[x];
 			if (curimg <= THREDHOLD)
@@ -598,9 +608,9 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 			}
 			curimg = objimg;
 		}
-		idx -= 144;
+		idx -= MAX_PIX;
 		dist = rPerRC[idx], adder = 0, curimg = 0;
-		for (uint x = w; x--; dist += adder, idx -= 144)
+		for (uint x = w; x--; dist += adder, idx -= MAX_PIX)
 		{
 			const uchar objimg = raw[x];
 			const ushort objPix = rPerRC[idx];
@@ -631,8 +641,8 @@ kernel void graysdf(constant float *sq256LUT, global const Info *info, global co
 	barrier(CLK_LOCAL_MEM_FENCE);
 	if (lid < w)
 	{
-		local ushort * const perRC = &tmp[lid * 144];//has been prepared.
-		private float xdist2[144];
+		local ushort * const perRC = &tmp[lid * MAX_PIX];//has been prepared.
+		private float xdist2[MAX_PIX];
 		global const uchar * const raw = img + offset + lid;
 		for (uint i = 0, ilim = h / 4; i < ilim; ++i)
 		{

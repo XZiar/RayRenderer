@@ -91,7 +91,7 @@ oclContext _oclPlatform::createContext() const
 		});
 	}
 	props.push_back(0);
-	return oclContext(new _oclContext(props.data(), devs, vendor));
+	return oclContext(new _oclContext(props.data(), devs, name, vendor));
 }
 
 

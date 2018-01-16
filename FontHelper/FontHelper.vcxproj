@@ -217,6 +217,7 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="downsample.cl" />
     <None Include="printfont.glsl" />
     <None Include="sdf.cl" />
   </ItemGroup>

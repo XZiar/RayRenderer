@@ -41,6 +41,7 @@ _oclBuffer::~_oclBuffer()
 		oclLog().warning(L"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, size, refCount);
 #else
 	clReleaseMemObject(memID);
+	oclLog().debug(L"oclBuffer {:p} with size {} being release.\n", (void*)memID, size);
 #endif
 }
 
@@ -50,7 +51,7 @@ optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size
 		COMMON_THROW(BaseException, L"offset overflow");
 	cl_event e;
 	auto ret = clEnqueueReadBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(size - offset, size_), buf, 0, nullptr, &e);
-	if (ret != CL_SUCCESS && ret != CL_OUT_OF_RESOURCES)
+	if (ret != CL_SUCCESS)
 		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
 	if (shouldBlock)
 		return {};

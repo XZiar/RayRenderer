@@ -1,6 +1,6 @@
 #include "FontRely.h"
 #include "FontCreator.h"
-#include "../OpenCLUtil/oclException.h"
+#include "OpenCLUtil/oclException.h"
 #include <cmath>
 #include "resource.h"
 
@@ -11,11 +11,19 @@ using namespace oclu;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
+
+struct FontInfo
+{
+	uint32_t offset;
+	uint8_t w, h;
+};
+
+
 auto FindPlatform(const std::vector<oclPlatform>& platforms)
 {
 	for (const auto& plt : platforms)
 		if (plt->vendor == Vendor::NVIDIA)
-			return plt;
+			;// return plt;
 	for (const auto& plt : platforms)
 		if (plt->vendor == Vendor::AMD)
 			return plt;
@@ -47,11 +55,9 @@ void FontCreator::loadCL(const string& src)
 	oclProgram clProg(clCtx, src);
 	try
 	{
-		string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
+		string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
 		options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->devs[0]->LocalMemSize);
 		clProg->build(options);
-		const auto log = clProg->getBuildLog(clCtx->devs[0]);
-		fntLog().debug(L"buildlog:{}\n", log);
 	}
 	catch (OCLException& cle)
 	{
@@ -62,16 +68,32 @@ void FontCreator::loadCL(const string& src)
     kerSdfGray = clProg->getKernel("graysdf");
 	{
 		const auto wgInfo = kerSdfGray->GetWorkGroupInfo(clCtx->devs[0]);
-	}
-	//prepare LUT
-	{
-		std::array<float, 256> lut{ 0 };
-		sq256lut.reset(clCtx, MemType::ReadOnly, lut.size() * 4);
-		for (uint16_t i = 0; i < 256; ++i)
-			lut[i] = i * i * 65536.0f;
-		sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
+		//preset arg
 		kerSdfGray->setArg(0, sq256lut);
+		kerSdfGray->setArg(1, infoBuf);
+		kerSdfGray->setArg(2, inputBuf);
+		kerSdfGray->setArg(3, middleBuf);
 	}
+}
+
+void FontCreator::loadDownSampler(const string& src)
+{
+	oclProgram clProg(clCtx, src);
+	try
+	{
+		string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
+		options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->devs[0]->LocalMemSize);
+		clProg->build(options);
+	}
+	catch (OCLException& cle)
+	{
+		fntLog().error(L"Fail to build opencl Program:\n{}\n", cle.message);
+		COMMON_THROW(BaseException, L"build Program error");
+	}
+	kerDownSamp = clProg->getKernel("downsample4");
+	kerDownSamp->setArg(0, infoBuf);
+	kerDownSamp->setArg(1, middleBuf);
+	kerDownSamp->setArg(2, outputBuf);
 }
 
 FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath, 124, 2)
@@ -85,7 +107,25 @@ FontCreator::FontCreator(const fs::path& fontpath) : ft2(fontpath, 124, 2)
 		}
 	if(!clQue)
 		COMMON_THROW(BaseException, L"clQueue initialized failed! There may be no GPU device found in platform");
-	loadCL(getShaderFromDLL(IDR_SHADER_SDTTEST));
+
+	//prepare LUT
+	{
+		std::array<float, 256> lut;
+		sq256lut.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, lut.size() * 4);
+		for (uint16_t i = 0; i < 256; ++i)
+			lut[i] = i * i * 65536.0f;
+		/*common::file::FileObject::OpenThrow(L"D:\\Programs Temps\\RayRenderer\\sqLUT256.bin", common::file::OpenFlag::BINARY | common::file::OpenFlag::CREATE | common::file::OpenFlag::WRITE)
+			.Write(lut.size(), lut);*/
+		sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
+		constexpr auto expectBufSize = 4096 * 128 * 128 * sizeof(uint16_t);
+		infoBuf.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, 4096 * sizeof(FontInfo));
+		inputBuf.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, 4096 * 128 * 128 * sizeof(uint8_t));
+		middleBuf.reset(clCtx, MemType::ReadWrite | MemType::HostReadOnly, 4096 * 128 * 128 * sizeof(uint16_t));
+		outputBuf.reset(clCtx, MemType::WriteOnly | MemType::HostReadOnly, 4096 * 32 * 32 * sizeof(uint8_t));
+	}
+	
+	loadCL(getShaderFromDLL(IDR_SHADER_SDFTEST));
+	loadDownSampler(getShaderFromDLL(IDR_SHADER_DWNSAMP));
 	testTex.reset(TextureType::Tex2D);
 	testTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
@@ -97,6 +137,9 @@ FontCreator::~FontCreator()
 
 void FontCreator::reload(const string& src)
 {
+	kerSdf.release();
+	kerSdfGray.release();
+	kerDownSamp.release();
 	loadCL(src);
 }
 
@@ -106,96 +149,6 @@ void FontCreator::setChar(char32_t ch, bool custom) const
 	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, width, height, img.GetRawPtr());
 }
 
-struct FontInfo
-{
-	uint32_t offset;
-	uint8_t w, h;
-};
-
-void FontCreator::clbmpsdf(char32_t ch) const
-{
-    auto[img, w, h] = ft2.getChBitmap(ch, true);
-	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
-	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
-	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
-	FontInfo finfo[] = { { 0,(uint8_t)w,(uint8_t)h } };
-	wsize->write(clQue, finfo);
-    kerSdf->setArg(0, wsize);
-	input->write(clQue, img.GetRawPtr(), img.GetSize());
-    kerSdf->setArg(1, input);
-    kerSdf->setArg(2, output);
-	size_t worksize[] = { 160 };
-    kerSdf->run<1>(clQue, worksize, worksize, true);
-	vector<uint16_t> distsq;
-	output->read(clQue, distsq);
-	vector<uint8_t> fin((h * 2) * (w * 2));
-	for (uint32_t y = 0; y < h; ++y)
-	{
-		for (uint32_t x = 0; x < w; ++x)
-		{
-			bool inside = (img.GetRawPtr<uint8_t>()[y*w + x] != 0);
-			fin[y*(w * 2) + x] = inside ? 0 : 255;
-			auto rawdist = std::sqrt(distsq[y*w + x]);
-			fin[y*(w * 2) + w + x] = (uint8_t)rawdist * 2;
-			//limit to +/-8 pix
-			auto truedist = std::clamp(rawdist * 16, 0., 127.);
-			fin[(h + y)*(w * 2) + x] = (uint8_t)truedist * 2;
-			auto trueval = (inside ? 127 - truedist : 127 + truedist);
-			fin[(h + y)*(w * 2) + w + x] = (uint8_t)trueval;
-		}
-	}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
-}
-
-void FontCreator::clbmpsdfgray(char32_t ch) const
-{
-	SimpleTimer timer;
-    auto[img, w, h] = ft2.getChBitmap(ch, false);
-	oclBuffer input(clCtx, MemType::ReadOnly, img.GetSize());
-	oclBuffer output(clCtx, MemType::ReadWrite, img.GetSize() * sizeof(uint16_t));
-	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo));
-	FontInfo finfo[] = { { 0,(uint8_t)w,(uint8_t)h } };
-	wsize->write(clQue, finfo);
-	kerSdfGray->setArg(1, wsize);
-    input->write(clQue, img.GetRawPtr(), img.GetSize());
-    kerSdfGray->setArg(2, input);
-    kerSdfGray->setArg(3, output);
-	size_t worksize[] = { 160 };
-	timer.Start();
-    kerSdfGray->run<1>(clQue, worksize, worksize, true);
-	timer.Stop();
-	fntLog().verbose(L"grey OpenCl cost {} us\n", timer.ElapseUs());
-	vector<int16_t> distsq;
-	output->read(clQue, distsq);
-	vector<uint8_t> bdata;
-    for (size_t cnt = 0; cnt < img.GetSize(); ++cnt)
-        bdata.push_back((uint8_t)img[cnt] > 127 ? 255 : 0);
-	input->write(clQue, bdata);
-    kerSdf->setArg(0, wsize);
-    kerSdf->setArg(1, input);
-    kerSdf->setArg(2, output);
-    kerSdf->run<1>(clQue, worksize, worksize, true);
-	vector<uint16_t> distsq2;
-	output->read(clQue, distsq2);
-	vector<uint8_t> fin((h * 2) * (w * 2));
-	for (uint32_t y = 0; y < h; ++y)
-	{
-		for (uint32_t x = 0; x < w; ++x)
-		{
-			fin[y*(w * 2) + x] = (uint8_t)img[y*w + x];
-			bool isOutside = (fin[y*(w * 2) + w + x] = bdata[y*w + x]) > 0;
-			//limit to +/-8 pix
-			auto truedist = std::clamp(((int)distsq[y*w + x] + 8 * 256), 0, 16 * 256 - 1);
-			fin[(h + y)*(w * 2) + x] = (uint8_t)(truedist / 16);
-			//auto trueval = (inside ? 127 - truedist : 127 + truedist);
-			//fin[(h + y)*(w * 2) + w + x] = (uint8_t)trueval;
-			auto rawdist2 = std::sqrt(distsq2[y*w + x]);
-			auto truedist2 = std::clamp(rawdist2 * 16, 0., 127.);
-			fin[(h + y)*(w * 2) + w + x] = isOutside ? (uint8_t)(128 - truedist2) : (uint8_t)(truedist2 + 128);
-		}
-	}
-	testTex->setData(TextureInnerFormat::R8, TextureDataFormat::R8, w * 2, h * 2, fin);
-}
 
 void FontCreator::clbmpsdfs(char32_t ch, uint32_t count) const
 {
@@ -278,7 +231,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 	for (uint32_t a = 0; a < count; ++a)
 	{
 		auto[img, width, height] = ft2.getChBitmap(ch + a, false);
-		if (width > 128 || height > 128)
+		if (width > fontsizelim || height > fontsizelim)
 		{
 			const auto chstr = *(std::wstring*)&str::to_u16string(std::u32string(1, ch + a), str::Charset::UTF32);
 			fntLog().warning(L"ch {} has invalid size {} x {}\n", chstr, width, height);
@@ -290,25 +243,32 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 			width = tmpimg.Width, height = tmpimg.Height;
 			memcpy_s(img.GetRawPtr(), img.GetSize(), tmpimg.GetRawPtr(), tmpimg.GetSize());
 		}
+		if (offset % 16)
+			COMMON_THROW(BaseException, L"offset wrong");
+		if (width % 4)
+			COMMON_THROW(BaseException, L"width wrong");
+		if (height % 4)
+			COMMON_THROW(BaseException, L"height wrong");
 		finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)width,(uint8_t)height });
 		alldata.insert(alldata.cend(), img.GetRawPtr(), img.GetRawPtr() + img.GetSize());
 		offset += img.GetSize();
 	}
 	timer.Stop();
 	fntLog().verbose(L"raster cost {} us\n", timer.ElapseUs());
+/*
+	common::file::FileObject::OpenThrow(L"D:\\Programs Temps\\RayRenderer\\src.bin", common::file::OpenFlag::BINARY | common::file::OpenFlag::CREATE | common::file::OpenFlag::WRITE)
+		.Write(alldata.size(), alldata);
+	common::file::FileObject::OpenThrow(L"D:\\Programs Temps\\RayRenderer\\finfos.bin", common::file::OpenFlag::BINARY | common::file::OpenFlag::CREATE | common::file::OpenFlag::WRITE)
+		.Write(finfos.size(), finfos);
+	return Image();*/
 
 	fntLog().verbose(L"prepare start at {}\n", timer.getCurTimeTxt());
 	timer.Start();
-	oclBuffer input(clCtx, MemType::ReadOnly, alldata.size());
-	oclBuffer output(clCtx, MemType::ReadWrite, alldata.size() * sizeof(int16_t));
-	oclBuffer wsize(clCtx, MemType::ReadOnly, sizeof(FontInfo) * fontCount * fontCount); 
-	input->write(clQue, alldata);
-	wsize->write(clQue, finfos);
-    kerSdfGray->setArg(1, wsize);
-    kerSdfGray->setArg(2, input);
-    kerSdfGray->setArg(3, output);
+	inputBuf->write(clQue, alldata);
+	infoBuf->write(clQue, finfos);
 	timer.Stop();
 	fntLog().verbose(L"prepare cost {} us\n", timer.ElapseUs());
+	clQue->flush();
 
 	fntLog().verbose(L"OpenCL start at {}\n", timer.getCurTimeTxt());
 	timer.Start();
@@ -316,7 +276,43 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     kerSdfGray->run<1>(clQue, worksize, localsize, true);
 	timer.Stop();
 	fntLog().verbose(L"OpenCl cost {} us\n", timer.ElapseUs());
+	clQue->flush();
 
+	fntLog().verbose(L"clDownSampler start at {}\n", timer.getCurTimeTxt());
+	timer.Start();
+	localsize[0] /= 4, worksize[0] /= 4;
+	kerDownSamp->run<1>(clQue, worksize, localsize, true);
+	timer.Stop();
+	fntLog().verbose(L"OpenCl[clDownSampler] cost {} us\n", timer.ElapseUs());
+	clQue->flush();
+	vector<uint8_t> clImg;
+	outputBuf->read(clQue, clImg);
+
+	fntLog().verbose(L"post-merging start at {}\n", timer.getCurTimeTxt());
+	timer.Start();
+	Image fin(ImageDataType::GRAY);
+	fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
+	const uint32_t rowstep = (uint32_t)fin.RowSize();
+	uint32_t fidx = 0;
+	for (const auto& fi : finfos)
+	{
+		const uint32_t neww = fi.w / 4, newh = fi.h / 4;
+		const auto offsetx = (newfontsize - neww) / 2, offsety = (newfontsize - newh) / 2;
+		uint32_t startx = (fidx % fontCount) * newfontsize + offsetx, starty = (fidx / fontCount) * newfontsize + offsety;
+		uint8_t * __restrict finPtr = fin.GetRawPtr<uint8_t>(starty, startx);
+		const uint8_t * __restrict inPtr = &clImg[fi.offset / 16];
+		for (uint32_t row = 0; row < newh; ++row)
+		{
+			memcpy_s(finPtr, neww, inPtr, neww);
+			finPtr += rowstep, inPtr += neww;
+		}
+		fidx++;
+	}
+	timer.Stop();
+	fntLog().verbose(L"post-process cost {} us\n", timer.ElapseUs());
+	return fin;
+
+	/*
 	vector<int16_t> distsq;
 	output->read(clQue, distsq);
     Image fin(ImageDataType::GRAY);
@@ -373,7 +369,8 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 	}
 	timer.Stop();
 	fntLog().verbose(L"post-process cost {} us\n", timer.ElapseUs());
-	return fin;
+	*/
+	
 }
 
 }

@@ -32,7 +32,8 @@ cl_context _oclContext::createContext(const cl_context_properties props[]) const
 	return ctx;
 }
 
-_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices, const Vendor thevendor) : devs(devices), context(createContext(props)), vendor(thevendor)
+_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices, const wstring name, const Vendor thevendor) :
+	devs(devices), context(createContext(props)), PlatformName(name), vendor(thevendor)
 {
 }
 
@@ -40,14 +41,14 @@ _oclContext::~_oclContext()
 {
 #ifdef _DEBUG
 	uint32_t refCount = 0;
-	clGetMemObjectInfo(memID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
+	clGetContextInfo(context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
 	if (refCount == 1)
 	{
-		oclLog().debug(L"oclContext {:p} named {}, has {} reference being release.\n", (void*)context, name, refCount);
+		oclLog().debug(L"oclContext {:p} named {}, has {} reference being release.\n", (void*)context, PlatformName, refCount);
 		clReleaseContext(context);
 	}
 	else
-		oclLog().warning(L"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)context, name, refCount);
+		oclLog().warning(L"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)context, PlatformName, refCount);
 #else
 	clReleaseContext(context);
 #endif
