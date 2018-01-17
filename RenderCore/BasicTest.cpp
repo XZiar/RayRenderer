@@ -236,24 +236,21 @@ void BasicTest::prepareLight()
 
 void BasicTest::fontTest(const char32_t word)
 {
-	fs::path basepath = L"D:\\Programs Temps\\RayRenderer";
-	if (!fs::exists(basepath))
-		basepath = L"C:\\Programs Temps\\RayRenderer";
 	try
 	{
-		fontViewer.reset();
-		fontCreator.reset(basepath / L"test.ttf");
 		if (word == 0x0)
 		{
-			SimpleTimer timer;
-			for (uint32_t cnt = 20480; cnt < 65536; cnt += 4096)
+			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 1024);
+			img::WriteImage(imgShow, basepath / (L"Show.png"));
+			/*SimpleTimer timer;
+			for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
 			{
 				const auto imgShow = fontCreator->clgraysdfs((char32_t)cnt, 4096);
 				img::WriteImage(imgShow, basepath / (L"Show-" + std::to_wstring(cnt) + L".png"));
 				basLog().success(L"successfully processed words begin from {}\n", cnt);
 			}
 			timer.Stop();
-			basLog().success(L"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());
+			basLog().success(L"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());*/
 		}
 		else
 		{
@@ -288,6 +285,13 @@ Wrapper<Model> BasicTest::_addModel(const wstring& fname)
 BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
+	fontViewer.reset();
+	fontCreator.reset();
+	basepath = L"D:\\Programs Temps\\RayRenderer";
+	if (!fs::exists(basepath))
+		basepath = L"C:\\Programs Temps\\RayRenderer";
+	fontCreator->reloadFont(basepath / L"test.ttf");
+
 	fontTest(/*L'‡å'*/);
 	initTex();
 	init2d(sname2d);

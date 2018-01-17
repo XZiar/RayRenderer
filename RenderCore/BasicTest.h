@@ -31,6 +31,7 @@ private:
 	Wrapper<FontCreator> fontCreator;
 	vector<Wrapper<Drawable>> drawables;
 	vector<Wrapper<Light>> lights;
+	fs::path basepath;
 	void init2d(const wstring pname);
 	void init3d(const wstring pname);
 	void initTex();
