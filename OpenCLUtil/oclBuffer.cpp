@@ -8,6 +8,15 @@ namespace oclu::detail
 {
 
 
+void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
+{
+	const auto& buf = *reinterpret_cast<_oclBuffer*>(user_data);
+	oclLog().debug(L"oclBuffer {:p} with size {}, being destroyed.\n", (void*)memobj, buf.size);
+	//async callback, should not access cl-func since buffer may be released at any time.
+	//size_t size = 0;
+	//clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
+}
+
 cl_mem _oclBuffer::createMem() const
 {
 	cl_int errcode;
@@ -20,11 +29,13 @@ cl_mem _oclBuffer::createMem() const
 _oclBuffer::_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_, const cl_mem id)
 	:ctx(ctx_), type(type_), size(size_), memID(id)
 {
+	clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
 }
 
 _oclBuffer::_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_)
 	: ctx(ctx_), type(type_), size(size_), memID(createMem())
 {
+	clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
 }
 
 _oclBuffer::~_oclBuffer()
@@ -41,7 +52,6 @@ _oclBuffer::~_oclBuffer()
 		oclLog().warning(L"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, size, refCount);
 #else
 	clReleaseMemObject(memID);
-	oclLog().debug(L"oclBuffer {:p} with size {} being release.\n", (void*)memID, size);
 #endif
 }
 
@@ -49,6 +59,8 @@ optional<oclPromise> _oclBuffer::read(const oclCmdQue que, void *buf, const size
 {
 	if (offset >= size)
 		COMMON_THROW(BaseException, L"offset overflow");
+	else if (offset + size_ > size)
+		COMMON_THROW(BaseException, L"read size overflow");
 	cl_event e;
 	auto ret = clEnqueueReadBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(size - offset, size_), buf, 0, nullptr, &e);
 	if (ret != CL_SUCCESS)
@@ -63,6 +75,8 @@ optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void * const b
 {
 	if (offset >= size)
 		COMMON_THROW(BaseException, L"offset overflow");
+	else if (offset + size_ > size)
+		COMMON_THROW(BaseException, L"write size overflow"); 
 	cl_event e;
 	auto ret = clEnqueueWriteBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(size - offset, size_), buf, 0, nullptr, &e);
 	if (ret != CL_SUCCESS)

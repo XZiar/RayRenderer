@@ -262,7 +262,8 @@ namespace WPFTest
                 }
                 else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    await Core.test.ReloadCLAsync(fname);
+                    if (await Core.test.ReloadCLAsync(fname))
+                        glMain.Invalidate();
                 }
             }
             catch(Exception ex)

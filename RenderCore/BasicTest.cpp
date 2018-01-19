@@ -238,9 +238,14 @@ void BasicTest::fontTest(const char32_t word)
 {
 	try
 	{
+		auto fonttex = fontCreator->getTexture();
 		if (word == 0x0)
 		{
-			const auto imgShow = fontCreator->clgraysdfs(U'가', 1024);
+			const auto imgShow = fontCreator->clgraysdfs(U'가', 4096);
+			oglUtil::invokeSyncGL([&imgShow, &fonttex]() 
+			{
+				fonttex->setData(TextureInnerFormat::R8, imgShow);
+			})->wait();
 			img::WriteImage(imgShow, basepath / (L"Show.png"));
 			/*SimpleTimer timer;
 			for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
@@ -254,7 +259,6 @@ void BasicTest::fontTest(const char32_t word)
 		}
 		else
 		{
-			auto fonttex = fontCreator->getTexture();
 			fontCreator->setChar(L'G', false);
 			fontViewer->bindTexture(fonttex);
 			const auto imgG = fonttex->getImage(TextureDataFormat::R8);
@@ -262,7 +266,7 @@ void BasicTest::fontTest(const char32_t word)
 			fontCreator->setChar(word, false);
 			const auto imgA = fonttex->getImage(TextureDataFormat::R8);
 			img::WriteImage(imgA, basepath / L"A.png");
-			const auto imgShow = fontCreator->clgraysdfs(U'가', 1024);
+			const auto imgShow = fontCreator->clgraysdfs(U'가', 4096);
 			fonttex->setData(TextureInnerFormat::R8, imgShow);
 			img::WriteImage(imgShow, basepath / (L"Show.png"));
 			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
@@ -341,13 +345,13 @@ void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool>
 			auto clsrc = file::ReadAllText(name);
 			fontCreator->reload(clsrc);
 			fontTest(0);
-			onFinish([]() {return true; });
+			onFinish([]() { return true; });
 		}
 		catch (BaseException& be)
 		{
 			basLog().error(L"failed to reload font test\n");
 			if (onError)
-				;// onError(be);
+				onError(be);
 			else
 				onFinish([]() { return false; });
 		}

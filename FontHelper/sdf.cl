@@ -110,11 +110,568 @@ kernel void bmpsdf(global const Info* restrict info, global read_only uchar* res
 }
 
 
+
+#define THREDHOLD 16
+#define MAX_PIX 128
+#define MAX_PIX4 32
+#define XD_Stride 129
+#define XD_Stride4 33
+
+
+float min_hor(const float4 obj)
+{
+	return min(min(obj.s0, obj.s1), min(obj.s2, obj.s3));
+}
+uchar distRounding2(const float fdist2, const float ydist)
+{
+	const float fdist = copysign(native_sqrt(fdist2), ydist);
+	//return convert_uchar(clamp(fdist / (fdist < 0.0f ? 9.0f : 12.0f) + 128.0f, 0.0f, 240.0f));
+	return convert_uchar_sat(fdist / (fdist < 0.0f ? 9.5f : 16.0f) + 128.0f);
+}
+float incellTriDist2(const float4 xdist4_sqr)
+{
+	float4 distY = (float4)(147456.0f, 16384.0f, 16384.0f, 146456.0f);//sqr for (384,128,128,384)
+	//float4 distY = (float4)(10240.0f, 4096.0f, 4096.0f, 10240.0f);//sqr for (320,64,64,320)
+	const float4 dist_sqr = xdist4_sqr + distY;
+	return min_hor(dist_sqr);
+}
+
+__attribute__((reqd_work_group_size(32, 1, 1)))
+kernel void graysdf4(global const Info * const restrict info, global const uchar * const restrict img, global uchar * const restrict result)
+{
+	private const uint gid = get_group_id(0);
+	private const uint lid = get_local_id(0), lid4 = lid * 4;
+	local float xdistf4[MAX_PIX4 * XD_Stride];
+	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset, rowstep = w / 4, ylim = h / 4;
+	local uchar imgraw[MAX_PIX4 * XD_Stride];
+	local uchar imgcache[MAX_PIX4 * XD_Stride];
+
+	local float distCache[MAX_PIX4 / 2 * XD_Stride];
+	local ushort * restrict const perRCCache = (local ushort*)distCache + lid * XD_Stride;
+
+	for (uint row = 0; row < 4; ++row)//4 rows
+	{
+		if (lid4 < h)//each row operation
+		{
+			local uchar * restrict const raw = imgraw + lid * XD_Stride;
+			{
+				global const uchar * restrict const rowptr = img + offset + (lid4 + row) * w;
+				for (uint x = 0, imgidx = lid4 + row, xlim = w / 4; x < xlim; ++x, imgidx += XD_Stride)//pre-transpose img
+				{
+					const uchar4 img4 = vload4(x, rowptr);
+					vstore4(img4, x, raw);
+					imgcache[imgidx] = convert_uchar_sat(dot(convert_float4(img4), (float4)(-0.25f, 0.75f, 0.75f, -0.25f)));
+				}
+			}
+			int dist = 64 * 256, adder = 0;
+			uchar lastimg = 0;
+			bool lastThresNL = false;
+			for (uint x = 0; x < w; ++x, dist += adder)
+			{
+				const uchar objimg = raw[x];
+				const bool objThresNL = objimg > THREDHOLD;
+				if (lastThresNL == objThresNL)
+					perRCCache[x] = dist;
+				else
+				{
+					adder = 256;
+					const int dEnter = objimg - 128;
+					const int dLeave = (256 + 128) - lastimg;
+					const bool isEnter = lastimg < objimg;
+					dist = isEnter ? dEnter : dLeave;
+					perRCCache[x] = abs(dist);
+				}
+				lastimg = objimg; lastThresNL = objThresNL;
+			}
+			dist = perRCCache[w - 1], adder = 0;
+			lastimg = 0, lastThresNL = false;
+			for (uint x = w; x--; dist += adder)
+			{
+				const int objPix = perRCCache[x];
+				const uchar objimg = raw[x];
+				const bool objThresNL = objimg > THREDHOLD;
+				if (lastThresNL == objThresNL)
+					perRCCache[x] = min(dist, objPix);
+				else
+				{
+					adder = 256;
+					const int dEnter = objimg - 128;
+					const int dLeave = (256 + 128) - lastimg;
+					const bool isEnter = lastimg < objimg;
+					dist = isEnter ? dEnter : dLeave;
+					perRCCache[x] = min((int)abs(dist), objPix);
+				}
+				lastimg = objimg; lastThresNL = objThresNL;
+			}
+			//downsample
+			for (uint x = 0, xdidx = lid4 + row, xlim = w / 4; x < xlim; ++x, xdidx += XD_Stride)//pre-transpose xdist
+			{
+				const float4 dist4 = convert_float4(vload4(x, perRCCache));
+				const float mindist = min(dist4.y * 3.0f - dist4.x, dist4.z * 3.0f - dist4.w);
+				xdistf4[xdidx] = mindist * mindist * 0.25f;
+				/*const float avgdist = dot(dist4, (float4)(-1.0f, 3.0f, 3.0f, -1.0f));
+				xdistf4[xdidx] = avgdist * avgdist / 16;*/
+			}
+		}
+	}
+
+	//synchronize
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	//local uchar complexIdxs[MAX_PIX4 * XD_Stride4];//indexs that needs to be re-checked
+	if (lid4 < w)
+	{
+		local const uchar * restrict const raw = imgcache + lid * XD_Stride;//pre-transposed
+		local float * restrict const xdistCol = xdistf4 + lid * XD_Stride;//pre-transposed
+		global uchar * restrict const outCol = result + offset / 16 + lid;
+
+		//local uchar * restrict const complexIdx = complexIdxs + lid * XD_Stride4;
+		local float * restrict const colDistCache = distCache + lid * XD_Stride4;
+		private uchar complexCount = 0;
+
+		bool quickEnd = false;
+		int dist = 64 * 256;
+		float yf256 = 640.0f;
+		for (uint y = 0, outidx = 0, ylim = h / 4; y < 32; y++, outidx += rowstep, yf256 += 1024.0f)
+		{
+			if (y >= ylim)
+				break;
+
+			bool flag = false;
+			const uchar4 img4 = vload4(y, raw);
+			const char4 thresLow = img4 < (uchar4)(THREDHOLD);
+			const char4 thresHigh = img4 >= (uchar4)(256 - THREDHOLD);
+			float predYDist = 0;
+			if (thresLow.y != thresLow.z)//TF:L+M/H, or FT:M/H+L
+			{
+				//L+H, L+M, H+L, M+L
+				predYDist = thresLow.y ? (thresHigh.z ? -img4.y : 256 - img4.z) : (thresHigh.y ? -img4.z : 256 - img4.y);
+				//M/H+L+L, M/H+L+M/H, LH+H, LH+L/M, LM+L, LM+M/H
+				dist = thresLow.z ? (thresLow.w ? 512 - img4.z : -img4.w) :
+					(thresHigh.z ? (thresHigh.w ? -512 - img4.y : 256 - img4.w) :
+						(thresLow.w ? 512 - img4.z : 256 - img4.w));
+					
+				quickEnd = true;//solved output
+			}
+			else if (thresHigh.y != thresHigh.z)//TF:H+M, or FT:M+H
+			{
+				predYDist = thresHigh.y ? -img4.z : -img4.y;
+				//MH+H, MH+L/M, HM+L, HM+M/H
+				dist = thresHigh.z ? (thresHigh.w ? -512 - img4.y : 256 - img4.w) : (thresLow.w ? 512 - img4.z : - img4.w);
+				
+				quickEnd = true;//solved output
+			}
+			else if(thresLow.y == thresHigh.y)//FF->M+M, as edge
+			{
+				predYDist = 256.0 - (img4.y + img4.z);
+				dist = img4.z < 128 ? 512 + (256 - img4.y) : 512 - img4.z;
+				
+				quickEnd = true;
+			}
+			else//L+L, or H+H, consider ele.w
+			{
+				//calculate uppper dist
+				int curdistY1 = thresLow.y ?
+					thresLow.x ? 512 : 512 - img4.x ://L+L, outside => L+LL vs M/H+LL 
+					-(thresHigh.x ? 512 : 256 + img4.x);//H+H, inside => H+HH vs L/M+HH
+				if ((dist ^ curdistY1) >= 0)//the same inside/out
+				{
+					curdistY1 += dist;
+				}
+				if (thresLow.z == thresLow.w && thresHigh.z == thresHigh.w)//the same situation in the next pix
+				{
+					dist = curdistY1 + (thresLow.y ? 512 : -512);//dist same sign
+					predYDist = dist;
+				}
+				else
+				{
+					const int negimg4w = -img4.w;
+					const int curdistY2 = thresLow.y ? 512 - img4.w : img4.w - 256;//outside vs inside
+					dist = thresLow.y ? negimg4w : 256 + negimg4w;//next: inside vs outside
+					predYDist = thresLow.y ? min(curdistY1, curdistY2) : max(curdistY1, curdistY2);//outside(+), find min; inside(-), find max
+
+					quickEnd = true;
+				}
+			}
+			//quick 4-dist(incell) calculation
+			const float way4dist2 = incellTriDist2(vload4(y, xdistCol));
+			float mindist2 = min(way4dist2, predYDist * predYDist);
+			if (quickEnd)
+			{
+				//outCol[outidx] = 255;
+				outCol[outidx] = distRounding2(mindist2, predYDist);
+				quickEnd = false;
+				colDistCache[y] = 200.0f*200.0f*65536.0f;
+			}
+			else
+			{
+				//complexIdx[complexCount++] = y;
+				float4 distY = (float4)(1408.0f, 1152.0f, 896.0f, 640.0f);
+				float objdy2 = 640.0f * 640.0f;
+				float dy2lim = min(mindist2, yf256 * yf256);
+				for (uint testy = y; testy-- > 0 && objdy2 <= dy2lim; distY += 1024.0f, objdy2 = distY.s3 * distY.s3)
+				{
+					const uchar4 testimg4 = vload4(testy, raw);
+					const float4 fracdist4 = convert_float4(testimg4) - 128.0f;
+					const float4 newYDist4 = thresLow.y ? distY - fracdist4 : distY + fracdist4;
+					const char4 eqMask = thresLow.y ?
+						testimg4 < (uchar4)(THREDHOLD) ://outside, test if they outside
+						testimg4 >= (uchar4)(256 - THREDHOLD);//not-outside(inside), test if they inside
+					const float4 infTmp = 256.0f*128.0f;
+					const float4 maskedDistY = select(newYDist4, infTmp, convert_int4(eqMask));//select 256*128(inf) if equal otherwise in newYDist4
+					const float minYDist = min_hor(maskedDistY);
+					
+					//quick 4-dist calculation
+					const float4 testdist4_sqr = vload4(testy, xdistCol);
+					const float4 dist_sqr = mad(distY, distY, testdist4_sqr);
+					const float min4dist2 = min_hor(dist_sqr);
+					mindist2 = min(min(mindist2, min4dist2), minYDist * minYDist);
+					dy2lim = min(dy2lim, mindist2);
+				}
+				colDistCache[y] = thresLow.y ? mindist2 : -mindist2;
+			}
+		}
+		
+		quickEnd = false;
+		dist = 64 * 256;
+		yf256 = 640.0f;
+		for (uint y = ylim, outidx = rowstep * (ylim - 1); y--; outidx -= rowstep, yf256 += 1024.0f)
+		{
+			bool flag = false;
+			float mindist2 = colDistCache[y];
+			if (mindist2 > 192.0f*192.0f*65536.0f)//has been outputed
+				continue;
+
+			const char thresLowY = mindist2 > 0.0f;//certain that both 4 are same state
+			mindist2 = fabs(mindist2);
+
+			float4 distY = (float4)(640.0f, 896.0f, 1152.0f, 1408.0f);
+			float objdy2 = 640.0f * 640.0f;
+			float dy2lim = min(mindist2, yf256 * yf256);
+			for (uint testy = y + 1; testy < ylim && objdy2 <= dy2lim; distY += 1024.0f, objdy2 = distY.s3 * distY.s3)
+			{
+				const uchar4 testimg4 = vload4(testy, raw);
+				const float4 fracdist4 = convert_float4(testimg4) - 128.0f;
+				const float4 newYDist4 = thresLowY ? distY - fracdist4 : distY + fracdist4;
+				const char4 eqMask = thresLowY ?
+					testimg4 < (uchar4)(THREDHOLD) ://outside, test if they outside
+					testimg4 >= (uchar4)(256 - THREDHOLD);//not-outside(inside), test if they inside
+				const float4 infTmp = 256.0f*256.0f;
+				const float4 maskedDistY = select(newYDist4, infTmp, convert_int4(eqMask));//select 256*128(inf) if equal otherwise in newYDist4
+				const float minYDist = min_hor(maskedDistY);
+
+				//quick 4-dist calculation
+				const float4 testdist4_sqr = vload4(testy, xdistCol);
+				const float4 dist_sqr = mad(distY, distY, testdist4_sqr);
+				const float min4dist2 = min_hor(dist_sqr);
+				mindist2 = min(min(mindist2, min4dist2), minYDist * minYDist);
+				dy2lim = min(dy2lim, mindist2);
+			}
+			//outCol[outidx] = distRounding2(mindist2, thresLowY ? 1.0f : -1.0f);
+			const uchar pixclr = distRounding2(mindist2, thresLowY ? 1.0f : -1.0f);
+			outCol[outidx] = pixclr;// > 160 ? 160 : 0;
+		}
+		
+
+	}
+
+}
+
+
+kernel void graysdf4_2(global const Info * const restrict info, global const uchar * const restrict img, global uchar * const restrict result)
+{
+	private const uint gid = get_group_id(0);
+	private const uint lid = get_local_id(0), lid4 = lid * 4;
+	local ushort xdist4[MAX_PIX4 * XD_Stride];
+	local short outcache[MAX_PIX4 * XD_Stride];
+	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
+	local uchar imgcache[MAX_PIX4 * XD_Stride];
+	
+	local ushort distCache[MAX_PIX4 * XD_Stride];
+	local ushort * restrict const perRCCache = distCache + lid * XD_Stride;
+	local float distCacheF[MAX_PIX4 * XD_Stride4];
+	//local float * restrict const pXDist = distCacheF + lid * XD_Stride4;//xdist predicted on each sample point
+
+	for (uint row = 0; row < 4; ++row)//4 rows
+	{
+		if (lid4 < h)//each row operation
+		{
+			local uchar * restrict const raw = (local uchar *)(distCacheF) + lid * XD_Stride;
+			{
+				global const uchar * restrict const rowptr = img + offset + (lid4 + row) * w;
+				for (uint x = 0, imgidx = lid4 + row, xlim = w / 4; x < xlim; ++x, imgidx += XD_Stride)//pre-transpose img
+				{
+					uchar4 img4 = vload4(x, rowptr);
+					vstore4(img4, x, raw);
+					imgcache[imgidx] = convert_uchar_sat(dot(convert_float4(img4), (float4)(-0.25f, 0.75f, 0.75f, -0.25f)));
+				}
+			}
+			int dist = 64 * 256, adder = 0;
+			uchar lastimg = 0;
+			bool lastThresNL = false;
+			for (uint x = 0; x < w; ++x, dist += adder)
+			{
+				const uchar objimg = raw[x];
+				const bool objThresNL = objimg > THREDHOLD;
+				if (lastThresNL == objThresNL)
+					perRCCache[x] = dist;
+				else
+				{
+					adder = 256;
+					const int dEnter = objimg - 128;
+					const int dLeave = (256 + 128) - lastimg;
+					const bool isEnter = lastimg < objimg;
+					dist = isEnter ? dEnter : dLeave;
+					perRCCache[x] = abs(dist);
+				}
+				lastimg = objimg; lastThresNL = objThresNL;
+			}
+			dist = perRCCache[w - 1], adder = 0;
+			lastimg = 0, lastThresNL = false;
+			for (uint x = w; x--; dist += adder)
+			{
+				const int objPix = perRCCache[x];
+				const uchar objimg = raw[x];
+				const bool objThresNL = objimg > THREDHOLD;
+				if (lastThresNL == objThresNL)
+					perRCCache[x] = min(dist, objPix);
+				else
+				{
+					adder = 256;
+					const int dEnter = objimg - 128;
+					const int dLeave = (256 + 128) - lastimg;
+					const bool isEnter = lastimg < objimg;
+					dist = isEnter ? dEnter : dLeave;
+					perRCCache[x] = min((int)abs(dist), objPix);
+				}
+				lastimg = objimg; lastThresNL = objThresNL;
+			}
+			//downsample
+			for (uint x = 0, xdidx = lid4 + row, xlim = w / 4; x < xlim; ++x, xdidx += XD_Stride)//pre-transpose xdist
+			{
+				const float4 dist4 = convert_float4(vload4(x, perRCCache));
+				xdist4[xdidx] = convert_ushort_sat(min(dist4.y * 3.0f - dist4.x, dist4.z * 3.0f - dist4.w) * 0.5f);
+				//xdist4[xdidx] = clamp(dot(dist4, (float4)(-0.25f, 0.75f, 0.75f, -0.25f)), 0.0f, 65536.0f);
+				//xdist4[xdidx] = clamp(dot(dist4, (float4)(0.0f, 0.5f, 0.5f, 0.0f)), 0.0f, 65536.0f);
+			}
+		}
+	}
+
+	//synchronize
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	if (lid4 < w)//has been fit to 32
+	{
+		local const uchar * restrict const raw = imgcache + lid * XD_Stride;
+
+		local ushort * restrict const xdistCol = xdist4 + lid * XD_Stride;
+		local short * restrict const outCol = outcache + lid * XD_Stride;
+		
+		//why keep xdist:
+		//     A------>
+		//     B   /
+		//     C--------.---->
+		//     D
+		//updating C means CA gets smaller line than C, C^2 = AC^2 + A^2 
+		//when checking D in the rev stage, truth is D^2 = AD^2 + A^2 = (CD+AC)^2 + A^2 = CD^2 + AC^2 + A^2 + 2CD*AC
+		//since C has been updated, we will get D^2 = CD^2 + C^2 = CD^2 + AC^2 + A^2, decreased by 2CD*AC
+		//so just keep it in the first stage
+		
+		perRCCache[0] = xdistCol[0];
+		uchar lastimg = raw[0];
+		bool lastThresNL = false, lastThresNH = true;
+		bool quickEnd = false;
+		int dist = 64 * 256, adder = 0;
+		float yf = 512.0f;
+		for (uint y = 1; y < h; y++, dist += adder)
+		{
+			const int curxdist = xdistCol[y];
+			const uchar objimg = raw[y];
+			const bool objThresNL = objimg > THREDHOLD, objThresNH = objimg < 255 - THREDHOLD;
+			if (!objThresNL)//empty
+			{
+				if (lastThresNL)//leave edge
+				{
+					dist = 256 + 128 - lastimg;
+					perRCCache[y] = min(curxdist, dist);
+					quickEnd = true;
+				}
+			}
+			else if (objThresNH)//not pure white/black -> edge
+			{
+				dist = objimg - 128;
+				perRCCache[y] = abs(dist);
+				quickEnd = true;
+			}
+			else//full, >255-THRES
+			{
+				if (lastThresNH)//enter edge
+				{
+					dist = 128 + lastimg;
+					perRCCache[y] = min(curxdist, dist);
+					quickEnd = true;
+				}
+			}
+			if (quickEnd)
+			{
+				quickEnd = false;
+				adder = 256;
+			}
+			else
+			{	//current pure and last is the same
+				float objPix = min(curxdist, dist);
+				float curdist2 = objPix * objPix;
+				float maxdy2 = min(curdist2, yf * yf), dy2 = 65536.0f, dy256 = 256.0f;
+				for (uint testy = y - 1; dy2 < maxdy2; dy2 = dy256 * dy256)
+				{
+					const uchar oimg = raw[testy];
+					const bool oimgThresNL = oimg > THREDHOLD;
+					if (objThresNL != oimgThresNL)//edge
+					{
+						const float negDistOImg = oimgThresNL ? oimg - 128 : 128 - oimg;
+						const float oydist = dy256 - negDistOImg;
+						objPix = min(oydist, objPix);//objPix has been prove <= curxdist
+						break;//further won't be shorter
+					}
+					const float oxdist = xdistCol[testy];
+					const float newdist = oxdist * oxdist + dy2;
+					if (newdist < curdist2)
+					{
+						curdist2 = newdist;
+						objPix = sqrt(newdist);
+						maxdy2 = min(newdist, maxdy2);
+					}
+					dy256 += 256.0f; testy--;
+				}
+				perRCCache[y] = (ushort)objPix;
+			}
+			lastimg = objimg; lastThresNL = objThresNL; lastThresNH = objThresNH;
+			yf += 256.0f;
+		}
+
+		//not working since y is always positive --- not continous
+		//downsample xdist & conic fit
+		//for (uint y = 0, ylim = h / 4; y < ylim; ++y)
+		//{
+		//	const float4 dist4 = convert_float4(vload4(y, xdistCol));
+		//	//assume x-dist fit conic, y=ax^2 + bx + c 
+		//	//[Y]   x   y   [Y]   z   w
+		//	//[X]  -3  -1    0    1   3
+		//	//[Y] = (9(y+z) - (x+w)) / 16
+		//	pXDist[y] = dot(dist4, (float4)(-1.0f / 16.0f, 9.0f / 16.0f, 9.0f / 16.0f, -1.0f / 16.0f));
+		//}
+
+		//why use perRCCache and rewrite xdistCol:
+		//     A------>
+		//     B    /
+		//     C  /
+		//     D--------.----->
+		//perRCCache's D means D~A may be smaller than D, which means C may also choose A, where C~A < D~A 
+		//when checking C in next stage, C~D became smaller, but still C~D > D~A > C~A, where C~A comes from previos stage
+		//xdistCol = D, pXDist = C~D, output =~ C~A
+
+		outCol[h - 1] = perRCCache[h - 1];
+
+		dist = 64 * 256, adder = 0;
+		//lastimg, lastThres are all prepared
+		quickEnd = false;
+		global uchar * restrict output = result + offset + w * (h - 1) + lid;
+		yf = 512.0f;
+		for (uint y = h - 1; y--; output -= w, dist += adder)
+		{
+			const uchar objimg = raw[y];
+			const bool objThresNL = objimg > THREDHOLD, objThresNH = objimg < 255 - THREDHOLD;
+			const int objPix = perRCCache[y];//it should be at most xdist[xdidx]
+			if (!objThresNL)//empty
+			{
+				if (lastThresNL)//leave edge
+				{
+					dist = 256 + 128 - lastimg;
+					//sure: outside, posative
+					outCol[y] = min(dist, objPix);
+					quickEnd = true;
+				}
+			}
+			else if (objThresNH)//not pure white/black -> edge
+			{
+				dist = objimg - 128;
+				outCol[y] = objimg > 127 ? -(short)objPix : (short)objPix;
+				//already changed
+				quickEnd = true;
+			}
+			else//full
+			{
+				if (lastThresNH)//enter edge
+				{
+					dist = 128 + lastimg;
+					//sure: inside, negative
+					outCol[y] = -(short)min(dist, objPix);
+					quickEnd = true;
+				}
+			}
+			if (quickEnd)
+			{
+				quickEnd = false;
+				adder = 256;
+			}
+			else
+			{//current pure and last is the same
+				float objPixF = (float)min(dist, objPix);
+				float curdist2 = objPixF * objPixF;
+				float maxdy2 = min(curdist2, yf * yf), dy2 = 65536.0f, dy256 = 256.0f;
+				for (uint testy = y + 1; dy2 < maxdy2; dy2 = dy256 * dy256)
+				{
+					const uchar oimg = raw[testy];
+					const bool oimgThresNL = oimg > THREDHOLD;
+					if (objThresNL != oimgThresNL)//edge
+					{
+						const float negDistOImg = oimgThresNL ? oimg - 128 : 128 - oimg;
+						const float oydist = dy256 - negDistOImg;
+						objPixF = min(oydist, objPixF);
+						break;//further won't be shorter
+					}
+					const float oxdist = perRCCache[testy];//get rid of xdist, it was meant to use local instead of private 
+					const float newdist = oxdist * oxdist + dy2;
+					if (newdist < curdist2)
+					{
+						curdist2 = newdist;
+						objPixF = sqrt(newdist);
+						maxdy2 = min(newdist, maxdy2);
+					}
+					dy256 += 256.0f; testy++;
+				}
+				outCol[y] = objimg > 127 ? -(short)objPixF : (short)objPixF;
+			}
+			lastimg = objimg; lastThresNL = objThresNL; lastThresNH = objThresNH;
+			yf += 256.0f;
+		}
+
+		
+		//for (uint y = 0, retidx = offset / 4 + lid; y < h; ++y, retidx += w / 4)
+		//{
+		//	//result[retidx] = clamp((float)xdistCol[y] / (raw[y] > 127 ? -16.0f : 32.0f) + 128.0f, 0.0f, 255.0f);
+		//	result[retidx] = clamp(outCol[y] / (outCol[y] < 0 ? 16.0f : 32.0f) + 128.0f, 0.0f, 255.0f);
+		//	//result[retidx] = raw[y];
+		//}
+		//downsample
+		for (uint y = 0, retidx = offset / 16 + lid, ylim = h / 4; y < ylim; ++y, retidx += w / 4)
+		{
+			const float4 dist4 = convert_float4(vload4(y, outCol));
+			const float4 img4 = convert_float4(vload4(y, raw));
+			const float avgDist = dot(dist4, (float4)(-0.25f, 0.75f, 0.75f, -0.25f));
+			//const float avgDist = dot(dist4, (float4)(0.0f, 0.5f, 0.5f, 0.0f));
+			result[retidx] = convert_uchar_sat(avgDist / (avgDist < 0 ? 10.0f : 16.0f) + 128.0f);
+		}
+	}
+}
+
+
 #define THREDHOLD 16
 #define MAX_PIX 128
 #define XD_Stride 129
+
 #if LOC_MEM_SIZE < 50000//small local memory,save raw cache to private
-kernel void graysdf(global const float * const restrict sq256LUT2, global const Info * const restrict info, global const uchar * const restrict img, global short * const restrict result)
+kernel void graysdf(global const Info * const restrict info, global const uchar * const restrict img, global short * const restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);
@@ -357,7 +914,7 @@ kernel void graysdf(global const float * const restrict sq256LUT2, global const 
 
 #else //larger local memory, put image cache to local
 
-kernel void graysdf(global const float * const restrict sq256LUT2, global const Info * const restrict info, global const uchar * const restrict img, global short * const restrict result)
+kernel void graysdf(global const Info * const restrict info, global const uchar * const restrict img, global short * const restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);
@@ -576,228 +1133,3 @@ kernel void graysdf(global const float * const restrict sq256LUT2, global const 
 }
 
 #endif
-
-/*
- * old one for intel, make private array perRC in local(pre-transposed) and xdist^2 pre-calculated
-
-kernel void graysdf(global float * restrict sq256LUT2, global const Info * restrict info, global const uchar * restrict img, global short * restrict result)
-{
-	private const uint gid = get_group_id(0);
-	private const uint lid = get_local_id(0);
-	private const uint w = info[gid].w, h = info[gid].h, offset = info[gid].offset;
-	//local float sq256LUT[MAX_PIX];
-	local ushort tmp[MAX_PIX * XD_Stride];
-	local uchar imgcache[MAX_PIX * XD_Stride];
-	local uchar * const raw = imgcache + lid * XD_Stride;
-	//each row operation
-	if (lid < h)
-	{
-		local ushort * const rPerRC = tmp + lid;
-		int dist = 64 * 256, adder = 0;
-		{
-			global const uchar * const rowptr = &img[offset + w * lid];
-			for (uint x = 0, xlim = w / 4; x < xlim; ++x)
-				vstore4(vload4(x, rowptr), x, raw);
-		}
-		uint idx = 0;
-		uchar lastimg = 0;
-		bool lastThresNL = false;
-		for (uint x = 0; x < w; ++x, dist += adder, idx += XD_Stride)
-		{
-			const uchar objimg = raw[x];
-			const bool objThresNL = objimg > THREDHOLD;
-			if (lastThresNL == objThresNL)
-				rPerRC[idx] = dist;
-			else
-			{
-				adder = 256;
-				const int dEnter = objimg - 128;
-				const int dLeave = (256 + 128) - lastimg;
-				const bool isEnter = lastimg < objimg;
-				dist = isEnter ? dEnter : dLeave;
-				rPerRC[idx] = abs(dist);
-			}
-			lastimg = objimg; lastThresNL = objThresNL;
-		}
-		idx -= XD_Stride;
-		dist = rPerRC[idx], adder = 0;
-		lastimg = 0, lastThresNL = false;
-		for (uint x = w; x--; dist += adder, idx -= XD_Stride)
-		{
-			const int objPix = rPerRC[idx];
-			const uchar objimg = raw[x];
-			const bool objThresNL = objimg > THREDHOLD;
-			if (lastThresNL == objThresNL)
-				rPerRC[idx] = min(dist, objPix);
-			else
-			{
-				adder = 256;
-				const int dEnter = objimg - 128;
-				const int dLeave = (256 + 128) - lastimg;
-				const bool isEnter = lastimg < objimg;
-				dist = isEnter ? dEnter : dLeave;
-				rPerRC[idx] = min((int)abs(dist), objPix);
-			}
-			lastimg = objimg; lastThresNL = objThresNL;
-		}
-	}
-	//event_t evt = async_work_group_copy(sq256LUT, sq256LUT2, MAX_PIX, 0);
-	//wait_group_events(1, &evt);
-	//synchronize
-	barrier(CLK_LOCAL_MEM_FENCE);
-	if (lid < w)
-	{
-		local ushort * const perRC = &tmp[lid * XD_Stride];//has been prepared.
-		private float xdist2[MAX_PIX];
-		uint idx = lid;
-		for (uint y = 0, imgidx = lid + offset; y < h; ++y, imgidx += w)
-			raw[y] = img[imgidx];
-		for (uint i = 0, ilim = h / 4; i < ilim; ++i)
-		{
-			const float4 di = convert_float4(vload4(i, perRC));
-			vstore4(di*di, i, xdist2);
-		}
-		uchar lastimg = raw[0];
-		bool lastThresNL = false, lastThresNH = true;
-		bool quickEnd = false;
-		int dist = 64 * 256, adder = 0;
-		float yf = 512.0f;
-		for (uint y = 1; y < h; y++, dist += adder)
-		{
-			const int curxdist = perRC[y];
-			const uchar objimg = raw[y];
-			const bool objThresNL = objimg > THREDHOLD, objThresNH = objimg < 255 - THREDHOLD;
-			if (!objThresNL)//empty
-			{
-				if (lastThresNL)//leave edge
-				{
-					dist = 256 + 128 - lastimg;
-					perRC[y] = min(curxdist, dist);
-					quickEnd = true;
-				}
-			}
-			else if (objThresNH)//not pure white/black -> edge
-			{
-				dist = objimg - 128;
-				perRC[y] = abs(dist);
-				quickEnd = true;
-			}
-			else//full, >255-THRES
-			{
-				if (lastThresNH)//enter edge
-				{
-					dist = 128 + lastimg;
-					perRC[y] = min(curxdist, dist);
-					quickEnd = true;
-				}
-			}
-			if (quickEnd)
-			{
-				quickEnd = false;
-				adder = 256;
-			}
-			else
-			{//current pure and last is the same
-				float objPix = min(curxdist, dist);
-				float curdist2 = objPix * objPix;
-				float maxdy2 = min(curdist2, yf * yf), dy2 = 65536.0f, dy256 = 256.0f;
-				for (uint dy = 1, testy = y; dy2 < maxdy2; dy2 = dy256 * dy256, testy--)
-				{
-					const uchar oimg = raw[y - dy];
-					const bool oimgThresNL = oimg > THREDHOLD;
-					if (objThresNL != oimgThresNL)//edge
-					{
-						const float negDistOImg = oimgThresNL ? oimg - 128 : 128 - oimg;
-						const float oydist = dy256 - negDistOImg;
-						objPix = min(oydist, objPix);//objPix has been prove <= curxdist
-						break;//further won't be shorter
-					}
-					const float newdist = xdist2[testy] + dy2;
-					if (newdist < curdist2)
-					{
-						curdist2 = newdist;
-						objPix = sqrt(newdist);
-						maxdy2 = min(newdist, maxdy2);
-					}
-					dy256 += 256.0f; dy++;
-				}
-				perRC[y] = (ushort)objPix;
-			}
-			lastimg = objimg; lastThresNL = objThresNL; lastThresNH = objThresNH;
-			yf += 256.0f;
-		}
-		dist = 64 * 256, adder = 0;
-		//lastimg, lastThres are all prepared
-		quickEnd = false;
-		global short * restrict output = result + offset + w * (h - 1) + lid;
-		yf = 256.0f;
-		for (uint y = h - 1; y--; output -= w, dist += adder)
-		{
-			const uchar objimg = raw[y];
-			const bool objThresNL = objimg > THREDHOLD, objThresNH = objimg < 255 - THREDHOLD;
-			const int objPix = perRC[y];// no need to check xdist[idx], it is checked in previous pass
-			if (!objThresNL)//empty
-			{
-				if (lastThresNL)//leave edge
-				{
-					dist = 256 + 128 - lastimg;
-					//sure: outside, posative
-					*output = (short)min(dist, objPix);
-					quickEnd = true;
-				}
-			}
-			else if (objThresNH)//not pure white/black -> edge
-			{
-				dist = objimg - 128;
-				*output = objimg > 127 ? -(short)objPix : (short)objPix;
-				//already changed
-				quickEnd = true;
-			}
-			else//full
-			{
-				if (lastThresNH)//enter edge
-				{
-					dist = 128 + lastimg;
-					//sure: inside, negative
-					*output = -(short)min(dist, objPix);
-					quickEnd = true;
-				}
-			}
-			if (quickEnd)
-			{
-				quickEnd = false;
-				adder = 256;
-			}
-			else
-			{//current pure and last is the same
-				float objPixF = (float)min(dist, objPix);
-				float curdist2 = objPixF * objPixF;
-				float maxdy2 = min(curdist2, yf * yf), dy2 = 65536.0f, dy256 = 256.0f;
-				for (uint dy = 1, testy = y; dy2 < maxdy2; dy2 = dy256 * dy256, testy++)
-				{
-					const uchar oimg = raw[y + dy];
-					const bool oimgThresNL = oimg > THREDHOLD;
-					if (objThresNL != oimgThresNL)//edge
-					{
-						const float negDistOImg = oimgThresNL ? oimg - 128 : 128 - oimg;
-						const float oydist = dy256 - negDistOImg;
-						objPixF = min(oydist, objPixF);
-						break;//further won't be shorter
-					}
-					const float newdist = xdist2[testy] + dy2;
-					if (newdist < curdist2)
-					{
-						curdist2 = newdist;
-						objPixF = sqrt(newdist);
-						maxdy2 = min(newdist, maxdy2);
-					}
-					dy256 += 256.0f; dy++;
-				}
-				*output = objimg > 127 ? -(short)objPixF : (short)objPixF;
-			}
-			lastimg = objimg; lastThresNL = objThresNL; lastThresNH = objThresNH;
-			yf += 256.0f;
-		}
-	}
-}
-*/
