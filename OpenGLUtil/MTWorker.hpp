@@ -2,6 +2,7 @@
 
 #include "oglRely.h"
 #include "oglUtil.h"
+#include "common/ThreadEx.inl"
 #include <GL/wglew.h>
 #include <memory>
 #include <atomic>
@@ -32,7 +33,11 @@ private:
 	void worker()
 	{
 		SimpleTimer timer;
-		const wstring prefix = L"Worker " + name;
+		const wstring prefix = L"OGLU-Worker " + name;
+		{
+			const string threadName = str::to_string(prefix, str::Charset::GB18030, str::Charset::UTF16LE);
+			common::SetThreadName(threadName);
+		}
 		std::unique_lock<std::mutex> lck(mtx);
         if (!wglMakeCurrent(hdc, hrc))
         {

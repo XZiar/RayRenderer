@@ -11,10 +11,10 @@ void oclUtil::init()
 {
 	platforms.clear();
 	cl_uint numPlatforms = 0;
-	clGetPlatformIDs(0, NULL, &numPlatforms);
+	clGetPlatformIDs(0, nullptr, &numPlatforms);
 	//Get all Platforms
 	vector<cl_platform_id> platformIDs(numPlatforms);
-	clGetPlatformIDs(numPlatforms, platformIDs.data(), NULL);
+	clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
 	for (const auto& pID : platformIDs)
 	{
 		auto plt = oclPlatform(new detail::_oclPlatform(pID));

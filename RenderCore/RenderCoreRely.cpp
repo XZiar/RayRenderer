@@ -1,5 +1,6 @@
 #include "RenderCoreRely.h"
 #include "common/ResourceHelper.h"
+#include "common/ThreadEx.inl"
 
 namespace rayr
 {

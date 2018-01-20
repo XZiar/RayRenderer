@@ -61,6 +61,7 @@ static void extractDLL()
 {
 	createDLL(L"miniLogger.dll", IDR_DLL_MLOG);
 	createDLL(L"OpenGLUtil.dll", IDR_DLL_OGLU);
+	createDLL(L"OpenCL_ICD_Loader.dll", IDR_DLL_OCL_LODER);
 	createDLL(L"OpenCLUtil.dll", IDR_DLL_OCLU);
 	createDLL(L"FontHelper.dll", IDR_DLL_FONTHELP);
 	createDLL(L"ImageUtil.dll", IDR_DLL_IMGUTIL);

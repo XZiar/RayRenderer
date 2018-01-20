@@ -48,8 +48,6 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 [`opencl*.h` headers](https://github.com/KhronosGroup/OpenCL-Headers) should be found inside `include path\CL`.
 
-`OpenCL.lib` lib should be found inside `libpath\intel` or `libpath\nvidia`. It's determined by macro inside [`OpenCLUtil/oclRely.h`](./OpenCLUtil/oclRely.h)
-
 ## Dependency
 
 * [GLEW](http://glew.sourceforge.net/)  2.1.0

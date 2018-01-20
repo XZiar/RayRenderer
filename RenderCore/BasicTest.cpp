@@ -241,7 +241,7 @@ void BasicTest::fontTest(const char32_t word)
 		auto fonttex = fontCreator->getTexture();
 		if (word == 0x0)
 		{
-			const auto imgShow = fontCreator->clgraysdfs(U'가', 4096);
+			const auto imgShow = fontCreator->clgraysdfs(U'가', 16);
 			oglUtil::invokeSyncGL([&imgShow, &fonttex]() 
 			{
 				fonttex->setData(TextureInnerFormat::R8, imgShow);
@@ -266,7 +266,7 @@ void BasicTest::fontTest(const char32_t word)
 			fontCreator->setChar(word, false);
 			const auto imgA = fonttex->getImage(TextureDataFormat::R8);
 			img::WriteImage(imgA, basepath / L"A.png");
-			const auto imgShow = fontCreator->clgraysdfs(U'가', 4096);
+			const auto imgShow = fontCreator->clgraysdfs(U'가', 16);
 			fonttex->setData(TextureInnerFormat::R8, imgShow);
 			img::WriteImage(imgShow, basepath / (L"Show.png"));
 			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
@@ -340,6 +340,7 @@ void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool>
 {
 	std::thread([this, onFinish, onError](const wstring name)
 	{
+		common::SetThreadName("AsyncLoader for FontTest");
 		try
 		{
 			auto clsrc = file::ReadAllText(name);
@@ -371,6 +372,7 @@ void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinis
 {
 	std::thread([this, onFinish, onError](const wstring name)
 	{
+		common::SetThreadName("AsyncLoader for Model");
 		try
 		{
 			Wrapper<Model> mod(name, true);
@@ -471,6 +473,7 @@ void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseE
 	basLog().debug(L"begin async in pid {}\n", getTID());
 	std::thread([onFinish, onError] ()
 	{
+		common::SetThreadName("AsyncThread for TryAsync");
 		basLog().debug(L"async thread in pid {}\n", getTID());
 		std::this_thread::sleep_for(std::chrono::seconds(10));
 		basLog().debug(L"sleep finish. async thread in pid {}\n", getTID());

@@ -247,6 +247,9 @@
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj">
+      <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>

@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <string>
 #include <cstring>
+#include <array>
 #include <vector>
 #include <map>
 #include <tuple>
