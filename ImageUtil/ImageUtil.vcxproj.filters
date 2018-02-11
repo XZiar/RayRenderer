@@ -51,6 +51,9 @@
     <ClInclude Include="ImageCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FloatConvertor.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">

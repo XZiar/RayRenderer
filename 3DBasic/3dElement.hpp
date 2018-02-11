@@ -158,7 +158,9 @@ public:
 	using miniBLAS::Mat4x4::Mat4x4;
 	Mat4x4() noexcept :miniBLAS::Mat4x4() { }
 	Mat4x4(const miniBLAS::Mat3x3& m) noexcept :miniBLAS::Mat4x4(m, true) { }
-	Mat4x4(const miniBLAS::Mat4x4& m) noexcept :miniBLAS::Mat4x4(m) { }
+    Mat4x4(const miniBLAS::Mat4x4& m) noexcept : miniBLAS::Mat4x4(m) { }
+    explicit VECCALL operator Mat3x3&() noexcept { return *(Mat3x3*)this; }
+    explicit VECCALL operator const Mat3x3&() const noexcept { return *(Mat3x3*)this; }
 	/*pure translate(translata DOT identity-rotate)*/
 	static Mat4x4 TranslateMat(const Vec3& tv)
 	{
@@ -191,7 +193,7 @@ inline float mod(const float &l, const float &r)
 	return l - e;
 }
 
-class alignas(16) Point : public common::AlignBase<Point>
+class alignas(16) Point : public common::AlignBase<16>
 {
 public:
 	Vec3 pos;
@@ -207,7 +209,7 @@ public:
 	Point(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : pos(v), norm(n), tcoord3(t3) { };
 };
 
-struct alignas(32) Triangle : public common::AlignBase<Triangle>
+struct alignas(32) Triangle : public common::AlignBase<32>
 {
 public:
 	Vec3 points[3];
@@ -226,7 +228,7 @@ public:
 };
 
 
-class alignas(16) Material : public common::AlignBase<Material>
+class alignas(16) Material : public common::AlignBase<16>
 {
 public:
 	enum class Property : uint8_t
@@ -265,7 +267,7 @@ public:
 	}
 };
 
-class alignas(32) Camera : public common::AlignBase<Camera>
+class alignas(32) Camera : public common::AlignBase<32>
 {
 protected:
 	void rotate(const Mat3x3& rMat)

@@ -32,7 +32,7 @@ public:
 };
 using ModelImage = Wrapper<_ModelImage>;
 
-class alignas(Vec3) _ModelData : public NonCopyable, public AlignBase<_ModelData>
+class alignas(Vec3) _ModelData : public NonCopyable, public AlignBase<alignof(Vec3)>
 {
 	friend class ::rayr::Model;
 private:

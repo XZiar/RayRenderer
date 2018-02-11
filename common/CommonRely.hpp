@@ -12,8 +12,21 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <numeric>
+#include <type_traits> 
 
-#if defined(__GNUC__)
+#if defined(__APPLE__)
+#   include <malloc/malloc.h>
+inline void* apple_malloc_align(const size_t size, const size_t align)
+{
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, align, size))
+        return nullptr;
+    return ptr;
+}
+#   define malloc_align(size, align) apple_malloc_align((size), (align))
+#   define free_align(ptr) free(ptr)
+#elif defined(__GNUC__)
 #   include <malloc.h>
 #   define malloc_align(size, align) memalign((align), (size))
 #   define free_align(ptr) free(ptr)
@@ -22,6 +35,13 @@
 #   define free_align(ptr) _aligned_free(ptr)
 #endif
 
+#if defined(_MSC_VER)
+#define forceinline __forceinline
+#elif defined(__GNUC__)
+#define forceinline __inline__ __attribute__((always_inline))
+#else
+#define forceinline inline
+#endif
 
 /**
 ** @brief calculate simple hash for string, used for switch-string
@@ -31,10 +51,10 @@
 template<class T, class = typename std::enable_if<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>>::type>
 inline uint64_t hash_(const T& str)
 {
-	uint64_t hash = 0;
-	for (size_t a = 0, len = str.length(); a < len; ++a)
-		hash = hash * 33 + str[a];
-	return hash;
+    uint64_t hash = 0;
+    for (size_t a = 0, len = str.length(); a < len; ++a)
+        hash = hash * 33 + str[a];
+    return hash;
 }
 /**
 ** @brief calculate simple hash for string, used for switch-string
@@ -43,10 +63,10 @@ inline uint64_t hash_(const T& str)
 **/
 constexpr inline uint64_t hash_(const char *str)
 {
-	uint64_t hash = 0;
-	for (; *str != '\0'; ++str)
-		hash = hash * 33 + *str;
-	return hash;
+    uint64_t hash = 0;
+    for (; *str != '\0'; ++str)
+        hash = hash * 33 + *str;
+    return hash;
 }
 /**
 ** @brief calculate simple hash for string, used for switch-string
@@ -54,7 +74,7 @@ constexpr inline uint64_t hash_(const char *str)
 **/
 constexpr inline uint64_t operator "" _hash(const char *str, size_t)
 {
-	return hash_(str);
+    return hash_(str);
 }
 
 
@@ -62,105 +82,81 @@ namespace common
 {
 
 
+template<template<typename...> class Base, typename...Ts>
+std::true_type is_base_of_template_impl(const Base<Ts...>*);
+
+template<template<typename...> class Base>
+std::false_type is_base_of_template_impl(...);
+
+template<template<typename...> class Base, typename Derived>
+using is_base_of_template = decltype(is_base_of_template_impl<Base>(std::declval<Derived*>()));
+
+
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
 constexpr const T& max(const T& left, const T& right)
 {
-	return left < right ? right : left;
+    return left < right ? right : left;
 }
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
 constexpr const T& min(const T& left, const T& right)
 {
-	return left < right ? left : right;
+    return left < right ? left : right;
 }
-
-
-class FixedArray
-{
-private:
-	uint8_t *Data = nullptr;
-public:
-	static constexpr size_t MIN_ALIGNMENT = alignof(max_align_t);
-	const size_t Size;
-	const size_t Alignment;
-	FixedArray(const size_t size, const size_t alignment = 32) : Size(size), Alignment(max(alignment, MIN_ALIGNMENT)), Data((uint8_t*)malloc_align(Size, Alignment)) {}
-	~FixedArray() { if (Data) free_align(Data); }
-	FixedArray(const FixedArray& other) : Size(other.Size), Alignment(other.Alignment), Data((uint8_t*)malloc_align(Size, Alignment)) 
-	{
-		memmove(Data, other.Data, Size);
-	}
-	FixedArray(FixedArray&& other) : Size(other.Size), Alignment(other.Alignment), Data(other.Data) 
-	{
-		other.Data = nullptr;
-	}
-};
-
 
 struct NonCopyable
 {
-	NonCopyable() noexcept = default;
-	~NonCopyable() noexcept = default;
-	NonCopyable(const NonCopyable&) noexcept = delete;
-	NonCopyable& operator= (const NonCopyable&) noexcept = delete;
-	NonCopyable(NonCopyable&&) noexcept = default;
-	NonCopyable& operator= (NonCopyable&&) noexcept = default;
+    NonCopyable() noexcept = default;
+    ~NonCopyable() noexcept = default;
+    NonCopyable(const NonCopyable&) noexcept = delete;
+    NonCopyable& operator= (const NonCopyable&) noexcept = delete;
+    NonCopyable(NonCopyable&&) noexcept = default;
+    NonCopyable& operator= (NonCopyable&&) noexcept = default;
 };
 
 struct NonMovable
 {
-	NonMovable() noexcept = default;
-	~NonMovable() noexcept = default;
-	NonMovable(NonMovable&&) noexcept = delete;
-	NonMovable& operator= (NonMovable&&) noexcept = delete;
-	NonMovable(const NonMovable&) noexcept = default;
-	NonMovable& operator= (const NonMovable&) noexcept = default;
+    NonMovable() noexcept = default;
+    ~NonMovable() noexcept = default;
+    NonMovable(NonMovable&&) noexcept = delete;
+    NonMovable& operator= (NonMovable&&) noexcept = delete;
+    NonMovable(const NonMovable&) noexcept = default;
+    NonMovable& operator= (const NonMovable&) noexcept = default;
 };
 
-template<class T>
-struct AlignAllocator;
 
-template<class T>
-struct AlignBase
+template<size_t Align>
+struct COMMONTPL AlignBase
 {
-	friend AlignAllocator<T>;
-private:
-	static constexpr size_t __cdecl calcAlign() noexcept
-	{
-		return max((size_t)alignof(T), (size_t)32);
-	}
-	static constexpr bool __cdecl judgeStrict() noexcept
-	{
-		return alignof(T) > alignof(max_align_t);
-	}
 public:
-	static void* __cdecl operator new(size_t size)
-	{
-		if (judgeStrict())
-			return malloc_align(size, calcAlign());
-		else
-			return malloc(size);
-	};
-	static void __cdecl operator delete(void *p)
-	{
-		if (judgeStrict())
-			return free_align(p);
-		else
-			return free(p);
-	}
-	static void* __cdecl operator new[](size_t size)
-	{
-		if (judgeStrict())
-			return malloc_align(size, calcAlign());
-		else
-			return malloc(size);
-	};
-	static void __cdecl operator delete[](void *p)
-	{
-		if (judgeStrict())
-			return free_align(p);
-		else
-			return free(p);
-	}
+    static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
+    static void* __cdecl operator new(size_t size)
+    {
+        return malloc_align(size, ALIGN_SIZE);
+    };
+    static void __cdecl operator delete(void *p)
+    {
+        return free_align(p);
+    }
+    static void* __cdecl operator new[](size_t size)
+    {
+        return malloc_align(size, ALIGN_SIZE);
+    };
+    static void __cdecl operator delete[](void *p)
+    {
+        return free_align(p);
+    }
 };
 
+template<typename T>
+struct AlignBaseHelper
+{
+private:
+    template<size_t Align>
+    static std::true_type is_derived_from_alignbase_impl(const AlignBase<Align>*);
+    std::false_type is_derived_from_alignbase_impl(const void*);
+public:
+    static constexpr bool IsDerivedFromAlignBase = decltype(is_derived_from_alignbase_impl(std::declval<T*>()))::value;
+    static constexpr size_t Align = IsDerivedFromAlignBase ? T::ALIGN_SIZE : AlignBase<alignof(T)>::ALIGN_SIZE;
+};
 
 }

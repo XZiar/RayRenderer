@@ -2,7 +2,7 @@
 
 #include "ImageUtilRely.h"
 #include "ImageSupport.hpp"
-#include "ImagePNG.h"
+#include "ImageCore.h"
 
 namespace xziar::img
 {

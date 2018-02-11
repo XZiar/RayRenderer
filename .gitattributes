@@ -66,4 +66,5 @@
 # linguist hack
 ###############################################################################
 3rdParty/* linguist-vendored
+3rdparty/* linguist-vendored
 License/* linguist-vendored

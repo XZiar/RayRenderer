@@ -1,6 +1,6 @@
 #include "RenderCoreWrapRely.h"
 #include "RenderCoreWrap.h"
-#include "../common/CLIAsync.hpp"
+#include "common/CLIAsync.hpp"
 
 
 namespace RayRender

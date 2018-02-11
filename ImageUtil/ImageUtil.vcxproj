@@ -173,6 +173,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataConvertor.hpp" />
+    <ClInclude Include="FloatConvertor.hpp" />
     <ClInclude Include="ImageBMP.h" />
     <ClInclude Include="ImageCore.h" />
     <ClInclude Include="ImageJPEG.h" />

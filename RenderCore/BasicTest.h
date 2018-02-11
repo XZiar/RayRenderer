@@ -4,7 +4,7 @@
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.h"
-#include "../FontHelper/FontHelper.h"
+#include "FontHelper/FontHelper.h"
 
 namespace rayr
 {
@@ -17,7 +17,7 @@ using xziar::img::Image;
 using xziar::img::ImageDataType;
 
 
-class RAYCOREAPI alignas(32) BasicTest : public NonCopyable, public AlignBase<BasicTest>
+class RAYCOREAPI alignas(32) BasicTest : public NonCopyable, public AlignBase<32>
 {
 private:
 	oclContext clContext;

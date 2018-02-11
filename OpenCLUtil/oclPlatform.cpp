@@ -75,12 +75,12 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
 	isCurGL = checkGL();
 }
 
-oclContext _oclPlatform::createContext() const
+oclContext _oclPlatform::createContext(const bool needGLOp) const
 {
 	vector<cl_context_properties> props;
 	//OpenCL platform
 	props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)platformID });
-	if (isCurGL)
+	if (isCurGL && needGLOp)
 	{
 		props.insert(props.cend(), 
 		{

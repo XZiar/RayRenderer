@@ -7,7 +7,7 @@ namespace rayr
 using namespace common;
 using namespace b3d;
 
-class alignas(16) Material : public AlignBase<Material>
+class alignas(16) Material : public AlignBase<16>
 {
 public:
 	Vec4 ambient, diffuse, specular, emission;
@@ -17,7 +17,7 @@ public:
 
 class DrawableHelper;
 
-class alignas(16) Drawable : public AlignBase<Material>, public NonCopyable
+class alignas(16) Drawable : public AlignBase<16>, public NonCopyable
 {
 	struct VAOPack
 	{

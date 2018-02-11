@@ -1,6 +1,7 @@
 #include "ImageUtilRely.h"
 #include "ImageCore.h"
 #include "DataConvertor.hpp"
+#include "FloatConvertor.hpp"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "3rdParty/stblib/stb_image_resize.h"
@@ -188,7 +189,7 @@ Image Image::Region(const uint32_t x, const uint32_t y, uint32_t w, uint32_t h) 
     if (x == y == 0 && w == Width && h == Height)
         return *this;
 
-    auto newimg = Image(DataType);
+    Image newimg(DataType);
     newimg.SetSize(w, h);
     if (x >= Width || y >= Height)
         return newimg;
@@ -203,12 +204,27 @@ Image Image::ConvertTo(const ImageDataType dataType, const uint32_t x, const uin
     if (dataType == DataType)
         return Region(x, y, w, h);
 
-    auto newimg = Image(dataType);
+    Image newimg(DataType);
     newimg.SetSize(w, h);
     newimg.PlaceImage(*this, x, y, 0, 0);
     return newimg;
 }
 
+Image Image::ConvertFloat(const float floatRange) const
+{
+    if (!HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
+    {
+        return Image();
+    }
+    else
+    {
+        Image newimg(REMOVE_MASK(DataType, ImageDataType::FLOAT_MASK));
+        newimg.SetSize(Width, Height);
+        const auto floatCount = Size_ / sizeof(float);
+        convert::Float1sToU8s(newimg.Data, reinterpret_cast<const float*>(Data), floatCount, floatRange);
+        return newimg;
+    }
+}
 
 }
 

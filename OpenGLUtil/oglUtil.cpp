@@ -150,13 +150,13 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 				Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, op.vec.y)) *
 				Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, op.vec.x)));
 			matModel = rMat * matModel;
-			matNormal = rMat * matNormal;
+			matNormal = (Mat3x3)rMat * matNormal;
 		}return;
 	case TransformType::Rotate:
 		{
 			const auto rMat = Mat4x4(Mat3x3::RotateMat(op.vec));
 			matModel = rMat * matModel;
-			matNormal = rMat * matNormal;
+			matNormal = (Mat3x3)rMat * matNormal;
 		}return;
 	case TransformType::Translate:
 		{

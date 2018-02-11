@@ -19,6 +19,10 @@
 #   endif
 #endif
 
+#ifdef __FMA__
+#   define __AVX2__ 1
+#endif
+
 #ifdef __AVX2__
 #   define __AVX__ 1
 #endif
@@ -37,7 +41,9 @@
 #   define VECCALL 
 #endif
 
-#ifdef __AVX2__
+#ifdef __FMA__
+#   define MINIBLAS_INTRIN FMA
+#elif __AVX2__
 #   define MINIBLAS_INTRIN AVX2
 #elif defined(__AVX__)
 #   define MINIBLAS_INTRIN AVX

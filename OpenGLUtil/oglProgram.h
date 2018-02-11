@@ -8,14 +8,13 @@
 namespace oglu
 {
 
-enum class TransformType { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI alignas(Vec4) TransformOP
+enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
+struct OGLUAPI alignas(alignof(Vec4)) TransformOP : public common::AlignBase<alignof(Vec4)>
 {
 	Vec4 vec;
 	TransformType type;
 	TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
-
 
 namespace detail
 {
@@ -58,7 +57,7 @@ namespace detail
 {
 
 
-class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable
+class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, public common::AlignBase<32>
 {
 private:
 	friend class TextureManager;
@@ -117,7 +116,7 @@ private:
 	
 
 	GLuint programID = GL_INVALID_INDEX;
-	vectorEx<oglShader> shaders;
+	vector<oglShader> shaders;
 	map<string, ProgramResource> resMap;
 	map<string, ProgramResource> texMap;
 	map<string, ProgramResource> uboMap;

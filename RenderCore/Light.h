@@ -8,7 +8,7 @@ namespace b3d
 
 enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
-struct alignas(Vec4) LightData : public common::AlignBase<LightData>
+struct alignas(Vec4) LightData : public common::AlignBase<alignof(Vec4)>
 {
 	Vec3 position = Vec3::zero();
 	Vec3 direction = Vec3::zero();

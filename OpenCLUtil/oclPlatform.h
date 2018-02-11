@@ -29,7 +29,7 @@ public:
 	const vector<oclDevice>& getDevices() const { return devs; }
 	const oclDevice& getDefaultDevice() const { return defDev; }
 	bool isCurrentGL() const { return isCurGL; }
-	oclContext createContext() const;
+	oclContext createContext(const bool needGLOp = true) const;
 };
 
 
