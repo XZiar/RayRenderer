@@ -45,7 +45,7 @@ inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict src
         const auto aceg1 = _mm256_permute2x128_si256(acbd1, egfh1, 0x20);//a0c0,e0g0
         const auto bdfh1 = _mm256_permute2x128_si256(acbd1, egfh1, 0x31);//0b0d,0f0h
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_blend_epi32(aceg0, bdfh0, 0b10101010));
-        _mm256_storeu_si256((__m256i*)destPtr + 32, _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
+        _mm256_storeu_si256((__m256i*)(destPtr + 32), _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
     while (count > 0)
@@ -84,7 +84,7 @@ inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict src
     while (count > 64)
     {
         const auto src0 = _mm256_loadu_si256((const __m256i*)srcPtr);//00~0f,10~1f
-        const auto src1 = _mm256_loadu_si256((const __m256i*)srcPtr + 32);//20~2f,30~3f
+        const auto src1 = _mm256_loadu_si256((const __m256i*)(srcPtr + 32));//20~2f,30~3f
         const auto abcd0 = _mm256_shuffle_epi8(src0, SHUF_MSK1);//00-03,10-13
         const auto abcd1 = _mm256_shuffle_epi8(src0, SHUF_MSK2);//04-07,14-17
         const auto abcd2 = _mm256_shuffle_epi8(src0, SHUF_MSK3);//08-0b,18-1b

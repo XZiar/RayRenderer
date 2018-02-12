@@ -13,20 +13,20 @@ namespace detail
 
 class OCLUAPI _oclCmdQue : public NonCopyable
 {
-	friend class _oclContext;
-	friend class _oclBuffer;
-	friend class _oclGLBuffer;
-	friend class _oclProgram;
-	friend class _oclKernel;
+    friend class _oclContext;
+    friend class _oclBuffer;
+    friend class _oclGLBuffer;
+    friend class _oclProgram;
+    friend class _oclKernel;
 private:
-	const std::shared_ptr<const _oclContext> ctx;
-	const oclDevice dev;
-	const cl_command_queue cmdque;
-	cl_command_queue createCmdQue() const;
+    const std::shared_ptr<const _oclContext> ctx;
+    const oclDevice dev;
+    const cl_command_queue cmdque;
+    cl_command_queue createCmdQue(const bool enableProfiling, const bool enableOutOfOrder) const;
 public:
-	_oclCmdQue(const std::shared_ptr<_oclContext>& ctx_, const oclDevice& dev_);
-	~_oclCmdQue();
-	void flush() const;
+    _oclCmdQue(const std::shared_ptr<_oclContext>& ctx_, const oclDevice& dev_, const bool enableProfiling = true, const bool enableOutOfOrder = false);
+    ~_oclCmdQue();
+    void flush() const;
 };
 
 

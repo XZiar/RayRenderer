@@ -6,8 +6,11 @@
   </Type>
   <Type Name="xziar::img::Image">
     <Expand>
-      <Synthetic Name="[type]" Condition="DataType == 0x80 || DataType == 0x81">
-        <DisplayString>INT32</DisplayString>
+      <Synthetic Name="[type]" Condition="(DataType &amp; 0x40) == 0x0">
+        <DisplayString>UINT8</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[type]" Condition="(DataType &amp; 0x40) != 0x0">
+        <DisplayString>FLOAT32</DisplayString>
       </Synthetic>
       <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x80">
         <DisplayString>RGBA</DisplayString>
@@ -21,14 +24,22 @@
       <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x1">
         <DisplayString>BGR</DisplayString>
       </Synthetic>
+      <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x2">
+        <DisplayString>1</DisplayString>
+      </Synthetic>
       <Item Name="[width]">Width</Item>
       <Item Name="[height]">Height</Item>
-      <Item Name="[data]">Data</Item>
-      <Item Name="[stride]" ExcludeView="simple">Width * ElementSize</Item>
+      <Item Name="[data]" Condition="(DataType &amp; 0x40) == 0x0">(uint8_t*)Data</Item>
+      <Item Name="[data]" Condition="(DataType &amp; 0x40) != 0x0">(float*)Data</Item>
+      <Item Name="[stride]">Width * ElementSize</Item>
       <Item Name="[size]" ExcludeView="simple">Width * Height * ElementSize</Item>
-      <ArrayItems Condition="Data != nullptr">
+      <ArrayItems Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) == 0x0">
         <Size>Width * Height * ElementSize</Size>
         <ValuePointer>Data</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) != 0x0">
+        <Size>Width * Height</Size>
+        <ValuePointer>(const float*)Data</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>

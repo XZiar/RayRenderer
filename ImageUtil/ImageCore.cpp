@@ -214,7 +214,10 @@ Image Image::ConvertFloat(const float floatRange) const
 {
     if (!HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
     {
-        return Image();
+        Image newimg(DataType | ImageDataType::FLOAT_MASK);
+        newimg.SetSize(Width, Height);
+        convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size_, floatRange);
+        return newimg;
     }
     else
     {
