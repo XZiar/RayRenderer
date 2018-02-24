@@ -12,7 +12,18 @@ namespace detail
 {
 
 
-_oclProgram::_oclProgram(const oclContext& ctx_, const string& str) : ctx(ctx_), src(str), progID(loadProgram())
+cl_program loadProgram(const string& src, const cl_context& ctx)
+{
+    cl_int errcode;
+    auto *str = src.c_str();
+    size_t size = src.length();
+    const auto prog = clCreateProgramWithSource(ctx, 1, &str, &size, &errcode);
+    if (errcode != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create program", errcode));
+    return prog;
+}
+
+_oclProgram::_oclProgram(const oclContext& ctx_, const string& str) : ctx(ctx_), src(str), progID(loadProgram(src, ctx->context))
 {
 }
 
@@ -59,16 +70,6 @@ wstring _oclProgram::getBuildLog(const oclDevice & dev) const
     }
 }
 
-cl_program _oclProgram::loadProgram() const
-{
-    cl_int errcode;
-    auto *str = src.c_str();
-    size_t size = src.length();
-    const auto prog = clCreateProgramWithSource(ctx->context, 1, &str, &size, &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create program", errcode));
-    return prog;
-}
 
 void _oclProgram::initKers()
 {
@@ -107,6 +108,15 @@ void _oclProgram::build(const string& options, const oclDevice dev)
     initKers();
 }
 
+oclKernel _oclProgram::getKernel(const string& name)
+{
+    return oclKernel(new _oclKernel(shared_from_this(), name));
+}
+
+const vector<string>& _oclProgram::getKernelNames() const
+{
+    return kers;
+}
 
 
 cl_kernel _oclKernel::createKernel() const
@@ -118,7 +128,7 @@ cl_kernel _oclKernel::createKernel() const
     return kid;
 }
 
-_oclKernel::_oclKernel(const Wrapper<_oclProgram>& prog_, const string& name_) : name(name_), prog(prog_), kernel(createKernel())
+_oclKernel::_oclKernel(const oclProgram& prog_, const string& name_) : name(name_), prog(prog_), kernel(createKernel())
 {
 }
 
@@ -131,12 +141,11 @@ WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
 {
     const cl_device_id devid = dev->deviceID;
     WorkGroupInfo info;
-    size_t size;
-    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, &size);
-    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, &size);
-    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(uint64_t), &info.WorkGroupSize, &size);
-    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(uint64_t) * 3, &info.CompiledWorkGroupSize, &size);
-    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(uint64_t), &info.PreferredWorkGroupSizeMultiple, &size);
+    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, nullptr);
+    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, nullptr);
+    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &info.WorkGroupSize, nullptr);
+    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &info.CompiledWorkGroupSize, nullptr);
+    clGetKernelWorkGroupInfo(kernel, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
     return info;
 }
 

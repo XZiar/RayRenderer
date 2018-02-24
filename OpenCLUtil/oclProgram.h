@@ -14,9 +14,9 @@ struct WorkGroupInfo
 {
     uint64_t LocalMemorySize;
     uint64_t PrivateMemorySize;
-    uint64_t WorkGroupSize;
-    uint64_t CompiledWorkGroupSize[3];
-    uint64_t PreferredWorkGroupSizeMultiple;
+    size_t WorkGroupSize;
+    size_t CompiledWorkGroupSize[3];
+    size_t PreferredWorkGroupSizeMultiple;
 };
 
 
@@ -33,14 +33,14 @@ private:
     const cl_program progID;
     vector<string> kers;
     vector<oclDevice> getDevs() const;
-    cl_program loadProgram() const;
     void initKers();
 public:
     _oclProgram(const oclContext& ctx_, const string& str);
     ~_oclProgram();
     void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
     wstring getBuildLog(const oclDevice& dev) const;
-    auto getKernel(const string& name);
+    Wrapper<_oclKernel> getKernel(const string& name);
+    const vector<string>& getKernelNames() const;
 };
 
 
@@ -56,10 +56,10 @@ class OCLUAPI _oclKernel
     friend class _oclProgram;
 private:
     const string name;
-    const Wrapper<_oclProgram> prog;
+    const oclProgram prog;
     const cl_kernel kernel;
     cl_kernel createKernel() const;
-    _oclKernel(const Wrapper<_oclProgram>& prog_, const string& name_);
+    _oclKernel(const oclProgram& prog_, const string& name_);
 public:
     ~_oclKernel();
 
@@ -97,13 +97,6 @@ public:
 }
 using oclKernel = Wrapper<detail::_oclKernel>;
 
-namespace detail
-{
-auto _oclProgram::getKernel(const string& name)
-{
-    return oclKernel(new _oclKernel(shared_from_this(), name));
-}
-}
 
 }
 
