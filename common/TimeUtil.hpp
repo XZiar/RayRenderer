@@ -3,9 +3,12 @@
 #include <cstdint>
 #include <chrono>
 #include <string>
-#define HAS_STRING_VIEW 1
-#include "../3rdParty/date/date.h"
-
+#ifndef NO_DATE_FORMATE
+#   if _HAS_CXX17
+#      define HAS_STRING_VIEW 1
+#   endif
+#   include "../3rdParty/date/date.h"
+#endif
 
 namespace common
 {
@@ -29,11 +32,13 @@ public:
 	{
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 	}
+#ifndef NO_DATE_FORMATE
 	static std::wstring getCurTimeTxt()
 	{
 		const auto str = date::format("%H:%M:%S", std::chrono::system_clock::now());
 		return std::wstring(str.cbegin(), str.cend());
 	}
+#endif
 	SimpleTimer() { Start(); }
 	uint64_t Start()
 	{
