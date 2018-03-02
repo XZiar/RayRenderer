@@ -11,11 +11,11 @@
 namespace common
 {
 
-template<class T>
+template<class T, typename... Args>
 class SharedResource
 {
 public:
-	using CreateFunc = std::function<T(void)>;
+	using CreateFunc = std::function<T(Args&&...)>;
 private:
 	using inner_type = typename T::inner_type;
 	using handle_type = std::weak_ptr<inner_type>;
@@ -25,7 +25,7 @@ private:
 public:
 	SharedResource(CreateFunc cfunc) : creator(cfunc) {}
 	~SharedResource() {}
-	T get()
+	T get(Args... args)
 	{
 		T res = hres.lock();
 		if (res)
@@ -38,7 +38,7 @@ public:
 			if (res)
 				return res;
 			//need to create it
-			res = creator();
+			res = creator(std::forward<Args>(args)...);
 			hres = res.weakRef();
 			return res;
 		}

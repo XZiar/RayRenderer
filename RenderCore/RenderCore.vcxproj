@@ -183,6 +183,9 @@
     <ProjectReference Include="..\3rdParty\uchardetlib\uchardetlib.vcxproj">
       <Project>{7be97d3d-f242-4ab9-8eee-05b974e0e15e}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\common\AsyncExecutor\AsyncExecutor.vcxproj">
+      <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>

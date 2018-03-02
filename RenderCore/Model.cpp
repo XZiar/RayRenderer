@@ -5,6 +5,7 @@
 
 namespace rayr
 {
+using common::asyexe::AsyncAgent;
 
 union alignas(uint64_t) PTstub
 {
@@ -125,10 +126,15 @@ void _ModelImage::CompressData(vector<uint8_t>& output, const oglu::TextureInner
 		output = std::move(*dat);
 }
 
-oglu::oglTexture _ModelImage::genTextureAsync(const oglu::TextureInnerFormat format)
+oglu::oglTexture _ModelImage::genTextureAsync(const common::asyexe::AsyncAgent& agent, const oglu::TextureInnerFormat format)
 {
 	vector<uint8_t> texdata;
-	oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata), format))->wait();
+    auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&) 
+    {
+        CompressData(texdata, format);
+    }, L"Comp-" + Name);
+    agent.Await(asyncRet);
+	//oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata), format))->wait();
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
 	tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
 	tex->setCompressedData(format, Width, Height, texdata);
@@ -463,6 +469,8 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 	}
 
 	std::tie(diffuse, normal) = mergeTex(mtlmap, texposs);
+    diffuse->Name = mfnane + L"-diffuse";
+    normal->Name = mfnane + L"-normal";
 #if !defined(_DEBUG) && 0
 	{
 		auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Normal.jpg");
@@ -611,8 +619,8 @@ catch (const FileException& fe)
 
 void _ModelData::initData()
 {
-	texd = diffuse->genTextureAsync();
-	texn = normal->genTextureAsync();
+	texd = diffuse->genTexture();
+	texn = normal->genTexture();
 	diffuse.release();
 	normal.release();
 	vbo.reset(oglu::BufferType::Array);
@@ -621,12 +629,26 @@ void _ModelData::initData()
 	ebo->writeCompat(indexs);
 }
 
+void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
+{
+    texd = diffuse->genTextureAsync(agent);
+    texn = normal->genTextureAsync(agent);
+    diffuse.release();
+    normal.release();
+    vbo.reset(oglu::BufferType::Array);
+    vbo->write(pts);
+    ebo.reset();
+    ebo->writeCompat(indexs);
+    agent.Await(oglu::oglUtil::SyncGL());
+}
+
 _ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
 {
 	loadOBJ(mfnane);
 	if (asyncload)
 	{
-		auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initData, this));
+        const auto fileName = fs::path(fname).filename().wstring();
+		auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initDataAsync, this, std::placeholders::_1), fileName);
 		task->wait();
 	}
 	else

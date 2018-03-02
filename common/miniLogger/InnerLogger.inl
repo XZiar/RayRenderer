@@ -2,6 +2,7 @@
 #include "miniLogger.h"
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
+#include "common/SpinLock.hpp"
 
 namespace common::mlog
 {
@@ -63,13 +64,23 @@ public:
 	{
 		if (hConsole == nullptr)
 			return;
-		while (!flagWrite.test_and_set())
-			;//spin lock
+        common::SpinLocker locker(flagWrite);
 		changeState(lv);
 		DWORD outlen;
 		WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), &outlen, NULL);
-		flagWrite.clear();
 	}
+};
+
+
+class DebuggerLogger
+{
+    std::atomic_flag flagWrite = ATOMIC_FLAG_INIT;
+public:
+    void print(const LogLevel lv, const std::wstring& content)
+    {
+        common::SpinLocker locker(flagWrite);
+        OutputDebugString(content.c_str());
+    }
 };
 
 

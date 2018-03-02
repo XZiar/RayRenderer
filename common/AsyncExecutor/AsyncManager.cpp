@@ -4,6 +4,8 @@
 #define NO_DATE_FORMATE
 #include "common/TimeUtil.hpp"
 #include "common/SpinLock.hpp"
+#include "common/StrCharset.hpp"
+#include "common/ThreadEx.inl"
 #include "common/PromiseTask.inl"
 #include <mutex>
 
@@ -44,13 +46,15 @@ bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 detail::AsyncTaskNode* AsyncManager::DelNode(detail::AsyncTaskNode* node)
 {
     common::SpinLocker locker(ModifyFlag);
-    if (node->Prev)
-        node->Prev->Next = node->Next;
+    auto prev = node->Prev, next = node->Next;
+    if (prev)
+        prev->Next = next;
     else
-        Head = node->Next;
-    if (!node->Next)
-        Tail = node->Prev;
-    auto next = node->Next;
+        Head = next;
+    if (next)
+        next->Prev = prev;
+    else
+        Tail = prev;
     delete node;
     return next;
 }
@@ -60,15 +64,22 @@ void AsyncManager::Resume()
     Context = Context.resume();
 }
 
-PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task)
+PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::wstring taskname)
 {
-    auto node = new detail::AsyncTaskNode;
+    const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
+    if (taskname == L"")
+        taskname = L"task" + std::to_wstring(tuid);
+    auto node = new detail::AsyncTaskNode(taskname);
     node->Func = task;
-    PromiseResult<void> ret(new PromiseResultSTD<void>(node->Pms));
+    const auto ret = std::dynamic_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultSTD<void>>(node->Pms));
     if (AddNode(node))
+    {
+        Logger.debug(L"Add new task [{}] [{}]\n", tuid, node->Name);
         return ret;
+    }
     else //has stopped
     {
+        Logger.warning(L"New task cancelled due to termination [{}] [{}]\n", tuid, node->Name);
         delete node;
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Executor was terminated when adding task.");
     }
@@ -94,12 +105,15 @@ void CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent)
     }
 }
 
-void AsyncManager::MainLoop()
+void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::function<void(void)>& exiter)
 {
     if (ShouldRun.exchange(true))
         //has turn state into true, just return
         return;
     std::unique_lock<std::mutex> cvLock(RunningMtx);
+    RunningThread = ThreadObject::GetCurrentThreadObject();
+    if (initer)
+        initer();
     common::SimpleTimer timer;
     while (ShouldRun)
     {
@@ -126,7 +140,7 @@ void AsyncManager::MainLoop()
             case detail::AsyncTaskStatus::Wait:
                 {
                     const uint8_t state = (uint8_t)Current->Promise->state();
-                    if (state < (uint8_t)PromiseState::EXECUTED) // not ready for execution
+                    if (state < (uint8_t)PromiseState::Executed) // not ready for execution
                         break;
                     Current->Status = detail::AsyncTaskStatus::Ready;
                 }
@@ -146,6 +160,7 @@ void AsyncManager::MainLoop()
             }
             else //has returned
             {
+                Logger.debug(L"Task [{}] finished\n", Current->Name);
                 Current = DelNode(Current);
             }
             //quick exit when terminate
@@ -159,36 +174,7 @@ void AsyncManager::MainLoop()
         if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
             std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
     }
-    //destroy all task
-    {
-        common::SpinLocker locker(ModifyFlag); //ensure no pending adding
-        //since ShouldRun is false and ModifyFlag locked, further adding will be blocked.
-        for (Current = Head; Current != nullptr;)
-        {
-            auto next = Current->Next;
-            try
-            {
-                switch (Current->Status)
-                {
-                case detail::AsyncTaskStatus::New:
-                    COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Task was cancelled and not executed, due to executor was terminated.");
-                case detail::AsyncTaskStatus::Wait:
-                    [[fallthrough]];
-                case detail::AsyncTaskStatus::Ready:
-                    COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, L"Task was terminated, due to executor was terminated.");
-                }
-            }
-            catch (AsyncTaskException&)
-            {
-                Current->Pms.set_exception(std::current_exception());
-            }
-            delete Current;
-            Current = next;
-        }
-        TerminateMtx.lock(); //ensure that Terminator is waiting
-        TerminateMtx.unlock();
-        CondOuter.notify_all();
-    }
+    OnTerminate(exiter);
 }
 
 void AsyncManager::Terminate()
@@ -197,6 +183,8 @@ void AsyncManager::Terminate()
     if (!ShouldRun.exchange(false))
         //has turn state into false, just return
         return;
+    if (!RunningThread.IsAlive())
+        return;
     if (RunningMtx.try_lock()) //MainLoop waiting
     {
         RunningMtx.unlock();
@@ -204,6 +192,55 @@ void AsyncManager::Terminate()
     }
     CondOuter.wait(terminateLock);
 }
+
+void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
+{
+    ShouldRun = false; //in case self-terminate
+    Logger.verbose(L"begin to exit");
+    //destroy all task
+    common::SpinLocker locker(ModifyFlag); //ensure no pending adding
+    for (Current = Head; Current != nullptr;)
+    {
+        auto next = Current->Next;
+        try
+        {
+            switch (Current->Status)
+            {
+            case detail::AsyncTaskStatus::New:
+                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Task was cancelled and not executed, due to executor was terminated.");
+            case detail::AsyncTaskStatus::Wait:
+                [[fallthrough]];
+            case detail::AsyncTaskStatus::Ready:
+                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, L"Task was terminated, due to executor was terminated.");
+            }
+        }
+        catch (AsyncTaskException& e)
+        {
+            Logger.warning(L"Task [{}] {} due to termination.\n", Current->Name, e.reason == AsyncTaskException::Reason::Cancelled ? L"cancelled" : L"terminated");
+            Current->Pms.set_exception(std::current_exception());
+        }
+        delete Current;
+        Current = next;
+    }
+    if (exiter)
+        exiter();
+    {
+        TerminateMtx.lock();
+        TerminateMtx.unlock();
+        CondOuter.notify_all();//in case waiting
+    }
+}
+
+
+AsyncManager::AsyncManager(const std::wstring& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
+    Name(name), TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Agent(*this),
+    Logger(L"Asy-" + Name, nullptr, nullptr, common::mlog::LogOutput::Console | common::mlog::LogOutput::Debugger, common::mlog::LogLevel::Debug)
+{ }
+AsyncManager::~AsyncManager()
+{
+    OnTerminate();
+}
+
 
 
 }

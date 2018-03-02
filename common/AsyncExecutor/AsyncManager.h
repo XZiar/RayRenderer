@@ -1,5 +1,7 @@
 #pragma once
 #include "AsyncExecutorRely.h"
+#include "common/miniLogger/miniLogger.h"
+#include "common/ThreadEx.h"
 #include <atomic>
 #include <future>
 #include <condition_variable>
@@ -20,27 +22,16 @@ enum class AsyncTaskStatus : uint8_t
 };
 struct AsyncTaskNode
 {
+    const std::wstring Name;
     boost::context::continuation Context;
     AsyncTaskNode *Prev = nullptr, *Next = nullptr;//spin-locker's memory_order_seq_cst promise their order
     AsyncTaskFunc Func;
     PmsCore Promise = nullptr;
     std::promise<void> Pms;
     AsyncTaskStatus Status = AsyncTaskStatus::New;
+    AsyncTaskNode(const std::wstring& name) : Name(name) { }
 };
 }
-
-
-class AsyncTaskException : public BaseException
-{
-public:
-    EXCEPTION_CLONE_EX(AsyncTaskException);
-    enum class Reason : uint8_t { Terminated, Timeout, Cancelled };
-    const Reason reason;
-    AsyncTaskException(const Reason reason_, const std::wstring& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data), reason(reason)
-    { }
-    virtual ~AsyncTaskException() {}
-};
 
 
 class ASYEXEAPI AsyncManager
@@ -48,26 +39,30 @@ class ASYEXEAPI AsyncManager
     friend class AsyncAgent;
 public:
 //private:
-    std::atomic_flag ModifyFlag; //spinlock for modify TaskNode OR ShouldRun
-    std::atomic_bool ShouldRun;
+    ThreadObject RunningThread;
+    std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode OR ShouldRun
+    std::atomic_bool ShouldRun = false;
+    std::atomic_uint32_t TaskUid = 0;
     std::mutex RunningMtx, TerminateMtx;
     std::condition_variable CondInner, CondOuter;
     boost::context::continuation Context;
     std::atomic<detail::AsyncTaskNode*> Head = nullptr, Tail = nullptr;
     detail::AsyncTaskNode *Current = nullptr;
     uint32_t TimeYieldSleep, TimeSensitive;
+    const std::wstring Name;
     const AsyncAgent Agent;
+    common::mlog::logger Logger;
 
     bool AddNode(detail::AsyncTaskNode* node);
     detail::AsyncTaskNode* DelNode(detail::AsyncTaskNode* node);//only called from self thread
     void Resume();
 public:
-    AsyncManager(const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20) : 
-        TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Agent(*this) 
-    { }
-    PromiseResult<void> AddTask(const AsyncTaskFunc& task);
-    void MainLoop();
+    AsyncManager(const std::wstring& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
+    ~AsyncManager();
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::wstring taskname = L"");
+    void MainLoop(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
     void Terminate();
+    void OnTerminate(const std::function<void(void)>& exiter = {});
 };
 
 

@@ -153,10 +153,18 @@ struct AlignBaseHelper
 private:
     template<size_t Align>
     static std::true_type is_derived_from_alignbase_impl(const AlignBase<Align>*);
-    std::false_type is_derived_from_alignbase_impl(const void*);
+    static std::false_type is_derived_from_alignbase_impl(const void*);
+    static constexpr size_t GetAlignSize()
+    {
+        if constexpr(IsDerivedFromAlignBase)
+            return T::ALIGN_SIZE;
+        else
+            return AlignBase<alignof(T)>::ALIGN_SIZE;
+    }
 public:
     static constexpr bool IsDerivedFromAlignBase = decltype(is_derived_from_alignbase_impl(std::declval<T*>()))::value;
-    static constexpr size_t Align = IsDerivedFromAlignBase ? T::ALIGN_SIZE : AlignBase<alignof(T)>::ALIGN_SIZE;
+    //static constexpr size_t Align = IsDerivedFromAlignBase ? T::ALIGN_SIZE : AlignBase<alignof(T)>::ALIGN_SIZE;
+    static constexpr size_t Align = GetAlignSize();
 };
 
 }

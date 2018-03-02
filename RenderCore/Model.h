@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RenderElement.h"
+#include "common/AsyncExecutor/AsyncAgent.h"
 
 namespace rayr
 {
@@ -26,9 +27,10 @@ private:
 	_ModelImage(const wstring& pfname);
 	void CompressData(vector<uint8_t>& output, const oglu::TextureInnerFormat format);
 public:
+    std::wstring Name;
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
 	oglu::oglTexture genTexture(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
-	oglu::oglTexture genTextureAsync(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
+	oglu::oglTexture genTextureAsync(const common::asyexe::AsyncAgent& agent, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 };
 using ModelImage = Wrapper<_ModelImage>;
 
@@ -71,10 +73,11 @@ private:
 	const wstring mfnane;
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const fs::path& mtlfname);
-	void loadOBJ(const fs::path& objfname);
-	_ModelData(const wstring& fname, bool asyncload = false);
+    void loadOBJ(const fs::path& objfname);
+    void initData();
+    void initDataAsync(const common::asyexe::AsyncAgent& agent);
+    _ModelData(const wstring& fname, bool asyncload = false);
 public:
-	void initData();
 	~_ModelData();
 	oglu::oglVAO getVAO() const;
 };

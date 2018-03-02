@@ -242,7 +242,7 @@ void BasicTest::fontTest(const char32_t word)
 		if (word == 0x0)
 		{
 			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
-			oglUtil::invokeSyncGL([&imgShow, &fonttex]() 
+			oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent&) 
 			{
 				fonttex->setData(TextureInnerFormat::R8, imgShow);
 			})->wait();
@@ -290,7 +290,7 @@ BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
 {
 	static Init _init;
 	fontViewer.reset();
-	fontCreator.reset();
+	fontCreator.reset(oclu::Vendor::Intel);
 	basepath = L"D:\\Programs Temps\\RayRenderer";
 	if (!fs::exists(basepath))
 		basepath = L"C:\\Programs Temps\\RayRenderer";

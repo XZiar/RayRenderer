@@ -25,17 +25,17 @@ public:
     PromiseState virtual state() override
     {
         if (!fut.valid())
-            return PromiseState::INVALID;
+            return PromiseState::Invalid;
         switch (fut.wait_for(std::chrono::seconds(0)))
         {
         case std::future_status::deferred:
-            return PromiseState::UNISSUED;
+            return PromiseState::Unissued;
         case std::future_status::timeout:
-            return PromiseState::EXECUTING;
+            return PromiseState::Executing;
         case std::future_status::ready:
-            return PromiseState::EXECUTED;
+            return PromiseState::Executed;
         default:
-            return PromiseState::INVALID;
+            return PromiseState::Invalid;
         }
     }
 };

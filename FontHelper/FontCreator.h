@@ -15,13 +15,12 @@ private:
 	oglTexture testTex;
 	oclu::oclKernel kerSdf, kerSdfGray, kerDownSamp, kerSdfGray4;
 	oclu::oclBuffer sq256lut, infoBuf, inputBuf, middleBuf, outputBuf;
-	static SharedResource<oclu::oclContext> clRes;
 	oclu::oclContext clCtx;
 	oclu::oclCmdQue clQue;
 	void loadCL(const string& src);
 	void loadDownSampler(const string& src);
 public:
-	FontCreator();
+	FontCreator(const oclu::Vendor preferredVendor = oclu::Vendor::NVIDIA);
 	~FontCreator();
 	void reloadFont(const fs::path& fontpath);
 	void reload(const string& src);

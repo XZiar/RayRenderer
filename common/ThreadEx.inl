@@ -37,4 +37,54 @@ bool __cdecl SetThreadName(const std::string& threadName)
 	return true;
 }
 
+
+ThreadExitor& __cdecl ThreadExitor::GetThreadExitor()
+{
+    thread_local static ThreadExitor exitor;
+    return exitor;
+}
+
+ThreadExitor::~ThreadExitor()
+{
+    for (const auto& funcPair : Funcs)
+    {
+        std::get<1>(funcPair)();
+    }
+}
+
+
+static void* CopyThreadHandle(void *src)
+{
+    HANDLE Handle = nullptr;
+    DuplicateHandle(GetCurrentProcess(), (HANDLE)src, GetCurrentProcess(), &Handle, SYNCHRONIZE | THREAD_QUERY_INFORMATION, false, 0);
+    return Handle;
+}
+
+ThreadObject::~ThreadObject()
+{
+    if (Handle)
+        ::CloseHandle((HANDLE)Handle);
+}
+bool ThreadObject::IsAlive() const
+{
+    if (!Handle)
+        return false;
+    const auto rc = ::WaitForSingleObject((HANDLE)Handle, 0);
+    return rc != WAIT_OBJECT_0;
+}
+bool ThreadObject::IsCurrent() const
+{
+    return GetThreadId((HANDLE)Handle) == GetCurrentThreadId();
+}
+
+ThreadObject ThreadObject::GetCurrentThreadObject()
+{
+    return ThreadObject{ CopyThreadHandle(GetCurrentThread()) };
+}
+ThreadObject ThreadObject::GetThreadObject(std::thread& thr)
+{
+    return ThreadObject{ CopyThreadHandle(thr.native_handle()) };
+}
+
+
 }

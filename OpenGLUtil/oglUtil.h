@@ -2,6 +2,7 @@
 #include "oglRely.h"
 #include "oglShader.h"
 #include "oglProgram.h"
+#include "common/AsyncExecutor/AsyncAgent.h"
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
 
@@ -58,10 +59,7 @@ public:
 };
 
 
-namespace detail
-{
-class MTWorker;
-}
+using common::asyexe::AsyncTaskFunc;
 
 class OGLUAPI oglUtil
 {
@@ -75,7 +73,6 @@ private:
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> msglist;
 	static boost::circular_buffer<std::shared_ptr<DebugMessage>> errlist;
 	static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
-	static detail::MTWorker& getWorker(const uint8_t idx);
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
@@ -83,8 +80,10 @@ public:
 	static optional<wstring> __cdecl getError();
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-	static PromiseResult<void> __cdecl invokeSyncGL(std::function<void __cdecl(void)> task);
-	static PromiseResult<void> __cdecl invokeAsyncGL(std::function<void __cdecl(void)> task);
+	static PromiseResult<void> __cdecl invokeSyncGL(const AsyncTaskFunc& task, const std::wstring& taskName = L"");
+	static PromiseResult<void> __cdecl invokeAsyncGL(const AsyncTaskFunc& task, const std::wstring& taskName = L"");
+    static common::asyexe::AsyncResult<void> __cdecl SyncGL();
+    static common::asyexe::AsyncResult<void> __cdecl ForceSyncGL();
 };
 
 }

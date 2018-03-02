@@ -27,7 +27,7 @@ namespace mlog
 
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Sucess = 70, Warning = 85, Error = 100, None = 120 };
-enum class LogOutput : uint8_t { None = 0x0, Console = 0x1, File = 0x2, Callback = 0x4, Buffer = 0x8 };
+enum class LogOutput : uint8_t { None = 0x0, Console = 0x1, File = 0x2, Callback = 0x4, Buffer = 0x8, Debugger = 0x10 };
 MAKE_ENUM_BITFIELD(LogOutput)
 
 /*-return whether should continue logging*/
@@ -54,10 +54,12 @@ private:
 	static GLogCallBack onGlobalLog;
 	LogCallBack onLog;
 	bool checkLevel(const LogLevel lv) { return (uint8_t)lv >= (uint8_t)leastLV.load(); }
+    void printDebugger(const LogLevel lv, const std::wstring& content);
 	void printConsole(const LogLevel lv, const std::wstring& content);
 	void printFile(const LogLevel lv, const std::wstring& content);
 	void printBuffer(const LogLevel lv, const std::wstring& content);
 	bool onCallBack(const LogLevel lv, const std::wstring& content);
+    void innerLog(const LogLevel lv, const std::wstring& content);
 public:
 	logger(const std::wstring loggername, const std::wstring logfile, LogCallBack cb = nullptr, const LogOutput lo = LogOutput::Console, const LogLevel lv = LogLevel::Info);
 	logger(const std::wstring loggername, FILE * const logfile = nullptr, LogCallBack cb = nullptr, const LogOutput lo = LogOutput::Console, const LogLevel lv = LogLevel::Info);
@@ -101,15 +103,11 @@ public:
 	{
 		if (!checkLevel(lv))
 			return;
-		const std::wstring logdat = fmt::format(formater, std::forward<Args>(args)...);
-		if (onGlobalLog)
-			onGlobalLog(lv, name, logdat);
-		const std::wstring logstr = prefix + logdat;
-		if (!onCallBack(lv, logstr))
-			return;
-		printBuffer(lv, logstr);
-		printConsole(lv, logstr);
-		printFile(lv, logstr);
+		std::wstring logdat = fmt::format(formater, std::forward<Args>(args)...);
+        if (onGlobalLog)
+            onGlobalLog(lv, name, logdat);
+        logdat = prefix + logdat;
+        innerLog(lv, logdat);
 	}
 };
 

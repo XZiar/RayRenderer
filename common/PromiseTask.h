@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CommonRely.hpp"
 #include <memory>
 #include <functional>
 
@@ -9,14 +10,14 @@ namespace common
 
 enum class PromiseState : uint8_t
 {
-    INVALID = 0, UNISSUED = 1, ISSUED = 8, EXECUTING = 64, EXECUTED = 128, SUCCESS = 144, ERROR = 192
+    Invalid = 0, Unissued = 1, Issued = 8, Executing = 64, Executed = 128, Success = 144, Error = 192
 };
 namespace detail
 {
 
-struct COMMONTPL PromiseResultCore : public NonCopyable
+struct COMMONAPI PromiseResultCore : public NonCopyable
 {
-    PromiseState virtual state() { return PromiseState::INVALID; }
+    PromiseState virtual state() { return PromiseState::Invalid; }
 };
 
 template<class T>

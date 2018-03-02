@@ -19,8 +19,11 @@ struct FontInfo
 };
 
 
-auto FindPlatform(const std::vector<oclPlatform>& platforms)
+auto FindPlatform(const std::vector<oclPlatform>& platforms, const oclu::Vendor vendor)
 {
+    for (const auto& plt : platforms)
+        if (plt->vendor == vendor)
+            return plt;
 	for (const auto& plt : platforms)
 		if (plt->vendor == Vendor::NVIDIA)
 			return plt;
@@ -33,9 +36,9 @@ auto FindPlatform(const std::vector<oclPlatform>& platforms)
 	return oclPlatform();
 }
 
-oclu::oclContext createOCLContext()
+oclu::oclContext createOCLContext(const oclu::Vendor vendor)
 {
-	oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms());
+	oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
 	if (!clPlat)
 		return oclContext();
 	auto clCtx = clPlat->createContext();
@@ -47,7 +50,7 @@ oclu::oclContext createOCLContext()
 	return clCtx;
 }
 
-SharedResource<oclu::oclContext> FontCreator::clRes(createOCLContext);
+static SharedResource<oclu::oclContext, const oclu::Vendor> clRes(createOCLContext);
 
 
 void FontCreator::loadCL(const string& src)
@@ -100,9 +103,9 @@ void FontCreator::loadDownSampler(const string& src)
 	kerDownSamp->setArg(2, outputBuf);
 }
 
-FontCreator::FontCreator()
+FontCreator::FontCreator(const oclu::Vendor preferredVendor)
 {
-	clCtx = clRes.get();
+	clCtx = clRes.get(preferredVendor);
 	for (const auto& dev : clCtx->devs)
 		if (dev->type == DeviceType::GPU)
 		{

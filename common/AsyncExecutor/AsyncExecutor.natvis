@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::asyexe::detail::AsyncTaskNode">
+    <DisplayString>{{[{Name}],[{Status}]}}</DisplayString>
+  </Type>
+  <Type Name="common::asyexe::AsyncManager">
+    <DisplayString>{{Current={Current}}}</DisplayString>
+    <Expand>
+      <Item Name="Current">Current</Item>
+      <Item Name="Context">Context</Item>
+      <LinkedListItems>
+        <HeadPointer>*(common::asyexe::detail::AsyncTaskNode**)&amp;Head</HeadPointer>
+        <NextPointer>Next</NextPointer>
+        <ValueNode>this</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>

@@ -39,13 +39,24 @@ logger::~logger()
 }
 
 
+void logger::printDebugger(const LogLevel lv, const std::wstring& content)
+{
+    static DebuggerLogger dbglog;
+    if (!HAS_FIELD(outputs.load(), LogOutput::Debugger))
+        return;
+    {
+        //SpinLocker locker(flagConsole);
+        dbglog.print(lv, content);
+    }
+}
+
 void logger::printConsole(const LogLevel lv, const std::wstring& content)
 {
 	static ConsoleLogger conlog;
 	if (!HAS_FIELD(outputs.load(), LogOutput::Console))
 		return;
 	{
-		SpinLocker locker(flagConsole);
+		//SpinLocker locker(flagConsole);
 		conlog.print(lv, content);
 	}
 }
@@ -82,6 +93,18 @@ bool logger::onCallBack(const LogLevel lv, const std::wstring& content)
 		return ret;
 	}
 }
+
+void logger::innerLog(const LogLevel lv, const std::wstring& content)
+{
+    if (!onCallBack(lv, content))
+        return;
+    printBuffer(lv, content);
+    printConsole(lv, content);
+    printDebugger(lv, content);
+    printFile(lv, content);
+}
+
+
 
 void logger::setLeastLevel(const LogLevel lv)
 {

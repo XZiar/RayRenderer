@@ -17,14 +17,21 @@ private:
     AsyncAgent(AsyncManager& manager) : Manager(manager) {}
 public:
     void YieldThis() const;
+    void Sleep(const uint32_t ms) const;
     template<typename T>
-    PromiseResult<T> Await(const PromiseResult<T>& pms) const
+    T Await(const PromiseResult<T>& pms) const
     {
         auto pmscore = std::dynamic_pointer_cast<common::detail::PromiseResultCore>(pms);
         AddPms(pmscore);
         return pms->wait();
     }
-    void Sleep(const uint32_t ms) const;
+    template<typename T>
+    T Await(const AsyncResult<T>& pms) const
+    {
+        auto pmscore = std::dynamic_pointer_cast<common::detail::PromiseResultCore>(pms);
+        AddPms(pmscore);
+        return pms->wait();
+    }
 };
 
 
