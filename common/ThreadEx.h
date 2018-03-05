@@ -6,14 +6,17 @@
 #include <memory>
 #include <list>
 #include <tuple>
-#ifndef _M_CEE
-#   include <thread>
-#endif
+
+namespace std
+{
+class thread;
+}
 
 namespace common
 {
 
 bool __cdecl SetThreadName(const std::string& threadName);
+bool __cdecl SetThreadName(const std::u16string& threadName);
 
 struct COMMONAPI ThreadExitor : public NonCopyable
 {
@@ -50,9 +53,7 @@ protected:
     ThreadObject(void *handle) : Handle(handle) { }
 public:
     static ThreadObject __cdecl GetCurrentThreadObject();
-#ifndef _M_CEE
     static ThreadObject __cdecl GetThreadObject(std::thread& thr);
-#endif
     constexpr ThreadObject() noexcept { }
     ThreadObject(ThreadObject&& other) noexcept
     {

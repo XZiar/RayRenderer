@@ -1,5 +1,6 @@
 #pragma once
 #include "miniLogger.h"
+#include <memory>
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
 #include "common/SpinLock.hpp"
@@ -8,13 +9,13 @@ namespace common::mlog
 {
 
 
-class ConsoleLogger
+class ConsoleLogger : NonCopyable
 {
 private:
 	HANDLE hConsole;
 	CONSOLE_SCREEN_BUFFER_INFO csbInfo;
 	std::atomic_flag flagWrite = ATOMIC_FLAG_INIT;
-	std::atomic_uint_least8_t curlevel;
+	LogLevel curlevel; //SpinLock ensures no thread-race 
 	void changeState(const LogLevel lv)
 	{
 		constexpr WORD BLACK = 0;
@@ -33,8 +34,9 @@ private:
 		constexpr WORD LIGHTMAGENTA = 13;
 		constexpr WORD YELLOW = 14;
 		constexpr WORD WHITE = 15;
-		if (curlevel.exchange((uint8_t)lv) != (uint8_t)lv)
+		if (curlevel != lv)
 		{
+            curlevel = lv;
 			WORD attrb = BLACK;
 			switch (lv)
 			{
@@ -55,30 +57,32 @@ private:
 		}
 	}
 public:
-	ConsoleLogger()
-	{
-		hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-		curlevel = (uint8_t)LogLevel::None;
-	}
+    ConsoleLogger()
+    {
+        auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD mode;
+        hConsole = GetConsoleMode(handle, &mode) ? handle : nullptr;
+        curlevel = LogLevel::None;
+    }
 	void print(const LogLevel lv, const std::wstring& content)
 	{
 		if (hConsole == nullptr)
 			return;
         common::SpinLocker locker(flagWrite);
 		changeState(lv);
-		DWORD outlen;
-		WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), &outlen, NULL);
+		uint32_t outlen;
+		WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), (LPDWORD)&outlen, NULL);
 	}
 };
 
 
 class DebuggerLogger
 {
-    std::atomic_flag flagWrite = ATOMIC_FLAG_INIT;
+    //std::atomic_flag flagWrite = ATOMIC_FLAG_INIT;
 public:
     void print(const LogLevel lv, const std::wstring& content)
     {
-        common::SpinLocker locker(flagWrite);
+        //common::SpinLocker locker(flagWrite);
         OutputDebugString(content.c_str());
     }
 };

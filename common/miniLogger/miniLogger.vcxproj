@@ -158,9 +158,14 @@
   <ItemGroup>
     <ClInclude Include="InnerLogger.inl" />
     <ClInclude Include="miniLogger.h" />
+    <ClInclude Include="MiniLoggerRely.h" />
+    <ClInclude Include="QueuedBackend.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CommonBackend.cpp" />
     <ClCompile Include="miniLogger.cpp" />
+    <ClCompile Include="MiniLoggerRely.cpp" />
+    <ClCompile Include="QueuedBackend.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">

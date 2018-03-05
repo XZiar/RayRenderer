@@ -1,6 +1,7 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
+#include "common/IntToString.hpp"
 #define NO_DATE_FORMATE
 #include "common/TimeUtil.hpp"
 #include "common/SpinLock.hpp"
@@ -18,11 +19,10 @@ namespace common::asyexe
 bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 {
     node->Next = nullptr;
-    while (!ModifyFlag.test_and_set())//ensure add is done
-    { }
+    common::SpinLocker::Lock(ModifyFlag);//ensure add is done
     if (!ShouldRun)
     {
-        ModifyFlag.clear();
+        common::SpinLocker::Unlock(ModifyFlag);
         return false;
     }
     node->Prev = Tail;
@@ -30,14 +30,14 @@ bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
     {
         Tail = node;
         node->Prev->Next = node;
-        ModifyFlag.clear();
+        common::SpinLocker::Unlock(ModifyFlag);
     }
     else //list became not empty
     {
         RunningMtx.lock(); //ensure that mainloop is waiting
         Head = Tail = node;
         RunningMtx.unlock();
-        ModifyFlag.clear();
+        common::SpinLocker::Unlock(ModifyFlag);
         CondInner.notify_one();
     }
     return true;
@@ -64,22 +64,22 @@ void AsyncManager::Resume()
     Context = Context.resume();
 }
 
-PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::wstring taskname)
+PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16string taskname)
 {
     const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
-    if (taskname == L"")
-        taskname = L"task" + std::to_wstring(tuid);
+    if (taskname == u"")
+        taskname = u"task" + common::str::to_u16string(tuid);
     auto node = new detail::AsyncTaskNode(taskname);
     node->Func = task;
     const auto ret = std::dynamic_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultSTD<void>>(node->Pms));
     if (AddNode(node))
     {
-        Logger.debug(L"Add new task [{}] [{}]\n", tuid, node->Name);
+        Logger.debug(u"Add new task [{}] [{}]\n", tuid, node->Name);
         return ret;
     }
     else //has stopped
     {
-        Logger.warning(L"New task cancelled due to termination [{}] [{}]\n", tuid, node->Name);
+        Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, node->Name);
         delete node;
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Executor was terminated when adding task.");
     }
@@ -160,7 +160,7 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
             }
             else //has returned
             {
-                Logger.debug(L"Task [{}] finished\n", Current->Name);
+                Logger.debug(u"Task [{}] finished\n", Current->Name);
                 Current = DelNode(Current);
             }
             //quick exit when terminate
@@ -196,7 +196,7 @@ void AsyncManager::Terminate()
 void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
 {
     ShouldRun = false; //in case self-terminate
-    Logger.verbose(L"begin to exit");
+    Logger.verbose(u"begin to exit");
     //destroy all task
     common::SpinLocker locker(ModifyFlag); //ensure no pending adding
     for (Current = Head; Current != nullptr;)
@@ -216,7 +216,7 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
         }
         catch (AsyncTaskException& e)
         {
-            Logger.warning(L"Task [{}] {} due to termination.\n", Current->Name, e.reason == AsyncTaskException::Reason::Cancelled ? L"cancelled" : L"terminated");
+            Logger.warning(u"Task [{}] {} due to termination.\n", Current->Name, e.reason == AsyncTaskException::Reason::Cancelled ? u"cancelled" : u"terminated");
             Current->Pms.set_exception(std::current_exception());
         }
         delete Current;
@@ -232,9 +232,9 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
 }
 
 
-AsyncManager::AsyncManager(const std::wstring& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
+AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
     Name(name), TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Agent(*this),
-    Logger(L"Asy-" + Name, nullptr, nullptr, common::mlog::LogOutput::Console | common::mlog::LogOutput::Debugger, common::mlog::LogLevel::Debug)
+    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend(), common::mlog::GetDebuggerBackend() })
 { }
 AsyncManager::~AsyncManager()
 {

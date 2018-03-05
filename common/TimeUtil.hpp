@@ -7,7 +7,7 @@
 #   if _HAS_CXX17
 #      define HAS_STRING_VIEW 1
 #   endif
-#   include "../3rdParty/date/date.h"
+#   include "3rdParty/date/date.h"
 #endif
 
 namespace common

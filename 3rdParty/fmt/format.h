@@ -2623,7 +2623,7 @@ class BasicWriter {
   // Fills the padding around the content and returns the pointer to the
   // content area.
   static CharPtr fill_padding(CharPtr buffer,
-      unsigned total_size, std::size_t content_size, wchar_t fill);
+      unsigned total_size, std::size_t content_size, Char fill);
 
   // Grows the buffer by n characters and returns a pointer to the newly
   // allocated area.
@@ -2925,10 +2925,10 @@ template <typename Char>
 typename BasicWriter<Char>::CharPtr
   BasicWriter<Char>::fill_padding(
     CharPtr buffer, unsigned total_size,
-    std::size_t content_size, wchar_t fill) {
+    std::size_t content_size, Char fill) {
   std::size_t padding = total_size - content_size;
   std::size_t left_padding = padding / 2;
-  Char fill_char = internal::CharTraits<Char>::cast(fill);
+  Char fill_char = fill;
   std::uninitialized_fill_n(buffer, left_padding, fill_char);
   buffer += left_padding;
   CharPtr content = buffer;
@@ -3873,7 +3873,7 @@ const Char *BasicFormatter<Char, ArgFormatter>::format(
             if (c == '{')
               FMT_THROW(FormatError("invalid fill character '{'"));
             s += 2;
-            spec.fill_ = c;
+            spec.fill_ = (wchar_t)c;
           } else ++s;
           if (spec.align_ == ALIGN_NUMERIC)
             require_numeric_argument(arg, '=');
@@ -3908,7 +3908,7 @@ const Char *BasicFormatter<Char, ArgFormatter>::format(
     if (*s == '0') {
       require_numeric_argument(arg, '0');
       spec.align_ = ALIGN_NUMERIC;
-      spec.fill_ = '0';
+      spec.fill_ = (wchar_t)'0';
       ++s;
     }
 

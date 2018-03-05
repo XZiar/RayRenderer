@@ -1,11 +1,34 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
-#include "../PromiseTask.inl"
+#include "common/PromiseTask.inl"
+#include <chrono>
 
 namespace common::asyexe
 {
 
+namespace detail
+{
+
+class AsyncSleeper : public ::common::detail::PromiseResultCore
+{
+    friend class common::asyexe::AsyncAgent;
+protected:
+    std::chrono::high_resolution_clock::time_point Target;
+public:
+    AsyncSleeper(const uint32_t sleepTimeMs)
+    {
+        Target = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(sleepTimeMs);
+    }
+    virtual ~AsyncSleeper() {}
+    AsyncSleeper(AsyncSleeper&&) = default;
+    PromiseState virtual state() 
+    {
+        return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
+    }
+};
+
+}
 
 void AsyncAgent::AddPms(const PmsCore& pmscore) const
 {
@@ -21,16 +44,9 @@ void AsyncAgent::YieldThis() const
 }
 void AsyncAgent::Sleep(const uint32_t ms) const
 {
-    std::promise<void> rawpms;
-    auto pms = std::make_shared<common::PromiseResultSTD<void>>(rawpms);
+    auto pms = std::make_shared<detail::AsyncSleeper>(ms);
     auto pmscore = std::dynamic_pointer_cast<common::detail::PromiseResultCore>(pms);
-    std::thread([&](std::promise<void> thepms)
-    { 
-        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        thepms.set_value();
-    }, std::move(rawpms)).detach();
     AddPms(pmscore);
-    return pms->wait();
 }
 
 }

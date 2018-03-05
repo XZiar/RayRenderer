@@ -17,6 +17,7 @@ namespace detail
 
 struct COMMONAPI PromiseResultCore : public NonCopyable
 {
+    virtual ~PromiseResultCore() {}
     PromiseState virtual state() { return PromiseState::Invalid; }
 };
 

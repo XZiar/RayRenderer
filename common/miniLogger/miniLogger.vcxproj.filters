@@ -21,9 +21,24 @@
     <ClInclude Include="InnerLogger.inl">
       <Filter>源文件</Filter>
     </ClInclude>
+    <ClInclude Include="QueuedBackend.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniLoggerRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="miniLogger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="QueuedBackend.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MiniLoggerRely.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CommonBackend.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

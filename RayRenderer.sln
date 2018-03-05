@@ -57,6 +57,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}"
 	ProjectSection(SolutionItems) = preProject
 		3rdParty\cpplinq.hpp = 3rdParty\cpplinq.hpp
+		3rdParty\digitslut.h = 3rdParty\digitslut.h
+		3rdParty\dtoa_milo.hpp = 3rdParty\dtoa_milo.hpp
+		3rdParty\itoa_branchlut2.hpp = 3rdParty\itoa_branchlut2.hpp
+		3rdParty\itoa_naive.hpp = 3rdParty\itoa_naive.hpp
+		3rdParty\itoa_sse2.hpp = 3rdParty\itoa_sse2.hpp
 		3rdParty\README.md = 3rdParty\README.md
 	EndProjectSection
 EndProject
@@ -106,7 +111,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\FileEx.hpp = common\FileEx.hpp
 		common\FileMapper.h = common\FileMapper.h
 		common\FileMapper.inl = common\FileMapper.inl
+		common\IntToString.hpp = common\IntToString.hpp
 		common\Linq.hpp = common\Linq.hpp
+		common\LockfreeQueue.hpp = common\LockfreeQueue.hpp
 		common\LUT_gb18030.tab = common\LUT_gb18030.tab
 		common\PromiseTask.h = common\PromiseTask.h
 		common\PromiseTask.inl = common\PromiseTask.inl

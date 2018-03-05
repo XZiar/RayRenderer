@@ -7,7 +7,7 @@
 #include <condition_variable>
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
-#include <boost/context/all.hpp>
+#include <boost/context/continuation.hpp>
 
 namespace common
 {
@@ -22,14 +22,14 @@ enum class AsyncTaskStatus : uint8_t
 };
 struct AsyncTaskNode
 {
-    const std::wstring Name;
+    const std::u16string Name;
     boost::context::continuation Context;
     AsyncTaskNode *Prev = nullptr, *Next = nullptr;//spin-locker's memory_order_seq_cst promise their order
     AsyncTaskFunc Func;
     PmsCore Promise = nullptr;
     std::promise<void> Pms;
     AsyncTaskStatus Status = AsyncTaskStatus::New;
-    AsyncTaskNode(const std::wstring& name) : Name(name) { }
+    AsyncTaskNode(const std::u16string& name) : Name(name) { }
 };
 }
 
@@ -49,17 +49,17 @@ public:
     std::atomic<detail::AsyncTaskNode*> Head = nullptr, Tail = nullptr;
     detail::AsyncTaskNode *Current = nullptr;
     uint32_t TimeYieldSleep, TimeSensitive;
-    const std::wstring Name;
+    const std::u16string Name;
     const AsyncAgent Agent;
-    common::mlog::logger Logger;
+    common::mlog::MiniLogger<false> Logger;
 
     bool AddNode(detail::AsyncTaskNode* node);
     detail::AsyncTaskNode* DelNode(detail::AsyncTaskNode* node);//only called from self thread
     void Resume();
 public:
-    AsyncManager(const std::wstring& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
+    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
     ~AsyncManager();
-    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::wstring taskname = L"");
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"");
     void MainLoop(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
     void Terminate();
     void OnTerminate(const std::function<void(void)>& exiter = {});
