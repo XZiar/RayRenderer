@@ -37,9 +37,9 @@ public:
 class IMGUTILAPI PngSupport : public ImgSupport
 {
 public:
-	PngSupport() : ImgSupport(L"Png") {}
-	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<PngReader>(file).cast_static<ImgReader>(); }
-	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<PngWriter>(file).cast_static<ImgWriter>(); }
+	PngSupport() : ImgSupport(u"Png") {}
+	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<PngReader>(file).cast_dynamic<ImgReader>(); }
+	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<PngWriter>(file).cast_dynamic<ImgWriter>(); }
 	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".PNG"; }
 	virtual bool MatchType(const wstring& type) const override { return type == L"PNG"; }
 };

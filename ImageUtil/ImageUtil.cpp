@@ -37,7 +37,7 @@ static vector<Wrapper<ImgSupport>> GenerateSupportList(const wstring& ext, const
 Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
 	auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY);
-	ImgLog().debug(L"Read Image {}\n", path.wstring());
+	ImgLog().debug(u"Read Image {}\n", path.u16string());
 	const auto ext = str::ToUpper(path.extension().wstring());
 	auto testList = GenerateSupportList(ext, true);
 	for (auto& support : testList)
@@ -50,14 +50,14 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
 				reader->Release();
 				continue;
 			}
-			ImgLog().debug(L"Using [{}]\n", support->Name);
+			ImgLog().debug(u"Using [{}]\n", support->Name);
 			const auto img = reader->Read(dataType);
 			reader->Release();
 			return img;
 		}
 		catch (BaseException& be)
 		{
-			ImgLog().warning(L"Read Image using {} receive error {}\n", support->Name, be.message);
+			ImgLog().warning(u"Read Image using {} receive error {}\n", support->Name, be.message);
 		}
 	}
 	return Image();
@@ -66,20 +66,20 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
 void WriteImage(const Image& image, const fs::path & path)
 {
 	auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY);
-	ImgLog().debug(L"Write Image {}\n", path.wstring());
+	ImgLog().debug(u"Write Image {}\n", path.u16string());
 	const auto ext = str::ToUpper(path.extension().wstring());
 	auto testList = GenerateSupportList(ext, false);
 	for (auto& support : testList)
 	{
 		try
 		{
-			auto reader = support->GetWriter(imgFile);
-			ImgLog().debug(L"Using [{}]\n", support->Name);
-			return reader->Write(image);
+			auto writer = support->GetWriter(imgFile);
+			ImgLog().debug(u"Using [{}]\n", support->Name);
+			return writer->Write(image);
 		}
 		catch (BaseException& be)
 		{
-			ImgLog().warning(L"Write Image using {} receive error {}\n", support->Name, be.message);
+			ImgLog().warning(u"Write Image using {} receive error {}\n", support->Name, be.message);
 		}
 	}
 	return;

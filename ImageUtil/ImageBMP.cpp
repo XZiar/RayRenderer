@@ -282,10 +282,10 @@ void BmpWriter::Write(const Image& image)
     }
 
     timer.Stop();
-    ImgLog().debug(L"zexbmp write cost {} ms\n", timer.ElapseMs());
+    ImgLog().debug(u"zexbmp write cost {} ms\n", timer.ElapseMs());
 }
 
-BmpSupport::BmpSupport() : ImgSupport(L"Bmp")
+BmpSupport::BmpSupport() : ImgSupport(u"Bmp")
 {
 }
 

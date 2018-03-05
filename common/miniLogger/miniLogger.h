@@ -59,7 +59,7 @@ public:
     template<class... Args>
     void success(const std::wstring& formater, Args&&... args)
     {
-        log(LogLevel::Sucess, formater, std::forward<Args>(args)...);
+        log(LogLevel::Success, formater, std::forward<Args>(args)...);
     }
     template<class... Args>
     void verbose(const std::wstring& formater, Args&&... args)
@@ -146,9 +146,9 @@ struct MINILOGAPI StrFormater<wchar_t>
         writer.clear();
         writer.write(formater, std::forward<Args>(args)...);
         if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-            return *(std::u16string*)&writer.c_str();
+            return std::u16string((const char16_t*)writer.data(), writer.size());
         else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, wchar_t, char16_t>::Convert(writer.data(), writer.size(), true, true);;
+            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, wchar_t, char16_t>::Convert(writer.data(), writer.size(), true, true);
         else
             return u"";
     }
@@ -161,23 +161,20 @@ protected:
     std::atomic<LogLevel> LeastLevel;
     const std::u16string Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
-    static fmt::UTFMemoryWriter<char16_t>& GetWriter();
 public:
     //set global callback is not thread-safe
     static void __cdecl SetGlobalCallback(const MLoggerCallback& cb);
-    //static std::shared_ptr<LoggerBackend> __cdecl GetConsoleBackend();
-    MiniLoggerGBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>>&& outputer) : Prefix(name), Outputer(outputer)
-    { }
-    MiniLoggerGBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}) : Prefix(name), Outputer(outputer)
+    MiniLoggerGBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
+        : Prefix(name), Outputer(outputer), LeastLevel(level)
     { }
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
+    LogLevel GetLeastLevel() { return LeastLevel; }
 };
 template<class Child>
 class COMMONTPL MiniLoggerBase : public MiniLoggerGBase
 {
 protected:
     using detail::MiniLoggerGBase::MiniLoggerGBase;
-    
 public:
     template<typename Char, class... Args>
     void error(const Char* __restrict formater, Args&&... args)
@@ -192,7 +189,7 @@ public:
     template<typename Char, class... Args>
     void success(const Char* __restrict formater, Args&&... args)
     {
-        log(LogLevel::Sucess, fmt::BasicCStringRef<Char>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Success, fmt::BasicCStringRef<Char>(formater), std::forward<Args>(args)...);
     }
     template<typename Char, class... Args>
     void verbose(const Char* __restrict formater, Args&&... args)
@@ -223,7 +220,7 @@ public:
     template<typename Char, class... Args>
     void success(const std::basic_string<Char>& formater, Args&&... args)
     {
-        log(LogLevel::Sucess, fmt::BasicCStringRef<Char>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Success, fmt::BasicCStringRef<Char>(formater), std::forward<Args>(args)...);
     }
     template<typename Char, class... Args>
     void verbose(const std::basic_string<Char>& formater, Args&&... args)

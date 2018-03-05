@@ -1,6 +1,8 @@
 #pragma once
 #include "MiniLoggerRely.h"
 #include "QueuedBackend.h"
+#include "miniLogger.h"
+#include "common/FileEx.hpp"
 #include <memory>
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
@@ -13,7 +15,7 @@ class ConsoleBackend : public LoggerQBackend
 private:
     HANDLE hConsole;
     CONSOLE_SCREEN_BUFFER_INFO csbInfo;
-    LogLevel curlevel; //SpinLock ensures no thread-race 
+    LogLevel curlevel; //Single-thread executor, no need for thread-protection
     void changeState(const LogLevel lv)
     {
         constexpr WORD BLACK = 0;
@@ -42,7 +44,7 @@ private:
                 attrb = LIGHTRED; break;
             case LogLevel::Warning:
                 attrb = YELLOW; break;
-            case LogLevel::Sucess:
+            case LogLevel::Success:
                 attrb = LIGHTGREEN; break;
             case LogLevel::Info:
                 attrb = WHITE; break;
@@ -71,12 +73,14 @@ public:
         if (hConsole == nullptr)
             return;
         changeState(msg.Level);
+        auto content = detail::StrFormater<char16_t>::ToU16Str(u"[{}]{}", msg.Source, msg.Content);
         uint32_t outlen;
-        WriteConsole(hConsole, msg.Content.c_str(), (DWORD)msg.Content.length(), (LPDWORD)&outlen, NULL);
+        WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), (LPDWORD)&outlen, NULL);
     }
 };
 
-class DebuggerLogger : public LoggerQBackend
+
+class DebuggerBackend : public LoggerQBackend
 {
 protected:
     void virtual OnStart() override
@@ -86,19 +90,55 @@ protected:
 public:
     void virtual OnPrint(const LogMessage& msg) override
     {
-        OutputDebugString((LPCWSTR)msg.Content.c_str());
+        auto content = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.Content);
+        OutputDebugString((LPCWSTR)content.c_str());
     }
 };
 
-std::shared_ptr<LoggerBackend> GetConsoleBackend()
+
+class FileBackend : public LoggerQBackend
+{
+protected:
+    file::FileObject File;
+    void virtual OnStart() override
+    {
+        common::SetThreadName(u"File-MLogger-Backend");
+    }
+    void virtual OnStop() override
+    {
+    }
+public:
+    FileBackend(const fs::path& path) : File(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::TEXT)) { }
+    void virtual OnPrint(const LogMessage& msg) override
+    {
+
+        //File.Write();
+    }
+};
+
+
+std::shared_ptr<LoggerBackend> __cdecl GetConsoleBackend()
 {
     static auto backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
     return std::dynamic_pointer_cast<LoggerBackend>(backend);
 }
-std::shared_ptr<LoggerBackend> GetDebuggerBackend()
+std::shared_ptr<LoggerBackend> __cdecl GetDebuggerBackend()
 {
-    static auto backend = LoggerQBackend::InitialQBackend<DebuggerLogger>();
+    static auto backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();
     return std::dynamic_pointer_cast<LoggerBackend>(backend);
+}
+
+std::shared_ptr<LoggerBackend> __cdecl GetFileBackend(const fs::path& path)
+{
+    try
+    {
+        auto backend = LoggerQBackend::InitialQBackend<FileBackend>(path);
+        return std::dynamic_pointer_cast<LoggerBackend>(backend);
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
 }
 
 

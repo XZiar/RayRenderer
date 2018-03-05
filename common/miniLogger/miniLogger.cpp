@@ -1,6 +1,6 @@
+#include "MiniLoggerRely.h"
 #include "miniLogger.h"
 #include "InnerLogger.inl"
-#include "common/SpinLock.hpp"
 
 namespace common::mlog
 {
@@ -157,21 +157,16 @@ fmt::UTFMemoryWriter<char16_t>& StrFormater<char16_t>::GetWriter()
     static thread_local fmt::UTFMemoryWriter<char16_t> out;
     return out;
 }
-/*
+
 fmt::UTFMemoryWriter<char32_t>& StrFormater<char32_t>::GetWriter()
 {
     static thread_local fmt::UTFMemoryWriter<char32_t> out;
     return out;
 }
-*/
+
 fmt::BasicMemoryWriter<wchar_t>& StrFormater<wchar_t>::GetWriter()
 {
     static thread_local fmt::BasicMemoryWriter<wchar_t> out;
-    return out;
-}
-fmt::UTFMemoryWriter<char16_t>& MiniLoggerGBase::GetWriter()
-{
-    static thread_local fmt::UTFMemoryWriter<char16_t> out;
     return out;
 }
 

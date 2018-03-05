@@ -3,9 +3,9 @@
 namespace xziar::img
 {
 using namespace common::mlog;
-logger& ImgLog()
+MiniLogger<false>& ImgLog()
 {
-	static logger imglog(L"ImageUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
-	return imglog;
+    static MiniLogger<false> imglog(u"ImageUtil", { GetConsoleBackend() });
+    return imglog;
 }
 }

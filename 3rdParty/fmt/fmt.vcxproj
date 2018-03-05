@@ -167,7 +167,6 @@
     <ClInclude Include="printf.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="time.h" />
-    <ClInclude Include="u16ext.h" />
     <ClInclude Include="utfext.h" />
   </ItemGroup>
   <ItemGroup>
@@ -175,12 +174,6 @@
     <ClCompile Include="ostream.cc" />
     <ClCompile Include="posix.cc" />
     <ClCompile Include="printf.cc" />
-    <ClCompile Include="u16ext.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="utfext.cpp" />
   </ItemGroup>
   <ItemGroup>

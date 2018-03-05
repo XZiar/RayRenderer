@@ -3,7 +3,6 @@
 #include <memory>
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
-#include "common/SpinLock.hpp"
 
 namespace common::mlog
 {
@@ -44,7 +43,7 @@ private:
 				attrb = LIGHTRED; break;
 			case LogLevel::Warning:
 				attrb = YELLOW; break;
-			case LogLevel::Sucess:
+			case LogLevel::Success:
 				attrb = LIGHTGREEN; break;
 			case LogLevel::Info:
 				attrb = WHITE; break;

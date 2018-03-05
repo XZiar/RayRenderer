@@ -204,7 +204,7 @@ Image Image::ConvertTo(const ImageDataType dataType, const uint32_t x, const uin
     if (dataType == DataType)
         return Region(x, y, w, h);
 
-    Image newimg(DataType);
+    Image newimg(dataType);
     newimg.SetSize(w, h);
     newimg.PlaceImage(*this, x, y, 0, 0);
     return newimg;

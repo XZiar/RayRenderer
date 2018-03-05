@@ -36,9 +36,6 @@
     <ClInclude Include="printf.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="u16ext.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="utfext.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -54,9 +51,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="posix.cc">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="u16ext.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="utfext.cpp">

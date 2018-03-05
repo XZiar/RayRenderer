@@ -31,9 +31,9 @@ public:
 class IMGUTILAPI ImgSupport
 {
 protected:
-	ImgSupport(const wstring& name) : Name(name) {}
+	ImgSupport(const u16string& name) : Name(name) {}
 public:
-	const wstring Name;
+	const u16string Name;
 	virtual Wrapper<ImgReader> GetReader(FileObject& file) const = 0;
 	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const = 0;
 	virtual bool MatchExtension(const wstring& ext) const = 0;

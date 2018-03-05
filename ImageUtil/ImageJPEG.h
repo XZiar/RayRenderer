@@ -49,9 +49,9 @@ public:
 class IMGUTILAPI JpegSupport : public ImgSupport
 {
 public:
-	JpegSupport() : ImgSupport(L"Jpeg") {}
-	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<JpegReader>(file).cast_static<ImgReader>(); }
-	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<JpegWriter>(file).cast_static<ImgWriter>(); }
+	JpegSupport() : ImgSupport(u"Jpeg") {}
+	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<JpegReader>(file).cast_dynamic<ImgReader>(); }
+	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<JpegWriter>(file).cast_dynamic<ImgWriter>(); }
 	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".JPEG" || ext == L".JPG"; }
 	virtual bool MatchType(const wstring& type) const override { return type == L"JPEG"; }
 };

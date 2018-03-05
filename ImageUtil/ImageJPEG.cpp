@@ -66,12 +66,13 @@ struct JpegHelper
 	{
 		char message[JMSG_LENGTH_MAX];
 		(*cinfo->err->format_message)(cinfo, message);
-		const auto msg = str::to_wstring(message);
-		if (msg_level == -1)
-			ImgLog().warning(L"LIBJPEG warns {}\n", msg);
+        if (msg_level == -1)
+        {
+            ImgLog().warning(u"LIBJPEG warns {}\n", message);
+        }
 #ifdef _DEBUG
 		else
-			ImgLog().verbose(L"LIBJPEG trace {}\n", msg);
+			ImgLog().verbose(u"LIBJPEG trace {}\n", message);
 #endif
 	}
 
@@ -80,7 +81,7 @@ struct JpegHelper
 		auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
 		char jpegLastErrorMsg[JMSG_LENGTH_MAX];
 		(*cinfo->err->format_message)(cinfo, jpegLastErrorMsg);
-		ImgLog().error(L"LIBJPEG report an error: {}\n", str::to_wstring(jpegLastErrorMsg));
+		ImgLog().error(u"LIBJPEG report an error: {}\n", jpegLastErrorMsg);
 		COMMON_THROW(BaseException, L"Libjpeg report an error");
 	}
 };

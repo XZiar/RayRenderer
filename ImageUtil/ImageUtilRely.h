@@ -33,6 +33,7 @@ namespace str = common::str;
 using std::byte;
 using std::string;
 using std::wstring;
+using std::u16string;
 using std::tuple;
 }
 
@@ -40,6 +41,6 @@ using std::tuple;
 #include "common/miniLogger/miniLogger.h"
 namespace xziar::img
 {
-common::mlog::logger& ImgLog();
+common::mlog::MiniLogger<false>& ImgLog();
 }
 #endif

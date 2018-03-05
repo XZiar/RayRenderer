@@ -1,3 +1,4 @@
+#include "MiniLoggerRely.h"
 #include "QueuedBackend.h"
 #include <thread>
 #include <functional>
@@ -41,18 +42,28 @@ LoggerQBackend::LoggerQBackend(const size_t initSize) : MsgQueue(initSize)
 }
 LoggerQBackend::~LoggerQBackend()
 {
-    if (!CurThread.IsAlive())
-        return;
-    ShouldRun = false;
+    if (CurThread.IsAlive())
     {
-        CondWait.notify_all();
-        RunningMtx.lock(); //ensure worker stopped
-        RunningMtx.unlock();
+        ShouldRun = false;
+        {
+            CondWait.notify_all();
+            RunningMtx.lock(); //ensure worker stopped
+            RunningMtx.unlock();
+        }
     }
+    //release the msgs left
+    LogMessage* msg;
+    while (MsgQueue.pop(msg))
+        LogMessage::Consume(msg);
 }
 
 void LoggerQBackend::Print(LogMessage* msg)
 {
+    if ((uint8_t)msg->Level < (uint8_t)LeastLevel)
+    {
+        LogMessage::Consume(msg);
+        return;
+    }
     MsgQueue.push(msg);
     if (IsWaiting.load(std::memory_order_relaxed))
         CondWait.notify_one();
