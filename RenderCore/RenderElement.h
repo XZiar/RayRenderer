@@ -40,7 +40,7 @@ class alignas(16) Drawable : public AlignBase<16>, public NonCopyable
 	static DrawableHelper& getHelper();
 public:
 	Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
-	wstring name;
+	u16string name;
 	static void releaseAll(const oglu::oglProgram& prog);
 	virtual ~Drawable();
 	/*prepare VAO with given Vertex Attribute Location
@@ -48,11 +48,11 @@ public:
 	 */
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
 	virtual void draw(oglu::oglProgram& prog) const;
-	wstring getType() const;
+    u16string getType() const;
 protected:
 	uint32_t drawableID;
 	oglu::oglVAO defaultVAO;
-	Drawable(const wstring& typeName);
+	Drawable(const u16string& typeName);
 	auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
 	auto drawPosition(oglu::oglProgram& prog) const -> decltype(prog->draw());
 	void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;

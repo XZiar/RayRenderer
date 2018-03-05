@@ -2,6 +2,8 @@
 
 A messy renderer based on my old RayTrace project.
 
+But it's not a renderer yet, it's just a collection of utilities.
+
 ### Changes from old project
 
 The old preject is [here](https://github.com/XZiar/RayTrace)
@@ -19,14 +21,15 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things |
 | [common](./common) | Basic but useful things |
 | [CommonUtil](./CommonUtil) | Basic utils for C# |
-| [miniLogger](./common/miniLogger) | mini logger |
+| [miniLogger](./common/miniLogger) | Mini Logger |
+| [AsyncExecutor](./common/AsyncExecutor) | Async Executor |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm |
-| [RenderCore](./RenderCore) | Core of RayRender |
+| [RenderCore](./RenderCore) | Core of RayRenderer |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) |
@@ -36,7 +39,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-VS2017(15.5.3) needed.
+VS2017(`15.5.3`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
 
 ## Additional Requirements
 
@@ -85,6 +88,10 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 * [date](https://howardhinnant.github.io/date/date.html) 2.4
 
   [MIT License](./License/date.txt)
+
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader)
+
+  [License](./3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
 
 ## License
 

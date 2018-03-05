@@ -19,12 +19,14 @@ void oclUtil::init()
 	{
 		auto plt = oclPlatform(new detail::_oclPlatform(pID));
 		platforms.push_back(plt);
-		auto txt = fmt::format(L"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
+        auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
+        writer.clear();
+        writer.write(u"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
 		for (const auto dev : plt->getDevices())
-			txt += fmt::format(L"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : 
+            writer.write(u"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : 
 				dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
 				dev->name, dev->vendor, dev->version);
-		oclLog().verbose(txt);
+		oclLog().verbose(writer.c_str());
 	}
 }
 

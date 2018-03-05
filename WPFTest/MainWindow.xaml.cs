@@ -110,7 +110,7 @@ namespace WPFTest
                     r.Foreground = errBrs; break;
                 case LogLevel.Warning:
                     r.Foreground = warnBrs; break;
-                case LogLevel.Sucess:
+                case LogLevel.Success:
                     r.Foreground = sucBrs; break;
                 case LogLevel.Info:
                     r.Foreground = infoBrs; break;

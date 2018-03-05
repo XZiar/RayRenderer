@@ -8,6 +8,10 @@ namespace RayRender
 
 using namespace common;
 
+inline static std::u16string ToU16Str(String^ str)
+{
+    return *(std::u16string*)&msclr::interop::marshal_as<std::wstring>(str);
+}
 
 BasicTest::BasicTest()
 {
@@ -52,18 +56,18 @@ void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const
 
 void BasicTest::ReLoadCL(String^ fname)
 {
-	core->reloadFontLoader(msclr::interop::marshal_as<std::wstring>(fname));
+	core->reloadFontLoader(ToU16Str(fname));
 }
 
 Task<bool>^ BasicTest::AddModelAsync(String^ fname)
 {
-	return doAsync2<bool>(&rayr::BasicTest::addModelAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
+	return doAsync2<bool>(&rayr::BasicTest::addModelAsync, core, ToU16Str(fname));
 }
 
 
 Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 {
-	return doAsync2<bool>(&rayr::BasicTest::reloadFontLoaderAsync, core, msclr::interop::marshal_as<std::wstring>(fname));
+	return doAsync2<bool>(&rayr::BasicTest::reloadFontLoaderAsync, core, ToU16Str(fname));
 }
 
 Task<bool>^ BasicTest::TryAsync()

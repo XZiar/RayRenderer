@@ -9,9 +9,9 @@ namespace oclu
 {
 
 using namespace common::mlog;
-logger& oclLog()
+MiniLogger<false>& oclLog()
 {
-	static logger ocllog(L"OpenCLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
+    static MiniLogger<false> ocllog(u"OpenCLUtil", { GetConsoleBackend() });
 	return ocllog;
 }
 

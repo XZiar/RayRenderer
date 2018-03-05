@@ -52,7 +52,7 @@ internal:
 public:
 	~Light() { this->!Light(); }
 	!Light();
-	String^ name() { return gcnew String((*light)->name.c_str()); }
+	String^ name() { return gcnew String((const wchar_t*)(*light)->name.c_str()); }
 };
 
 }

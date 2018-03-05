@@ -44,6 +44,7 @@ namespace str = common::str;
 namespace fs = common::file::fs;
 using std::string;
 using std::wstring;
+using std::u16string;
 using std::string_view;
 using std::wstring_view;
 using std::tuple;
@@ -63,7 +64,7 @@ using common::BaseException;
 using common::FileException;
 
 class oclUtil;
-using MessageCallBack = std::function<void(const wstring&)>;
+using MessageCallBack = std::function<void(const u16string&)>;
 
 enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
 
@@ -79,6 +80,6 @@ class _oclKernel;
 #include "common/miniLogger/miniLogger.h"
 namespace oclu
 {
-common::mlog::logger& oclLog();
+common::mlog::MiniLogger<false>& oclLog();
 }
 #endif

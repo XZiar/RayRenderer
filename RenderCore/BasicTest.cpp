@@ -12,14 +12,14 @@ struct Init
 {
 	Init()
 	{
-		basLog().verbose(L"BasicTest Static Init\n");
+		basLog().verbose(u"BasicTest Static Init\n");
 		oglUtil::init();
 		oclu::oclUtil::init();
 	}
 };
 
 
-void BasicTest::init2d(const wstring pname)
+void BasicTest::init2d(const u16string pname)
 {
 	prog2D.reset();
 	if(pname.empty())
@@ -34,7 +34,7 @@ void BasicTest::init2d(const wstring pname)
 			}
 			catch (OGLException& gle)
 			{
-				basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+				basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
 				COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
 			}
 		}
@@ -54,7 +54,7 @@ void BasicTest::init2d(const wstring pname)
 		}
 		catch (OGLException& gle)
 		{
-			basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+			basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
 			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
@@ -65,7 +65,7 @@ void BasicTest::init2d(const wstring pname)
 	}
 	catch (OGLException& gle)
 	{
-		basLog().error(L"Fail to link Program:\n{}\n", gle.message);
+		basLog().error(u"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 	picVAO.reset(VAODrawMode::Triangles);
@@ -79,10 +79,10 @@ void BasicTest::init2d(const wstring pname)
 	}
 }
 
-void BasicTest::init3d(const wstring pname)
+void BasicTest::init3d(const u16string pname)
 {
 	prog3D.reset();
-	if (pname == L"")
+	if (pname.empty())
 	{
 		auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_3D));
 		for (auto shader : shaders)
@@ -94,7 +94,7 @@ void BasicTest::init3d(const wstring pname)
 			}
 			catch (OGLException& gle)
 			{
-				basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+				basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
 				COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
 			}
 		}
@@ -114,7 +114,7 @@ void BasicTest::init3d(const wstring pname)
 		}
 		catch (OGLException& gle)
 		{
-			basLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+			basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
 			COMMON_THROW(BaseException, L"OpenGL compile fail");
 		}
 	}
@@ -125,7 +125,7 @@ void BasicTest::init3d(const wstring pname)
 	}
 	catch (OGLException& gle)
 	{
-		basLog().error(L"Fail to link Program:\n{}\n", gle.message);
+		basLog().error(u"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 	
@@ -133,19 +133,19 @@ void BasicTest::init3d(const wstring pname)
 	prog3D->setCamera(cam);
 	{
 		Wrapper<Pyramid> pyramid(1.0f);
-		pyramid->name = L"Pyramid";
+		pyramid->name = u"Pyramid";
 		pyramid->position = { 0,0,0 };
 		drawables.push_back(pyramid);
 		Wrapper<Sphere> ball(0.75f);
-		ball->name = L"Ball";
+		ball->name = u"Ball";
 		ball->position = { 1,0,0 };
 		drawables.push_back(ball);
 		Wrapper<Box> box(0.5f, 1.0f, 2.0f);
-		box->name = L"Box";
+		box->name = u"Box";
 		box->position = { 0,1,0 };
 		drawables.push_back(box);
 		Wrapper<Plane> ground(500.0f, 50.0f);
-		ground->name = L"Ground";
+		ground->name = u"Ground";
 		ground->position = { 0,-2,0 };
 		drawables.push_back(ground);
 		for (auto& d : drawables)
@@ -246,55 +246,55 @@ void BasicTest::fontTest(const char32_t word)
 			{
 				fonttex->setData(TextureInnerFormat::R8, imgShow);
 			})->wait();
-			img::WriteImage(imgShow, basepath / (L"Show.png"));
+			img::WriteImage(imgShow, basepath / (u"Show.png"));
 			/*SimpleTimer timer;
 			for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
 			{
 				const auto imgShow = fontCreator->clgraysdfs((char32_t)cnt, 4096);
-				img::WriteImage(imgShow, basepath / (L"Show-" + std::to_wstring(cnt) + L".png"));
-				basLog().success(L"successfully processed words begin from {}\n", cnt);
+				img::WriteImage(imgShow, basepath / (u"Show-" + std::to_u16string(cnt) + u".png"));
+				basLog().success(u"successfully processed words begin from {}\n", cnt);
 			}
 			timer.Stop();
-			basLog().success(L"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());*/
+			basLog().success(u"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());*/
 		}
 		else
 		{
 			fontCreator->setChar(L'G', false);
 			fontViewer->bindTexture(fonttex);
 			const auto imgG = fonttex->getImage(TextureDataFormat::R8);
-			img::WriteImage(imgG, basepath / L"G.png");
+			img::WriteImage(imgG, basepath / u"G.png");
 			fontCreator->setChar(word, false);
 			const auto imgA = fonttex->getImage(TextureDataFormat::R8);
-			img::WriteImage(imgA, basepath / L"A.png");
+			img::WriteImage(imgA, basepath / u"A.png");
 			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
 			fonttex->setData(TextureInnerFormat::R8, imgShow);
-			img::WriteImage(imgShow, basepath / (L"Show.png"));
+			img::WriteImage(imgShow, basepath / (u"Show.png"));
 			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
 		}
 	}
 	catch (BaseException& be)
 	{
-		basLog().error(L"Font Construct failure:\n{}\n", be.message);
+		basLog().error(u"Font Construct failure:\n{}\n", be.message);
 		//COMMON_THROW(BaseException, L"init FontViewer failed");
 	}
 }
 
-Wrapper<Model> BasicTest::_addModel(const wstring& fname)
+Wrapper<Model> BasicTest::_addModel(const u16string& fname)
 {
 	Wrapper<Model> mod(fname);
-	mod->name = L"model";
+	mod->name = u"model";
 	return mod;
 }
 
-BasicTest::BasicTest(const wstring sname2d, const wstring sname3d)
+BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 {
 	static Init _init;
 	fontViewer.reset();
 	fontCreator.reset(oclu::Vendor::Intel);
-	basepath = L"D:\\Programs Temps\\RayRenderer";
+	basepath = u"D:\\Programs Temps\\RayRenderer";
 	if (!fs::exists(basepath))
-		basepath = L"C:\\Programs Temps\\RayRenderer";
-	fontCreator->reloadFont(basepath / L"test.ttf");
+		basepath = u"C:\\Programs Temps\\RayRenderer";
+	fontCreator->reloadFont(basepath / u"test.ttf");
 
 	fontTest(/*L'‡å'*/);
 	initTex();
@@ -329,28 +329,28 @@ void BasicTest::resize(const int w, const int h)
 	prog3D->setProject(cam, w, h);
 }
 
-void BasicTest::reloadFontLoader(const wstring& fname)
+void BasicTest::reloadFontLoader(const u16string& fname)
 {
-	auto clsrc = file::ReadAllText(fname);
+	auto clsrc = file::ReadAllText(fs::path(fname));
 	fontCreator->reload(clsrc);
 	fontTest(0);
 }
 
-void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::reloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
-	std::thread([this, onFinish, onError](const wstring name)
+	std::thread([this, onFinish, onError](const u16string name)
 	{
-		common::SetThreadName("AsyncLoader for FontTest");
+		common::SetThreadName(u"AsyncLoader for FontTest");
 		try
 		{
-			auto clsrc = file::ReadAllText(name);
+			auto clsrc = file::ReadAllText(fs::path(name));
 			fontCreator->reload(clsrc);
 			fontTest(0);
 			onFinish([]() { return true; });
 		}
 		catch (BaseException& be)
 		{
-			basLog().error(L"failed to reload font test\n");
+			basLog().error(u"failed to reload font test\n");
 			if (onError)
 				onError(be);
 			else
@@ -359,24 +359,24 @@ void BasicTest::reloadFontLoaderAsync(const wstring& fname, CallbackInvoke<bool>
 	}, fname).detach();
 }
 
-bool BasicTest::addModel(const wstring& fname)
+bool BasicTest::addModel(const u16string& fname)
 {
 	Wrapper<Model> mod(fname);
-	mod->name = L"model";
+	mod->name = u"model";
 	mod->prepareGL(prog3D);
 	drawables.push_back(mod);
 	return true;
 }
 
-void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::addModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
-	std::thread([this, onFinish, onError](const wstring name)
+	std::thread([this, onFinish, onError](const u16string name)
 	{
-		common::SetThreadName("AsyncLoader for Model");
+		common::SetThreadName(u"AsyncLoader for Model");
 		try
 		{
 			Wrapper<Model> mod(name, true);
-			mod->name = L"model";
+			mod->name = u"model";
 			onFinish([&, mod]()mutable
 			{
 				mod->prepareGL(prog3D);
@@ -386,7 +386,7 @@ void BasicTest::addModelAsync(const wstring& fname, CallbackInvoke<bool> onFinis
 		}
 		catch (BaseException& be)
 		{
-			basLog().error(L"failed to load model by file {}\n", name);
+			basLog().error(u"failed to load model by file {}\n", name);
 			if (onError)
 				onError(be);
 			else
@@ -417,7 +417,7 @@ void BasicTest::addLight(const b3d::LightType type)
 	}
 	lights.push_back(lgt);
 	prepareLight();
-	basLog().info(L"add Light {} type {}\n", lights.size(), (int32_t)lgt->type);
+	basLog().info(u"add Light {} type {}\n", lights.size(), (int32_t)lgt->type);
 }
 
 void BasicTest::delAllLight()
@@ -459,7 +459,7 @@ uint16_t BasicTest::lightCount() const
 void BasicTest::showObject(uint16_t objIdx) const
 {
 	const auto& d = drawables[objIdx];
-	basLog().info(L"Drawable {}:\t {}  [{}]\n", objIdx, d->name, d->getType());
+	basLog().info(u"Drawable {}:\t {}  [{}]\n", objIdx, d->name, d->getType());
 }
 
 static uint32_t getTID()
@@ -470,13 +470,13 @@ static uint32_t getTID()
 
 void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError) const
 {
-	basLog().debug(L"begin async in pid {}\n", getTID());
+	basLog().debug(u"begin async in pid {}\n", getTID());
 	std::thread([onFinish, onError] ()
 	{
-		common::SetThreadName("AsyncThread for TryAsync");
-		basLog().debug(L"async thread in pid {}\n", getTID());
+		common::SetThreadName(u"AsyncThread for TryAsync");
+		basLog().debug(u"async thread in pid {}\n", getTID());
 		std::this_thread::sleep_for(std::chrono::seconds(10));
-		basLog().debug(L"sleep finish. async thread in pid {}\n", getTID());
+		basLog().debug(u"sleep finish. async thread in pid {}\n", getTID());
 		try
 		{
 			if (false)
@@ -489,7 +489,7 @@ void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseE
 		}
 		onFinish([]() 
 		{
-			basLog().debug(L"async callback in pid {}\n", getTID());
+			basLog().debug(u"async callback in pid {}\n", getTID());
 			return true;
 		});
 	}).detach();

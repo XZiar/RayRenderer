@@ -38,7 +38,7 @@ public:
     _oclProgram(const oclContext& ctx_, const string& str);
     ~_oclProgram();
     void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
-    wstring getBuildLog(const oclDevice& dev) const;
+    u16string getBuildLog(const oclDevice& dev) const;
     Wrapper<_oclKernel> getKernel(const string& name);
     const vector<string>& getKernelNames() const;
 };

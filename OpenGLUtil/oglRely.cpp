@@ -10,10 +10,10 @@ namespace oglu
 {
 
 using namespace common::mlog;
-logger& oglLog()
+MiniLogger<false>& oglLog()
 {
-	static logger ogllog(L"OpenGLUtil", nullptr, nullptr, LogOutput::Console, LogLevel::Debug);
-	return ogllog;
+    static MiniLogger<false> ogllog(u"OpenGLUtil", { GetConsoleBackend() });
+    return ogllog;
 }
 
 

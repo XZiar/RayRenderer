@@ -10,9 +10,9 @@ Since This component is binded with X86 optimization, internal data layout is as
 
 ## Current Support
 
-| | |
-|:-------|:-------:|
-| Type | Support | Source |
+| | | |
+|:-------|:-------:|:------:|
+| Type | Support | Provider |
 | PNG | RGB/RGBA/Gray | libpng |
 | TGA | RGB/RGBA/Gray | zextga(self) |
 | JPEG | RGBA | libjpeg-turbo |

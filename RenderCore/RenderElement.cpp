@@ -11,25 +11,25 @@ class DrawableHelper
 	friend class Drawable;
 private:
 	std::mutex mtx;
-	boost::bimap<boost::bimaps::set_of<wstring>, boost::bimaps::set_of<size_t>> typeMap;
-	size_t regist(const wstring& name)
+	boost::bimap<boost::bimaps::set_of<u16string>, boost::bimaps::set_of<size_t>> typeMap;
+	size_t regist(const u16string& name)
 	{
 		std::lock_guard<std::mutex> locker(mtx);
 		const size_t id = typeMap.size();
 		auto ret = typeMap.insert({ name,id });
 		if (ret.second)
 		{
-			basLog().debug(L"Regist Drawable [{}] -> {}\n", name, id);
+			basLog().debug(u"Regist Drawable [{}] -> {}\n", name, id);
 			return id;
 		}
 		else
 			return (*ret.first).right;
 	}
-	wstring getType(const size_t id) const
+    u16string getType(const size_t id) const
 	{
 		auto it = typeMap.right.find(id);
 		if (it == typeMap.right.end())
-			return L"";
+			return u"";
 		else
 			return (*it).second;
 	}
@@ -44,7 +44,7 @@ rayr::DrawableHelper& Drawable::getHelper()
 	return helper;
 }
 
-Drawable::Drawable(const wstring& typeName)
+Drawable::Drawable(const u16string& typeName)
 {
 	drawableID = (uint32_t)getHelper().regist(typeName);
 }
@@ -61,7 +61,7 @@ void Drawable::draw(oglu::oglProgram& prog) const
 	drawPosition(prog).draw(getVAO(prog)).end();
 }
 
-wstring Drawable::getType() const
+u16string Drawable::getType() const
 {
 	return getHelper().getType(drawableID);
 }

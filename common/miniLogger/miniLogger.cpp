@@ -141,8 +141,8 @@ std::vector<std::pair<LogLevel, std::wstring>> logger::getLogBuffer()
 
 namespace detail
 {
-MLoggerCallback MiniLoggerGBase::OnLog = nullptr;
-void MiniLoggerGBase::SetGlobalCallback(const MLoggerCallback& cb)
+MLoggerCallback MiniLoggerBase::OnLog = nullptr;
+void MiniLoggerBase::SetGlobalCallback(const MLoggerCallback& cb)
 {
     OnLog = cb;
 }
@@ -163,11 +163,14 @@ fmt::UTFMemoryWriter<char32_t>& StrFormater<char32_t>::GetWriter()
     static thread_local fmt::UTFMemoryWriter<char32_t> out;
     return out;
 }
-
+template<size_t N>
+struct EquType { };
+template<> struct EquType<1> { using Formater = StrFormater<char>; };
+template<> struct EquType<2> { using Formater = StrFormater<char16_t>; };
+template<> struct EquType<4> { using Formater = StrFormater<char32_t>; };
 fmt::BasicMemoryWriter<wchar_t>& StrFormater<wchar_t>::GetWriter()
 {
-    static thread_local fmt::BasicMemoryWriter<wchar_t> out;
-    return out;
+    return *reinterpret_cast<fmt::BasicMemoryWriter<wchar_t>*>(&EquType<sizeof(wchar_t)>::Formater::GetWriter());
 }
 
 

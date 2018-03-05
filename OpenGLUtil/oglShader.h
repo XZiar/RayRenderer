@@ -38,7 +38,7 @@ class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 public:
 	using Wrapper::Wrapper;
 	static oglShader __cdecl loadFromFile(const ShaderType type, const fs::path& path);
-	static vector<oglShader> __cdecl loadFromFiles(const wstring& fname);
+	static vector<oglShader> __cdecl loadFromFiles(const u16string& fname);
 	static vector<oglShader> __cdecl loadFromExSrc(const string& src);
 };
 

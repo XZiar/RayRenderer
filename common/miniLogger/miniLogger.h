@@ -154,7 +154,7 @@ struct MINILOGAPI StrFormater<wchar_t>
     }
 };
 
-class MINILOGAPI MiniLoggerGBase : public NonCopyable
+class MINILOGAPI MiniLoggerBase : public NonCopyable
 {
 protected:
     static MLoggerCallback OnLog;
@@ -164,18 +164,21 @@ protected:
 public:
     //set global callback is not thread-safe
     static void __cdecl SetGlobalCallback(const MLoggerCallback& cb);
-    MiniLoggerGBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
+    MiniLoggerBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
         : Prefix(name), Outputer(outputer), LeastLevel(level)
     { }
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
     LogLevel GetLeastLevel() { return LeastLevel; }
 };
-template<class Child>
-class COMMONTPL MiniLoggerBase : public MiniLoggerGBase
+}
+
+template<bool DynamicBackend>
+class COMMONTPL MiniLogger : public detail::MiniLoggerBase
 {
 protected:
-    using detail::MiniLoggerGBase::MiniLoggerGBase;
+    common::WRSpinLock WRLock;
 public:
+    using detail::MiniLoggerBase::MiniLoggerBase;
     template<typename Char, class... Args>
     void error(const Char* __restrict formater, Args&&... args)
     {
@@ -243,55 +246,36 @@ public:
     {
         if ((uint8_t)level < (uint8_t)LeastLevel.load())
             return;
-        //const std::wstring logdat = fmt::format(formater, std::forward<Args>(args)...);
         LogMessage* msg = new LogMessage(Prefix, detail::StrFormater<Char>::ToU16Str(formater, std::forward<Args>(args)...), level);
         if (OnLog)
             OnLog(*msg);
-        ((Child*)this)->LockLog();
+        if constexpr(DynamicBackend)
+        {
+            WRLock.LockRead();
+        }
         msg->RefCount = (uint32_t)Outputer.size();
         for (auto& backend : Outputer)
             backend->Print(msg);
-        ((Child*)this)->UnlockLog();
+        if constexpr(DynamicBackend)
+        {
+            WRLock.UnlockRead();
+        }
     }
-};
-}
 
-template<bool DynamicBend>
-class MiniLogger;
-template<>
-class MiniLogger<true> : public detail::MiniLoggerBase<MiniLogger<true>>
-{
-    friend class detail::MiniLoggerBase<MiniLogger<true>>;
-private:
-    common::WRSpinLock WRLock; 
-protected:
-    void LockLog() { WRLock.LockRead(); }
-    void UnlockLog() { WRLock.UnlockRead();  }
-public:
-    using detail::MiniLoggerBase<MiniLogger<true>>::MiniLoggerBase;
     void AddOuputer(const std::shared_ptr<LoggerBackend>& outputer)
     {
+        static_assert(DynamicBackend, "Add output only supported by Dynamic-backend Logger");
         WRLock.LockWrite();
         Outputer.insert(outputer);
         WRLock.UnlockWrite();
     }
     void DelOutputer(const std::shared_ptr<LoggerBackend>& outputer)
     {
+        static_assert(DynamicBackend, "Del output only supported by Dynamic-backend Logger");
         WRLock.LockWrite();
         Outputer.erase(outputer);
         WRLock.UnlockWrite();
     }
-};
-
-template<>
-class MiniLogger<false> : public detail::MiniLoggerBase<MiniLogger<false>>
-{
-    friend class detail::MiniLoggerBase<MiniLogger<false>>;
-protected:
-    void LockLog() {}
-    void UnlockLog() {}
-public:
-    using detail::MiniLoggerBase<MiniLogger<false>>::MiniLoggerBase;
 };
 
 

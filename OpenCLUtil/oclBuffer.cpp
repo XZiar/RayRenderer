@@ -11,7 +11,7 @@ namespace oclu::detail
 void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
 {
 	const auto& buf = *reinterpret_cast<_oclBuffer*>(user_data);
-	oclLog().debug(L"oclBuffer {:p} with size {}, being destroyed.\n", (void*)memobj, buf.size);
+	oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)memobj, buf.size);
 	//async callback, should not access cl-func since buffer may be released at any time.
 	//size_t size = 0;
 	//clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
@@ -45,11 +45,11 @@ _oclBuffer::~_oclBuffer()
 	clGetMemObjectInfo(memID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
 	if (refCount == 1)
 	{
-		oclLog().debug(L"oclBuffer {:p} with size {}, has {} reference being release.\n", (void*)memID, size, refCount);
+		oclLog().debug(u"oclBuffer {:p} with size {}, has {} reference being release.\n", (void*)memID, size, refCount);
 		clReleaseMemObject(memID);
 	}
 	else
-		oclLog().warning(L"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, size, refCount);
+		oclLog().warning(u"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, size, refCount);
 #else
 	clReleaseMemObject(memID);
 #endif

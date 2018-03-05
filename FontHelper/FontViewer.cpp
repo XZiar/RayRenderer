@@ -23,7 +23,7 @@ FontViewerProgram::FontViewerProgram()
 		}
 		catch (OGLException& gle)
 		{
-			fntLog().error(L"OpenGL compile fail:\n{}\n", gle.message);
+			fntLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
 			COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
 		}
 	}
@@ -34,7 +34,7 @@ FontViewerProgram::FontViewerProgram()
 	}
 	catch (OGLException& gle)
 	{
-		fntLog().error(L"Fail to link Program:\n{}\n", gle.message);
+		fntLog().error(u"Fail to link Program:\n{}\n", gle.message);
 		COMMON_THROW(BaseException, L"link Program error");
 	}
 }

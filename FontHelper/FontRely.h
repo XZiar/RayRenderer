@@ -27,7 +27,7 @@
 #include "common/miniLogger/miniLogger.h"
 namespace oglu
 {
-common::mlog::logger& fntLog();
+common::mlog::MiniLogger<false>& fntLog();
 string getShaderFromDLL(int32_t id);
 }
 #endif

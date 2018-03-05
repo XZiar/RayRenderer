@@ -639,6 +639,11 @@ inline std::string to_string(const Char(&str)[N], const Charset outchset = Chars
 {
     return to_string(str, N - 1, outchset, inchset);
 }
+template<typename Char>
+inline std::string to_string(const Char* str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
+{
+    return to_string(str, std::char_traits<Char>::length(str), outchset, inchset);
+}
 
 
 template<typename Char>
@@ -665,6 +670,11 @@ template<typename Char, size_t N>
 inline std::string to_u8string(const Char(&str)[N], const Charset inchset = Charset::ASCII)
 {
     return to_string(str, N - 1, Charset::UTF8, inchset);
+}
+template<typename Char>
+inline std::string to_u8string(const Char* str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
+{
+    return to_string(str, std::char_traits<Char>::length(str), outchset, inchset);
 }
 
 
@@ -719,6 +729,11 @@ inline std::u16string to_u16string(const Char(&str)[N], const Charset inchset = 
 {
     return to_u16string(str, N - 1, inchset);
 }
+template<typename Char>
+inline std::u16string to_u16string(const Char* str, const Charset inchset = Charset::ASCII)
+{
+    return to_u16string(str, std::char_traits<Char>::length(str), inchset);
+}
 
 
 template<typename Char>
@@ -772,6 +787,11 @@ inline std::u32string to_u32string(const Char(&str)[N], const Charset inchset = 
 {
     return to_u32string(str, N - 1, inchset);
 }
+template<typename Char>
+inline std::u32string to_u32string(const Char* str, const Charset inchset = Charset::ASCII)
+{
+    return to_u32string(str, std::char_traits<Char>::length(str), inchset);
+}
 
 
 template<typename Char>
@@ -821,6 +841,16 @@ inline std::wstring to_wstring(const Char(&str)[N], const Charset inchset = Char
         return *(std::wstring*)&to_u16string(str, N - 1, inchset);
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
         return *(std::wstring*)&to_u32string(str, N - 1, inchset);
+    else
+        return std::wstring();
+}
+template<typename Char>
+inline std::wstring to_wstring(const Char* str, const Charset inchset = Charset::ASCII)
+{
+    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
+        return *(std::wstring*)&to_u16string(str, std::char_traits<Char>::length(str), inchset);
+    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
+        return *(std::wstring*)&to_u32string(str, std::char_traits<Char>::length(str), inchset);
     else
         return std::wstring();
 }

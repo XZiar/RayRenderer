@@ -24,27 +24,27 @@ protected:
 class alignas(LightData) Light : public LightData
 {
 protected:
-	Light(const LightType type_, const std::wstring& name_);
+	Light(const LightType type_, const std::u16string& name_);
 public:
-	std::wstring name;
+	std::u16string name;
 };
 
 class alignas(16) ParallelLight : public Light
 {
 public:
-	ParallelLight() : Light(LightType::Parallel, L"ParallelLight") {}
+	ParallelLight() : Light(LightType::Parallel, u"ParallelLight") {}
 };
 
 class alignas(16) PointLight : public Light
 {
 public:
-	PointLight() : Light(LightType::Point, L"PointLight") {}
+	PointLight() : Light(LightType::Point, u"PointLight") {}
 };
 
 class alignas(16) SpotLight : public Light
 {
 public:
-	SpotLight() : Light(LightType::Spot, L"SpotLight") {}
+	SpotLight() : Light(LightType::Spot, u"SpotLight") {}
 };
 
 }

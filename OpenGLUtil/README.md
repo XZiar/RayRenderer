@@ -47,6 +47,10 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   * Basic component -- providing basic 3d data structure
   * Camera -- an uvn camera
 
+* [glew](../3rdParty/glew)
+
+  low-level OpenGL API supportor.
+
 * [miniLogger](../common/miniLogger)
   
   used for logging message and errors, with prefix `OpenGLUtil`
@@ -54,6 +58,10 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 * [ImageUtil](../ImageUtil)
   
   used for Image-Texture processing
+
+* [AsyncExecutor](../common/AsyncExecutor)
+
+  provide async-execution environment for OpenGL workers.
 
 * [boost](http://www.boost.org/)
   * circular_buffer -- used for GL debug mesasge buffer
@@ -89,7 +97,9 @@ For UBO, limit N is get by `GL_MAX_UNIFORM_BUFFER_BINDINGS`.
 
 ### Multi-thread Worker
 
-There are two workers inside OpenGLUtil, proving multi-thread operation ability.
+There are two workers inside OpenGLUtil, proving multi-thread operation ability. Operations inside should be minimized, leaving heavy task on other threads.
+
+Both of them are under async environment, so multiple tasks can be executed in a single thread. Tasks' waiting should be handled by AsyncAgent. OpenGL-Sync promise can be obtained for operation sync.
 
 * Sync Worker
 

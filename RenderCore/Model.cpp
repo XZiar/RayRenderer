@@ -42,11 +42,11 @@ struct PTstubHasher
 namespace detail
 {
 
-map<wstring, ModelImage> _ModelImage::images;
+map<u16string, ModelImage> _ModelImage::images;
 
 ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 {
-	const wstring fname = picPath.filename();
+	const auto fname = picPath.filename().u16string();
 	auto img = getImage(fname);
 	if (img)
 		return img;
@@ -56,13 +56,13 @@ ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 		picPath = curPath / fname;
 		if (!fs::exists(picPath))
 		{
-			basLog().error(L"Fail to open image file\t[{}]\n", fname);
+			basLog().error(u"Fail to open image file\t[{}]\n", fname);
 			return ModelImage();
 		}
 	}
 	try
 	{
-		_ModelImage *mi = new _ModelImage(picPath);
+		_ModelImage *mi = new _ModelImage(picPath.u16string());
 		ModelImage image(std::move(mi));
 		images.insert_or_assign(fname, image);
 		return image;
@@ -71,15 +71,15 @@ ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 	catch (FileException& fe)
 	{
 		if(fe.reason == FileException::Reason::ReadFail)
-			basLog().error(L"Fail to decode image file\t[{}]\n", picPath.wstring());
+			basLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
 		else
-			basLog().error(L"Cannot find image file\t[{}]\n", picPath.wstring());
+			basLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
 		return img;
 	}
 #pragma warning(default:4101)
 }
 
-ModelImage _ModelImage::getImage(const wstring& pname)
+ModelImage _ModelImage::getImage(const u16string& pname)
 {
 	if (auto img = findmap(images, pname))
 		return **img;
@@ -100,7 +100,7 @@ void _ModelImage::shrink()
 }
 #pragma warning(default:4996)
 
-_ModelImage::_ModelImage(const wstring& pfname) : Image(xziar::img::ReadImage(pfname))
+_ModelImage::_ModelImage(const u16string& pfname) : Image(xziar::img::ReadImage(pfname))
 {
     if(Width > UINT16_MAX || Height > UINT16_MAX)
         COMMON_THROW(BaseException, L"image too big");
@@ -132,7 +132,7 @@ oglu::oglTexture _ModelImage::genTextureAsync(const common::asyexe::AsyncAgent& 
     auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&) 
     {
         CompressData(texdata, format);
-    }, L"Comp-" + Name);
+    }, u"Comp-" + Name);
     agent.Await(asyncRet);
 	//oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata), format))->wait();
 	auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
@@ -184,14 +184,14 @@ public:
 			return std::string_view(beginRest, lenTotal - (beginRest - beginLine));
 		}
 
-		wstring GetWString(const size_t index)
+        u16string GetUString(const size_t index)
 		{
 			if (Params.size() <= index)
-				return L"";
-			return to_wstring(Params[index], charset);
+				return u"";
+			return common::str::to_u16string(Params[index], charset);
 		}
 
-		wstring ToWString() { return to_wstring(Line, charset); }
+		u16string ToUString() { return common::str::to_u16string(Line, charset); }
 
 		template<size_t N>
 		int8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
@@ -239,7 +239,7 @@ public:
 		Length = Content.size() - 1;
 		CurPos = 0;
 		chset = uchdet::detectEncoding(Content);
-		basLog().debug(L"obj file[{}]--encoding[{}]\n", FilePath.wstring(), getCharsetWName(chset));
+		basLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.wstring(), getCharsetWName(chset));
 	}
 
 	TextLine ReadLine()
@@ -285,9 +285,9 @@ public:
 };
 std::set<string> OBJLoder::specialPrefix = { "mtllib","usemtl","newmtl","g" };
 
-map<wstring, ModelData> _ModelData::models;
+map<u16string, ModelData> _ModelData::models;
 
-ModelData _ModelData::getModel(const wstring& fname, bool asyncload)
+ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
 {
 	if (auto md = findmap(models, fname))
 		return **md;
@@ -297,7 +297,7 @@ ModelData _ModelData::getModel(const wstring& fname, bool asyncload)
 	return m;
 }
 
-void _ModelData::releaseModel(const wstring& fname)
+void _ModelData::releaseModel(const u16string& fname)
 {
 	if (auto md = findmap(models, fname))
 		if ((**md).unique())
@@ -372,7 +372,7 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
 		//ENDOF setting mtl-position AND preparing opSequence
 	}
 	texposs.clear();
-	basLog().verbose(L"Build merged Diffuse texture({}*{})\n", maxx, maxy);
+	basLog().verbose(u"Build merged Diffuse texture({}*{})\n", maxx, maxy);
 	ModelImage diffuse(maxx, maxy);
     for (const auto& op : opDiffuse)
     {
@@ -380,7 +380,7 @@ std::tuple<ModelImage, ModelImage> _ModelData::mergeTex(map<string, MtlStub>& mt
         diffuse->PlaceImage(*objimg, 0, 0, x, y);
     }
 	opDiffuse.clear();
-	basLog().verbose(L"Build merged Normal texture({}*{})\n", maxx, maxy);
+	basLog().verbose(u"Build merged Normal texture({}*{})\n", maxx, maxy);
 	ModelImage normal(maxx, maxy);
 	for (const auto& op : opNormal)
     {
@@ -405,7 +405,7 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 {
 	using miniBLAS::VecI4;
 	OBJLoder ldr(mtlpath);
-	basLog().verbose(L"Parsing mtl file [{}]\n", mtlpath.wstring());
+	basLog().verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
 	map<string, MtlStub> mtlmap;
 	vector<TexMergeItem> texposs;
 	MtlStub *curmtl = nullptr;
@@ -417,16 +417,16 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--mtl-note [{}]\n", line.ToWString());
+			basLog().verbose(u"--mtl-note [{}]\n", line.ToUString());
 			break;
 		case "#merge"_hash:
 			{
-				auto img = _ModelImage::getImage(line.GetWString(1));
+				auto img = _ModelImage::getImage(line.GetUString(1));
 				if (!img)
 					break;
 				int32_t pos[2];
 				line.ParseInts(2, pos);
-				basLog().verbose(L"--mergeMTL [{}]--[{},{}]\n", str::to_wstring(line.Params[1]), pos[0], pos[1]);
+				basLog().verbose(u"--mergeMTL [{}]--[{},{}]\n", str::to_u16string(line.Params[1]), pos[0], pos[1]);
 				texposs.push_back({ img,static_cast<uint16_t>(pos[0]),static_cast<uint16_t>(pos[1]) });
 			}
 			break;
@@ -469,17 +469,17 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 	}
 
 	std::tie(diffuse, normal) = mergeTex(mtlmap, texposs);
-    diffuse->Name = mfnane + L"-diffuse";
-    normal->Name = mfnane + L"-normal";
+    diffuse->Name = mfname + u"-diffuse";
+    normal->Name = mfname + u"-normal";
 #if !defined(_DEBUG) && 0
 	{
 		auto outname = mtlpath.parent_path() / (mtlpath.stem().wstring() + L"_Normal.jpg");
-		basLog().info(L"Saving Normal texture to [{}]...\n", outname.wstring());
+		basLog().info(u"Saving Normal texture to [{}]...\n", outname.wstring());
         SimpleTimer timer;
         timer.Start();
         img::WriteImage(normal->image, outname);
         timer.Stop();
-        basLog().info(L"Saving texture cost {} ms\n", timer.ElapseMs());
+        basLog().info(u"Saving texture cost {} ms\n", timer.ElapseMs());
 	}
 #endif
 	return mtlmap;
@@ -487,7 +487,7 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
 #pragma warning(disable:4101)
 catch (FileException& fe)
 {
-	basLog().error(L"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
+	basLog().error(u"Fail to open mtl file\t[{}]\n", mtlpath.wstring());
 	return map<string, MtlStub>();
 }
 #pragma warning(default:4101)
@@ -525,7 +525,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 		case "EMPTY"_hash:
 			break;
 		case "#"_hash:
-			basLog().verbose(L"--obj-note [{}]\n", line.ToWString());
+			basLog().verbose(u"--obj-note [{}]\n", line.ToUString());
 			break;
 		case "v"_hash://vertex
 			{
@@ -550,7 +550,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 				VecI4 tmpi, tmpidx;
 				const auto lim = min((size_t)4, line.Params.size() - 1);
 				if (lim < 3)
-					basLog().warning(L"too few params for face : {}", str::to_wstring(line.Line));
+					basLog().warning(u"too few params for face : {}", str::to_u16string(line.Line));
 				for (uint32_t a = 0; a < lim; ++a)
 				{
 					line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
@@ -604,15 +604,15 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 	}//END of WHILE
 	tstTimer.Stop();
 	size = maxv - minv;
-	basLog().success(L"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
-	basLog().success(L"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-	basLog().info(L"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
-	basLog().debug(L"index-resize cost {} us\n", tstTimer.ElapseUs());
+	basLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
+	basLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
+	basLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
+	basLog().debug(u"index-resize cost {} us\n", tstTimer.ElapseUs());
 }
 #pragma warning(disable:4101)
 catch (const FileException& fe)
 {
-	basLog().error(L"Fail to open obj file\t[{}]\n", objpath.wstring());
+	basLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
 	COMMON_THROW(BaseException, L"fail to load model data");
 }
 #pragma warning(default:4101)
@@ -642,12 +642,12 @@ void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
     agent.Await(oglu::oglUtil::SyncGL());
 }
 
-_ModelData::_ModelData(const wstring& fname, bool asyncload) :mfnane(fname)
+_ModelData::_ModelData(const u16string& fname, bool asyncload) :mfname(fname)
 {
-	loadOBJ(mfnane);
+	loadOBJ(mfname);
 	if (asyncload)
 	{
-        const auto fileName = fs::path(fname).filename().wstring();
+        const auto fileName = fs::path(fname).filename().u16string();
 		auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initDataAsync, this, std::placeholders::_1), fileName);
 		task->wait();
 	}
@@ -666,7 +666,7 @@ _ModelData::~_ModelData()
 }
 
 
-Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
+Model::Model(const u16string& fname, bool asyncload) : Drawable(TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
 {
 	const auto resizer = 2 / max(max(data->size.x, data->size.y), data->size.z);
 	scale = Vec3(resizer, resizer, resizer);
@@ -674,7 +674,7 @@ Model::Model(const wstring& fname, bool asyncload) : Drawable(TYPENAME), data(de
 
 Model::~Model()
 {
-	const auto mfname = data->mfnane;
+	const auto mfname = data->mfname;
 	data.release();
 	detail::_ModelData::releaseModel(mfname);
 }

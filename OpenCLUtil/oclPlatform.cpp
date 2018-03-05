@@ -2,6 +2,7 @@
 #include "oclPlatform.h"
 
 #define WIN32_LEAN_AND_MEAN 1
+#define NOMINMAX
 #include <Windows.h>
 
 namespace oclu
@@ -14,7 +15,7 @@ namespace detail
 
 bool _oclPlatform::checkGL() const
 {
-	if (name.find(L"Experimental") != wstring::npos)
+	if (name.find(u"Experimental") != u16string::npos)
 		return false;
 	if (!common::findvec(devs, [](auto& dev) { return dev->type == DeviceType::GPU; }))// no GPU
 		return false;
@@ -48,15 +49,16 @@ Vendor judgeBrand(const wstring& name)
 		return Vendor::Other;
 }
 
-wstring _oclPlatform::getStr(const cl_platform_info type) const
+u16string _oclPlatform::getStr(const cl_platform_info type) const
 {
 	char str[128] = { 0 };
-	clGetPlatformInfo(platformID, type, 127, str, NULL);
-	return str::to_wstring(str);
+    size_t size = 0;
+	clGetPlatformInfo(platformID, type, 127, str, &size); //null-terminated
+	return str::to_u16string((const char*)str);
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)), vendor(judgeBrand(name))
+	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)), vendor(judgeBrand(*(const wstring*)&name))
 {
 	cl_device_id defDevID;
 	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, NULL);

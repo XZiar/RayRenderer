@@ -60,6 +60,7 @@ namespace str = common::str;
 namespace fs = common::file::fs;
 using std::string;
 using std::wstring;
+using std::u16string;
 using std::byte;
 using std::tuple;
 using std::pair;
@@ -92,6 +93,6 @@ class UBOManager;
 #include "common/miniLogger/miniLogger.h"
 namespace oglu
 {
-common::mlog::logger& oglLog();
+common::mlog::MiniLogger<false>& oglLog();
 }
 #endif

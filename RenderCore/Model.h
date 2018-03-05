@@ -19,15 +19,15 @@ class _ModelImage : public Image
 	friend class ::rayr::Model;
 	friend class _ModelData;
 private:
-	static map<wstring, Wrapper<_ModelImage>> images;
+	static map<u16string, Wrapper<_ModelImage>> images;
 	static Wrapper<_ModelImage> getImage(fs::path picPath, const fs::path& curPath);
-	static Wrapper<_ModelImage> getImage(const wstring& pname);
+	static Wrapper<_ModelImage> getImage(const u16string& pname);
 	static void shrink();
     
-	_ModelImage(const wstring& pfname);
+	_ModelImage(const u16string& pfname);
 	void CompressData(vector<uint8_t>& output, const oglu::TextureInnerFormat format);
 public:
-    std::wstring Name;
+    u16string Name;
 	_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
 	oglu::oglTexture genTexture(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 	oglu::oglTexture genTextureAsync(const common::asyexe::AsyncAgent& agent, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
@@ -38,9 +38,9 @@ class alignas(Vec3) _ModelData : public NonCopyable, public AlignBase<alignof(Ve
 {
 	friend class ::rayr::Model;
 private:
-	static map<wstring, Wrapper<_ModelData>> models;
-	static Wrapper<_ModelData> getModel(const wstring& fname, bool asyncload = false);
-	static void releaseModel(const wstring& fname);
+	static map<u16string, Wrapper<_ModelData>> models;
+	static Wrapper<_ModelData> getModel(const u16string& fname, bool asyncload = false);
+	static void releaseModel(const u16string& fname);
 	struct alignas(Material) MtlStub
 	{
 		Material mtl;
@@ -70,13 +70,13 @@ private:
 	oglu::oglTexture texd, texn;
 	oglu::oglBuffer vbo;
 	oglu::oglEBO ebo;
-	const wstring mfnane;
+	const u16string mfname;
 	std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
 	map<string, MtlStub> loadMTL(const fs::path& mtlfname);
     void loadOBJ(const fs::path& objfname);
     void initData();
     void initDataAsync(const common::asyexe::AsyncAgent& agent);
-    _ModelData(const wstring& fname, bool asyncload = false);
+    _ModelData(const u16string& fname, bool asyncload = false);
 public:
 	~_ModelData();
 	oglu::oglVAO getVAO() const;
@@ -90,9 +90,9 @@ class alignas(16) Model : public Drawable
 {
 protected:
 public:
-	static constexpr auto TYPENAME = L"Model";
+	static constexpr auto TYPENAME = u"Model";
 	ModelData data;
-	Model(const wstring& fname, bool asyncload = false);
+	Model(const u16string& fname, bool asyncload = false);
 	~Model();
 	virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
 	virtual void draw(oglu::oglProgram& prog) const override;

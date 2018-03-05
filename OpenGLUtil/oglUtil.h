@@ -76,12 +76,12 @@ private:
 public:
 	static void __cdecl init();
 	static void __cdecl setDebug(uint8_t src, uint16_t type, MsgLevel minLV);
-	static wstring __cdecl getVersion();
+	static u16string __cdecl getVersion();
 	static optional<wstring> __cdecl getError();
 	static void applyTransform(Mat4x4& matModel, const TransformOP& op);
 	static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-	static PromiseResult<void> __cdecl invokeSyncGL(const AsyncTaskFunc& task, const std::wstring& taskName = L"");
-	static PromiseResult<void> __cdecl invokeAsyncGL(const AsyncTaskFunc& task, const std::wstring& taskName = L"");
+	static PromiseResult<void> __cdecl invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"");
+	static PromiseResult<void> __cdecl invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"");
     static common::asyexe::AsyncResult<void> __cdecl SyncGL();
     static common::asyexe::AsyncResult<void> __cdecl ForceSyncGL();
 };

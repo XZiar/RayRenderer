@@ -9,11 +9,12 @@ namespace oclu
 namespace detail
 {
 
-static wstring getStr(const cl_device_id deviceID, const cl_device_info type)
+static u16string getStr(const cl_device_id deviceID, const cl_device_info type)
 {
     char str[128] = { 0 };
-    clGetDeviceInfo(deviceID, type, 127, str, nullptr);
-    return str::to_wstring(str);
+    size_t size;
+    clGetDeviceInfo(deviceID, type, 127, str, &size);
+    return str::to_u16string((const char*)str);
 }
 
 template<typename T>

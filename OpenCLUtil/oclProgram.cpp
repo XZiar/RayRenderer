@@ -47,26 +47,26 @@ vector<oclDevice> _oclProgram::getDevs() const
     return devs;
 }
 
-wstring _oclProgram::getBuildLog(const oclDevice & dev) const
+u16string _oclProgram::getBuildLog(const oclDevice & dev) const
 {
     cl_build_status status;
     clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
     switch (status)
     {
     case CL_BUILD_NONE:
-        return L"Not been built yet";
+        return u"Not been built yet";
     case CL_BUILD_SUCCESS:
-        return L"Build successfully";
+        return u"Build successfully";
     case CL_BUILD_ERROR:
         {
             size_t logsize;
             clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
-            string logstr(std::max((size_t)1024, logsize), '\0');
-            clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), nullptr);
-            return str::to_wstring(logstr);
+            string logstr(logsize, '\0');
+            clGetProgramBuildInfo(progID, dev->deviceID, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
+            return str::to_u16string(logstr.c_str());
         }
     default:
-        return L"";
+        return u"";
     }
 }
 
@@ -92,16 +92,16 @@ void _oclProgram::build(const string& options, const oclDevice dev)
         ret = clBuildProgram(progID, 1, &dev->deviceID, options.c_str(), nullptr, nullptr);
     else
         ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
-    wstring buildlog;
+    u16string buildlog;
     for (auto& dev : getDevs())
-        buildlog += dev->name + L":\n" + getBuildLog(dev) + L"\n";
+        buildlog += dev->name + u":\n" + getBuildLog(dev) + u"\n";
     if (ret == CL_SUCCESS)
     {
-        oclLog().success(L"build program {:p} success:\n{}\n", (void*)progID, buildlog);
+        oclLog().success(u"build program {:p} success:\n{}\n", (void*)progID, buildlog);
     }
     else
     {
-        oclLog().error(L"build program {:p} failed:\n{}\n", (void*)progID, buildlog);
+        oclLog().error(u"build program {:p} failed:\n{}\n", (void*)progID, buildlog);
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"Build Program failed", ret), buildlog);
     }
 

@@ -15,7 +15,7 @@ using common::asyexe::AsyncTaskFunc;
 class MTWorker
 {
 private:
-    const wstring name, prefix;
+    const u16string Name, Prefix;
     common::asyexe::AsyncManager Executor;
     HDC hdc;
     HGLRC hrc;
@@ -23,26 +23,25 @@ private:
     {
         Executor.MainLoop([&]() 
         {
-            const std::string threadName = str::to_string(prefix, str::Charset::UTF7, str::Charset::UTF16LE);
-            common::SetThreadName(threadName);
+            common::SetThreadName(Prefix);
             if (!wglMakeCurrent(hdc, hrc))
             {
-                oglLog().error(L"{} with HDC[{}] HRC[{}], error: {}\n", prefix, (void*)hdc, (void*)hrc, GetLastError());
+                oglLog().error(u"{} with HDC[{}] HRC[{}], error: {}\n", Prefix, (void*)hdc, (void*)hrc, GetLastError());
             }
-            oglLog().info(L"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, (void*)hdc, (void*)hrc, oglUtil::getVersion());
+            oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", Prefix, (void*)hdc, (void*)hrc, oglUtil::getVersion());
             oglUtil::setDebug(0x2f, 0x2f, MsgLevel::Notfication);
         }, [&]() 
         {
             //exit
             if (!wglMakeCurrent(hdc, nullptr))
             {
-                oglLog().error(L"{} terminate with HDC[{}] HRC[{}], error: {}\n", prefix, (void*)hdc, (void*)hrc, GetLastError());
+                oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", Prefix, (void*)hdc, (void*)hrc, GetLastError());
             }
             wglDeleteContext(hrc);
         });
     }
 public:
-    MTWorker(wstring name_) : name(name_), prefix(L"OGLU-Worker " + name_), Executor(L"OGLU-" + name_)
+    MTWorker(u16string name_) : Name(name_), Prefix(u"OGLU-Worker " + name_), Executor(u"OGLU-" + name_)
     {
     }
     ~MTWorker()
@@ -54,13 +53,13 @@ public:
         hdc = hdc_, hrc = hrc_;
         std::thread(&MTWorker::worker, this).detach();
     }
-    common::PromiseResult<void> doWork(const AsyncTaskFunc& work, const std::wstring& taskName)
+    common::PromiseResult<void> doWork(const AsyncTaskFunc& work, const u16string& taskName)
     {
         SimpleTimer callerTimer;
         callerTimer.Start();
         const auto pms = Executor.AddTask(work, taskName);
         callerTimer.Stop();
-        oglLog().debug(L"CALL {} add work cost {} us\n", name, callerTimer.ElapseUs());
+        oglLog().debug(u"CALL {} add work cost {} us\n", Name, callerTimer.ElapseUs());
         return pms;
     }
 };

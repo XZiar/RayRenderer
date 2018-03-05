@@ -20,6 +20,10 @@ A collection of useful utilities
 
   Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, unicode message, arbitray extra data...
 
+* **FileEx**
+
+  A wrapper of file operations, using RAII to wrap file handle. Buffered reader supported using CRTP.
+
 * **FileMapper** `buggy`
 
   A wrapper to manage win32's file mapper
@@ -30,9 +34,11 @@ A collection of useful utilities
 
 * **PromiseTask**
 
-  A wrapper for C\++11's future&promise for C++/CLI project. 
+  A wrapper for C++11's future&promise for C++/CLI project. 
   
-  It use virtual method to hide STL's `thread`, which is not supported in C++/CLI.
+  It uses virtual method to hide STL's `thread`, which is not supported in C++/CLI.
+
+  It also provides universial API for [AsyncExecutor](./AsyncExecutor)
 
 * **ResourceHelper**
 
@@ -46,6 +52,10 @@ A collection of useful utilities
 
   SharedResource is based on `Wrapper`, using weak_ptr and shared_ptr to managed resource. It is thread-safe and resource will get released once it's no longer held by anyone.
 
+* **SpinLocker**
+
+  Spin-lock implemented using std::stomic. It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.
+
 * **StringEx**
 
   Some useful utils for string operations like split, concat...
@@ -54,12 +64,16 @@ A collection of useful utilities
   
   Define text charset and conversions between them. Conversion is self-made, partial optimized, and partial-checked.
 
-  Thanks to `∑•ƒæ∂°∂°ƒÒ√˘‡”‡”`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `–ª’Ò±Û`'s work.
+  Thanks to `‰ºêÊú®‰∏Å‰∏ÅÈ∏üÈ∏£Âò§Âò§`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `Ë∞¢ÊåØÊñå`'s work.
   LUT_gb18030.tab is based on their works.
 
 * **TimeUtil**
 
   A util to manage time. It's mainly used to be a timer.
+
+* **ThreadEx**
+
+  A wrapper to support some operation in C++/CLI. It's designed to be cross-platform but only windows-platform are implemented using Win32 API.
 
 * **Wrapper**
 
@@ -67,7 +81,15 @@ A collection of useful utilities
 
 * [**miniLogger**](./miniLogger)
 
-  A simple logger that provide thread-safe(maybe) logging and global logging management
+  A simple logger that provide thread-safe(maybe) logging and global logging management.
+
+  It uses [fmt](../3rdParty/fmt) as format support, with utf-support from [StrCharset](./StrCharset.hpp) (onyl new version).
+
+* [**AsyncExecutor**](./AsyncExecutor)
+
+  A async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
+
+  It simply uses a polling scheduler, waiting events are queried every xxms(default 20ms).
 
 ## Dependency
 
@@ -75,8 +97,8 @@ A collection of useful utilities
   * `chrono` -- TimeUtil
   * `memory` -- shared_ptr and weak_ptr
   * `tuple` -- used in some container operation
-  * `atomic` -- providing thread-safe operation
-  * `thread` -- only used to provide compatable sleep function
+  * `atomic` `mutex` `condition_variable` -- providing thread-safe operation
+  * `thread` -- used to provide thread creation and sleep function
   * `future` -- provide STD PromiseTask
   * `any` -- used for Exception to carry arbitray data
   * `optional` -- providing "nullable" result

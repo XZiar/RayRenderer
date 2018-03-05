@@ -302,7 +302,7 @@ void _oglProgram::initLocs()
 			}
 		}
 	}
-	oglLog().debug(L"Active {} locations\n", dataMap.size());
+	oglLog().debug(u"Active {} locations\n", dataMap.size());
 	GLuint maxUniLoc = 0;
 	for (const auto& di : dataMap)
 	{
@@ -318,7 +318,7 @@ void _oglProgram::initLocs()
 				texMap.insert(di);
 		}
 		resMap.insert(di);
-		oglLog().debug(L"--{:>7}{:<3}  -[{:^5}]-  {}[{}] size[{}]\n", info.getTypeName(), info.ifidx, info.location, di.first, info.len, info.size);
+		oglLog().debug(u"--{:>7}{:<3}  -[{:^5}]-  {}[{}] size[{}]\n", info.getTypeName(), info.ifidx, info.location, di.first, info.len, info.size);
 	}
 	uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
@@ -362,14 +362,18 @@ void _oglProgram::link()
 {
 	glLinkProgram(programID);
 	int result;
-	char logstr[4096] = { 0 };
 
 	glGetProgramiv(programID, GL_LINK_STATUS, &result);
 	if (!result)
 	{
-		glGetProgramInfoLog(programID, sizeof(logstr), NULL, logstr);
+        int len;
+        glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
+        string logstr((size_t)len, '\0');
+		glGetProgramInfoLog(programID, len, &len, logstr.data());
+        const auto logdat = common::str::to_u16string(logstr.c_str());
+        oglLog().warning(u"Link program failed.\n{}\n", logdat);
 		glDeleteProgram(programID);
-		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, str::to_wstring(logstr));
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Link program failed", logdat);
 	}
 	initLocs();
 	initSubroutines();
@@ -415,10 +419,10 @@ void _oglProgram::useSubroutine(const string& sruname, const string& srname)
 		if (auto sr = common::findvec(**sru, [&srname](auto& srr) { return srr.name == srname; }))
 			useSubroutine(**sr);
 		else
-			oglLog().warning(L"cannot find subroutine {} for {}\n", srname, sruname);
+			oglLog().warning(u"cannot find subroutine {} for {}\n", srname, sruname);
 	}
 	else
-		oglLog().warning(L"cannot find subroutine object {}\n", sruname);
+		oglLog().warning(u"cannot find subroutine object {}\n", sruname);
 }
 
 GLint _oglProgram::getLoc(const string& name) const

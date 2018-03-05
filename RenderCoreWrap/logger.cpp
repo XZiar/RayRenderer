@@ -13,7 +13,7 @@ public enum class LogLevel : uint8_t
 	Debug = (uint8_t)common::mlog::LogLevel::Debug,
 	Verbose = (uint8_t)common::mlog::LogLevel::Verbose,
 	Info = (uint8_t)common::mlog::LogLevel::Info,
-	Sucess = (uint8_t)common::mlog::LogLevel::Sucess,
+	Success = (uint8_t)common::mlog::LogLevel::Success,
 	Warning = (uint8_t)common::mlog::LogLevel::Warning,
 	Error = (uint8_t)common::mlog::LogLevel::Error,
 	None = (uint8_t)common::mlog::LogLevel::None,
@@ -56,15 +56,24 @@ void __cdecl LogCallback(const common::mlog::LogLevel lv_, const std::wstring& f
 	String^ content = gcnew String(content_.c_str());
 	Logger::RaiseOnLog(lv, from, content);
 }
+void __cdecl LogCallback2(const common::mlog::LogMessage& msg)
+{
+    LogLevel lv = (LogLevel)msg.Level;
+    String^ from = gcnew String(reinterpret_cast<const wchar_t*>(msg.Source.c_str()));
+    String^ content = gcnew String(reinterpret_cast<const wchar_t*>(msg.Content.c_str()));
+    Logger::RaiseOnLog(lv, from, content);
+}
 
 #pragma unmanaged
 void setLogCB()
 {
 	common::mlog::logger::setGlobalCallBack(LogCallback);
+    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(LogCallback2);
 }
 void unsetLogCB()
 {
 	common::mlog::logger::setGlobalCallBack(nullptr);
+    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(nullptr);
 }
 #pragma managed
 

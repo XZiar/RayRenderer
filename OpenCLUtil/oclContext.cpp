@@ -12,11 +12,11 @@ namespace detail
 {
 
 
-void CL_CALLBACK _oclContext::onNotify(const char * errinfo, const void * private_info, size_t cb, void *user_data)
+static void CL_CALLBACK onNotify(const char * errinfo, const void * private_info, size_t cb, void *user_data)
 {
 	const _oclContext& ctx = *(_oclContext*)user_data;
 	if (ctx.onMessage)
-		ctx.onMessage(str::to_wstring(errinfo));
+		ctx.onMessage(str::to_u16string(errinfo));
 	return;
 }
 
@@ -32,7 +32,7 @@ cl_context _oclContext::createContext(const cl_context_properties props[]) const
 	return ctx;
 }
 
-_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices, const wstring name, const Vendor thevendor) :
+_oclContext::_oclContext(const cl_context_properties props[], const vector<oclDevice>& devices, const u16string name, const Vendor thevendor) :
 	devs(devices), context(createContext(props)), PlatformName(name), vendor(thevendor)
 {
 }
@@ -44,11 +44,11 @@ _oclContext::~_oclContext()
 	clGetContextInfo(context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
 	if (refCount == 1)
 	{
-		oclLog().debug(L"oclContext {:p} named {}, has {} reference being release.\n", (void*)context, PlatformName, refCount);
+		oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)context, PlatformName, refCount);
 		clReleaseContext(context);
 	}
 	else
-		oclLog().warning(L"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)context, PlatformName, refCount);
+		oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)context, PlatformName, refCount);
 #else
 	clReleaseContext(context);
 #endif

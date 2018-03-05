@@ -28,7 +28,7 @@ private:
 public:
     const uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
     const bool supportProfiling, supportOutOfOrder;
-    const wstring name, vendor, version;
+    const u16string name, vendor, version;
     const DeviceType type;
 };
 

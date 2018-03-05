@@ -43,6 +43,7 @@ namespace str = common::str;
 namespace fs = common::file::fs;
 using std::wstring;
 using std::string;
+using std::u16string;
 using std::map;
 using std::vector;
 using common::min;
@@ -65,7 +66,7 @@ using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
 #include "common/miniLogger/miniLogger.h"
 namespace rayr
 {
-common::mlog::logger& basLog();
+common::mlog::MiniLogger<false>& basLog();
 string getShaderFromDLL(int32_t id);
 }
 #endif

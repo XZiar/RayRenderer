@@ -27,13 +27,17 @@ void _oglShader::compile()
 	glCompileShader(shaderID);
 
 	GLint result;
-	char logstr[4096] = { 0 };
 
 	glGetShaderiv(shaderID, GL_COMPILE_STATUS, &result);
 	if (!result)
 	{
-		glGetShaderInfoLog(shaderID, sizeof(logstr), NULL, logstr);
-		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, str::to_wstring(logstr));
+        GLsizei len = 0;
+        glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &len);
+        string logstr((size_t)len, '\0');
+		glGetShaderInfoLog(shaderID, len, &len, logstr.data());
+        const auto logdat = str::to_u16string(logstr.c_str());
+        oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
+		COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Compile shader failed", logdat);
 	}
 }
 
@@ -48,16 +52,16 @@ oglShader __cdecl oglShader::loadFromFile(const ShaderType type, const fs::path&
 	return shader;
 }
 
-vector<oglShader> __cdecl oglShader::loadFromFiles(const wstring& fname)
+vector<oglShader> __cdecl oglShader::loadFromFiles(const u16string& fname)
 {
-	static pair<wstring, ShaderType> types[] =
+	static pair<u16string, ShaderType> types[] =
 	{
-		{ L".vert",ShaderType::Vertex },
-		{ L".frag",ShaderType::Fragment },
-		{ L".geom",ShaderType::Geometry },
-		{ L".comp",ShaderType::Compute },
-		{ L".tscl",ShaderType::TessCtrl },
-		{ L".tsev",ShaderType::TessEval }
+		{ u".vert",ShaderType::Vertex },
+		{ u".frag",ShaderType::Fragment },
+		{ u".geom",ShaderType::Geometry },
+		{ u".comp",ShaderType::Compute },
+		{ u".tscl",ShaderType::TessCtrl },
+		{ u".tsev",ShaderType::TessEval }
 	};
 	vector<oglShader> shaders;
 	for (const auto& type : types)
@@ -70,7 +74,7 @@ vector<oglShader> __cdecl oglShader::loadFromFiles(const wstring& fname)
 		}
 		catch (FileException& fe)
 		{
-			oglLog().warning(L"skip loading {} due to Exception[{}]", fpath.wstring(), fe.message);
+			oglLog().warning(u"skip loading {} due to Exception[{}]", fpath.u16string(), fe.message);
 		}
 	}
 	return shaders;

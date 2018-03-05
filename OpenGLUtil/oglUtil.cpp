@@ -89,18 +89,18 @@ void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum sev
         if (theMsg->type == MsgType::Error)
         {
             errlist.push_back(theMsg);
-            oglLog().error(L"OpenGL ERROR\n{}\n", theMsg->msg);
+            oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->msg);
         }
         else
         {
-            oglLog().verbose(L"OpenGL message\n{}\n", theMsg->msg);
+            oglLog().verbose(u"OpenGL message\n{}\n", theMsg->msg);
         }
     }
 }
 
 detail::MTWorker& getWorker(const uint8_t idx)
 {
-    static detail::MTWorker syncGL(L"SYNC"), asyncGL(L"ASYNC");
+    static detail::MTWorker syncGL(u"SYNC"), asyncGL(u"ASYNC");
     return idx == 0 ? syncGL : asyncGL;
 }
 
@@ -110,7 +110,7 @@ void oglUtil::init()
 #if defined(_DEBUG) || 1
     setDebug(0x2f, 0x1ff, MsgLevel::Notfication);
 #endif
-    oglLog().info(L"GL Version:{}\n", getVersion());
+    oglLog().info(u"GL Version:{}\n", getVersion());
     auto hdc = wglGetCurrentDC();
     auto hrc = wglGetCurrentContext();
     int ctxAttrb[] =
@@ -137,11 +137,11 @@ void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
     glDebugMessageCallback(oglUtil::onMsg, &limit);
 }
 
-wstring oglUtil::getVersion()
+u16string oglUtil::getVersion()
 {
     const auto str = (const char*)glGetString(GL_VERSION);
     const auto len = strlen(str);
-    return wstring(str, str + len);
+    return u16string(str, str + len);
 }
 
 optional<wstring> oglUtil::getError()
@@ -204,12 +204,12 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
     }
 }
 
-PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const std::wstring& taskName)
+PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName)
 {
     return getWorker(0).doWork(task, taskName);
 }
 
-PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const std::wstring& taskName)
+PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName)
 {
     return getWorker(1).doWork(task, taskName);
 }
