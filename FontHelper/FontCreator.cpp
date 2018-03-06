@@ -267,7 +267,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 			vector<uint8_t> clImg;
 			outputBuf->read(clQue, clImg, alldata.size() / 16);
 
-			fntLog().verbose(L"post-merging start at {}\n", timer.getCurTimeTxt());
+			fntLog().verbose(u"post-merging start at {}\n", timer.getCurTimeTxt());
 			timer.Start();
 			Image fin(ImageDataType::GRAY);
 			fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));

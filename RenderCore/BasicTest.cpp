@@ -268,7 +268,7 @@ void BasicTest::fontTest(const char32_t word)
 			img::WriteImage(imgA, basepath / u"A.png");
 			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
 			fonttex->setData(TextureInnerFormat::R8, imgShow);
-			img::WriteImage(imgShow, basepath / (u"Show.png"));
+			img::WriteImage(imgShow, basepath / u"Show.png");
 			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
 		}
 	}

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="common::BaseException">
-    <DisplayString>{{{TYPENAME},{message},{data}}}</DisplayString>
+  <Type Name="common::StackTraceItem">
+    <DisplayString>{{{file}:[{line}]-{func}}}</DisplayString>
+  </Type>
+  <Type Name="common::BaseException" Inheritable="false">
+    <DisplayString>{{{TypeName,s},{message},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
       <Item Name="stack" ExcludeView="simple">stackitem</Item>
@@ -10,7 +13,7 @@
     </Expand>
   </Type>
   <Type Name="common::FileException">
-    <DisplayString>{{{TYPENAME},{reason},{filepath},{data}}}</DisplayString>
+    <DisplayString>{{{TypeName,s},{reason},{filepath},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
       <Item Name="stack" ExcludeView="simple">stackitem</Item>

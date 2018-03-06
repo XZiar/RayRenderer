@@ -6,6 +6,7 @@
   </Type>
   <Type Name="xziar::img::Image">
     <Expand>
+      <Item Name="[DataType]">DataType</Item>
       <Synthetic Name="[type]" Condition="(DataType &amp; 0x40) == 0x0">
         <DisplayString>UINT8</DisplayString>
       </Synthetic>

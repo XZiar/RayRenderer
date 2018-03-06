@@ -1,6 +1,8 @@
 #pragma unmanaged
 
 #include "common/TimeUtil.hpp"
+#include "common/ResourceHelper.inl"
+#include "common/DelayLoader.inl"
 #include "3rdParty/fmt/format.h"
 #include "resource.h"
 #include <cstdio>
@@ -8,8 +10,6 @@
 #include <vector>
 #include <tuple>
 #include <filesystem>
-#include "common/ResourceHelper.inl"
-#include "common/DelayLoader.inl"
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
 
@@ -27,7 +27,7 @@ static SimpleTimer timer;
 
 
 template<class... Args>
-void DebugOutput(const std::wstring formater, Args&&... args)
+static void DebugOutput(const std::wstring formater, Args&&... args)
 {
     timer.Stop();
     const std::wstring logdat = fmt::format(L"###[{:>7.2f}]" + formater, timer.ElapseMs() / 1000.f, std::forward<Args>(args)...) + L"\n";

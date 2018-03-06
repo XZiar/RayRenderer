@@ -49,30 +49,22 @@ public:
 	}
 };
 
-void __cdecl LogCallback(const common::mlog::LogLevel lv_, const std::wstring& from_, const std::wstring& content_)
-{
-	LogLevel lv = (LogLevel)lv_;
-	String^ from = gcnew String(from_.c_str());
-	String^ content = gcnew String(content_.c_str());
-	Logger::RaiseOnLog(lv, from, content);
-}
-void __cdecl LogCallback2(const common::mlog::LogMessage& msg)
+
+void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 {
     LogLevel lv = (LogLevel)msg.Level;
-    String^ from = gcnew String(reinterpret_cast<const wchar_t*>(msg.Source.c_str()));
-    String^ content = gcnew String(reinterpret_cast<const wchar_t*>(msg.Content.c_str()));
+    String^ from = gcnew String(reinterpret_cast<const wchar_t*>(msg.Source.c_str()), 0, (int)msg.Source.size());
+    String^ content = gcnew String(reinterpret_cast<const wchar_t*>(msg.Content.c_str()), 0, (int)msg.Content.size());
     Logger::RaiseOnLog(lv, from, content);
 }
 
 #pragma unmanaged
 void setLogCB()
 {
-	common::mlog::logger::setGlobalCallBack(LogCallback);
-    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(LogCallback2);
+    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(LogCallback);
 }
 void unsetLogCB()
 {
-	common::mlog::logger::setGlobalCallBack(nullptr);
     common::mlog::detail::MiniLoggerBase::SetGlobalCallback(nullptr);
 }
 #pragma managed

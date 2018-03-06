@@ -1,7 +1,6 @@
 #include "MiniLoggerRely.h"
 #include "QueuedBackend.h"
 #include <thread>
-#include <functional>
 
 namespace common::mlog
 {

@@ -33,10 +33,10 @@ public:
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 	}
 #ifndef NO_DATE_FORMATE
-	static std::wstring getCurTimeTxt()
+	static std::u16string getCurTimeTxt()
 	{
 		const auto str = date::format("%H:%M:%S", std::chrono::system_clock::now());
-		return std::wstring(str.cbegin(), str.cend());
+		return std::u16string(str.cbegin(), str.cend());
 	}
 #endif
 	SimpleTimer() { Start(); }

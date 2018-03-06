@@ -2,7 +2,6 @@
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
 #include "common/IntToString.hpp"
-#define NO_DATE_FORMATE
 #include "common/TimeUtil.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StrCharset.hpp"

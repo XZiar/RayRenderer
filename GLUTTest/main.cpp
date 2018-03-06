@@ -9,6 +9,7 @@ using namespace glutview;
 using namespace b3d;
 using std::string;
 using std::wstring;
+using std::u16string;
 using std::vector;
 using namespace common;
 
@@ -140,7 +141,7 @@ void onDropFile(FreeGLUTView wd, wstring fname)
 	static bool isFirst = true;
 	if (true)
 	{
-		tester->addModelAsync(fname, [&, wd](auto cb)
+		tester->addModelAsync(*(u16string*)&fname, [&, wd](auto cb)
 		{
 			wd->invoke([&, cb]
 			{
@@ -155,7 +156,7 @@ void onDropFile(FreeGLUTView wd, wstring fname)
 			});
 		});
 	}
-	else if (tester->addModel(fname))
+	else if (tester->addModel(*(u16string*)&fname))
 	{
 		curObj = tester->objectCount() - 1;
 		tester->rotateobj(curObj, -90, 0, 0);

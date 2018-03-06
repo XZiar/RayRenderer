@@ -18,9 +18,6 @@
     <ClInclude Include="miniLogger.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="InnerLogger.inl">
-      <Filter>源文件</Filter>
-    </ClInclude>
     <ClInclude Include="QueuedBackend.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -41,5 +38,8 @@
     <ClCompile Include="CommonBackend.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="miniLogger.natvis" />
   </ItemGroup>
 </Project>

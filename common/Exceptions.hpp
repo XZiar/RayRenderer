@@ -24,14 +24,15 @@ class AnyException : public std::runtime_error, public std::enable_shared_from_t
 	friend BaseException;
 	friend OtherException;
 private:
-	explicit AnyException(const std::string& type) : std::runtime_error(type) {}
+    const char * const TypeName;
+    explicit AnyException(const char* const type) : TypeName(type), std::runtime_error(type) {}
 	using std::runtime_error::what;
 };
 class OtherException : public AnyException
 {
 	friend BaseException;
 public:
-	static constexpr auto TYPENAME = "OtherException";
+    static constexpr auto TYPENAME = "OtherException";
 	const std::exception_ptr innerException;
 private:
 	OtherException(const std::exception& ex) : AnyException(TYPENAME), innerException(std::make_exception_ptr(ex))
@@ -94,13 +95,8 @@ public:
 	}
 	Wrapper<BaseException> nestedException() const
 	{
-		if (innerException)
-		{
-			const auto beptr = dynamic_cast<BaseException*>(innerException.get());
-			if (beptr != nullptr)
-				return innerException.cast_static<BaseException>();
-		}
-		return Wrapper<BaseException>();
+        const auto bewapper = innerException.cast_dynamic<BaseException>();
+        return bewapper ? bewapper : Wrapper<BaseException>();
 	}
 	StackTraceItem stacktrace() const
 	{
@@ -116,6 +112,8 @@ public:
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
 	virtual ::common::Wrapper<::common::BaseException> clone() const override\
 	{ return ::common::Wrapper<type>(*this).cast_static<::common::BaseException>(); }
+
+//up-cast, just use cast_static
 
 inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
 {
