@@ -7,6 +7,10 @@
 
 namespace oglu
 {
+using common::container::FindInMap;
+using common::container::FindInVec;
+using common::container::ReplaceInVec;
+
 
 
 GLint ProgramResource::getValue(const GLuint pid, const GLenum prop)
@@ -122,6 +126,16 @@ void _oglProgram::ProgState::setUBO() const
 	}
 }
 
+void _oglProgram::ProgState::setSubroutine() const
+{
+    for (const auto& stagePair : srCache)
+    {
+        GLsizei cnt = (GLsizei)stagePair.second.size();
+        if(cnt > 0)
+            glUniformSubroutinesuiv(stagePair.first, cnt, stagePair.second.data());
+    }
+}
+
 void _oglProgram::ProgState::end()
 {
 }
@@ -167,6 +181,39 @@ _oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const 
 	return *this;
 }
 
+_oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const SubroutineResource& sr)
+{
+    auto& vec = srCache[sr.Stage];
+    if (auto puloc = FindInMap(prog.subrLookup, { sr.Stage, sr.Id }, std::in_place))
+    {
+        const GLint objLoc = *puloc;
+        if (!ReplaceInVec(vec, [&, objLoc](const GLuint& id)
+        {
+            return FindInMap(prog.subrLookup, { sr.Stage, id }, std::in_place) == objLoc;
+        }, sr.Id))
+        {
+            vec.push_back(sr.Id);
+        }
+    }
+    else
+        oglLog().warning(u"cannot find subroutine {}\n", sr.Name);
+    return *this;
+}
+
+_oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& sruname, const string& srname)
+{
+    if (auto sru = FindInMap(prog.subrMap, sruname))
+    {
+        if (auto sr = FindInVec(**sru, [&srname](const SubroutineResource& srr) { return srr.Name == srname; }))
+            return setSubroutine(**sr);
+        else
+            oglLog().warning(u"cannot find subroutine {} for object {}\n", srname, sruname);
+    }
+    else
+        oglLog().warning(u"cannot find subroutine object {}\n", sruname);
+    return *this;
+}
+
 
 _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) :ProgState(pstate.prog)
 {
@@ -180,8 +227,10 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat,
 	prog.setMat(prog.Uni_normalMat, normMat);
 	texCache = pstate.texCache;
 	uboCache = pstate.uboCache;
+    //srCache = pstate.srCache;
 	pstate.setTexture();
 	pstate.setUBO();
+    pstate.setSubroutine();
 }
 
 void _oglProgram::ProgDraw::end()
@@ -193,20 +242,24 @@ void _oglProgram::ProgDraw::end()
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
 	ProgState::setTexture();
-	texCache.clear();
 	ProgState::setUBO();
-	uboCache.clear();
+    ProgState::setSubroutine();
 	vao->draw(size, offset);
-	return *this;
+    texCache.clear();
+    uboCache.clear();
+    srCache.clear();
+    return *this;
 }
 
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 {
 	ProgState::setTexture();
-	texCache.clear();
 	ProgState::setUBO();
-	uboCache.clear();
-	vao->draw();
+    ProgState::setSubroutine();
+    vao->draw();
+    texCache.clear();
+    uboCache.clear();
+    srCache.clear();
 	return *this;
 }
 
@@ -327,15 +380,21 @@ void _oglProgram::initSubroutines()
 {
 	const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
 	char strbuf[4096];
-	for (auto stage : stages)
+    auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
+    writer.write(u"SubRoutine Resource: \n");
+    subrMap.clear();
+    subrLookup.clear();
+    for (auto stage : stages)
 	{
-		GLint count;
+        GLint count;
 		glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
 		for (int a = 0; a < count; ++a)
 		{
 			glGetActiveSubroutineUniformName(programID, stage, a, sizeof(strbuf), nullptr, strbuf);
-			string uniname(strbuf);
-			GLint srcnt;
+			string uniformName(strbuf);
+            auto uniformLoc = glGetSubroutineUniformLocation(programID, stage, strbuf);
+            writer.write(u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
+            GLint srcnt;
 			glGetActiveSubroutineUniformiv(programID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
 			vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
 			vector<SubroutineResource> srs;
@@ -345,11 +404,14 @@ void _oglProgram::initSubroutines()
 				glGetActiveSubroutineName(programID, stage, idx, sizeof(strbuf), nullptr, strbuf);
 				string subrname(strbuf);
 				SubroutineResource srRes(stage, subrname, idx);
-				srs.push_back(srRes);
-			}
-			subrMap.insert_or_assign(uniname, srs);
-		}
+                writer.write(u"--[{}]: {}\n", idx, subrname);
+                srs.push_back(srRes);
+                subrLookup[{ stage, idx }] = uniformLoc;
+            }
+			subrMap.insert_or_assign(std::move(uniformName), std::move(srs));
+        }
 	}
+    oglLog().debug(writer.c_str());
 }
 
 void _oglProgram::addShader(oglShader && shader)
@@ -398,36 +460,17 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
 
 optional<const ProgramResource*> _oglProgram::getResource(const string& name) const
 {
-	return common::findmap(resMap, name);
+	return FindInMap(resMap, name);
 }
 
 optional<const vector<SubroutineResource>*> _oglProgram::getSubroutines(const string& name) const
 {
-	return common::findmap(subrMap, name);
-}
-
-void _oglProgram::useSubroutine(const SubroutineResource& sr)
-{
-	usethis(*this);
-	glUniformSubroutinesuiv(sr.stage, 1, &sr.id);
-}
-
-void _oglProgram::useSubroutine(const string& sruname, const string& srname)
-{
-	if (auto sru = common::findmap(subrMap, sruname))
-	{
-		if (auto sr = common::findvec(**sru, [&srname](auto& srr) { return srr.name == srname; }))
-			useSubroutine(**sr);
-		else
-			oglLog().warning(u"cannot find subroutine {} for {}\n", srname, sruname);
-	}
-	else
-		oglLog().warning(u"cannot find subroutine object {}\n", sruname);
+	return FindInMap(subrMap, name);
 }
 
 GLint _oglProgram::getLoc(const string& name) const
 {
-	if (auto obj = common::findmap(resMap, name))
+	if (auto obj = FindInMap(resMap, name))
 		return (**obj).location;
 	return GL_INVALID_INDEX;
 }

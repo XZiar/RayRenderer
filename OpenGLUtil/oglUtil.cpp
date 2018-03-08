@@ -113,6 +113,7 @@ void oglUtil::init()
     oglLog().info(u"GL Version:{}\n", getVersion());
     auto hdc = wglGetCurrentDC();
     auto hrc = wglGetCurrentContext();
+    wglMakeCurrent(hdc, nullptr);
     int ctxAttrb[] =
     {
         /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -123,6 +124,7 @@ void oglUtil::init()
     };
     getWorker(0).start(hdc, wglCreateContextAttribsARB(hdc, hrc, ctxAttrb));
     getWorker(1).start(hdc, wglCreateContextAttribsARB(hdc, NULL, ctxAttrb));
+    wglMakeCurrent(hdc, hrc);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

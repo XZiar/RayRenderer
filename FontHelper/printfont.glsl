@@ -9,8 +9,6 @@ GLVARY perVert
 	vec3 color;
 };
 
-uniform sampler2D tex;
-
 #ifdef OGLU_VERT
 
 layout(location = 0) in vec2 vertPos;
@@ -26,6 +24,7 @@ void main()
 #endif
 
 #ifdef OGLU_FRAG
+uniform sampler2D tex;
 out vec4 FragColor;
 subroutine vec3 fontType(vec2 texpos);
 subroutine uniform fontType fontRenderer;
@@ -38,7 +37,7 @@ vec3 plainFont(in vec2 texpos)
 subroutine(fontType)
 vec3 sdfMid(in vec2 texpos)
 {
-	float dist = texture(tex, texpos).r;
+	const float dist = texture(tex, texpos).r;
 	return vec3(smoothstep(0.44f, 0.57f, dist));
 }
 subroutine(fontType)
@@ -52,6 +51,6 @@ vec3 compare(in vec2 texpos)
 void main() 
 {
 	FragColor.rgb = fontRenderer(tpos);
-	FragColor.w = 1.0f;
+	FragColor.a = 1.0f;
 }
 #endif

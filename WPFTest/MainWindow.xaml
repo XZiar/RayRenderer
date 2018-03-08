@@ -11,9 +11,10 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="70*"/>
+            <ColumnDefinition Width="5" />
             <ColumnDefinition Width="30*"/>
         </Grid.ColumnDefinitions>
-        <Grid Grid.Column="1" Margin="5,0,0,0" >
+        <Grid Grid.Column="2" Margin="0" >
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -24,14 +25,17 @@
                 <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
                 <Button x:Name="btnTryAsync" Content="Async" Click="btnTryAsync_Click"/>
             </StackPanel>
-            <RichTextBox x:Name="dbgOutput" Grid.Row="1" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
-                <FlowDocument>
-                    <Paragraph/>
-                </FlowDocument>
-            </RichTextBox>
+            <ScrollViewer CanContentScroll="True" Grid.Row="1" PanningMode="Both">
+                <RichTextBox x:Name="dbgOutput" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
+                    <FlowDocument>
+                        <Paragraph/>
+                    </FlowDocument>
+                </RichTextBox>
+            </ScrollViewer>
         </Grid>
-        <WindowsFormsHost x:Name="wfh" Grid.Column="0" DpiChanged="wfh_DpiChanged" KeyUp="wfh_KeyUp">
-            <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyAction="OnKeyAction" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+        <WindowsFormsHost x:Name="wfh" Grid.Column="0">
+            <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>
     </Grid>
 </Window>

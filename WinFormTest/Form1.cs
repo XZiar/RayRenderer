@@ -30,8 +30,83 @@ namespace WinFormTest
 
             oglv.Draw += test.Draw;
             oglv.Resize += (o, e) => { test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
-            oglv.KeyAction += OnKeyAction;
+            oglv.KeyDown += OnKeyDown;
+            //oglv.KeyAction += OnKeyAction;
             oglv.MouseAction += OnMouse;
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            Console.WriteLine($"KeyDown value[{e.KeyValue}] code[{e.KeyCode}] data[{e.KeyData}]");
+            switch (e.KeyCode)
+            {
+                case Keys.Up:
+                    test.Moveobj(curObj, 0, 0.1f, 0); break;
+                case Keys.Down:
+                    test.Moveobj(curObj, 0, -0.1f, 0); break;
+                case Keys.Left:
+                    test.Moveobj(curObj, -0.1f, 0, 0); break;
+                case Keys.Right:
+                    test.Moveobj(curObj, 0.1f, 0, 0); break;
+                case Keys.PageUp:
+                    test.Moveobj(curObj, 0, 0, -0.1f); break;
+                case Keys.PageDown:
+                    test.Moveobj(curObj, 0, 0, 0.1f); break;
+                case Keys.Add:
+                    curObj++;
+                    if (curObj >= test.objectCount)
+                        curObj = 0;
+                    break;
+                case Keys.Subtract:
+                    if (curObj == 0)
+                        curObj = test.objectCount;
+                    curObj--;
+                    break;
+                default:
+                    if (e.Shift)
+                    {
+                        switch (e.KeyValue)
+                        {
+                            case 'A':
+                                test.Rotateobj(curObj, 0, 3, 0); break;
+                            case 'D':
+                                test.Rotateobj(curObj, 0, -3, 0); break;
+                            case 'W':
+                                test.Rotateobj(curObj, 3, 0, 0); break;
+                            case 'S':
+                                test.Rotateobj(curObj, -3, 0, 0); break;
+                            case 'Q':
+                                test.Rotateobj(curObj, 0, 0, 3); break;
+                            case 'E':
+                                test.Rotateobj(curObj, 0, 0, -3); break;
+                            case '\r':
+                                isAnimate = !isAnimate; break;
+                        }
+                    }
+                    else
+                    {
+                        switch (e.KeyValue)
+                        {
+
+                            case 'A'://pan to left
+                                test.cam.Yaw(3); break;
+                            case 'D'://pan to right
+                                test.cam.Yaw(-3); break;
+                            case 'W'://pan to up
+                                test.cam.Pitch(3); break;
+                            case 'S'://pan to down
+                                test.cam.Pitch(-3); break;
+                            case 'Q'://pan to left
+                                test.cam.Roll(-3); break;
+                            case 'E'://pan to left
+                                test.cam.Roll(3); break;
+                            case '\r':
+                                test.mode = !test.mode; break;
+                        }
+                    }
+                    break;
+            }
+            (sender as OGLView).Invalidate();
         }
 
         private void OnKeyAction(object o, KeyBoardEventArgs e)

@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace common
+namespace common::container
 {
 
 
@@ -29,8 +29,8 @@ struct EleTyper<const T, Ele>
 
 }
 
-template<class Map, class Key = typename Map::key_type, class Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
-inline std::optional<Val*> findmap(Map& themap, const Key& key)
+template<class Map, typename Key = typename Map::key_type, typename Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
+inline std::optional<Val*> FindInMap(Map& themap, const Key& key)
 {
 	const auto it = themap.find(key);
 	if (it == themap.end())//not exist
@@ -38,14 +38,51 @@ inline std::optional<Val*> findmap(Map& themap, const Key& key)
 	return &it->second;
 }
 
-template<class Vec, class Predictor, class Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
-inline std::optional<Val*> findvec(Vec& thevec, const Predictor& pred)
+template<class Map, typename Key = typename Map::key_type, typename Val = typename Map::mapped_type>
+inline std::optional<Val> FindInMap(Map& themap, const Key& key, const std::in_place_t)
 {
-	auto it = std::find_if(thevec.begin(), thevec.end(), pred);
+    const auto it = themap.find(key);
+    if (it == themap.end())//not exist
+        return {};
+    return it->second;
+}
+
+template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
+inline std::optional<Val*> FindInVec(Vec& thevec, const Predictor& pred)
+{
+	const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
 	if (it == thevec.end())//not exist
 		return {};
 	return &(*it);
 }
+
+template<class Vec, typename Predictor, typename Val = typename Vec::value_type>
+inline std::optional<Val> FindInVec(Vec& thevec, const Predictor& pred, const std::in_place_t)
+{
+    const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
+    if (it == thevec.end())//not exist
+        return {};
+    return *it;
+}
+
+template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
+inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, const size_t cnt = SIZE_MAX)
+{
+    if (cnt == 0)
+        return 0;
+    size_t replacedCnt = 0;
+    for (auto& obj : thevec)
+    {
+        if (pred(obj))
+        {
+            obj = val;
+            if (++replacedCnt >= cnt)
+                break;
+        }
+    }
+    return replacedCnt;
+}
+
 
 namespace detail
 {

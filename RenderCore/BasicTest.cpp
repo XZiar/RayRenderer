@@ -242,9 +242,10 @@ void BasicTest::fontTest(const char32_t word)
 		if (word == 0x0)
 		{
 			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
-			oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent&) 
+			oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
 			{
 				fonttex->setData(TextureInnerFormat::R8, imgShow);
+                agent.Await(oglu::oglUtil::SyncGL());
 			})->wait();
 			img::WriteImage(imgShow, basepath / (u"Show.png"));
 			/*SimpleTimer timer;
@@ -260,7 +261,6 @@ void BasicTest::fontTest(const char32_t word)
 		else
 		{
 			fontCreator->setChar(L'G', false);
-			fontViewer->bindTexture(fonttex);
 			const auto imgG = fonttex->getImage(TextureDataFormat::R8);
 			img::WriteImage(imgG, basepath / u"G.png");
 			fontCreator->setChar(word, false);
@@ -269,8 +269,10 @@ void BasicTest::fontTest(const char32_t word)
 			const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
 			fonttex->setData(TextureInnerFormat::R8, imgShow);
 			img::WriteImage(imgShow, basepath / u"Show.png");
-			fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
-		}
+            fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+            fontViewer->bindTexture(fonttex);
+            //fontViewer->prog->globalState().setSubroutine("fontRenderer", "plainFont").end();
+        }
 	}
 	catch (BaseException& be)
 	{

@@ -31,7 +31,7 @@ using std::wstring;
 		KeyBoardEventArgs^ curKeyEvent;
 		int lastX, lastY, startX, startY, curX, curY;
 		bool isMoved;
-		bool isCaptital = false;
+		bool isCapital = false;
 		/*static void makeCurrent(HDC hDC, HGLRC hRC)
 		{
 			if (curRC != hRC)
@@ -52,6 +52,10 @@ using std::wstring;
 		UINT64 rfsCount = 0;
 		property bool ResizeBGDraw;
 		property bool deshake;
+        property bool IsCapital
+        {
+            bool get() { return isCapital; }
+        }
 		delegate void DrawEventHandler();
 		delegate void ResizeEventHandler(Object^ o, ResizeEventArgs^ e);
 		delegate void MouseEventExHandler(Object^ o, MouseEventExArgs^ e);
@@ -68,6 +72,7 @@ using std::wstring;
 		OGLView()
 		{
             //SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            this->ImeMode = System::Windows::Forms::ImeMode::Disable;
 			ResizeBGDraw = true;
 			deshake = true;
 			hDC = GetDC(HWND(this->Handle.ToPointer()));
@@ -202,22 +207,27 @@ using std::wstring;
 			}
 			Control::OnMouseMove(e);
 		}
-
-		bool ProcessDialogKey(Keys key) override
-		{
-			if (key == Keys::Left || key == Keys::Right || key == Keys::Up || key == Keys::Down || key == Keys::Tab || key == Keys::Escape)
-				return false;
-			else
-				return Control::ProcessDialogKey(key);
-		}
+        
+        bool IsInputKey(Keys key) override
+        {
+            Console::WriteLine(L"key IsInputKey {0}\n", key);
+            if (key == Keys::Left || key == Keys::Right || key == Keys::Up || key == Keys::Down || key == Keys::Tab || key == Keys::Escape)
+            {
+                return true;
+            }
+            else
+                return Control::IsInputKey(key);
+        }
+        
 		void OnKeyDown(KeyEventArgs^ e) override
 		{
-			curKeyEvent = gcnew KeyBoardEventArgs(L'\0', curX, curY, e->Control, e->Shift, e->Alt);
+            Console::WriteLine(L"key OnKeyDown {0}\n", e->KeyValue);
+            curKeyEvent = gcnew KeyBoardEventArgs(L'\0', curX, curY, e->Control, e->Shift, e->Alt);
 			if (e->KeyCode == Keys::Capital)
-				isCaptital = true;
+                isCapital = !isCapital;
 			else if (e->KeyValue >= 65 && e->KeyValue <= 90)
 			{
-				curKeyEvent->key = (e->Shift ^ isCaptital ? L'A' : L'a') + (e->KeyValue - 65);
+				curKeyEvent->key = (e->Shift ^ isCapital ? L'A' : L'a') + (e->KeyValue - 65);
 			}
 			else if (e->KeyValue >= 96 && e->KeyValue <= 105)
 				curKeyEvent->key = L'0' + (e->KeyValue - 96);
@@ -239,26 +249,15 @@ using std::wstring;
 				curKeyEvent->key = (wchar_t)Key::Insert; break;
 			case Keys::Delete:
 				curKeyEvent->key = (wchar_t)Key::Delete; break;
+            case Keys::Return:
+                curKeyEvent->key = (wchar_t)Key::Enter; break;
 			}
 			if (curKeyEvent->key != L'\0')
 			{
 				KeyAction(this, curKeyEvent);
-				e->Handled = true;
+				//e->Handled = true;
 			}
 			Control::OnKeyDown(e);
-		}
-		void OnKeyPress(KeyPressEventArgs^ e) override
-		{
-			curKeyEvent->key = e->KeyChar;
-			KeyAction(this, curKeyEvent);
-			Control::OnKeyPress(e);
-		}
-		void OnKeyUp(KeyEventArgs^ e) override
-		{
-			if (e->KeyCode == Keys::Capital)
-				isCaptital = false;
-			printf("key up %d\n", e->KeyValue);
-			Control::OnKeyUp(e);
 		}
 	};
 }

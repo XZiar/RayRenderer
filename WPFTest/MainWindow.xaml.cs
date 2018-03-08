@@ -26,10 +26,32 @@ namespace WPFTest
         public MainWindow()
         {
             InitializeComponent();
+            //System.Windows.Forms.Integration.WindowsFormsHost.EnableWindowsFormsInterop();
             par = dbgOutput.Document.Blocks.FirstBlock as Paragraph;
             Logger.OnLog += OnLog;
 
             this.Loaded += MainWindow_Loaded;
+            /*
+            glMain.LostFocus += (o, e) =>
+            {
+                Console.WriteLine($"glMain lost Focued:{glMain.Focused}");
+            };
+            wfh.LostKeyboardFocus += (o, e) =>
+            {
+                Console.WriteLine($"wfh lost kbFocued: now at {System.Windows.Input.Keyboard.FocusedElement}");
+            };
+            wfh.LostFocus += (o, e) =>
+            {
+                Console.WriteLine($"wfh lost Focued: now at {System.Windows.Input.Keyboard.FocusedElement}");
+            };
+            */
+            wfh.IsKeyboardFocusWithinChanged += (o, e) => 
+            {
+                if ((bool)e.NewValue == true)
+                    wfh.TabInto(new System.Windows.Input.TraversalRequest(System.Windows.Input.FocusNavigationDirection.First));
+                //Console.WriteLine($"kbFocued:{e.NewValue}, now at {System.Windows.Input.Keyboard.FocusedElement}");
+            };
+            System.Windows.Input.Keyboard.Focus(wfh);
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs rea)
@@ -155,6 +177,11 @@ namespace WPFTest
             glMain.Font = new System.Drawing.Font(glMain.Font.FontFamily, glMain.Font.Size * scaleFactor, glMain.Font.Style);
         }
 
+        private void Window_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            Console.WriteLine($"Windows receives {e.Key}, from {e.Source}");
+        }
+
         private void wfh_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             Console.WriteLine(e.Key);
@@ -163,66 +190,71 @@ namespace WPFTest
                 Core.mode = !Core.mode;
                 glMain.Invalidate();
             }
+            else
+                Console.WriteLine($"press {e.Key}");
         }
 
-        private void OnKeyAction(object sender, KeyBoardEventArgs e)
+        private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
-            Console.WriteLine($"KeyAction {e.key}");
-            switch (e.SpecialKey())
+            Console.WriteLine($"KeyDown value[{e.KeyValue}] code[{e.KeyCode}] data[{e.KeyData}]");
+            switch (e.KeyCode)
             {
-                case Key.Up:
+                case System.Windows.Forms.Keys.Up:
                     Core.Move(0, 0.1f, 0, Core.OPObject.Object); break;
-                case Key.Down:
+                case System.Windows.Forms.Keys.Down:
                     Core.Move(0, -0.1f, 0, Core.OPObject.Object); break;
-                case Key.Left:
+                case System.Windows.Forms.Keys.Left:
                     Core.Move(-0.1f, 0, 0, Core.OPObject.Object); break;
-                case Key.Right:
+                case System.Windows.Forms.Keys.Right:
                     Core.Move(0.1f, 0, 0, Core.OPObject.Object); break;
-                case Key.PageUp:
+                case System.Windows.Forms.Keys.PageUp:
                     Core.Move(0, 0, -0.1f, Core.OPObject.Object); break;
-                case Key.PageDown:
+                case System.Windows.Forms.Keys.PageDown:
                     Core.Move(0, 0, 0.1f, Core.OPObject.Object); break;
+                case System.Windows.Forms.Keys.Add:
+                    Core.curObj++; break;
+                case System.Windows.Forms.Keys.Subtract:
+                    Core.curObj--; break;
                 default:
-                    switch (e.key)
+                    if (e.Shift)
                     {
-                        case 'a'://pan to left
-                            Core.Rotate(0, 3, 0, Core.OPObject.Camera); break;
-                        case 'd'://pan to right
-                            Core.Rotate(0, -3, 0, Core.OPObject.Camera); break;
-                        case 'w'://pan to up
-                            Core.Rotate(3, 0, 0, Core.OPObject.Camera); break;
-                        case 's'://pan to down
-                            Core.Rotate(-3, 0, 0, Core.OPObject.Camera); break;
-                        case 'q'://pan to left
-                            Core.Rotate(0, 0, -3, Core.OPObject.Camera); break;
-                        case 'e'://pan to left
-                            Core.Rotate(0, 0, 3, Core.OPObject.Camera); break;
-                        case 'A':
-                            Core.Rotate(0, 3, 0, Core.OPObject.Object); break;
-                        case 'D':
-                            Core.Rotate(0, -3, 0, Core.OPObject.Object); break;
-                        case 'W':
-                            Core.Rotate(3, 0, 0, Core.OPObject.Object); break;
-                        case 'S':
-                            Core.Rotate(-3, 0, 0, Core.OPObject.Object); break;
-                        case 'Q':
-                            Core.Rotate(0, 0, 3, Core.OPObject.Object); break;
-                        case 'E':
-                            Core.Rotate(0, 0, -3, Core.OPObject.Object); break;
-                        case (char)13:
-                            if (e.hasShift())
-                                Core.isAnimate = !Core.isAnimate;
-                            else
-                                Core.mode = !Core.mode;
-                            break;
-                        default:
-                            break;
-                        case '+':
-                            Core.curObj++;
-                            break;
-                        case '-':
-                            Core.curObj--;
-                            break;
+                        switch (e.KeyValue)
+                        {
+                            case 'A'://pan to left
+                                Core.Rotate(0, 3, 0, Core.OPObject.Object); break;
+                            case 'D'://pan to right
+                                Core.Rotate(0, -3, 0, Core.OPObject.Object); break;
+                            case 'W'://pan to up
+                                Core.Rotate(3, 0, 0, Core.OPObject.Object); break;
+                            case 'S'://pan to down
+                                Core.Rotate(-3, 0, 0, Core.OPObject.Object); break;
+                            case 'Q'://pan to left
+                                Core.Rotate(0, 0, -3, Core.OPObject.Object); break;
+                            case 'E'://pan to left
+                                Core.Rotate(0, 0, 3, Core.OPObject.Object); break;
+                            case '\r':
+                                Core.isAnimate = !Core.isAnimate; break;
+                        }
+                    }
+                    else
+                    {
+                        switch (e.KeyValue)
+                        {
+                            case 'A'://pan to left
+                                Core.Rotate(0, 3, 0, Core.OPObject.Camera); break;
+                            case 'D'://pan to right
+                                Core.Rotate(0, -3, 0, Core.OPObject.Camera); break;
+                            case 'W'://pan to up
+                                Core.Rotate(3, 0, 0, Core.OPObject.Camera); break;
+                            case 'S'://pan to down
+                                Core.Rotate(-3, 0, 0, Core.OPObject.Camera); break;
+                            case 'Q'://pan to left
+                                Core.Rotate(0, 0, -3, Core.OPObject.Camera); break;
+                            case 'E'://pan to left
+                                Core.Rotate(0, 0, 3, Core.OPObject.Camera); break;
+                            case '\r':
+                                Core.mode = !Core.mode; break;
+                        }
                     }
                     break;
             }

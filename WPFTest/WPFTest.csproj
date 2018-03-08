@@ -114,6 +114,7 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\OpenGLView\OpenGLView.vcxproj">
       <Project>{2d168e14-c22d-4429-b97c-af5d41010e48}</Project>

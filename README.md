@@ -69,7 +69,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [MIT License](./License/stb.txt)
 
-* [fmt](http://fmtlib.net) 4.1.0
+* [fmt](http://fmtlib.net) 4.1.0 (customized with utf-support)
 
   [BSD-2 License](./License/fmt.rst)
 

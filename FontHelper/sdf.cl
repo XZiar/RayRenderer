@@ -5,7 +5,7 @@ typedef struct Info
 	uchar h;
 }Info;
 
-kernel void bmpsdf(global const Info* restrict info, global read_only uchar* restrict img, global ushort* restrict result)
+kernel void bmpsdf(global const Info* restrict info, global uchar* restrict img, global ushort* restrict result)
 {
 	private const uint gid = get_group_id(0);
 	private const uint lid = get_local_id(0);

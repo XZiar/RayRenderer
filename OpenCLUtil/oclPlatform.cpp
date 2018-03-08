@@ -17,7 +17,7 @@ bool _oclPlatform::checkGL() const
 {
 	if (name.find(u"Experimental") != u16string::npos)
 		return false;
-	if (!common::findvec(devs, [](auto& dev) { return dev->type == DeviceType::GPU; }))// no GPU
+	if (!common::container::FindInVec(devs, [](const oclDevice& dev) { return dev->type == DeviceType::GPU; }))// no GPU
 		return false;
 	//Additional attributes to OpenCL context creation
 	//which associate an OpenGL context with the OpenCL context 

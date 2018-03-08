@@ -13,8 +13,8 @@ class FONTHELPAPI FontViewerProgram
 {
 private:
 	friend class FontViewer;
-	oglProgram prog;
-	FontViewerProgram();
+    oglProgram prog;
+    FontViewerProgram();
 };
 }
 
@@ -25,8 +25,8 @@ private:
 	oglBuffer viewRect;
 	oglVAO viewVAO;
 public:
-	static detail::FontViewerProgram& getProgram();
-	FontViewer();
+    oglProgram prog;
+    FontViewer();
 	void draw();
 	void bindTexture(const oglTexture& tex);
 };

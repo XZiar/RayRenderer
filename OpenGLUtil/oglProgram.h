@@ -46,11 +46,11 @@ struct OGLUAPI SubroutineResource
 {
 	friend detail::_oglProgram;
 private:
-	GLenum stage;
-	GLuint id;
-	SubroutineResource(const GLenum stage_, const string& name_, const GLuint id_) : stage(stage_), name(name_), id(id_) {}
+	const GLenum Stage;
+    const GLuint Id;
+	SubroutineResource(const GLenum stage, const string& name, const GLuint id) : Stage(stage), Name(name), Id(id) {}
 public:
-	string name;
+    const string Name;
 };
 
 namespace detail
@@ -69,11 +69,14 @@ private:
 		_oglProgram& prog;
 		map<GLuint, oglTexture> texCache;
 		map<GLuint, oglUBO> uboCache;
+        //Subroutine are not kept by OGL, it's erased eachtime switch prog
+        map<GLenum, vector<GLuint>> srCache;
 		explicit ProgState(_oglProgram& prog_);
 		void setTexture(const GLint pos, const oglTexture& tex) const;
 		void setTexture() const;
 		void setUBO(const GLint pos, const oglUBO& ubo) const;
-		void setUBO() const;
+        void setUBO() const;
+        void setSubroutine() const;
 	public:
 		void end();
 		ProgState& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
@@ -82,7 +85,9 @@ private:
 		ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
 		//no check on pos, carefully use
 		ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
-	};
+        ProgState& setSubroutine(const SubroutineResource& sr);
+        ProgState& setSubroutine(const string& sruname, const string& srname);
+    };
 
 	class OGLUAPI ProgDraw : public ProgState
 	{
@@ -99,18 +104,26 @@ private:
 		{
 			return *(ProgDraw*)&ProgState::setTexture(tex, name, idx);
 		}
-		ProgState& setTexture(const oglTexture& tex, const GLuint pos)
+        ProgDraw& setTexture(const oglTexture& tex, const GLuint pos)
 		{
 			return *(ProgDraw*)&ProgState::setTexture(tex, pos);
 		}
-		ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0)
+        ProgDraw& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0)
 		{
 			return *(ProgDraw*)&ProgState::setUBO(ubo, name, idx);
 		}
-		ProgState& setUBO(const oglUBO& ubo, const GLuint pos)
+        ProgDraw& setUBO(const oglUBO& ubo, const GLuint pos)
 		{
 			return *(ProgDraw*)&ProgState::setUBO(ubo, pos);
 		}
+        ProgDraw& setSubroutine(const SubroutineResource& sr)
+        {
+            return *(ProgDraw*)&ProgState::setSubroutine(sr);
+        }
+        ProgDraw& setSubroutine(const string& sruname, const string& srname)
+        {
+            return *(ProgDraw*)&ProgState::setSubroutine(sruname, srname);
+        }
 	};
 
 	
@@ -121,7 +134,8 @@ private:
 	map<string, ProgramResource> texMap;
 	map<string, ProgramResource> uboMap;
 	map<string, ProgramResource> attrMap;
-	map<string, vector<SubroutineResource>> subrMap;
+    map<string, vector<SubroutineResource>> subrMap;
+    map<pair<GLenum, GLuint>, GLint> subrLookup;
 	//map<string, GLint> locMap;
 	vector<GLint> uniCache;
 	GLint
@@ -152,8 +166,6 @@ public:
 	GLint getLoc(const string& name) const;
 	optional<const ProgramResource*> getResource(const string& name) const;
 	optional<const vector<SubroutineResource>*> getSubroutines(const string& name) const;
-	void useSubroutine(const SubroutineResource& sr);
-	void useSubroutine(const string& sruname, const string& srname);
 	void setProject(const Camera &, const int wdWidth, const int wdHeight);
 	void setCamera(const Camera &);
 	ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);

@@ -3,8 +3,10 @@
 #include "stblib/stblib.h"
 #include "uchardetlib/uchardetlib.h"
 
+
 namespace rayr
 {
+using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 
 union alignas(uint64_t) PTstub
@@ -81,7 +83,7 @@ ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 
 ModelImage _ModelImage::getImage(const u16string& pname)
 {
-	if (auto img = findmap(images, pname))
+	if (auto img = FindInMap(images, pname))
 		return **img;
 	else
 		return ModelImage();
@@ -289,7 +291,7 @@ map<u16string, ModelData> _ModelData::models;
 
 ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
 {
-	if (auto md = findmap(models, fname))
+	if (auto md = FindInMap(models, fname))
 		return **md;
 	auto md = new _ModelData(fname, asyncload);
 	ModelData m(std::move(md));
@@ -299,7 +301,7 @@ ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
 
 void _ModelData::releaseModel(const u16string& fname)
 {
-	if (auto md = findmap(models, fname))
+	if (auto md = FindInMap(models, fname))
 		if ((**md).unique())
 			models.erase(fname);
 }
@@ -555,7 +557,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 				{
 					line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
-					if (auto oidx = findmap(idxmap, stub))
+					if (auto oidx = FindInMap(idxmap, stub))
 						tmpidx[a] = **oidx;
 					else
 					{
@@ -589,7 +591,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 				groups.push_back({ mtlName,(uint32_t)indexs.size() });
 				if (groups.size() == 1)
 					tstTimer.Start();
-				if (auto omtl = findmap(mtlmap, mtlName))
+				if (auto omtl = FindInMap(mtlmap, mtlName))
 					curmtl = &**omtl;
 			}break;
 		case "mtllib"_hash://import mtl file
