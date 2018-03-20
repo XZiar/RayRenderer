@@ -274,7 +274,7 @@ public:
 		}
 		TextLine textLine(chset, string_view((const char*)&Content[fromPos], lineLength));
 
-		str::split(textLine.Line, [](const char ch) 
+		str::Split(textLine.Line, [](const char ch) 
 		{ 
 			return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
 		}, textLine.Params, false);

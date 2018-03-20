@@ -87,7 +87,7 @@ inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, c
 namespace detail
 {
 
-template<class... ARGS>
+template<class... Args>
 class ZIPContainer
 {
 private:
@@ -108,9 +108,9 @@ private:
 		template<typename T>
 		static auto Map(T& arg) { return arg.begin(); }
 	};
-	const std::tuple<ARGS&&...> srcs;
+	const std::tuple<Args&&...> srcs;
 public:
-	ZIPContainer(ARGS&&... args) : srcs(std::forward_as_tuple(args...)) {}
+	ZIPContainer(Args&&... args) : srcs(std::forward_as_tuple(std::forward<Args>(args)...)) {}
 	size_t size() const
 	{
 		return ForEach<Sizer>::EachTuple(srcs);
@@ -128,9 +128,9 @@ public:
 };
 }
 
-template<class... ARGS>
-inline constexpr detail::ZIPContainer<ARGS...> zip(ARGS&&... args)
+template<class... Args>
+inline constexpr detail::ZIPContainer<Args...> zip(Args&&... args)
 {
-	return detail::ZIPContainer<ARGS...>(std::forward<ARGS>(args)...);
+	return detail::ZIPContainer<Args...>(std::forward<Args>(args)...);
 }
 }

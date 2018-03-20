@@ -36,8 +36,8 @@ public:
 	const u16string Name;
 	virtual Wrapper<ImgReader> GetReader(FileObject& file) const = 0;
 	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const = 0;
-	virtual bool MatchExtension(const wstring& ext) const = 0;
-	virtual bool MatchType(const wstring& type) const = 0;
+	virtual bool MatchExtension(const u16string& ext) const = 0;
+	virtual bool MatchType(const u16string& type) const = 0;
 };
 
 

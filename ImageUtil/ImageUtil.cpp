@@ -19,7 +19,7 @@ static vector<Wrapper<ImgSupport>> SUPPORT_MAP
 	Wrapper<bmp::BmpSupport>(std::in_place).cast_static<ImgSupport>(),
 };
 
-static vector<Wrapper<ImgSupport>> GenerateSupportList(const wstring& ext, const bool allowDisMatch)
+static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, const bool allowDisMatch)
 {
 	vector<Wrapper<ImgSupport>> ret;
 	ret.reserve(SUPPORT_MAP.size());
@@ -38,7 +38,7 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
 	auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY);
 	ImgLog().debug(u"Read Image {}\n", path.u16string());
-	const auto ext = str::ToUpper(path.extension().wstring());
+    const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
 	auto testList = GenerateSupportList(ext, true);
 	for (auto& support : testList)
 	{
@@ -67,7 +67,7 @@ void WriteImage(const Image& image, const fs::path & path)
 {
 	auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY);
 	ImgLog().debug(u"Write Image {}\n", path.u16string());
-	const auto ext = str::ToUpper(path.extension().wstring());
+	const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
 	auto testList = GenerateSupportList(ext, false);
 	for (auto& support : testList)
 	{

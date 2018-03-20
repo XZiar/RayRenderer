@@ -52,8 +52,8 @@ public:
 	JpegSupport() : ImgSupport(u"Jpeg") {}
 	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<JpegReader>(file).cast_dynamic<ImgReader>(); }
 	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<JpegWriter>(file).cast_dynamic<ImgWriter>(); }
-	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".JPEG" || ext == L".JPG"; }
-	virtual bool MatchType(const wstring& type) const override { return type == L"JPEG"; }
+	virtual bool MatchExtension(const u16string& ext) const override { return ext == u".JPEG" || ext == u".JPG"; }
+	virtual bool MatchType(const u16string& type) const override { return type == u"JPEG"; }
 };
 
 }

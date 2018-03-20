@@ -80,7 +80,7 @@ void _oclProgram::initKers()
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot find kernels", ret));
     buf[len] = '\0';
-    auto names = str::split(string_view(buf), ';', false);
+    auto names = str::Split(string_view(buf), ';', false);
     kers.clear();
     kers.assign(names.begin(), names.end());
 }

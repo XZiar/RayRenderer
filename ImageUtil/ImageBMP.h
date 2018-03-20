@@ -76,8 +76,8 @@ public:
     BmpSupport();
 	virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<BmpReader>(file).cast_dynamic<ImgReader>(); }
 	virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<BmpWriter>(file).cast_dynamic<ImgWriter>(); }
-	virtual bool MatchExtension(const wstring& ext) const override { return ext == L".BMP"; }
-	virtual bool MatchType(const wstring& type) const override { return type == L"BMP"; }
+	virtual bool MatchExtension(const u16string& ext) const override { return ext == u".BMP"; }
+	virtual bool MatchType(const u16string& type) const override { return type == u"BMP"; }
 };
 
 

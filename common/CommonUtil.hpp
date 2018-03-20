@@ -34,19 +34,19 @@ private:
 	static CookieType Each_impl(CookieType& cookie, T&& arg, Args&&... args)
 	{
 		Each_impl(cookie, arg);
-		return Each_impl(cookie, args...);
+		return Each_impl(cookie, std::forward<Args>(args)...);
 	}
 public:
 	template<typename... Args>
 	static CookieType Each(Args&&... args)
 	{
 		auto cookie = Func::Init();
-		return Each_impl(cookie, args...);
+		return Each_impl(cookie, std::forward<Args>(args)...);
 	}
 	template<typename... Args>
 	static CookieType Each2(CookieType cookie, Args&&... args)
 	{
-		return Each_impl(cookie, args...);
+		return Each_impl(cookie, std::forward<Args>(args)...);
 	}
 	template<typename Tuple>
 	static CookieType EachTuple(Tuple&& args)
@@ -75,13 +75,13 @@ public:
 	template<typename T>
 	static void Each(T&& arg)
 	{
-		Func::Each(arg);
+		Func::Each(std::forward<T>(arg));
 	}
 	template<typename T, typename... Args>
 	static void Each(T&& arg, Args&&... args)
 	{
-		Each(arg);
-		Each(args...);
+		Each(std::forward<T>(arg));
+		Each(std::forward<Args>(args)...);
 	}
 	template<typename Tuple>
 	static void EachTuple(Tuple&& args)
@@ -113,24 +113,24 @@ public:
 	template<typename T>
 	static auto Map(T&& arg)
 	{
-		return std::make_tuple(Func::Map(arg));
+		return std::make_tuple(Func::Map(std::forward<T>(arg)));
 	}
 	template<typename T, typename... Args>
 	static auto Map(T&& arg, Args&&... args)
 	{
-		return std::tuple_cat(Map(arg), Map(args...));
+		return std::tuple_cat(Map(std::forward<T>(arg)), Map(std::forward<Args>(args)...));
 	}
 	template<typename T>
 	static auto FlatMap(T&& arg)
 	{
-		using RetType = /*typename*/ decltype(Func::FlatMap(arg));
+		using RetType = decltype(Func::FlatMap(arg));
 		static_assert(std::is_base_of<std::tuple, RetType>::value, "FlatMap should return a tuple");
 		return Func::FlatMap(arg);
 	}
 	template<typename T, typename... Args>
 	static auto FlatMap(T&& arg, Args&&... args)
 	{
-		return std::tuple_cat(Map(arg), Map(args...));
+		return std::tuple_cat(Map(std::forward<T>(arg)), Map(std::forward<Args>(args)...));
 	}
 	template<typename Tuple>
 	static auto MapTuple(Tuple&& args)
