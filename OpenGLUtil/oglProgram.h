@@ -72,10 +72,10 @@ private:
         //Subroutine are not kept by OGL, it's erased eachtime switch prog
         map<GLenum, vector<GLuint>> srCache;
 		explicit ProgState(_oglProgram& prog_);
-		void setTexture(const GLint pos, const oglTexture& tex) const;
-		void setTexture() const;
-		void setUBO(const GLint pos, const oglUBO& ubo) const;
-        void setUBO() const;
+		void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex) const;
+		void setTexture(TextureManager& texMan) const;
+		void setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo) const;
+        void setUBO(UBOManager& uboMan) const;
         void setSubroutine() const;
 	public:
 		void end();
@@ -91,8 +91,10 @@ private:
 
 	class OGLUAPI ProgDraw : public ProgState
 	{
-	private:
-		friend _oglProgram;
+        friend _oglProgram;
+    private:
+        TextureManager & TexMan;
+        UBOManager& UboMan;
 		ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat);
 	public:
 		void end();

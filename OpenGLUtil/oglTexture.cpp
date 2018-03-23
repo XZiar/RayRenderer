@@ -1,10 +1,13 @@
 #include "oglRely.h"
 #include "oglTexture.h"
+#include "oglContext.h"
 #include "oglException.h"
 #include "BindingManager.h"
 
 namespace oglu::detail
 {
+
+static ContextResource<std::shared_ptr<TextureManager>, false> CTX_TEX_MAN;
 
 _oglTexBase::_oglTexBase(const TextureType _type) noexcept : type(_type)
 {
@@ -16,7 +19,7 @@ _oglTexBase::~_oglTexBase() noexcept
 	glDeleteTextures(1, &textureID);
 }
 
-void _oglTexBase::bind(const uint8_t pos) const noexcept
+void _oglTexBase::bind(const uint16_t pos) const noexcept
 {
 	glActiveTexture(GL_TEXTURE0 + pos);
 	glBindTexture((GLenum)type, textureID);
@@ -30,8 +33,8 @@ void _oglTexBase::unbind() const noexcept
 
 TextureManager& _oglTexture::getTexMan() noexcept
 {
-	static thread_local TextureManager texMan;
-	return texMan;
+    const auto texman = CTX_TEX_MAN.GetOrInsert([](auto dummy) { return std::make_shared<TextureManager>(); });
+    return *texman;
 }
 
 void _oglTexture::parseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept

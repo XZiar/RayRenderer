@@ -27,9 +27,6 @@
     <ClInclude Include="oglBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MTWorker.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oglTexture.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -46,6 +43,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="BindingManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oglContext.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MTWorker.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,8 +80,17 @@
     <ClCompile Include="oglException.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="oglContext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MTWorker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="OpenGLUtil.natvis" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,9 @@
 #include "oglRely.h"
-#include "oglException.h"
 #include "oglUtil.h"
-#include "MTWorker.hpp"
+#include "oglException.h"
+#include "oglContext.h"
+#include "oglProgram.h"
+#include "MTWorker.h"
 #include "common/PromiseTask.inl"
 #include <GL/wglew.h>
 
@@ -67,38 +69,10 @@ public:
     }
 };
 
-
 }
 
 
-boost::circular_buffer<std::shared_ptr<oglu::DebugMessage>> oglUtil::msglist(512);
-boost::circular_buffer<std::shared_ptr<oglu::DebugMessage>> oglUtil::errlist(128);
-
-void GLAPIENTRY oglUtil::onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
-{
-    DebugMessage msg(source, type, severity);
-    const DBGLimit& limit = *(DBGLimit*)userParam;
-    if (((limit.src & (uint8_t)msg.from) != 0) 
-        && ((limit.type & (uint16_t)msg.type) != 0) 
-        && limit.minLV <= (uint8_t)msg.level)
-    {
-        auto theMsg = std::make_shared<DebugMessage>(msg);
-        theMsg->msg.assign(message, message + length);
-        
-        msglist.push_back(theMsg);
-        if (theMsg->type == MsgType::Error)
-        {
-            errlist.push_back(theMsg);
-            oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->msg);
-        }
-        else
-        {
-            oglLog().verbose(u"OpenGL message\n{}\n", theMsg->msg);
-        }
-    }
-}
-
-detail::MTWorker& getWorker(const uint8_t idx)
+static detail::MTWorker& getWorker(const uint8_t idx)
 {
     static detail::MTWorker syncGL(u"SYNC"), asyncGL(u"ASYNC");
     return idx == 0 ? syncGL : asyncGL;
@@ -107,36 +81,20 @@ detail::MTWorker& getWorker(const uint8_t idx)
 void oglUtil::init()
 {
     glewInit();
-#if defined(_DEBUG) || 1
-    setDebug(0x2f, 0x1ff, MsgLevel::Notfication);
-#endif
     oglLog().info(u"GL Version:{}\n", getVersion());
-    auto hdc = wglGetCurrentDC();
-    auto hrc = wglGetCurrentContext();
+    auto glctx = oglContext::CurrentContext();
+#if defined(_DEBUG) || 1
+    glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
+#endif
+    const HDC hdc = (HDC)glctx->Hdc;
+    const HGLRC hrc = (HGLRC)glctx->Hrc;
     wglMakeCurrent(hdc, nullptr);
-    int ctxAttrb[] =
-    {
-        /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
-        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
-        0
-    };
-    getWorker(0).start(hdc, wglCreateContextAttribsARB(hdc, hrc, ctxAttrb));
-    getWorker(1).start(hdc, wglCreateContextAttribsARB(hdc, NULL, ctxAttrb));
+    getWorker(0).start(oglContext::NewContext(glctx, true));
+    getWorker(1).start(oglContext::NewContext(glctx, false));
     wglMakeCurrent(hdc, hrc);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-}
-
-void oglUtil::setDebug(uint8_t src, uint16_t type, MsgLevel minLV)
-{
-    thread_local DBGLimit limit;
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    limit = { type, src, (uint8_t)minLV };
-    glDebugMessageCallback(oglUtil::onMsg, &limit);
 }
 
 u16string oglUtil::getVersion()

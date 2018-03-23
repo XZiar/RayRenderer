@@ -1,5 +1,6 @@
 #pragma once
 #include "AsyncExecutorRely.h"
+#include "AsyncAgent.h"
 #include "common/miniLogger/miniLogger.h"
 #include "common/ThreadEx.h"
 #include <atomic>

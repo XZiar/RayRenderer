@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+  <Type Name="oglu::detail::NodeBlock&lt;*&gt;">
+    <DisplayString>{{[{obj}]}}</DisplayString>
+  </Type>
+  <Type Name="oglu::detail::LRUPos&lt;*&gt;">
+    <DisplayString>{{{usedCnt} used, {unuseCnt} unused}}</DisplayString>
+    <Expand>
+      <Item Name="size">data.size()</Item>
+      <Item Name="lookup">lookup</Item>
+      <Item Name="data">data</Item>
+      <CustomListItems MaxItemsPerView="1024">  
+        <Variable Name="ptrNode" InitialValue="used.head" />  
+        <Exec>ptrNode = used.head</Exec>  
+        <Loop>  
+          <If Condition="ptrNode == 0xffffui16">
+            <Break/>
+          </If>  
+          <Item>data[ptrNode]</Item>  
+          <Exec>ptrNode = data[ptrNode].next</Exec>  
+        </Loop>  
+      </CustomListItems> 
+    </Expand>
+  </Type>
+  <Type Name="oglu::detail::TextureManager">
+    <DisplayString>{{TexMan {cache}}}</DisplayString>
+    <Expand>
+      <Item Name="MaxCombinedTexture">GLLimit</Item>
+      <Item Name="LRUCache">cache</Item>
+    </Expand>
+  </Type>
+<Type Name="oglu::detail::UBOManager">
+    <DisplayString>{{UBOMan {cache}}}</DisplayString>
+    <Expand>
+      <Item Name="MaxUBOBinding">GLLimit</Item>
+      <Item Name="LRUCache">cache</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

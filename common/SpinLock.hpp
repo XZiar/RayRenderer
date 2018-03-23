@@ -1,12 +1,13 @@
 #pragma once
 
+#include "CommonRely.hpp"
 #include <atomic>
 
 namespace common
 {
 
 
-struct SpinLocker
+struct SpinLocker : public NonCopyable
 {
 private:
     std::atomic_flag& lock;
@@ -36,7 +37,7 @@ public:
     }
 };
 
-struct PreferSpinLock //Strong-first
+struct PreferSpinLock : public NonCopyable, public NonMovable //Strong-first
 {
 private:
     std::atomic<uint32_t> Flag = 0; //strong on half 16bit, weak on lower 16bit
@@ -65,7 +66,7 @@ public:
     }
 };
 
-struct WRSpinLock //Writer-first
+struct WRSpinLock : public NonCopyable, public NonMovable //Writer-first
 {
 private:
     std::atomic<uint32_t> Flag = 0; //writer on most siginificant bit, reader on lower bits
@@ -103,7 +104,7 @@ public:
     }
 };
 
-struct RWSpinLock //Reader-first
+struct RWSpinLock : public NonCopyable, public NonMovable //Reader-first
 {
 private:
     std::atomic<uint32_t> Flag = 0; //writer on most siginificant bit, reader on lower bits
@@ -133,6 +134,23 @@ public:
         while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
         {
             expected |= 0x80000000; //ensure there's a writer
+        }
+    }
+    //unsuported, may cause deadlock
+    //void UpgradeToWrite()
+    //{
+    //    uint32_t expected = 1;
+    //    while (!Flag.compare_exchange_weak(expected, 0x80000000))
+    //    {
+    //        expected = 1; //assume only self as locker
+    //    }
+    //}
+    void DowngradeToRead()
+    {
+        uint32_t expected = (Flag.load() | 0x80000000) + 1;
+        while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
+        {
+            expected = (expected | 0x80000000) + 1; //ensure there's a writer
         }
     }
 };

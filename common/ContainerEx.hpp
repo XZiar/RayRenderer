@@ -47,6 +47,15 @@ inline std::optional<Val> FindInMap(Map& themap, const Key& key, const std::in_p
     return it->second;
 }
 
+template<class Map, typename Key = typename Map::key_type, typename Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
+inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{})
+{
+    const auto it = themap.find(key);
+    if (it == themap.end())//not exist
+        return def;
+    return it->second;
+}
+
 template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
 inline std::optional<Val*> FindInVec(Vec& thevec, const Predictor& pred)
 {
@@ -62,6 +71,15 @@ inline std::optional<Val> FindInVec(Vec& thevec, const Predictor& pred, const st
     const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
     if (it == thevec.end())//not exist
         return {};
+    return *it;
+}
+
+template<class Vec, typename Predictor, typename Val = typename Vec::value_type>
+inline Val FindInVecOrDefault(Vec& thevec, const Predictor& pred, const Val def = Val{})
+{
+    const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
+    if (it == thevec.end())//not exist
+        return def;
     return *it;
 }
 

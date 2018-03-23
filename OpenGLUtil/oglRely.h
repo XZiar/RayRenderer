@@ -12,6 +12,7 @@
 #include "common/AlignedContainer.hpp"
 #include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
+#include "common/SpinLock.hpp"
 #include "common/StringEx.hpp"
 #include "common/StrCharset.hpp"
 #define USING_CHARDET

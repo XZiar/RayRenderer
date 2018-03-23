@@ -53,7 +53,7 @@ protected:
 	const TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
 	_oglTexBase(const TextureType _type) noexcept;
-	void bind(const uint8_t pos) const noexcept;
+	void bind(const uint16_t pos) const noexcept;
 	void unbind() const noexcept;
 public:
 	~_oglTexBase() noexcept;

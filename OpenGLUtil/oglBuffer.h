@@ -65,7 +65,7 @@ protected:
 	friend class UBOManager;
 	friend class _oglProgram;
 	static UBOManager& getUBOMan();
-	void bind(const uint8_t pos) const;
+	void bind(const uint16_t pos) const;
 public:
 	const size_t size;
 	_oglUniformBuffer(const size_t size_) noexcept;

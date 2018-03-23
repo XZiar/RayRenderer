@@ -19,8 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MTWorker.hpp" />
+    <ClInclude Include="MTWorker.h" />
     <ClInclude Include="oglBuffer.h" />
+    <ClInclude Include="oglContext.h" />
     <ClInclude Include="oglException.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
@@ -32,7 +33,9 @@
     <ClInclude Include="OpenGLUtil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MTWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
+    <ClCompile Include="oglContext.cpp" />
     <ClCompile Include="oglException.cpp" />
     <ClCompile Include="oglRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -66,6 +69,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="OpenGLUtil.natvis" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CC937530-6B2A-4538-B764-71DFE8D84C89}</ProjectGuid>

@@ -1061,6 +1061,7 @@ inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, co
     {
     case Charset::ASCII:
         CHK_CHAR_SIZE_MOST(ASCII, 1)
+            //can only be 1-byte string
             std::basic_string<Char> ret; 
             ret.reserve(size);
             std::transform(str, str + size, std::back_inserter(ret), [](const Char ch) { return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch; });
@@ -1080,10 +1081,7 @@ inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, co
         CHK_CHAR_SIZE_END
     case Charset::UTF32:
         CHK_CHAR_SIZE_MOST(UTF32, 4)
-            std::basic_string<Char> ret;
-            ret.reserve(size);
-            std::transform(str, str + size, std::back_inserter(ret), detail::EngUpper);
-            return ret;
+            return detail::CharsetConvertor<detail::UTF32, detail::UTF32, Char, Char>::Transform(str, size, true, true, detail::EngUpper);
         CHK_CHAR_SIZE_END
     case Charset::GB18030:
         CHK_CHAR_SIZE_MOST(GB18030, 1)
