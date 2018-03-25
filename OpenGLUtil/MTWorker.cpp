@@ -1,7 +1,6 @@
 #include "oglRely.h"
 #include "MTWorker.h"
 #include "oglUtil.h"
-#include "common/ThreadEx.inl"
 #include <thread>
 #include <GL/wglew.h>
 
@@ -42,7 +41,8 @@ void MTWorker::worker()
         {
             oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetLastError());
         }
-        wglDeleteContext((HGLRC)Context->Hrc);
+        Context = nullptr;
+        //wglDeleteContext((HGLRC)Context->Hrc);
     });
 }
 

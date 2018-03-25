@@ -7,34 +7,134 @@
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
         xmlns:local="clr-namespace:WPFTest"
         mc:Ignorable="d"
-        Title="MainWindow" Height="600" Width="900">
+        Title="WPFTest" Height="600" Width="900" Background="{StaticResource brshDarkBackground}">
+    <Window.Resources>
+        <Style TargetType="Image">
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+            <Setter Property="RenderOptions.EdgeMode" Value="Aliased" />
+        </Style>
+        <Style TargetType="StatusBarItem">
+            <Setter Property="Padding" Value="3,2"/>
+        </Style>
+        <Style TargetType="Separator" x:Key="verticleSeparator">
+            <Style.Resources>
+                <RotateTransform x:Key="rotate90" Angle="90"/>
+            </Style.Resources>
+            <Setter Property="LayoutTransform" Value="{StaticResource rotate90}"/>
+        </Style>
+        <BitmapImage x:Key="imgCamera" UriSource="icon/camera.png"/>
+        <BitmapImage x:Key="imgModel" UriSource="icon/model.png"/>
+        <BitmapImage x:Key="imgParLight" UriSource="icon/sunlight.png"/>
+        <BitmapImage x:Key="imgPointLight" UriSource="icon/pointlight.png"/>
+        <BitmapImage x:Key="imgSpotLight" UriSource="icon/spotlight.png"/>
+    </Window.Resources>
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="70*"/>
             <ColumnDefinition Width="5" />
             <ColumnDefinition Width="30*"/>
         </Grid.ColumnDefinitions>
-        <Grid Grid.Column="2" Margin="0" >
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Orientation="Horizontal">
-                <Button x:Name="btnOpObj" Content="Cam" Click="btnOpObj_Click"/>
-                <Button x:Name="btnAddModel" Content="+Mod" Click="btnAddModel_ClickAsync"/>
-                <Button x:Name="btnAddLight" Content="+Lgt" Click="btnAddLight_Click"/>
-                <Button x:Name="btnTryAsync" Content="Async" Click="btnTryAsync_Click"/>
+        <StackPanel x:Name="menuBar" Grid.Row="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+            <Button x:Name="btnDragMode" ToolTip="Camera" Width="32" Height="32" Margin="2,0" Click="btnDragMode_Click">
+                <Image Source="{StaticResource imgCamera}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmDragMode" MenuItem.Click="btncmDragMode_Click">
+                        <MenuItem Header="Camera" Tag="camera">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgCamera}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Object" Tag="object">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgModel}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Light" Tag="light">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgPointLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
+            <Button x:Name="btnAddModel" ToolTip="Add Model" Width="32" Height="32" Margin="2,0" Click="btnAddModel_Click">
+                <Image Source="{StaticResource imgModel}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmAddModel" MenuItem.Click="btncmAddModel_Click">
+                        <MenuItem Header="Cube" Tag="cube" />
+                        <MenuItem Header="Sphere" Tag="sphere" />
+                        <MenuItem Header="Plane" Tag="plane" />
+                        <MenuItem Header="3D Model" Tag="model" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Button x:Name="btnAddLight" ToolTip="Add Light" Width="32" Height="32" Margin="2,0" Click="btnAddLight_Click">
+                <Image Source="{StaticResource imgPointLight}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmAddLight" MenuItem.Click="btncmAddLight_Click">
+                        <MenuItem Header="Parallel Light" Tag="parallel">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgParLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Point Light" Tag="point">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgPointLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Spot Light" Tag="spot">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgSpotLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
+            <Button x:Name="btnTryAsync" Content="Async" Width="32" Height="32" Margin="2,0" Click="btnTryAsync_Click"/>
+        </StackPanel>
+        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="#FF007ACC" >
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurCamera" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurLight" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurObj" Foreground="White"/>
+                </StatusBarItem>
             </StackPanel>
-            <ScrollViewer CanContentScroll="True" Grid.Row="1" PanningMode="Both">
-                <RichTextBox x:Name="dbgOutput" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
-                    <FlowDocument>
-                        <Paragraph/>
-                    </FlowDocument>
-                </RichTextBox>
-            </ScrollViewer>
-        </Grid>
-        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
-        <WindowsFormsHost x:Name="wfh" Grid.Column="0">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" FlowDirection="RightToLeft">
+            </StackPanel>
+        </StatusBar>
+        <ScrollViewer Grid.Row="1" Grid.Column="2" Margin="0" CanContentScroll="True" PanningMode="Both">
+            <RichTextBox x:Name="dbgOutput" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
+                <FlowDocument>
+                    <Paragraph x:Name="para"/>
+                </FlowDocument>
+            </RichTextBox>
+        </ScrollViewer>
+        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+        <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
             <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>
     </Grid>

@@ -1,6 +1,4 @@
 #include "oclRely.h"
-#include "common/PromiseTask.inl"
-
 
 #pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
 

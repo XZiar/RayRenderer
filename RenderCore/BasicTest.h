@@ -43,22 +43,20 @@ public:
 	bool mode = true;
 	Camera cam;
 	BasicTest(const u16string sname2d = u"", const u16string sname3d = u"");
-	void draw();
-	void resize(const int w, const int h);
-	void reloadFontLoader(const u16string& fname);
-	void reloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
-	bool addModel(const u16string& fname);
-	void addModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
-	void addLight(const b3d::LightType type);
-	void delAllLight();
-	void moveobj(const uint16_t id, const float x, const float y, const float z);
-	void rotateobj(const uint16_t id, const float x, const float y, const float z);
-	void movelgt(const uint16_t id, const float x, const float y, const float z);
-	void rotatelgt(const uint16_t id, const float x, const float y, const float z);
-	uint16_t lightCount() const;
-	const vector<Wrapper<Light>>& light() const { return lights; }
-	uint16_t objectCount() const;
-	const vector<Wrapper<Drawable>>& object() const { return drawables; }
+	void Draw();
+	void Resize(const int w, const int h);
+	void ReloadFontLoader(const u16string& fname);
+	void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
+	bool AddModel(const u16string& fname);
+	void AddModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
+	void AddLight(const b3d::LightType type);
+	void DelAllLight();
+	void Moveobj(const uint16_t id, const float x, const float y, const float z);
+	void Rotateobj(const uint16_t id, const float x, const float y, const float z);
+	void Movelgt(const uint16_t id, const float x, const float y, const float z);
+	void Rotatelgt(const uint16_t id, const float x, const float y, const float z);
+	const vector<Wrapper<Light>>& Lights() const { return lights; }
+	const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
 	void showObject(uint16_t objIdx) const;
 	void tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr) const;
 };

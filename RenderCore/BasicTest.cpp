@@ -307,7 +307,7 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 	initUBO();
 }
 
-void BasicTest::draw()
+void BasicTest::Draw()
 {
 	if (mode)
 	{
@@ -324,21 +324,21 @@ void BasicTest::draw()
 	}
 }
 
-void BasicTest::resize(const int w, const int h)
+void BasicTest::Resize(const int w, const int h)
 {
 	cam.resize(w, h);
 	prog2D->setProject(cam, w, h);
 	prog3D->setProject(cam, w, h);
 }
 
-void BasicTest::reloadFontLoader(const u16string& fname)
+void BasicTest::ReloadFontLoader(const u16string& fname)
 {
 	auto clsrc = file::ReadAllText(fs::path(fname));
 	fontCreator->reload(clsrc);
 	fontTest(0);
 }
 
-void BasicTest::reloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
 	std::thread([this, onFinish, onError](const u16string name)
 	{
@@ -361,7 +361,7 @@ void BasicTest::reloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 	}, fname).detach();
 }
 
-bool BasicTest::addModel(const u16string& fname)
+bool BasicTest::AddModel(const u16string& fname)
 {
 	Wrapper<Model> mod(fname);
 	mod->name = u"model";
@@ -370,7 +370,7 @@ bool BasicTest::addModel(const u16string& fname)
 	return true;
 }
 
-void BasicTest::addModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::AddModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
 {
 	std::thread([this, onFinish, onError](const u16string name)
 	{
@@ -397,7 +397,7 @@ void BasicTest::addModelAsync(const u16string& fname, CallbackInvoke<bool> onFin
 	}, fname).detach();
 }
 
-void BasicTest::addLight(const b3d::LightType type)
+void BasicTest::AddLight(const b3d::LightType type)
 {
 	Wrapper<Light> lgt;
 	switch (type)
@@ -422,40 +422,30 @@ void BasicTest::addLight(const b3d::LightType type)
 	basLog().info(u"add Light {} type {}\n", lights.size(), (int32_t)lgt->type);
 }
 
-void BasicTest::delAllLight()
+void BasicTest::DelAllLight()
 {
 	lights.clear();
 	prepareLight();
 }
 
-void BasicTest::moveobj(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Moveobj(const uint16_t id, const float x, const float y, const float z)
 {
 	drawables[id]->position += Vec3(x, y, z);
 }
 
-void BasicTest::rotateobj(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const float z)
 {
 	drawables[id]->rotation += Vec3(x, y, z);
 }
 
-void BasicTest::movelgt(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Movelgt(const uint16_t id, const float x, const float y, const float z)
 {
 	lights[id]->position += Vec3(x, y, z);
 }
 
-void BasicTest::rotatelgt(const uint16_t id, const float x, const float y, const float z)
+void BasicTest::Rotatelgt(const uint16_t id, const float x, const float y, const float z)
 {
 	lights[id]->direction += Vec3(x, y, z);
-}
-
-uint16_t BasicTest::objectCount() const
-{
-	return (uint16_t)drawables.size();
-}
-
-uint16_t BasicTest::lightCount() const
-{
-	return (uint16_t)lights.size();
 }
 
 void BasicTest::showObject(uint16_t objIdx) const

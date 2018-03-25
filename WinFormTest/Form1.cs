@@ -10,7 +10,7 @@ namespace WinFormTest
         private OGLView oglv;
         private BasicTest test;
         private bool isAnimate = false;
-        private UInt16 curObj = 0;
+        private ushort curObj = 0;
         public Form1()
         {
             InitializeComponent();
@@ -54,12 +54,12 @@ namespace WinFormTest
                     test.Moveobj(curObj, 0, 0, 0.1f); break;
                 case Keys.Add:
                     curObj++;
-                    if (curObj >= test.objectCount)
+                    if (curObj >= test.Drawables.Size)
                         curObj = 0;
                     break;
                 case Keys.Subtract:
                     if (curObj == 0)
-                        curObj = test.objectCount;
+                        curObj = (ushort)test.Drawables.Size;
                     curObj--;
                     break;
                 default:
@@ -89,19 +89,19 @@ namespace WinFormTest
                         {
 
                             case 'A'://pan to left
-                                test.cam.Yaw(3); break;
+                                test.Camera.Yaw(3); break;
                             case 'D'://pan to right
-                                test.cam.Yaw(-3); break;
+                                test.Camera.Yaw(-3); break;
                             case 'W'://pan to up
-                                test.cam.Pitch(3); break;
+                                test.Camera.Pitch(3); break;
                             case 'S'://pan to down
-                                test.cam.Pitch(-3); break;
+                                test.Camera.Pitch(-3); break;
                             case 'Q'://pan to left
-                                test.cam.Roll(-3); break;
+                                test.Camera.Roll(-3); break;
                             case 'E'://pan to left
-                                test.cam.Roll(3); break;
+                                test.Camera.Roll(3); break;
                             case '\r':
-                                test.mode = !test.mode; break;
+                                test.Mode = !test.Mode; break;
                         }
                     }
                     break;
@@ -109,85 +109,15 @@ namespace WinFormTest
             (sender as OGLView).Invalidate();
         }
 
-        private void OnKeyAction(object o, KeyBoardEventArgs e)
-        {
-            Console.WriteLine($"KeyAction {e.key}");
-            switch (e.SpecialKey())
-            {
-            case Key.Up:
-                test.Moveobj(curObj, 0, 0.1f, 0); break;
-            case Key.Down:
-                test.Moveobj(curObj, 0, -0.1f, 0); break;
-            case Key.Left:
-                test.Moveobj(curObj, -0.1f, 0, 0); break;
-            case Key.Right:
-                test.Moveobj(curObj, 0.1f, 0, 0); break;
-            case Key.PageUp:
-                test.Moveobj(curObj, 0, 0, -0.1f); break;
-            case Key.PageDown:
-                test.Moveobj(curObj, 0, 0, 0.1f); break;
-            default:
-                switch (e.key)
-                {
-                case 'a'://pan to left
-                    test.cam.Yaw(3); break;
-                case 'd'://pan to right
-                    test.cam.Yaw(-3); break;
-                case 'w'://pan to up
-                    test.cam.Pitch(3); break;
-                case 's'://pan to down
-                    test.cam.Pitch(-3); break;
-                case 'q'://pan to left
-                    test.cam.Roll(-3); break;
-                case 'e'://pan to left
-                    test.cam.Roll(3); break;
-                case 'A':
-                    test.Rotateobj(curObj, 0, 3, 0); break;
-                case 'D':
-                    test.Rotateobj(curObj, 0, -3, 0); break;
-                case 'W':
-                    test.Rotateobj(curObj, 3, 0, 0); break;
-                case 'S':
-                    test.Rotateobj(curObj, -3, 0, 0); break;
-                case 'Q':
-                    test.Rotateobj(curObj, 0, 0, 3); break;
-                case 'E':
-                    test.Rotateobj(curObj, 0, 0, -3); break;
-                case (char)13:
-                    if(e.hasShift())
-                        isAnimate = !isAnimate;
-                    else
-                        test.mode = !test.mode;
-                    break;
-                default:
-                    break;
-                case '+':
-                    curObj++;
-                    if (curObj >= test.objectCount)
-                        curObj = 0;
-                    //test.showObject(curObj);
-                    break;
-                case '-':
-                    if (curObj == 0)
-                        curObj = test.objectCount;
-                    curObj--;
-                    //test.showObject(curObj);
-                    break;
-                }
-                break;
-            }
-            oglv.Invalidate();
-        }
-
         private void OnMouse(object o, MouseEventExArgs e)
         {
             switch (e.type)
             {
             case MouseEventType.Moving:
-                test.cam.Move((e.dx * 10.0f / test.cam.Width), (e.dy * 10.0f / test.cam.Height), 0);
+                test.Camera.Move((e.dx * 10.0f / test.Camera.Width), (e.dy * 10.0f / test.Camera.Height), 0);
                 break;
             case MouseEventType.Wheel:
-                test.cam.Move(0, 0, (float)e.dx);
+                test.Camera.Move(0, 0, (float)e.dx);
                 break;
             default:
                 return;

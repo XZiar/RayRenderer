@@ -1,6 +1,5 @@
 #include "RenderCoreRely.h"
 #include "RenderElement.h"
-#include <mutex>
 
 namespace rayr
 {
@@ -10,48 +9,62 @@ class DrawableHelper
 {
 	friend class Drawable;
 private:
-	std::mutex mtx;
+    common::RWSpinLock Locker;
 	boost::bimap<boost::bimaps::set_of<u16string>, boost::bimaps::set_of<size_t>> typeMap;
 	size_t regist(const u16string& name)
 	{
-		std::lock_guard<std::mutex> locker(mtx);
+        Locker.LockWrite();
 		const size_t id = typeMap.size();
 		auto ret = typeMap.insert({ name,id });
 		if (ret.second)
 		{
 			basLog().debug(u"Regist Drawable [{}] -> {}\n", name, id);
-			return id;
+            Locker.UnlockWrite();
+            return id;
 		}
-		else
-			return (*ret.first).right;
+        Locker.UnlockWrite();
+        return (*ret.first).right;
 	}
-    u16string getType(const size_t id) const
+    u16string getType(const size_t id)
 	{
-		auto it = typeMap.right.find(id);
-		if (it == typeMap.right.end())
-			return u"";
-		else
-			return (*it).second;
+        Locker.LockRead();
+        auto it = typeMap.right.find(id);
+        const auto name = (it == typeMap.right.end()) ? u"" : (*it).second;
+        Locker.UnlockRead();
+        return name;
 	}
 };
+static DrawableHelper DRAWABLE_HELPER;
 
 
-//Drawable::VAOMap Drawable::vaoMap;
-
-rayr::DrawableHelper& Drawable::getHelper()
+struct VAOPack
 {
-	static DrawableHelper helper;
-	return helper;
-}
+    const oglu::oglProgram::weak_type prog;
+    const Drawable *drawable;
+    oglu::oglVAO vao;
+};
+
+using VAOKey = boost::multi_index::composite_key<VAOPack,
+    boost::multi_index::member<VAOPack, const oglu::oglProgram::weak_type, &VAOPack::prog>,
+    boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>
+>;
+using VAOKeyComp = boost::multi_index::composite_key_compare<
+    WeakPtrComparerator<const oglu::oglProgram::weak_type>, std::less<const Drawable*>
+>;
+using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
+    boost::multi_index::ordered_unique<VAOKey, VAOKeyComp>,
+    boost::multi_index::ordered_non_unique<boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>>
+    >>;
+static VAOMap VAO_MAP;
 
 Drawable::Drawable(const u16string& typeName)
 {
-	drawableID = (uint32_t)getHelper().regist(typeName);
+	drawableID = (uint32_t)DRAWABLE_HELPER.regist(typeName);
 }
 
 Drawable::~Drawable()
 {
-	auto& key = vaoMap.get<1>();
+	auto& key = VAO_MAP.get<1>();
 	const auto its = key.equal_range(this);
 	key.erase(its.first, its.second);
 }
@@ -63,13 +76,13 @@ void Drawable::draw(oglu::oglProgram& prog) const
 
 u16string Drawable::getType() const
 {
-	return getHelper().getType(drawableID);
+	return DRAWABLE_HELPER.getType(drawableID);
 }
 
 void Drawable::releaseAll(const oglu::oglProgram& prog)
 {
-	const auto its = vaoMap.equal_range(prog.weakRef());
-	vaoMap.erase(its.first, its.second);
+	const auto its = VAO_MAP.equal_range(prog.weakRef());
+    VAO_MAP.erase(its.first, its.second);
 }
 
 auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare())
@@ -88,13 +101,13 @@ auto Drawable::drawPosition(oglu::oglProgram & prog) const -> decltype(prog -> d
 
 void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
 {
-	vaoMap.insert({ prog.weakRef(),this,vao });
+    VAO_MAP.insert({ prog.weakRef(),this,vao });
 }
 
 const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram& prog) const
 {
-	const auto& it = vaoMap.find(std::make_tuple(prog.weakRef(), this));
-	if (it == vaoMap.end())
+	const auto& it = VAO_MAP.find(std::make_tuple(prog.weakRef(), this));
+	if (it == VAO_MAP.end())
 		return defaultVAO;
 	else
 		return it->vao;

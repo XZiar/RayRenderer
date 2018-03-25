@@ -1,7 +1,7 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
-#include "common/PromiseTask.inl"
+#include "common/PromiseTaskSTD.hpp"
 #include <chrono>
 
 namespace common::asyexe

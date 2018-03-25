@@ -41,10 +41,10 @@
     <ClCompile Include="dllManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="logger.cpp">
+    <ClCompile Include="RenderCoreWrapRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="RenderCoreWrapRely.cpp">
+    <ClCompile Include="Logger.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

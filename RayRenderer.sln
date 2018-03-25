@@ -115,8 +115,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90
 		common\Linq.hpp = common\Linq.hpp
 		common\LockfreeQueue.hpp = common\LockfreeQueue.hpp
 		common\LUT_gb18030.tab = common\LUT_gb18030.tab
-		common\PromiseTask.h = common\PromiseTask.h
-		common\PromiseTask.inl = common\PromiseTask.inl
+		common\PromiseTask.hpp = common\PromiseTask.hpp
+		common\PromiseTaskSTD.hpp = common\PromiseTaskSTD.hpp
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\SharedResource.hpp = common\SharedResource.hpp
@@ -186,6 +186,7 @@ EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
+		CommonUtil\CommonUtil.projitems*{e05720db-a5fb-4a0c-9552-f3777e66fe29}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

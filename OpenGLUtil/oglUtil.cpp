@@ -4,7 +4,7 @@
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "MTWorker.h"
-#include "common/PromiseTask.inl"
+#include "common/PromiseTaskSTD.hpp"
 #include <GL/wglew.h>
 
 namespace oglu

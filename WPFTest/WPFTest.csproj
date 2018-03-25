@@ -81,7 +81,7 @@
     <Compile Include="ExceptionDialog.xaml.cs">
       <DependentUpon>ExceptionDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Core.cs" />
+    <Compile Include="TestCore.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -114,7 +114,9 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Resource Include="icon\spotlight.png" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenGLView\OpenGLView.vcxproj">
       <Project>{2d168e14-c22d-4429-b97c-af5d41010e48}</Project>
@@ -125,6 +127,19 @@
       <Name>RenderCoreWrap</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon\model.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon\camera.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon\sunlight.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon\pointlight.png" />
+  </ItemGroup>
+  <Import Project="..\CommonUtil\CommonUtil.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

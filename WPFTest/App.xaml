@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:WPFTest"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <SolidColorBrush x:Key="brshDarkBackground" Color="#FF2D2D30"/>
     </Application.Resources>
 </Application>

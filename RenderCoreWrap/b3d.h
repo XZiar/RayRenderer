@@ -12,32 +12,32 @@ using namespace common;
 public ref class Camera
 {
 private:
-	b3d::Camera *cam;
-	bool isRef = false;
+    b3d::Camera *cam;
+    bool isRef = false;
 internal:
-	Camera(b3d::Camera *obj) :cam(obj), isRef(true) { }
+    Camera(b3d::Camera *obj) :cam(obj), isRef(true) { }
 public:
-	property int Width
-	{
-		int get() { return cam->width; }
-		void set(int value) { cam->width = value; }
-	}
-	property int Height
-	{
-		int get() { return cam->height; }
-		void set(int value) { cam->height = value; }
-	}
-	Camera();
-	~Camera() { this->!Camera(); }
-	!Camera();
+    property int Width
+    {
+        int get() { return cam->width; }
+        void set(int value) { cam->width = value; }
+    }
+    property int Height
+    {
+        int get() { return cam->height; }
+        void set(int value) { cam->height = value; }
+    }
+    Camera();
+    ~Camera() { this->!Camera(); }
+    !Camera();
 
-	void Move(const float dx, const float dy, const float dz);
-	//rotate along x-axis
-	void Pitch(const float angx);
-	//rotate along y-axis
-	void Yaw(const float angy);
-	//rotate along z-axis
-	void Roll(const float angz);
+    void Move(const float dx, const float dy, const float dz);
+    //rotate along x-axis
+    void Pitch(const float angx);
+    //rotate along y-axis
+    void Yaw(const float angy);
+    //rotate along z-axis
+    void Roll(const float angz);
 };
 
 public enum class LightType : int32_t { Parallel, Point, Spot };
@@ -45,14 +45,21 @@ public enum class LightType : int32_t { Parallel, Point, Spot };
 public ref class Light
 {
 private:
-	Wrapper<b3d::Light> *light;
-	bool isRef = false;
+    Wrapper<b3d::Light> *light;
+    bool isRef = false;
 internal:
-	Light(const Wrapper<b3d::Light> *obj) : light(new Wrapper<b3d::Light>(*obj)), isRef(true) { }
+    Light(const Wrapper<b3d::Light> *obj) : light(new Wrapper<b3d::Light>(*obj)), isRef(true) { }
 public:
-	~Light() { this->!Light(); }
-	!Light();
-	String^ name() { return gcnew String((const wchar_t*)(*light)->name.c_str()); }
+    ~Light() { this->!Light(); }
+    !Light();
+    property String^ Name
+    {
+        String^ get() { return ToStr((*light)->name); }
+    }
+    property LightType Type
+    {
+        LightType get() { return LightType((*light)->type); }
+    }
 };
 
 }

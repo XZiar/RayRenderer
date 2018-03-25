@@ -16,7 +16,7 @@
 #include "common/StringEx.hpp"
 #include "common/StrCharset.hpp"
 #include "common/AlignedContainer.hpp"
-#include "common/PromiseTask.h"
+#include "common/PromiseTask.hpp"
 
 #include "OpenGLUtil/oglBuffer.h"
 #include "OpenGLUtil/oglTexture.h"

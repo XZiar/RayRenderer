@@ -3,10 +3,10 @@
 #include "AsyncManager.h"
 #include "common/IntToString.hpp"
 #include "common/TimeUtil.hpp"
+#include "common/PromiseTaskSTD.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StrCharset.hpp"
 #include "common/ThreadEx.inl"
-#include "common/PromiseTask.inl"
 #include <mutex>
 
 

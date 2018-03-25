@@ -43,12 +43,12 @@ template<class T>
 class COMMONTPL PromiseTask : public NonCopyable
 {
 protected:
-    std::function<T(void)> task;
+    std::function<T(void)> Task;
 public:
-    PromiseTask(std::function<T(void)> task_) : task(task_)
+    PromiseTask(std::function<T(void)> task) : Task(task)
     { }
-    template<class... ARGS>
-    PromiseTask(std::function<T(ARGS...)> task_, ARGS... args) : task(std::bind(task_, args))
+    template<class... Args>
+    PromiseTask(const std::function<T(Args&&...)>& task, Args&&... args) : Task(std::bind(task, args))
     { }
     virtual ~PromiseTask() {}
     void virtual dowork() = 0;

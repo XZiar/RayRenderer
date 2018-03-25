@@ -9,5 +9,6 @@
     <Import_RootNamespace>CommonUtil</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)BindingHelper.cs" />
   </ItemGroup>
 </Project>

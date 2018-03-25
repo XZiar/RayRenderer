@@ -12,7 +12,7 @@
 #include <memory>
 
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.h"
+#include "common/PromiseTask.hpp"
 
 namespace common
 {

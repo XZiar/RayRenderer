@@ -80,7 +80,7 @@ optional<oclPromise> _oclBuffer::write(const oclCmdQue que, const void * const b
 	cl_event e;
 	auto ret = clEnqueueWriteBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(size - offset, size_), buf, 0, nullptr, &e);
 	if (ret != CL_SUCCESS)
-		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
+		COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot write clMemory", ret));
 	if (shouldBlock)
 		return {};
 	else

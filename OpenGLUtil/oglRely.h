@@ -19,7 +19,7 @@
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.h"
+#include "common/PromiseTask.hpp"
 #include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC
