@@ -56,12 +56,6 @@ void BasicTest::ReLoadCL(String^ fname)
     core->ReloadFontLoader(ToU16Str(fname));
 }
 
-Task<bool>^ BasicTest::AddModelAsync(String^ fname)
-{
-    return doAsync2<bool>(&rayr::BasicTest::AddModelAsync, core, ToU16Str(fname));
-}
-
-
 Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 {
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
@@ -75,11 +69,20 @@ Task<bool>^ BasicTest::TryAsync()
 void LightHolder::Add(Basic3D::LightType type)
 {
     Core->AddLight((b3d::LightType)type);
+    Refresh();
 }
 
 void LightHolder::Clear()
 {
     Core->DelAllLight();
+    Lights->Clear();
 }
+
+
+Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
+{
+    return doAsync2<bool>(&rayr::BasicTest::AddModelAsync, Core, ToU16Str(fname));
+}
+
 
 }

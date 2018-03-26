@@ -2,6 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "b3d.h"
+#include <atomic>
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -11,57 +12,82 @@ using namespace msclr::interop;
 
 namespace RayRender
 {
+public delegate void ObjectChangedEventHandler(Object^ o, Object^ obj);
 
 ref class BasicTest;
 
-public ref class Drawable
+public ref class Drawable : public BaseViewModel
 {
-private:
-    Wrapper<rayr::Drawable> *drawable;
-    bool isRef = false;
 internal:
-    Drawable(const Wrapper<rayr::Drawable> *obj) : drawable(new Wrapper<rayr::Drawable>(*obj)), isRef(true) { }
+    std::weak_ptr<rayr::Drawable> *drawable;
+internal:
+    Drawable(const Wrapper<rayr::Drawable> *obj) : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), Type(ToStr((*obj)->getType())) { }
 public:
     ~Drawable() { this->!Drawable(); }
-    !Drawable()
-    {
-        if (!isRef)
-            delete drawable;
-    }
+    !Drawable() { delete drawable; }
     property String^ Name
     {
-        String^ get() { return ToStr((*drawable)->name); }
+        String^ get() { return ToStr(drawable->lock()->name); }
+        void set(String^ value) { drawable->lock()->name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
-    property String^ Type
+    initonly String^ Type;
+    virtual String^ ToString() override
     {
-        String^ get() { return ToStr((*drawable)->getType()); }
+        return "[" + Type + "]" + Name;
     }
 };
+
 
 public ref class LightHolder
 {
 private:
     const vector<Wrapper<b3d::Light>>& Src;
-    List<Basic3D::Light^>^ Lights;
     rayr::BasicTest * const Core;
+    initonly List<Basic3D::Light^>^ Lights;
+    initonly PropertyChangedEventHandler^ PChangedHandler;
+    void OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
+    {
+        Changed(this, sender);
+    }
 internal:
-    LightHolder(rayr::BasicTest *core, const vector<Wrapper<b3d::Light>>& lights) : Core(core), Src(lights) {}
+    LightHolder(rayr::BasicTest *core, const vector<Wrapper<b3d::Light>>& lights) 
+        : Core(core), Src(lights), Lights(gcnew List<Basic3D::Light^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &LightHolder::OnPChangded))
+    {
+        Refresh();
+    }
 public:
+    event ObjectChangedEventHandler^ Changed;
     property Basic3D::Light^ default[int32_t]
     {
         Basic3D::Light^ get(int32_t i)
         {
-            if (i < 0 || (uint32_t)i >= Src.size())
+            if (i < 0 || i >= Lights->Count)
                 return nullptr;
-            return gcnew Basic3D::Light(&Src[i]);
+            return Lights[i];
         }
     };
+    uint16_t GetIndex(Basic3D::Light^ light)
+    {
+        auto idx = Lights->IndexOf(light);
+        return idx < 0 ? UINT16_MAX : (uint16_t)idx;
+    }
     property int32_t Size
     {
-        int32_t get() { return (int32_t)Src.size(); }
+        int32_t get() { return Lights->Count; }
+    }
+    void Refresh()
+    {
+        Lights->Clear();
+        for (const auto& obj : Src)
+        {
+            auto lgt = gcnew Basic3D::Light(&obj);
+            lgt->PropertyChanged += PChangedHandler;
+            Lights->Add(lgt);
+        }
     }
     void Add(Basic3D::LightType type);
     void Clear();
+    void OnPropertyChanged(System::Object ^sender, System::ComponentModel::PropertyChangedEventArgs ^e);
 };
 
 public ref class DrawableHolder
@@ -69,22 +95,49 @@ public ref class DrawableHolder
 private:
     const vector<Wrapper<rayr::Drawable>>& Src;
     rayr::BasicTest * const Core;
+    initonly List<Drawable^>^ Drawables;
+    initonly PropertyChangedEventHandler^ PChangedHandler;
+    void OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
+    {
+        Changed(this, sender);
+    }
 internal:
-    DrawableHolder(rayr::BasicTest *core, const vector<Wrapper<rayr::Drawable>>& drawables) : Core(core), Src(drawables) {}
+    DrawableHolder(rayr::BasicTest *core, const vector<Wrapper<rayr::Drawable>>& drawables)
+        : Core(core), Src(drawables), Drawables(gcnew List<Drawable^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &DrawableHolder::OnPChangded))
+    {
+        Refresh();
+    }
 public:
+    event ObjectChangedEventHandler^ Changed;
     property Drawable^ default[int32_t]
     {
         Drawable^ get(int32_t i)
         {
-            if (i < 0 || (uint32_t)i >= Src.size())
-                return nullptr; //throw gcnew System::IndexOutOfRangeException();
-            return gcnew Drawable(&Src[i]);
+            if (i < 0 || i >= Drawables->Count)
+                return nullptr;
+            return Drawables[i];
         }
     };
+    uint16_t GetIndex(Drawable^ drawable)
+    {
+        auto idx = Drawables->IndexOf(drawable);
+        return idx < 0 ? UINT16_MAX : (uint16_t)idx;
+    }
     property int32_t Size
     {
-        int32_t get() { return (int32_t)Src.size(); }
+        int32_t get() { return Drawables->Count; }
     }
+    void Refresh()
+    {
+        Drawables->Clear();
+        for (const auto& obj : Src)
+        {
+            auto drawable = gcnew Drawable(&obj);
+            drawable->PropertyChanged += PChangedHandler;
+            Drawables->Add(drawable);
+        }
+    }
+    Task<bool>^ AddModelAsync(String^ fname);
 };
 
 public ref class BasicTest
@@ -114,10 +167,15 @@ public:
 
     void ReLoadCL(String^ fname);
 
-    Task<bool>^ AddModelAsync(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
     Task<bool>^ TryAsync();
 
 };
 
+}
+
+
+void RayRender::LightHolder::OnPropertyChanged(System::Object ^sender, System::ComponentModel::PropertyChangedEventArgs ^e)
+{
+    throw gcnew System::NotImplementedException();
 }

@@ -16,7 +16,6 @@ namespace XZiar.Util
             {
                 return Convertor(value, targetType, parameter, culture);
             }
-
             public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             {
                 throw new NotImplementedException();
@@ -32,8 +31,39 @@ namespace XZiar.Util
             {
                 return Convertor(value, targetType, parameter, culture);
             }
-
             public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                return BackConvertor(value, targetType, parameter, culture);
+            }
+        }
+
+        public delegate object MultiValueConvertDelegate(object[] value, Type targetType, object parameter, CultureInfo culture);
+        public delegate object[] MultiValueConvertBackDelegate(object value, Type[] targetType, object parameter, CultureInfo culture);
+        public class OneWayMultiValueConvertor : IMultiValueConverter
+        {
+            private readonly MultiValueConvertDelegate Convertor;
+            public OneWayMultiValueConvertor(MultiValueConvertDelegate convertor) { Convertor = convertor; }
+            public OneWayMultiValueConvertor(Func<object[], object> convertor) { Convertor = (o, t, p, c) => convertor(o); }
+            public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
+            {
+                return Convertor(value, targetType, parameter, culture);
+            }
+            public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        public class TwoWayMultiValueConvertor : IMultiValueConverter
+        {
+            private readonly MultiValueConvertDelegate Convertor;
+            private readonly MultiValueConvertBackDelegate BackConvertor;
+            public TwoWayMultiValueConvertor(MultiValueConvertDelegate convertor, MultiValueConvertBackDelegate backConvertor) { Convertor = convertor; BackConvertor = backConvertor; }
+            public TwoWayMultiValueConvertor(Func<object[], object> convertor, Func<object, object[]> backConvertor) { Convertor = (o, t, p, c) => convertor(o); BackConvertor = (o, t, p, c) => backConvertor(o); }
+            public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
+            {
+                return Convertor(value, targetType, parameter, culture);
+            }
+            public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture)
             {
                 return BackConvertor(value, targetType, parameter, culture);
             }

@@ -1,64 +1,112 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Basic3D;
 using RayRender;
+using XZiar.Util;
 
 namespace WPFTest
 {
     public enum OPObject { Camera, Drawable, Light };
-    public class TestCore : INotifyPropertyChanged, IDisposable
+    public class TestCore : IDisposable
     {
+        public class LightList : ObservableList<Light>
+        {
+            private readonly LightHolder Holder;
+            private ushort curLgtIdx;
+            public ushort CurLgtIdx
+            {
+                get { return curLgtIdx; }
+                set
+                {
+                    if (value == ushort.MaxValue)
+                        curLgtIdx = (ushort)(Holder.Size - 1);
+                    else if (value >= Holder.Size)
+                        curLgtIdx = 0;
+                    else
+                        curLgtIdx = value;
+                    OnPropertyChanged("Current");
+                }
+            }
+            public Light Current
+            {
+                get { return Holder[curLgtIdx]; }
+                set { CurLgtIdx = Holder.GetIndex(value); }
+            }
+            internal LightList(LightHolder holder)
+            {
+                Holder = holder;
+                curLgtIdx = 0;
+                holder.Changed += (s, o) =>
+                {
+                    if (o == Current)
+                        OnPropertyChanged("Current");
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, o));
+                };
+            }
+            protected override Light GetElement(int idx) => Holder[idx];
+            protected override int GetSize() => Holder.Size;
+            public void Add(LightType type)
+            {
+                Holder.Add(type);
+                Holder.Refresh();
+                OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
+                CurLgtIdx = ushort.MaxValue;
+            }
+        }
+        public class DrawableList : ObservableList<Drawable>
+        {
+            private readonly DrawableHolder Holder;
+            private ushort curObjIdx;
+            public ushort CurObjIdx
+            {
+                get { return curObjIdx; }
+                set
+                {
+                    if (value == ushort.MaxValue)
+                        curObjIdx = (ushort)(Holder.Size - 1);
+                    else if (value >= Holder.Size)
+                        curObjIdx = 0;
+                    else
+                        curObjIdx = value;
+                    OnPropertyChanged("Current");
+                }
+            }
+            public Drawable Current
+            {
+                get { return Holder[curObjIdx]; }
+                set { CurObjIdx = Holder.GetIndex(value); }
+            }
+            internal DrawableList(DrawableHolder holder)
+            {
+                Holder = holder;
+                curObjIdx = 0;
+                holder.Changed += (s, o) =>
+                {
+                    if (o == Current)
+                        OnPropertyChanged("Current");
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, o));
+                };
+            }
+            protected override Drawable GetElement(int idx) => Holder[idx];
+            protected override int GetSize() => Holder.Size;
+            public async Task<bool> AddModelAsync(string fileName)
+            {
+                var ret = await Holder.AddModelAsync(fileName);
+                Holder.Refresh();
+                OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
+                CurObjIdx = ushort.MaxValue;
+                return ret;
+            }
+        }
+
         public readonly BasicTest Test;
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        private ushort curObjIdx;
-        public ushort CurObjIdx
-        {
-            get { return curObjIdx; }
-            set
-            {
-                if (value == ushort.MaxValue)
-                    curObjIdx = (ushort)(Test.Drawables.Size - 1);
-                else if(value >= Test.Drawables.Size)
-                    curObjIdx = 0;
-                else
-                    curObjIdx = value;
-                OnPropertyChanged("CurObj");
-            }
-        }
-        public Drawable CurObj
-        {
-            get { return Test.Drawables[curObjIdx]; }
-        }
-
-        private ushort curLgtIdx;
-        public ushort CurLgtIdx
-        {
-            get { return curLgtIdx; }
-            set
-            {
-                if (value == ushort.MaxValue)
-                    curLgtIdx = (ushort)(Test.Lights.Size - 1);
-                else if (value >= Test.Lights.Size)
-                    curLgtIdx = 0;
-                else
-                    curLgtIdx = value;
-                OnPropertyChanged("CurLgt");
-            }
-        }
-        public Light CurLgt
-        {
-            get { return Test.Lights[curLgtIdx]; }
-        }
+        public readonly DrawableList Drawables;
+        public readonly LightList Lights;
 
         public bool IsAnimate = false;
 
@@ -72,7 +120,8 @@ namespace WPFTest
         public TestCore()
         {
             Test = new BasicTest();
-            CurObjIdx = 0; CurLgtIdx = 0;
+            Drawables = new DrawableList(Test.Drawables);
+            Lights = new LightList(Test.Lights);
         }
 
         public void Move(float x, float y, float z, OPObject obj)
@@ -80,7 +129,7 @@ namespace WPFTest
             switch(obj)
             {
             case OPObject.Drawable:
-                Test.Moveobj(curObjIdx, x, y, z);
+                Test.Moveobj(Drawables.CurObjIdx, x, y, z);
                 break;
             case OPObject.Camera:
                 Test.Camera.Move(x, y, z);
@@ -94,7 +143,7 @@ namespace WPFTest
             switch (obj)
             {
             case OPObject.Drawable:
-                Test.Rotateobj(curObjIdx, x, y, z);
+                Test.Rotateobj(Drawables.CurObjIdx, x, y, z);
                 break;
             case OPObject.Camera:
                 if (x != 0.0f) //quick skip

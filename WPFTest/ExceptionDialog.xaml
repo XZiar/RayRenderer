@@ -11,7 +11,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBox x:Name="extxt" Grid.Row="0" VerticalScrollBarVisibility="Auto" />
+        <TextBox x:Name="extxt" Grid.Row="0" VerticalScrollBarVisibility="Auto" Foreground="White" />
         <Button x:Name="confirm" Grid.Row="1" Content="OK" Click="confirm_Click"/>
     </Grid>
 </Window>

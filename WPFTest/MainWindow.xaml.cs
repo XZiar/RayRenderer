@@ -17,6 +17,7 @@ using RayRender;
 using Microsoft.Win32;
 using static XZiar.Util.BindingHelper;
 using Basic3D;
+using XZiar.WPFControl;
 
 namespace WPFTest
 {
@@ -25,19 +26,17 @@ namespace WPFTest
     /// </summary>
     public partial class MainWindow : Window
     {
+
         private TestCore Core = null;
         private OPObject OperateTarget = OPObject.Camera;
-        private ImageSource imgCamera, imgModel, imgPointLight;
+        private ImageSource imgCamera, imgCube, imgPointLight;
         public MainWindow()
         {
             InitializeComponent();
             imgCamera = this.FindResource("imgCamera") as ImageSource;
-            imgModel = this.FindResource("imgModel") as ImageSource;
+            imgCube = this.FindResource("imgCube") as ImageSource;
             imgPointLight = this.FindResource("imgPointLight") as ImageSource;
-            //System.Windows.Forms.Integration.WindowsFormsHost.EnableWindowsFormsInterop();
             Logger.OnLog += OnLog;
-
-            this.Loaded += MainWindow_Loaded;
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) => 
             {
@@ -46,9 +45,11 @@ namespace WPFTest
                 //Console.WriteLine($"kbFocued:{e.NewValue}, now at {System.Windows.Input.Keyboard.FocusedElement}");
             };
             System.Windows.Input.Keyboard.Focus(wfh);
+
+            InitializeCore();
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs rea)
+        private void InitializeCore()
         {
             OnLog(LogLevel.Info, "WPF", "Window Loaded\n");
             Core = new TestCore();
@@ -61,27 +62,50 @@ namespace WPFTest
 
             txtCurObj.SetBinding(TextBlock.TextProperty, new Binding
             {
-                Source = Core,
-                Path = new PropertyPath("CurObj"),
+                Source = Core.Drawables,
+                Path = new PropertyPath("Current"),
                 Mode = BindingMode.OneWay,
                 Converter = new OneWayValueConvertor(o => 
                 {
                     if (o == null) return "No object selected";
                     var obj = o as Drawable;
-                    return $"#{Core.CurObjIdx}[{obj.Type}] {obj.Name}";
+                    return $"#{Core.Drawables.CurObjIdx}[{obj.Type}] {obj.Name}";
                 })
             });
             txtCurLight.SetBinding(TextBlock.TextProperty, new Binding
             {
-                Source = Core,
-                Path = new PropertyPath("CurLgt"),
+                Source = Core.Lights,
+                Path = new PropertyPath("Current"),
                 Mode = BindingMode.OneWay,
                 Converter = new OneWayValueConvertor(o =>
                 {
                     if (o == null) return "No light selected";
                     var light = o as Light;
-                    return $"#{Core.CurLgtIdx}[{light.Type}] {light.Name}";
+                    return $"#{Core.Lights.CurLgtIdx}[{light.Type}] {light.Name}";
                 })
+            });
+
+            cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
+            {
+                Source = Core.Lights,
+                Mode = BindingMode.OneWay
+            });
+            cboxLight.SetBinding(ComboBox.SelectedItemProperty, new Binding
+            {
+                Source = Core.Lights,
+                Path = new PropertyPath("Current"),
+                Mode = BindingMode.TwoWay
+            });
+            cboxObj.SetBinding(ComboBox.ItemsSourceProperty, new Binding
+            {
+                Source = Core.Drawables,
+                Mode = BindingMode.OneWay
+            });
+            cboxObj.SetBinding(ComboBox.SelectedItemProperty, new Binding
+            {
+                Source = Core.Drawables,
+                Path = new PropertyPath("Current"),
+                Mode = BindingMode.TwoWay
             });
 
             glMain.Invalidate();
@@ -111,40 +135,40 @@ namespace WPFTest
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)
         {
-            var btnImg = btnDragMode.Content as Image;
+            var btnImg = btnDragMode.Content as ImageBrush;
             switch (OperateTarget)
             {
             case OPObject.Camera:
                 OperateTarget = OPObject.Drawable;
-                btnImg.Source = imgModel;
+                btnImg.ImageSource = imgCube;
                 break;
             case OPObject.Drawable:
                 OperateTarget = OPObject.Light;
-                btnImg.Source = imgPointLight;
+                btnImg.ImageSource = imgPointLight;
                 break;
             case OPObject.Light:
                 OperateTarget = OPObject.Camera;
-                btnImg.Source = imgCamera;
+                btnImg.ImageSource = imgCamera;
                 break;
             }
         }
         private void btncmDragMode_Click(object sender, RoutedEventArgs e)
         {
-            var btnImg = btnDragMode.Content as Image;
+            var btnImg = btnDragMode.Content as ImageBrush;
             MenuItem mi = e.OriginalSource as MenuItem;
             switch (mi.Tag as string)
             {
             case "camera":
                 OperateTarget = OPObject.Camera;
-                btnImg.Source = imgCamera;
+                btnImg.ImageSource = imgCamera;
                 break;
             case "object":
                 OperateTarget = OPObject.Drawable;
-                btnImg.Source = imgModel;
+                btnImg.ImageSource = imgCube;
                 break;
             case "light":
                 OperateTarget = OPObject.Light;
-                btnImg.Source = imgPointLight;
+                btnImg.ImageSource = imgPointLight;
                 break;
             }
         }
@@ -168,13 +192,19 @@ namespace WPFTest
 
         private async void AddModelAsync(string fileName)
         {
-            if (await Core.Test.AddModelAsync(fileName))
+            try
             {
-                Core.CurObjIdx = ushort.MaxValue;
-                ShowCurrentObject();
-                Core.Rotate(-90, 0, 0, OPObject.Drawable);
-                Core.Move(-1, 0, 0, OPObject.Drawable);
-                glMain.Invalidate();
+                if (await Core.Drawables.AddModelAsync(fileName))
+                {
+                    ShowCurrentObject();
+                    Core.Rotate(-90, 0, 0, OPObject.Drawable);
+                    Core.Move(-1, 0, 0, OPObject.Drawable);
+                    glMain.Invalidate();
+                }
+            }
+            catch (Exception ex)
+            {
+                new ExceptionDialog(ex).ShowDialog();
             }
         }
 
@@ -215,17 +245,16 @@ namespace WPFTest
             switch(mi.Tag as string)
             {
             case "parallel":
-                Core.Test.Lights.Add(Basic3D.LightType.Parallel);
+                Core.Lights.Add(Basic3D.LightType.Parallel);
                 break;
             case "point":
-                Core.Test.Lights.Add(Basic3D.LightType.Point);
+                Core.Lights.Add(Basic3D.LightType.Point);
                 break;
             case "spot":
-                Core.Test.Lights.Add(Basic3D.LightType.Spot);
+                Core.Lights.Add(Basic3D.LightType.Spot);
                 break;
             }
             glMain.Invalidate();
-            Core.CurLgtIdx = ushort.MaxValue;
         }
 
         private async void btnTryAsync_Click(object sender, RoutedEventArgs e)
@@ -243,8 +272,8 @@ namespace WPFTest
 
         private void ShowCurrentObject()
         {
-            var obj = Core.CurObj;
-            Console.WriteLine("get drawable[{0}], name[{1}] --- [{2}]", Core.CurObjIdx, obj.Name, obj.Type);
+            var obj = Core.Drawables.Current;
+            Console.WriteLine("get drawable[{0}], name[{1}] --- [{2}]", Core.Drawables.CurObjIdx, obj.Name, obj.Type);
         }
 
         private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
@@ -265,9 +294,9 @@ namespace WPFTest
                 case System.Windows.Forms.Keys.PageDown:
                     Core.Move(0, 0, 0.1f, OPObject.Drawable); break;
                 case System.Windows.Forms.Keys.Add:
-                    Core.CurObjIdx++; ShowCurrentObject(); break;
+                    Core.Drawables.CurObjIdx++; break;
                 case System.Windows.Forms.Keys.Subtract:
-                    Core.CurObjIdx--; ShowCurrentObject(); break;
+                    Core.Drawables.CurObjIdx--; break;
                 default:
                     if (e.Shift)
                     {
@@ -330,24 +359,58 @@ namespace WPFTest
             (sender as OGLView).Invalidate();
         }
 
+        private void cboxLight_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var lgt = (Light)e.AddedItems[0];
+            if (e.RemovedItems.Count > 0 && lgt == e.RemovedItems[0])
+                return;
+            lgtType.SetBinding(LabelTextBox.TextProperty, new Binding
+            {
+                Source = lgt,
+                Path = new PropertyPath("Type"),
+                Mode = BindingMode.OneWay
+            });
+            lgtName.SetBinding(LabelTextBox.TextProperty, new Binding
+            {
+                Source = lgt,
+                Path = new PropertyPath("Name"),
+                Mode = BindingMode.TwoWay
+            });
+        }
+
+        private void cboxObj_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var obj = (Drawable)e.AddedItems[0];
+            if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
+                return;
+            objType.Text = obj.Type;
+            objName.SetBinding(LabelTextBox.TextProperty, new Binding
+            {
+                Source = obj,
+                Path = new PropertyPath("Name"),
+                Mode = BindingMode.TwoWay
+            });
+        }
+
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
             string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
-            try
+            var extName = System.IO.Path.GetExtension(fname).ToLower();
+            switch(extName)
             {
-                if (fname.EndsWith(".obj", StringComparison.CurrentCultureIgnoreCase))
-                {
-                    AddModelAsync(fname);
-                }
-                else if (fname.EndsWith(".cl", StringComparison.CurrentCultureIgnoreCase))
+            case ".obj":
+                AddModelAsync(fname); break;
+            case ".cl":
+                try
                 {
                     if (await Core.Test.ReloadCLAsync(fname))
                         glMain.Invalidate();
                 }
-            }
-            catch(Exception ex)
-            {
-                new ExceptionDialog(ex).ShowDialog();
+                catch (Exception ex)
+                {
+                    new ExceptionDialog(ex).ShowDialog();
+                }
+                break;
             }
         }
 

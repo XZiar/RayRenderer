@@ -4,6 +4,7 @@
 #error("CLIAsync should only be used with /clr")
 #endif
 
+#include "CLICommonRely.hpp"
 #include "CLIException.hpp"
 #include <functional>
 
@@ -109,8 +110,8 @@ inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<Func<RetType
 template<class RetType>
 using RealFunc = std::function<void(std::function<RetType(void)>)>;
 
-template<class RetType, class MemFunc, class Obj, class... ARGS>
-inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&& memfunc, Obj *obj, ARGS&&... args)
+template<class RetType, class MemFunc, class Obj, class... Args>
+inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
 
 	std::invoke(memfunc, *obj, args..., [tsk](std::function<RetType(void)> cb)
@@ -125,16 +126,16 @@ inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&
 #pragma managed(pop)
 
 
-template<class RetType, class MemFunc, class Obj, class... ARGS>
-inline Task<Func<RetType>^>^ doAsync(MemFunc&& memfunc, Obj *obj, ARGS&&... args)
+template<class RetType, class MemFunc, class Obj, class... Args>
+inline Task<Func<RetType>^>^ doAsync(MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
 	gcroot<TaskCompletionSource<Func<RetType>^>^> tsk = gcnew TaskCompletionSource<Func<RetType>^>();
 	doInside(tsk, memfunc, obj, args...);
 	return tsk->Task;
 }
 
-template<class RetType, class MemFunc, class Obj, class... ARGS>
-inline Task<RetType>^ doAsync2(MemFunc&& memfunc, Obj *obj, ARGS&&... args)
+template<class RetType, class MemFunc, class Obj, class... Args>
+inline Task<RetType>^ doAsync2(MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
 	gcroot<TaskCompletionSource<Func<RetType>^>^> innerTask = gcnew TaskCompletionSource<Func<RetType>^>();
 	TaskCompletionSource<RetType>^ tsk = gcnew TaskCompletionSource<RetType>();

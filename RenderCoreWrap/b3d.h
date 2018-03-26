@@ -3,6 +3,7 @@
 #include "RenderCoreWrapRely.h"
 
 using namespace System;
+using namespace System::ComponentModel;
 
 namespace Basic3D
 {
@@ -11,7 +12,7 @@ using namespace common;
 
 public ref class Camera
 {
-private:
+internal:
     b3d::Camera *cam;
     bool isRef = false;
 internal:
@@ -27,38 +28,55 @@ public:
         int get() { return cam->height; }
         void set(int value) { cam->height = value; }
     }
-    Camera();
     ~Camera() { this->!Camera(); }
-    !Camera();
 
-    void Move(const float dx, const float dy, const float dz);
+    !Camera()
+    {
+        if (!isRef)
+            delete cam;
+    }
+
+    void Move(const float dx, const float dy, const float dz)
+    {
+        cam->move(dx, dy, dz);
+    }
     //rotate along x-axis
-    void Pitch(const float angx);
+    void Pitch(const float angx)
+    {
+        cam->pitch(angx);
+    }
     //rotate along y-axis
-    void Yaw(const float angy);
+    void Yaw(const float angy)
+    {
+        cam->yaw(angy);
+    }
     //rotate along z-axis
-    void Roll(const float angz);
+    void Roll(const float angz)
+    {
+        cam->roll(angz);
+    }
 };
 
 public enum class LightType : int32_t { Parallel, Point, Spot };
 
-public ref class Light
+public ref class Light : public BaseViewModel
 {
-private:
-    Wrapper<b3d::Light> *light;
-    bool isRef = false;
 internal:
-    Light(const Wrapper<b3d::Light> *obj) : light(new Wrapper<b3d::Light>(*obj)), isRef(true) { }
+    std::weak_ptr<b3d::Light> *light;
+internal:
+    Light(const Wrapper<b3d::Light> *obj) : light(new std::weak_ptr<b3d::Light>(*obj)), Type(LightType((*obj)->type)) { }
 public:
     ~Light() { this->!Light(); }
-    !Light();
+    !Light() { delete light; }
     property String^ Name
     {
-        String^ get() { return ToStr((*light)->name); }
+        String^ get() { return ToStr(light->lock()->name); }
+        void set(String^ value) { light->lock()->name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
-    property LightType Type
+    initonly LightType Type;
+    virtual String^ ToString() override
     {
-        LightType get() { return LightType((*light)->type); }
+        return "[" + Type.ToString() + "]" + Name;
     }
 };
 

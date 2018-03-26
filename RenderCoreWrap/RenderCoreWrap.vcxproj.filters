@@ -35,9 +35,6 @@
     <ClCompile Include="AssemblyInfo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="b3d.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="dllManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

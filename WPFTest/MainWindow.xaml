@@ -3,30 +3,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:Themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
         xmlns:local="clr-namespace:WPFTest"
+        xmlns:ext="clr-namespace:XZiar.WPFControl"
+        xmlns:rayr="clr-namespace:RayRender"
         mc:Ignorable="d"
         Title="WPFTest" Height="600" Width="900" Background="{StaticResource brshDarkBackground}">
     <Window.Resources>
-        <Style TargetType="Image">
-            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
-            <Setter Property="RenderOptions.EdgeMode" Value="Aliased" />
-        </Style>
-        <Style TargetType="StatusBarItem">
-            <Setter Property="Padding" Value="3,2"/>
-        </Style>
-        <Style TargetType="Separator" x:Key="verticleSeparator">
-            <Style.Resources>
-                <RotateTransform x:Key="rotate90" Angle="90"/>
-            </Style.Resources>
-            <Setter Property="LayoutTransform" Value="{StaticResource rotate90}"/>
-        </Style>
-        <BitmapImage x:Key="imgCamera" UriSource="icon/camera.png"/>
-        <BitmapImage x:Key="imgModel" UriSource="icon/model.png"/>
-        <BitmapImage x:Key="imgParLight" UriSource="icon/sunlight.png"/>
-        <BitmapImage x:Key="imgPointLight" UriSource="icon/pointlight.png"/>
-        <BitmapImage x:Key="imgSpotLight" UriSource="icon/spotlight.png"/>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -39,9 +24,9 @@
             <ColumnDefinition Width="5" />
             <ColumnDefinition Width="30*"/>
         </Grid.ColumnDefinitions>
-        <StackPanel x:Name="menuBar" Grid.Row="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-            <Button x:Name="btnDragMode" ToolTip="Camera" Width="32" Height="32" Margin="2,0" Click="btnDragMode_Click">
-                <Image Source="{StaticResource imgCamera}"/>
+        <StackPanel x:Name="menuBar" Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+            <Button x:Name="btnDragMode" ToolTip="Camera" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnDragMode_Click">
+                <ImageBrush ImageSource="{StaticResource imgCamera}"/>
                 <Button.ContextMenu>
                     <ContextMenu x:Name="btncmDragMode" MenuItem.Click="btncmDragMode_Click">
                         <MenuItem Header="Camera" Tag="camera">
@@ -51,7 +36,7 @@
                         </MenuItem>
                         <MenuItem Header="Object" Tag="object">
                             <MenuItem.Icon>
-                                <Image Source="{StaticResource imgModel}"/>
+                                <Image Source="{StaticResource imgCube}"/>
                             </MenuItem.Icon>
                         </MenuItem>
                         <MenuItem Header="Light" Tag="light">
@@ -63,8 +48,8 @@
                 </Button.ContextMenu>
             </Button>
             <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
-            <Button x:Name="btnAddModel" ToolTip="Add Model" Width="32" Height="32" Margin="2,0" Click="btnAddModel_Click">
-                <Image Source="{StaticResource imgModel}"/>
+            <Button x:Name="btnAddModel" ToolTip="Add Model" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnAddModel_Click">
+                <ImageBrush ImageSource="{StaticResource imgCube}"/>
                 <Button.ContextMenu>
                     <ContextMenu x:Name="btncmAddModel" MenuItem.Click="btncmAddModel_Click">
                         <MenuItem Header="Cube" Tag="cube" />
@@ -74,8 +59,8 @@
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>
-            <Button x:Name="btnAddLight" ToolTip="Add Light" Width="32" Height="32" Margin="2,0" Click="btnAddLight_Click">
-                <Image Source="{StaticResource imgPointLight}"/>
+            <Button x:Name="btnAddLight" ToolTip="Add Light" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnAddLight_Click">
+                <ImageBrush ImageSource="{StaticResource imgPointLight}"/>
                 <Button.ContextMenu>
                     <ContextMenu x:Name="btncmAddLight" MenuItem.Click="btncmAddLight_Click">
                         <MenuItem Header="Parallel Light" Tag="parallel">
@@ -99,7 +84,7 @@
             <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
             <Button x:Name="btnTryAsync" Content="Async" Width="32" Height="32" Margin="2,0" Click="btnTryAsync_Click"/>
         </StackPanel>
-        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="#FF007ACC" >
+        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="{StaticResource brshBlue}" >
             <StatusBar.ItemsPanel>
                 <ItemsPanelTemplate>
                     <Grid>
@@ -126,14 +111,32 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" FlowDirection="RightToLeft">
             </StackPanel>
         </StatusBar>
-        <ScrollViewer Grid.Row="1" Grid.Column="2" Margin="0" CanContentScroll="True" PanningMode="Both">
-            <RichTextBox x:Name="dbgOutput" Background="Black" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
-                <FlowDocument>
-                    <Paragraph x:Name="para"/>
-                </FlowDocument>
-            </RichTextBox>
-        </ScrollViewer>
-        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+        <TabControl Grid.Row="0" Grid.Column="2" Grid.RowSpan="2">
+            <TabItem Header="Log" IsTabStop="False">
+                <ScrollViewer Margin="0" CanContentScroll="True" PanningMode="Both">
+                    <RichTextBox x:Name="dbgOutput" Background="{StaticResource brshDarkBackground}" VerticalScrollBarVisibility="Auto" FontFamily="consolas" IsReadOnly="True">
+                        <FlowDocument>
+                            <Paragraph x:Name="para"/>
+                        </FlowDocument>
+                    </RichTextBox>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Obj" IsTabStop="False">
+                <StackPanel Orientation="Vertical">
+                    <ComboBox x:Name="cboxObj" Background="{DynamicResource brshDarkBackground}" Foreground="White" SelectionChanged="cboxObj_SelectionChanged" Template="{StaticResource darkCombobox}"/>
+                    <ext:LabelTextBox x:Name="objType" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="60" Label="Type" IsReadOnly="True"/>
+                    <ext:LabelTextBox x:Name="objName" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="60" Label="Name" IsReadOnly="False"/>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Light" IsTabStop="False">
+                <StackPanel Orientation="Vertical">
+                    <ComboBox x:Name="cboxLight" Background="{DynamicResource brshDarkBackground}" Foreground="White" SelectionChanged="cboxLight_SelectionChanged" Template="{StaticResource darkCombobox}"/>
+                    <ext:LabelTextBox x:Name="lgtType" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="60" Label="Type" IsReadOnly="True"/>
+                    <ext:LabelTextBox x:Name="lgtName" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="60" Label="Name" IsReadOnly="False"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+        <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="5" HorizontalAlignment="Stretch" />
         <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
             <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
         </WindowsFormsHost>

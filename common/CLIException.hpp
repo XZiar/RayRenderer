@@ -1,14 +1,13 @@
 #pragma once
 
 #ifndef _M_CEE
-#error("CLIAsync should only be used with /clr")
+#error("CLIException should only be used with /clr")
 #endif
 
+#include "CLICommonRely.hpp"
 #include "Exceptions.hpp"
 
-#include <msclr\marshal_cppstd.h>
 using namespace System;
-using namespace msclr::interop;
 
 namespace common
 {
@@ -23,8 +22,8 @@ private:
 		{
 			if (const auto *fex = dynamic_cast<FileException*>(inner.get()))
 			{
-				auto msg = marshal_as<String^>(fex->message);
-				auto fpath = marshal_as<String^>(fex->filepath.wstring());
+				auto msg = ToStr(fex->message);
+				auto fpath = ToStr(fex->filepath.u16string());
 				auto innerEx = formInnerException(*fex);
 				if (fex->reason == FileException::Reason::NotExist)
 					return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
@@ -41,10 +40,10 @@ public:
 	{
 		String^ get() override { return stacktrace; }
 	}
-	CPPException(const BaseException& be) : Exception(marshal_as<String^>(be.message), formInnerException(be))
+	CPPException(const BaseException& be) : Exception(ToStr(be.message), formInnerException(be))
 	{
 		const auto& stack = be.stacktrace();
-		stacktrace = String::Format("at [{0}] : line {1} ({2})", marshal_as<String^>(stack.func), stack.line, marshal_as<String^>(stack.file));
+		stacktrace = String::Format("at [{0}] : line {1} ({2})", ToStr(stack.func), stack.line, ToStr(stack.file));
 	}
 };
 

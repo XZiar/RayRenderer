@@ -1,0 +1,20 @@
+﻿<UserControl
+    x:Class="XZiar.WPFControl.LabelTextBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:XZiar.WPFControl"
+    Name="self"
+    mc:Ignorable="d"
+    d:DesignHeight="50"
+    d:DesignWidth="400">
+    <Grid Margin="2,4">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding LabelWidth, ElementName=self}"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Label x:Name="label"  Grid.Column="0" Content="{Binding Label, ElementName=self}" Foreground="{Binding Foreground, ElementName=self}" Padding="0" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="tbox" Grid.Column="1" Background="#FF333337" Foreground="{Binding Foreground, ElementName=self}" IsReadOnly="{Binding IsReadOnly, ElementName=self}" Text="{Binding Text, ElementName=self}" VerticalContentAlignment="Center"/>
+    </Grid>
+</UserControl>
