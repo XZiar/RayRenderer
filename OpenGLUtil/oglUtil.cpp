@@ -49,13 +49,13 @@ public:
     {
         glFlush(); //ensure sync object sended
     }
-    ~PromiseResultGL() 
+    ~PromiseResultGL() override
     {
         glDeleteSync(SyncObj);
     }
 };
 
-class PromiseResultGL2 : public common::detail::PromiseResult_<void>
+class PromiseResultGL2 : public common::asyexe::detail::AsyncResult_<void>
 {
 protected:
     common::PromiseState virtual state() override 
@@ -177,12 +177,12 @@ PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16s
 common::asyexe::AsyncResult<void> oglUtil::SyncGL()
 {
     auto fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    return std::dynamic_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL>(fence));
+    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL>(fence));
 }
 
 common::asyexe::AsyncResult<void> oglUtil::ForceSyncGL()
 {
-    return std::dynamic_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL2>());
+    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL2>());
 }
 
 

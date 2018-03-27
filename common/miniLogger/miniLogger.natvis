@@ -6,4 +6,14 @@
   <Type Name="common::mlog::detail::MiniLoggerBase">
     <DisplayString>{{[LogBase]{Prefix}-{LeastLevel}}}</DisplayString>
   </Type>
+  <Type Name="common::mlog::LogMessage">
+    <DisplayString>{{[{Source}]{Level}[{RefCount} ref]}}</DisplayString>
+    <Expand>
+      <Item Name="Source">Source</Item>
+      <Item Name="Level">Level</Item>
+      <Item Name="Timestamp">Timestamp</Item>
+      <Item Name="RefCount">RefCount</Item>
+      <Item Name="Content">(const char16_t*)((const uint8_t*)this + sizeof(LogMessage)),[Length]</Item>
+    </Expand>
+  </Type>
 </AutoVisualizer>

@@ -56,10 +56,39 @@ Task<bool>^ BasicTest::TryAsync()
     return doAsync2<bool>(&rayr::BasicTest::tryAsync, core);
 }
 
+#pragma managed(push, off)
+static Wrapper<b3d::Light> CreateLight(b3d::LightType type)
+{
+    Wrapper<b3d::Light> light;
+    switch (type)
+    {
+    case b3d::LightType::Parallel:
+        light = Wrapper<b3d::ParallelLight>(std::in_place);
+        light->color = b3d::Vec4(2.0, 0.5, 0.5, 10.0);
+        break;
+    case b3d::LightType::Point:
+        light = Wrapper<b3d::PointLight>(std::in_place);
+        light->color = b3d::Vec4(0.5, 2.0, 0.5, 10.0);
+        break;
+    case b3d::LightType::Spot:
+        light = Wrapper<b3d::SpotLight>(std::in_place);
+        light->color = b3d::Vec4(0.5, 0.5, 2.0, 10.0);
+        break;
+    }
+    return light;
+}
+#pragma managed(pop)
+
 void LightHolder::Add(Basic3D::LightType type)
 {
-    Core->AddLight((b3d::LightType)type);
-    Refresh();
+    auto light = CreateLight((b3d::LightType)type);
+    if (!light)
+        return;
+    bool ret = Core->AddLight(light);
+    if (ret)
+    {
+        Lights->Add(CreateObject(light));
+    }
 }
 
 void LightHolder::Clear()

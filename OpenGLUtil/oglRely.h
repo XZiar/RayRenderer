@@ -8,8 +8,10 @@
 #endif
 
 #include "3DBasic/3dElement.hpp"
+#include "common/CommonRely.hpp"
 #include "common/CommonMacro.hpp"
 #include "common/AlignedContainer.hpp"
+#include "common/CopyEx.hpp"
 #include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/SpinLock.hpp"

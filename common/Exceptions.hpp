@@ -88,7 +88,7 @@ public:
 	BaseException(const std::wstring& msg, const std::any& data_ = std::any())
 		: BaseException(TYPENAME, msg, data_)
 	{ }
-	virtual ~BaseException() {}
+	~BaseException() override {}
 	virtual Wrapper<BaseException> clone() const
 	{
 		return Wrapper<BaseException>(*this);
@@ -144,8 +144,7 @@ public:
 	static T __cdecl setStackItem(T ex, StackTraceItem sti)
 	{
 		static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
-		BaseException *bex = static_cast<BaseException*>(&ex);
-		bex->stackitem = sti;
+		static_cast<BaseException*>(&ex)->stackitem = sti;
 		return ex;
 	}
 };
@@ -167,7 +166,7 @@ public:
 	FileException(const Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
 		: BaseException(TYPENAME, msg, data_), reason(why), filepath(file)
 	{ }
-	virtual ~FileException() {}
+	~FileException() override {}
 };
 
 

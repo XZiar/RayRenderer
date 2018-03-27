@@ -6,14 +6,14 @@ namespace oglu
 
 enum class BufferType : GLenum
 {
-	Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER,
-	Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER,
+    Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER,
+    Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER,
 };
 enum class BufferWriteMode : GLenum
 {
-	StreamDraw = GL_STREAM_DRAW, StreamRead = GL_STREAM_READ, StreamCopy = GL_STREAM_COPY,
-	StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
-	DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
+    StreamDraw = GL_STREAM_DRAW, StreamRead = GL_STREAM_READ, StreamCopy = GL_STREAM_COPY,
+    StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
+    DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
 
 namespace detail
@@ -23,143 +23,137 @@ namespace detail
 class OGLUAPI _oglBuffer : public NonCopyable
 {
 protected:
-	friend class oclu::detail::_oclGLBuffer;
-	friend class _oglTexture;
-	friend class _oglVAO;
-	friend class _oglProgram;
-	const BufferType bufferType;
-	GLuint bufferID = GL_INVALID_INDEX;
-	void bind() const noexcept;
-	void unbind() const noexcept;
+    friend class oclu::detail::_oclGLBuffer;
+    friend class _oglTexture;
+    friend class _oglVAO;
+    friend class _oglProgram;
+    const BufferType bufferType;
+    GLuint bufferID = GL_INVALID_INDEX;
+    void bind() const noexcept;
+    void unbind() const noexcept;
 public:
-	_oglBuffer(const BufferType type) noexcept;
-	~_oglBuffer() noexcept;
+    _oglBuffer(const BufferType type) noexcept;
+    ~_oglBuffer() noexcept;
 
-	void write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
-	template<class T, class A>
-	inline void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-	{
-		write(dat.data(), sizeof(T)*dat.size(), mode);
-	}
-	template<class T, size_t N>
-	inline void write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-	{
-		write(dat, sizeof(dat), mode);
-	}
+    void write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
+    template<class T, class A>
+    inline void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        write(dat.data(), sizeof(T)*dat.size(), mode);
+    }
+    template<class T, size_t N>
+    inline void write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        write(dat, sizeof(dat), mode);
+    }
 };
 
 
 class OGLUAPI _oglTextureBuffer : public _oglBuffer
 {
 protected:
-	friend class _oglBufferTexture;
-	friend class _oglProgram;
+    friend class _oglBufferTexture;
+    friend class _oglProgram;
 public:
-	_oglTextureBuffer() noexcept;
+    _oglTextureBuffer() noexcept;
 };
 
 
 class OGLUAPI _oglUniformBuffer : public _oglBuffer
 {
 protected:
-	friend class UBOManager;
-	friend class _oglProgram;
-	static UBOManager& getUBOMan();
-	void bind(const uint16_t pos) const;
+    friend class UBOManager;
+    friend class _oglProgram;
+    static UBOManager& getUBOMan();
+    void bind(const uint16_t pos) const;
 public:
-	const size_t size;
-	_oglUniformBuffer(const size_t size_) noexcept;
-	~_oglUniformBuffer() noexcept;
+    const size_t size;
+    _oglUniformBuffer(const size_t size_) noexcept;
+    ~_oglUniformBuffer() noexcept;
 };
 
 
 class OGLUAPI _oglElementBuffer : public _oglBuffer
 {
 protected:
-	friend class _oglVAO;
-	GLenum idxtype;
-	uint8_t idxsize;
-	void setSize(uint8_t elesize)
-	{
-		switch (idxsize = elesize)
-		{
-		case 1:
-			idxtype = GL_UNSIGNED_BYTE; return;
-		case 2:
-			idxtype = GL_UNSIGNED_SHORT; return;
-		case 3:
-			idxtype = GL_UNSIGNED_INT; return;
-		}
-	}
+    friend class _oglVAO;
+    GLenum idxtype;
+    uint8_t idxsize;
+    void setSize(uint8_t elesize)
+    {
+        switch (idxsize = elesize)
+        {
+        case 1:
+            idxtype = GL_UNSIGNED_BYTE; return;
+        case 2:
+            idxtype = GL_UNSIGNED_SHORT; return;
+        case 3:
+            idxtype = GL_UNSIGNED_INT; return;
+        }
+    }
 public:
-	_oglElementBuffer() noexcept;
-	template<class T, class A>
-	void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-	{
-		static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
-		setSize(sizeof(T));
-		_oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
-	}
-	template<class T>
-	void write(const T * const dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-	{
-		static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
-		setSize(sizeof(T));
-		_oglBuffer::write(dat, idxsize*count, mode);
-	}
-	template<class T, class A>
-	void writeCompat(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-	{
-		static_assert(std::is_integral_v<T>, "input type should be of integeral type and no more than uint32_t");
-		auto res = std::minmax_element(dat.begin(), dat.end());
-		if (*res.first < 0)
-			COMMON_THROW(BaseException, L"element buffer cannot appear negatve value");
-		auto maxval = *res.second;
-		if (maxval <= UINT8_MAX)
-		{
-			if (sizeof(T) == 1)
-				write(dat, mode);
-			else
-			{
-				vector<uint8_t> newdat;
-				newdat.reserve(dat.size());
-				for (const auto idx : dat)
-					newdat.push_back((uint8_t)idx);
-				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
-				write(newdat, mode);
-			}
-		}
-		else if (maxval <= UINT16_MAX)
-		{
-			if (sizeof(T) == 2)
-				write(dat, mode);
-			else
-			{
-				vector<uint16_t> newdat;
-				newdat.reserve(dat.size());
-				for (const auto idx : dat)
-					newdat.push_back((uint16_t)idx);
-				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
-				write(newdat, mode);
-			}
-		}
-		else if (maxval <= UINT32_MAX)
-		{
-			if (sizeof(T) == 4)
-				write(dat, mode);
-			else
-			{
-				vector<uint32_t> newdat;
-				newdat.reserve(dat.size());
-				for (const auto idx : dat)
-					newdat.push_back((uint32_t)idx);
-				//std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
-				write(newdat, mode);
-			}
-		}
-		else
-			COMMON_THROW(BaseException, L"Too much element held for element buffer");
-	}
+    _oglElementBuffer() noexcept;
+    template<class T, class A>
+    void write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
+        setSize(sizeof(T));
+        _oglBuffer::write(dat.data(), idxsize*dat.size(), mode);
+    }
+    template<class T>
+    void write(const T * const dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
+        setSize(sizeof(T));
+        _oglBuffer::write(dat, idxsize*count, mode);
+    }
+    template<class T, class A>
+    void writeCompat(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        static_assert(std::is_integral_v<T>, "input type should be of integeral type and no more than uint32_t");
+        auto res = std::minmax_element(dat.begin(), dat.end());
+        if (*res.first < 0)
+            COMMON_THROW(BaseException, L"element buffer cannot appear negatve value");
+        auto maxval = *res.second;
+        if (maxval <= UINT8_MAX)
+        {
+            if constexpr(sizeof(T) == 1)
+                write(dat, mode);
+            else
+            {
+                common::AlignedBuffer<32> newdata(dat.size());
+                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), dat.data(), dat.size());
+                write(newdata.GetRawPtr<uint8_t>(), dat.size(), mode);
+            }
+        }
+        else if (maxval <= UINT16_MAX)
+        {
+            if (sizeof(T) == 2)
+                write(dat, mode);
+            else
+            {
+                common::AlignedBuffer<32> newdata(dat.size()*sizeof(uint16_t));
+                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), dat.data(), dat.size());
+                write(newdata.GetRawPtr<uint16_t>(), dat.size(), mode);
+            }
+        }
+        else if (maxval <= UINT32_MAX)
+        {
+            if (sizeof(T) == 4)
+                write(dat, mode);
+            else
+            {
+                vector<uint32_t> newdat;
+                newdat.reserve(dat.size());
+                for (const auto idx : dat)
+                    newdat.push_back((uint32_t)idx);
+                //std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+                write(newdat, mode);
+            }
+        }
+        else
+            COMMON_THROW(BaseException, L"Too much element held for element buffer");
+    }
 };
 
 }

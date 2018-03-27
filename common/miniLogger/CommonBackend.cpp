@@ -67,14 +67,19 @@ public:
         hConsole = GetConsoleMode(handle, &mode) ? handle : nullptr;
         curlevel = LogLevel::None;
     }
+    ~ConsoleBackend() override 
+    {
+        if(hConsole)
+            CloseHandle(hConsole);
+    }
     void virtual OnPrint(const LogMessage& msg) override
     {
         if (hConsole == nullptr)
             return;
         changeState(msg.Level);
-        auto content = detail::StrFormater<char16_t>::ToU16Str(u"[{}]{}", msg.Source, msg.Content);
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"[{}]{}", msg.Source, msg.GetContent());
         uint32_t outlen;
-        WriteConsole(hConsole, content.c_str(), (DWORD)content.length(), (LPDWORD)&outlen, NULL);
+        WriteConsole(hConsole, writer.data(), (DWORD)writer.size(), (LPDWORD)&outlen, NULL);
     }
 };
 
@@ -89,8 +94,8 @@ protected:
 public:
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto content = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.Content);
-        OutputDebugString((LPCWSTR)content.c_str());
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
+        OutputDebugString((LPCWSTR)writer.c_str());
     }
 };
 
@@ -108,6 +113,7 @@ protected:
     }
 public:
     FileBackend(const fs::path& path) : File(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::TEXT)) { }
+    ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
 
@@ -119,12 +125,12 @@ public:
 std::shared_ptr<LoggerBackend> __cdecl GetConsoleBackend()
 {
     static auto backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
-    return std::dynamic_pointer_cast<LoggerBackend>(backend);
+    return std::static_pointer_cast<LoggerBackend>(backend);
 }
 std::shared_ptr<LoggerBackend> __cdecl GetDebuggerBackend()
 {
     static auto backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();
-    return std::dynamic_pointer_cast<LoggerBackend>(backend);
+    return std::static_pointer_cast<LoggerBackend>(backend);
 }
 
 std::shared_ptr<LoggerBackend> __cdecl GetFileBackend(const fs::path& path)
@@ -132,7 +138,7 @@ std::shared_ptr<LoggerBackend> __cdecl GetFileBackend(const fs::path& path)
     try
     {
         auto backend = LoggerQBackend::InitialQBackend<FileBackend>(path);
-        return std::dynamic_pointer_cast<LoggerBackend>(backend);
+        return std::static_pointer_cast<LoggerBackend>(backend);
     }
     catch (...)
     {

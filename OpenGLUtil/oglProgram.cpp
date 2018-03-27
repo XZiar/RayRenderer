@@ -25,17 +25,16 @@ GLint ProgramResource::getValue(const GLuint pid, const GLenum prop)
 }
 
 
-const char* ProgramResource::getTypeName() const
+const char* ProgramResource::getTypeName() const noexcept
 {
-    static const char name[][8] = { "UniBlk","Uniform","Attrib" };
     switch (type)
     {
     case GL_UNIFORM_BLOCK:
-        return name[0];
+        return "UniBlk";
     case GL_UNIFORM:
-        return name[1];
+        return "Uniform";
     case GL_PROGRAM_INPUT:
-        return name[2];
+        return "Attrib";
     default:
         return nullptr;
     }
@@ -56,7 +55,7 @@ void ProgramResource::initData(const GLuint pid, const GLint idx)
     }
 }
 
-bool ProgramResource::isTexture() const
+bool ProgramResource::isTexture() const noexcept
 {
     if (type != GL_UNIFORM)
         return false;
@@ -208,8 +207,8 @@ _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& srun
 {
     if (auto sru = FindInMap(prog.subrMap, sruname))
     {
-        if (auto sr = FindInVec(**sru, [&srname](const SubroutineResource& srr) { return srr.Name == srname; }))
-            return setSubroutine(**sr);
+        if (auto sr = FindInVec(*sru, [&srname](const SubroutineResource& srr) { return srr.Name == srname; }))
+            return setSubroutine(*sr);
         else
             oglLog().warning(u"cannot find subroutine {} for object {}\n", srname, sruname);
     }
@@ -470,7 +469,7 @@ optional<const vector<SubroutineResource>*> _oglProgram::getSubroutines(const st
 GLint _oglProgram::getLoc(const string& name) const
 {
     if (auto obj = FindInMap(resMap, name))
-        return (**obj).location;
+        return obj->location;
     return GL_INVALID_INDEX;
 }
 

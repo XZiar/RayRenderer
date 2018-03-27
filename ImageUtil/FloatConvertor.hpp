@@ -2,10 +2,6 @@
 
 #include "ImageUtilRely.h"
 
-#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
-#   define USE_SIMD
-#endif
-
 namespace xziar::img::convert
 {
 
@@ -13,11 +9,11 @@ namespace xziar::img::convert
 
 inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict srcPtr, uint64_t count, const float floatRange)
 {
+    const auto muler = 255 / floatRange;
+#if COMMON_SIMD_LV >= 200
     const auto SHUF_MSK1 = _mm256_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto SHUF_MSK2 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
-    const auto muler = 255 / floatRange;
     const auto muler8 = _mm256_set1_ps(muler);
-    const auto muler4 = _mm_set1_ps(muler);
     while (count > 64)
     {
         const auto src0 = _mm256_mul_ps(_mm256_loadu_ps(srcPtr), muler8);
@@ -44,30 +40,52 @@ inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict src
         const auto bdfh0 = _mm256_permute2x128_si256(acbd0, egfh0, 0x31);//0b0d,0f0h
         const auto aceg1 = _mm256_permute2x128_si256(acbd1, egfh1, 0x20);//a0c0,e0g0
         const auto bdfh1 = _mm256_permute2x128_si256(acbd1, egfh1, 0x31);//0b0d,0f0h
-        _mm256_storeu_si256((__m256i*)destPtr, _mm256_blend_epi32(aceg0, bdfh0, 0b10101010));
-        _mm256_storeu_si256((__m256i*)(destPtr + 32), _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), _mm256_blend_epi32(aceg0, bdfh0, 0b10101010));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr + 32), _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
+#elif COMMON_SIMD_LV >= 31
+    const auto SHUF_MSK = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto muler4 = _mm_set1_ps(muler);
+    while (count > 32)
+    {
+        const auto src0 = _mm_mul_ps(_mm_loadu_ps(srcPtr), muler4);
+        const auto src1 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 4), muler4);
+        const auto src2 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 8), muler4);
+        const auto src3 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 12), muler4);
+        const auto src4 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 16), muler4);
+        const auto src5 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 20), muler4);
+        const auto src6 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 24), muler4);
+        const auto src7 = _mm_mul_ps(_mm_loadu_ps(srcPtr + 28), muler4);
+        const auto i8pix0 = _mm_shuffle_epi8(_mm_cvtps_epi32(src0), SHUF_MSK);//a000
+        const auto i8pix1 = _mm_shuffle_epi8(_mm_cvtps_epi32(src1), SHUF_MSK);//b000
+        const auto i8pix2 = _mm_shuffle_epi8(_mm_cvtps_epi32(src2), SHUF_MSK);//c000
+        const auto i8pix3 = _mm_shuffle_epi8(_mm_cvtps_epi32(src3), SHUF_MSK);//d000
+        const auto i8pix4 = _mm_shuffle_epi8(_mm_cvtps_epi32(src4), SHUF_MSK);//e000
+        const auto i8pix5 = _mm_shuffle_epi8(_mm_cvtps_epi32(src5), SHUF_MSK);//f000
+        const auto i8pix6 = _mm_shuffle_epi8(_mm_cvtps_epi32(src6), SHUF_MSK);//g000
+        const auto i8pix7 = _mm_shuffle_epi8(_mm_cvtps_epi32(src7), SHUF_MSK);//h000
+        const auto ac00 = _mm_unpacklo_epi32(i8pix0, i8pix2);//ac00
+        const auto bd00 = _mm_unpacklo_epi32(i8pix1, i8pix3);//bd00
+        const auto eg00 = _mm_unpacklo_epi32(i8pix4, i8pix6);//eg00
+        const auto fh00 = _mm_unpacklo_epi32(i8pix5, i8pix7);//fh00
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr), _mm_unpacklo_epi32(ac00, bd00));
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr + 16), _mm_unpacklo_epi32(eg00, fh00));
+        srcPtr += 32; destPtr += 32; count -= 32;
+    }
+#endif
     while (count > 0)
     {
         switch (count)
         {
-        default:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 7:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 6:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 5:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 4:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 3:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 2:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 1:
-            *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        default: *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 7:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 6:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 5:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 4:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 3:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 2:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 1:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
         }
     }
 }
@@ -115,22 +133,14 @@ inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict src
     {
         switch (count)
         {
-        default:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 7:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 6:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 5:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 4:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 3:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 2:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
-        case 1:
-            *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        default: *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 7:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 6:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 5:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 4:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 3:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 2:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
+        case 1:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
         }
     }
 }

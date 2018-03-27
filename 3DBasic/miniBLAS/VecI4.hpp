@@ -17,7 +17,7 @@ public:
 	{
 		if (setZero)
 		{
-		#ifdef __SSE2__
+		#if COMMON_SIMD_LV >= 20
 			int_dat = _mm_setzero_si128();
 		#else
 			x = y = z = w = 0;
@@ -34,13 +34,13 @@ public:
 		:Vec4Base(static_cast<int>(ptr[0]), static_cast<int>(ptr[1]), static_cast<int>(ptr[2]), static_cast<int>(ptr[3]))
 	{
 	};
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	VecI4(const int32_t *ptr) noexcept { int_dat = _mm_loadu_si128((__m128i*)ptr); }
 	VecI4(const __m128i& dat_) noexcept { Store128I(int_dat, dat_); };
 #endif
 	//operator Raw&() noexcept { return data; }
 	//operator const Raw&() const noexcept { return data; }
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	operator __m128i&() noexcept { return int_dat; };
 	operator const __m128i() const noexcept { return Load128I(int_dat); };
 #endif
@@ -55,7 +55,7 @@ public:
 	
 	VecI4& operator+=(const VecI4& right)
 	{
-	#ifdef __SSE2__
+	#if COMMON_SIMD_LV >= 20
 		return *this = _mm_add_epi32(int_dat, right);
 	#else
 		x += right.x, y += right.y, z += right.z, w += right.w;
@@ -65,7 +65,7 @@ public:
 
 	VecI4& operator-=(const VecI4& right)
 	{
-	#ifdef __SSE2__
+	#if COMMON_SIMD_LV >= 20
 		return *this = _mm_sub_epi32(int_dat, right);
 	#else
 		x -= right.x, y -= right.y, z -= right.z, w -= right.w;
@@ -75,7 +75,7 @@ public:
 
 	VecI4& operator*=(const int32_t right)
 	{
-	#ifdef __SSE2__
+	#if COMMON_SIMD_LV >= 20
 		return *this = _mm_mul_epi32(int_dat, _mm_set1_epi32(right));
 	#else
 		x *= right, y *= right, z *= right, w *= right;
@@ -85,7 +85,7 @@ public:
 
 	VecI4& operator*=(const VecI4& right)
 	{
-	#ifdef __SSE2__
+	#if COMMON_SIMD_LV >= 20
 		return *this = _mm_mul_epi32(int_dat, right.int_dat);
 	#else
 		x *= right.x, y *= right.y, z *= right.z, w *= right.w;
@@ -110,7 +110,7 @@ public:
 
 inline VecI4 VECCALL operator+(const VecI4& l, const VecI4& r)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_add_epi32(l, r);
 #else
 	return VecI4(l.x + r.x, l.y + r.y, l.z + r.z, l.w + r.w);
@@ -119,7 +119,7 @@ inline VecI4 VECCALL operator+(const VecI4& l, const VecI4& r)
 
 inline VecI4 VECCALL operator+(const VecI4& l, const int r)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_add_epi32(l, _mm_set1_epi32(r));
 #else
 	return VecI4(l.x + r, l.y + r, l.z + r, l.w + r);
@@ -128,7 +128,7 @@ inline VecI4 VECCALL operator+(const VecI4& l, const int r)
 
 inline VecI4 VECCALL operator-(const VecI4& l, const VecI4& r)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_sub_epi32(l, r);
 #else
 	return VecI4(l.x - r.x, l.y - r.y, l.z - r.z, l.w - r.w);
@@ -137,7 +137,7 @@ inline VecI4 VECCALL operator-(const VecI4& l, const VecI4& r)
 
 inline VecI4 VECCALL operator-(const VecI4& l, const int r)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_sub_epi32(l, _mm_set1_epi32(r));
 #else
 	return VecI4(l.x - r, l.y - r, l.z - r, l.w - r);
@@ -146,7 +146,7 @@ inline VecI4 VECCALL operator-(const VecI4& l, const int r)
 
 inline VecI4 VECCALL operator*(const VecI4& l, const int n)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_mul_epi32(l, _mm_set1_epi32(n));
 #else
 	return VecI4(l.x * n, l.y * n, l.z * n, l.w * n);
@@ -155,7 +155,7 @@ inline VecI4 VECCALL operator*(const VecI4& l, const int n)
 
 inline VecI4 VECCALL operator*(const VecI4& l, const VecI4& r)
 {
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
 	return _mm_mul_epi32(l, r);
 #else
 	return VecI4(l.x * r.x, l.y * r.y, l.z * r.z, l.w * r.w);

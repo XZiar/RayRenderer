@@ -96,7 +96,7 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src)
         }, false);
     if (params.empty())
         COMMON_THROW(BaseException, L"Invalid shader source");
-    static string glDefs = R"(
+    constexpr static auto glDefs = R"(
 #if defined(OGLU_VERT)
 #   define GLVARY out
 #elif defined(OGLU_FRAG)

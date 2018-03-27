@@ -37,22 +37,48 @@ struct MINILOGAPI LogMessage : public NonCopyable
 {
     const uint64_t Timestamp;
     const std::u16string& Source;
-    const std::u16string Content;
     std::atomic_uint32_t RefCount;
+    const uint32_t Length;
     const LogLevel Level;
-    LogMessage(const std::u16string& prefix, const std::u16string& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-        : Source(prefix), Content(content), Level(level), Timestamp(time), RefCount(0)
+private:
+    LogMessage(const std::u16string& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
+        : Source(prefix), Length(length), Level(level), Timestamp(time), RefCount(0)
     { }
-    std::u16string_view GetContent() { return Content; }
+public:
+    static LogMessage* MakeMessage(const std::u16string& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    {
+        if (len >= UINT32_MAX)
+            COMMON_THROW(BaseException, L"Too long for a single LogMessage!");
+        uint8_t* ptr = (uint8_t*)malloc_align(sizeof(LogMessage) + sizeof(char16_t)*len, 64);
+        if (!ptr)
+            return nullptr; //not throw an exception yet
+        LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
+        memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t)*len, content, sizeof(char16_t)*len);
+        return msg;
+    }
+    static LogMessage* MakeMessage(const std::u16string& prefix, const std::u16string& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    {
+        return MakeMessage(prefix, content.c_str(), content.size(), level, time);
+    }
+    static LogMessage* MakeMessage(const std::u16string& prefix, const fmt::BasicCStringRef<char16_t>& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    {
+        return MakeMessage(prefix, content.c_str(), std::char_traits<char16_t>::length(content.c_str()), level, time);
+    }
+    static LogMessage* MakeMessage(const std::u16string& prefix, const fmt::UTFMemoryWriter<char16_t>& writer, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    {
+        return MakeMessage(prefix, writer.data(), writer.size(), level, time);
+    }
     static bool Consume(LogMessage* msg)
     {
         if (msg->RefCount-- == 1) //last one
         {
-            delete msg;
+            //delete msg;
+            free_align(msg);
             return true;
         }
         return false;
     }
+    std::u16string_view GetContent() const { return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length); }
 };
 
 class MINILOGAPI LoggerBackend : public NonCopyable
@@ -61,6 +87,7 @@ protected:
     volatile LogLevel LeastLevel = LogLevel::Debug; //non-atomic, should increase performance
     void virtual OnPrint(const LogMessage& msg) = 0;
 public:
+    virtual ~LoggerBackend() { }
     void virtual Print(LogMessage* msg) 
     {
         if ((uint8_t)msg->Level >= (uint8_t)LeastLevel)
@@ -103,16 +130,16 @@ struct MINILOGAPI StrFormater<char16_t>
 {
     static fmt::UTFMemoryWriter<char16_t>& GetWriter();
     template<class... Args>
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char16_t>& formater, Args&&... args)
+    static const fmt::UTFMemoryWriter<char16_t>& ToU16Str(const fmt::BasicCStringRef<char16_t>& formater, Args&&... args)
     {
         auto& writer = GetWriter();
         writer.clear();
         writer.write(formater, std::forward<Args>(args)...);
-        return writer.c_str();
+        return writer;
     }
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char16_t>& content)
+    static const fmt::BasicCStringRef<char16_t>& ToU16Str(const fmt::BasicCStringRef<char16_t>& content)
     {
-        return std::u16string(content.c_str());
+        return content;
     }
 };
 
@@ -155,7 +182,7 @@ struct MINILOGAPI StrFormater<wchar_t>
     static std::u16string ToU16Str(const fmt::BasicCStringRef<wchar_t>& content)
     {
         if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-            return StrFormater<char16_t>::ToU16Str(*(const fmt::BasicCStringRef<char16_t>*)&content);
+            return std::u16string(reinterpret_cast<const fmt::BasicCStringRef<char16_t>*>(&content)->c_str());
         else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
             return StrFormater<char32_t>::ToU16Str(*(const fmt::BasicCStringRef<char32_t>*)&content);
         else

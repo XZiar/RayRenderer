@@ -351,13 +351,6 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 }
 
 
-bool BasicTest::AddObject(const Wrapper<Drawable>& model)
-{
-    model->prepareGL(prog3D);
-    drawables.push_back(model);
-    return true;
-}
-
 void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(BaseException&)> onError)
 {
 	std::thread([this, onFinish, onError](const u16string name)
@@ -380,41 +373,26 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
 	}, fname).detach();
 }
 
-void BasicTest::AddLight(const b3d::LightType type)
+bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
-	Wrapper<Light> lgt;
-	switch (type)
-	{
-	case LightType::Parallel:
-		lgt = Wrapper<ParallelLight>(std::in_place);
-		lgt->color = Vec4(2.0, 0.5, 0.5, 10.0);
-		break;
-	case LightType::Point:
-		lgt = Wrapper<PointLight>(std::in_place);
-		lgt->color = Vec4(0.5, 2.0, 0.5, 10.0);
-		break;
-	case LightType::Spot:
-		lgt = Wrapper<SpotLight>(std::in_place);
-		lgt->color = Vec4(0.5, 0.5, 2.0, 10.0);
-		break;
-	default:
-		return;
-	}
-	lights.push_back(lgt);
+    drawable->prepareGL(prog3D);
+    drawables.push_back(drawable);
+    basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->getType(), drawable->name);
+    return true;
+}
+
+bool BasicTest::AddLight(const Wrapper<Light>& light)
+{
+	lights.push_back(light);
 	prepareLight();
-	basLog().info(u"add Light {} type {}\n", lights.size(), (int32_t)lgt->type);
+	basLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
+    return true;
 }
 
 void BasicTest::DelAllLight()
 {
 	lights.clear();
 	prepareLight();
-}
-
-void BasicTest::showObject(uint16_t objIdx) const
-{
-	const auto& d = drawables[objIdx];
-	basLog().info(u"Drawable {}:\t {}  [{}]\n", objIdx, d->name, d->getType());
 }
 
 static uint32_t getTID()

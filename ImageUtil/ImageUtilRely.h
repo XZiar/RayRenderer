@@ -18,6 +18,7 @@
 #include <filesystem>
 #include "common/CommonRely.hpp"
 #include "common/CommonMacro.hpp"
+#include "common/SIMD.hpp"
 #include "common/Exceptions.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/StringEx.hpp"
@@ -36,6 +37,10 @@ using std::wstring;
 using std::u16string;
 using std::tuple;
 }
+
+#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__)
+#   define IMGU_USE_SIMD
+#endif
 
 #ifdef IMGUTIL_EXPORT
 #include "common/miniLogger/miniLogger.h"

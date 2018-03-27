@@ -7,6 +7,7 @@
 #include "CommonRely.hpp"
 #include "Wrapper.hpp"
 #include <msclr/marshal_cppstd.h>
+#include <string_view>
 
 namespace common
 {
@@ -28,6 +29,18 @@ forceinline static System::String^ ToStr(const std::u16string& str)
 forceinline static System::String^ ToStr(const std::wstring& str)
 {
     return gcnew System::String(str.c_str(), 0, (int)str.length());
+}
+forceinline static System::String^ ToStr(const std::string_view& str)
+{
+    return gcnew System::String(str.data(), 0, (int)str.length());
+}
+forceinline static System::String^ ToStr(const std::u16string_view& str)
+{
+    return gcnew System::String(reinterpret_cast<const wchar_t*>(str.data()), 0, (int)str.length());
+}
+forceinline static System::String^ ToStr(const std::wstring_view& str)
+{
+    return gcnew System::String(str.data(), 0, (int)str.length());
 }
 
 

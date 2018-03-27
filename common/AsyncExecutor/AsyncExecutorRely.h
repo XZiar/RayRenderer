@@ -50,7 +50,6 @@ protected:
     { }
     T virtual wait() = 0;
 public:
-    virtual ~AsyncResult_() {}
     AsyncResult_(AsyncResult_&&) = default;
 };
 

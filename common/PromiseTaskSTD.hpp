@@ -18,6 +18,7 @@ public:
     { }
     PromiseResultSTD(std::future<T>&& fut_) : fut(std::move(fut_))
     { }
+    virtual ~PromiseResultSTD() override { }
     T virtual wait() override
     {
         return fut.get();
@@ -53,6 +54,7 @@ public:
     template<class... ARGS>
     PromiseTaskSTD(std::function<T(ARGS...)> task_, ARGS... args) : PromiseTask(std::bind(task_, args)), ret(pms.get_future())
     { }
+    virtual ~PromiseTaskSTD() override { }
     void virtual dowork() override
     {
         pms.set_value(task());

@@ -16,7 +16,7 @@ namespace img = xziar::img;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
-class RAYCOREAPI alignas(32) BasicTest : public NonCopyable, public AlignBase<32>
+class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignBase<32>
 {
 private:
     oclContext clContext;
@@ -45,13 +45,12 @@ public:
     void Resize(const int w, const int h);
     void ReloadFontLoader(const u16string& fname);
     void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
-    bool AddObject(const Wrapper<Drawable>& model);
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(BaseException&)> onError = nullptr);
-    void AddLight(const b3d::LightType type);
+    bool AddObject(const Wrapper<Drawable>& drawable);
+    bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
-    void showObject(uint16_t objIdx) const;
     void tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr) const;
 };
 

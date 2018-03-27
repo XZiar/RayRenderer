@@ -84,7 +84,7 @@ ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
 ModelImage _ModelImage::getImage(const u16string& pname)
 {
 	if (auto img = FindInMap(images, pname))
-		return **img;
+		return *img;
 	else
 		return ModelImage();
 }
@@ -292,7 +292,7 @@ map<u16string, ModelData> _ModelData::models;
 ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
 {
 	if (auto md = FindInMap(models, fname))
-		return **md;
+		return *md;
 	auto md = new _ModelData(fname, asyncload);
 	ModelData m(std::move(md));
 	models.insert_or_assign(fname, m);
@@ -302,7 +302,7 @@ ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
 void _ModelData::releaseModel(const u16string& fname)
 {
 	if (auto md = FindInMap(models, fname))
-		if ((**md).unique())
+		if (md->unique())
 			models.erase(fname);
 }
 
@@ -558,7 +558,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 					line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
 					PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
 					if (auto oidx = FindInMap(idxmap, stub))
-						tmpidx[a] = **oidx;
+						tmpidx[a] = *oidx;
 					else
 					{
 						const uint32_t idx = static_cast<uint32_t>(pts.size());
@@ -592,7 +592,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
 				if (groups.size() == 1)
 					tstTimer.Start();
 				if (auto omtl = FindInMap(mtlmap, mtlName))
-					curmtl = &**omtl;
+					curmtl = omtl;
 			}break;
 		case "mtllib"_hash://import mtl file
 			{

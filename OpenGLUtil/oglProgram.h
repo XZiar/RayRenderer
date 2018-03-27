@@ -36,10 +36,10 @@ public:
 	uint16_t size = 0;
 	uint8_t ifidx;
 	ProgramResource(const GLenum type_) :type(type_) { }
-	const char* getTypeName() const;
-	bool isUniformBlock() const { return type == GL_UNIFORM_BLOCK; }
-	bool isAttrib() const { return type == GL_PROGRAM_INPUT; }
-	bool isTexture() const;
+	const char* getTypeName() const noexcept;
+	bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
+	bool isAttrib() const noexcept { return type == GL_PROGRAM_INPUT; }
+	bool isTexture() const noexcept;
 };
 
 struct OGLUAPI SubroutineResource

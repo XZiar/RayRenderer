@@ -11,7 +11,7 @@ using common::file::FileObject;
 using common::Wrapper;
 
 
-class IMGUTILAPI ImgReader
+class IMGUTILAPI ImgReader : public common::NonCopyable
 {
 protected:
 public:
@@ -21,7 +21,7 @@ public:
 	virtual void Release() {}
 };
 
-class IMGUTILAPI ImgWriter
+class IMGUTILAPI ImgWriter : public common::NonCopyable
 {
 public:
 	virtual ~ImgWriter() {};

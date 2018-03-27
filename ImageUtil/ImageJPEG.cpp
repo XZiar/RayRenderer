@@ -3,7 +3,7 @@
 #include "libjpeg-turbo/jpeglib.h"
 
 
-#pragma message("Compiler ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
+#pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
 namespace xziar::img::jpeg
 {
 

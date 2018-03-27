@@ -8,7 +8,7 @@
 #include "common/TimeUtil.hpp"
 
 
-#pragma message("Compile ImagePNG with libpng[" STRINGIZE(PNG_LIBPNG_VER_STRING) "] AND zlib[" STRINGIZE(ZLIB_VERSION) "]")
+#pragma message("Compiling ImagePNG with libpng[" STRINGIZE(PNG_LIBPNG_VER_STRING) "] AND zlib[" STRINGIZE(ZLIB_VERSION) "]")
 
 namespace xziar::img::png
 {

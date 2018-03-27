@@ -13,7 +13,7 @@ class alignas(SQMat4Align) Mat3x3 :public SQMat4Base<float, Vec3, __m256>
 protected:
     static void VECCALL MatrixTranspose3x3(const Mat3x3& in, Mat3x3& out)
     {
-    #if defined(__AVX__)
+    #if COMMON_SIMD_LV >= 100
         const __m256 n1 = _mm256_permute_ps(in.xy, _MM_SHUFFLE(3, 1, 2, 0));//x1,z1,y1,w1;x2,z2,y2,w2
         const __m256 n2 = _mm256_permute_ps(in.zw, _MM_SHUFFLE(3, 1, 2, 0));//x3,z3,y3,w3;x4,z4,y4,w4
         const __m256 t1 = _mm256_unpacklo_ps(n1, n2);//x1,x3,z1,z3;x2,x4,z2,z4
@@ -22,7 +22,7 @@ protected:
         const __m256 t4 = _mm256_permute2f128_ps(t1, t2, 0b00110001);//x2,x4,z2,z4;y2,y4,w2,w4
         Store256PS(out.xy, _mm256_unpacklo_ps(t3, t4));//x1,x2,x3,x4;y1,y2,y3,y4
         Store256PS(out.zw, _mm256_unpackhi_ps(t3, t4));//z1,z2,z3,z4;w1,w2,w3,w4
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 xy12 = _mm_movelh_ps(in.x, in.y);//x1,y1,x2,y2
         const __m128 zw12 = _mm_movehl_ps(in.y, in.x);//z1,w1,z2,w2
         const __m128 xy34 = _mm_movelh_ps(in.z, in.w);//x3,y3,x4,y4
@@ -52,7 +52,7 @@ protected:
     }
     static void VECCALL MatrixMultiply3x3(const Mat3x3& left, const Mat3x3& right, Mat3x3& out)
     {
-    #if defined(__AVX__)
+    #if COMMON_SIMD_LV >= 100
         const __m256 t1 = _mm256_unpacklo_ps(right.xy, right.zw);//x1,x3,y1,y3;x2,x4,y2,y4
         const __m256 t2 = _mm256_unpackhi_ps(right.xy, right.zw);//z1,z3,w1,w3;z2,z4,w2,w4
         const __m256 t3 = _mm256_permute2f128_ps(t1, t2, 0b00100000);//x1,x3,y1,y3;z1,z3,w1,w3
@@ -70,7 +70,7 @@ protected:
         const __m128 y3 = _mm_dp_ps(left.z, _mm256_castps256_ps128(ryw), 0x72);
         const auto newz = _mm_blend_ps(_mm_blend_ps(_mm256_castps256_ps128(xz3), y3, 0b1110)/*x3,y3,,*/, _mm256_extractf128_ps(xz3, 1), 0b1100);//z1,z2,z3
         Store128PS(out.z, newz);
-    #elif defined(__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         //transpose
         const auto rx = _mm_load_ps((const float*)&right.x);
         const auto ry = _mm_load_ps((const float*)&right.y);
@@ -106,12 +106,12 @@ public:
 
     Mat3x3() noexcept { }
     Mat3x3(const Vec3& x_, const Vec3& y_, const Vec3& z_) noexcept :SQMat4Base(x_, y_, z_) { };
-#ifdef __AVX__
+#if COMMON_SIMD_LV >= 100
     Mat3x3(const __m256 xy_, const __m256 zw_) noexcept :SQMat4Base(xy_, zw_) { };
     Mat3x3(const __m256 xy_, const __m128 z_) noexcept { xy = xy_, z = z_; };
 #endif
     Mat3x3(const Vec3 *ptr) noexcept :SQMat4Base(ptr[0], ptr[1], ptr[2]) { };
-#ifdef __SSE2__
+#if COMMON_SIMD_LV >= 20
     Mat3x3(const __m128x3& dat) noexcept
     {
         Store128PS(x, _mm_load_ps((const float*)&dat[0]));
@@ -128,10 +128,10 @@ public:
     }
     Mat3x3(const float(&dat)[12]) noexcept
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         Store256PS(xy, _mm256_loadu_ps(dat));
         Store128PS(z, _mm_loadu_ps(dat + 8));
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         Store128PS(x, _mm_loadu_ps(dat + 0));
         Store128PS(y, _mm_loadu_ps(dat + 4));
         Store128PS(z, _mm_loadu_ps(dat + 8));
@@ -153,10 +153,10 @@ public:
 
     forceinline Mat3x3 VECCALL operator+(const float right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(right);
         return Mat3x3(_mm256_add_ps(xy, v256), _mm256_add_ps(zw, v256));
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 v128 = _mm_set1_ps(right);
         return Mat3x3(_mm_add_ps(x, v128), _mm_add_ps(y, v128), _mm_add_ps(z, v128));
     #else
@@ -166,9 +166,9 @@ public:
 
     forceinline Mat3x3 VECCALL operator+(const Mat3x3& right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         return Mat3x3(_mm256_add_ps(xy, right.xy), _mm256_add_ps(zw, right.zw));
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         return Mat3x3(_mm_add_ps(x, right.x), _mm_add_ps(y, right.y), _mm_add_ps(z, right.z));
     #else
         return Mat3x3(x + right.x, y + right.y, z + right.z);
@@ -177,10 +177,10 @@ public:
 
     forceinline Mat3x3 VECCALL operator-(const float right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(right);
         return Mat3x3(_mm256_sub_ps(xy, v256), _mm256_sub_ps(zw, v256));
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 v128 = _mm_set1_ps(right);
         return Mat3x3(_mm_sub_ps(x, v128), _mm_sub_ps(y, v128), _mm_sub_ps(z, v128));
     #else
@@ -190,7 +190,7 @@ public:
 
     forceinline Mat3x3 VECCALL operator-(const Mat3x3& right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         return Mat3x3(_mm256_sub_ps(xy, right.xy), _mm256_sub_ps(zw, right.zw));
     #else
         return Mat3x3(x - right.x, y - right.y, z - right.z);
@@ -199,7 +199,7 @@ public:
 
     forceinline Mat3x3 VECCALL operator*(const float right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(right);
         return Mat3x3(_mm256_mul_ps(xy, v256), _mm256_mul_ps(zw, v256));
     #else
@@ -209,7 +209,7 @@ public:
 
     forceinline Vec3 VECCALL operator*(const Vec3& right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_broadcast_ps((const __m128*)&right);
         const __m256 ans = _mm256_blend_ps(
             _mm256_dp_ps(xy, v256, 0x77),
@@ -230,7 +230,7 @@ public:
 
     forceinline Mat3x3 VECCALL operator/(const float right) const
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(right);
         return Mat3x3(_mm256_div_ps(xy, v256), _mm_div_ps(z, _mm256_castps256_ps128(v256)));
     #else
@@ -247,11 +247,11 @@ public:
 
     forceinline Mat3x3& VECCALL operator+=(const float n)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(n);
         const auto newxy = _mm256_add_ps(xy, v256), newzw = _mm256_add_ps(zw, v256);
         Store256PS(xy, newxy); Store256PS(zw, newzw);
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 v128 = _mm_set1_ps(n);
         const auto newx = _mm_add_ps(_mm_load_ps((const float*)&x), v128), newy = _mm_add_ps(_mm_load_ps((const float*)&y), v128), newz = _mm_add_ps(_mm_load_ps((const float*)&z), v128);
         Store128PS(x, newx); Store128PS(y, newy); Store128PS(z, newz);
@@ -263,7 +263,7 @@ public:
 
     forceinline Mat3x3& VECCALL operator+=(const Mat3x3& m)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const auto newxy = _mm256_add_ps(xy, m.xy);
         const auto newzw = _mm256_add_ps(zw, m.zw);
         Store256PS(xy, newxy); Store256PS(zw, newzw);
@@ -275,11 +275,11 @@ public:
 
     forceinline Mat3x3& VECCALL operator-=(const float n)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(n);
         const auto newxy = _mm256_sub_ps(xy, v256), newzw = _mm256_sub_ps(zw, v256);
         Store256PS(xy, newxy); Store256PS(zw, newzw);
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 v128 = _mm_set1_ps(n);
         const auto newx = _mm_sub_ps(x, v128), newy = _mm_sub_ps(y, v128), newz = _mm_sub_ps(z, v128);
         Store128PS(x, newx); Store128PS(y, newy); Store128PS(z, newz);
@@ -291,7 +291,7 @@ public:
 
     forceinline Mat3x3& VECCALL operator-=(const Mat3x3& m)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const auto newxy = _mm256_sub_ps(xy, m.xy);
         const auto newzw = _mm256_sub_ps(zw, m.zw);
         Store256PS(xy, newxy); Store256PS(zw, newzw);
@@ -303,11 +303,11 @@ public:
 
     forceinline Mat3x3& VECCALL operator*=(const float n)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(n);
         const auto newxy = _mm256_mul_ps(xy, v256), newzw = _mm256_mul_ps(zw, v256);
         Store256PS(xy, newxy); Store256PS(zw, newzw);
-    #elif defined (__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const __m128 v128 = _mm_set1_ps(n);
         const auto newx = _mm_mul_ps(x, v128), newy = _mm_mul_ps(y, v128), newz = _mm_mul_ps(z, v128);
         Store128PS(x, newx); Store128PS(y, newy); Store128PS(z, newz);
@@ -325,7 +325,7 @@ public:
 
     forceinline Mat3x3& VECCALL operator/=(const float n)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const __m256 v256 = _mm256_set1_ps(n);
         xy = _mm256_div_ps(xy, v256), z = _mm_div_ps(z, _mm256_castps256_ps128(v256));
     #else
@@ -346,10 +346,10 @@ public:
 
     static Mat3x3 VECCALL zero()
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const auto tmp = _mm256_setzero_ps();
         return Mat3x3(tmp, tmp);
-    #elif defined(__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const auto tmp = _mm_setzero_ps();
         return Mat3x3(tmp, tmp, tmp);
     #else
@@ -361,10 +361,10 @@ public:
 
     static Mat3x3 VECCALL one()
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const auto tmp = _mm256_set1_ps(1);
         return Mat3x3(tmp, tmp);
-    #elif defined(__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const auto tmp = _mm_set1_ps(1);
         return Mat3x3(tmp, tmp, tmp);
     #else
@@ -375,10 +375,10 @@ public:
 
     static Mat3x3 VECCALL all(const float val)
     {
-    #ifdef __AVX__
+    #if COMMON_SIMD_LV >= 100
         const auto tmp = _mm256_set1_ps(val);
         return Mat3x3(tmp, tmp);
-    #elif defined(__SSE2__)
+    #elif COMMON_SIMD_LV >= 20
         const auto tmp = _mm_set1_ps(val);
         return Mat3x3(tmp, tmp, tmp);
     #else

@@ -29,22 +29,22 @@ public:
     template<class... Args>
     LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char>& formater, Args&&... args)
     {
-        return new LogMessage(Prefix, StrFormater<char>::ToU16Str(formater, std::forward<Args>(args)...), level);
+        return LogMessage::MakeMessage(Prefix, StrFormater<char>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
     LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char16_t>& formater, Args&&... args)
     {
-        return new LogMessage(Prefix, StrFormater<char16_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
+        return LogMessage::MakeMessage(Prefix, StrFormater<char16_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
     LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char32_t>& formater, Args&&... args)
     {
-        return new LogMessage(Prefix, StrFormater<char32_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
+        return LogMessage::MakeMessage(Prefix, StrFormater<char32_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
     LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<wchar_t>& formater, Args&&... args)
     {
-        return new LogMessage(Prefix, StrFormater<wchar_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
+        return LogMessage::MakeMessage(Prefix, StrFormater<wchar_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
 };
 

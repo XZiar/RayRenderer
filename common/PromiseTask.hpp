@@ -29,7 +29,7 @@ protected:
     { }
 public:
     T virtual wait() = 0;
-    virtual ~PromiseResult_() {}
+    virtual ~PromiseResult_() override {}
     PromiseResult_(PromiseResult_&&) = default;
 };
 

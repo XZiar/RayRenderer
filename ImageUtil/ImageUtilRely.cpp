@@ -1,5 +1,7 @@
 #include "ImageUtilRely.h"
 
+#pragma message("Compiling ImageUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
+
 namespace xziar::img
 {
 using namespace common::mlog;

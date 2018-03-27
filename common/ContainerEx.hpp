@@ -30,11 +30,11 @@ struct EleTyper<const T, Ele>
 }
 
 template<class Map, typename Key = typename Map::key_type, typename Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
-inline std::optional<Val*> FindInMap(Map& themap, const Key& key)
+inline Val* FindInMap(Map& themap, const Key& key)
 {
 	const auto it = themap.find(key);
 	if (it == themap.end())//not exist
-		return {};
+		return nullptr;
 	return &it->second;
 }
 
@@ -57,11 +57,11 @@ inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{}
 }
 
 template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
-inline std::optional<Val*> FindInVec(Vec& thevec, const Predictor& pred)
+inline Val* FindInVec(Vec& thevec, const Predictor& pred)
 {
 	const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
 	if (it == thevec.end())//not exist
-		return {};
+        return nullptr;
 	return &(*it);
 }
 

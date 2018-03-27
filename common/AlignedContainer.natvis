@@ -3,9 +3,9 @@
   <Type Name="common::AlignedBuffer&lt;*&gt;">
     <Expand>
       <Item Name="[data]">Data</Item>
-      <Item Name="[size]" ExcludeView="simple">Size</Item>
+      <Item Name="[size]" ExcludeView="simple">Size_</Item>
       <ArrayItems Condition="Data != nullptr">
-        <Size>Size</Size>
+        <Size>Size_</Size>
         <ValuePointer>Data</ValuePointer>
       </ArrayItems>
     </Expand>

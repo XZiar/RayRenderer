@@ -193,7 +193,7 @@ public:
     {
         Lock.LockWrite();
         if (auto obj = common::container::FindInMap(Map, key))
-            **obj = creator(key);
+            *obj = creator(key);
         else
             Map.emplace(key, creator(key));
         Lock.UnlockWrite();

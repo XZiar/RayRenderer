@@ -28,7 +28,7 @@ protected:
     void Start();
 public:
     LoggerQBackend(const size_t initSize = 64);
-    ~LoggerQBackend();
+    virtual ~LoggerQBackend() override;
     void virtual Print(LogMessage* msg) override;
     void Flush();
     template<class T, typename... Args>
