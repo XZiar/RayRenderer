@@ -304,7 +304,7 @@ public:
 		width = w, height = h;
 		aspect = (float)w / h;
 	}
-	void move(const float &x, const float &y, const float &z)
+	void Move(const float &x, const float &y, const float &z)
 	{
 		position += camMat * Vec3(x, y, z);
 	}

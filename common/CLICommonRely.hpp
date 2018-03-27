@@ -5,6 +5,7 @@
 #endif
 
 #include "CommonRely.hpp"
+#include "Wrapper.hpp"
 #include <msclr/marshal_cppstd.h>
 
 namespace common
@@ -29,5 +30,23 @@ forceinline static System::String^ ToStr(const std::wstring& str)
     return gcnew System::String(str.c_str(), 0, (int)str.length());
 }
 
+
+template<typename T>
+public value class CLIWrapper
+{
+private:
+    T *Src;
+public:
+    CLIWrapper(const T& src) : Src(new T(src)) { }
+    CLIWrapper(T&& src) : Src(new T(std::move(src))) { }
+    T Extract() { T ret = *this; return ret; }
+    static operator T(CLIWrapper<T> val) 
+    {
+        T obj = *val.Src;
+        delete val.Src;
+        val.Src = nullptr;
+        return obj;
+    }
+};
 
 }

@@ -1,5 +1,4 @@
-﻿using common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +17,7 @@ using Microsoft.Win32;
 using static XZiar.Util.BindingHelper;
 using Basic3D;
 using XZiar.WPFControl;
+using XZiar.Util;
 
 namespace WPFTest
 {
@@ -26,17 +26,20 @@ namespace WPFTest
     /// </summary>
     public partial class MainWindow : Window
     {
-
         private TestCore Core = null;
+        private MemoryMonitor MemMonitor = null;
         private OPObject OperateTarget = OPObject.Camera;
         private ImageSource imgCamera, imgCube, imgPointLight;
         public MainWindow()
         {
             InitializeComponent();
+            XZiar.Util.BaseViewModel.Init();
+            common.BaseViewModel.Init();
+            MemMonitor = new MemoryMonitor();
             imgCamera = this.FindResource("imgCamera") as ImageSource;
             imgCube = this.FindResource("imgCube") as ImageSource;
             imgPointLight = this.FindResource("imgPointLight") as ImageSource;
-            Logger.OnLog += OnLog;
+            common.Logger.OnLog += OnLog;
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) => 
             {
@@ -51,7 +54,7 @@ namespace WPFTest
 
         private void InitializeCore()
         {
-            OnLog(LogLevel.Info, "WPF", "Window Loaded\n");
+            OnLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
             Core = new TestCore();
 
             Core.Test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
@@ -59,6 +62,30 @@ namespace WPFTest
 
             glMain.Draw += Core.Test.Draw;
             glMain.Resize += (o, e) => { Core.Test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+
+            txtMemInfo.SetBinding(TextBlock.TextProperty, new Binding
+            {
+                Source = MemMonitor,
+                Path = new PropertyPath("Current"),
+                Mode = BindingMode.OneWay,
+                Converter = new OneWayValueConvertor(o => 
+                {
+                    var monitor = (MemoryMonitor)o;
+                    string ParseSize(ulong size)
+                    {
+                        if (size > 1024 * 1024 * 1024)
+                            return string.Format("{0:F2}G", size * 1.0 / (1024 * 1024 * 1024));
+                        else if (size > 1024 * 1024)
+                            return string.Format("{0:F2}M", size * 1.0 / (1024 * 1024));
+                        else if (size > 1024)
+                            return string.Format("{0:F2}K", size * 1.0 / (1024));
+                        else
+                            return string.Format("{0:D}B", size);
+                    }
+                    return ParseSize(monitor.ManagedSize) + " / " + ParseSize(monitor.PrivateSize) + " / " + ParseSize(monitor.WorkingSet);
+                })
+            });
+            MemMonitor.UpdateInterval(1000, true);
 
             txtCurObj.SetBinding(TextBlock.TextProperty, new Binding
             {
@@ -111,16 +138,16 @@ namespace WPFTest
             glMain.Invalidate();
         }
 
-        private static readonly Dictionary<LogLevel, SolidColorBrush> brashMap = new Dictionary<LogLevel, SolidColorBrush>
+        private static readonly Dictionary<common.LogLevel, SolidColorBrush> brashMap = new Dictionary<common.LogLevel, SolidColorBrush>
         {
-            { LogLevel.Error,   new SolidColorBrush(Colors.Red)     },
-            { LogLevel.Warning, new SolidColorBrush(Colors.Yellow)  },
-            { LogLevel.Success, new SolidColorBrush(Colors.Green)   },
-            { LogLevel.Info,    new SolidColorBrush(Colors.White)   },
-            { LogLevel.Verbose, new SolidColorBrush(Colors.Pink)    },
-            { LogLevel.Debug,   new SolidColorBrush(Colors.Cyan)    }
+            { common.LogLevel.Error,   new SolidColorBrush(Colors.Red)     },
+            { common.LogLevel.Warning, new SolidColorBrush(Colors.Yellow)  },
+            { common.LogLevel.Success, new SolidColorBrush(Colors.Green)   },
+            { common.LogLevel.Info,    new SolidColorBrush(Colors.White)   },
+            { common.LogLevel.Verbose, new SolidColorBrush(Colors.Pink)    },
+            { common.LogLevel.Debug,   new SolidColorBrush(Colors.Cyan)    }
         };
-        private void OnLog(LogLevel level, string from, string content)
+        private void OnLog(common.LogLevel level, string from, string content)
         {
             dbgOutput.Dispatcher.BeginInvoke(new Action(() => 
             {
@@ -196,7 +223,6 @@ namespace WPFTest
             {
                 if (await Core.Drawables.AddModelAsync(fileName))
                 {
-                    ShowCurrentObject();
                     Core.Rotate(-90, 0, 0, OPObject.Drawable);
                     Core.Move(-1, 0, 0, OPObject.Drawable);
                     glMain.Invalidate();
@@ -270,12 +296,6 @@ namespace WPFTest
             }
         }
 
-        private void ShowCurrentObject()
-        {
-            var obj = Core.Drawables.Current;
-            Console.WriteLine("get drawable[{0}], name[{1}] --- [{2}]", Core.Drawables.CurObjIdx, obj.Name, obj.Type);
-        }
-
         private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             Console.WriteLine($"KeyDown value[{e.KeyValue}] code[{e.KeyCode}] data[{e.KeyData}]");
@@ -345,13 +365,13 @@ namespace WPFTest
 
         private void OnMouse(object sender, MouseEventExArgs e)
         {
-            switch (e.type)
+            switch (e.Type)
             {
                 case MouseEventType.Moving:
-                    Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OPObject.Camera);
+                    Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
                     break;
                 case MouseEventType.Wheel:
-                    Core.Move(0, 0, (float)e.dx, OPObject.Camera);
+                    Core.Move(0, 0, (float)e.dx, OperateTarget);
                     break;
                 default:
                     return;
@@ -361,6 +381,8 @@ namespace WPFTest
 
         private void cboxLight_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (e.AddedItems.Count <= 0)
+                return;
             var lgt = (Light)e.AddedItems[0];
             if (e.RemovedItems.Count > 0 && lgt == e.RemovedItems[0])
                 return;
@@ -380,6 +402,8 @@ namespace WPFTest
 
         private void cboxObj_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (e.AddedItems.Count <= 0)
+                return;
             var obj = (Drawable)e.AddedItems[0];
             if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
                 return;
@@ -390,6 +414,10 @@ namespace WPFTest
                 Path = new PropertyPath("Name"),
                 Mode = BindingMode.TwoWay
             });
+        }
+
+        private void cboxShader_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
         }
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)

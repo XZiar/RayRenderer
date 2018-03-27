@@ -212,7 +212,10 @@
             <RotateTransform x:Key="rotate90" Angle="90"/>
         </Style.Resources>
         <Setter Property="LayoutTransform" Value="{StaticResource rotate90}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
+    <BitmapImage x:Key="imgDizz" UriSource="icon/dizz.png"/>
     <BitmapImage x:Key="imgCamera" UriSource="icon/camera.png"/>
     <BitmapImage x:Key="imgCube" UriSource="icon/cube.png"/>
     <BitmapImage x:Key="imgParLight" UriSource="icon/sunlight.png"/>

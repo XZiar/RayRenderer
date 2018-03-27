@@ -135,23 +135,19 @@ void BasicTest::init3d(const u16string pname)
 		Wrapper<Pyramid> pyramid(1.0f);
 		pyramid->name = u"Pyramid";
 		pyramid->position = { 0,0,0 };
-		drawables.push_back(pyramid);
+        AddObject(pyramid);
 		Wrapper<Sphere> ball(0.75f);
 		ball->name = u"Ball";
 		ball->position = { 1,0,0 };
-		drawables.push_back(ball);
+        AddObject(ball);
 		Wrapper<Box> box(0.5f, 1.0f, 2.0f);
 		box->name = u"Box";
 		box->position = { 0,1,0 };
-		drawables.push_back(box);
+        AddObject(box);
 		Wrapper<Plane> ground(500.0f, 50.0f);
 		ground->name = u"Ground";
 		ground->position = { 0,-2,0 };
-		drawables.push_back(ground);
-		for (auto& d : drawables)
-		{
-			d->prepareGL(prog3D);
-		}
+        AddObject(ground);
 	}
 }
 
@@ -281,13 +277,6 @@ void BasicTest::fontTest(const char32_t word)
 	}
 }
 
-Wrapper<Model> BasicTest::_addModel(const u16string& fname)
-{
-	Wrapper<Model> mod(fname);
-	mod->name = u"model";
-	return mod;
-}
-
 BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 {
 	static Init _init;
@@ -361,16 +350,15 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 	}, fname).detach();
 }
 
-bool BasicTest::AddModel(const u16string& fname)
+
+bool BasicTest::AddObject(const Wrapper<Drawable>& model)
 {
-	Wrapper<Model> mod(fname);
-	mod->name = u"model";
-	mod->prepareGL(prog3D);
-	drawables.push_back(mod);
-	return true;
+    model->prepareGL(prog3D);
+    drawables.push_back(model);
+    return true;
 }
 
-void BasicTest::AddModelAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(BaseException&)> onError)
 {
 	std::thread([this, onFinish, onError](const u16string name)
 	{
@@ -379,12 +367,7 @@ void BasicTest::AddModelAsync(const u16string& fname, CallbackInvoke<bool> onFin
 		{
 			Wrapper<Model> mod(name, true);
 			mod->name = u"model";
-			onFinish([&, mod]()mutable
-			{
-				mod->prepareGL(prog3D);
-				drawables.push_back(mod);
-				return true;
-			});
+			onFinish(mod);
 		}
 		catch (BaseException& be)
 		{
@@ -392,7 +375,7 @@ void BasicTest::AddModelAsync(const u16string& fname, CallbackInvoke<bool> onFin
 			if (onError)
 				onError(be);
 			else
-				onFinish([]() { return false; });
+				onFinish(Wrapper<Model>());
 		}
 	}, fname).detach();
 }
@@ -426,26 +409,6 @@ void BasicTest::DelAllLight()
 {
 	lights.clear();
 	prepareLight();
-}
-
-void BasicTest::Moveobj(const uint16_t id, const float x, const float y, const float z)
-{
-	drawables[id]->position += Vec3(x, y, z);
-}
-
-void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const float z)
-{
-	drawables[id]->rotation += Vec3(x, y, z);
-}
-
-void BasicTest::Movelgt(const uint16_t id, const float x, const float y, const float z)
-{
-	lights[id]->position += Vec3(x, y, z);
-}
-
-void BasicTest::Rotatelgt(const uint16_t id, const float x, const float y, const float z)
-{
-	lights[id]->direction += Vec3(x, y, z);
 }
 
 void BasicTest::showObject(uint16_t objIdx) const

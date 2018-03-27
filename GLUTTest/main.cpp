@@ -30,17 +30,17 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 	switch (keyevent.SpecialKey())
 	{
 	case Key::Up:
-		tester->Moveobj(curObj, 0, 0.1f, 0); break;
+		tester->Objects()[curObj]->Move(0, 0.1f, 0); break;
 	case Key::Down:
-		tester->Moveobj(curObj, 0, -0.1f, 0); break;
+		tester->Objects()[curObj]->Move(0, -0.1f, 0); break;
 	case Key::Left:
-		tester->Moveobj(curObj, -0.1f, 0, 0); break;
+		tester->Objects()[curObj]->Move(-0.1f, 0, 0); break;
 	case Key::Right:
-		tester->Moveobj(curObj, 0.1f, 0, 0); break;
+		tester->Objects()[curObj]->Move(0.1f, 0, 0); break;
 	case Key::PageUp:
-		tester->Moveobj(curObj, 0, 0, -0.1f); break;
+		tester->Objects()[curObj]->Move(0, 0, -0.1f); break;
 	case Key::PageDown:
-		tester->Moveobj(curObj, 0, 0, 0.1f); break;
+		tester->Objects()[curObj]->Move(0, 0, 0.1f); break;
 	case Key::UNDEFINE:
 		switch (keyevent.key)
 		{
@@ -60,17 +60,17 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 		case 'e'://pan to left
 			tester->cam.roll(3); break;
 		case 'A':
-			tester->Rotateobj(curObj, 0, 3, 0); break;
+			tester->Objects()[curObj]->Rotate(0, 3, 0); break;
 		case 'D':
-			tester->Rotateobj(curObj, 0, -3, 0); break;
+			tester->Objects()[curObj]->Rotate(0, -3, 0); break;
 		case 'W':
-			tester->Rotateobj(curObj, 3, 0, 0); break;
+			tester->Objects()[curObj]->Rotate(3, 0, 0); break;
 		case 'S':
-			tester->Rotateobj(curObj, -3, 0, 0); break;
+			tester->Objects()[curObj]->Rotate(-3, 0, 0); break;
 		case 'Q':
-			tester->Rotateobj(curObj, 0, 0, 3); break;
+			tester->Objects()[curObj]->Rotate(0, 0, 3); break;
 		case 'E':
-			tester->Rotateobj(curObj, 0, 0, -3); break;
+			tester->Objects()[curObj]->Rotate(0, 0, -3); break;
 		case 'x':
 			wd2.reset(800, 600);
 			break;
@@ -109,10 +109,10 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
 	switch (msevent.type)
 	{
 	case MouseEventType::Moving:
-		tester->cam.move((msevent.dx * 10.f / tester->cam.width), (msevent.dy * 10.f / tester->cam.height), 0);
+		tester->cam.Move((msevent.dx * 10.f / tester->cam.width), (msevent.dy * 10.f / tester->cam.height), 0);
 		break;
 	case MouseEventType::Wheel:
-		tester->cam.move(0, 0, (float)msevent.dx);
+		tester->cam.Move(0, 0, (float)msevent.dx);
 		printf("camera at %5f,%5f,%5f\n", tester->cam.position.x, tester->cam.position.y, tester->cam.position.z);
 		break;
 	default:
@@ -123,7 +123,7 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
 
 void autoRotate()
 {
-	tester->Rotateobj(curObj, 0, 3, 0);
+	tester->Objects()[curObj]->Rotate(0, 3, 0);
 }
 
 bool onTimer(FreeGLUTView wd, uint32_t elapseMS)
@@ -141,27 +141,20 @@ void onDropFile(FreeGLUTView wd, wstring fname)
 	static bool isFirst = true;
 	if (true)
 	{
-		tester->AddModelAsync(*(u16string*)&fname, [&, wd](auto cb)
+		tester->LoadModelAsync(*(u16string*)&fname, [&, wd](auto model)
 		{
-			wd->invoke([&, cb]
+			wd->invoke([&, model]
 			{
-				if (cb())
+				if (tester->AddObject(model))
 				{
 					curObj = (uint16_t)(tester->Objects().size() - 1);
-					tester->Rotateobj(curObj, -90, 0, 0);
-					tester->Moveobj(curObj, -1, 0, 0);
+					tester->Objects()[curObj]->Rotate(-90, 0, 0);
+					tester->Objects()[curObj]->Move(-1, 0, 0);
 					return true;
 				}
 				return false;
 			});
 		});
-	}
-	else if (tester->AddModel(*(u16string*)&fname))
-	{
-        curObj = (uint16_t)(tester->Objects().size() - 1);
-		tester->Rotateobj(curObj, -90, 0, 0);
-		tester->Moveobj(curObj, 1, 0, 0);
-		wd->refresh();
 	}
 	isFirst = false;
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 using namespace System;
 using namespace System::Windows::Forms;
 
@@ -47,11 +49,11 @@ public enum class MouseEventType : uint8_t { Down, Up, Moving, Over, Wheel };
 public ref class MouseEventExArgs : public EventArgs
 {
 public:
-	MouseEventType type;
-	MouseButton btn;
+	MouseEventType Type;
+	MouseButton Button;
 	int x, y, dx, dy;
-	MouseEventExArgs(const MouseEventType type_, const MouseButton btn_, const int x_, const int y_, const int dx_, const int dy_)
-		:type(type_), btn(btn_), x(x_), y(y_), dx(dx_), dy(dy_)
+	MouseEventExArgs(const MouseEventType type, const MouseButton btn, const int x_, const int y_, const int dx_, const int dy_)
+		:Type(type), Button(btn), x(x_), y(y_), dx(dx_), dy(dy_)
 	{
 	}
 };

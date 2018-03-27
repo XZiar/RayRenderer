@@ -28,6 +28,22 @@ public:
     virtual void prepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
     virtual void draw(oglu::oglProgram& prog) const;
     u16string getType() const;
+    void Move(const float x, const float y, const float z)
+    {
+        position += Vec3(x, y, z);
+    }
+    void Move(const Vec3& offset)
+    {
+        position += offset;
+    }
+    void Rotate(const float x, const float y, const float z)
+    {
+        rotation += Vec3(x, y, z);
+    }
+    void Rotate(const Vec3& angles)
+    {
+        rotation += angles;
+    }
 protected:
     uint32_t drawableID;
     oglu::oglVAO defaultVAO;

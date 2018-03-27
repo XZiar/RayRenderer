@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)BindingHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MemoryMonitor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ViewModelHelper.cs" />
   </ItemGroup>
 </Project>

@@ -41,16 +41,6 @@ void BasicTest::Resize(const int w, const int h)
     core->Resize(w, h);
 }
 
-void BasicTest::Moveobj(const uint16_t id, const float x, const float y, const float z)
-{
-    core->Moveobj(id, x, y, z);
-}
-
-void BasicTest::Rotateobj(const uint16_t id, const float x, const float y, const float z)
-{
-    core->Rotateobj(id, x, y, z);
-}
-
 void BasicTest::ReLoadCL(String^ fname)
 {
     core->ReloadFontLoader(ToU16Str(fname));
@@ -79,9 +69,33 @@ void LightHolder::Clear()
 }
 
 
+bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel)
+{
+    auto model = theModel.Extract();
+    bool ret = Core->AddObject(model);
+    if (ret)
+    {
+        Drawables->Add(CreateObject(model));
+    }
+    return ret;
+}
 Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
 {
-    return doAsync2<bool>(&rayr::BasicTest::AddModelAsync, Core, ToU16Str(fname));
+    return doAsync3<bool>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>, bool>(this, &DrawableHolder::AddModel), 
+        &rayr::BasicTest::LoadModelAsync, Core, ToU16Str(fname));
+}
+
+
+static void DummyTemplateExport()
+{
+    {
+        DrawableHolder^ dummy;
+        dummy->GetIndex(nullptr);
+    }
+    {
+        LightHolder^ dummy;
+        dummy->GetIndex(nullptr);
+    }
 }
 
 

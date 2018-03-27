@@ -12,9 +12,7 @@ using namespace msclr::interop;
 
 namespace RayRender
 {
-public delegate void ObjectChangedEventHandler(Object^ o, Object^ obj);
 
-ref class BasicTest;
 
 public ref class Drawable : public BaseViewModel
 {
@@ -35,109 +33,128 @@ public:
     {
         return "[" + Type + "]" + Name;
     }
+    void Move(const float dx, const float dy, const float dz)
+    {
+        drawable->lock()->Move(dx, dy, dz);
+    }
+    void Rotate(const float dx, const float dy, const float dz)
+    {
+        drawable->lock()->Rotate(dx, dy, dz);
+    }
 };
 
 
-public ref class LightHolder
+generic<typename T>
+public delegate void ObjectChangedEventHandler(Object^ sender, T obj);
+
+template<typename Type, typename CLIType>
+public ref class HolderBase
 {
-private:
-    const vector<Wrapper<b3d::Light>>& Src;
+protected:
     rayr::BasicTest * const Core;
-    initonly List<Basic3D::Light^>^ Lights;
+    const vector<Type>& Src;
+    initonly List<CLIType^>^ Container;
     initonly PropertyChangedEventHandler^ PChangedHandler;
+    ObjectChangedEventHandler<CLIType^>^ changed;
     void OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
     {
-        Changed(this, sender);
+        Changed(this, safe_cast<CLIType^>(sender));
     }
-internal:
-    LightHolder(rayr::BasicTest *core, const vector<Wrapper<b3d::Light>>& lights) 
-        : Core(core), Src(lights), Lights(gcnew List<Basic3D::Light^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &LightHolder::OnPChangded))
+    void RemoveHandler(CLIType^ obj)
+    {
+        obj->PropertyChanged -= PChangedHandler;
+    }
+    CLIType^ CreateObject(const Type& src)
+    {
+        auto obj = gcnew CLIType(&src);
+        obj->PropertyChanged += PChangedHandler;
+        return obj;
+    }
+    HolderBase(rayr::BasicTest * const core, const vector<Type>& src)
+        : Core(core), Src(src), Container(gcnew List<CLIType^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &HolderBase::OnPChangded)) 
     {
         Refresh();
     }
 public:
-    event ObjectChangedEventHandler^ Changed;
-    property Basic3D::Light^ default[int32_t]
+    event ObjectChangedEventHandler<CLIType^>^ Changed
     {
-        Basic3D::Light^ get(int32_t i)
+        void add(ObjectChangedEventHandler<CLIType^>^ handler)
         {
-            if (i < 0 || i >= Lights->Count)
+            changed += handler;
+        }
+        void remove(ObjectChangedEventHandler<CLIType^>^ handler)
+        {
+            changed -= handler;
+        }
+        void raise(Object^ sender, CLIType^ obj)
+        {
+            auto handler = changed;
+            if (handler == nullptr)
+                return;
+            handler->Invoke(sender, obj);
+        }
+    }
+    property CLIType^ default[int32_t]
+    {
+        CLIType^ get(int32_t i)
+        {
+            if (i < 0 || i >= Container->Count)
                 return nullptr;
-            return Lights[i];
+            return Container[i];
         }
     };
-    uint16_t GetIndex(Basic3D::Light^ light)
+    uint16_t GetIndex(CLIType^ obj)
     {
-        auto idx = Lights->IndexOf(light);
+        auto idx = Container->IndexOf(obj);
         return idx < 0 ? UINT16_MAX : (uint16_t)idx;
     }
     property int32_t Size
     {
-        int32_t get() { return Lights->Count; }
+        int32_t get() { return Container->Count; }
     }
     void Refresh()
     {
-        Lights->Clear();
+        for each(CLIType^ obj in Container)
+        {
+            RemoveHandler(obj);
+        }
+        Container->Clear();
         for (const auto& obj : Src)
         {
-            auto lgt = gcnew Basic3D::Light(&obj);
-            lgt->PropertyChanged += PChangedHandler;
-            Lights->Add(lgt);
+            Container->Add(CreateObject(obj));
         }
+    }
+};
+
+public ref class LightHolder : public HolderBase<Wrapper<b3d::Light>, Basic3D::Light>
+{
+internal:
+    LightHolder(rayr::BasicTest * const core, const vector<Wrapper<b3d::Light>>& lights) 
+        : HolderBase<Wrapper<b3d::Light>, Basic3D::Light>(core, lights)
+    { }
+public:
+    property List<Basic3D::Light^>^ Lights
+    {
+        List<Basic3D::Light^>^ get() { return Container; }
     }
     void Add(Basic3D::LightType type);
     void Clear();
-    void OnPropertyChanged(System::Object ^sender, System::ComponentModel::PropertyChangedEventArgs ^e);
 };
 
-public ref class DrawableHolder
+public ref class DrawableHolder : public HolderBase<Wrapper<rayr::Drawable>, Drawable>
 {
-private:
-    const vector<Wrapper<rayr::Drawable>>& Src;
-    rayr::BasicTest * const Core;
-    initonly List<Drawable^>^ Drawables;
-    initonly PropertyChangedEventHandler^ PChangedHandler;
-    void OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
-    {
-        Changed(this, sender);
-    }
 internal:
     DrawableHolder(rayr::BasicTest *core, const vector<Wrapper<rayr::Drawable>>& drawables)
-        : Core(core), Src(drawables), Drawables(gcnew List<Drawable^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &DrawableHolder::OnPChangded))
-    {
-        Refresh();
-    }
+        : HolderBase<Wrapper<rayr::Drawable>, Drawable>(core, drawables)
+    { }
 public:
-    event ObjectChangedEventHandler^ Changed;
-    property Drawable^ default[int32_t]
+    property List<Drawable^>^ Drawables
     {
-        Drawable^ get(int32_t i)
-        {
-            if (i < 0 || i >= Drawables->Count)
-                return nullptr;
-            return Drawables[i];
-        }
-    };
-    uint16_t GetIndex(Drawable^ drawable)
-    {
-        auto idx = Drawables->IndexOf(drawable);
-        return idx < 0 ? UINT16_MAX : (uint16_t)idx;
-    }
-    property int32_t Size
-    {
-        int32_t get() { return Drawables->Count; }
-    }
-    void Refresh()
-    {
-        Drawables->Clear();
-        for (const auto& obj : Src)
-        {
-            auto drawable = gcnew Drawable(&obj);
-            drawable->PropertyChanged += PChangedHandler;
-            Drawables->Add(drawable);
-        }
+        List<Drawable^>^ get() { return Container; }
     }
     Task<bool>^ AddModelAsync(String^ fname);
+internal:
+    bool AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel);
 };
 
 public ref class BasicTest
@@ -162,8 +179,6 @@ public:
 
     void Draw();
     void Resize(const int w, const int h);
-    void Moveobj(const uint16_t id, const float x, const float y, const float z);
-    void Rotateobj(const uint16_t id, const float x, const float y, const float z);
 
     void ReLoadCL(String^ fname);
 
@@ -172,10 +187,7 @@ public:
 
 };
 
-}
 
 
-void RayRender::LightHolder::OnPropertyChanged(System::Object ^sender, System::ComponentModel::PropertyChangedEventArgs ^e)
-{
-    throw gcnew System::NotImplementedException();
 }
+

@@ -41,17 +41,17 @@ namespace WinFormTest
             switch (e.KeyCode)
             {
                 case Keys.Up:
-                    test.Moveobj(curObj, 0, 0.1f, 0); break;
+                    test.Drawables[curObj].Move(0, 0.1f, 0); break;
                 case Keys.Down:
-                    test.Moveobj(curObj, 0, -0.1f, 0); break;
+                    test.Drawables[curObj].Move(0, -0.1f, 0); break;
                 case Keys.Left:
-                    test.Moveobj(curObj, -0.1f, 0, 0); break;
+                    test.Drawables[curObj].Move(-0.1f, 0, 0); break;
                 case Keys.Right:
-                    test.Moveobj(curObj, 0.1f, 0, 0); break;
+                    test.Drawables[curObj].Move(0.1f, 0, 0); break;
                 case Keys.PageUp:
-                    test.Moveobj(curObj, 0, 0, -0.1f); break;
+                    test.Drawables[curObj].Move(0, 0, -0.1f); break;
                 case Keys.PageDown:
-                    test.Moveobj(curObj, 0, 0, 0.1f); break;
+                    test.Drawables[curObj].Move(0, 0, 0.1f); break;
                 case Keys.Add:
                     curObj++;
                     if (curObj >= test.Drawables.Size)
@@ -68,17 +68,17 @@ namespace WinFormTest
                         switch (e.KeyValue)
                         {
                             case 'A':
-                                test.Rotateobj(curObj, 0, 3, 0); break;
+                                test.Drawables[curObj].Rotate(0, 3, 0); break;
                             case 'D':
-                                test.Rotateobj(curObj, 0, -3, 0); break;
+                                test.Drawables[curObj].Rotate(0, -3, 0); break;
                             case 'W':
-                                test.Rotateobj(curObj, 3, 0, 0); break;
+                                test.Drawables[curObj].Rotate(3, 0, 0); break;
                             case 'S':
-                                test.Rotateobj(curObj, -3, 0, 0); break;
+                                test.Drawables[curObj].Rotate(-3, 0, 0); break;
                             case 'Q':
-                                test.Rotateobj(curObj, 0, 0, 3); break;
+                                test.Drawables[curObj].Rotate(0, 0, 3); break;
                             case 'E':
-                                test.Rotateobj(curObj, 0, 0, -3); break;
+                                test.Drawables[curObj].Rotate(0, 0, -3); break;
                             case '\r':
                                 isAnimate = !isAnimate; break;
                         }
@@ -111,7 +111,7 @@ namespace WinFormTest
 
         private void OnMouse(object o, MouseEventExArgs e)
         {
-            switch (e.type)
+            switch (e.Type)
             {
             case MouseEventType.Moving:
                 test.Camera.Move((e.dx * 10.0f / test.Camera.Width), (e.dy * 10.0f / test.Camera.Height), 0);

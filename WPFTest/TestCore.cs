@@ -37,7 +37,7 @@ namespace WPFTest
                 get { return Holder[curLgtIdx]; }
                 set { CurLgtIdx = Holder.GetIndex(value); }
             }
-            internal LightList(LightHolder holder)
+            internal LightList(LightHolder holder) : base(holder.Lights)
             {
                 Holder = holder;
                 curLgtIdx = 0;
@@ -45,11 +45,9 @@ namespace WPFTest
                 {
                     if (o == Current)
                         OnPropertyChanged("Current");
-                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, o));
+                    //OnItemContentChanged(o);
                 };
             }
-            protected override Light GetElement(int idx) => Holder[idx];
-            protected override int GetSize() => Holder.Size;
             public void Add(LightType type)
             {
                 Holder.Add(type);
@@ -81,7 +79,7 @@ namespace WPFTest
                 get { return Holder[curObjIdx]; }
                 set { CurObjIdx = Holder.GetIndex(value); }
             }
-            internal DrawableList(DrawableHolder holder)
+            internal DrawableList(DrawableHolder holder) : base(holder.Drawables)
             {
                 Holder = holder;
                 curObjIdx = 0;
@@ -89,17 +87,17 @@ namespace WPFTest
                 {
                     if (o == Current)
                         OnPropertyChanged("Current");
-                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, o));
+                    //OnItemContentChanged(o);
                 };
             }
-            protected override Drawable GetElement(int idx) => Holder[idx];
-            protected override int GetSize() => Holder.Size;
             public async Task<bool> AddModelAsync(string fileName)
             {
                 var ret = await Holder.AddModelAsync(fileName);
-                Holder.Refresh();
-                OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
-                CurObjIdx = ushort.MaxValue;
+                if (ret)
+                {
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
+                    CurObjIdx = ushort.MaxValue;
+                }
                 return ret;
             }
         }
@@ -129,12 +127,13 @@ namespace WPFTest
             switch(obj)
             {
             case OPObject.Drawable:
-                Test.Moveobj(Drawables.CurObjIdx, x, y, z);
+                Drawables.Current?.Move(x, y, z);
                 break;
             case OPObject.Camera:
                 Test.Camera.Move(x, y, z);
                 break;
             case OPObject.Light:
+                Lights.Current?.Move(x, y, z);
                 break;
             }
         }
@@ -143,7 +142,7 @@ namespace WPFTest
             switch (obj)
             {
             case OPObject.Drawable:
-                Test.Rotateobj(Drawables.CurObjIdx, x, y, z);
+                Drawables.Current?.Rotate(x, y, z);
                 break;
             case OPObject.Camera:
                 if (x != 0.0f) //quick skip
@@ -154,6 +153,7 @@ namespace WPFTest
                     Test.Camera.Roll(z);
                 break;
             case OPObject.Light:
+                Lights.Current?.Rotate(x, y, z);
                 break;
             }
         }

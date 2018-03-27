@@ -38,7 +38,7 @@ public:
 
     void Move(const float dx, const float dy, const float dz)
     {
-        cam->move(dx, dy, dz);
+        cam->Move(dx, dy, dz);
     }
     //rotate along x-axis
     void Pitch(const float angx)
@@ -77,6 +77,14 @@ public:
     virtual String^ ToString() override
     {
         return "[" + Type.ToString() + "]" + Name;
+    }
+    void Move(const float dx, const float dy, const float dz)
+    {
+        light->lock()->Move(dx, dy, dz);
+    }
+    void Rotate(const float dx, const float dy, const float dz)
+    {
+        light->lock()->Rotate(dx, dy, dz);
     }
 };
 
