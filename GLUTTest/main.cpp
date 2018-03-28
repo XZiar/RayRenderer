@@ -86,13 +86,11 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 			curObj++;
 			if (curObj >= (uint16_t)(tester->Objects().size()))
 				curObj = 0;
-			tester->showObject(curObj);
 			break;
 		case '-':
 			if (curObj == 0)
 				curObj = (uint16_t)(tester->Objects().size());
 			curObj--;
-			tester->showObject(curObj);
 			break;
 		}
 		printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n",

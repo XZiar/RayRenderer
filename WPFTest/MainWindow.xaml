@@ -8,7 +8,6 @@
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
         xmlns:local="clr-namespace:WPFTest"
         xmlns:ext="clr-namespace:XZiar.WPFControl"
-        xmlns:rayr="clr-namespace:RayRender"
         mc:Ignorable="d"
         Title="WPFTest" Height="600" Width="900" Background="{StaticResource brshDarkBackground}">
     <Window.Resources>
@@ -141,7 +140,7 @@
                 </Style>
             </TabControl.Resources>
             <TabItem Header="日志" IsTabStop="False">
-                <ScrollViewer Margin="0" CanContentScroll="True" PanningMode="Both">
+                <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
                     <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Inziu Iosevka SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
                         <FlowDocument>
                             <Paragraph x:Name="para"/>

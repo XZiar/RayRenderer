@@ -124,21 +124,21 @@ public:
 
 std::shared_ptr<LoggerBackend> __cdecl GetConsoleBackend()
 {
-    static auto backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
-    return std::static_pointer_cast<LoggerBackend>(backend);
+    static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
+    return backend;
 }
 std::shared_ptr<LoggerBackend> __cdecl GetDebuggerBackend()
 {
-    static auto backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();
-    return std::static_pointer_cast<LoggerBackend>(backend);
+    static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();
+    return backend;
 }
 
 std::shared_ptr<LoggerBackend> __cdecl GetFileBackend(const fs::path& path)
 {
     try
     {
-        auto backend = LoggerQBackend::InitialQBackend<FileBackend>(path);
-        return std::static_pointer_cast<LoggerBackend>(backend);
+        std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<FileBackend>(path);
+        return backend;
     }
     catch (...)
     {

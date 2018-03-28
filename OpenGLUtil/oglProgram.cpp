@@ -79,17 +79,17 @@ _oglProgram::ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 {
 }
 
-void _oglProgram::ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex) const
+void _oglProgram::ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin) const
 {
     auto& obj = prog.uniCache[pos];
-    const GLsizei val = tex ? texMan.bind(tex) : 0;
+    const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
     if (obj == val)//no change
         return;
     //change value and update uniform-hold map
     glProgramUniform1i(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgState::setTexture(TextureManager& texMan) const
+void _oglProgram::ProgState::setTexture(TextureManager& texMan, const bool shouldPin) const
 {
     switch (texCache.size())
     {
@@ -99,22 +99,22 @@ void _oglProgram::ProgState::setTexture(TextureManager& texMan) const
         setTexture(texMan, texCache.begin()->first, texCache.begin()->second);
         break;
     default:
-        texMan.bindAll(prog.programID, texCache, prog.uniCache);
+        texMan.bindAll(prog.programID, texCache, prog.uniCache, shouldPin);
         break;
     }
 }
 
-void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo) const
+void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin) const
 {
     auto& obj = prog.uniCache[pos];
-    const auto val = ubo ? uboMan.bind(ubo) : 0;
+    const auto val = ubo ? uboMan.bind(ubo, shouldPin) : 0;
     if (obj == val)//no change
         return;
     //change value and update uniform-hold map
     glUniformBlockBinding(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgState::setUBO(UBOManager& uboMan) const
+void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) const
 {
     switch (uboCache.size())
     {
@@ -124,7 +124,7 @@ void _oglProgram::ProgState::setUBO(UBOManager& uboMan) const
         setUBO(uboMan, uboCache.begin()->first, uboCache.begin()->second);
         break;
     default:
-        uboMan.bindAll(prog.programID, uboCache, prog.uniCache);
+        uboMan.bindAll(prog.programID, uboCache, prog.uniCache, shouldPin);
         break;
     }
 }
@@ -141,6 +141,16 @@ void _oglProgram::ProgState::setSubroutine() const
 
 void _oglProgram::ProgState::end()
 {
+    if (_oglProgram::usethis(prog, false)) //self used, then changed to keep pinned status
+    {
+        auto& texMan = _oglTexture::getTexMan();
+        texMan.unpin();
+        auto& uboMan = _oglUniformBuffer::getUBOMan();
+        uboMan.unpin();
+        setTexture(texMan, true);
+        setUBO(uboMan, true);
+        setSubroutine();
+    }
 }
 
 
@@ -229,17 +239,25 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat,
     }
     prog.setMat(prog.Uni_modelMat, modelMat);
     prog.setMat(prog.Uni_normalMat, normMat);
-    texCache = pstate.texCache;
-    uboCache = pstate.uboCache;
-    //srCache = pstate.srCache;
-    //pstate.setTexture();
-    //pstate.setUBO();
-    pstate.setSubroutine();
 }
 
 void _oglProgram::ProgDraw::end()
 {
     _oglVAO::unbind();
+    for (const auto& item : UniformBackup)
+    {
+        const auto pos = item.first;
+        auto& obj = prog.uniCache[pos];
+        const auto val = item.second.first;
+        if (obj != val)
+        {
+            if (item.second.second) //tex
+                glProgramUniform1i(prog.programID, pos, obj = val);
+            else //ubo
+                glUniformBlockBinding(prog.programID, pos, obj = val);
+        }
+    }
+    UniformBackup.clear();
 }
 
 
@@ -267,6 +285,49 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
     return *this;
 }
 
+oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
+{
+    const auto it = prog.texMap.find(name);
+    if (it != prog.texMap.end() && idx < it->second.len)//legal
+    {
+        const auto pos = it->second.location + idx;
+        texCache.insert_or_assign(pos, tex);
+        UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], true));
+    }
+    return *this;
+}
+
+oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const GLuint pos)
+{
+    if (pos < prog.uniCache.size())
+    {
+        texCache.insert_or_assign(pos, tex);
+        UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], true));
+    }
+    return *this;
+}
+
+oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+{
+    const auto it = prog.uboMap.find(name);
+    if (it != prog.uboMap.end() && idx < it->second.len)//legal
+    {
+        const auto pos = it->second.location + idx;
+        uboCache.insert_or_assign(pos, ubo);
+        UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], false));
+    }
+    return *this;
+}
+
+oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO& ubo, const GLuint pos)
+{
+    if (pos < prog.uniCache.size())
+    {
+        uboCache.insert_or_assign(pos, ubo);
+        UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], false));
+    }
+    return *this;
+}
 
 
 _oglProgram::_oglProgram() :gState(*this)
@@ -276,11 +337,11 @@ _oglProgram::_oglProgram() :gState(*this)
 
 _oglProgram::~_oglProgram()
 {
-    if (programID != GL_INVALID_INDEX)
+    if (programID != 0)
     {
         bool shouldUnUse = usethis(*this, false);
         glDeleteProgram(programID);
-        programID = GL_INVALID_INDEX;
+        programID = 0;
         if (shouldUnUse)
             usethis(*this, true);
     }
@@ -297,7 +358,20 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
         glUseProgram(prog.programID);
         return prog.programID;
     });
+
+    prog.RecoverState();
     return true;
+}
+
+void _oglProgram::RecoverState()
+{
+    gState.setSubroutine();
+    auto& texMan = _oglTexture::getTexMan();
+    texMan.unpin();
+    auto& uboMan = _oglUniformBuffer::getUBOMan();
+    uboMan.unpin();
+    gState.setTexture(texMan, true);
+    gState.setUBO(uboMan, true);
 }
 
 void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const

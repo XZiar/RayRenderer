@@ -20,8 +20,8 @@ public enum class LogLevel : uint8_t
 };
 
 #pragma unmanaged
-void setLogCB();
-void unsetLogCB();
+static uint32_t setLogCB();
+static void unsetLogCB(const uint32_t);
 #pragma managed
 
 public ref class Logger
@@ -29,40 +29,59 @@ public ref class Logger
 public:
     delegate void LogEventHandler(LogLevel level, String^ from, String^ content);
 private:
-    static Logger^ thelogger;
+    static Logger^ TheLogger;
+    static LogEventHandler^ onLog;
+    initonly uint32_t ID;
     Logger()
     {
-        setLogCB();
+        ID = setLogCB();
     }
     ~Logger() { this->!Logger(); }
-    !Logger() { unsetLogCB(); }
+    !Logger() { unsetLogCB(ID); }
 internal:
     static void RaiseOnLog(LogLevel level, String^ from, String^ content)
     {
         OnLog(level, from, content);
     }
 public:
-    static event LogEventHandler^ OnLog;
+    static event LogEventHandler^ OnLog
+    {
+        void add(LogEventHandler^ handler)
+        {
+            onLog += handler;
+        }
+        void remove(LogEventHandler^ handler)
+        {
+            onLog -= handler;
+        }
+        void raise(LogLevel level, String^ from, String^ content)
+        {
+            auto handler = onLog;
+            if (handler == nullptr)
+                return;
+            handler->Invoke(level, from, content);
+        }
+    }
     static Logger()
     {
-        thelogger = gcnew Logger();
+        TheLogger = gcnew Logger();
     }
 };
 
 
-void __cdecl LogCallback(const common::mlog::LogMessage& msg)
+static void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 {
     Logger::RaiseOnLog((LogLevel)msg.Level, ToStr(msg.Source), ToStr(msg.GetContent()));
 }
 
 #pragma unmanaged
-void setLogCB()
+static uint32_t setLogCB()
 {
-    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(LogCallback);
+    return common::mlog::AddGlobalCallback(LogCallback);
 }
-void unsetLogCB()
+static void unsetLogCB(const uint32_t id)
 {
-    common::mlog::detail::MiniLoggerBase::SetGlobalCallback(nullptr);
+    common::mlog::DelGlobalCallback(id);
 }
 #pragma managed
 

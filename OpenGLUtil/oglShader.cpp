@@ -1,7 +1,6 @@
 #include "oglRely.h"
 #include "oglException.h"
 #include "oglShader.h"
-#include "BindingManager.h"
 
 namespace oglu
 {

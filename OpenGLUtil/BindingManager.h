@@ -19,6 +19,7 @@ struct NodeBlock
 {
     Key obj;
     uint16_t prev, next;
+    uint8_t link;
 };
 
 template<class Key>
@@ -27,44 +28,58 @@ class LRUPos : public NonCopyable
 private:
     vector<NodeBlock<Key>> data;
     std::map<Key, uint16_t> lookup;
-    LinkBlock used, unused;
+    union
+    {
+        struct { LinkBlock unused, used, fixed; };
+        LinkBlock links[3];
+    };
+    
     uint16_t usedCnt, unuseCnt;
-    void removeNode(uint16_t pos, LinkBlock& link)
+    ///<summary>move a node at [pos] from itslink to [link]'s head</summary>  
+    ///<param name="pos">node index in data</param>
+    ///<param name="link">desire link, used for head/tail check</param>
+    void moveNode(const uint16_t pos, LinkBlock& destLink)
     {
         auto& node = data[pos];
+        auto& srcLink = links[node.link];
 
-        if (pos == link.head)//is head
-            link.head = node.next;//next become head
+        if (pos == srcLink.head)//is head
+            srcLink.head = node.next;//next become head
         else//not head
             data[node.prev].next = node.next;
 
+        if (pos == srcLink.tail)//is tail
+            srcLink.tail = node.prev;//prev become tail
+        else//not tail
+            data[node.next].prev = node.prev;
+
+        node.prev = UINT16_MAX;
+        node.next = destLink.head;
+        if (destLink.head != UINT16_MAX)//has element before
+            data[destLink.head].prev = pos;
+        else//only element, change tail
+            destLink.tail = pos;
+        destLink.head = pos;
+        node.link = static_cast<uint8_t>(&destLink - links);
+    }
+    ///<summary>move a node at [pos] to its link's head</summary>  
+    ///<param name="pos">node index in data</param>
+    void upNode(uint16_t pos)
+    {
+        auto& node = data[pos];
+        auto& link = links[node.link];
+        if (pos == link.head)//is head
+            return;
+        //not head
+        data[node.prev].next = node.next;
         if (pos == link.tail)//is tail
             link.tail = node.prev;//prev become tail
         else//not tail
             data[node.next].prev = node.prev;
-    }
-    void addNode(uint16_t pos, LinkBlock& link)//become head
-    {
-        auto& node = data[pos];
         node.prev = UINT16_MAX;
         node.next = link.head;
+        data[link.head].prev = pos;
         link.head = pos;
-        if (node.next != UINT16_MAX)//has element behind
-            data[node.next].prev = pos;
-        else//only element, change tail
-            link.tail = pos;
-    }
-    void upNode(uint16_t pos, LinkBlock& link)
-    {
-        if (pos == link.head)//is head
-            return;
-        removeNode(pos, link);
-        addNode(pos, link);
-    }
-    void moveNode(uint16_t pos, LinkBlock& from, LinkBlock& to)
-    {
-        removeNode(pos, from);
-        addNode(pos, to);
     }
 public:
     using CacheCallBack = std::function<void(const Key& obj, const uint16_t pos)>;
@@ -78,10 +93,12 @@ public:
             auto& node = data[a];
             node.prev = static_cast<uint16_t>(a - 1);
             node.next = static_cast<uint16_t>(a + 1);
+            node.link = static_cast<uint8_t>(&unused - links);
         }
         data[size - 1].next = UINT16_MAX;
-        used.head = UINT16_MAX, used.tail = UINT16_MAX;
+        used.head = used.tail = UINT16_MAX;
         unused.head = 0, unused.tail = static_cast<uint16_t>(size - 1);
+        fixed.head = fixed.tail = UINT16_MAX;
         usedCnt = 0, unuseCnt = static_cast<uint16_t>(size);
     }
     //touch(move to head) a obj, return if it is in cache
@@ -90,7 +107,7 @@ public:
         const auto it = lookup.find(obj);
         if (it == lookup.end())
             return UINT16_MAX;
-        upNode(it->second, used);
+        upNode(it->second);
         return it->second;
     }
     //push a obj and return the pos
@@ -106,7 +123,7 @@ public:
             {//has empty node
                 pos = unused.head;
                 data[pos].obj = obj;
-                moveNode(pos, unused, used);
+                moveNode(pos, used);
                 usedCnt++, unuseCnt--;
             }
             else
@@ -115,7 +132,7 @@ public:
                 if (onRemove != nullptr)
                     onRemove(data[pos].obj, pos);
                 data[pos].obj = obj;
-                upNode(pos, used);
+                upNode(pos);
             }
             if (isNewAdded != nullptr)
                 *isNewAdded = true;
@@ -126,7 +143,7 @@ public:
         {//touch it
             if (isNewAdded != nullptr)
                 *isNewAdded = false;
-            upNode(it->second, used);
+            upNode(it->second);
             return it->second;
         }
     }
@@ -138,9 +155,39 @@ public:
             return;
         if (onRemove != nullptr)
             onRemove(it->first, it->second);
-        removeNode(it->second, used);
+        moveNode(it->second, unused);
         lookup.erase(it);
         usedCnt--, unuseCnt++;
+    }
+    void pin(const uint16_t count)
+    {
+        fixed.head = used.head;
+        uint16_t tail = fixed.head;
+        for (uint16_t i = 1; i < count && tail != UINT16_MAX; ++i)
+        {
+            auto& node = data[tail];
+            tail = node.next;
+            node.link = static_cast<uint8_t>(&fixed - links);
+        }
+        fixed.tail = tail;
+        used.head = data[tail].next;
+        data[tail].next = UINT16_MAX;
+        data[used.head].prev = UINT16_MAX;
+    }
+    void unpin()
+    {
+        if (fixed.head == UINT16_MAX)
+            return;
+        for (uint16_t cur = fixed.head; cur != UINT16_MAX;)
+        {
+            auto& node = data[cur];
+            node.link = static_cast<uint8_t>(&used - links);
+            cur = node.next;
+        }
+        if (used.head != UINT16_MAX)
+            data[used.head].prev = fixed.tail;
+        used.head = fixed.head;
+        fixed.head = fixed.tail = UINT16_MAX;
     }
 };
 
@@ -165,19 +212,26 @@ private:
         maxs -= Offset;
         return static_cast<uint8_t>(maxs > 255 ? 255 : maxs);
     }
-    //get obj's inner id
+    ///<summary>return ID for the target</summary>  
+    ///<param name="obj">target</param>
+    ///<returns>[objID]</returns>
     GLuint getID(const T& obj) const
     {
         return ((const D*)this)->getID(obj);
     }
-    //when an slot is allocatted for an obj whose ID is id
-    void innerBind(const T& obj, const uint16_t pos) const
+    ///<summary>when an slot is allocatted for an obj</summary>  
+    ///<param name="obj">obj</param>
+    ///<param name="slot">allocatted [slot]</param>
+    void innerBind(const T& obj, const uint16_t slot) const
     {
-        ((const D*)this)->innerBind(obj, pos);
+        ((const D*)this)->innerBind(obj, slot);
     }
-    void outterBind(const GLuint prog, const GLuint pos, const uint16_t val) const
+    ///<summary>when the resource need to bind to a new mid-loc</summary>  
+    ///<param name="loc">[loc]</param>
+    ///<param name="slot">[slot]</param>
+    void outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
     {
-        ((const D*)this)->outterBind(prog, pos, val);
+        ((const D*)this)->outterBind(prog, loc, slot);
     }
 protected:
     LRUPos<GLuint> cache;
@@ -185,41 +239,59 @@ protected:
     ResDister(uint8_t size) :cache(size) { }
     ResDister(GLenum prop) :GLLimit(GetLimit(prop)), cache(GetSize(prop)) { }
 public:
-    void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, vector<GLint>& poss)
+    ///<summary>bind multiple objects</summary>
+    ///<param name="prog">progID</param>
+    ///<param name="objs">binding map requested from [loc] to [objID]</param>
+    ///<param name="curBindings">current binding vectoe of [slot] indexed by [loc]</param>
+    void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, vector<GLint>& curBindings, const bool shouldPin = false)
     {
         const std::pair<const GLuint, T> *rebinds[256]; uint32_t rebindCnt = 0;
-        for (const auto& item : objs)
+        uint16_t bindCount = 0;
+        for (const std::pair<const GLuint, T>& item : objs)
         {
-            GLuint pos = 0;
-            if (item.second)
+            if (!item.second) //if not valid, just skip, undefined behaviour
+                continue;
+            bindCount++;
+            const auto ret = cache.touch(getID(item.second));
+            if (ret == UINT16_MAX) //not in cache, need rebind
             {
-                const auto ret = cache.touch(getID(item.second));
-                if (ret == UINT16_MAX) //not in cache, need rebind
-                {
-                    rebinds[rebindCnt++] = &item;
-                    continue;
-                }
-                else //in cahce, has touched
-                    pos = static_cast<GLint>(ret) + Offset;
+                rebinds[rebindCnt++] = &item;
+                continue;
             }
-            if (poss[item.first] != pos) //resource's pos has changed
-                outterBind(prog, item.first, poss[item.first] = pos);
+            //in cache, has binded
+            const uint16_t slot = static_cast<uint16_t>(ret + Offset);
+            if (curBindings[item.first] != slot) //resource's binded mid-loc has changed
+                outterBind(prog, item.first, curBindings[item.first] = slot);
         }
         for (uint32_t i = 0; i < rebindCnt; ++i)
         {
             const auto& item = *rebinds[i];
-            outterBind(prog, item.first, poss[item.first] = bind(item.second));
+            const auto ret = cache.push(getID(item.second), nullptr);
+            const uint16_t slot = static_cast<uint16_t>(ret + Offset);
+            innerBind(item.second, slot);
+            outterBind(prog, item.first, curBindings[item.first] = slot);
         }
+        if (shouldPin)
+            cache.pin(bindCount);
     }
-    uint16_t bind(const T& obj)
+    ///<summary>bind a single object</summary>  
+    ///<param name="obj">obj</param>
+    ///<returns>slot's mid-loc</returns>
+    uint16_t bind(const T& obj, const bool shouldPin = false)
     {
         bool shouldBind = false;
-        const uint16_t pos = (uint16_t)(cache.push(getID(obj), &shouldBind) + Offset);
+        const auto ret = cache.push(getID(obj), &shouldBind);
+        const uint16_t pos = static_cast<uint16_t>(ret + Offset);
         if (shouldBind)
             innerBind(obj, pos);
+        if (shouldPin)
+            cache.pin(1);
         return pos;
     }
-
+    void unpin()
+    {
+        cache.unpin();
+    }
     //for max cache usage, only use it when release real resource
     void forcePop(const GLuint id)
     {
@@ -234,8 +306,8 @@ class TextureManager : public ResDister<TextureManager, oglTexture, 4>
     friend class ResDister<TextureManager, oglTexture, 4>;
 protected:
     GLuint getID(const oglTexture& obj) const;
-    void innerBind(const oglTexture& obj, const uint16_t pos) const;
-    void outterBind(const GLuint pid, const GLuint pos, const uint16_t val) const;
+    void innerBind(const oglTexture& obj, const uint16_t slot) const;
+    void outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const;
 public:
     TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }
 };
@@ -245,8 +317,8 @@ class UBOManager : public ResDister<UBOManager, oglUBO, 4>
     friend class ResDister<UBOManager, oglUBO, 4>;
 protected:
     GLuint getID(const oglUBO& obj) const;
-    void innerBind(const oglUBO& obj, const uint16_t pos) const;
-    void outterBind(const GLuint pid, const GLuint pos, const uint16_t val) const;
+    void innerBind(const oglUBO& obj, const uint16_t slot) const;
+    void outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const;
 public:
     UBOManager() :ResDister((GLenum)GL_MAX_UNIFORM_BUFFER_BINDINGS) { }
 };

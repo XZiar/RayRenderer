@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <set>
 
 
 
@@ -29,20 +30,28 @@ namespace mlog
 {
 namespace fs = std::experimental::filesystem;
 
+namespace detail
+{
+class MiniLoggerBase;
+}
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
 MINILOGAPI const char16_t* __cdecl GetLogLevelStr(const LogLevel level);
 
 struct MINILOGAPI LogMessage : public NonCopyable
 {
+    friend class detail::MiniLoggerBase;
+public:
     const uint64_t Timestamp;
     const std::u16string& Source;
+private:
     std::atomic_uint32_t RefCount;
     const uint32_t Length;
+public:
     const LogLevel Level;
 private:
     LogMessage(const std::u16string& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
-        : Source(prefix), Length(length), Level(level), Timestamp(time), RefCount(0)
+        : Source(prefix), Length(length), Level(level), Timestamp(time), RefCount(1) //RefCount is at first 1
     { }
 public:
     static LogMessage* MakeMessage(const std::u16string& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
@@ -72,7 +81,6 @@ public:
     {
         if (msg->RefCount-- == 1) //last one
         {
-            //delete msg;
             free_align(msg);
             return true;
         }

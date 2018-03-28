@@ -18,6 +18,8 @@ using static XZiar.Util.BindingHelper;
 using Basic3D;
 using XZiar.WPFControl;
 using XZiar.Util;
+using System.Windows.Threading;
+using System.Threading;
 
 namespace WPFTest
 {
@@ -30,6 +32,7 @@ namespace WPFTest
         private MemoryMonitor MemMonitor = null;
         private OPObject OperateTarget = OPObject.Camera;
         private ImageSource imgCamera, imgCube, imgPointLight;
+        private Timer AutoRefresher;
         public MainWindow()
         {
             InitializeComponent();
@@ -135,6 +138,14 @@ namespace WPFTest
                 Mode = BindingMode.TwoWay
             });
 
+            AutoRefresher = new Timer(o =>
+            {
+                if (Core.IsAnimate)
+                {
+                    Core.Rotate(0, 3, 0, OPObject.Drawable);
+                    this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
+                }
+            }, null, 0, 20);
             glMain.Invalidate();
         }
 
@@ -149,15 +160,16 @@ namespace WPFTest
         };
         private void OnLog(common.LogLevel level, string from, string content)
         {
-            dbgOutput.Dispatcher.BeginInvoke(new Action(() => 
+            dbgOutput.Dispatcher.InvokeAsync(() => 
             {
                 Run r = new Run($"[{from}]{content}")
                 {
                     Foreground = brashMap[level]
                 };
                 para.Inlines.Add(r);
-                dbgOutput.ScrollToEnd();
-            }), System.Windows.Threading.DispatcherPriority.Normal, null);
+                if (dbgScroll.ScrollableHeight - dbgScroll.VerticalOffset < 120)
+                    dbgScroll.ScrollToEnd();
+            }, System.Windows.Threading.DispatcherPriority.Normal);
         }
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)
@@ -368,7 +380,10 @@ namespace WPFTest
             switch (e.Type)
             {
                 case MouseEventType.Moving:
-                    Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
+                    if (e.Button.HasFlag(MouseButton.Left))
+                        Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
+                    else if (e.Button.HasFlag(MouseButton.Right))
+                        Core.Rotate((e.dy * 60.0f / Core.Test.Camera.Height), (e.dx * -60.0f / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
                     break;
                 case MouseEventType.Wheel:
                     Core.Move(0, 0, (float)e.dx, OperateTarget);

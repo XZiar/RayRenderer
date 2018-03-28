@@ -58,14 +58,14 @@ LoggerQBackend::~LoggerQBackend()
 
 void LoggerQBackend::Print(LogMessage* msg)
 {
-    if ((uint8_t)msg->Level < (uint8_t)LeastLevel)
+    if ((uint8_t)msg->Level < (uint8_t)LeastLevel || !ShouldRun.load(std::memory_order_relaxed))
     {
         LogMessage::Consume(msg);
         return;
     }
     MsgQueue.push(msg);
     if (IsWaiting.load(std::memory_order_relaxed))
-        CondWait.notify_one();
+        CondWait.notify_one(); //may leak message, but whatever
 }
 void LoggerQBackend::Flush()
 {

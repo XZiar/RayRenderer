@@ -1,25 +1,28 @@
 #pragma once
 #include "MiniLoggerRely.h"
-#include <set>
 
 
 namespace common::mlog
 {
 
 
+MINILOGAPI uint32_t __cdecl AddGlobalCallback(const MLoggerCallback& cb);
+MINILOGAPI void __cdecl DelGlobalCallback(const uint32_t id);
+
 namespace detail
 {
 
 class MINILOGAPI MiniLoggerBase : public NonCopyable
 {
+    friend uint32_t __cdecl ::common::mlog::AddGlobalCallback(const MLoggerCallback& cb);
+    friend void __cdecl ::common::mlog::DelGlobalCallback(const uint32_t id);
 protected:
-    static MLoggerCallback OnLog;
+    static const std::unique_ptr<LoggerBackend> GlobalOutputer;
     std::atomic<LogLevel> LeastLevel;
     const std::u16string Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
+    forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
 public:
-    //set global callback is not thread-safe
-    static void __cdecl SetGlobalCallback(const MLoggerCallback& cb);
     MiniLoggerBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
         : Prefix(name), Outputer(outputer), LeastLevel(level)
     { }
@@ -49,6 +52,7 @@ public:
 };
 
 }
+
 
 template<bool DynamicBackend>
 class COMMONTPL MiniLogger : public detail::MiniLoggerBase
@@ -125,15 +129,18 @@ public:
         if ((uint8_t)level < (uint8_t)LeastLevel.load(std::memory_order_relaxed))
             return;
         LogMessage* msg = GenerateLogMsg(level, formater, std::forward<Args>(args)...);
-        if (OnLog)
-            OnLog(*msg);
+        
+        AddRefCount(*msg, 1);
+        GlobalOutputer->Print(msg);
+
         if constexpr(DynamicBackend)
         {
             WRLock.LockRead();
         }
-        msg->RefCount = (uint32_t)Outputer.size();
+        AddRefCount(*msg, Outputer.size());
         for (auto& backend : Outputer)
             backend->Print(msg);
+        LogMessage::Consume(msg);
         if constexpr(DynamicBackend)
         {
             WRLock.UnlockRead();

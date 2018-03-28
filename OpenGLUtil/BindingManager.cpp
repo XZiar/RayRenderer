@@ -12,14 +12,14 @@ GLuint TextureManager::getID(const oglTexture& obj) const
 	return obj->textureID;
 }
 
-void TextureManager::innerBind(const oglTexture& obj, const uint16_t pos) const
+void TextureManager::innerBind(const oglTexture& obj, const uint16_t slot) const
 {
-	obj->bind(pos);
+	obj->bind(slot);
 }
 
-void TextureManager::outterBind(const GLuint pid, const GLuint pos, const uint16_t val) const
+void TextureManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
 {
-	glProgramUniform1i(pid, pos, val);
+	glProgramUniform1i(prog, loc, slot);
 }
 
 
@@ -28,14 +28,14 @@ GLuint UBOManager::getID(const oglUBO& obj) const
 	return obj->bufferID;
 }
 
-void UBOManager::innerBind(const oglUBO& obj, const uint16_t pos) const
+void UBOManager::innerBind(const oglUBO& obj, const uint16_t slot) const
 {
-	obj->bind(pos);
+	obj->bind(slot);
 }
 
-void UBOManager::outterBind(const GLuint pid, const GLuint pos, const uint16_t val) const
+void UBOManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
 {
-	glUniformBlockBinding(pid, pos, val);
+	glUniformBlockBinding(prog, loc, slot);
 }
 
 }

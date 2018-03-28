@@ -32,11 +32,11 @@ public:
     void virtual Print(LogMessage* msg) override;
     void Flush();
     template<class T, typename... Args>
-    static std::shared_ptr<LoggerQBackend> InitialQBackend(Args&&... args)
+    static std::unique_ptr<T> InitialQBackend(Args&&... args)
     {
-        auto backend = std::make_shared<T>(std::forward<Args>(args)...);
+        auto backend = std::make_unique<T>(std::forward<Args>(args)...);
         backend->Start();
-        return std::dynamic_pointer_cast<LoggerQBackend>(backend);
+        return backend;
     }
 };
 
