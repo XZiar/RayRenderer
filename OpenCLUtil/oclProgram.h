@@ -81,14 +81,14 @@ public:
     {
         return setArg(idx, dat.data(), dat.size() * sizeof(T));
     }
-    optional<oclPromise> run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
+    oclPromise run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
     template<uint32_t N>
-    optional<oclPromise> run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    oclPromise run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         return run(N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint32_t N>
-    optional<oclPromise> run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    oclPromise run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         return run(N, que, worksize, isBlock, workoffset, localsize);
     }

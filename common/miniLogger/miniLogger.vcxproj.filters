@@ -42,4 +42,7 @@
   <ItemGroup>
     <Natvis Include="miniLogger.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+  </ItemGroup>
 </Project>

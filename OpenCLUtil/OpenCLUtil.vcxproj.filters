@@ -78,4 +78,10 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="OpenCLUtil.natvis" />
+  </ItemGroup>
 </Project>

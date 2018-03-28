@@ -166,7 +166,7 @@ void _oclKernel::setArg(const uint32_t idx, const void *dat, const size_t size)
 
 
 
-oglu::optional<oclu::oclPromise> _oclKernel::run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
+oclu::oclPromise _oclKernel::run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
 {
     cl_int ret;
     cl_event e;
@@ -176,10 +176,10 @@ oglu::optional<oclu::oclPromise> _oclKernel::run(const uint32_t workdim, const o
     if (isBlock)
     {
         clWaitForEvents(1, &e);
-        return {};
+        return nullptr;
     }
     else
-        return oclPromise(e);
+        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
 }
 
 

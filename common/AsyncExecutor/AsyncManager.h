@@ -3,6 +3,8 @@
 #include "AsyncAgent.h"
 #include "common/miniLogger/miniLogger.h"
 #include "common/ThreadEx.h"
+#include "common/TimeUtil.hpp"
+#include "common/PromiseTaskSTD.hpp"
 #include <atomic>
 #include <future>
 #include <condition_variable>
@@ -17,6 +19,20 @@ namespace asyexe
 
 namespace detail
 {
+struct AsyncTaskNode;
+
+class AsyncTaskResult : public PromiseResultSTD<void>
+{
+    friend class ::common::asyexe::AsyncManager;
+    friend class ::common::asyexe::AsyncAgent;
+private:
+    uint64_t ElapseTime = 0;
+public:
+    AsyncTaskResult(std::promise<void>& pms) : PromiseResultSTD<void>(pms) { }
+    ~AsyncTaskResult() override { }
+    uint64_t ElapseNs() override { return ElapseTime; }
+};
+
 enum class AsyncTaskStatus : uint8_t
 {
     New = 0, Ready = 1, Yield = 128, Wait = 129, Error = 250, Finished = 251
@@ -24,23 +40,24 @@ enum class AsyncTaskStatus : uint8_t
 struct AsyncTaskNode
 {
     const std::u16string Name;
+    AsyncTaskFunc Func;
     boost::context::continuation Context;
     AsyncTaskNode *Prev = nullptr, *Next = nullptr;//spin-locker's memory_order_seq_cst promise their order
-    AsyncTaskFunc Func;
-    PmsCore Promise = nullptr;
     std::promise<void> Pms;
+    std::shared_ptr<AsyncTaskResult> ResPms;
+    PmsCore Promise = nullptr;
+    common::SimpleTimer TaskTimer;
     AsyncTaskStatus Status = AsyncTaskStatus::New;
     AsyncTaskNode(const std::u16string& name) : Name(name) { }
 };
 }
 
 
-class ASYEXEAPI AsyncManager
+class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
 {
     friend class AsyncAgent;
-public:
-//private:
-    ThreadObject RunningThread;
+private:
+    static void CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent);
     std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode OR ShouldRun
     std::atomic_bool ShouldRun = false;
     std::atomic_uint32_t TaskUid = 0;
@@ -53,6 +70,7 @@ public:
     const std::u16string Name;
     const AsyncAgent Agent;
     common::mlog::MiniLogger<false> Logger;
+    ThreadObject RunningThread;
 
     bool AddNode(detail::AsyncTaskNode* node);
     detail::AsyncTaskNode* DelNode(detail::AsyncTaskNode* node);//only called from self thread

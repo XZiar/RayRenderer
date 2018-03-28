@@ -44,11 +44,6 @@
 #include <optional>
 #include <algorithm>
 
-#define _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING 1
-#pragma warning(disable:4996)
-#include <boost/circular_buffer.hpp>
-#pragma warning(default:4996)
-
 namespace oclu
 {
 namespace detail

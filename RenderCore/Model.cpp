@@ -641,7 +641,9 @@ void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
     vbo->write(pts);
     ebo.reset();
     ebo->writeCompat(indexs);
-    agent.Await(oglu::oglUtil::SyncGL());
+    auto sync = oglu::oglUtil::SyncGL();
+    agent.Await(sync);
+    basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
 }
 
 _ModelData::_ModelData(const u16string& fname, bool asyncload) :mfname(fname)

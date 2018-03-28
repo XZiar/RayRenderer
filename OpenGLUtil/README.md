@@ -6,35 +6,35 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Componoent
 
-* **oglShader**
+* **oglShader**  OpenGL Shader
 
-  OpenGL shader(loading/data storeage only)
+  loading/data storeage only
 
-* **oglBuffer**
-
-  OpenGL buffer objects
+* **oglBuffer**  OpenGL Buffer objects
   * oglBuffer -- any buffer object
   * oglTBO -- texture buffer object
   * oglUBO -- unifrom buffer object
   * oglEBO -- element buffer object(indexed element buffer)
 
-* **oglTexture**
-  OpenGL Texture
+* **oglTexture**  OpenGL Texture
 
-* **oglVAO**
-  OpenGL vertex attribute object
+* **oglVAO**  OpenGL Vertex attribute object
   
   Draw calls are finally fired by oglVAO
 
-* **oglProgram**
-  OpenGL program
+* **oglProgram**  OpenGL Program
   
   It's like a "shader" in other engine, with resources slot binding with UBO or Texture, etc. 
 
-* **oglUtil**
-  OpenGL utility
+* **oglContext**  OpenGL Context
+
+  Simple wrapper for WGLContext(HGLRC). It provide message callback and context-sensative resource management.
+ 
+  It's important to keep track on what context this thread is using since object are shared between shared_contexts but bindings and some states are not.
+
+* **oglUtil**  OpenGL Utility
   
-  It providing environment initializing, debug message output and multi-thread worker
+  It providing environment initializing and multi-thread worker.
 
 ## Dependency
 
@@ -63,9 +63,6 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
   provide async-execution environment for OpenGL workers.
 
-* [boost](http://www.boost.org/)
-  * circular_buffer -- used for GL debug mesasge buffer
-
 * C++17 required
   * optional -- used for some return value
   * tuple -- used for some internal structure
@@ -85,15 +82,18 @@ For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your 
 
 ### Resource Management
 
-Texture and UBO are binded to oglProgram(main shader), and their binding slot are limited.
+Texture and UBO are binded to slots, which are limited and context-sensative. oglProgram(main shader) binds location with slots, which is context-insensative. These two bindings are seperated stored in context-related storage and program's state storage.
 
-OpenGLUtil include an LRU-policy resource manager to handle the bindings, which aims at least state-changing(binding texture is costy compared with uploading uniform(it may be buffered by driver)).
+OpenGLUtil include an LRU-policy resource manager to handle slots bindings, which aims at least state-changing(binding texture is costy compared with uploading uniform(it may be buffered by driver)).
 
 The manager handles at most 255 slots, and slot 0-3 are always reserved for other use(e.g, slot 0 is for default binding when uploading/dowloading data), hence slot 4~N will be automatically managed.
 
 For Texture, limit N is get by `GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS`.
-
 For UBO, limit N is get by `GL_MAX_UNIFORM_BUFFER_BINDINGS`.
+
+LRU cache has 3 bi-direction linkedlist, `unused`,`used`,`fixed`. `unused` means avaliable slots, `used` means binded slots, `unused` means pinned slots.
+
+When an oglProgram is binded to current context, it binds its global states and pins them. Further bindings during draw calls will only modify `unused` and `used` list, so that states can be easily recovered after a draw call.
 
 ### Multi-thread Worker
 

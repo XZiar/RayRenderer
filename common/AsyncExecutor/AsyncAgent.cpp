@@ -32,6 +32,9 @@ public:
 
 void AsyncAgent::AddPms(const PmsCore& pmscore) const
 {
+    Manager.Current->TaskTimer.Stop();
+    Manager.Current->ResPms->ElapseTime += Manager.Current->TaskTimer.ElapseNs();
+
     Manager.Current->Promise = pmscore;
     Manager.Current->Status = detail::AsyncTaskStatus::Wait;
     Manager.Resume();
@@ -39,6 +42,9 @@ void AsyncAgent::AddPms(const PmsCore& pmscore) const
 };
 void AsyncAgent::YieldThis() const
 {
+    Manager.Current->TaskTimer.Stop();
+    Manager.Current->ResPms->ElapseTime += Manager.Current->TaskTimer.ElapseNs();
+
     Manager.Current->Status = detail::AsyncTaskStatus::Yield;
     Manager.Resume();
 }

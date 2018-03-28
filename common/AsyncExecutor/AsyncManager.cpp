@@ -2,8 +2,6 @@
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
 #include "common/IntToString.hpp"
-#include "common/TimeUtil.hpp"
-#include "common/PromiseTaskSTD.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StrCharset.hpp"
 #include "common/ThreadEx.inl"
@@ -14,6 +12,30 @@
 namespace common::asyexe
 {
 
+void AsyncManager::CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent)
+{
+    try
+    {
+        node->Status = detail::AsyncTaskStatus::Ready;
+        node->TaskTimer.Start();
+        node->Func(agent);
+        node->TaskTimer.Stop();
+        node->ResPms->ElapseTime += node->TaskTimer.ElapseNs();
+        node->Status = detail::AsyncTaskStatus::Finished;
+        node->Pms.set_value();
+    }
+    catch (boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
+    {
+        std::rethrow_exception(std::current_exception());
+    }
+    catch (...)
+    {
+        node->TaskTimer.Stop();
+        node->ResPms->ElapseTime += node->TaskTimer.ElapseNs();
+        node->Status = detail::AsyncTaskStatus::Error;
+        node->Pms.set_exception(std::current_exception());
+    }
+}
 
 bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 {
@@ -70,7 +92,8 @@ PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16str
         taskname = u"task" + common::str::to_u16string(tuid);
     auto node = new detail::AsyncTaskNode(taskname);
     node->Func = task;
-    const auto ret = std::dynamic_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultSTD<void>>(node->Pms));
+    node->ResPms = std::make_shared<detail::AsyncTaskResult>(node->Pms);
+    const auto ret = std::static_pointer_cast<common::detail::PromiseResult_<void>>(node->ResPms);
     if (AddNode(node))
     {
         Logger.debug(u"Add new task [{}] [{}]\n", tuid, node->Name);
@@ -81,26 +104,6 @@ PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16str
         Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, node->Name);
         delete node;
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Executor was terminated when adding task.");
-    }
-}
-
-void CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent)
-{
-    try
-    {
-        node->Status = detail::AsyncTaskStatus::Ready;
-        node->Func(agent);
-        node->Status = detail::AsyncTaskStatus::Finished;
-        node->Pms.set_value();
-    }
-    catch (boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
-    {
-        std::rethrow_exception(std::current_exception());
-    }
-    catch (...)
-    {
-        node->Status = detail::AsyncTaskStatus::Error;
-        node->Pms.set_exception(std::current_exception());
     }
 }
 
@@ -145,6 +148,7 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
                 }
                 [[fallthrough]];
             case detail::AsyncTaskStatus::Ready:
+                Current->TaskTimer.Start();
                 Current->Context = Current->Context.resume();
                 hasExecuted = true;
                 break;
@@ -159,7 +163,7 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
             }
             else //has returned
             {
-                Logger.debug(u"Task [{}] finished\n", Current->Name);
+                Logger.debug(u"Task [{}] finished, reported executed {}us\n", Current->Name, Current->ResPms->ElapseTime / 1000);
                 Current = DelNode(Current);
             }
             //quick exit when terminate

@@ -146,6 +146,7 @@ namespace WPFTest
                     this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
                 }
             }, null, 0, 20);
+            this.Closing += (o, e) => AutoRefresher.Change(Timeout.Infinite, 20);
             glMain.Invalidate();
         }
 

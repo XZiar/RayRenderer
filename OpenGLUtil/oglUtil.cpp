@@ -20,6 +20,8 @@ class PromiseResultGL : public common::asyexe::detail::AsyncResult_<void>
     friend class oglUtil;
 protected:
     GLsync SyncObj;
+    uint64_t timeBegin;
+    GLuint query;
     common::PromiseState virtual state() override
     {
         switch (glClientWaitSync(SyncObj, 0, 0))
@@ -45,13 +47,26 @@ protected:
         //glDeleteSync(SyncObj);
     }
 public:
-    PromiseResultGL(GLsync objSync_) : SyncObj(objSync_)
+    PromiseResultGL() : SyncObj(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))
     {
+        glGenQueries(1, &query);
+        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&timeBegin); //suppose it is the time all commands are issued.
+        glQueryCounter(query, GL_TIMESTAMP); //this should be the time all commands are completed.
         glFlush(); //ensure sync object sended
     }
     ~PromiseResultGL() override
     {
         glDeleteSync(SyncObj);
+        glDeleteQueries(1, &query);
+    }
+    uint64_t ElapseNs() override
+    {
+        uint64_t timeEnd = 0;
+        glGetQueryObjectui64v(query, GL_QUERY_RESULT, &timeEnd);
+        if (timeEnd == 0)
+            return 0;
+        else
+            return timeEnd - timeBegin;
     }
 };
 
@@ -176,8 +191,7 @@ PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16s
 
 common::asyexe::AsyncResult<void> oglUtil::SyncGL()
 {
-    auto fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL>(fence));
+    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL>());
 }
 
 common::asyexe::AsyncResult<void> oglUtil::ForceSyncGL()

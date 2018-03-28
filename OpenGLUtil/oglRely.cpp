@@ -5,7 +5,6 @@
 #pragma comment (lib, "glu32.lib")// link OpenGL Utility lib
 
 #pragma message("Compiling OpenGLUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
-#pragma message("Compiling OpenGLUtil with boost[" STRINGIZE(BOOST_LIB_VERSION) "]")
 
 
 namespace oglu

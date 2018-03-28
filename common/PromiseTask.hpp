@@ -19,6 +19,7 @@ struct COMMONAPI PromiseResultCore : public NonCopyable
 {
     virtual ~PromiseResultCore() {}
     PromiseState virtual state() { return PromiseState::Invalid; }
+    uint64_t virtual ElapseNs() { return 0; };
 };
 
 template<class T>
@@ -28,9 +29,8 @@ protected:
     PromiseResult_()
     { }
 public:
-    T virtual wait() = 0;
-    virtual ~PromiseResult_() override {}
     PromiseResult_(PromiseResult_&&) = default;
+    T virtual wait() = 0;
 };
 
 

@@ -36,4 +36,7 @@
   <ItemGroup>
     <Natvis Include="AsyncExecutor.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+  </ItemGroup>
 </Project>

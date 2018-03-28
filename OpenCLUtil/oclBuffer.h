@@ -34,9 +34,9 @@ protected:
 public:
 	_oclBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const size_t size_);
 	virtual ~_oclBuffer();
-	optional<oclPromise> read(const oclCmdQue que, void *buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
+	oclPromise read(const oclCmdQue que, void *buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
 	template<class T, class A>
-	optional<oclPromise> read(const oclCmdQue que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+	oclPromise read(const oclCmdQue que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
 	{
 		if (offset >= size)
 			COMMON_THROW(BaseException, L"offset overflow");
@@ -47,9 +47,9 @@ public:
 		buf.resize(count);
 		return read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
 	}
-	optional<oclPromise> write(const oclCmdQue que, const void * const buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
+	oclPromise write(const oclCmdQue que, const void * const buf, const size_t size_, const size_t offset = 0, const bool shouldBlock = true) const;
 	template<class T, class A>
-	optional<oclPromise> write(const oclCmdQue que, const vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+	oclPromise write(const oclCmdQue que, const vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
 	{
 		const auto vsize = buf.size();
 		if (count == 0)
@@ -60,7 +60,7 @@ public:
 		return write(que, buf.data(), wsize, offset, shouldBlock);
 	}
 	template<class T, size_t N>
-	optional<oclPromise> write(const oclCmdQue que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
+	oclPromise write(const oclCmdQue que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
 	{
 		auto wsize = N * sizeof(T);
 		return write(que, buf, wsize, offset, shouldBlock);
@@ -78,8 +78,8 @@ public:
 	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_);
 	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_);
 	~_oclGLBuffer() override;
-	optional<int32_t> lock(const oclCmdQue& que) const;
-	optional<int32_t> unlock(const oclCmdQue& que) const;
+	void lock(const oclCmdQue& que) const;
+	void unlock(const oclCmdQue& que) const;
 };
 
 }

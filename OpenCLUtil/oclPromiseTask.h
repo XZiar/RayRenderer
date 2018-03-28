@@ -2,24 +2,28 @@
 
 #include "oclRely.h"
 
-
 namespace oclu
 {
 
-class OCLUAPI oclPromise : public ::common::detail::PromiseResult_<void>
+namespace detail
+{
+class OCLUAPI oclPromise_ : public ::common::detail::PromiseResult_<void>
 {
     friend class detail::_oclBuffer;
     friend class detail::_oclKernel;
 protected:
     cl_event eventPoint = nullptr;
-    oclPromise(const cl_event e) : eventPoint(e)
+    oclPromise_(const cl_event e) : eventPoint(e)
     { }
 public:
-    oclPromise(oclPromise&&);
-    ~oclPromise() override;
+    oclPromise_(oclPromise_&&);
+    ~oclPromise_() override;
+    common::PromiseState virtual state() override;
     void wait() override;
-    uint64_t ElapseNs();
+    uint64_t ElapseNs() override;
 };
+}
 
+using oclPromise = std::shared_ptr<detail::oclPromise_>;
 
 }

@@ -74,11 +74,20 @@
       <Item Name="LRUCache">cache</Item>
     </Expand>
   </Type>
-<Type Name="oglu::detail::UBOManager">
+  <Type Name="oglu::detail::UBOManager">
     <DisplayString>{{UBOMan {cache}}}</DisplayString>
     <Expand>
       <Item Name="MaxUBOBinding">GLLimit</Item>
       <Item Name="LRUCache">cache</Item>
     </Expand>
+  </Type>
+  <Type Name="oglu::SubroutineResource">
+    <DisplayString Condition="Stage == 0x8B31">{{[VS][{Id}]{Name}}}</DisplayString>
+    <DisplayString Condition="Stage == 0x8B30">{{[PS][{Id}]{Name}}}</DisplayString>
+  </Type>
+  <Type Name="oglu::ProgramResource">
+    <DisplayString Condition="type == 0x92E1">{{[Uniform]loc[{location}]}}</DisplayString>
+    <DisplayString Condition="type == 0x92E2">{{[UniBlk ]loc[{location}]}}</DisplayString>
+    <DisplayString Condition="type == 0x92E3">{{[Attrib ]loc[{location}]}}</DisplayString>
   </Type>
 </AutoVisualizer>
