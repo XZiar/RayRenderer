@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Basic3D;
+using OpenGLUtil;
 using RayRender;
 using XZiar.Util;
 
@@ -102,9 +103,23 @@ namespace WPFTest
             }
         }
 
+        public class ShaderList : ObservableList<GLProgram>
+        {
+            private readonly ShaderHolder Holder;
+            internal ShaderList(ShaderHolder holder) : base(holder.Shaders)
+            {
+                Holder = holder;
+                holder.Changed += (s, o) =>
+                {
+                    OnItemContentChanged(o);
+                };
+            }
+        }
+
         public readonly BasicTest Test;
         public readonly DrawableList Drawables;
         public readonly LightList Lights;
+        public readonly ShaderList Shaders;
 
         public bool IsAnimate = false;
 
@@ -120,6 +135,7 @@ namespace WPFTest
             Test = new BasicTest();
             Drawables = new DrawableList(Test.Drawables);
             Lights = new LightList(Test.Lights);
+            Shaders = new ShaderList(Test.Shaders);
         }
 
         public void Move(float x, float y, float z, OPObject obj)

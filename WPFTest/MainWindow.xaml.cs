@@ -20,6 +20,7 @@ using XZiar.WPFControl;
 using XZiar.Util;
 using System.Windows.Threading;
 using System.Threading;
+using OpenGLUtil;
 
 namespace WPFTest
 {
@@ -33,15 +34,16 @@ namespace WPFTest
         private OPObject OperateTarget = OPObject.Camera;
         private ImageSource imgCamera, imgCube, imgPointLight;
         private Timer AutoRefresher;
+        private float MouseSensative => (float)slMouseSen.Value;
         public MainWindow()
         {
             InitializeComponent();
             XZiar.Util.BaseViewModel.Init();
             common.BaseViewModel.Init();
             MemMonitor = new MemoryMonitor();
-            imgCamera = this.FindResource("imgCamera") as ImageSource;
-            imgCube = this.FindResource("imgCube") as ImageSource;
-            imgPointLight = this.FindResource("imgPointLight") as ImageSource;
+            imgCamera = (ImageSource)this.FindResource("imgCamera");
+            imgCube = (ImageSource)this.FindResource("imgCube");
+            imgPointLight = (ImageSource)this.FindResource("imgPointLight");
             common.Logger.OnLog += OnLog;
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) => 
@@ -137,6 +139,11 @@ namespace WPFTest
                 Path = new PropertyPath("Current"),
                 Mode = BindingMode.TwoWay
             });
+            cboxShader.SetBinding(ComboBox.ItemsSourceProperty, new Binding
+            {
+                Source = Core.Shaders,
+                Mode = BindingMode.OneWay
+            });
 
             AutoRefresher = new Timer(o =>
             {
@@ -154,7 +161,7 @@ namespace WPFTest
         {
             { common.LogLevel.Error,   new SolidColorBrush(Colors.Red)     },
             { common.LogLevel.Warning, new SolidColorBrush(Colors.Yellow)  },
-            { common.LogLevel.Success, new SolidColorBrush(Colors.Green)   },
+            { common.LogLevel.Success, new SolidColorBrush(Colors.LawnGreen)   },
             { common.LogLevel.Info,    new SolidColorBrush(Colors.White)   },
             { common.LogLevel.Verbose, new SolidColorBrush(Colors.Pink)    },
             { common.LogLevel.Debug,   new SolidColorBrush(Colors.Cyan)    }
@@ -175,7 +182,7 @@ namespace WPFTest
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)
         {
-            var btnImg = btnDragMode.Content as ImageBrush;
+            var btnImg = (ImageBrush)btnDragMode.Content;
             switch (OperateTarget)
             {
             case OPObject.Camera:
@@ -194,8 +201,8 @@ namespace WPFTest
         }
         private void btncmDragMode_Click(object sender, RoutedEventArgs e)
         {
-            var btnImg = btnDragMode.Content as ImageBrush;
-            MenuItem mi = e.OriginalSource as MenuItem;
+            var btnImg = (ImageBrush)btnDragMode.Content;
+            var mi = (MenuItem)e.OriginalSource;
             switch (mi.Tag as string)
             {
             case "camera":
@@ -254,7 +261,7 @@ namespace WPFTest
 
         private void btncmAddModel_Click(object sender, RoutedEventArgs e)
         {
-            MenuItem mi = e.OriginalSource as MenuItem;
+            var mi = (MenuItem)e.OriginalSource;
             switch (mi.Tag as string)
             {
             case "cube":
@@ -280,8 +287,8 @@ namespace WPFTest
 
         private void btncmAddLight_Click(object sender, RoutedEventArgs e)
         {
-            MenuItem mi = e.OriginalSource as MenuItem;
-            switch(mi.Tag as string)
+            var mi = (MenuItem)e.OriginalSource;
+            switch (mi.Tag as string)
             {
             case "parallel":
                 Core.Lights.Add(Basic3D.LightType.Parallel);
@@ -373,7 +380,7 @@ namespace WPFTest
                     }
                     break;
             }
-            (sender as OGLView).Invalidate();
+            glMain.Invalidate();
         }
 
         private void OnMouse(object sender, MouseEventExArgs e)
@@ -384,7 +391,7 @@ namespace WPFTest
                     if (e.Button.HasFlag(MouseButton.Left))
                         Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
                     else if (e.Button.HasFlag(MouseButton.Right))
-                        Core.Rotate((e.dy * 60.0f / Core.Test.Camera.Height), (e.dx * -60.0f / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
+                        Core.Rotate((e.dy * MouseSensative / Core.Test.Camera.Height), (e.dx * -MouseSensative / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
                     break;
                 case MouseEventType.Wheel:
                     Core.Move(0, 0, (float)e.dx, OperateTarget);
@@ -392,7 +399,7 @@ namespace WPFTest
                 default:
                     return;
             }
-            (sender as OGLView).Invalidate();
+            glMain.Invalidate();
         }
 
         private void cboxLight_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -402,13 +409,13 @@ namespace WPFTest
             var lgt = (Light)e.AddedItems[0];
             if (e.RemovedItems.Count > 0 && lgt == e.RemovedItems[0])
                 return;
-            lgtType.SetBinding(LabelTextBox.TextProperty, new Binding
+            lgtType.SetBinding(TextBox.TextProperty, new Binding
             {
                 Source = lgt,
                 Path = new PropertyPath("Type"),
                 Mode = BindingMode.OneWay
             });
-            lgtName.SetBinding(LabelTextBox.TextProperty, new Binding
+            lgtName.SetBinding(TextBox.TextProperty, new Binding
             {
                 Source = lgt,
                 Path = new PropertyPath("Name"),
@@ -424,7 +431,7 @@ namespace WPFTest
             if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
                 return;
             objType.Text = obj.Type;
-            objName.SetBinding(LabelTextBox.TextProperty, new Binding
+            objName.SetBinding(TextBox.TextProperty, new Binding
             {
                 Source = obj,
                 Path = new PropertyPath("Name"),
@@ -434,6 +441,24 @@ namespace WPFTest
 
         private void cboxShader_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (e.AddedItems.Count <= 0)
+                return;
+            var obj = (GLProgram)e.AddedItems[0];
+            if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
+                return;
+            shdName.SetBinding(LabelTextBox.ContentProperty, new Binding
+            {
+                Source = obj,
+                Path = new PropertyPath("Name"),
+                Mode = BindingMode.TwoWay
+            });
+            listProgRes.ItemsSource = obj.Resources;
+            listProgSubr.ItemsSource = obj.Subroutines;
+        }
+
+        private void cboxSubr_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            glMain.Invalidate();
         }
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)

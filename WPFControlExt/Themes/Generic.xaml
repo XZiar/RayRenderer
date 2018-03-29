@@ -1,0 +1,47 @@
+﻿<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+    xmlns:local="clr-namespace:XZiar.WPFControl">
+
+    <Style TargetType="local:LabelControl">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:LabelControl">
+                    <Grid Margin="6,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{TemplateBinding LabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Margin="0,0,6,0" Text="{TemplateBinding Label}" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding LabelFontSize}"/>
+                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="local:LabelTextBox" BasedOn="{StaticResource {x:Type local:LabelControl}}">
+        <Style.Triggers>
+            <Trigger Property="IsReadOnly" Value="True">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBlock Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=OneWay}"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <Trigger Property="IsReadOnly" Value="False">
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBox Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

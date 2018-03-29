@@ -23,7 +23,7 @@ class _oglProgram;
 
 struct OGLUAPI ProgramResource
 {
-    friend detail::_oglProgram;
+    friend class detail::_oglProgram;
 private:
     GLint getValue(const GLuint pid, const GLenum prop);
     void initData(const GLuint pid, const GLint idx);
@@ -36,21 +36,35 @@ public:
     uint16_t size = 0;
     uint8_t ifidx;
     ProgramResource(const GLenum type_) :type(type_) { }
-    const char* getTypeName() const noexcept;
+    const char* GetTypeName() const noexcept;
+    const char* GetValTypeName() const noexcept;
     bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
     bool isAttrib() const noexcept { return type == GL_PROGRAM_INPUT; }
     bool isTexture() const noexcept;
 };
 
-struct OGLUAPI SubroutineResource
+class OGLUAPI SubroutineResource
 {
-    friend detail::_oglProgram;
+    friend class detail::_oglProgram;
+public:
+    struct OGLUAPI Routine
+    {
+        friend class SubroutineResource;
+        friend class ::oglu::detail::_oglProgram;
+        const string Name;
+    private:
+        const GLuint Id;
+        const GLenum Stage;
+        Routine(const string& name, const GLuint id, const GLenum stage) : Name(name), Id(id), Stage(stage) {}
+    };
 private:
     const GLenum Stage;
-    const GLuint Id;
-    SubroutineResource(const GLenum stage, const string& name, const GLuint id) : Stage(stage), Name(name), Id(id) {}
+    const GLint UniLoc;
 public:
+    SubroutineResource(const GLenum stage, const GLint location, const string& name, vector<Routine>&& routines)
+        : Stage(stage), UniLoc(location), Name(name), Routines(std::move(routines)) {}
     const string Name;
+    const vector<Routine> Routines;
 };
 
 namespace detail
@@ -64,12 +78,15 @@ private:
     friend class UBOManager;
     class OGLUAPI ProgState : public NonCopyable
     {
+        friend class _oglProgram;
+    private:
+        void init();
     protected:
-        friend _oglProgram;
         _oglProgram& prog;
         map<GLuint, oglTexture> texCache;
         map<GLuint, oglUBO> uboCache;
         //Subroutine are not kept by OGL, it's erased eachtime switch prog
+        map<const SubroutineResource*, const SubroutineResource::Routine*> srSettings;
         map<GLenum, vector<GLuint>> srCache;
         explicit ProgState(_oglProgram& prog_);
         void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false) const;
@@ -85,8 +102,9 @@ private:
         ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
         //no check on pos, carefully use
         ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
-        ProgState& setSubroutine(const SubroutineResource& sr);
+        ProgState& setSubroutine(const SubroutineResource::Routine& sr);
         ProgState& setSubroutine(const string& sruname, const string& srname);
+        ProgState& getSubroutine(const string& sruname, string& srname);
     };
 
     class OGLUAPI ProgDraw : protected ProgState
@@ -107,7 +125,7 @@ private:
         ProgDraw& setTexture(const oglTexture& tex, const GLuint pos);
         ProgDraw& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
         ProgDraw& setUBO(const oglUBO& ubo, const GLuint pos);
-        ProgDraw& setSubroutine(const SubroutineResource& sr)
+        ProgDraw& setSubroutine(const SubroutineResource::Routine& sr)
         {
             return *(ProgDraw*)&ProgState::setSubroutine(sr);
         }
@@ -124,8 +142,8 @@ private:
     map<string, ProgramResource> texMap;
     map<string, ProgramResource> uboMap;
     map<string, ProgramResource> attrMap;
-    map<string, vector<SubroutineResource>> subrMap;
-    map<pair<GLenum, GLuint>, GLint> subrLookup;
+    map<string, SubroutineResource> subrMap;
+    map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     vector<GLint> uniCache;
     GLint
         Uni_projMat = GL_INVALID_INDEX,
@@ -147,15 +165,18 @@ public:
     GLint Attr_Vert_Norm = GL_INVALID_INDEX;//Vertex Normal
     GLint Attr_Vert_Texc = GL_INVALID_INDEX;//Vertex Texture Coordinate
     GLint Attr_Vert_Color = GL_INVALID_INDEX;//Vertex Color
-    _oglProgram();
+    u16string Name;
+    _oglProgram(const u16string& name);
     ~_oglProgram();
 
     void addShader(oglShader && shader);
     void link();
     void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
     GLint getLoc(const string& name) const;
-    optional<const ProgramResource*> getResource(const string& name) const;
-    optional<const vector<SubroutineResource>*> getSubroutines(const string& name) const;
+    const map<const string, const ProgramResource>& getResources() const { return *(const map<const string, const ProgramResource>*)&resMap; }
+    const ProgramResource* getResource(const string& name) const;
+    const map<const string, const SubroutineResource>& getSubroutineResources() const { return *(const map<const string, const SubroutineResource>*)&subrMap; }
+    const SubroutineResource* getSubroutines(const string& name) const;
     void setProject(const Camera &, const int wdWidth, const int wdHeight);
     void setCamera(const Camera &);
     ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);

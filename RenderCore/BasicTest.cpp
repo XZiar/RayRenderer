@@ -21,7 +21,7 @@ struct Init
 
 void BasicTest::init2d(const u16string pname)
 {
-	prog2D.reset();
+	prog2D.reset(u"Prog 2D");
 	if(pname.empty())
 	{
 		auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_2D));
@@ -81,7 +81,7 @@ void BasicTest::init2d(const u16string pname)
 
 void BasicTest::init3d(const u16string pname)
 {
-	prog3D.reset();
+	prog3D.reset(u"3D Prog");
 	if (pname.empty())
 	{
 		auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_3D));
@@ -122,6 +122,8 @@ void BasicTest::init3d(const u16string pname)
 	{
 		prog3D->link();
 		prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
+        auto tmp = prog3D->getResources().at("vertPos").GetTypeName();
+        basLog().debug(u"{}\n", tmp);
 	}
 	catch (OGLException& gle)
 	{
@@ -204,12 +206,12 @@ void BasicTest::initTex()
 void BasicTest::initUBO()
 {
 	if (auto lubo = prog3D->getResource("lightBlock"))
-		lightUBO.reset((*lubo)->size);
+		lightUBO.reset(lubo->size);
 	else
 		lightUBO.reset(0);
 	lightLim = (uint8_t)lightUBO->size / sizeof(LightData);
 	if (auto mubo = prog3D->getResource("materialBlock"))
-		materialUBO.reset((*mubo)->size);
+		materialUBO.reset(mubo->size);
 	else
 		materialUBO.reset(0);
 	materialLim = (uint8_t)materialUBO->size / sizeof(Material);
@@ -294,6 +296,9 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 	prog2D->globalState().setTexture(fontCreator->getTexture(), "tex").end();
 	prog3D->globalState().setTexture(mskTex, "tex").end();
 	initUBO();
+    glProgs.push_back(prog2D);
+    glProgs.push_back(prog3D);
+    glProgs.push_back(fontViewer->prog);
 }
 
 void BasicTest::Draw()

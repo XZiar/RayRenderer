@@ -17,6 +17,7 @@ BasicTest::BasicTest()
         Camera = gcnew Basic3D::Camera(&core->cam);
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());
+        Shaders = gcnew ShaderHolder(core, core->Shaders());
     }
     catch (BaseException& be)
     {
@@ -123,6 +124,10 @@ static void DummyTemplateExport()
     }
     {
         LightHolder^ dummy;
+        dummy->GetIndex(nullptr);
+    }
+    {
+        ShaderHolder^ dummy;
         dummy->GetIndex(nullptr);
     }
 }

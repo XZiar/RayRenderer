@@ -30,6 +30,7 @@ private:
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;
     vector<Wrapper<Light>> lights;
+    vector<oglProgram> glProgs;
     fs::path basepath;
     void init2d(const u16string pname);
     void init3d(const u16string pname);
@@ -51,6 +52,7 @@ public:
     void DelAllLight();
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
+    const vector<oglProgram>& Shaders() const { return glProgs; }
     void tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr) const;
 };
 

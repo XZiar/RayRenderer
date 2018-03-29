@@ -90,4 +90,7 @@
     <DisplayString Condition="type == 0x92E2">{{[UniBlk ]loc[{location}]}}</DisplayString>
     <DisplayString Condition="type == 0x92E3">{{[Attrib ]loc[{location}]}}</DisplayString>
   </Type>
+  <Type Name="common::Wrapper&lt;oglu::detail::_oglProgram&gt;">
+    <DisplayString>{{this->Name}}</DisplayString>
+  </Type>
 </AutoVisualizer>

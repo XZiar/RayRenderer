@@ -26,6 +26,7 @@
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglShader.h" />
+    <ClInclude Include="oglStringify.hpp" />
     <ClInclude Include="oglTexture.h" />
     <ClInclude Include="oglUtil.h" />
     <ClInclude Include="BindingManager.h" />

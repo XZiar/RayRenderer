@@ -2,7 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "b3d.h"
-#include <atomic>
+#include "OpeGLTypes.h"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -157,6 +157,19 @@ internal:
     bool AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel);
 };
 
+public ref class ShaderHolder : public HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram>
+{
+internal:
+    ShaderHolder(rayr::BasicTest * const core, const vector<oglu::oglProgram>& progs)
+        : HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram>(core, progs)
+    { }
+public:
+    property List<OpenGLUtil::GLProgram^>^ Shaders
+    {
+        List<OpenGLUtil::GLProgram^>^ get() { return Container; }
+    }
+};
+
 public ref class BasicTest
 {
 private:
@@ -176,6 +189,7 @@ public:
     initonly Basic3D::Camera^ Camera;
     initonly LightHolder^ Lights;
     initonly DrawableHolder^ Drawables;
+    initonly ShaderHolder^ Shaders;
 
     void Draw();
     void Resize(const int w, const int h);

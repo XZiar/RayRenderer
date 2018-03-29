@@ -116,7 +116,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -144,7 +144,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -169,7 +169,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -194,12 +194,13 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="b3d.h" />
+    <ClInclude Include="OpeGLTypes.h" />
     <ClInclude Include="RenderCoreWrapRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />
@@ -251,6 +252,9 @@
     </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
+      <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>
     <ProjectReference Include="..\RenderCore\RenderCore.vcxproj">
       <Project>{2c2fbe4d-b211-473e-9a93-3393c5e3bc4f}</Project>

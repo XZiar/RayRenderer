@@ -15,10 +15,11 @@ layout(std140) uniform lightBlock
 	LightData lights[16];
 };
 
-uniform mat4 matProj;
-uniform mat4 matView;
-uniform mat4 matModel;
-uniform mat4 matMVP;
+layout(location = 0) uniform mat4 matProj;
+layout(location = 1) uniform mat4 matView;
+layout(location = 2) uniform mat4 matModel;
+layout(location = 3) uniform mat4 matMVP;
+layout(location = 4) uniform vec4 envAmbient;
 
 layout(std140) uniform materialBlock
 {

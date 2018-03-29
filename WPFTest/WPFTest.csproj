@@ -74,10 +74,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="LabelTextBox.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="LightPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -92,9 +88,6 @@
     </Compile>
     <Compile Include="ExceptionDialog.xaml.cs">
       <DependentUpon>ExceptionDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="LabelTextBox.xaml.cs">
-      <DependentUpon>LabelTextBox.xaml</DependentUpon>
     </Compile>
     <Compile Include="LightPage.xaml.cs">
       <DependentUpon>LightPage.xaml</DependentUpon>
@@ -147,6 +140,10 @@
     <ProjectReference Include="..\RenderCoreWrap\RenderCoreWrap.vcxproj">
       <Project>{49b581b8-58e2-4e1f-a0ef-1a83a9224b40}</Project>
       <Name>RenderCoreWrap</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WPFControlExt\WPFControlExt.csproj">
+      <Project>{0d2a44b0-a0f5-45af-8509-602ee4e7745a}</Project>
+      <Name>WPFControlExt</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
