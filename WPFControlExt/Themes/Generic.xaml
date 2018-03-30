@@ -13,7 +13,7 @@
                             <ColumnDefinition Width="{TemplateBinding LabelWidth}"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Margin="0,0,6,0" Text="{TemplateBinding Label}" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding LabelFontSize}"/>
+                        <TextBlock Grid.Column="0" Margin="0,0,6,0" Text="{TemplateBinding Label}" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding LabelFontSize}" ToolTip="{TemplateBinding ToolTip}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
                     </Grid>
                 </ControlTemplate>
@@ -27,7 +27,7 @@
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
-                            <TextBlock Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=OneWay}"/>
+                            <TextBlock Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>

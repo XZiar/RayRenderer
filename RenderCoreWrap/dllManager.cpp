@@ -21,7 +21,7 @@ namespace fs = std::experimental::filesystem;
 using common::DelayLoader;
 using common::SimpleTimer;
 static fs::path RRPath, DLLSPath;
-static vector<pair<HMODULE, string>> hdlls;
+static vector<pair<HMODULE, string>> hdlls; //dlls need to be unload manually
 static vector<pair<FILE*, wstring>> hfiles;
 static SimpleTimer timer;
 
@@ -92,6 +92,12 @@ static void* delayloaddll(const char *name)
     const auto lasterr = GetLastError();
     const string tmpname(name);
     const wstring wname(tmpname.begin(), tmpname.end());
+    const auto preHandle = GetModuleHandle(wname.c_str());
+    if (preHandle != NULL)
+    {
+        DebugOutput(L"DLL had been loaded before delay [{}]", wname);
+        return preHandle;
+    }
     DebugOutput(L"Begin delay load DLL [{}]", wname);
     const wstring dllpath = DLLSPath / wname;
     const auto hdll = LoadLibraryEx(dllpath.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);

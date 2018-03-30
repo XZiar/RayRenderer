@@ -26,7 +26,7 @@ namespace WPFTest
         {
             var ex = e.ExceptionObject as Exception;
             Console.WriteLine($"Unexpected Exception {ex.GetType()}\n{ex.Message}\n");
-            new ExceptionDialog(ex).ShowDialog();
+            new TextDialog(ex).ShowDialog();
             throw ex;
         }
 

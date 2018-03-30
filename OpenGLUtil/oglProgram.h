@@ -8,20 +8,13 @@
 namespace oglu
 {
 
-enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI alignas(alignof(Vec4)) TransformOP : public common::AlignBase<alignof(Vec4)>
-{
-    Vec4 vec;
-    TransformType type;
-    TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
-};
 
 namespace detail
 {
 class _oglProgram;
 }
 
-struct OGLUAPI ProgramResource
+struct OGLUAPI ProgramResource : public common::container::NamedSetValue<ProgramResource, string>
 {
     friend class detail::_oglProgram;
 private:
@@ -30,12 +23,13 @@ private:
 public:
     GLint location = GL_INVALID_INDEX;
     //length of array
-    GLuint len = 1;
+    mutable GLuint len = 1;
     GLenum type;
     GLenum valtype;
     uint16_t size = 0;
     uint8_t ifidx;
-    ProgramResource(const GLenum type_) :type(type_) { }
+    const string Name;
+    ProgramResource(const GLenum type_, const string& name) :type(type_), Name(name) { }
     const char* GetTypeName() const noexcept;
     const char* GetValTypeName() const noexcept;
     bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
@@ -43,7 +37,7 @@ public:
     bool isTexture() const noexcept;
 };
 
-class OGLUAPI SubroutineResource
+class OGLUAPI SubroutineResource : public common::container::NamedSetValue<SubroutineResource, string>
 {
     friend class detail::_oglProgram;
 public:
@@ -54,18 +48,18 @@ public:
         const string Name;
     private:
         const GLuint Id;
-        const GLenum Stage;
-        Routine(const string& name, const GLuint id, const GLenum stage) : Name(name), Id(id), Stage(stage) {}
+        Routine(const string& name, const GLuint id) : Name(name), Id(id) {}
     };
 private:
-    const GLenum Stage;
     const GLint UniLoc;
 public:
     SubroutineResource(const GLenum stage, const GLint location, const string& name, vector<Routine>&& routines)
-        : Stage(stage), UniLoc(location), Name(name), Routines(std::move(routines)) {}
+        : Stage(ShaderType(stage)), UniLoc(location), Name(name), Routines(std::move(routines)) {}
+    const ShaderType Stage;
     const string Name;
     const vector<Routine> Routines;
 };
+
 
 namespace detail
 {
@@ -87,7 +81,7 @@ private:
         map<GLuint, oglUBO> uboCache;
         //Subroutine are not kept by OGL, it's erased eachtime switch prog
         map<const SubroutineResource*, const SubroutineResource::Routine*> srSettings;
-        map<GLenum, vector<GLuint>> srCache;
+        map<ShaderType, vector<GLuint>> srCache;
         explicit ProgState(_oglProgram& prog_);
         void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false) const;
         void setTexture(TextureManager& texMan, const bool shouldPin = false) const;
@@ -137,12 +131,12 @@ private:
 
 
     GLuint programID = 0; //zero means invalid program
-    vector<oglShader> shaders;
-    map<string, ProgramResource> resMap;
-    map<string, ProgramResource> texMap;
-    map<string, ProgramResource> uboMap;
-    map<string, ProgramResource> attrMap;
-    map<string, SubroutineResource> subrMap;
+    set<oglShader> shaders;
+    set<ProgramResource, std::less<>> ProgRess;
+    set<ProgramResource, std::less<>> TexRess;
+    set<ProgramResource, std::less<>> UBORess;
+    set<ProgramResource, std::less<>> AttrRess;
+    set<SubroutineResource, std::less<>> SubroutineRess;
     map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     vector<GLint> uniCache;
     GLint
@@ -169,16 +163,19 @@ public:
     _oglProgram(const u16string& name);
     ~_oglProgram();
 
-    void addShader(oglShader && shader);
+    const set<ProgramResource, std::less<>>& getResources() const { return ProgRess; }
+    const set<SubroutineResource, std::less<>>& getSubroutineResources() const { return SubroutineRess; }
+    const set<oglShader> getShaders() const { return shaders; }
+
+    void addShader(const oglShader& shader);
     void link();
     void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
     GLint getLoc(const string& name) const;
-    const map<const string, const ProgramResource>& getResources() const { return *(const map<const string, const ProgramResource>*)&resMap; }
     const ProgramResource* getResource(const string& name) const;
-    const map<const string, const SubroutineResource>& getSubroutineResources() const { return *(const map<const string, const SubroutineResource>*)&subrMap; }
     const SubroutineResource* getSubroutines(const string& name) const;
     void setProject(const Camera &, const int wdWidth, const int wdHeight);
     void setCamera(const Camera &);
+
     ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat);
     ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity());
     using topIT = vectorEx<TransformOP>::const_iterator;

@@ -14,6 +14,12 @@ namespace OpenGLUtil
 using std::string;
 using std::u16string;
 
+public enum class ShaderType : GLenum
+{
+    Vertex = GL_VERTEX_SHADER, Geometry = GL_GEOMETRY_SHADER, Fragment = GL_FRAGMENT_SHADER,
+    TessCtrl = GL_TESS_CONTROL_SHADER, TessEval = GL_TESS_EVALUATION_SHADER,
+    Compute = GL_COMPUTE_SHADER
+};
 
 public ref class ProgramResource
 {
@@ -21,9 +27,9 @@ private:
     initonly String ^name, ^type, ^valtype;
     initonly uint32_t size, location, len;
 internal:
-    ProgramResource(const oglu::ProgramResource& res, const string& name_) 
+    ProgramResource(const oglu::ProgramResource& res) 
     {
-        name = ToStr(name_);
+        name = ToStr(res.Name);
         type = gcnew String(res.GetTypeName());
         valtype = gcnew String(res.GetValTypeName());
         size = res.size;
@@ -45,13 +51,14 @@ private:
     const std::weak_ptr<oglu::detail::_oglProgram> * const Prog;
     const std::string& cppname;
     initonly String^ name;
-    initonly String^ stage;
+    initonly ShaderType stage;
     initonly List<String^>^ routines = gcnew List<String^>();
     String^ current;
 internal:
     SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>* prog, const oglu::SubroutineResource& res) : Prog(prog), cppname(res.Name)
     {
         name = ToStr(cppname);
+        stage = (ShaderType)res.Stage;
         for (const auto& routine : res.Routines)
             routines->Add(ToStr(routine.Name));
         string srname;
@@ -60,7 +67,7 @@ internal:
     }
 public:
     CLI_READONLY_PROPERTY(String^, Name, name);
-    CLI_READONLY_PROPERTY(String^, Stage, stage);
+    CLI_READONLY_PROPERTY(ShaderType, Stage, stage);
     CLI_READONLY_PROPERTY(List<String^>^, Routines, routines);
     property String^ Current
     {
@@ -75,6 +82,18 @@ public:
     }
 };
 
+public value struct ShaderObject
+{
+    initonly String^ Source;
+    CLI_READONLY_PROPERTY(ShaderType, Type, type);
+internal:
+    initonly ShaderType type;
+    ShaderObject(const oglu::oglShader& shader)
+    {
+        type = (ShaderType)shader->shaderType;
+        Source = ToStr(shader->SourceText());
+    }
+};
 
 public ref class GLProgram : public BaseViewModel
 {
@@ -84,11 +103,20 @@ internal:
     GLProgram(const oglu::oglProgram *obj) : prog(new std::weak_ptr<oglu::detail::_oglProgram>(*obj)) 
     {
         auto theprog = prog->lock();
-        for (const auto& pair : theprog->getResources())
-            Resources->Add(gcnew ProgramResource(pair.second, pair.first));
-        for (const auto& pair : theprog->getSubroutineResources())
-            Subroutines->Add(gcnew SubroutineResource(prog, pair.second));
+        for (const auto& res : theprog->getResources())
+            resources->Add(gcnew ProgramResource(res));
+        for (const auto& res : theprog->getSubroutineResources())
+            subroutines->Add(gcnew SubroutineResource(prog, res));
+        for (const auto& shader : theprog->getShaders())
+        {
+            auto shd = ShaderObject(shader);
+            shaders->Add(shd.Type, shd);
+        }
     }
+    initonly List<ProgramResource^>^ resources = gcnew List<ProgramResource^>();
+    initonly List<SubroutineResource^>^ subroutines = gcnew List<SubroutineResource^>();
+    using ShaderDict = Dictionary<ShaderType, ShaderObject>;
+    initonly ShaderDict^ shaders = gcnew ShaderDict();
 public:
     ~GLProgram() { this->!GLProgram(); }
     !GLProgram() { delete prog; }
@@ -105,8 +133,9 @@ public:
     {
         return "[oglProgram]" + Name;
     }
-    initonly List<ProgramResource^>^ Resources = gcnew List<ProgramResource^>();
-    initonly List<SubroutineResource^>^ Subroutines = gcnew List<SubroutineResource^>();
+    CLI_READONLY_PROPERTY(List<ProgramResource^>^, Resources, resources);
+    CLI_READONLY_PROPERTY(List<SubroutineResource^>^, Subroutines, subroutines);
+    CLI_READONLY_PROPERTY(ShaderDict^, Shaders, shaders);
 };
 
 

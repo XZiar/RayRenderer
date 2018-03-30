@@ -3,7 +3,6 @@
 #include "oglRely.h"
 #include "oglTexture.h"
 #include "oglBuffer.h"
-#include "oglProgram.h"
 
 namespace oglu::detail
 {

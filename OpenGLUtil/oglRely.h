@@ -40,6 +40,7 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <set>
 #include <tuple>
 #include <optional>
 #include <algorithm>
@@ -64,6 +65,7 @@ using std::tuple;
 using std::pair;
 using std::vector;
 using std::map;
+using std::set;
 using std::function;
 using std::optional;
 using b3d::Vec3;
@@ -79,6 +81,15 @@ using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
+
+
+enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
+struct OGLUAPI alignas(alignof(Vec4)) TransformOP : public common::AlignBase<alignof(Vec4)>
+{
+    Vec4 vec;
+    TransformType type;
+    TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
+};
 
 namespace detail
 {

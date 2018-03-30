@@ -70,7 +70,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="ExceptionDialog.xaml">
+    <Page Include="TextDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -86,8 +86,8 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ExceptionDialog.xaml.cs">
-      <DependentUpon>ExceptionDialog.xaml</DependentUpon>
+    <Compile Include="TextDialog.xaml.cs">
+      <DependentUpon>TextDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="LightPage.xaml.cs">
       <DependentUpon>LightPage.xaml</DependentUpon>

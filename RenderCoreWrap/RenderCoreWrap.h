@@ -12,14 +12,14 @@ using namespace msclr::interop;
 
 namespace RayRender
 {
-
+using Basic3D::Vec3F;
 
 public ref class Drawable : public BaseViewModel
 {
 internal:
     std::weak_ptr<rayr::Drawable> *drawable;
-internal:
-    Drawable(const Wrapper<rayr::Drawable> *obj) : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), Type(ToStr((*obj)->getType())) { }
+    initonly String^ type;
+    Drawable(const Wrapper<rayr::Drawable> *obj) : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), type(ToStr((*obj)->getType())) { }
 public:
     ~Drawable() { this->!Drawable(); }
     !Drawable() { delete drawable; }
@@ -28,14 +28,26 @@ public:
         String^ get() { return ToStr(drawable->lock()->name); }
         void set(String^ value) { drawable->lock()->name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
-    initonly String^ Type;
+    property Vec3F Position
+    {
+        Vec3F get() { return Vec3F(drawable->lock()->position); }
+        void set(Vec3F value) { value.Store(drawable->lock()->position); OnPropertyChanged("Position"); }
+    }
+    property Vec3F Rotation
+    {
+        Vec3F get() { return Vec3F(drawable->lock()->rotation); }
+        void set(Vec3F value) { value.Store(drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
+    }
+    CLI_READONLY_PROPERTY(String^, Type, type);
+
     virtual String^ ToString() override
     {
-        return "[" + Type + "]" + Name;
+        return "[" + type + "]" + Name;
     }
     void Move(const float dx, const float dy, const float dz)
     {
         drawable->lock()->Move(dx, dy, dz);
+        OnPropertyChanged("Position");
     }
     void Rotate(const float dx, const float dy, const float dz)
     {

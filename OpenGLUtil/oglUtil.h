@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "oglProgram.h"
 #include "common/AsyncExecutor/AsyncAgent.h"
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }

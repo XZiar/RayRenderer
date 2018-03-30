@@ -9,6 +9,7 @@
 
 namespace oglu
 {
+using common::container::FindInSet;
 using common::container::FindInMap;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
@@ -47,7 +48,7 @@ const char* ProgramResource::GetValTypeName() const noexcept
     switch (valtype)
     {
     case GL_UNIFORM_BLOCK:
-        return "uniformBlock";
+        return "uniBlock";
     default:
         return FindInMap(detail::GLENUM_STR, valtype, std::in_place).value_or(nullptr);
     }
@@ -90,9 +91,8 @@ namespace detail
 
 void _oglProgram::ProgState::init()
 {
-    for (const auto& srPair : prog.subrMap)
+    for (const auto& sru : prog.SubroutineRess)
     {
-        const auto& sru = srPair.second;
         srSettings[&sru] = &sru.Routines[0];
         srCache[sru.Stage].push_back(sru.Routines[0].Id);
     }
@@ -158,7 +158,7 @@ void _oglProgram::ProgState::setSubroutine() const
     {
         GLsizei cnt = (GLsizei)stagePair.second.size();
         if(cnt > 0)
-            glUniformSubroutinesuiv(stagePair.first, cnt, stagePair.second.data());
+            glUniformSubroutinesuiv((GLenum)stagePair.first, cnt, stagePair.second.data());
     }
 }
 
@@ -179,10 +179,10 @@ void _oglProgram::ProgState::end()
 
 _oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
 {
-    const auto it = prog.texMap.find(name);
-    if (it != prog.texMap.end() && idx < it->second.len)//legal
+    const auto it = prog.TexRess.find(name);
+    if (it != prog.TexRess.end() && idx < it->len)//legal
     {
-        const auto pos = it->second.location + idx;
+        const auto pos = it->location + idx;
         texCache.insert_or_assign(pos, tex);
     }
     return *this;
@@ -199,10 +199,10 @@ _oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex
 
 _oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
 {
-    const auto it = prog.uboMap.find(name);
-    if (it != prog.uboMap.end() && idx < it->second.len)//legal
+    const auto it = prog.UBORess.find(name);
+    if (it != prog.UBORess.end() && idx < it->len)//legal
     {
-        const auto pos = it->second.location + idx;
+        const auto pos = it->location + idx;
         uboCache.insert_or_assign(pos, ubo);
     }
     return *this;
@@ -233,7 +233,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const SubroutineRe
 
 _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& sruname, const string& srname)
 {
-    if (auto pSru = FindInMap(prog.subrMap, sruname))
+    if (auto pSru = FindInSet(prog.SubroutineRess, sruname))
     {
         if (auto pSr = FindInVec(pSru->Routines, [&srname](const SubroutineResource::Routine& srr) { return srr.Name == srname; }))
         {
@@ -252,7 +252,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& srun
 
 _oglProgram::ProgState& _oglProgram::ProgState::getSubroutine(const string& sruname, string& srname)
 {
-    if (const SubroutineResource* pSru = FindInMap(prog.subrMap, sruname))
+    if (const SubroutineResource* pSru = FindInSet(prog.SubroutineRess, sruname))
         srname = srSettings[pSru]->Name;
     else
         oglLog().warning(u"cannot find subroutine object {}\n", sruname);
@@ -319,10 +319,10 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
 
 oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
 {
-    const auto it = prog.texMap.find(name);
-    if (it != prog.texMap.end() && idx < it->second.len)//legal
+    const auto it = prog.TexRess.find(name);
+    if (it != prog.TexRess.end() && idx < it->len)//legal
     {
-        const auto pos = it->second.location + idx;
+        const auto pos = it->location + idx;
         texCache.insert_or_assign(pos, tex);
         UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], true));
     }
@@ -341,10 +341,10 @@ oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const ogl
 
 oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
 {
-    const auto it = prog.uboMap.find(name);
-    if (it != prog.uboMap.end() && idx < it->second.len)//legal
+    const auto it = prog.UBORess.find(name);
+    if (it != prog.UBORess.end() && idx < it->len)//legal
     {
-        const auto pos = it->second.location + idx;
+        const auto pos = it->location + idx;
         uboCache.insert_or_assign(pos, ubo);
         UniformBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], false));
     }
@@ -369,13 +369,14 @@ _oglProgram::_oglProgram(const u16string& name) :gState(*this), Name(name)
 
 _oglProgram::~_oglProgram()
 {
-    if (programID != 0)
+    if (programID != 0 && usethis(*this, false)) //need unuse
     {
-        bool shouldUnUse = usethis(*this, false);
-        glDeleteProgram(programID);
-        programID = 0;
-        if (shouldUnUse)
-            usethis(*this, true);
+        CTX_PROG_MAP.InsertOrAssign([&](auto dummy)
+        {
+            glUseProgram(0);
+            glDeleteProgram(programID);
+            return 0;
+        });
     }
 }
 
@@ -414,7 +415,7 @@ void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const
 
 void _oglProgram::initLocs()
 {
-    map<string, ProgramResource> dataMap;
+    set<ProgramResource, std::less<>> dataMap;
     GLchar name[256];
     GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
     for (const GLenum dtype : datatypes)
@@ -424,11 +425,9 @@ void _oglProgram::initLocs()
         for (GLint a = 0; a < cnt; ++a)
         {
             uint32_t arraylen = 0;
-            ProgramResource datinfo(dtype);
             glGetProgramResourceName(programID, dtype, a, 240, nullptr, name);
             char* chpos = nullptr;
             //printf("@@query %d\t\t%s\n", binfo.iftype, name);
-            datinfo.initData(programID, a);
             chpos = strchr(name, '.');
             if (chpos != nullptr)//remove struct
                 *chpos = '\0';
@@ -438,44 +437,41 @@ void _oglProgram::initLocs()
                 arraylen = atol(chpos + 1) + 1;
                 *chpos = '\0';
             }
-            auto it = dataMap.find(name);
-            if (it != dataMap.end())
+            const string namestr(name);
+            if (auto it = FindInSet(dataMap, namestr))
             {
-                it->second.len = common::max(it->second.len, arraylen);
+                it->len = common::max(it->len, arraylen);
                 continue;
             }
+            ProgramResource datinfo(dtype, namestr);
+            datinfo.initData(programID, a);
             if (dtype == GL_UNIFORM_BLOCK)
-            {
                 datinfo.location = glGetProgramResourceIndex(programID, dtype, name);
-            }
             else
-            {
                 datinfo.location = glGetProgramResourceLocation(programID, dtype, name);
-            }
-            if (datinfo.location != GL_INVALID_INDEX)//record index
+
+            if (datinfo.location != GL_INVALID_INDEX)
             {
-                dataMap.insert_or_assign(name, datinfo);
-                //locMap.insert_or_assign(name, datinfo.location);
+                dataMap.insert(datinfo); //must not exist
             }
         }
     }
     oglLog().debug(u"Active {} locations\n", dataMap.size());
     GLuint maxUniLoc = 0;
-    for (const auto& di : dataMap)
+    for (const auto& info : dataMap)
     {
-        const auto& info = di.second;
         if (info.isAttrib())
-            attrMap.insert(di);
+            AttrRess.insert(info);
         else
         {
             maxUniLoc = common::max(maxUniLoc, info.location + info.len);
             if (info.isUniformBlock())
-                uboMap.insert(di);
+                UBORess.insert(info);
             else if (info.isTexture())
-                texMap.insert(di);
+                TexRess.insert(info);
         }
-        resMap.insert(di);
-        oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, di.first, info.len, info.GetValTypeName(), info.size);
+        ProgRess.insert(info);
+        oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
     uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
@@ -486,7 +482,7 @@ void _oglProgram::initSubroutines()
     char strbuf[4096];
     auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
     writer.write(u"SubRoutine Resource: \n");
-    subrMap.clear();
+    SubroutineRess.clear();
     subrLookup.clear();
     for (auto stage : stages)
     {
@@ -508,21 +504,24 @@ void _oglProgram::initSubroutines()
                 glGetActiveSubroutineName(programID, stage, idx, sizeof(strbuf), nullptr, strbuf);
                 string subrname(strbuf);
                 writer.write(u"--[{}]: {}\n", idx, subrname);
-                routines.push_back(SubroutineResource::Routine(subrname, idx, stage));
+                routines.push_back(SubroutineResource::Routine(subrname, idx));
             }
-            auto [it, isAdd] = subrMap.try_emplace(uniformName, stage, uniformLoc, uniformName, std::move(routines));
-            for (auto& routine : it->second.Routines)
-                subrLookup[&routine] = &it->second;
+            auto[it, isAdd] = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines));
+            for (auto& routine : it->Routines)
+                subrLookup[&routine] = &(*it);
         }
     }
     oglLog().debug(writer.c_str());
     gState.init();
 }
 
-void _oglProgram::addShader(oglShader && shader)
+void _oglProgram::addShader(const oglShader& shader)
 {
-    glAttachShader(programID, shader->shaderID);
-    shaders.push_back(std::move(shader));
+    auto [it, isAdd] = shaders.insert(shader);
+    if (isAdd)
+        glAttachShader(programID, shader->shaderID);
+    else
+        oglLog().warning(u"Repeat adding shader {} to program [{}]\n", shader->shaderID, Name);
 }
 
 void _oglProgram::link()
@@ -565,17 +564,17 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
 
 const ProgramResource* _oglProgram::getResource(const string& name) const
 {
-    return FindInMap(resMap, name);
+    return FindInSet(ProgRess, name);
 }
 
 const SubroutineResource* _oglProgram::getSubroutines(const string& name) const
 {
-    return FindInMap(subrMap, name);
+    return FindInSet(SubroutineRess, name);
 }
 
 GLint _oglProgram::getLoc(const string& name) const
 {
-    if (auto obj = FindInMap(resMap, name))
+    if (auto obj = FindInSet(ProgRess, name))
         return obj->location;
     return GL_INVALID_INDEX;
 }

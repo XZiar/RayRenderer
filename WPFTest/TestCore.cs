@@ -120,6 +120,7 @@ namespace WPFTest
         public readonly DrawableList Drawables;
         public readonly LightList Lights;
         public readonly ShaderList Shaders;
+        public readonly Camera Camera;
 
         public bool IsAnimate = false;
 
@@ -136,6 +137,7 @@ namespace WPFTest
             Drawables = new DrawableList(Test.Drawables);
             Lights = new LightList(Test.Lights);
             Shaders = new ShaderList(Test.Shaders);
+            Camera = Test.Camera;
         }
 
         public void Move(float x, float y, float z, OPObject obj)

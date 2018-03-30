@@ -92,6 +92,12 @@ namespace WPFTest
             });
             MemMonitor.UpdateInterval(1000, true);
 
+            txtCurCamera.SetBinding(TextBlock.TextProperty, new Binding
+            {
+                Source = Core.Camera,
+                Path = new PropertyPath("Position"),
+                Mode = BindingMode.OneWay
+            });
             txtCurObj.SetBinding(TextBlock.TextProperty, new Binding
             {
                 Source = Core.Drawables,
@@ -250,7 +256,7 @@ namespace WPFTest
             }
             catch (Exception ex)
             {
-                new ExceptionDialog(ex).ShowDialog();
+                new TextDialog(ex).ShowDialog();
             }
         }
 
@@ -402,63 +408,15 @@ namespace WPFTest
             glMain.Invalidate();
         }
 
-        private void cboxLight_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (e.AddedItems.Count <= 0)
-                return;
-            var lgt = (Light)e.AddedItems[0];
-            if (e.RemovedItems.Count > 0 && lgt == e.RemovedItems[0])
-                return;
-            lgtType.SetBinding(TextBox.TextProperty, new Binding
-            {
-                Source = lgt,
-                Path = new PropertyPath("Type"),
-                Mode = BindingMode.OneWay
-            });
-            lgtName.SetBinding(TextBox.TextProperty, new Binding
-            {
-                Source = lgt,
-                Path = new PropertyPath("Name"),
-                Mode = BindingMode.TwoWay
-            });
-        }
-
-        private void cboxObj_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (e.AddedItems.Count <= 0)
-                return;
-            var obj = (Drawable)e.AddedItems[0];
-            if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
-                return;
-            objType.Text = obj.Type;
-            objName.SetBinding(TextBox.TextProperty, new Binding
-            {
-                Source = obj,
-                Path = new PropertyPath("Name"),
-                Mode = BindingMode.TwoWay
-            });
-        }
-
-        private void cboxShader_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (e.AddedItems.Count <= 0)
-                return;
-            var obj = (GLProgram)e.AddedItems[0];
-            if (e.RemovedItems.Count > 0 && obj == e.RemovedItems[0])
-                return;
-            shdName.SetBinding(LabelTextBox.ContentProperty, new Binding
-            {
-                Source = obj,
-                Path = new PropertyPath("Name"),
-                Mode = BindingMode.TwoWay
-            });
-            listProgRes.ItemsSource = obj.Resources;
-            listProgSubr.ItemsSource = obj.Subroutines;
-        }
-
         private void cboxSubr_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             glMain.Invalidate();
+        }
+
+        private void btnOpenShaderSrc_Click(object sender, RoutedEventArgs e)
+        {
+            var shader = (ShaderObject)((Button)sender).DataContext;
+            new TextDialog(shader.Source, $"{((GLProgram)stkShader.DataContext).Name} --- {shader.Type}").Show();
         }
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
@@ -477,7 +435,7 @@ namespace WPFTest
                 }
                 catch (Exception ex)
                 {
-                    new ExceptionDialog(ex).ShowDialog();
+                    new TextDialog(ex).ShowDialog();
                 }
                 break;
             }

@@ -81,9 +81,12 @@
       <Item Name="LRUCache">cache</Item>
     </Expand>
   </Type>
+  <Type Name="oglu::SubroutineResource::Routine">
+    <DisplayString>{{[{Id}]Name}}</DisplayString>
+  </Type>
   <Type Name="oglu::SubroutineResource">
-    <DisplayString Condition="Stage == 0x8B31">{{[VS][{Id}]{Name}}}</DisplayString>
-    <DisplayString Condition="Stage == 0x8B30">{{[PS][{Id}]{Name}}}</DisplayString>
+    <DisplayString Condition="Stage == 0x8B31">{{Subr[VS]{Name}}}</DisplayString>
+    <DisplayString Condition="Stage == 0x8B30">{{Subr[PS]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::ProgramResource">
     <DisplayString Condition="type == 0x92E1">{{[Uniform]loc[{location}]}}</DisplayString>
