@@ -302,42 +302,36 @@ inline size_t getsize(const size_t size)
     return size;
 }
 template<class CharT, class... Args>
-inline size_t getsize(const size_t size, const std::basic_string<CharT>& str, Args&&... args)
-{
-    return getsize<CharT>(size + str.length(), std::forward<Args>(args)...);
-}
-template<class CharT, class... Args>
 inline size_t getsize(const size_t size, const std::basic_string_view<CharT>& str, Args&&... args)
 {
     return getsize<CharT>(size + str.length(), std::forward<Args>(args)...);
 }
-template<class CharT, class... Args>
-inline size_t getsize(const size_t size, const CharT *str, Args&&... args)
+template<class CharT, typename A, class... Args>
+inline size_t getsize(const size_t size, const std::vector<std::basic_string_view<CharT>, A>& strs, Args&&... args)
 {
-    return getsize<CharT>(size + std::char_traits<CharT>::length(str), std::forward<Args>(args)...);
+    size_t thissize = 0;
+    for (const auto& str : strs)
+        thissize += str.length();
+    return getsize<CharT>(size + thissize, std::forward<Args>(args)...);
 }
 
 template<class CharT>
 inline void appendstr(std::basic_string<CharT>& obj)
 { }
 template<class CharT, class... Args>
-inline void appendstr(std::basic_string<CharT>& obj, const std::basic_string<CharT>& str, Args&&... args)
-{
-    obj.append(str);
-    appendstr<CharT>(obj, std::forward<Args>(args)...);
-}
-template<class CharT, class... Args>
 inline void appendstr(std::basic_string<CharT>& obj, const std::basic_string_view<CharT>& str, Args&&... args)
 {
     obj.append(str);
     appendstr<CharT>(obj, std::forward<Args>(args)...);
 }
-template<class CharT, class... Args>
-inline void appendstr(std::basic_string<CharT>& obj, const CharT *str, Args&&... args)
+template<class CharT, typename A, class... Args>
+inline void appendstr(std::basic_string<CharT>& obj, const std::vector<std::basic_string_view<CharT>, A>& strs, Args&&... args)
 {
-    obj.append(str);
+    for (const auto& str : strs)
+        obj.append(str);
     appendstr<CharT>(obj, std::forward<Args>(args)...);
 }
+
 }
 template<class CharT, class... Args>
 inline std::basic_string<CharT> Concat(Args&&... args)

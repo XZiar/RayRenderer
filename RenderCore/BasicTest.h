@@ -16,6 +16,9 @@ namespace img = xziar::img;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
+enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
+MAKE_ENUM_BITFIELD(ChangableUBO)
+
 class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignBase<32>
 {
 private:
@@ -31,6 +34,7 @@ private:
     vector<Wrapper<Drawable>> drawables;
     vector<Wrapper<Light>> lights;
     vector<oglProgram> glProgs;
+    std::atomic_uint32_t IsUBOChanged = 0;
     fs::path basepath;
     void init2d(const u16string pname);
     void init3d(const u16string pname);
@@ -50,6 +54,7 @@ public:
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
+    void ReportChanged(const ChangableUBO target);
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
     const vector<oglProgram>& Shaders() const { return glProgs; }

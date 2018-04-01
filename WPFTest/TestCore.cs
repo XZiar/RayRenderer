@@ -36,7 +36,17 @@ namespace WPFTest
             public Light Current
             {
                 get { return Holder[curLgtIdx]; }
-                set { CurLgtIdx = Holder.GetIndex(value); }
+                set
+                {
+                    if (Holder.Container.Count > 1)
+                    {
+                        var a = value;
+                        var b = Holder.Container[0];
+                        var c = Holder.Container[1];
+                        var d = Holder.Container[1];
+                    }
+                    CurLgtIdx = Holder.GetIndex(value);
+                }
             }
             internal LightList(LightHolder holder) : base(holder.Lights)
             {
@@ -52,7 +62,6 @@ namespace WPFTest
             public void Add(LightType type)
             {
                 Holder.Add(type);
-                Holder.Refresh();
                 OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
                 CurLgtIdx = ushort.MaxValue;
             }

@@ -204,6 +204,7 @@ namespace WPFTest
                 btnImg.ImageSource = imgCamera;
                 break;
             }
+            e.Handled = true;
         }
         private void btncmDragMode_Click(object sender, RoutedEventArgs e)
         {
@@ -224,6 +225,7 @@ namespace WPFTest
                 btnImg.ImageSource = imgPointLight;
                 break;
             }
+            e.Handled = true;
         }
 
         private void OpenModelInputDialog()
@@ -263,6 +265,7 @@ namespace WPFTest
         private void btnAddModel_Click(object sender, RoutedEventArgs e)
         {
             OpenModelInputDialog();
+            e.Handled = true;
         }
 
         private void btncmAddModel_Click(object sender, RoutedEventArgs e)
@@ -283,12 +286,14 @@ namespace WPFTest
                 return;
             }
             glMain.Invalidate();
+            e.Handled = true;
         }
 
         private void btnAddLight_Click(object sender, RoutedEventArgs e)
         {
             btncmAddLight.PlacementTarget = btnAddLight;
             btncmAddLight.IsOpen = true;
+            e.Handled = true;
         }
 
         private void btncmAddLight_Click(object sender, RoutedEventArgs e)
@@ -307,6 +312,7 @@ namespace WPFTest
                 break;
             }
             glMain.Invalidate();
+            e.Handled = true;
         }
 
         private async void btnTryAsync_Click(object sender, RoutedEventArgs e)
@@ -320,6 +326,7 @@ namespace WPFTest
             {
                 throw new Exception("received exception", ex);
             }
+            e.Handled = true;
         }
 
         private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
@@ -411,12 +418,20 @@ namespace WPFTest
         private void cboxSubr_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             glMain.Invalidate();
+            e.Handled = true;
+        }
+
+        private void lgtClr_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
+        {
+            glMain.Invalidate();
+            e.Handled = true;
         }
 
         private void btnOpenShaderSrc_Click(object sender, RoutedEventArgs e)
         {
             var shader = (ShaderObject)((Button)sender).DataContext;
             new TextDialog(shader.Source, $"{((GLProgram)stkShader.DataContext).Name} --- {shader.Type}").Show();
+            e.Handled = true;
         }
 
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)

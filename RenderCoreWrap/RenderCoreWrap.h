@@ -52,6 +52,7 @@ public:
     void Rotate(const float dx, const float dy, const float dz)
     {
         drawable->lock()->Rotate(dx, dy, dz);
+        OnPropertyChanged("Rotation");
     }
 };
 
@@ -65,10 +66,12 @@ public ref class HolderBase
 protected:
     rayr::BasicTest * const Core;
     const vector<Type>& Src;
+public:
     initonly List<CLIType^>^ Container;
+protected:
     initonly PropertyChangedEventHandler^ PChangedHandler;
     ObjectChangedEventHandler<CLIType^>^ changed;
-    void OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
+    void virtual OnPChangded(Object ^sender, PropertyChangedEventArgs ^e)
     {
         Changed(this, safe_cast<CLIType^>(sender));
     }
@@ -144,6 +147,13 @@ internal:
     LightHolder(rayr::BasicTest * const core, const vector<Wrapper<b3d::Light>>& lights) 
         : HolderBase<Wrapper<b3d::Light>, Basic3D::Light>(core, lights)
     { }
+protected:
+    void virtual OnPChangded(Object ^sender, PropertyChangedEventArgs ^e) override
+    {
+        if (e->PropertyName != "Name")
+            Core->ReportChanged(rayr::ChangableUBO::Light);
+        HolderBase<Wrapper<b3d::Light>, Basic3D::Light>::OnPChangded(sender, e);
+    }
 public:
     property List<Basic3D::Light^>^ Lights
     {

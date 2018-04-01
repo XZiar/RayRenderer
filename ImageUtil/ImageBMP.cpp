@@ -1,6 +1,7 @@
 #include "ImageUtilRely.h"
 #include "ImageBMP.h"
-
+#include "DataConvertor.hpp"
+#include "RGB15Converter.hpp"
 
 namespace xziar::img::bmp
 {
@@ -47,7 +48,7 @@ static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool nee
                 switch (dataType)
                 {
                 case ImageDataType::BGR:
-                    memmove_s(imgrow, irowsize, bufptr, frowsize); break;
+                    memcpy_s(imgrow, irowsize, bufptr, frowsize); break;
                 case ImageDataType::RGB:
                     convert::BGRsToRGBs(imgrow, bufptr, width); break;
                 case ImageDataType::BGRA:
@@ -61,34 +62,30 @@ static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool nee
         }break;
     case 16:
         {
-            const auto bufptr = buffer.GetRawPtr<uint16_t>();
             const bool isOutputRGB = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
-            auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
+            auto bufptr = buffer.GetRawPtr<uint16_t>();
             if (HAS_FIELD(dataType, ImageDataType::ALPHA_MASK))//need alpha
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    imgfile.Read(frowsize, buffer.GetRawPtr());
+                    imgfile.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
-                    for (uint32_t col = 0; col < width; ++col)
-                    {
-                        const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
-                        *destPtr++ = color16Map[bgr15];
-                    }
+                    if (isOutputRGB)
+                        convert::BGR15ToRGBAs(destPtr, bufptr, width);//ignore alpha
+                    else
+                        convert::RGB15ToRGBAs(destPtr, bufptr, width);//ignore alpha
                 }
             }
             else//ignore alpha
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    imgfile.Read(frowsize, buffer.GetRawPtr());
+                    imgfile.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
-                    for (uint32_t col = 0; col < width; ++col)
-                    {
-                        const auto bgr15 = bufptr[col] | (1 << 15);//ignore alpha
-                        const uint32_t color = color16Map[bgr15];
-                        convert::CopyRGBAToRGB(destPtr, color);
-                    }
+                    if (isOutputRGB)
+                        convert::BGR15ToRGBs(destPtr, bufptr, width);//ignore alpha
+                    else
+                        convert::RGB15ToRGBs(destPtr, bufptr, width);//ignore alpha
                 }
             }
         }break;
@@ -146,63 +143,63 @@ BmpReader::BmpReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(O
 
 void BmpReader::Release()
 {
-	OriginalFile = std::move(ImgFile.Release());
+    OriginalFile = std::move(ImgFile.Release());
 }
 
 bool BmpReader::Validate()
 {
-	ImgFile.Rewind();
-	if (!ImgFile.Read(Header))
-		return false;
-	if (!ImgFile.Read(Info))
-		return false;
+    ImgFile.Rewind();
+    if (!ImgFile.Read(Header))
+        return false;
+    if (!ImgFile.Read(Info))
+        return false;
 
-	if (Header.Sig[0] != 'B' || Header.Sig[1] != 'M' || Header.Reserved != 0)
-		return false;
+    if (Header.Sig[0] != 'B' || Header.Sig[1] != 'M' || Header.Reserved != 0)
+        return false;
     auto size = convert::ParseDWordLE(Header.Size);
     const auto fsize = ImgFile.GetSize();
     if (size > 0 && size != ImgFile.GetSize())
         return false;
     if (convert::ParseDWordLE(Header.Offset) >= fsize)
-		return false;
-	//allow Windows V3/V4/V5 only
-	if (Info.Size != 40 && Info.Size != 108 && Info.Size != 124)
-		return false;
-	if (Info.Planes != 1)
-		return false;
-	//allow colorful only
-	if (Info.BitCount != 8 && Info.BitCount != 16 && Info.BitCount != 24 && Info.BitCount != 32)
-		return false;
-	//allow BI_RGB, BI_BITFIELDS only
-	if (Info.Compression != 0 && Info.Compression != 3)
-		return false;
+        return false;
+    //allow Windows V3/V4/V5 only
+    if (Info.Size != 40 && Info.Size != 108 && Info.Size != 124)
+        return false;
+    if (Info.Planes != 1)
+        return false;
+    //allow colorful only
+    if (Info.BitCount != 8 && Info.BitCount != 16 && Info.BitCount != 24 && Info.BitCount != 32)
+        return false;
+    //allow BI_RGB, BI_BITFIELDS only
+    if (Info.Compression != 0 && Info.Compression != 3)
+        return false;
     if (convert::ParseDWordLE(Info.Width) <= 0 || convert::ParseDWordLE(Info.Height) == 0)
-		return false;
-	
-	return true;
+        return false;
+    
+    return true;
 }
 
 Image BmpReader::Read(const ImageDataType dataType)
 {
-	if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
-		return Image();
+    if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
+        return Image();
     Image image(dataType);
     if (image.isGray())
-		return image;
+        return image;
     const int32_t h = convert::ParseDWordLE(Info.Height);
-	const bool needFlip = h > 0;
+    const bool needFlip = h > 0;
     const uint32_t height = std::abs(h);
     const uint32_t width = convert::ParseDWordLE(Info.Width);
-	image.SetSize(width, height);
+    image.SetSize(width, height);
 
-	ImgFile.Rewind(convert::ParseDWordLE(Header.Offset));
+    ImgFile.Rewind(convert::ParseDWordLE(Header.Offset));
     
     if (Info.Compression == 0)//BI_RGB
     {
         ReadUncompressed(image, ImgFile, needFlip, Info);
     }
     
-	return image;
+    return image;
 }
 
 
@@ -216,8 +213,8 @@ void BmpWriter::Write(const Image& image)
         return;
     if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
         return;
-	if (image.DataType == ImageDataType::GA)
-		return;
+    if (image.DataType == ImageDataType::GA)
+        return;
 
     const bool isInputBGR = REMOVE_MASK(image.DataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
     const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
@@ -237,26 +234,26 @@ void BmpWriter::Write(const Image& image)
     SimpleTimer timer;
     timer.Start();
 
-	const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
-	const size_t irowsize = image.RowSize();
-	
-	if (image.isGray())//must be ImageDataType::Gray only
-	{
-		ImgFile.Write(256, convert::GrayToRGBAMAP);
-		if (frowsize == irowsize)
-			ImgFile.Write(image.GetSize(), image.GetRawPtr());
-		else
-		{
-			const byte* __restrict imgptr = image.GetRawPtr();
-			const uint8_t empty[4] = { 0 };
-			const size_t padding = frowsize - irowsize;
-			for (uint32_t i = 0; i < image.Height; ++i)
-			{
-				ImgFile.Write(irowsize, imgptr);
-				ImgFile.Write(padding, empty);
-			}
-		}
-	}
+    const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
+    const size_t irowsize = image.RowSize();
+    
+    if (image.isGray())//must be ImageDataType::Gray only
+    {
+        ImgFile.Write(256, convert::GrayToRGBAMAP);
+        if (frowsize == irowsize)
+            ImgFile.Write(image.GetSize(), image.GetRawPtr());
+        else
+        {
+            const byte* __restrict imgptr = image.GetRawPtr();
+            const uint8_t empty[4] = { 0 };
+            const size_t padding = frowsize - irowsize;
+            for (uint32_t i = 0; i < image.Height; ++i)
+            {
+                ImgFile.Write(irowsize, imgptr);
+                ImgFile.Write(padding, empty);
+            }
+        }
+    }
     else if (frowsize == irowsize && isInputBGR)//perfect match, write directly
         ImgFile.Write(image.GetSize(), image.GetRawPtr());
     else

@@ -58,6 +58,7 @@ namespace oglu
 namespace str = common::str;
 namespace fs = common::file::fs;
 using std::string;
+using std::string_view;
 using std::wstring;
 using std::u16string;
 using std::byte;

@@ -38,54 +38,6 @@ inline T EmptyStruct()
 }
 
 
-constexpr auto MAKE_BGR16_RGBAMap()
-{
-    constexpr uint32_t size = 256 * 256, half = size / 2;
-    std::array<uint32_t, size> themap{};
-    constexpr uint32_t chCount = 1 << 5, step = 256 / chCount;
-    constexpr uint32_t redStep = step, greenStep = step << 8, blueStep = step << 16;
-    uint32_t idx = 0;
-    uint32_t color = 0;
-    for (uint32_t red = chCount, colorR = color; red--; colorR += redStep)
-    {
-        for (uint32_t green = chCount, colorRG = colorR; green--; colorRG += greenStep)
-        {
-            for (uint32_t blue = chCount, colorRGB = colorRG; blue--; colorRGB += blueStep)
-            {
-                themap[idx++] = colorRGB;
-            }
-        }
-    }
-    for (uint32_t count = 0; count < half;)//protential 4k-alignment issue
-        themap[idx++] = themap[count++] | 0xff000000;
-    return themap;
-}
-inline const auto BGR16ToRGBAMapper = MAKE_BGR16_RGBAMap();
-constexpr auto MAKE_RGB16_RGBAMap()
-{
-    constexpr uint32_t size = 256 * 256, half = size / 2;
-    std::array<uint32_t, size> themap{};
-    constexpr uint32_t chCount = 1 << 5, step = 256 / chCount;
-    constexpr uint32_t redStep = step << 16, greenStep = step << 8, blueStep = step;
-    uint32_t idx = 0;
-    uint32_t color = 0;
-    for (uint32_t blue = chCount, colorB = color; blue--; colorB += blueStep)
-    {
-        for (uint32_t green = chCount, colorGB = colorB; green--; colorGB += greenStep)
-        {
-            for (uint32_t red = chCount, colorRGB = colorGB; red--; colorRGB += redStep)
-            {
-                themap[idx++] = colorRGB;
-            }
-        }
-    }
-    for (uint32_t count = 0; count < half;)//protential 4k-alignment issue
-        themap[idx++] = themap[count++] | 0xff000000;
-    return themap;
-}
-inline const auto RGB16ToRGBAMapper = MAKE_RGB16_RGBAMap();
-
-
 inline void FixAlpha(size_t count, uint32_t* destPtr)
 {
     while (count--)
@@ -102,15 +54,6 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
 
 
 #pragma region GRAY->GRAYA
-constexpr auto MAKE_GRAY2GRAYA()
-{
-    std::array<uint16_t, 256> ret{ 0 };
-    for (uint16_t i = 0; i < 256u; ++i)
-        ret[i] = i | 0xff00u;
-    return ret;
-}
-inline const auto GrayToGrayAMAP = MAKE_GRAY2GRAYA();
-#define LOOP_GRAY_GRAYA *(uint16_t*)destPtr = GrayToGrayAMAP[*(uint8_t*)srcPtr++]; destPtr += 2; count--;
 inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
@@ -155,6 +98,7 @@ inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict src
 #endif
     while (count)
     {
+    #define LOOP_GRAY_GRAYA *(uint16_t*)destPtr = uint16_t(*srcPtr++) | 0xff00u; destPtr += 2; count--;
         switch (count)
         {
         default:LOOP_GRAY_GRAYA
@@ -166,9 +110,9 @@ inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict src
         case 2: LOOP_GRAY_GRAYA
         case 1: LOOP_GRAY_GRAYA
         }
+    #undef LOOP_GRAY_GRAYA
     }
 }
-#undef LOOP_GRAY_GRAYA
 #pragma endregion GRAY->GRAYA
 
 
@@ -246,7 +190,6 @@ inline const auto& GraysToBGRAs = GraysToRGBAs;
 
 
 #pragma region GRAYA->GRAY
-#define LOOP_GRAYA_GRAY *destPtr++ = byte(*(uint16_t*)srcPtr & 0xff); srcPtr += 2; count--;
 inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
@@ -288,6 +231,7 @@ inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict src
 #endif
     while (count)
     {
+    #define LOOP_GRAYA_GRAY *destPtr++ = byte(*(const uint16_t*)srcPtr & 0xff); srcPtr += 2; count--;
         switch (count)
         {
         default:LOOP_GRAYA_GRAY
@@ -299,9 +243,9 @@ inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict src
         case 2: LOOP_GRAYA_GRAY
         case 1: LOOP_GRAYA_GRAY
         }
+    #undef LOOP_GRAYA_GRAY
     }
 }
-#undef LOOP_GRAYA_GRAY
 #pragma endregion GRAYA->GRAY
 
 

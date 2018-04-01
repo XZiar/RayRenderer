@@ -19,6 +19,7 @@
 #include "common/CommonRely.hpp"
 #include "common/CommonMacro.hpp"
 #include "common/SIMD.hpp"
+#include "common/CopyEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/StringEx.hpp"

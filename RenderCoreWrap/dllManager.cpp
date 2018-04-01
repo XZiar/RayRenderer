@@ -1,6 +1,7 @@
 #pragma unmanaged
 
 #include "common/TimeUtil.hpp"
+#include "common/FileEx.hpp"
 #include "common/ResourceHelper.inl"
 #include "common/DelayLoader.inl"
 #include "3rdParty/fmt/format.h"
@@ -8,14 +9,19 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include <map>
 #include <tuple>
 #include <filesystem>
 #define WIN32_LEAN_AND_MEAN 1
 #include <Windows.h>
+#include <Wincrypt.h>
+
+#pragma comment(lib, "Advapi32.lib")
 
 using std::string;
 using std::wstring;
 using std::vector;
+using std::map;
 using std::pair;
 namespace fs = std::experimental::filesystem;
 using common::DelayLoader;
@@ -57,16 +63,22 @@ static void createDLL(const wstring& dllname, const int32_t dllid)
 
 }
 
+static const std::map<int32_t, wstring> DLL_MAP = 
+{
+    { IDR_DLL_MLOG, L"miniLogger.dll" },
+    { IDR_DLL_ASYEXE, L"AsyncExecutor.dll" },
+    { IDR_DLL_OGLU, L"OpenGLUtil.dll" },
+    { IDR_DLL_OCL_LODER, L"OpenCL_ICD_Loader.dll" },
+    { IDR_DLL_OCLU, L"OpenCLUtil.dll" },
+    { IDR_DLL_FONTHELP, L"FontHelper.dll" },
+    { IDR_DLL_IMGUTIL, L"ImageUtil.dll" },
+    { IDR_DLL_RENDERCORE, L"RenderCore.dll" },
+};
+
 static void extractDLL()
 {
-    createDLL(L"miniLogger.dll", IDR_DLL_MLOG);
-    createDLL(L"AsyncExecutor.dll", IDR_DLL_ASYEXE);
-    createDLL(L"OpenGLUtil.dll", IDR_DLL_OGLU);
-    createDLL(L"OpenCL_ICD_Loader.dll", IDR_DLL_OCL_LODER);
-    createDLL(L"OpenCLUtil.dll", IDR_DLL_OCLU);
-    createDLL(L"FontHelper.dll", IDR_DLL_FONTHELP);
-    createDLL(L"ImageUtil.dll", IDR_DLL_IMGUTIL);
-    createDLL(L"RenderCore.dll", IDR_DLL_RENDERCORE);
+    for (const auto& dllpair : DLL_MAP)
+        createDLL(dllpair.second, dllpair.first);
 }
 
 static void freeDLL()
@@ -111,6 +123,58 @@ static void* delayloaddll(const char *name)
     return hdll;
 }
 
+
+std::wstring HashSelf()
+{
+    std::vector<uint8_t> dllsData;
+    for (const auto& dllpair : DLL_MAP)
+    {
+        const auto dlldata = common::ResourceHelper::getData(L"DLL", dllpair.first);
+        dllsData.insert(dllsData.end(), dlldata.cbegin(), dlldata.cend());
+    }
+    
+    HCRYPTPROV hProv = NULL;
+    // Get handle to the crypto provider
+    if (!CryptAcquireContext(&hProv,NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+    {
+        DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
+        throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
+    }
+    HCRYPTHASH hHash = NULL;
+    if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
+    {
+        DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
+        CryptReleaseContext(hProv, 0);
+        throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
+    }
+    if (!CryptHashData(hHash, dllsData.data(), (DWORD)dllsData.size(), 0))
+    {
+        DebugOutput(L"CryptHashData failed, {}\n", GetLastError());
+        CryptReleaseContext(hProv, 0);
+        CryptDestroyHash(hHash);
+        throw std::runtime_error("cannot CryptHashData, errorno:" + std::to_string(GetLastError()));
+    }
+    uint8_t MD5[16];
+    DWORD dwHashLen = sizeof(MD5);
+    constexpr wchar_t HASH_HEX[] = L"0123456789abcdef";
+    const auto ret = CryptGetHashParam(hHash, HP_HASHVAL, MD5, &dwHashLen, 0);
+    CryptDestroyHash(hHash);
+    CryptReleaseContext(hProv, 0);
+    if (!ret)
+    {
+        DebugOutput(L"CryptGetHashParam failed, {}\n", GetLastError());
+        throw std::runtime_error("cannot CryptGetHashParam, errorno:" + std::to_string(GetLastError()));
+    }
+
+    std::wstring hash;
+    for (auto u8 : MD5)
+    {
+        hash.push_back(HASH_HEX[u8 / 16]);
+        hash.push_back(HASH_HEX[u8 % 16]);
+    }
+    return hash;
+}
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     switch (fdwReason)
@@ -121,11 +185,18 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         common::ResourceHelper::init(hinstDLL);
         DebugOutput(L"Res Inited");
         RRPath = fs::temp_directory_path() / L"RayRenderer";
-        DLLSPath = RRPath / std::to_wstring(common::SimpleTimer::getCurTime());
-        fs::create_directories(DLLSPath);
+        DLLSPath = RRPath / HashSelf();
         DelayLoader::onLoadDLL = delayloaddll;
-        DebugOutput(L"Begin Excract DLL");
-        extractDLL();
+        if (!fs::exists(DLLSPath))
+        {
+            fs::create_directories(DLLSPath);
+            DebugOutput(L"Begin Excract DLL");
+            extractDLL();
+        }
+        else
+        {
+            DebugOutput(L"already exist, skip");
+        }
         SetDllDirectory(DLLSPath.c_str());
         DebugOutput(L"Initial Finished");
     }

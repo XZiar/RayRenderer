@@ -554,6 +554,7 @@ void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(
     Uni_modelMat = getLoc(MatrixName[2]);//modelMatrix
     Uni_normalMat = getLoc(MatrixName[3]);//model-view-project-Matrix
     Uni_mvpMat = getLoc(MatrixName[4]);//model-view-project-Matrix
+    Uni_camPos = getLoc("vecCamPos");
 
     //initialize vertex attribute location
     Attr_Vert_Pos = getLoc(VertAttrName[0]);

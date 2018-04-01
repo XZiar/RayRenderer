@@ -65,17 +65,18 @@ static Wrapper<b3d::Light> CreateLight(b3d::LightType type)
     {
     case b3d::LightType::Parallel:
         light = Wrapper<b3d::ParallelLight>(std::in_place);
-        light->color = b3d::Vec4(2.0, 0.5, 0.5, 10.0);
+        light->color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
         break;
     case b3d::LightType::Point:
         light = Wrapper<b3d::PointLight>(std::in_place);
-        light->color = b3d::Vec4(0.5, 2.0, 0.5, 10.0);
+        light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         break;
     case b3d::LightType::Spot:
         light = Wrapper<b3d::SpotLight>(std::in_place);
-        light->color = b3d::Vec4(0.5, 0.5, 2.0, 10.0);
+        light->color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
         break;
     }
+    light->direction = b3d::Vec4(0, 0, 1, 0);
     return light;
 }
 #pragma managed(pop)

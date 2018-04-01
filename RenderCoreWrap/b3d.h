@@ -7,7 +7,6 @@ using namespace System::ComponentModel;
 
 namespace Basic3D
 {
-
 using namespace common;
 
 public value struct Vec3F
@@ -84,8 +83,8 @@ public ref class Light : public BaseViewModel
 {
 internal:
     std::weak_ptr<b3d::Light> *light;
-internal:
-    Light(const Wrapper<b3d::Light> *obj) : light(new std::weak_ptr<b3d::Light>(*obj)), Type(LightType((*obj)->type)) { }
+    initonly LightType type;
+    Light(const Wrapper<b3d::Light> *obj) : light(new std::weak_ptr<b3d::Light>(*obj)), type(LightType((*obj)->type)) { }
 public:
     ~Light() { this->!Light(); }
     !Light() { delete light; }
@@ -104,11 +103,25 @@ public:
         Vec3F get() { return Vec3F(light->lock()->direction); }
         void set(Vec3F value) { value.Store(light->lock()->direction); OnPropertyChanged("Direction"); }
     }
+    property System::Windows::Media::Color Color
+    {
+        System::Windows::Media::Color get()
+        { 
+            const auto& color = light->lock()->color; 
+            return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
+        }
+        void set(System::Windows::Media::Color value)
+        {
+            auto& color = light->lock()->color;
+            color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
+            OnPropertyChanged("Color");
+        }
+    }
+    CLI_READONLY_PROPERTY(LightType, Type, type);
 
-    initonly LightType Type;
     virtual String^ ToString() override
     {
-        return "[" + Type.ToString() + "]" + Name;
+        return "[" + type.ToString() + "]" + Name;
     }
     void Move(const float dx, const float dy, const float dz)
     {
@@ -118,6 +131,7 @@ public:
     void Rotate(const float dx, const float dy, const float dz)
     {
         light->lock()->Rotate(dx, dy, dz);
+        OnPropertyChanged("Direction");
     }
 };
 

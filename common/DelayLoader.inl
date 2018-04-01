@@ -8,7 +8,6 @@ namespace common
 {
 
 
-
 bool DelayLoader::unload(const std::string& name)
 {
 	return __FUnloadDelayLoadedDLL2(name.c_str()) == TRUE;

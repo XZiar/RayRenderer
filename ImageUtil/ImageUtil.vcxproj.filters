@@ -54,6 +54,9 @@
     <ClInclude Include="FloatConvertor.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="RGB15Converter.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">

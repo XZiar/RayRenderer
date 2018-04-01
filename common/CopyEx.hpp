@@ -10,6 +10,7 @@ namespace common
 namespace copy
 {
 
+
 namespace detail
 {
 template<size_t Src, size_t Dest>
@@ -248,7 +249,6 @@ inline void CopyLittleEndian<2, 1>(void* const dest, const void* const src, size
     }
 }
 }
-
 template<typename Src, typename Dest>
 inline void CopyLittleEndian(Dest* const dest, const size_t destCount, const Src* const src, const size_t srcCount)
 {
@@ -258,6 +258,114 @@ inline void CopyLittleEndian(Dest* const dest, const size_t destCount, const Src
         memcpy_s(dest, destCount * sizeof(Dest), src, srcCount * sizeof(Src));
     else
         detail::CopyLittleEndian<sizeof(Src), sizeof(Dest)>(dest, src, srcCount);
+}
+
+
+namespace detail
+{
+inline void BroadcastMany(void* const dest, const uint8_t src, size_t count)
+{
+    uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(dest);
+#if COMMON_SIMD_LV >= 100
+    const auto dat = _mm256_set1_epi8(src);
+    while (count > 32)
+    {
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
+        destPtr += 32; count -= 32;
+    }
+#elif COMMON_SIMD_LV >= 20
+    const auto dat = _mm_set1_epi8(src);
+    while (count > 16)
+    {
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr), dat);
+        destPtr += 16; count -= 16;
+    }
+#else
+    const uint64_t dat = src * 0x0101010101010101u;
+    while (count > 8)
+    {
+        *reinterpret_cast<uint64_t*>(destPtr) = dat;
+        destPtr += 8; count -= 8;
+    }
+#endif
+    while (count > 0)
+    {
+        *destPtr++ = src;
+        count--;
+    }
+}
+inline void BroadcastMany(void* const dest, const uint16_t src, size_t count)
+{
+    uint16_t * __restrict destPtr = reinterpret_cast<uint16_t*>(dest);
+#if COMMON_SIMD_LV >= 100
+    const auto dat = _mm256_set1_epi16(src);
+    while (count > 16)
+    {
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
+        destPtr += 16; count -= 16;
+    }
+#elif COMMON_SIMD_LV >= 20
+    const auto dat = _mm_set1_epi16(src);
+    while (count > 8)
+    {
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr), dat);
+        destPtr += 8; count -= 8;
+    }
+#else
+    const uint64_t dat = src * 0x0001000100010001u;
+    while (count > 4)
+    {
+        *reinterpret_cast<uint64_t*>(destPtr) = dat;
+        destPtr += 4; count -= 4;
+    }
+#endif
+    while (count > 0)
+    {
+        *destPtr++ = src;
+        count--;
+    }
+}
+inline void BroadcastMany(void* const dest, const uint32_t src, size_t count)
+{
+    uint32_t * __restrict destPtr = reinterpret_cast<uint32_t*>(dest);
+#if COMMON_SIMD_LV >= 100
+    const auto dat = _mm256_set1_epi32(src);
+    while (count > 8)
+    {
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
+        destPtr += 8; count -= 8;
+    }
+#elif COMMON_SIMD_LV >= 20
+    const auto dat = _mm_set1_epi8(src);
+    while (count > 4)
+    {
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr), dat);
+        destPtr += 4; count -= 4;
+    }
+#endif
+    while (count > 0)
+    {
+        *destPtr++ = src;
+        count--;
+    }
+}
+}
+template<typename Type>
+inline void BroadcastMany(Type* const dest, const size_t destCount, const Type& src, const size_t srcCount)
+{
+    if (destCount < srcCount)
+        COMMON_THROW(BaseException, L"space avaliable on Dest is smaller than space required.");
+    if constexpr(sizeof(Type) == 1)
+        detail::BroadcastMany(dest, *(const uint8_t*)&src, srcCount);
+    else if constexpr(sizeof(Type) == 2)
+        detail::BroadcastMany(dest, *(const uint16_t*)&src, srcCount);
+    else if constexpr(sizeof(Type) == 4)
+        detail::BroadcastMany(dest, *(const uint32_t*)&src, srcCount);
+    else
+    {
+        for (size_t i = 0; i < srcCount; ++i)
+            *destPtr++ = src;
+    }
 }
 
 

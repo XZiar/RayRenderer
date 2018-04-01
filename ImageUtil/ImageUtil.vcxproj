@@ -184,6 +184,7 @@
     <ClInclude Include="ImageTGA.h" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="ImageUtilRely.h" />
+    <ClInclude Include="RGB15Converter.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageBMP.cpp" />

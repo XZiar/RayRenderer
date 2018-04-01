@@ -122,6 +122,7 @@ void BasicTest::init3d(const u16string pname)
     {
         prog3D->link();
         prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
+        prog3D->globalState().setSubroutine("lighter", "watcher").end();
     }
     catch (OGLException& gle)
     {
@@ -222,7 +223,7 @@ void BasicTest::prepareLight()
     size_t pos = 0;
     for (const auto& lgt : lights)
     {
-        memmove(&data[pos], &(*lgt), sizeof(LightData));
+        memcpy_s(&data[pos], lightUBO->size - pos, &(*lgt), sizeof(LightData));
         pos += sizeof(LightData);
         if (pos >= lightUBO->size)
             break;
@@ -301,6 +302,11 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 
 void BasicTest::Draw()
 {
+    {
+        const auto changed = (ChangableUBO)IsUBOChanged.exchange(0, std::memory_order::memory_order_relaxed);
+        if (HAS_FIELD(changed, ChangableUBO::Light))
+            prepareLight();
+    }
     if (mode)
     {
         prog3D->setCamera(cam);
@@ -396,6 +402,11 @@ void BasicTest::DelAllLight()
 {
     lights.clear();
     prepareLight();
+}
+
+void BasicTest::ReportChanged(const ChangableUBO target)
+{
+    IsUBOChanged |= (uint32_t)target;
 }
 
 static uint32_t getTID()
