@@ -139,7 +139,7 @@ template<> struct ContextResourceHelper<false>
 template<typename Val, bool Shared = true>
 class ContextResource : public common::NonCopyable, public common::NonMovable
 {
-    static_assert(common::SharedPtrHelper<Val>::IsSharedPtr || std::is_trivial_v<Val>, "Val type should be trivial or sahred_ptr.");
+    static_assert(common::SharedPtrHelper<Val>::IsSharedPtr || std::is_trivial_v<Val>, "Val type should be trivial or shared_ptr.");
 private:
     using KeyType = typename ContextResourceHelper<Shared>::KeyType;
     std::map<KeyType, Val> Map;

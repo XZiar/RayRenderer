@@ -156,9 +156,10 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
     {
     case TransformType::RotateXYZ:
         {
-            const auto rMat = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, op.vec.z)) *
+            /*const auto rMat = Mat4x4(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, op.vec.z)) *
                 Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, op.vec.y)) *
-                Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, op.vec.x)));
+                Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, op.vec.x)));*/
+            const auto rMat = Mat4x4(Mat3x3::RotateMatXYZ(op.vec));
             matModel = rMat * matModel;
             matNormal = (Mat3x3)rMat * matNormal;
         }return;

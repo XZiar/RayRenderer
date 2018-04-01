@@ -171,6 +171,7 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
 	window->funMouseEvent = onMouseEvent;
 	window->setTimerCallback(onTimer, 20);
 	window->funDropFile = onDropFile;
+    window->funOnClose = [&](FreeGLUTView wd) { tester.release(); };
 
 
 	FreeGLUTViewRun();

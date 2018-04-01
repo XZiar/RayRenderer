@@ -90,15 +90,6 @@ public:
     Wrapper& operator=(Wrapper<T>&& other) noexcept = default;
 };
 
-template<class U, class T = U::element_type>
-struct WeakPtrComparerator
-{
-    bool operator()(const std::weak_ptr<T>& pl, const std::weak_ptr<T>& pr) const
-    {
-        return pl.lock() < pr.lock();
-    }
-};
-
 template<typename T>
 struct SharedPtrHelper
 {

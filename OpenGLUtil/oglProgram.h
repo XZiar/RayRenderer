@@ -65,11 +65,11 @@ namespace detail
 {
 
 
-class OGLUAPI alignas(32) _oglProgram : public NonCopyable, public NonMovable, public common::AlignBase<32>
+class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
 {
-private:
     friend class TextureManager;
     friend class UBOManager;
+public:
     class OGLUAPI ProgState : public NonCopyable
     {
         friend class _oglProgram;
@@ -111,6 +111,9 @@ private:
         ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat);
     public:
         void end();
+        std::weak_ptr<_oglProgram> GetProg() const noexcept;
+        ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
+        ProgDraw& SetPosition(const Mat4x4& modelMat);
         /*draw vao
         *-param vao, size, offset*/
         ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
@@ -129,7 +132,7 @@ private:
         }
     };
 
-
+private:
     GLuint programID = 0; //zero means invalid program
     set<oglShader> shaders;
     set<ProgramResource, std::less<>> ProgRess;

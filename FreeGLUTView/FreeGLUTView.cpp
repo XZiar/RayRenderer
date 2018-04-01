@@ -184,6 +184,14 @@ void _FreeGLUTView::onDropFile(const wstring& fname)
 	funDropFile(this, fname);
 }
 
+void _FreeGLUTView::onClose()
+{
+    if (funOnClose == nullptr)
+        return;
+    funOnClose(this);
+}
+
+
 _FreeGLUTView::_FreeGLUTView(const int w, const int h)
 {
 	const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);

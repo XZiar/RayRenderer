@@ -113,9 +113,11 @@ private:
 	void onMouse(int button, int state, int x, int y);
 	void onTimer();
 	void onDropFile(const wstring& fname);
+    void onClose();
 public:
 	bool deshake = true;
 	FuncBasic funDisp = nullptr;
+    FuncBasic funOnClose = nullptr;
 	FuncReshape funReshape = nullptr;
 	FuncKeyEvent funKeyEvent = nullptr;
 	FuncMouseEvent funMouseEvent = nullptr;

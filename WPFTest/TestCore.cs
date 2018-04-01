@@ -166,6 +166,9 @@ namespace WPFTest
         }
         public void Rotate(float x, float y, float z, OPObject obj)
         {
+            //conver to radius
+            const float muler = (float)(Math.PI / 180);
+            x *= muler; y *= muler; z *= muler;
             switch (obj)
             {
             case OPObject.Drawable:

@@ -15,6 +15,7 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+#include <typeindex>
 #include <filesystem>
 #include "3DBasic/3dElement.hpp"
 #include "common/CommonRely.hpp"
@@ -45,6 +46,7 @@ using std::wstring;
 using std::string;
 using std::u16string;
 using std::map;
+using std::set;
 using std::vector;
 using common::min;
 using common::max;

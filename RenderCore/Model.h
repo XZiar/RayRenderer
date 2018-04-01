@@ -95,7 +95,7 @@ public:
     Model(const u16string& fname, bool asyncload = false);
     ~Model() override;
     virtual void prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
-    virtual void draw(oglu::oglProgram& prog) const override;
+    virtual void draw(Drawcall& drawcall) const override;
 };
 
 }

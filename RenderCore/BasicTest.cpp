@@ -310,9 +310,10 @@ void BasicTest::Draw()
     if (mode)
     {
         prog3D->setCamera(cam);
+        auto drawcall = prog3D->draw();
         for (const auto& d : drawables)
         {
-            d->draw(prog3D);
+            d->draw(drawcall);
         }
     }
     else

@@ -186,6 +186,7 @@ private:
     static void onClose()
     {
         const auto view = getView();
+        view->onClose();
         unregist(view);
     }
     static void onDisplay()

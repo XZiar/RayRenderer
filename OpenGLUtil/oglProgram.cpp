@@ -264,18 +264,11 @@ _oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat,
     : ProgState(pstate.prog), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(prog);
-    if (prog.Uni_mvpMat != GL_INVALID_INDEX)
-    {
-        const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
-        prog.setMat(prog.Uni_mvpMat, mvpMat);
-    }
-    prog.setMat(prog.Uni_modelMat, modelMat);
-    prog.setMat(prog.Uni_normalMat, normMat);
+    SetPosition(modelMat, normMat);
 }
 
 void _oglProgram::ProgDraw::end()
 {
-    _oglVAO::unbind();
     for (const auto& item : UniformBackup)
     {
         const auto pos = item.first;
@@ -291,8 +284,27 @@ void _oglProgram::ProgDraw::end()
     }
     UniformBackup.clear();
 }
+std::weak_ptr<_oglProgram> _oglProgram::ProgDraw::GetProg() const noexcept
+{
+    return prog.weak_from_this();
+}
 
 
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
+{
+    if (prog.Uni_mvpMat != GL_INVALID_INDEX)
+    {
+        const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
+        prog.setMat(prog.Uni_mvpMat, mvpMat);
+    }
+    prog.setMat(prog.Uni_modelMat, modelMat);
+    prog.setMat(prog.Uni_normalMat, normMat);
+    return *this;
+}
+_oglProgram::ProgDraw& _oglProgram::ProgDraw::SetPosition(const Mat4x4& modelMat)
+{
+    return SetPosition(modelMat, (Mat3x3)modelMat);
+}
 _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     ProgState::setTexture(TexMan);

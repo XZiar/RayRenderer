@@ -60,20 +60,20 @@ public:
         cam->Move(dx, dy, dz);
         OnPropertyChanged("Position");
     }
-    //rotate along x-axis
-    void Pitch(const float angx)
+    //rotate along x-axis, radius
+    void Pitch(const float radx)
     {
-        cam->pitch(angx);
+        cam->pitch(radx);
     }
-    //rotate along y-axis
-    void Yaw(const float angy)
+    //rotate along y-axis, radius
+    void Yaw(const float rady)
     {
-        cam->yaw(angy);
+        cam->yaw(rady);
     }
-    //rotate along z-axis
-    void Roll(const float angz)
+    //rotate along z-axis, radius
+    void Roll(const float radz)
     {
-        cam->roll(angz);
+        cam->roll(radz);
     }
 };
 

@@ -26,12 +26,12 @@
 #error Unknown compiler, not supported by this header
 #endif
 
-#ifdef __FMA__
-# define COMMON_SIMD_INTRIN FMA
-# define COMMON_SIMD_LV 210
-#elif __AVX2__
+#if defined(__AVX2__)
 # define COMMON_SIMD_INTRIN AVX2
 # define COMMON_SIMD_LV 200
+#elif defined(__FMA__)
+# define COMMON_SIMD_INTRIN FMA
+# define COMMON_SIMD_LV 150
 #elif defined(__AVX__)
 # define COMMON_SIMD_INTRIN AVX
 # define COMMON_SIMD_LV 100

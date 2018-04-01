@@ -36,7 +36,6 @@ public:
 class alignas(16) Box : public Drawable
 {
 protected:
-    static const Point basePts[36];
     Vec3 size;
     oglu::oglBuffer vbo;
 public:
