@@ -27,7 +27,7 @@
     <ClInclude Include="RenderCoreWrapRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="OpeGLTypes.h">
+    <ClInclude Include="OpenGLTypes.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -45,6 +45,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Logger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="OpenGLTypes.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

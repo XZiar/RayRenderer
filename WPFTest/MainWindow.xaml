@@ -8,6 +8,7 @@
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
         xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
+        xmlns:oglu="clr-namespace:OpenGLUtil;assembly=RenderCoreWrap.x64"
         xmlns:local="clr-namespace:WPFTest"
         xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
         mc:Ignorable="d"
@@ -163,10 +164,10 @@
                     <ComboBox x:Name="cboxObj" Background="{DynamicResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
                     <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
                         <StackPanel x:Name="stkObject" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxObj, Mode=OneWay}">
-                            <ext:LabelTextBox x:Name="objType" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
-                            <ext:LabelTextBox x:Name="objName" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
-                            <ext:LabelTextBox x:Name="objPos" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
-                            <ext:LabelTextBox x:Name="objRot" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -176,12 +177,12 @@
                     <ComboBox x:Name="cboxLight" Background="{DynamicResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
                     <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
                         <StackPanel x:Name="stkLight" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}">
-                            <ext:LabelTextBox x:Name="lgtType" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
-                            <ext:LabelTextBox x:Name="lgtName" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
-                            <ext:LabelTextBox x:Name="lgtPos" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
-                            <ext:LabelTextBox x:Name="lgtDir" Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Direction, Mode=OneWay}" LabelWidth="64" Label="方向" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Direction, Mode=OneWay}" LabelWidth="64" Label="方向" IsReadOnly="True"/>
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
-                                <xctk:ColorPicker x:Name="lgtClr" SelectedColor="{Binding Color, Mode=TwoWay}" SelectedColorChanged="lgtClr_SelectedColorChanged" ColorMode="ColorCanvas"/>
+                                <xctk:ColorPicker SelectedColor="{Binding Color, Mode=TwoWay}" SelectedColorChanged="Color_SelectedColorChanged" ColorMode="ColorCanvas"/>
                             </ext:LabelControl>
                         </StackPanel>
                     </ScrollViewer>
@@ -195,25 +196,61 @@
                             <ext:LabelTextBox x:Name="shdName" Foreground="White" Label="名称" LabelWidth="64" IsReadOnly="False" Content="{Binding Name, Mode=TwoWay}"/>
                             <GroupBox Header="绑定资源" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
                                 <ItemsControl ItemsSource="{Binding Resources, Mode=OneWay}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="4">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="3*"/>
-                                                    <ColumnDefinition Width="2*"/>
-                                                    <ColumnDefinition Width="3*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
-                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Type, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
-                                                <ext:LabelTextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Foreground="White" Label="绑定槽" LabelWidth="1*" LabelFontSize="11" Content="{Binding Location, Mode=OneWay}" IsReadOnly="True"/>
-                                            </Grid>
+                                    <ItemsControl.Resources>
+                                        <DataTemplate DataType="{x:Type oglu:ProgramResource}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                        <ColumnDefinition Width="3*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Type, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <ext:LabelTextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Foreground="White" Label="绑定槽" LabelWidth="1*" LabelFontSize="11" Content="{Binding Location, Mode=OneWay}" IsReadOnly="True"/>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:RangedProgInputRes_Float}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <Slider Grid.Row="1" Grid.ColumnSpan="2" Value="{Binding Value, Mode=TwoWay}" Minimum="{Binding MinValue, Mode=OneTime}" Maximum="{Binding MaxValue, Mode=OneTime}" VerticalContentAlignment="Center" ValueChanged="SliUniform_ValueChanged"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:ColorProgInputRes}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <xctk:ColorPicker Grid.Row="1" Grid.ColumnSpan="2" SelectedColor="{Binding Value, Mode=TwoWay}" SelectedColorChanged="Color_SelectedColorChanged" ColorMode="ColorCanvas"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.Resources>
                                 </ItemsControl>
                             </GroupBox>
                             <GroupBox Header="Subroutine" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">

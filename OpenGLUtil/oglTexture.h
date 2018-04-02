@@ -48,7 +48,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 {
 protected:
 	friend class TextureManager;
-	friend class _oglProgram;
+    friend class _oglProgram;
 	friend class ::oclu::detail::_oclGLBuffer;
 	const TextureType type;
 	GLuint textureID = GL_INVALID_INDEX;
@@ -63,7 +63,9 @@ class OGLUAPI _oglTexture : public _oglTexBase
 {
 protected:
 	friend class TextureManager;
-	friend class _oglProgram;
+    friend class _oglProgram;
+    friend class ProgState;
+    friend class ProgDraw;
 	friend class ::oclu::detail::_oclGLBuffer;
 	TextureInnerFormat inFormat;
 	uint32_t width, height;

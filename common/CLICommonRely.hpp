@@ -10,6 +10,12 @@
 #include <string_view>
 
 
+#define CLI_PUBLIC_PROPERTY(Type, Name, name) \
+    property Type Name \
+    { \
+        Type get() { return name; } \
+        void set(Type value) { name = value; } \
+    }
 #define CLI_PRIVATE_PROPERTY(Type, Name, name) \
     property Type Name \
     { \

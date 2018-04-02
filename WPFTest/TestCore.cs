@@ -15,7 +15,7 @@ namespace WPFTest
     public enum OPObject { Camera, Drawable, Light };
     public class TestCore : IDisposable
     {
-        public class LightList : ObservableList<Light>
+        public class LightList : ObservableList<Light>, IDisposable
         {
             private readonly LightHolder Holder;
             private ushort curLgtIdx;
@@ -65,8 +65,15 @@ namespace WPFTest
                 OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
                 CurLgtIdx = ushort.MaxValue;
             }
+
+            public void Dispose()
+            {
+                Holder.Container.Clear();
+                CurLgtIdx = ushort.MaxValue;
+                OnCollectionChanged();
+            }
         }
-        public class DrawableList : ObservableList<Drawable>
+        public class DrawableList : ObservableList<Drawable>, IDisposable
         {
             private readonly DrawableHolder Holder;
             private ushort curObjIdx;
@@ -109,6 +116,13 @@ namespace WPFTest
                     CurObjIdx = ushort.MaxValue;
                 }
                 return ret;
+            }
+
+            public void Dispose()
+            {
+                Holder.Container.Clear();
+                CurObjIdx = ushort.MaxValue;
+                OnCollectionChanged();
             }
         }
 
@@ -199,6 +213,8 @@ namespace WPFTest
                 {
                     // TODO: 释放托管状态(托管对象)。
                 }
+                Lights.Dispose();
+                Drawables.Dispose();
                 Test.Dispose();
 
                 disposedValue = true;

@@ -24,19 +24,14 @@ void BasicTest::init2d(const u16string pname)
     prog2D.reset(u"Prog 2D");
     if(pname.empty())
     {
-        auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_2D));
-        for (auto shader : shaders)
+        try
         {
-            try
-            {
-                shader->compile();
-                prog2D->addShader(std::move(shader));
-            }
-            catch (OGLException& gle)
-            {
-                basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-                COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
-            }
+            prog2D->AddExtShaders(getShaderFromDLL(IDR_SHADER_2D));
+        }
+        catch (OGLException& gle)
+        {
+            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"OpenGL compile fail");
         }
     }
     else
@@ -84,19 +79,14 @@ void BasicTest::init3d(const u16string pname)
     prog3D.reset(u"3D Prog");
     if (pname.empty())
     {
-        auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_3D));
-        for (auto shader : shaders)
+        try
         {
-            try
-            {
-                shader->compile();
-                prog3D->addShader(std::move(shader));
-            }
-            catch (OGLException& gle)
-            {
-                basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-                COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
-            }
+            prog3D->AddExtShaders(getShaderFromDLL(IDR_SHADER_3D));
+        }
+        catch (OGLException& gle)
+        {
+            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"OpenGL compile fail");
         }
     }
     else
@@ -122,6 +112,7 @@ void BasicTest::init3d(const u16string pname)
     {
         prog3D->link();
         prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
+        prog3D->SetVec("envAmbient", Vec4(0, 0, 0, 1));
         prog3D->globalState().setSubroutine("lighter", "watcher").end();
     }
     catch (OGLException& gle)

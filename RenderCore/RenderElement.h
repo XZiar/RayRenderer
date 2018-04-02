@@ -18,7 +18,7 @@ public:
 class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable
 {
 public:
-    using Drawcall = oglu::detail::_oglProgram::ProgDraw;
+    using Drawcall = oglu::detail::ProgDraw;
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
     u16string name;
     static void releaseAll(const oglu::oglProgram& prog);

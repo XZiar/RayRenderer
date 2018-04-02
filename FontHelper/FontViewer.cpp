@@ -13,19 +13,14 @@ FontViewer::FontViewer()
     using b3d::Point;
 
     prog.reset(u"FontViewer");
-    auto shaders = oglShader::loadFromExSrc(getShaderFromDLL(IDR_SHADER_PRINTFONT));
-    for (auto shader : shaders)
+    try
     {
-        try
-        {
-            shader->compile();
-            prog->addShader(std::move(shader));
-        }
-        catch (OGLException& gle)
-        {
-            fntLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"OpenGL compile fail", std::any(shader));
-        }
+        prog->AddExtShaders(getShaderFromDLL(IDR_SHADER_PRINTFONT));
+    }
+    catch (OGLException& gle)
+    {
+        fntLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+        COMMON_THROW(BaseException, L"OpenGL compile fail");
     }
     try
     {
@@ -53,6 +48,8 @@ FontViewer::FontViewer()
             .set(viewRect, prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
             .set(viewRect, prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
     }
+    prog->SetUniform("distLowbound", 0.44f);
+    prog->SetUniform("distHighbound", 0.57f);
     prog->globalState().setSubroutine("fontRenderer", "sdfMid").end();
     //prog->globalState().setSubroutine("fontRenderer", "plainFont").end();
 }

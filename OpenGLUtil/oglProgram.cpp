@@ -89,7 +89,7 @@ bool ProgramResource::isTexture() const noexcept
 namespace detail
 {
 
-void _oglProgram::ProgState::init()
+void ProgState::init()
 {
     for (const auto& sru : prog.SubroutineRess)
     {
@@ -98,11 +98,11 @@ void _oglProgram::ProgState::init()
     }
 }
 
-_oglProgram::ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
+ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 {
 }
 
-void _oglProgram::ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin) const
+void ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin) const
 {
     auto& obj = prog.uniCache[pos];
     const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
@@ -112,7 +112,7 @@ void _oglProgram::ProgState::setTexture(TextureManager& texMan, const GLint pos,
     glProgramUniform1i(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgState::setTexture(TextureManager& texMan, const bool shouldPin) const
+void ProgState::setTexture(TextureManager& texMan, const bool shouldPin) const
 {
     switch (texCache.size())
     {
@@ -127,7 +127,7 @@ void _oglProgram::ProgState::setTexture(TextureManager& texMan, const bool shoul
     }
 }
 
-void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin) const
+void ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin) const
 {
     auto& obj = prog.uniCache[pos];
     const auto val = ubo ? uboMan.bind(ubo, shouldPin) : 0;
@@ -137,7 +137,7 @@ void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const GLint pos, const o
     glUniformBlockBinding(prog.programID, pos, obj = val);
 }
 
-void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) const
+void ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) const
 {
     switch (uboCache.size())
     {
@@ -152,7 +152,7 @@ void _oglProgram::ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) co
     }
 }
 
-void _oglProgram::ProgState::setSubroutine() const
+void ProgState::setSubroutine() const
 {
     for (const auto& stagePair : srCache)
     {
@@ -162,7 +162,8 @@ void _oglProgram::ProgState::setSubroutine() const
     }
 }
 
-void _oglProgram::ProgState::end()
+
+void ProgState::end()
 {
     if (_oglProgram::usethis(prog, false)) //self used, then changed to keep pinned status
     {
@@ -177,7 +178,7 @@ void _oglProgram::ProgState::end()
 }
 
 
-_oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
+ProgState& ProgState::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
 {
     const auto it = prog.TexRess.find(name);
     if (it != prog.TexRess.end() && idx < it->len)//legal
@@ -188,7 +189,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex, const GLuint pos)
+ProgState& ProgState::setTexture(const oglTexture& tex, const GLuint pos)
 {
     if (pos < prog.uniCache.size())
     {
@@ -197,7 +198,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setTexture(const oglTexture& tex
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+ProgState& ProgState::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
 {
     const auto it = prog.UBORess.find(name);
     if (it != prog.UBORess.end() && idx < it->len)//legal
@@ -208,7 +209,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const 
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const GLuint pos)
+ProgState& ProgState::setUBO(const oglUBO& ubo, const GLuint pos)
 {
     if (pos < prog.uniCache.size())
     {
@@ -217,7 +218,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setUBO(const oglUBO& ubo, const 
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const SubroutineResource::Routine& sr)
+ProgState& ProgState::setSubroutine(const SubroutineResource::Routine& sr)
 {
     if (auto ppSru = FindInMap(prog.subrLookup, &sr))
     {
@@ -231,7 +232,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const SubroutineRe
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& sruname, const string& srname)
+ProgState& ProgState::setSubroutine(const string& sruname, const string& srname)
 {
     if (auto pSru = FindInSet(prog.SubroutineRess, sruname))
     {
@@ -250,7 +251,7 @@ _oglProgram::ProgState& _oglProgram::ProgState::setSubroutine(const string& srun
     return *this;
 }
 
-_oglProgram::ProgState& _oglProgram::ProgState::getSubroutine(const string& sruname, string& srname)
+ProgState& ProgState::getSubroutine(const string& sruname, string& srname)
 {
     if (const SubroutineResource* pSru = FindInSet(prog.SubroutineRess, sruname))
         srname = srSettings[pSru]->Name;
@@ -260,14 +261,14 @@ _oglProgram::ProgState& _oglProgram::ProgState::getSubroutine(const string& srun
 }
 
 
-_oglProgram::ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) 
+ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) 
     : ProgState(pstate.prog), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(prog);
     SetPosition(modelMat, normMat);
 }
 
-void _oglProgram::ProgDraw::end()
+void ProgDraw::end()
 {
     for (const auto& item : UniformBackup)
     {
@@ -284,28 +285,28 @@ void _oglProgram::ProgDraw::end()
     }
     UniformBackup.clear();
 }
-std::weak_ptr<_oglProgram> _oglProgram::ProgDraw::GetProg() const noexcept
+std::weak_ptr<_oglProgram> ProgDraw::GetProg() const noexcept
 {
     return prog.weak_from_this();
 }
 
 
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
+ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
 {
     if (prog.Uni_mvpMat != GL_INVALID_INDEX)
     {
         const auto mvpMat = prog.matrix_Proj * prog.matrix_View * modelMat;
-        prog.setMat(prog.Uni_mvpMat, mvpMat);
+        prog.SetMat(prog.Uni_mvpMat, mvpMat);
     }
-    prog.setMat(prog.Uni_modelMat, modelMat);
-    prog.setMat(prog.Uni_normalMat, normMat);
+    prog.SetMat(prog.Uni_modelMat, modelMat, false);
+    prog.SetMat(prog.Uni_normalMat, normMat, false);
     return *this;
 }
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::SetPosition(const Mat4x4& modelMat)
+ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat)
 {
     return SetPosition(modelMat, (Mat3x3)modelMat);
 }
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
+ProgDraw& ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     ProgState::setTexture(TexMan);
     ProgState::setUBO(UboMan);
@@ -317,7 +318,7 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao, const uint
     return *this;
 }
 
-_oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
+ProgDraw& ProgDraw::draw(const oglVAO& vao)
 {
     ProgState::setTexture(TexMan);
     ProgState::setUBO(UboMan);
@@ -329,7 +330,7 @@ _oglProgram::ProgDraw& _oglProgram::ProgDraw::draw(const oglVAO& vao)
     return *this;
 }
 
-oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
+oglu::detail::ProgDraw& ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
 {
     const auto it = prog.TexRess.find(name);
     if (it != prog.TexRess.end() && idx < it->len)//legal
@@ -341,7 +342,7 @@ oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const ogl
     return *this;
 }
 
-oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const oglTexture& tex, const GLuint pos)
+oglu::detail::ProgDraw& ProgDraw::setTexture(const oglTexture& tex, const GLuint pos)
 {
     if (pos < prog.uniCache.size())
     {
@@ -351,7 +352,7 @@ oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setTexture(const ogl
     return *this;
 }
 
-oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+oglu::detail::ProgDraw& ProgDraw::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
 {
     const auto it = prog.UBORess.find(name);
     if (it != prog.UBORess.end() && idx < it->len)//legal
@@ -363,7 +364,7 @@ oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO&
     return *this;
 }
 
-oglu::detail::_oglProgram::ProgDraw& _oglProgram::ProgDraw::setUBO(const oglUBO& ubo, const GLuint pos)
+oglu::detail::ProgDraw& ProgDraw::setUBO(const oglUBO& ubo, const GLuint pos)
 {
     if (pos < prog.uniCache.size())
     {
@@ -419,13 +420,8 @@ void _oglProgram::RecoverState()
     gState.setUBO(uboMan, true);
 }
 
-void _oglProgram::setMat(const GLint pos, const Mat4x4& mat) const
-{
-    if (pos != GL_INVALID_INDEX)
-        glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
-}
 
-void _oglProgram::initLocs()
+void _oglProgram::InitLocs()
 {
     set<ProgramResource, std::less<>> dataMap;
     GLchar name[256];
@@ -488,7 +484,7 @@ void _oglProgram::initLocs()
     uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
 }
 
-void _oglProgram::initSubroutines()
+void _oglProgram::InitSubroutines()
 {
     const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
     char strbuf[4096];
@@ -527,6 +523,23 @@ void _oglProgram::initSubroutines()
     gState.init();
 }
 
+void _oglProgram::FilterProperties()
+{
+    set<ShaderExtProperty, std::less<>> newProperties;
+    for (const auto& prop : ShaderProperties)
+    {
+        if (auto res = FindInSet(ProgRess, prop.Name))
+            if (prop.MatchType(res->valtype))
+                newProperties.insert(prop);
+            else
+                oglLog().warning(u"ExtProp [{}] mismatch type[{}] with valtype[{}]\n", prop.Name, (uint8_t)prop.Type, res->GetValTypeName());
+        else
+            oglLog().warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
+    }
+    ShaderProperties.swap(newProperties);
+}
+
+
 void _oglProgram::addShader(const oglShader& shader)
 {
     auto [it, isAdd] = shaders.insert(shader);
@@ -535,6 +548,21 @@ void _oglProgram::addShader(const oglShader& shader)
     else
         oglLog().warning(u"Repeat adding shader {} to program [{}]\n", shader->shaderID, Name);
 }
+
+void _oglProgram::AddExtShaders(const string& src)
+{
+    auto shaders = oglShader::loadFromExSrc(src, ShaderProperties);
+    for (auto shader : shaders)
+    {
+        shader->compile();
+        addShader(shader);
+    }
+    for (const auto& prop : ShaderProperties)
+    {
+        oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
+    }
+}
+
 
 void _oglProgram::link()
 {
@@ -553,8 +581,8 @@ void _oglProgram::link()
         glDeleteProgram(programID);
         COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Link program failed", logdat);
     }
-    initLocs();
-    initSubroutines();
+    InitLocs();
+    InitSubroutines();
 }
 
 
@@ -585,6 +613,19 @@ const SubroutineResource* _oglProgram::getSubroutines(const string& name) const
     return FindInSet(SubroutineRess, name);
 }
 
+GLint _oglProgram::GetLoc(const ProgramResource* res, GLenum valtype) const
+{
+    if (res && res->valtype == valtype)
+        return res->location;
+    return GL_INVALID_INDEX;
+}
+GLint _oglProgram::GetLoc(const string& name, GLenum valtype) const
+{
+    if (auto obj = FindInSet(ProgRess, name))
+        if (obj->valtype == valtype)
+            return obj->location;
+    return GL_INVALID_INDEX;
+}
 GLint _oglProgram::getLoc(const string& name) const
 {
     if (auto obj = FindInSet(ProgRess, name))
@@ -618,7 +659,7 @@ void _oglProgram::setProject(const Camera& cam, const int wdWidth, const int wdH
         Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthR, (-2 * cam.zFar * cam.zNear) * viewDepthR),
         Vec4(0.f, 0.f, 1.f, 0.f));
 
-    setMat(Uni_projMat, matrix_Proj);
+    SetMat(Uni_projMat, matrix_Proj);
 }
 
 void _oglProgram::setCamera(const Camera & cam)
@@ -628,22 +669,22 @@ void _oglProgram::setCamera(const Camera & cam)
     const auto rMat = cam.camMat.inv();
     matrix_View = Mat4x4::TranslateMat(cam.position * -1, rMat);
 
-    setMat(Uni_viewMat, matrix_View);
+    SetMat(Uni_viewMat, matrix_View);
     if (Uni_camPos != GL_INVALID_INDEX)
         glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
-_oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat3x3& normMat)
+ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat3x3& normMat)
 {
     return ProgDraw(gState, modelMat, normMat);
 }
 
-_oglProgram::ProgDraw _oglProgram::draw(const Mat4x4& modelMat)
+ProgDraw _oglProgram::draw(const Mat4x4& modelMat)
 {
     return draw(modelMat, (Mat3x3)modelMat);
 }
 
-_oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
+ProgDraw _oglProgram::draw(topIT begin, topIT end)
 {
     Mat4x4 matModel = Mat4x4::identity();
     Mat3x3 matNormal = Mat3x3::identity();
@@ -655,10 +696,85 @@ _oglProgram::ProgDraw _oglProgram::draw(topIT begin, topIT end)
     return draw(matModel, matNormal);
 }
 
-_oglProgram::ProgState& _oglProgram::globalState()
+ProgState& _oglProgram::globalState()
 {
     return gState;
 }
+
+
+void _oglProgram::SetVec(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, vec);
+        glProgramUniform3fv(programID, pos, 1, vec);
+    }
+}
+void _oglProgram::SetVec(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, vec);
+        glProgramUniform4fv(programID, pos, 1, vec);
+    }
+}
+void _oglProgram::SetMat(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, mat);
+        glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
+    }
+}
+void _oglProgram::SetMat(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, mat);
+        glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
+    }
+}
+void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, val);
+        glProgramUniform1i(programID, pos, val);
+    }
+}
+void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, val);
+        glProgramUniform1i(programID, pos, val);
+    }
+}
+void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, val);
+        glProgramUniform1ui(programID, pos, val);
+    }
+}
+void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
+{
+    if (pos != GL_INVALID_INDEX)
+    {
+        if (keep)
+            UniValCache.insert_or_assign(pos, val);
+        glProgramUniform1f(programID, pos, val);
+    }
+}
+
 
 }
 

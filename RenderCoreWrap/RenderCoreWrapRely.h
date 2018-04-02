@@ -14,3 +14,21 @@ using std::vector;
 #include "common/CLICommonRely.hpp"
 #include "common/CLIViewModel.hpp"
 
+inline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
+{
+    return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
+}
+inline System::Windows::Media::Color ToColor(const miniBLAS::Vec3& color)
+{
+    return System::Windows::Media::Color::FromScRgb(1.0f, color.x, color.y, color.z);
+}
+inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color)
+{
+    color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
+}
+//#pragma unmanaged
+//inline b3d::Vec4 FromColor(const gcroot<System::Windows::Media::Color^>& value)
+//{
+//    return b3d::Vec4(value->ScR, value->ScG, value->ScB, value->ScA);
+//}
+//#pragma managed

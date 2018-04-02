@@ -105,15 +105,10 @@ public:
     }
     property System::Windows::Media::Color Color
     {
-        System::Windows::Media::Color get()
-        { 
-            const auto& color = light->lock()->color; 
-            return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
-        }
+        System::Windows::Media::Color get() { return ToColor(light->lock()->color); }
         void set(System::Windows::Media::Color value)
         {
-            auto& color = light->lock()->color;
-            color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
+            FromColor(value, light->lock()->color);
             OnPropertyChanged("Color");
         }
     }

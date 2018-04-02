@@ -420,8 +420,12 @@ namespace WPFTest
             glMain.Invalidate();
             e.Handled = true;
         }
-
-        private void lgtClr_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
+        private void Color_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
+        {
+            glMain.Invalidate();
+            e.Handled = true;
+        }
+        private void SliUniform_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             glMain.Invalidate();
             e.Handled = true;

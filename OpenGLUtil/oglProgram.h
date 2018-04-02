@@ -4,19 +4,25 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
+#include <variant>
 
 namespace oglu
 {
 
+using UniformValue = std::variant<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, bool, int32_t, uint32_t, float>;
 
 namespace detail
 {
 class _oglProgram;
+class ProgState;
+class ProgDraw;
 }
 
 struct OGLUAPI ProgramResource : public common::container::NamedSetValue<ProgramResource, string>
 {
     friend class detail::_oglProgram;
+    friend class detail::ProgState;
+    friend class detail::ProgDraw;
 private:
     GLint getValue(const GLuint pid, const GLenum prop);
     void initData(const GLuint pid, const GLint idx);
@@ -40,11 +46,15 @@ public:
 class OGLUAPI SubroutineResource : public common::container::NamedSetValue<SubroutineResource, string>
 {
     friend class detail::_oglProgram;
+    friend class detail::ProgState;
+    friend class detail::ProgDraw;
 public:
     struct OGLUAPI Routine
     {
         friend class SubroutineResource;
         friend class ::oglu::detail::_oglProgram;
+        friend class ::oglu::detail::ProgState;
+        friend class ::oglu::detail::ProgDraw;
         const string Name;
     private:
         const GLuint Id;
@@ -64,77 +74,79 @@ public:
 namespace detail
 {
 
+class OGLUAPI ProgState : public NonCopyable
+{
+    friend class _oglProgram;
+    friend class ProgDraw;
+private:
+    void init();
+protected:
+    _oglProgram & prog;
+    map<GLuint, oglTexture> texCache;
+    map<GLuint, oglUBO> uboCache;
+    //Subroutine are not kept by OGL, it's erased eachtime switch prog
+    map<const SubroutineResource*, const SubroutineResource::Routine*> srSettings;
+    map<ShaderType, vector<GLuint>> srCache;
+    explicit ProgState(_oglProgram& prog_);
+    void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false) const;
+    void setTexture(TextureManager& texMan, const bool shouldPin = false) const;
+    void setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false) const;
+    void setUBO(UBOManager& uboMan, const bool shouldPin = false) const;
+    void setSubroutine() const;
+public:
+    void end();
+    ProgState& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& setTexture(const oglTexture& tex, const GLuint pos);
+    ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
+    ProgState& setSubroutine(const SubroutineResource::Routine& sr);
+    ProgState& setSubroutine(const string& sruname, const string& srname);
+    ProgState& getSubroutine(const string& sruname, string& srname);
+};
+
+class OGLUAPI ProgDraw : protected ProgState
+{
+    friend class _oglProgram;
+private:
+    TextureManager & TexMan;
+    UBOManager& UboMan;
+    map<GLuint, std::pair<GLint, bool>> UniformBackup;
+    ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat);
+public:
+    void end();
+    std::weak_ptr<_oglProgram> GetProg() const noexcept;
+    ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
+    ProgDraw& SetPosition(const Mat4x4& modelMat);
+    /*draw vao
+    *-param vao, size, offset*/
+    ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
+    ProgDraw& draw(const oglVAO& vao);
+    ProgDraw& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+    ProgDraw& setTexture(const oglTexture& tex, const GLuint pos);
+    ProgDraw& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
+    ProgDraw& setUBO(const oglUBO& ubo, const GLuint pos);
+    ProgDraw& setSubroutine(const SubroutineResource::Routine& sr)
+    {
+        return *(ProgDraw*)&ProgState::setSubroutine(sr);
+    }
+    ProgDraw& setSubroutine(const string& sruname, const string& srname)
+    {
+        return *(ProgDraw*)&ProgState::setSubroutine(sruname, srname);
+    }
+};
 
 class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
 {
     friend class TextureManager;
     friend class UBOManager;
-public:
-    class OGLUAPI ProgState : public NonCopyable
-    {
-        friend class _oglProgram;
-    private:
-        void init();
-    protected:
-        _oglProgram& prog;
-        map<GLuint, oglTexture> texCache;
-        map<GLuint, oglUBO> uboCache;
-        //Subroutine are not kept by OGL, it's erased eachtime switch prog
-        map<const SubroutineResource*, const SubroutineResource::Routine*> srSettings;
-        map<ShaderType, vector<GLuint>> srCache;
-        explicit ProgState(_oglProgram& prog_);
-        void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false) const;
-        void setTexture(TextureManager& texMan, const bool shouldPin = false) const;
-        void setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false) const;
-        void setUBO(UBOManager& uboMan, const bool shouldPin = false) const;
-        void setSubroutine() const;
-    public:
-        void end();
-        ProgState& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
-        //no check on pos, carefully use
-        ProgState& setTexture(const oglTexture& tex, const GLuint pos);
-        ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
-        //no check on pos, carefully use
-        ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
-        ProgState& setSubroutine(const SubroutineResource::Routine& sr);
-        ProgState& setSubroutine(const string& sruname, const string& srname);
-        ProgState& getSubroutine(const string& sruname, string& srname);
-    };
-
-    class OGLUAPI ProgDraw : protected ProgState
-    {
-        friend _oglProgram;
-    private:
-        TextureManager & TexMan;
-        UBOManager& UboMan;
-        map<GLuint, std::pair<GLint, bool>> UniformBackup;
-        ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat);
-    public:
-        void end();
-        std::weak_ptr<_oglProgram> GetProg() const noexcept;
-        ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
-        ProgDraw& SetPosition(const Mat4x4& modelMat);
-        /*draw vao
-        *-param vao, size, offset*/
-        ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
-        ProgDraw& draw(const oglVAO& vao);
-        ProgDraw& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
-        ProgDraw& setTexture(const oglTexture& tex, const GLuint pos);
-        ProgDraw& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
-        ProgDraw& setUBO(const oglUBO& ubo, const GLuint pos);
-        ProgDraw& setSubroutine(const SubroutineResource::Routine& sr)
-        {
-            return *(ProgDraw*)&ProgState::setSubroutine(sr);
-        }
-        ProgDraw& setSubroutine(const string& sruname, const string& srname)
-        {
-            return *(ProgDraw*)&ProgState::setSubroutine(sruname, srname);
-        }
-    };
-
+    friend class ProgState;
+    friend class ProgDraw;
 private:
     GLuint programID = 0; //zero means invalid program
     set<oglShader> shaders;
+    set<ShaderExtProperty, std::less<>> ShaderProperties;
     set<ProgramResource, std::less<>> ProgRess;
     set<ProgramResource, std::less<>> TexRess;
     set<ProgramResource, std::less<>> UBORess;
@@ -142,6 +154,7 @@ private:
     set<SubroutineResource, std::less<>> SubroutineRess;
     map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     vector<GLint> uniCache;
+    map<GLint, UniformValue> UniValCache;
     GLint
         Uni_projMat = GL_INVALID_INDEX,
         Uni_viewMat = GL_INVALID_INDEX,
@@ -154,9 +167,20 @@ private:
     ProgState gState;
     static bool usethis(_oglProgram& programID, const bool change = true);
     void RecoverState();
-    void setMat(const GLint pos, const Mat4x4& mat) const;
-    void initLocs();
-    void initSubroutines();
+    void InitLocs();
+    void InitSubroutines();
+    void FilterProperties();
+    GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
+    GLint GetLoc(const string& name, GLenum valtype) const;
+
+    void SetVec(const GLint pos, const miniBLAS::Vec3& vec, const bool keep = true);
+    void SetVec(const GLint pos, const miniBLAS::Vec4& vec, const bool keep = true);
+    void SetMat(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep = true);
+    void SetMat(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep = true);
+    void SetUniform(const GLint pos, const bool val, const bool keep = true);
+    void SetUniform(const GLint pos, const int32_t val, const bool keep = true);
+    void SetUniform(const GLint pos, const uint32_t val, const bool keep = true);
+    void SetUniform(const GLint pos, const float val, const bool keep = true);
 public:
     GLint Attr_Vert_Pos = GL_INVALID_INDEX;//Vertex Position
     GLint Attr_Vert_Norm = GL_INVALID_INDEX;//Vertex Normal
@@ -167,10 +191,13 @@ public:
     ~_oglProgram();
 
     const set<ProgramResource, std::less<>>& getResources() const { return ProgRess; }
+    const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ShaderProperties; }
     const set<SubroutineResource, std::less<>>& getSubroutineResources() const { return SubroutineRess; }
-    const set<oglShader> getShaders() const { return shaders; }
+    const set<oglShader>& getShaders() const { return shaders; }
+    const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
     void addShader(const oglShader& shader);
+    void AddExtShaders(const string& src);
     void link();
     void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
     GLint getLoc(const string& name) const;
@@ -184,6 +211,23 @@ public:
     using topIT = vectorEx<TransformOP>::const_iterator;
     ProgDraw draw(topIT begin, topIT end);
     ProgState& globalState();
+
+    void SetVec(const ProgramResource* res, const miniBLAS::Vec3& vec) { SetVec(GetLoc(res, GL_FLOAT_VEC3), vec); }
+    void SetVec(const ProgramResource* res, const miniBLAS::Vec4& vec) { SetVec(GetLoc(res, GL_FLOAT_VEC4), vec); }
+    void SetMat(const ProgramResource* res, const miniBLAS::Mat3x3& mat) { SetMat(GetLoc(res, GL_FLOAT_MAT3), mat); }
+    void SetMat(const ProgramResource* res, const miniBLAS::Mat4x4& mat) { SetMat(GetLoc(res, GL_FLOAT_MAT4), mat); }
+    void SetUniform(const ProgramResource* res, const bool val) { SetUniform(GetLoc(res, GL_BOOL), val); }
+    void SetUniform(const ProgramResource* res, const int32_t val) { SetUniform(GetLoc(res, GL_INT), val); }
+    void SetUniform(const ProgramResource* res, const uint32_t val) { SetUniform(GetLoc(res, GL_UNSIGNED_INT), val); }
+    void SetUniform(const ProgramResource* res, const float val) { SetUniform(GetLoc(res, GL_FLOAT), val); }
+    void SetVec(const string& name, const miniBLAS::Vec3& vec) { SetVec(GetLoc(name, GL_FLOAT_VEC3), vec); }
+    void SetVec(const string& name, const miniBLAS::Vec4& vec) { SetVec(GetLoc(name, GL_FLOAT_VEC4), vec); }
+    void SetMat(const string& name, const miniBLAS::Mat3x3& mat) { SetMat(GetLoc(name, GL_FLOAT_MAT3), mat); }
+    void SetMat(const string& name, const miniBLAS::Mat4x4& mat) { SetMat(GetLoc(name, GL_FLOAT_MAT4), mat); }
+    void SetUniform(const string& name, const bool val) { SetUniform(GetLoc(name, GL_BOOL), val); }
+    void SetUniform(const string& name, const int32_t val) { SetUniform(GetLoc(name, GL_INT), val); }
+    void SetUniform(const string& name, const uint32_t val) { SetUniform(GetLoc(name, GL_UNSIGNED_INT), val); }
+    void SetUniform(const string& name, const float val) { SetUniform(GetLoc(name, GL_FLOAT), val); }
 };
 
 

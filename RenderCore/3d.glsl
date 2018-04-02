@@ -19,6 +19,7 @@ layout(location = 0) uniform mat4 matProj;
 layout(location = 1) uniform mat4 matView;
 layout(location = 2) uniform mat4 matModel;
 layout(location = 3) uniform mat4 matMVP;
+//@@##envAmbient|COLOR|environment ambient color
 layout(location = 4) uniform vec4 envAmbient;
 layout(location = 5) uniform vec3 vecCamPos;
 
@@ -105,10 +106,12 @@ vec4 watcher()
     return texColor;
 }
 
+
+
 subroutine(LightModel)
 vec4 basic()
 {
-    vec3 sumclr = vec3(0.0f);
+    vec3 sumclr = envAmbient.rgb;
     for(int id = 0; id < 16; id++)
     {
         if(lights[id].isOn)

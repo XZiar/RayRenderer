@@ -16,8 +16,9 @@ template<typename Child, typename StringType>
 struct COMMONTPL NamedSetValue
 {
     bool operator<(const Child& other) const noexcept { return ((const Child*)this)->Name < other.Name; }
-    bool operator<(const StringType& name) const noexcept { return ((const Child*)this)->Name < name; }
 };
+template<typename Child, typename StringType>
+forceinline bool operator<(const NamedSetValue<Child, StringType>& obj, const StringType& name) noexcept { return ((const Child*)&obj)->Name < name; }
 template<typename Child, typename StringType>
 forceinline bool operator<(const StringType& name, const NamedSetValue<Child, StringType>& obj) noexcept { return name < ((const Child*)&obj)->Name; }
 

@@ -200,7 +200,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="b3d.h" />
-    <ClInclude Include="OpeGLTypes.h" />
+    <ClInclude Include="OpenGLTypes.h" />
     <ClInclude Include="RenderCoreWrapRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />
@@ -223,6 +223,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="OpenGLTypes.cpp" />
     <ClCompile Include="RenderCoreWrap.cpp" />
     <ClCompile Include="RenderCoreWrapRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

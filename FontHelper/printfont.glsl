@@ -29,6 +29,11 @@ out vec4 FragColor;
 subroutine vec3 fontType(vec2 texpos);
 subroutine uniform fontType fontRenderer;
 
+//@@##distLowbound|FLOAT|low bound of dist|0.0|1.0
+uniform float distLowbound = 0.44f; 
+//@@##distHighbound|FLOAT|high bound of dist|0.0|1.0
+uniform float distHighbound = 0.57f; 
+
 subroutine(fontType)
 vec3 plainFont(in vec2 texpos)
 {
@@ -38,7 +43,7 @@ subroutine(fontType)
 vec3 sdfMid(in vec2 texpos)
 {
 	const float dist = texture(tex, texpos).r;
-	return vec3(smoothstep(0.44f, 0.57f, dist));
+	return vec3(smoothstep(distLowbound, distHighbound, dist));
 }
 subroutine(fontType)
 vec3 compare(in vec2 texpos)

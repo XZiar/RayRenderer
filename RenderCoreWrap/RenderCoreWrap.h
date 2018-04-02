@@ -2,7 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "b3d.h"
-#include "OpeGLTypes.h"
+#include "OpenGLTypes.h"
 
 using namespace System;
 using namespace System::Collections::Generic;

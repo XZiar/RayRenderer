@@ -64,6 +64,8 @@ class OGLUAPI _oglUniformBuffer : public _oglBuffer
 protected:
     friend class UBOManager;
     friend class _oglProgram;
+    friend class ProgState;
+    friend class ProgDraw;
     static UBOManager& getUBOMan();
     void bind(const uint16_t pos) const;
 public:

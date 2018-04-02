@@ -21,21 +21,13 @@ public enum class ShaderType : GLenum
     Compute = GL_COMPUTE_SHADER
 };
 
-public ref class ProgramResource
+public ref class ProgramResource : public BaseViewModel
 {
-private:
+protected:
     initonly String ^name, ^type, ^valtype;
     initonly uint32_t size, location, len;
 internal:
-    ProgramResource(const oglu::ProgramResource& res) 
-    {
-        name = ToStr(res.Name);
-        type = gcnew String(res.GetTypeName());
-        valtype = gcnew String(res.GetValTypeName());
-        size = res.size;
-        location = res.location;
-        len = res.len;
-    }
+    ProgramResource(const oglu::ProgramResource& res);
 public:
     CLI_READONLY_PROPERTY(String^, Name, name);
     CLI_READONLY_PROPERTY(String^, Type, type);
@@ -55,16 +47,7 @@ private:
     initonly List<String^>^ routines = gcnew List<String^>();
     String^ current;
 internal:
-    SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>* prog, const oglu::SubroutineResource& res) : Prog(prog), cppname(res.Name)
-    {
-        name = ToStr(cppname);
-        stage = (ShaderType)res.Stage;
-        for (const auto& routine : res.Routines)
-            routines->Add(ToStr(routine.Name));
-        string srname;
-        Prog->lock()->globalState().getSubroutine(cppname, srname).end();
-        current = ToStr(srname);
-    }
+    SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>* prog, const oglu::SubroutineResource& res);
 public:
     CLI_READONLY_PROPERTY(String^, Name, name);
     CLI_READONLY_PROPERTY(ShaderType, Stage, stage);
@@ -100,19 +83,7 @@ public ref class GLProgram : public BaseViewModel
 internal:
     std::weak_ptr<oglu::detail::_oglProgram> *prog;
 internal:
-    GLProgram(const oglu::oglProgram *obj) : prog(new std::weak_ptr<oglu::detail::_oglProgram>(*obj)) 
-    {
-        auto theprog = prog->lock();
-        for (const auto& res : theprog->getResources())
-            resources->Add(gcnew ProgramResource(res));
-        for (const auto& res : theprog->getSubroutineResources())
-            subroutines->Add(gcnew SubroutineResource(prog, res));
-        for (const auto& shader : theprog->getShaders())
-        {
-            auto shd = ShaderObject(shader);
-            shaders->Add(shd.Type, shd);
-        }
-    }
+    GLProgram(const oglu::oglProgram *obj);
     initonly List<ProgramResource^>^ resources = gcnew List<ProgramResource^>();
     initonly List<SubroutineResource^>^ subroutines = gcnew List<SubroutineResource^>();
     using ShaderDict = Dictionary<ShaderType, ShaderObject>;
@@ -138,6 +109,51 @@ public:
     CLI_READONLY_PROPERTY(ShaderDict^, Shaders, shaders);
 };
 
+#pragma managed(push, off)
+inline const oglu::UniformValue* GetProgCurUniform(std::weak_ptr<oglu::detail::_oglProgram>& prog, const GLint location)
+{
+    return common::container::FindInMap(prog.lock()->getCurUniforms(), (GLint)location);
+}
+#pragma managed(pop)
+
+public ref class ProgInputResource : public ProgramResource
+{
+protected:
+    std::weak_ptr<oglu::detail::_oglProgram>& Prog;
+    const oglu::ProgramResource *ptrRes;
+    initonly String^ description;
+    ProgInputResource(std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+        : ProgramResource(res), Prog(*ptrProg), ptrRes(&res), description(ToStr(prop.Description))
+    { }
+    const oglu::UniformValue* GetValue() { return GetProgCurUniform(Prog, location); }
+public:
+    CLI_READONLY_PROPERTY(String^, Description, description);
+};
+
+
+template<typename T>
+public ref class RangedProgInputRes abstract : public ProgInputResource
+{
+internal:
+    RangedProgInputRes(std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+        : ProgInputResource(ptrProg, res, prop)
+    {
+        const auto& range = *std::any_cast<std::pair<T, T>>(&prop.Data);
+        minValue = range.first, maxValue = range.second, defValue = 0;
+    }
+protected:
+    initonly T minValue, maxValue, defValue;
+    virtual T Convert(const oglu::UniformValue* value) = 0;
+    virtual void SetValue(T var) = 0;
+public:
+    CLI_READONLY_PROPERTY(T, MinValue, minValue);
+    CLI_READONLY_PROPERTY(T, MaxValue, maxValue);
+    property T Value
+    {
+        T get() { auto ptr = GetValue(); return ptr ? Convert(ptr) : defValue; }
+        void set(T value) { SetValue(value); OnPropertyChanged("Value"); }
+    }
+};
 
 
 }
