@@ -84,7 +84,7 @@ Drawable::~Drawable()
 
 void Drawable::draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall).draw(getVAO(drawcall.GetProg())).end();
+    drawPosition(drawcall).draw(getVAO(drawcall.GetProg()));
 }
 
 u16string Drawable::getType() const

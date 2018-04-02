@@ -112,7 +112,7 @@ void BasicTest::init3d(const u16string pname)
     {
         prog3D->link();
         prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
-        prog3D->SetVec("envAmbient", Vec4(0, 0, 0, 1));
+        //prog3D->SetVec("envAmbient", Vec4(0, 0, 0, 1));
         prog3D->globalState().setSubroutine("lighter", "watcher").end();
     }
     catch (OGLException& gle)
@@ -305,6 +305,7 @@ void BasicTest::Draw()
         for (const auto& d : drawables)
         {
             d->draw(drawcall);
+            drawcall.Restore();
         }
     }
     else

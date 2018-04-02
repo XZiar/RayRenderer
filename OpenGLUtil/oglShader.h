@@ -33,7 +33,7 @@ public:
 
 }
 
-enum class ShaderPropertyType : uint8_t { Vector, Color, Matrix, Float, Bool, Int };
+enum class ShaderPropertyType : uint8_t { Vector, Color, Range, Matrix, Float, Bool, Int, Uint };
 
 struct OGLUAPI ShaderExtProperty : public common::container::NamedSetValue<ShaderExtProperty, string>
 {
@@ -50,8 +50,10 @@ struct OGLUAPI ShaderExtProperty : public common::container::NamedSetValue<Shade
             (glType >= GL_UNSIGNED_INT_VEC2 && glType <= GL_UNSIGNED_INT_VEC4) || (glType >= GL_DOUBLE_VEC2 && glType <= GL_DOUBLE_VEC4);
         case ShaderPropertyType::Bool: return glType == GL_BOOL;
         case ShaderPropertyType::Int: return glType == GL_INT;
+        case ShaderPropertyType::Uint: return glType == GL_UNSIGNED_INT;
         case ShaderPropertyType::Float: return glType == GL_FLOAT;
         case ShaderPropertyType::Color: return glType == GL_FLOAT_VEC4;
+        case ShaderPropertyType::Range: return glType == GL_FLOAT_VEC2;
         case ShaderPropertyType::Matrix: return (glType >= GL_FLOAT_MAT2 && glType <= GL_FLOAT_MAT4) || (glType >= GL_DOUBLE_MAT2 && glType <= GL_DOUBLE_MAT4x3);
         default: return false;
         }

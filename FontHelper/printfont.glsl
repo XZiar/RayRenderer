@@ -1,5 +1,5 @@
 #version 430
-
+precision mediump float;
 //@@$$VERT|FRAG
 
 GLVARY perVert
@@ -13,7 +13,7 @@ GLVARY perVert
 
 layout(location = 0) in vec2 vertPos;
 layout(location = 1) in vec2 vertTexc;
-layout(location = 2) in vec3 vertColor;
+layout(location = 2) in lowp vec3 vertColor;
 void main() 
 {
 	pos = vertPos;
@@ -26,27 +26,27 @@ void main()
 #ifdef OGLU_FRAG
 uniform sampler2D tex;
 out vec4 FragColor;
-subroutine vec3 fontType(vec2 texpos);
+subroutine vec4 fontType(vec2 texpos);
 subroutine uniform fontType fontRenderer;
 
-//@@##distLowbound|FLOAT|low bound of dist|0.0|1.0
-uniform float distLowbound = 0.44f; 
-//@@##distHighbound|FLOAT|high bound of dist|0.0|1.0
-uniform float distHighbound = 0.57f; 
+//@@##distRange|RANGE|range of dist|0.0|1.0
+uniform vec2 distRange = vec2(0.44f, 0.57f); 
+//@@##fontColor|COLOR|font color
+uniform lowp vec4 fontColor = vec4(1.0f);
 
 subroutine(fontType)
-vec3 plainFont(in vec2 texpos)
+vec4 plainFont(in vec2 texpos)
 {
-	return texture(tex, texpos).rrr;
+	return vec4(fontColor.rgb * (1.0f - texture(tex, texpos).r), 1.0f);
 }
 subroutine(fontType)
-vec3 sdfMid(in vec2 texpos)
+vec4 sdfMid(in vec2 texpos)
 {
 	const float dist = texture(tex, texpos).r;
-	return vec3(smoothstep(distLowbound, distHighbound, dist));
+	return fontColor * smoothstep(distRange.y, distRange.x, dist);//make foreground white most
 }
 subroutine(fontType)
-vec3 compare(in vec2 texpos)
+vec4 compare(in vec2 texpos)
 {
 	if (texpos.x < 0.5f)
 		return plainFont(vec2(texpos.x * 2.0f, texpos.y));
@@ -55,7 +55,6 @@ vec3 compare(in vec2 texpos)
 }
 void main() 
 {
-	FragColor.rgb = fontRenderer(tpos);
-	FragColor.a = 1.0f;
+	FragColor = fontRenderer(tpos);
 }
 #endif

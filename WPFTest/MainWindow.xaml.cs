@@ -415,17 +415,7 @@ namespace WPFTest
             glMain.Invalidate();
         }
 
-        private void cboxSubr_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            glMain.Invalidate();
-            e.Handled = true;
-        }
-        private void Color_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<Color?> e)
-        {
-            glMain.Invalidate();
-            e.Handled = true;
-        }
-        private void SliUniform_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void GLMainInvalidator(object sender, RoutedEventArgs e)
         {
             glMain.Invalidate();
             e.Handled = true;

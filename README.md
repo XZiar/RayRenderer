@@ -39,7 +39,9 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-VS2017(`15.5.3`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
+VS2017(`15.6`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
+
+Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 
 ## Additional Requirements
 

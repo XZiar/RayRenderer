@@ -26,9 +26,3 @@ inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color
 {
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
 }
-//#pragma unmanaged
-//inline b3d::Vec4 FromColor(const gcroot<System::Windows::Media::Color^>& value)
-//{
-//    return b3d::Vec4(value->ScR, value->ScG, value->ScB, value->ScA);
-//}
-//#pragma managed

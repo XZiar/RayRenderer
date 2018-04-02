@@ -97,6 +97,8 @@ static const map<uint64_t, ShaderPropertyType> ShaderPropertyTypeMap =
     { "COLOR"_hash,  ShaderPropertyType::Color    },
     { "BOOL"_hash,   ShaderPropertyType::Bool     },
     { "INT"_hash,    ShaderPropertyType::Int      },
+    { "UINT"_hash,   ShaderPropertyType::Uint     },
+    { "RANGE"_hash,  ShaderPropertyType::Range    },
     { "FLOAT"_hash,  ShaderPropertyType::Float    }
 };
 
@@ -113,13 +115,17 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
         try
         {
             std::any data;
-            switch (*type)
-            {
-            case ShaderPropertyType::Float:
-                data = std::make_pair(std::stof((string)parts[3]), std::stof((string)parts[4])); break;
-            case ShaderPropertyType::Int:
-                data = std::make_pair(std::stoi((string)parts[3]), std::stoi((string)parts[4])); break;
-            }
+            if(parts.size() > 3)
+                switch (*type)
+                {
+                case ShaderPropertyType::Float:
+                case ShaderPropertyType::Range:
+                    data = std::make_pair(std::stof((string)parts[3]), std::stof((string)parts[4])); break;
+                case ShaderPropertyType::Int:
+                    data = std::make_pair(std::stoi((string)parts[3]), std::stoi((string)parts[4])); break;
+                case ShaderPropertyType::Uint:
+                    data = std::make_pair((uint32_t)std::stoul((string)parts[3]), (uint32_t)std::stoul((string)parts[4])); break;
+                }
             return ShaderExtProperty(string(parts[0]), *type, description, data);
         }
         catch (...)

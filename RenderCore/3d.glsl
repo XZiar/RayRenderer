@@ -1,11 +1,11 @@
 #version 430
-
+precision mediump float;
 //@@$$VERT|FRAG
 
 struct LightData
 {
     vec3 position, direction;
-    vec4 color, attenuation;
+    lowp vec4 color, attenuation;
     float coang, exponent;
     int type;
     bool isOn;
@@ -20,7 +20,7 @@ layout(location = 1) uniform mat4 matView;
 layout(location = 2) uniform mat4 matModel;
 layout(location = 3) uniform mat4 matMVP;
 //@@##envAmbient|COLOR|environment ambient color
-layout(location = 4) uniform vec4 envAmbient;
+layout(location = 4) uniform lowp vec4 envAmbient;
 layout(location = 5) uniform vec3 vecCamPos;
 
 layout(std140) uniform materialBlock

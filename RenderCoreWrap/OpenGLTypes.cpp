@@ -31,19 +31,45 @@ SubroutineResource::SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>*
 public ref class RangedProgInputRes_Float : public RangedProgInputRes<float>
 {
 protected:
-    virtual float Convert(const oglu::UniformValue* value) override { return std::get<float>(*value); };
-    virtual void SetValue(float val) override { Prog.lock()->SetUniform(ptrRes, val); };
+    virtual float Convert(const oglu::UniformValue* value) override
+    {
+        return std::get<float>(*value);
+    };
+    virtual void SetValue(float val) override
+    {
+        Prog.lock()->SetUniform(ptrRes, val);
+    };
 internal:
     RangedProgInputRes_Float(std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : RangedProgInputRes(ptrProg, res, prop) { }
 };
 
-#pragma unmanaged
-inline void SetUniformColor(std::weak_ptr<oglu::detail::_oglProgram>& prog, const oglu::ProgramResource *res, const float r, const float g, const float b, const float a)
+public ref class Ranged2ProgInputRes_Float : public Ranged2ProgInputRes<float>
 {
-    prog.lock()->SetVec(res, b3d::Vec4(r, g, b, a));
-}
-#pragma managed
+protected:
+    virtual float Convert(const oglu::UniformValue* value, const bool isLow) override 
+    {
+        const auto& c2d = std::get<b3d::Coord2D>(*value);
+        return isLow ? c2d.u : c2d.v;
+    };
+    virtual void SetValue(float val, const bool isLow) override 
+    {
+        auto ptr = GetValue();
+        if (!ptr)
+        {
+            Prog.lock()->SetVec(ptrRes, val, val);
+        }
+        else
+        {
+            const auto& c2d = std::get<b3d::Coord2D>(*ptr);
+            Prog.lock()->SetVec(ptrRes, isLow ? val : c2d.u, isLow ? c2d.v : val);
+        }
+    };
+internal:
+    Ranged2ProgInputRes_Float(std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+        : Ranged2ProgInputRes(ptrProg, res, prop) { }
+};
+
 
 public ref class ColorProgInputRes : public ProgInputResource
 {
@@ -65,7 +91,7 @@ public:
         }
         void set(System::Windows::Media::Color value) 
         {
-            SetUniformColor(Prog, ptrRes, value.ScR, value.ScG, value.ScB, value.ScA);
+            Prog.lock()->SetVec(ptrRes, value.ScR, value.ScG, value.ScB, value.ScA);
             OnPropertyChanged("Value");
         }
     }
@@ -83,6 +109,11 @@ GLProgram::GLProgram(const oglu::oglProgram *obj) : prog(new std::weak_ptr<oglu:
             if (it->Type == oglu::ShaderPropertyType::Float && it->Data.has_value()) 
             {
                 resources->Add(gcnew RangedProgInputRes_Float(prog, res, *it));
+                continue;
+            }
+            if (it->Type == oglu::ShaderPropertyType::Range && it->Data.has_value())
+            {
+                resources->Add(gcnew Ranged2ProgInputRes_Float(prog, res, *it));
                 continue;
             }
             if (it->Type == oglu::ShaderPropertyType::Color)

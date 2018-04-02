@@ -48,15 +48,14 @@ FontViewer::FontViewer()
             .set(viewRect, prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
             .set(viewRect, prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
     }
-    prog->SetUniform("distLowbound", 0.44f);
-    prog->SetUniform("distHighbound", 0.57f);
+    //prog->SetUniform("distLowbound", 0.44f);
+    //prog->SetUniform("distHighbound", 0.57f);
     prog->globalState().setSubroutine("fontRenderer", "sdfMid").end();
-    //prog->globalState().setSubroutine("fontRenderer", "plainFont").end();
 }
 
 void FontViewer::draw()
 {
-    prog->draw().draw(viewVAO).end();
+    prog->draw().draw(viewVAO);
 }
 
 void FontViewer::bindTexture(const oglTexture& tex)

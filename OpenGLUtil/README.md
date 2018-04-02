@@ -39,9 +39,10 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 ## Dependency
 
 * [common](../common)
-  * Wrapper -- an extended version of stl's shared_ptr
-  * Exception -- an exception model with support for nested-exception, strong-type, unicode message, arbitray extra data 
-  * StringEx -- some useful operation for string, including encoding-conversion
+  * Wrapper      -- an extended version of stl's shared_ptr
+  * Exception    -- an exception model with support for nested-exception, strong-type, unicode message, arbitray extra data 
+  * StringEx     -- some useful operation for string, including encoding-conversion
+  * ContainerEx  -- some useful operation for finding in containers, and self-contained map.
 
 * [3DBasic](../3DBasic)
   * Basic component -- providing basic 3d data structure
@@ -65,20 +66,34 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 * C++17 required
   * optional -- used for some return value
-  * tuple -- used for some internal structure
+  * variant  -- used for uniform value storage
+  * any      -- used for uniform value storage
+  * tuple    -- used for some internal structure
 
 ## Feature
 
 ### Shader
 
+#### Merged Shader
+
 Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format`*.glsl`.
 It's main purpose is to merge multiple shader into one, which reduces redundent codes as well as eliminate bugs caused by careless.
 
-Extended Shader is based on glsl's preprocessor.
-
 A single line strted with `//@@$$` will be used to indicate what component this file should include(`VERT`,`FRAG`,`GEOM`...separated with `|` ).
 
-For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+Extended Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+
+#### Uniform Description
+
+A single line started with `//@@##` will be used to describe uniform variables. Its value is parsed but unused in OpenGLUtil, high-level program can use it.
+
+The stynx is `//@@##{UniformName}|{UniformType}|[Description]|[MinValue]|[MaxValue]`. UniformName and UniformType mismatch an active uniform will be ignored.
+
+`UniformType` can be one of the following: `COLOR`, `RANGE`, `VEC`, `INT`, `UINT`, `BOOL`, `FLOAT`.
+
+`MinValue` and `MaxValue` is only useful when `UniformType` is a scalar type.
+
+Uniform's initial value will be readed after linked in oglProgram, but not all of them are supported.
 
 ### Resource Management
 
@@ -94,6 +109,18 @@ For UBO, limit N is get by `GL_MAX_UNIFORM_BUFFER_BINDINGS`.
 LRU cache has 3 bi-direction linkedlist, `unused`,`used`,`fixed`. `unused` means avaliable slots, `used` means binded slots, `unused` means pinned slots.
 
 When an oglProgram is binded to current context, it binds its global states and pins them. Further bindings during draw calls will only modify `unused` and `used` list, so that states can be easily recovered after a draw call.
+
+### Program State
+
+Drawcalls are expensive. After wrapping, it's more expensive since state needed to be rollbacked.
+
+In order to reduce binding state changing, LRU cache is used. But uniform values are not handled in that way.
+
+Eachtime you call oglProgram's `draw()`, an `ProgDraw` is created with current global state. ProgDraw will restore program state after it's deconstructed, so avoid creating too many `ProgDraw`.
+
+Setting value to uniform / binding ubo or tex resources in `ProgDraw` is temporal, but setting them in `ProgState` or `oglProgram` is global.
+
+`ProgDraw` will enforce current context to use corresponding glProgram, and assumes that state kept until it is destroyed. So avoid keeping more than one `ProgDraw` at the same time in a single thread.
 
 ### Multi-thread Worker
 

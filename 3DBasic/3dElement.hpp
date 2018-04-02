@@ -59,7 +59,8 @@ public:
         u = std::abs(std::modf(u, &intpart));
         v = std::abs(std::modf(v, &intpart));
     }
-    operator float*() { return &u; };
+    operator float*() noexcept { return &u; };
+    operator const float*() const noexcept { return &u; };
 };
 
 

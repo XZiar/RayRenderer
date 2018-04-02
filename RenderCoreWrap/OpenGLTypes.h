@@ -155,5 +155,34 @@ public:
     }
 };
 
+template<typename T>
+public ref class Ranged2ProgInputRes abstract : public ProgInputResource
+{
+internal:
+    Ranged2ProgInputRes(std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+        : ProgInputResource(ptrProg, res, prop)
+    {
+        const auto& range = *std::any_cast<std::pair<T, T>>(&prop.Data);
+        minValue = range.first, maxValue = range.second, defValue = 0;
+    }
+protected:
+    initonly T minValue, maxValue, defValue;
+    virtual T Convert(const oglu::UniformValue* value, const bool isLow) = 0;
+    virtual void SetValue(T var, const bool isLow) = 0;
+public:
+    CLI_READONLY_PROPERTY(T, MinValue, minValue);
+    CLI_READONLY_PROPERTY(T, MaxValue, maxValue);
+    property T LowValue
+    {
+        T get() { auto ptr = GetValue(); return ptr ? Convert(ptr, true) : defValue; }
+        void set(T value) { SetValue(value, true); OnPropertyChanged("LowValue"); }
+    }
+    property T HighValue
+    {
+        T get() { auto ptr = GetValue(); return ptr ? Convert(ptr, false) : defValue; }
+        void set(T value) { SetValue(value, false); OnPropertyChanged("HighValue"); }
+    }
+};
+
 
 }

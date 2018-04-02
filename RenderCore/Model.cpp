@@ -694,7 +694,7 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 
 void Model::draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall).setTexture(data->texd, "tex").draw(getVAO(drawcall.GetProg())).end();
+    drawPosition(drawcall).setTexture(data->texd, "tex").draw(getVAO(drawcall.GetProg()));
 }
 
 }
