@@ -7,9 +7,9 @@
 #   define GLUTVIEWAPI _declspec(dllimport)
 #endif
 
-#include "3DBasic/3dElement.hpp"
 #include "common/Wrapper.hpp"
 #include "common/TimeUtil.hpp"
+#include "OpenGLUtil/3DElement.hpp"
 #include <string>
 #include <functional>
 

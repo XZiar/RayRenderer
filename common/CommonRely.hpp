@@ -48,9 +48,10 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 ** @param str std-string_view/string for the text
 ** @return uint64_t the hash
 **/
-template<class T, class = typename std::enable_if<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>>::type>
+template<typename T>
 inline uint64_t hash_(const T& str)
 {
+    static_assert(std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>, "only string/string_view supported for hash_");
     uint64_t hash = 0;
     for (size_t a = 0, len = str.length(); a < len; ++a)
         hash = hash * 33 + str[a];

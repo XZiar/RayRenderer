@@ -35,7 +35,6 @@ void BasicTest::init2d(const u16string pname)
     try
     {
         prog2D->link();
-        prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
     }
     catch (const OGLException& gle)
     {
@@ -69,9 +68,8 @@ void BasicTest::init3d(const u16string pname)
     try
     {
         prog3D->link();
-        prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
         prog3D->SetUniform("useNormalMap", false);
-        prog3D->globalState().setSubroutine("lighter", "onlytex").end();
+        prog3D->globalState().setSubroutine("lighter", "onlytex").setSubroutine("getNorm", "verted").end();
     }
     catch (const OGLException& gle)
     {
@@ -162,7 +160,7 @@ void BasicTest::initUBO()
         materialUBO.reset(mubo->size);
     else
         materialUBO.reset(0);
-    materialLim = (uint8_t)materialUBO->size / sizeof(Material);
+    materialLim = (uint8_t)materialUBO->size / sizeof(MaterialData);
     prog3D->globalState().setUBO(lightUBO, "lightBlock").setUBO(materialUBO, "mat").end();
 }
 

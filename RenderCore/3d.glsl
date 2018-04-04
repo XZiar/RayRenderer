@@ -15,13 +15,18 @@ layout(std140) uniform lightBlock
     LightData lights[16];
 };
 
+//@@->ProjectMat|matProj
 layout(location = 0) uniform mat4 matProj;
+//@@->ViewMat|matView
 layout(location = 1) uniform mat4 matView;
+//@@->ModelMat|matModel
 layout(location = 2) uniform mat4 matModel;
+//@@->MVPMat|matMVP
 layout(location = 3) uniform mat4 matMVP;
+//@@->CamPosVec|vecCamPos
+layout(location = 4) uniform vec3 vecCamPos;
 //@@##envAmbient|COLOR|environment ambient color
-layout(location = 4) uniform lowp vec4 envAmbient;
-layout(location = 5) uniform vec3 vecCamPos;
+layout(location = 5) uniform lowp vec4 envAmbient;
 
 layout(std140) uniform materialBlock
 {
@@ -34,15 +39,21 @@ GLVARY perVert
     vec3 pos;
     vec3 cam2pt;
     vec3 norm;
+    vec3 tannorm;
     vec2 tpos;
 };
 
 ////////////////
 #ifdef OGLU_VERT
 
+//@@->VertPos|vertPos
 layout(location = 0) in vec3 vertPos;
+//@@->VertNorm|vertNorm
 layout(location = 1) in vec3 vertNorm;
-layout(location = 2) in vec2 texPos;
+//@@->VertTexc|vertTexc
+layout(location = 2) in vec2 vertTexc;
+//@@->VertTan|vertTan
+layout(location = 3) in vec3 vertTan;
 
 void main() 
 {
@@ -50,7 +61,8 @@ void main()
     pos = (matModel * vec4(vertPos, 1.0f)).xyz;
     cam2pt = pos - vecCamPos;
     norm = (matModel * vec4(vertNorm, 0.0f)).xyz;
-    tpos = texPos;
+    tannorm = (matModel * vec4(vertTan, 0.0f)).xyz;
+    tpos = vertTexc;
 }
 
 #endif
@@ -67,6 +79,33 @@ out vec4 FragColor;
 subroutine vec4 LightModel();
 subroutine uniform LightModel lighter;
 
+subroutine vec3 NormalCalc();
+subroutine uniform NormalCalc getNorm;
+
+
+subroutine(NormalCalc)
+vec3 verted()
+{
+    return normalize(norm);
+}
+subroutine(NormalCalc)
+vec3 mapped()
+{
+    const vec3 ptNorm = normalize(norm);
+    const vec3 ptTan = normalize(tannorm);
+    const vec3 bitanNorm = cross(ptNorm, ptTan);
+    const mat3 TBN = mat3(ptTan, bitanNorm, ptNorm);
+    const vec3 ptNormTex = texture(tex[1], tpos).rgb;
+    const vec3 ptNorm2 = TBN * ptNormTex;
+    return ptNorm2;
+}
+subroutine(NormalCalc)
+vec3 both()
+{
+    return useNormalMap ? mapped() : verted();
+}
+
+
 subroutine(LightModel)
 vec4 onlytex()
 {
@@ -74,22 +113,21 @@ vec4 onlytex()
     return texColor;
 }
 subroutine(LightModel)
-vec4 onlynormtex()
+vec4 tannorm()
 {
-    const vec3 texColor = texture(tex[1], tpos).rgb;
-    const vec3 tanNorm = texColor * 2.0f - 1.0f;
-    return vec4(tanNorm, 1.0f);
+    const vec3 ptNorm = normalize(tannorm);
+    return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
-vec4 norm()
+vec4 normvert()
 {
-    const vec3 ptNorm = normalize(norm);
+    const vec3 ptNorm = getNorm();
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
 vec4 normmap()
 {
-    const vec3 ptNorm = texture(tex[1], tpos).rgb;
+    const vec3 ptNorm = mapped();
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
@@ -97,8 +135,8 @@ vec4 normdiff()
 {
     if(!useNormalMap)
         return vec4(0.5f, 0.5f, 0.5f, 1.0f);
-    const vec3 ptNorm = normalize(norm);
-    const vec3 ptNorm2 = texture(tex[1], tpos).rgb;
+    const vec3 ptNorm = verted();
+    const vec3 ptNorm2 = mapped();
     const vec3 diff = ptNorm2 - ptNorm;
     return vec4((diff + 1.0f) * 0.5f, 1.0f);
 }
@@ -125,8 +163,7 @@ vec4 lgt0()
 void bilinnPhong(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
 {
     const vec3 eyeRay = normalize(cam2pt);
-    //const vec3 ptNorm = useNormalMap ? texture(tex[1], tpos).rgb : normalize(norm);
-    const vec3 ptNorm = normalize(norm);
+    const vec3 ptNorm = getNorm();
     for (int id = 0; id < 16; id++)
     {
         vec3 p2l;
@@ -169,7 +206,6 @@ vec4 basic()
     finalColor.rgb *= ambientColor + diffuseColor + specularColor;
     return finalColor;
 }
-
 subroutine(LightModel)
 vec4 diffuse()
 {

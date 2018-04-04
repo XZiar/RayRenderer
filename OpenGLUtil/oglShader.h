@@ -60,16 +60,22 @@ struct OGLUAPI ShaderExtProperty : public common::container::NamedSetValue<Shade
     }
 };
 
+struct OGLUAPI ShaderExtInfo
+{
+    set<ShaderExtProperty, std::less<>> Properties;
+    map<string, string> ResMappings;
+};
+
 class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 {
 public:
     using Wrapper::Wrapper;
     static oglShader __cdecl loadFromFile(const ShaderType type, const fs::path& path);
     static vector<oglShader> __cdecl loadFromFiles(const u16string& fname);
-    static vector<oglShader> __cdecl loadFromExSrc(const string& src, set<ShaderExtProperty, std::less<>>& properties);
+    static vector<oglShader> __cdecl loadFromExSrc(const string& src, ShaderExtInfo& info);
     static vector<oglShader> __cdecl loadFromExSrc(const string& src) 
     {
-        set<ShaderExtProperty, std::less<>> dummy;
+        ShaderExtInfo dummy;
         return loadFromExSrc(src, dummy);
     }
 };

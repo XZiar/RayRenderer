@@ -71,6 +71,13 @@ public:
 };
 
 
+enum class ProgramMappingTarget : uint64_t 
+{ 
+    ProjectMat = "ProjectMat"_hash, ViewMat = "ViewMat"_hash, ModelMat = "ModelMat"_hash, MVPMat = "MVPMat"_hash, MVPNormMat = "MVPNormMat"_hash,
+    CamPosVec = "CamPosVec"_hash,
+    VertPos = "VertPos"_hash, VertNorm = "VertNorm"_hash, VertTexc = "VertTexc"_hash, VertColor = "VertColor"_hash, VertTan = "VertTan"_hash
+};
+
 namespace detail
 {
 
@@ -91,9 +98,9 @@ protected:
     map<ShaderType, vector<GLuint>> srCache;
     explicit ProgState(_oglProgram& prog_);
     void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false);
-    void setTexture(TextureManager& texMan, const bool shouldPin = false);
+    void setTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin = false);
     void setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
-    void setUBO(UBOManager& uboMan, const bool shouldPin = false);
+    void setUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void setSubroutine();
 public:
     void end();
@@ -115,9 +122,11 @@ class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMova
     friend class ProgState;
     friend class ProgDraw;
 private:
-    GLuint programID = 0; //zero means invalid program
+    Mat4x4 matrix_Proj, matrix_View;
+    ProgState gState;
     set<oglShader> shaders;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
+    map<ProgramMappingTarget, string> ResBindMapping;
     set<ProgramResource, std::less<>> ProgRess;
     set<ProgramResource, std::less<>> TexRess;
     set<ProgramResource, std::less<>> UBORess;
@@ -131,10 +140,8 @@ private:
         Uni_modelMat = GL_INVALID_INDEX,
         Uni_normalMat = GL_INVALID_INDEX,
         Uni_mvpMat = GL_INVALID_INDEX,
-        Uni_Texture = GL_INVALID_INDEX,
         Uni_camPos = GL_INVALID_INDEX;
-    Mat4x4 matrix_Proj, matrix_View;
-    ProgState gState;
+    GLuint programID = 0; //zero means invalid program
     static bool usethis(_oglProgram& programID, const bool change = true);
     void RecoverState();
     void InitLocs();
@@ -157,6 +164,7 @@ public:
     GLint Attr_Vert_Norm = GL_INVALID_INDEX;//Vertex Normal
     GLint Attr_Vert_Texc = GL_INVALID_INDEX;//Vertex Texture Coordinate
     GLint Attr_Vert_Color = GL_INVALID_INDEX;//Vertex Color
+    GLint Attr_Vert_Tan = GL_INVALID_INDEX;//Vertex Tangent
     u16string Name;
     _oglProgram(const u16string& name);
     ~_oglProgram();
@@ -170,7 +178,7 @@ public:
     void addShader(const oglShader& shader);
     void AddExtShaders(const string& src);
     void link();
-    void registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5]);
+    void RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping);
     GLint getLoc(const string& name) const;
     const ProgramResource* getResource(const string& name) const;
     const SubroutineResource* getSubroutines(const string& name) const;
@@ -214,12 +222,12 @@ class OGLUAPI ProgDraw : protected ProgState
 {
     friend class _oglProgram;
 private:
-    const ProgState& gState;
+    ProgState& gState;
     TextureManager & TexMan;
     UBOManager& UboMan;
     map<GLuint, std::pair<GLint, bool>> UniBindBackup;
     map<GLint, UniformValue> UniValBackup;
-    ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw(ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {

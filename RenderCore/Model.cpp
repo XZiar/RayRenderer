@@ -1,8 +1,7 @@
 #include "RenderCoreRely.h"
 #include "Model.h"
-#include "stblib/stblib.h"
 #include "uchardetlib/uchardetlib.h"
-
+#include "OpenGLUtil/TangentSpace.hpp"
 
 namespace rayr
 {
@@ -436,16 +435,16 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
             curmtl = &mtlmap.insert({ string(line.Params[1]),MtlStub() }).first->second;
             break;
         case "Ka"_hash:
-            curmtl->mtl.ambient = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+            curmtl->mtl.ambient = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);
             break;
         case "Kd"_hash:
-            curmtl->mtl.diffuse = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+            curmtl->mtl.diffuse = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);
             break;
         case "Ks"_hash:
-            curmtl->mtl.specular = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+            curmtl->mtl.specular = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);
             break;
         case "Ke"_hash:
-            curmtl->mtl.emission = Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+            curmtl->mtl.emission = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);
             break;
         case "Ns"_hash:
             curmtl->mtl.shiness = (float)atof(line.Params[1].data());
@@ -559,7 +558,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
                     PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
                     auto [it, isAdd] = idxmap.try_emplace(stub, static_cast<uint32_t>(pts.size()));
                     if (isAdd)
-                        pts.push_back(Point(points[stub.vid], normals[stub.nid],
+                        pts.push_back(PointEx(points[stub.vid], normals[stub.nid],
                             //texcs[stub.tid]));
                             texcs[stub.tid].repos(curmtl->scalex, curmtl->scaley, curmtl->offsetx, curmtl->offsety)));
                     tmpidx[a] = it->second;
@@ -600,11 +599,18 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
         }
     }//END of WHILE
     tstTimer.Stop();
+    basLog().debug(u"index-resize cost {} us\n", tstTimer.ElapseUs());
+    tstTimer.Start();
+    for (uint32_t i = 0, total = (uint32_t)indexs.size(); i < total; i += 3)
+    {
+        oglu::GenerateTanPoint(pts[indexs[i]], pts[indexs[i + 1]], pts[indexs[i + 2]]);
+    }
+    tstTimer.Stop();
+    basLog().debug(u"tangent-generate cost {} us\n", tstTimer.ElapseUs());
     size = maxv - minv;
     basLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
     basLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
     basLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
-    basLog().debug(u"index-resize cost {} us\n", tstTimer.ElapseUs());
 }
 catch (const FileException&)
 {
@@ -679,7 +685,9 @@ Model::~Model()
 void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     auto vao = data->getVAO();
-    defaultBind(prog, vao, data->vbo)
+    const GLint attrs[4] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc, prog->Attr_Vert_Tan };
+    vao->prepare()
+        .set(data->vbo, attrs, 0)
         .setIndex(data->ebo)//index draw
         .end();
     setVAO(prog, vao);

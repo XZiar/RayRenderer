@@ -25,6 +25,9 @@ void onResize(FreeGLUTView wd, int w, int h)
 	tester->Resize(w & 0xffc0, h & 0xffc0);
 }
 
+//conver to radius
+constexpr float muler = (float)(PI_float / 180);
+
 void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 {
 	switch (keyevent.SpecialKey())
@@ -48,30 +51,30 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 			window.release();
 			return;
 		case 'a'://pan to left
-			tester->cam.yaw(3); break;
+			tester->cam.yaw(3 * muler); break;
 		case 'd'://pan to right
-			tester->cam.yaw(-3); break;
+			tester->cam.yaw(-3 * muler); break;
 		case 'w'://pan to up
-			tester->cam.pitch(3); break;
+			tester->cam.pitch(3 * muler); break;
 		case 's'://pan to down
-			tester->cam.pitch(-3); break;
+			tester->cam.pitch(-3 * muler); break;
 		case 'q'://pan to left
-			tester->cam.roll(-3); break;
+			tester->cam.roll(-3 * muler); break;
 		case 'e'://pan to left
-			tester->cam.roll(3); break;
+			tester->cam.roll(3 * muler); break;
 		case 'A':
-			tester->Objects()[curObj]->Rotate(0, 3, 0); break;
+            tester->Objects()[curObj]->Rotate(0, 0, 3 * muler); break;
 		case 'D':
-			tester->Objects()[curObj]->Rotate(0, -3, 0); break;
+            tester->Objects()[curObj]->Rotate(0, 0, -3 * muler); break;
 		case 'W':
-			tester->Objects()[curObj]->Rotate(3, 0, 0); break;
+			tester->Objects()[curObj]->Rotate(3 * muler, 0, 0); break;
 		case 'S':
-			tester->Objects()[curObj]->Rotate(-3, 0, 0); break;
+			tester->Objects()[curObj]->Rotate(-3 * muler, 0, 0); break;
 		case 'Q':
-			tester->Objects()[curObj]->Rotate(0, 0, 3); break;
-		case 'E':
-			tester->Objects()[curObj]->Rotate(0, 0, -3); break;
-		case 'x':
+            tester->Objects()[curObj]->Rotate(0, 3 * muler, 0); break;
+        case 'E':
+            tester->Objects()[curObj]->Rotate(0, -3 * muler, 0); break;
+        case 'x':
 			wd2.reset(800, 600);
 			break;
 		case 'X':
@@ -146,7 +149,7 @@ void onDropFile(FreeGLUTView wd, wstring fname)
 				if (tester->AddObject(model))
 				{
 					curObj = (uint16_t)(tester->Objects().size() - 1);
-					tester->Objects()[curObj]->Rotate(-90, 0, 0);
+					tester->Objects()[curObj]->Rotate(-90 * muler, 0, 0);
 					tester->Objects()[curObj]->Move(-1, 0, 0);
 					return true;
 				}

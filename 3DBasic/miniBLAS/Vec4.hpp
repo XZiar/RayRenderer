@@ -43,17 +43,6 @@ public:
     {
         x = v.x, y = v.y, z = v.z, w = w_;
     }
-    explicit Vec4(const Vec3& v, const bool isHomogeneous = true) noexcept
-    {
-        if (isHomogeneous)
-        {
-            *this = Vec4(v, 1.0f);
-        }
-        else
-        {
-            *(Vec4Base*)this = (Vec4Base)v;
-        }
-    }
 
 #if COMMON_SIMD_LV >= 20
     VECCALL operator __m128&() noexcept { return float_dat; };

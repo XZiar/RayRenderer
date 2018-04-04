@@ -41,9 +41,9 @@ private:
     static map<u16string, Wrapper<_ModelData>> models;
     static Wrapper<_ModelData> getModel(const u16string& fname, bool asyncload = false);
     static void releaseModel(const u16string& fname);
-    struct alignas(Material) MtlStub
+    struct alignas(MaterialData) MtlStub
     {
-        Material mtl;
+        MaterialData mtl;
         float scalex, offsetx, scaley, offsety;
         uint16_t width = 0, height = 0, sx = 0, sy = 0, posid = UINT16_MAX;
         ModelImage texs[2];
@@ -63,7 +63,7 @@ public:
     Vec3 size;
 private:
     using TexMergeItem = std::tuple<ModelImage, uint16_t, uint16_t>;
-    vectorEx<Point> pts;
+    vectorEx<PointEx> pts;
     vector<uint32_t> indexs;
     vector<std::pair<string, uint32_t>> groups;
     ModelImage diffuse, normal;

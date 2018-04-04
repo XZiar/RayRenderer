@@ -49,6 +49,33 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
     return *this;
 }
 
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attridx)[4], const GLint offset)
+{
+    assert(vbo->bufferType == BufferType::Array);
+    vbo->bind();
+    if (attridx[0] != GL_INVALID_INDEX)
+    {
+        glEnableVertexAttribArray(attridx[0]);//VertPos
+        glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset));
+    }
+    if (attridx[1] != GL_INVALID_INDEX)
+    {
+        glEnableVertexAttribArray(attridx[1]);//VertNorm
+        glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 16));
+    }
+    if (attridx[2] != GL_INVALID_INDEX)
+    {
+        glEnableVertexAttribArray(attridx[2]);//TexPos
+        glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 32));
+    }
+    if (attridx[4] != GL_INVALID_INDEX)
+    {
+        glEnableVertexAttribArray(attridx[3]);//VertTan
+        glVertexAttribPointer(attridx[3], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 48));
+    }
+    return *this;
+}
+
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglEBO& ebo)
 {
     ebo->bind();

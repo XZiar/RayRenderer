@@ -54,6 +54,12 @@
     <ClInclude Include="oglStringify.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="3DElement.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="TangentSpace.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">

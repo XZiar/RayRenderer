@@ -11,15 +11,18 @@ GLVARY perVert
 
 #ifdef OGLU_VERT
 
-layout(location = 0) in vec2 vertPos;
+//@@->VertPos|vertPos
+layout(location = 0) in vec3 vertPos;
+//@@->VertTexc|vertTexc
 layout(location = 1) in vec2 vertTexc;
-layout(location = 2) in lowp vec3 vertColor;
+//@@->VertColor|vertColor
+layout(location = 2) in lowp vec4 vertColor;
 void main() 
 {
-	pos = vertPos;
+	pos = vertPos.xy;
 	tpos = vertTexc;
-	color = vertColor;
-	gl_Position = vec4(vertPos, 1.0f, 1.0f);
+	color = vertColor.rgb;
+	gl_Position = vec4(vertPos.xy, 1.0f, 1.0f);
 }
 #endif
 

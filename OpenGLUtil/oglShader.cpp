@@ -137,12 +137,15 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
         return {};
 }
 
-vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, set<ShaderExtProperty, std::less<>>& properties)
+vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtInfo& info)
 {
+    info.Properties.clear();
+    info.ResMappings.clear();
     vector<oglShader> shaders;
     vector<string_view> params;
     string_view partVersion;
     uint32_t lineCnt = 0, lineNum = 0;
+
     str::SplitAndDo(src, [](const char ch) { return ch == '\r' || ch == '\n'; },
         [&](const char *pos, const size_t len) 
         {
@@ -154,22 +157,30 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, set<Shader
                 lineNum = lineCnt + 1;
                 return;
             }
-            if (str::IsBeginWith(config, "//@@##"))
-            {
-                config.remove_prefix(6);
-                if (auto prop = ParseExtProperty(config))
-                    properties.insert(prop.value());
+            if (config.size() <= 6)
                 return;
-            }
-            if (!str::IsBeginWith(config, "//@@$$"))
-                return;
+            const string_view tag = config.substr(0, 6);
             config.remove_prefix(6);
-            str::Split(config, '|', params, false);
+            switch (hash_(tag))
+            {
+            case "//@@##"_hash:
+                if (auto prop = ParseExtProperty(config))
+                    info.Properties.insert(prop.value());
+                break;
+            case "//@@->"_hash:
+                if (auto parts = str::Split(config, '|', true); parts.size() == 2)
+                    info.ResMappings.insert_or_assign(string(parts[0]), string(parts[1]));
+                break;
+            case "//@@$$"_hash:
+                str::Split(config, '|', params, false);
+                break;
+            }
         }, false);
+
     if (params.empty())
         COMMON_THROW(BaseException, L"Invalid shader source");
     string_view partOther(src.c_str() + partVersion.size(), src.size() - partVersion.size());
-    string lineFix = "#line " + std::to_string(lineNum);
+    string lineFix = "#line " + std::to_string(lineNum); //fix line number
     for (const auto& sv : params)
     {
         ShaderType shaderType;

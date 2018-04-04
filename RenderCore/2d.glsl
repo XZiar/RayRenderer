@@ -10,6 +10,7 @@ GLVARY perVert
 
 #ifdef OGLU_VERT
 
+//@@->VertPos|vertPos
 layout(location = 0) in vec3 vertPos;
 
 void main() 

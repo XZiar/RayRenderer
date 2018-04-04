@@ -17,7 +17,6 @@
 #include <set>
 #include <typeindex>
 #include <filesystem>
-#include "3DBasic/3dElement.hpp"
 #include "common/CommonRely.hpp"
 #include "common/Wrapper.hpp"
 #include "common/AlignedContainer.hpp"

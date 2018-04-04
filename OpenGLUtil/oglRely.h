@@ -7,7 +7,6 @@
 #   define OGLUAPI _declspec(dllimport)
 #endif
 
-#include "3DBasic/3dElement.hpp"
 #include "common/CommonRely.hpp"
 #include "common/CommonMacro.hpp"
 #include "common/AlignedContainer.hpp"
@@ -23,6 +22,7 @@
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
 #include "ImageUtil/ImageUtil.h"
+#include "3DElement.hpp"
 
 #define GLEW_STATIC
 #include "glew/glew.h"

@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <string>
-#include "miniBLAS.hpp"
+#include "3DBasic/miniBLAS.hpp"
 
 namespace b3d
 {
@@ -71,7 +71,7 @@ public:
     static Vec3 Vec3_2PI() { return Vec3(PI_float * 2, PI_float * 2, PI_float * 2); }
     using miniBLAS::Vec3::Vec3;
     Vec3() noexcept : miniBLAS::Vec3(true) { }
-    Vec3(const miniBLAS::Vec3& v) noexcept { *(miniBLAS::Vec3*)this = v; }
+    Vec3(const miniBLAS::Vec3& v) noexcept : miniBLAS::Vec3(v) { }
     void RepeatClampPos(const Vec3& range)
     {
         const auto dived = *this / range;
@@ -98,8 +98,7 @@ public:
     static Vec4 Vec4_2PI() { return Vec4(PI_float * 2, PI_float * 2, PI_float * 2, PI_float * 2); }
     using miniBLAS::Vec4::Vec4;
     Vec4() noexcept : miniBLAS::Vec4(true) { }
-    Vec4(const miniBLAS::Vec4& v) noexcept { *(miniBLAS::Vec4*)this = v; }
-    Vec4(const Vec3& v) noexcept :miniBLAS::Vec4(v, true) { }
+    Vec4(const miniBLAS::Vec4& v) noexcept : miniBLAS::Vec4(v) { }
 
     operator Vec3& () noexcept { return *(Vec3*)this; }
     operator const Vec3& () const noexcept { return *(const Vec3*)this; }
@@ -128,10 +127,7 @@ class alignas(16) Normal : public Vec3
 {
 public:
     Normal() noexcept : Vec3() { };
-    Normal(const Vec3& v) noexcept
-    {
-        *(Vec3*)this = v.normalize();
-    }
+    Normal(const Vec3& v) noexcept : Vec3(v.normalize()) { }
     template<class T>
     Normal(const T& ix, const T& iy, const T& iz) noexcept :Vec3(ix, iy, iz) { normalized(); };
 
@@ -148,8 +144,8 @@ class alignas(32) Mat3x3 : public miniBLAS::Mat3x3
 public:
     using miniBLAS::Mat3x3::element;
     using miniBLAS::Mat3x3::Mat3x3;
-    Mat3x3() noexcept :miniBLAS::Mat3x3() { }
-    Mat3x3(const miniBLAS::Mat3x3& m) noexcept :miniBLAS::Mat3x3(m) { }
+    Mat3x3() noexcept : miniBLAS::Mat3x3() { }
+    Mat3x3(const miniBLAS::Mat3x3& m) noexcept : miniBLAS::Mat3x3(m) { }
     //Vec4's xyz define axis, w define angle(in radius)
     static Mat3x3 RotateMat(const Vec4& rv)
     {
@@ -218,8 +214,8 @@ class alignas(32) Mat4x4 : public miniBLAS::Mat4x4
 public:
     using miniBLAS::Mat4x4::element;
     using miniBLAS::Mat4x4::Mat4x4;
-    Mat4x4() noexcept :miniBLAS::Mat4x4() { }
-    Mat4x4(const miniBLAS::Mat3x3& m) noexcept :miniBLAS::Mat4x4(m, true) { }
+    Mat4x4() noexcept : miniBLAS::Mat4x4() { }
+    Mat4x4(const miniBLAS::Mat3x3& m) noexcept : miniBLAS::Mat4x4(m, true) { }
     Mat4x4(const miniBLAS::Mat4x4& m) noexcept : miniBLAS::Mat4x4(m) { }
     explicit VECCALL operator Mat3x3&() noexcept { return *(Mat3x3*)this; }
     explicit VECCALL operator const Mat3x3&() const noexcept { return *(Mat3x3*)this; }
@@ -270,6 +266,17 @@ public:
     Point(const Vec3 &v, const Normal &n, const Coord2D &t) noexcept : pos(v), norm(n), tcoord(t) { };
     Point(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : pos(v), norm(n), tcoord3(t3) { };
 };
+class alignas(16) PointEx : public Point
+{
+public:
+    Normal tan;
+
+    PointEx() noexcept { };
+    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t) noexcept : Point(v, n, t) { tan.x = tan.y = tan.z = 0.0f; };
+    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : Point(v, n, t3) { tan.x = tan.y = tan.z = 0.0f; };
+    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t, const Normal &tanNorm) noexcept : Point(v, n, t), tan(tanNorm) { };
+    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3, const Normal &tanNorm) noexcept : Point(v, n, t3), tan(tanNorm) { };
+};
 
 struct alignas(32) Triangle : public common::AlignBase<32>
 {
@@ -289,45 +296,6 @@ public:
     }
 };
 
-
-class alignas(16) Material : public common::AlignBase<16>
-{
-public:
-    enum class Property : uint8_t
-    {
-        Ambient = 0x1,
-        Diffuse = 0x2,
-        Specular = 0x4,
-        Emission = 0x8,
-        Shiness = 0x10,
-        Reflect = 0x20,
-        Refract = 0x40,
-        RefractRate = 0x80
-    };
-private:
-    Vec3 ambient,
-        diffuse,
-        specular,
-        emission;
-    float /*高光权重*/shiness,
-        /*反射比率*/reflect,
-        /*折射比率*/refract,
-        /*折射率*/rfr;
-public:
-    string name;
-    Material();
-    ~Material();
-    void SetMtl(const uint8_t prop, const Vec3 &);
-    void SetMtl(const Property prop, const float r, const float g, const float b)
-    {
-        SetMtl(uint8_t(prop), Vec3(r, g, b));
-    }
-    void SetMtl(const uint8_t prop, const float val);
-    void SetMtl(const Property prop, const float val)
-    {
-        SetMtl(uint8_t(prop), val);
-    }
-};
 
 class alignas(32) Camera : public common::AlignBase<32>
 {

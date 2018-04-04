@@ -44,7 +44,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3DBasic", "3DBasic", "{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}"
 	ProjectSection(SolutionItems) = preProject
-		3DBasic\3dElement.hpp = 3DBasic\3dElement.hpp
 		3DBasic\miniBLAS.hpp = 3DBasic\miniBLAS.hpp
 		3DBasic\miniBLAS.natvis = 3DBasic\miniBLAS.natvis
 	EndProjectSection

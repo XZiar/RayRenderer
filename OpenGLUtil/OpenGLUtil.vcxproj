@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="3DElement.hpp" />
     <ClInclude Include="MTWorker.h" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglContext.h" />
@@ -32,6 +33,7 @@
     <ClInclude Include="BindingManager.h" />
     <ClInclude Include="oglVAO.h" />
     <ClInclude Include="OpenGLUtil.h" />
+    <ClInclude Include="TangentSpace.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MTWorker.cpp" />

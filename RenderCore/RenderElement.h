@@ -7,11 +7,32 @@ namespace rayr
 using namespace common;
 using namespace b3d;
 
-struct RAYCOREAPI alignas(16) Material : public AlignBase<16>
+struct RAYCOREAPI alignas(16) MaterialData : public AlignBase<16>
 {
 public:
+    enum class Property : uint8_t
+    {
+        Ambient = 0x1,
+        Diffuse = 0x2,
+        Specular = 0x4,
+        Emission = 0x8,
+        Shiness = 0x10,
+        Reflect = 0x20,
+        Refract = 0x40,
+        RefractRate = 0x80
+    };
     Vec4 ambient, diffuse, specular, emission;
     float shiness, reflect, refract, rfr;//高光权重，反射比率，折射比率，折射率
+    /*void SetMtl(const uint8_t prop, const Vec3 &);
+    void SetMtl(const Property prop, const float r, const float g, const float b)
+    {
+        SetMtl(uint8_t(prop), Vec3(r, g, b));
+    }
+    void SetMtl(const uint8_t prop, const float val);
+    void SetMtl(const Property prop, const float val)
+    {
+        SetMtl(uint8_t(prop), val);
+    }*/
 };
 
 

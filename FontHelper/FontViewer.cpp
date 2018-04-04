@@ -25,7 +25,6 @@ FontViewer::FontViewer()
     try
     {
         prog->link();
-        prog->registerLocation({ "vertPos","","vertTexc","vertColor" }, { "","","","","" });
     }
     catch (OGLException& gle)
     {

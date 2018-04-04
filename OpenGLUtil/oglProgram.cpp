@@ -112,17 +112,17 @@ void ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTex
     glProgramUniform1i(prog.programID, pos, obj = val);
 }
 
-void ProgState::setTexture(TextureManager& texMan, const bool shouldPin)
+void ProgState::setTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin)
 {
-    switch (texCache.size())
+    switch (texs.size())
     {
     case 0:
         return;
     case 1:
-        setTexture(texMan, texCache.begin()->first, texCache.begin()->second);
+        setTexture(texMan, texs.begin()->first, texs.begin()->second);
         break;
     default:
-        texMan.bindAll(prog.programID, texCache, uniBindCache, shouldPin);
+        texMan.bindAll(prog.programID, texs, uniBindCache, shouldPin);
         break;
     }
 }
@@ -137,17 +137,17 @@ void ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, c
     glUniformBlockBinding(prog.programID, pos, obj = val);
 }
 
-void ProgState::setUBO(UBOManager& uboMan, const bool shouldPin)
+void ProgState::setUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
 {
-    switch (uboCache.size())
+    switch (ubos.size())
     {
     case 0:
         return;
     case 1:
-        setUBO(uboMan, uboCache.begin()->first, uboCache.begin()->second);
+        setUBO(uboMan, ubos.begin()->first, ubos.begin()->second);
         break;
     default:
-        uboMan.bindAll(prog.programID, uboCache, uniBindCache, shouldPin);
+        uboMan.bindAll(prog.programID, ubos, uniBindCache, shouldPin);
         break;
     }
 }
@@ -171,8 +171,8 @@ void ProgState::end()
         texMan.unpin();
         auto& uboMan = _oglUniformBuffer::getUBOMan();
         uboMan.unpin();
-        setTexture(texMan, true);
-        setUBO(uboMan, true);
+        setTexture(texMan, texCache, true);
+        setUBO(uboMan, uboCache, true);
         setSubroutine();
     }
 }
@@ -261,7 +261,7 @@ ProgState& ProgState::getSubroutine(const string& sruname, string& srname)
 }
 
 
-ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+ProgDraw::ProgDraw(ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
     : ProgState(pstate.prog), gState(pstate), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(prog);
@@ -276,7 +276,7 @@ ProgDraw& ProgDraw::Restore()
 {
     for (const auto& [pos, binding] : UniBindBackup)
     {
-        auto& obj = uniBindCache[pos];
+        auto& obj = gState.uniBindCache[pos];
         const auto val = binding.first;
         if (obj != val)
         {
@@ -313,8 +313,8 @@ ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
 }
 ProgDraw& ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
-    ProgState::setTexture(TexMan);
-    ProgState::setUBO(UboMan);
+    gState.setTexture(TexMan, texCache);
+    gState.setUBO(UboMan, uboCache);
     ProgState::setSubroutine();
     vao->draw(size, offset);
     texCache.clear();
@@ -325,8 +325,8 @@ ProgDraw& ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t 
 
 ProgDraw& ProgDraw::draw(const oglVAO& vao)
 {
-    ProgState::setTexture(TexMan);
-    ProgState::setUBO(UboMan);
+    gState.setTexture(TexMan, texCache);
+    gState.setUBO(UboMan, uboCache);
     ProgState::setSubroutine();
     vao->draw();
     texCache.clear();
@@ -382,7 +382,7 @@ oglu::detail::ProgDraw& ProgDraw::setUBO(const oglUBO& ubo, const GLuint pos)
         uboCache.insert_or_assign(pos, ubo);
         const auto oldVal = gState.uniBindCache[pos];
         if (oldVal != GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, std::make_pair(oldVal, false));
+            UniBindBackup.try_emplace(pos, oldVal, false);
     }
     return *this;
 }
@@ -430,8 +430,8 @@ void _oglProgram::RecoverState()
     texMan.unpin();
     auto& uboMan = _oglUniformBuffer::getUBOMan();
     uboMan.unpin();
-    gState.setTexture(texMan, true);
-    gState.setUBO(uboMan, true);
+    gState.setTexture(texMan, gState.texCache, true);
+    gState.setUBO(uboMan, gState.uboCache, true);
 }
 
 
@@ -506,6 +506,7 @@ void _oglProgram::InitSubroutines()
     const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
     char strbuf[4096];
     auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
+    writer.clear();
     writer.write(u"SubRoutine Resource: \n");
     SubroutineRess.clear();
     subrLookup.clear();
@@ -611,57 +612,82 @@ void _oglProgram::addShader(const oglShader& shader)
 
 void _oglProgram::AddExtShaders(const string& src)
 {
-    auto shaders = oglShader::loadFromExSrc(src, ShaderProperties);
+    ShaderExtInfo info;
+    auto shaders = oglShader::loadFromExSrc(src, info);
     for (auto shader : shaders)
     {
         shader->compile();
         addShader(shader);
     }
+    ShaderProperties = std::move(info.Properties);
     for (const auto& prop : ShaderProperties)
-    {
         oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
-    }
+    ResBindMapping.clear();
+    for (const auto&[target, name] : info.ResMappings)
+        ResBindMapping.insert_or_assign((ProgramMappingTarget)hash_(target), name);
 }
 
 
 void _oglProgram::link()
 {
     glLinkProgram(programID);
-    int result;
 
+    int result;
     glGetProgramiv(programID, GL_LINK_STATUS, &result);
+    int len;
+    glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
+    string logstr((size_t)len, '\0');
+    glGetProgramInfoLog(programID, len, &len, logstr.data());
+
     if (!result)
     {
-        int len;
-        glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
-        string logstr((size_t)len, '\0');
-        glGetProgramInfoLog(programID, len, &len, logstr.data());
-        const auto logdat = common::str::to_u16string(logstr.c_str());
-        oglLog().warning(u"Link program failed.\n{}\n", logdat);
+        oglLog().warning(u"Link program failed.\n{}\n", logstr);
         glDeleteProgram(programID);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Link program failed", logdat);
+        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Link program failed", logstr);
     }
+    oglLog().success(u"Link program success.\n{}\n", logstr);
     InitLocs();
     InitSubroutines();
     FilterProperties();
+
+    static const map<ProgramMappingTarget, string> DefaultMapping =
+    {
+        { ProgramMappingTarget::ProjectMat,  "oglu_matProj" },
+        { ProgramMappingTarget::ViewMat,     "oglu_matView" },
+        { ProgramMappingTarget::ModelMat,    "oglu_matModel" },
+        { ProgramMappingTarget::MVPNormMat,  "oglu_matNormal" },
+        { ProgramMappingTarget::MVPMat,      "oglu_matMVP" },
+        { ProgramMappingTarget::CamPosVec,   "oglu_camPos" },
+        { ProgramMappingTarget::VertPos,     "oglu_vertPos" },
+        { ProgramMappingTarget::VertNorm,    "oglu_vertNorm" },
+        { ProgramMappingTarget::VertTexc,    "oglu_texPos" },
+        { ProgramMappingTarget::VertColor,   "oglu_vertColor" },
+        { ProgramMappingTarget::VertTan,     "oglu_vertTan" },
+    };
+    ResBindMapping.insert(DefaultMapping.cbegin(), DefaultMapping.cend());
+    RegisterLocation(ResBindMapping);
 }
 
 
-void _oglProgram::registerLocation(const string(&VertAttrName)[4], const string(&MatrixName)[5])
+void _oglProgram::RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping)
 {
-    //initialize uniform location
-    Uni_projMat = getLoc(MatrixName[0]);//projectMatrix
-    Uni_viewMat = getLoc(MatrixName[1]);//viewMatrix
-    Uni_modelMat = getLoc(MatrixName[2]);//modelMatrix
-    Uni_normalMat = getLoc(MatrixName[3]);//model-view-project-Matrix
-    Uni_mvpMat = getLoc(MatrixName[4]);//model-view-project-Matrix
-    Uni_camPos = getLoc("vecCamPos");
-
-    //initialize vertex attribute location
-    Attr_Vert_Pos = getLoc(VertAttrName[0]);
-    Attr_Vert_Norm = getLoc(VertAttrName[1]);
-    Attr_Vert_Texc = getLoc(VertAttrName[2]);
-    Attr_Vert_Color = getLoc(VertAttrName[3]);
+    for (const auto&[target, name] : bindMapping)
+    {
+        switch (target)
+        {
+        case ProgramMappingTarget::ProjectMat:  Uni_projMat = GetLoc(name, GL_FLOAT_MAT4); break; //projectMatrix
+        case ProgramMappingTarget::ViewMat:     Uni_viewMat = GetLoc(name, GL_FLOAT_MAT4); break; //viewMatrix
+        case ProgramMappingTarget::ModelMat:    Uni_modelMat = GetLoc(name, GL_FLOAT_MAT4); break; //modelMatrix
+        case ProgramMappingTarget::MVPMat:      Uni_mvpMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
+        case ProgramMappingTarget::MVPNormMat:  Uni_normalMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
+        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_MAT4); break;
+        case ProgramMappingTarget::VertPos:     Attr_Vert_Pos = GetLoc(name, GL_FLOAT_VEC3); break;
+        case ProgramMappingTarget::VertNorm:    Attr_Vert_Norm = GetLoc(name, GL_FLOAT_VEC3); break;
+        case ProgramMappingTarget::VertTexc:    Attr_Vert_Texc = GetLoc(name, GL_FLOAT_VEC2); break;
+        case ProgramMappingTarget::VertColor:   Attr_Vert_Color = GetLoc(name, GL_FLOAT_VEC4); break;
+        case ProgramMappingTarget::VertTan:     Attr_Vert_Tan = GetLoc(name, GL_FLOAT_VEC3); break;
+        }
+    }
 }
 
 const ProgramResource* _oglProgram::getResource(const string& name) const
