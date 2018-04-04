@@ -1,5 +1,6 @@
 #version 430
 precision mediump float;
+precision lowp sampler2D;
 //@@$$VERT|FRAG
 
 struct LightData
@@ -8,7 +9,6 @@ struct LightData
     lowp vec4 color, attenuation;
     float coang, exponent;
     int type;
-    bool isOn;
 };
 layout(std140) uniform lightBlock
 {
@@ -48,6 +48,7 @@ void main()
 {
     gl_Position = matMVP * vec4(vertPos, 1.0f);
     pos = (matModel * vec4(vertPos, 1.0f)).xyz;
+    cam2pt = pos - vecCamPos;
     norm = (matModel * vec4(vertNorm, 0.0f)).xyz;
     tpos = texPos;
 }
@@ -59,6 +60,7 @@ void main()
 #ifdef OGLU_FRAG
 
 uniform sampler2D tex[16];
+uniform bool useNormalMap = false;
 
 out vec4 FragColor;
 
@@ -72,60 +74,124 @@ vec4 onlytex()
     return texColor;
 }
 subroutine(LightModel)
+vec4 onlynormtex()
+{
+    const vec3 texColor = texture(tex[1], tpos).rgb;
+    const vec3 tanNorm = texColor * 2.0f - 1.0f;
+    return vec4(tanNorm, 1.0f);
+}
+subroutine(LightModel)
 vec4 norm()
 {
-    return vec4((norm + 1.0f) * 0.5f, 1.0f);
+    const vec3 ptNorm = normalize(norm);
+    return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
+}
+subroutine(LightModel)
+vec4 normmap()
+{
+    const vec3 ptNorm = texture(tex[1], tpos).rgb;
+    return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
+}
+subroutine(LightModel)
+vec4 normdiff()
+{
+    if(!useNormalMap)
+        return vec4(0.5f, 0.5f, 0.5f, 1.0f);
+    const vec3 ptNorm = normalize(norm);
+    const vec3 ptNorm2 = texture(tex[1], tpos).rgb;
+    const vec3 diff = ptNorm2 - ptNorm;
+    return vec4((diff + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
 vec4 dist()
 {
-    float depth = pow(gl_FragCoord.z, 3);
+    float depth = pow(gl_FragCoord.z, 5);
     return vec4(vec3(depth), 1.0f);
 }
-
 subroutine(LightModel)
-vec4 watcher()
+vec4 eye()
 {
-    vec4 texColor = texture(tex[0], tpos);
-    float cnt = 0.0f;
-    vec3 sumclr = vec3(1.0f);
-    for(int id = 0; id < 16; id++)
-    {
-        if(lights[id].isOn)
-        {
-            vec4 lgtClr = lights[id].color;
-            sumclr += lgtClr.rgb * lgtClr.a;
-            cnt += lgtClr.a;
-        }
-    }
-    if(cnt > 0.0f)
-    {
-        sumclr /= cnt;
-        texColor.rgb *= sumclr;
-    }
-    return texColor;
+    const vec3 eyeRay = normalize(cam2pt);
+    return vec4((eyeRay + 1.0f) * 0.5f, 1.0f);
+}
+subroutine(LightModel)
+vec4 lgt0()
+{
+    const vec3 p2l = lights[0].direction;
+    return vec4((p2l + 1.0f) * 0.5f, 1.0f);
 }
 
+// this is blinn phong
+void bilinnPhong(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
+{
+    const vec3 eyeRay = normalize(cam2pt);
+    //const vec3 ptNorm = useNormalMap ? texture(tex[1], tpos).rgb : normalize(norm);
+    const vec3 ptNorm = normalize(norm);
+    for (int id = 0; id < 16; id++)
+    {
+        vec3 p2l;
+        float atten = 1.0f;
+        if (lights[id].type == 0) // parallel light
+        {
+            p2l = -lights[id].direction;
+        }
+        else if (lights[id].type == 1) // point light
+        {
+            const vec3 atval = lights[id].attenuation.xyz;
+            p2l = lights[id].position - pos;
+            const float dist2 = dot(p2l, p2l);
+            const float dist = sqrt(dist2);
+            p2l /= dist; // normalize
+            atten = 1.0f / dot(atval, vec3(1.0f, dist, dist2));
+        }
+        else
+            continue;
 
+        const float lambertian = max(dot(ptNorm, p2l), 0.0f) * atten;
+        const vec3 halfDir = normalize(p2l - eyeRay);
+        const float specAngle = max(dot(halfDir, ptNorm), 0.0f);
+        const float specular = pow(specAngle, 2/*shininess*/) * atten;
+
+        const lowp vec3 lgtColor = lights[id].color.rgb;
+        diffuseColor += lambertian * lgtColor;
+        specularColor += specular * lgtColor;
+    }
+}
 
 subroutine(LightModel)
 vec4 basic()
 {
-    vec3 sumclr = envAmbient.rgb;
-    for(int id = 0; id < 16; id++)
-    {
-        if(lights[id].isOn)
-        {
-            //parallel light
-            vec3 eyeRay = normalize(pos - vecCamPos);
-            vec3 p2l = lights[id].direction;
-            vec3 lgtClr = lights[id].color.rgb;
-            sumclr += lgtClr * max(dot(normalize(norm), p2l), 0.0f);
-        }
-    }
-    vec4 texColor = texture(tex[0], tpos);
-    texColor.rgb *= sumclr;
-    return texColor;
+    const lowp vec3 ambientColor = envAmbient.rgb;
+    lowp vec3 diffuseColor = vec3(0.0f);
+    lowp vec3 specularColor = vec3(0.0f);
+    bilinnPhong(diffuseColor, specularColor);
+    lowp vec4 finalColor = texture(tex[0], tpos);
+    finalColor.rgb *= ambientColor + diffuseColor + specularColor;
+    return finalColor;
+}
+
+subroutine(LightModel)
+vec4 diffuse()
+{
+    const lowp vec3 ambientColor = envAmbient.rgb;
+    lowp vec3 diffuseColor = vec3(0.0f);
+    lowp vec3 specularColor = vec3(0.0f);
+    bilinnPhong(diffuseColor, specularColor);
+    lowp vec4 finalColor = texture(tex[0], tpos);
+    finalColor.rgb *= ambientColor + diffuseColor;
+    return finalColor;
+}
+
+subroutine(LightModel)
+vec4 specular()
+{
+    const lowp vec3 ambientColor = envAmbient.rgb;
+    lowp vec3 diffuseColor = vec3(0.0f);
+    lowp vec3 specularColor = vec3(0.0f);
+    bilinnPhong(diffuseColor, specularColor);
+    lowp vec4 finalColor = texture(tex[0], tpos);
+    finalColor.rgb *= ambientColor + specularColor;
+    return finalColor;
 }
 
 void main() 

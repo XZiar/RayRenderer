@@ -557,17 +557,12 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
                 {
                     line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
                     PTstub stub(tmpi.x, tmpi.z, tmpi.y, curmtl->posid);
-                    if (auto oidx = FindInMap(idxmap, stub))
-                        tmpidx[a] = *oidx;
-                    else
-                    {
-                        const uint32_t idx = static_cast<uint32_t>(pts.size());
+                    auto [it, isAdd] = idxmap.try_emplace(stub, static_cast<uint32_t>(pts.size()));
+                    if (isAdd)
                         pts.push_back(Point(points[stub.vid], normals[stub.nid],
                             //texcs[stub.tid]));
                             texcs[stub.tid].repos(curmtl->scalex, curmtl->scaley, curmtl->offsetx, curmtl->offsety)));
-                        idxmap.insert_or_assign(stub, idx);
-                        tmpidx[a] = idx;
-                    }
+                    tmpidx[a] = it->second;
                 }
                 if (lim == 3)
                 {
@@ -611,13 +606,11 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
     basLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
     basLog().debug(u"index-resize cost {} us\n", tstTimer.ElapseUs());
 }
-#pragma warning(disable:4101)
-catch (const FileException& fe)
+catch (const FileException&)
 {
     basLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
     COMMON_THROW(BaseException, L"fail to load model data");
 }
-#pragma warning(default:4101)
 
 void _ModelData::initData()
 {
@@ -694,7 +687,11 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 
 void Model::draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall).setTexture(data->texd, "tex").draw(getVAO(drawcall.GetProg()));
+    drawPosition(drawcall)
+        .setTexture(data->texd, "tex")
+        .setTexture(data->texn, "tex", 1)
+        .SetUniform("useNormalMap", true)
+        .draw(getVAO(drawcall.GetProg()));
 }
 
 }

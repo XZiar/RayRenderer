@@ -244,6 +244,24 @@ inline auto Split(const CharT(&src)[N], const CharT delim, const bool keepblank 
 }
 
 
+template<typename Char>
+static size_t CutStringViewPrefix(std::basic_string_view<Char>& sv, const Char obj)
+{
+    const auto pos = sv.find_first_of(obj);
+    if (pos != std::basic_string_view<Char>::npos)
+        sv.remove_prefix(sv.size() - pos);
+    return pos;
+}
+template<typename Char>
+static size_t CutStringViewSuffix(std::basic_string_view<Char>& sv, const Char obj)
+{
+    const auto pos = sv.find_first_of(obj);
+    if (pos != std::basic_string_view<Char>::npos)
+        sv.remove_suffix(sv.size() - pos);
+    return pos;
+}
+
+
 template<typename charT>
 inline bool IsBeginWith(const std::basic_string<charT>& src, const charT *prefix, const size_t objlen)
 {

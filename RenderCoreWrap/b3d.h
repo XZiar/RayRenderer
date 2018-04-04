@@ -103,6 +103,26 @@ public:
         Vec3F get() { return Vec3F(light->lock()->direction); }
         void set(Vec3F value) { value.Store(light->lock()->direction); OnPropertyChanged("Direction"); }
     }
+    property bool IsOn
+    {
+        bool get() { return light->lock()->isOn; }
+        void set(bool value) { light->lock()->isOn = value; OnPropertyChanged("IsOn"); }
+    }
+    property float AttenuationC
+    {
+        float get() { return light->lock()->attenuation.x; }
+        void set(float value) { light->lock()->attenuation.x = value; OnPropertyChanged("AttenuationC"); }
+    }
+    property float Attenuation1
+    {
+        float get() { return light->lock()->attenuation.y; }
+        void set(float value) { light->lock()->attenuation.y = value; OnPropertyChanged("Attenuation1"); }
+    }
+    property float Attenuation2
+    {
+        float get() { return light->lock()->attenuation.z; }
+        void set(float value) { light->lock()->attenuation.z = value; OnPropertyChanged("Attenuation2"); }
+    }
     property System::Windows::Media::Color Color
     {
         System::Windows::Media::Color get() { return ToColor(light->lock()->color); }

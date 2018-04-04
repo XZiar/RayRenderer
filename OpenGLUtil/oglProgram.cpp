@@ -102,9 +102,9 @@ ProgState::ProgState(_oglProgram& prog_) :prog(prog_)
 {
 }
 
-void ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin) const
+void ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin)
 {
-    auto& obj = prog.uniCache[pos];
+    auto& obj = uniBindCache[pos];
     const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
     if (obj == val)//no change
         return;
@@ -112,7 +112,7 @@ void ProgState::setTexture(TextureManager& texMan, const GLint pos, const oglTex
     glProgramUniform1i(prog.programID, pos, obj = val);
 }
 
-void ProgState::setTexture(TextureManager& texMan, const bool shouldPin) const
+void ProgState::setTexture(TextureManager& texMan, const bool shouldPin)
 {
     switch (texCache.size())
     {
@@ -122,14 +122,14 @@ void ProgState::setTexture(TextureManager& texMan, const bool shouldPin) const
         setTexture(texMan, texCache.begin()->first, texCache.begin()->second);
         break;
     default:
-        texMan.bindAll(prog.programID, texCache, prog.uniCache, shouldPin);
+        texMan.bindAll(prog.programID, texCache, uniBindCache, shouldPin);
         break;
     }
 }
 
-void ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin) const
+void ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin)
 {
-    auto& obj = prog.uniCache[pos];
+    auto& obj = uniBindCache[pos];
     const auto val = ubo ? uboMan.bind(ubo, shouldPin) : 0;
     if (obj == val)//no change
         return;
@@ -137,7 +137,7 @@ void ProgState::setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, c
     glUniformBlockBinding(prog.programID, pos, obj = val);
 }
 
-void ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) const
+void ProgState::setUBO(UBOManager& uboMan, const bool shouldPin)
 {
     switch (uboCache.size())
     {
@@ -147,12 +147,12 @@ void ProgState::setUBO(UBOManager& uboMan, const bool shouldPin) const
         setUBO(uboMan, uboCache.begin()->first, uboCache.begin()->second);
         break;
     default:
-        uboMan.bindAll(prog.programID, uboCache, prog.uniCache, shouldPin);
+        uboMan.bindAll(prog.programID, uboCache, uniBindCache, shouldPin);
         break;
     }
 }
 
-void ProgState::setSubroutine() const
+void ProgState::setSubroutine()
 {
     for (const auto& [stage, subrs] : srCache)
     {
@@ -191,7 +191,7 @@ ProgState& ProgState::setTexture(const oglTexture& tex, const string& name, cons
 
 ProgState& ProgState::setTexture(const oglTexture& tex, const GLuint pos)
 {
-    if (pos < prog.uniCache.size())
+    if (pos < uniBindCache.size())
     {
         texCache.insert_or_assign(pos, tex);
     }
@@ -211,7 +211,7 @@ ProgState& ProgState::setUBO(const oglUBO& ubo, const string& name, const GLuint
 
 ProgState& ProgState::setUBO(const oglUBO& ubo, const GLuint pos)
 {
-    if (pos < prog.uniCache.size())
+    if (pos < uniBindCache.size())
     {
         uboCache.insert_or_assign(pos, ubo);
     }
@@ -262,7 +262,7 @@ ProgState& ProgState::getSubroutine(const string& sruname, string& srname)
 
 
 ProgDraw::ProgDraw(const ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-    : ProgState(pstate.prog), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
+    : ProgState(pstate.prog), gState(pstate), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(prog);
     SetPosition(modelMat, normMat);
@@ -276,7 +276,7 @@ ProgDraw& ProgDraw::Restore()
 {
     for (const auto& [pos, binding] : UniBindBackup)
     {
-        auto& obj = prog.uniCache[pos];
+        auto& obj = uniBindCache[pos];
         const auto val = binding.first;
         if (obj != val)
         {
@@ -338,21 +338,25 @@ ProgDraw& ProgDraw::draw(const oglVAO& vao)
 oglu::detail::ProgDraw& ProgDraw::setTexture(const oglTexture& tex, const string& name, const GLuint idx)
 {
     const auto it = prog.TexRess.find(name);
-    if (it != prog.TexRess.end() && idx < it->len)//legal
+    if (it != prog.TexRess.cend() && idx < it->len)
     {
         const auto pos = it->location + idx;
         texCache.insert_or_assign(pos, tex);
-        UniBindBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], true));
+        const auto oldVal = gState.uniBindCache[pos];
+        if(oldVal != GL_INVALID_INDEX)
+            UniBindBackup.try_emplace(pos, std::make_pair(oldVal, true));
     }
     return *this;
 }
 
 oglu::detail::ProgDraw& ProgDraw::setTexture(const oglTexture& tex, const GLuint pos)
 {
-    if (pos < prog.uniCache.size())
+    if (pos < gState.uniBindCache.size())
     {
         texCache.insert_or_assign(pos, tex);
-        UniBindBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], true));
+        const auto oldVal = gState.uniBindCache[pos];
+        if (oldVal != GL_INVALID_INDEX)
+            UniBindBackup.try_emplace(pos, std::make_pair(oldVal, true));
     }
     return *this;
 }
@@ -360,21 +364,25 @@ oglu::detail::ProgDraw& ProgDraw::setTexture(const oglTexture& tex, const GLuint
 oglu::detail::ProgDraw& ProgDraw::setUBO(const oglUBO& ubo, const string& name, const GLuint idx)
 {
     const auto it = prog.UBORess.find(name);
-    if (it != prog.UBORess.end() && idx < it->len)//legal
+    if (it != prog.UBORess.cend() && idx < it->len)//legal
     {
         const auto pos = it->location + idx;
         uboCache.insert_or_assign(pos, ubo);
-        UniBindBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], false));
+        const auto oldVal = gState.uniBindCache[pos];
+        if (oldVal != GL_INVALID_INDEX)
+            UniBindBackup.try_emplace(pos, std::make_pair(oldVal, false));
     }
     return *this;
 }
 
 oglu::detail::ProgDraw& ProgDraw::setUBO(const oglUBO& ubo, const GLuint pos)
 {
-    if (pos < prog.uniCache.size())
+    if (pos < gState.uniBindCache.size())
     {
         uboCache.insert_or_assign(pos, ubo);
-        UniBindBackup.try_emplace(pos, std::make_pair(prog.uniCache[pos], false));
+        const auto oldVal = gState.uniBindCache[pos];
+        if (oldVal != GL_INVALID_INDEX)
+            UniBindBackup.try_emplace(pos, std::make_pair(oldVal, false));
     }
     return *this;
 }
@@ -395,6 +403,7 @@ _oglProgram::~_oglProgram()
             glDeleteProgram(programID);
             return 0;
         });
+        programID = 0;
     }
 }
 
@@ -429,39 +438,41 @@ void _oglProgram::RecoverState()
 void _oglProgram::InitLocs()
 {
     set<ProgramResource, std::less<>> dataMap;
-    GLchar name[256];
+    string nameBuf;
     GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
     for (const GLenum dtype : datatypes)
     {
         GLint cnt = 0;
         glGetProgramInterfaceiv(programID, dtype, GL_ACTIVE_RESOURCES, &cnt);
+        GLint maxNameLen = 0;
+        glGetProgramInterfaceiv(programID, dtype, GL_MAX_NAME_LENGTH, &maxNameLen);
         for (GLint a = 0; a < cnt; ++a)
         {
-            uint32_t arraylen = 0;
-            glGetProgramResourceName(programID, dtype, a, 240, nullptr, name);
-            char* chpos = nullptr;
-            //printf("@@query %d\t\t%s\n", binfo.iftype, name);
-            chpos = strchr(name, '.');
-            if (chpos != nullptr)//remove struct
-                *chpos = '\0';
-            chpos = strchr(name, '[');
-            if (chpos != nullptr)//array
+            string_view resName;
             {
-                arraylen = atol(chpos + 1) + 1;
-                *chpos = '\0';
+                nameBuf.resize(maxNameLen);
+                GLsizei nameLen = 0;
+                glGetProgramResourceName(programID, dtype, a, maxNameLen, &nameLen, nameBuf.data());
+                resName = string_view(nameBuf.c_str(), nameLen);
             }
-            const string namestr(name);
-            if (auto it = FindInSet(dataMap, namestr))
+            common::str::CutStringViewSuffix(resName, '.');//remove struct
+            uint32_t arraylen = 0;
+            if (auto cutpos = common::str::CutStringViewSuffix(resName, '['); cutpos != resName.npos)//array
+            {
+                arraylen = atoi(nameBuf.c_str() + cutpos + 1) + 1;
+            }
+            nameBuf.resize(resName.size());
+            if (auto it = FindInSet(dataMap, nameBuf))
             {
                 it->len = common::max(it->len, arraylen);
                 continue;
             }
-            ProgramResource datinfo(dtype, namestr);
+            ProgramResource datinfo(dtype, nameBuf);
             datinfo.initData(programID, a);
             if (dtype == GL_UNIFORM_BLOCK)
-                datinfo.location = glGetProgramResourceIndex(programID, dtype, name);
+                datinfo.location = glGetProgramResourceIndex(programID, dtype, nameBuf.c_str());
             else
-                datinfo.location = glGetProgramResourceLocation(programID, dtype, name);
+                datinfo.location = glGetProgramResourceLocation(programID, dtype, nameBuf.c_str());
 
             if (datinfo.location != GL_INVALID_INDEX)
             {
@@ -486,7 +497,8 @@ void _oglProgram::InitLocs()
         ProgRess.insert(info);
         oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
-    uniCache.resize(maxUniLoc, static_cast<GLint>(UINT32_MAX));
+    gState.uniBindCache.clear();
+    gState.uniBindCache.resize(maxUniLoc, GL_INVALID_INDEX);
 }
 
 void _oglProgram::InitSubroutines()

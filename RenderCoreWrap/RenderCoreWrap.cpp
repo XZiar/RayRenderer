@@ -13,7 +13,7 @@ BasicTest::BasicTest()
 {
     try
     {
-        core = new rayr::BasicTest();
+        core = new rayr::BasicTest(u"", u"D:\\Programs Data\\VSProject\\RayRenderer\\RenderCore\\3d.glsl");
         Camera = gcnew Basic3D::Camera(&core->cam);
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());

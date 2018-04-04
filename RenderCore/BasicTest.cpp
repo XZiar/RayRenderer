@@ -22,43 +22,22 @@ struct Init
 void BasicTest::init2d(const u16string pname)
 {
     prog2D.reset(u"Prog 2D");
-    if(pname.empty())
+    const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_2D) : common::file::ReadAllText(pname);
+    try
     {
-        try
-        {
-            prog2D->AddExtShaders(getShaderFromDLL(IDR_SHADER_2D));
-        }
-        catch (OGLException& gle)
-        {
-            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"OpenGL compile fail");
-        }
+        prog2D->AddExtShaders(shaderSrc);
     }
-    else
+    catch (const OGLException& gle)
     {
-        try
-        {
-            auto shaders = oglShader::loadFromFiles(pname);
-            if (shaders.size() < 2)
-                COMMON_THROW(BaseException, L"No enough shader loaded from file");
-            for (auto shader : shaders)
-            {
-                shader->compile();
-                prog2D->addShader(std::move(shader));
-            }
-        }
-        catch (OGLException& gle)
-        {
-            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"OpenGL compile fail");
-        }
+        basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+        COMMON_THROW(BaseException, L"OpenGL compile fail");
     }
     try
     {
         prog2D->link();
         prog2D->registerLocation({ "vertPos","","","" }, { "","","","","" });
     }
-    catch (OGLException& gle)
+    catch (const OGLException& gle)
     {
         basLog().error(u"Fail to link Program:\n{}\n", gle.message);
         COMMON_THROW(BaseException, L"link Program error");
@@ -77,45 +56,24 @@ void BasicTest::init2d(const u16string pname)
 void BasicTest::init3d(const u16string pname)
 {
     prog3D.reset(u"3D Prog");
-    if (pname.empty())
+    const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3D) : common::file::ReadAllText(pname);
+    try
     {
-        try
-        {
-            prog3D->AddExtShaders(getShaderFromDLL(IDR_SHADER_3D));
-        }
-        catch (OGLException& gle)
-        {
-            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"OpenGL compile fail");
-        }
+        prog3D->AddExtShaders(shaderSrc);
     }
-    else
+    catch (const OGLException& gle)
     {
-        try
-        {
-            auto shaders = oglShader::loadFromFiles(pname);
-            if (shaders.size() < 2)
-                COMMON_THROW(BaseException, L"No enough shader loaded from file");
-            for (auto shader : shaders)
-            {
-                shader->compile();
-                prog3D->addShader(std::move(shader));
-            }
-        }
-        catch (OGLException& gle)
-        {
-            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"OpenGL compile fail");
-        }
+        basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+        COMMON_THROW(BaseException, L"OpenGL compile fail");
     }
     try
     {
         prog3D->link();
         prog3D->registerLocation({ "vertPos","vertNorm","texPos","" }, { "matProj", "matView", "matModel", "matNormal", "matMVP" });
-        //prog3D->SetVec("envAmbient", Vec4(0, 0, 0, 1));
-        prog3D->globalState().setSubroutine("lighter", "watcher").end();
+        prog3D->SetUniform("useNormalMap", false);
+        prog3D->globalState().setSubroutine("lighter", "onlytex").end();
     }
-    catch (OGLException& gle)
+    catch (const OGLException& gle)
     {
         basLog().error(u"Fail to link Program:\n{}\n", gle.message);
         COMMON_THROW(BaseException, L"link Program error");
@@ -214,6 +172,7 @@ void BasicTest::prepareLight()
     size_t pos = 0;
     for (const auto& lgt : lights)
     {
+        if (!lgt->isOn) continue;
         memcpy_s(&data[pos], lightUBO->size - pos, &(*lgt), sizeof(LightData));
         pos += sizeof(LightData);
         if (pos >= lightUBO->size)
