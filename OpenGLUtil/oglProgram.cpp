@@ -685,7 +685,7 @@ void _oglProgram::RegisterLocation(const map<ProgramMappingTarget, string>& bind
         case ProgramMappingTarget::VertNorm:    Attr_Vert_Norm = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertTexc:    Attr_Vert_Texc = GetLoc(name, GL_FLOAT_VEC2); break;
         case ProgramMappingTarget::VertColor:   Attr_Vert_Color = GetLoc(name, GL_FLOAT_VEC4); break;
-        case ProgramMappingTarget::VertTan:     Attr_Vert_Tan = GetLoc(name, GL_FLOAT_VEC3); break;
+        case ProgramMappingTarget::VertTan:     Attr_Vert_Tan = GetLoc(name, GL_FLOAT_VEC4); break;
         }
     }
 }

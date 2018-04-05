@@ -78,6 +78,43 @@ void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
     glDebugMessageCallback(onMsg, &DbgLimit);
 }
 
+void _oglContext::SetDepthTest(const DepthTestType type)
+{
+    switch (type)
+    {
+    case DepthTestType::OFF: glDisable(GL_DEPTH_TEST); break;
+    case DepthTestType::Never:
+    case DepthTestType::Always:
+    case DepthTestType::Equal:
+    case DepthTestType::NotEqual:
+    case DepthTestType::Less:
+    case DepthTestType::LessEqual:
+    case DepthTestType::Greater:
+    case DepthTestType::GreaterEqual:
+        glEnable(GL_DEPTH_TEST); glDepthFunc((GLenum)type); break;
+    default:
+        oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
+    }
+}
+
+void _oglContext::SetFaceCulling(const FaceCullingType type)
+{
+    switch (type)
+    {
+    case FaceCullingType::OFF:
+        glDisable(GL_CULL_FACE); break;
+    case FaceCullingType::CullCW:
+        glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CCW); break;
+    case FaceCullingType::CullCCW:
+        glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CW); break;
+    case FaceCullingType::CullAll:
+        glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
+    default:
+        oglLog().warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
+    }
+}
+
+
 }
 
 

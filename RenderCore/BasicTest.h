@@ -22,6 +22,7 @@ MAKE_ENUM_BITFIELD(ChangableUBO)
 class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignBase<32>
 {
 private:
+    oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
     oglTexture picTex, mskTex, tmpTex;
@@ -58,7 +59,7 @@ public:
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
     const vector<oglProgram>& Shaders() const { return glProgs; }
-    void tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr) const;
+    const oglContext& GetContext() const { return glContext; }
 };
 
 }

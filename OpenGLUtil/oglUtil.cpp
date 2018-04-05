@@ -107,8 +107,6 @@ void oglUtil::init()
     getWorker(0).start(oglContext::NewContext(glctx, true));
     getWorker(1).start(oglContext::NewContext(glctx, false));
     wglMakeCurrent(hdc, hrc);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LEQUAL);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 

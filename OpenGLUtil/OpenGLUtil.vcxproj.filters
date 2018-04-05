@@ -57,7 +57,7 @@
     <ClInclude Include="3DElement.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="TangentSpace.hpp">
+    <ClInclude Include="PointEnhance.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

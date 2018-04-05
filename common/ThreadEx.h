@@ -53,6 +53,7 @@ protected:
     ThreadObject(void *handle) : Handle(handle) { }
 public:
     static ThreadObject __cdecl GetCurrentThreadObject();
+    static uint32_t __cdecl GetCurrentThreadId();
     static ThreadObject __cdecl GetThreadObject(std::thread& thr);
     constexpr ThreadObject() noexcept { }
     ThreadObject(ThreadObject&& other) noexcept
@@ -68,6 +69,7 @@ public:
     ~ThreadObject();
     bool IsAlive() const;
     bool IsCurrent() const;
+    uint32_t GetId() const;
 };
 
 }

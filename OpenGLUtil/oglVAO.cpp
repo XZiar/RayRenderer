@@ -71,7 +71,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
     if (attridx[4] != GL_INVALID_INDEX)
     {
         glEnableVertexAttribArray(attridx[3]);//VertTan
-        glVertexAttribPointer(attridx[3], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 48));
+        glVertexAttribPointer(attridx[3], 4, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 48));
     }
     return *this;
 }

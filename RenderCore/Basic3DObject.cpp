@@ -9,9 +9,10 @@ using b3d::PI_float;
 Pyramid::Pyramid(const float len) : Drawable(GetType(this), TYPENAME), sidelen(len)
 {
     vbo.reset(oglu::BufferType::Array);
-    constexpr float sqrt3_2 = float(1.73205080757 / 2);
-    constexpr float sqrt3_3 = float(1.73205080757 / 3);
-    constexpr float sqrt3_6 = float(1.73205080757 / 6);
+    constexpr double sqrt3 = 1.73205080757;
+    constexpr float sqrt3_2 = float(sqrt3 / 2);
+    constexpr float sqrt3_3 = float(sqrt3 / 3);
+    constexpr float sqrt3_6 = float(sqrt3 / 6);
     Point pts[] =
     { 
         { {  0.0f, sqrt3_2,  0.0f },{ -0.86326f,0.33227f,0.37998f },{ 0.0f, 0.0f } },
@@ -70,11 +71,11 @@ vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, 
         {
             const auto idx0 = r * sectors + s;
             indexs.push_back(idx0);
-            indexs.push_back(idx0 + 1);
             indexs.push_back(idx0 + sectors);
             indexs.push_back(idx0 + 1);
+            indexs.push_back(idx0 + 1);
+            indexs.push_back(idx0 + sectors);
             indexs.push_back(idx0 + sectors + 1);
-            indexs.push_back(idx0 + sectors);
         }
     }
     return indexs;

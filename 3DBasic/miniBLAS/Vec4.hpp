@@ -96,6 +96,15 @@ public:
     #endif
     }
 
+    forceinline Vec4 VECCALL operator-() const
+    {
+    #if COMMON_SIMD_LV >= 20
+        return _mm_xor_ps(float_dat, _mm_set1_ps(-0.0f));
+    #else
+        return Vec4(-x, -y, -z, -w);
+    #endif
+    }
+
     forceinline Vec4 VECCALL operator-(const float right) const
     {
     #if COMMON_SIMD_LV >= 20
@@ -307,6 +316,16 @@ public:
         Store128PS(data, _mm_rsqrt_ps(float_dat));
     #else
         x = 1 / std::sqrt(x), y = 1 / std::sqrt(y), z = 1 / std::sqrt(z), w = 1 / std::sqrt(w);
+    #endif
+        return *this;
+    }
+
+    forceinline Vec4& VECCALL negatived()
+    {
+    #if COMMON_SIMD_LV >= 20
+        _mm_store_ps(data, _mm_xor_ps(float_dat, _mm_set1_ps(-0.0f)));
+    #else
+        x = -x, y = -y, z = -z, w = -w;
     #endif
         return *this;
     }

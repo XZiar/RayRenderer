@@ -229,6 +229,9 @@ void BasicTest::fontTest(const char32_t word)
 BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 {
     static Init _init;
+    glContext = oglu::oglContext::CurrentContext();
+    glContext->SetDepthTest(DepthTestType::LessEqual);
+    //glContext->SetFaceCulling(FaceCullingType::CullCW);
     fontViewer.reset();
     fontCreator.reset(oclu::Vendor::Intel);
     basepath = u"D:\\Programs Temps\\RayRenderer";
@@ -359,37 +362,5 @@ void BasicTest::ReportChanged(const ChangableUBO target)
     IsUBOChanged |= (uint32_t)target;
 }
 
-static uint32_t getTID()
-{
-    auto tid = std::this_thread::get_id();
-    return *(uint32_t*)&tid;
-}
-
-void BasicTest::tryAsync(CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError) const
-{
-    basLog().debug(u"begin async in pid {}\n", getTID());
-    std::thread([onFinish, onError] ()
-    {
-        common::SetThreadName(u"AsyncThread for TryAsync");
-        basLog().debug(u"async thread in pid {}\n", getTID());
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-        basLog().debug(u"sleep finish. async thread in pid {}\n", getTID());
-        try
-        {
-            if (false)
-                COMMON_THROW(BaseException, L"ERROR in async call");
-        }
-        catch (BaseException& be)
-        {
-            onError(be);
-            return;
-        }
-        onFinish([]() 
-        {
-            basLog().debug(u"async callback in pid {}\n", getTID());
-            return true;
-        });
-    }).detach();
-}
 
 }

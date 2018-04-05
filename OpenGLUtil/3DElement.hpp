@@ -269,13 +269,11 @@ public:
 class alignas(16) PointEx : public Point
 {
 public:
-    Normal tan;
+    Vec4 tan;
 
     PointEx() noexcept { };
-    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t) noexcept : Point(v, n, t) { tan.x = tan.y = tan.z = 0.0f; };
-    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : Point(v, n, t3) { tan.x = tan.y = tan.z = 0.0f; };
-    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t, const Normal &tanNorm) noexcept : Point(v, n, t), tan(tanNorm) { };
-    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3, const Normal &tanNorm) noexcept : Point(v, n, t3), tan(tanNorm) { };
+    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t, const Vec4 &tanNorm = Vec4::zero()) noexcept : Point(v, n, t), tan(tanNorm) { };
+    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3, const Vec4 &tanNorm = Vec4::zero()) noexcept : Point(v, n, t3), tan(tanNorm) { };
 };
 
 struct alignas(32) Triangle : public common::AlignBase<32>

@@ -33,7 +33,7 @@
     <ClInclude Include="BindingManager.h" />
     <ClInclude Include="oglVAO.h" />
     <ClInclude Include="OpenGLUtil.h" />
-    <ClInclude Include="TangentSpace.hpp" />
+    <ClInclude Include="PointEnhance.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MTWorker.cpp" />

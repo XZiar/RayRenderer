@@ -52,10 +52,11 @@ Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
 }
 
-Task<bool>^ BasicTest::TryAsync()
+void BasicTest::SetFaceCulling(OpenGLUtil::FaceCullingType type)
 {
-    return doAsync2<bool>(&rayr::BasicTest::tryAsync, core);
+    core->GetContext()->SetFaceCulling((oglu::FaceCullingType)type);
 }
+
 
 #pragma managed(push, off)
 static Wrapper<b3d::Light> CreateLight(b3d::LightType type)

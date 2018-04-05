@@ -85,7 +85,6 @@
                 </Button.ContextMenu>
             </Button>
             <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
-            <Button x:Name="btnTryAsync" Content="Async" Width="32" Height="32" Margin="2,0" Click="btnTryAsync_Click"/>
         </StackPanel>
         <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="{StaticResource brshBlue}" >
             <StatusBar.ItemsPanel>
@@ -157,11 +156,14 @@
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="鼠标灵敏度">
                         <Slider x:Name="slMouseSen" Value="60" Minimum="10" Maximum="130" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                     </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="面剔除模式">
+                        <ComboBox x:Name="cboxFCull" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
+                    </ext:LabelControl>
                 </StackPanel>
             </TabItem>
             <TabItem Header="物体" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DockPanel>
-                    <ComboBox x:Name="cboxObj" Background="{DynamicResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                    <ComboBox x:Name="cboxObj" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
                     <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
                         <StackPanel x:Name="stkObject" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxObj, Mode=OneWay}">
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
@@ -174,7 +176,7 @@
             </TabItem>
             <TabItem Header="灯光" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <DockPanel>
-                    <ComboBox x:Name="cboxLight" Background="{DynamicResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                    <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
                     <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
                         <StackPanel x:Name="stkLight" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}">
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="启用">

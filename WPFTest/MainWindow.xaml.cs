@@ -123,6 +123,17 @@ namespace WPFTest
                 })
             });
 
+            cboxFCull.ItemsSource = new[] { FaceCullingType.OFF, FaceCullingType.CullCW, FaceCullingType.CullCCW, FaceCullingType.CullAll };
+            cboxFCull.SelectedItem = FaceCullingType.OFF;
+            cboxFCull.SelectionChanged += (o, e) =>
+            {
+                var item = e.AddedItems.Cast<FaceCullingType?>().FirstOrDefault();
+                if (item.HasValue)
+                {
+                    Core.Test.SetFaceCulling(item.Value);
+                    glMain.Invalidate();
+                }
+            };
             cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
             {
                 Source = Core.Lights,
@@ -312,20 +323,6 @@ namespace WPFTest
                 break;
             }
             glMain.Invalidate();
-            e.Handled = true;
-        }
-
-        private async void btnTryAsync_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var ret = await Core.Test.TryAsync();
-                Console.WriteLine($"finish calling async, ret is {ret}");
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("received exception", ex);
-            }
             e.Handled = true;
         }
 

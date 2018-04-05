@@ -39,7 +39,7 @@ GLVARY perVert
     vec3 pos;
     vec3 cam2pt;
     vec3 norm;
-    vec3 tannorm;
+    vec4 tannorm;
     vec2 tpos;
 };
 
@@ -53,15 +53,16 @@ layout(location = 1) in vec3 vertNorm;
 //@@->VertTexc|vertTexc
 layout(location = 2) in vec2 vertTexc;
 //@@->VertTan|vertTan
-layout(location = 3) in vec3 vertTan;
+layout(location = 3) in vec4 vertTan;
 
 void main() 
 {
     gl_Position = matMVP * vec4(vertPos, 1.0f);
     pos = (matModel * vec4(vertPos, 1.0f)).xyz;
     cam2pt = pos - vecCamPos;
-    norm = (matModel * vec4(vertNorm, 0.0f)).xyz;
-    tannorm = (matModel * vec4(vertTan, 0.0f)).xyz;
+    const mat3 matModel3 = mat3(matModel);
+    norm = matModel3 * vertNorm;
+    tannorm = vec4(matModel3 * vertTan.xyz, vertTan.w);
     tpos = vertTexc;
 }
 
@@ -92,10 +93,11 @@ subroutine(NormalCalc)
 vec3 mapped()
 {
     const vec3 ptNorm = normalize(norm);
-    const vec3 ptTan = normalize(tannorm);
-    const vec3 bitanNorm = cross(ptNorm, ptTan);
+    const vec3 ptTan = normalize(tannorm.xyz);
+    vec3 bitanNorm = cross(ptNorm, ptTan);
+    if(tannorm.w < 0.0f) bitanNorm *= -1.0f;
     const mat3 TBN = mat3(ptTan, bitanNorm, ptNorm);
-    const vec3 ptNormTex = texture(tex[1], tpos).rgb;
+    const vec3 ptNormTex = texture(tex[1], tpos).rgb * 2.0f - 1.0f;
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
 }
@@ -113,21 +115,15 @@ vec4 onlytex()
     return texColor;
 }
 subroutine(LightModel)
-vec4 tannorm()
+vec4 tanvec()
 {
-    const vec3 ptNorm = normalize(tannorm);
+    const vec3 ptNorm = normalize(tannorm.xyz);
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
-vec4 normvert()
+vec4 norm()
 {
     const vec3 ptNorm = getNorm();
-    return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
-}
-subroutine(LightModel)
-vec4 normmap()
-{
-    const vec3 ptNorm = mapped();
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)

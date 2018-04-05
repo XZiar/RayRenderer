@@ -14,6 +14,13 @@ namespace OpenGLUtil
 using std::string;
 using std::u16string;
 
+public enum class DepthTestType : GLenum
+{
+    OFF = GL_INVALID_INDEX, Never = GL_NEVER, Equal = GL_EQUAL, NotEqual = GL_NOTEQUAL, Always = GL_ALWAYS,
+    Less = GL_LESS, LessEqual = GL_LEQUAL, Greater = GL_GREATER, GreaterEqual = GL_GEQUAL
+};
+public enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
+
 public enum class ShaderType : GLenum
 {
     Vertex = GL_VERTEX_SHADER, Geometry = GL_GEOMETRY_SHADER, Fragment = GL_FRAGMENT_SHADER,

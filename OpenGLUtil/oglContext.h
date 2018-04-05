@@ -21,6 +21,12 @@ enum class MsgType :uint16_t
 MAKE_ENUM_BITFIELD(MsgType)
 enum class MsgLevel :uint8_t { High = 3, Medium = 2, Low = 1, Notfication = 0 };
 
+enum class DepthTestType : GLenum 
+{
+    OFF = GL_INVALID_INDEX, Never = GL_NEVER, Equal = GL_EQUAL, NotEqual = GL_NOTEQUAL, Always = GL_ALWAYS,
+    Less = GL_LESS, LessEqual = GL_LEQUAL, Greater = GL_GREATER, GreaterEqual = GL_GEQUAL
+};
+enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 namespace detail
 {
@@ -55,6 +61,8 @@ public:
     bool UseContext();
     bool UnloadContext();
     void SetDebug(MsgSrc src, MsgType type, MsgLevel minLV);
+    void SetDepthTest(const DepthTestType type);
+    void SetFaceCulling(const FaceCullingType type);
 };
 
 }

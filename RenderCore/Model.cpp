@@ -1,7 +1,7 @@
 #include "RenderCoreRely.h"
 #include "Model.h"
 #include "uchardetlib/uchardetlib.h"
-#include "OpenGLUtil/TangentSpace.hpp"
+#include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
 {
@@ -551,7 +551,10 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
                 VecI4 tmpi, tmpidx;
                 const auto lim = min((size_t)4, line.Params.size() - 1);
                 if (lim < 3)
-                    basLog().warning(u"too few params for face : {}", str::to_u16string(line.Line));
+                {
+                    basLog().warning(u"too few params for face, ignored : {}\n", line.Line);
+                    break;
+                }
                 for (uint32_t a = 0; a < lim; ++a)
                 {
                     line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
@@ -565,6 +568,11 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
                 }
                 if (lim == 3)
                 {
+                    if (tmpidx.x == tmpidx.y || tmpidx.y == tmpidx.z || tmpidx.x == tmpidx.z)
+                    {
+                        basLog().warning(u"repeat index for face, ignored : {}\n", line.Line);
+                        break;
+                    }
                     indexs.push_back(tmpidx.x);
                     indexs.push_back(tmpidx.y);
                     indexs.push_back(tmpidx.z);
@@ -603,6 +611,7 @@ void _ModelData::loadOBJ(const fs::path& objpath) try
     tstTimer.Start();
     for (uint32_t i = 0, total = (uint32_t)indexs.size(); i < total; i += 3)
     {
+        oglu::FixInvertNormal(pts[indexs[i]], pts[indexs[i + 1]], pts[indexs[i + 2]]);
         oglu::GenerateTanPoint(pts[indexs[i]], pts[indexs[i + 1]], pts[indexs[i + 2]]);
     }
     tstTimer.Stop();

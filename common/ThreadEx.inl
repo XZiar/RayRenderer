@@ -86,7 +86,16 @@ bool ThreadObject::IsCurrent() const
 {
     return GetThreadId((HANDLE)Handle) == GetCurrentThreadId();
 }
+uint32_t ThreadObject::GetId() const 
+{
+    return GetThreadId((HANDLE)Handle);
+}
 
+
+uint32_t ThreadObject::GetCurrentThreadId()
+{
+    return ::GetCurrentThreadId();
+}
 ThreadObject ThreadObject::GetCurrentThreadObject()
 {
     return ThreadObject{ CopyThreadHandle(GetCurrentThread()) };

@@ -217,10 +217,8 @@ public:
     void Resize(const int w, const int h);
 
     void ReLoadCL(String^ fname);
-
     Task<bool>^ ReloadCLAsync(String^ fname);
-    Task<bool>^ TryAsync();
-
+    void SetFaceCulling(OpenGLUtil::FaceCullingType type);
 };
 
 
