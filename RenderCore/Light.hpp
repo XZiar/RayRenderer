@@ -41,7 +41,7 @@ public:
 class RAYCOREAPI alignas(LightData) Light : public LightData
 {
 protected:
-    Light(const LightType type_, const std::u16string& name_);
+    Light(const LightType type_, const std::u16string& name_) : LightData(type_), name(name_) {}
 public:
     bool isOn = true;
     std::u16string name;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RenderElement.h"
+#include "Material.hpp"
 #include "common/AsyncExecutor/AsyncAgent.h"
 
 namespace rayr
@@ -41,9 +42,9 @@ private:
     static map<u16string, Wrapper<_ModelData>> models;
     static Wrapper<_ModelData> getModel(const u16string& fname, bool asyncload = false);
     static void releaseModel(const u16string& fname);
-    struct alignas(MaterialData) MtlStub
+    struct alignas(RawMaterialData) MtlStub
     {
-        MaterialData mtl;
+        RawMaterialData mtl;
         float scalex, offsetx, scaley, offsety;
         uint16_t width = 0, height = 0, sx = 0, sy = 0, posid = UINT16_MAX;
         ModelImage texs[2];

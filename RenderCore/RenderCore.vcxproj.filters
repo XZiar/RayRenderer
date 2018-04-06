@@ -18,6 +18,7 @@
     <None Include="3d.glsl" />
     <None Include="2d.glsl" />
     <None Include="test.cl" />
+    <None Include="3d_pbr.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -41,7 +42,10 @@
     <ClInclude Include="Model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Light.h">
+    <ClInclude Include="Material.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -70,9 +74,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="RenderCoreRely.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Light.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,39 +1,12 @@
 #pragma once
 
 #include "RenderCoreRely.h"
+#include "Material.hpp"
 
 namespace rayr
 {
 using namespace common;
 using namespace b3d;
-
-struct RAYCOREAPI alignas(16) MaterialData : public AlignBase<16>
-{
-public:
-    enum class Property : uint8_t
-    {
-        Ambient = 0x1,
-        Diffuse = 0x2,
-        Specular = 0x4,
-        Emission = 0x8,
-        Shiness = 0x10,
-        Reflect = 0x20,
-        Refract = 0x40,
-        RefractRate = 0x80
-    };
-    Vec4 ambient, diffuse, specular, emission;
-    float shiness, reflect, refract, rfr;//高光权重，反射比率，折射比率，折射率
-    /*void SetMtl(const uint8_t prop, const Vec3 &);
-    void SetMtl(const Property prop, const float r, const float g, const float b)
-    {
-        SetMtl(uint8_t(prop), Vec3(r, g, b));
-    }
-    void SetMtl(const uint8_t prop, const float val);
-    void SetMtl(const Property prop, const float val)
-    {
-        SetMtl(uint8_t(prop), val);
-    }*/
-};
 
 
 class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable
@@ -41,6 +14,8 @@ class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable
 public:
     using Drawcall = oglu::detail::ProgDraw;
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
+    Material BaseMaterial = Material(u"default");
+    oglu::oglUBO MaterialUBO;
     u16string name;
     static void releaseAll(const oglu::oglProgram& prog);
     virtual ~Drawable();
@@ -71,6 +46,7 @@ protected:
     const std::type_index DrawableType;
     oglu::oglVAO defaultVAO;
     Drawable(const std::type_index type, const u16string& typeName);
+    void AssignMaterial(const Material *material, const size_t count = 1) const;
     auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
     Drawcall& drawPosition(Drawcall& prog) const;
     void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;

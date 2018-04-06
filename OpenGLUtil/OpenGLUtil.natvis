@@ -82,7 +82,7 @@
     </Expand>
   </Type>
   <Type Name="oglu::SubroutineResource::Routine">
-    <DisplayString>{{[{Id}]Name}}</DisplayString>
+    <DisplayString>{{[{Id}]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::SubroutineResource">
     <DisplayString Condition="Stage == 0x8B31">{{Subr[VS]{Name}}}</DisplayString>

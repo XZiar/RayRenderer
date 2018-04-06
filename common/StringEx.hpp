@@ -245,7 +245,7 @@ inline auto Split(const CharT(&src)[N], const CharT delim, const bool keepblank 
 
 
 template<typename Char>
-static size_t CutStringViewPrefix(std::basic_string_view<Char>& sv, const Char obj)
+inline size_t CutStringViewPrefix(std::basic_string_view<Char>& sv, const Char obj)
 {
     const auto pos = sv.find_first_of(obj);
     if (pos != std::basic_string_view<Char>::npos)
@@ -253,12 +253,25 @@ static size_t CutStringViewPrefix(std::basic_string_view<Char>& sv, const Char o
     return pos;
 }
 template<typename Char>
-static size_t CutStringViewSuffix(std::basic_string_view<Char>& sv, const Char obj)
+inline size_t CutStringViewSuffix(std::basic_string_view<Char>& sv, const Char obj)
 {
     const auto pos = sv.find_first_of(obj);
     if (pos != std::basic_string_view<Char>::npos)
         sv.remove_suffix(sv.size() - pos);
     return pos;
+}
+
+
+template<typename Char>
+inline std::basic_string<Char> ReplaceStr(const std::basic_string<Char>& str, const std::basic_string_view<Char>& obj, const std::basic_string_view<Char>& newstr)
+{
+    const auto pos = str.find(obj);
+    if (pos == std::basic_string<Char>::npos)
+        return str;
+    std::basic_string<Char> ret;
+    ret.reserve(str.size() - obj.size() + newstr.size());
+    const auto posend = pos + obj.size();
+    return ret.append(str, 0, pos).append(newstr).append(str, posend);
 }
 
 

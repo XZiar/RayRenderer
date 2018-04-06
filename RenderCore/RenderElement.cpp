@@ -71,6 +71,8 @@ struct VAOKeyX
 Drawable::Drawable(const std::type_index type, const u16string& typeName) : DrawableType(type)
 {
     DrawableHelper::Regist(DrawableType, typeName);
+    MaterialUBO.reset(16 * sizeof(MaterialData));
+    AssignMaterial(&BaseMaterial, 1);
 }
 
 Drawable::~Drawable()
@@ -82,9 +84,25 @@ Drawable::~Drawable()
     }
 }
 
+void Drawable::AssignMaterial(const Material * material, const size_t count) const
+{
+    vector<uint8_t> data(MaterialUBO->size);
+    size_t pos = 0;
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        memcpy_s(&data[pos], MaterialUBO->size - pos, (const MaterialData*)(&material[i]), sizeof(MaterialData));
+        pos += sizeof(MaterialData);
+        if (pos >= MaterialUBO->size)
+            break;
+    }
+    MaterialUBO->write(data, oglu::BufferWriteMode::StreamDraw);
+}
+
 void Drawable::draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall).draw(getVAO(drawcall.GetProg()));
+    drawPosition(drawcall)
+        .SetUBO(MaterialUBO, "materialBlock")
+        .draw(getVAO(drawcall.GetProg()));
 }
 
 u16string Drawable::getType() const
@@ -140,3 +158,4 @@ const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram::weak_type& weakProg
 
 
 }
+

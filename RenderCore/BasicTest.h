@@ -3,7 +3,8 @@
 #include "RenderCoreRely.h"
 #include "Basic3DObject.h"
 #include "Model.h"
-#include "Light.h"
+#include "Light.hpp"
+#include "Material.hpp"
 #include "FontHelper/FontHelper.h"
 
 namespace rayr
@@ -25,10 +26,11 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
+    set<oglProgram> Prog3Ds;
     oglTexture picTex, mskTex, tmpTex;
     oglBuffer picBuf, screenBox;
     oglVAO picVAO;
-    oglUBO lightUBO, materialUBO;
+    oglUBO lightUBO;
     uint8_t lightLim, materialLim;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;
@@ -55,6 +57,7 @@ public:
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
+    void ChangeShader(const oglProgram& prog);
     void ReportChanged(const ChangableUBO target);
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }

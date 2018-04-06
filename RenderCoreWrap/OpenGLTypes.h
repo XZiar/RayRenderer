@@ -65,8 +65,9 @@ public:
         void set(String^ value) 
         {
             string newval = ToCharStr(value);
-            Prog->lock()->globalState().setSubroutine(cppname, newval).getSubroutine(cppname, newval).end();
-            current = ToStr(newval);
+            auto prog = Prog->lock();
+            prog->State().SetSubroutine(cppname, newval);
+            current = ToStr(prog->GetSubroutine(cppname)->Name);
             OnPropertyChanged("Current");
         }
     }

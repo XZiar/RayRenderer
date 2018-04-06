@@ -82,39 +82,6 @@ namespace detail
 {
 
 
-class OGLUAPI ProgState : public NonCopyable
-{
-    friend class _oglProgram;
-    friend class ProgDraw;
-private:
-    void init();
-protected:
-    _oglProgram & prog;
-    vector<GLint> uniBindCache;
-    map<GLuint, oglTexture> texCache;
-    map<GLuint, oglUBO> uboCache;
-    //Subroutine are not kept by OGL, it's erased eachtime switch prog
-    map<const SubroutineResource*, const SubroutineResource::Routine*> srSettings;
-    map<ShaderType, vector<GLuint>> srCache;
-    explicit ProgState(_oglProgram& prog_);
-    void setTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false);
-    void setTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin = false);
-    void setUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
-    void setUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
-    void setSubroutine();
-public:
-    void end();
-    ProgState& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& setTexture(const oglTexture& tex, const GLuint pos);
-    ProgState& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& setUBO(const oglUBO& ubo, const GLuint pos);
-    ProgState& setSubroutine(const SubroutineResource::Routine& sr);
-    ProgState& setSubroutine(const string& sruname, const string& srname);
-    ProgState& getSubroutine(const string& sruname, string& srname);
-};
-
 class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
 {
     friend class TextureManager;
@@ -123,7 +90,6 @@ class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMova
     friend class ProgDraw;
 private:
     Mat4x4 matrix_Proj, matrix_View;
-    ProgState gState;
     set<oglShader> shaders;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
     map<ProgramMappingTarget, string> ResBindMapping;
@@ -134,6 +100,11 @@ private:
     set<SubroutineResource, std::less<>> SubroutineRess;
     map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     map<GLint, UniformValue> UniValCache;
+    vector<GLint> UniBindCache; 
+    map<GLuint, oglTexture> TexBindings;
+    map<GLuint, oglUBO> UBOBindings;
+    map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
+    map<ShaderType, vector<GLuint>> SubroutineSettings;
     GLint
         Uni_projMat = GL_INVALID_INDEX,
         Uni_viewMat = GL_INVALID_INDEX,
@@ -142,13 +113,21 @@ private:
         Uni_mvpMat = GL_INVALID_INDEX,
         Uni_camPos = GL_INVALID_INDEX;
     GLuint programID = 0; //zero means invalid program
-    static bool usethis(_oglProgram& programID, const bool change = true);
+
+    static bool usethis(_oglProgram& prog, const bool change = true);
     void RecoverState();
     void InitLocs();
     void InitSubroutines();
     void FilterProperties();
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
     GLint GetLoc(const string& name, GLenum valtype) const;
+
+    void SetTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false);
+    void SetTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin = false);
+    void SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
+    void SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
+    void SetSubroutine();
+    void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
     void SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep = true);
     void SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep = true);
@@ -179,9 +158,9 @@ public:
     void AddExtShaders(const string& src);
     void link();
     void RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping);
-    GLint getLoc(const string& name) const;
-    const ProgramResource* getResource(const string& name) const;
-    const SubroutineResource* getSubroutines(const string& name) const;
+    GLint GetLoc(const string& name) const;
+    const ProgramResource* GetResource(const string& name) const { return FindInSet(ProgRess, name); }
+    const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
     void setProject(const Camera &, const int wdWidth, const int wdHeight);
     void setCamera(const Camera &);
 
@@ -189,7 +168,8 @@ public:
     ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
     using topIT = vectorEx<TransformOP>::const_iterator;
     ProgDraw draw(topIT begin, topIT end) noexcept;
-    ProgState& globalState() noexcept;
+    const SubroutineResource::Routine* GetSubroutine(const string& sruname);
+    ProgState State() noexcept;
 
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }
@@ -218,22 +198,44 @@ public:
 };
 
 
-class OGLUAPI ProgDraw : protected ProgState
+class OGLUAPI ProgState : public NonCopyable
 {
     friend class _oglProgram;
 private:
-    ProgState& gState;
+    _oglProgram & Prog;
+    ProgState(_oglProgram& prog) : Prog(prog) { }
+    ProgState(ProgState&& other) = default;
+public:
+    ~ProgState();
+    ProgState& SetTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetTexture(const oglTexture& tex, const GLuint pos);
+    ProgState& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
+    ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
+    ProgState& SetSubroutine(const string& subrName, const string& routineName);
+};
+
+class OGLUAPI ProgDraw
+{
+    friend class _oglProgram;
+private:
+    _oglProgram & Prog;
     TextureManager & TexMan;
     UBOManager& UboMan;
+    map<GLuint, oglTexture> TexCache;
+    map<GLuint, oglUBO> UBOCache;
+    map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     map<GLuint, std::pair<GLint, bool>> UniBindBackup;
     map<GLint, UniformValue> UniValBackup;
-    ProgDraw(ProgState& pstate, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {
-        const GLint loc = prog.GetLoc(res, valtype);
+        const GLint loc = Prog.GetLoc(res, valtype);
         if (loc != GL_INVALID_INDEX)
-            if (const auto it = common::container::FindInMap(prog.UniValCache, loc))
+            if (const auto it = common::container::FindInMap(Prog.UniValCache, loc))
                 UniValBackup.insert_or_assign(loc, *it);
         return loc;
     }
@@ -248,43 +250,37 @@ public:
     *-param vao, size, offset*/
     ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
     ProgDraw& draw(const oglVAO& vao);
-    ProgDraw& setTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
-    ProgDraw& setTexture(const oglTexture& tex, const GLuint pos);
-    ProgDraw& setUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
-    ProgDraw& setUBO(const oglUBO& ubo, const GLuint pos);
-    ProgDraw& setSubroutine(const SubroutineResource::Routine& sr)
-    {
-        ProgState::setSubroutine(sr); return *this;
-    }
-    ProgDraw& setSubroutine(const string& sruname, const string& srname)
-    {
-        ProgState::setSubroutine(sruname, srname); return *this;
-    }
+    ProgDraw& SetTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+    ProgDraw& SetTexture(const oglTexture& tex, const GLuint pos);
+    ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
+    ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
+    ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
+    ProgDraw& SetSubroutine(const string& subrName, const string& routineName);
 
     ProgDraw& SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); return *this; }
     ProgDraw& SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); return *this; }
     ProgDraw& SetVec(const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const b3d::Coord2D& vec) { prog.SetUniform(GetLoc(res, GL_FLOAT_VEC2), vec); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec3& vec) { prog.SetUniform(GetLoc(res, GL_FLOAT_VEC3), vec, false); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec4& vec) { prog.SetUniform(GetLoc(res, GL_FLOAT_VEC4), vec, false); return *this; }
-    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat3x3& mat) { prog.SetUniform(GetLoc(res, GL_FLOAT_MAT3), mat, false); return *this; }
-    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat4x4& mat) { prog.SetUniform(GetLoc(res, GL_FLOAT_MAT4), mat, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const bool val) { prog.SetUniform(GetLoc(res, GL_BOOL), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const int32_t val) { prog.SetUniform(GetLoc(res, GL_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const uint32_t val) { prog.SetUniform(GetLoc(res, GL_UNSIGNED_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const float val) { prog.SetUniform(GetLoc(res, GL_FLOAT), val, false); return *this; }
+    ProgDraw& SetVec(const ProgramResource* res, const b3d::Coord2D& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC2), vec); return *this; }
+    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec3& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC3), vec, false); return *this; }
+    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec4& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC4), vec, false); return *this; }
+    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT3), mat, false); return *this; }
+    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT4), mat, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const bool val) { Prog.SetUniform(GetLoc(res, GL_BOOL), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const int32_t val) { Prog.SetUniform(GetLoc(res, GL_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const uint32_t val) { Prog.SetUniform(GetLoc(res, GL_UNSIGNED_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const float val) { Prog.SetUniform(GetLoc(res, GL_FLOAT), val, false); return *this; }
     ProgDraw& SetVec(const string& name, const float x, const float y) { SetVec(name, b3d::Coord2D(x, y)); return *this; }
     ProgDraw& SetVec(const string& name, const float x, const float y, const float z) { SetVec(name, miniBLAS::Vec3(x, y, z)); return *this; }
     ProgDraw& SetVec(const string& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); return *this; }
-    ProgDraw& SetVec(const string& name, const b3d::Coord2D& vec) { prog.SetUniform(GetLoc(name, GL_FLOAT_VEC2), vec); return *this; }
-    ProgDraw& SetVec(const string& name, const miniBLAS::Vec3& vec) { prog.SetUniform(GetLoc(name, GL_FLOAT_VEC3), vec, false); return *this; }
-    ProgDraw& SetVec(const string& name, const miniBLAS::Vec4& vec) { prog.SetUniform(GetLoc(name, GL_FLOAT_VEC4), vec, false); return *this; }
-    ProgDraw& SetMat(const string& name, const miniBLAS::Mat3x3& mat) { prog.SetUniform(GetLoc(name, GL_FLOAT_MAT3), mat, false); return *this; }
-    ProgDraw& SetMat(const string& name, const miniBLAS::Mat4x4& mat) { prog.SetUniform(GetLoc(name, GL_FLOAT_MAT4), mat, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const bool val) { prog.SetUniform(GetLoc(name, GL_BOOL), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const int32_t val) { prog.SetUniform(GetLoc(name, GL_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const uint32_t val) { prog.SetUniform(GetLoc(name, GL_UNSIGNED_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const float val) { prog.SetUniform(GetLoc(name, GL_FLOAT), val, false); return *this; }
+    ProgDraw& SetVec(const string& name, const b3d::Coord2D& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC2), vec); return *this; }
+    ProgDraw& SetVec(const string& name, const miniBLAS::Vec3& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC3), vec, false); return *this; }
+    ProgDraw& SetVec(const string& name, const miniBLAS::Vec4& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC4), vec, false); return *this; }
+    ProgDraw& SetMat(const string& name, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT3), mat, false); return *this; }
+    ProgDraw& SetMat(const string& name, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT4), mat, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const bool val) { Prog.SetUniform(GetLoc(name, GL_BOOL), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const int32_t val) { Prog.SetUniform(GetLoc(name, GL_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const uint32_t val) { Prog.SetUniform(GetLoc(name, GL_UNSIGNED_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const float val) { Prog.SetUniform(GetLoc(name, GL_FLOAT), val, false); return *this; }
 };
 
 

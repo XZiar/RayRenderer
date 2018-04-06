@@ -49,7 +49,7 @@ FontViewer::FontViewer()
     }
     //prog->SetUniform("distLowbound", 0.44f);
     //prog->SetUniform("distHighbound", 0.57f);
-    prog->globalState().setSubroutine("fontRenderer", "sdfMid").end();
+    prog->State().SetSubroutine("fontRenderer", "sdfMid");
 }
 
 void FontViewer::draw()
@@ -59,7 +59,7 @@ void FontViewer::draw()
 
 void FontViewer::bindTexture(const oglTexture& tex)
 {
-    prog->globalState().setTexture(tex, "tex").end();
+    prog->State().SetTexture(tex, "tex");
 }
 
 }

@@ -22,9 +22,7 @@ SubroutineResource::SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>*
     stage = (ShaderType)res.Stage;
     for (const auto& routine : res.Routines)
         routines->Add(ToStr(routine.Name));
-    string srname;
-    Prog->lock()->globalState().getSubroutine(cppname, srname).end();
-    current = ToStr(srname);
+    current = ToStr(Prog->lock()->GetSubroutine(cppname)->Name);
 }
 
 

@@ -54,31 +54,61 @@ void BasicTest::init2d(const u16string pname)
 
 void BasicTest::init3d(const u16string pname)
 {
-    prog3D.reset(u"3D Prog");
-    const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3D) : common::file::ReadAllText(pname);
-    try
-    {
-        prog3D->AddExtShaders(shaderSrc);
-    }
-    catch (const OGLException& gle)
-    {
-        basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"OpenGL compile fail");
-    }
-    try
-    {
-        prog3D->link();
-        prog3D->SetUniform("useNormalMap", false);
-        prog3D->globalState().setSubroutine("lighter", "onlytex").setSubroutine("getNorm", "verted").end();
-    }
-    catch (const OGLException& gle)
-    {
-        basLog().error(u"Fail to link Program:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"link Program error");
-    }
-    
     cam.position = Vec3(0.0f, 0.0f, 4.0f);
-    prog3D->setCamera(cam);
+    {
+        oglProgram progBasic(u"3D Prog");
+        const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3D) : common::file::ReadAllText(pname);
+        try
+        {
+            progBasic->AddExtShaders(shaderSrc);
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"OpenGL compile fail");
+        }
+        try
+        {
+            progBasic->link();
+            progBasic->SetUniform("useNormalMap", false);
+            progBasic->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "verted");
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"Fail to link Program:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"link Program error");
+        }
+        progBasic->setCamera(cam);
+        Prog3Ds.insert(progBasic);
+        prog3D = progBasic;
+    }
+    {
+        oglProgram progPBR(u"3D-pbr");
+        const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3DPBR) : 
+            common::file::ReadAllText(common::str::ReplaceStr<char16_t>(pname, u".glsl", u"_pbr.glsl"));
+        try
+        {
+            progPBR->AddExtShaders(shaderSrc);
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"OpenGL compile fail");
+        }
+        try
+        {
+            progPBR->link();
+            progPBR->SetUniform("useNormalMap", false);
+            progPBR->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "verted");
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"Fail to link Program:\n{}\n", gle.message);
+            COMMON_THROW(BaseException, L"link Program error");
+        }
+        progPBR->setCamera(cam);
+        Prog3Ds.insert(progPBR);
+    }
     {
         Wrapper<Pyramid> pyramid(1.0f);
         pyramid->name = u"Pyramid";
@@ -151,17 +181,12 @@ void BasicTest::initTex()
 
 void BasicTest::initUBO()
 {
-    if (auto lubo = prog3D->getResource("lightBlock"))
+    if (auto lubo = prog3D->GetResource("lightBlock"))
         lightUBO.reset(lubo->size);
     else
         lightUBO.reset(0);
     lightLim = (uint8_t)lightUBO->size / sizeof(LightData);
-    if (auto mubo = prog3D->getResource("materialBlock"))
-        materialUBO.reset(mubo->size);
-    else
-        materialUBO.reset(0);
-    materialLim = (uint8_t)materialUBO->size / sizeof(MaterialData);
-    prog3D->globalState().setUBO(lightUBO, "lightBlock").setUBO(materialUBO, "mat").end();
+    prog3D->State().SetUBO(lightUBO, "lightBlock");
 }
 
 void BasicTest::prepareLight()
@@ -243,8 +268,8 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
     initTex();
     init2d(sname2d);
     init3d(sname3d);
-    prog2D->globalState().setTexture(fontCreator->getTexture(), "tex").end();
-    prog3D->globalState().setTexture(mskTex, "tex").end();
+    prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
+    prog3D->State().SetTexture(mskTex, "tex");
     initUBO();
     glProgs.push_back(prog2D);
     glProgs.push_back(prog3D);
@@ -337,7 +362,8 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
-    drawable->prepareGL(prog3D);
+    for(const auto& prog : Prog3Ds)
+        drawable->prepareGL(prog);
     drawables.push_back(drawable);
     basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->getType(), drawable->name);
     return true;
@@ -349,6 +375,14 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
     prepareLight();
     basLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
     return true;
+}
+
+void BasicTest::ChangeShader(const oglProgram& prog)
+{
+    if (Prog3Ds.count(prog))
+        prog3D = prog;
+    else
+        basLog().warning(u"change to an unknown shader [{}], ignored.\n", prog ? prog->Name : u"null");
 }
 
 void BasicTest::DelAllLight()

@@ -146,12 +146,11 @@ oglu::oglTexture _ModelImage::genTextureAsync(const common::asyexe::AsyncAgent& 
 class OBJLoder
 {
 private:
-    static std::set<string> specialPrefix;
     fs::path FilePath;
-    Charset chset;
     vector<uint8_t> Content;
     size_t CurPos, Length;
 public:
+    Charset chset;
     struct TextLine
     {
         uint64_t Type;
@@ -240,7 +239,7 @@ public:
         Length = Content.size() - 1;
         CurPos = 0;
         chset = uchdet::detectEncoding(Content);
-        basLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.wstring(), getCharsetWName(chset));
+        basLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetWName(chset));
     }
 
     TextLine ReadLine()
@@ -284,7 +283,6 @@ public:
         return textLine;
     }
 };
-std::set<string> OBJLoder::specialPrefix = { "mtllib","usemtl","newmtl","g" };
 
 map<u16string, ModelData> _ModelData::models;
 
@@ -454,14 +452,14 @@ map<string, detail::_ModelData::MtlStub> _ModelData::loadMTL(const fs::path& mtl
             //break;
         case "map_Kd"_hash:
             {
-                auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1)), mtlpath.parent_path());
+                auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1), ldr.chset), mtlpath.parent_path());
                 curmtl->diffuse() = tex;
                 if (tex)
                     curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
             }break;
         case "map_bump"_hash:
             {
-                auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1)), mtlpath.parent_path());
+                auto tex = detail::_ModelImage::getImage(str::to_wstring(line.Rest(1), ldr.chset), mtlpath.parent_path());
                 curmtl->normal() = tex;
                 if (tex)
                     curmtl->width = std::max(curmtl->width, static_cast<uint16_t>(tex->Width)), curmtl->height = std::max(curmtl->height, static_cast<uint16_t>(tex->Height));
@@ -497,12 +495,6 @@ catch (FileException& fe)
 void _ModelData::loadOBJ(const fs::path& objpath) try
 {
     using miniBLAS::VecI4;
-    {
-        OBJLoder ldrEx(objpath);
-        auto tmpLine = ldrEx.ReadLine();
-        tmpLine = ldrEx.ReadLine();
-        string rest = string(tmpLine.Rest());
-    }
     OBJLoder ldr(objpath);
     vector<Vec3> points{ Vec3(0,0,0) };
     vector<Normal> normals{ Normal(0,0,0) };
@@ -705,8 +697,9 @@ void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 void Model::draw(Drawcall& drawcall) const
 {
     drawPosition(drawcall)
-        .setTexture(data->texd, "tex")
-        .setTexture(data->texn, "tex", 1)
+        .SetUBO(MaterialUBO, "materialBlock")
+        .SetTexture(data->texd, "tex")
+        .SetTexture(data->texn, "tex", 1)
         .SetUniform("useNormalMap", true)
         .draw(getVAO(drawcall.GetProg()));
 }
