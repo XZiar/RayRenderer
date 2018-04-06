@@ -512,7 +512,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTextur
     case 0:
         return;
     case 1:
-        SetTexture(texMan, texs.begin()->first, texs.begin()->second);
+        SetTexture(texMan, texs.begin()->first, texs.begin()->second, shouldPin);
         break;
     default:
         texMan.bindAll(programID, texs, UniBindCache, shouldPin);
@@ -537,7 +537,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, co
     case 0:
         return;
     case 1:
-        SetUBO(uboMan, ubos.begin()->first, ubos.begin()->second);
+        SetUBO(uboMan, ubos.begin()->first, ubos.begin()->second, shouldPin);
         break;
     default:
         uboMan.bindAll(programID, ubos, UniBindCache, shouldPin);

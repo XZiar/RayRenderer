@@ -26,3 +26,7 @@ inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color
 {
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
 }
+inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color)
+{
+    color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
+}

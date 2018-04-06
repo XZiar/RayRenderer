@@ -26,17 +26,18 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
-    set<oglProgram> Prog3Ds;
     oglTexture picTex, mskTex, tmpTex;
     oglBuffer picBuf, screenBox;
     oglVAO picVAO;
     oglUBO lightUBO;
+    uint32_t WindowWidth, WindowHeight;
     uint8_t lightLim, materialLim;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;
     vector<Wrapper<Light>> lights;
-    vector<oglProgram> glProgs;
+    set<oglProgram> Prog3Ds;
+    set<oglProgram> glProgs;
     std::atomic_uint32_t IsUBOChanged = 0;
     fs::path basepath;
     void init2d(const u16string pname);
@@ -52,16 +53,18 @@ public:
     void Draw();
     void Resize(const int w, const int h);
     void ReloadFontLoader(const u16string& fname);
-    void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError = nullptr);
-    void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(BaseException&)> onError = nullptr);
+    void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
+    bool AddShader(const oglProgram& prog);
     void ChangeShader(const oglProgram& prog);
     void ReportChanged(const ChangableUBO target);
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
-    const vector<oglProgram>& Shaders() const { return glProgs; }
+    const set<oglProgram>& Shaders() const { return glProgs; }
     const oglContext& GetContext() const { return glContext; }
 };
 

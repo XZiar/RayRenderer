@@ -16,6 +16,12 @@ using Basic3D::Vec3F;
 
 public ref class Drawable : public BaseViewModel
 {
+private:
+    void RefreshMaterial() 
+    {
+        const auto d = drawable->lock();
+        d->AssignMaterial(&d->BaseMaterial, 1);
+    }
 internal:
     std::weak_ptr<rayr::Drawable> *drawable;
     initonly String^ type;
@@ -37,6 +43,30 @@ public:
     {
         Vec3F get() { return Vec3F(drawable->lock()->rotation); }
         void set(Vec3F value) { value.Store(drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
+    }
+    property System::Windows::Media::Color Albedo
+    {
+        System::Windows::Media::Color get() { return ToColor(drawable->lock()->BaseMaterial.Albedo); }
+        void set(System::Windows::Media::Color value)
+        {
+            FromColor(value, drawable->lock()->BaseMaterial.Albedo);
+            OnPropertyChanged("Albedo"); RefreshMaterial();
+        }
+    }
+    property float Metallic
+    {
+        float get() { return drawable->lock()->BaseMaterial.Metalness; }
+        void set(float value) { drawable->lock()->BaseMaterial.Metalness = value;OnPropertyChanged("Metallic"); RefreshMaterial(); }
+    }
+    property float Roughness
+    {
+        float get() { return drawable->lock()->BaseMaterial.Roughness; }
+        void set(float value) { drawable->lock()->BaseMaterial.Roughness = value; OnPropertyChanged("Roughness"); RefreshMaterial(); }
+    }
+    property float AO
+    {
+        float get() { return drawable->lock()->BaseMaterial.AO; }
+        void set(float value) { drawable->lock()->BaseMaterial.AO = value; OnPropertyChanged("AO"); RefreshMaterial(); }
     }
     CLI_READONLY_PROPERTY(String^, Type, type);
 
@@ -60,12 +90,12 @@ public:
 generic<typename T>
 public delegate void ObjectChangedEventHandler(Object^ sender, T obj);
 
-template<typename Type, typename CLIType>
+template<typename Type, typename CLIType, typename ContainerType = vector<Type>>
 public ref class HolderBase
 {
 protected:
     rayr::BasicTest * const Core;
-    const vector<Type>& Src;
+    const ContainerType& Src;
 public:
     initonly List<CLIType^>^ Container;
 protected:
@@ -85,7 +115,7 @@ protected:
         obj->PropertyChanged += PChangedHandler;
         return obj;
     }
-    HolderBase(rayr::BasicTest * const core, const vector<Type>& src)
+    HolderBase(rayr::BasicTest * const core, const ContainerType& src)
         : Core(core), Src(src), Container(gcnew List<CLIType^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &HolderBase::OnPChangded)) 
     {
         Refresh();
@@ -179,17 +209,19 @@ internal:
     bool AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel);
 };
 
-public ref class ShaderHolder : public HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram>
+public ref class ShaderHolder : public HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>
 {
 internal:
-    ShaderHolder(rayr::BasicTest * const core, const vector<oglu::oglProgram>& progs)
-        : HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram>(core, progs)
+    ShaderHolder(rayr::BasicTest * const core, const std::set<oglu::oglProgram>& progs)
+        : HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>(core, progs)
     { }
+    bool AddShader(CLIWrapper<oglu::oglProgram> theShader);
 public:
     property List<OpenGLUtil::GLProgram^>^ Shaders
     {
         List<OpenGLUtil::GLProgram^>^ get() { return Container; }
     }
+    Task<bool>^ AddShaderAsync(String^ fname, String^ shaderName);
 };
 
 public ref class BasicTest
@@ -219,6 +251,7 @@ public:
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
     void SetFaceCulling(OpenGLUtil::FaceCullingType type);
+    void UseShader(OpenGLUtil::GLProgram^ shader);
 };
 
 

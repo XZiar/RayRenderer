@@ -14,6 +14,7 @@ layout(std140) uniform lightBlock
 {
     LightData lights[16];
 };
+uniform uint lightCount = 0;
 
 struct MaterialData
 {
@@ -91,12 +92,12 @@ subroutine uniform NormalCalc getNorm;
 
 
 subroutine(NormalCalc)
-vec3 verted()
+vec3 vertedNormal()
 {
     return normalize(norm);
 }
 subroutine(NormalCalc)
-vec3 mapped()
+vec3 mappedNormal()
 {
     const vec3 ptNorm = normalize(norm);
     const vec3 ptTan = normalize(tannorm.xyz);
@@ -110,7 +111,7 @@ vec3 mapped()
 subroutine(NormalCalc)
 vec3 both()
 {
-    return useNormalMap ? mapped() : verted();
+    return useNormalMap ? mappedNormal() : vertedNormal();
 }
 
 
@@ -137,8 +138,8 @@ vec4 normdiff()
 {
     if(!useNormalMap)
         return vec4(0.5f, 0.5f, 0.5f, 1.0f);
-    const vec3 ptNorm = verted();
-    const vec3 ptNorm2 = mapped();
+    const vec3 ptNorm = vertedNormal();
+    const vec3 ptNorm2 = mappedNormal();
     const vec3 diff = ptNorm2 - ptNorm;
     return vec4((diff + 1.0f) * 0.5f, 1.0f);
 }
@@ -166,7 +167,7 @@ void bilinnPhong(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
 {
     const vec3 eyeRay = normalize(cam2pt);
     const vec3 ptNorm = getNorm();
-    for (int id = 0; id < 16; id++)
+    for (int id = 0; id < lightCount; id++)
     {
         vec3 p2l;
         float atten = 1.0f;
@@ -205,7 +206,7 @@ vec4 basic()
     lowp vec3 specularColor = vec3(0.0f);
     bilinnPhong(diffuseColor, specularColor);
     lowp vec4 finalColor = texture(tex[0], tpos);
-    finalColor.rgb *= ambientColor * materials[0].intensity.x + diffuseColor * materials[0].intensity.y + specularColor * materials[0].intensity.z;
+    finalColor.rgb *= ambientColor + diffuseColor + specularColor;
     return finalColor;
 }
 subroutine(LightModel)
@@ -216,7 +217,7 @@ vec4 diffuse()
     lowp vec3 specularColor = vec3(0.0f);
     bilinnPhong(diffuseColor, specularColor);
     lowp vec4 finalColor = texture(tex[0], tpos);
-    finalColor.rgb *= ambientColor * materials[0].intensity.x + diffuseColor * materials[0].intensity.y;
+    finalColor.rgb *= ambientColor + diffuseColor;
     return finalColor;
 }
 
@@ -228,7 +229,7 @@ vec4 specular()
     lowp vec3 specularColor = vec3(0.0f);
     bilinnPhong(diffuseColor, specularColor);
     lowp vec4 finalColor = texture(tex[0], tpos);
-    finalColor.rgb *= ambientColor * materials[0].intensity.x + specularColor * materials[0].intensity.z;
+    finalColor.rgb *= ambientColor + specularColor;
     return finalColor;
 }
 

@@ -72,6 +72,8 @@ Drawable::Drawable(const std::type_index type, const u16string& typeName) : Draw
 {
     DrawableHelper::Regist(DrawableType, typeName);
     MaterialUBO.reset(16 * sizeof(MaterialData));
+    BaseMaterial.Albedo = Vec3(0.58, 0.58, 0.58);
+    BaseMaterial.Metalness = 0.1f;
     AssignMaterial(&BaseMaterial, 1);
 }
 
@@ -84,14 +86,14 @@ Drawable::~Drawable()
     }
 }
 
-void Drawable::AssignMaterial(const Material * material, const size_t count) const
+void Drawable::AssignMaterial(const PBRMaterial * material, const size_t count) const
 {
     vector<uint8_t> data(MaterialUBO->size);
     size_t pos = 0;
     for (uint32_t i = 0; i < count; ++i)
     {
-        memcpy_s(&data[pos], MaterialUBO->size - pos, (const MaterialData*)(&material[i]), sizeof(MaterialData));
-        pos += sizeof(MaterialData);
+        memcpy_s(&data[pos], MaterialUBO->size - pos, (const PBRMaterialData*)(&material[i]), sizeof(PBRMaterialData));
+        pos += sizeof(PBRMaterialData);
         if (pos >= MaterialUBO->size)
             break;
     }

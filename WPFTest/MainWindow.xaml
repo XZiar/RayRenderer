@@ -170,6 +170,19 @@
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
+                            <GroupBox Header="材质" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                                <StackPanel Orientation="Vertical">
+                                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
+                                        <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                                    </ext:LabelControl>
+                                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="金属率">
+                                        <Slider Value="{Binding Metaillic, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                                    </ext:LabelControl>
+                                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="粗糙">
+                                        <Slider Value="{Binding Roughness, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                                    </ext:LabelControl>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -300,6 +313,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </GroupBox>
+                            <Button Foreground="White" Content="Use this" Click="btnUseShader_Click"/>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>

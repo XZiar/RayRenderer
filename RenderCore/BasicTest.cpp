@@ -71,7 +71,7 @@ void BasicTest::init3d(const u16string pname)
         {
             progBasic->link();
             progBasic->SetUniform("useNormalMap", false);
-            progBasic->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "verted");
+            progBasic->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "vertedNormal");
         }
         catch (const OGLException& gle)
         {
@@ -99,14 +99,17 @@ void BasicTest::init3d(const u16string pname)
         {
             progPBR->link();
             progPBR->SetUniform("useNormalMap", false);
-            progPBR->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "verted");
+            progPBR->SetUniform("useDiffuseMap", true);
+            progPBR->State()
+                .SetSubroutine("lighter", "onlytex")
+                .SetSubroutine("getNorm", "vertedNormal")
+                .SetSubroutine("getAlbedo", "materialAlbedo");
         }
         catch (const OGLException& gle)
         {
             basLog().error(u"Fail to link Program:\n{}\n", gle.message);
             COMMON_THROW(BaseException, L"link Program error");
         }
-        progPBR->setCamera(cam);
         Prog3Ds.insert(progPBR);
     }
     {
@@ -181,12 +184,14 @@ void BasicTest::initTex()
 
 void BasicTest::initUBO()
 {
-    if (auto lubo = prog3D->GetResource("lightBlock"))
-        lightUBO.reset(lubo->size);
-    else
-        lightUBO.reset(0);
-    lightLim = (uint8_t)lightUBO->size / sizeof(LightData);
-    prog3D->State().SetUBO(lightUBO, "lightBlock");
+    uint16_t size = 0;
+    for (const auto& prog : Prog3Ds)
+    {
+        if (auto lubo = prog->GetResource("lightBlock"))
+            size = common::max(size, lubo->size);
+    }
+    lightUBO.reset(size);
+    lightLim = (uint8_t)(size / sizeof(LightData));
 }
 
 void BasicTest::prepareLight()
@@ -201,6 +206,7 @@ void BasicTest::prepareLight()
         if (pos >= lightUBO->size)
             break;
     }
+    prog3D->SetUniform("lightCount", (uint32_t)lights.size());
     lightUBO->write(data, BufferWriteMode::StreamDraw);
 }
 
@@ -269,11 +275,16 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
     init2d(sname2d);
     init3d(sname3d);
     prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
-    prog3D->State().SetTexture(mskTex, "tex");
     initUBO();
-    glProgs.push_back(prog2D);
-    glProgs.push_back(prog3D);
-    glProgs.push_back(fontViewer->prog);
+    for (const auto& prog : Prog3Ds)
+    {
+        prog->State()
+            .SetTexture(mskTex, "tex")
+            .SetUBO(lightUBO, "lightBlock");
+    }
+    glProgs.insert(prog2D);
+    glProgs.insert(Prog3Ds.cbegin(), Prog3Ds.cend());
+    glProgs.insert(fontViewer->prog);
 }
 
 void BasicTest::Draw()
@@ -314,7 +325,7 @@ void BasicTest::ReloadFontLoader(const u16string& fname)
     fontTest(0);
 }
 
-void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError)
 {
     std::thread([this, onFinish, onError](const u16string name)
     {
@@ -338,7 +349,7 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 }
 
 
-void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(BaseException&)> onError)
+void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError)
 {
     std::thread([this, onFinish, onError](const u16string name)
     {
@@ -360,6 +371,39 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
     }, fname).detach();
 }
 
+void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
+{
+    oglUtil::invokeSyncGL([this, onFinish, onError, fname, shdName](const common::asyexe::AsyncAgent& agent)
+    {
+        oglProgram prog(shdName);
+        try
+        {
+            prog->AddExtShaders(common::file::ReadAllText(fname));
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+            onError(gle);
+        }
+        try
+        {
+            prog->link();
+            prog->SetUniform("useNormalMap", false);
+            prog->SetUniform("useDiffuseMap", true);
+            prog->State()
+                .SetSubroutine("lighter", "onlytex")
+                .SetSubroutine("getNorm", "vertedNormal")
+                .SetSubroutine("getAlbedo", "materialAlbedo");
+        }
+        catch (const OGLException& gle)
+        {
+            basLog().error(u"Fail to link Program:\n{}\n", gle.message);
+            onError(gle);
+        }
+        onFinish(prog);
+    }, u"load shader " + shdName);
+}
+
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
     for(const auto& prog : Prog3Ds)
@@ -367,6 +411,17 @@ bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
     drawables.push_back(drawable);
     basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->getType(), drawable->name);
     return true;
+}
+
+bool BasicTest::AddShader(const oglProgram& prog)
+{
+    const auto isAdd = Prog3Ds.insert(prog).second;
+    if (isAdd)
+    {
+        for (const auto& d : drawables)
+            d->prepareGL(prog);
+    }
+    return isAdd;
 }
 
 bool BasicTest::AddLight(const Wrapper<Light>& light)
@@ -380,7 +435,11 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
 void BasicTest::ChangeShader(const oglProgram& prog)
 {
     if (Prog3Ds.count(prog))
+    {
         prog3D = prog;
+        prog3D->setCamera(cam);
+        prog3D->setProject(cam, cam.width, cam.height);
+    }
     else
         basLog().warning(u"change to an unknown shader [{}], ignored.\n", prog ? prog->Name : u"null");
 }

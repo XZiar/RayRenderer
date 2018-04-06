@@ -137,6 +137,16 @@ namespace WPFTest
                     OnItemContentChanged(o);
                 };
             }
+            public async Task<bool> AddShaderAsync(string fileName)
+            {
+                var shaderName = DateTime.Now.ToString("HH:mm:ss");
+                var ret = await Holder.AddShaderAsync(fileName, shaderName);
+                if (ret)
+                {
+                    OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
+                }
+                return ret;
+            }
         }
 
         public readonly BasicTest Test;
@@ -165,6 +175,8 @@ namespace WPFTest
 
         public void Move(float x, float y, float z, OPObject obj)
         {
+            if (!Test.Mode) //skip 2D mode
+                return;
             switch(obj)
             {
             case OPObject.Drawable:
@@ -180,6 +192,8 @@ namespace WPFTest
         }
         public void Rotate(float x, float y, float z, OPObject obj)
         {
+            if (!Test.Mode) //skip 2D mode
+                return;
             //conver to radius
             const float muler = (float)(Math.PI / 180);
             x *= muler; y *= muler; z *= muler;

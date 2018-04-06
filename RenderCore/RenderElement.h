@@ -14,8 +14,7 @@ class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable
 public:
     using Drawcall = oglu::detail::ProgDraw;
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
-    Material BaseMaterial = Material(u"default");
-    oglu::oglUBO MaterialUBO;
+    PBRMaterial BaseMaterial = PBRMaterial(u"default");
     u16string name;
     static void releaseAll(const oglu::oglProgram& prog);
     virtual ~Drawable();
@@ -42,11 +41,12 @@ public:
         rotation += angles;
         rotation.RepeatClampPos(Vec3::Vec3_2PI());
     }
+    void AssignMaterial(const PBRMaterial *material, const size_t count = 1) const;
 protected:
     const std::type_index DrawableType;
     oglu::oglVAO defaultVAO;
+    oglu::oglUBO MaterialUBO;
     Drawable(const std::type_index type, const u16string& typeName);
-    void AssignMaterial(const Material *material, const size_t count = 1) const;
     auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
     Drawcall& drawPosition(Drawcall& prog) const;
     void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;

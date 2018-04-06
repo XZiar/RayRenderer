@@ -160,8 +160,11 @@ public:
     }
     void pin(const uint16_t count)
     {
+        if (fixed.head != UINT16_MAX)
+            return;
         fixed.head = used.head;
         uint16_t tail = fixed.head;
+        data[tail].link = static_cast<uint8_t>(&fixed - links);
         for (uint16_t i = 1; i < count && tail != UINT16_MAX; ++i)
         {
             auto& node = data[tail];
@@ -171,7 +174,8 @@ public:
         fixed.tail = tail;
         used.head = data[tail].next;
         data[tail].next = UINT16_MAX;
-        data[used.head].prev = UINT16_MAX;
+        if(used.head != UINT16_MAX)
+            data[used.head].prev = UINT16_MAX;
     }
     void unpin()
     {
@@ -184,7 +188,7 @@ public:
             cur = node.next;
         }
         if (used.head != UINT16_MAX)
-            data[used.head].prev = fixed.tail;
+            data[used.head].prev = fixed.tail, data[fixed.tail].next = used.head;
         used.head = fixed.head;
         fixed.head = fixed.tail = UINT16_MAX;
     }

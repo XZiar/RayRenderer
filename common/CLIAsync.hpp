@@ -190,7 +190,7 @@ inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&
 	std::invoke(memfunc, *obj, args..., [tsk](const StdRetFuncType<RetType>& cb)
 	{
 		SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
-	}, [tsk](BaseException& be)
+	}, [tsk](const BaseException& be)
 	{
         SetTaskException(tsk, be);
 	});
@@ -203,7 +203,7 @@ inline void doInside(gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetTy
     std::invoke(asyfunc, *asyobj, args..., [tsk](const StdRetFuncType<RetType>& cb)
     {
         SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
-    }, [tsk](BaseException& be)
+    }, [tsk](const BaseException& be)
     {
         SetTaskException(tsk, be);
     });
@@ -216,7 +216,7 @@ inline void doInside3(gcroot<TaskCompletionSource<CLIWrapper<RetType>>^> tsk, As
     std::invoke(asyfunc, *asyobj, args..., [tsk](auto&& obj)
     {
         SetTaskResult<RetType>(tsk, std::move(obj));
-    }, [tsk](BaseException& be)
+    }, [tsk](const BaseException& be)
     {
         SetTaskException(tsk, be);
     });
@@ -241,7 +241,7 @@ inline void doInside4(gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetT
             delete ptr; //may cause memory leak if exception thrown
             return ret;
         });
-    }, [tsk](BaseException& be)
+    }, [tsk](const BaseException& be)
     {
         SetTaskException(tsk, be);
     });

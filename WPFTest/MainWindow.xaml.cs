@@ -425,6 +425,12 @@ namespace WPFTest
             e.Handled = true;
         }
 
+        private void btnUseShader_Click(object sender, RoutedEventArgs e)
+        {
+            Core.Test.UseShader(cboxShader.SelectedItem as GLProgram);
+            glMain.Invalidate();
+        }
+
         private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
         {
             string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
@@ -432,7 +438,23 @@ namespace WPFTest
             switch(extName)
             {
             case ".obj":
-                AddModelAsync(fname); break;
+                AddModelAsync(fname);
+                break;
+            case ".glsl":
+                {
+                    try
+                    {
+                        if (await Core.Shaders.AddShaderAsync(fname))
+                        {
+                            glMain.Invalidate();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        new TextDialog(ex).ShowDialog();
+                    }
+                }
+                break;
             case ".cl":
                 try
                 {

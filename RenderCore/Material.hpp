@@ -52,14 +52,21 @@ struct RAYCOREAPI alignas(16) PBRMaterialData : public common::AlignBase<16>
 public:
     union
     {
-        struct { float AlbegoRed, AlbegoGreen, AlbegoBlue, Metalness; };
+        struct { float AlbedoRed, AlbedoGreen, AlbedoBlue, Metalness; };
         Vec3 Albedo;
+        Vec4 Basic;
     };
     float Roughness;
     float Specular;
     float AO;
-    PBRMaterialData() : AO(1.0f) {}
+    PBRMaterialData() : Basic(Vec4(0.58, 0.58, 0.58, 0.)), Roughness(0.0f), Specular(0.0f), AO(1.0f) {}
 };
 
+struct RAYCOREAPI alignas(16) PBRMaterial : public PBRMaterialData
+{
+public:
+    std::u16string Name;
+    PBRMaterial(const std::u16string& name) : Name(name) { }
+};
 
 }
