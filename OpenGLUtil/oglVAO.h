@@ -26,41 +26,59 @@ protected:
     private:
         friend class _oglVAO;
         _oglVAO& vao;
+        bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
     public:
-        void end() noexcept;
-        /*-param  vbo buffer, vertex attr index, stride(number), size(number), offset(byte)
-        *Each group contains (stride) byte, (size) float are taken as an element, 1st element is at (offset) byte*/
-        VAOPrep& set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
-        /*vbo's inner data is assumed to be Point, automatic set VertPos,VertNorm,TexPos*/
-        VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
-        /*vbo's inner data is assumed to be PointEx, automatic set VertPos,VertNorm,TexPos,VertTan*/
-        VAOPrep& set(const oglBuffer& vbo, const GLint(&attridx)[4], const GLint offset);
-        VAOPrep& setIndex(const oglEBO& ebo);
+        VAOPrep(VAOPrep&& other) : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
+        ~VAOPrep() noexcept { End(); }
+        void End() noexcept;
+        ///<summary>Set single Vertex Attribute</summary>  
+        ///<param name="vbo">vertex attribute datasource, must be array</param>
+        ///<param name="attridx">vertex attribute index</param>
+        ///<param name="stride">size(byte) of a group of data</param>
+        ///<param name="size">count of float taken as an element</param>
+        ///<param name="offset">offset(byte) od the 1st elements</param>
+        VAOPrep& Set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
+        ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord]</summary>  
+        ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::Point]</param>
+        ///<param name="attridx">vertex attribute index x3</param>
+        ///<param name="offset">offset(byte) od the 1st elements</param>
+        VAOPrep& Set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset);
+        ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord, VertexTangent]</summary>  
+        ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::PointEx]</param>
+        ///<param name="attridx">vertex attribute index x3</param>
+        ///<param name="offset">offset(byte) od the 1st elements</param>
+        VAOPrep& Set(const oglBuffer& vbo, const GLint(&attridx)[4], const GLint offset);
+        ///<summary>Set Indexed buffer</summary>  
+        ///<param name="ebo">element buffer</param>
+        VAOPrep& SetIndex(const oglEBO& ebo);
     };
     VAODrawMode vaoMode;
     DrawMethod drawMethod = DrawMethod::UnPrepared;
     GLuint vaoID = GL_INVALID_INDEX;
-    oglEBO index;
-    //IndexSize indexType;
-    //uint8_t indexSizeof;
+    oglEBO IndexBuffer;
     vector<GLsizei> sizes;
     vector<void*> poffsets;
     vector<GLint> ioffsets;
     vector<uint32_t> offsets;
-    //uint32_t offset, size;
     void bind() const noexcept;
     static void unbind() noexcept;
-    void initSize();
+    void InitSize();
 public:
     _oglVAO(const VAODrawMode) noexcept;
     ~_oglVAO() noexcept;
 
-    VAOPrep prepare() noexcept;
-    void setDrawSize(const uint32_t offset_, const uint32_t size_);
-    void setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_);
-    void draw(const uint32_t size, const uint32_t offset = 0) const noexcept;
-    void draw() const noexcept;
+    VAOPrep Prepare() noexcept;
+    ///<summary>Set draw size(using DrawElement)</summary>  
+    ///<param name="offset_">offset</param>
+    ///<param name="size_">size</param>
+    void SetDrawSize(const uint32_t offset_, const uint32_t size_);
+    ///<summary>Set draw size(using MultyDrawElement)</summary>  
+    ///<param name="offset_">offsets</param>
+    ///<param name="size_">sizes</param>
+    void SetDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_);
+    void Draw(const uint32_t size, const uint32_t offset = 0) const noexcept;
+    void Draw() const noexcept;
 };
 
 

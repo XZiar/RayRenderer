@@ -25,14 +25,16 @@ private:
 internal:
     std::weak_ptr<rayr::Drawable> *drawable;
     initonly String^ type;
-    Drawable(const Wrapper<rayr::Drawable> *obj) : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), type(ToStr((*obj)->getType())) { }
+    Drawable(const Wrapper<rayr::Drawable> *obj) 
+        : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), type(ToStr((*obj)->GetType())) 
+    { }
 public:
     ~Drawable() { this->!Drawable(); }
     !Drawable() { delete drawable; }
     property String^ Name
     {
-        String^ get() { return ToStr(drawable->lock()->name); }
-        void set(String^ value) { drawable->lock()->name = ToU16Str(value); OnPropertyChanged("Name"); }
+        String^ get() { return ToStr(drawable->lock()->Name); }
+        void set(String^ value) { drawable->lock()->Name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
     property Vec3F Position
     {
@@ -221,7 +223,17 @@ public:
     {
         List<OpenGLUtil::GLProgram^>^ get() { return Container; }
     }
+    OpenGLUtil::GLProgram^ GetCurrent()
+    { 
+        for each(OpenGLUtil::GLProgram^ shader in Container)
+        {
+            if (shader->prog->lock() == Core->Cur3DProg())
+                return shader;
+        }
+        return nullptr;
+    }
     Task<bool>^ AddShaderAsync(String^ fname, String^ shaderName);
+    void UseShader(OpenGLUtil::GLProgram^ shader);
 };
 
 public ref class BasicTest
@@ -251,7 +263,6 @@ public:
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
     void SetFaceCulling(OpenGLUtil::FaceCullingType type);
-    void UseShader(OpenGLUtil::GLProgram^ shader);
 };
 
 

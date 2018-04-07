@@ -41,20 +41,18 @@ FontViewer::FontViewer()
             pd({ 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f });
         Point DatVert[] = { pa,pb,pc, pd,pc,pb };
 
-        viewRect->write(DatVert, sizeof(DatVert));
-        viewVAO->setDrawSize(0, 6);
-        viewVAO->prepare().set(viewRect, prog->Attr_Vert_Pos, sizeof(Point), 2, 0)
-            .set(viewRect, prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
-            .set(viewRect, prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3)).end();
+        viewRect->Write(DatVert, sizeof(DatVert));
+        viewVAO->SetDrawSize(0, 6);
+        viewVAO->Prepare().Set(viewRect, prog->Attr_Vert_Pos, sizeof(Point), 2, 0)
+            .Set(viewRect, prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
+            .Set(viewRect, prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3));
     }
-    //prog->SetUniform("distLowbound", 0.44f);
-    //prog->SetUniform("distHighbound", 0.57f);
     prog->State().SetSubroutine("fontRenderer", "sdfMid");
 }
 
 void FontViewer::draw()
 {
-    prog->draw().draw(viewVAO);
+    prog->draw().Draw(viewVAO);
 }
 
 void FontViewer::bindTexture(const oglTexture& tex)

@@ -46,9 +46,9 @@ void BasicTest::init2d(const u16string pname)
     {
         Vec3 DatVert[] = { { -1.0f, -1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },
         { 1.0f, 1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f } };
-        screenBox->write(DatVert, sizeof(DatVert));
-        picVAO->setDrawSize(0, 6);
-        picVAO->prepare().set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0).end();
+        screenBox->Write(DatVert, sizeof(DatVert));
+        picVAO->SetDrawSize(0, 6);
+        picVAO->Prepare().Set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0);
     }
 }
 
@@ -114,19 +114,19 @@ void BasicTest::init3d(const u16string pname)
     }
     {
         Wrapper<Pyramid> pyramid(1.0f);
-        pyramid->name = u"Pyramid";
+        pyramid->Name = u"Pyramid";
         pyramid->position = { 0,0,0 };
         AddObject(pyramid);
         Wrapper<Sphere> ball(0.75f);
-        ball->name = u"Ball";
+        ball->Name = u"Ball";
         ball->position = { 1,0,0 };
         AddObject(ball);
         Wrapper<Box> box(0.5f, 1.0f, 2.0f);
-        box->name = u"Box";
+        box->Name = u"Box";
         box->position = { 0,1,0 };
         AddObject(box);
         Wrapper<Plane> ground(500.0f, 50.0f);
-        ground->name = u"Ground";
+        ground->Name = u"Ground";
         ground->position = { 0,-2,0 };
         AddObject(ground);
     }
@@ -154,7 +154,7 @@ void BasicTest::initTex()
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
         tmpTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
         picTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
-        picBuf->write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
+        picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
     }
     {
         uint32_t empty[4][4] = { 0 };
@@ -196,18 +196,18 @@ void BasicTest::initUBO()
 
 void BasicTest::prepareLight()
 {
-    vector<uint8_t> data(lightUBO->size);
+    vector<uint8_t> data(lightUBO->Size());
     size_t pos = 0;
     for (const auto& lgt : lights)
     {
         if (!lgt->isOn) continue;
-        memcpy_s(&data[pos], lightUBO->size - pos, &(*lgt), sizeof(LightData));
+        memcpy_s(&data[pos], lightUBO->Size() - pos, &(*lgt), sizeof(LightData));
         pos += sizeof(LightData);
-        if (pos >= lightUBO->size)
+        if (pos >= lightUBO->Size())
             break;
     }
     prog3D->SetUniform("lightCount", (uint32_t)lights.size());
-    lightUBO->write(data, BufferWriteMode::StreamDraw);
+    lightUBO->Write(data, BufferWriteMode::StreamDraw);
 }
 
 void BasicTest::fontTest(const char32_t word)
@@ -300,7 +300,7 @@ void BasicTest::Draw()
         auto drawcall = prog3D->draw();
         for (const auto& d : drawables)
         {
-            d->draw(drawcall);
+            d->Draw(drawcall);
             drawcall.Restore();
         }
     }
@@ -351,13 +351,13 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 
 void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError)
 {
-    std::thread([this, onFinish, onError](const u16string name)
+    std::thread([onFinish, onError](const u16string name)
     {
         common::SetThreadName(u"AsyncLoader for Model");
         try
         {
             Wrapper<Model> mod(name, true);
-            mod->name = u"model";
+            mod->Name = u"model";
             onFinish(mod);
         }
         catch (BaseException& be)
@@ -373,7 +373,8 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
 
 void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
-    oglUtil::invokeSyncGL([this, onFinish, onError, fname, shdName](const common::asyexe::AsyncAgent& agent)
+    using common::asyexe::StackSize;
+    oglUtil::invokeSyncGL([onFinish, onError, fname, shdName](const common::asyexe::AsyncAgent& agent)
     {
         oglProgram prog(shdName);
         try
@@ -401,15 +402,15 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
             onError(gle);
         }
         onFinish(prog);
-    }, u"load shader " + shdName);
+    }, u"load shader " + shdName, StackSize::Huge);
 }
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
     for(const auto& prog : Prog3Ds)
-        drawable->prepareGL(prog);
+        drawable->PrepareGL(prog);
     drawables.push_back(drawable);
-    basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->getType(), drawable->name);
+    basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->GetType(), drawable->Name);
     return true;
 }
 
@@ -419,7 +420,7 @@ bool BasicTest::AddShader(const oglProgram& prog)
     if (isAdd)
     {
         for (const auto& d : drawables)
-            d->prepareGL(prog);
+            d->PrepareGL(prog);
     }
     return isAdd;
 }

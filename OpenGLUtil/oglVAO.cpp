@@ -1,23 +1,29 @@
 #include "oglRely.h"
 #include "oglVAO.h"
+#include "oglException.h"
 
 namespace oglu::detail
 {
 
 
-_oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) noexcept :vao(vao_)
+_oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) noexcept :vao(vao_), isEmpty(false)
 {
     vao.bind();
 }
 
-void _oglVAO::VAOPrep::end() noexcept
+void _oglVAO::VAOPrep::End() noexcept
 {
-    _oglVAO::unbind();
+    if (!isEmpty)
+    {
+        isEmpty = true;
+        _oglVAO::unbind();
+    }
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglBuffer& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset)
 {
-    assert(vbo->bufferType == BufferType::Array);
+    if (vbo->BufType != BufferType::Array)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Binding buffer must be VBO([BufferType::Array]).");
     if (attridx != GL_INVALID_INDEX)
     {
         vbo->bind();
@@ -27,9 +33,10 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint attrid
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglBuffer& vbo, const GLint(&attridx)[3], const GLint offset)
 {
-    assert(vbo->bufferType == BufferType::Array);
+    if (vbo->BufType != BufferType::Array)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Binding buffer must be VBO([BufferType::Array]).");
     vbo->bind();
     if (attridx[0] != GL_INVALID_INDEX)
     {
@@ -49,9 +56,10 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attridx)[4], const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglBuffer& vbo, const GLint(&attridx)[4], const GLint offset)
 {
-    assert(vbo->bufferType == BufferType::Array);
+    if (vbo->BufType != BufferType::Array)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Binding buffer must be VBO([BufferType::Array]).\n");
     vbo->bind();
     if (attridx[0] != GL_INVALID_INDEX)
     {
@@ -76,11 +84,11 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::set(const oglBuffer& vbo, const GLint(&attri
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::setIndex(const oglEBO& ebo)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
 {
     ebo->bind();
-    vao.index = ebo;
-    vao.initSize();
+    vao.IndexBuffer = ebo;
+    vao.InitSize();
     return *this;
 }
 
@@ -95,14 +103,14 @@ void _oglVAO::unbind() noexcept
     glBindVertexArray(0);
 }
 
-void _oglVAO::initSize()
+void _oglVAO::InitSize()
 {
-    if (index)
+    if (IndexBuffer)
     {
         drawMethod = sizes.size() > 1 ? DrawMethod::Indexs : DrawMethod::Index;
         poffsets.clear();
         for (const auto& off : offsets)
-            poffsets.push_back((void*)intptr_t(off * index->idxsize));
+            poffsets.push_back((void*)intptr_t(off * IndexBuffer->IndexSize));
     }
     else
     {
@@ -123,38 +131,38 @@ _oglVAO::~_oglVAO() noexcept
     glDeleteVertexArrays(1, &vaoID);
 }
 
-_oglVAO::VAOPrep _oglVAO::prepare() noexcept
+_oglVAO::VAOPrep _oglVAO::Prepare() noexcept
 {
     return VAOPrep(*this);
 }
 
-void _oglVAO::setDrawSize(const uint32_t offset_, const uint32_t size_)
+void _oglVAO::SetDrawSize(const uint32_t offset_, const uint32_t size_)
 {
     sizes = { (GLsizei)size_ };
     offsets = { offset_ };
-    initSize();
+    InitSize();
 }
 
-void _oglVAO::setDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_)
+void _oglVAO::SetDrawSize(const vector<uint32_t> offset_, const vector<uint32_t> size_)
 {
     offsets = offset_;
     sizes.clear();
     for (const auto& s : size_)
         sizes.push_back((GLsizei)s);
-    initSize();
+    InitSize();
 }
 
-void _oglVAO::draw(const uint32_t size, const uint32_t offset) const noexcept
+void _oglVAO::Draw(const uint32_t size, const uint32_t offset) const noexcept
 {
     bind();
-    if (index)
-        glDrawElements((GLenum)vaoMode, size, (GLenum)index->idxtype, (void*)intptr_t(offset * index->idxsize));
+    if (IndexBuffer)
+        glDrawElements((GLenum)vaoMode, size, IndexBuffer->IndexType, (void*)intptr_t(offset * IndexBuffer->IndexSize));
     else
         glDrawArrays((GLenum)vaoMode, offset, size);
     unbind();
 }
 
-void _oglVAO::draw() const noexcept
+void _oglVAO::Draw() const noexcept
 {
     bind();
     switch (drawMethod)
@@ -163,13 +171,13 @@ void _oglVAO::draw() const noexcept
         glDrawArrays((GLenum)vaoMode, ioffsets[0], sizes[0]);
         break;
     case DrawMethod::Index:
-        glDrawElements((GLenum)vaoMode, sizes[0], (GLenum)index->idxtype, poffsets[0]);
+        glDrawElements((GLenum)vaoMode, sizes[0], IndexBuffer->IndexType, poffsets[0]);
         break;
     case DrawMethod::Arrays:
         glMultiDrawArrays((GLenum)vaoMode, ioffsets.data(), sizes.data(), (GLsizei)sizes.size());
         break;
     case DrawMethod::Indexs:
-        glMultiDrawElements((GLenum)vaoMode, sizes.data(), (GLenum)index->idxtype, poffsets.data(), (GLsizei)sizes.size());
+        glMultiDrawElements((GLenum)vaoMode, sizes.data(), IndexBuffer->IndexType, poffsets.data(), (GLsizei)sizes.size());
         break;
     }
     unbind();

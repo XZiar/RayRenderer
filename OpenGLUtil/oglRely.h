@@ -34,7 +34,7 @@
 #include <memory>
 #include <functional>
 #include <type_traits>
-#include <assert.h>
+#include <string.h>
 #include <string>
 #include <cstring>
 #include <array>

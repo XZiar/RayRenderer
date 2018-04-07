@@ -221,7 +221,8 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf)
 {
-	assert(buf->bufferType == BufferType::Pixel);
+    if (buf->BufType != BufferType::Pixel)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Binding buffer must be PBO([BufferType::Pixel]).");
 	bind(0);
 	buf->bind();
 	GLenum datatype, comptype;
@@ -256,7 +257,8 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size)
 {
-	assert(buf->bufferType == BufferType::Pixel);
+    if (buf->BufType != BufferType::Pixel)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Binding buffer must be PBO([BufferType::Pixel]).");
 	bind(0);
 	buf->bind();
 	glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);

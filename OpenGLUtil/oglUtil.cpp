@@ -178,14 +178,16 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
     }
 }
 
-PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName)
+using common::asyexe::StackSize;
+
+PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName, const StackSize stackSize)
 {
-    return getWorker(0).doWork(task, taskName);
+    return getWorker(0).doWork(task, taskName, static_cast<uint32_t>(stackSize));
 }
 
-PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName)
+PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName, const StackSize stackSize)
 {
-    return getWorker(1).doWork(task, taskName);
+    return getWorker(1).doWork(task, taskName, static_cast<uint32_t>(stackSize));
 }
 
 common::asyexe::AsyncResult<void> oglUtil::SyncGL()

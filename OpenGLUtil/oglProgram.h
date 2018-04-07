@@ -24,8 +24,8 @@ struct OGLUAPI ProgramResource : public common::container::NamedSetValue<Program
     friend class detail::ProgState;
     friend class detail::ProgDraw;
 private:
-    GLint getValue(const GLuint pid, const GLenum prop);
-    void initData(const GLuint pid, const GLint idx);
+    GLint GetValue(const GLuint pid, const GLenum prop);
+    void InitData(const GLuint pid, const GLint idx);
 public:
     GLint location = GL_INVALID_INDEX;
     //length of array
@@ -248,8 +248,8 @@ public:
     ProgDraw& SetPosition(const Mat4x4& modelMat) { return SetPosition(modelMat, (Mat3x3)modelMat); }
     /*draw vao
     *-param vao, size, offset*/
-    ProgDraw& draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
-    ProgDraw& draw(const oglVAO& vao);
+    ProgDraw& Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
+    ProgDraw& Draw(const oglVAO& vao);
     ProgDraw& SetTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
     ProgDraw& SetTexture(const oglTexture& tex, const GLuint pos);
     ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);

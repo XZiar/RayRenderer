@@ -15,15 +15,20 @@ public:
     using Drawcall = oglu::detail::ProgDraw;
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
     PBRMaterial BaseMaterial = PBRMaterial(u"default");
-    u16string name;
-    static void releaseAll(const oglu::oglProgram& prog);
+    u16string Name;
+
+    ///<summary>Release all related VAO for the shader-program</summary>  
+    ///<param name="prog">shader program</param>
+    static void ReleaseAll(const oglu::oglProgram& prog);
+    
     virtual ~Drawable();
-    /*prepare VAO with given Vertex Attribute Location
-     *-param: VertPos,VertNorm,TexPos
-     */
-    virtual void prepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
-    virtual void draw(Drawcall& drawcall) const;
-    u16string getType() const;
+    ///<summary>Prepare for specific shader program(Generate VAO)</summary>  
+    ///<param name="prog">shader program</param>
+    ///<param name="translator">mapping from common resource name to program's resource name</param>
+    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
+    virtual void Draw(Drawcall& drawcall) const;
+
+    u16string GetType() const;
     void Move(const float x, const float y, const float z)
     {
         position += Vec3(x, y, z);
@@ -44,14 +49,19 @@ public:
     void AssignMaterial(const PBRMaterial *material, const size_t count = 1) const;
 protected:
     const std::type_index DrawableType;
-    oglu::oglVAO defaultVAO;
+    oglu::oglVAO EmptyVAO;
     oglu::oglUBO MaterialUBO;
     Drawable(const std::type_index type, const u16string& typeName);
-    auto defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare());
-    Drawcall& drawPosition(Drawcall& prog) const;
-    void setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;
-    const oglu::oglVAO& getVAO(const oglu::oglProgram& prog) const { return getVAO(prog.weakRef()); }
-    const oglu::oglVAO& getVAO(const oglu::oglProgram::weak_type& weakProg) const;
+    void PrepareMaterial();
+    auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->Prepare());
+    Drawcall& DrawPosition(Drawcall& prog) const;
+    ///<summary>Assign VAO into prog-sensative map</summary>  
+    ///<param name="prog">target shader program</param>
+    ///<param name="vao">saved VAO</param>
+    void SetVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;
+    const oglu::oglVAO& GetVAO(const oglu::oglProgram& prog) const { return GetVAO(prog.weakRef()); }
+    const oglu::oglVAO& GetVAO(const Drawcall& drawcall) const { return GetVAO(drawcall.GetProg()); }
+    const oglu::oglVAO& GetVAO(const oglu::oglProgram::weak_type& weakProg) const;
     template<typename T>
     static std::type_index GetType(const T* const obj) { return std::type_index(typeid(obj)); }
 };

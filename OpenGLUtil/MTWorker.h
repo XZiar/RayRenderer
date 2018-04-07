@@ -25,7 +25,7 @@ public:
         Executor.Terminate();
     }
     void start(oglContext&& context);
-    common::PromiseResult<void> doWork(const AsyncTaskFunc& work, const u16string& taskName);
+    common::PromiseResult<void> doWork(const AsyncTaskFunc& work, const u16string& taskName, const uint32_t stackSize);
 };
 
 

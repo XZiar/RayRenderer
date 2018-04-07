@@ -86,7 +86,7 @@
             </Button>
             <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
         </StackPanel>
-        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="{StaticResource brshBlue}" >
+        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="Black" >
             <StatusBar.ItemsPanel>
                 <ItemsPanelTemplate>
                     <Grid>
@@ -108,6 +108,10 @@
                 <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
                 <StatusBarItem>
                     <TextBlock x:Name="txtCurObj" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurShd" Foreground="White"/>
                 </StatusBarItem>
                 <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
                 <StatusBarItem>
@@ -176,7 +180,7 @@
                                         <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
                                     </ext:LabelControl>
                                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="金属率">
-                                        <Slider Value="{Binding Metaillic, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                                        <Slider Value="{Binding Metallic, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                                     </ext:LabelControl>
                                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="粗糙">
                                         <Slider Value="{Binding Roughness, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>

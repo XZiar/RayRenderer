@@ -29,12 +29,23 @@ namespace WPFTest
     /// </summary>
     public partial class MainWindow : Window
     {
+        private static BrushConverter Brush_Conv = new BrushConverter();
         private TestCore Core = null;
         private MemoryMonitor MemMonitor = null;
         private OPObject OperateTarget = OPObject.Camera;
         private ImageSource imgCamera, imgCube, imgPointLight;
+        private readonly SolidColorBrush brshBlue = Brush_Conv.ConvertFromString("#FF007ACC") as SolidColorBrush,
+            brshOrange = Brush_Conv.ConvertFromString("#FFDC5E07") as SolidColorBrush;
         private Timer AutoRefresher;
         private float MouseSensative => (float)slMouseSen.Value;
+        private ushort waitingCount = 0;
+        public ushort WaitingCount { get { return waitingCount; } set { waitingCount = value; ChangeStatusBar(value); } }
+
+        private void ChangeStatusBar(ushort value)
+        {
+            barStatus.Background = value > 0 ? brshOrange : brshBlue;
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -44,6 +55,8 @@ namespace WPFTest
             imgCamera = (ImageSource)this.FindResource("imgCamera");
             imgCube = (ImageSource)this.FindResource("imgCube");
             imgPointLight = (ImageSource)this.FindResource("imgPointLight");
+            brshBlue = (SolidColorBrush)this.FindResource("brshBlue");
+            brshOrange = (SolidColorBrush)this.FindResource("brshOrange");
             common.Logger.OnLog += OnLog;
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) => 
@@ -122,6 +135,13 @@ namespace WPFTest
                     return $"#{Core.Lights.CurLgtIdx}[{light.Type}] {light.Name}";
                 })
             });
+            txtCurShd.SetBinding(TextBlock.TextProperty, new Binding
+            {
+                Source = Core.Shaders,
+                Path = new PropertyPath("Current"),
+                Mode = BindingMode.OneWay,
+                Converter = new OneWayValueConvertor(o => ((GLProgram)o)?.Name)
+            });
 
             cboxFCull.ItemsSource = new[] { FaceCullingType.OFF, FaceCullingType.CullCW, FaceCullingType.CullCCW, FaceCullingType.CullAll };
             cboxFCull.SelectedItem = FaceCullingType.OFF;
@@ -172,6 +192,7 @@ namespace WPFTest
             }, null, 0, 20);
             this.Closing += (o, e) => AutoRefresher.Change(Timeout.Infinite, 20);
             glMain.Invalidate();
+            WaitingCount = 0;
         }
 
         private static readonly Dictionary<common.LogLevel, SolidColorBrush> brashMap = new Dictionary<common.LogLevel, SolidColorBrush>
@@ -260,6 +281,7 @@ namespace WPFTest
         {
             try
             {
+                WaitingCount++;
                 if (await Core.Drawables.AddModelAsync(fileName))
                 {
                     Core.Rotate(-90, 0, 0, OPObject.Drawable);
@@ -270,6 +292,10 @@ namespace WPFTest
             catch (Exception ex)
             {
                 new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
             }
         }
 
@@ -427,7 +453,7 @@ namespace WPFTest
 
         private void btnUseShader_Click(object sender, RoutedEventArgs e)
         {
-            Core.Test.UseShader(cboxShader.SelectedItem as GLProgram);
+            Core.Shaders.UseProgram(cboxShader.SelectedItem as GLProgram);
             glMain.Invalidate();
         }
 
@@ -441,29 +467,35 @@ namespace WPFTest
                 AddModelAsync(fname);
                 break;
             case ".glsl":
+                try
                 {
-                    try
-                    {
-                        if (await Core.Shaders.AddShaderAsync(fname))
-                        {
-                            glMain.Invalidate();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        new TextDialog(ex).ShowDialog();
-                    }
+                    WaitingCount++;
+                    if (await Core.Shaders.AddShaderAsync(fname))
+                        glMain.Invalidate();
+                }
+                catch (Exception ex)
+                {
+                    new TextDialog(ex).ShowDialog();
+                }
+                finally
+                {
+                    WaitingCount--;
                 }
                 break;
             case ".cl":
                 try
                 {
+                    WaitingCount++;
                     if (await Core.Test.ReloadCLAsync(fname))
                         glMain.Invalidate();
                 }
                 catch (Exception ex)
                 {
                     new TextDialog(ex).ShowDialog();
+                }
+                finally
+                {
+                    WaitingCount--;
                 }
                 break;
             }

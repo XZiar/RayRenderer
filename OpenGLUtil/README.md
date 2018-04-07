@@ -95,6 +95,16 @@ The stynx is `//@@##{UniformName}|{UniformType}|[Description]|[MinValue]|[MaxVal
 
 Uniform's initial value will be readed after linked in oglProgram, but not all of them are supported.
 
+#### Resource Mapping
+
+Some common resources are widely used by shaders, so mapping is added to an vertex-sttribute or uniform is a specific kind of resource.
+
+The syntax is `//@@->{Type}|{VariableName}`, where `Type` is one of the following: 
+
+`ProjectMat`, `ViewMat`, `ModelMat`, `MVPMat`, `MVPNormMat`, `CamPosVec`, `VertPos` for uniforms.
+
+`VertNorm`, `VertTexc`, `VertColor`, `VertTan` for vertex attributes.
+
 ### Resource Management
 
 Texture and UBO are binded to slots, which are limited and context-sensative. oglProgram(main shader) binds location with slots, which is context-insensative. These two bindings are seperated stored in context-related storage and program's state storage.

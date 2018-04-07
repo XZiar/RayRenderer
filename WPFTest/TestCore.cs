@@ -126,7 +126,7 @@ namespace WPFTest
             }
         }
 
-        public class ShaderList : ObservableList<GLProgram>
+        public class ShaderList : ObservableList<GLProgram>, IDisposable
         {
             private readonly ShaderHolder Holder;
             internal ShaderList(ShaderHolder holder) : base(holder.Shaders)
@@ -137,6 +137,11 @@ namespace WPFTest
                     OnItemContentChanged(o);
                 };
             }
+            public GLProgram Current
+            {
+                get;
+                private set;
+            }
             public async Task<bool> AddShaderAsync(string fileName)
             {
                 var shaderName = DateTime.Now.ToString("HH:mm:ss");
@@ -146,6 +151,20 @@ namespace WPFTest
                     OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
                 }
                 return ret;
+            }
+            public void UseProgram(GLProgram prog)
+            {
+                Holder.UseShader(prog);
+                Current = Holder.GetCurrent();
+                OnPropertyChanged("Current");
+            }
+
+            public void Dispose()
+            {
+                Holder.Container.Clear();
+                Current = null;
+                OnPropertyChanged("Current");
+                OnCollectionChanged();
             }
         }
 
@@ -229,6 +248,7 @@ namespace WPFTest
                 }
                 Lights.Dispose();
                 Drawables.Dispose();
+                Shaders.Dispose();
                 Test.Dispose();
 
                 disposedValue = true;

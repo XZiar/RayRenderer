@@ -13,11 +13,11 @@ void MTWorker::start(oglContext&& context)
     std::thread(&MTWorker::worker, this).detach();
 }
 
-common::PromiseResult<void> MTWorker::doWork(const AsyncTaskFunc& work, const u16string& taskName)
+common::PromiseResult<void> MTWorker::doWork(const AsyncTaskFunc& work, const u16string& taskName, const uint32_t stackSize)
 {
     SimpleTimer callerTimer;
     callerTimer.Start();
-    const auto pms = Executor.AddTask(work, taskName);
+    const auto pms = Executor.AddTask(work, taskName, stackSize);
     callerTimer.Stop();
     oglLog().debug(u"CALL {} add work cost {} us\n", Name, callerTimer.ElapseUs());
     return pms;

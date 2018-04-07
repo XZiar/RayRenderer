@@ -57,7 +57,8 @@ public:
 template<typename T>
 using AsyncResult = std::shared_ptr<detail::AsyncResult_<T>>;
 
+enum class StackSize : uint32_t { Default = 0, Tiny = 4096, Small = 65536, Big = 512 * 1024, Large = 1024 * 1024, Huge = 4 * 1024 * 1024 };
+
+
 }
-
-
 }

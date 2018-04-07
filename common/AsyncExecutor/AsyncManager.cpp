@@ -85,12 +85,14 @@ void AsyncManager::Resume()
     Context = Context.resume();
 }
 
-PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16string taskname)
+PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16string taskname, uint32_t stackSize)
 {
     const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
     if (taskname == u"")
         taskname = u"task" + common::str::to_u16string(tuid);
-    auto node = new detail::AsyncTaskNode(taskname);
+    if (stackSize == 0)
+        stackSize = static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size());
+    auto node = new detail::AsyncTaskNode(taskname, stackSize);
     node->Func = task;
     node->ResPms = std::make_shared<detail::AsyncTaskResult>(node->Pms);
     const auto ret = std::static_pointer_cast<common::detail::PromiseResult_<void>>(node->ResPms);
@@ -132,7 +134,8 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
             switch (Current->Status)
             {
             case detail::AsyncTaskStatus::New:
-                Current->Context = boost::context::callcc([&](boost::context::continuation && context)
+                Current->Context = boost::context::callcc(std::allocator_arg, boost::context::fixedsize_stack(Current->StackSize),
+                    [&](boost::context::continuation && context)
                 {
                     Context = std::move(context);
                     CallWrapper(Current, Agent);

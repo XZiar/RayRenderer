@@ -71,10 +71,6 @@ struct VAOKeyX
 Drawable::Drawable(const std::type_index type, const u16string& typeName) : DrawableType(type)
 {
     DrawableHelper::Regist(DrawableType, typeName);
-    MaterialUBO.reset(16 * sizeof(MaterialData));
-    BaseMaterial.Albedo = Vec3(0.58, 0.58, 0.58);
-    BaseMaterial.Metalness = 0.1f;
-    AssignMaterial(&BaseMaterial, 1);
 }
 
 Drawable::~Drawable()
@@ -86,33 +82,41 @@ Drawable::~Drawable()
     }
 }
 
+void Drawable::PrepareMaterial()
+{
+    MaterialUBO.reset(16 * sizeof(MaterialData));
+    BaseMaterial.Albedo = Vec3(0.58, 0.58, 0.58);
+    BaseMaterial.Metalness = 0.1f;
+    AssignMaterial(&BaseMaterial, 1);
+}
+
 void Drawable::AssignMaterial(const PBRMaterial * material, const size_t count) const
 {
-    vector<uint8_t> data(MaterialUBO->size);
+    vector<uint8_t> data(MaterialUBO->Size());
     size_t pos = 0;
     for (uint32_t i = 0; i < count; ++i)
     {
-        memcpy_s(&data[pos], MaterialUBO->size - pos, (const PBRMaterialData*)(&material[i]), sizeof(PBRMaterialData));
+        memcpy_s(&data[pos], MaterialUBO->Size() - pos, (const PBRMaterialData*)(&material[i]), sizeof(PBRMaterialData));
         pos += sizeof(PBRMaterialData);
-        if (pos >= MaterialUBO->size)
+        if (pos >= MaterialUBO->Size())
             break;
     }
-    MaterialUBO->write(data, oglu::BufferWriteMode::StreamDraw);
+    MaterialUBO->Write(data, oglu::BufferWriteMode::StreamDraw);
 }
 
-void Drawable::draw(Drawcall& drawcall) const
+void Drawable::Draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall)
+    DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
-        .draw(getVAO(drawcall.GetProg()));
+        .Draw(GetVAO(drawcall.GetProg()));
 }
 
-u16string Drawable::getType() const
+u16string Drawable::GetType() const
 {
     return DrawableHelper::GetType(DrawableType);
 }
 
-void Drawable::releaseAll(const oglu::oglProgram& prog)
+void Drawable::ReleaseAll(const oglu::oglProgram& prog)
 {
     if (auto vaomap = CTX_VAO_MAP.TryGet())
     {
@@ -122,19 +126,19 @@ void Drawable::releaseAll(const oglu::oglProgram& prog)
     }
 }
 
-auto Drawable::defaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->prepare())
+auto Drawable::DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->Prepare())
 {
     const GLint attrs[3] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc };
-    return std::move(vao->prepare().set(vbo, attrs, 0));
+    return std::move(vao->Prepare().Set(vbo, attrs, 0));
 }
 
-Drawable::Drawcall& Drawable::drawPosition(Drawcall& drawcall) const
+Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
 {
     Mat3x3 matNormal = Mat3x3::RotateMatXYZ(rotation);
     return drawcall.SetPosition(Mat4x4::TranslateMat(position) * Mat4x4(matNormal * Mat3x3::ScaleMat(scale)), matNormal);
 }
 
-void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
+void Drawable::SetVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
 {
     auto vaomap = CTX_VAO_MAP.GetOrInsert([](const auto& dummy) { return std::make_shared<VAOMap>(); });
     const auto& it = vaomap->find(std::make_tuple(this, prog.weakRef()));
@@ -144,18 +148,16 @@ void Drawable::setVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) con
         vaomap->modify(it, [&](VAOPack& pack) { pack.vao = vao; });
 }
 
-const oglu::oglVAO& Drawable::getVAO(const oglu::oglProgram::weak_type& weakProg) const
+const oglu::oglVAO& Drawable::GetVAO(const oglu::oglProgram::weak_type& weakProg) const
 {
     if (auto vaomap = CTX_VAO_MAP.TryGet())
     {
         const auto& it = (*vaomap)->find(std::make_tuple(this, weakProg));
-        if (it == (*vaomap)->cend())
-            return defaultVAO;
-        else
+        if (it != (*vaomap)->cend())
             return it->vao;
     }
-    return defaultVAO;
-    
+    basLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
+    return EmptyVAO;
 }
 
 

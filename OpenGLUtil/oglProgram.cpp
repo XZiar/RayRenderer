@@ -20,7 +20,7 @@ static detail::ContextResource<GLuint> CTX_PROG_MAP;
 
 
 
-GLint ProgramResource::getValue(const GLuint pid, const GLenum prop)
+GLint ProgramResource::GetValue(const GLuint pid, const GLenum prop)
 {
     GLint ret;
     glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
@@ -55,18 +55,18 @@ const char* ProgramResource::GetValTypeName() const noexcept
     }
 }
 
-void ProgramResource::initData(const GLuint pid, const GLint idx)
+void ProgramResource::InitData(const GLuint pid, const GLint idx)
 {
     ifidx = (uint8_t)idx;
     if (type == GL_UNIFORM_BLOCK)
     {
         valtype = GL_UNIFORM_BLOCK;
-        size = getValue(pid, GL_BUFFER_DATA_SIZE);
+        size = GetValue(pid, GL_BUFFER_DATA_SIZE);
     }
     else
     {
-        valtype = (GLenum)getValue(pid, GL_TYPE);
-        len = getValue(pid, GL_ARRAY_SIZE);
+        valtype = (GLenum)GetValue(pid, GL_TYPE);
+        len = GetValue(pid, GL_ARRAY_SIZE);
     }
 }
 
@@ -171,7 +171,7 @@ void _oglProgram::InitLocs()
                 continue;
             }
             ProgramResource datinfo(dtype, nameBuf);
-            datinfo.initData(programID, a);
+            datinfo.InitData(programID, a);
             if (dtype == GL_UNIFORM_BLOCK)
                 datinfo.location = glGetProgramResourceIndex(programID, dtype, nameBuf.c_str());
             else
@@ -774,23 +774,23 @@ ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
     Prog.SetUniform(Prog.Uni_normalMat, normMat, false);
     return *this;
 }
-ProgDraw& ProgDraw::draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
+ProgDraw& ProgDraw::Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     Prog.SetTexture(TexMan, TexCache);
     Prog.SetUBO(UboMan, UBOCache);
     Prog.SetSubroutine();
-    vao->draw(size, offset);
+    vao->Draw(size, offset);
     TexCache.clear();
     UBOCache.clear();
     return *this;
 }
 
-ProgDraw& ProgDraw::draw(const oglVAO& vao)
+ProgDraw& ProgDraw::Draw(const oglVAO& vao)
 {
     Prog.SetTexture(TexMan, TexCache);
     Prog.SetUBO(UboMan, UBOCache);
     Prog.SetSubroutine();
-    vao->draw();
+    vao->Draw();
     TexCache.clear();
     UBOCache.clear();
     return *this;

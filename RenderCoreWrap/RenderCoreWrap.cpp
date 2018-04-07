@@ -57,12 +57,6 @@ void BasicTest::SetFaceCulling(OpenGLUtil::FaceCullingType type)
     core->GetContext()->SetFaceCulling((oglu::FaceCullingType)type);
 }
 
-void BasicTest::UseShader(OpenGLUtil::GLProgram^ shader)
-{
-    if (shader == nullptr) return;
-    core->ChangeShader(shader->prog->lock());
-}
-
 
 #pragma managed(push, off)
 static Wrapper<b3d::Light> CreateLight(b3d::LightType type)
@@ -139,6 +133,12 @@ Task<bool>^ ShaderHolder::AddShaderAsync(String^ fname, String^ shaderName)
 {
     return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglProgram>, bool>(this, &ShaderHolder::AddShader),
         &rayr::BasicTest::LoadShaderAsync, Core, ToU16Str(fname), ToU16Str(shaderName));
+}
+
+void ShaderHolder::UseShader(OpenGLUtil::GLProgram^ shader)
+{
+    if (shader == nullptr) return;
+    Core->ChangeShader(shader->prog->lock());
 }
 
 

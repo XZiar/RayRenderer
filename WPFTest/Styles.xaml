@@ -5,6 +5,7 @@
                     xmlns:local="clr-namespace:WPFTest">
     <SolidColorBrush x:Key="brshDarkBackground" Color="#FF252526"/>
     <SolidColorBrush x:Key="brshBlue" Color="#FF007ACC"/>
+    <SolidColorBrush x:Key="brshOrange" Color="#FFDC5E07"/>
     <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#FF252526"/>
     <Style TargetType="Image">
         <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />

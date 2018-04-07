@@ -307,7 +307,7 @@ oglu::oglVAO _ModelData::getVAO() const
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     if (groups.empty())
-        vao->setDrawSize(0, (uint32_t)indexs.size());
+        vao->SetDrawSize(0, (uint32_t)indexs.size());
     else
     {
         vector<uint32_t> offs, sizs;
@@ -319,7 +319,7 @@ oglu::oglVAO _ModelData::getVAO() const
             offs.push_back(last = g.second);
         }
         sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
-        vao->setDrawSize(offs, sizs);
+        vao->SetDrawSize(offs, sizs);
     }
     return vao;
 }
@@ -626,9 +626,9 @@ void _ModelData::initData()
     diffuse.release();
     normal.release();
     vbo.reset(oglu::BufferType::Array);
-    vbo->write(pts);
+    vbo->Write(pts);
     ebo.reset();
-    ebo->writeCompat(indexs);
+    ebo->WriteCompact(indexs);
 }
 
 void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
@@ -638,9 +638,9 @@ void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
     diffuse.release();
     normal.release();
     vbo.reset(oglu::BufferType::Array);
-    vbo->write(pts);
+    vbo->Write(pts);
     ebo.reset();
-    ebo->writeCompat(indexs);
+    ebo->WriteCompact(indexs);
     auto sync = oglu::oglUtil::SyncGL();
     agent.Await(sync);
     basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
@@ -674,6 +674,14 @@ Model::Model(const u16string& fname, bool asyncload) : Drawable(GetType(this), T
 {
     const auto resizer = 2 / max(max(data->size.x, data->size.y), data->size.z);
     scale = Vec3(resizer, resizer, resizer);
+    if (asyncload)
+    {
+        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) { PrepareMaterial(); });
+    }
+    else
+    {
+        PrepareMaterial();
+    }
 }
 
 Model::~Model()
@@ -683,25 +691,24 @@ Model::~Model()
     detail::_ModelData::releaseModel(mfname);
 }
 
-void Model::prepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Model::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     auto vao = data->getVAO();
     const GLint attrs[4] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc, prog->Attr_Vert_Tan };
-    vao->prepare()
-        .set(data->vbo, attrs, 0)
-        .setIndex(data->ebo)//index draw
-        .end();
-    setVAO(prog, vao);
+    vao->Prepare()
+        .Set(data->vbo, attrs, 0)
+        .SetIndex(data->ebo);//index draw
+    SetVAO(prog, vao);
 }
 
-void Model::draw(Drawcall& drawcall) const
+void Model::Draw(Drawcall& drawcall) const
 {
-    drawPosition(drawcall)
+    DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
         .SetTexture(data->texd, "tex")
         .SetTexture(data->texn, "tex", 1)
         .SetUniform("useNormalMap", true)
-        .draw(getVAO(drawcall.GetProg()));
+        .Draw(GetVAO(drawcall.GetProg()));
 }
 
 }

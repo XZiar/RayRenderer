@@ -65,6 +65,7 @@ public:
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
     const set<oglProgram>& Shaders() const { return glProgs; }
+    const oglProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
 };
 

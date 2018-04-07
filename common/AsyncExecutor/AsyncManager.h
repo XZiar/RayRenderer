@@ -47,10 +47,12 @@ struct AsyncTaskNode
     std::shared_ptr<AsyncTaskResult> ResPms;
     PmsCore Promise = nullptr;
     common::SimpleTimer TaskTimer;
+    const uint32_t StackSize;
     AsyncTaskStatus Status = AsyncTaskStatus::New;
-    AsyncTaskNode(const std::u16string& name) : Name(name) { }
+    AsyncTaskNode(const std::u16string& name, const size_t stackSize) : Name(name), StackSize(static_cast<uint32_t>(stackSize)) { }
 };
 }
+
 
 
 class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
@@ -78,7 +80,9 @@ private:
 public:
     AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
     ~AsyncManager();
-    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"");
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"", uint32_t stackSize = 0);
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, const std::u16string& taskname, const StackSize stackSize) 
+    { return AddTask(task, taskname, (uint32_t)stackSize); }
     void MainLoop(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
     void Terminate();
     void OnTerminate(const std::function<void(void)>& exiter = {});
