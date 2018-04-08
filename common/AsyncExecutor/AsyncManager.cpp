@@ -93,7 +93,7 @@ PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16str
     if (stackSize == 0)
         stackSize = static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size());
     auto node = new detail::AsyncTaskNode(taskname, stackSize);
-    node->Func = task;
+    node->Func = std::move(task);
     node->ResPms = std::make_shared<detail::AsyncTaskResult>(node->Pms);
     const auto ret = std::static_pointer_cast<common::detail::PromiseResult_<void>>(node->ResPms);
     if (AddNode(node))
@@ -118,6 +118,7 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
     RunningThread = ThreadObject::GetCurrentThreadObject();
     if (initer)
         initer();
+    AsyncAgent::GetRawAsyncAgent() = &Agent;
     common::SimpleTimer timer;
     while (ShouldRun)
     {

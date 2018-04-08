@@ -7,7 +7,7 @@ namespace oglu
 enum class BufferType : GLenum
 {
     Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER, ShaderStorage = GL_SHADER_STORAGE_BUFFER,
-    Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER, Indirect = GL_DISPATCH_INDIRECT_BUFFER
+    Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER, Indirect = GL_DRAW_INDIRECT_BUFFER
 };
 enum class BufferWriteMode : GLenum
 {
@@ -33,7 +33,7 @@ namespace detail
 class OGLUAPI _oglBuffer : public NonCopyable
 {
 protected:
-    friend class oclu::detail::_oclGLBuffer;
+    friend class ::oclu::detail::_oclGLBuffer;
     friend class _oglTexture;
     friend class _oglVAO;
     friend class _oglProgram;
@@ -44,8 +44,8 @@ protected:
     GLuint bufferID = GL_INVALID_INDEX;
     void bind() const noexcept;
     void unbind() const noexcept;
-public:
     _oglBuffer(const BufferType type) noexcept;
+public:
     ~_oglBuffer() noexcept;
 
     void PersistentMap(const size_t size, const BufferFlags flags);
@@ -61,6 +61,22 @@ public:
     {
         Write(dat, sizeof(dat), mode);
     }
+};
+
+
+class OGLUAPI _oglPixelBuffer : public _oglBuffer
+{
+    friend class _oglTexture;
+public:
+    _oglPixelBuffer() noexcept : _oglBuffer(BufferType::Pixel) { }
+};
+
+
+class OGLUAPI _oglArrayBuffer : public _oglBuffer
+{
+    friend class _oglVAO;
+public:
+    _oglArrayBuffer() noexcept : _oglBuffer(BufferType::Array) { }
 };
 
 
@@ -87,6 +103,45 @@ public:
     _oglUniformBuffer(const size_t size) noexcept;
     ~_oglUniformBuffer() noexcept;
     size_t Size() const { return BufSize; };
+};
+
+
+class OGLUAPI _oglIndirectBuffer : public _oglBuffer
+{
+public:
+    struct DrawElementsIndirectCommand
+    {
+        GLuint count;
+        GLuint instanceCount;
+        GLuint firstIndex;
+        GLuint baseVertex;
+        GLuint baseInstance;
+    };
+    struct DrawArraysIndirectCommand
+    {
+        GLuint count;
+        GLuint instanceCount;
+        GLuint first;
+        GLuint baseInstance;
+    };
+protected:
+    friend class _oglVAO;
+    std::variant<vector<DrawElementsIndirectCommand>, vector<DrawArraysIndirectCommand>> Commands;
+    GLsizei Count = 0;
+    bool IsIndexed = false;
+public:
+    _oglIndirectBuffer() noexcept;
+    ~_oglIndirectBuffer() noexcept { };
+    ///<summary>Write indirect draw commands</summary>  
+    ///<param name="offsets">offsets</param>
+    ///<param name="sizes">sizes</param>
+    ///<param name="isIndexed">Indexed commands or not</param>
+    void WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed);
+    ///<summary>Write indirect draw commands</summary>  
+    ///<param name="offset">offset</param>
+    ///<param name="size">size</param>
+    ///<param name="isIndexed">Indexed commands or not</param>
+    void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
 };
 
 
@@ -186,9 +241,12 @@ public:
 }
 
 using oglBuffer = Wrapper<detail::_oglBuffer>;
+using oglPBO = Wrapper<detail::_oglPixelBuffer>;
+using oglVBO = Wrapper<detail::_oglArrayBuffer>;
 using oglTBO = Wrapper<detail::_oglTextureBuffer>;
 using oglUBO = Wrapper<detail::_oglUniformBuffer>;
 using oglEBO = Wrapper<detail::_oglElementBuffer>;
+using oglIBO = Wrapper<detail::_oglIndirectBuffer>;
 
 
 }

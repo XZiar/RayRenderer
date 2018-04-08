@@ -133,8 +133,10 @@ private:
     }
     static std::future<bool> putInvoke(detail::_FreeGLUTView* view, std::function<bool(void)>& task)
     {
-        while(shouldInvoke.exchange(true))//keep tring until it acquire the invoke
-        { }//act like a spin-lock
+        while(shouldInvoke.exchange(true))//keep trying until it acquire the invoke
+        {
+            std::this_thread::yield();
+        }//act like a spin-lock
         invokeData = { view,task,std::promise<bool>() };
         auto fut = std::get<2>(invokeData).get_future();
         readyInvoke.store(true);
@@ -146,12 +148,15 @@ private:
         if (shouldInvoke.load())//need to invoke
         {
             while(!readyInvoke.load())
-            { }//act like a spin-lock
+            {
+                std::this_thread::yield();
+            }//act like a spin-lock
             try
             {
-                if (std::get<1>(invokeData)())
-                    std::get<0>(invokeData)->refresh();
-                std::get<2>(invokeData).set_value(true);
+                auto&[wd, task, pms] = invokeData;
+                if (task())
+                    wd->refresh();
+                pms.set_value(true);
             }
         #pragma warning(disable:4101)
             catch (std::exception& e)

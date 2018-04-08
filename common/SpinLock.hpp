@@ -40,7 +40,7 @@ public:
 struct PreferSpinLock : public NonCopyable, public NonMovable //Strong-first
 {
 private:
-    std::atomic<uint32_t> Flag = 0; //strong on half 16bit, weak on lower 16bit
+    std::atomic<uint32_t> Flag { 0 }; //strong on half 16bit, weak on lower 16bit
 public:
     void LockWeak()
     {
@@ -69,7 +69,7 @@ public:
 struct WRSpinLock : public NonCopyable, public NonMovable //Writer-first
 {
 private:
-    std::atomic<uint32_t> Flag = 0; //writer on most siginificant bit, reader on lower bits
+    std::atomic<uint32_t> Flag { 0 }; //writer on most siginificant bit, reader on lower bits
 public:
     void LockRead()
     {
@@ -107,7 +107,7 @@ public:
 struct RWSpinLock : public NonCopyable, public NonMovable //Reader-first
 {
 private:
-    std::atomic<uint32_t> Flag = 0; //writer on most siginificant bit, reader on lower bits
+    std::atomic<uint32_t> Flag { 0 }; //writer on most siginificant bit, reader on lower bits
 public:
     void LockRead()
     {

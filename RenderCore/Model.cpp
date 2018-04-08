@@ -303,11 +303,10 @@ void _ModelData::releaseModel(const u16string& fname)
             models.erase(fname);
 }
 
-oglu::oglVAO _ModelData::getVAO() const
+void _ModelData::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
 {
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     if (groups.empty())
-        vao->SetDrawSize(0, (uint32_t)indexs.size());
+        vaoPrep.SetDrawSize(0, (uint32_t)indexs.size());
     else
     {
         vector<uint32_t> offs, sizs;
@@ -319,9 +318,9 @@ oglu::oglVAO _ModelData::getVAO() const
             offs.push_back(last = g.second);
         }
         sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
-        vao->SetDrawSize(offs, sizs);
+        //vaoPrep.SetDrawSize(offs, sizs);
+        vaoPrep.SetDrawSize(ibo);
     }
-    return vao;
 }
 
 
@@ -619,28 +618,42 @@ catch (const FileException&)
     COMMON_THROW(BaseException, L"fail to load model data");
 }
 
+void _ModelData::InitDataBuffers()
+{
+    diffuse.release();
+    normal.release();
+    vbo.reset();
+    vbo->Write(pts);
+    ebo.reset();
+    ebo->WriteCompact(indexs);
+    {
+        ibo.reset();
+        //ibo->WriteCommands(0, indexs.size(), true);
+        vector<uint32_t> offs, sizes;
+        uint32_t last = 0;
+        for (const auto& g : groups)
+        {
+            if (!offs.empty())
+                sizes.push_back(g.second - last);
+            offs.push_back(last = g.second);
+        }
+        sizes.push_back(static_cast<uint32_t>(indexs.size() - last));
+        ibo->WriteCommands(offs, sizes, true);
+    }
+}
+
 void _ModelData::initData()
 {
     texd = diffuse->genTexture();
     texn = normal->genTexture();
-    diffuse.release();
-    normal.release();
-    vbo.reset(oglu::BufferType::Array);
-    vbo->Write(pts);
-    ebo.reset();
-    ebo->WriteCompact(indexs);
+    InitDataBuffers();
 }
 
 void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
 {
     texd = diffuse->genTextureAsync(agent);
     texn = normal->genTextureAsync(agent);
-    diffuse.release();
-    normal.release();
-    vbo.reset(oglu::BufferType::Array);
-    vbo->Write(pts);
-    ebo.reset();
-    ebo->WriteCompact(indexs);
+    InitDataBuffers();
     auto sync = oglu::oglUtil::SyncGL();
     agent.Await(sync);
     basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
@@ -653,7 +666,7 @@ _ModelData::_ModelData(const u16string& fname, bool asyncload) :mfname(fname)
     {
         const auto fileName = fs::path(fname).filename().u16string();
         auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initDataAsync, this, std::placeholders::_1), fileName);
-        task->wait();
+        AsyncAgent::SafeWait(task);
     }
     else
     {
@@ -693,12 +706,16 @@ Model::~Model()
 
 void Model::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
-    auto vao = data->getVAO();
+    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     const GLint attrs[4] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc, prog->Attr_Vert_Tan };
-    vao->Prepare()
-        .Set(data->vbo, attrs, 0)
-        .SetIndex(data->ebo);//index draw
+    {
+        auto vaoprep = std::move(vao->Prepare()
+            .Set(data->vbo, attrs, 0)
+            .SetIndex(data->ebo));
+        data->PrepareVAO(vaoprep);
+    }
     SetVAO(prog, vao);
+    vao->Test();
 }
 
 void Model::Draw(Drawcall& drawcall) const

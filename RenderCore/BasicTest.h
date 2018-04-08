@@ -27,7 +27,8 @@ private:
     oclContext clContext;
     oglProgram prog2D, prog3D;
     oglTexture picTex, mskTex, tmpTex;
-    oglBuffer picBuf, screenBox;
+    oglPBO picBuf;
+    oglVBO screenBox;
     oglVAO picVAO;
     oglUBO lightUBO;
     uint32_t WindowWidth, WindowHeight;
@@ -38,7 +39,7 @@ private:
     vector<Wrapper<Light>> lights;
     set<oglProgram> Prog3Ds;
     set<oglProgram> glProgs;
-    std::atomic_uint32_t IsUBOChanged = 0;
+    std::atomic_uint32_t IsUBOChanged { 0 };
     fs::path basepath;
     void init2d(const u16string pname);
     void init3d(const u16string pname);

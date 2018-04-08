@@ -126,7 +126,7 @@ void Drawable::ReleaseAll(const oglu::oglProgram& prog)
     }
 }
 
-auto Drawable::DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->Prepare())
+auto Drawable::DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
 {
     const GLint attrs[3] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc };
     return std::move(vao->Prepare().Set(vbo, attrs, 0));

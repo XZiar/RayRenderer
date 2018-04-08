@@ -13,7 +13,7 @@ void MTWorker::start(oglContext&& context)
     std::thread(&MTWorker::worker, this).detach();
 }
 
-common::PromiseResult<void> MTWorker::doWork(const AsyncTaskFunc& work, const u16string& taskName, const uint32_t stackSize)
+common::PromiseResult<void> MTWorker::DoWork(const AsyncTaskFunc& work, const u16string& taskName, const uint32_t stackSize)
 {
     SimpleTimer callerTimer;
     callerTimer.Start();

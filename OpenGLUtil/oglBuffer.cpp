@@ -1,6 +1,7 @@
 #include "oglRely.h"
 #include "oglBuffer.h"
 #include "oglContext.h"
+#include "oglException.h"
 #include "BindingManager.h"
 
 namespace oglu::detail
@@ -99,6 +100,52 @@ void _oglUniformBuffer::bind(const uint16_t pos) const
     glBindBufferBase(GL_UNIFORM_BUFFER, pos, bufferID);
 }
 
+
+_oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferType::Indirect)
+{ }
+
+void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
+{
+    const auto count = offsets.size();
+    if (count != sizes.size())
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"offset and size should be of the same size.");
+    Count = (GLsizei)count;
+    IsIndexed = isIndexed;
+    if (isIndexed)
+    {
+        vector<DrawElementsIndirectCommand> commands;
+        for (size_t i = 0; i < count; ++i)
+            commands.push_back(DrawElementsIndirectCommand{ sizes[i], 1, offsets[i], 0, (GLuint)i });
+        Write(commands);
+        Commands = std::move(commands);
+    }
+    else
+    {
+        vector<DrawArraysIndirectCommand> commands;
+        for (size_t i = 0; i < count; ++i)
+            commands.push_back(DrawArraysIndirectCommand{ sizes[i], 1, offsets[i], (GLuint)i });
+        Write(commands);
+        Commands = std::move(commands);
+    }
+}
+
+void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed)
+{
+    Count = 1;
+    IsIndexed = isIndexed;
+    if (isIndexed)
+    {
+        DrawElementsIndirectCommand command{ size, 1, offset, 0, 0 };
+        Write(&command, sizeof(DrawElementsIndirectCommand));
+        Commands = vector<DrawElementsIndirectCommand>{ command };
+    }
+    else
+    {
+        DrawArraysIndirectCommand command{ size, 1, offset, 0 };
+        Write(&command, sizeof(DrawArraysIndirectCommand));
+        Commands = vector<DrawArraysIndirectCommand>{ command };
+    }
+}
 
 _oglElementBuffer::_oglElementBuffer() noexcept : _oglBuffer(BufferType::Element)
 {

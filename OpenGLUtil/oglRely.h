@@ -43,6 +43,7 @@
 #include <set>
 #include <tuple>
 #include <optional>
+#include <variant>
 #include <algorithm>
 
 namespace oclu

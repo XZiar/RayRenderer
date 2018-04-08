@@ -127,14 +127,7 @@ vec3 materialAlbedo(const vec4 albedo)
 subroutine(AlbedoCalc)
 vec3 mappedAlbedo(const vec4 albedo)
 {
-    const vec3 ptNorm = normalize(norm);
-    const vec3 ptTan = normalize(tannorm.xyz);
-    vec3 bitanNorm = cross(ptNorm, ptTan);
-    if(tannorm.w < 0.0f) bitanNorm *= -1.0f;
-    const mat3 TBN = mat3(ptTan, bitanNorm, ptNorm);
-    const vec3 ptNormTex = texture(tex[1], tpos).rgb * 2.0f - 1.0f;
-    const vec3 ptNorm2 = TBN * ptNormTex;
-    return ptNorm2;
+    return texture(tex[0], tpos).rgb;
 }
 subroutine(AlbedoCalc)
 vec3 bothAlbedo(const vec4 albedo)
@@ -265,6 +258,21 @@ void PBR(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
     }
 }
 
+subroutine(LightModel)
+vec4 albedoOnly()
+{
+    const vec3 albedo = getAlbedo(materials[0].basic);
+    return vec4(albedo, 1.0f);
+}
+subroutine(LightModel)
+vec4 F0()
+{
+    const vec3 albedo = getAlbedo(materials[0].basic);
+    const float metallic = materials[0].basic.w;
+    const float one_metallicPI = (1.0f - metallic) * oglu_PI;
+    const vec3 F0 = mix(vec3(0.04f), albedo, metallic);
+    return vec4(F0, 1.0f);
+}
 subroutine(LightModel)
 vec4 basic()
 {

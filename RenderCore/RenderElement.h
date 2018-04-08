@@ -53,7 +53,7 @@ protected:
     oglu::oglUBO MaterialUBO;
     Drawable(const std::type_index type, const u16string& typeName);
     void PrepareMaterial();
-    auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglBuffer& vbo) -> decltype(vao->Prepare());
+    auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
     Drawcall& DrawPosition(Drawcall& prog) const;
     ///<summary>Assign VAO into prog-sensative map</summary>  
     ///<param name="prog">target shader program</param>

@@ -8,7 +8,6 @@ using b3d::PI_float;
 
 Pyramid::Pyramid(const float len) : Drawable(GetType(this), TYPENAME), sidelen(len)
 {
-    vbo.reset(oglu::BufferType::Array);
     constexpr double sqrt3 = 1.73205080757;
     constexpr float sqrt3_2 = float(sqrt3 / 2);
     constexpr float sqrt3_3 = float(sqrt3 / 3);
@@ -30,6 +29,7 @@ Pyramid::Pyramid(const float len) : Drawable(GetType(this), TYPENAME), sidelen(l
     };
     for (auto& pt : pts)
         pt.pos *= sidelen;
+    vbo.reset();
     vbo->Write(pts);
     PrepareMaterial();
 }
@@ -37,8 +37,8 @@ Pyramid::Pyramid(const float len) : Drawable(GetType(this), TYPENAME), sidelen(l
 void Pyramid::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-    vao->SetDrawSize(0, 12);
-    DefaultBind(prog, vao, vbo);
+    DefaultBind(prog, vao, vbo)
+        .SetDrawSize(0, 12);
     SetVAO(prog, vao);
 }
 
@@ -86,7 +86,7 @@ Sphere::Sphere(const float r) : Drawable(GetType(this), TYPENAME), radius(r), ra
 {
     vectorEx<Point> pts;
     auto indexs = CreateSphere(pts, radius);
-    vbo.reset(oglu::BufferType::Array);
+    vbo.reset();
     vbo->Write(pts);
     ebo.reset();
     ebo->WriteCompact(indexs);
@@ -97,9 +97,9 @@ Sphere::Sphere(const float r) : Drawable(GetType(this), TYPENAME), radius(r), ra
 void Sphere::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-    vao->SetDrawSize(0, ptcount);
     DefaultBind(prog, vao, vbo)//bind vertex attribute
-        .SetIndex(ebo);//index draw
+        .SetIndex(ebo)//index draw
+        .SetDrawSize(0, ptcount);
     SetVAO(prog, vao);
 }
 
@@ -167,7 +167,7 @@ Box::Box(const float length, const float height, const float width) : Drawable(G
     pts.assign(BoxBasePts, BoxBasePts + 36);
     for (auto& pt : pts)
         pt.pos *= size;
-    vbo.reset(oglu::BufferType::Array);
+    vbo.reset();
     vbo->Write(pts);
     PrepareMaterial();
 }
@@ -175,15 +175,14 @@ Box::Box(const float length, const float height, const float width) : Drawable(G
 void Box::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-    vao->SetDrawSize(0, 36);
-    DefaultBind(prog, vao, vbo);
+    DefaultBind(prog, vao, vbo)
+        .SetDrawSize(0, 36);
     SetVAO(prog, vao);
 }
 
 
 Plane::Plane(const float len, const float texRepeat) : Drawable(GetType(this), TYPENAME)
 {
-    vbo.reset(oglu::BufferType::Array);
     const Point pts[] =
     {
         { { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, texRepeat } },//v4
@@ -193,6 +192,7 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(GetType(this), T
         { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
         { { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, texRepeat } },//v7
     };
+    vbo.reset();
     vbo->Write(pts, sizeof(pts));
     PrepareMaterial();
 }
@@ -200,8 +200,8 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(GetType(this), T
 void Plane::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-    vao->SetDrawSize(0, 6);
-    DefaultBind(prog, vao, vbo);
+    DefaultBind(prog, vao, vbo)
+        .SetDrawSize(0, 6);
     SetVAO(prog, vao);
 }
 

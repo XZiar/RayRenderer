@@ -67,6 +67,7 @@
       </Synthetic>
     </Expand>
   </Type>
+
   <Type Name="oglu::detail::TextureManager">
     <DisplayString>{{TexMan {cache}}}</DisplayString>
     <Expand>
@@ -81,7 +82,8 @@
       <Item Name="LRUCache">cache</Item>
     </Expand>
   </Type>
-  <Type Name="oglu::SubroutineResource::Routine">
+  
+    <Type Name="oglu::SubroutineResource::Routine">
     <DisplayString>{{[{Id}]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::SubroutineResource">
@@ -93,7 +95,20 @@
     <DisplayString Condition="type == 0x92E2">{{[UniBlk ]loc[{location}]}}</DisplayString>
     <DisplayString Condition="type == 0x92E3">{{[Attrib ]loc[{location}]}}</DisplayString>
   </Type>
-  <Type Name="common::Wrapper&lt;oglu::detail::_oglProgram&gt;">
+  <Type Name="oglu::detail::_oglProgram">
+    <DisplayString>{{{Name}}}</DisplayString>
+  </Type>
+  <!--<Type Name="common::Wrapper&lt;oglu::detail::_oglProgram&gt;">
     <DisplayString>{{{_Ptr->Name}}}</DisplayString>
+  </Type>-->
+
+  <Type Name="oglu::detail::_oglVAO">
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::UnPrepared">{{Unprepared}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::Array">{{Array}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::Arrays">{{Arrays}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::Index">{{Index}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::Indexs">{{Indexs}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::IndirectArrays">{{IndirectArrays}}</DisplayString>
+    <DisplayString Condition="Method == oglu::detail::_oglVAO::DrawMethod::IndirectIndexes">{{IndirectIndexes}}</DisplayString>
   </Type>
 </AutoVisualizer>

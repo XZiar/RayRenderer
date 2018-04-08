@@ -132,6 +132,7 @@ namespace WPFTest
             internal ShaderList(ShaderHolder holder) : base(holder.Shaders)
             {
                 Holder = holder;
+                Current = Holder.GetCurrent();
                 holder.Changed += (s, o) =>
                 {
                     OnItemContentChanged(o);

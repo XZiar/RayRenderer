@@ -30,6 +30,12 @@ public:
 
 }
 
+const AsyncAgent*& AsyncAgent::GetRawAsyncAgent()
+{
+    thread_local const AsyncAgent* agent = nullptr;
+    return agent;
+}
+
 void AsyncAgent::AddPms(const PmsCore& pmscore) const
 {
     Manager.Current->TaskTimer.Stop();
@@ -53,6 +59,11 @@ void AsyncAgent::Sleep(const uint32_t ms) const
     auto pms = std::make_shared<detail::AsyncSleeper>(ms);
     auto pmscore = std::dynamic_pointer_cast<common::detail::PromiseResultCore>(pms);
     AddPms(pmscore);
+}
+
+const common::asyexe::AsyncAgent* AsyncAgent::GetAsyncAgent()
+{
+    return GetRawAsyncAgent();
 }
 
 }

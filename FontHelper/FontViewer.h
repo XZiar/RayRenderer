@@ -10,7 +10,7 @@ namespace oglu
 class FONTHELPAPI FontViewer : public NonCopyable
 {
 private:
-    oglBuffer viewRect;
+    oglVBO viewRect;
     oglVAO viewVAO;
 public:
     oglProgram prog;

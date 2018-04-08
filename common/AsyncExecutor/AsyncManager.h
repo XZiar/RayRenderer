@@ -61,12 +61,12 @@ class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
 private:
     static void CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent);
     std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode OR ShouldRun
-    std::atomic_bool ShouldRun = false;
-    std::atomic_uint32_t TaskUid = 0;
+    std::atomic_bool ShouldRun { false };
+    std::atomic_uint32_t TaskUid { 0 };
     std::mutex RunningMtx, TerminateMtx;
     std::condition_variable CondInner, CondOuter;
     boost::context::continuation Context;
-    std::atomic<detail::AsyncTaskNode*> Head = nullptr, Tail = nullptr;
+    std::atomic<detail::AsyncTaskNode*> Head { nullptr }, Tail { nullptr };
     detail::AsyncTaskNode *Current = nullptr;
     uint32_t TimeYieldSleep, TimeSensitive;
     const std::u16string Name;
@@ -80,9 +80,9 @@ private:
 public:
     AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
     ~AsyncManager();
-    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"", uint32_t stackSize = 0);
-    PromiseResult<void> AddTask(const AsyncTaskFunc& task, const std::u16string& taskname, const StackSize stackSize) 
-    { return AddTask(task, taskname, (uint32_t)stackSize); }
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"", const uint32_t stackSize = 0);
+    PromiseResult<void> AddTask(const AsyncTaskFunc& task, const std::u16string& taskname, const StackSize stackSize)
+    { return AddTask(task, taskname, static_cast<uint32_t>(stackSize)); }
     void MainLoop(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
     void Terminate();
     void OnTerminate(const std::function<void(void)>& exiter = {});

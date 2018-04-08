@@ -1,9 +1,8 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "ImageUtil/ImageUtil.h"
-#include "ImageUtil/DataConvertor.hpp"
 #include <thread>
+#include <future>
 
 namespace rayr
 {
@@ -42,13 +41,14 @@ void BasicTest::init2d(const u16string pname)
         COMMON_THROW(BaseException, L"link Program error");
     }
     picVAO.reset(VAODrawMode::Triangles);
-    screenBox.reset(BufferType::Array);
+    screenBox.reset();
     {
         Vec3 DatVert[] = { { -1.0f, -1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },
         { 1.0f, 1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f } };
         screenBox->Write(DatVert, sizeof(DatVert));
-        picVAO->SetDrawSize(0, 6);
-        picVAO->Prepare().Set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0);
+        picVAO->Prepare()
+            .Set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0)
+            .SetDrawSize(0, 6);
     }
 }
 
@@ -135,7 +135,7 @@ void BasicTest::init3d(const u16string pname)
 void BasicTest::initTex()
 {
     picTex.reset(TextureType::Tex2D);
-    picBuf.reset(BufferType::Pixel);
+    picBuf.reset();
     tmpTex.reset(TextureType::Tex2D);
     {
         picTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
@@ -374,7 +374,9 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
 void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
     using common::asyexe::StackSize;
-    oglUtil::invokeSyncGL([onFinish, onError, fname, shdName](const common::asyexe::AsyncAgent& agent)
+    const auto loadPms = std::make_shared<std::promise<oglProgram>>();
+    auto fut = loadPms->get_future();
+    oglUtil::invokeSyncGL([fname, shdName, loadPms](const common::asyexe::AsyncAgent& agent)
     {
         oglProgram prog(shdName);
         try
@@ -384,7 +386,8 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
         catch (const OGLException& gle)
         {
             basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            onError(gle);
+            loadPms->set_exception(std::current_exception());
+            return;
         }
         try
         {
@@ -399,10 +402,23 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
         catch (const OGLException& gle)
         {
             basLog().error(u"Fail to link Program:\n{}\n", gle.message);
-            onError(gle);
+            loadPms->set_exception(std::current_exception());
+            return;
         }
-        onFinish(prog);
-    }, u"load shader " + shdName, StackSize::Huge);
+        loadPms->set_value(prog);
+    }, u"load shader " + shdName, StackSize::Big);
+    std::thread([onFinish, onError](std::future<oglProgram>&& fut)
+    {
+        common::SetThreadName(u"AsyncLoader for Shader");
+        try
+        {
+            onFinish(fut.get());
+        }
+        catch (const BaseException& be)
+        {
+            onError(be);
+        }
+    }, std::move(fut)).detach();
 }
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
@@ -421,6 +437,9 @@ bool BasicTest::AddShader(const oglProgram& prog)
     {
         for (const auto& d : drawables)
             d->PrepareGL(prog);
+        prog->State()
+            .SetTexture(mskTex, "tex")
+            .SetUBO(lightUBO, "lightBlock");
     }
     return isAdd;
 }

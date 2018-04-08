@@ -139,8 +139,8 @@ bool onTimer(FreeGLUTView wd, uint32_t elapseMS)
 
 void onDropFile(FreeGLUTView wd, wstring fname)
 {
-    static bool isFirst = true;
-    if (true)
+    const auto extName = fs::path(fname).extension().u16string();
+    if (extName == u".obj")
     {
         tester->LoadModelAsync(*(u16string*)&fname, [&, wd](auto model)
         {
@@ -157,7 +157,16 @@ void onDropFile(FreeGLUTView wd, wstring fname)
             });
         });
     }
-    isFirst = false;
+    else if (extName == u".glsl")
+    {
+        tester->LoadShaderAsync(*(u16string*)&fname, u"test0", [&, wd](auto shd) 
+        {
+            wd->invoke([&, shd] 
+            {
+                return tester->AddShader(shd);
+            });
+        });
+    }
 }
 
 int wmain(int argc, wchar_t *argv[], wchar_t *envp[])

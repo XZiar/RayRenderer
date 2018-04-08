@@ -15,6 +15,7 @@ private:
     AsyncManager &Manager;
     void AddPms(const PmsCore& pmscore) const;
     AsyncAgent(AsyncManager& manager) : Manager(manager) {}
+    static const AsyncAgent*& GetRawAsyncAgent();
 public:
     void YieldThis() const;
     void Sleep(const uint32_t ms) const;
@@ -31,6 +32,16 @@ public:
         auto pmscore = std::static_pointer_cast<common::detail::PromiseResultCore>(pms);
         AddPms(pmscore);
         return pms->wait();
+    }
+    static const AsyncAgent* GetAsyncAgent();
+    template<typename T>
+    static T SafeWait(const PromiseResult<T>& pms)
+    {
+        const auto agent = GetAsyncAgent();
+        if (agent)
+            return agent->Await(pms);
+        else
+            return pms->wait();
     }
 };
 

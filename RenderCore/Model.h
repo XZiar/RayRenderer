@@ -6,8 +6,9 @@
 
 namespace rayr
 {
-
 class Model;
+
+
 namespace detail
 {
 namespace img = xziar::img;
@@ -24,7 +25,7 @@ private:
     static Wrapper<_ModelImage> getImage(fs::path picPath, const fs::path& curPath);
     static Wrapper<_ModelImage> getImage(const u16string& pname);
     static void shrink();
-    
+
     _ModelImage(const u16string& pfname);
     void CompressData(vector<uint8_t>& output, const oglu::TextureInnerFormat format);
 public:
@@ -33,8 +34,11 @@ public:
     oglu::oglTexture genTexture(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
     oglu::oglTexture genTextureAsync(const common::asyexe::AsyncAgent& agent, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 };
-using ModelImage = Wrapper<_ModelImage>;
+}
+using ModelImage = Wrapper<detail::_ModelImage>;
 
+namespace detail
+{
 class alignas(Vec3) _ModelData : public NonCopyable, public AlignBase<alignof(Vec3)>
 {
     friend class ::rayr::Model;
@@ -69,23 +73,24 @@ private:
     vector<std::pair<string, uint32_t>> groups;
     ModelImage diffuse, normal;
     oglu::oglTexture texd, texn;
-    oglu::oglBuffer vbo;
+    oglu::oglVBO vbo;
     oglu::oglEBO ebo;
+    oglu::oglIBO ibo;
     const u16string mfname;
     std::tuple<ModelImage, ModelImage> mergeTex(map<string, MtlStub>& mtlmap, vector<TexMergeItem>& texposs);
     map<string, MtlStub> loadMTL(const fs::path& mtlfname);
     void loadOBJ(const fs::path& objfname);
+    void InitDataBuffers();
     void initData();
     void initDataAsync(const common::asyexe::AsyncAgent& agent);
     _ModelData(const u16string& fname, bool asyncload = false);
 public:
     ~_ModelData();
-    oglu::oglVAO getVAO() const;
+    void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
 };
-
 }
-
 using ModelData = Wrapper<detail::_ModelData>;
+
 
 class alignas(16) Model : public Drawable
 {

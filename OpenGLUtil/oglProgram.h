@@ -4,7 +4,6 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
-#include <variant>
 
 namespace oglu
 {

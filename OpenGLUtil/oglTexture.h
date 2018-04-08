@@ -85,7 +85,7 @@ public:
 		setData(iformat, dformat, w, h, data.data());
 	}
 	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data);
-	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglBuffer& buf);
+	void setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglPBO& buf);
     void setData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true);
 	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size);
 	template<class T, class A>
@@ -93,7 +93,7 @@ public:
 	{
 		setCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
 	}
-	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglBuffer& buf, const GLsizei size);
+	void setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglPBO& buf, const GLsizei size);
 	optional<vector<uint8_t>> getCompressedData();
     vector<uint8_t> getData(const TextureDataFormat dformat);
     Image getImage(const TextureDataFormat dformat);
