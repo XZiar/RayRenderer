@@ -123,6 +123,11 @@ public:
         float get() { return light->lock()->attenuation.z; }
         void set(float value) { light->lock()->attenuation.z = value; OnPropertyChanged("Attenuation2"); }
     }
+    property float Luminance
+    {
+        float get() { return light->lock()->attenuation.w; }
+        void set(float value) { light->lock()->attenuation.w = value; OnPropertyChanged("Luminance"); }
+    }
     property System::Windows::Media::Color Color
     {
         System::Windows::Media::Color get() { return ToColor(light->lock()->color); }

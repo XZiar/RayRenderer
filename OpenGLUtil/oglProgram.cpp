@@ -311,7 +311,7 @@ void _oglProgram::FilterProperties()
 }
 
 
-void _oglProgram::addShader(const oglShader& shader)
+void _oglProgram::AddShader(const oglShader& shader)
 {
     auto [it, isAdd] = shaders.insert(shader);
     if (isAdd)
@@ -327,7 +327,7 @@ void _oglProgram::AddExtShaders(const string& src)
     for (auto shader : shaders)
     {
         shader->compile();
-        addShader(shader);
+        AddShader(shader);
     }
     ShaderProperties = std::move(info.Properties);
     for (const auto& prop : ShaderProperties)
@@ -338,7 +338,7 @@ void _oglProgram::AddExtShaders(const string& src)
 }
 
 
-void _oglProgram::link()
+void _oglProgram::Link()
 {
     glLinkProgram(programID);
 
@@ -390,7 +390,7 @@ void _oglProgram::RegisterLocation(const map<ProgramMappingTarget, string>& bind
         case ProgramMappingTarget::ModelMat:    Uni_modelMat = GetLoc(name, GL_FLOAT_MAT4); break; //modelMatrix
         case ProgramMappingTarget::MVPMat:      Uni_mvpMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
         case ProgramMappingTarget::MVPNormMat:  Uni_normalMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
-        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_MAT4); break;
+        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertPos:     Attr_Vert_Pos = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertNorm:    Attr_Vert_Norm = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertTexc:    Attr_Vert_Texc = GetLoc(name, GL_FLOAT_VEC2); break;
@@ -420,7 +420,7 @@ GLint _oglProgram::GetLoc(const string& name) const
     return GL_INVALID_INDEX;
 }
 
-void _oglProgram::setProject(const Camera& cam, const int wdWidth, const int wdHeight)
+void _oglProgram::SetProject(const Camera& cam, const int wdWidth, const int wdHeight)
 {
     //glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
     //assert(cam.aspect > std::numeric_limits<float>::epsilon());
@@ -449,7 +449,7 @@ void _oglProgram::setProject(const Camera& cam, const int wdWidth, const int wdH
     SetUniform(Uni_projMat, matrix_Proj);
 }
 
-void _oglProgram::setCamera(const Camera & cam)
+void _oglProgram::SetCamera(const Camera & cam)
 {
     //LookAt
     //matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
@@ -461,24 +461,13 @@ void _oglProgram::setCamera(const Camera & cam)
         glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
-ProgDraw _oglProgram::draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+ProgDraw _oglProgram::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
 {
     return ProgDraw(*this, modelMat, normMat);
 }
-ProgDraw _oglProgram::draw(const Mat4x4& modelMat) noexcept
+ProgDraw _oglProgram::Draw(const Mat4x4& modelMat) noexcept
 {
-    return draw(modelMat, (Mat3x3)modelMat);
-}
-ProgDraw _oglProgram::draw(topIT begin, topIT end) noexcept
-{
-    Mat4x4 matModel = Mat4x4::identity();
-    Mat3x3 matNormal = Mat3x3::identity();
-    for (topIT cur = begin; cur != end; ++cur)
-    {
-        const TransformOP& trans = *cur;
-        oglUtil::applyTransform(matModel, matNormal, trans);
-    }
-    return draw(matModel, matNormal);
+    return Draw(modelMat, (Mat3x3)modelMat);
 }
 
 const SubroutineResource::Routine* _oglProgram::GetSubroutine(const string& sruname)

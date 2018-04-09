@@ -42,6 +42,7 @@ namespace rayr
 {
 namespace str = common::str;
 namespace fs = common::file::fs;
+using std::byte;
 using std::wstring;
 using std::string;
 using std::u16string;

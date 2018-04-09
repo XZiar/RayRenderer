@@ -38,6 +38,7 @@ namespace WPFTest
             brshOrange = Brush_Conv.ConvertFromString("#FFDC5E07") as SolidColorBrush;
         private Timer AutoRefresher;
         private float MouseSensative => (float)slMouseSen.Value;
+        private float ScrollSensative => (float)slScrollSen.Value;
         private ushort waitingCount = 0;
         public ushort WaitingCount { get { return waitingCount; } set { waitingCount = value; ChangeStatusBar(value); } }
 
@@ -284,7 +285,7 @@ namespace WPFTest
                 WaitingCount++;
                 if (await Core.Drawables.AddModelAsync(fileName))
                 {
-                    Core.Rotate(-90, 0, 0, OPObject.Drawable);
+                    Core.Rotate(90, 0, 0, OPObject.Drawable);
                     Core.Move(-1, 0, 0, OPObject.Drawable);
                     glMain.Invalidate();
                 }
@@ -430,7 +431,7 @@ namespace WPFTest
                         Core.Rotate((e.dy * MouseSensative / Core.Test.Camera.Height), (e.dx * -MouseSensative / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
                     break;
                 case MouseEventType.Wheel:
-                    Core.Move(0, 0, (float)e.dx, OperateTarget);
+                    Core.Move(0, 0, (float)e.dx * ScrollSensative, OperateTarget);
                     break;
                 default:
                     return;

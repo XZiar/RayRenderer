@@ -15,8 +15,8 @@ private:
 public:
     oglProgram prog;
     FontViewer();
-    void draw();
-    void bindTexture(const oglTexture& tex);
+    void Draw();
+    void BindTexture(const oglTexture& tex);
 };
 
 }

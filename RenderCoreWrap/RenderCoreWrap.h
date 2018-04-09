@@ -55,6 +55,24 @@ public:
             OnPropertyChanged("Albedo"); RefreshMaterial();
         }
     }
+    property bool IsMappedAlbedo
+    {
+        bool get() { return drawable->lock()->BaseMaterial.UseDiffuseMap; }
+        void set(bool value) 
+        {
+            drawable->lock()->BaseMaterial.UseDiffuseMap = value;
+            OnPropertyChanged("IsMappedAlbedo"); RefreshMaterial();
+        }
+    }
+    property bool IsMappedNormal
+    {
+        bool get() { return drawable->lock()->BaseMaterial.UseNormalMap; }
+        void set(bool value)
+        {
+            drawable->lock()->BaseMaterial.UseNormalMap = value;
+            OnPropertyChanged("IsMappedNormal"); RefreshMaterial();
+        }
+    }
     property float Metallic
     {
         float get() { return drawable->lock()->BaseMaterial.Metalness; }

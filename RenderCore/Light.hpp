@@ -13,7 +13,7 @@ struct RAYCOREAPI alignas(Vec4) LightData : public common::AlignBase<alignof(Vec
     Vec3 position = Vec3::zero();
     Vec3 direction = Vec3(0, 0, -1);
     Vec4 color = Vec4::one();
-    Vec4 attenuation = Vec4(0.5, 0.3, 0.0, 0.0);
+    Vec4 attenuation = Vec4(0.5, 0.3, 0.0, 1.0);
     float coang, exponent;
     const LightType type;
 protected:

@@ -47,26 +47,34 @@ public:
     Material(const std::u16string& name) : Name(name) { }
 };
 
-struct RAYCOREAPI alignas(16) PBRMaterialData : public common::AlignBase<16>
+struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>
 {
 public:
-    union
-    {
-        struct { float AlbedoRed, AlbedoGreen, AlbedoBlue, Metalness; };
-        Vec3 Albedo;
-        Vec4 Basic;
-    };
+    Vec3 Albedo;
+    float Metalness;
     float Roughness;
     float Specular;
     float AO;
-    PBRMaterialData() : Basic(Vec4(0.58, 0.58, 0.58, 0.)), Roughness(0.0f), Specular(0.0f), AO(1.0f) {}
+    bool UseDiffuseMap, UseNormalMap;
+    std::u16string Name;
+    PBRMaterial(const std::u16string& name) : Albedo(Vec3(0.58, 0.58, 0.58)), Metalness(0.0f), Roughness(0.0f), Specular(0.0f), AO(1.0f),
+        UseDiffuseMap(false), UseNormalMap(false), Name(name) { }
+
+    uint32_t WriteData(std::byte *ptr) const
+    {
+        float *ptrFloat = reinterpret_cast<float*>(ptr);
+        Vec4 basic(Albedo, Metalness);
+        if (UseDiffuseMap)
+            basic.x *= -1.0f;
+        if (UseNormalMap)
+            basic.y *= -1.0f;
+        memcpy_s(ptrFloat, sizeof(Vec4), &basic, sizeof(Vec4));
+        ptrFloat[4] = Roughness;
+        ptrFloat[5] = Specular;
+        ptrFloat[6] = AO;
+        return 8 * sizeof(float);
+    }
 };
 
-struct RAYCOREAPI alignas(16) PBRMaterial : public PBRMaterialData
-{
-public:
-    std::u16string Name;
-    PBRMaterial(const std::u16string& name) : Name(name) { }
-};
 
 }

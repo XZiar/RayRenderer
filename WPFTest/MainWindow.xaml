@@ -160,6 +160,9 @@
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="鼠标灵敏度">
                         <Slider x:Name="slMouseSen" Value="60" Minimum="10" Maximum="130" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                     </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="滚轮灵敏度">
+                        <Slider x:Name="slScrollSen" Value="1" Minimum="0.1" Maximum="2" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                    </ext:LabelControl>
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="面剔除模式">
                         <ComboBox x:Name="cboxFCull" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
                     </ext:LabelControl>
@@ -176,7 +179,19 @@
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
                             <GroupBox Header="材质" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
                                 <StackPanel Orientation="Vertical">
+                                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Albedo">
+                                        <CheckBox IsChecked="{Binding IsMappedAlbedo, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                                    </ext:LabelControl>
                                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
+                                        <ext:LabelControl.Style>
+                                            <Style TargetType="ext:LabelControl">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="true">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ext:LabelControl.Style>
                                         <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
                                     </ext:LabelControl>
                                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="金属率">
@@ -214,6 +229,9 @@
                             </ext:LabelControl>
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减二次项">
                                 <xctk:DoubleUpDown Foreground="White" Value="{Binding Attenuation2}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="亮度">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Luminance}" FormatString="F2" Increment=".1" ValueChanged="GLMainInvalidator"/>
                             </ext:LabelControl>
                         </StackPanel>
                     </ScrollViewer>
@@ -291,6 +309,21 @@
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
                                                     <xctk:ColorPicker Grid.Row="1" Grid.ColumnSpan="2" SelectedColor="{Binding Value, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:SwitchProgInputRes}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding Value, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>

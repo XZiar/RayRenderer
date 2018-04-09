@@ -7,6 +7,14 @@
 namespace oglu
 {
 
+BindingState::BindingState()
+{
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboId);
+    glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
+}
+
 namespace detail
 {
 
@@ -25,6 +33,8 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum sever
         if (theMsg->type == MsgType::Error)
         {
             oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->msg);
+            BindingState state;
+            oglLog().debug(u"Current binding-state: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", state.vaoId, state.vboId, state.iboId, state.eboId);
         }
         else
         {

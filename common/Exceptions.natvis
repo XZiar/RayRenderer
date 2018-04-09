@@ -7,20 +7,20 @@
     <DisplayString>{{{TypeName,s},{message},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">stackitem</Item>
+      <Item Name="stack" ExcludeView="simple">StackItem</Item>
       <Item Name="data" ExcludeView="simple">data</Item>
-      <Item Name="innerException" ExcludeView="simple">innerException</Item>
+      <Item Name="InnerException" ExcludeView="simple">InnerException</Item>
     </Expand>
   </Type>
   <Type Name="common::FileException">
     <DisplayString>{{{TypeName,s},{reason},{filepath},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">stackitem</Item>
+      <Item Name="stack" ExcludeView="simple">StackItem</Item>
       <Item Name="reason" ExcludeView="simple">reason</Item>
       <Item Name="file" ExcludeView="simple">filepath</Item>
       <Item Name="data" ExcludeView="simple">data</Item>
-      <Item Name="innerException" ExcludeView="simple">innerException</Item>
+      <Item Name="InnerException" ExcludeView="simple">InnerException</Item>
     </Expand>
   </Type>
 </AutoVisualizer>

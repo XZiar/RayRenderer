@@ -33,7 +33,7 @@ void BasicTest::init2d(const u16string pname)
     }
     try
     {
-        prog2D->link();
+        prog2D->Link();
     }
     catch (const OGLException& gle)
     {
@@ -69,8 +69,7 @@ void BasicTest::init3d(const u16string pname)
         }
         try
         {
-            progBasic->link();
-            progBasic->SetUniform("useNormalMap", false);
+            progBasic->Link();
             progBasic->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "vertedNormal");
         }
         catch (const OGLException& gle)
@@ -78,7 +77,7 @@ void BasicTest::init3d(const u16string pname)
             basLog().error(u"Fail to link Program:\n{}\n", gle.message);
             COMMON_THROW(BaseException, L"link Program error");
         }
-        progBasic->setCamera(cam);
+        progBasic->SetCamera(cam);
         Prog3Ds.insert(progBasic);
         prog3D = progBasic;
     }
@@ -97,9 +96,7 @@ void BasicTest::init3d(const u16string pname)
         }
         try
         {
-            progPBR->link();
-            progPBR->SetUniform("useNormalMap", false);
-            progPBR->SetUniform("useDiffuseMap", true);
+            progPBR->Link();
             progPBR->State()
                 .SetSubroutine("lighter", "onlytex")
                 .SetSubroutine("getNorm", "vertedNormal")
@@ -198,15 +195,18 @@ void BasicTest::prepareLight()
 {
     vector<uint8_t> data(lightUBO->Size());
     size_t pos = 0;
+    uint32_t onCnt = 0;
     for (const auto& lgt : lights)
     {
-        if (!lgt->isOn) continue;
+        if (!lgt->isOn)
+            continue;
+        onCnt++;
         memcpy_s(&data[pos], lightUBO->Size() - pos, &(*lgt), sizeof(LightData));
         pos += sizeof(LightData);
         if (pos >= lightUBO->Size())
             break;
     }
-    prog3D->SetUniform("lightCount", (uint32_t)lights.size());
+    prog3D->SetUniform("lightCount", onCnt);
     lightUBO->Write(data, BufferWriteMode::StreamDraw);
 }
 
@@ -246,14 +246,12 @@ void BasicTest::fontTest(const char32_t word)
             fonttex->setData(TextureInnerFormat::R8, imgShow);
             img::WriteImage(imgShow, basepath / u"Show.png");
             fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-            fontViewer->bindTexture(fonttex);
-            //fontViewer->prog->globalState().setSubroutine("fontRenderer", "plainFont").end();
+            fontViewer->BindTexture(fonttex);
         }
     }
     catch (BaseException& be)
     {
         basLog().error(u"Font Construct failure:\n{}\n", be.message);
-        //COMMON_THROW(BaseException, L"init FontViewer failed");
     }
 }
 
@@ -296,8 +294,8 @@ void BasicTest::Draw()
     }
     if (mode)
     {
-        prog3D->setCamera(cam);
-        auto drawcall = prog3D->draw();
+        prog3D->SetCamera(cam);
+        auto drawcall = prog3D->Draw();
         for (const auto& d : drawables)
         {
             d->Draw(drawcall);
@@ -306,16 +304,16 @@ void BasicTest::Draw()
     }
     else
     {
-        fontViewer->draw();
-        //prog2D->draw().draw(picVAO);
+        fontViewer->Draw();
+        //prog2D->Draw().Draw(picVAO);
     }
 }
 
 void BasicTest::Resize(const int w, const int h)
 {
     cam.resize(w, h);
-    prog2D->setProject(cam, w, h);
-    prog3D->setProject(cam, w, h);
+    prog2D->SetProject(cam, w, h);
+    prog3D->SetProject(cam, w, h);
 }
 
 void BasicTest::ReloadFontLoader(const u16string& fname)
@@ -391,13 +389,11 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
         }
         try
         {
-            prog->link();
-            prog->SetUniform("useNormalMap", false);
-            prog->SetUniform("useDiffuseMap", true);
+            prog->Link();
             prog->State()
                 .SetSubroutine("lighter", "onlytex")
-                .SetSubroutine("getNorm", "vertedNormal")
-                .SetSubroutine("getAlbedo", "materialAlbedo");
+                .SetSubroutine("getNorm", "bothNormal")
+                .SetSubroutine("getAlbedo", "bothAlbedo");
         }
         catch (const OGLException& gle)
         {
@@ -457,8 +453,9 @@ void BasicTest::ChangeShader(const oglProgram& prog)
     if (Prog3Ds.count(prog))
     {
         prog3D = prog;
-        prog3D->setCamera(cam);
-        prog3D->setProject(cam, cam.width, cam.height);
+        prog3D->SetCamera(cam);
+        prog3D->SetProject(cam, cam.width, cam.height);
+        prepareLight();
     }
     else
         basLog().warning(u"change to an unknown shader [{}], ignored.\n", prog ? prog->Name : u"null");

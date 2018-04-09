@@ -24,7 +24,7 @@ FontViewer::FontViewer()
     }
     try
     {
-        prog->link();
+        prog->Link();
     }
     catch (OGLException& gle)
     {
@@ -51,12 +51,12 @@ FontViewer::FontViewer()
     prog->State().SetSubroutine("fontRenderer", "sdfMid");
 }
 
-void FontViewer::draw()
+void FontViewer::Draw()
 {
-    prog->draw().Draw(viewVAO);
+    prog->Draw().Draw(viewVAO);
 }
 
-void FontViewer::bindTexture(const oglTexture& tex)
+void FontViewer::BindTexture(const oglTexture& tex)
 {
     prog->State().SetTexture(tex, "tex");
 }

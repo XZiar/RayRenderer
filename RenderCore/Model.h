@@ -95,6 +95,7 @@ using ModelData = Wrapper<detail::_ModelData>;
 class alignas(16) Model : public Drawable
 {
 protected:
+    void InitMaterial();
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelData data;

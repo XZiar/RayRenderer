@@ -220,7 +220,7 @@ namespace WPFTest
             switch (obj)
             {
             case OPObject.Drawable:
-                Drawables.Current?.Rotate(x, y, z);
+                Drawables.Current?.Rotate(-x, -y, -z);
                 break;
             case OPObject.Camera:
                 if (x != 0.0f) //quick skip
@@ -231,7 +231,7 @@ namespace WPFTest
                     Test.Camera.Roll(z);
                 break;
             case OPObject.Light:
-                Lights.Current?.Rotate(x, y, z);
+                Lights.Current?.Rotate(-x, -y, -z);
                 break;
             }
         }

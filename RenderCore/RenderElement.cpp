@@ -92,16 +92,15 @@ void Drawable::PrepareMaterial()
 
 void Drawable::AssignMaterial(const PBRMaterial * material, const size_t count) const
 {
-    vector<uint8_t> data(MaterialUBO->Size());
+    vector<byte> data(MaterialUBO->Size());
     size_t pos = 0;
     for (uint32_t i = 0; i < count; ++i)
     {
-        memcpy_s(&data[pos], MaterialUBO->Size() - pos, (const PBRMaterialData*)(&material[i]), sizeof(PBRMaterialData));
-        pos += sizeof(PBRMaterialData);
+        pos += material->WriteData(&data[pos]);
         if (pos >= MaterialUBO->Size())
             break;
     }
-    MaterialUBO->Write(data, oglu::BufferWriteMode::StreamDraw);
+    MaterialUBO->Write(data.data(), pos, oglu::BufferWriteMode::StreamDraw);
 }
 
 void Drawable::Draw(Drawcall& drawcall) const

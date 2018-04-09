@@ -153,22 +153,33 @@ public:
     const set<oglShader>& getShaders() const { return shaders; }
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
-    void addShader(const oglShader& shader);
+    void AddShader(const oglShader& shader);
     void AddExtShaders(const string& src);
-    void link();
+    void Link();
     void RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping);
     GLint GetLoc(const string& name) const;
     const ProgramResource* GetResource(const string& name) const { return FindInSet(ProgRess, name); }
     const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
-    void setProject(const Camera &, const int wdWidth, const int wdHeight);
-    void setCamera(const Camera &);
-
-    ProgDraw draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
-    ProgDraw draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
-    using topIT = vectorEx<TransformOP>::const_iterator;
-    ProgDraw draw(topIT begin, topIT end) noexcept;
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     ProgState State() noexcept;
+    void SetProject(const Camera &, const int wdWidth, const int wdHeight);
+    void SetCamera(const Camera &);
+
+    ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
+    template<typename Iterator>
+    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept
+    {
+        static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
+        Mat4x4 matModel = Mat4x4::identity();
+        Mat3x3 matNormal = Mat3x3::identity();
+        for (auto cur = begin; cur != end; ++cur)
+        {
+            const TransformOP& trans = *cur;
+            oglUtil::applyTransform(matModel, matNormal, trans);
+        }
+        return Draw(matModel, matNormal);
+    }
 
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }

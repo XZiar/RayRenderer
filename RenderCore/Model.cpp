@@ -683,17 +683,26 @@ _ModelData::~_ModelData()
 }
 
 
+void Model::InitMaterial()
+{
+    PrepareMaterial();
+    BaseMaterial.Roughness = 0.9f;
+    BaseMaterial.UseDiffuseMap = true;
+    BaseMaterial.UseNormalMap = true;
+    AssignMaterial(&BaseMaterial, 1);
+}
+
 Model::Model(const u16string& fname, bool asyncload) : Drawable(GetType(this), TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
 {
     const auto resizer = 2 / max(max(data->size.x, data->size.y), data->size.z);
     scale = Vec3(resizer, resizer, resizer);
     if (asyncload)
     {
-        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) { PrepareMaterial(); });
+        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) { InitMaterial(); });
     }
     else
     {
-        PrepareMaterial();
+        InitMaterial();
     }
 }
 
@@ -724,7 +733,6 @@ void Model::Draw(Drawcall& drawcall) const
         .SetUBO(MaterialUBO, "materialBlock")
         .SetTexture(data->texd, "tex")
         .SetTexture(data->texn, "tex", 1)
-        .SetUniform("useNormalMap", true)
         .Draw(GetVAO(drawcall.GetProg()));
 }
 

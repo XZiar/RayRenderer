@@ -201,6 +201,7 @@
   <ItemGroup>
     <ClInclude Include="b3d.h" />
     <ClInclude Include="OpenGLTypes.h" />
+    <ClInclude Include="ProgInputResource.hpp" />
     <ClInclude Include="RenderCoreWrapRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
     <ClInclude Include="resource.h" />

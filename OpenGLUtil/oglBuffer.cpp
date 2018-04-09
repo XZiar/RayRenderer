@@ -19,16 +19,21 @@ _oglBuffer::~_oglBuffer() noexcept
     {
         bind();
         if (glUnmapBuffer((GLenum)BufType) == GL_FALSE)
-            oglLog().warning(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
+            oglLog().error(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
+        MappedPtr = nullptr;
         unbind();
     }
     if (bufferID != GL_INVALID_INDEX)
         glDeleteBuffers(1, &bufferID);
+    else
+        oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", bufferID, (uint32_t)BufType, BufSize);
 }
 
 void _oglBuffer::bind() const noexcept
 {
     glBindBuffer((GLenum)BufType, bufferID);
+    //if (BufType == BufferType::Indirect)
+        //oglLog().verbose(u"binding ibo[{}].\n", bufferID);
 }
 
 void _oglBuffer::unbind() const noexcept
@@ -68,7 +73,7 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     }
 }
 
-_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Uniform)
+_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Texture)
 {
 }
 
@@ -84,9 +89,6 @@ _oglUniformBuffer::~_oglUniformBuffer()
 {
     //force unbind ubo, since bufID may be reused after releasaed
     getUBOMan().forcePop(bufferID);
-    //manually release
-    glDeleteBuffers(1, &bufferID);
-    bufferID = GL_INVALID_INDEX;
 }
 
 UBOManager& _oglUniformBuffer::getUBOMan()

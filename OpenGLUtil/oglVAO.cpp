@@ -1,6 +1,7 @@
 #include "oglRely.h"
 #include "oglVAO.h"
 #include "oglException.h"
+#include "oglContext.h"
 #include "oglUtil.h"
 
 namespace oglu::detail
@@ -211,9 +212,11 @@ void _oglVAO::Draw() const noexcept
             //}
         } break;
     case DrawMethod::IndirectArrays:
+        IndirectBuffer->bind(); //IBO not included in VAO
         glMultiDrawArraysIndirect((GLenum)DrawMode, 0, IndirectBuffer->Count, 0);
         break;
     case DrawMethod::IndirectIndexes:
+        IndirectBuffer->bind(); //IBO not included in VAO
         glMultiDrawElementsIndirect((GLenum)DrawMode, IndexBuffer->IndexType, 0, IndirectBuffer->Count, 0);
         break;
     }
@@ -223,15 +226,9 @@ void _oglVAO::Draw() const noexcept
 void _oglVAO::Test() const noexcept
 {
     bind();
-
-    GLint vaoId = 0, vboId = 0, iboId = 0, eboId = 0;
-    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboId);
-    glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
-    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
-
+    BindingState state;
     unbind();
-    oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, vaoId, vboId, iboId, eboId);
+    oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.vaoId, state.vboId, state.iboId, state.eboId);
 }
 
 }

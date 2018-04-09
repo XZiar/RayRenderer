@@ -7,7 +7,6 @@
 namespace oglu
 {
 
-
 using common::asyexe::AsyncTaskFunc;
 
 class OGLUAPI oglUtil
