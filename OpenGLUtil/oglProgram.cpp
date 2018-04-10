@@ -368,13 +368,14 @@ void _oglProgram::Link()
         { ProgramMappingTarget::MVPNormMat,  "oglu_matNormal" },
         { ProgramMappingTarget::MVPMat,      "oglu_matMVP" },
         { ProgramMappingTarget::CamPosVec,   "oglu_camPos" },
+        { ProgramMappingTarget::DrawID,      "oglu_drawId" },
         { ProgramMappingTarget::VertPos,     "oglu_vertPos" },
         { ProgramMappingTarget::VertNorm,    "oglu_vertNorm" },
         { ProgramMappingTarget::VertTexc,    "oglu_texPos" },
         { ProgramMappingTarget::VertColor,   "oglu_vertColor" },
         { ProgramMappingTarget::VertTan,     "oglu_vertTan" },
     };
-    ResBindMapping.insert(DefaultMapping.cbegin(), DefaultMapping.cend());
+    ResBindMapping.insert(DefaultMapping.cbegin(), DefaultMapping.cend()); //will not overwrite exist value
     RegisterLocation(ResBindMapping);
 }
 
@@ -390,12 +391,13 @@ void _oglProgram::RegisterLocation(const map<ProgramMappingTarget, string>& bind
         case ProgramMappingTarget::ModelMat:    Uni_modelMat = GetLoc(name, GL_FLOAT_MAT4); break; //modelMatrix
         case ProgramMappingTarget::MVPMat:      Uni_mvpMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
         case ProgramMappingTarget::MVPNormMat:  Uni_normalMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
-        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_VEC3); break;
+        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_VEC3); break; //camera position
         case ProgramMappingTarget::VertPos:     Attr_Vert_Pos = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertNorm:    Attr_Vert_Norm = GetLoc(name, GL_FLOAT_VEC3); break;
         case ProgramMappingTarget::VertTexc:    Attr_Vert_Texc = GetLoc(name, GL_FLOAT_VEC2); break;
         case ProgramMappingTarget::VertColor:   Attr_Vert_Color = GetLoc(name, GL_FLOAT_VEC4); break;
         case ProgramMappingTarget::VertTan:     Attr_Vert_Tan = GetLoc(name, GL_FLOAT_VEC4); break;
+        case ProgramMappingTarget::DrawID:      Attr_Draw_ID = GetLoc(name, GL_UNSIGNED_INT); break; //draw-id
         }
     }
 }

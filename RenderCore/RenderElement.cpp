@@ -159,6 +159,28 @@ const oglu::oglVAO& Drawable::GetVAO(const oglu::oglProgram::weak_type& weakProg
     return EmptyVAO;
 }
 
+static oglu::detail::ContextResource<oglu::oglVBO, true> CTX_DRAWID_VBO;
+
+static constexpr auto GenDrawIdArray()
+{
+    std::array<uint32_t, 32768> ids{};
+    for (uint32_t i = 0; i < 32768; ++i)
+        ids[i] = i;
+    return ids;
+}
+static constexpr auto DRAW_IDS = GenDrawIdArray();
+
+oglu::oglVBO Drawable::GetDrawIdVBO()
+{
+    return CTX_DRAWID_VBO.GetOrInsert([](const auto&) 
+    {
+        oglu::oglVBO drawIdVBO(std::in_place);
+        drawIdVBO->Write(DRAW_IDS.data(), DRAW_IDS.size() * sizeof(uint32_t));
+        basLog().verbose(u"new DrawIdVBO generated.\n");
+        return drawIdVBO;
+    });
+}
+
 
 }
 

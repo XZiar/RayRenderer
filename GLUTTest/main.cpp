@@ -124,7 +124,7 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
 
 void autoRotate()
 {
-    tester->Objects()[curObj]->Rotate(0, 3, 0);
+    tester->Objects()[curObj]->Rotate(0, 3 * muler, 0);
 }
 
 bool onTimer(FreeGLUTView wd, uint32_t elapseMS)

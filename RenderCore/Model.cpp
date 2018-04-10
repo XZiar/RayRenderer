@@ -692,7 +692,7 @@ void Model::InitMaterial()
     AssignMaterial(&BaseMaterial, 1);
 }
 
-Model::Model(const u16string& fname, bool asyncload) : Drawable(GetType(this), TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
+Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
 {
     const auto resizer = 2 / max(max(data->size.x, data->size.y), data->size.z);
     scale = Vec3(resizer, resizer, resizer);
@@ -720,6 +720,7 @@ void Model::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& t
     {
         auto vaoprep = std::move(vao->Prepare()
             .Set(data->vbo, attrs, 0)
+            .Set<uint32_t>(Drawable::GetDrawIdVBO(), prog->Attr_Draw_ID, sizeof(uint32_t), 1, 0, 1)
             .SetIndex(data->ebo));
         data->PrepareVAO(vaoprep);
     }

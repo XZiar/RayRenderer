@@ -1,6 +1,6 @@
 #include "OGLVRely.h"
-
 #include "OpenGLViewEvents.h"
+#include "common/TimeUtil.hpp"
 #include <string>
 
 #pragma unmanaged
@@ -27,11 +27,8 @@ namespace OpenGLView
         int lastX, lastY, startX, startY, curX, curY;
         bool isMoved;
         bool isCapital = false;
-        /*static void makeCurrent(HDC hDC, HGLRC hRC)
-        {
-            if (curRC != hRC)
-                wglMakeCurrent(hDC, curRC = hRC);
-        }*/
+        uint64_t *drawTimes = nullptr;
+        uint64_t sumTime = 0;
         static void initExtension()
         {
             auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
@@ -51,6 +48,10 @@ namespace OpenGLView
         {
             bool get() { return isCapital; }
         }
+        property uint64_t AvgDrawTime
+        {
+            uint64_t get() { return sumTime / (rfsCount > 30 ? 30 : rfsCount); }
+        }
         delegate void DrawEventHandler();
         delegate void ResizeEventHandler(Object^ o, ResizeEventArgs^ e);
         delegate void MouseEventExHandler(Object^ o, MouseEventExArgs^ e);
@@ -66,7 +67,9 @@ namespace OpenGLView
         }
         OGLView()
         {
-            //SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            drawTimes = new uint64_t[30];
+            memset(drawTimes, 0x0, sizeof(uint64_t) * 30);
+
             this->ImeMode = System::Windows::Forms::ImeMode::Disable;
             ResizeBGDraw = true;
             Deshake = true;
@@ -111,6 +114,11 @@ namespace OpenGLView
         ~OGLView() { this->!OGLView(); };
         !OGLView()
         {
+            if (drawTimes)
+            {
+                delete drawTimes;
+                drawTimes = nullptr;
+            }
             makeCurrent(nullptr, nullptr);
             wglDeleteContext(hRC);
             DeleteDC(hDC);
@@ -131,11 +139,17 @@ namespace OpenGLView
         }
         void OnPaint(PaintEventArgs^ e) override
         {
+            common::SimpleTimer timer;
+            timer.Start();
             //makeCurrent(hDC, hRC);
-            rfsCount++;
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             Draw();
             SwapBuffers(hDC);
+            timer.Stop();
+            auto& objTime = drawTimes[(rfsCount++) % 30];
+            sumTime -= objTime;
+            objTime = timer.ElapseUs();
+            sumTime += objTime;
         }
 
         void OnMouseDown(MouseEventArgs^ e) override

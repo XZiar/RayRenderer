@@ -33,11 +33,29 @@ protected:
 public:
     class OGLUAPI VAOPrep : public NonCopyable
     {
-    private:
         friend class _oglVAO;
+    private:
+        template<typename Val>
+        struct ValTypeHelper 
+        {
+            static_assert(sizeof(Val) == -1, "unsupported value type!");
+        };
+        template<> struct ValTypeHelper<float>
+        {
+            static constexpr GLenum Type = GL_FLOAT;
+        };
+        template<> struct ValTypeHelper<uint32_t>
+        {
+            static constexpr GLenum Type = GL_UNSIGNED_INT;
+        };
+        template<> struct ValTypeHelper<int32_t>
+        {
+            static constexpr GLenum Type = GL_INT;
+        };
         _oglVAO& vao;
         bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
+        VAOPrep& Set(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
     public:
         VAOPrep(VAOPrep&& other) : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
         ~VAOPrep() noexcept { End(); }
@@ -46,9 +64,14 @@ public:
         ///<param name="vbo">vertex attribute datasource, must be array</param>
         ///<param name="attridx">vertex attribute index</param>
         ///<param name="stride">size(byte) of a group of data</param>
-        ///<param name="size">count of float taken as an element</param>
-        ///<param name="offset">offset(byte) od the 1st elements</param>
-        VAOPrep& Set(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset);
+        ///<param name="size">count of {ValueType} taken as an element</param>
+        ///<param name="offset">offset(byte) of the 1st elements</param>
+        ///<param name="divisor">increase attri index foreach {x} instance</param>
+        template<typename Val = float>
+        VAOPrep& Set(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
+        {
+            return Set(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
+        }
         ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord]</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::Point]</param>
         ///<param name="attridx">vertex attribute index x3</param>

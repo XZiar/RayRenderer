@@ -74,7 +74,7 @@ enum class ProgramMappingTarget : uint64_t
 { 
     ProjectMat = "ProjectMat"_hash, ViewMat = "ViewMat"_hash, ModelMat = "ModelMat"_hash, MVPMat = "MVPMat"_hash, MVPNormMat = "MVPNormMat"_hash,
     CamPosVec = "CamPosVec"_hash,
-    VertPos = "VertPos"_hash, VertNorm = "VertNorm"_hash, VertTexc = "VertTexc"_hash, VertColor = "VertColor"_hash, VertTan = "VertTan"_hash
+    VertPos = "VertPos"_hash, VertNorm = "VertNorm"_hash, VertTexc = "VertTexc"_hash, VertColor = "VertColor"_hash, VertTan = "VertTan"_hash, DrawID = "DrawID"_hash
 };
 
 namespace detail
@@ -143,6 +143,7 @@ public:
     GLint Attr_Vert_Texc = GL_INVALID_INDEX;//Vertex Texture Coordinate
     GLint Attr_Vert_Color = GL_INVALID_INDEX;//Vertex Color
     GLint Attr_Vert_Tan = GL_INVALID_INDEX;//Vertex Tangent
+    GLint Attr_Draw_ID = GL_INVALID_INDEX;
     u16string Name;
     _oglProgram(const u16string& name);
     ~_oglProgram();

@@ -47,11 +47,14 @@ public:
         rotation.RepeatClampPos(Vec3::Vec3_2PI());
     }
     void AssignMaterial(const PBRMaterial *material, const size_t count = 1) const;
+private:
+    Drawable(const std::type_index type, const u16string& typeName);
 protected:
     const std::type_index DrawableType;
     oglu::oglVAO EmptyVAO;
     oglu::oglUBO MaterialUBO;
-    Drawable(const std::type_index type, const u16string& typeName);
+    template<typename T>
+    Drawable(const T * const childThis, const u16string& typeName) : Drawable(std::type_index(typeid(childThis)), typeName) { }
     void PrepareMaterial();
     auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
     Drawcall& DrawPosition(Drawcall& prog) const;
@@ -64,6 +67,7 @@ protected:
     const oglu::oglVAO& GetVAO(const oglu::oglProgram::weak_type& weakProg) const;
     template<typename T>
     static std::type_index GetType(const T* const obj) { return std::type_index(typeid(obj)); }
+    static oglu::oglVBO GetDrawIdVBO();
 };
 
 }

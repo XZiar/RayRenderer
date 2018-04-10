@@ -48,6 +48,7 @@ GLVARY perVert
     vec3 norm;
     vec4 tannorm;
     vec2 tpos;
+    flat uint drawId;
 };
 
 ////////////////
@@ -61,6 +62,8 @@ layout(location = 1) in vec3 vertNorm;
 layout(location = 2) in vec2 vertTexc;
 //@@->VertTan|vertTan
 layout(location = 3) in vec4 vertTan;
+//@@->DrawID|ogluDrawId
+layout(location = 4) in uint ogluDrawId;
 
 void main() 
 {
@@ -71,6 +74,7 @@ void main()
     norm = matModel3 * vertNorm;
     tannorm = vec4(matModel3 * vertTan.xyz, vertTan.w);
     tpos = vertTexc;
+    drawId = ogluDrawId;
 }
 
 #endif
@@ -164,11 +168,21 @@ void parseLight(const int id, out vec3 p2l, out vec3 color)
     color = lights[id].color.rgb * atten;
 }
 
+float ClampDot(const vec3 v1, const vec3 v2)
+{
+    return max(dot(v1, v2), 0.0f);
+}
+
+vec3 GammaCorrect(const vec3 color)
+{
+    return pow(color, vec3(1.0f / gamma));
+}
+
 subroutine(LightModel)
 vec3 onlytex()
 {
-    vec4 texColor = texture(tex[0], tpos);
-    return texColor.rgb;
+    const vec4 texColor = texture(tex[0], tpos);
+    return GammaCorrect(texColor.rgb);
 }
 subroutine(LightModel)
 vec3 tanvec()
@@ -212,14 +226,17 @@ vec3 lgt0()
     parseLight(0, p2l, color);
     return (p2l + 1.0f) * 0.5f;
 }
-
-float ClampDot(const vec3 v1, const vec3 v2)
+subroutine(LightModel)
+vec3 drawidx()
 {
-    return max(dot(v1, v2), 0.0f);
+    const uint didX = drawId % 3 + 1, didY = (drawId / 3) % 3 + 1, didZ = drawId / 9 + 1;
+    const float stride = 0.25f;
+    return vec3(didX * stride, didY * stride, didZ * stride);
 }
 
 //NDF(n,h,r) = a^2 / PI((n.h)^2 * (a^2-1) + 1)^2
 //roughtness4 = a^2 = roughness^4
+//distribution of normal of the microfacet
 float D_GGXTR(const vec3 ptNorm, const vec3 halfVec, const float roughness4)
 {
     const float nh = ClampDot(ptNorm, halfVec);
@@ -235,6 +252,7 @@ float G_SchlickGGX(const float nv, const float k, const float one_k)
 }
 
 //G = G(n,v,k) * G(n,l,k)
+//percentage of acceptable specular(not in shadow or mask)
 float G_GGX(const float n_eye, const float n_lgt, const float k, const float one_k)
 {
     //Geometry Obstruction
@@ -244,6 +262,7 @@ float G_GGX(const float n_eye, const float n_lgt, const float k, const float one
     return geoObs * geoShd;
 }
 
+//fresnel reflection caused by the microfacet
 vec3 F_Schlick(const vec3 halfVec, const vec3 viewRay, const vec3 F0)
 {
     return F0 + (1.0f - F0) * pow(1.0f - ClampDot(halfVec, viewRay), 5.0f);
@@ -285,7 +304,7 @@ subroutine(LightModel)
 vec3 albedoOnly()
 {
     const vec3 albedo = getAlbedo(materials[0].basic);
-    return albedo;
+    return GammaCorrect(albedo);
 }
 subroutine(LightModel)
 vec3 metalOnly()
@@ -304,7 +323,7 @@ vec3 basic()
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = texture(tex[0], tpos).rgb;
     finalColor *= ambientColor + diffuseColor + specularColor;
-    return finalColor;
+    return GammaCorrect(finalColor);
 }
 subroutine(LightModel)
 vec3 diffuse()
@@ -317,7 +336,7 @@ vec3 diffuse()
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = texture(tex[0], tpos).rgb;
     finalColor *= ambientColor + diffuseColor;
-    return finalColor;
+    return GammaCorrect(finalColor);
 }
 
 subroutine(LightModel)
@@ -331,13 +350,13 @@ vec3 specular()
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = texture(tex[0], tpos).rgb;
     finalColor *= ambientColor + specularColor;
-    return finalColor;
+    return GammaCorrect(finalColor);
 }
 
 void main() 
 {
     const lowp vec3 color = lighter();
-    FragColor = vec4(pow(color, vec3(1.0f / gamma)), 1.0f);
+    FragColor = vec4(color, 1.0f);
 }
 
 #endif

@@ -6,7 +6,7 @@ namespace rayr
 using b3d::PI_float;
 
 
-Pyramid::Pyramid(const float len) : Drawable(GetType(this), TYPENAME), sidelen(len)
+Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
 {
     constexpr double sqrt3 = 1.73205080757;
     constexpr float sqrt3_2 = float(sqrt3 / 2);
@@ -82,7 +82,7 @@ vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, 
     return indexs;
 }
 
-Sphere::Sphere(const float r) : Drawable(GetType(this), TYPENAME), radius(r), radius_sqr(r*r)
+Sphere::Sphere(const float r) : Drawable(this, TYPENAME), radius(r), radius_sqr(r*r)
 {
     vectorEx<Point> pts;
     auto indexs = CreateSphere(pts, radius);
@@ -160,7 +160,7 @@ const Point BoxBasePts[] =
     { { -0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
 };
 
-Box::Box(const float length, const float height, const float width) : Drawable(GetType(this), TYPENAME)
+Box::Box(const float length, const float height, const float width) : Drawable(this, TYPENAME)
 {
     size = Vec3(length, height, width);
     vector<Point> pts;
@@ -181,7 +181,7 @@ void Box::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& tra
 }
 
 
-Plane::Plane(const float len, const float texRepeat) : Drawable(GetType(this), TYPENAME)
+Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME)
 {
     const Point pts[] =
     {

@@ -91,9 +91,9 @@
     <DisplayString Condition="Stage == 0x8B30">{{Subr[PS]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::ProgramResource">
-    <DisplayString Condition="type == 0x92E1">{{[Uniform]loc[{location}]}}</DisplayString>
-    <DisplayString Condition="type == 0x92E2">{{[UniBlk ]loc[{location}]}}</DisplayString>
-    <DisplayString Condition="type == 0x92E3">{{[Attrib ]loc[{location}]}}</DisplayString>
+    <DisplayString Condition="type == 0x92E1">{{[Uniform]loc[{location}]{Name}}}</DisplayString>
+    <DisplayString Condition="type == 0x92E2">{{[UniBlk ]loc[{location}]{Name}}}</DisplayString>
+    <DisplayString Condition="type == 0x92E3">{{[Attrib ]loc[{location}]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::detail::_oglProgram">
     <DisplayString>{{{Name}}}</DisplayString>

@@ -45,6 +45,22 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum sever
 
 _oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc), Uid(uid)
 {
+    glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
+    if (glIsEnabled(GL_CULL_FACE))
+    {
+        GLint cullingMode;
+        glGetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
+        if (cullingMode == GL_FRONT_AND_BACK)
+            FaceCulling = FaceCullingType::CullAll;
+        else
+        {
+            GLint frontFace = GL_CCW;
+            glGetIntegerv(GL_FRONT_FACE, &frontFace);
+            FaceCulling = ((cullingMode == GL_BACK) ^ (frontFace == GL_CW)) ? FaceCullingType::CullCW : FaceCullingType::CullCCW;
+        }
+    }
+    else
+        FaceCulling = FaceCullingType::OFF;
 }
 
 _oglContext::~_oglContext()
@@ -104,7 +120,9 @@ void _oglContext::SetDepthTest(const DepthTestType type)
         glEnable(GL_DEPTH_TEST); glDepthFunc((GLenum)type); break;
     default:
         oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
+        return;
     }
+    DepthTestFunc = type;
 }
 
 void _oglContext::SetFaceCulling(const FaceCullingType type)
@@ -121,7 +139,9 @@ void _oglContext::SetFaceCulling(const FaceCullingType type)
         glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
     default:
         oglLog().warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
+        return;
     }
+    FaceCulling = type;
 }
 
 
@@ -166,7 +186,7 @@ oglContext oglContext::CurrentContext()
         { }
         else
         {
-            ctx = oglContext(detail::_oglContext(CTX_UID++, wglGetCurrentDC(), hrc));
+            ctx = oglContext(new detail::_oglContext(CTX_UID++, wglGetCurrentDC(), hrc));
             CTX_MAP.emplace(hrc, ctx);
         }
         CurrentCtx() = ctx;
@@ -192,7 +212,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, in
     };
     int *attrs = attribs ? attribs : ctxAttrb;
     auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, ctxAttrb);
-    return oglContext(detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
+    return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
 }
 
 

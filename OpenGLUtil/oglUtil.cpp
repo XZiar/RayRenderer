@@ -44,7 +44,6 @@ protected:
     {
         while (glClientWaitSync(SyncObj, NULL, 1000'000'000) == GL_TIMEOUT_EXPIRED)
         { }
-        //glDeleteSync(SyncObj);
     }
 public:
     PromiseResultGL() : SyncObj(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))

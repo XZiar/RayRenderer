@@ -254,7 +254,7 @@ public:
     void UseShader(OpenGLUtil::GLProgram^ shader);
 };
 
-public ref class BasicTest
+public ref class BasicTest : public BaseViewModel
 {
 private:
     rayr::BasicTest *core;
@@ -275,12 +275,22 @@ public:
     initonly DrawableHolder^ Drawables;
     initonly ShaderHolder^ Shaders;
 
+    property OpenGLUtil::FaceCullingType FaceCulling
+    {
+        OpenGLUtil::FaceCullingType get() { return (OpenGLUtil::FaceCullingType)core->GetContext()->GetFaceCulling(); }
+        void set(OpenGLUtil::FaceCullingType value) { core->GetContext()->SetFaceCulling((oglu::FaceCullingType)value); OnPropertyChanged("FaceCulling"); }
+    }
+    property OpenGLUtil::DepthTestType DepthTesting
+    {
+        OpenGLUtil::DepthTestType get() { return (OpenGLUtil::DepthTestType)core->GetContext()->GetDepthTest(); }
+        void set(OpenGLUtil::DepthTestType value) { core->GetContext()->SetDepthTest((oglu::DepthTestType)value); OnPropertyChanged("DepthTesting"); }
+    }
+
     void Draw();
     void Resize(const int w, const int h);
 
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
-    void SetFaceCulling(OpenGLUtil::FaceCullingType type);
 };
 
 

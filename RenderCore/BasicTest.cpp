@@ -79,7 +79,6 @@ void BasicTest::init3d(const u16string pname)
         }
         progBasic->SetCamera(cam);
         Prog3Ds.insert(progBasic);
-        prog3D = progBasic;
     }
     {
         oglProgram progPBR(u"3D-pbr");
@@ -99,15 +98,17 @@ void BasicTest::init3d(const u16string pname)
             progPBR->Link();
             progPBR->State()
                 .SetSubroutine("lighter", "onlytex")
-                .SetSubroutine("getNorm", "vertedNormal")
-                .SetSubroutine("getAlbedo", "materialAlbedo");
+                .SetSubroutine("getNorm", "bothNormal")
+                .SetSubroutine("getAlbedo", "bothAlbedo");
         }
         catch (const OGLException& gle)
         {
             basLog().error(u"Fail to link Program:\n{}\n", gle.message);
             COMMON_THROW(BaseException, L"link Program error");
         }
+        progPBR->SetCamera(cam);
         Prog3Ds.insert(progPBR);
+        prog3D = progPBR;
     }
     {
         Wrapper<Pyramid> pyramid(1.0f);

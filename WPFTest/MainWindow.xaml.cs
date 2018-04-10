@@ -144,17 +144,22 @@ namespace WPFTest
                 Converter = new OneWayValueConvertor(o => ((GLProgram)o)?.Name)
             });
 
-            cboxFCull.ItemsSource = new[] { FaceCullingType.OFF, FaceCullingType.CullCW, FaceCullingType.CullCCW, FaceCullingType.CullAll };
-            cboxFCull.SelectedItem = FaceCullingType.OFF;
-            cboxFCull.SelectionChanged += (o, e) =>
+            cboxFCull.ItemsSource = Enum.GetValues(typeof(FaceCullingType)).Cast<FaceCullingType>().ToList();
+            cboxFCull.SetBinding(ComboBox.SelectedItemProperty, new Binding
             {
-                var item = e.AddedItems.Cast<FaceCullingType?>().FirstOrDefault();
-                if (item.HasValue)
-                {
-                    Core.Test.SetFaceCulling(item.Value);
-                    glMain.Invalidate();
-                }
-            };
+                Source = Core.Test,
+                Path = new PropertyPath("FaceCulling"),
+                Mode = BindingMode.TwoWay
+            });
+            cboxFCull.SelectionChanged += (o, e) => glMain.Invalidate();
+            cboxDTest.ItemsSource = Enum.GetValues(typeof(DepthTestType)).Cast<DepthTestType>().ToList();
+            cboxDTest.SetBinding(ComboBox.SelectedItemProperty, new Binding
+            {
+                Source = Core.Test,
+                Path = new PropertyPath("DepthTesting"),
+                Mode = BindingMode.TwoWay
+            });
+            cboxDTest.SelectionChanged += (o, e) => glMain.Invalidate();
             cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
             {
                 Source = Core.Lights,
@@ -182,6 +187,7 @@ namespace WPFTest
                 Source = Core.Shaders,
                 Mode = BindingMode.OneWay
             });
+            cboxShader.SelectedItem = Core.Shaders.Current;
 
             AutoRefresher = new Timer(o =>
             {
@@ -190,10 +196,14 @@ namespace WPFTest
                     Core.Rotate(0, 3, 0, OPObject.Drawable);
                     this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
                 }
-            }, null, 0, 20);
+            }, null, 0, 15);
             this.Closing += (o, e) => AutoRefresher.Change(Timeout.Infinite, 20);
             glMain.Invalidate();
             WaitingCount = 0;
+
+            var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
+            fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS" : ""; };
+            fpsTimer.Start();
         }
 
         private static readonly Dictionary<common.LogLevel, SolidColorBrush> brashMap = new Dictionary<common.LogLevel, SolidColorBrush>

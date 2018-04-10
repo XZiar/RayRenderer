@@ -52,10 +52,6 @@ Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
 }
 
-void BasicTest::SetFaceCulling(OpenGLUtil::FaceCullingType type)
-{
-    core->GetContext()->SetFaceCulling((oglu::FaceCullingType)type);
-}
 
 
 #pragma managed(push, off)

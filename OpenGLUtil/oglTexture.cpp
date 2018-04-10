@@ -198,22 +198,27 @@ _oglTexture::~_oglTexture() noexcept
 
 void _oglTexture::setProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
 {
-    bind(0);
+    /*bind(0);
     glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_S, (GLint)wraptype);
     glTexParameteri((GLenum)type, GL_TEXTURE_WRAP_T, (GLint)wraptype);
     glTexParameteri((GLenum)type, GL_TEXTURE_MAG_FILTER, (GLint)filtertype);
     glTexParameteri((GLenum)type, GL_TEXTURE_MIN_FILTER, (GLint)filtertype);
-    unbind();
+    unbind();*/
+    glTextureParameteriEXT(textureID, (GLenum)type, GL_TEXTURE_WRAP_S, (GLint)wraptype);
+    glTextureParameteriEXT(textureID, (GLenum)type, GL_TEXTURE_WRAP_T, (GLint)wraptype);
+    glTextureParameteriEXT(textureID, (GLenum)type, GL_TEXTURE_MAG_FILTER, (GLint)filtertype);
+    glTextureParameteriEXT(textureID, (GLenum)type, GL_TEXTURE_MIN_FILTER, (GLint)filtertype);
 }
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data)
 {
     if (w % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
-    bind(0);
+    //bind(0);
     GLenum datatype, comptype;
     parseFormat(dformat, datatype, comptype);
-    glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
+    //glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
+    glTextureImage2DEXT(textureID, (GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, data);
     inFormat = iformat;
     width = w, height = h;
     //unbind();
@@ -221,11 +226,12 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFor
 
 void _oglTexture::setData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglPBO& buf)
 {
-    bind(0);
+    //bind(0);
     buf->bind();
     GLenum datatype, comptype;
     parseFormat(dformat, datatype, comptype);
-    glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, nullptr);
+    //glTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, nullptr);
+    glTextureImage2DEXT(textureID, (GLenum)type, 0, (GLint)iformat, w, h, 0, comptype, datatype, nullptr);
     inFormat = iformat;
     width = w, height = h;
     buf->unbind();
@@ -236,18 +242,20 @@ void _oglTexture::setData(const TextureInnerFormat iformat, const xziar::img::Im
 {
     if (img.Width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
-    bind(0);
+    //bind(0);
     GLenum datatype, comptype;
     parseFormat(img.DataType, normalized, datatype, comptype);
-    glTexImage2D((GLenum)type, 0, (GLint)iformat, img.Width, img.Height, 0, comptype, datatype, img.GetRawPtr());
+    //glTexImage2D((GLenum)type, 0, (GLint)iformat, img.Width, img.Height, 0, comptype, datatype, img.GetRawPtr());
+    glTextureImage2DEXT(textureID, (GLenum)type, 0, (GLint)iformat, img.Width, img.Height, 0, comptype, datatype, img.GetRawPtr());
     inFormat = iformat;
     width = img.Width, height = img.Height;
 }
 
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size)
 {
-    bind(0);
-    glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
+    //bind(0);
+    //glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
+    glCompressedTextureImage2DEXT(textureID, (GLenum)type, 0, (GLint)iformat, w, h, 0, (GLsizei)size, data);
     inFormat = iformat;
     width = w, height = h;
     //unbind();
@@ -255,9 +263,10 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 
 void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglPBO& buf, const GLsizei size)
 {
-    bind(0);
+    //bind(0);
     buf->bind();
-    glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);
+    //glCompressedTexImage2D((GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);
+    glCompressedTextureImage2DEXT(textureID, (GLenum)type, 0, (GLint)iformat, w, h, 0, size, nullptr);
     inFormat = iformat;
     width = w, height = h;
     buf->unbind();
@@ -266,42 +275,51 @@ void _oglTexture::setCompressedData(const TextureInnerFormat iformat, const GLsi
 
 optional<vector<uint8_t>> _oglTexture::getCompressedData()
 {
-    bind(0);
+    //bind(0);
     GLint ret = GL_FALSE;
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_COMPRESSED, &ret);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_COMPRESSED, &ret);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_COMPRESSED, &ret);
     if (ret == GL_FALSE)//non-compressed
         return {};
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &ret);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &ret);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &ret);
     optional<vector<uint8_t>> output(std::in_place, ret);
-    glGetCompressedTexImage((GLenum)type, 0, (*output).data());
+    //glGetCompressedTexImage((GLenum)type, 0, (*output).data());
+    glGetCompressedTextureImageEXT(textureID, (GLenum)type, 0, (*output).data());
     return output;
 }
 
 vector<uint8_t> _oglTexture::getData(const TextureDataFormat dformat)
 {
-    bind(0);
+    //bind(0);
     GLint w = 0, h = 0;
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
     auto size = w * h * parseFormatSize(dformat);
     vector<uint8_t> output(size);
     GLenum datatype, comptype;
     parseFormat(dformat, datatype, comptype);
-    glGetTexImage((GLenum)type, 0, comptype, datatype, output.data());
+    //glGetTexImage((GLenum)type, 0, comptype, datatype, output.data());
+    glGetTextureImageEXT(textureID, (GLenum)type, 0, comptype, datatype, output.data());
     return output;
 }
 
 Image _oglTexture::getImage(const TextureDataFormat dformat)
 {
-    bind(0);
+    //bind(0);
     GLint w = 0, h = 0;
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
-    glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_WIDTH, &w);
+    //glGetTexLevelParameteriv((GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
+    glGetTextureLevelParameterivEXT(textureID, (GLenum)type, 0, GL_TEXTURE_HEIGHT, &h);
     Image image(convertFormat(dformat));
     image.SetSize(w, h);
     GLenum datatype, comptype;
     parseFormat(dformat, datatype, comptype);
-    glGetTexImage((GLenum)type, 0, comptype, datatype, image.GetRawPtr());
+    //glGetTexImage((GLenum)type, 0, comptype, datatype, image.GetRawPtr());
+    glGetTextureImageEXT(textureID, (GLenum)type, 0, comptype, datatype, image.GetRawPtr());
     return image;
 }
 
@@ -345,9 +363,10 @@ _oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBu
 
 void _oglBufferTexture::setBuffer(const TextureDataFormat dformat, const oglTBO& tbo)
 {
-    bind(0);
+    //bind(0);
     innerBuf = tbo;
-    glTexBuffer(GL_TEXTURE_BUFFER, parseFormat(dformat), tbo->bufferID);
+    //glTexBuffer(GL_TEXTURE_BUFFER, parseFormat(dformat), tbo->bufferID);
+    glTextureBufferEXT(textureID, GL_TEXTURE_BUFFER, parseFormat(dformat), tbo->bufferID);
     //unbind();
 }
 

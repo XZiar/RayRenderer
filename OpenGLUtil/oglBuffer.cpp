@@ -11,17 +11,19 @@ static ContextResource<std::shared_ptr<UBOManager>, false> CTX_UBO_MAN;
 _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 {
     glGenBuffers(1, &bufferID);
+    bind();
+    unbind();
 }
 
 _oglBuffer::~_oglBuffer() noexcept
 {
     if (MappedPtr != nullptr)
     {
-        bind();
-        if (glUnmapBuffer((GLenum)BufType) == GL_FALSE)
+        //bind();
+        if (glUnmapNamedBufferEXT(bufferID) == GL_FALSE)
             oglLog().error(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
         MappedPtr = nullptr;
-        unbind();
+        //unbind();
     }
     if (bufferID != GL_INVALID_INDEX)
         glDeleteBuffers(1, &bufferID);
@@ -54,18 +56,21 @@ void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
         access = GL_WRITE_ONLY;
     else
         access = GL_READ_WRITE;
-    MappedPtr = glMapBuffer((GLenum)BufType, access);
+    //MappedPtr = glMapBuffer((GLenum)BufType, access);
+    MappedPtr = glMapNamedBufferEXT(bufferID, access);
 }
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
     if (MappedPtr == nullptr)
     {
-        bind();
-        glBufferData((GLenum)BufType, size, dat, (GLenum)mode);
+        glNamedBufferDataEXT(bufferID, size, dat, (GLenum)mode);
         BufSize = size;
-        if (BufType == BufferType::Pixel)//in case of invalid operation
-            unbind();
+        //bind();
+        //glBufferData((GLenum)BufType, size, dat, (GLenum)mode);
+        //BufSize = size;
+        //if (BufType == BufferType::Pixel)//in case of invalid operation
+        //    unbind();
     }
     else
     {

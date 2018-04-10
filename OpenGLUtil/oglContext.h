@@ -61,15 +61,18 @@ private:
     void *Hdc, *Hrc;
     DBGLimit DbgLimit;
     const uint32_t Uid;
+    FaceCullingType FaceCulling = FaceCullingType::OFF;
+    DepthTestType DepthTestFunc = DepthTestType::Less;
     _oglContext(const uint32_t uid, void *hdc, void *hrc);
 public:
-    _oglContext(_oglContext&& other) : Hdc(other.Hdc), Hrc(other.Hrc), Uid(other.Uid) { other.Hdc = other.Hrc = nullptr; }
     ~_oglContext();
     bool UseContext();
     bool UnloadContext();
     void SetDebug(MsgSrc src, MsgType type, MsgLevel minLV);
     void SetDepthTest(const DepthTestType type);
     void SetFaceCulling(const FaceCullingType type);
+    DepthTestType GetDepthTest() { return DepthTestFunc; }
+    FaceCullingType GetFaceCulling() { return FaceCulling; }
 };
 
 }
@@ -151,6 +154,10 @@ template<> struct ContextResourceHelper<false>
         return oglContext::CurrentHRC();
     }
 };
+
+///<summary>Context-related resource map</summary>  
+///<param name="Val">resource type</param>
+///<param name="Shared">is the resource shared between shared context</param>
 template<typename Val, bool Shared = true>
 class ContextResource : public common::NonCopyable, public common::NonMovable
 {
@@ -167,6 +174,8 @@ public:
         Lock.UnlockRead();
         return obj;
     }
+    ///<summary>Try get current context's resource</summary>  
+    ///<returns>optional of resource</returns>
     std::optional<Val> TryGet()
     {
         return TryGet(ContextResourceHelper<Shared>::CurCtx());
@@ -194,6 +203,9 @@ public:
             return ret;
         }
     }
+    ///<summary>Get or create current context's resource</summary>  
+    ///<param name="creator">callable that create resource with given key</param>
+    ///<returns>resource</returns>
     template<class Creator>
     Val GetOrInsert(Creator creator) { return GetOrInsert(ContextResourceHelper<Shared>::CurCtx(), creator); }
     void Delete(KeyType key)
@@ -213,6 +225,8 @@ public:
             Map.emplace(key, creator(key));
         Lock.UnlockWrite();
     }
+    ///<summary>Insert or repalce current context's resource</summary>  
+    ///<param name="creator">callable that create resource with given key</param>
     template<class Creator>
     void InsertOrAssign(Creator creator) { InsertOrAssign(ContextResourceHelper<Shared>::CurCtx(), creator); }
 };
