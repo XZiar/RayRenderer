@@ -83,8 +83,10 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             if (keyevent.hasShift())
                 isAnimate = !isAnimate;
             else
+            {
                 tester->mode = !tester->mode;
-            break;
+                window->setTitle(tester->mode ? "3D" : "2D");
+            } break;
         case '+':
             curObj++;
             if (curObj >= (uint16_t)(tester->Objects().size()))
@@ -137,7 +139,7 @@ bool onTimer(FreeGLUTView wd, uint32_t elapseMS)
     return true;
 }
 
-void onDropFile(FreeGLUTView wd, wstring fname)
+void onDropFile(FreeGLUTView wd, u16string fname)
 {
     const auto extName = fs::path(fname).extension().u16string();
     if (extName == u".obj")
@@ -178,13 +180,19 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
     tester.reset(new rayr::BasicTest(u"", u"D:\\Programs Data\\VSProject\\RayRenderer\\RenderCore\\3d.glsl"));
     window->funDisp = [&](FreeGLUTView wd) { tester->Draw(); };
     window->funReshape = onResize;
-    window->setTitle("2D");
+    window->setTitle("3D");
     window->funKeyEvent = onKeyboard;
     window->funMouseEvent = onMouseEvent;
     window->setTimerCallback(onTimer, 20);
     window->funDropFile = onDropFile;
     window->funOnClose = [&](FreeGLUTView wd) { tester.release(); };
-
+    if (false)
+    {
+        const auto light = Wrapper<b3d::PointLight>(std::in_place);
+        light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+        tester->AddLight(light);
+        tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
+    }
 
     FreeGLUTViewRun();
 }

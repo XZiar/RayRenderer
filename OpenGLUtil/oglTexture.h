@@ -46,6 +46,7 @@ namespace detail
 using xziar::img::ImageDataType;
 using xziar::img::Image;
 
+
 class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 {
     friend class TextureManager;
@@ -55,81 +56,157 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
     friend class ::oclu::detail::_oclGLBuffer;
 protected:
     const TextureType Type;
+    TextureInnerFormat InnerFormat;
     GLuint textureID = GL_INVALID_INDEX;
     static TextureManager& getTexMan() noexcept;
     _oglTexBase(const TextureType type) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
+    std::pair<uint32_t, uint32_t> GetInternalSize2() const;
+    std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
 public:
     ~_oglTexBase() noexcept;
     void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
+    bool IsCompressed() const;
 
-    static GLenum ParseFormat(const TextureDataFormat dformat) noexcept;
+    //static TextureInnerFormat ParseFormatStorage(const TextureDataFormat dformat) noexcept;
     static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
+    {
+        GLenum datatype, comptype;
+        ParseFormat(dformat, datatype, comptype);
+        return { datatype,comptype };
+    }
     static void ParseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const ImageDataType dformat, const bool normalized) noexcept
+    {
+        GLenum datatype, comptype;
+        ParseFormat(dformat, normalized, datatype, comptype);
+        return { datatype,comptype };
+    }
     static ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
 };
+
 
 class OGLUAPI _oglTexture2D : public _oglTexBase
 {
     friend class _oglTexture2DArray;
     friend class ::oclu::detail::_oclGLBuffer;
 protected:
-    TextureInnerFormat InnerFormat;
     uint32_t Width, Height;
-public:
+
     _oglTexture2D() noexcept;
+
+    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
+    void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept;
+    void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept;
+    void SetData(const bool isSub, const Image& img, const bool normalized) noexcept;
+
+    void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
+    void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept;
+public:
     std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
-    template<class T, class A>
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)
-    {
-        SetData(iformat, dformat, w, h, data.data());
-    }
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const void *data);
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const GLsizei w, const GLsizei h, const oglPBO& buf);
-    void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true);
-    void SetCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const void *data, const size_t size);
-    template<class T, class A>
-    void SetCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const vector<T, A>& data)
-    {
-        SetCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
-    }
-    void SetCompressedData(const TextureInnerFormat iformat, const GLsizei w, const GLsizei h, const oglPBO& buf, const GLsizei size);
+    
     optional<vector<uint8_t>> GetCompressedData();
     vector<uint8_t> GetData(const TextureDataFormat dformat);
     Image GetImage(const TextureDataFormat dformat);
 };
 
+
+class OGLUAPI _oglTexture2DStatic : public _oglTexture2D
+{
+public:
+    _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat);
+
+    void SetData(const TextureDataFormat dformat, const void *data);
+    void SetData(const TextureDataFormat dformat, const oglPBO& buf);
+    void SetData(const Image& img, const bool normalized = true);
+    template<class T, class A>
+    void SetData(const TextureDataFormat dformat, const vector<T, A>& data) 
+    { 
+        SetData(iformat, dformat, data.data());
+    }
+    
+    void SetCompressedData(const void *data, const size_t size);
+    void SetCompressedData(const oglPBO& buf, const size_t size);
+    template<class T, class A>
+    void SetCompressedData(const vector<T, A>& data) 
+    { 
+        SetCompressedData(data.data(), data.size() * sizeof(T));
+    }
+};
+
+
+class OGLUAPI _oglTexture2DDynamic : public _oglTexture2D
+{
+protected:
+    void CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h);
+public:
+    _oglTexture2DDynamic() noexcept {}
+
+    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
+    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
+    void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true);
+    template<class T, class A>
+    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data) 
+    { 
+        SetData(iformat, dformat, w, h, data.data()); 
+    }
+    
+    void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const void *data, const size_t size);
+    void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const oglPBO& buf, const size_t size);
+    template<class T, class A>
+    void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const vector<T, A>& data) 
+    { 
+        SetCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
+    }
+};
+
+class OGLUAPI _oglTexture2DView : public _oglTexture2D
+{
+    friend class _oglTexture2DArray;
+private:
+    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat) 
+    {
+        Width = width, Height = height; InnerFormat = iformat;
+    }
+};
+
+///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI _oglTexture2DArray : public _oglTexBase
 {
-    TextureInnerFormat InnerFormat;
     uint32_t Width, Height, Layers;
 public:
-    _oglTexture2DArray() noexcept;
-    _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureDataFormat dformat) noexcept;
-    void InitSize(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureDataFormat dformat);
-    void SetTextureLayer(const uint32_t layer, const Wrapper<detail::_oglTexture2D>& tex);
-    void SetTextureLayer(const uint32_t layer, const Image& img);
-    void SetTextureLayers(const uint32_t destLayer, const Wrapper<detail::_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
+    _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat);
+    
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
+    
+    void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
+    void SetTextureLayer(const uint32_t layer, const Image& img);
+    void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
+    
+    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const;
 };
+
 
 class OGLUAPI _oglBufferTexture : public _oglTexBase
 {
 protected:
-    friend class _oglProgram;
-    oglTBO innerBuf;
+    oglTBO InnerBuf;
 public:
     _oglBufferTexture() noexcept;
-    void setBuffer(const TextureDataFormat dformat, const oglTBO& tbo);
+    void SetBuffer(const TextureInnerFormat iformat, const oglTBO& tbo);
 };
 
 
 }
 using oglTexBase = Wrapper<detail::_oglTexBase>;
 using oglTex2D = Wrapper<detail::_oglTexture2D>;
+using oglTex2DS = Wrapper<detail::_oglTexture2DStatic>;
+using oglTex2DD = Wrapper<detail::_oglTexture2DDynamic>;
+using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 

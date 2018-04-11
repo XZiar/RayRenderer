@@ -146,7 +146,6 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo)
     vao.Method = ibo->IsIndexed ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
     vao.Count = std::monostate();
     vao.Offsets = std::monostate();
-    ibo->bind();
     return *this;
 }
 

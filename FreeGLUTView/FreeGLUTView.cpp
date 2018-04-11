@@ -177,7 +177,7 @@ void _FreeGLUTView::onTimer()
 		uitimer.Start();
 }
 
-void _FreeGLUTView::onDropFile(const wstring& fname)
+void _FreeGLUTView::onDropFile(const u16string& fname)
 {
 	if (funDropFile == nullptr)
 		return;

@@ -25,11 +25,11 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 }
 
 
-oglu::oglTex2D GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format)
+oglu::oglTex2DS GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format)
 {
-    oglu::oglTex2D tex(std::in_place);
+    oglu::oglTex2DS tex(img.Width, img.Height, format);
     tex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    tex->SetData(format, img);
+    tex->SetData(img);
     return tex;
 }
 
@@ -40,7 +40,7 @@ static void CompressData(const xziar::img::Image& img, vector<uint8_t>& output, 
         output = std::move(*dat);
 }
 
-oglu::oglTex2D GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format, const u16string& taskName)
+oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format, const u16string& taskName)
 {
     vector<uint8_t> texdata;
     auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&)
@@ -49,9 +49,9 @@ oglu::oglTex2D GenTextureAsync(const xziar::img::Image& img, const oglu::Texture
     }, taskName);
     common::asyexe::AsyncAgent::SafeWait(asyncRet);
     
-    oglu::oglTex2D tex(std::in_place);
+    oglu::oglTex2DS tex(img.Width, img.Height, format);
     tex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    tex->SetCompressedData(format, img.Width, img.Height, texdata);
+    tex->SetCompressedData(texdata);
     return tex;
 }
 
@@ -172,7 +172,7 @@ void MultiMaterialHolder::Refresh()
             continue;
         const auto& oldTex = Textures[i];
         const auto[w, h, l] = oldTex->GetSize();
-        oglTex2DArray newTex(w, h, (uint16_t)(l + objAdd.size()), oglu::TextureDataFormat::RGBA8);
+        oglTex2DArray newTex(w, h, (uint16_t)(l + objAdd.size()), oglu::TextureInnerFormat::RGBA8);
         newTex->SetTextureLayers(0, oldTex, 0, l);
         uint32_t objLayer = l;
         for (const auto& tex : objAdd)

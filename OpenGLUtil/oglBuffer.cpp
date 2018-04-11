@@ -19,11 +19,9 @@ _oglBuffer::~_oglBuffer() noexcept
 {
     if (MappedPtr != nullptr)
     {
-        //bind();
         if (glUnmapNamedBufferEXT(bufferID) == GL_FALSE)
             oglLog().error(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
         MappedPtr = nullptr;
-        //unbind();
     }
     if (bufferID != GL_INVALID_INDEX)
         glDeleteBuffers(1, &bufferID);
@@ -56,7 +54,6 @@ void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
         access = GL_WRITE_ONLY;
     else
         access = GL_READ_WRITE;
-    //MappedPtr = glMapBuffer((GLenum)BufType, access);
     MappedPtr = glMapNamedBufferEXT(bufferID, access);
 }
 
@@ -66,11 +63,6 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     {
         glNamedBufferDataEXT(bufferID, size, dat, (GLenum)mode);
         BufSize = size;
-        //bind();
-        //glBufferData((GLenum)BufType, size, dat, (GLenum)mode);
-        //BufSize = size;
-        //if (BufType == BufferType::Pixel)//in case of invalid operation
-        //    unbind();
     }
     else
     {
@@ -154,8 +146,5 @@ void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t siz
     }
 }
 
-_oglElementBuffer::_oglElementBuffer() noexcept : _oglBuffer(BufferType::Element)
-{
-}
 
 }

@@ -81,12 +81,12 @@ _ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t colo
     SetSize(w, h);
 }
 
-oglu::oglTex2D _ModelImage::genTexture(const oglu::TextureInnerFormat format)
+oglu::oglTex2DS _ModelImage::genTexture(const oglu::TextureInnerFormat format)
 {
     return rayr::GenTexture(*this, format);
 }
 
-oglu::oglTex2D _ModelImage::genTextureAsync(const oglu::TextureInnerFormat format)
+oglu::oglTex2DS _ModelImage::genTextureAsync(const oglu::TextureInnerFormat format)
 {
     return rayr::GenTextureAsync(*this, format, u"Comp-" + Name);
 }

@@ -207,47 +207,68 @@ void _oglProgram::InitLocs()
 void _oglProgram::InitSubroutines()
 {
     const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
-    char strbuf[4096];
+    SubroutineRess.clear();
+    subrLookup.clear();
+    SubroutineBindings.clear();
+    SubroutineSettings.clear();
     auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
     writer.clear();
     writer.write(u"SubRoutine Resource: \n");
-    SubroutineRess.clear();
-    subrLookup.clear();
+    string nameBuf;
     for (auto stage : stages)
     {
         GLint count;
         glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
+        GLint maxNameLen = 0;
+        glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
+        {
+            GLint maxUNameLen = 0;
+            glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
+            maxNameLen = std::max(maxNameLen, maxUNameLen);
+        }
+        nameBuf.resize(maxNameLen);
         for (int a = 0; a < count; ++a)
         {
-            glGetActiveSubroutineUniformName(programID, stage, a, sizeof(strbuf), nullptr, strbuf);
-            string uniformName(strbuf);
-            auto uniformLoc = glGetSubroutineUniformLocation(programID, stage, strbuf);
+            string uniformName;
+            {
+                GLint nameLen = 0;
+                glGetActiveSubroutineUniformName(programID, stage, a, maxNameLen, &nameLen, nameBuf.data());
+                uniformName.assign(nameBuf, 0, nameLen);
+            }
+            auto uniformLoc = glGetSubroutineUniformLocation(programID, stage, uniformName.data());
             writer.write(u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
-            GLint srcnt;
+            GLint srcnt = 0;
             glGetActiveSubroutineUniformiv(programID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
             vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
-            vector<SubroutineResource::Routine> routines;
             glGetActiveSubroutineUniformiv(programID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
-            for(auto idx : compSRs)
+            
+            vector<SubroutineResource::Routine> routines;
+            for (const auto subridx : compSRs)
             {
-                glGetActiveSubroutineName(programID, stage, idx, sizeof(strbuf), nullptr, strbuf);
-                string subrname(strbuf);
-                writer.write(u"--[{}]: {}\n", idx, subrname);
-                routines.push_back(SubroutineResource::Routine(subrname, idx));
+                string subrName;
+                {
+                    GLint nameLen = 0;
+                    glGetActiveSubroutineName(programID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
+                    subrName.assign(nameBuf, 0, nameLen);
+                }
+                writer.write(u"--[{}]: {}\n", subridx, subrName);
+                routines.push_back(SubroutineResource::Routine(subrName, subridx));
             }
-            auto[it, isAdd] = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines));
+            const auto it = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines)).first;
             for (auto& routine : it->Routines)
                 subrLookup[&routine] = &(*it);
         }
+        GLint locCount = 0;
+        glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
+        SubroutineSettings[(ShaderType)stage].resize(locCount);
     }
     oglLog().debug(writer.c_str());
-    SubroutineBindings.clear();
-    SubroutineSettings.clear();
+    
     for (const auto& subr : SubroutineRess)
     {
         const auto& routine = subr.Routines[0];
         SubroutineBindings[&subr] = &routine;
-        SubroutineSettings[subr.Stage].push_back(routine.Id);
+        SubroutineSettings[subr.Stage][subr.UniLoc] = routine.Id;
     }
 }
 
@@ -549,8 +570,7 @@ void _oglProgram::SetSubroutine()
 void _oglProgram::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
 {
     auto& oldRoutine = SubroutineBindings[subr];
-    auto& srvec = SubroutineSettings[subr->Stage];
-    std::replace(srvec.begin(), srvec.end(), oldRoutine->Id, routine->Id); //ensured has value
+    auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc] = routine->Id;
     oldRoutine = routine;
 }
 

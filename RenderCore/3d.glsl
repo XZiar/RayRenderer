@@ -128,7 +128,7 @@ vec4 tanvec()
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
 subroutine(LightModel)
-vec4 norm()
+vec4 normal()
 {
     const vec3 ptNorm = getNorm();
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);

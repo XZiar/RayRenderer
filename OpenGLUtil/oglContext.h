@@ -31,7 +31,7 @@ enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 struct OGLUAPI BindingState
 {
-    GLint vaoId = 0, vboId = 0, iboId = 0, eboId = 0;
+    GLint progId = 0, vaoId = 0, vboId = 0, iboId = 0, eboId = 0;
     BindingState();
 };
 

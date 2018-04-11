@@ -29,8 +29,8 @@ private:
 public:
     u16string Name;
     _ModelImage(const uint16_t w, const uint16_t h, const uint32_t color = 0x0);
-    oglu::oglTex2D genTexture(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
-    oglu::oglTex2D genTextureAsync(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
+    oglu::oglTex2DS genTexture(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
+    oglu::oglTex2DS genTextureAsync(const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 };
 }
 using ModelImage = Wrapper<detail::_ModelImage>;

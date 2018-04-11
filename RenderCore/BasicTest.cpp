@@ -70,7 +70,7 @@ void BasicTest::init3d(const u16string pname)
         try
         {
             progBasic->Link();
-            progBasic->State().SetSubroutine("lighter", "onlytex").SetSubroutine("getNorm", "vertedNormal");
+            progBasic->State().SetSubroutine("lighter", "tex0").SetSubroutine("getNorm", "vertedNormal");
         }
         catch (const OGLException& gle)
         {
@@ -132,9 +132,9 @@ void BasicTest::init3d(const u16string pname)
 
 void BasicTest::initTex()
 {
-    picTex.reset();
+    picTex.reset(128, 128, TextureInnerFormat::RGBA8);
     picBuf.reset();
-    tmpTex.reset();
+    tmpTex.reset(128, 128, TextureInnerFormat::RGBA8);
     {
         picTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
         Vec4 empty[128][128];
@@ -150,14 +150,11 @@ void BasicTest::initTex()
             }
         }
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-        tmpTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
-        picTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+        tmpTex->SetData(TextureDataFormat::RGBAf, empty);
+        picTex->SetData(TextureDataFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
     }
-    {
-        uint32_t empty[4][4] = { 0 };
-    }
-    mskTex.reset();
+    mskTex.reset(128, 128, TextureInnerFormat::RGBA8);
     {
         mskTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
         Vec4 empty[128][128];
@@ -176,7 +173,7 @@ void BasicTest::initTex()
                 }
             }
         }
-        mskTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+        mskTex->SetData(TextureDataFormat::RGBAf, empty);
     }
 }
 
@@ -392,7 +389,7 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
         {
             prog->Link();
             prog->State()
-                .SetSubroutine("lighter", "onlytex")
+                .SetSubroutine("lighter", "tex0")
                 .SetSubroutine("getNorm", "bothNormal")
                 .SetSubroutine("getAlbedo", "bothAlbedo");
         }

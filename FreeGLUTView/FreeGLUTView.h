@@ -20,6 +20,7 @@ namespace glutview
 using namespace common;
 using std::string;
 using std::wstring;
+using std::u16string;
 using namespace b3d;
 
 enum class Key : uint8_t
@@ -78,7 +79,7 @@ using FuncMouseEvent = std::function<void(FreeGLUTView, MouseEvent)>;
 //-param elapse time(ms)
 //-return whether continue this timer
 using FuncTimer = std::function<bool(FreeGLUTView, uint32_t)>;
-using FuncDropFile = std::function<void(FreeGLUTView, wstring filePath)>;
+using FuncDropFile = std::function<void(FreeGLUTView, u16string filePath)>;
 
 
 class GLUTHacker;
@@ -112,7 +113,7 @@ private:
 	void onMouse(int x, int y);
 	void onMouse(int button, int state, int x, int y);
 	void onTimer();
-	void onDropFile(const wstring& fname);
+	void onDropFile(const u16string& fname);
     void onClose();
 public:
 	bool deshake = true;

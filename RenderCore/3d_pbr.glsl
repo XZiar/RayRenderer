@@ -192,7 +192,7 @@ vec3 tanvec()
     return (ptNorm + 1.0f) * 0.5f;
 }
 subroutine(LightModel)
-vec3 norm()
+vec3 normal()
 {
     const vec3 ptNorm = getNorm(materials[0].basic);
     return (ptNorm + 1.0f) * 0.5f;
@@ -202,7 +202,7 @@ vec3 normdiff()
 {
     vec4 albedo = materials[0].basic;
     if(albedo.g >= 0.0f)
-        return vec4(0.5f, 0.5f, 0.5f, 1.0f);
+        return vec3(0.5f, 0.5f, 0.5f);
     const vec3 ptNorm = vertedNormal(albedo);
     const vec3 ptNorm2 = mappedNormal(albedo);
     const vec3 diff = ptNorm2 - ptNorm;
@@ -236,7 +236,7 @@ vec3 drawidx()
 }
 
 //NDF(n,h,r) = a^2 / PI((n.h)^2 * (a^2-1) + 1)^2
-//roughtness4 = a^2 = roughness^4
+//roughness4 = a^2 = roughness^4
 //distribution of normal of the microfacet
 float D_GGXTR(const vec3 ptNorm, const vec3 halfVec, const float roughness4)
 {
@@ -269,7 +269,7 @@ vec3 F_Schlick(const vec3 halfVec, const vec3 viewRay, const vec3 F0)
     return F0 + (1.0f - F0) * pow(1.0f - ClampDot(halfVec, viewRay), 5.0f);
 }
 
-void PBR(const lowp vec3 albedo, out lowp vec3 diffuseColor, out lowp vec3 specularColor)
+void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 specularColor)
 {
     const vec3 viewRay = normalize(pt2cam);
     const vec3 ptNorm = getNorm(materials[0].basic);

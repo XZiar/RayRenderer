@@ -42,8 +42,8 @@ public:
     uint32_t WriteData(std::byte *ptr) const;
 };
 
-oglu::oglTex2D GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
-oglu::oglTex2D GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3, const u16string& taskName = u"GenTextureAsync");
+oglu::oglTex2DS GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
+oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3, const u16string& taskName = u"GenTextureAsync");
 
 struct RAYCOREAPI MultiMaterialHolder : common::NonCopyable
 {

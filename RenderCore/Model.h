@@ -45,7 +45,7 @@ private:
     vector<uint32_t> indexs;
     vector<std::pair<string, uint32_t>> groups;
     ModelImage diffuse, normal;
-    oglu::oglTex2D texd, texn;
+    oglu::oglTex2DS texd, texn;
     oglu::oglVBO vbo;
     oglu::oglEBO ebo;
     oglu::oglIBO ibo;

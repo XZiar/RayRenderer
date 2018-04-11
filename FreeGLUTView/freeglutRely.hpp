@@ -237,8 +237,8 @@ private:
         case WM_DROPFILES:
             {
                 HDROP hdrop = (HDROP)wParam;
-                wchar_t filePath[MAX_PATH + 1];
-                DragQueryFile(hdrop, 0, filePath, MAX_PATH);
+                std::u16string filePath(2048, u'\0');
+                DragQueryFile(hdrop, 0, (LPWSTR)filePath.data(), 2000);
                 DragFinish(hdrop);
                 const auto view = getView(hWnd);
                 view->onDropFile(filePath);

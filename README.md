@@ -15,7 +15,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 ## Componoent
 
-| | |
+| Component | Description |
 |:-------|:-------:|
 | [3rdParty](./3rdParty) | 3rd party library |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things |

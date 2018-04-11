@@ -8,15 +8,21 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 * **oglShader**  OpenGL Shader
 
-  loading/data storeage only
+  shader loadin, data storeage, ext-property parsing.
 
 * **oglBuffer**  OpenGL Buffer objects
-  * oglBuffer -- any buffer object
+  * oglVBO -- array buffer object
   * oglTBO -- texture buffer object
   * oglUBO -- unifrom buffer object
-  * oglEBO -- element buffer object(indexed element buffer)
+  * oglIBO -- indirect command buffer object
+  * oglEBO -- element buffer object (indexed element buffer)
 
 * **oglTexture**  OpenGL Texture
+  * oglTex2D -- any 2D texture
+    * oglTex2DS -- immutable 2D texture
+    * oglTex2DD -- mutable 2D texture
+    * oglTex2DV -- 2D texture view (readonly)
+  * oglTex2DArray -- 2D texture array (immutable only)
 
 * **oglVAO**  OpenGL Vertex attribute object
   
@@ -24,7 +30,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 * **oglProgram**  OpenGL Program
   
-  It's like a "shader" in other engine, with resources slot binding with UBO or Texture, etc. 
+  It's like a "shader" in other engine, with resources slot binding with uniforms, UBOs, textures, etc. 
 
 * **oglContext**  OpenGL Context
 

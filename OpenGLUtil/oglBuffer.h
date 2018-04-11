@@ -32,9 +32,9 @@ namespace detail
 
 class OGLUAPI _oglBuffer : public NonCopyable
 {
-protected:
     friend class ::oclu::detail::_oclGLBuffer;
     friend class _oglProgram;
+protected:
     void *MappedPtr = nullptr;
     size_t BufSize;
     const BufferType BufType;
@@ -50,12 +50,12 @@ public:
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
     template<class T, class A>
-    inline void Write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    void Write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
         Write(dat.data(), sizeof(T)*dat.size(), mode);
     }
     template<class T, size_t N>
-    inline void Write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    void Write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
         Write(dat, sizeof(dat), mode);
     }
@@ -88,11 +88,10 @@ public:
 
 class OGLUAPI _oglUniformBuffer : public _oglBuffer
 {
-protected:
     friend class UBOManager;
     friend class _oglProgram;
-    friend class ProgState;
     friend class ProgDraw;
+protected:
     static UBOManager& getUBOMan();
     void bind(const uint16_t pos) const;
 public:
@@ -160,7 +159,7 @@ protected:
         }
     }
 public:
-    _oglElementBuffer() noexcept;
+    _oglElementBuffer() noexcept : _oglBuffer(BufferType::Element) {}
     ///<summary>Write index</summary>  
     ///<param name="dat">index container of [std::vector]</param>
     ///<param name="mode">buffer write mode</param>
