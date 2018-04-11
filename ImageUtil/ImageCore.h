@@ -34,7 +34,7 @@ public:
     { }
     Image(const Image& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
-    Image(Image&& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
+    Image(Image&& other) noexcept : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
     Image(const common::AlignedBuffer<32>& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
@@ -68,7 +68,6 @@ public:
     {
         SetSize(std::get<0>(size), std::get<1>(size), zero);
     }
-    //bool isGray() const { return REMOVE_MASK(DataType, { ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK }) == ImageDataType::GRAY; }
     bool isGray() const { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
     template<typename T = byte>
@@ -105,7 +104,16 @@ public:
     void FlipVertical();
     void FlipHorizontal();
     void Rotate180();
+    ///<summary>Place other image into current image</summary>  
+    ///<param name="other">image being putted</param>
+    ///<param name="srcX">image source's left-top position</param>
+    ///<param name="srcY">image source's left-top position</param>
+    ///<param name="destX">image destination's left-top position</param>
+    ///<param name="destY">image destination's left-top position</param>
     void PlaceImage(const Image& other, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY);
+    ///<summary>Resize the image in-place</summary>  
+    ///<param name="width">width</param>
+    ///<param name="height">height</param>
     void Resize(const uint32_t width, const uint32_t height);
 
     Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;

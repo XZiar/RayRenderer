@@ -71,12 +71,12 @@ class OCLUAPI _oclGLBuffer : public _oclBuffer
 {
 private:
 	const oglu::oglBuffer buf;
-	const oglu::oglTexture tex;
+	const oglu::oglTex2D tex;
 	cl_mem createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglBuffer buf_) const;
-	cl_mem createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTexture tex_) const;
+	cl_mem createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTex2D tex_) const;
 public:
 	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglBuffer buf_);
-	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_);
+	_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTex2D tex_);
 	~_oclGLBuffer() override;
 	void lock(const oclCmdQue& que) const;
 	void unlock(const oclCmdQue& que) const;

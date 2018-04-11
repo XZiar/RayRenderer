@@ -97,7 +97,7 @@ void BasicTest::init3d(const u16string pname)
         {
             progPBR->Link();
             progPBR->State()
-                .SetSubroutine("lighter", "onlytex")
+                .SetSubroutine("lighter", "tex0")
                 .SetSubroutine("getNorm", "bothNormal")
                 .SetSubroutine("getAlbedo", "bothAlbedo");
         }
@@ -132,11 +132,11 @@ void BasicTest::init3d(const u16string pname)
 
 void BasicTest::initTex()
 {
-    picTex.reset(TextureType::Tex2D);
+    picTex.reset();
     picBuf.reset();
-    tmpTex.reset(TextureType::Tex2D);
+    tmpTex.reset();
     {
-        picTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
+        picTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
         Vec4 empty[128][128];
         for (int a = 0; a < 128; ++a)
         {
@@ -150,16 +150,16 @@ void BasicTest::initTex()
             }
         }
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-        tmpTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
-        picTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+        tmpTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+        picTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
     }
     {
         uint32_t empty[4][4] = { 0 };
     }
-    mskTex.reset(TextureType::Tex2D);
+    mskTex.reset();
     {
-        mskTex->setProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
+        mskTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
         Vec4 empty[128][128];
         for (int a = 0; a < 128; ++a)
         {
@@ -176,7 +176,7 @@ void BasicTest::initTex()
                 }
             }
         }
-        mskTex->setData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
+        mskTex->SetData(TextureInnerFormat::RGBA8, TextureDataFormat::RGBAf, 128, 128, empty);
     }
 }
 
@@ -221,7 +221,7 @@ void BasicTest::fontTest(const char32_t word)
             const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
             oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
             {
-                fonttex->setData(TextureInnerFormat::R8, imgShow);
+                fonttex->SetData(TextureInnerFormat::R8, imgShow);
                 agent.Await(oglu::oglUtil::SyncGL());
             })->wait();
             img::WriteImage(imgShow, basepath / (u"Show.png"));
@@ -238,15 +238,15 @@ void BasicTest::fontTest(const char32_t word)
         else
         {
             fontCreator->setChar(L'G', false);
-            const auto imgG = fonttex->getImage(TextureDataFormat::R8);
+            const auto imgG = fonttex->GetImage(TextureDataFormat::R8);
             img::WriteImage(imgG, basepath / u"G.png");
             fontCreator->setChar(word, false);
-            const auto imgA = fonttex->getImage(TextureDataFormat::R8);
+            const auto imgA = fonttex->GetImage(TextureDataFormat::R8);
             img::WriteImage(imgA, basepath / u"A.png");
             const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
-            fonttex->setData(TextureInnerFormat::R8, imgShow);
+            fonttex->SetData(TextureInnerFormat::R8, imgShow);
             img::WriteImage(imgShow, basepath / u"Show.png");
-            fonttex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+            fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
             fontViewer->BindTexture(fonttex);
         }
     }

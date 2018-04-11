@@ -98,10 +98,10 @@ cl_mem _oclGLBuffer::createMem(const std::shared_ptr<_oclContext>& ctx_, const o
     return id;
 }
 
-cl_mem _oclGLBuffer::createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTexture tex_) const
+cl_mem _oclGLBuffer::createMem(const std::shared_ptr<_oclContext>& ctx_, const oglu::oglTex2D tex_) const
 {
     cl_int errcode;
-    auto id = clCreateFromGLTexture(ctx_->context, (cl_mem_flags)type, (cl_GLenum)tex_->type, 0, tex_->textureID, &errcode);
+    auto id = clCreateFromGLTexture(ctx_->context, (cl_mem_flags)type, (cl_GLenum)tex_->Type, 0, tex_->textureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create buffer from glTexture", errcode));
     return id;
@@ -112,7 +112,7 @@ _oclGLBuffer::_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemTy
 {
 }
 
-_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTexture tex_)
+_oclGLBuffer::_oclGLBuffer(const std::shared_ptr<_oclContext>& ctx_, const MemType type_, const oglu::oglTex2D tex_)
     : _oclBuffer(ctx_, type_, INT32_MAX, createMem(ctx_, tex_))
 {
 }

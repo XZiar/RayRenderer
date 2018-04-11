@@ -56,7 +56,7 @@ void FontViewer::Draw()
     prog->Draw().Draw(viewVAO);
 }
 
-void FontViewer::BindTexture(const oglTexture& tex)
+void FontViewer::BindTexture(const oglTex2D& tex)
 {
     prog->State().SetTexture(tex, "tex");
 }

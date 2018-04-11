@@ -34,8 +34,6 @@ class OGLUAPI _oglBuffer : public NonCopyable
 {
 protected:
     friend class ::oclu::detail::_oclGLBuffer;
-    friend class _oglTexture;
-    friend class _oglVAO;
     friend class _oglProgram;
     void *MappedPtr = nullptr;
     size_t BufSize;
@@ -66,7 +64,7 @@ public:
 
 class OGLUAPI _oglPixelBuffer : public _oglBuffer
 {
-    friend class _oglTexture;
+    friend class _oglTexture2D;
 public:
     _oglPixelBuffer() noexcept : _oglBuffer(BufferType::Pixel) { }
 };
@@ -82,9 +80,7 @@ public:
 
 class OGLUAPI _oglTextureBuffer : public _oglBuffer
 {
-protected:
     friend class _oglBufferTexture;
-    friend class _oglProgram;
 public:
     _oglTextureBuffer() noexcept;
 };
@@ -108,6 +104,7 @@ public:
 
 class OGLUAPI _oglIndirectBuffer : public _oglBuffer
 {
+    friend class _oglVAO;
 public:
     struct DrawElementsIndirectCommand
     {
@@ -125,7 +122,6 @@ public:
         GLuint baseInstance;
     };
 protected:
-    friend class _oglVAO;
     std::variant<vector<DrawElementsIndirectCommand>, vector<DrawArraysIndirectCommand>> Commands;
     GLsizei Count = 0;
     bool IsIndexed = false;
@@ -147,8 +143,8 @@ public:
 
 class OGLUAPI _oglElementBuffer : public _oglBuffer
 {
-protected:
     friend class _oglVAO;
+protected:
     GLenum IndexType;
     uint8_t IndexSize;
     void SetSize(const uint8_t elesize)

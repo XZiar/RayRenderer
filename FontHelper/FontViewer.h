@@ -16,7 +16,7 @@ public:
     oglProgram prog;
     FontViewer();
     void Draw();
-    void BindTexture(const oglTexture& tex);
+    void BindTexture(const oglTex2D& tex);
 };
 
 }

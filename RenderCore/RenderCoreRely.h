@@ -15,6 +15,7 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+#include <deque>
 #include <typeindex>
 #include <filesystem>
 #include "common/CommonRely.hpp"
@@ -22,6 +23,7 @@
 #include "common/AlignedContainer.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"
+#include "common/FileEx.hpp"
 #include "common/ThreadEx.h"
 #include "common/StringEx.hpp"
 #include "common/StrCharset.hpp"
@@ -48,6 +50,7 @@ using std::string;
 using std::u16string;
 using std::map;
 using std::set;
+using std::deque;
 using std::vector;
 using common::min;
 using common::max;

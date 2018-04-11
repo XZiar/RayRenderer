@@ -1,6 +1,6 @@
 #include "RenderCoreRely.h"
 #include "Model.h"
-#include "uchardetlib/uchardetlib.h"
+#include "Model/OBJLoader.hpp"
 #include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
@@ -43,246 +43,7 @@ struct PTstubHasher
 namespace detail
 {
 
-map<u16string, ModelImage> _ModelImage::images;
 
-ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
-{
-    const auto fname = picPath.filename().u16string();
-    auto img = getImage(fname);
-    if (img)
-        return img;
-
-    if (!fs::exists(picPath))
-    {
-        picPath = curPath / fname;
-        if (!fs::exists(picPath))
-        {
-            basLog().error(u"Fail to open image file\t[{}]\n", fname);
-            return ModelImage();
-        }
-    }
-    try
-    {
-        _ModelImage *mi = new _ModelImage(picPath.u16string());
-        ModelImage image(std::move(mi));
-        images.insert_or_assign(fname, image);
-        return image;
-    }
-#pragma warning(disable:4101)
-    catch (FileException& fe)
-    {
-        if(fe.reason == FileException::Reason::ReadFail)
-            basLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
-        else
-            basLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
-        return img;
-    }
-#pragma warning(default:4101)
-}
-
-ModelImage _ModelImage::getImage(const u16string& pname)
-{
-    if (auto img = FindInMap(images, pname))
-        return *img;
-    else
-        return ModelImage();
-}
-#pragma warning(disable:4996)
-void _ModelImage::shrink()
-{
-    auto it = images.cbegin();
-    while (it != images.end())
-    {
-        if (it->second.unique()) //deprecated, may lead to bug
-            it = images.erase(it);
-        else
-            ++it;
-    }
-}
-#pragma warning(default:4996)
-
-_ModelImage::_ModelImage(const u16string& pfname) : Image(xziar::img::ReadImage(pfname))
-{
-    if(Width > UINT16_MAX || Height > UINT16_MAX)
-        COMMON_THROW(BaseException, L"image too big");
-}
-
-_ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color)
-{
-    SetSize(w, h);
-}
-
-oglu::oglTexture _ModelImage::genTexture(const oglu::TextureInnerFormat format)
-{
-    auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
-    tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    tex->setData(format, oglu::TextureDataFormat::RGBA8, Width, Height, GetRawPtr());
-    return tex;
-}
-
-void _ModelImage::CompressData(vector<uint8_t>& output, const oglu::TextureInnerFormat format)
-{
-    auto tex = genTexture(format);
-    if (auto dat = tex->getCompressedData())
-        output = std::move(*dat);
-}
-
-oglu::oglTexture _ModelImage::genTextureAsync(const common::asyexe::AsyncAgent& agent, const oglu::TextureInnerFormat format)
-{
-    vector<uint8_t> texdata;
-    auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&) 
-    {
-        CompressData(texdata, format);
-    }, u"Comp-" + Name);
-    agent.Await(asyncRet);
-    //oglu::oglUtil::invokeAsyncGL(std::bind(&_ModelImage::CompressData, this, std::ref(texdata), format))->wait();
-    auto tex = oglu::oglTexture(oglu::TextureType::Tex2D);
-    tex->setProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    tex->setCompressedData(format, Width, Height, texdata);
-    return tex;
-}
-
-
-class OBJLoder
-{
-private:
-    fs::path FilePath;
-    vector<uint8_t> Content;
-    size_t CurPos, Length;
-public:
-    Charset chset;
-    struct TextLine
-    {
-        uint64_t Type;
-        std::string_view Line;
-        vector<std::string_view> Params;
-        Charset charset;
-
-        TextLine() {}
-
-        TextLine(const Charset chset, const string& prefix) : charset(chset), Type(hash_(prefix)) {}
-
-        template<size_t N>
-        TextLine(const Charset chset, const char(&prefix)[N] = "EMPTY") : charset(chset), Type(hash_(prefix)) {}
-
-        TextLine(const Charset chset, const std::string_view& line) : charset(chset), Line(line) { Params.reserve(8); }
-
-        TextLine(const TextLine& other) = default;
-        TextLine(TextLine&& other) = default;
-        TextLine& operator =(const TextLine& other) = default;
-        TextLine& operator =(TextLine&& other) = default;
-
-        template<typename T>
-        void SetType(const T& prefix) { Type = hash_(prefix); }
-
-        std::string_view Rest(const size_t fromIndex = 1) 
-        {
-            if (Params.size() <= fromIndex)
-                return {};
-            const auto lenTotal = Line.length();
-            const auto beginLine = Line.data(), beginRest = Params[fromIndex].data();
-            return std::string_view(beginRest, lenTotal - (beginRest - beginLine));
-        }
-
-        u16string GetUString(const size_t index)
-        {
-            if (Params.size() <= index)
-                return u"";
-            return common::str::to_u16string(Params[index], charset);
-        }
-
-        u16string ToUString() { return common::str::to_u16string(Line, charset); }
-
-        template<size_t N>
-        int8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
-        {
-            int8_t cnt = 0;
-            str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
-            {
-                if (cnt < N)
-                {
-                    if (len == 0)
-                        output[cnt++] = 0;
-                    else
-                        output[cnt++] = atoi(substr);
-                }
-            });
-            return cnt;
-        }
-
-        template<size_t N>
-        int8_t ParseFloats(const uint8_t idx, float(&output)[N])
-        {
-            str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
-            {
-                if (cnt < N)
-                {
-                    if (len == 0)
-                        output[cnt++] = 0;
-                    else
-                        output[cnt++] = atof(Params[idx]);
-                }
-            });
-        }
-
-        operator const bool() const
-        {
-            return Type != "EOF"_hash;
-        }
-    };
-
-    OBJLoder(const fs::path& fpath_) : FilePath(fpath_)
-    {
-        using namespace common::file;
-        //pre-load data, in case of Acess-Violate while reading file
-        file::ReadAll(FilePath, Content);
-        Length = Content.size() - 1;
-        CurPos = 0;
-        chset = uchdet::detectEncoding(Content);
-        basLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetWName(chset));
-    }
-
-    TextLine ReadLine()
-    {
-        using std::string_view;
-        size_t fromPos = CurPos, lineLength = 0;
-        for (bool isInLine = false; CurPos < Length;)
-        {
-            const uint8_t curChar = Content[CurPos++];
-            const bool isLineEnd = (curChar == '\r' || curChar == '\n');
-            if (isLineEnd)
-            {
-                if (isInLine)//finish this line
-                    break;
-                else
-                    ++fromPos;
-            }
-            else
-            {
-                ++lineLength;//linelen EQUALS count how many ch is not "NEWLINE"
-                isInLine = true;
-            }
-        }
-        if (lineLength == 0)
-        {
-            if (CurPos == Length)//EOF
-                return { chset, "EOF" };
-            else
-                return { chset, "EMPTY" };
-        }
-        TextLine textLine(chset, string_view((const char*)&Content[fromPos], lineLength));
-
-        str::Split(textLine.Line, [](const char ch) 
-        { 
-            return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
-        }, textLine.Params, false);
-        if (textLine.Params.size() == 0)
-            return { chset, "EMPTY" };
-
-        textLine.SetType(textLine.Params[0]);
-        return textLine;
-    }
-};
 
 map<u16string, ModelData> _ModelData::models;
 
@@ -296,12 +57,14 @@ ModelData _ModelData::getModel(const u16string& fname, bool asyncload)
     return m;
 }
 
+#pragma warning(disable:4996)
 void _ModelData::releaseModel(const u16string& fname)
 {
     if (auto md = FindInMap(models, fname))
         if (md->unique())
             models.erase(fname);
 }
+#pragma warning(default:4996)
 
 void _ModelData::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
 {
@@ -642,21 +405,26 @@ void _ModelData::InitDataBuffers()
     }
 }
 
-void _ModelData::initData()
+void _ModelData::initData(const bool asyncload)
 {
-    texd = diffuse->genTexture();
-    texn = normal->genTexture();
+    if (asyncload)
+    {
+        texd = diffuse->genTextureAsync();
+        texn = normal->genTextureAsync();
+    }
+    else
+    {
+        texd = diffuse->genTexture();
+        texn = normal->genTexture();
+    }
     InitDataBuffers();
-}
-
-void _ModelData::initDataAsync(const common::asyexe::AsyncAgent& agent)
-{
-    texd = diffuse->genTextureAsync(agent);
-    texn = normal->genTextureAsync(agent);
-    InitDataBuffers();
-    auto sync = oglu::oglUtil::SyncGL();
-    agent.Await(sync);
-    basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+    if (asyncload)
+    {
+        auto sync = oglu::oglUtil::SyncGL();
+        const auto& agent = *AsyncAgent::GetAsyncAgent();
+        agent.Await(sync);
+        basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+    }
 }
 
 _ModelData::_ModelData(const u16string& fname, bool asyncload) :mfname(fname)
@@ -665,12 +433,12 @@ _ModelData::_ModelData(const u16string& fname, bool asyncload) :mfname(fname)
     if (asyncload)
     {
         const auto fileName = fs::path(fname).filename().u16string();
-        auto task = oglu::oglUtil::invokeSyncGL(std::bind(&_ModelData::initDataAsync, this, std::placeholders::_1), fileName);
+        auto task = oglu::oglUtil::invokeSyncGL([&](const auto&) { initData(true); }, fileName);
         AsyncAgent::SafeWait(task);
     }
     else
     {
-        initData();
+        initData(false);
     }
 }
 
@@ -698,7 +466,7 @@ Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME),
     scale = Vec3(resizer, resizer, resizer);
     if (asyncload)
     {
-        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) { InitMaterial(); });
+        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent&) { InitMaterial(); });
     }
     else
     {

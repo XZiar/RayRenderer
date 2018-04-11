@@ -4,7 +4,7 @@
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.hpp"
-#include "Material.hpp"
+#include "Material.h"
 #include "FontHelper/FontHelper.h"
 
 namespace rayr
@@ -26,7 +26,7 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
-    oglTexture picTex, mskTex, tmpTex;
+    oglTex2D picTex, mskTex, tmpTex;
     oglPBO picBuf;
     oglVBO screenBox;
     oglVAO picVAO;

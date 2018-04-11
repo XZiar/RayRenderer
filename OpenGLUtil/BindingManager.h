@@ -304,12 +304,12 @@ public:
 
 
 //----ResourceDistrubutor
-class TextureManager : public ResDister<TextureManager, oglTexture, 4>
+class TextureManager : public ResDister<TextureManager, oglTexBase, 4>
 {
-    friend class ResDister<TextureManager, oglTexture, 4>;
+    friend class ResDister<TextureManager, oglTexBase, 4>;
 protected:
-    GLuint getID(const oglTexture& obj) const;
-    void innerBind(const oglTexture& obj, const uint16_t slot) const;
+    GLuint getID(const oglTexBase& obj) const;
+    void innerBind(const oglTexBase& obj, const uint16_t slot) const;
     void outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const;
 public:
     TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }

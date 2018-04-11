@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RenderCoreRely.h"
-#include "Material.hpp"
+#include "Material.h"
 
 namespace rayr
 {
@@ -15,6 +15,7 @@ public:
     using Drawcall = oglu::detail::ProgDraw;
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
     PBRMaterial BaseMaterial = PBRMaterial(u"default");
+    MultiMaterialHolder MaterialHolder;
     u16string Name;
 
     ///<summary>Release all related VAO for the shader-program</summary>  

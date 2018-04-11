@@ -129,7 +129,7 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 void _oglProgram::RecoverState()
 {
     SetSubroutine();
-    auto& texMan = _oglTexture::getTexMan();
+    auto& texMan = _oglTexBase::getTexMan();
     texMan.unpin();
     auto& uboMan = _oglUniformBuffer::getUBOMan();
     uboMan.unpin();
@@ -486,7 +486,7 @@ ProgState _oglProgram::State() noexcept
 }
 
 
-void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin)
+void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin)
 {
     auto& obj = UniBindCache[pos];
     const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
@@ -496,7 +496,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglT
     glProgramUniform1i(programID, pos, obj = val);
 }
 
-void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin)
+void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
 {
     switch (texs.size())
     {
@@ -646,7 +646,7 @@ ProgState::~ProgState()
 }
 
 
-ProgState& ProgState::SetTexture(const oglTexture& tex, const string& name, const GLuint idx)
+ProgState& ProgState::SetTexture(const oglTexBase& tex, const string& name, const GLuint idx)
 {
     const auto it = Prog.TexRess.find(name);
     if (it != Prog.TexRess.end() && idx < it->len)//legal
@@ -657,7 +657,7 @@ ProgState& ProgState::SetTexture(const oglTexture& tex, const string& name, cons
     return *this;
 }
 
-ProgState& ProgState::SetTexture(const oglTexture& tex, const GLuint pos)
+ProgState& ProgState::SetTexture(const oglTexBase& tex, const GLuint pos)
 {
     if (pos < Prog.UniBindCache.size())
     {
@@ -711,7 +711,7 @@ ProgState& ProgState::SetSubroutine(const string& subrName, const string& routin
 
 
 ProgDraw::ProgDraw(_oglProgram& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-    : Prog(prog), TexMan(_oglTexture::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
+    : Prog(prog), TexMan(_oglTexBase::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(Prog);
     SetPosition(modelMat, normMat);
@@ -787,7 +787,7 @@ ProgDraw& ProgDraw::Draw(const oglVAO& vao)
     return *this;
 }
 
-ProgDraw& ProgDraw::SetTexture(const oglTexture& tex, const string& name, const GLuint idx)
+ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const string& name, const GLuint idx)
 {
     const auto it = Prog.TexRess.find(name);
     if (it != Prog.TexRess.cend() && idx < it->len)
@@ -801,7 +801,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexture& tex, const string& name, const 
     return *this;
 }
 
-ProgDraw& ProgDraw::SetTexture(const oglTexture& tex, const GLuint pos)
+ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
 {
     if (pos < Prog.UniBindCache.size())
     {

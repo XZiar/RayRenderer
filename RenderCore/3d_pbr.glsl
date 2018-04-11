@@ -84,6 +84,7 @@ void main()
 #ifdef OGLU_FRAG
 
 uniform sampler2D tex[16];
+uniform sampler2DArray texs[16];
 
 //@@##srgbTexture|BOOL|whether input texture is srgb space
 uniform bool srgbTexture = true;
@@ -179,10 +180,10 @@ vec3 GammaCorrect(const vec3 color)
 }
 
 subroutine(LightModel)
-vec3 onlytex()
+vec3 tex0()
 {
     const vec4 texColor = texture(tex[0], tpos);
-    return GammaCorrect(texColor.rgb);
+    return texColor.rgb;
 }
 subroutine(LightModel)
 vec3 tanvec()

@@ -100,7 +100,7 @@ private:
     map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     map<GLint, UniformValue> UniValCache;
     vector<GLint> UniBindCache; 
-    map<GLuint, oglTexture> TexBindings;
+    map<GLuint, oglTexBase> TexBindings;
     map<GLuint, oglUBO> UBOBindings;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
     map<ShaderType, vector<GLuint>> SubroutineSettings;
@@ -121,8 +121,8 @@ private:
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
     GLint GetLoc(const string& name, GLenum valtype) const;
 
-    void SetTexture(TextureManager& texMan, const GLint pos, const oglTexture& tex, const bool shouldPin = false);
-    void SetTexture(TextureManager& texMan, const map<GLuint, oglTexture>& texs, const bool shouldPin = false);
+    void SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
+    void SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
     void SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
     void SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void SetSubroutine();
@@ -218,9 +218,9 @@ private:
     ProgState(ProgState&& other) = default;
 public:
     ~ProgState();
-    ProgState& SetTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
+    ProgState& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);
     //no check on pos, carefully use
-    ProgState& SetTexture(const oglTexture& tex, const GLuint pos);
+    ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
     ProgState& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
@@ -235,7 +235,7 @@ private:
     _oglProgram & Prog;
     TextureManager & TexMan;
     UBOManager& UboMan;
-    map<GLuint, oglTexture> TexCache;
+    map<GLuint, oglTexBase> TexCache;
     map<GLuint, oglUBO> UBOCache;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     map<GLuint, std::pair<GLint, bool>> UniBindBackup;
@@ -261,8 +261,8 @@ public:
     *-param vao, size, offset*/
     ProgDraw& Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
     ProgDraw& Draw(const oglVAO& vao);
-    ProgDraw& SetTexture(const oglTexture& tex, const string& name, const GLuint idx = 0);
-    ProgDraw& SetTexture(const oglTexture& tex, const GLuint pos);
+    ProgDraw& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);
+    ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);
     ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);

@@ -84,7 +84,7 @@ Drawable::~Drawable()
 
 void Drawable::PrepareMaterial()
 {
-    MaterialUBO.reset(16 * sizeof(MaterialData));
+    MaterialUBO.reset(16 * sizeof(PBRMaterial));
     BaseMaterial.Albedo = Vec3(0.58, 0.58, 0.58);
     BaseMaterial.Metalness = 0.1f;
     AssignMaterial(&BaseMaterial, 1);
