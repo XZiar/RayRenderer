@@ -84,7 +84,7 @@ public ref class Light : public BaseViewModel
 internal:
     std::weak_ptr<b3d::Light> *light;
     initonly LightType type;
-    Light(const Wrapper<b3d::Light> *obj) : light(new std::weak_ptr<b3d::Light>(*obj)), type(LightType((*obj)->type)) { }
+    Light(const Wrapper<b3d::Light>& obj) : light(new std::weak_ptr<b3d::Light>(obj)), type(LightType(obj->type)) { }
 public:
     ~Light() { this->!Light(); }
     !Light() { delete light; }

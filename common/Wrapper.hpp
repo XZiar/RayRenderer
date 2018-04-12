@@ -26,11 +26,9 @@ public:
     Wrapper(std::in_place_t) : base_type(std::make_shared<T>())
     { }
 
+    //implicit convertion
     template<class U, class = typename std::enable_if<std::is_convertible_v<U*, T*>>::type>
     Wrapper(const Wrapper<U>& other) noexcept : base_type(std::static_pointer_cast<T>(other))
-    { }
-    template<class U, class = typename std::enable_if<std::is_convertible_v<U*, T*>>::type>
-    Wrapper(Wrapper<U>&& other) noexcept : base_type(static_cast<Wrapper<T>&&>(other))
     { }
 
     Wrapper(const base_type& other) noexcept : base_type(other)
@@ -47,7 +45,7 @@ public:
     explicit Wrapper(T * const src) noexcept : base_type(src)
     { }
 
-    template<typename Arg, typename = typename std::enable_if<!std::is_base_of_v<Wrapper<T>, std::remove_reference_t<Arg>>>::type>
+    template<typename Arg, typename = typename std::enable_if_t<std::is_constructible_v<T, Arg>>>
     explicit Wrapper(Arg&& arg) : base_type(std::make_shared<T>(std::forward<Arg>(arg)))
     { }
     template<typename Arg, typename... Args, typename = typename std::enable_if_t<sizeof...(Args) != 0>>
@@ -88,6 +86,9 @@ public:
     Wrapper(Wrapper<T>&& other) noexcept = default;
     Wrapper& operator=(const Wrapper<T>& other) noexcept = default;
     Wrapper& operator=(Wrapper<T>&& other) noexcept = default;
+    //implicit covert assignment
+    template<class U, class = typename std::enable_if<std::is_convertible_v<U*, T*>>::type>
+    Wrapper& operator=(Wrapper<U>&& other) noexcept { return *this = std::static_pointer_cast<T>(other); }
 };
 
 template<typename T>

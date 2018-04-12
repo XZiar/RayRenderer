@@ -8,12 +8,28 @@ namespace RayRender
 
 using namespace common;
 
+Drawable::Drawable(const Wrapper<rayr::Drawable>& obj) : drawable(new std::weak_ptr<rayr::Drawable>(obj)), type(ToStr(obj->GetType()))
+{
+    materials = gcnew List<PBRMaterial^>();
+    for (auto& mat : obj->MaterialHolder)
+    {
+        materials->Add(gcnew PBRMaterial(drawable, mat));
+    }
+}
+
+#pragma unmanaged
+auto FindPath()
+{
+    fs::path shdpath(UTF16ER(__FILE__));
+    return shdpath.parent_path().parent_path() / u"RenderCore";
+}
+#pragma managed
 
 BasicTest::BasicTest()
 {
     try
     {
-        core = new rayr::BasicTest(u"", u"D:\\Programs Data\\VSProject\\RayRenderer\\RenderCore\\3d.glsl");
+        core = new rayr::BasicTest(FindPath());
         Camera = gcnew Basic3D::Camera(&core->cam);
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());

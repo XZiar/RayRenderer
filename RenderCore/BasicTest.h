@@ -26,7 +26,8 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
-    oglTex2DS picTex, mskTex, tmpTex;
+    oglTex2DS picTex, tmpTex;
+    oglTex2DV chkTex;
     oglPBO picBuf;
     oglVBO screenBox;
     oglVAO picVAO;
@@ -41,8 +42,8 @@ private:
     set<oglProgram> glProgs;
     std::atomic_uint32_t IsUBOChanged { 0 };
     fs::path basepath;
-    void init2d(const u16string pname);
-    void init3d(const u16string pname);
+    void init2d(const fs::path& shaderPath);
+    void init3d(const fs::path& shaderPath);
     void initTex();
     void initUBO();
     void fontTest(const char32_t word = 0x554A);
@@ -50,7 +51,7 @@ private:
 public:
     bool mode = true;
     Camera cam;
-    BasicTest(const u16string sname2d = u"", const u16string sname3d = u"");
+    BasicTest(const fs::path& shaderPath = u"");
     void Draw();
     void Resize(const int w, const int h);
     void ReloadFontLoader(const u16string& fname);

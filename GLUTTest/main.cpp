@@ -171,13 +171,19 @@ void onDropFile(FreeGLUTView wd, u16string fname)
     }
 }
 
+auto FindPath()
+{
+    fs::path shdpath(UTF16ER(__FILE__));
+    return shdpath.parent_path().parent_path() / u"RenderCore";
+}
+
 int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
     
     window.reset();
-    tester.reset(new rayr::BasicTest(u"", u"D:\\Programs Data\\VSProject\\RayRenderer\\RenderCore\\3d.glsl"));
+    tester.reset(new rayr::BasicTest(FindPath()));
     window->funDisp = [&](FreeGLUTView wd) { tester->Draw(); };
     window->funReshape = onResize;
     window->setTitle("3D");

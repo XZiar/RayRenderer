@@ -14,20 +14,79 @@ namespace RayRender
 {
 using Basic3D::Vec3F;
 
-public ref class Drawable : public BaseViewModel
+public ref class PBRMaterial : public BaseViewModel
 {
 private:
-    void RefreshMaterial() 
+    std::weak_ptr<rayr::Drawable>& Drawable;
+    rayr::PBRMaterial& Material;
+    void RefreshMaterial()
     {
-        const auto d = drawable->lock();
-        d->AssignMaterial(&d->BaseMaterial, 1);
+        const auto d = Drawable.lock();
+        d->AssignMaterial();
     }
+internal:
+    PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material) : Drawable(*drawable), Material(material) {}
+public:
+    property String^ Name
+    {
+        String^ get() { return ToStr(Material.Name); }
+        void set(String^ value) { Material.Name = ToU16Str(value); OnPropertyChanged("Name"); }
+    }
+    property System::Windows::Media::Color Albedo
+    {
+        System::Windows::Media::Color get() { return ToColor(Material.Albedo); }
+        void set(System::Windows::Media::Color value)
+        {
+            FromColor(value, Material.Albedo);
+            OnPropertyChanged("Albedo"); RefreshMaterial();
+        }
+    }
+    property bool IsMappedAlbedo
+    {
+        bool get() { return Material.UseDiffuseMap; }
+        void set(bool value)
+        {
+            Material.UseDiffuseMap = value;
+            OnPropertyChanged("IsMappedAlbedo"); RefreshMaterial();
+        }
+    }
+    property bool IsMappedNormal
+    {
+        bool get() { return Material.UseNormalMap; }
+        void set(bool value)
+        {
+            Material.UseNormalMap = value;
+            OnPropertyChanged("IsMappedNormal"); RefreshMaterial();
+        }
+    }
+    property float Metallic
+    {
+        float get() { return Material.Metalness; }
+        void set(float value) { Material.Metalness = value; OnPropertyChanged("Metallic"); RefreshMaterial(); }
+    }
+    property float Roughness
+    {
+        float get() { return Material.Roughness; }
+        void set(float value) { Material.Roughness = value; OnPropertyChanged("Roughness"); RefreshMaterial(); }
+    }
+    property float AO
+    {
+        float get() { return Material.AO; }
+        void set(float value) { Material.AO = value; OnPropertyChanged("AO"); RefreshMaterial(); }
+    }
+    virtual String^ ToString() override
+    {
+        return Name;
+    }
+};
+
+public ref class Drawable : public BaseViewModel
+{
 internal:
     std::weak_ptr<rayr::Drawable> *drawable;
     initonly String^ type;
-    Drawable(const Wrapper<rayr::Drawable> *obj) 
-        : drawable(new std::weak_ptr<rayr::Drawable>(*obj)), type(ToStr((*obj)->GetType())) 
-    { }
+    initonly List<PBRMaterial^>^ materials;
+    Drawable(const Wrapper<rayr::Drawable>& obj);
 public:
     ~Drawable() { this->!Drawable(); }
     !Drawable() { delete drawable; }
@@ -46,49 +105,8 @@ public:
         Vec3F get() { return Vec3F(drawable->lock()->rotation); }
         void set(Vec3F value) { value.Store(drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
     }
-    property System::Windows::Media::Color Albedo
-    {
-        System::Windows::Media::Color get() { return ToColor(drawable->lock()->BaseMaterial.Albedo); }
-        void set(System::Windows::Media::Color value)
-        {
-            FromColor(value, drawable->lock()->BaseMaterial.Albedo);
-            OnPropertyChanged("Albedo"); RefreshMaterial();
-        }
-    }
-    property bool IsMappedAlbedo
-    {
-        bool get() { return drawable->lock()->BaseMaterial.UseDiffuseMap; }
-        void set(bool value) 
-        {
-            drawable->lock()->BaseMaterial.UseDiffuseMap = value;
-            OnPropertyChanged("IsMappedAlbedo"); RefreshMaterial();
-        }
-    }
-    property bool IsMappedNormal
-    {
-        bool get() { return drawable->lock()->BaseMaterial.UseNormalMap; }
-        void set(bool value)
-        {
-            drawable->lock()->BaseMaterial.UseNormalMap = value;
-            OnPropertyChanged("IsMappedNormal"); RefreshMaterial();
-        }
-    }
-    property float Metallic
-    {
-        float get() { return drawable->lock()->BaseMaterial.Metalness; }
-        void set(float value) { drawable->lock()->BaseMaterial.Metalness = value;OnPropertyChanged("Metallic"); RefreshMaterial(); }
-    }
-    property float Roughness
-    {
-        float get() { return drawable->lock()->BaseMaterial.Roughness; }
-        void set(float value) { drawable->lock()->BaseMaterial.Roughness = value; OnPropertyChanged("Roughness"); RefreshMaterial(); }
-    }
-    property float AO
-    {
-        float get() { return drawable->lock()->BaseMaterial.AO; }
-        void set(float value) { drawable->lock()->BaseMaterial.AO = value; OnPropertyChanged("AO"); RefreshMaterial(); }
-    }
     CLI_READONLY_PROPERTY(String^, Type, type);
+    CLI_READONLY_PROPERTY(List<PBRMaterial^>^, Materials, materials);
 
     virtual String^ ToString() override
     {
@@ -131,7 +149,7 @@ protected:
     }
     CLIType^ CreateObject(const Type& src)
     {
-        auto obj = gcnew CLIType(&src);
+        auto obj = gcnew CLIType(src);
         obj->PropertyChanged += PChangedHandler;
         return obj;
     }

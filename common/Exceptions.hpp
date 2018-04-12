@@ -66,7 +66,7 @@ public:
     StackTraceItem() : File(u"Undefined"), Func(u"Undefined"), Line(0) {}
     StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
 };
-#define GENARATE_STACK_TRACE ::common::StackTraceItem(UTF16ER(__FILE__), UTF16ER(__FUNCSIG__), __LINE__)
+#define GENARATE_STACK_TRACE ::common::StackTraceItem(u"" __FILE__, u"" __FUNCSIG__, __LINE__)
 
 
 class BaseException : public detail::AnyException

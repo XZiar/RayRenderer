@@ -453,11 +453,15 @@ _ModelData::~_ModelData()
 
 void Model::InitMaterial()
 {
-    PrepareMaterial();
-    BaseMaterial.Roughness = 0.9f;
-    BaseMaterial.UseDiffuseMap = true;
-    BaseMaterial.UseNormalMap = true;
-    AssignMaterial(&BaseMaterial, 1);
+    PrepareMaterial(false);
+    MaterialHolder[0].Roughness = 0.9f;
+    MaterialHolder[0].UseDiffuseMap = true;
+    //MaterialHolder[0].DiffuseMap = data->texd;
+    MaterialHolder[0].DiffuseMap = MultiMaterialHolder::GetCheckTex();
+    MaterialHolder[0].UseNormalMap = true;
+    //MaterialHolder[0].NormalMap = data->texn;
+    MaterialHolder[0].NormalMap = MultiMaterialHolder::GetCheckTex();
+    AssignMaterial();
 }
 
 Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME), data(detail::_ModelData::getModel(fname, asyncload))
@@ -498,6 +502,7 @@ void Model::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 
 void Model::Draw(Drawcall& drawcall) const
 {
+    MaterialHolder.BindTexture(drawcall);
     DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
         .SetTexture(data->texd, "tex")

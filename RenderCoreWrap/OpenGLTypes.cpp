@@ -27,11 +27,10 @@ SubroutineResource::SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>*
 }
 
 
-GLProgram::GLProgram(const oglu::oglProgram *obj) : prog(new std::weak_ptr<oglu::detail::_oglProgram>(*obj))
+GLProgram::GLProgram(const oglu::oglProgram& obj) : prog(new std::weak_ptr<oglu::detail::_oglProgram>(obj))
 {
-    auto theprog = prog->lock();
-    const auto& props = theprog->getResourceProperties();
-    for (const auto& res : theprog->getResources())
+    const auto& props = obj->getResourceProperties();
+    for (const auto& res : obj->getResources())
     {
         if (auto it = common::container::FindInSet(props, res.Name))
         {
@@ -58,9 +57,9 @@ GLProgram::GLProgram(const oglu::oglProgram *obj) : prog(new std::weak_ptr<oglu:
         }
         resources->Add(gcnew ProgramResource(res));
     }
-    for (const auto& res : theprog->getSubroutineResources())
+    for (const auto& res : obj->getSubroutineResources())
         subroutines->Add(gcnew SubroutineResource(prog, res));
-    for (const auto& shader : theprog->getShaders())
+    for (const auto& shader : obj->getShaders())
     {
         auto shd = ShaderObject(shader);
         shaders->Add(shd.Type, shd);

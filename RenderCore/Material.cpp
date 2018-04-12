@@ -25,6 +25,34 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 }
 
 
+static uint16_t PackMapPos(const PBRMaterial::ArrangeMap& mapping, const PBRMaterial::ImageHolder& img, const bool isUse)
+{
+    if (!isUse) 
+        return 0xffff;
+    const auto it = mapping.find(img);
+    if (it == mapping.cend())
+        return 0xffff;
+    const auto&[bank, layer] = it->second;
+    return uint16_t((bank << 12) | layer);
+}
+
+uint32_t PBRMaterial::WriteData(std::byte *ptr, const ArrangeMap& mapping) const
+{
+    float *ptrFloat = reinterpret_cast<float*>(ptr);
+    uint16_t *ptrU16 = reinterpret_cast<uint16_t*>(ptr);
+    ptrU16[0] = PackMapPos(mapping, DiffuseMap, UseDiffuseMap);
+    ptrU16[1] = PackMapPos(mapping, NormalMap, UseNormalMap);
+    ptrU16[2] = PackMapPos(mapping, MetalMap, UseMetalMap);
+    ptrU16[3] = PackMapPos(mapping, RoughMap, UseRoughMap);
+    ptrU16[4] = PackMapPos(mapping, AOMap, UseAOMap);
+    Vec4 basic(Albedo, Metalness);
+    memcpy_s(ptrFloat + 4, sizeof(Vec4), &basic, sizeof(Vec4));
+    ptrFloat[8] = Roughness;
+    ptrFloat[9] = Specular;
+    ptrFloat[10] = AO;
+    return UnitSize;
+}
+
 oglu::oglTex2DS GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format)
 {
     oglu::oglTex2DS tex(img.Width, img.Height, format);
@@ -68,7 +96,7 @@ static std::shared_ptr<xziar::img::Image> RawImgResize(const std::shared_ptr<xzi
     {
         const auto maxWH = common::max(w, h);
         sizepow = 0;
-        for (uint16_t cursize = 1; sizepow < 15; ++sizepow, cursize *= 2)
+        for (uint16_t cursize = 4; sizepow < 13; ++sizepow, cursize *= 2)
         {
             const uint32_t curpix = cursize * cursize;
             if (pix >= curpix && pix <= curpix * 2)
@@ -95,6 +123,30 @@ static std::shared_ptr<xziar::img::Image> RawImgResize(const std::shared_ptr<xzi
     return newImg;
 }
 
+static oglu::detail::ContextResource<oglu::oglTex2DV, true> CTX_CHECK_TEX;
+constexpr auto GenerateCheckImg()
+{
+    std::array<uint32_t, 128 * 128> pixs{};
+    for (uint32_t a = 0, idx = 0; a < 128; ++a)
+    {
+        for (uint32_t b = 0; b < 128; ++b)
+        {
+            pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
+        }
+    }
+    return pixs;
+}
+static constexpr auto CHECK_IMG_DATA = GenerateCheckImg();
+oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
+{
+    return CTX_CHECK_TEX.GetOrInsert([](const auto&)
+    {
+        oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::RGBA8);
+        chkTex->SetData(oglu::TextureDataFormat::RGBA8, CHECK_IMG_DATA.data());
+        basLog().verbose(u"new CheckTex generated.\n");
+        return chkTex->GetTextureView();
+    });
+}
 
 void MultiMaterialHolder::Refresh()
 {
@@ -120,8 +172,8 @@ void MultiMaterialHolder::Refresh()
         return;
     }
     //generate avaliable map
-    set<uint16_t> avaliable[15];
-    for (uint8_t i = 0; i < 15; ++i)
+    set<uint16_t> avaliable[13];
+    for (uint8_t i = 0; i < 13; ++i)
     {
         if (!Textures[i]) continue;
         const uint16_t layers = (uint16_t)std::get<2>(Textures[i]->GetSize());
@@ -147,7 +199,7 @@ void MultiMaterialHolder::Refresh()
                 COMMON_THROW(BaseException, L"binded texture size cannot be 0", material->Name);
             if (!IsPower2(w))
                 COMMON_THROW(BaseException, L"binded texture size should be power of 2", material->Name);
-            sizepow = (uint8_t)std::log2(w);
+            sizepow = (uint8_t)(std::log2(w) - 2);
         }
         else // raw image
         {
@@ -165,23 +217,51 @@ void MultiMaterialHolder::Refresh()
             Textures[sizepow]->SetTextureLayer(objLayer, objtex);
         }
     }
-    for (uint8_t i = 0; i < 15; ++i)
+    for (uint8_t i = 0; i < 13; ++i)
     {
         const auto& objAdd = needAdd[i];
         if (objAdd.empty())
             continue;
-        const auto& oldTex = Textures[i];
-        const auto[w, h, l] = oldTex->GetSize();
-        oglTex2DArray newTex(w, h, (uint16_t)(l + objAdd.size()), oglu::TextureInnerFormat::RGBA8);
-        newTex->SetTextureLayers(0, oldTex, 0, l);
-        uint32_t objLayer = l;
+        auto& oldTex = Textures[i];
+        uint32_t objLayer = 0;
+        oglTex2DArray newTex;
+        if (oldTex)
+        {
+            const auto[w, h, l] = oldTex->GetSize();
+            newTex.reset(w, h, (uint16_t)(l + objAdd.size()), oglu::TextureInnerFormat::RGBA8);
+            newTex->SetTextureLayers(0, oldTex, 0, l);
+            objLayer = l;
+        }
+        else
+        {
+            newTex.reset(4 << i, 4 << i, (uint16_t)(objAdd.size()), oglu::TextureInnerFormat::RGBA8);
+        }
         for (const auto& tex : objAdd)
+        {
             newTex->SetTextureLayer(objLayer, tex);
-        Textures[i] = newTex;
+            newArrange[tex] = { i,objLayer++ };
+        }
+        oldTex = newTex;
     }
     Arrangement.swap(newArrange);
 }
 
+void MultiMaterialHolder::BindTexture(oglu::detail::ProgDraw& drawcall) const
+{
+    for (uint8_t i = 0; i < 13; ++i)
+    {
+        if (Textures[i])
+            drawcall.SetTexture(Textures[i], "texs", i);
+    }
+}
+
+uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
+{
+    uint32_t pos = 0;
+    for (const auto& mat : Materials)
+        pos += mat.WriteData(ptr + pos, Arrangement);
+    return pos;
+}
 
 
 }

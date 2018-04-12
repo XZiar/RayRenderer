@@ -18,10 +18,25 @@ struct Init
 };
 
 
-void BasicTest::init2d(const u16string pname)
+static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
+{
+    if (shaderPath.empty())
+        return getShaderFromDLL(id);
+    try
+    {
+        return common::file::ReadAllText(shaderPath);
+    }
+    catch (const FileException& fe)
+    {
+        basLog().error(u"unable to load shader from [{}] : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), fe.message);
+        return getShaderFromDLL(id);
+    }
+}
+
+void BasicTest::init2d(const fs::path& shaderPath)
 {
     prog2D.reset(u"Prog 2D");
-    const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_2D) : common::file::ReadAllText(pname);
+    const string shaderSrc = LoadShaderFallback(shaderPath / u"2d.glsl", IDR_SHADER_2D);
     try
     {
         prog2D->AddExtShaders(shaderSrc);
@@ -52,12 +67,12 @@ void BasicTest::init2d(const u16string pname)
     }
 }
 
-void BasicTest::init3d(const u16string pname)
+void BasicTest::init3d(const fs::path& shaderPath)
 {
     cam.position = Vec3(0.0f, 0.0f, 4.0f);
     {
         oglProgram progBasic(u"3D Prog");
-        const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3D) : common::file::ReadAllText(pname);
+        const string shaderSrc = LoadShaderFallback(shaderPath / u"3d.glsl", IDR_SHADER_3D);
         try
         {
             progBasic->AddExtShaders(shaderSrc);
@@ -82,8 +97,7 @@ void BasicTest::init3d(const u16string pname)
     }
     {
         oglProgram progPBR(u"3D-pbr");
-        const string shaderSrc = pname.empty() ? getShaderFromDLL(IDR_SHADER_3DPBR) : 
-            common::file::ReadAllText(common::str::ReplaceStr<char16_t>(pname, u".glsl", u"_pbr.glsl"));
+        const string shaderSrc = LoadShaderFallback(shaderPath / u"3d_pbr.glsl", IDR_SHADER_3DPBR);
         try
         {
             progPBR->AddExtShaders(shaderSrc);
@@ -154,27 +168,8 @@ void BasicTest::initTex()
         picTex->SetData(TextureDataFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
     }
-    mskTex.reset(128, 128, TextureInnerFormat::RGBA8);
-    {
-        mskTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
-        Vec4 empty[128][128];
-        for (int a = 0; a < 128; ++a)
-        {
-            for (int b = 0; b < 128; ++b)
-            {
-                auto& obj = empty[a][b];
-                if ((a < 64 && b < 64) || (a >= 64 && b >= 64))
-                {
-                    obj = Vec4(0.05, 0.05, 0.05, 1.0);
-                }
-                else
-                {
-                    obj = Vec4(0.6, 0.6, 0.6, 1.0);
-                }
-            }
-        }
-        mskTex->SetData(TextureDataFormat::RGBAf, empty);
-    }
+    chkTex = MultiMaterialHolder::GetCheckTex();
+    chkTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
 
 void BasicTest::initUBO()
@@ -253,7 +248,7 @@ void BasicTest::fontTest(const char32_t word)
     }
 }
 
-BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
+BasicTest::BasicTest(const fs::path& shaderPath)
 {
     static Init _init;
     glContext = oglu::oglContext::CurrentContext();
@@ -268,14 +263,14 @@ BasicTest::BasicTest(const u16string sname2d, const u16string sname3d)
 
     fontTest(/*L'‡å'*/);
     initTex();
-    init2d(sname2d);
-    init3d(sname3d);
+    init2d(shaderPath);
+    init3d(shaderPath);
     prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
     initUBO();
     for (const auto& prog : Prog3Ds)
     {
         prog->State()
-            .SetTexture(mskTex, "tex")
+            .SetTexture(chkTex, "tex")
             .SetUBO(lightUBO, "lightBlock");
     }
     glProgs.insert(prog2D);
@@ -432,7 +427,7 @@ bool BasicTest::AddShader(const oglProgram& prog)
         for (const auto& d : drawables)
             d->PrepareGL(prog);
         prog->State()
-            .SetTexture(mskTex, "tex")
+            .SetTexture(chkTex, "tex")
             .SetUBO(lightUBO, "lightBlock");
     }
     return isAdd;

@@ -462,6 +462,11 @@ namespace WPFTest
             e.Handled = true;
         }
 
+        private void cboxObj_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            cboxMat.SelectedIndex = 0;
+        }
+
         private void btnUseShader_Click(object sender, RoutedEventArgs e)
         {
             Core.Shaders.UseProgram(cboxShader.SelectedItem as GLProgram);

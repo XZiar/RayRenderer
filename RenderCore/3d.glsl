@@ -1,4 +1,4 @@
-#version 430
+#version 430 core
 precision mediump float;
 precision lowp sampler2D;
 //@@$$VERT|FRAG
@@ -116,7 +116,7 @@ vec3 both()
 
 
 subroutine(LightModel)
-vec4 onlytex()
+vec4 tex0()
 {
     vec4 texColor = texture(tex[0], tpos);
     return texColor;

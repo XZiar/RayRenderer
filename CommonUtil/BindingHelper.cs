@@ -1,9 +1,49 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Windows.Data;
 
 namespace XZiar.Util
 {
+    public class ArrayIndexMultiConverter : IMultiValueConverter
+    {
+        public object Convert(object[] value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value == null)
+                return null;
+            if (value.Length != 2)
+                throw new ArgumentException("need two binding point");
+            var arr = value[0] as IEnumerable<object>;
+            var idx = value[1] as int?;
+            if (arr == null)
+                return null;
+            if (idx == null)
+                throw new ArgumentException("need an int as index");
+            return arr.ElementAt(idx.Value);
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class ArrayIndexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var idx = parameter as int?;
+            if (idx == null)
+                throw new ArgumentException("need an int as index");
+            var arr = value as IEnumerable<object>;
+            return arr?.ElementAt(idx.Value);
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public static class BindingHelper
     {
         public delegate object ValueConvertDelegate(object value, Type targetType, object parameter, CultureInfo culture);

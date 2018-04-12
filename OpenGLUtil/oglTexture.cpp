@@ -309,6 +309,13 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
     _oglTexture2D::SetCompressedData(true, buf, size);
 }
 
+common::Wrapper<oglu::detail::_oglTexture2DView> _oglTexture2DStatic::GetTextureView() const
+{
+    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat));
+    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, 1, 0, 1);
+    return tex;
+}
+
 
 void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h)
 {

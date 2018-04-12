@@ -29,7 +29,7 @@
 #define WIDEN_NX(X) L ## X
 #define WIDEN(X) WIDEN_NX(X)
 
-#define UTF16ER(X) u ## #X
+#define UTF16ER(X) u"" X
 
 
 #define ENUM_CLASS_BITFIELD_FUNC(T, U) \

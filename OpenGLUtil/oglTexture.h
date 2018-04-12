@@ -89,6 +89,7 @@ public:
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
 };
 
+class _oglTexture2DView;
 
 class OGLUAPI _oglTexture2D : public _oglTexBase
 {
@@ -108,10 +109,22 @@ protected:
     void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept;
 public:
     std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
-    
     optional<vector<uint8_t>> GetCompressedData();
     vector<uint8_t> GetData(const TextureDataFormat dformat);
     Image GetImage(const TextureDataFormat dformat);
+};
+
+
+///<summary>Texture2D View, readonly</summary>  
+class OGLUAPI _oglTexture2DView : public _oglTexture2D
+{
+    friend class _oglTexture2DArray;
+    friend class _oglTexture2DStatic;
+private:
+    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat)
+    {
+        Width = width, Height = height; InnerFormat = iformat;
+    }
 };
 
 
@@ -136,6 +149,8 @@ public:
     { 
         SetCompressedData(data.data(), data.size() * sizeof(T));
     }
+
+    Wrapper<_oglTexture2DView> GetTextureView() const;
 };
 
 
@@ -164,15 +179,6 @@ public:
     }
 };
 
-class OGLUAPI _oglTexture2DView : public _oglTexture2D
-{
-    friend class _oglTexture2DArray;
-private:
-    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat) 
-    {
-        Width = width, Height = height; InnerFormat = iformat;
-    }
-};
 
 ///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI _oglTexture2DArray : public _oglTexBase
@@ -202,6 +208,7 @@ public:
 
 
 }
+
 using oglTexBase = Wrapper<detail::_oglTexBase>;
 using oglTex2D = Wrapper<detail::_oglTexture2D>;
 using oglTex2DS = Wrapper<detail::_oglTexture2DStatic>;

@@ -3,7 +3,7 @@
 
 namespace rayr
 {
-
+using oglu::oglTex2D;
 
 struct DrawableHelper
 {
@@ -82,29 +82,28 @@ Drawable::~Drawable()
     }
 }
 
-void Drawable::PrepareMaterial()
+void Drawable::PrepareMaterial(const bool defaultAssign)
 {
-    MaterialUBO.reset(16 * sizeof(PBRMaterial));
-    BaseMaterial.Albedo = Vec3(0.58, 0.58, 0.58);
-    BaseMaterial.Metalness = 0.1f;
-    AssignMaterial(&BaseMaterial, 1);
+    MaterialHolder = MultiMaterialHolder(1);
+    MaterialHolder[0].DiffuseMap = oglTex2D(MultiMaterialHolder::GetCheckTex());
+    MaterialUBO.reset(32 * PBRMaterial::UnitSize);
+    MaterialBuf.resize(MaterialUBO->Size());
+    MaterialHolder[0].Albedo = Vec3(0.58, 0.58, 0.58);
+    MaterialHolder[0].Metalness = 0.1f;
+    if (defaultAssign)
+        AssignMaterial();
 }
 
-void Drawable::AssignMaterial(const PBRMaterial * material, const size_t count) const
+void Drawable::AssignMaterial()
 {
-    vector<byte> data(MaterialUBO->Size());
-    size_t pos = 0;
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        pos += material->WriteData(&data[pos]);
-        if (pos >= MaterialUBO->Size())
-            break;
-    }
-    MaterialUBO->Write(data.data(), pos, oglu::BufferWriteMode::StreamDraw);
+    MaterialHolder.Refresh();
+    const size_t size = MaterialHolder.WriteData(MaterialBuf.data());
+    MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
 }
 
 void Drawable::Draw(Drawcall& drawcall) const
 {
+    MaterialHolder.BindTexture(drawcall);
     DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
         .Draw(GetVAO(drawcall.GetProg()));

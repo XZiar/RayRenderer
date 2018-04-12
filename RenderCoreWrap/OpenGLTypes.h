@@ -91,7 +91,7 @@ public ref class GLProgram : public BaseViewModel
 internal:
     std::weak_ptr<oglu::detail::_oglProgram> *prog;
 internal:
-    GLProgram(const oglu::oglProgram *obj);
+    GLProgram(const oglu::oglProgram& obj);
     initonly List<ProgramResource^>^ resources = gcnew List<ProgramResource^>();
     initonly List<SubroutineResource^>^ subroutines = gcnew List<SubroutineResource^>();
     using ShaderDict = Dictionary<ShaderType, ShaderObject>;
