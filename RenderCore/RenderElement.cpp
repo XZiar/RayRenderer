@@ -85,8 +85,9 @@ Drawable::~Drawable()
 void Drawable::PrepareMaterial(const bool defaultAssign)
 {
     MaterialHolder = MultiMaterialHolder(1);
-    MaterialHolder[0].DiffuseMap = oglTex2D(MultiMaterialHolder::GetCheckTex());
-    MaterialUBO.reset(32 * PBRMaterial::UnitSize);
+    MaterialHolder[0].DiffuseMap = MultiMaterialHolder::GetCheckTex();
+    MaterialHolder[0].UseDiffuseMap = true;
+    MaterialUBO.reset(26 * MultiMaterialHolder::UnitSize);
     MaterialBuf.resize(MaterialUBO->Size());
     MaterialHolder[0].Albedo = Vec3(0.58, 0.58, 0.58);
     MaterialHolder[0].Metalness = 0.1f;

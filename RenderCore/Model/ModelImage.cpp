@@ -1,96 +1,86 @@
 #include "RenderCoreRely.h"
 #include "ModelImage.h"
 #include "../Material.h"
+#include "common/PromiseTaskSTD.hpp"
 
 
-namespace rayr
+namespace rayr::detail
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
+using common::asyexe::StackSize;
+using namespace xziar::img;
 
 
-namespace detail
+static map<u16string, oglTex2DV> TEX_CACHE;
+
+std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
 {
-
-map<u16string, ModelImage> _ModelImage::images;
-
-ModelImage _ModelImage::getImage(fs::path picPath, const fs::path& curPath)
-{
-    const auto fname = picPath.filename().u16string();
-    auto img = getImage(fname);
-    if (img)
-        return img;
-
-    if (!fs::exists(picPath))
-    {
-        picPath = curPath / fname;
-        if (!fs::exists(picPath))
-        {
-            basLog().error(u"Fail to open image file\t[{}]\n", fname);
-            return ModelImage();
-        }
-    }
     try
     {
-        _ModelImage *mi = new _ModelImage(picPath.u16string());
-        ModelImage image(std::move(mi));
-        images.insert_or_assign(fname, image);
-        return image;
+        return xziar::img::ReadImage(picPath);
     }
-#pragma warning(disable:4101)
     catch (FileException& fe)
     {
         if (fe.reason == FileException::Reason::ReadFail)
-            basLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
+            basLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
         else
             basLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
-        return img;
     }
-#pragma warning(default:4101)
+    catch (const BaseException&)
+    {
+        basLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
+    }
+    return {};
 }
 
-ModelImage _ModelImage::getImage(const u16string& pname)
+rayr::oglTex2DV ModelImage::GetTexure(const fs::path& picPath, const xziar::img::Image& img)
 {
-    if (auto img = FindInMap(images, pname))
-        return *img;
-    else
-        return ModelImage();
+    const auto tex = MultiMaterialHolder::LoadImgToTex(img, oglu::TextureInnerFormat::RGBA8)->GetTextureView();
+    TEX_CACHE.try_emplace(picPath.u16string(), tex);
+    return tex;
 }
-#pragma warning(disable:4996)
-void _ModelImage::shrink()
+
+oglTex2DV ModelImage::GetTexure(const fs::path& picPath)
 {
-    auto it = images.cbegin();
-    while (it != images.end())
+    if (auto tex = FindInMap(TEX_CACHE, picPath.u16string()))
+        return *tex;
+    if (const auto img = ReadImage(picPath))
+        return GetTexure(picPath, img.value());
+    else
+        return oglTex2DV();
+}
+
+ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath)
+{
+    if (auto tex = FindInMap(TEX_CACHE, picPath.u16string()))
+        return *tex;
+    if (const auto img = ReadImage(picPath))
+    {
+        const auto pms = std::make_shared<std::promise<oglTex2DV>>();
+        auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DV, true>>(*pms);
+        oglu::oglUtil::invokeSyncGL([img = std::move(img.value()), fpath = std::move(picPath), pms](const auto&) mutable
+        {
+            pms->set_value(GetTexure(fpath, img));
+        }, u"GetImage");
+        return ret;
+    }
+    return oglTex2DV();
+}
+
+#pragma warning(disable:4996)
+void ModelImage::Shrink()
+{
+    auto it = TEX_CACHE.cbegin();
+    while (it != TEX_CACHE.end())
     {
         if (it->second.unique()) //deprecated, may lead to bug
-            it = images.erase(it);
+            it = TEX_CACHE.erase(it);
         else
             ++it;
     }
 }
 #pragma warning(default:4996)
 
-_ModelImage::_ModelImage(const u16string& pfname) : Image(xziar::img::ReadImage(pfname))
-{
-    if (Width > UINT16_MAX || Height > UINT16_MAX)
-        COMMON_THROW(BaseException, L"image too big");
-}
 
-_ModelImage::_ModelImage(const uint16_t w, const uint16_t h, const uint32_t color)
-{
-    SetSize(w, h);
-}
-
-oglu::oglTex2DS _ModelImage::genTexture(const oglu::TextureInnerFormat format)
-{
-    return rayr::GenTexture(*this, format);
-}
-
-oglu::oglTex2DS _ModelImage::genTextureAsync(const oglu::TextureInnerFormat format)
-{
-    return rayr::GenTextureAsync(*this, format, u"Comp-" + Name);
-}
-
-
-}
 }

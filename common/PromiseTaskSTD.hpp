@@ -8,11 +8,21 @@ namespace common
 {
 
 
-template<class T>
+template<typename T, bool Shared = false>
 class PromiseResultSTD : public detail::PromiseResult_<T>
 {
+private:
+    template<typename U, bool IsShared> struct Helper;
+    template<typename U> struct Helper<U, true>
+    {
+        using FutType = std::shared_future<U>;
+    };
+    template<typename U> struct Helper<U, false>
+    {
+        using FutType = std::future<U>;
+    };
 protected:
-    std::future<T> fut;
+    typename Helper<T, Shared>::FutType fut;
 public:
     PromiseResultSTD(std::promise<T>& pms) : fut(pms.get_future())
     { }

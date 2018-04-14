@@ -66,7 +66,7 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     }
     else
     {
-        memcpy_s(MappedPtr, size, dat, size);
+        memcpy_s(MappedPtr, BufSize, dat, size);
     }
 }
 

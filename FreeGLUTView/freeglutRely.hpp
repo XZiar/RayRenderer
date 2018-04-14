@@ -237,11 +237,11 @@ private:
         case WM_DROPFILES:
             {
                 HDROP hdrop = (HDROP)wParam;
-                std::u16string filePath(2048, u'\0');
-                DragQueryFile(hdrop, 0, (LPWSTR)filePath.data(), 2000);
+                std::u16string pathBuf(2048, u'\0');
+                DragQueryFile(hdrop, 0, (LPWSTR)pathBuf.data(), 2000);
                 DragFinish(hdrop);
                 const auto view = getView(hWnd);
-                view->onDropFile(filePath);
+                view->onDropFile(std::u16string(pathBuf.c_str()));
             }
             return 0;
         }

@@ -57,6 +57,12 @@
     <ClInclude Include="Model\OBJLoader.hpp">
       <Filter>Model</Filter>
     </ClInclude>
+    <ClInclude Include="Model\ModelMesh.h">
+      <Filter>Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\MTLLoader.hpp">
+      <Filter>Model</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -90,6 +96,9 @@
     </ClCompile>
     <ClCompile Include="Material.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\ModelMesh.cpp">
+      <Filter>Model</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

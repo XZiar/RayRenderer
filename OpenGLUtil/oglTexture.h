@@ -59,7 +59,7 @@ protected:
     TextureInnerFormat InnerFormat;
     GLuint textureID = GL_INVALID_INDEX;
     static TextureManager& getTexMan() noexcept;
-    _oglTexBase(const TextureType type) noexcept;
+    explicit _oglTexBase(const TextureType type) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
@@ -98,7 +98,7 @@ class OGLUAPI _oglTexture2D : public _oglTexBase
 protected:
     uint32_t Width, Height;
 
-    _oglTexture2D() noexcept;
+    explicit _oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
     void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept;
@@ -186,6 +186,7 @@ class OGLUAPI _oglTexture2DArray : public _oglTexBase
     uint32_t Width, Height, Layers;
 public:
     _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat);
+    _oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd);
     
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
     

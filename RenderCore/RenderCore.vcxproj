@@ -215,6 +215,8 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Model\ModelImage.h" />
+    <ClInclude Include="Model\ModelMesh.h" />
+    <ClInclude Include="Model\MTLLoader.hpp" />
     <ClInclude Include="Model\OBJLoader.hpp" />
     <ClInclude Include="RenderCore.h" />
     <ClInclude Include="RenderCoreRely.h" />
@@ -236,6 +238,7 @@
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Model\ModelImage.cpp" />
+    <ClCompile Include="Model\ModelMesh.cpp" />
     <ClCompile Include="RenderCore.cpp" />
     <ClCompile Include="RenderCoreRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

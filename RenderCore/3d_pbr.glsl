@@ -20,9 +20,9 @@ uniform uint lightCount = 0;
 
 struct MaterialData
 {
-    uvec4 mappos;
     vec4 basic;
     vec4 other;
+    uvec4 mappos;
 };
 layout(std140) uniform materialBlock
 {
@@ -99,32 +99,29 @@ out vec4 FragColor;
 subroutine vec3 LightModel();
 subroutine uniform LightModel lighter;
 
-subroutine vec3 NormalCalc(const int);
+subroutine vec3 NormalCalc(const uint);
 subroutine uniform NormalCalc getNorm;
 
-subroutine vec3 AlbedoCalc(const int);
+subroutine vec3 AlbedoCalc(const uint);
 subroutine uniform AlbedoCalc getAlbedo;
 
 subroutine(NormalCalc)
-vec3 vertedNormal(const int id)
+vec3 vertedNormal(const uint id)
 {
     return normalize(norm);
 }
 subroutine(NormalCalc)
-vec3 mappedNormal(const int id)
+vec3 mappedNormal(const uint id)
 {
-    const uint pos = materials[id].mappos.x >> 16;
-    if(pos == 0xffff)
-        return vertedNormal(id);
-    
     const vec3 ptNorm = normalize(norm);
     const vec3 ptTan = normalize(tannorm.xyz);
     vec3 bitanNorm = cross(ptNorm, ptTan);
     if(tannorm.w < 0.0f) bitanNorm *= -1.0f;
     const mat3 TBN = mat3(ptTan, bitanNorm, ptNorm);
 
-    const uint bank = pos >> 12;
-    const float layer = float(pos & 0xfff);
+    const uint pos = materials[id].mappos.y;
+    const uint bank = pos >> 16;
+    const float layer = float(pos & 0xffff);//let it be wrong
     const vec3 newtpos = vec3(tpos, layer);
     const vec3 ptNormTex = texture(texs[bank], newtpos).rgb * 2.0f - 1.0f;
     //const vec3 ptNormTex = texture(tex[1], tpos).rgb * 2.0f - 1.0f;
@@ -132,13 +129,13 @@ vec3 mappedNormal(const int id)
     return ptNorm2;
 }
 subroutine(NormalCalc)
-vec3 bothNormal(const int id)
+vec3 bothNormal(const uint id)
 {
-    return ((materials[id].mappos.x & 0xffff0000) == 0xffff0000) ? vertedNormal(id) : mappedNormal(id);
+    return (materials[id].mappos.y == 0xffff) ? vertedNormal(id) : mappedNormal(id);
 }
 
 subroutine(AlbedoCalc)
-vec3 materialAlbedo(const int id)
+vec3 materialAlbedo(const uint id)
 {
     const vec3 srgbAlbedo = materials[id].basic.xyz;
     if (srgbTexture)
@@ -147,32 +144,26 @@ vec3 materialAlbedo(const int id)
         return srgbAlbedo;
 }
 subroutine(AlbedoCalc)
-vec3 mappedAlbedo(const int id)
+vec3 mappedAlbedo(const uint id)
 {
-    const uint pos = materials[id].mappos.x & 0xffff;
-    vec3 srgbAlbedo;
-    if(pos == 0xffff)
-        srgbAlbedo = texture(tex[0], tpos).rgb;
-    else
-    {
-        const uint bank = pos >> 12;
-        const float layer = float(pos & 0xfff);
-        const vec3 newtpos = vec3(tpos, layer);
-        srgbAlbedo = texture(texs[bank], newtpos).rgb;
-    }
+    const uint pos = materials[id].mappos.x;
+    const uint bank = pos >> 16;
+    const float layer = float(pos & 0xffff);
+    const vec3 newtpos = vec3(tpos, layer);
+    const vec3 srgbAlbedo = texture(texs[bank], newtpos).rgb;
     if (srgbTexture)
         return pow(srgbAlbedo, vec3(2.2f));
     else
         return srgbAlbedo;
 }
 subroutine(AlbedoCalc)
-vec3 bothAlbedo(const int id)
+vec3 bothAlbedo(const uint id)
 {
-    return ((materials[id].mappos.x & 0xffff) == 0xffff) ? materialAlbedo(id) : mappedAlbedo(id);
+    return (materials[id].mappos.x == 0xffff) ? materialAlbedo(id) : mappedAlbedo(id);
 }
 
 
-void parseLight(const int id, out vec3 p2l, out vec3 color)
+void parseLight(const uint id, out vec3 p2l, out vec3 color)
 {
     float atten = lights[id].attenuation.w;
     if (lights[id].type == 0) // parallel light
@@ -202,7 +193,7 @@ vec3 GammaCorrect(const vec3 color)
 subroutine(LightModel)
 vec3 tex0()
 {
-    const vec4 texColor = texture(tex[0], tpos);
+    const vec4 texColor = texture(texs[0], vec3(tpos, 0.0f));
     return texColor.rgb;
 }
 subroutine(LightModel)
@@ -214,16 +205,16 @@ vec3 tanvec()
 subroutine(LightModel)
 vec3 normal()
 {
-    const vec3 ptNorm = getNorm(0);
+    const vec3 ptNorm = getNorm(drawId);
     return (ptNorm + 1.0f) * 0.5f;
 }
 subroutine(LightModel)
 vec3 normdiff()
 {
-    if((materials[0].mappos.x & 0xffff0000) == 0xffff0000)
+    if(materials[drawId].mappos.y == 0xffff)
         return vec3(0.5f, 0.5f, 0.5f);
-    const vec3 ptNorm = vertedNormal(0);
-    const vec3 ptNorm2 = mappedNormal(0);
+    const vec3 ptNorm = vertedNormal(drawId);
+    const vec3 ptNorm2 = mappedNormal(drawId);
     const vec3 diff = ptNorm2 - ptNorm;
     return (diff + 1.0f) * 0.5f;
 }
@@ -256,11 +247,11 @@ vec3 drawidx()
 subroutine(LightModel)
 vec3 mat0()
 {
-    const uint pos = materials[0].mappos.x & 0xffff;
+    const uint pos = materials[0].mappos.x;
     if(pos == 0xffff)
         return vec3(1.0f, 0.0f, 0.0f);
-    const uint bank = pos >> 12;
-    const float layer = float(pos & 0xfff);
+    const uint bank = pos >> 16;
+    const float layer = float(pos & 0xffff);
     return vec3(0.0f, bank / 16.0f, layer / 16.0f);
 }
 
@@ -301,11 +292,11 @@ vec3 F_Schlick(const vec3 halfVec, const vec3 viewRay, const vec3 F0)
 void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 specularColor)
 {
     const vec3 viewRay = normalize(pt2cam);
-    const vec3 ptNorm = getNorm(0);
-    const float metallic = materials[0].basic.w;
+    const vec3 ptNorm = getNorm(drawId);
+    const float metallic = materials[drawId].basic.w;
     const vec3 diffuse_PI = (1.0f - metallic) * albedo / oglu_PI;
     const vec3 F0 = mix(vec3(0.04f), albedo, metallic);
-    const float roughness = max(materials[0].other.x, 0.002f);
+    const float roughness = max(materials[drawId].other.x, 0.002f);
     const float roughness4 = roughness * roughness * roughness * roughness;
     const float r_1 = roughness + 1.0f;
     const float k = (r_1 * r_1) / 8.0f;
@@ -333,53 +324,50 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
 subroutine(LightModel)
 vec3 albedoOnly()
 {
-    const vec3 albedo = getAlbedo(0);
+    const vec3 albedo = getAlbedo(drawId);
     return GammaCorrect(albedo);
 }
 subroutine(LightModel)
 vec3 metalOnly()
 {
-    const float metallic = materials[0].basic.w;
+    const float metallic = materials[drawId].basic.w;
     return vec3(metallic);
 }
 subroutine(LightModel)
 vec3 basic()
 {
-    const float AO = materials[0].other.z;
+    const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;
     lowp vec3 diffuseColor = vec3(0.0f);
     lowp vec3 specularColor = vec3(0.0f);
-    const lowp vec3 albedo = getAlbedo(0);
+    const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
-    lowp vec3 finalColor = texture(tex[0], tpos).rgb;
-    finalColor *= ambientColor + diffuseColor + specularColor;
+    lowp vec3 finalColor = ambientColor + diffuseColor + specularColor;
     return GammaCorrect(finalColor);
 }
 subroutine(LightModel)
 vec3 diffuse()
 {
-    const float AO = materials[0].other.z;
+    const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;
     lowp vec3 diffuseColor = vec3(0.0f);
     lowp vec3 specularColor = vec3(0.0f);
-    const lowp vec3 albedo = getAlbedo(0);
+    const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
-    lowp vec3 finalColor = texture(tex[0], tpos).rgb;
-    finalColor *= ambientColor + diffuseColor;
+    lowp vec3 finalColor = ambientColor + diffuseColor;
     return GammaCorrect(finalColor);
 }
 
 subroutine(LightModel)
 vec3 specular()
 {
-    const float AO = materials[0].other.z;
+    const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;
     lowp vec3 diffuseColor = vec3(0.0f);
     lowp vec3 specularColor = vec3(0.0f);
-    const lowp vec3 albedo = getAlbedo(0);
+    const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
-    lowp vec3 finalColor = texture(tex[0], tpos).rgb;
-    finalColor *= ambientColor + specularColor;
+    lowp vec3 finalColor = ambientColor + specularColor;
     return GammaCorrect(finalColor);
 }
 

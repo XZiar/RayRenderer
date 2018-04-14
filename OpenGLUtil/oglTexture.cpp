@@ -189,11 +189,6 @@ size_t _oglTexBase::ParseFormatSize(const TextureDataFormat dformat) noexcept
 }
 
 
-_oglTexture2D::_oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0)
-{
-    glGenTextures(1, &textureID);
-}
-
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
     if (isSub)
@@ -366,14 +361,22 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     glTextureStorage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
 }
 
+_oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) : 
+    _oglTexture2DArray(old->Width, old->Height, old->Layers + layerAdd, old->InnerFormat)
+{
+    SetTextureLayers(0, old, 0, old->Layers);
+}
+
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex)
 {
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     if (tex->Width != Width || tex->Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
+    if (tex->InnerFormat != InnerFormat)
+        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint32_t)tex->InnerFormat, textureID, (uint32_t)InnerFormat);
     glCopyImageSubData(tex->textureID, (GLenum)tex->Type, 0, 0, 0, 0,
-        textureID, (GLenum)Type, 0, 0, 0, layer,
+        textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer,
         tex->Width, tex->Height, 1);
 }
 

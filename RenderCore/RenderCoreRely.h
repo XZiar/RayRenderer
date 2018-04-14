@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <set>
 #include <deque>
+#include <variant>
 #include <typeindex>
 #include <filesystem>
 #include "common/CommonRely.hpp"
@@ -27,6 +28,7 @@
 #include "common/ThreadEx.h"
 #include "common/StringEx.hpp"
 #include "common/StrCharset.hpp"
+#include "common/PromiseTask.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "ImageUtil/ImageUtil.h"
@@ -52,6 +54,7 @@ using std::map;
 using std::set;
 using std::deque;
 using std::vector;
+using std::variant;
 using common::min;
 using common::max;
 using common::Wrapper;

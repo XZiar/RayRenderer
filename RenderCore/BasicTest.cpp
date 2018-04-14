@@ -170,6 +170,10 @@ void BasicTest::initTex()
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
     chkTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
+    {
+        oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::RGBA8);
+        tex2darr->SetTextureLayer(0, chkTex);
+    }
 }
 
 void BasicTest::initUBO()
@@ -182,6 +186,7 @@ void BasicTest::initUBO()
     }
     lightUBO.reset(size);
     lightLim = (uint8_t)(size / sizeof(LightData));
+    prepareLight();
 }
 
 void BasicTest::prepareLight()
@@ -270,7 +275,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     for (const auto& prog : Prog3Ds)
     {
         prog->State()
-            .SetTexture(chkTex, "tex")
+            //.SetTexture(chkTex, "tex")
             .SetUBO(lightUBO, "lightBlock");
     }
     glProgs.insert(prog2D);
