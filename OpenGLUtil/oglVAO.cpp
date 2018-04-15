@@ -29,7 +29,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const GLenum valType, const oglVBO& vbo,
         vbo->bind();
         //glEnableVertexAttribArray(attridx);//vertex attr index
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx);
-        glVertexAttribPointer(attridx, size, valType, GL_FALSE, stride, (void*)intptr_t(offset));
+        glVertexAttribPointer(attridx, size, valType, GL_FALSE, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
     return *this;

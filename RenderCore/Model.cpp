@@ -31,7 +31,12 @@ Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME),
     scale = Vec3(resizer, resizer, resizer);
     if (asyncload)
     {
-        auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent&) { InitMaterial(); });
+        const auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) 
+        { 
+            InitMaterial();
+            agent.Await(oglu::oglUtil::SyncGL());
+        });
+        AsyncAgent::SafeWait(task);
     }
     else
     {

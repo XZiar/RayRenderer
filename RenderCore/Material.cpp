@@ -43,16 +43,22 @@ static void CompressData(const xziar::img::Image& img, vector<uint8_t>& output, 
 
 oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format, const u16string& taskName)
 {
-    vector<uint8_t> texdata;
-    const auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&)
-    {
-        CompressData(img, texdata, format);
-    }, taskName);
     oglu::oglTex2DS tex(img.Width, img.Height, format);
     tex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-
-    common::asyexe::AsyncAgent::SafeWait(asyncRet);
-    tex->SetCompressedData(texdata);
+    if (oglu::detail::_oglTexBase::IsCompressType(format))
+    {
+        vector<uint8_t> texdata;
+        const auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&)
+        {
+            CompressData(img, texdata, format);
+        }, taskName);
+        common::asyexe::AsyncAgent::SafeWait(asyncRet);
+        tex->SetCompressedData(texdata);
+    }
+    else
+    {
+        tex->SetData(img);
+    }
     return tex;
 }
 
@@ -98,7 +104,7 @@ oglu::oglTex2DS MultiMaterialHolder::LoadImgToTex(const xziar::img::Image& img, 
         newImg.Resize(newW, newH);
         return LoadImgToTex(newImg);
     }
-    return GenTextureAsync(img);
+    return GenTextureAsync(img, format);
 }
 
 void MultiMaterialHolder::Refresh()

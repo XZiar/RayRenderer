@@ -31,7 +31,6 @@ private:
     const u16string mfname;
     void loadOBJ(const fs::path& objfname);
     void InitDataBuffers();
-    void initData(const bool asyncload);
     _ModelMesh(const u16string& fname, bool asyncload = false);
 public:
     void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;

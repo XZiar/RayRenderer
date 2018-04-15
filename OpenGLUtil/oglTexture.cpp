@@ -7,7 +7,44 @@
 namespace oglu::detail
 {
 
+struct TexLogItem
+{
+    GLuint TexId;
+    uint32_t ThreadId;
+    TextureType TexType;
+    TexLogItem(const _oglTexBase& tex) : TexId(tex.textureID), ThreadId(common::ThreadObject::GetCurrentThreadId()), TexType(tex.Type) {}
+    bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
+};
+
 static ContextResource<std::shared_ptr<TextureManager>, false> CTX_TEX_MAN;
+static ContextResource<std::shared_ptr<map<GLuint, TexLogItem>>, true> CTX_TEX_LOG;
+static std::atomic_flag CTX_TEX_LOG_LOCK = { 0 };
+
+static void RegistTexture(const _oglTexBase& tex)
+{
+    TexLogItem item(tex);
+    if(_DEBUG)
+        oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+    auto texmap = CTX_TEX_LOG.GetOrInsert([](const auto&) { return std::make_shared<map<GLuint, TexLogItem>>(); });
+    common::SpinLocker locker(CTX_TEX_LOG_LOCK);
+    texmap->insert_or_assign(item.TexId, item);
+}
+static void UnregistTexture(const _oglTexBase& tex)
+{
+    TexLogItem item(tex);
+    if (_DEBUG)
+        oglLog().verbose(u"here[{}] delete texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+    if (auto texmap = CTX_TEX_LOG.TryGet())
+    {
+        common::SpinLocker locker(CTX_TEX_LOG_LOCK);
+        (*texmap)->erase(item.TexId);
+    }
+    else
+    {
+        oglLog().warning(u"delete before TexLogMap created.");
+    }
+}
+
 
 TextureManager& _oglTexBase::getTexMan() noexcept
 {
@@ -18,10 +55,12 @@ TextureManager& _oglTexBase::getTexMan() noexcept
 _oglTexBase::_oglTexBase(const TextureType type) noexcept : Type(type)
 {
     glGenTextures(1, &textureID);
+    RegistTexture(*this);
 }
 
 _oglTexBase::~_oglTexBase() noexcept
 {
+    UnregistTexture(*this);
     //force unbind texture, since texID may be reused after releasaed
     getTexMan().forcePop(textureID);
     glDeleteTextures(1, &textureID);
@@ -70,33 +109,6 @@ bool _oglTexBase::IsCompressed() const
     return ret != GL_FALSE;
 }
 
-//TextureInnerFormat _oglTexBase::ParseFormatStorage(const TextureDataFormat dformat) noexcept
-//{
-//    switch (dformat | TextureDataFormat::NORMAL_MASK)
-//    {
-//    case TextureDataFormat::R8:
-//        return TextureInnerFormat::R8;
-//    case TextureDataFormat::RG8:    
-//        return GL_RG8;
-//    case TextureDataFormat::RGB8:
-//    case TextureDataFormat::BGR8:
-//        return GL_RGB8;
-//    case TextureDataFormat::RGBA8:
-//    case TextureDataFormat::BGRA8:
-//        return GL_RGBA8;
-//    case TextureDataFormat::Rf:
-//        return GL_R32F;
-//    case TextureDataFormat::RGf:
-//        return GL_RG32F;
-//    case TextureDataFormat::RGBf:
-//    case TextureDataFormat::BGRf:
-//        return GL_RGB32F;
-//    case TextureDataFormat::RGBAf:
-//    case TextureDataFormat::BGRAf:
-//        return GL_RGBA32F;
-//    }
-//    return GL_INVALID_ENUM;
-//}
 void _oglTexBase::ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept
 {
     switch (dformat & TextureDataFormat::TYPE_MASK)
@@ -188,6 +200,16 @@ size_t _oglTexBase::ParseFormatSize(const TextureDataFormat dformat) noexcept
     return size / 8;
 }
 
+const char16_t* _oglTexBase::GetTypeName(const TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Tex2D:             return u"Tex2D";
+    case TextureType::Tex2DArray:        return u"Tex2DArray";
+    case TextureType::TexBuf:            return u"TexBuffer";
+    default:                             return u"Wrong";
+    }
+}
 
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {

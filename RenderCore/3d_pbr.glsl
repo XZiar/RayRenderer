@@ -30,15 +30,15 @@ layout(std140) uniform materialBlock
 };
 
 //@@->ProjectMat|matProj
-layout(location = 0) uniform mat4 matProj;
+uniform mat4 matProj;
 //@@->ViewMat|matView
-layout(location = 1) uniform mat4 matView;
+uniform mat4 matView;
 //@@->ModelMat|matModel
-layout(location = 2) uniform mat4 matModel;
+uniform mat4 matModel;
 //@@->MVPMat|matMVP
-layout(location = 3) uniform mat4 matMVP;
+uniform mat4 matMVP;
 //@@->CamPosVec|vecCamPos
-layout(location = 4) uniform vec3 vecCamPos;
+uniform vec3 vecCamPos;
 
 
 
@@ -56,15 +56,15 @@ GLVARY perVert
 #ifdef OGLU_VERT
 
 //@@->VertPos|vertPos
-layout(location = 0) in vec3 vertPos;
+in vec3 vertPos;
 //@@->VertNorm|vertNorm
-layout(location = 1) in vec3 vertNorm;
+in vec3 vertNorm;
 //@@->VertTexc|vertTexc
-layout(location = 2) in vec2 vertTexc;
+in vec2 vertTexc;
 //@@->VertTan|vertTan
-layout(location = 3) in vec4 vertTan;
+in vec4 vertTan;
 //@@->DrawID|ogluDrawId
-layout(location = 4) in uint ogluDrawId;
+in uint ogluDrawId;
 
 void main() 
 {
@@ -93,6 +93,10 @@ uniform bool srgbTexture = true;
 uniform float gamma = 2.2f;
 //@@##envAmbient|COLOR|environment ambient color
 uniform lowp vec4 envAmbient;
+//@@##objidx|FLOAT|highlighted drawIdx|0.0|30.0
+uniform float objidx = 0.0f;
+//@@##idxscale|FLOAT|scale(e^x) of drawIdx|1.0|24.0
+uniform float idxscale = 1.0f;
 
 out vec4 FragColor;
 
@@ -240,9 +244,23 @@ vec3 lgt0()
 subroutine(LightModel)
 vec3 drawidx()
 {
-    const uint didX = drawId % 3 + 1, didY = (drawId / 3) % 3 + 1, didZ = drawId / 9 + 1;
-    const float stride = 0.25f;
-    return vec3(didX * stride, didY * stride, didZ * stride);
+    //const uint didX = drawId % 3 + 1, didY = (drawId / 3) % 3 + 1, didZ = drawId / 9 + 1;
+    //const float stride = 0.25f;
+    //return vec3(didX * stride, didY * stride, didZ * stride);
+    if(uint(objidx) <= uint(log(drawId)))
+        return vec3(1.0f, 0.0f, 0.0f);
+    else
+        return vec3(0.0f, 1.0f, 0.0f);
+}
+subroutine(LightModel)
+vec3 tcoord()
+{
+    return vec3(tpos, drawId / pow(2, idxscale));
+}
+subroutine(LightModel)
+vec3 drawidx0()
+{
+    return vec3(drawId / pow(2, idxscale));
 }
 subroutine(LightModel)
 vec3 mat0()

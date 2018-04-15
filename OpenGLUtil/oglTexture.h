@@ -54,6 +54,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
     friend class ProgState;
     friend class ProgDraw;
     friend class ::oclu::detail::_oclGLBuffer;
+    friend struct TexLogItem;
 protected:
     const TextureType Type;
     TextureInnerFormat InnerFormat;
@@ -70,7 +71,6 @@ public:
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
     bool IsCompressed() const;
 
-    //static TextureInnerFormat ParseFormatStorage(const TextureDataFormat dformat) noexcept;
     static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
     static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
     {
@@ -87,6 +87,15 @@ public:
     }
     static ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
+    static bool IsCompressType(const TextureInnerFormat format) noexcept
+    {
+        if ((GLenum)format >= (GLenum)TextureInnerFormat::BC1 && (GLenum)format <= (GLenum)TextureInnerFormat::BC3)
+            return true;
+        if ((GLenum)format >= (GLenum)TextureInnerFormat::BC4 && (GLenum)format <= (GLenum)TextureInnerFormat::BC7)
+            return true;
+        return false;
+    }
+    static const char16_t* GetTypeName(const TextureType type);
 };
 
 class _oglTexture2DView;

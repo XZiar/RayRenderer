@@ -21,6 +21,7 @@
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
+#include "common/ThreadEx.h"
 #include "ImageUtil/ImageUtil.h"
 #include "3DElement.hpp"
 
@@ -45,6 +46,7 @@
 #include <optional>
 #include <variant>
 #include <algorithm>
+#include <atomic>
 
 namespace oclu
 {

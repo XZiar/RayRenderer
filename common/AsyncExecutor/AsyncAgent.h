@@ -34,6 +34,9 @@ public:
         return pms->wait();
     }
     static const AsyncAgent* GetAsyncAgent();
+    ///<summary>Safe wait, in case you are waiting for a task posted into the same thread, which may cause dead-lock</summary>  
+    ///<param name="pms">promise</param>
+    ///<returns>T</returns>
     template<typename T>
     static T SafeWait(const PromiseResult<T>& pms)
     {

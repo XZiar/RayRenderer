@@ -225,30 +225,24 @@ void _ModelMesh::InitDataBuffers()
     }
 }
 
-void _ModelMesh::initData(const bool asyncload)
-{
-    InitDataBuffers();
-    if (asyncload)
-    {
-        auto sync = oglu::oglUtil::SyncGL();
-        const auto& agent = *AsyncAgent::GetAsyncAgent();
-        agent.Await(sync);
-        basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
-    }
-}
-
 _ModelMesh::_ModelMesh(const u16string& fname, bool asyncload) :mfname(fname)
 {
     loadOBJ(mfname);
     if (asyncload)
     {
         const auto fileName = fs::path(fname).filename().u16string();
-        auto task = oglu::oglUtil::invokeSyncGL([&](const auto&) { initData(true); }, fileName);
+        auto task = oglu::oglUtil::invokeSyncGL([&](const auto& agent) 
+        { 
+            InitDataBuffers();
+            auto sync = oglu::oglUtil::SyncGL();
+            agent.Await(sync);
+            basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+        }, fileName);
         AsyncAgent::SafeWait(task);
     }
     else
     {
-        initData(false);
+        InitDataBuffers();
     }
 }
 

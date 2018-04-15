@@ -5,6 +5,7 @@
 
 namespace rayr
 {
+using oglu::oglTex2DS;
 using oglu::oglTex2DV;
 class Model;
 

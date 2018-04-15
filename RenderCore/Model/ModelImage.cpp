@@ -34,7 +34,7 @@ std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
     return {};
 }
 
-rayr::oglTex2DV ModelImage::GetTexure(const fs::path& picPath, const xziar::img::Image& img)
+oglTex2DV ModelImage::GetTexure(const fs::path& picPath, const xziar::img::Image& img)
 {
     const auto tex = MultiMaterialHolder::LoadImgToTex(img, oglu::TextureInnerFormat::RGBA8)->GetTextureView();
     TEX_CACHE.try_emplace(picPath.u16string(), tex);
@@ -59,9 +59,11 @@ ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath)
     {
         const auto pms = std::make_shared<std::promise<oglTex2DV>>();
         auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DV, true>>(*pms);
-        oglu::oglUtil::invokeSyncGL([img = std::move(img.value()), fpath = std::move(picPath), pms](const auto&) mutable
+        oglu::oglUtil::invokeSyncGL([img = std::move(img.value()), fpath = std::move(picPath), pms](const auto& agent)
         {
-            pms->set_value(GetTexure(fpath, img));
+            const auto tex = GetTexure(fpath, img);
+            agent.Await(oglu::oglUtil::SyncGL());
+            pms->set_value(tex);
         }, u"GetImage");
         return ret;
     }
