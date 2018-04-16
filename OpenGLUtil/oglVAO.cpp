@@ -22,13 +22,23 @@ void _oglVAO::VAOPrep::End() noexcept
     }
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
     if (attridx != GL_INVALID_INDEX)
     {
         vbo->bind();
-        //glEnableVertexAttribArray(attridx);//vertex attr index
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx);
+        glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
+        glVertexAttribIPointer(attridx, size, valType, stride, (const void*)intptr_t(offset));
+        glVertexAttribDivisor(attridx, divisor);
+    }
+    return *this;
+}
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+{
+    if (attridx != GL_INVALID_INDEX)
+    {
+        vbo->bind();
+        glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
         glVertexAttribPointer(attridx, size, valType, GL_FALSE, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }

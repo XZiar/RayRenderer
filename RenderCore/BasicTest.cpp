@@ -62,7 +62,7 @@ void BasicTest::init2d(const fs::path& shaderPath)
         { 1.0f, 1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f } };
         screenBox->Write(DatVert, sizeof(DatVert));
         picVAO->Prepare()
-            .Set(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0)
+            .SetFloat(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0)
             .SetDrawSize(0, 6);
     }
 }
@@ -111,7 +111,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
         {
             progPBR->Link();
             progPBR->State()
-                .SetSubroutine("lighter", "tex0")
+                .SetSubroutine("lighter", "albedoOnly")
                 .SetSubroutine("getNorm", "bothNormal")
                 .SetSubroutine("getAlbedo", "bothAlbedo");
         }
@@ -185,13 +185,12 @@ void BasicTest::initUBO()
             size = common::max(size, lubo->size);
     }
     lightUBO.reset(size);
-    lightLim = (uint8_t)(size / sizeof(LightData));
+    LightBuf.resize(size);
     prepareLight();
 }
 
 void BasicTest::prepareLight()
 {
-    vector<uint8_t> data(lightUBO->Size());
     size_t pos = 0;
     uint32_t onCnt = 0;
     for (const auto& lgt : lights)
@@ -199,13 +198,13 @@ void BasicTest::prepareLight()
         if (!lgt->isOn)
             continue;
         onCnt++;
-        memcpy_s(&data[pos], lightUBO->Size() - pos, &(*lgt), sizeof(LightData));
+        memcpy_s(&LightBuf[pos], lightUBO->Size() - pos, &(*lgt), sizeof(LightData));
         pos += sizeof(LightData);
         if (pos >= lightUBO->Size())
             break;
     }
     prog3D->SetUniform("lightCount", onCnt);
-    lightUBO->Write(data, BufferWriteMode::StreamDraw);
+    lightUBO->Write(LightBuf.data(), pos, BufferWriteMode::StreamDraw);
 }
 
 void BasicTest::fontTest(const char32_t word)
@@ -221,7 +220,7 @@ void BasicTest::fontTest(const char32_t word)
                 fonttex->SetData(TextureInnerFormat::R8, imgShow);
                 agent.Await(oglu::oglUtil::SyncGL());
             })->wait();
-            img::WriteImage(imgShow, basepath / (u"Show.png"));
+            img::WriteImage(imgShow, Basepath / (u"Show.png"));
             /*SimpleTimer timer;
             for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
             {
@@ -236,13 +235,13 @@ void BasicTest::fontTest(const char32_t word)
         {
             fontCreator->setChar(L'G', false);
             const auto imgG = fonttex->GetImage(TextureDataFormat::R8);
-            img::WriteImage(imgG, basepath / u"G.png");
+            img::WriteImage(imgG, Basepath / u"G.png");
             fontCreator->setChar(word, false);
             const auto imgA = fonttex->GetImage(TextureDataFormat::R8);
-            img::WriteImage(imgA, basepath / u"A.png");
+            img::WriteImage(imgA, Basepath / u"A.png");
             const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
             fonttex->SetData(TextureInnerFormat::R8, imgShow);
-            img::WriteImage(imgShow, basepath / u"Show.png");
+            img::WriteImage(imgShow, Basepath / u"Show.png");
             fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
             fontViewer->BindTexture(fonttex);
         }
@@ -261,10 +260,10 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
     fontViewer.reset();
     fontCreator.reset(oclu::Vendor::Intel);
-    basepath = u"D:\\Programs Temps\\RayRenderer";
-    if (!fs::exists(basepath))
-        basepath = u"C:\\Programs Temps\\RayRenderer";
-    fontCreator->reloadFont(basepath / u"test.ttf");
+    Basepath = u"D:\\Programs Temps\\RayRenderer";
+    if (!fs::exists(Basepath))
+        Basepath = u"C:\\Programs Temps\\RayRenderer";
+    fontCreator->reloadFont(Basepath / u"test.ttf");
 
     fontTest(/*L'‡å'*/);
     initTex();
@@ -296,6 +295,8 @@ void BasicTest::Draw()
         auto drawcall = prog3D->Draw();
         for (const auto& d : drawables)
         {
+            if (!d->ShouldRender)
+                continue;
             d->Draw(drawcall);
             drawcall.Restore();
         }

@@ -85,8 +85,10 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
     {
         oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::RGBA8);
         chkTex->SetData(oglu::TextureDataFormat::RGBA8, CHECK_IMG_DATA.data());
+        const auto texv = chkTex->GetTextureView();
+        texv->Name = u"Check Image";
         basLog().verbose(u"new CheckTex generated.\n");
-        return chkTex->GetTextureView();
+        return texv;
     });
 }
 

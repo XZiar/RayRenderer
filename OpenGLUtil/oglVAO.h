@@ -55,12 +55,26 @@ public:
         _oglVAO& vao;
         bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
-        VAOPrep& Set(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        VAOPrep& SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        VAOPrep& SetFloat(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
     public:
         VAOPrep(VAOPrep&& other) : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
         ~VAOPrep() noexcept { End(); }
         void End() noexcept;
-        ///<summary>Set single Vertex Attribute</summary>  
+        ///<summary>Set single Vertex Attribute(integer)</summary>  
+        ///<param name="vbo">vertex attribute datasource, must be array</param>
+        ///<param name="attridx">vertex attribute index</param>
+        ///<param name="stride">size(byte) of a group of data</param>
+        ///<param name="size">count of {ValueType} taken as an element</param>
+        ///<param name="offset">offset(byte) of the 1st elements</param>
+        ///<param name="divisor">increase attri index foreach {x} instance</param>
+        template<typename Val = uint32_t>
+        VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
+        {
+            static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
+            return SetInteger(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
+        }
+        ///<summary>Set single Vertex Attribute(float)</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array</param>
         ///<param name="attridx">vertex attribute index</param>
         ///<param name="stride">size(byte) of a group of data</param>
@@ -68,9 +82,9 @@ public:
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
         template<typename Val = float>
-        VAOPrep& Set(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
+        VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
         {
-            return Set(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
+            return SetFloat(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
         }
         ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord]</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::Point]</param>

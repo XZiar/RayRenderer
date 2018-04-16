@@ -16,6 +16,7 @@ public:
     Vec3 position = Vec3::zero(), rotation = Vec3::zero(), scale = Vec3::one();
     MultiMaterialHolder MaterialHolder;
     u16string Name;
+    bool ShouldRender = true;
 
     ///<summary>Release all related VAO for the shader-program</summary>  
     ///<param name="prog">shader program</param>

@@ -183,6 +183,9 @@
                     <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
                         <StackPanel x:Name="stkObject" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxObj, Mode=OneWay}">
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="渲染物体">
+                                <CheckBox IsChecked="{Binding ShouldRender, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                            </ext:LabelControl>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
@@ -194,7 +197,7 @@
                                         <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Albedo">
                                             <CheckBox IsChecked="{Binding IsMappedAlbedo, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
                                         </ext:LabelControl>
-                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo">
                                             <ext:LabelControl.Style>
                                                 <Style TargetType="ext:LabelControl">
                                                     <Style.Triggers>
@@ -206,6 +209,31 @@
                                             </ext:LabelControl.Style>
                                             <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
                                         </ext:LabelControl>
+                                        <ext:LabelTextBox Content="{Binding AlbedoMap, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo" IsReadOnly="True">
+                                            <ext:LabelTextBox.Style>
+                                                <Style TargetType="ext:LabelTextBox">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ext:LabelTextBox.Style>
+                                        </ext:LabelTextBox>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Normal">
+                                            <CheckBox IsChecked="{Binding IsMappedNormal, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                                        </ext:LabelControl>
+                                        <ext:LabelTextBox Content="{Binding NormalMap, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Normal" IsReadOnly="True">
+                                            <ext:LabelTextBox.Style>
+                                                <Style TargetType="ext:LabelTextBox">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedNormal, Mode=OneWay}" Value="false">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ext:LabelTextBox.Style>
+                                        </ext:LabelTextBox>
                                         <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="金属率">
                                             <Slider Value="{Binding Metallic, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                                         </ext:LabelControl>

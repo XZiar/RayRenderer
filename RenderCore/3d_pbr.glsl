@@ -247,20 +247,10 @@ vec3 drawidx()
     //const uint didX = drawId % 3 + 1, didY = (drawId / 3) % 3 + 1, didZ = drawId / 9 + 1;
     //const float stride = 0.25f;
     //return vec3(didX * stride, didY * stride, didZ * stride);
-    if(uint(objidx) <= uint(log(drawId)))
+    if(objidx <= float(drawId))
         return vec3(1.0f, 0.0f, 0.0f);
     else
         return vec3(0.0f, 1.0f, 0.0f);
-}
-subroutine(LightModel)
-vec3 tcoord()
-{
-    return vec3(tpos, drawId / pow(2, idxscale));
-}
-subroutine(LightModel)
-vec3 drawidx0()
-{
-    return vec3(drawId / pow(2, idxscale));
 }
 subroutine(LightModel)
 vec3 mat0()

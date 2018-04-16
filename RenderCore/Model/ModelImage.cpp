@@ -37,6 +37,7 @@ std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
 oglTex2DV ModelImage::GetTexure(const fs::path& picPath, const xziar::img::Image& img)
 {
     const auto tex = MultiMaterialHolder::LoadImgToTex(img, oglu::TextureInnerFormat::RGBA8)->GetTextureView();
+    tex->Name = picPath.filename().u16string();
     TEX_CACHE.try_emplace(picPath.u16string(), tex);
     return tex;
 }

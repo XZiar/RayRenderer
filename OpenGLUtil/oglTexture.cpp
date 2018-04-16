@@ -329,6 +329,7 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
 common::Wrapper<oglu::detail::_oglTexture2DView> _oglTexture2DStatic::GetTextureView() const
 {
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat));
+    tex->Name = Name + u"-View";
     glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, 1, 0, 1);
     return tex;
 }
@@ -429,6 +430,8 @@ Wrapper<_oglTexture2DView> _oglTexture2DArray::ViewTextureLayer(const uint32_t l
     if(layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat));
+    const auto layerStr = std::to_string(layer);
+    tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
     glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, 1, layer, 1);
     return tex;
 }

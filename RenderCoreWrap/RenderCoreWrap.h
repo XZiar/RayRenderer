@@ -41,6 +41,10 @@ public:
             OnPropertyChanged("Albedo"); RefreshMaterial();
         }
     }
+    property String^ AlbedoMap
+    {
+        String^ get() { return Material.DiffuseMap ? ToStr(Material.DiffuseMap->Name) : "(None)"; }
+    }
     property bool IsMappedAlbedo
     {
         bool get() { return Material.UseDiffuseMap; }
@@ -49,6 +53,10 @@ public:
             Material.UseDiffuseMap = value;
             OnPropertyChanged("IsMappedAlbedo"); RefreshMaterial();
         }
+    }
+    property String^ NormalMap
+    {
+        String^ get() { return Material.NormalMap ? ToStr(Material.NormalMap->Name) : "(None)"; }
     }
     property bool IsMappedNormal
     {
@@ -104,6 +112,11 @@ public:
     {
         Vec3F get() { return Vec3F(drawable->lock()->rotation); }
         void set(Vec3F value) { value.Store(drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
+    }
+    property bool ShouldRender
+    {
+        bool get() { return drawable->lock()->ShouldRender; }
+        void set(bool value) { drawable->lock()->ShouldRender = value; OnPropertyChanged("ShouldRender"); }
     }
     CLI_READONLY_PROPERTY(String^, Type, type);
     CLI_READONLY_PROPERTY(List<PBRMaterial^>^, Materials, materials);

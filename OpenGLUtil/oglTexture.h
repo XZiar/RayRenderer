@@ -66,6 +66,7 @@ protected:
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
 public:
+    u16string Name;
     ~_oglTexBase() noexcept;
     void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }

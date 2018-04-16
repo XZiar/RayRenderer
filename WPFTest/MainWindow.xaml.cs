@@ -21,6 +21,7 @@ using XZiar.Util;
 using System.Windows.Threading;
 using System.Threading;
 using OpenGLUtil;
+using System.ComponentModel;
 
 namespace WPFTest
 {
@@ -188,6 +189,11 @@ namespace WPFTest
                 Mode = BindingMode.OneWay
             });
             cboxShader.SelectedItem = Core.Shaders.Current;
+
+            {
+                var dpd = DependencyPropertyDescriptor.FromProperty(ComboBox.ItemsSourceProperty, typeof(ComboBox));
+                dpd.AddValueChanged(cboxMat, (o, e) => cboxMat.SelectedIndex = 0);
+            }
 
             AutoRefresher = new Timer(o =>
             {
