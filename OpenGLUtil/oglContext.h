@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "oglFBO.h"
 
 namespace oglu
 {
@@ -31,7 +32,7 @@ enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 struct OGLUAPI BindingState
 {
-    GLint progId = 0, vaoId = 0, vboId = 0, iboId = 0, eboId = 0;
+    GLint progId = 0, vaoId = 0, fboId = 0, vboId = 0, iboId = 0, eboId = 0;
     BindingState();
 };
 
@@ -73,6 +74,11 @@ public:
     void SetFaceCulling(const FaceCullingType type);
     DepthTestType GetDepthTest() { return DepthTestFunc; }
     FaceCullingType GetFaceCulling() { return FaceCulling; }
+
+    void SetFBO(const oglFBO& fbo) const;
+    void SetViewPort(const miniBLAS::VecI4& viewport) const { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
+    void SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height) const;
+    miniBLAS::VecI4 GetViewPort() const;
 };
 
 }

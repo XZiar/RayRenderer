@@ -60,6 +60,9 @@
     <ClInclude Include="PointEnhance.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglFBO.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
@@ -93,6 +96,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MTWorker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oglFBO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

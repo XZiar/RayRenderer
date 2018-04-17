@@ -20,8 +20,8 @@ class PromiseResultGL : public common::asyexe::detail::AsyncResult_<void>
     friend class oglUtil;
 protected:
     GLsync SyncObj;
-    uint64_t timeBegin;
-    GLuint query;
+    uint64_t TimeBegin;
+    GLuint Query;
     common::PromiseState virtual state() override
     {
         switch (glClientWaitSync(SyncObj, 0, 0))
@@ -46,26 +46,27 @@ protected:
         { }
     }
 public:
-    PromiseResultGL() : SyncObj(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0))
+    PromiseResultGL()
     {
-        glGenQueries(1, &query);
-        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&timeBegin); //suppose it is the time all commands are issued.
-        glQueryCounter(query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        glGenQueries(1, &Query);
+        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
+        glQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        SyncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         glFlush(); //ensure sync object sended
     }
     ~PromiseResultGL() override
     {
         glDeleteSync(SyncObj);
-        glDeleteQueries(1, &query);
+        glDeleteQueries(1, &Query);
     }
     uint64_t ElapseNs() override
     {
         uint64_t timeEnd = 0;
-        glGetQueryObjectui64v(query, GL_QUERY_RESULT, &timeEnd);
+        glGetQueryObjectui64v(Query, GL_QUERY_RESULT, &timeEnd);
         if (timeEnd == 0)
             return 0;
         else
-            return timeEnd - timeBegin;
+            return timeEnd - TimeBegin;
     }
 };
 

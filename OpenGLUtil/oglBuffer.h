@@ -30,7 +30,7 @@ namespace detail
 {
 
 
-class OGLUAPI _oglBuffer : public NonCopyable
+class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
     friend class ::oclu::detail::_oclGLBuffer;
     friend class _oglProgram;

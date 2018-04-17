@@ -22,7 +22,7 @@ bool isAnimate = false;
 
 void onResize(FreeGLUTView wd, int w, int h)
 {
-    tester->Resize(w & 0xffc0, h & 0xffc0);
+    tester->Resize(w, h);
 }
 
 //conver to radius

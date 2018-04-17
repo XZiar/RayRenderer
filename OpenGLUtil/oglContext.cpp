@@ -11,6 +11,7 @@ BindingState::BindingState()
 {
     glGetIntegerv(GL_CURRENT_PROGRAM, &progId);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fboId);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboId);
     glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
@@ -35,7 +36,7 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum sever
         {
             oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->msg);
             BindingState state;
-            oglLog().debug(u"Current Prog[{}] binding-state: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", state.progId, state.vaoId, state.vboId, state.iboId, state.eboId);
+            oglLog().debug(u"Current Prog[{}], VAO[{}], FBO[{}] binding-state: VBO[{}], IBO[{}], EBO[{}]\n", state.progId, state.vaoId, state.fboId, state.vboId, state.iboId, state.eboId);
         }
         else
         {
@@ -143,6 +144,26 @@ void _oglContext::SetFaceCulling(const FaceCullingType type)
         return;
     }
     FaceCulling = type;
+}
+
+void _oglContext::SetFBO(const oglFBO& fbo) const
+{
+    if (fbo)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo->FBOId);
+    else
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void _oglContext::SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height) const
+{
+    glViewport(x, y, width, height);
+}
+
+miniBLAS::VecI4 _oglContext::GetViewPort() const
+{
+    miniBLAS::VecI4 viewport;
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    return viewport;
 }
 
 

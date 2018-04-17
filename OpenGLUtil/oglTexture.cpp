@@ -23,8 +23,9 @@ static std::atomic_flag CTX_TEX_LOG_LOCK = { 0 };
 static void RegistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
-    if(_DEBUG)
-        oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+#ifdef _DEBUG
+    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+#endif
     auto texmap = CTX_TEX_LOG.GetOrInsert([](const auto&) { return std::make_shared<map<GLuint, TexLogItem>>(); });
     common::SpinLocker locker(CTX_TEX_LOG_LOCK);
     texmap->insert_or_assign(item.TexId, item);
@@ -32,8 +33,9 @@ static void RegistTexture(const _oglTexBase& tex)
 static void UnregistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
-    if (_DEBUG)
-        oglLog().verbose(u"here[{}] delete texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+#ifdef _DEBUG
+    oglLog().verbose(u"here[{}] delete texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+#endif
     if (auto texmap = CTX_TEX_LOG.TryGet())
     {
         common::SpinLocker locker(CTX_TEX_LOG_LOCK);
@@ -68,8 +70,9 @@ _oglTexBase::~_oglTexBase() noexcept
 
 void _oglTexBase::bind(const uint16_t pos) const noexcept
 {
-    glActiveTexture(GL_TEXTURE0 + pos);
-    glBindTexture((GLenum)Type, textureID);
+    glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
+    //glActiveTexture(GL_TEXTURE0 + pos);
+    //glBindTexture((GLenum)Type, textureID);
 }
 
 void _oglTexBase::unbind() const noexcept
@@ -296,6 +299,8 @@ _oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t he
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, InnerFormat = iformat;
+    //bind(0);
+    //glTexStorage2D(GL_TEXTURE_2D, 1, (GLenum)InnerFormat, Width, Height);
     glTextureStorage2DEXT(textureID, GL_TEXTURE_2D, 1, (GLenum)InnerFormat, Width, Height);
 }
 
@@ -381,6 +386,8 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Layers = layers, InnerFormat = iformat;
+    //bind(0);
+    //glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
     glTextureStorage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
 }
 

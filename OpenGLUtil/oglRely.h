@@ -72,6 +72,7 @@ using std::map;
 using std::set;
 using std::function;
 using std::optional;
+using std::variant;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Mat3x3;

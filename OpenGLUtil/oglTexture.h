@@ -50,11 +50,12 @@ using xziar::img::Image;
 class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 {
     friend class TextureManager;
+    friend class _oglFrameBuffer;
     friend class _oglProgram;
     friend class ProgState;
     friend class ProgDraw;
-    friend class ::oclu::detail::_oclGLBuffer;
     friend struct TexLogItem;
+    friend class ::oclu::detail::_oclGLBuffer;
 protected:
     const TextureType Type;
     TextureInnerFormat InnerFormat;
@@ -104,6 +105,7 @@ class _oglTexture2DView;
 class OGLUAPI _oglTexture2D : public _oglTexBase
 {
     friend class _oglTexture2DArray;
+    friend class _oglFrameBuffer;
     friend class ::oclu::detail::_oclGLBuffer;
 protected:
     uint32_t Width, Height;
@@ -193,6 +195,8 @@ public:
 ///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI _oglTexture2DArray : public _oglTexBase
 {
+    friend class _oglFrameBuffer;
+private:
     uint32_t Width, Height, Layers;
 public:
     _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat);

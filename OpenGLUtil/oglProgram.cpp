@@ -443,7 +443,7 @@ GLint _oglProgram::GetLoc(const string& name) const
     return GL_INVALID_INDEX;
 }
 
-void _oglProgram::SetProject(const Camera& cam, const int wdWidth, const int wdHeight)
+void _oglProgram::SetProject(const Camera& cam)
 {
     //glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
     //assert(cam.aspect > std::numeric_limits<float>::epsilon());

@@ -84,7 +84,6 @@ void main()
 ////////////////
 #ifdef OGLU_FRAG
 
-uniform sampler2D tex[16];
 uniform sampler2DArray texs[16];
 
 //@@##srgbTexture|BOOL|whether input texture is srgb space
@@ -128,7 +127,6 @@ vec3 mappedNormal(const uint id)
     const float layer = float(pos & 0xffff);//let it be wrong
     const vec3 newtpos = vec3(tpos, layer);
     const vec3 ptNormTex = texture(texs[bank], newtpos).rgb * 2.0f - 1.0f;
-    //const vec3 ptNormTex = texture(tex[1], tpos).rgb * 2.0f - 1.0f;
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
 }

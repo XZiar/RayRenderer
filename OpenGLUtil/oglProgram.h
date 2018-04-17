@@ -4,6 +4,7 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
+#include "oglFBO.h"
 
 namespace oglu
 {
@@ -163,7 +164,7 @@ public:
     const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     ProgState State() noexcept;
-    void SetProject(const Camera &, const int wdWidth, const int wdHeight);
+    void SetProject(const Camera &);
     void SetCamera(const Camera &);
 
     ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;

@@ -77,11 +77,11 @@ namespace WPFTest
             OnLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
             Core = new TestCore();
 
-            Core.Test.Resize(glMain.ClientSize.Width & 0xffc0, glMain.ClientSize.Height & 0xffc0);
+            Core.Test.Resize(glMain.ClientSize.Width, glMain.ClientSize.Height);
             this.Closed += (o, e) => { Core.Dispose(); Core = null; };
 
             glMain.Draw += Core.Test.Draw;
-            glMain.Resize += (o, e) => { Core.Test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+            glMain.Resize += (o, e) => { Core.Test.Resize(e.Width, e.Height); };
 
             txtMemInfo.SetBinding(TextBlock.TextProperty, new Binding
             {

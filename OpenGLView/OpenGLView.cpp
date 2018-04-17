@@ -128,7 +128,7 @@ namespace OpenGLView
         {
             //makeCurrent(hDC, hRC);
             Control::OnResize(e);
-            glViewport((Width & 0x3f) / 2, (Height & 0x3f) / 2, Width & 0xffc0, Height & 0xffc0);
+            //glViewport((Width & 0x3f) / 2, (Height & 0x3f) / 2, Width & 0xffc0, Height & 0xffc0);
             Resize((Object^)this, gcnew ResizeEventArgs(Width, Height));
             this->Invalidate();
         }

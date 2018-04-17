@@ -310,9 +310,10 @@ void BasicTest::Draw()
 
 void BasicTest::Resize(const int w, const int h)
 {
+    glContext->SetViewPort(0, 0, w, h);
     cam.resize(w, h);
-    prog2D->SetProject(cam, w, h);
-    prog3D->SetProject(cam, w, h);
+    prog2D->SetProject(cam);
+    prog3D->SetProject(cam);
 }
 
 void BasicTest::ReloadFontLoader(const u16string& fname)
@@ -452,8 +453,8 @@ void BasicTest::ChangeShader(const oglProgram& prog)
     if (Prog3Ds.count(prog))
     {
         prog3D = prog;
+        prog3D->SetProject(cam);
         prog3D->SetCamera(cam);
-        prog3D->SetProject(cam, cam.width, cam.height);
         prepareLight();
     }
     else
