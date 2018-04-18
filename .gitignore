@@ -244,5 +244,8 @@ ModelManifest.xml
 # Asm list
 *.lst
 
+#ispc auto-generated header file
+kernel*_ispc*.h
+
 # Project Exception
 /Tests/

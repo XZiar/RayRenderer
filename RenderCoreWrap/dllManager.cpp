@@ -72,6 +72,7 @@ static const std::map<int32_t, wstring> DLL_MAP =
     { IDR_DLL_OCLU, L"OpenCLUtil.dll" },
     { IDR_DLL_FONTHELP, L"FontHelper.dll" },
     { IDR_DLL_IMGUTIL, L"ImageUtil.dll" },
+    { IDR_DLL_TEXCOMP, L"TextureCompressor.dll" },
     { IDR_DLL_RENDERCORE, L"RenderCore.dll" },
 };
 
