@@ -33,7 +33,7 @@ enum class TextureInnerFormat : GLint
     //compressed(S3TC/DXT1,S3TC/DXT3,S3TC/DXT5,RGTC,BPTC
     BC1 = GL_COMPRESSED_RGB_S3TC_DXT1_EXT, BC1A = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, BC2 = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
     BC3 = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, BC4 = GL_COMPRESSED_RED_RGTC1, BC5 = GL_COMPRESSED_RG_RGTC2,
-    BC6H = GL_COMPRESSED_RGBA_BPTC_UNORM, BC7 = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT
+    BC6H = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT, BC7 = GL_COMPRESSED_RGBA_BPTC_UNORM
 };
 
 enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
@@ -72,6 +72,7 @@ public:
     void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
     bool IsCompressed() const;
+    TextureInnerFormat GetInnerFormat() const { return InnerFormat; }
 
     static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
     static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
@@ -123,7 +124,7 @@ public:
     std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
     optional<vector<uint8_t>> GetCompressedData();
     vector<uint8_t> GetData(const TextureDataFormat dformat);
-    Image GetImage(const TextureDataFormat dformat);
+    Image GetImage(const ImageDataType format);
 };
 
 
@@ -206,8 +207,9 @@ public:
     
     void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
     void SetTextureLayer(const uint32_t layer, const Image& img);
+    void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
-    
+
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const;
 };
 

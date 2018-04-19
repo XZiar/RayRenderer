@@ -34,7 +34,7 @@ static void UnregistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
-    oglLog().verbose(u"here[{}] delete texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}].\n", item.ThreadId, item.TexId, tex.Name, _oglTexBase::GetTypeName(item.TexType));
 #endif
     if (auto texmap = CTX_TEX_LOG.TryGet())
     {
@@ -280,13 +280,13 @@ vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
     return output;
 }
 
-Image _oglTexture2D::GetImage(const TextureDataFormat dformat)
+Image _oglTexture2D::GetImage(const ImageDataType format)
 {
     const auto[w, h] = GetInternalSize2();
-    Image image(ConvertFormat(dformat));
+    Image image(format);
     image.SetSize(w, h);
     GLenum datatype, comptype;
-    ParseFormat(dformat, datatype, comptype);
+    ParseFormat(format, true, datatype, comptype);
     glGetTextureImageEXT(textureID, (GLenum)Type, 0, comptype, datatype, image.GetRawPtr());
     return image;
 }
@@ -412,6 +412,8 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Wrapper<_og
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img)
 {
+    if (layer >= Layers)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     if (img.Width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
     if (img.Width != Width || img.Height != Height)
@@ -419,6 +421,13 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img)
     GLenum datatype, comptype;
     ParseFormat(img.DataType, true, datatype, comptype);
     glTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, img.Width, img.Height, 1, comptype, datatype, img.GetRawPtr());
+}
+
+void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size)
+{
+    if (layer >= Layers)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+    glCompressedTextureSubImage3DEXT(textureID, GL_TEXTURE_2D, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
 }
 
 void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount)

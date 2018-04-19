@@ -9,7 +9,7 @@ using common::ResourceHelper;
 using namespace common::mlog;
 MiniLogger<false>& texcLog()
 {
-    static MiniLogger<false> texclog(u"TexCompress", { GetConsoleBackend() });
+    static MiniLogger<false> texclog(u"TexComp", { GetConsoleBackend() });
     return texclog;
 }
 

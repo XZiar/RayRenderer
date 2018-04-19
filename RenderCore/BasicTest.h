@@ -26,8 +26,8 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
-    oglTex2DS picTex, tmpTex;
-    oglTex2DV chkTex;
+    oglTex2DS picTex;
+    oglTex2DV chkTex, tmpTex;
     oglPBO picBuf;
     oglVBO screenBox;
     oglVAO picVAO;

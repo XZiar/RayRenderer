@@ -14,6 +14,12 @@ namespace RayRender
 {
 using Basic3D::Vec3F;
 
+inline String^ GetTexHolderName(const rayr::PBRMaterial::TexHolder& holder)
+{
+    const auto name = rayr::PBRMaterial::GetName(holder);
+    return name.empty() ? "(None)" : ToStr(name);
+}
+
 public ref class PBRMaterial : public BaseViewModel
 {
 private:
@@ -43,7 +49,7 @@ public:
     }
     property String^ AlbedoMap
     {
-        String^ get() { return Material.DiffuseMap ? ToStr(Material.DiffuseMap->Name) : "(None)"; }
+        String^ get() { return GetTexHolderName(Material.DiffuseMap); }
     }
     property bool IsMappedAlbedo
     {
@@ -56,7 +62,7 @@ public:
     }
     property String^ NormalMap
     {
-        String^ get() { return Material.NormalMap ? ToStr(Material.NormalMap->Name) : "(None)"; }
+        String^ get() { return GetTexHolderName(Material.NormalMap); }
     }
     property bool IsMappedNormal
     {

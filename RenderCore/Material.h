@@ -3,6 +3,7 @@
 
 namespace rayr
 {
+constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1)) == 0; }
 
 
 struct RAYCOREAPI alignas(16) RawMaterialData : public common::AlignBase<16>
@@ -23,15 +24,31 @@ public:
     };
 };
 
-
+namespace detail
+{
+struct RAYCOREAPI _FakeTex : public NonCopyable
+{
+public:
+    common::AlignedBuffer<32> TexData;
+    u16string Name;
+    oglu::TextureInnerFormat TexFormat;
+    uint32_t Width, Height;
+    _FakeTex(common::AlignedBuffer<32>&& texData, const u16string& name, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+        : TexData(std::move(texData)), Name(name), TexFormat(format), Width(width), Height(height) {}
+};
+}
+using FakeTex = std::shared_ptr<detail::_FakeTex>;
 
 struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>
 {
 public:
+    using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
     using Mapping = std::pair<uint8_t, uint16_t>;
-    using ArrangeMap = map<oglu::oglTex2D, Mapping>;
+    static oglu::TextureInnerFormat GetInnerFormat(const TexHolder& holder);
+    static u16string GetName(const TexHolder& holder);
+    static std::pair<uint32_t, uint32_t> GetSize(const TexHolder& holder);
     b3d::Vec3 Albedo;
-    oglu::oglTex2D DiffuseMap, NormalMap, MetalMap, RoughMap, AOMap;
+    TexHolder DiffuseMap, NormalMap, MetalMap, RoughMap, AOMap;
     float Metalness;
     float Roughness;
     float Specular;
@@ -51,14 +68,17 @@ oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::Textur
 
 struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable
 {
-private:
+public:
     using Mapping = PBRMaterial::Mapping;
-    using ArrangeMap = PBRMaterial::ArrangeMap;
+    using TexHolder = PBRMaterial::TexHolder;
+    using ArrangeMap = map<TexHolder, Mapping>;
     using SizePair = std::pair<uint16_t, uint16_t>;
+private:
     vector<PBRMaterial> Materials;
     vector<uint8_t> AllocatedTexture;
     ArrangeMap Arrangement;
     oglu::oglTex2DArray Textures[13 * 13];
+    oglu::TextureInnerFormat TexFormat;
     uint8_t TextureLookup[13 * 13];
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
@@ -66,7 +86,8 @@ public:
     static oglu::oglTex2DS LoadImgToTex(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 
     MultiMaterialHolder() { AllocatedTexture.reserve(13 * 13); }
-    MultiMaterialHolder(const uint8_t count) : Materials(count, PBRMaterial(u"unnamed")) { AllocatedTexture.reserve(13 * 13); }
+    MultiMaterialHolder(const uint8_t count, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::RGBA8)
+        : Materials(count, PBRMaterial(u"unnamed")), TexFormat(format) { AllocatedTexture.reserve(13 * 13); }
 
     vector<PBRMaterial>::iterator begin() { return Materials.begin(); }
     vector<PBRMaterial>::iterator end() { return Materials.end(); }

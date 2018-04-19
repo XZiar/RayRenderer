@@ -22,6 +22,7 @@ public:
     static PromiseResult<void> __cdecl invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
     static common::asyexe::AsyncResult<void> __cdecl SyncGL();
     static common::asyexe::AsyncResult<void> __cdecl ForceSyncGL();
+    static void TryTask();
 };
 
 }

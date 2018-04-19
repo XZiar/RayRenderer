@@ -1,6 +1,7 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
+#include "TextureCompressor/TexCompressor.h"
 #include <thread>
 #include <future>
 
@@ -148,7 +149,7 @@ void BasicTest::initTex()
 {
     picTex.reset(128, 128, TextureInnerFormat::RGBA8);
     picBuf.reset();
-    tmpTex.reset(128, 128, TextureInnerFormat::RGBA8);
+    //tmpTex.reset(128, 128, TextureInnerFormat::RGBA8);
     {
         picTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
         Vec4 empty[128][128];
@@ -164,15 +165,20 @@ void BasicTest::initTex()
             }
         }
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-        tmpTex->SetData(TextureDataFormat::RGBAf, empty);
+        //tmpTex->SetData(TextureDataFormat::RGBAf, empty);
         picTex->SetData(TextureDataFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
+        const auto outimg = picTex->GetImage(ImageDataType::RGBA);
+        tmpTex = oglu::texcomp::CompressToTex(outimg, TextureInnerFormat::BC7, false)->wait();
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
     chkTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
     {
         oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::RGBA8);
         tex2darr->SetTextureLayer(0, chkTex);
+    }
+    {
+        //oglu::oglUtil::TryTask();
     }
 }
 
@@ -234,10 +240,10 @@ void BasicTest::fontTest(const char32_t word)
         else
         {
             fontCreator->setChar(L'G', false);
-            const auto imgG = fonttex->GetImage(TextureDataFormat::R8);
+            const auto imgG = fonttex->GetImage(ImageDataType::GRAY);
             img::WriteImage(imgG, Basepath / u"G.png");
             fontCreator->setChar(word, false);
-            const auto imgA = fonttex->GetImage(TextureDataFormat::R8);
+            const auto imgA = fonttex->GetImage(ImageDataType::GRAY);
             img::WriteImage(imgA, Basepath / u"A.png");
             const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
             fonttex->SetData(TextureInnerFormat::R8, imgShow);
@@ -269,7 +275,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     initTex();
     init2d(shaderPath);
     init3d(shaderPath);
-    prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
+    //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
+    prog2D->State().SetTexture(tmpTex, "tex");
     initUBO();
     for (const auto& prog : Prog3Ds)
     {
@@ -303,8 +310,8 @@ void BasicTest::Draw()
     }
     else
     {
-        fontViewer->Draw();
-        //prog2D->Draw().Draw(picVAO);
+        //fontViewer->Draw();
+        prog2D->Draw().Draw(picVAO);
     }
 }
 

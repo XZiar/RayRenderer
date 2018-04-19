@@ -8,7 +8,7 @@
   - [ ] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
   - [ ] Add RenderDoc support (conditionally remove DSA_EXT, or fork RenderDoc)
-  - [ ] Add NVTT as texture compresser
+  - [x] Add Intel's ISPC tex-compressor as texture compresser
   - [ ] Add debugging support
 
 * FontHelper
