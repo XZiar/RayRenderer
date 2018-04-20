@@ -214,6 +214,29 @@ const char16_t* _oglTexBase::GetTypeName(const TextureType type)
     }
 }
 
+const char16_t* _oglTexBase::GetFormatName(const TextureInnerFormat format)
+{
+    switch (format)
+    {
+    case TextureInnerFormat::BC1:        return u"BC1";
+    case TextureInnerFormat::BC2:        return u"BC2";
+    case TextureInnerFormat::BC3:        return u"BC3";
+    case TextureInnerFormat::BC4:        return u"BC4";
+    case TextureInnerFormat::BC5:        return u"BC5";
+    case TextureInnerFormat::BC6H:       return u"BC6H";
+    case TextureInnerFormat::BC7:        return u"BC7";
+    case TextureInnerFormat::R8:         return u"Gray8";
+    case TextureInnerFormat::RG8:        return u"RG8";
+    case TextureInnerFormat::RGB8:       return u"RGB8";
+    case TextureInnerFormat::RGBA8:      return u"RGBA8";
+    case TextureInnerFormat::Rf:         return u"Rf";
+    case TextureInnerFormat::RGf:        return u"RGf";
+    case TextureInnerFormat::RGBf:       return u"RGBf";
+    case TextureInnerFormat::RGBAf:      return u"RGBAf";
+    default:                             return u"Other";
+    }
+}
+
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
     if (isSub)
@@ -427,7 +450,7 @@ void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const v
 {
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
-    glCompressedTextureSubImage3DEXT(textureID, GL_TEXTURE_2D, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
+    glCompressedTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
 }
 
 void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount)

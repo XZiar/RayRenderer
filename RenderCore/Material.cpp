@@ -57,45 +57,6 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 }
 
 
-
-oglu::oglTex2DS GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format)
-{
-    oglu::oglTex2DS tex(img.Width, img.Height, format);
-    tex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    tex->SetData(img);
-    return tex;
-}
-
-static void CompressData(const xziar::img::Image& img, vector<uint8_t>& output, const oglu::TextureInnerFormat format)
-{
-    auto tex = GenTexture(img, format);
-    if (auto dat = tex->GetCompressedData())
-        output = std::move(*dat);
-}
-
-oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format, const u16string& taskName)
-{
-    oglu::oglTex2DS tex(img.Width, img.Height, format);
-    tex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
-    if (oglu::detail::_oglTexBase::IsCompressType(format))
-    {
-        vector<uint8_t> texdata;
-        const auto asyncRet = oglu::oglUtil::invokeAsyncGL([&](const AsyncAgent&)
-        {
-            CompressData(img, texdata, format);
-        }, taskName);
-        common::asyexe::AsyncAgent::SafeWait(asyncRet);
-        tex->SetCompressedData(texdata);
-    }
-    else
-    {
-        tex->SetData(img);
-    }
-    return tex;
-}
-
-
-
 static oglu::detail::ContextResource<oglu::oglTex2DV, true> CTX_CHECK_TEX;
 constexpr auto GenerateCheckImg()
 {
@@ -121,23 +82,6 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
         basLog().verbose(u"new CheckTex generated.\n");
         return texv;
     });
-}
-
-oglu::oglTex2DS MultiMaterialHolder::LoadImgToTex(const xziar::img::Image& img, const oglu::TextureInnerFormat format)
-{
-    const auto w = img.Width, h = img.Height;
-    if (w <= 4 || h <= 4)
-        COMMON_THROW(BaseException, L"image size to small");
-    if (!IsPower2(w) || !IsPower2(h))
-    {
-        const auto newW = 1 << uint32_t(std::round(std::log2(w)));
-        const auto newH = 1 << uint32_t(std::round(std::log2(h)));
-        basLog().debug(u"decide to resize image[{}*{}] to [{}*{}].\n", w, h, newW, newH);
-        auto newImg = xziar::img::Image(img);
-        newImg.Resize(newW, newH);
-        return LoadImgToTex(newImg, format);
-    }
-    return GenTextureAsync(img, format);
 }
 
 
@@ -253,6 +197,7 @@ void MultiMaterialHolder::Refresh()
             texarr.reset(4 << widthpow, 4 << heightpow, (uint16_t)(texs.size()), TexFormat);
             const auto[w, h, l] = texarr->GetSize();
             texarr->Name = u"MatTexArr " + str::to_u16string(std::to_string(w) + 'x' + std::to_string(h));
+            texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
         }
         for (const auto& tex : texs)
         {

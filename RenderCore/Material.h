@@ -33,8 +33,8 @@ public:
     u16string Name;
     oglu::TextureInnerFormat TexFormat;
     uint32_t Width, Height;
-    _FakeTex(common::AlignedBuffer<32>&& texData, const u16string& name, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
-        : TexData(std::move(texData)), Name(name), TexFormat(format), Width(width), Height(height) {}
+    _FakeTex(common::AlignedBuffer<32>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+        : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height) {}
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
@@ -63,8 +63,6 @@ public:
     uint32_t WriteData(std::byte *ptr) const;
 };
 
-oglu::oglTex2DS GenTexture(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
-oglu::oglTex2DS GenTextureAsync(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3, const u16string& taskName = u"GenTextureAsync");
 
 struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable
 {
@@ -83,7 +81,6 @@ private:
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
     static oglu::oglTex2DV GetCheckTex();
-    static oglu::oglTex2DS LoadImgToTex(const xziar::img::Image& img, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC3);
 
     MultiMaterialHolder() { AllocatedTexture.reserve(13 * 13); }
     MultiMaterialHolder(const uint8_t count, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::RGBA8)

@@ -65,10 +65,21 @@ namespace XZiar.WPFControl
             typeof(LabelTextBox),
             new PropertyMetadata(false));
 
+        public static readonly DependencyProperty ContentToolTipProperty = DependencyProperty.Register("ContentToolTip",
+            typeof(string),
+            typeof(LabelTextBox),
+            new PropertyMetadata(default(string)));
+
         public bool IsReadOnly
         {
             get { return (bool)GetValue(IsReadOnlyProperty); }
             set { SetValue(IsReadOnlyProperty, value); }
+        }
+
+        public string ContentToolTip
+        {
+            get { return (string)GetValue(ContentToolTipProperty); }
+            set { SetValue(ContentToolTipProperty, value); }
         }
 
         static LabelTextBox()

@@ -27,7 +27,7 @@
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
-                            <TextBlock Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=OneWay}" ToolTip="{Binding ContentToolTip, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>
@@ -36,7 +36,7 @@
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
-                            <TextBox Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=TwoWay}" VerticalContentAlignment="Center"/>
+                            <TextBox Background="#FF333337" Foreground="{Binding Foreground, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}}" Text="{Binding Content, RelativeSource={RelativeSource AncestorType=local:LabelTextBox}, Mode=TwoWay}" ToolTip="{Binding ContentToolTip, RelativeSource={RelativeSource FindAncestor, AncestorType=local:LabelTextBox}, Mode=OneWay}" VerticalContentAlignment="Center"/>
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>

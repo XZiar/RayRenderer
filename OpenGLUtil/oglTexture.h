@@ -99,6 +99,7 @@ public:
         return false;
     }
     static const char16_t* GetTypeName(const TextureType type);
+    static const char16_t* GetFormatName(const TextureInnerFormat format);
 };
 
 class _oglTexture2DView;

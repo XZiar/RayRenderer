@@ -1,6 +1,5 @@
 #include "RenderCoreRely.h"
 #include "ModelImage.h"
-#include "../Material.h"
 #include "TextureCompressor/TexCompressor.h"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/AsyncExecutor/AsyncManager.h"
@@ -15,7 +14,7 @@ using oglu::TextureInnerFormat;
 using namespace xziar::img;
 
 
-static map<u16string, oglTex2DV> TEX_CACHE;
+static map<u16string, FakeTex> TEX_CACHE;
 
 
 struct TexCompManExecutor : public NonCopyable
@@ -23,10 +22,17 @@ struct TexCompManExecutor : public NonCopyable
     common::asyexe::AsyncManager Executor;
     TexCompManExecutor() : Executor(u"TexCompMan")
     {
-        std::thread([this]() { Executor.MainLoop(); }).detach();
+        std::thread([this]() 
+        {
+            basLog().success(u"compress thread start running.\n");
+            Executor.MainLoop();
+        }).detach();
+    }
+    ~TexCompManExecutor()
+    {
+        Executor.Terminate();
     }
 };
-
 
 
 static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, xziar::img::Image&& img, const TextureInnerFormat format)
@@ -49,13 +55,15 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     const auto pms = std::make_shared<std::promise<FakeTex>>();
     auto ret = std::make_shared<common::PromiseResultSTD<FakeTex, true>>(*pms);
 
-    dummy.Executor.AddTask([img = std::move(img), picPath, format, pms](const auto&)
+    dummy.Executor.AddTask([img = std::move(img), format, pms, picPath](const auto&)
     {
         auto dat = oglu::texcomp::CompressToDat(img, format);
 
-        const auto tex = std::make_shared<detail::_FakeTex>(std::move(dat), picPath.filename().u16string(), format, img.Width, img.Height);
+        const auto tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img.Width, img.Height);
+        tex->Name = picPath.filename().u16string();
+        TEX_CACHE.try_emplace(picPath.u16string(), tex);
         pms->set_value(tex);
-    }, u"LoadImgToFakeTex", StackSize::Big);
+    }, picPath.filename().u16string(), StackSize::Big);
 
     return ret;
 }
@@ -67,7 +75,7 @@ std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
     {
         return xziar::img::ReadImage(picPath);
     }
-    catch (FileException& fe)
+    catch (const FileException& fe)
     {
         if (fe.reason == FileException::Reason::ReadFail)
             basLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
@@ -81,41 +89,13 @@ std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
     return {};
 }
 
-oglTex2DV ModelImage::GetTexure(const fs::path& picPath, const xziar::img::Image& img)
-{
-    const auto tex = MultiMaterialHolder::LoadImgToTex(img, oglu::TextureInnerFormat::RGBA8)->GetTextureView();
-    tex->Name = picPath.filename().u16string();
-    TEX_CACHE.try_emplace(picPath.u16string(), tex);
-    return tex;
-}
-
-oglTex2DV ModelImage::GetTexure(const fs::path& picPath)
+ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath, const TextureInnerFormat format)
 {
     if (auto tex = FindInMap(TEX_CACHE, picPath.u16string()))
         return *tex;
-    if (const auto img = ReadImage(picPath))
-        return GetTexure(picPath, img.value());
-    else
-        return oglTex2DV();
-}
-
-ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath)
-{
-    if (auto tex = FindInMap(TEX_CACHE, picPath.u16string()))
-        return *tex;
-    if (const auto img = ReadImage(picPath))
-    {
-        const auto pms = std::make_shared<std::promise<oglTex2DV>>();
-        auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DV, true>>(*pms);
-        oglu::oglUtil::invokeSyncGL([img = std::move(img.value()), fpath = std::move(picPath), pms](const auto& agent)
-        {
-            const auto tex = GetTexure(fpath, img);
-            agent.Await(oglu::oglUtil::SyncGL());
-            pms->set_value(tex);
-        }, u"GetImage");
-        return ret;
-    }
-    return oglTex2DV();
+    if (auto img = ReadImage(picPath))
+        return LoadImgToFakeTex(picPath, std::move(img.value()), format);
+    return FakeTex();
 }
 
 #pragma warning(disable:4996)

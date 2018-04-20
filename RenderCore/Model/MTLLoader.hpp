@@ -12,13 +12,14 @@ class Model;
 namespace detail
 {
 
-class MTLLoader
+class MTLLoader : public NonCopyable
 {
 private:
     enum class DelayTexType { Diffuse, Normal };
     map<string, std::shared_ptr<PBRMaterial>> Materials;
     vector<std::tuple<std::shared_ptr<PBRMaterial>, ModelImage::LoadResult*, DelayTexType>> DelayJobs;
     map<fs::path, ModelImage::LoadResult> RealJobs;
+    oglu::TextureInnerFormat Format;
     fs::path FallbackImgPath(fs::path picPath, const fs::path& fallbackPath)
     {
         if (fs::exists(picPath))
@@ -29,6 +30,7 @@ private:
         return {};
     }
 public:
+    MTLLoader(const oglu::TextureInnerFormat format) : Format(format) {}
     void LoadMTL(const fs::path& mtlpath) try
     {
         using common::container::FindInMap;
@@ -93,7 +95,7 @@ public:
             }
             else
             {
-                const auto loadRes = ModelImage::GetTexureAsync(imgPath);
+                const auto loadRes = ModelImage::GetTexureAsync(imgPath, Format);
                 const auto ptr = &(RealJobs.insert_or_assign(imgPath, loadRes).first->second);
                 DelayJobs.emplace_back(mat, ptr, type);
             }
@@ -110,8 +112,8 @@ public:
         //assign material
         for (const auto&[mat, pmsPtr, type] : DelayJobs)
         {
-            oglTex2DV tex;
-            if (const auto it = std::get_if<oglTex2DV>(pmsPtr))
+            FakeTex tex;
+            if (const auto it = std::get_if<FakeTex>(pmsPtr))
                 tex = *it;
             else
             {
@@ -134,6 +136,8 @@ public:
         }
         for (const auto&[name, mat] : Materials)
             materialMap.insert_or_assign(name, *mat);
+        DelayJobs.clear();
+        RealJobs.clear();
         return materialMap;
     }
 };

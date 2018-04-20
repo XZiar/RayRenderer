@@ -209,7 +209,7 @@
                                             </ext:LabelControl.Style>
                                             <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
                                         </ext:LabelControl>
-                                        <ext:LabelTextBox Content="{Binding AlbedoMap, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo" IsReadOnly="True">
+                                        <ext:LabelTextBox Content="{Binding AlbedoMap.Name, Mode=OneWay}" ContentToolTip="{Binding AlbedoMap.Description, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo" IsReadOnly="True">
                                             <ext:LabelTextBox.Style>
                                                 <Style TargetType="ext:LabelTextBox">
                                                     <Style.Triggers>
@@ -223,7 +223,7 @@
                                         <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Normal">
                                             <CheckBox IsChecked="{Binding IsMappedNormal, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
                                         </ext:LabelControl>
-                                        <ext:LabelTextBox Content="{Binding NormalMap, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Normal" IsReadOnly="True">
+                                        <ext:LabelTextBox Content="{Binding NormalMap.Name, Mode=OneWay}" ContentToolTip="{Binding NormalMap.Description, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Normal" IsReadOnly="True">
                                             <ext:LabelTextBox.Style>
                                                 <Style TargetType="ext:LabelTextBox">
                                                     <Style.Triggers>

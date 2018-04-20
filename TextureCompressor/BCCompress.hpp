@@ -47,7 +47,7 @@ common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAlpha)
     const uint32_t blkCount = img.Width * img.Height / 4 / 4;
     common::AlignedBuffer<32> buffer(16 * blkCount);
     bc7_enc_settings settings;
-    needAlpha ? GetProfile_alpha_basic(&settings) : GetProfile_basic(&settings);
+    needAlpha ? GetProfile_alpha_veryfast(&settings) : GetProfile_veryfast(&settings);
     CompressBlocksBC7(&surface, buffer.GetRawPtr<uint8_t>(), &settings);
     return buffer;
 }
