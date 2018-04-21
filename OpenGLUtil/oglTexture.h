@@ -30,7 +30,7 @@ enum class TextureInnerFormat : GLint
     R8U = GL_R8UI, RG8U = GL_RG8UI, RGB8U = GL_RGB8UI, RGBA8U = GL_RGBA8UI,
     //float(FP32)
     Rf = GL_R32F, RGf = GL_RG32F, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F,
-    //compressed(S3TC/DXT1,S3TC/DXT3,S3TC/DXT5,RGTC,BPTC
+    //compressed(S3TC/DXT135,RGTC,BPTC)
     BC1 = GL_COMPRESSED_RGB_S3TC_DXT1_EXT, BC1A = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, BC2 = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
     BC3 = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, BC4 = GL_COMPRESSED_RED_RGTC1, BC5 = GL_COMPRESSED_RG_RGTC2,
     BC6H = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT, BC7 = GL_COMPRESSED_RGBA_BPTC_UNORM
@@ -111,8 +111,9 @@ class OGLUAPI _oglTexture2D : public _oglTexBase
     friend class ::oclu::detail::_oclGLBuffer;
 protected:
     uint32_t Width, Height;
+    uint8_t Mipmap;
 
-    explicit _oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0) {}
+    explicit _oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0), Mipmap(1) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
     void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept;
@@ -135,17 +136,18 @@ class OGLUAPI _oglTexture2DView : public _oglTexture2D
     friend class _oglTexture2DArray;
     friend class _oglTexture2DStatic;
 private:
-    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat)
+    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap)
     {
-        Width = width, Height = height; InnerFormat = iformat;
+        Width = width, Height = height; InnerFormat = iformat, Mipmap = mipmap;
     }
 };
 
 
 class OGLUAPI _oglTexture2DStatic : public _oglTexture2D
 {
+private:
 public:
-    _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat);
+    _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
 
     void SetData(const TextureDataFormat dformat, const void *data);
     void SetData(const TextureDataFormat dformat, const oglPBO& buf);
@@ -164,6 +166,7 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T));
     }
 
+    void GenerateMipmap();
     Wrapper<_oglTexture2DView> GetTextureView() const;
 };
 
@@ -200,8 +203,9 @@ class OGLUAPI _oglTexture2DArray : public _oglTexBase
     friend class _oglFrameBuffer;
 private:
     uint32_t Width, Height, Layers;
+    uint8_t Mipmap;
 public:
-    _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat);
+    _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
     _oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd);
     
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }

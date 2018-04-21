@@ -315,16 +315,16 @@ Image _oglTexture2D::GetImage(const ImageDataType format)
 }
 
 
-_oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat)
+_oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap)
 {
     if (width == 0 || height == 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2D.");
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
-    Width = width, Height = height, InnerFormat = iformat;
+    Width = width, Height = height, InnerFormat = iformat, Mipmap = mipmap;
     //bind(0);
-    //glTexStorage2D(GL_TEXTURE_2D, 1, (GLenum)InnerFormat, Width, Height);
-    glTextureStorage2DEXT(textureID, GL_TEXTURE_2D, 1, (GLenum)InnerFormat, Width, Height);
+    //glTexStorage2D(GL_TEXTURE_2D, mipmap, (GLenum)InnerFormat, Width, Height);
+    glTextureStorage2DEXT(textureID, GL_TEXTURE_2D, mipmap, (GLenum)InnerFormat, Width, Height);
 }
 
 void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const void *data)
@@ -354,11 +354,16 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
     _oglTexture2D::SetCompressedData(true, buf, size);
 }
 
-common::Wrapper<oglu::detail::_oglTexture2DView> _oglTexture2DStatic::GetTextureView() const
+void _oglTexture2DStatic::GenerateMipmap()
 {
-    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat));
+    glGenerateTextureMipmapEXT(textureID, GL_TEXTURE_2D);
+}
+
+oglTex2DV _oglTexture2DStatic::GetTextureView() const
+{
+    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     tex->Name = Name + u"-View";
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, 1, 0, 1);
+    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, Mipmap, 0, 1);
     return tex;
 }
 
@@ -401,14 +406,14 @@ void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, c
 }
 
 
-_oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat)
+_oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap)
     : _oglTexBase(TextureType::Tex2DArray)
 {
     if (width == 0 || height == 0 || layers == 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2DArray."); 
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
-    Width = width, Height = height, Layers = layers, InnerFormat = iformat;
+    Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
     //bind(0);
     //glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
     glTextureStorage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
@@ -420,17 +425,22 @@ _oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, c
     SetTextureLayers(0, old, 0, old->Layers);
 }
 
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex)
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
 {
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     if (tex->Width != Width || tex->Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
+    if (tex->Mipmap < Mipmap)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"too few mipmap level");
     if (tex->InnerFormat != InnerFormat)
         oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint32_t)tex->InnerFormat, textureID, (uint32_t)InnerFormat);
-    glCopyImageSubData(tex->textureID, (GLenum)tex->Type, 0, 0, 0, 0,
-        textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer,
-        tex->Width, tex->Height, 1);
+    for (uint8_t i = 0; i < Mipmap; ++i)
+    {
+        glCopyImageSubData(tex->textureID, (GLenum)tex->Type, i, 0, 0, 0,
+            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, layer,
+            tex->Width, tex->Height, 1);
+    }
 }
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img)
@@ -453,25 +463,30 @@ void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const v
     glCompressedTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
 }
 
-void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount)
+void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
 {
     if (Width != tex->Width || Height != tex->Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
     if (destLayer + layerCount > Layers || srcLayer + layerCount > tex->Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
-    glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, srcLayer,
-        textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, destLayer,
-        tex->Width, tex->Height, layerCount);
+    if (tex->Mipmap < Mipmap)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"too few mipmap level");
+    for (uint8_t i = 0; i < Mipmap; ++i)
+    {
+        glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
+            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, destLayer,
+            tex->Width, tex->Height, layerCount);
+    }
 }
 
-Wrapper<_oglTexture2DView> _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
+oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
 {
     if(layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
-    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat));
+    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     const auto layerStr = std::to_string(layer);
     tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, 1, layer, 1);
+    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, Mipmap, layer, 1);
     return tex;
 }
 

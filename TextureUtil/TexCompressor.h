@@ -1,5 +1,5 @@
 #pragma once
-#include "TexCompRely.h"
+#include "TexUtilRely.h"
 
 namespace oglu::texcomp
 {

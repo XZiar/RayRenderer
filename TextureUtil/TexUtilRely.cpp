@@ -1,4 +1,4 @@
-#include "TexCompRely.h"
+#include "TexUtilRely.h"
 #include "common/ResourceHelper.h"
 
 namespace oglu::texcomp

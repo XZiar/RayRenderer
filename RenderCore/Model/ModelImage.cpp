@@ -1,6 +1,6 @@
 #include "RenderCoreRely.h"
 #include "ModelImage.h"
-#include "TextureCompressor/TexCompressor.h"
+#include "TextureUtil/TexCompressor.h"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/AsyncExecutor/AsyncManager.h"
 #include <thread>

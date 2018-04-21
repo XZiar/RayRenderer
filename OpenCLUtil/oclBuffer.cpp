@@ -66,7 +66,7 @@ oclPromise _oclBuffer::read(const oclCmdQue que, void *buf, const size_t size_, 
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clMemory", ret));
     if (shouldBlock)
-        return nullptr;
+        return {};
     else
         return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
 }
@@ -82,7 +82,7 @@ oclPromise _oclBuffer::write(const oclCmdQue que, const void * const buf, const 
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot write clMemory", ret));
     if (shouldBlock)
-        return nullptr;
+        return {};
     else
         return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
 }

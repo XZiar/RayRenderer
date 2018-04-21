@@ -7,11 +7,6 @@ namespace xziar::img
 
 using common::BaseException;
 
-enum class ImageType : uint8_t
-{
-    JPEG, PNG, TGA, BMP
-};
-
 enum class ImageDataType : uint8_t
 {
     ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0,
@@ -27,14 +22,13 @@ class IMGUTILAPI Image : protected common::AlignedBuffer<32>
 public:
     static constexpr uint8_t GetElementSize(const ImageDataType dataType);
     uint32_t Width, Height;
-    ImageType Type = ImageType::BMP;
     const ImageDataType DataType;
     const uint8_t ElementSize;
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
-    Image(const Image& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
+    Image(const Image& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
-    Image(Image&& other) noexcept : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), Type(other.Type), DataType(other.DataType), ElementSize(other.ElementSize)
+    Image(Image&& other) noexcept : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
     Image(const common::AlignedBuffer<32>& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))

@@ -27,6 +27,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL |
+| [TextureUtil](./TextureUtil) | Texture Utility |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm |
 | [RenderCore](./RenderCore) | Core of RayRenderer |
@@ -53,15 +54,17 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 [`opencl*.h` headers](https://github.com/KhronosGroup/OpenCL-Headers) should be found inside `include path\CL`.
 
+[ispc compiler](https://ispc.github.io/downloads.html) needed for [ispc_texcomp](./3rdParty/ispc_texcomp) --- add it to system environment path
+
 ## Dependency
 
 * [GLEW](http://glew.sourceforge.net/)  2.1.0
 
-  [Modified BSD & MIT License](./License/glew.txt)
+  [Modified BSD & MIT License](./3rdParty/glew/license.txt)
 
 * [FreeGLUT](http://freeglut.sourceforge.net)  3.0.0
 
-  [MIT License](./License/freeglut.txt)
+  [MIT License](./3rdParty/freeglut/license.txt)
 
 * [boost](http://www.boost.org/)  1.66.0 (not included in this repo)
 
@@ -69,31 +72,37 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 * [stb](https://github.com/nothings/stb)
 
-  [MIT License](./License/stb.txt)
+  [MIT License](./3rdParty/stblib/license.txt)
 
 * [fmt](http://fmtlib.net) 4.1.0 (customized with utf-support)
 
-  [BSD-2 License](./License/fmt.rst)
+  [BSD-2 License](./3rdParty/fmt/license.rst)
 
 * [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6
 
-  [MPL 1.1 License](./License/uchardet.txt)
+  [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
 
 * [FreeType2](https://www.freetype.org/) 2.8.1
 
-  [The FreeType License](./License/freetype.txt)
+  [The FreeType License](./3rdParty/freetype2/license.txt)
 
 * [cpplinq](http://cpplinq.codeplex.com/)
 
-  [MS-PL License](./License/cpplinq.html)
+  [MS-PL License](./3rdParty/cpplinq.html)
+
+* [ISPCTextureCompressor](https://github.com/GameTechDev/ISPCTextureCompressor)
+  
+  [MIT License](./3rdParty/ispc_texcomp/license.txt)
 
 * [date](https://howardhinnant.github.io/date/date.html) 2.4
 
-  [MIT License](./License/date.txt)
+  [MIT License](./3rdParty/date/LICENSE.txt)
 
 * [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader)
 
   [License](./3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
+
+* [itoa](https://github.com/miloyip/itoa-benchmark)
 
 ## License
 

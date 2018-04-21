@@ -15,27 +15,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TexCompRely.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="TexCompressor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="TexUtilRely.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TexCompRely.h">
+    <ClInclude Include="resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="BCCompress.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="TexCompressor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="BCCompress.hpp">
+    <ClInclude Include="TexUtilRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

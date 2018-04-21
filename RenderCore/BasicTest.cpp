@@ -1,7 +1,7 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "TextureCompressor/TexCompressor.h"
+#include "TextureUtil/TexCompressor.h"
 #include <thread>
 #include <future>
 
