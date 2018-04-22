@@ -26,12 +26,13 @@ private:
     oglContext glContext;
     oclContext clContext;
     oglProgram prog2D, prog3D;
-    oglTex2DS picTex;
-    oglTex2DV chkTex, tmpTex;
+    oglTex2DS picTex, tmpTex;
+    oglTex2DV chkTex;
     oglPBO picBuf;
     oglVBO screenBox;
     oglVAO picVAO;
     oglUBO lightUBO;
+    oglFBO MiddleFrame;
     vector<byte> LightBuf;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;

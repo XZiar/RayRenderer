@@ -257,10 +257,48 @@
                             </ext:LabelControl>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
                             <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
-                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
-                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Direction, Mode=OneWay}" LabelWidth="64" Label="方向" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True">
+                                <ext:LabelTextBox.Style>
+                                    <Style TargetType="ext:LabelTextBox">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Parallel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelTextBox.Style>
+                            </ext:LabelTextBox>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Direction, Mode=OneWay}" LabelWidth="64" Label="方向" IsReadOnly="True">
+                                <ext:LabelTextBox.Style>
+                                    <Style TargetType="ext:LabelTextBox">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Point">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelTextBox.Style>
+                            </ext:LabelTextBox>
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
                                 <xctk:ColorPicker SelectedColor="{Binding Color, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="亮度">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Luminance}" FormatString="F2" Increment=".1" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="切光角">
+                                <ext:LabelControl.Style>
+                                    <Style TargetType="ext:LabelControl">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Parallel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Point">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelControl.Style>
+                                <xctk:RangeSlider LowerValue="{Binding CutoffInner, Mode=TwoWay}" HigherValue="{Binding CutoffOuter, Mode=TwoWay}" Minimum="0" Maximum="180" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center" HigherValueChanged="GLMainInvalidator" LowerValueChanged="GLMainInvalidator"/>
                             </ext:LabelControl>
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减常数">
                                 <xctk:DoubleUpDown Foreground="White" Value="{Binding AttenuationC}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
@@ -270,9 +308,6 @@
                             </ext:LabelControl>
                             <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减二次项">
                                 <xctk:DoubleUpDown Foreground="White" Value="{Binding Attenuation2}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
-                            </ext:LabelControl>
-                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="亮度">
-                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Luminance}" FormatString="F2" Increment=".1" ValueChanged="GLMainInvalidator"/>
                             </ext:LabelControl>
                         </StackPanel>
                     </ScrollViewer>

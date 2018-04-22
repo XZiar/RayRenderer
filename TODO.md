@@ -16,7 +16,7 @@
   - [ ] Add text render properties
 
 * RenderCore
-  - [ ] Implement SpotLight
+  - [x] Implement SpotLight
   - [ ] Implement IBL
   - [ ] Add convertion between BlinnPhongMaterial and PBRmaterial
   - [ ] Update blinn-phong shader, or combine them

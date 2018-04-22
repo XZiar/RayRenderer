@@ -19,7 +19,7 @@ public:
         if (setZero)
         {
         #if COMMON_SIMD_LV >= 20
-            Store128PS(data, _mm_setzero_ps());
+            float_dat = _mm_setzero_ps();
         #else
             x = y = z = w = 0;
         #endif
@@ -28,26 +28,29 @@ public:
     template<class T>
     Vec4(const T x_, const T y_, const T z_, const T w_) noexcept
         :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_))
-    {
-    };
+    { }
     template<class T>
     explicit Vec4(const T *ptr) noexcept
         :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2]), static_cast<float>(ptr[3])) 
-    {
-    };
-#if COMMON_SIMD_LV >= 20
-    explicit Vec4(const float *ptr) noexcept { Store128PS(data, _mm_loadu_ps(ptr)); }
-    Vec4(const __m128& dat_) noexcept { Store128PS(data, dat_); };
-#endif
+    { }
     explicit Vec4(const Vec3& v, const float w_) noexcept
     {
         x = v.x, y = v.y, z = v.z, w = w_;
     }
-
 #if COMMON_SIMD_LV >= 20
+    explicit Vec4(const float *ptr) noexcept { _mm_store_ps(data, _mm_loadu_ps(ptr)); }
+    Vec4(const __m128& dat_) noexcept { _mm_store_ps(data, dat_); };
     VECCALL operator __m128&() noexcept { return float_dat; };
-    VECCALL operator const __m128&() const noexcept { return Load128PS(data); };
+    VECCALL operator const __m128&() const noexcept { return _mm_load_ps(data); };
 #endif
+    void save(float* ptr) const
+    {
+    #if COMMON_SIMD_LV >= 20
+        _mm_storeu_ps(ptr, float_dat);
+    #else
+        ptr[0] = x, ptr[1] = y, ptr[2] = z, ptr[3] = w;
+    #endif
+    }
 
     bool operator<(const Vec4& other) const = delete;
 
@@ -201,7 +204,7 @@ public:
     forceinline Vec4& VECCALL operator+=(const float right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_add_ps(float_dat, _mm_set1_ps(right)));
+        _mm_store_ps(data, _mm_add_ps(float_dat, _mm_set1_ps(right)));
     #else
         x += right, y += right, z += right, w += right;
     #endif
@@ -211,7 +214,7 @@ public:
     forceinline Vec4& VECCALL operator+=(const Vec4& right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_add_ps(float_dat, right.float_dat));
+        _mm_store_ps(data, _mm_add_ps(float_dat, right.float_dat));
     #else
         x += right.x, y += right.y, z += right.z, w += right.w;
     #endif
@@ -221,7 +224,7 @@ public:
     forceinline Vec4& VECCALL operator-=(const float right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_sub_ps(float_dat, _mm_set1_ps(right)));
+        _mm_store_ps(data, _mm_sub_ps(float_dat, _mm_set1_ps(right)));
     #else
         x -= right, y -= right, z -= right, w -= right;
     #endif
@@ -231,7 +234,7 @@ public:
     forceinline Vec4& VECCALL operator-=(const Vec4& right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_sub_ps(float_dat, right.float_dat));
+        _mm_store_ps(data, _mm_sub_ps(float_dat, right.float_dat));
     #else
         x -= right.x, y -= right.y, z -= right.z, w -= right.w;
     #endif
@@ -241,7 +244,7 @@ public:
     forceinline Vec4& VECCALL operator*=(const float right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_mul_ps(float_dat, _mm_set1_ps(right)));
+        _mm_store_ps(data, _mm_mul_ps(float_dat, _mm_set1_ps(right)));
     #else
         x *= right, y *= right, z *= right, w *= right;
     #endif
@@ -251,7 +254,7 @@ public:
     forceinline Vec4& VECCALL operator*=(const Vec4& right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_mul_ps(float_dat, right.float_dat));
+        _mm_store_ps(data, _mm_mul_ps(float_dat, right.float_dat));
     #else
         x *= right.x, y *= right.y, z *= right.z, w *= right.w;
     #endif
@@ -261,7 +264,7 @@ public:
     forceinline Vec4& VECCALL operator/=(const float right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_mul_ps(_mm_rcp_ps(_mm_set1_ps(right)), float_dat));
+        _mm_store_ps(data, _mm_mul_ps(_mm_rcp_ps(_mm_set1_ps(right)), float_dat));
         return *this;
     #else
         return (*this) *= (1 / right);
@@ -271,7 +274,7 @@ public:
     forceinline Vec4& VECCALL operator/=(const Vec4& right)
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_mul_ps(_mm_rcp_ps(right.float_dat), float_dat));
+        _mm_store_ps(data, _mm_mul_ps(_mm_rcp_ps(right.float_dat), float_dat));
         return *this;
     #else
         x /= right.x, y /= right.y, z /= right.z, w /= right.w;
@@ -283,7 +286,7 @@ public:
     {
     #if COMMON_SIMD_LV >= 42
         const auto len_1 = _mm_rsqrt_ps(_mm_dp_ps(float_dat, float_dat, 0b01110111));
-        Store128PS(data, _mm_mul_ps(float_dat, len_1));
+        _mm_store_ps(data, _mm_mul_ps(float_dat, len_1));
     #else
         *this /= this->length();
     #endif
@@ -293,7 +296,7 @@ public:
     forceinline Vec4& VECCALL rcped()
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_rcp_ps(float_dat));
+        _mm_store_ps(data, _mm_rcp_ps(float_dat));
     #else
         x = 1 / x, y = 1 / y, z = 1 / z;
     #endif
@@ -303,7 +306,7 @@ public:
     forceinline Vec4& VECCALL sqrted()
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_sqrt_ps(float_dat));
+        _mm_store_ps(data, _mm_sqrt_ps(float_dat));
     #else
         x = std::sqrt(x), y = std::sqrt(y), z = std::sqrt(z), w = std::sqrt(w);
     #endif
@@ -313,7 +316,7 @@ public:
     forceinline Vec4& VECCALL rsqrted()
     {
     #if COMMON_SIMD_LV >= 20
-        Store128PS(data, _mm_rsqrt_ps(float_dat));
+        _mm_store_ps(data, _mm_rsqrt_ps(float_dat));
     #else
         x = 1 / std::sqrt(x), y = 1 / std::sqrt(y), z = 1 / std::sqrt(z), w = 1 / std::sqrt(w);
     #endif

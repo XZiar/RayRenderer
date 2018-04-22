@@ -7,10 +7,10 @@ const float oglu_PI = 3.1415926f;
 
 struct LightData
 {
-    vec3 position, direction;
-    lowp vec4 color, attenuation;
-    float coang, exponent;
-    int type;
+    lowp vec4 color;
+    vec4 position; // w = cutoffOuter
+    vec4 direction; // w = cutoffDiff
+    lowp vec4 attenuation;
 };
 layout(std140) uniform lightBlock
 {
@@ -165,21 +165,34 @@ vec3 bothAlbedo(const uint id)
 }
 
 
-void parseLight(const uint id, out vec3 p2l, out vec3 color)
+bool parseLight(const uint id, out vec3 p2l, out vec3 color)
 {
     float atten = lights[id].attenuation.w;
-    if (lights[id].type == 0) // parallel light
+    int lightType = floatBitsToInt(lights[id].color.w);
+    if (lightType == 0) // parallel light
     {
-        p2l = -lights[id].direction;
+        p2l = -lights[id].direction.xyz;
     }
-    else if (lights[id].type == 1) // point light
+    else if (lightType == 1) // point light
     {
-        p2l = lights[id].position - pos;
+        p2l = lights[id].position.xyz - pos;
         const float inv_dist = inversesqrt(dot(p2l, p2l));
         p2l *= inv_dist; // normalize
         atten *= inv_dist * inv_dist;
     }
+    else if (lightType == 2) // spot light
+    {
+        p2l = lights[id].position.xyz - pos;
+        const float inv_dist = inversesqrt(dot(p2l, p2l));
+        p2l *= inv_dist; // normalize
+        atten *= inv_dist * inv_dist;
+        const float theta = dot(p2l, -lights[id].direction.xyz);
+        const float coOuter = lights[id].position.w;
+        const float coDiff_1 = lights[id].direction.w;
+        atten *= clamp((theta - coOuter) * coDiff_1, 0.0f, 1.0f);
+    }
     color = lights[id].color.rgb * atten;
+    return atten > 0.0001f;
 }
 
 float ClampDot(const vec3 v1, const vec3 v2)
@@ -233,11 +246,18 @@ vec3 view()
     return (viewRay + 1.0f) * 0.5f;
 }
 subroutine(LightModel)
-vec3 lgt0()
+vec3 lgt0p2l()
 {
     vec3 p2l, color;
     parseLight(0, p2l, color);
     return (p2l + 1.0f) * 0.5f;
+}
+subroutine(LightModel)
+vec3 lgt0color()
+{
+    vec3 p2l, color;
+    parseLight(0, p2l, color);
+    return color;
 }
 subroutine(LightModel)
 vec3 drawidx()
@@ -299,23 +319,30 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
 {
     const vec3 viewRay = normalize(pt2cam);
     const vec3 ptNorm = getNorm(drawId);
+    const float n_eye = ClampDot(ptNorm, viewRay);
     const float metallic = materials[drawId].basic.w;
     const vec3 diffuse_PI = (1.0f - metallic) * albedo / oglu_PI;
     const vec3 F0 = mix(vec3(0.04f), albedo, metallic);
-    const float roughness = max(materials[drawId].other.x, 0.002f);
-    const float roughness4 = roughness * roughness * roughness * roughness;
+    const float roughness = materials[drawId].other.x;
+    const float roughness4 = max(roughness * roughness * roughness * roughness, 0.002f);
     const float r_1 = roughness + 1.0f;
     const float k = (r_1 * r_1) / 8.0f;
     const float one_k = 1.0f - k;
+    //Geometry Obstruction
+    const float geoObs = G_SchlickGGX(n_eye, k, one_k);
+
     for (int id = 0; id < lightCount; id++)
     {
         vec3 p2l, lgtColor;
-        parseLight(id, p2l, lgtColor);
+        if(!parseLight(id, p2l, lgtColor))
+            continue;
 
         const vec3 halfVec = normalize(p2l + viewRay);
         const float NDF = D_GGXTR(ptNorm, halfVec, roughness4);
-        const float n_eye = ClampDot(ptNorm, viewRay), n_lgt = ClampDot(ptNorm, p2l);
-        const float G = G_GGX(n_eye, n_lgt, k, one_k);
+        const float n_lgt = ClampDot(ptNorm, p2l);
+        //Geometry Shadowing
+        const float geoShd = G_SchlickGGX(n_lgt, k, one_k);
+        const float G = geoObs * geoShd;
         const vec3 F = F_Schlick(halfVec, viewRay, F0);
        
         lgtColor *= n_lgt;

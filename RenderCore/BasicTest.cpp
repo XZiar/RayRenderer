@@ -165,17 +165,24 @@ void BasicTest::initTex()
             }
         }
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-        //tmpTex->SetData(TextureDataFormat::RGBAf, empty);
         picTex->SetData(TextureDataFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
-        const auto outimg = picTex->GetImage(ImageDataType::RGBA);
-        tmpTex = oglu::texcomp::CompressToTex(outimg, TextureInnerFormat::BC7, false)->wait();
+        //const auto outimg = picTex->GetImage(ImageDataType::RGBA);
+        //tmpTex = oglu::texcomp::CompressToTex(outimg, TextureInnerFormat::BC7, false)->wait();
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
     chkTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
     {
         oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::RGBA8);
         tex2darr->SetTextureLayer(0, chkTex);
+    }
+    {
+        MiddleFrame.reset();
+        tmpTex.reset(1280, 720, TextureInnerFormat::RGBA8);
+        MiddleFrame->AttachColorTexture(tmpTex, 0);
+        oglRBO mainRBO(1280, 720, oglu::RBOFormat::Depth24Stencil8);
+        MiddleFrame->AttachDepthStencilBuffer(mainRBO);
+        basLog().info(u"FBO status:{}\n", MiddleFrame->CheckIsComplete() ? u"complete" : u"not complete");
     }
     {
         //oglu::oglUtil::TryTask();
@@ -204,8 +211,7 @@ void BasicTest::prepareLight()
         if (!lgt->isOn)
             continue;
         onCnt++;
-        memcpy_s(&LightBuf[pos], lightUBO->Size() - pos, &(*lgt), sizeof(LightData));
-        pos += sizeof(LightData);
+        pos += lgt->WriteData(&LightBuf[pos]);
         if (pos >= lightUBO->Size())
             break;
     }

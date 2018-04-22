@@ -19,7 +19,7 @@ public:
         if (setZero)
         {
         #if COMMON_SIMD_LV >= 20
-            _mm_store_ps(data, _mm_setzero_ps());
+            float_dat = _mm_setzero_ps();
         #else
             x = y = z = 0;
         #endif
@@ -27,16 +27,22 @@ public:
     }
     template<class T>
     Vec3(const T x_, const T y_, const T z_, const T w_ = static_cast<T>(0)) noexcept
-        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_)) { };
+        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_)) 
+    { }
     template<class T>
     explicit Vec3(const T *ptr) noexcept
-        :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) { };
+        :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) 
+    { }
 #if COMMON_SIMD_LV >= 20
     explicit Vec3(const float *ptr) noexcept { _mm_store_ps(data, _mm_loadu_ps(ptr)); }
     Vec3(const __m128& dat_) noexcept { _mm_store_ps(data, dat_); };
     VECCALL operator __m128&() noexcept { return float_dat; };
     VECCALL operator __m128() const noexcept { return _mm_load_ps(data); };
 #endif
+    void save(float* ptr) const
+    {
+        ptr[0] = x, ptr[1] = y, ptr[2] = z;
+    }
 
     bool operator<(const Vec3& other) const = delete;
 

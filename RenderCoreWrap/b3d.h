@@ -77,7 +77,10 @@ public:
     }
 };
 
-public enum class LightType : int32_t { Parallel, Point, Spot };
+public enum class LightType : int32_t 
+{
+    Parallel = (int32_t)b3d::LightType::Parallel, Point = (int32_t)b3d::LightType::Point, Spot = (int32_t)b3d::LightType::Spot
+};
 
 public ref class Light : public BaseViewModel
 {
@@ -127,6 +130,16 @@ public:
     {
         float get() { return light->lock()->attenuation.w; }
         void set(float value) { light->lock()->attenuation.w = value; OnPropertyChanged("Luminance"); }
+    }
+    property float CutoffInner
+    {
+        float get() { return light->lock()->cutoffInner; }
+        void set(float value) { light->lock()->cutoffInner = value; OnPropertyChanged("CutoffInner"); }
+    }
+    property float CutoffOuter
+    {
+        float get() { return light->lock()->cutoffOuter; }
+        void set(float value) { light->lock()->cutoffOuter = value; OnPropertyChanged("CutoffOuter"); }
     }
     property System::Windows::Media::Color Color
     {

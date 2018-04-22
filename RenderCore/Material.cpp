@@ -49,7 +49,7 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
         basic.x *= -1.0f;
     if (UseNormalMap)
         basic.y *= -1.0f;
-    memcpy_s(ptrFloat, sizeof(Vec4), &basic, sizeof(Vec4));
+    basic.save(ptrFloat);
     ptrFloat[4] = Roughness;
     ptrFloat[5] = Specular;
     ptrFloat[6] = AO;
@@ -254,7 +254,7 @@ uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
         float *ptrFloat = reinterpret_cast<float*>(ptr + pos);
         uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(ptr + pos);
         Vec4 basic(mat.Albedo, mat.Metalness);
-        memcpy_s(ptrFloat, sizeof(Vec4), &basic, sizeof(Vec4));
+        basic.save(ptrFloat);
         ptrFloat[4] = mat.Roughness;
         ptrFloat[5] = mat.Specular;
         ptrFloat[6] = mat.AO;

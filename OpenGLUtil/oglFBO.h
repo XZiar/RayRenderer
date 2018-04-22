@@ -18,11 +18,14 @@ namespace detail
 class OGLUAPI _oglRenderBuffer : public NonCopyable, public NonMovable
 {
     friend class _oglFrameBuffer;
+public:
+    enum class RBOType : uint8_t { Depth, Stencil, DepthStencil, Color };
 private:
     GLuint RBOId = GL_INVALID_INDEX;
     const RBOFormat InnerFormat;
     const uint32_t Width, Height;
 public:
+    const RBOType Type;
     _oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format);
     ~_oglRenderBuffer();
 };
@@ -45,13 +48,14 @@ public:
     _oglFrameBuffer();
     ~_oglFrameBuffer();
     bool CheckIsComplete() const;
-    void AttackTexture(const oglTex2D& tex, const uint8_t attachment);
-    void AttackTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
-    void AttackRBO(const oglRBO& rbo, const uint8_t attachment);
-    void AttackDepthTexture(const oglTex2D& tex);
-    void AttackDepthTexture(const oglRBO& rbo);
-    void AttackStencilTexture(const oglTex2D& tex);
-    void AttackStencilTexture(const oglRBO& rbo);
+    void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment);
+    void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
+    void AttachColorTexture(const oglRBO& rbo, const uint8_t attachment);
+    void AttachDepthTexture(const oglTex2D& tex);
+    void AttachDepthTexture(const oglRBO& rbo);
+    void AttachStencilTexture(const oglTex2D& tex);
+    void AttachStencilTexture(const oglRBO& rbo);
+    void AttachDepthStencilBuffer(const oglRBO& rbo);
 };
 }
 using oglFBO = Wrapper<detail::_oglFrameBuffer>;
