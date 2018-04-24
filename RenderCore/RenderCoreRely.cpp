@@ -2,6 +2,9 @@
 #include "common/ResourceHelper.h"
 #include "common/ThreadEx.inl"
 
+#include <boost/version.hpp>
+#pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
+
 template struct RAYCOREAPI common::AlignBase<16>;
 template struct RAYCOREAPI common::AlignBase<32>;
 

@@ -1,7 +1,16 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "SIMD.hpp"
 #include <atomic>
+
+#if COMMON_SIMD_LV >= 20
+#   define COMMON_PAUSE() _mm_pause()
+#elif defined(_WIN32)
+#   define COMMON_PAUSE() __nop()
+#else
+#   define COMMON_PAUSE() __nnop()
+#endif
 
 namespace common
 {
@@ -28,7 +37,8 @@ public:
     {
         for (uint32_t i = 0; flag.test_and_set(/*std::memory_order_acquire*/); ++i)
         {
-            if (i > 16) {}
+            if (i > 16)
+                COMMON_PAUSE();
         }
     }
     static void Unlock(std::atomic_flag& flag)
@@ -48,6 +58,7 @@ public:
         while (!Flag.compare_exchange_strong(expected, expected + 1))
         {
             expected &= 0x0000ffff; //assume no writer
+            COMMON_PAUSE();
         }
     }
     void UnlockWeak()
@@ -58,7 +69,9 @@ public:
     {
         Flag.fetch_add(0x00010000);
         while((Flag.load() & 0x0000ffff) != 0) //loop until no reader
-        { }
+        {
+            COMMON_PAUSE();
+        }
     }
     void UnlockStrong()
     {
@@ -77,6 +90,7 @@ public:
         while (!Flag.compare_exchange_weak(expected, expected + 1))
         {
             expected &= 0x7fffffff; //assume no writer
+            COMMON_PAUSE();
         }
     }
     void UnlockRead()
@@ -92,6 +106,7 @@ public:
         }
         while ((Flag.load() & 0x7fffffff) != 0) //loop until no reader
         {
+            COMMON_PAUSE();
         }
     }
     void UnlockWrite()
@@ -114,6 +129,7 @@ public:
         Flag++;
         while ((Flag.load() & 0x80000000) != 0) //loop until no writer
         {
+            COMMON_PAUSE();
         }
     }
     void UnlockRead()
@@ -126,6 +142,7 @@ public:
         while (!Flag.compare_exchange_weak(expected, 0x80000000))
         {
             expected = 0; //assume no other locker
+            COMMON_PAUSE();
         }
     }
     void UnlockWrite()

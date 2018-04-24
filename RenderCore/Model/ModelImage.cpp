@@ -48,7 +48,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
         const auto newH = 1 << uint32_t(std::round(std::log2(h)));
         basLog().debug(u"decide to resize image[{}*{}] to [{}*{}].\n", w, h, newW, newH);
         auto newImg = xziar::img::Image(img);
-        newImg.Resize(newW, newH);
+        newImg.Resize(newW, newH, true, false);
         return LoadImgToFakeTex(picPath, std::move(img), format);
     }
 

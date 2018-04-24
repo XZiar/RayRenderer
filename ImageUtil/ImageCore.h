@@ -108,7 +108,7 @@ public:
     ///<summary>Resize the image in-place</summary>  
     ///<param name="width">width</param>
     ///<param name="height">height</param>
-    void Resize(const uint32_t width, const uint32_t height);
+    void Resize(const uint32_t width, const uint32_t height, const bool isSRGB = false, const bool mulAlpha = true);
 
     Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;

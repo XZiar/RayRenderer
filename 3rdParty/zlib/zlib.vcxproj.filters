@@ -103,14 +103,14 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="liscense.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <MASM Include="masmx64\inffasx64.asm">
       <Filter>asm</Filter>
     </MASM>
     <MASM Include="masmx64\gvmat64.asm">
       <Filter>asm</Filter>
     </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="license.txt" />
   </ItemGroup>
 </Project>

@@ -4,7 +4,7 @@
 #include "FloatConvertor.hpp"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "3rdParty/stblib/stb_image_resize.h"
+#include "stblib/stb_image_resize.h"
 
 namespace xziar::img
 {
@@ -166,16 +166,24 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     //put finish
 }
 
-void Image::Resize(const uint32_t width, const uint32_t height)
+void Image::Resize(const uint32_t width, const uint32_t height, const bool isSRGB, const bool mulAlpha)
 {
     common::AlignedBuffer<32> output(width*height*ElementSize);
 
     const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;
     const int32_t channel = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? ElementSize / sizeof(float) : ElementSize;
-    const auto flag = HAS_FIELD(DataType, ImageDataType::ALPHA_MASK) ? 0 : STBIR_ALPHA_CHANNEL_NONE;
+    int flag = 0;
+    if (HAS_FIELD(DataType, ImageDataType::ALPHA_MASK))
+    {
+        if (!mulAlpha)
+            flag |= STBIR_FLAG_ALPHA_PREMULTIPLIED;
+    }
+    else
+        flag |= STBIR_ALPHA_CHANNEL_NONE;
     stbir_resize(Data, (int32_t)Width, (int32_t)Height, 0, output.GetRawPtr(), (int32_t)width, (int32_t)height, 0,
         datatype, channel, ElementSize - 1, flag,
-        STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, STBIR_COLORSPACE_LINEAR, nullptr);
+        STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, 
+        isSRGB ? STBIR_COLORSPACE_SRGB : STBIR_COLORSPACE_LINEAR, nullptr);
 
     *reinterpret_cast<common::AlignedBuffer<32>*>(this) = output;
     Width = width, Height = height;

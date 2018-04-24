@@ -2,7 +2,7 @@
 
 A simple utility for image read/write/process.
 
-Image converting is AVX/SSE optimized.
+Image's datatype convertion is AVX/SSE optimized.
 
 ## Endianness
 
@@ -14,7 +14,7 @@ Since This component is binded with X86 optimization, internal data layout is as
 |:-------|:-------:|:------:|
 | PNG | RGB/RGBA/Gray | libpng |
 | TGA | RGB/RGBA/Gray | zextga(self) |
-| JPEG | RGBA | libjpeg-turbo |
+| JPEG | RGB/Gray | libjpeg-turbo |
 | BMP | RGB/RGBA | zexbmp(self) |
 
 
@@ -22,15 +22,15 @@ Since This component is binded with X86 optimization, internal data layout is as
 
 * [zlib](http://www.zlib.net/zlib.html)  1.2.11
 
-  [zlib License](./License/zlib.txt)
+  [zlib License](../3rdParty/zlib/license.txt)
 
 * [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.34
 
-  [libpng License](./License/libpng.txt)
+  [libpng License](../3rdParty/libpng/LICENSE)
 
 * [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.3
 
-  [IJG License, BSD-3 License, zlib License](./License/libjpeg-turbo.txt)
+  [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
 
 ## License
 

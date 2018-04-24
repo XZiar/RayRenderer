@@ -206,11 +206,11 @@
     <ClCompile Include="zutil.c" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="liscense.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <MASM Include="masmx64\gvmat64.asm" />
     <MASM Include="masmx64\inffasx64.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="license.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

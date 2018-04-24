@@ -2,6 +2,10 @@
 #include "common/ThreadEx.inl"
 #include <array>
 
+#include <boost/version.hpp>
+#pragma message("Compiling miniLogger with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
+
+
 namespace common::mlog
 {
 
