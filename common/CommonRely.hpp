@@ -36,11 +36,14 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #endif
 
 #if defined(_MSC_VER)
-#define forceinline __forceinline
+#   define forceinline __forceinline
+#   define forcenoinline __declspec(noinline)
 #elif defined(__GNUC__)
-#define forceinline __inline__ __attribute__((always_inline))
+#   define forceinline __inline__ __attribute__((always_inline))
+#   define forcenoinline __attribute__((noinline))
 #else
-#define forceinline inline
+#   define forceinline inline
+#   define forcenoinline 
 #endif
 
 /**

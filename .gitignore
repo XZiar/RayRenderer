@@ -249,3 +249,4 @@ kernel*_ispc*.h
 
 # Project Exception
 /Tests/
+/.vscode

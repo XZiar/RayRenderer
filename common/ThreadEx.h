@@ -24,7 +24,7 @@ private:
     std::list<std::tuple<const void*, std::function<void(void)>>> Funcs;
 public:
     static ThreadExitor& __cdecl GetThreadExitor();
-    __declspec(noinline) ~ThreadExitor();
+    forcenoinline ~ThreadExitor();
     static void __cdecl Add(const void * const uid, const std::function<void(void)>& callback)
     {
         ThreadExitor& exitor = GetThreadExitor();
@@ -49,17 +49,17 @@ public:
 class COMMONAPI ThreadObject : public NonCopyable
 {
 protected:
-    void *Handle = nullptr;
-    ThreadObject(void *handle) : Handle(handle) { }
+    uintptr_t Handle;
+    ThreadObject(const uintptr_t handle) noexcept : Handle(handle) { }
 public:
     static ThreadObject __cdecl GetCurrentThreadObject();
     static uint32_t __cdecl GetCurrentThreadId();
     static ThreadObject __cdecl GetThreadObject(std::thread& thr);
-    constexpr ThreadObject() noexcept { }
+    constexpr ThreadObject() noexcept : Handle(0) { }
     ThreadObject(ThreadObject&& other) noexcept
     {
         Handle = other.Handle;
-        other.Handle = nullptr;
+        other.Handle = 0;
     }
     ThreadObject& operator=(ThreadObject&& other) noexcept
     {

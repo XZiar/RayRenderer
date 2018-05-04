@@ -17,9 +17,13 @@
 #elif defined(_MSC_VER)
 # if _MSC_VER < 1200
 #   error MSVC Version too low to use this header, at least msvc 12.0
+# elif defined(_M_ARM)
+#   error ARM is not supported yet by this header
 # endif
 # include <intrin.h>
-# if (_M_IX86_FP == 2) && !defined(__SSE2__)
+# if (_M_IX86_FP == 1) && !defined(__SSE__)
+#   define __SSE__ 1
+# elif (_M_IX86_FP == 2) && !defined(__SSE2__)
 #   define __SSE2__ 1
 # endif
 #else
