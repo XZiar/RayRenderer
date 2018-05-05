@@ -6,6 +6,7 @@
 #else
 #   define _FILE_OFFSET_VITS 64
 #   include <unistd.h>
+#   include <cerrno>
 #   define FSeek64(fp, offset, whence) fseeko(fp, offset, whence)
 #   define FTell64(fp) ftello(fp)
 #endif
@@ -83,7 +84,7 @@ public:
     template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
     size_t Read(size_t count, T& output)
     {
-        const size_t elementSize = sizeof(T::value_type);
+        const size_t elementSize = sizeof(typename T::value_type);
         const auto left = LeftSpace();
         count = std::min(left / elementSize, count);
         output.resize(count);
@@ -93,7 +94,7 @@ public:
     template<class T, typename = typename std::enable_if_t<std::is_class_v<T>>>
     void ReadAll(T& output)
     {
-        static_assert(sizeof(T::value_type) == 1, "element's size should be 1 byte");
+        static_assert(sizeof(typename T::value_type) == 1, "element's size should be 1 byte");
         const auto flen = GetSize_();
         Rewind_();
         Read(flen, output);
@@ -166,26 +167,26 @@ public:
 class FileObject : public Readable<FileObject>, public Writable<FileObject>, public NonCopyable
 {
 private:
-    FILE *fp;
     fs::path FilePath;
+    FILE *fp;
 
-    static const wchar_t* ParseFlag(const OpenFlag flag)
+    static constexpr const auto* ParseFlag(const OpenFlag flag)
     {
         switch ((uint8_t)flag)
         {
-        case 0b00001: return L"r";
-        case 0b00011: return L"r+";
-        case 0b00110: return L"w";
-        case 0b00111: return L"w+";
-        case 0b01110: return L"a";
-        case 0b01111: return L"a+";
-        case 0b10001: return L"rb";
-        case 0b10011: return L"r+b";
-        case 0b10110: return L"wb";
-        case 0b10111: return L"w+b";
-        case 0b11110: return L"ab";
-        case 0b11111: return L"a+b";
-        default: return nullptr;
+        case 0b00001: return StrText("r");
+        case 0b00011: return StrText("r+");
+        case 0b00110: return StrText("w");
+        case 0b00111: return StrText("w+");
+        case 0b01110: return StrText("a");
+        case 0b01111: return StrText("a+");
+        case 0b10001: return StrText("rb");
+        case 0b10011: return StrText("r+b");
+        case 0b10110: return StrText("wb");
+        case 0b10111: return StrText("w+b");
+        case 0b11110: return StrText("ab");
+        case 0b11111: return StrText("a+b");
+        default:      return StrText("");
         }
     }
 
@@ -194,7 +195,7 @@ private:
         ::std::setvbuf(fp, NULL, _IOFBF, 16384);
     }
 public:
-    FileObject(FileObject&& rhs) : fp(rhs.fp), FilePath(std::move(rhs.FilePath)) { rhs.fp = nullptr; }
+    FileObject(FileObject&& rhs) : FilePath(std::move(rhs.FilePath)), fp(rhs.fp) { rhs.fp = nullptr; }
     FileObject& operator= (FileObject&& rhs) 
     {
         if (fp != nullptr)
@@ -268,8 +269,14 @@ public:
         if (!fs::exists(path))
             return {};
         FILE *fp;
+    #if defined(_WIN32)
         if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)
             return {};
+    #else
+        fp = fopen(path.u8string().c_str(), ParseFlag(flag));
+        if (fp == nullptr)
+            return {};
+    #endif
         return std::optional<FileObject>(std::in_place, FileObject(path, fp));
     }
 
@@ -278,8 +285,14 @@ public:
         if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::CREATE))
             COMMON_THROW(FileException, FileException::Reason::NotExist, path, L"target file not exist");
         FILE *fp;
+    #if defined(_WIN32)
         if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)
             COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open target file");
+    #else
+        fp = fopen(path.u8string().c_str(), ParseFlag(flag));
+        if (fp == nullptr)
+            COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open target file");
+    #endif
         return FileObject(path, fp);
     }
 

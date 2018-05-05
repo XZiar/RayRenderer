@@ -15,13 +15,14 @@ class Wrapper : public std::shared_ptr<T>
 {
 private:
     using base_type = std::shared_ptr<T>;
-    constexpr static auto is_def_con_able = std::is_default_constructible_v<T>;
+    //constexpr static auto is_def_con_able = std::is_default_constructible_v<T>;
 public:
     using inner_type = T;
     using weak_type = std::weak_ptr<T>;
 
     constexpr Wrapper() noexcept { }
-    template<class = typename std::enable_if_t<is_def_con_able>>
+
+    template<typename U = T, typename = std::enable_if_t<std::is_default_constructible_v<U>>>
     Wrapper(std::in_place_t) : base_type(std::make_shared<T>())
     { }
 
@@ -50,9 +51,10 @@ public:
     {
         *this = Wrapper<T>(std::forward<Args>(args)...);
     }
-    template<class = typename std::enable_if<is_def_con_able>::type>
-    void reset()
+    template<typename U = T>
+    typename std::enable_if_t<std::is_default_constructible_v<U>, void> reset()
     {
+        //static_assert(is_def_con_able, "Should be default constructable!");
         *this = Wrapper<T>(std::in_place);
     }
     void release()

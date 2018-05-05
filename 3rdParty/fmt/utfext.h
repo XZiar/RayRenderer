@@ -1,6 +1,8 @@
 #pragma once
 #include "format.h"
+#include "common/CommonRely.hpp"
 #include "common/StrCharset.hpp"
+
 
 namespace fmt
 {
@@ -191,7 +193,11 @@ public:
     void visit_wstring(internal::Arg::StringValue<char16_t> value);
     void visit_wstring(internal::Arg::StringValue<char32_t> value);
 
-    void visit_wstring(internal::Arg::StringValue<wchar_t> value) 
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
+    void visit_wstring(internal::Arg::StringValue<wchar_t> value)
     {
         if (value.size & internal::SizeTag) //u32string
         {
@@ -206,6 +212,9 @@ public:
                 visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char32_t>*>(&value));
         }
     }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 };
 
 template<>
@@ -219,6 +228,10 @@ inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<
     const auto u16str = common::str::to_u16string(value.value, value.size, common::str::Charset::UTF32);
     BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 inline void UTFArgFormatter<char16_t>::visit_string(internal::Arg::StringValue<char> value)
 {
@@ -233,6 +246,9 @@ inline void UTFArgFormatter<char16_t>::visit_string(internal::Arg::StringValue<c
         BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
     }
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 template<>
 inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
@@ -245,6 +261,10 @@ inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<
     const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF16LE);
     BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 inline void UTFArgFormatter<char32_t>::visit_string(internal::Arg::StringValue<char> value)
 {
@@ -259,6 +279,9 @@ inline void UTFArgFormatter<char32_t>::visit_string(internal::Arg::StringValue<c
         BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
     }
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 
 template <typename Char, typename Allocator = std::allocator<Char> >
@@ -308,8 +331,7 @@ public:
 
     template<typename Char2>
     UTFMemoryWriter &operator<<(fmt::BasicStringRef<Char2> value);
-    template<>
-    UTFMemoryWriter &operator<< <Char>(fmt::BasicStringRef<Char> value)
+    UTFMemoryWriter &operator<<(fmt::BasicStringRef<Char> value)
     {
         const Char *str = value.data();
         static_cast<BasicWriter<Char>*>(this)->buffer().append(str, str + value.size());
@@ -349,6 +371,10 @@ inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const ch
         static_cast<BasicWriter<char16_t>*>(this)->buffer().append(tmp, tmp + cnt);
     return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const wchar_t value)
 {
@@ -359,6 +385,9 @@ inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const wc
     else
         return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 template<>
 inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const char32_t value)
@@ -375,6 +404,10 @@ inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const ch
         static_cast<BasicWriter<char32_t>*>(this)->buffer().push_back(ch);
     return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const wchar_t value)
 {
@@ -385,6 +418,9 @@ inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const wc
     else
         return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 
 template<>
@@ -403,6 +439,10 @@ inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <char32_
     static_cast<BasicWriter<char16_t>*>(this)->buffer().append(u16str.data(), u16str.data() + u16str.size());
     return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 template<>
 inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <wchar_t>(fmt::BasicStringRef<wchar_t> value)
@@ -414,6 +454,9 @@ inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <wchar_t
     else
         return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 template<>
 template<>
@@ -431,6 +474,10 @@ inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <char16_
     static_cast<BasicWriter<char32_t>*>(this)->buffer().append(u32str.data(), u32str.data() + u32str.size());
     return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC push_options
+#   pragma GCC optimize ("no-strict-aliasing")
+#endif
 template<>
 template<>
 inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <wchar_t>(fmt::BasicStringRef<wchar_t> value)
@@ -442,6 +489,9 @@ inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <wchar_t
     else
         return *this;
 }
+#if defined(COMPILER_GCC)
+#   pragma GCC pop_options
+#endif
 
 template class UTFMemoryWriter<char16_t>;
 template class UTFMemoryWriter<char32_t>;
@@ -494,18 +544,4 @@ FMT_VARIADIC_U16(std::u16string, format, u16CStringRef)
 
 FMT_VARIADIC_U32(std::u32string, format, u32CStringRef)
 
-
-//
-/*
-template <typename... Args>
-auto test0(const Args& ... args)
-{
-    typedef fmt::internal::ArgArray<sizeof...(Args)> ArgArray;
-    typedef fmt::internal::ArgArray2<sizeof...(Args)> ArgArrayExt;
-    typename ArgArray::Type array{ ArgArrayExt::make(args)... };
-    return array;
-}
-
-static inline auto t0res = test0(u"0", U"1", L"2");
-*/
 }

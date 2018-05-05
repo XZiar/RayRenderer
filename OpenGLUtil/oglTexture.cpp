@@ -9,10 +9,10 @@ namespace oglu::detail
 
 struct TexLogItem
 {
+    uint64_t ThreadId;
     GLuint TexId;
-    uint32_t ThreadId;
     TextureType TexType;
-    TexLogItem(const _oglTexBase& tex) : TexId(tex.textureID), ThreadId(common::ThreadObject::GetCurrentThreadId()), TexType(tex.Type) {}
+    TexLogItem(const _oglTexBase& tex) : ThreadId(common::ThreadObject::GetCurrentThreadId()), TexId(tex.textureID), TexType(tex.Type) {}
     bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
 };
 

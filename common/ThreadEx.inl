@@ -5,18 +5,19 @@
 # include <Windows.h>
 # include <ProcessThreadsApi.h>
 #else
-#   include <pthread.h>
-#   include <unistd.h>
-#   include <sys/types.h>
-#   include <sys/resource.h>
-#   include <sys/wait.h>
-#   include <sys/sysinfo.h>
+# include <pthread.h>
+# include <unistd.h>
+# include <sys/types.h>
+# include <sys/resource.h>
+# include <sys/wait.h>
+# include <sys/sysinfo.h>
 # if defined(__APPLE__)
 #   include <sys/sysctl.h>
 #   include <mach/mach_types.h>
 #   include <mach/thread_act.h>
 # else
 #   include <sched.h>
+#   include <sys/syscall.h>
 # endif
 #endif
 #include <thread>
@@ -66,7 +67,7 @@ bool CDECLCALL SetThreadName(const std::u16string& threadName)
 # if defined(__APPLE__)
     pthread_setname_np(u8TName.c_str());
 # else
-    pthread_setname_np(pthread_self(), u8TName.c_str())
+    pthread_setname_np(pthread_self(), u8TName.c_str());
 # endif
 #endif
     return true;
@@ -107,26 +108,31 @@ bool ThreadObject::IsAlive() const
 }
 bool ThreadObject::IsCurrent() const
 {
-    return GetThreadId((HANDLE)Handle) == ThreadObject::GetCurrentThreadId();
+    return TId == ThreadObject::GetCurrentThreadId();
 }
-uint32_t ThreadObject::GetId() const 
+uint64_t ThreadObject::GetId() const
 {
 #if defined(_WIN32)
     return ::GetThreadId((HANDLE)Handle);
-#else
+#elif defined(__APPLE__)
     pthread_id_np_t   tid;
     pthread_getunique_np((pthread_t)Handle, &tid);
     return tid;
+#else
+    return Handle;
 #endif
 }
 
 
-uint32_t ThreadObject::GetCurrentThreadId()
+uint64_t ThreadObject::GetCurrentThreadId()
 {
 #if defined(_WIN32)
     return ::GetCurrentThreadId();
-#else
+#elif defined(__APPLE__)
     return pthread_getthreadid_np();
+#else
+    //return (long int)syscall(__NR_gettid);
+    return pthread_self();
 #endif
 }
 

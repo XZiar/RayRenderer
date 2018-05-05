@@ -13,7 +13,7 @@ APPPATH		:= $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		:= -I$(PROJPATH) -I$(PROJPATH)3rdParty
 LDPATH		:= -L$(APPPATH)
 CPPFLAGS	:= -g3 -Wall -pedantic -std=c++17 -pthread
-LIBRARYS	:=
+LIBRARYS	:= 
 DEPLIBS		:= 
 
 ifeq ($(TARGET), Release)
@@ -26,19 +26,18 @@ ifneq ($(BOOST_PATH), )
 endif
 
 
-SRCS	= $(wildcard *.cpp)
+SRCS	= $(wildcard *.cc) $(wildcard *.cpp)
 OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS))
 DEPS 	= $(patsubst %.o, %.d, $(OBJS))
-NAME	= miniLogger
-APPS	= $(APPPATH)lib$(NAME).so
-LIBRARYS	+= -lstdc++fs -lfmt
+NAME	= fmt
+APPS	= $(APPPATH)lib$(NAME).a
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(COMPILER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(LIBRARYS) -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive -shared $^ -o $(APPPATH)lib$@.so
+	$(SCOMPILER) rcs $(APPPATH)lib$@.a $^
 
 $(OBJPATH)%.o: %
-	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -c $< -o $@
 
 .PHONY: clean
 

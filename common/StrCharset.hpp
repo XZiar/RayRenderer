@@ -629,6 +629,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::UTF7, detail::UTF32, Char, char>::Convert(str, size, true, true);
             case Charset::GB18030:
                 return detail::CharsetConvertor<detail::UTF7, detail::GB18030, Char, char>::Convert(str, size, true, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;
@@ -646,6 +648,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::UTF8, detail::UTF32, Char, char>::Convert(str, size, true, true);
             case Charset::GB18030:
                 return detail::CharsetConvertor<detail::UTF8, detail::GB18030, Char, char>::Convert(str, size, true, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;
@@ -663,6 +667,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str, size, true, true);
             case Charset::GB18030:
                 return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str, size, true, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;
@@ -680,6 +686,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::UTF16, detail::UTF32, Char, char>::Convert(str, size, false, true);
             case Charset::GB18030:
                 return detail::CharsetConvertor<detail::UTF16, detail::GB18030, Char, char>::Convert(str, size, false, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;
@@ -697,6 +705,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::UTF32, detail::UTF16, Char, char>::Convert(str, size, true, false);
             case Charset::GB18030:
                 return detail::CharsetConvertor<detail::UTF32, detail::GB18030, Char, char>::Convert(str, size, true, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;
@@ -714,6 +724,8 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
                 return detail::CharsetConvertor<detail::GB18030, detail::UTF16, Char, char>::Convert(str, size, true, false);
             case Charset::UTF32:
                 return detail::CharsetConvertor<detail::GB18030, detail::UTF32, Char, char>::Convert(str, size, true, true);
+            default: // should not enter, to please compiler
+                return {};
             }
         CHK_CHAR_SIZE_END
         break;

@@ -8,9 +8,11 @@
 #   define COMMONAPI _declspec(dllimport) 
 #   define COMMONTPL
 # endif
+# define StrText(x) L ##x
 #else
 # define COMMONAPI 
 # define COMMONTPL 
+# define StrText(x) x
 #endif
 
 #include <cstddef>
@@ -60,6 +62,13 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #   define CDECLCALL
 #endif
 
+#if defined(__clang__)
+#   define COMPILER_CLANG 1
+#elif defined(__GNUC__)
+#   define COMPILER_GCC 1
+#elif defined(_MSC_VER)
+#   define COMPILER_MSVC 1
+#endif
 
 /**
 ** @brief calculate simple hash for string, used for switch-string

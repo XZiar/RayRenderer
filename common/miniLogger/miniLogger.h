@@ -24,7 +24,7 @@ protected:
     forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
 public:
     MiniLoggerBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
-        : Prefix(name), Outputer(outputer), LeastLevel(level)
+        : LeastLevel(level), Prefix(name), Outputer(outputer)
     { }
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
     LogLevel GetLeastLevel() { return LeastLevel; }

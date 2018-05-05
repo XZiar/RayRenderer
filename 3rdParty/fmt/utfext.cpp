@@ -42,14 +42,14 @@ namespace internal
         {
             char chbuffer[256];
             char chformat[256] = { 0 };
-            for (int i = 0, j = 0; j < size && j < 255;)
+            for (size_t i = 0, j = 0; j < size && j < 255;)
             {
                 uint8_t len = 0;
                 const auto ch = Src::FromBytes(reinterpret_cast<const char*>(format) + i, 4, true, len);
                 if (ch == 0)
                     break;
                 i += len;
-                if (ch == -1)
+                if (ch == (char32_t)-1)
                     continue;
                 j += common::str::detail::UTF7::To(ch, 255 - j, &chformat[j]);
             }

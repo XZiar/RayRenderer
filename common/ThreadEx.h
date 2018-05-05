@@ -50,26 +50,29 @@ class COMMONAPI ThreadObject : public NonCopyable
 {
 protected:
     uintptr_t Handle;
-    ThreadObject(const uintptr_t handle) noexcept : Handle(handle) { }
+    uint64_t TId;
+    ThreadObject(const uintptr_t handle) noexcept : Handle(handle), TId(GetId()) { }
 public:
     static ThreadObject CDECLCALL GetCurrentThreadObject();
-    static uint32_t CDECLCALL GetCurrentThreadId();
+    static uint64_t CDECLCALL GetCurrentThreadId();
     static ThreadObject CDECLCALL GetThreadObject(std::thread& thr);
-    constexpr ThreadObject() noexcept : Handle(0) { }
+    constexpr ThreadObject() noexcept : Handle(0), TId(0) { }
     ThreadObject(ThreadObject&& other) noexcept
     {
         Handle = other.Handle;
         other.Handle = 0;
+        TId = other.TId;
     }
     ThreadObject& operator=(ThreadObject&& other) noexcept
     {
         std::swap(Handle, other.Handle);
+        TId = other.TId;
         return *this;
     }
     ~ThreadObject();
     bool IsAlive() const;
     bool IsCurrent() const;
-    uint32_t GetId() const;
+    uint64_t GetId() const;
 };
 
 }

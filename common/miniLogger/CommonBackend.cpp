@@ -87,7 +87,7 @@ public:
 class ConsoleBackend : public LoggerQBackend
 {
 private:
-    constexpr static const char (&ToAnsiColor(const LogLevel lv))[9]
+    static constexpr const char (&ToAnsiColor(const LogLevel lv))[9]
     {
         switch (lv)
         {
@@ -97,6 +97,7 @@ private:
         case LogLevel::Info:    return "\033[97;m%s";
         case LogLevel::Verbose: return "\033[95;m%s";
         case LogLevel::Debug:   return "\033[96;m%s";
+        default:                return "%s\0\0\0\0\0\0";
         }
     }
     void virtual OnStart() override
@@ -129,7 +130,12 @@ public:
     void virtual OnPrint(const LogMessage& msg) override
     {
         auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
+    #if defined(_WIN32)
         OutputDebugString((LPCWSTR)writer.c_str());
+    #else
+        const auto text = str::to_u8string(writer.data(), writer.size(), str::Charset::UTF16LE);
+        fprintf(stderr, "%s", text.c_str());
+    #endif
     }
 };
 

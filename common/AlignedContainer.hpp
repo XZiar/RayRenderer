@@ -138,7 +138,7 @@ using setEx = std::set<T, C, common::AlignAllocator<T>>;
 template<class K, class V, class H = std::hash<K>, class E = std::equal_to<K>>
 using hashmapEx = std::unordered_map<K, H, E, V, common::AlignAllocator<std::pair<const K, V>>>;
 
-template<class T, class H = std::hash<T>, class E = std::equal_to<K>>
+template<class T, class H = std::hash<T>, class E = std::equal_to<T>>
 using hashsetEx = std::unordered_set<T, H, E, common::AlignAllocator<T>>;
 
 
