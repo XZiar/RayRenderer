@@ -7,8 +7,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <array>
 #include <exception>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <any>
 
 
@@ -24,7 +25,7 @@ class AnyException : public std::runtime_error, public std::enable_shared_from_t
 {
 protected:
     const char * const TypeName;
-    explicit AnyException(const char* const type) : TypeName(type), std::runtime_error(type) {}
+    explicit AnyException(const char* const type) : std::runtime_error(type), TypeName(type) {}
     using std::runtime_error::what;
 };
 class OtherException : public AnyException
@@ -36,7 +37,7 @@ public:
     {
         if (!StdException)
             return "EMPTY";
-        try 
+        try
         {
             std::rethrow_exception(StdException);
         }
@@ -61,12 +62,19 @@ class StackTraceItem
 {
 public:
     std::u16string_view File;
+#if defined(_MSC_VER)
     std::u16string_view Func;
+#else
+    std::u16string Func;
+#endif
     size_t Line;
     StackTraceItem() : File(u"Undefined"), Func(u"Undefined"), Line(0) {}
+#if defined(_MSC_VER)
     StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
+#else
+    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
+#endif
 };
-#define GENARATE_STACK_TRACE ::common::StackTraceItem(u"" __FILE__, u"" __FUNCSIG__, __LINE__)
 
 
 class BaseException : public detail::AnyException
@@ -79,7 +87,7 @@ public:
 protected:
     Wrapper<detail::AnyException> InnerException;
     StackTraceItem StackItem;
-    static Wrapper<detail::AnyException> __cdecl getCurrentException();
+    static Wrapper<detail::AnyException> CDECLCALL getCurrentException();
     BaseException(const char * const type, const std::wstring& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
     { }
@@ -122,7 +130,7 @@ public:
     { return ::common::Wrapper<type>(*this).cast_static<::common::BaseException>(); }
 
 
-inline Wrapper<detail::AnyException> __cdecl BaseException::getCurrentException()
+inline Wrapper<detail::AnyException> CDECLCALL BaseException::getCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)
@@ -148,7 +156,7 @@ class ExceptionHelper
 {
 public:
     template<class T>
-    static T __cdecl SetStackItem(T ex, StackTraceItem sti)
+    static T CDECLCALL SetStackItem(T ex, StackTraceItem sti)
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         static_cast<BaseException*>(&ex)->StackItem = sti;
@@ -156,7 +164,19 @@ public:
     }
 };
 }
-#define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), GENARATE_STACK_TRACE)
+#if defined(_MSC_VER)
+#   define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), { u"" __FILE__, u"" __FUNCSIG__, (size_t)(__LINE__) })
+#else
+template<size_t N>
+inline constexpr auto MakeGccToU16Str(const char (&str)[N])
+{
+    std::array<char16_t, N> ret{ 0 };
+    for (size_t i = 0; i < N; ++i)
+        ret[i] = str[i];
+    return ret;
+}
+#   define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), { u"" __FILE__, ::common::MakeGccToU16Str(__PRETTY_FUNCTION__).data(), (size_t)(__LINE__) })
+#endif
 
 
 namespace fs = std::experimental::filesystem;
@@ -171,7 +191,7 @@ public:
     EXCEPTION_CLONE_EX(FileException);
     const Reason reason;
     FileException(const Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data_), reason(why), filepath(file)
+        : BaseException(TYPENAME, msg, data_), filepath(file), reason(why)
     { }
     ~FileException() override {}
 };

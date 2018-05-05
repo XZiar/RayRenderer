@@ -1,10 +1,14 @@
 #pragma once
 #include "MiniLoggerRely.h"
 #include "common/ThreadEx.h"
-#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
-#pragma warning(disable:4996)
-#include "boost/lockfree/queue.hpp"
-#pragma warning(default:4996)
+#if defined(_MSC_VER)
+#   define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
+#   pragma warning(disable:4996)
+#   include "boost/lockfree/queue.hpp"
+#   pragma warning(default:4996)
+#else
+#   include "boost/lockfree/queue.hpp"
+#endif
 #include <mutex>
 #include <condition_variable>
 

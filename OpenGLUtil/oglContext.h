@@ -87,18 +87,18 @@ struct OGLUAPI DebugMessage
 {
     friend class detail::_oglContext;
 private:
-    static MsgSrc __cdecl ParseSrc(const GLenum src)
+    static MsgSrc CDECLCALL ParseSrc(const GLenum src)
     {
         return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
     }
-    static MsgType __cdecl ParseType(const GLenum type)
+    static MsgType CDECLCALL ParseType(const GLenum type)
     {
         if (type <= GL_DEBUG_TYPE_OTHER)
             return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
         else
             return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
     }
-    static MsgLevel __cdecl ParseLevel(const GLenum lv)
+    static MsgLevel CDECLCALL ParseLevel(const GLenum lv)
     {
         switch (lv)
         {

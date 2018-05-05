@@ -65,7 +65,7 @@ struct ConvertBase//just for template
 {
     static char32_t From(const char* __restrict const src0, const size_t size, uint8_t& len)
     {
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
@@ -87,7 +87,7 @@ struct UTF7
     {
         if (size >= 1 && src0[0] > 0)
             return src0[0];
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
@@ -117,13 +117,13 @@ struct UTF32
             len = 1;
             return src[0];
         }
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
         uint8_t len4;
         const auto ret = From(reinterpret_cast<const char32_t*>(src), size / 4, len4);
-        if (ret != -1)
+        if (ret != (char32_t)-1)
             len = len4 * 4;
         return ret;
     }
@@ -148,7 +148,7 @@ struct UTF8
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return -1;
+            return (char32_t)-1;
         if (src[0] < 0x80)//1 byte
         {
             len = 1;
@@ -161,7 +161,7 @@ struct UTF8
                 len = 2;
                 return ((src[0] & 0x1f) << 6) | (src[1] & 0x3f);
             }
-            return -1;
+            return (char32_t)-1;
         }
         if ((src[0] & 0xf0) == 0xe0)//3 byte
         {
@@ -170,7 +170,7 @@ struct UTF8
                 len = 3;
                 return ((src[0] & 0x0f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
             }
-            return -1;
+            return (char32_t)-1;
         }
         if ((src[0] & 0xf8) == 0xf0)//4 byte
         {
@@ -179,9 +179,9 @@ struct UTF8
                 len = 4;
                 return ((src[0] & 0x0f) << 18) | ((src[1] & 0x3f) << 12) | ((src[2] & 0x3f) << 6) | (src[3] & 0x3f);
             }
-            return -1;
+            return (char32_t)-1;
         }
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
@@ -233,7 +233,7 @@ private:
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return -1;
+            return (char32_t)-1;
         if (src[0] < 0xd8 || src[0] >= 0xe0)//1 unit
         {
             len = 1;
@@ -246,9 +246,9 @@ private:
                 len = 2;
                 return (((src[0] & 0x3) << 18) | (src[1] << 10) | ((src[2] & 0x3) << 8) | src[3]) + 0x10000;
             }
-            return -1;
+            return (char32_t)-1;
         }
-        return -1;
+        return (char32_t)-1;
     }
     static uint8_t ToBE(const char32_t src, const size_t size, char16_t* __restrict const dest0)
     {
@@ -280,7 +280,7 @@ public:
     static char32_t From(const char16_t* __restrict const src, const size_t size, uint8_t& len)
     {
         if (size == 0)
-            return -1;
+            return (char32_t)-1;
         if (src[0] < 0xd800 || src[0] >= 0xe000)//1 unit
         {
             len = 1;
@@ -293,16 +293,16 @@ public:
                 len = 2;
                 return (((src[0] & 0x3ff) << 10) | (src[1] & 0x3ff)) + 0x10000;
             }
-            return -1;
+            return (char32_t)-1;
         }
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
         uint8_t len2 = 0;
         const auto ch = isLE ? From(reinterpret_cast<const char16_t*>(src), size / 2, len2)
             : FromBE(reinterpret_cast<const char16_t*>(src), size / 2, len2);
-        if (ch != -1)
+        if (ch != (char32_t)-1)
             len = len2 * 2;
         return ch;
     }
@@ -330,7 +330,6 @@ public:
     }
     static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
     {
-        uint8_t len2 = 0;
         const auto len = isLE ? To(src, size / 2, reinterpret_cast<char16_t*>(dest))
             : ToBE(src, size / 2, reinterpret_cast<char16_t*>(dest));
         return len * 2;
@@ -344,7 +343,7 @@ struct GB18030
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return -1;
+            return (char32_t)-1;
         if (src[0] < 0x80)//1 byte
         {
             len = 1;
@@ -369,7 +368,7 @@ struct GB18030
                 return (char32_t)ch;
             }
         }
-        return -1;
+        return (char32_t)-1;
     }
     static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
     {
@@ -435,7 +434,7 @@ inline void ForEachChar(const CharT* __restrict const str, const size_t size, co
     {
         uint8_t len = 0;
         const char32_t codepoint = From::FromBytes(src, srcBytes, fromLE, len);
-        if (codepoint == -1)//fail
+        if (codepoint == (char32_t)-1)//fail
         {
             //move to next element
             srcBytes -= sizeof(CharT);
@@ -462,13 +461,13 @@ inline void ForEachCharPair(const CharT1* __restrict const str1, const size_t si
         uint8_t len1 = 0, len2 = 0;
         const char32_t cp1 = From1::FromBytes(src1, srcBytes1, fromLE1, len1);
         const char32_t cp2 = From2::FromBytes(src2, srcBytes2, fromLE2, len2);
-        if (cp1 == -1)//fail
+        if (cp1 == (char32_t)-1)//fail
         {
             //move to next element
             srcBytes1 -= sizeof(CharT1);
             src1 += sizeof(CharT1);
         }
-        if (cp2 == -1)
+        if (cp2 == (char32_t)-1)
         {
             //move to next element
             srcBytes2 -= sizeof(CharT2);
@@ -500,7 +499,7 @@ public:
         {
             uint8_t len = 0;
             const char32_t codepoint = transFunc(From::FromBytes(src, srcBytes, fromLE, len));
-            if (codepoint == -1)//fail
+            if (codepoint == (char32_t)-1)//fail
             {
                 //move to next element
                 srcBytes -= sizeof(SrcType);
@@ -548,7 +547,7 @@ public:
         {
             uint8_t len = 0;
             const char32_t codepoint = transFunc(UTF16::FromBytes(src, srcBytes, fromLE, len));
-            if (codepoint == -1)//fail
+            if (codepoint == (char32_t)-1)//fail
             {
                 //move to next element
                 srcBytes -= sizeof(SrcType);
@@ -600,10 +599,10 @@ public:
 
 }
 
-
+#define CONCAT_TYPE_SIZE_STR(TYPE, SIZE) STRINGIZE(TYPE) " string should has type of at most size[" STRINGIZE(SIZE) "]"
 #define CHK_CHAR_SIZE_MOST(TYPE, SIZE) \
     if constexpr(sizeof(Char) > SIZE) \
-        COMMON_THROW(BaseException, WIDEN(PPCAT(PPCAT(STRINGIZE(TYPE), " string should has type of at most size["), PPCAT(STRINGIZE(SIZE), "]")))); \
+        COMMON_THROW(BaseException, WIDEN(CONCAT_TYPE_SIZE_STR(TYPE, SIZE))); \
     else \
     {
 #define CHK_CHAR_SIZE_END \
@@ -1199,7 +1198,7 @@ inline bool CaseInsensitiveCompare(const CharT1 *str, const size_t size1, const 
         return !isEqual;
     });
     return isEqual;
-};
+}
 }
 template<typename Char>
 inline bool IsIBeginWith(const Char *str, const size_t size1, const Char *prefix, const size_t size2, const Charset strchset = Charset::ASCII)

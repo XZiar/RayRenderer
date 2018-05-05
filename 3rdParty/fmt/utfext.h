@@ -188,6 +188,8 @@ public:
         : BasicArgFormatter<UTFArgFormatter<Char>, Char, Spec>(f, s, fmt) {}
 
     void visit_string(internal::Arg::StringValue<char> value);
+    void visit_wstring(internal::Arg::StringValue<char16_t> value);
+    void visit_wstring(internal::Arg::StringValue<char32_t> value);
 
     void visit_wstring(internal::Arg::StringValue<wchar_t> value) 
     {
@@ -204,13 +206,19 @@ public:
                 visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char32_t>*>(&value));
         }
     }
-
-    void visit_wstring(internal::Arg::StringValue<char16_t> value);
-    void visit_wstring(internal::Arg::StringValue<char32_t> value);
 };
-template class UTFArgFormatter<char16_t>;
-template class UTFArgFormatter<char32_t>;
 
+template<>
+inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
+{
+    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(value);
+}
+template<>
+inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
+{
+    const auto u16str = common::str::to_u16string(value.value, value.size, common::str::Charset::UTF32);
+    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
+}
 template<>
 inline void UTFArgFormatter<char16_t>::visit_string(internal::Arg::StringValue<char> value)
 {
@@ -225,16 +233,17 @@ inline void UTFArgFormatter<char16_t>::visit_string(internal::Arg::StringValue<c
         BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
     }
 }
+
 template<>
-inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
+inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
 {
-    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(value);
+    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(value);
 }
 template<>
-inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
+inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
 {
-    const auto u16str = common::str::to_u16string(value.value, value.size, common::str::Charset::UTF32);
-    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
+    const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF16LE);
+    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
 }
 template<>
 inline void UTFArgFormatter<char32_t>::visit_string(internal::Arg::StringValue<char> value)
@@ -249,17 +258,6 @@ inline void UTFArgFormatter<char32_t>::visit_string(internal::Arg::StringValue<c
         const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF7);
         BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
     }
-}
-template<>
-inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
-{
-    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(value);
-}
-template<>
-inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
-{
-    const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF16LE);
-    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
 }
 
 
@@ -335,8 +333,6 @@ public:
     }
     //*/
 };
-template class UTFMemoryWriter<char16_t>;
-template class UTFMemoryWriter<char32_t>;
 
 template<>
 inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const char16_t value)
@@ -446,6 +442,9 @@ inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <wchar_t
     else
         return *this;
 }
+
+template class UTFMemoryWriter<char16_t>;
+template class UTFMemoryWriter<char32_t>;
 
 
 using u16CStringRef = fmt::BasicCStringRef<char16_t>;

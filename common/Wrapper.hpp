@@ -16,7 +16,6 @@ class Wrapper : public std::shared_ptr<T>
 private:
     using base_type = std::shared_ptr<T>;
     constexpr static auto is_def_con_able = std::is_default_constructible_v<T>;
-    constexpr static auto is_self_share = std::is_base_of_v<std::enable_shared_from_this<T>, T>;
 public:
     using inner_type = T;
     using weak_type = std::weak_ptr<T>;
@@ -36,19 +35,13 @@ public:
     Wrapper(base_type&& other) noexcept : base_type(other)
     { }
 
-    template<class = typename std::enable_if<is_self_share>::type>
-    Wrapper(T * const src) noexcept : base_type(src->shared_from_this())
-    { }
-    template<class = typename std::enable_if<!is_self_share>::type>
-    explicit Wrapper(const T * const src) noexcept : base_type(src)
-    { }
-    explicit Wrapper(T * const src) noexcept : base_type(src)
-    { }
+    //even if T derives from enable_shared_from_this --- we cannot ensure it has been set up by shared_ptr, call shared_from_this manually instead
+    explicit Wrapper(T * const src) noexcept : base_type(src) { }
 
-    template<typename Arg, typename = typename std::enable_if_t<std::is_constructible_v<T, Arg>>>
+    template<typename Arg, typename = std::enable_if_t<std::is_constructible_v<T, Arg>>>
     explicit Wrapper(Arg&& arg) : base_type(std::make_shared<T>(std::forward<Arg>(arg)))
     { }
-    template<typename Arg, typename... Args, typename = typename std::enable_if_t<sizeof...(Args) != 0>>
+    template<typename Arg, typename... Args, typename = std::enable_if_t<sizeof...(Args) != 0>>
     explicit Wrapper(Arg&& arg, Args&&... args) : base_type(std::make_shared<T>(std::forward<Arg>(arg), std::forward<Args>(args)...))
     { }
 

@@ -41,7 +41,7 @@ void MTWorker::worker()
         {
             oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetLastError());
         }
-        Context = nullptr;
+        Context.release();
         //wglDeleteContext((HGLRC)Context->Hrc);
     });
 }

@@ -54,7 +54,7 @@ fmt::BasicMemoryWriter<wchar_t>& StrFormater<wchar_t>::GetWriter()
 }
 
 }
-const char16_t* __cdecl GetLogLevelStr(const LogLevel level)
+const char16_t* CDECLCALL GetLogLevelStr(const LogLevel level)
 {
     switch (level)
     {
@@ -71,3 +71,4 @@ const char16_t* __cdecl GetLogLevelStr(const LogLevel level)
 }
 
 }
+

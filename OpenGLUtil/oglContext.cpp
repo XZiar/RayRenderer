@@ -93,7 +93,7 @@ bool _oglContext::UnloadContext()
     }
     else
     {
-        oglContext::CurrentCtx() = nullptr;
+        oglContext::CurrentCtx().release();
         return true;
     }
 }
@@ -181,7 +181,7 @@ void* oglContext::CurrentHRC()
 }
 oglContext& oglContext::CurrentCtx()
 {
-    thread_local oglContext ctx = nullptr;
+    thread_local oglContext ctx { };
     return ctx;
 }
 uint32_t oglContext::CurrentCtxUid()

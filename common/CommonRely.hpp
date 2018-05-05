@@ -1,16 +1,23 @@
 #pragma once
 
-#ifdef COMMON_EXPORT
+#if defined(_WIN32)
+# ifdef COMMON_EXPORT
 #   define COMMONAPI _declspec(dllexport) 
 #   define COMMONTPL _declspec(dllexport) 
-#else
+# else
 #   define COMMONAPI _declspec(dllimport) 
 #   define COMMONTPL
+# endif
+#else
+# define COMMONAPI 
+# define COMMONTPL 
 #endif
 
 #include <cstddef>
 #include <cstdint>
+#define __STDC_WANT_LIB_EXT1__ 1
 #include <cstring>
+#include <string>
 #include <new>
 #include <numeric>
 #include <type_traits> 
@@ -36,15 +43,23 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #endif
 
 #if defined(_MSC_VER)
-#   define forceinline __forceinline
-#   define forcenoinline __declspec(noinline)
+#   define forceinline      __forceinline
+#   define forcenoinline    __declspec(noinline)
+#   define CDECLCALL        __cdecl
 #elif defined(__GNUC__)
-#   define forceinline __inline__ __attribute__((always_inline))
-#   define forcenoinline __attribute__((noinline))
+#   define forceinline      __inline__ __attribute__((always_inline))
+#   define forcenoinline    __attribute__((noinline))
+// use to please C++/CLI, just ignore it
+#   define CDECLCALL
+#   if !defined(STDC_LIB_EXT1)
+#       define memcpy_s(dest, destsz, src, count) memcpy(dest, src, count)
+#   endif
 #else
 #   define forceinline inline
 #   define forcenoinline 
+#   define CDECLCALL
 #endif
+
 
 /**
 ** @brief calculate simple hash for string, used for switch-string
@@ -133,19 +148,19 @@ struct COMMONTPL AlignBase
 {
 public:
     static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
-    static void* __cdecl operator new(size_t size)
+    static void* CDECLCALL operator new(size_t size)
     {
         return malloc_align(size, ALIGN_SIZE);
     };
-    static void __cdecl operator delete(void *p)
+    static void CDECLCALL operator delete(void *p)
     {
         return free_align(p);
     }
-    static void* __cdecl operator new[](size_t size)
+    static void* CDECLCALL operator new[](size_t size)
     {
         return malloc_align(size, ALIGN_SIZE);
     };
-    static void __cdecl operator delete[](void *p)
+    static void CDECLCALL operator delete[](void *p)
     {
         return free_align(p);
     }

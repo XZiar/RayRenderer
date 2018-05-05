@@ -35,7 +35,7 @@ namespace common
 //};
 //#pragma pack(pop)
 
-bool __cdecl SetThreadName(const std::string& threadName)
+bool CDECLCALL SetThreadName(const std::string& threadName)
 {
     /*
     constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
@@ -57,7 +57,7 @@ bool __cdecl SetThreadName(const std::string& threadName)
     return true;
 }
 
-bool __cdecl SetThreadName(const std::u16string& threadName)
+bool CDECLCALL SetThreadName(const std::u16string& threadName)
 {
 #if defined(_WIN32)
     ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.c_str()); // supported since Win10 1607
@@ -72,7 +72,7 @@ bool __cdecl SetThreadName(const std::u16string& threadName)
     return true;
 }
 
-ThreadExitor& __cdecl ThreadExitor::GetThreadExitor()
+ThreadExitor& CDECLCALL ThreadExitor::GetThreadExitor()
 {
     thread_local static ThreadExitor exitor;
     return exitor;

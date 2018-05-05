@@ -1,10 +1,14 @@
 #pragma once
 
-#ifdef MINILOG_EXPORT
+#if defined(_WIN32)
+# ifdef MINILOG_EXPORT
 #   define MINILOGAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define MINILOGAPI _declspec(dllimport)
+# endif
+#else
+# define MINILOGAPI 
 #endif
 
 
@@ -36,7 +40,7 @@ class MiniLoggerBase;
 }
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
-MINILOGAPI const char16_t* __cdecl GetLogLevelStr(const LogLevel level);
+MINILOGAPI const char16_t* CDECLCALL GetLogLevelStr(const LogLevel level);
 
 struct MINILOGAPI LogMessage : public NonCopyable
 {
@@ -51,7 +55,7 @@ public:
     const LogLevel Level;
 private:
     LogMessage(const std::u16string& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
-        : Source(prefix), Length(length), Level(level), Timestamp(time), RefCount(1) //RefCount is at first 1
+        : Timestamp(time), Source(prefix), RefCount(1), Length(length), Level(level) //RefCount is at first 1
     { }
 public:
     static LogMessage* MakeMessage(const std::u16string& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
@@ -106,11 +110,11 @@ public:
     LogLevel GetLeastLevel() { return LeastLevel; }
 };
 
-using MLoggerCallback = std::function<void __cdecl(const LogMessage& msg)>;
+using MLoggerCallback = std::function<void CDECLCALL(const LogMessage& msg)>;
 
-MINILOGAPI std::shared_ptr<LoggerBackend> __cdecl GetConsoleBackend();
-MINILOGAPI std::shared_ptr<LoggerBackend> __cdecl GetDebuggerBackend();
-MINILOGAPI std::shared_ptr<LoggerBackend> __cdecl GetFileBackend(const fs::path& path);
+MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetConsoleBackend();
+MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetDebuggerBackend();
+MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetFileBackend(const fs::path& path);
 
 namespace detail
 {
