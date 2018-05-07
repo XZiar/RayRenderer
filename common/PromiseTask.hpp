@@ -48,7 +48,7 @@ public:
     PromiseTask(std::function<T(void)> task) : Task(task)
     { }
     template<class... Args>
-    PromiseTask(const std::function<T(Args&&...)>& task, Args&&... args) : Task(std::bind(task, args))
+    PromiseTask(const std::function<T(Args&&...)>& task, Args&&... args) : Task(std::bind(task, std::forward<Args>(args)...))
     { }
     virtual ~PromiseTask() {}
     void virtual dowork() = 0;

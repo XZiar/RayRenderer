@@ -31,7 +31,8 @@ OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS))
 DEPS 	= $(patsubst %.o, %.d, $(OBJS))
 NAME	= miniLogger
 APPS	= $(APPPATH)lib$(NAME).so
-LIBRARYS	+= -lstdc++fs -lfmt
+LIBRARYS	+= -lstdc++fs
+DEPLIBS		+= -lfmt
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})

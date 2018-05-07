@@ -26,20 +26,29 @@ ifneq ($(BOOST_PATH), )
 endif
 
 
-SRCS	= $(wildcard *.cc) $(wildcard *.cpp)
-OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS))
+ifeq ($(PLATFORM), x64)
+	ASMS	= $(wildcard asm/*x86_64_*_elf_gas.S)
+else
+	ASMS	= $(wildcard asm/*i386_*_elf_gas.S)
+endif
+SRCS	= posix/stack_traits.cpp
+OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS) $(ASMS))
 DEPS 	= $(patsubst %.o, %.d, $(OBJS))
-NAME	= fmt
+NAME	= boost.context
 APPS	= $(APPPATH)lib$(NAME).a
 
-$(NAME): $(OBJS)
+$(NAME): $(OBJS) mkdir
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(SCOMPILER) rcs $(APPPATH)lib$@.a $^
+	$(SCOMPILER) rcs $(APPPATH)lib$@.a $(OBJS)
 
-$(OBJPATH)%.o: %
+$(OBJPATH)%.o: % mkdir
 	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
 
-.PHONY: clean
+.PHONY: clean mkdir
+
+mkdir: 
+	mkdir -p $(OBJPATH)posix
+	mkdir -p $(OBJPATH)asm
 
 clean:
 	$(RM) $(OBJS) $(DEPS) $(APPS)

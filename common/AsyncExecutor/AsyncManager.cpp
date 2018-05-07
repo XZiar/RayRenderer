@@ -156,6 +156,8 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
                 Current->Context = Current->Context.resume();
                 hasExecuted = true;
                 break;
+            default:
+                break;
             }
             //after processing
             if (Current->Context)
@@ -219,6 +221,8 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
                 [[fallthrough]];
             case detail::AsyncTaskStatus::Ready:
                 COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, L"Task was terminated, due to executor was terminated.");
+            default:
+                break;
             }
         }
         catch (AsyncTaskException& e)
@@ -240,7 +244,7 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
 
 
 AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
-    Name(name), TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Agent(*this),
+    TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Name(name), Agent(*this),
     Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend(), common::mlog::GetDebuggerBackend() })
 { }
 AsyncManager::~AsyncManager()

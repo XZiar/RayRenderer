@@ -53,21 +53,21 @@ public:
 
 
 template<class T>
-class PromiseTaskSTD : PromiseTask<T>
+class PromiseTaskSTD : public PromiseTask<T>
 {
 protected:
     std::promise<T> pms;
     PromiseResult<T> ret;
 public:
-    PromiseTaskSTD(std::function<T(void)> task_) : PromiseTask(task_), ret(new PromiseResultSTD<T>(pms.get_future()))
+    PromiseTaskSTD(std::function<T(void)> task_) : PromiseTask<T>(task_), ret(new PromiseResultSTD<T>(pms.get_future()))
     { }
-    template<class... ARGS>
-    PromiseTaskSTD(std::function<T(ARGS...)> task_, ARGS... args) : PromiseTask(std::bind(task_, args)), ret(pms.get_future())
+    template<class... Args>
+    PromiseTaskSTD(std::function<T(Args...)> task_, Args&&... args) : PromiseTask<T>(std::bind(task_, std::forward<Args>(args)...)), ret(pms.get_future())
     { }
     virtual ~PromiseTaskSTD() override { }
     void virtual dowork() override
     {
-        pms.set_value(task());
+        pms.set_value(this->Task());
     }
     PromiseResult<T> getResult() override
     {

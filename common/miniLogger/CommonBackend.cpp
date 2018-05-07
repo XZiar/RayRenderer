@@ -87,17 +87,17 @@ public:
 class ConsoleBackend : public LoggerQBackend
 {
 private:
-    static constexpr const char (&ToAnsiColor(const LogLevel lv))[9]
+    static constexpr const char (&ToAnsiColor(const LogLevel lv))[8]
     {
         switch (lv)
         {
-        case LogLevel::Error:   return "\033[91;m%s";
-        case LogLevel::Warning: return "\033[93;m%s";
-        case LogLevel::Success: return "\033[92;m%s";
-        case LogLevel::Info:    return "\033[97;m%s";
-        case LogLevel::Verbose: return "\033[95;m%s";
-        case LogLevel::Debug:   return "\033[96;m%s";
-        default:                return "%s\0\0\0\0\0\0";
+        case LogLevel::Error:   return "\x1b[91m%s";
+        case LogLevel::Warning: return "\x1b[93m%s";
+        case LogLevel::Success: return "\x1b[92m%s";
+        case LogLevel::Info:    return "\x1b[97m%s";
+        case LogLevel::Verbose: return "\x1b[95m%s";
+        case LogLevel::Debug:   return "\x1b[96m%s";
+        default:                return "%s\0\0\0\0\0";
         }
     }
     void virtual OnStart() override

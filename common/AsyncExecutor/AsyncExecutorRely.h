@@ -1,10 +1,14 @@
 #pragma once
 
-#ifdef ASYEXE_EXPORT
+#if defined(_WIN32)
+# ifdef ASYEXE_EXPORT
 #   define ASYEXEAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define ASYEXEAPI _declspec(dllimport)
+# endif
+#else
+# define ASYEXEAPI 
 #endif
 
 #include <cstdint>
@@ -33,7 +37,7 @@ public:
     enum class Reason : uint8_t { Terminated, Timeout, Cancelled };
     const Reason reason;
     AsyncTaskException(const Reason reason_, const std::wstring& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data), reason(reason)
+        : BaseException(TYPENAME, msg, data), reason(reason_)
     { }
     virtual ~AsyncTaskException() {}
 };

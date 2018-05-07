@@ -166,8 +166,12 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     //put finish
 }
 
-void Image::Resize(const uint32_t width, const uint32_t height, const bool isSRGB, const bool mulAlpha)
+void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha)
 {
+    if (width == 0 && height == 0)
+        COMMON_THROW(BaseException, L"image size cannot be all zero!");
+    width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
+    height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
     common::AlignedBuffer<32> output(width*height*ElementSize);
 
     const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;

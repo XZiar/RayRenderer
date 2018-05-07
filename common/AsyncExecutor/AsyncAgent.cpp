@@ -45,7 +45,7 @@ void AsyncAgent::AddPms(const PmsCore& pmscore) const
     Manager.Current->Status = detail::AsyncTaskStatus::Wait;
     Manager.Resume();
     Manager.Current->Promise = nullptr; //don't hold pms
-};
+}
 void AsyncAgent::YieldThis() const
 {
     Manager.Current->TaskTimer.Stop();

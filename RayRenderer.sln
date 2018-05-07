@@ -32,7 +32,44 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
 	ProjectSection(SolutionItems) = preProject
+		common\AlignedContainer.hpp = common\AlignedContainer.hpp
+		common\AlignedContainer.natvis = common\AlignedContainer.natvis
+		common\CLIAsync.hpp = common\CLIAsync.hpp
+		common\CLICommonRely.hpp = common\CLICommonRely.hpp
+		common\CLIException.hpp = common\CLIException.hpp
+		common\CLIViewModel.hpp = common\CLIViewModel.hpp
+		common\CommonMacro.hpp = common\CommonMacro.hpp
+		common\CommonRely.hpp = common\CommonRely.hpp
+		common\CommonUtil.hpp = common\CommonUtil.hpp
+		common\ContainerEx.hpp = common\ContainerEx.hpp
+		common\CopyEx.hpp = common\CopyEx.hpp
+		common\CPPAsync.cpp = common\CPPAsync.cpp
+		common\DelayLoader.h = common\DelayLoader.h
+		common\DelayLoader.inl = common\DelayLoader.inl
+		common\Exceptions.hpp = common\Exceptions.hpp
+		common\Exceptions.natvis = common\Exceptions.natvis
+		common\FileEx.hpp = common\FileEx.hpp
+		common\FileMapper.h = common\FileMapper.h
+		common\FileMapper.inl = common\FileMapper.inl
+		common\IntToString.hpp = common\IntToString.hpp
+		common\Linq.hpp = common\Linq.hpp
+		common\LockfreeQueue.hpp = common\LockfreeQueue.hpp
+		common\LUT_gb18030.tab = common\LUT_gb18030.tab
+		common\PromiseTask.hpp = common\PromiseTask.hpp
+		common\PromiseTaskSTD.hpp = common\PromiseTaskSTD.hpp
 		common\README.md = common\README.md
+		common\ResourceHelper.h = common\ResourceHelper.h
+		common\ResourceHelper.inl = common\ResourceHelper.inl
+		common\SharedResource.hpp = common\SharedResource.hpp
+		common\SIMD.hpp = common\SIMD.hpp
+		common\SpinLock.hpp = common\SpinLock.hpp
+		common\StrCharset.hpp = common\StrCharset.hpp
+		common\StringEx.hpp = common\StringEx.hpp
+		common\ThreadEx.h = common\ThreadEx.h
+		common\ThreadEx.inl = common\ThreadEx.inl
+		common\TimeUtil.hpp = common\TimeUtil.hpp
+		common\Wrapper.hpp = common\Wrapper.hpp
+		common\Wrapper.natvis = common\Wrapper.natvis
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3DBasic", "3DBasic", "{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}"
@@ -85,47 +122,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FontHelper", "FontHelper\FontHelper.vcxproj", "{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniLogger", "common\miniLogger\miniLogger.vcxproj", "{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LibFree", "LibFree", "{2D90E510-49EC-458D-99FC-C11DF3C6710C}"
-	ProjectSection(SolutionItems) = preProject
-		common\AlignedContainer.hpp = common\AlignedContainer.hpp
-		common\AlignedContainer.natvis = common\AlignedContainer.natvis
-		common\CLIAsync.hpp = common\CLIAsync.hpp
-		common\CLICommonRely.hpp = common\CLICommonRely.hpp
-		common\CLIException.hpp = common\CLIException.hpp
-		common\CLIViewModel.hpp = common\CLIViewModel.hpp
-		common\CommonMacro.hpp = common\CommonMacro.hpp
-		common\CommonRely.hpp = common\CommonRely.hpp
-		common\CommonUtil.hpp = common\CommonUtil.hpp
-		common\ContainerEx.hpp = common\ContainerEx.hpp
-		common\CopyEx.hpp = common\CopyEx.hpp
-		common\CPPAsync.cpp = common\CPPAsync.cpp
-		common\DelayLoader.h = common\DelayLoader.h
-		common\DelayLoader.inl = common\DelayLoader.inl
-		common\Exceptions.hpp = common\Exceptions.hpp
-		common\Exceptions.natvis = common\Exceptions.natvis
-		common\FileEx.hpp = common\FileEx.hpp
-		common\FileMapper.h = common\FileMapper.h
-		common\FileMapper.inl = common\FileMapper.inl
-		common\IntToString.hpp = common\IntToString.hpp
-		common\Linq.hpp = common\Linq.hpp
-		common\LockfreeQueue.hpp = common\LockfreeQueue.hpp
-		common\LUT_gb18030.tab = common\LUT_gb18030.tab
-		common\PromiseTask.hpp = common\PromiseTask.hpp
-		common\PromiseTaskSTD.hpp = common\PromiseTaskSTD.hpp
-		common\ResourceHelper.h = common\ResourceHelper.h
-		common\ResourceHelper.inl = common\ResourceHelper.inl
-		common\SharedResource.hpp = common\SharedResource.hpp
-		common\SIMD.hpp = common\SIMD.hpp
-		common\SpinLock.hpp = common\SpinLock.hpp
-		common\StrCharset.hpp = common\StrCharset.hpp
-		common\StringEx.hpp = common\StringEx.hpp
-		common\ThreadEx.h = common\ThreadEx.h
-		common\ThreadEx.inl = common\ThreadEx.inl
-		common\TimeUtil.hpp = common\TimeUtil.hpp
-		common\Wrapper.hpp = common\Wrapper.hpp
-		common\Wrapper.natvis = common\Wrapper.natvis
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFTest", "WPFTest\WPFTest.csproj", "{E05720DB-A5FB-4A0C-9552-F3777E66FE29}"
 EndProject
@@ -510,7 +506,6 @@ Global
 		{45231916-6D39-4FD5-A232-40DAAFEA819B} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{3A51A60C-CC0C-43E9-9A48-FB251EDC1135} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{536EEEC1-C2EC-4F53-8E80-4A437264C6C0} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
-		{2D90E510-49EC-458D-99FC-C11DF3C6710C} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{E05720DB-A5FB-4A0C-9552-F3777E66FE29} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{C42B961C-1C23-45DE-ABA7-410681BC7D13} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
