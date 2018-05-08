@@ -25,14 +25,14 @@ static void OnWriteFile(png_structp pngStruct, uint8_t *data, size_t length)
     FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
     file.Write(length, data);
 }
-static void OnFlushFile(png_structp pngStruct) {}
+static void OnFlushFile([[maybe_unused]] png_structp pngStruct) {}
 
-static void OnError(png_structrp pngStruct, const char *message)
+static void OnError([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
     ImgLog().error(u"LIBPNG report an error: {}\n", message);
     COMMON_THROW(BaseException, L"Libpng report an error");
 }
-static void OnWarn(png_structrp pngStruct, const char *message)
+static void OnWarn([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
     ImgLog().warning(u"LIBPNG warns: {}\n", message);
 }
@@ -60,7 +60,7 @@ static png_infop CreateInfo(png_structp pngStruct)
 }
 
 
-static void ReadPng(void *pngStruct, const uint8_t passes, Image& image, const bool needAlpha, const bool isColor)
+static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const bool needAlpha, const bool isColor)
 {
     auto ptrs = image.GetRowPtrs<uint8_t>(needAlpha ? image.Width : 0);
     common::SimpleTimer timer;
@@ -188,7 +188,7 @@ Image PngReader::Read(const ImageDataType dataType)
         png_set_swap_alpha(pngStruct);
 
     //handle interlace
-    const uint8_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
+    const uint32_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
     png_start_read_image(pngStruct);
     const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK) && (colorType & PNG_COLOR_MASK_ALPHA) == 0;
     ReadPng(PngStruct, passes, image, needAlpha, !image.isGray());

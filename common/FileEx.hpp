@@ -38,7 +38,7 @@ namespace common::file
 
 namespace fs = std::experimental::filesystem;
 using std::string;
-using std::wstring;
+using std::u16string;
 using std::byte;
 using common::str::Charset;
 
@@ -169,6 +169,7 @@ class FileObject : public Readable<FileObject>, public Writable<FileObject>, pub
 private:
     fs::path FilePath;
     FILE *fp;
+    OpenFlag Flag;
 
     static constexpr const auto* ParseFlag(const OpenFlag flag)
     {
@@ -190,7 +191,7 @@ private:
         }
     }
 
-    FileObject(const fs::path& path, FILE *fp) : FilePath(path), fp(fp)
+    FileObject(const fs::path& path, FILE *fp, const OpenFlag flag) : FilePath(path), fp(fp), Flag(flag)
     {
         ::std::setvbuf(fp, NULL, _IOFBF, 16384);
     }
@@ -207,10 +208,11 @@ public:
     }
     ~FileObject() { if (fp != nullptr) fclose(fp); }
     const fs::path& Path() const { return FilePath; }
-    wstring extName() const { return FilePath.extension().wstring(); }
+    u16string extName() const { return FilePath.extension().u16string(); }
 
     FILE* Raw() { return fp; }
 
+    void Flush() { if (HAS_FIELD(Flag, OpenFlag::WRITE)) fflush(fp); }
     void Rewind(const size_t offset = 0) { FSeek64(fp, (int64_t)offset, SEEK_SET); }
     void Skip(const size_t offset = 0) { FSeek64(fp, (int64_t)offset, SEEK_CUR); }
     size_t CurrentPos() const { return FTell64(fp); }
@@ -277,7 +279,7 @@ public:
         if (fp == nullptr)
             return {};
     #endif
-        return std::optional<FileObject>(std::in_place, FileObject(path, fp));
+        return std::optional<FileObject>(std::in_place, FileObject(path, fp, flag));
     }
 
     static FileObject OpenThrow(const fs::path& path, const OpenFlag flag)
@@ -293,7 +295,7 @@ public:
         if (fp == nullptr)
             COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open target file");
     #endif
-        return FileObject(path, fp);
+        return FileObject(path, fp, flag);
     }
 
 };

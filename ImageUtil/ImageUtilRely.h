@@ -1,10 +1,14 @@
 #pragma once
 
-#ifdef IMGUTIL_EXPORT
+#if defined(_WIN32)
+# ifdef IMGUTIL_EXPORT
 #   define IMGUTILAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define IMGUTILAPI _declspec(dllimport)
+# endif
+#else
+# define IMGUTILAPI 
 #endif
 
 #include <cstddef>

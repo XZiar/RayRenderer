@@ -70,7 +70,7 @@ public:
                 AlignedBuffer<32> tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
                 auto * __restrict destPtr = output.GetRawPtr();
-                convert::GraysToRGBAs(output.GetRawPtr(), tmp.GetRawPtr(), count);
+                convert::GraysToRGBAs(destPtr, tmp.GetRawPtr(), count);
             }break;
         case 15:
             {
@@ -124,7 +124,7 @@ public:
                 AlignedBuffer<32> tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
                 auto * __restrict destPtr = output.GetRawPtr();
-                convert::GraysToRGBs(output.GetRawPtr(), tmp.GetRawPtr(), count);
+                convert::GraysToRGBs(destPtr, tmp.GetRawPtr(), count);
             }break;
         case 15:
         case 16:
@@ -354,7 +354,7 @@ public:
         for (uint32_t row = 0; row < image.Height; ++row)
         {
             const uint8_t * __restrict data = image.GetRawPtr<uint8_t>(row);
-            uint32_t last;
+            uint32_t last = 0;
             uint32_t len = 0;
             bool repeat = false;
             for (uint32_t col = 0; col < colMax; col += 3, ++len)
@@ -394,7 +394,7 @@ public:
         for (uint32_t row = 0; row < image.Height; ++row)
         {
             const uint32_t * __restrict data = image.GetRawPtr<uint32_t>(row);
-            uint32_t last;
+            uint32_t last = 0;
             uint32_t len = 0;
             bool repeat = false;
             for (uint32_t col = 0; col < image.Width; ++col, ++len)
@@ -432,7 +432,7 @@ public:
         for (uint32_t row = 0; row < image.Height; ++row)
         {
             const byte * __restrict data = image.GetRawPtr(row);
-            byte last;
+            byte last{};
             uint32_t len = 0;
             bool repeat = false;
             for (uint32_t col = 0; col < image.Width; ++col, ++len)

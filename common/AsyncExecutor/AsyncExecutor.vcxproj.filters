@@ -38,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

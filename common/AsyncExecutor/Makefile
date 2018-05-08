@@ -33,6 +33,7 @@ NAME	= AsyncExecutor
 APPS	= $(APPPATH)lib$(NAME).so
 LIBRARYS	+= -lminiLogger
 DEPLIBS		+= -lboost.context
+CPPFLAGS	+= -DASYEXE_EXPORT
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})

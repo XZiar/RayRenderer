@@ -33,6 +33,7 @@ NAME	= miniLogger
 APPS	= $(APPPATH)lib$(NAME).so
 LIBRARYS	+= -lstdc++fs
 DEPLIBS		+= -lfmt
+CPPFLAGS	+= -DMINILOG_EXPORT
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})

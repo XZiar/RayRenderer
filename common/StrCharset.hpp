@@ -63,19 +63,19 @@ namespace detail
 
 struct ConvertBase//just for template
 {
-    static char32_t From(const char* __restrict const src0, const size_t size, uint8_t& len)
+    static char32_t From(const char* __restrict const, const size_t, uint8_t&)
     {
         return (char32_t)-1;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
     {
         return From(src, size, len);
     }
-    static uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
+    static uint8_t To(const char32_t, const size_t, char* __restrict const)
     {
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -83,13 +83,16 @@ struct ConvertBase//just for template
 
 struct UTF7
 {
-    static char32_t From(const char* __restrict const src0, const size_t size, uint8_t& len)
+    static char32_t From(const char* __restrict const src, const size_t size, uint8_t& len)
     {
-        if (size >= 1 && src0[0] > 0)
-            return src0[0];
+        if (size >= 1 && src[0] > 0)
+        {
+            len = 1;
+            return src[0];
+        }
         return (char32_t)-1;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
     {
         return From(src, size, len);
     }
@@ -102,7 +105,7 @@ struct UTF7
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -119,7 +122,7 @@ struct UTF32
         }
         return (char32_t)-1;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
     {
         uint8_t len4;
         const auto ret = From(reinterpret_cast<const char32_t*>(src), size / 4, len4);
@@ -136,7 +139,7 @@ struct UTF32
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return 4 * To(src, size / 4, reinterpret_cast<char32_t*>(dest));
     }
@@ -183,7 +186,7 @@ struct UTF8
         }
         return (char32_t)-1;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
     {
         return From(src, size, len);
     }
@@ -220,7 +223,7 @@ struct UTF8
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -253,6 +256,8 @@ private:
     static uint8_t ToBE(const char32_t src, const size_t size, char16_t* __restrict const dest0)
     {
         uint8_t* __restrict const dest = reinterpret_cast<uint8_t*>(dest0);
+        if (size < 1)
+            return 0;
         if (src < 0xd800)
         {
             dest[0] = uint8_t(src >> 8);
@@ -267,7 +272,7 @@ private:
             dest[1] = src & 0xff;
             return 1;
         }
-        if (src < 0x200000)
+        if (size >= 2 && src < 0x200000)
         {
             const auto tmp = src - 0x10000;
             dest[0] = uint8_t(0xd8 | (tmp >> 18)), dest[1] = ((tmp >> 10) & 0xff);
@@ -370,7 +375,7 @@ struct GB18030
         }
         return (char32_t)-1;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
     {
         return From(src, size, len);
     }
@@ -419,7 +424,7 @@ struct GB18030
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }

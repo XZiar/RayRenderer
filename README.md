@@ -42,6 +42,8 @@ Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-
 
 VS2017(`15.6`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
 
+Some Utilities have `Makefile` inside are capable to be compiled on Linux, but untested yet.
+
 Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 
 ## Additional Requirements

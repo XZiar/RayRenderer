@@ -10,9 +10,9 @@ namespace xziar::img::jpeg
 
 struct JpegHelper
 {
-    static void EmptyDecompFunc(j_decompress_ptr cinfo)
+    static void EmptyDecompFunc([[maybe_unused]] j_decompress_ptr cinfo)
     { }
-    static void EmptyCompFunc(j_compress_ptr cinfo)
+    static void EmptyCompFunc([[maybe_unused]] j_compress_ptr cinfo)
     { }
 
     static uint8_t ReadFromFile(j_decompress_ptr cinfo)
@@ -78,7 +78,7 @@ struct JpegHelper
 
     static void OnError(j_common_ptr cinfo)
     {
-        auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
+        //auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
         char jpegLastErrorMsg[JMSG_LENGTH_MAX];
         (*cinfo->err->format_message)(cinfo, jpegLastErrorMsg);
         ImgLog().error(u"LIBJPEG report an error: {}\n", jpegLastErrorMsg);

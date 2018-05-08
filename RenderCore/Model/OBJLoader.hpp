@@ -84,7 +84,7 @@ public:
                     if (len == 0)
                         output[cnt++] = 0;
                     else
-                        output[cnt++] = atof(Params[idx]);
+                        output[cnt++] = atof(Params[idx].data());
                 }
             });
         }

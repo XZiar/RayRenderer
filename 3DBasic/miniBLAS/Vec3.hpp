@@ -25,11 +25,15 @@ public:
         #endif
         }
     }
-    template<class T>
-    Vec3(const T x_, const T y_, const T z_, const T w_ = static_cast<T>(0)) noexcept
-        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_)) 
+    template<typename T>
+    Vec3(const T x_, const T y_, const T z_) noexcept
+        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(0)) 
     { }
-    template<class T>
+    template<typename T>
+    Vec3(const T x_, const T y_, const T z_, const T w_) noexcept
+        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_))
+    { }
+    template<typename T>
     explicit Vec3(const T *ptr) noexcept
         :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) 
     { }

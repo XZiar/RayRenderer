@@ -1,6 +1,7 @@
 #pragma once
+#include "SIMD.hpp"
 #include <type_traits> 
-#if defined(__SSE2__) || defined(__SSE3__) || defined(__SSSE3__) || defined(__SSE4_1__) || defined(__SSE4_2__) || defined(__AVX__) || defined(__AVX2__) || defined(__FMA__)
+#if COMMON_SIMD_LV >= 20
 #   include "3rdParty/itoa_sse2.hpp"
 #   define ITOA_U32 common::itoa::u32toa_sse2
 #   define ITOA_U64 common::itoa::u64toa_sse2

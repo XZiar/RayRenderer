@@ -17,26 +17,26 @@ namespace internal
     inline uint64_t make_type2() { return 0; }
     template<typename T>
     inline uint64_t make_type2(const T &arg) { return make_type(arg); }
-    inline uint64_t make_type2(const char* arg) { return Arg::STRING; }
-    inline uint64_t make_type2(const char16_t* arg) { return Arg::STRING; }
-    inline uint64_t make_type2(const wchar_t* arg) { return Arg::WSTRING; }
-    inline uint64_t make_type2(const char32_t* arg) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const char*) { return Arg::STRING; }
+    inline uint64_t make_type2(const char16_t*) { return Arg::STRING; }
+    inline uint64_t make_type2(const wchar_t*) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const char32_t*) { return Arg::WSTRING; }
     template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char, T, A> &arg) { return Arg::STRING; }
+    inline uint64_t make_type2(const std::basic_string<char, T, A> &) { return Arg::STRING; }
     template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char16_t, T, A> &arg) { return Arg::STRING; }
+    inline uint64_t make_type2(const std::basic_string<char16_t, T, A> &) { return Arg::STRING; }
     template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<wchar_t, T, A> &arg) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const std::basic_string<wchar_t, T, A> &) { return Arg::WSTRING; }
     template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char32_t, T, A> &arg) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const std::basic_string<char32_t, T, A> &) { return Arg::WSTRING; }
     template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char, T> &arg) { return Arg::STRING; }
+    inline uint64_t make_type2(const std::basic_string_view<char, T> &) { return Arg::STRING; }
     template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char16_t, T> &arg) { return Arg::STRING; }
+    inline uint64_t make_type2(const std::basic_string_view<char16_t, T> &) { return Arg::STRING; }
     template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<wchar_t, T> &arg) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const std::basic_string_view<wchar_t, T> &) { return Arg::WSTRING; }
     template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char32_t, T> &arg) { return Arg::WSTRING; }
+    inline uint64_t make_type2(const std::basic_string_view<char32_t, T> &) { return Arg::WSTRING; }
 
     template <typename Arg, typename... Args>
     inline uint64_t make_type2(const Arg &first, const Args & ... tail) 

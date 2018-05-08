@@ -56,8 +56,14 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
 #pragma region GRAY->GRAYA
 inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
+#if defined(COMPILER_MSVC)
+#   pragma warning(suppress: 4309)
+    constexpr int16_t AlphaMaskVal = static_cast<int16_t>(0xff00);
+#else
+    constexpr int16_t AlphaMaskVal = static_cast<int16_t>(0xff00);
+#endif
 #if COMMON_SIMD_LV >= 200
-    const auto alphaMask = _mm256_set1_epi16((int16_t)0xff00);
+    const auto alphaMask = _mm256_set1_epi16(AlphaMaskVal);
     const auto shuffleMask1 = _mm256_setr_epi8(0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1);
     const auto shuffleMask2 = _mm256_setr_epi8(8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1, 8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1);
     while (count > 64)
@@ -76,7 +82,7 @@ inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict src
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//16~23,24~31
     }
 #elif COMMON_SIMD_LV >= 31
-    const auto alphaMask = _mm_set1_epi16(0xff00);
+    const auto alphaMask = _mm_set1_epi16(AlphaMaskVal);
     const auto shuffleMask1 = _mm_setr_epi8(0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1);
     const auto shuffleMask2 = _mm_setr_epi8(8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1);
     while (count > 64)

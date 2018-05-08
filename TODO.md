@@ -35,4 +35,5 @@
   - [ ] More buttons and proper icon
 
 * Global
-  - [ ] Add GacUI 
+  - [ ] Add GacUI
+  - [ ] Port some utilities to Linux 

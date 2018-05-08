@@ -60,5 +60,6 @@
   <ItemGroup>
     <None Include="LICENSE.rst" />
     <None Include="README.rst" />
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

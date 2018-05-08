@@ -7,32 +7,9 @@ namespace fmt
 
 namespace internal
 {
-    /*
-    template<size_t SizeWchar>
-    char16_t ToChar16(const wchar_t ch)
-    {
-        static_assert(false, "sizeof(wchar_t) mismatch char16_t nor char32_t");
-    }
-    template<>
-    char16_t ToChar16<sizeof(char16_t)>(const wchar_t ch) { return ch; }
-    template<>
-    char16_t ToChar16<sizeof(char32_t)>(const wchar_t ch)
-    {
-        char16_t tmp[2];
-        auto cnt = common::str::detail::UTF16::ToBytes((char32_t)ch, 2, true, (char*)&tmp[0]);
-        if (cnt == 1)
-            return tmp[0];
-        else
-            return 0xfffd; //unrecognizable
-    }
 
-    char16_t CharTraits<char16_t>::convert(wchar_t ch)
-    {
-        return ToChar16<sizeof(wchar_t)>(ch);
-    }
-    */
     template <typename Src, typename Char, typename T>
-    int format_float_(Char *buffer, std::size_t size, const Char *format, unsigned width, int precision, T value)
+    static int format_float_(Char *buffer, std::size_t size, const Char *format, unsigned width, int precision, T value)
     {
         if constexpr(sizeof(Char) == sizeof(wchar_t))
         {

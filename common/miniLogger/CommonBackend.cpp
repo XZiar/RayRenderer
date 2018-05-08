@@ -150,14 +150,16 @@ protected:
     }
     void virtual OnStop() override
     {
+        File.Flush();
     }
 public:
-    FileBackend(const fs::path& path) : File(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::TEXT)) { }
+    FileBackend(const fs::path& path) : File(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::BINARY)) 
+    { } // using binary to bypass encoding
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-
-        //File.Write();
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
+        File.Write(writer.size() * sizeof(char16_t), writer.data());
     }
 };
 

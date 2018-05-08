@@ -15,7 +15,7 @@ namespace detail
 constexpr auto GenLevelNumStr()
 {
     std::array<char16_t, 256 * 4> ret{ u'\0' };
-    for (uint32_t i = 0, j = 0; i < 256; ++i)
+    for (uint16_t i = 0, j = 0; i < 256; ++i)
     {
         ret[j++] = i / 100 + u'0';
         ret[j++] = (i % 100) / 10 + u'0';

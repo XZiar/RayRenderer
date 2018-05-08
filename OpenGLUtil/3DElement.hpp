@@ -8,8 +8,8 @@ namespace b3d
 {
 using std::string;
 
-constexpr float PI_float = float(3.14159265358979323846);
-constexpr double PI_double = double(3.14159265358979323846);
+constexpr float PI_float = (float)(3.14159265358979323846);
+constexpr double PI_double = (double)(3.14159265358979323846);
 
 template<typename T>
 inline T ang2rad(T in)
