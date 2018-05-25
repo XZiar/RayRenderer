@@ -115,7 +115,7 @@ void _oglFrameBuffer::AttachStencilTexture(const oglRBO& rbo)
 {
     if (rbo->Type != _oglRenderBuffer::RBOType::Stencil)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"rbo type missmatch");
-    glNamedFramebufferRenderbufferEXT(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
+    glNamedFramebufferRenderbufferEXT(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
     DepthAttachment = rbo; StencilAttachment = rbo;
 }
 
@@ -123,6 +123,7 @@ void _oglFrameBuffer::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
     if (rbo->Type != _oglRenderBuffer::RBOType::DepthStencil)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"rbo type missmatch");
+    glNamedFramebufferRenderbufferEXT(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
 }
 
 }

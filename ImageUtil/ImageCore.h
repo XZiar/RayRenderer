@@ -98,6 +98,9 @@ public:
     void FlipVertical();
     void FlipHorizontal();
     void Rotate180();
+    Image FlipToVertical() const;
+    Image FlipToHorizontal() const;
+    Image RotateTo180() const;
     ///<summary>Place other image into current image</summary>  
     ///<param name="other">image being putted</param>
     ///<param name="srcX">image source's left-top position</param>

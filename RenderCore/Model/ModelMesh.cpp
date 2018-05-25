@@ -128,7 +128,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath) try
             }break;
         case "vt"_hash://texcoord
             {
-                Coord2D tmpc(atof(line.Params[1].data()), 1.0f - atof(line.Params[2].data()));
+                Coord2D tmpc(atof(line.Params[1].data()), atof(line.Params[2].data()));
                 tmpc.regulized_mirror();
                 texcs.push_back(tmpc);
             }break;

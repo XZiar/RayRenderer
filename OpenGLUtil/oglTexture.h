@@ -118,7 +118,7 @@ protected:
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
     void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept;
     void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept;
-    void SetData(const bool isSub, const Image& img, const bool normalized) noexcept;
+    void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept;
 
     void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
     void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept;
@@ -126,7 +126,7 @@ public:
     std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
     optional<vector<uint8_t>> GetCompressedData();
     vector<uint8_t> GetData(const TextureDataFormat dformat);
-    Image GetImage(const ImageDataType format);
+    Image GetImage(const ImageDataType format, const bool flipY = true);
 };
 
 
@@ -151,7 +151,7 @@ public:
 
     void SetData(const TextureDataFormat dformat, const void *data);
     void SetData(const TextureDataFormat dformat, const oglPBO& buf);
-    void SetData(const Image& img, const bool normalized = true);
+    void SetData(const Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
     void SetData(const TextureDataFormat dformat, const vector<T, A>& data) 
     { 
@@ -180,7 +180,7 @@ public:
 
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
-    void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true);
+    void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data) 
     { 
@@ -211,7 +211,7 @@ public:
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
     
     void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
-    void SetTextureLayer(const uint32_t layer, const Image& img);
+    void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true);
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
 

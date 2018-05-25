@@ -146,15 +146,26 @@ void _oglContext::SetFaceCulling(const FaceCullingType type)
     FaceCulling = type;
 }
 
-void _oglContext::SetFBO(const oglFBO& fbo) const
+bool _oglContext::SetFBO(const oglFBO& fbo)
 {
-    if (fbo)
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo->FBOId);
-    else
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (FrameBuffer != fbo)
+    {
+        if (fbo)
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo->FBOId);
+        else
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        FrameBuffer = fbo;
+        return true;
+    }
+    return false;
 }
 
-void _oglContext::SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height) const
+void _oglContext::ClearFBO()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void _oglContext::SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height)
 {
     glViewport(x, y, width, height);
 }

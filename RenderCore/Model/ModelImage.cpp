@@ -51,6 +51,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
         newImg.Resize(newW, newH, true, false);
         return LoadImgToFakeTex(picPath, std::move(img), format);
     }
+    img.FlipVertical(); // pre-flip since after compression, OGLU won't care about vertical coordnate system
 
     const auto pms = std::make_shared<std::promise<FakeTex>>();
     auto ret = std::make_shared<common::PromiseResultSTD<FakeTex, true>>(*pms);

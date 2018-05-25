@@ -61,6 +61,7 @@ public:
 private:
     void *Hdc, *Hrc;
     DBGLimit DbgLimit;
+    oglFBO FrameBuffer;
     const uint32_t Uid;
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
@@ -75,9 +76,11 @@ public:
     DepthTestType GetDepthTest() { return DepthTestFunc; }
     FaceCullingType GetFaceCulling() { return FaceCulling; }
 
-    void SetFBO(const oglFBO& fbo) const;
-    void SetViewPort(const miniBLAS::VecI4& viewport) const { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
-    void SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height) const;
+    bool SetFBO(const oglFBO& fbo = {});
+    void ClearFBO();
+    
+    void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
+    void SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height);
     miniBLAS::VecI4 GetViewPort() const;
 };
 

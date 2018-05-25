@@ -259,11 +259,12 @@ void _oglTexture2D::SetData(const bool isSub, const TextureDataFormat dformat, c
     buf->unbind();
 }
 
-void _oglTexture2D::SetData(const bool isSub, const Image& img, const bool normalized) noexcept
+void _oglTexture2D::SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept
 {
     GLenum datatype, comptype;
     ParseFormat(img.DataType, normalized, datatype, comptype);
-    SetData(isSub, datatype, comptype, img.GetRawPtr());
+    const auto theimg = flipY ? img.FlipToVertical() : img;
+    SetData(isSub, datatype, comptype, theimg.GetRawPtr());
 }
 
 void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
@@ -303,7 +304,7 @@ vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
     return output;
 }
 
-Image _oglTexture2D::GetImage(const ImageDataType format)
+Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
 {
     const auto[w, h] = GetInternalSize2();
     Image image(format);
@@ -311,6 +312,8 @@ Image _oglTexture2D::GetImage(const ImageDataType format)
     GLenum datatype, comptype;
     ParseFormat(format, true, datatype, comptype);
     glGetTextureImageEXT(textureID, (GLenum)Type, 0, comptype, datatype, image.GetRawPtr());
+    if (flipY)
+        image.FlipToVertical();
     return image;
 }
 
@@ -337,11 +340,11 @@ void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const oglPBO&
     _oglTexture2D::SetData(true, dformat, buf);
 }
 
-void _oglTexture2DStatic::SetData(const Image & img, const bool normalized)
+void _oglTexture2DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
 {
     if (img.Width != Width || img.Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"image's size msmatch with oglTex2D(S)");
-    _oglTexture2D::SetData(true, img, normalized);
+    _oglTexture2D::SetData(true, img, normalized, flipY);
 }
 
 void _oglTexture2DStatic::SetCompressedData(const void *data, const size_t size)
@@ -387,10 +390,10 @@ void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const Textu
     _oglTexture2D::SetData(false, dformat, buf);
 }
 
-void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized)
+void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized, const bool flipY)
 {
     CheckAndSetMetadata(iformat, img.Width, img.Height);
-    _oglTexture2D::SetData(false, img, normalized);
+    _oglTexture2D::SetData(false, img, normalized, flipY);
 }
 
 void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const void *data, const size_t size)
@@ -443,7 +446,7 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
     }
 }
 
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img)
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
 {
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
@@ -453,6 +456,7 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
     GLenum datatype, comptype;
     ParseFormat(img.DataType, true, datatype, comptype);
+    const auto theimg = flipY ? img.FlipToVertical() : img;
     glTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, img.Width, img.Height, 1, comptype, datatype, img.GetRawPtr());
 }
 

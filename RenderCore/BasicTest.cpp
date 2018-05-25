@@ -59,11 +59,16 @@ void BasicTest::init2d(const fs::path& shaderPath)
     picVAO.reset(VAODrawMode::Triangles);
     screenBox.reset();
     {
-        Vec3 DatVert[] = { { -1.0f, -1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },
-        { 1.0f, 1.0f, 0.0f },{ -1.0f, 1.0f, 0.0f },{ 1.0f, -1.0f, 0.0f } };
+        const Point pa({ -1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }),
+            pb({ 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f }),
+            pc({ -1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f }),
+            pd({ 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f });
+        Point DatVert[] = { pa,pb,pc, pd,pc,pb };
+
         screenBox->Write(DatVert, sizeof(DatVert));
         picVAO->Prepare()
-            .SetFloat(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec3), 3, 0)
+            .SetFloat(screenBox, prog2D->Attr_Vert_Pos, sizeof(Point), 2, 0)
+            .SetFloat(screenBox, prog2D->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3))
             .SetDrawSize(0, 6);
     }
 }
@@ -179,6 +184,7 @@ void BasicTest::initTex()
     {
         MiddleFrame.reset();
         tmpTex.reset(1280, 720, TextureInnerFormat::RGBA8);
+        tmpTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         MiddleFrame->AttachColorTexture(tmpTex, 0);
         oglRBO mainRBO(1280, 720, oglu::RBOFormat::Depth24Stencil8);
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
@@ -251,9 +257,10 @@ void BasicTest::fontTest(const char32_t word)
             fontCreator->setChar(word, false);
             const auto imgA = fonttex->GetImage(ImageDataType::GRAY);
             img::WriteImage(imgA, Basepath / u"A.png");
-            const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
-            fonttex->SetData(TextureInnerFormat::R8, imgShow);
+            auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
             img::WriteImage(imgShow, Basepath / u"Show.png");
+            imgShow.FlipVertical(); // pre-flip
+            fonttex->SetData(TextureInnerFormat::R8, imgShow, true, false);
             fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
             fontViewer->BindTexture(fonttex);
         }
@@ -304,6 +311,8 @@ void BasicTest::Draw()
     }
     if (mode)
     {
+        glContext->SetFBO();
+        prog3D->SetProject(cam);
         prog3D->SetCamera(cam);
         auto drawcall = prog3D->Draw();
         for (const auto& d : drawables)
@@ -316,8 +325,30 @@ void BasicTest::Draw()
     }
     else
     {
+        {
+            const auto ow = cam.width, oh = cam.height;
+            const auto[w, h] = tmpTex->GetSize();
+            glContext->SetFBO(MiddleFrame);
+            glContext->SetViewPort(0, 0, w, h);
+            cam.resize(w, h);
+            prog3D->SetProject(cam);
+            glContext->ClearFBO();
+            {
+                auto drawcall = prog3D->Draw();
+                for (const auto& d : drawables)
+                {
+                    if (!d->ShouldRender)
+                        continue;
+                    d->Draw(drawcall);
+                    drawcall.Restore();
+                }
+            }
+            glContext->SetFBO();
+            glContext->SetViewPort(0, 0, ow, oh);
+            cam.resize(ow, oh);
+            prog2D->Draw().Draw(picVAO);
+        }
         //fontViewer->Draw();
-        prog2D->Draw().Draw(picVAO);
     }
 }
 

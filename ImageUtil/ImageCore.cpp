@@ -64,6 +64,35 @@ void Image::Rotate180()
     }
 }
 
+
+Image Image::FlipToVertical() const
+{
+    Image img(DataType);
+    img.SetSize(Width, Height);
+
+    const auto lineStep = RowSize();
+    const auto ptrFrom = Data + (Height - 1) * lineStep;
+    auto* const ptrTo = img.Data;
+    for (auto i = Height; i--;)
+        memcpy_s(ptrTo, lineStep, ptrFrom, lineStep);
+    return img;
+}
+
+Image Image::FlipToHorizontal() const
+{
+    Image img(*this);
+    img.FlipHorizontal();
+    return img;
+}
+
+Image Image::RotateTo180() const
+{
+
+    Image img(*this);
+    img.Rotate180();
+    return img;
+}
+
 void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t srcY, const uint32_t destX, const uint32_t destY)
 {
     if (src.Data == Data)
