@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef MINILOG_EXPORT
 #   define MINILOGAPI _declspec(dllexport)
 #   define COMMON_EXPORT
@@ -8,7 +8,7 @@
 #   define MINILOGAPI _declspec(dllimport)
 # endif
 #else
-# define MINILOGAPI 
+# define MINILOGAPI __attribute__ ((visibility ("default")))
 #endif
 
 
@@ -32,7 +32,6 @@ namespace common
 {
 namespace mlog
 {
-namespace fs = std::experimental::filesystem;
 
 namespace detail
 {

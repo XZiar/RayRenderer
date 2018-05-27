@@ -11,20 +11,20 @@
 #   define FTell64(fp) ftello(fp)
 #endif
 
+#include "CommonRely.hpp"
+#include "CommonMacro.hpp"
+#include "StrCharset.hpp"
+#include "Exceptions.hpp"
+#include "AlignedContainer.hpp"
+
 #include <cstddef>
 #include <cstdio>
 #include <cstdint>
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <experimental/filesystem>
 #include <optional>
 
-#include "CommonRely.hpp"
-#include "CommonMacro.hpp"
-#include "StrCharset.hpp"
-#include "Exceptions.hpp"
-#include "AlignedContainer.hpp"
 
 #if defined(USING_CHARDET) && !defined(UCHARDETLIB_H_)
 namespace uchdet
@@ -36,7 +36,7 @@ namespace uchdet
 namespace common::file
 {
 
-namespace fs = std::experimental::filesystem;
+
 using std::string;
 using std::u16string;
 using std::byte;
@@ -314,7 +314,7 @@ private:
         BufLen = File.ReadMany(Buffer.GetSize(), Buffer.GetRawPtr());
     }
 public:
-    BufferedFileReader(FileObject&& file, size_t bufSize) : Buffer(bufSize), File(std::move(file))
+    BufferedFileReader(FileObject&& file, const size_t bufSize) : Buffer(bufSize), File(std::move(file))
     {
         BufBegin = File.CurrentPos();
         LoadBuffer();

@@ -2,6 +2,7 @@
 #include "StrCharset.hpp"
 #if defined(_WIN32)
 # define WIN32_LEAN_AND_MEAN 1
+# define NOMINMAX 1
 # include <Windows.h>
 # include <ProcessThreadsApi.h>
 #else

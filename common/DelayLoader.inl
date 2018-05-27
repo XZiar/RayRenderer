@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN 1
+#define NOMINMAX 1
 #include <Windows.h>
 #define DELAYIMP_INSECURE_WRITABLE_HOOKS
 #include <delayimp.h>

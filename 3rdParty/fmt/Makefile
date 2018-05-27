@@ -34,7 +34,7 @@ APPS	= $(APPPATH)lib$(NAME).a
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(SCOMPILER) rcs $(APPPATH)lib$@.a $^
+	$(SCOMPILER) rcs $(APPS) $^
 
 $(OBJPATH)%.o: %
 	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@

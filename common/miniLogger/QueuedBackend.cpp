@@ -17,7 +17,11 @@ void LoggerQBackend::LoggerWorker()
         if (!MsgQueue.pop(msg))
         {
             IsWaiting = true;
-            CondWait.wait(lock, [&]() { return MsgQueue.pop(msg) || !ShouldRun; });
+            CondWait.wait(lock, [&]() 
+            {
+                const bool poped = MsgQueue.pop(msg);
+                return poped || !ShouldRun;
+            });
             IsWaiting = false;
         }
         if (msg)

@@ -1,123 +1,13 @@
 #include "MiniLoggerRely.h"
 #include "QueuedBackend.h"
 #include "common/FileEx.hpp"
+#include "common/ColorConsole.inl"
 #if defined(_WIN32)
-#   define WIN32_LEAN_AND_MEAN 1
-#   include <Windows.h>
+#   include <WinBase.h>
 #endif
 
 namespace common::mlog
 {
-
-#if defined(_WIN32)
-class ConsoleBackend : public LoggerQBackend
-{
-private:
-    HANDLE hConsole;
-    CONSOLE_SCREEN_BUFFER_INFO csbInfo;
-    LogLevel curlevel; //Single-thread executor, no need for thread-protection
-    void changeState(const LogLevel lv)
-    {
-        constexpr WORD BLACK = 0;
-        constexpr WORD BLUE = 1;
-        constexpr WORD GREEN = 2;
-        constexpr WORD CYAN = 3;
-        constexpr WORD RED = 4;
-        constexpr WORD MAGENTA = 5;
-        constexpr WORD BROWN = 6;
-        constexpr WORD LIGHTGRAY = 7;
-        constexpr WORD DARKGRAY = 8;
-        constexpr WORD LIGHTBLUE = 9;
-        constexpr WORD LIGHTGREEN = 10;
-        constexpr WORD LIGHTCYAN = 11;
-        constexpr WORD LIGHTRED = 12;
-        constexpr WORD LIGHTMAGENTA = 13;
-        constexpr WORD YELLOW = 14;
-        constexpr WORD WHITE = 15;
-        if (curlevel != lv)
-        {
-            curlevel = lv;
-            WORD attrb = BLACK;
-            switch (lv)
-            {
-            case LogLevel::Error:
-                attrb = LIGHTRED; break;
-            case LogLevel::Warning:
-                attrb = YELLOW; break;
-            case LogLevel::Success:
-                attrb = LIGHTGREEN; break;
-            case LogLevel::Info:
-                attrb = WHITE; break;
-            case LogLevel::Verbose:
-                attrb = LIGHTMAGENTA; break;
-            case LogLevel::Debug:
-                attrb = LIGHTCYAN; break;
-            }
-            SetConsoleTextAttribute(hConsole, attrb);
-        }
-    }
-    void virtual OnStart() override 
-    {
-        common::SetThreadName(u"Console-MLogger-Backend");
-    }
-public:
-    ConsoleBackend()
-    {
-        auto handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD mode;
-        hConsole = GetConsoleMode(handle, &mode) ? handle : nullptr;
-        curlevel = LogLevel::None;
-    }
-    ~ConsoleBackend() override 
-    {
-        if(hConsole)
-            CloseHandle(hConsole);
-    }
-    void virtual OnPrint(const LogMessage& msg) override
-    {
-        if (hConsole == nullptr)
-            return;
-        changeState(msg.Level);
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"[{}]{}", msg.Source, msg.GetContent());
-        uint32_t outlen;
-        WriteConsole(hConsole, writer.data(), (DWORD)writer.size(), (LPDWORD)&outlen, NULL);
-    }
-};
-#else
-class ConsoleBackend : public LoggerQBackend
-{
-private:
-    static constexpr const char (&ToAnsiColor(const LogLevel lv))[8]
-    {
-        switch (lv)
-        {
-        case LogLevel::Error:   return "\x1b[91m%s";
-        case LogLevel::Warning: return "\x1b[93m%s";
-        case LogLevel::Success: return "\x1b[92m%s";
-        case LogLevel::Info:    return "\x1b[97m%s";
-        case LogLevel::Verbose: return "\x1b[95m%s";
-        case LogLevel::Debug:   return "\x1b[96m%s";
-        default:                return "%s\0\0\0\0\0";
-        }
-    }
-    void virtual OnStart() override
-    {
-        common::SetThreadName(u"Console-MLogger-Backend");
-    }
-public:
-    ConsoleBackend()
-    { }
-    ~ConsoleBackend() override
-    { }
-    void virtual OnPrint(const LogMessage& msg) override
-    {
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"[{}]{}", msg.Source, msg.GetContent());
-        const auto text = str::to_u8string(writer.data(), writer.size(), str::Charset::UTF16LE);
-        fprintf(stdout, ToAnsiColor(msg.Level), text.c_str());
-    }
-};
-#endif
-
 
 class DebuggerBackend : public LoggerQBackend
 {
@@ -127,15 +17,67 @@ protected:
         common::SetThreadName(u"Debugger-MLogger-Backend");
     }
 public:
+    static void PrintText(const std::u16string_view& txt)
+    {
+    #if defined(_WIN32)
+        OutputDebugString((LPCWSTR)txt.data());
+    #else
+        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
+        fprintf(stderr, "%s", text.c_str());
+    #endif
+    }
     void virtual OnPrint(const LogMessage& msg) override
     {
         auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
-    #if defined(_WIN32)
-        OutputDebugString((LPCWSTR)writer.c_str());
-    #else
-        const auto text = str::to_u8string(writer.data(), writer.size(), str::Charset::UTF16LE);
-        fprintf(stderr, "%s", text.c_str());
-    #endif
+        PrintText(std::u16string_view(writer.data(), writer.size()));
+    }
+};
+
+
+class ConsoleBackend : public LoggerQBackend
+{
+private:
+    std::unique_ptr<const console::ConsoleHelper> Helper;
+    static constexpr console::ConsoleColor ToColor(const LogLevel lv)
+    {
+        using console::ConsoleColor;
+        switch (lv)
+        {
+        case LogLevel::Error:   return ConsoleColor::BrightRed;
+        case LogLevel::Warning: return ConsoleColor::BrightYellow;
+        case LogLevel::Success: return ConsoleColor::BrightGreen;
+        case LogLevel::Info:    return ConsoleColor::BrightWhite;
+        case LogLevel::Verbose: return ConsoleColor::BrightMagenta;
+        case LogLevel::Debug:   return ConsoleColor::BrightCyan;
+        default:                return ConsoleColor::White;
+        }
+    }
+    void virtual OnStart() override
+    {
+        common::SetThreadName(u"Console-MLogger-Backend");
+    }
+public:
+    ConsoleBackend()
+    {
+        try
+        {
+            Helper = std::make_unique<const console::ConsoleHelper>();
+        }
+        catch (const std::runtime_error&)
+        {
+            DebuggerBackend::PrintText(u"Cannot initilzie the Console\n");
+        }
+    }
+    ~ConsoleBackend() override
+    { }
+    void virtual OnPrint(const LogMessage& msg) override
+    {
+        if (!Helper)
+            return;
+        const auto& color = console::ConsoleHelper::GetColorStr(ToColor(msg.Level));
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}\x1b[39m", color, msg.Source, msg.GetContent());
+        //Helper->Print(ToColor(msg.Level), std::u16string_view(writer.data(), writer.size()));
+        Helper->Print(std::u16string_view(writer.data(), writer.size()));
     }
 };
 

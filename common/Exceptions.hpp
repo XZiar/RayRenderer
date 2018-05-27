@@ -9,9 +9,12 @@
 #include <vector>
 #include <array>
 #include <exception>
-#include <experimental/filesystem>
 #include <any>
-
+#if defined(__GNUC__)
+#   include <experimental/filesystem>
+#else
+#   include <filesystem>
+#endif
 
 namespace common
 {
@@ -178,8 +181,11 @@ inline constexpr auto MakeGccToU16Str(const char (&str)[N])
 #   define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), { u"" __FILE__, ::common::MakeGccToU16Str(__PRETTY_FUNCTION__).data(), (size_t)(__LINE__) })
 #endif
 
-
+#if defined(__GNUC__)
 namespace fs = std::experimental::filesystem;
+#else
+namespace fs = std::filesystem;
+#endif
 
 class FileException : public BaseException
 {

@@ -41,7 +41,7 @@
 namespace oclu
 {
 namespace str = common::str;
-namespace fs = common::file::fs;
+namespace fs = common::fs;
 using std::string;
 using std::wstring;
 using std::u16string;

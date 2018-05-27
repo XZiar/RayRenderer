@@ -5,7 +5,7 @@
 
 * OpenGLUtil
   - [ ] Add mipmap
-  - [ ] Implement FrameBuffer
+  - [x] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
   - [ ] Add RenderDoc support (conditionally remove DSA_EXT, or fork RenderDoc)
   - [x] Add Intel's ISPC tex-compressor as texture compresser

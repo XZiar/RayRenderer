@@ -59,7 +59,7 @@ class _oclGLBuffer;
 namespace oglu
 {
 namespace str = common::str;
-namespace fs = common::file::fs;
+namespace fs = common::fs;
 using std::string;
 using std::string_view;
 using std::wstring;

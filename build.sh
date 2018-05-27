@@ -5,10 +5,12 @@ Action=${2:-"build"}
 Target=${3:-"Debug"}
 Paltform=${4:-"x64"}
 ProjDir=$(pwd)/
-echo "Project Directory:$ProjDir"
-echo "Build:$Project"
-echo "Target:$Target"
-echo "Platform:$Paltform"
+
+if [ "$Project" = "help" ]
+then
+    echo "build.sh <project> [<build|clean>] [<Debug|Release>] [<x64|x86>]"
+    exit 0
+fi
 
 function build()
 {
@@ -20,6 +22,10 @@ function clean()
     make clean
 }
 
+echo "Project Directory:$ProjDir"
+echo "Build:$Project"
+echo "Target:$Target"
+echo "Platform:$Paltform"
 cd $Project
 
 case $Action in

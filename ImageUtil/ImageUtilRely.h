@@ -34,7 +34,7 @@
 
 namespace xziar::img
 {
-namespace fs = common::file::fs;
+namespace fs = common::fs;
 namespace str = common::str;
 using std::byte;
 using std::string;

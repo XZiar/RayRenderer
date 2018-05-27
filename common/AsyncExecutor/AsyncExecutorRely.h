@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef ASYEXE_EXPORT
 #   define ASYEXEAPI _declspec(dllexport)
 #   define COMMON_EXPORT
@@ -8,7 +8,7 @@
 #   define ASYEXEAPI _declspec(dllimport)
 # endif
 #else
-# define ASYEXEAPI 
+# define ASYEXEAPI __attribute__ ((visibility ("default")))
 #endif
 
 #include <cstdint>

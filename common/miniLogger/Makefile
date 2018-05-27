@@ -31,13 +31,13 @@ OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS))
 DEPS 	= $(patsubst %.o, %.d, $(OBJS))
 NAME	= miniLogger
 APPS	= $(APPPATH)lib$(NAME).so
-LIBRARYS	+= -lstdc++fs
+LIBRARYS	+= -lpthread -lstdc++fs
 DEPLIBS		+= -lfmt
 CPPFLAGS	+= -DMINILOG_EXPORT
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(COMPILER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(LIBRARYS) -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive -shared $^ -o $(APPPATH)lib$@.so
+	$(COMPILER) $(INCPATH) $(LDPATH) $(CPPFLAGS) -shared $^ -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 
 $(OBJPATH)%.o: %
 	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@

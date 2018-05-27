@@ -131,7 +131,7 @@ public:
         LogMessage* msg = GenerateLogMsg(level, formater, std::forward<Args>(args)...);
         
         AddRefCount(*msg, 1);
-        GlobalOutputer->Print(msg);
+        MiniLoggerBase::GlobalOutputer->Print(msg);
 
         if constexpr(DynamicBackend)
         {

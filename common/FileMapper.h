@@ -1,4 +1,5 @@
 #pragma once
+#error FileMapper not correctly implemented
 
 #include "CommonRely.hpp"
 #include "Wrapper.hpp"

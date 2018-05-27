@@ -31,13 +31,13 @@ OBJS 	= $(patsubst %, $(OBJPATH)%.o, $(SRCS))
 DEPS 	= $(patsubst %.o, %.d, $(OBJS))
 NAME	= AsyncExecutor
 APPS	= $(APPPATH)lib$(NAME).so
-LIBRARYS	+= -lminiLogger
+LIBRARYS	+= -lpthread -lminiLogger
 DEPLIBS		+= -lboost.context
 CPPFLAGS	+= -DASYEXE_EXPORT
 
 $(NAME): $(OBJS)
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(COMPILER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(LIBRARYS) -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive -shared $^ -o $(APPPATH)lib$@.so
+	$(COMPILER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $^ -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -shared -o $(APPS)
 
 $(OBJPATH)%.o: %
 	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@

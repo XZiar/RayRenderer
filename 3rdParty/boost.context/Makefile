@@ -39,7 +39,7 @@ APPS	= $(APPPATH)lib$(NAME).a
 
 $(NAME): $(OBJS) mkdir
 	$(info building ${NAME} [${TARGET} version on ${PLATFORM}] to ${APPPATH})
-	$(SCOMPILER) rcs $(APPPATH)lib$@.a $(OBJS)
+	$(SCOMPILER) rcs $(APPS) $(OBJS)
 
 $(OBJPATH)%.o: % mkdir
 	$(COMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
