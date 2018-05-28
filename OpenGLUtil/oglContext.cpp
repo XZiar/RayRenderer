@@ -165,9 +165,9 @@ void _oglContext::ClearFBO()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void _oglContext::SetViewPort(const int32_t x, const int32_t y, const int32_t width, const int32_t height)
+void _oglContext::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
 {
-    glViewport(x, y, width, height);
+    glViewport(x, y, (GLsizei)width, (GLsizei)height);
 }
 
 miniBLAS::VecI4 _oglContext::GetViewPort() const

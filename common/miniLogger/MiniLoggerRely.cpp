@@ -1,5 +1,6 @@
 #include "MiniLoggerRely.h"
 #include "common/ThreadEx.inl"
+#include "common/ColorConsole.inl"
 #include <array>
 
 #include <boost/version.hpp>

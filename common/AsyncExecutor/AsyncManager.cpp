@@ -59,7 +59,7 @@ bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
         Head = Tail = node;
         RunningMtx.unlock();
         common::SpinLocker::Unlock(ModifyFlag);
-        CondInner.notify_one();
+        CondWait.notify_one();
     }
     return true;
 }
@@ -109,22 +109,16 @@ PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16str
     }
 }
 
-void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::function<void(void)>& exiter)
+void AsyncManager::MainLoop()
 {
-    if (ShouldRun.exchange(true))
-        //has turn state into true, just return
-        return;
     std::unique_lock<std::mutex> cvLock(RunningMtx);
-    RunningThread = ThreadObject::GetCurrentThreadObject();
-    if (initer)
-        initer();
     AsyncAgent::GetRawAsyncAgent() = &Agent;
     common::SimpleTimer timer;
     while (ShouldRun)
     {
         if (Head == nullptr)
         {
-            CondInner.wait(cvLock);
+            CondWait.wait(cvLock);
             if (!ShouldRun.load(std::memory_order_relaxed)) //in case that waked by terminator
                 break;
         }
@@ -183,29 +177,12 @@ void AsyncManager::MainLoop(const std::function<void(void)>& initer, const std::
         if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
             std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
     }
-    OnTerminate(exiter);
-}
-
-void AsyncManager::Terminate()
-{
-    std::unique_lock<std::mutex> terminateLock(TerminateMtx); //ensure Mainloop no enter before waiting
-    if (!ShouldRun.exchange(false))
-        //has turn state into false, just return
-        return;
-    if (!RunningThread.IsAlive())
-        return;
-    if (RunningMtx.try_lock()) //MainLoop waiting
-    {
-        RunningMtx.unlock();
-        CondInner.notify_all();
-    }
-    CondOuter.wait(terminateLock);
 }
 
 void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
 {
     ShouldRun = false; //in case self-terminate
-    Logger.verbose(u"begin to exit");
+    Logger.verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
     //destroy all task
     common::SpinLocker locker(ModifyFlag); //ensure no pending adding
     for (Current = Head; Current != nullptr;)
@@ -235,11 +212,32 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
     }
     if (exiter)
         exiter();
+}
+
+bool AsyncManager::Start(const std::function<void(void)>& initer, const std::function<void(void)>& exiter)
+{
+    if (RunningThread.joinable() || ShouldRun.exchange(true)) //has turn state into true, just return
+        return false;
+    RunningThread = std::thread([&](const std::function<void(void)> initer, const std::function<void(void)> exiter)
     {
-        TerminateMtx.lock();
-        TerminateMtx.unlock();
-        CondOuter.notify_all();//in case waiting
-    }
+        if (initer)
+            initer();
+
+        this->MainLoop();
+
+        this->OnTerminate(exiter);
+    }, initer, exiter);
+    return true;
+}
+
+void AsyncManager::Stop()
+{
+    std::unique_lock<std::mutex> terminateLock(TerminateMtx); //ensure Mainloop no enter before waiting
+    if (!RunningThread.joinable()) //thread has been terminated
+        return;
+    ShouldRun = false;
+    CondWait.notify_all();
+    RunningThread.join();
 }
 
 
@@ -249,7 +247,7 @@ AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldS
 { }
 AsyncManager::~AsyncManager()
 {
-    OnTerminate();
+    this->Stop();
 }
 
 

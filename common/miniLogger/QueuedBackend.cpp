@@ -10,7 +10,6 @@ void LoggerQBackend::LoggerWorker()
 {
     std::unique_lock<std::mutex> lock(RunningMtx);
     OnStart();
-    CurThread = common::ThreadObject::GetCurrentThreadObject();
     LogMessage* msg;
     while (ShouldRun)
     {
@@ -36,8 +35,8 @@ void LoggerQBackend::LoggerWorker()
 
 void LoggerQBackend::Start()
 {
-    if(!ShouldRun.exchange(true))
-        std::thread(&LoggerQBackend::LoggerWorker, this).detach();
+    if(!ShouldRun.exchange(true) && !RunningThread)
+        RunningThread = std::make_unique<std::thread>(&LoggerQBackend::LoggerWorker, this);
 }
 
 LoggerQBackend::LoggerQBackend(const size_t initSize) : MsgQueue(initSize)
@@ -45,14 +44,11 @@ LoggerQBackend::LoggerQBackend(const size_t initSize) : MsgQueue(initSize)
 }
 LoggerQBackend::~LoggerQBackend()
 {
-    if (CurThread.IsAlive())
+    if (RunningThread && RunningThread->joinable())
     {
         ShouldRun = false;
-        {
-            CondWait.notify_all();
-            RunningMtx.lock(); //ensure worker stopped
-            RunningMtx.unlock();
-        }
+        CondWait.notify_all();
+        RunningThread->join();
     }
     //release the msgs left
     LogMessage* msg;

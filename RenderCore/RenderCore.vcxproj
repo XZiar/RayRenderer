@@ -209,6 +209,7 @@
     <None Include="2d.glsl" />
     <None Include="3d.glsl" />
     <None Include="3d_pbr.glsl" />
+    <None Include="postprocess.glsl" />
     <None Include="test.cl" />
   </ItemGroup>
   <ItemGroup>

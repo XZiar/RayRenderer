@@ -37,24 +37,16 @@ static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
 void BasicTest::init2d(const fs::path& shaderPath)
 {
     prog2D.reset(u"Prog 2D");
-    const string shaderSrc = LoadShaderFallback(shaderPath / u"2d.glsl", IDR_SHADER_2D);
+    const string shaderSrc = LoadShaderFallback(shaderPath / u"postprocess.glsl", IDR_SHADER_POSTPROC);
     try
     {
         prog2D->AddExtShaders(shaderSrc);
-    }
-    catch (const OGLException& gle)
-    {
-        basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"OpenGL compile fail");
-    }
-    try
-    {
         prog2D->Link();
     }
     catch (const OGLException& gle)
     {
-        basLog().error(u"Fail to link Program:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"link Program error");
+        basLog().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
+        COMMON_THROW(BaseException, L"2D OpenGL shader fail");
     }
     picVAO.reset(VAODrawMode::Triangles);
     screenBox.reset();
@@ -183,9 +175,9 @@ void BasicTest::initTex()
     }
     {
         MiddleFrame.reset();
-        tmpTex.reset(1280, 720, TextureInnerFormat::RGBA8);
-        tmpTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-        MiddleFrame->AttachColorTexture(tmpTex, 0);
+        fboTex.reset(1280, 720, TextureInnerFormat::RGBA8);
+        fboTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        MiddleFrame->AttachColorTexture(fboTex, 0);
         oglRBO mainRBO(1280, 720, oglu::RBOFormat::Depth24Stencil8);
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
         basLog().info(u"FBO status:{}\n", MiddleFrame->CheckIsComplete() ? u"complete" : u"not complete");
@@ -289,7 +281,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     init2d(shaderPath);
     init3d(shaderPath);
     //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
-    prog2D->State().SetTexture(tmpTex, "tex");
+    prog2D->State().SetTexture(fboTex, "tex");
     initUBO();
     for (const auto& prog : Prog3Ds)
     {
@@ -309,11 +301,11 @@ void BasicTest::Draw()
         if (HAS_FIELD(changed, ChangableUBO::Light))
             prepareLight();
     }
+    prog3D->SetCamera(cam);
     if (mode)
     {
         glContext->SetFBO();
         prog3D->SetProject(cam);
-        prog3D->SetCamera(cam);
         auto drawcall = prog3D->Draw();
         for (const auto& d : drawables)
         {
@@ -327,12 +319,10 @@ void BasicTest::Draw()
     {
         {
             const auto ow = cam.width, oh = cam.height;
-            const auto[w, h] = tmpTex->GetSize();
+            const auto[w, h] = fboTex->GetSize();
             glContext->SetFBO(MiddleFrame);
-            glContext->SetViewPort(0, 0, w, h);
-            cam.resize(w, h);
-            prog3D->SetProject(cam);
             glContext->ClearFBO();
+            Resize(w, h);
             {
                 auto drawcall = prog3D->Draw();
                 for (const auto& d : drawables)
@@ -346,17 +336,21 @@ void BasicTest::Draw()
             glContext->SetFBO();
             glContext->SetViewPort(0, 0, ow, oh);
             cam.resize(ow, oh);
-            prog2D->Draw().Draw(picVAO);
+            {
+                const auto sw = w * oh / h;
+                const auto widthscale = sw * 1.0f / ow;
+                prog2D->Draw().SetUniform("widthscale", widthscale).Draw(picVAO);
+            }
         }
         //fontViewer->Draw();
     }
 }
 
-void BasicTest::Resize(const int w, const int h)
+void BasicTest::Resize(const uint32_t w, const uint32_t h)
 {
     glContext->SetViewPort(0, 0, w, h);
     cam.resize(w, h);
-    prog2D->SetProject(cam);
+    //prog2D->SetProject(cam);
     prog3D->SetProject(cam);
 }
 

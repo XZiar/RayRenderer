@@ -36,17 +36,7 @@ namespace WPFTest
             public Light Current
             {
                 get { return Holder[curLgtIdx]; }
-                set
-                {
-                    if (Holder.Container.Count > 1)
-                    {
-                        var a = value;
-                        var b = Holder.Container[0];
-                        var c = Holder.Container[1];
-                        var d = Holder.Container[1];
-                    }
-                    CurLgtIdx = Holder.GetIndex(value);
-                }
+                set { CurLgtIdx = Holder.GetIndex(value); }
             }
             internal LightList(LightHolder holder) : base(holder.Lights)
             {
@@ -195,8 +185,6 @@ namespace WPFTest
 
         public void Move(float x, float y, float z, OPObject obj)
         {
-            if (!Test.Mode) //skip 2D mode
-                return;
             switch(obj)
             {
             case OPObject.Drawable:
@@ -212,8 +200,6 @@ namespace WPFTest
         }
         public void Rotate(float x, float y, float z, OPObject obj)
         {
-            if (!Test.Mode) //skip 2D mode
-                return;
             //conver to radius
             const float muler = (float)(Math.PI / 180);
             x *= muler; y *= muler; z *= muler;

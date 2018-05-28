@@ -22,6 +22,7 @@
     <None Include="2d.glsl" />
     <None Include="3d_pbr.glsl" />
     <None Include="test.cl" />
+    <None Include="postprocess.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">

@@ -2,11 +2,11 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "common/miniLogger/miniLogger.h"
-#include "common/ThreadEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/PromiseTaskSTD.hpp"
 #include <atomic>
 #include <future>
+#include <thread>
 #include <condition_variable>
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
@@ -60,11 +60,11 @@ class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
     friend class AsyncAgent;
 private:
     static void CallWrapper(detail::AsyncTaskNode* node, const AsyncAgent& agent);
-    std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode OR ShouldRun
+    std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode
     std::atomic_bool ShouldRun { false };
     std::atomic_uint32_t TaskUid { 0 };
     std::mutex RunningMtx, TerminateMtx;
-    std::condition_variable CondInner, CondOuter;
+    std::condition_variable CondWait;
     boost::context::continuation Context;
     std::atomic<detail::AsyncTaskNode*> Head { nullptr }, Tail { nullptr };
     detail::AsyncTaskNode *Current = nullptr;
@@ -72,20 +72,22 @@ private:
     const std::u16string Name;
     const AsyncAgent Agent;
     common::mlog::MiniLogger<false> Logger;
-    ThreadObject RunningThread;
+    std::thread RunningThread;
 
     bool AddNode(detail::AsyncTaskNode* node);
+
     detail::AsyncTaskNode* DelNode(detail::AsyncTaskNode* node);//only called from self thread
     void Resume();
+    void MainLoop();
+    void OnTerminate(const std::function<void(void)>& exiter = {}); //run at worker thread
 public:
     AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
     ~AsyncManager();
     PromiseResult<void> AddTask(const AsyncTaskFunc& task, std::u16string taskname = u"", const uint32_t stackSize = 0);
     PromiseResult<void> AddTask(const AsyncTaskFunc& task, const std::u16string& taskname, const StackSize stackSize)
     { return AddTask(task, taskname, static_cast<uint32_t>(stackSize)); }
-    void MainLoop(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
-    void Terminate();
-    void OnTerminate(const std::function<void(void)>& exiter = {});
+    bool Start(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
+    void Stop();
 };
 
 

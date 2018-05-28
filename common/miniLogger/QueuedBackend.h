@@ -1,6 +1,5 @@
 #pragma once
 #include "MiniLoggerRely.h"
-#include "common/ThreadEx.h"
 #if defined(_MSC_VER)
 #   define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #   pragma warning(disable:4996)
@@ -12,6 +11,10 @@
 #include <mutex>
 #include <condition_variable>
 
+namespace std
+{
+class thread;
+}
 
 namespace common::mlog
 {
@@ -20,7 +23,7 @@ class MINILOGAPI LoggerQBackend : public LoggerBackend
 {
 protected:
     boost::lockfree::queue<LogMessage*> MsgQueue;
-    ThreadObject CurThread;
+    std::unique_ptr<std::thread> RunningThread;
     std::mutex RunningMtx;
     std::condition_variable CondWait;
     std::atomic_bool ShouldRun = false;

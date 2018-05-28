@@ -22,15 +22,11 @@ struct TexCompManExecutor : public NonCopyable
     common::asyexe::AsyncManager Executor;
     TexCompManExecutor() : Executor(u"TexCompMan")
     {
-        std::thread([this]() 
-        {
-            basLog().success(u"compress thread start running.\n");
-            Executor.MainLoop();
-        }).detach();
+        Executor.Start([] { basLog().success(u"compress thread start running.\n"); });
     }
     ~TexCompManExecutor()
     {
-        Executor.Terminate();
+        Executor.Stop();
     }
 };
 

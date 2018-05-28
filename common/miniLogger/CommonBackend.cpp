@@ -1,10 +1,14 @@
 #include "MiniLoggerRely.h"
+#if defined(_WIN32)
+#   define WIN32_LEAN_AND_MEAN 1
+#   define NOMINMAX 1
+#   include <Windows.h>
+#endif
 #include "QueuedBackend.h"
 #include "common/FileEx.hpp"
-#include "common/ColorConsole.inl"
-#if defined(_WIN32)
-#   include <WinBase.h>
-#endif
+#include "common/ThreadEx.h"
+#include "common/ColorConsole.h"
+
 
 namespace common::mlog
 {
