@@ -16,6 +16,7 @@
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StrCharset.hpp"
+#include "common/SharedString.hpp"
 #include "fmt/format.h"
 #include "fmt/utfext.h"
 #include <cstdint>
@@ -41,23 +42,23 @@ class MiniLoggerBase;
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
 MINILOGAPI const char16_t* CDECLCALL GetLogLevelStr(const LogLevel level);
 
-struct MINILOGAPI LogMessage : public NonCopyable
+struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 {
     friend class detail::MiniLoggerBase;
 public:
     const uint64_t Timestamp;
-    const std::u16string& Source;
 private:
+    const SharedString<char16_t>& Source;
     std::atomic_uint32_t RefCount;
     const uint32_t Length;
 public:
     const LogLevel Level;
 private:
-    LogMessage(const std::u16string& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
+    LogMessage(const SharedString<char16_t>& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
         : Timestamp(time), Source(prefix), RefCount(1), Length(length), Level(level) //RefCount is at first 1
     { }
 public:
-    static LogMessage* MakeMessage(const std::u16string& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         if (len >= UINT32_MAX)
             COMMON_THROW(BaseException, L"Too long for a single LogMessage!");
@@ -68,15 +69,15 @@ public:
         memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t)*len, content, sizeof(char16_t)*len);
         return msg;
     }
-    static LogMessage* MakeMessage(const std::u16string& prefix, const std::u16string& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const std::u16string& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         return MakeMessage(prefix, content.c_str(), content.size(), level, time);
     }
-    static LogMessage* MakeMessage(const std::u16string& prefix, const fmt::BasicCStringRef<char16_t>& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const fmt::BasicCStringRef<char16_t>& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         return MakeMessage(prefix, content.c_str(), std::char_traits<char16_t>::length(content.c_str()), level, time);
     }
-    static LogMessage* MakeMessage(const std::u16string& prefix, const fmt::UTFMemoryWriter<char16_t>& writer, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const fmt::UTFMemoryWriter<char16_t>& writer, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         return MakeMessage(prefix, writer.data(), writer.size(), level, time);
     }
@@ -90,6 +91,7 @@ public:
         return false;
     }
     std::u16string_view GetContent() const { return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length); }
+    const std::u16string_view& GetSource() const { return Source; }
 };
 
 class MINILOGAPI LoggerBackend : public NonCopyable

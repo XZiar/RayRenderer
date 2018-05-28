@@ -6,6 +6,8 @@
 # include <Windows.h>
 # include <ProcessThreadsApi.h>
 #else
+//# define _GNU_SOURCE
+# include <errno.h>
 # include <pthread.h>
 # include <unistd.h>
 # include <sys/types.h>
@@ -98,13 +100,16 @@ ThreadObject::~ThreadObject()
 }
 bool ThreadObject::IsAlive() const
 {
-    if (Handle != 0)
-        return false;
 #if defined(_WIN32)
+    if (Handle == (uintptr_t)INVALID_HANDLE_VALUE)
+        return false;
     const auto rc = ::WaitForSingleObject((HANDLE)Handle, 0);
     return rc != WAIT_OBJECT_0;
 #else
-    return true; // TODO: not implemented (unsupported)
+    if (Handle == 0)
+        return false;
+    const auto ret = pthread_tryjoin_np((pthread_t)Handle, nullptr); // only suitable for joinable thread
+    return ret == EBUSY;
 #endif
 }
 bool ThreadObject::IsCurrent() const
@@ -120,7 +125,8 @@ uint64_t ThreadObject::GetId() const
     pthread_getunique_np((pthread_t)Handle, &tid);
     return tid;
 #else
-    return Handle;
+    return syscall(SYS_gettid);
+    //return Handle;
 #endif
 }
 

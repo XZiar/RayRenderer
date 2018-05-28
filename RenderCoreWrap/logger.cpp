@@ -71,7 +71,7 @@ public:
 
 static void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 {
-    Logger::RaiseOnLog((LogLevel)msg.Level, ToStr(msg.Source), ToStr(msg.GetContent()));
+    Logger::RaiseOnLog((LogLevel)msg.Level, ToStr(msg.GetSource()), ToStr(msg.GetContent()));
 }
 
 #pragma unmanaged

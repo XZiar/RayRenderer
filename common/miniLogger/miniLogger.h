@@ -19,7 +19,7 @@ class MINILOGAPI MiniLoggerBase : public NonCopyable
 protected:
     static const std::unique_ptr<LoggerBackend> GlobalOutputer;
     std::atomic<LogLevel> LeastLevel;
-    const std::u16string Prefix;
+    const SharedString<char16_t> Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
     forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
 public:

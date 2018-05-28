@@ -11,6 +11,33 @@ namespace common::console
 {
 
 
+ConsoleHelper::ConsoleHelper()
+{
+#if defined(_WIN32)
+    const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
+    if (handle == INVALID_HANDLE_VALUE)
+        throw std::runtime_error("no console handle avaliable");
+    Handle = reinterpret_cast<intptr_t>(handle);
+    DWORD mode;
+    ::GetConsoleMode(handle, &mode);
+    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING; // since win10 1511(th2)
+    IsVTMode = ::SetConsoleMode(handle, mode) == TRUE;
+    CONSOLE_SCREEN_BUFFER_INFO csbInfo;
+    ::GetConsoleScreenBufferInfo(handle, &csbInfo);
+    Dummy = csbInfo.wAttributes;
+#else
+    IsVTMode = true;
+#endif
+}
+ConsoleHelper::~ConsoleHelper()
+{
+#if defined(_WIN32)
+    const auto handle = (HANDLE)Handle;
+    if (handle != INVALID_HANDLE_VALUE)
+        CloseHandle(handle);
+#endif
+}
+
 #if defined(_WIN32)
 static constexpr WORD GetColorVal(const ConsoleColor color)
 {
@@ -159,34 +186,6 @@ void ConsoleHelper::Print(const std::u16string_view& str) const
     fprintf(stdout, "%s", u8str.c_str());
 }
 #endif
-
-
-ConsoleHelper::ConsoleHelper()
-{
-#if defined(_WIN32)
-    const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
-    if (handle == INVALID_HANDLE_VALUE)
-        throw std::runtime_error("no console handle avaliable");
-    Handle = reinterpret_cast<intptr_t>(handle);
-    DWORD mode;
-    ::GetConsoleMode(handle, &mode);
-    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING; // since win10 1511(th2)
-    IsVTMode = ::SetConsoleMode(handle, mode) == TRUE;
-    CONSOLE_SCREEN_BUFFER_INFO csbInfo;
-    ::GetConsoleScreenBufferInfo(handle, &csbInfo);
-    Dummy = csbInfo.wAttributes;
-#else
-    IsVTMode = true;
-#endif
-}
-ConsoleHelper::~ConsoleHelper()
-{
-#if defined(_WIN32)
-    const auto handle = (HANDLE)Handle;
-    if (handle != INVALID_HANDLE_VALUE)
-        CloseHandle(handle);
-#endif
-}
 
 
 }

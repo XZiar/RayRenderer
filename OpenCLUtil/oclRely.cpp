@@ -10,7 +10,7 @@ using namespace common::mlog;
 MiniLogger<false>& oclLog()
 {
     static MiniLogger<false> ocllog(u"OpenCLUtil", { GetConsoleBackend() });
-	return ocllog;
+    return ocllog;
 }
 
 

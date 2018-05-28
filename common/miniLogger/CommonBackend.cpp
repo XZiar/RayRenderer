@@ -28,7 +28,7 @@ public:
     }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
         PrintText(std::u16string_view(writer.data(), writer.size()));
     }
 };
@@ -75,7 +75,7 @@ public:
         if (!Helper)
             return;
         const auto& color = console::ConsoleHelper::GetColorStr(ToColor(msg.Level));
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}\x1b[39m", color, msg.Source, msg.GetContent());
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}\x1b[39m", color, msg.GetSource(), msg.GetContent());
         //Helper->Print(ToColor(msg.Level), std::u16string_view(writer.data(), writer.size()));
         Helper->Print(std::u16string_view(writer.data(), writer.size()));
     }
@@ -100,7 +100,7 @@ public:
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.Source, msg.GetContent());
+        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
         File.Write(writer.size() * sizeof(char16_t), writer.data());
     }
 };
