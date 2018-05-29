@@ -245,7 +245,8 @@ public:
     }
 
     void Draw();
-    void Resize(const int w, const int h);
+    void Resize(const uint32_t w, const uint32_t h);
+    void ResizeOffScreen(const uint32_t w, const uint32_t h);
 
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);

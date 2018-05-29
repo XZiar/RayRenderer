@@ -1,7 +1,7 @@
 #version 430 core
 precision mediump float;
 precision lowp sampler2D;
-//@@$$VERT|FRAG
+//@OGLU@Stage("VERT", "FRAG")
 
 struct LightData
 {
@@ -26,20 +26,16 @@ layout(std140) uniform materialBlock
     MaterialData materials[16];
 };
 
-//@@->ProjectMat|matProj
-layout(location = 0) uniform mat4 matProj;
-//@@->ViewMat|matView
-layout(location = 1) uniform mat4 matView;
-//@@->ModelMat|matModel
-layout(location = 2) uniform mat4 matModel;
-//@@->MVPMat|matMVP
-layout(location = 3) uniform mat4 matMVP;
-//@@->CamPosVec|vecCamPos
-layout(location = 4) uniform vec3 vecCamPos;
-//@@##envAmbient|COLOR|environment ambient color
-layout(location = 5) uniform lowp vec4 envAmbient;
-
-
+//@OGLU@Mapping(ProjectMat, "matProj")
+uniform mat4 matProj;
+//@OGLU@Mapping(ViewMat, "matView")
+uniform mat4 matView;
+//@OGLU@Mapping(ModelMat, "matModel")
+uniform mat4 matModel;
+//@OGLU@Mapping(MVPMat, "matMVP")
+uniform mat4 matMVP;
+//@OGLU@Mapping(CamPosVec, "vecCamPos")
+uniform vec3 vecCamPos;
 
 GLVARY perVert
 {
@@ -53,14 +49,14 @@ GLVARY perVert
 ////////////////
 #ifdef OGLU_VERT
 
-//@@->VertPos|vertPos
-layout(location = 0) in vec3 vertPos;
-//@@->VertNorm|vertNorm
-layout(location = 1) in vec3 vertNorm;
-//@@->VertTexc|vertTexc
-layout(location = 2) in vec2 vertTexc;
-//@@->VertTan|vertTan
-layout(location = 3) in vec4 vertTan;
+//@OGLU@Mapping(VertPos, "vertPos")
+in vec3 vertPos;
+//@OGLU@Mapping(VertNorm, "vertNorm")
+in vec3 vertNorm;
+//@OGLU@Mapping(VertTexc, "vertTexc")
+in vec2 vertTexc;
+//@OGLU@Mapping(VertTan, "vertTan")
+in vec4 vertTan;
 
 void main() 
 {
@@ -90,6 +86,8 @@ subroutine uniform LightModel lighter;
 subroutine vec3 NormalCalc();
 subroutine uniform NormalCalc getNorm;
 
+//@OGLU@Property("envAmbient", COLOR, "environment ambient color")
+uniform vec4 envAmbient;
 
 subroutine(NormalCalc)
 vec3 vertedNormal()

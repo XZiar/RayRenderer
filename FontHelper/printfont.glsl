@@ -1,6 +1,6 @@
 #version 430 core
 precision mediump float;
-//@@$$VERT|FRAG
+//@OGLU@Stage("VERT", "FRAG")
 
 GLVARY perVert
 {
@@ -11,12 +11,13 @@ GLVARY perVert
 
 #ifdef OGLU_VERT
 
-//@@->VertPos|vertPos
-layout(location = 0) in vec3 vertPos;
-//@@->VertTexc|vertTexc
-layout(location = 1) in vec2 vertTexc;
-//@@->VertColor|vertColor
-layout(location = 2) in lowp vec4 vertColor;
+//@OGLU@Mapping(VertPos, "vertPos")
+in vec3 vertPos;
+//@OGLU@Mapping(VertTexc, "vertTexc")
+in vec2 vertTexc;
+//@OGLU@Mapping(VertColor, "vertColor")
+in lowp vec4 vertColor;
+
 void main() 
 {
 	pos = vertPos.xy;
@@ -32,9 +33,9 @@ out vec4 FragColor;
 subroutine vec4 fontType(vec2 texpos);
 subroutine uniform fontType fontRenderer;
 
-//@@##distRange|RANGE|range of dist|0.0|1.0
+//@OGLU@Property("distRange", RANGE, "range of dist", 0.0, 1.0)
 uniform vec2 distRange = vec2(0.44f, 0.57f); 
-//@@##fontColor|COLOR|font color
+//@OGLU@Property("fontColor", COLOR, "font color")
 uniform lowp vec4 fontColor = vec4(1.0f);
 
 subroutine(fontType)

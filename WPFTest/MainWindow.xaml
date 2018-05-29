@@ -175,6 +175,9 @@
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="深度测试">
                         <ComboBox x:Name="cboxDTest" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
                     </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="离屏尺寸">
+                        <ComboBox x:Name="cboxOSize" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
+                    </ext:LabelControl>
                 </StackPanel>
             </TabItem>
             <TabItem Header="物体" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">

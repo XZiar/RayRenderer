@@ -25,13 +25,13 @@ class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignB
 private:
     oglContext glContext;
     oclContext clContext;
-    oglProgram prog2D, prog3D;
+    oglProgram prog2D, prog3D, progPost;
     oglTex2DS picTex;
     oglTex2DV chkTex;
     oglTex2DS fboTex;
     oglPBO picBuf;
     oglVBO screenBox;
-    oglVAO picVAO;
+    oglVAO picVAO, ppVAO;
     oglUBO lightUBO;
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
@@ -56,6 +56,7 @@ public:
     BasicTest(const fs::path& shaderPath = u"");
     void Draw();
     void Resize(const uint32_t w, const uint32_t h);
+    void ResizeFBO(const uint32_t w, const uint32_t h);
     void ReloadFontLoader(const u16string& fname);
     void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError = nullptr);

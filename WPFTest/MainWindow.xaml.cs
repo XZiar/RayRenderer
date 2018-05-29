@@ -77,11 +77,11 @@ namespace WPFTest
             OnLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
             Core = new TestCore();
 
-            Core.Test.Resize(glMain.ClientSize.Width, glMain.ClientSize.Height);
+            Core.Test.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
             this.Closed += (o, e) => { Core.Dispose(); Core = null; };
 
             glMain.Draw += Core.Test.Draw;
-            glMain.Resize += (o, e) => { Core.Test.Resize(e.Width, e.Height); };
+            glMain.Resize += (o, e) => { Core.Test.Resize((uint)e.Width, (uint)e.Height); };
 
             txtMemInfo.SetBinding(TextBlock.TextProperty, new Binding
             {
@@ -161,6 +161,15 @@ namespace WPFTest
                 Mode = BindingMode.TwoWay
             });
             cboxDTest.SelectionChanged += (o, e) => glMain.Invalidate();
+            var offscreenSizes = new ValueTuple<uint, uint>[] { (800, 450), (800, 600), (1280, 720), (1280, 1024), (1440, 720), (1440, 1080), (320, 180) };
+            cboxOSize.ItemsSource = offscreenSizes.Select(x => $"{x.Item1}x{x.Item2}");
+            cboxOSize.SelectedIndex = 2;
+            cboxOSize.SelectionChanged += (o, e) =>
+            {
+                var val = offscreenSizes[cboxOSize.SelectedIndex];
+                Core.Test.ResizeOffScreen(val.Item1, val.Item2);
+                glMain.Invalidate();
+            };
             cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
             {
                 Source = Core.Lights,

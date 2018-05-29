@@ -102,9 +102,48 @@ static const map<uint64_t, ShaderPropertyType> ShaderPropertyTypeMap =
     { "FLOAT"_hash,  ShaderPropertyType::Float    }
 };
 
-static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line)
+struct OgluAttribute
 {
-    auto parts = str::Split(line, '|', true);
+    string_view Name;
+    vector<string_view> Params;
+    OgluAttribute(const string_view& line)
+    {
+        const auto p0 = line.find_first_not_of(' ');
+        const auto p1 = line.find_first_of(" (", p0);
+        if (p0 < p1)
+        {
+            Name = line.substr(p0, p1 - p0);
+            const auto p2 = line.find_first_of("(", p1);
+            const auto p3 = line.find_last_of(")");
+            if (p2 < p3)
+            {
+                bool inRegion = false;
+                str::SplitAndDo(line.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
+                {
+                    if (ch == '"')
+                    {
+                        inRegion = !inRegion;
+                        return false;
+                    }
+                    return !inRegion && ch == ',';
+                }, [&](const char *pos, size_t len)
+                {
+                    while (len > 0 && *pos == ' ')
+                        len--, pos++;
+                    while (len > 0 && pos[len - 1] == ' ')
+                        len--;
+                    if (len > 0 && *pos == '"')
+                        len--, pos++;
+                    if (len > 0 && pos[len - 1] == '"')
+                        len--;
+                    Params.emplace_back(pos, len);
+                }, true);
+            }
+        }
+    }
+};
+static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_view>& parts)
+{
     if (parts.size() < 2)
         return {};
     if (auto type = common::container::FindInMap(ShaderPropertyTypeMap, hash_(parts[1])))
@@ -115,7 +154,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
         try
         {
             std::any data;
-            if(parts.size() > 3)
+            if (parts.size() > 3)
                 switch (*type)
                 {
                 case ShaderPropertyType::Float:
@@ -130,11 +169,18 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
         }
         catch (...)
         {
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Error in parsing property", string(line));
+            vector<string> realParts;
+            std::transform(parts.cbegin(), parts.cend(), std::back_inserter(realParts), [](const string_view& sv) { return string(sv); });
+            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Error in parsing property", realParts);
         }
     }
     else
         return {};
+}
+static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line)
+{
+    const auto parts = str::Split(line, '|', true);
+    return ParseExtProperty(parts);
 }
 
 vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtInfo& info)
@@ -159,21 +205,25 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtI
             }
             if (config.size() <= 6)
                 return;
-            const string_view tag = config.substr(0, 6);
-            config.remove_prefix(6);
-            switch (hash_(tag))
+            if (str::IsBeginWith(config, "//@OGLU@"))
             {
-            case "//@@##"_hash:
-                if (auto prop = ParseExtProperty(config))
-                    info.Properties.insert(prop.value());
-                break;
-            case "//@@->"_hash:
-                if (auto parts = str::Split(config, '|', true); parts.size() == 2)
-                    info.ResMappings.insert_or_assign(string(parts[0]), string(parts[1]));
-                break;
-            case "//@@$$"_hash:
-                str::Split(config, '|', params, false);
-                break;
+                OgluAttribute ogluAttr(config.substr(8));
+                switch (hash_(ogluAttr.Name))
+                {
+                case "Mapping"_hash:
+                    if (ogluAttr.Params.size() == 2)
+                        info.ResMappings.insert_or_assign(string(ogluAttr.Params[0]), string(ogluAttr.Params[1]));
+                    break;
+                case "Stage"_hash:
+                    params.insert(params.cend(), ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
+                    break;
+                case "Property"_hash:
+                    if (auto prop = ParseExtProperty(ogluAttr.Params))
+                        info.Properties.insert(prop.value());
+                    break;
+                default:
+                    break;
+                }
             }
         }, false);
 
@@ -187,16 +237,19 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtI
         const char *scopeDef = nullptr;
         switch (hash_(sv))
         {
+        case "Vertex"_hash:
         case "VERT"_hash:
             {
                 shaderType = ShaderType::Vertex;
                 scopeDef = "#define OGLU_VERT\r\n";
             } break;
+        case "Fragment"_hash:
         case "FRAG"_hash:
             {
                 shaderType = ShaderType::Fragment;
                 scopeDef = "#define OGLU_FRAG\r\n";
             } break;
+        case "Geometry"_hash:
         case "GEOM"_hash:
             {
                 shaderType = ShaderType::Geometry;

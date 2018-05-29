@@ -254,12 +254,17 @@ private:
 public:
     ProgDraw(ProgDraw&& other) = default;
     ~ProgDraw();
-    ProgDraw& Restore();
+    ///<summary>restore current drawing state</summary>  
+    ///<param name="quick">whether perform quick restore</param>
+    ///<returns>self</returns>
+    ProgDraw& Restore(const bool quick = false);
     std::weak_ptr<_oglProgram> GetProg() const noexcept;
     ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
     ProgDraw& SetPosition(const Mat4x4& modelMat) { return SetPosition(modelMat, (Mat3x3)modelMat); }
-    /*draw vao
-    *-param vao, size, offset*/
+    ///<summary>draw actual vao</summary>  
+    ///<param name="size">elements count being drawed</param>
+    ///<param name="offset">elements offset</param>
+    ///<returns>self</returns>
     ProgDraw& Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
     ProgDraw& Draw(const oglVAO& vao);
     ProgDraw& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);

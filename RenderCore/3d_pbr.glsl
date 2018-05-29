@@ -1,7 +1,7 @@
 #version 430 core
 precision mediump float;
 precision lowp sampler2D;
-//@@$$VERT|FRAG
+//@OGLU@Stage("VERT", "FRAG")
 
 const float oglu_PI = 3.1415926f;
 
@@ -29,15 +29,15 @@ layout(std140) uniform materialBlock
     MaterialData materials[32];
 };
 
-//@@->ProjectMat|matProj
+//@OGLU@Mapping(ProjectMat, "matProj")
 uniform mat4 matProj;
-//@@->ViewMat|matView
+//@OGLU@Mapping(ViewMat, "matView")
 uniform mat4 matView;
-//@@->ModelMat|matModel
+//@OGLU@Mapping(ModelMat, "matModel")
 uniform mat4 matModel;
-//@@->MVPMat|matMVP
+//@OGLU@Mapping(MVPMat, "matMVP")
 uniform mat4 matMVP;
-//@@->CamPosVec|vecCamPos
+//@OGLU@Mapping(CamPosVec, "vecCamPos")
 uniform vec3 vecCamPos;
 
 
@@ -55,15 +55,15 @@ GLVARY perVert
 ////////////////
 #ifdef OGLU_VERT
 
-//@@->VertPos|vertPos
+//@OGLU@Mapping(VertPos, "vertPos")
 in vec3 vertPos;
-//@@->VertNorm|vertNorm
+//@OGLU@Mapping(VertNorm, "vertNorm")
 in vec3 vertNorm;
-//@@->VertTexc|vertTexc
+//@OGLU@Mapping(VertTexc, "vertTexc")
 in vec2 vertTexc;
-//@@->VertTan|vertTan
+//@OGLU@Mapping(VertTan, "vertTan")
 in vec4 vertTan;
-//@@->DrawID|ogluDrawId
+//@OGLU@Mapping(DrawID, "ogluDrawId")
 in uint ogluDrawId;
 
 void main() 
@@ -86,15 +86,13 @@ void main()
 
 uniform sampler2DArray texs[16];
 
-//@@##srgbTexture|BOOL|whether input texture is srgb space
+//@OGLU@Property("srgbTexture", BOOL, "whether input texture is srgb space")
 uniform bool srgbTexture = true;
-//@@##gamma|FLOAT|gamma correction|0.4|3.2
-uniform float gamma = 2.2f;
-//@@##envAmbient|COLOR|environment ambient color
+//@OGLU@Property("envAmbient", COLOR, "environment ambient color")
 uniform lowp vec4 envAmbient;
-//@@##objidx|FLOAT|highlighted drawIdx|0.0|30.0
+//@OGLU@Property("objidx", FLOAT, "highlighted drawIdx", 0.0, 30.0)
 uniform float objidx = 0.0f;
-//@@##idxscale|FLOAT|scale(e^x) of drawIdx|1.0|24.0
+//@OGLU@Property("idxscale", FLOAT, "scale(e^x) of drawIdx", 1.0, 24.0)
 uniform float idxscale = 1.0f;
 
 out vec4 FragColor;
@@ -198,11 +196,6 @@ bool parseLight(const uint id, out vec3 p2l, out vec3 color)
 float ClampDot(const vec3 v1, const vec3 v2)
 {
     return max(dot(v1, v2), 0.0f);
-}
-
-vec3 GammaCorrect(const vec3 color)
-{
-    return pow(color, vec3(1.0f / gamma));
 }
 
 subroutine(LightModel)
@@ -342,6 +335,7 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
         const float n_lgt = ClampDot(ptNorm, p2l);
         //Geometry Shadowing
         const float geoShd = G_SchlickGGX(n_lgt, k, one_k);
+        //percentage of acceptable specular(not in shadow or mask)
         const float G = geoObs * geoShd;
         const vec3 F = F_Schlick(halfVec, viewRay, F0);
        
@@ -358,7 +352,7 @@ subroutine(LightModel)
 vec3 albedoOnly()
 {
     const vec3 albedo = getAlbedo(drawId);
-    return GammaCorrect(albedo);
+    return albedo;
 }
 subroutine(LightModel)
 vec3 metalOnly()
@@ -376,7 +370,7 @@ vec3 basic()
     const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = ambientColor + diffuseColor + specularColor;
-    return GammaCorrect(finalColor);
+    return finalColor;
 }
 subroutine(LightModel)
 vec3 diffuse()
@@ -388,7 +382,7 @@ vec3 diffuse()
     const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = ambientColor + diffuseColor;
-    return GammaCorrect(finalColor);
+    return finalColor;
 }
 
 subroutine(LightModel)
@@ -401,7 +395,7 @@ vec3 specular()
     const lowp vec3 albedo = getAlbedo(drawId);
     PBR(albedo, diffuseColor, specularColor);
     lowp vec3 finalColor = ambientColor + specularColor;
-    return GammaCorrect(finalColor);
+    return finalColor;
 }
 
 void main() 

@@ -741,32 +741,53 @@ ProgDraw::~ProgDraw()
     Restore();
 }
 
-ProgDraw& ProgDraw::Restore()
+ProgDraw& ProgDraw::Restore(const bool quick)
 {
-    for (const auto&[pos, binding] : UniBindBackup)
+    if (quick) // only set binding-delegate
     {
-        auto& obj = Prog.UniBindCache[pos];
-        const auto val = binding.first;
-        if (obj != val)
+        for (const auto&[pos, binding] : UniBindBackup)
         {
             if (binding.second) //tex
-                glProgramUniform1i(Prog.programID, pos, obj = val);
+            {
+                if (const auto ptrTex = FindInMap(Prog.TexBindings, pos); ptrTex)
+                    TexCache.insert_or_assign(pos, *ptrTex);
+            }
             else //ubo
-                glUniformBlockBinding(Prog.programID, pos, obj = val);
+            {
+                if (const auto ptrUbo = FindInMap(Prog.UBOBindings, pos); ptrUbo)
+                    UBOCache.insert_or_assign(pos, *ptrUbo);
+            }
         }
     }
-    UniBindBackup.clear();
+    else
+    {
+        for (const auto&[pos, binding] : UniBindBackup)
+        {
+            auto& obj = Prog.UniBindCache[pos];
+            const auto val = binding.first;
+            if (obj != val)
+            {
+                if (binding.second) //tex
+                    glProgramUniform1i(Prog.programID, pos, obj = val);
+                else //ubo
+                    glUniformBlockBinding(Prog.programID, pos, obj = val);
+            }
+        }
+        UniBindBackup.clear();
+    }
+
     for (const auto&[pos, val] : UniValBackup)
     {
         std::visit([&](auto&& arg) { Prog.SetUniform(pos, arg, false); }, val);
     }
     UniValBackup.clear();
-    for (const auto&[subr, routine] : SubroutineCache)
+    if (!SubroutineCache.empty())
     {
-        Prog.SetSubroutine(subr, routine);
+        for (const auto&[subr, routine] : SubroutineCache)
+            Prog.SetSubroutine(subr, routine);
+        SubroutineCache.clear();
+        Prog.SetSubroutine();
     }
-    SubroutineCache.clear();
-    Prog.SetSubroutine();
     return *this;
 }
 std::weak_ptr<_oglProgram> ProgDraw::GetProg() const noexcept

@@ -53,9 +53,14 @@ void BasicTest::Draw()
     core->Draw();
 }
 
-void BasicTest::Resize(const int w, const int h)
+void BasicTest::Resize(const uint32_t w, const uint32_t h)
 {
     core->Resize(w, h);
+}
+
+void BasicTest::ResizeOffScreen(const uint32_t w, const uint32_t h)
+{
+    core->ResizeFBO(w, h);
 }
 
 void BasicTest::ReLoadCL(String^ fname)

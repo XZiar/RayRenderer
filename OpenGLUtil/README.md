@@ -80,20 +80,24 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ### Shader
 
+Some extensions are applied via defining attribute hints on comments. A single line started with `//@OGLU@` will be treated as an extension attribute.
+
+The stynax is `//@OGLU@FuncName(arg0, arg1, ...)`, arg can be number(treated as string) or string, where `""` will be removed for string.
+
 #### Merged Shader
 
 Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format`*.glsl`.
 It's main purpose is to merge multiple shader into one, which reduces redundent codes as well as eliminate bugs caused by careless.
 
-A single line strted with `//@@$$` will be used to indicate what component this file should include(`VERT`,`FRAG`,`GEOM`...separated with `|` ).
+`FuncName` should be `Stage`. Varadic arguments will be used to indicate what component this file should include(`VERT`, `FRAG`, `GEOM`...).
 
-Extended Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+Merged Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
 
 #### Uniform Description
 
-A single line started with `//@@##` will be used to describe uniform variables. Its value is parsed but unused in OpenGLUtil, high-level program can use it.
+`FuncName` should be `Property`. Arguments will be used to describe uniform variables. Its value is parsed but unused in OpenGLUtil, high-level program can use it.
 
-The stynx is `//@@##{UniformName}|{UniformType}|[Description]|[MinValue]|[MaxValue]`. UniformName and UniformType mismatch an active uniform will be ignored.
+The stynx is `//@OGLU@Property(UniformName, UniformType, [Description], [MinValue], [MaxValue])`. UniformName and UniformType mismatch an active uniform will be ignored.
 
 `UniformType` can be one of the following: `COLOR`, `RANGE`, `VEC`, `INT`, `UINT`, `BOOL`, `FLOAT`.
 
@@ -105,7 +109,7 @@ Uniform's initial value will be readed after linked in oglProgram, but not all o
 
 Some common resources are widely used by shaders, so mapping is added to an vertex-sttribute or uniform is a specific kind of resource.
 
-The syntax is `//@@->{Type}|{VariableName}`, where `Type` is one of the following: 
+`FuncName` should be `Mapping`. The syntax is `//@OGLU@Mapping(Type, VariableName)`, where `Type` is one of the following: 
 
 `ProjectMat`, `ViewMat`, `ModelMat`, `MVPMat`, `MVPNormMat`, `CamPosVec`, `VertPos` for uniforms.
 
