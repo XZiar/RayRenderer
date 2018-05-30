@@ -179,11 +179,13 @@ void ConsoleHelper::Print(const ConsoleColor color, const std::u16string_view& s
 {
     const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
     fprintf(stdout, GetColorCharStr(color), u8str.c_str());
+    fflush(stdout);
 }
 void ConsoleHelper::Print(const std::u16string_view& str) const
 {
     const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
     fprintf(stdout, "%s", u8str.c_str());
+    fflush(stdout);
 }
 #endif
 

@@ -364,7 +364,7 @@ inline void BroadcastMany(Type* const dest, const size_t destCount, const Type& 
     else
     {
         for (size_t i = 0; i < srcCount; ++i)
-            *destPtr++ = src;
+            *dest++ = src;
     }
 }
 

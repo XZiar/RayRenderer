@@ -55,6 +55,7 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #   define CDECLCALL
 #   if !defined(STDC_LIB_EXT1)
 #       define memcpy_s(dest, destsz, src, count) memcpy(dest, src, count)
+#       define memmove_s(dest, destsz, src, count) memmove(dest, src, count)
 #   endif
 #else
 #   define forceinline inline

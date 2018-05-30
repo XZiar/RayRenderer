@@ -158,7 +158,7 @@ public:
     template<class T, typename = typename std::enable_if<std::is_class_v<T>>::type>
     size_t Write(size_t count, const T& input)
     {
-        const size_t elementSize = sizeof(T::value_type);
+        const size_t elementSize = sizeof(typename T::value_type);
         count = std::min(input.size(), count);
         return Write_(count * elementSize, input.data()) ? count : 0;
     }

@@ -413,7 +413,7 @@ inline bool upperComp(const wchar_t ch1, const wchar_t ch2)
 }
 
 }
-template<class T, typename charT = T::value_type, class itT = T::const_iterator>
+template<class T, typename charT = typename T::value_type, class itT = typename T::const_iterator>
 inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj)
 {
     const size_t srclen = src.length(), objlen = obj.length();
@@ -437,7 +437,7 @@ inline std::optional<itT> ifind_first(T src, const std::basic_string<charT>& obj
     }
     return {};
 }
-template<class T, typename charT = T::value_type, class itT = T::const_iterator, size_t N>
+template<class T, typename charT = typename T::value_type, class itT = typename T::const_iterator, size_t N>
 inline std::optional<itT> ifind_first(const T& src, const charT(&obj)[N])
 {
     return ifind_first(src, std::basic_string<charT>(obj));

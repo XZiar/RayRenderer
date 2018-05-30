@@ -227,7 +227,7 @@ Image Image::Region(const uint32_t x, const uint32_t y, uint32_t w, uint32_t h) 
 {
     if (w == 0) w = Width;
     if (h == 0) h = Height;
-    if (x == y == 0 && w == Width && h == Height)
+    if (x == y && y == 0 && w == Width && h == Height)
         return *this;
 
     Image newimg(DataType);

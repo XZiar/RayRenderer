@@ -7,8 +7,8 @@
 namespace xziar::img
 {
 
-IMGUTILAPI Image __cdecl ReadImage(const fs::path& path, const ImageDataType dataType = ImageDataType::RGBA);
-IMGUTILAPI void __cdecl WriteImage(const Image& image, const fs::path& path);
-IMGUTILAPI void __cdecl RegisterImageSupport();
+IMGUTILAPI Image CDECLCALL ReadImage(const fs::path& path, const ImageDataType dataType = ImageDataType::RGBA);
+IMGUTILAPI void CDECLCALL WriteImage(const Image& image, const fs::path& path);
+IMGUTILAPI void CDECLCALL RegisterImageSupport();
 
 }

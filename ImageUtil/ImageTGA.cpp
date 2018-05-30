@@ -594,7 +594,7 @@ public:
     template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
     size_t Read(const size_t count, T& output)
     {
-        return Read(count * sizeof(T::value_type), output.data()) ? count : 0;
+        return Read(count * sizeof(typename T::value_type), output.data()) ? count : 0;
     }
 
     bool Read(const size_t len, void *ptr)

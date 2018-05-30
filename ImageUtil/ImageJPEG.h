@@ -42,7 +42,7 @@ private:
 	void *JpegErrorHandler = nullptr;
 public:
 	JpegWriter(FileObject& file);
-	virtual ~JpegWriter() override;;
+	virtual ~JpegWriter() override;
 	virtual void Write(const Image& image) override;
 };
 

@@ -863,18 +863,18 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
     //ptrA now 32-byte aligned(start from a cache line)
     while (bytes >= 64)
     {
-        const auto tmp1 = _mm_load_si128((const __m256i*)ptrA);
-        _mm_store_si128((__m256i*)ptrA, _mm_loadu_si128((const __m256i*)ptrB)); ptrA += 16;
-        _mm_storeu_si128((__m256i*)ptrB, tmp1); ptrB += 16;
-        const auto tmp2 = _mm_load_si128((const __m256i*)ptrA);
-        _mm_store_si128((__m256i*)ptrA, _mm_loadu_si128((const __m256i*)ptrB)); ptrA += 16;
-        _mm_storeu_si128((__m256i*)ptrB, tmp2); ptrB += 16;
-        const auto tmp3 = _mm_load_si128((const __m256i*)ptrA);
-        _mm_store_si128((__m256i*)ptrA, _mm_loadu_si128((const __m256i*)ptrB)); ptrA += 16;
-        _mm_storeu_si128((__m256i*)ptrB, tmp3); ptrB += 16;
-        const auto tmp4 = _mm_load_si128((const __m256i*)ptrA);
-        _mm_store_si128((__m256i*)ptrA, _mm_loadu_si128((const __m256i*)ptrB)); ptrA += 16;
-        _mm_storeu_si128((__m256i*)ptrB, tmp4); ptrB += 16;
+        const auto tmp1 = _mm_load_si128((const __m128i*)ptrA);
+        _mm_store_si128((__m128i*)ptrA, _mm_loadu_si128((const __m128i*)ptrB)); ptrA += 16;
+        _mm_storeu_si128((__m128i*)ptrB, tmp1); ptrB += 16;
+        const auto tmp2 = _mm_load_si128((const __m128i*)ptrA);
+        _mm_store_si128((__m128i*)ptrA, _mm_loadu_si128((const __m128i*)ptrB)); ptrA += 16;
+        _mm_storeu_si128((__m128i*)ptrB, tmp2); ptrB += 16;
+        const auto tmp3 = _mm_load_si128((const __m128i*)ptrA);
+        _mm_store_si128((__m128i*)ptrA, _mm_loadu_si128((const __m128i*)ptrB)); ptrA += 16;
+        _mm_storeu_si128((__m128i*)ptrB, tmp3); ptrB += 16;
+        const auto tmp4 = _mm_load_si128((const __m128i*)ptrA);
+        _mm_store_si128((__m128i*)ptrA, _mm_loadu_si128((const __m128i*)ptrB)); ptrA += 16;
+        _mm_storeu_si128((__m128i*)ptrB, tmp4); ptrB += 16;
         bytes -= 64;
         _mm_prefetch((const char*)ptrA, _MM_HINT_NTA);
         _mm_prefetch((const char*)ptrB, _MM_HINT_NTA);

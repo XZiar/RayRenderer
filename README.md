@@ -56,6 +56,8 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 [`opencl*.h` headers](https://github.com/KhronosGroup/OpenCL-Headers) should be found inside `include path\CL`.
 
+[nasm](https://www.nasm.us/) needed for [libjpeg-turbo](./3rdParty/libjpeg-turbo) --- add it to system environment path
+
 [ispc compiler](https://ispc.github.io/downloads.html) needed for [ispc_texcomp](./3rdParty/ispc_texcomp) --- add it to system environment path
 
 ## Dependency

@@ -26,7 +26,7 @@ static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool nee
                 switch (dataType)
                 {
                 case ImageDataType::BGRA:
-                    memmove_s(imgrow, irowsize, bufptr, frowsize); break;
+                    memcpy_s(imgrow, irowsize, bufptr, frowsize); break;
                 case ImageDataType::RGBA:
                     convert::BGRAsToRGBAs(imgrow, bufptr, width); break;
                 case ImageDataType::BGR:

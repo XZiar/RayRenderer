@@ -404,7 +404,10 @@
       <Filter>asm-x86</Filter>
     </NASM>
     <NASM Include="simd\jcgray-sse2-64.asm">
-      <Filter>源文件</Filter>
+      <Filter>asm-x64</Filter>
     </NASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

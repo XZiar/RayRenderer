@@ -65,7 +65,7 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 
 
 //for std::byte
-#if _HAS_STD_BYTE
+#if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
 #   include<cstddef>
 inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
 #endif

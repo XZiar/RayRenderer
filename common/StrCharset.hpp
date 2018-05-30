@@ -922,9 +922,15 @@ template<typename Char>
 forceinline std::wstring to_wstring(const Char *str, const size_t size, const Charset inchset = Charset::ASCII)
 {
     if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str, size, inchset);
+    {
+        const auto wstr = to_u16string(str, size, inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str, size, inchset);
+    {
+        const auto wstr = to_u32string(str, size, inchset);
+        return *(const std::wstring*)&wstr;
+    }  
     else
         return std::wstring();
 }
@@ -932,9 +938,15 @@ template<typename Char, typename Traits, typename Alloc>
 forceinline std::wstring to_wstring(const std::basic_string<Char, Traits, Alloc>& str, const Charset inchset = Charset::ASCII)
 {
     if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u16string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u32string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }  
     else
         return std::wstring();
 }
@@ -942,9 +954,15 @@ template<typename Char, typename Traits>
 forceinline std::wstring to_wstring(const std::basic_string_view<Char, Traits>& str, const Charset inchset = Charset::ASCII)
 {
     if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u16string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u32string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }  
     else
         return std::wstring();
 }
@@ -952,9 +970,15 @@ template<typename Char, typename Alloc>
 forceinline std::wstring to_wstring(const std::vector<Char, Alloc>& str, const Charset inchset = Charset::ASCII)
 {
     if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u16string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str.data(), str.size(), inchset);
+    {
+        const auto wstr = to_u32string(str.data(), str.size(), inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else
         return std::wstring();
 }
@@ -972,9 +996,15 @@ template<typename Char>
 forceinline std::wstring to_wstring(const Char* str, const Charset inchset = Charset::ASCII)
 {
     if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str, std::char_traits<Char>::length(str), inchset);
+    {
+        const auto wstr = to_u16string(str, std::char_traits<Char>::length(str), inchset);
+        return *(const std::wstring*)&wstr;
+    }    
     else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str, std::char_traits<Char>::length(str), inchset);
+    {
+        const auto wstr = to_u32string(str, std::char_traits<Char>::length(str), inchset);
+        return *(const std::wstring*)&wstr;
+    }
     else
         return std::wstring();
 }

@@ -116,12 +116,12 @@ JpegReader::~JpegReader()
     if (JpegDecompStruct)
     {
         jpeg_destroy_decompress((j_decompress_ptr)JpegDecompStruct);
-        delete JpegDecompStruct;
+        delete (jpeg_decompress_struct*)JpegDecompStruct;
     }
     if (JpegSource)
-        delete JpegSource;
+        delete (jpeg_source_mgr*)JpegSource;
     if (JpegErrorHandler)
-        delete JpegErrorHandler;
+        delete (jpeg_error_mgr*)JpegErrorHandler;
 }
 
 bool JpegReader::Validate()
@@ -147,7 +147,7 @@ Image JpegReader::Read(const ImageDataType dataType)
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
         return image;
     const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK);
-    switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK,ImageDataType::ALPHA_MASK))
+    switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK))
     {
     case ImageDataType::BGR:
         decompStruct->out_color_space = JCS_EXT_BGR; break;
@@ -155,6 +155,8 @@ Image JpegReader::Read(const ImageDataType dataType)
         decompStruct->out_color_space = JCS_EXT_RGB; break;
     case ImageDataType::GRAY:
         decompStruct->out_color_space = JCS_GRAYSCALE; break;
+    default:
+        return image;
     }
 
     jpeg_start_decompress(decompStruct);
@@ -205,12 +207,12 @@ inline JpegWriter::~JpegWriter()
     if (JpegCompStruct)
     {
         jpeg_destroy_compress((j_compress_ptr)JpegCompStruct);
-        delete JpegCompStruct;
+        delete (jpeg_compress_struct*)JpegCompStruct;
     }
     if (JpegDest)
-        delete JpegDest;
+        delete (jpeg_destination_mgr*)JpegDest;
     if (JpegErrorHandler)
-        delete JpegErrorHandler;
+        delete (jpeg_error_mgr*)JpegErrorHandler;
 }
 
 void JpegWriter::Write(const Image& image)
