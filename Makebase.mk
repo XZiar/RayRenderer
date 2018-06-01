@@ -25,8 +25,8 @@ PLATFORM	?= x64
 PROJPATH	?= ./
 OBJPATH 	 = ./$(OBJPREFEX)$(TARGET)/
 APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
-INCPATH		 = -I$(PROJPATH) -I$(PROJPATH)3rdParty
-LDPATH		 = -L$(APPPATH)
+INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
+LDPATH		 = -L"$(APPPATH)"
 SUBDIRS		:=
 CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17

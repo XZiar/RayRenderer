@@ -1,0 +1,67 @@
+{
+    "projects": 
+    [
+        {
+            "name": "zlib",
+            "type": "static",
+            "path": "3rdParty/zlib",
+            "description": "A massively spiffy yet delicately unobtrusive compression library",
+            "dependency": []
+        },
+        {
+            "name": "libpng",
+            "type": "static",
+            "path": "3rdParty/libpng",
+            "description": "The official PNG reference library",
+            "dependency": ["zlib"]
+        },
+        {
+            "name": "libjpeg-turbo",
+            "type": "static",
+            "path": "3rdParty/libjpeg-turbo",
+            "description": "A SIMD accelerated JPEG image codec library",
+            "dependency": []
+        },
+        {
+            "name": "fmt",
+            "type": "static",
+            "path": "3rdParty/fmt",
+            "description": "A modern formatting library",
+            "dependency": []
+        },
+        {
+            "name": "boost.context",
+            "type": "static",
+            "path": "3rdParty/boost.context",
+            "description": "A foundational library provides multitasking on a single thread",
+            "dependency": []
+        },
+        {
+            "name": "miniLogger",
+            "type": "dynamic",
+            "path": "common/miniLogger",
+            "description": "A mini logger library",
+            "dependency": ["fmt"]
+        },
+        {
+            "name": "AsyncExecutor",
+            "type": "dynamic",
+            "path": "common/AsyncExecutor",
+            "description": "An async task execution library",
+            "dependency": ["fmt", "miniLogger"]
+        },
+        {
+            "name": "ImageUtil",
+            "type": "dynamic",
+            "path": "ImageUtil",
+            "description": "A basic image operation library",
+            "dependency": ["fmt", "miniLogger", "zlib", "libpng", "libjpeg-turbo"]
+        },
+        {
+            "name": "UtilTest",
+            "type": "executable",
+            "path": "Tests/UtilTest",
+            "dependency": ["fmt", "miniLogger", "AsyncExecutor"]
+        }
+    ]
+}

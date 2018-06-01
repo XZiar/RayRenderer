@@ -13,36 +13,36 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 * GLUT based GUI --> simple GUI with FreeGLUT, complex GUI with WPF
 * coupling code --> reusable components
 
-## Componoent
+## Component
 
-| Component | Description |
-|:-------|:-------:|
-| [3rdParty](./3rdParty) | 3rd party library |
-| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things |
-| [common](./common) | Basic but useful things |
-| [CommonUtil](./CommonUtil) | Basic utils for C# |
-| [miniLogger](./common/miniLogger) | Mini Logger |
-| [AsyncExecutor](./common/AsyncExecutor) | Async Executor |
-| [ImageUtil](./ImageUtil) | Image Read/Write Utility |
-| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things |
-| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things |
-| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL |
-| [TextureUtil](./TextureUtil) | Texture Utility |
-| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT |
-| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm |
-| [RenderCore](./RenderCore) | Core of RayRenderer |
-| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core |
-| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) |
-| [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) |
-| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) |
+| Component | Description | Platform |
+|:-------|:-------:|:-------:|
+| [3rdParty](./3rdParty) | 3rd party library | N/A |
+| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows |
+| [common](./common) | Basic but useful things | Windows |
+| [CommonUtil](./CommonUtil) | Basic utils for C# | Windows |
+| [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
+| [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
+| [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
+| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows |
+| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows |
+| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows |
+| [TextureUtil](./TextureUtil) | Texture Utility | Windows |
+| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows |
+| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
+| [RenderCore](./RenderCore) | Core of RayRenderer | Windows |
+| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
+| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows |
+| [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
+| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
 
-## Platform
+## Platform Requirements
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
 VS2017(`15.7`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
 
-Some Utilities have `Makefile` inside are capable to be compiled on Linux, only tested on GCC 7.2.
+Some Utilities have `Makefile` inside are capable to be compiled on Linux, only tested on GCC 7.2. They can be built by execute [`build.sh`](build.sh) or use more powerful build system via [`build.py`](build.py) (python3).
 
 Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 
@@ -50,7 +50,7 @@ Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `opti
 
 Some VC++ default props should be set --- `include path` and `libpath`.
 
-`boost` headers folder should be found inside `include path`.
+`boost` headers folder should be found inside `include path`, or inside environment `CPP_DEPENDENCY_PATH`.
 
 `gl*.h` headers should be found inside `include path\GL`.
 

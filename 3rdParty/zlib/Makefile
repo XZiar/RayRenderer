@@ -1,6 +1,6 @@
 BUILD_TYPE	:= static
 
-include $(PROJPATH)Makebase.mk
+include $(PROJPATH)/Makebase.mk
 
 SUBDIRS		+= $(OBJPATH)masmx64 $(OBJPATH)masmx86
 ifeq ($(PLATFORM), x64)
@@ -11,4 +11,4 @@ endif
 CXXFLAGS += -D_LARGEFILE64_SOURCE=1 -DNO_UNDERLINE -DASMV
 NAME	= zlibstatic
 
-include $(PROJPATH)MakeTargets.mk
+include $(PROJPATH)/MakeTargets.mk

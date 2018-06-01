@@ -1,7 +1,7 @@
 BUILD_TYPE	:= static
 
-include $(PROJPATH)Makebase.mk
+include $(PROJPATH)/Makebase.mk
 
 NAME	= fmt
 
-include $(PROJPATH)MakeTargets.mk
+include $(PROJPATH)/MakeTargets.mk

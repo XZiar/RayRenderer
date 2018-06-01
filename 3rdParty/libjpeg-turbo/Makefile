@@ -1,6 +1,6 @@
 BUILD_TYPE	:= static
 
-include $(PROJPATH)Makebase.mk
+include $(PROJPATH)/Makebase.mk
 
 ALLASMS		 = $(wildcard simd/*.asm)
 AMD64ASMS	 = $(wildcard simd/*-sse2-64.asm)
@@ -17,4 +17,4 @@ endif
 CXXFLAGS += -D_LARGEFILE64_SOURCE=1 -DNO_UNDERLINE -DASMV -DWITH_SIMD -DSIZEOF_SIZE_T
 NAME	= jpeg-turbo
 
-include $(PROJPATH)MakeTargets.mk
+include $(PROJPATH)/MakeTargets.mk
