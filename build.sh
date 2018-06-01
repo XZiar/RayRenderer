@@ -13,7 +13,7 @@ function build()
 
 function clean()
 {
-    make clean
+    make clean PROJPATH=$ProjDir
 }
 
 echo "Project Directory:$ProjDir"

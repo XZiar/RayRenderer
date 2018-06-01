@@ -29,6 +29,7 @@
   * Model
     - [ ] Add skeleton animation
     - [ ] Add more import support
+    - [ ] Add model export
 
 * WPFTest
   - [ ] Change to move convinient mouse+keyboard operation
@@ -37,3 +38,4 @@
 * Global
   - [ ] Add GacUI
   - [ ] Port some utilities to Linux 
+  - [ ] Custom build system for Linux
