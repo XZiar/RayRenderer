@@ -146,6 +146,20 @@ void _oglContext::SetFaceCulling(const FaceCullingType type)
     FaceCulling = type;
 }
 
+void _oglContext::SetDepthClip(const bool fix)
+{
+    if (fix)
+    {
+        glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+        glClearDepth(0.0f);
+    }
+    else
+    {
+        glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+        glClearDepth(1.0f);
+    }
+}
+
 bool _oglContext::SetFBO(const oglFBO& fbo)
 {
     if (FrameBuffer != fbo)

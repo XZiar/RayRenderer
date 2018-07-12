@@ -239,12 +239,13 @@ void BasicTest::fontTest(const char32_t word)
     }
 }
 
-BasicTest::BasicTest(const fs::path& shaderPath)
+BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
 {
     static Init _init;
     glContext = oglu::oglContext::CurrentContext();
-    glContext->SetDepthTest(DepthTestType::LessEqual);
+    glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
+    cam.zNear = 0.01f;
     fontViewer.reset();
     fontCreator.reset(oclu::Vendor::Intel);
     Basepath = u"D:\\Programs Temps\\RayRenderer";

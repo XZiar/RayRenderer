@@ -316,11 +316,11 @@ public:
     Vec3 position;
     float fovy, aspect, zNear, zFar;
     int width, height;
-    Camera(int w = 1120, int h = 630) noexcept
+    Camera(const int w, const int h) noexcept
     {
         width = w, height = h;
         aspect = (float)w / h;
-        fovy = 45.0f, zNear = 1.0f, zFar = 100.0f;
+        fovy = 60.0f, zNear = 1.0f, zFar = 100.0f;
 
         position = Vec3(0, 0, 10);
         u = Vec3(1, 0, 0);

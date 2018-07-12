@@ -73,6 +73,7 @@ public:
     void SetDebug(MsgSrc src, MsgType type, MsgLevel minLV);
     void SetDepthTest(const DepthTestType type);
     void SetFaceCulling(const FaceCullingType type);
+    void SetDepthClip(const bool fix);
     DepthTestType GetDepthTest() { return DepthTestFunc; }
     FaceCullingType GetFaceCulling() { return FaceCulling; }
 

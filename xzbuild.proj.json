@@ -48,7 +48,7 @@
             "type": "dynamic",
             "path": "common/AsyncExecutor",
             "description": "An async task execution library",
-            "dependency": ["fmt", "miniLogger"]
+            "dependency": ["fmt", "miniLogger","boost.context"]
         },
         {
             "name": "ImageUtil",

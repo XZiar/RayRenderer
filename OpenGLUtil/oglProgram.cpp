@@ -449,25 +449,36 @@ void _oglProgram::SetProject(const Camera& cam)
     //assert(cam.aspect > std::numeric_limits<float>::epsilon());
     if (cam.aspect <= std::numeric_limits<float>::epsilon())
         return;
-    const float cotHalfFovy = 1 / tan(b3d::ang2rad(cam.fovy / 2));
-    const float viewDepthR = 1 / (cam.zFar - cam.zNear);
-    /*   cot(fovy/2)
-    *  -------------		0		   0			0
-    *     aspect
-    *
-    *       0         cot(fovy/2)	   0			0
-    *
-    *								  F+N         2*F*N
-    *       0              0		 -----	   - -------
-    *								  F-N          F-N
-    *
-    *       0              0           1			0
-    *
-    **/
-    matrix_Proj = Mat4x4(Vec4(cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f),
-        Vec4(0.f, cotHalfFovy, 0.f, 0.f),
-        Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthR, (-2 * cam.zFar * cam.zNear) * viewDepthR),
-        Vec4(0.f, 0.f, 1.f, 0.f));
+    const float cotHalfFovy = 1 / std::tan(b3d::ang2rad(cam.fovy / 2));
+
+    //reverse-z with infinite far
+    matrix_Proj = Mat4x4
+    {
+        { cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f },
+        { 0.f, cotHalfFovy, 0.f, 0.f },
+        { 0.f, 0.f, 0.f, cam.zNear },
+        { 0.f, 0.f, -1.0f, 0.f }
+    };
+    //(0,0,1,1)->(0,0,near,-1),(0,0,-1,1)->(0,0,near,1)
+
+    //const float viewDepthR = 1 / (cam.zFar - cam.zNear);
+    //*   cot(fovy/2)
+    //*  -------------		0		   0			0
+    //*     aspect
+    //*
+    //*       0         cot(fovy/2)	   0			0
+    //*
+    //*								  F+N         2*F*N
+    //*       0              0		 -----	   - -------
+    //*								  F-N          F-N
+    //*
+    //*       0              0           1			0
+    //*
+    //*/
+    //matrix_Proj = Mat4x4(Vec4(cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f),
+    //    Vec4(0.f, cotHalfFovy, 0.f, 0.f),
+    //    Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthR, (-2 * cam.zFar * cam.zNear) * viewDepthR),
+    //    Vec4(0.f, 0.f, 1.f, 0.f));
 
     SetUniform(Uni_projMat, matrix_Proj);
 }
