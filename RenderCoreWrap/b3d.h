@@ -54,6 +54,11 @@ public:
         Vec3F get() { return Vec3F(cam->position); }
         void set(Vec3F value) { value.Store(cam->position); OnPropertyChanged("Position"); }
     }
+    property Vec3F Direction
+    {
+        Vec3F get() { return Vec3F(cam->rotation); }
+        void set(Vec3F value) { value.Store(cam->rotation); OnPropertyChanged("Direction"); }
+    }
 
     void Move(const float dx, const float dy, const float dz)
     {
@@ -64,16 +69,24 @@ public:
     void Pitch(const float radx)
     {
         cam->pitch(radx);
+        OnPropertyChanged("Direction");
     }
     //rotate along y-axis, radius
     void Yaw(const float rady)
     {
         cam->yaw(rady);
+        OnPropertyChanged("Direction");
     }
     //rotate along z-axis, radius
     void Roll(const float radz)
     {
         cam->roll(radz);
+        OnPropertyChanged("Direction");
+    }
+    void Rotate(const float dx, const float dy, const float dz)
+    {
+        cam->Rotate(dx, dy, dz);
+        OnPropertyChanged("Direction");
     }
 };
 

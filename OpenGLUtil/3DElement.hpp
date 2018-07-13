@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <string>
+#include <algorithm>
 #include "3DBasic/miniBLAS.hpp"
 
 namespace b3d
@@ -297,23 +298,17 @@ public:
 
 class alignas(32) Camera : public common::AlignBase<32>
 {
-protected:
-    void rotate(const Mat3x3& rMat)
-    {
-        u = rMat * u;
-        v = rMat * v;
-        n = rMat * n;
-    }
 public:
     union
     {
-        Mat3x3 camMat;
+        Mat3x3 CamMat;
         struct
         {
             Normal u, v, n;//to right,up,toward
         };
     };
     Vec3 position;
+    Vec3 rotation;
     float fovy, aspect, zNear, zFar;
     int width, height;
     Camera(const int w, const int h) noexcept
@@ -323,9 +318,12 @@ public:
         fovy = 60.0f, zNear = 1.0f, zFar = 100.0f;
 
         position = Vec3(0, 0, 10);
-        u = Vec3(1, 0, 0);
-        v = Vec3(0, 1, 0);
-        n = Vec3(0, 0, -1);
+        rotation = Vec3::zero();
+        //fit for reverse-z
+        //u = Vec3(1, 0, 0);
+        //v = Vec3(0, 1, 0);
+        //n = Vec3(0, 0, 1);
+        CamMat = Mat3x3::identity();
     }
     void resize(const int w, const int h)
     {
@@ -334,22 +332,39 @@ public:
     }
     void Move(const float &x, const float &y, const float &z)
     {
-        position += camMat * Vec3(x, y, z);
+        position += CamMat * Vec3(x, y, z);
     }
     //rotate along x-axis
     void pitch(const float radx)
     {
-        rotate(Mat3x3::RotateMat(Vec4(1.0f, 0.0f, 0.0f, radx)));
+        rotation.x = std::clamp(rotation.x + radx, -PI_float / 2, PI_float / 2); // limit to 90 degree
+        CamMat = Mat3x3::RotateMatXYZ(rotation);
     }
     //rotate along y-axis
     void yaw(const float rady)
     {
-        rotate(Mat3x3::RotateMat(Vec4(0.0f, 1.0f, 0.0f, rady)));
+        rotation.y += rady;
+        rotation.y -= std::floor(rotation.y / (PI_float * 2))*(PI_float * 2);
+        CamMat = Mat3x3::RotateMatXYZ(rotation);
     }
     //rotate along z-axis
     void roll(const float radz)
     {
-        rotate(Mat3x3::RotateMat(Vec4(0.0f, 0.0f, 1.0f, radz)));
+        rotation.z = std::clamp(rotation.z + radz, -PI_float / 2, PI_float / 2); // limit to 90 degree
+        CamMat = Mat3x3::RotateMatXYZ(rotation);
+    }
+
+    void Rotate(const float x, const float y, const float z)
+    {
+        rotation.x = std::clamp(rotation.x + x, -PI_float / 2, PI_float / 2); // limit to 90 degree
+        rotation.y += y;
+        rotation.y -= std::floor(rotation.y / (PI_float * 2))*(PI_float * 2);
+        rotation.z = std::clamp(rotation.z + z, -PI_float / 2, PI_float / 2); // limit to 90 degree
+        CamMat = Mat3x3::RotateMatXYZ(rotation);
+    }
+    void Rotate(const Vec3& angles)
+    {
+        Rotate(angles.x, angles.y, angles.z);
     }
 };
 

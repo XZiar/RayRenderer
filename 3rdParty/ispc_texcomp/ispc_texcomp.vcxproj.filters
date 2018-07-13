@@ -31,5 +31,6 @@
     <CustomBuild Include="*.ispc" />
     <CustomBuild Include="*.ispc" />
     <CustomBuild Include="*.ispc" />
+    <CustomBuild Include="*.ispc" />
   </ItemGroup>
 </Project>

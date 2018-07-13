@@ -209,12 +209,7 @@ namespace WPFTest
                 Drawables.Current?.Rotate(-x, -y, -z);
                 break;
             case OPObject.Camera:
-                if (x != 0.0f) //quick skip
-                    Test.Camera.Pitch(x);
-                if (y != 0.0f) //quick skip
-                    Test.Camera.Yaw(y);
-                if (z != 0.0f) //quick skip
-                    Test.Camera.Roll(z);
+                Test.Camera.Rotate(x, y, z);
                 break;
             case OPObject.Light:
                 Lights.Current?.Rotate(-x, -y, -z);

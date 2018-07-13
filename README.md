@@ -40,7 +40,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-VS2017(`15.7`) needed. Windows SDK Target is `10.0.16299.0`. .Net Framework 4.7.1 needed for C# components.
+VS2017(`15.7`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
 
 Some Utilities have `Makefile` inside are capable to be compiled on Linux, only tested on GCC 7.2. They can be built by execute [`build.sh`](build.sh) or use more powerful build system via [`build.py`](build.py) (python3).
 

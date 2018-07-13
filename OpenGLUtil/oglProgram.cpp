@@ -487,7 +487,7 @@ void _oglProgram::SetCamera(const Camera & cam)
 {
     //LookAt
     //matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
-    const auto rMat = cam.camMat.inv();
+    const auto rMat = cam.CamMat.inv();
     matrix_View = Mat4x4::TranslateMat(cam.position * -1, rMat);
 
     SetUniform(Uni_viewMat, matrix_View);

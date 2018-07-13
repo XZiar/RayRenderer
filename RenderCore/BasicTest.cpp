@@ -248,9 +248,9 @@ BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
     cam.zNear = 0.01f;
     fontViewer.reset();
     fontCreator.reset(oclu::Vendor::Intel);
-    Basepath = u"D:\\Programs Temps\\RayRenderer";
+    Basepath = u"C:\\Programs Temps\\RayRenderer";
     if (!fs::exists(Basepath))
-        Basepath = u"C:\\Programs Temps\\RayRenderer";
+        Basepath = u"C:\\ProgramsTemps\\RayRenderer";
     fontCreator->reloadFont(Basepath / u"test.ttf");
 
     fontTest(/*L'‡å'*/);
