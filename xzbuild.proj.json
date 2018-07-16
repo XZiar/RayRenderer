@@ -30,13 +30,6 @@
             "dependency": []
         },
         {
-            "name": "fmt2",
-            "type": "static",
-            "path": "3rdParty/fmt2",
-            "description": "A modern formatting library",
-            "dependency": []
-        },
-        {
             "name": "boost.context",
             "type": "static",
             "path": "3rdParty/boost.context",
@@ -69,12 +62,6 @@
             "type": "executable",
             "path": "Tests/UtilTest",
             "dependency": ["fmt", "miniLogger", "AsyncExecutor"]
-        },
-        {
-            "name": "FmtTest",
-            "type": "executable",
-            "path": "Tests/FmtTest",
-            "dependency": ["fmt2"]
         }
     ]
 }

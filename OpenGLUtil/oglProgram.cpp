@@ -211,9 +211,12 @@ void _oglProgram::InitSubroutines()
     subrLookup.clear();
     SubroutineBindings.clear();
     SubroutineSettings.clear();
-    auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
-    writer.clear();
-    writer.write(u"SubRoutine Resource: \n");
+    auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::GetBuffer();
+    strBuffer.resize(0);
+    {
+        constexpr std::u16string_view tmp = u"SubRoutine Resource: \n";
+        strBuffer.append(tmp.data(), tmp.data() + tmp.size());
+    }
     string nameBuf;
     for (auto stage : stages)
     {
@@ -236,7 +239,7 @@ void _oglProgram::InitSubroutines()
                 uniformName.assign(nameBuf, 0, nameLen);
             }
             auto uniformLoc = glGetSubroutineUniformLocation(programID, stage, uniformName.data());
-            writer.write(u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
+            fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
             GLint srcnt = 0;
             glGetActiveSubroutineUniformiv(programID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
             vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
@@ -251,7 +254,7 @@ void _oglProgram::InitSubroutines()
                     glGetActiveSubroutineName(programID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
                     subrName.assign(nameBuf, 0, nameLen);
                 }
-                writer.write(u"--[{}]: {}\n", subridx, subrName);
+                fmt::format_to(strBuffer, u"--[{}]: {}\n", subridx, subrName);
                 routines.push_back(SubroutineResource::Routine(subrName, subridx));
             }
             const auto it = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines)).first;
@@ -262,7 +265,7 @@ void _oglProgram::InitSubroutines()
         glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
         SubroutineSettings[(ShaderType)stage].resize(locCount);
     }
-    oglLog().debug(writer.c_str());
+    oglLog().debug(strBuffer);
     
     for (const auto& subr : SubroutineRess)
     {

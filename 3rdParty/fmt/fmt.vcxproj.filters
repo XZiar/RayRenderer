@@ -15,16 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="string.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="time.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="container.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
+    <None Include="LICENSE.rst" />
+    <None Include="README.rst" />
+    <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="format.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="format-inl.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ostream.h">
@@ -36,30 +35,28 @@
     <ClInclude Include="printf.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ranges.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="time.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="core.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="utfext.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="printf.cc">
+    <ClCompile Include="posix.cc">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="format.cc">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ostream.cc">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="posix.cc">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="utfext.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="LICENSE.rst" />
-    <None Include="README.rst" />
-    <None Include="Makefile" />
   </ItemGroup>
 </Project>

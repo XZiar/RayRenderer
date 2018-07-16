@@ -9,102 +9,102 @@ vector<oclPlatform> oclUtil::platforms;
 
 void oclUtil::init()
 {
-	platforms.clear();
-	cl_uint numPlatforms = 0;
-	clGetPlatformIDs(0, nullptr, &numPlatforms);
-	//Get all Platforms
-	vector<cl_platform_id> platformIDs(numPlatforms);
-	clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
-	for (const auto& pID : platformIDs)
-	{
-		auto plt = oclPlatform(new detail::_oclPlatform(pID));
-		platforms.push_back(plt);
-        auto& writer = common::mlog::detail::StrFormater<char16_t>::GetWriter();
-        writer.clear();
-        writer.write(u"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
-		for (const auto dev : plt->getDevices())
-            writer.write(u"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : 
-				dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
-				dev->name, dev->vendor, dev->version);
-		oclLog().verbose(writer.c_str());
-	}
+    platforms.clear();
+    cl_uint numPlatforms = 0;
+    clGetPlatformIDs(0, nullptr, &numPlatforms);
+    //Get all Platforms
+    vector<cl_platform_id> platformIDs(numPlatforms);
+    clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
+    for (const auto& pID : platformIDs)
+    {
+        auto plt = oclPlatform(new detail::_oclPlatform(pID));
+        platforms.push_back(plt);
+        auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::GetBuffer();
+        strBuffer.resize(0);
+        fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plt->name, plt->ver, plt->isCurrentGL() ? 'Y' : 'N');
+        for (const auto dev : plt->getDevices())
+            fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", dev->type == oclu::DeviceType::CPU ? "CPU" : 
+                dev->type == oclu::DeviceType::GPU ? "GPU" : "OTHER",
+                dev->name, dev->vendor, dev->version);
+        oclLog().verbose(strBuffer);
+    }
 }
 
 
 const wchar_t* oclUtil::getErrorString(const cl_int err)
 {
-	switch (err)
-	{
-	// run-time and JIT compiler errors
-	case 0: return L"CL_SUCCESS";
-	case -1: return L"CL_DEVICE_NOT_FOUND";
-	case -2: return L"CL_DEVICE_NOT_AVAILABLE";
-	case -3: return L"CL_COMPILER_NOT_AVAILABLE";
-	case -4: return L"CL_MEM_OBJECT_ALLOCATION_FAILURE";
-	case -5: return L"CL_OUT_OF_RESOURCES";
-	case -6: return L"CL_OUT_OF_HOST_MEMORY";
-	case -7: return L"CL_PROFILING_INFO_NOT_AVAILABLE";
-	case -8: return L"CL_MEM_COPY_OVERLAP";
-	case -9: return L"CL_IMAGE_FORMAT_MISMATCH";
-	case -10: return L"CL_IMAGE_FORMAT_NOT_SUPPORTED";
-	case -11: return L"CL_BUILD_PROGRAM_FAILURE";
-	case -12: return L"CL_MAP_FAILURE";
-	case -13: return L"CL_MISALIGNED_SUB_BUFFER_OFFSET";
-	case -14: return L"CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
-	case -15: return L"CL_COMPILE_PROGRAM_FAILURE";
-	case -16: return L"CL_LINKER_NOT_AVAILABLE";
-	case -17: return L"CL_LINK_PROGRAM_FAILURE";
-	case -18: return L"CL_DEVICE_PARTITION_FAILED";
-	case -19: return L"CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
-	// compile-time errors
-	case -30: return L"CL_INVALID_VALUE";
-	case -31: return L"CL_INVALID_DEVICE_TYPE";
-	case -32: return L"CL_INVALID_PLATFORM";
-	case -33: return L"CL_INVALID_DEVICE";
-	case -34: return L"CL_INVALID_CONTEXT";
-	case -35: return L"CL_INVALID_QUEUE_PROPERTIES";
-	case -36: return L"CL_INVALID_COMMAND_QUEUE";
-	case -37: return L"CL_INVALID_HOST_PTR";
-	case -38: return L"CL_INVALID_MEM_OBJECT";
-	case -39: return L"CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
-	case -40: return L"CL_INVALID_IMAGE_SIZE";
-	case -41: return L"CL_INVALID_SAMPLER";
-	case -42: return L"CL_INVALID_BINARY";
-	case -43: return L"CL_INVALID_BUILD_OPTIONS";
-	case -44: return L"CL_INVALID_PROGRAM";
-	case -45: return L"CL_INVALID_PROGRAM_EXECUTABLE";
-	case -46: return L"CL_INVALID_KERNEL_NAME";
-	case -47: return L"CL_INVALID_KERNEL_DEFINITION";
-	case -48: return L"CL_INVALID_KERNEL";
-	case -49: return L"CL_INVALID_ARG_INDEX";
-	case -50: return L"CL_INVALID_ARG_VALUE";
-	case -51: return L"CL_INVALID_ARG_SIZE";
-	case -52: return L"CL_INVALID_KERNEL_ARGS";
-	case -53: return L"CL_INVALID_WORK_DIMENSION";
-	case -54: return L"CL_INVALID_WORK_GROUP_SIZE";
-	case -55: return L"CL_INVALID_WORK_ITEM_SIZE";
-	case -56: return L"CL_INVALID_GLOBAL_OFFSET";
-	case -57: return L"CL_INVALID_EVENT_WAIT_LIST";
-	case -58: return L"CL_INVALID_EVENT";
-	case -59: return L"CL_INVALID_OPERATION";
-	case -60: return L"CL_INVALID_GL_OBJECT";
-	case -61: return L"CL_INVALID_BUFFER_SIZE";
-	case -62: return L"CL_INVALID_MIP_LEVEL";
-	case -63: return L"CL_INVALID_GLOBAL_WORK_SIZE";
-	case -64: return L"CL_INVALID_PROPERTY";
-	case -65: return L"CL_INVALID_IMAGE_DESCRIPTOR";
-	case -66: return L"CL_INVALID_COMPILER_OPTIONS";
-	case -67: return L"CL_INVALID_LINKER_OPTIONS";
-	case -68: return L"CL_INVALID_DEVICE_PARTITION_COUNT";
-	// extension errors
-	case -1000: return L"CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR";
-	case -1001: return L"CL_PLATFORM_NOT_FOUND_KHR";
-	case -1002: return L"CL_INVALID_D3D10_DEVICE_KHR";
-	case -1003: return L"CL_INVALID_D3D10_RESOURCE_KHR";
-	case -1004: return L"CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR";
-	case -1005: return L"CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
-	default: return L"Unknown OpenCL error";
-	}
+    switch (err)
+    {
+    // run-time and JIT compiler errors
+    case 0: return L"CL_SUCCESS";
+    case -1: return L"CL_DEVICE_NOT_FOUND";
+    case -2: return L"CL_DEVICE_NOT_AVAILABLE";
+    case -3: return L"CL_COMPILER_NOT_AVAILABLE";
+    case -4: return L"CL_MEM_OBJECT_ALLOCATION_FAILURE";
+    case -5: return L"CL_OUT_OF_RESOURCES";
+    case -6: return L"CL_OUT_OF_HOST_MEMORY";
+    case -7: return L"CL_PROFILING_INFO_NOT_AVAILABLE";
+    case -8: return L"CL_MEM_COPY_OVERLAP";
+    case -9: return L"CL_IMAGE_FORMAT_MISMATCH";
+    case -10: return L"CL_IMAGE_FORMAT_NOT_SUPPORTED";
+    case -11: return L"CL_BUILD_PROGRAM_FAILURE";
+    case -12: return L"CL_MAP_FAILURE";
+    case -13: return L"CL_MISALIGNED_SUB_BUFFER_OFFSET";
+    case -14: return L"CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
+    case -15: return L"CL_COMPILE_PROGRAM_FAILURE";
+    case -16: return L"CL_LINKER_NOT_AVAILABLE";
+    case -17: return L"CL_LINK_PROGRAM_FAILURE";
+    case -18: return L"CL_DEVICE_PARTITION_FAILED";
+    case -19: return L"CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+    // compile-time errors
+    case -30: return L"CL_INVALID_VALUE";
+    case -31: return L"CL_INVALID_DEVICE_TYPE";
+    case -32: return L"CL_INVALID_PLATFORM";
+    case -33: return L"CL_INVALID_DEVICE";
+    case -34: return L"CL_INVALID_CONTEXT";
+    case -35: return L"CL_INVALID_QUEUE_PROPERTIES";
+    case -36: return L"CL_INVALID_COMMAND_QUEUE";
+    case -37: return L"CL_INVALID_HOST_PTR";
+    case -38: return L"CL_INVALID_MEM_OBJECT";
+    case -39: return L"CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
+    case -40: return L"CL_INVALID_IMAGE_SIZE";
+    case -41: return L"CL_INVALID_SAMPLER";
+    case -42: return L"CL_INVALID_BINARY";
+    case -43: return L"CL_INVALID_BUILD_OPTIONS";
+    case -44: return L"CL_INVALID_PROGRAM";
+    case -45: return L"CL_INVALID_PROGRAM_EXECUTABLE";
+    case -46: return L"CL_INVALID_KERNEL_NAME";
+    case -47: return L"CL_INVALID_KERNEL_DEFINITION";
+    case -48: return L"CL_INVALID_KERNEL";
+    case -49: return L"CL_INVALID_ARG_INDEX";
+    case -50: return L"CL_INVALID_ARG_VALUE";
+    case -51: return L"CL_INVALID_ARG_SIZE";
+    case -52: return L"CL_INVALID_KERNEL_ARGS";
+    case -53: return L"CL_INVALID_WORK_DIMENSION";
+    case -54: return L"CL_INVALID_WORK_GROUP_SIZE";
+    case -55: return L"CL_INVALID_WORK_ITEM_SIZE";
+    case -56: return L"CL_INVALID_GLOBAL_OFFSET";
+    case -57: return L"CL_INVALID_EVENT_WAIT_LIST";
+    case -58: return L"CL_INVALID_EVENT";
+    case -59: return L"CL_INVALID_OPERATION";
+    case -60: return L"CL_INVALID_GL_OBJECT";
+    case -61: return L"CL_INVALID_BUFFER_SIZE";
+    case -62: return L"CL_INVALID_MIP_LEVEL";
+    case -63: return L"CL_INVALID_GLOBAL_WORK_SIZE";
+    case -64: return L"CL_INVALID_PROPERTY";
+    case -65: return L"CL_INVALID_IMAGE_DESCRIPTOR";
+    case -66: return L"CL_INVALID_COMPILER_OPTIONS";
+    case -67: return L"CL_INVALID_LINKER_OPTIONS";
+    case -68: return L"CL_INVALID_DEVICE_PARTITION_COUNT";
+    // extension errors
+    case -1000: return L"CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR";
+    case -1001: return L"CL_PLATFORM_NOT_FOUND_KHR";
+    case -1002: return L"CL_INVALID_D3D10_DEVICE_KHR";
+    case -1003: return L"CL_INVALID_D3D10_RESOURCE_KHR";
+    case -1004: return L"CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR";
+    case -1005: return L"CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR";
+    default: return L"Unknown OpenCL error";
+    }
 }
 
 

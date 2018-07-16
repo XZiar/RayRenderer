@@ -69,17 +69,11 @@ public:
         memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t)*len, content, sizeof(char16_t)*len);
         return msg;
     }
-    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const std::u16string& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    template<typename T>
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const T& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
-        return MakeMessage(prefix, content.c_str(), content.size(), level, time);
-    }
-    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const fmt::BasicCStringRef<char16_t>& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-    {
-        return MakeMessage(prefix, content.c_str(), std::char_traits<char16_t>::length(content.c_str()), level, time);
-    }
-    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const fmt::UTFMemoryWriter<char16_t>& writer, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-    {
-        return MakeMessage(prefix, writer.data(), writer.size(), level, time);
+        //static_assert(std::is_same_v<typename T::value_type, char16_t>, "only accept container of char16_t");
+        return MakeMessage(prefix, content.data(), content.size(), level, time);
     }
     static bool Consume(LogMessage* msg)
     {
@@ -124,33 +118,33 @@ struct StrFormater;
 template<>
 struct MINILOGAPI StrFormater<char>
 {
-    static fmt::BasicMemoryWriter<char>& GetWriter();
+    static fmt::basic_memory_buffer<char>& GetBuffer();
     template<class... Args>
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char>& formater, Args&&... args)
+    static std::u16string ToU16Str(const std::basic_string_view<char>& formater, Args&&... args)
     {
-        auto& writer = GetWriter();
-        writer.clear();
-        writer.write(formater, std::forward<Args>(args)...);
-        return std::u16string(writer.data(), writer.data() + writer.size());
+        auto& buffer = GetBuffer();
+        buffer.resize(0);
+        fmt::format_to(buffer, formater, std::forward<Args>(args)...);
+        return std::u16string(buffer.begin(), buffer.end());
     }
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char>& content)
+    static std::u16string ToU16Str(const std::basic_string_view<char>& content)
     {
-        return std::u16string(content.c_str(), content.c_str() + std::char_traits<char>::length(content.c_str()));
+        return std::u16string(content.cbegin(), content.cend());
     }
 };
 template<>
 struct MINILOGAPI StrFormater<char16_t>
 {
-    static fmt::UTFMemoryWriter<char16_t>& GetWriter();
+    static fmt::basic_memory_buffer<char16_t>& GetBuffer();
     template<class... Args>
-    static const fmt::UTFMemoryWriter<char16_t>& ToU16Str(const fmt::BasicCStringRef<char16_t>& formater, Args&&... args)
+    static const fmt::internal::basic_buffer<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& formater, Args&&... args)
     {
-        auto& writer = GetWriter();
-        writer.clear();
-        writer.write(formater, std::forward<Args>(args)...);
-        return writer;
+        auto& buffer = GetBuffer();
+        buffer.resize(0);
+        fmt::format_to(buffer, formater, std::forward<Args>(args)...);
+        return buffer;
     }
-    static const fmt::BasicCStringRef<char16_t>& ToU16Str(const fmt::BasicCStringRef<char16_t>& content)
+    static const std::basic_string_view<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& content)
     {
         return content;
     }
@@ -159,18 +153,18 @@ struct MINILOGAPI StrFormater<char16_t>
 template<>
 struct MINILOGAPI StrFormater<char32_t>
 {
-    static fmt::UTFMemoryWriter<char32_t>& GetWriter();
+    static fmt::basic_memory_buffer<char32_t>& GetBuffer();
     template<class... Args>
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char32_t>& formater, Args&&... args)
+    static std::u16string ToU16Str(const std::basic_string_view<char32_t>& formater, Args&&... args)
     {
-        auto& writer = GetWriter();
-        writer.clear();
-        writer.write(formater, std::forward<Args>(args)...);
-        return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, char32_t, char16_t>::Convert(writer.data(), writer.size(), true, true);
+        auto& buffer = GetBuffer();
+        buffer.resize(0);
+        fmt::format_to(buffer, formater, std::forward<Args>(args)...);
+        return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, char32_t, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
     }
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<char32_t>& content)
+    static std::u16string ToU16Str(const std::basic_string_view<char32_t>& content)
     {
-        std::u32string_view sv(content.c_str());
+        std::u32string_view sv(content.data());
         return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, char32_t, char16_t>::Convert(sv.data(), sv.size(), true, true);
     }
 };
@@ -178,26 +172,26 @@ struct MINILOGAPI StrFormater<char32_t>
 template<>
 struct MINILOGAPI StrFormater<wchar_t>
 {
-    static fmt::BasicMemoryWriter<wchar_t>& GetWriter();
+    static fmt::basic_memory_buffer<wchar_t>& GetBuffer();
     template<class... Args>
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<wchar_t>& formater, Args&&... args)
+    static std::u16string ToU16Str(const std::basic_string_view<wchar_t>& formater, Args&&... args)
     {
-        auto& writer = GetWriter();
-        writer.clear();
-        writer.write(formater, std::forward<Args>(args)...);
+        auto& buffer = GetBuffer();
+        buffer.resize(0);
+        fmt::format_to(buffer, formater, std::forward<Args>(args)...);
         if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-            return std::u16string((const char16_t*)writer.data(), writer.size());
+            return std::u16string((const char16_t*)buffer.data(), buffer.size());
         else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, wchar_t, char16_t>::Convert(writer.data(), writer.size(), true, true);
+            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, wchar_t, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
         else
             return u"";
     }
-    static std::u16string ToU16Str(const fmt::BasicCStringRef<wchar_t>& content)
+    static std::u16string ToU16Str(const std::basic_string_view<wchar_t>& content)
     {
         if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-            return std::u16string(reinterpret_cast<const fmt::BasicCStringRef<char16_t>*>(&content)->c_str());
+            return std::u16string(content.cbegin(), content.cend());
         else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-            return StrFormater<char32_t>::ToU16Str(*(const fmt::BasicCStringRef<char32_t>*)&content);
+            return StrFormater<char32_t>::ToU16Str(*reinterpret_cast<const std::basic_string_view<char32_t>*>(&content));
         else
             return u"";
     }

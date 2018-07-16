@@ -30,22 +30,22 @@ public:
     LogLevel GetLeastLevel() { return LeastLevel; }
 
     template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char>& formater, Args&&... args)
+    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char>& formater, Args&&... args)
     {
         return LogMessage::MakeMessage(Prefix, StrFormater<char>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char16_t>& formater, Args&&... args)
+    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char16_t>& formater, Args&&... args)
     {
         return LogMessage::MakeMessage(Prefix, StrFormater<char16_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<char32_t>& formater, Args&&... args)
+    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char32_t>& formater, Args&&... args)
     {
         return LogMessage::MakeMessage(Prefix, StrFormater<char32_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
     template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const fmt::BasicCStringRef<wchar_t>& formater, Args&&... args)
+    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<wchar_t>& formater, Args&&... args)
     {
         return LogMessage::MakeMessage(Prefix, StrFormater<wchar_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
@@ -93,6 +93,68 @@ public:
     }
 
     template<typename Char, class... Args>
+    void error(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Error, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+    template<typename Char, class... Args>
+    void warning(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Warning, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+    template<typename Char, class... Args>
+    void success(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Success, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+    template<typename Char, class... Args>
+    void verbose(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Verbose, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+    template<typename Char, class... Args>
+    void info(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Info, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+    template<typename Char, class... Args>
+    void debug(const fmt::basic_memory_buffer<Char>& strBuffer)
+    {
+        log<Char>(LogLevel::Debug, std::u16string_view(strBuffer.data(), strBuffer.size()));
+    }
+
+    template<typename Char, class... Args>
+    void error(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Error, formater, std::forward<Args>(args)...);
+    }
+    template<typename Char, class... Args>
+    void warning(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Warning, formater, std::forward<Args>(args)...);
+    }
+    template<typename Char, class... Args>
+    void success(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Success, formater, std::forward<Args>(args)...);
+    }
+    template<typename Char, class... Args>
+    void verbose(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Verbose, formater, std::forward<Args>(args)...);
+    }
+    template<typename Char, class... Args>
+    void info(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Info, formater, std::forward<Args>(args)...);
+    }
+    template<typename Char, class... Args>
+    void debug(const std::basic_string_view<Char>& formater, Args&&... args)
+    {
+        log<Char>(LogLevel::Debug, formater, std::forward<Args>(args)...);
+    }
+
+    template<typename Char, class... Args>
     void error(const std::basic_string<Char>& formater, Args&&... args)
     {
         log<Char>(LogLevel::Error, formater, std::forward<Args>(args)...);
@@ -124,7 +186,7 @@ public:
     }
 
     template<typename Char, class... Args>
-    void log(const LogLevel level, const fmt::BasicCStringRef<Char>& formater, Args&&... args)
+    void log(const LogLevel level, const std::basic_string_view<Char>& formater, Args&&... args)
     {
         if ((uint8_t)level < (uint8_t)LeastLevel.load(std::memory_order_relaxed))
             return;

@@ -31,7 +31,7 @@ inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
 }
 
-forceinline System::String^ ToStr(const fmt::UTFMemoryWriter<char16_t>& writer)
+forceinline System::String^ ToStr(const fmt::internal::basic_buffer<char16_t>& strBuffer)
 {
-    return gcnew System::String(reinterpret_cast<const wchar_t*>(writer.c_str()), 0, (int)writer.size());
+    return gcnew System::String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());
 }

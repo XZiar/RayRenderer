@@ -1,547 +1,272 @@
 #pragma once
 #include "format.h"
 #include "common/CommonRely.hpp"
-#include "common/StrCharset.hpp"
 
 
-namespace fmt
-{
-template<typename Char>
-using BasicFormatterExt = BasicFormatter<Char>;
+
+
+FMT_BEGIN_NAMESPACE
+
+typedef basic_string_view<char16_t> u16string_view;
+typedef basic_string_view<char32_t> u32string_view;
+typedef buffer_context<char16_t>::type u16format_context;
+typedef buffer_context<char32_t>::type u32format_context;
+typedef basic_memory_buffer<char16_t> u16memory_buffer;
+typedef basic_memory_buffer<char32_t> u32memory_buffer;
 
 namespace internal
 {
-    constexpr inline size_t SizeTag = size_t(1) << (sizeof(size_t) * 8 - 1);
-    constexpr inline size_t SizeMask = ~SizeTag;
-    
-    inline uint64_t make_type2() { return 0; }
-    template<typename T>
-    inline uint64_t make_type2(const T &arg) { return make_type(arg); }
-    inline uint64_t make_type2(const char*) { return Arg::STRING; }
-    inline uint64_t make_type2(const char16_t*) { return Arg::STRING; }
-    inline uint64_t make_type2(const wchar_t*) { return Arg::WSTRING; }
-    inline uint64_t make_type2(const char32_t*) { return Arg::WSTRING; }
-    template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char, T, A> &) { return Arg::STRING; }
-    template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char16_t, T, A> &) { return Arg::STRING; }
-    template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<wchar_t, T, A> &) { return Arg::WSTRING; }
-    template<typename T, typename A>
-    inline uint64_t make_type2(const std::basic_string<char32_t, T, A> &) { return Arg::WSTRING; }
-    template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char, T> &) { return Arg::STRING; }
-    template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char16_t, T> &) { return Arg::STRING; }
-    template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<wchar_t, T> &) { return Arg::WSTRING; }
-    template<typename T>
-    inline uint64_t make_type2(const std::basic_string_view<char32_t, T> &) { return Arg::WSTRING; }
 
-    template <typename Arg, typename... Args>
-    inline uint64_t make_type2(const Arg &first, const Args & ... tail) 
+typedef basic_buffer<char16_t> u16buffer;
+typedef basic_buffer<char32_t> u32buffer;
+
+
+template <>
+struct char_traits<char16_t>
+{
+    // Formats a floating-point number.
+    template <typename T>
+    FMT_API static int format_float(char16_t *buffer, std::size_t size, const char16_t *format, int precision, T value);
+};
+template <>
+struct char_traits<char32_t>
+{
+    // Formats a floating-point number.
+    template <typename T>
+    FMT_API static int format_float(char32_t *buffer, std::size_t size, const char32_t *format, int precision, T value);
+};
+
+
+constexpr inline size_t SizeTag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t CharTag = size_t(0b00) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t Char16Tag = size_t(0b01) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t WCharTag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t Char32Tag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t SizeMask = ~SizeTag;
+
+template<typename Char>
+struct StrConv
+{
+    union
     {
-        return make_type2(first) | (make_type2(tail...) << 4);
+        const Char* const Ptr;
+        const char* const PtrChar;
+        const char16_t* const PtrChar16;
+        const wchar_t* const PtrWChar;
+        const char32_t* const PtrChar32;
+    };
+    const size_t Size;
+    constexpr StrConv(const char* ptr) : StrConv(ptr, std::char_traits<char>::length(ptr)) {}
+    constexpr StrConv(const char16_t* ptr) : StrConv(ptr, std::char_traits<char16_t>::length(ptr)) {}
+    constexpr StrConv(const wchar_t* ptr) : StrConv(ptr, std::char_traits<wchar_t>::length(ptr)) {}
+    constexpr StrConv(const char32_t* ptr) : StrConv(ptr, std::char_traits<char32_t>::length(ptr)) {}
+    constexpr StrConv(const char* ptr, const size_t size) : PtrChar(ptr), Size((size & SizeMask) | CharTag) {}
+    constexpr StrConv(const char16_t* ptr, const size_t size) : PtrChar16(ptr), Size((size & SizeMask) | Char16Tag) {}
+    constexpr StrConv(const wchar_t* ptr, const size_t size) : PtrWChar(ptr), Size((size & SizeMask) | WCharTag) {}
+    constexpr StrConv(const char32_t* ptr, const size_t size) : PtrChar32(ptr), Size((size & SizeMask) | Char32Tag) {}
+    constexpr basic_string_view<Char> Result() const { return basic_string_view<Char>(Ptr, Size); }
+    constexpr typed_value<typename buffer_context<Char>::type, string_type> Value() const { return basic_string_view<Char>(Ptr, Size); }
+};
+
+
+template <typename Char>
+struct UTFMakeValueProxy
+{
+    using Context = typename buffer_context<Char>::type;
+    template<typename T>
+    static FMT_CONSTEXPR bool IsChar()
+    {
+        return std::is_same_v<T, char> || std::is_same_v<T, char16_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, char32_t>;
+    }
+    template<typename T> 
+    static FMT_CONSTEXPR bool IsTransChar()
+    {
+        return IsChar<T>() && !std::is_same_v<T, Char>;
     }
 
-    template <std::size_t N, bool = (N < ArgList::MAX_PACKED_ARGS)>
-    struct ArgArray2;
-
-    template <std::size_t N>
-    struct ArgArray2<N, true/*IsPacked*/> : public ArgArray<N, true>
+    template<typename T>
+    static FMT_CONSTEXPR auto make(const T& val)
     {
-        static Value FromStr(const BasicStringRef<char> &value)
-        {
-            Value ret;
-            ret.string.value = value.data();
-            ret.string.size = value.size();
-            return ret;
-        }
-        static Value FromStr(const BasicStringRef<char16_t> &value)
-        {
-            Value ret;
-            ret.string.value = reinterpret_cast<const char*>(value.data());
-            ret.string.size = value.size() | SizeTag;
-            return ret;
-        }
-        static Value FromStr(const BasicStringRef<wchar_t> &value)
-        {
-            Value ret;
-            ret.wstring.value = value.data();
-            ret.wstring.size = value.size();
-            return ret;
-        }
-        static Value FromStr(const BasicStringRef<char32_t> &value)
-        {
-            Value ret;
-            ret.wstring.value = reinterpret_cast<const wchar_t*>(value.data());
-            ret.wstring.size = value.size() | SizeTag;
-            return ret;
-        }
+        if constexpr(IsChar<T>())
+            return StrConv<Char>(&val, 1).Value();
+        else
+            return make_value<Context>(val);
+    }
 
-        template <typename T>
-        static Value make(const T &value)
-        {
-        #ifdef __clang__
-            Value result = MakeValue<Formatter>(value);
-            // Workaround a bug in Apple LLVM version 4.2 (clang-425.0.28) of clang:
-            // https://github.com/fmtlib/fmt/issues/276
-            (void)result.custom.format;
-            return result;
-        #else
-            return MakeValue<BasicFormatter<char>>(value);
-        #endif
-        }
-        static Value make(const char* value) { return FromStr(value); }
-        static Value make(const char16_t* value) { return FromStr(value); }
-        static Value make(const char32_t* value) { return FromStr(value); }
-        static Value make(const wchar_t* value) { return FromStr(value); }
-        template<typename Char>
-        static Value make(const std::basic_string<Char> &value) { return FromStr(value); }
-        template<typename Char>
-        static Value make(const std::basic_string_view<Char> &value) { return FromStr(value); }
-    };
-
-    template <std::size_t N>
-    struct ArgArray2<N, false/*IsPacked*/>  : public ArgArray<N, false>
+    template<typename T>
+    static FMT_CONSTEXPR auto make(const T* val)
     {
-        template <typename T>
-        static Arg make(const T &value) 
-        { 
-            return Arg{ ArgArray2<N, true>::make_crc_table(value), make_type2(value) };
-        }
-    };
-}
-
-# define FMT_ASSIGN_char16_t(n) \
-  arr[n] = fmt::internal::MakeValue< fmt::BasicFormatterExt<char16_t> >(u##n)
-# define FMT_ASSIGN_char32_t(n) \
-  arr[n] = fmt::internal::MakeValue< fmt::BasicFormatterExt<char32_t> >(U##n)
-
-# define FMT_VARIADIC_VOID_EXT(func, arg_type) \
-  template <typename... Args> \
-  void func(arg_type arg0, const Args & ... args) { \
-    typedef fmt::internal::ArgArray<sizeof...(Args)> ArgArray; \
-    typedef fmt::internal::ArgArray2<sizeof...(Args)> ArgArrayExt; \
-    typename ArgArray::Type array{ \
-      ArgArrayExt::make(args)...}; \
-    func(arg0, fmt::ArgList(fmt::internal::make_type2(args...), array)); \
-  }
-# define FMT_VARIADIC_EXT_(Const, Char, ReturnType, func, call, ...) \
-  template <typename... Args> \
-  ReturnType func(FMT_FOR_EACH(FMT_ADD_ARG_NAME, __VA_ARGS__), \
-      const Args & ... args) Const { \
-    typedef fmt::internal::ArgArray<sizeof...(Args)> ArgArray; \
-    typedef fmt::internal::ArgArray2<sizeof...(Args)> ArgArrayExt; \
-    typename ArgArray::Type array{ \
-      ArgArrayExt::make(args)...}; \
-    call(FMT_FOR_EACH(FMT_GET_ARG_NAME, __VA_ARGS__), \
-      fmt::ArgList(fmt::internal::make_type2(args...), array)); \
-  }
-
-namespace internal
-{
-    template <>
-    class CharTraits<char16_t> : public BasicCharTraits<char16_t>
+        if constexpr(IsTransChar<T>())
+            return StrConv<Char>(val).Value();
+        else
+            return make_value<Context>(val);
+    }
+    template<typename T>
+    static FMT_CONSTEXPR auto make(T* val)
     {
-    public:
-        static char16_t convert(char16_t value) { return value; }
+        if constexpr(IsTransChar<T>())
+            return StrConv<Char>(val).Value();
+        else
+            return make_value<Context>(val);
+    }
 
-        // Formats a floating-point number.
-        template <typename T>
-        FMT_API static int format_float(char16_t *buffer, std::size_t size,
-            const char16_t *format, unsigned width, int precision, T value);
-    };
-    template <>
-    class CharTraits<char32_t> : public BasicCharTraits<char32_t>
+    template<typename T>
+    static FMT_CONSTEXPR auto make(const basic_string_view<T>& val)
     {
-    public:
-        static char32_t convert(char32_t value) { return value; }
-
-        // Formats a floating-point number.
-        template <typename T>
-        FMT_API static int format_float(char32_t *buffer, std::size_t size,
-            const char32_t *format, unsigned width, int precision, T value);
-    };
-
-
-    template <typename T>
-    struct WCharHelper<T, char16_t> 
+        return StrConv<Char>(val.data(), val.size()).Value();
+    }
+    template<typename T>
+    static FMT_CONSTEXPR auto make(const std::basic_string_view<T>& val)
     {
-        typedef T Supported;
-        typedef Null<T> Unsupported;
-    };
-    template <typename T>
-    struct WCharHelper<T, char32_t>
+        return StrConv<Char>(val.data(), val.size()).Value();
+    }
+    template<typename T>
+    static FMT_CONSTEXPR auto make(const std::basic_string<T>& val)
     {
-        typedef T Supported;
-        typedef Null<T> Unsupported;
-    };
+        return StrConv<Char>(val.data(), val.size()).Value();
+    }
+
+};
+template<> struct MakeValueProxy<u16format_context> : public UTFMakeValueProxy<char16_t> {};
+template<> struct MakeValueProxy<u32format_context> : public UTFMakeValueProxy<char32_t> {};
 
 }
 
 
-template<typename Char, typename Spec = fmt::FormatSpec>
-class UTFArgFormatter : public BasicArgFormatter<UTFArgFormatter<Char>, Char, Spec>
+template <typename Range>
+class utf_formatter :
+    public internal::function<typename internal::arg_formatter_base<Range>::iterator>,
+    public internal::arg_formatter_base<Range> 
 {
 private:
+    typedef typename Range::value_type char_type;
+    typedef internal::arg_formatter_base<Range> base;
+    typedef basic_format_context<typename base::iterator, char_type> context_type;
+
+    context_type &ctx_;
+    
+    template<typename SrcChar>
+    std::basic_string<char_type> ConvertStr(const SrcChar* str, const size_t size);
 public:
-    UTFArgFormatter(BasicFormatter<Char, UTFArgFormatter<Char>> &f, fmt::FormatSpec &s, const Char *fmt)
-        : BasicArgFormatter<UTFArgFormatter<Char>, Char, Spec>(f, s, fmt) {}
+    typedef Range range;
+    typedef typename base::iterator iterator;
+    typedef typename base::format_specs format_specs;
 
-    void visit_string(internal::Arg::StringValue<char> value);
-    void visit_wstring(internal::Arg::StringValue<char16_t> value);
-    void visit_wstring(internal::Arg::StringValue<char32_t> value);
 
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-    void visit_wstring(internal::Arg::StringValue<wchar_t> value)
+    /**
+    \rst
+    Constructs an argument formatter object.
+    *ctx* is a reference to the formatting context,
+    *spec* contains format specifier information for standard argument types.
+    \endrst
+    */
+    utf_formatter(context_type &ctx, format_specs &spec)
+        : base(Range(ctx.out()), spec), ctx_(ctx) {}
+
+    using base::operator();
+
+    /** Formats an argument of a user-defined type. */
+    iterator operator()(typename basic_format_arg<context_type>::handle handle) 
     {
-        if (value.size & internal::SizeTag) //u32string
-        {
-            value.size &= internal::SizeMask;
-            visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char32_t>*>(&value));
-        }
-        else //wstring
-        {
-            if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-                visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char16_t>*>(&value));
-            else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-                visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char32_t>*>(&value));
-        }
+        handle.format(ctx_);
+        return this->out();
     }
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
+
+    iterator operator()(basic_string_view<char_type> value)
+    {
+        internal::check_string_type_spec(this->spec().type(), internal::error_handler());
+        uint8_t charSize = 0;
+        switch (value.size() & internal::SizeTag)
+        {
+        case internal::CharTag: charSize = 1; break;
+        case internal::Char16Tag: charSize = 2; break;
+        case internal::Char32Tag: charSize = 4; break;
+        case internal::WCharTag: charSize = sizeof(wchar_t); break;
+        }
+        const auto realSize = value.size() & internal::SizeMask;
+        switch (charSize)
+        {
+        case 1:
+            return internal::arg_formatter_base<Range>::operator()(
+                std::basic_string<char_type>(reinterpret_cast<const char*>(value.data()), reinterpret_cast<const char*>(value.data()) + realSize));
+        case 2:
+            if constexpr (sizeof(char_type) == 2)
+                return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
+            else // UTF32
+                return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char16_t*>(value.data()), realSize));
+        case 4:
+            if constexpr (sizeof(char_type) == 4)
+                return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
+            else // UTF16
+                return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char32_t*>(value.data()), realSize));
+        }
+        return this->out();
+    }
 };
 
-template<>
-inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
+
+template <typename T>
+inline internal::named_arg<T, char16_t> arg(u16string_view name, const T &arg)
 {
-    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(value);
+    return internal::named_arg<T, char16_t>(name, arg);
 }
-template<>
-inline void UTFArgFormatter<char16_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
+template <typename T>
+inline internal::named_arg<T, char32_t> arg(u32string_view name, const T &arg)
 {
-    const auto u16str = common::str::to_u16string(value.value, value.size, common::str::Charset::UTF32);
-    BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
+    return internal::named_arg<T, char32_t>(name, arg);
 }
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-inline void UTFArgFormatter<char16_t>::visit_string(internal::Arg::StringValue<char> value)
+
+struct u16format_args : basic_format_args<u16format_context>
 {
-    if (value.size & internal::SizeTag) //u16string
-    {
-        value.size &= internal::SizeMask;
-        visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char16_t>*>(&value));
-    }
-    else //string
-    {
-        const auto u16str = common::str::to_u16string(value.value, value.size, common::str::Charset::UTF7);
-        BasicArgFormatter<UTFArgFormatter<char16_t>, char16_t>::visit_wstring(internal::Arg::StringValue<char16_t>{ u16str.data(), u16str.size() });
-    }
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
-
-template<>
-inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char32_t> value)
+    template <typename ...Args>
+    u16format_args(Args && ... arg)
+        : basic_format_args<u16format_context>(std::forward<Args>(arg)...) {}
+};
+struct u32format_args : basic_format_args<u32format_context>
 {
-    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(value);
-}
-template<>
-inline void UTFArgFormatter<char32_t>::visit_wstring(internal::Arg::StringValue<char16_t> value)
-{
-    const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF16LE);
-    BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-inline void UTFArgFormatter<char32_t>::visit_string(internal::Arg::StringValue<char> value)
-{
-    if (value.size & internal::SizeTag) //u16string
-    {
-        value.size &= internal::SizeMask;
-        visit_wstring(*reinterpret_cast<internal::Arg::StringValue<char16_t>*>(&value));
-    }
-    else //string
-    {
-        const auto u32str = common::str::to_u32string(value.value, value.size, common::str::Charset::UTF7);
-        BasicArgFormatter<UTFArgFormatter<char32_t>, char32_t>::visit_wstring(internal::Arg::StringValue<char32_t>{ u32str.data(), u32str.size() });
-    }
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
-
-
-template <typename Char, typename Allocator = std::allocator<Char> >
-class UTFMemoryWriter : public BasicMemoryWriter<Char, Allocator> 
-{
-    static_assert(std::is_same_v<Char, char16_t> || std::is_same_v<Char, char32_t>, "only char16_t and char32_t allowed!");
-public:
-    explicit UTFMemoryWriter(const Allocator& alloc = Allocator()) : BasicMemoryWriter<Char, Allocator>(alloc) 
-    { }
-
-#if FMT_USE_RVALUE_REFERENCES
-    UTFMemoryWriter(UTFMemoryWriter &&other) : BasicMemoryWriter<Char, Allocator>(std::move(other))
-    { }
-
-    UTFMemoryWriter &operator=(UTFMemoryWriter &&other) 
-    {
-        *(BasicMemoryWriter<Char, Allocator>*)this = std::move(other);
-        return *this;
-    }
-#endif
-
-    UTFMemoryWriter & operator<<(const char value) 
-    { 
-        static_cast<BasicWriter<Char>*>(this)->buffer().push_back(value);
-        return *this;
-    }
-    UTFMemoryWriter & operator<<(const char* value)
-    {
-        return operator<<(BasicStringRef<char>(value));
-    }
-    UTFMemoryWriter & operator<<(const wchar_t value);
-    UTFMemoryWriter & operator<<(const wchar_t* value)
-    {
-        return operator<<(BasicStringRef<wchar_t>(value));
-    }
-    UTFMemoryWriter & operator<<(const char16_t value);
-    UTFMemoryWriter & operator<<(const char16_t* value)
-    {
-        return operator<<(BasicStringRef<char16_t>(value));
-    }
-    UTFMemoryWriter & operator<<(const char32_t value);
-    UTFMemoryWriter & operator<<(const char32_t* value)
-    {
-        return operator<<(BasicStringRef<char32_t>(value));
-    }
-
-
-    template<typename Char2>
-    UTFMemoryWriter &operator<<(fmt::BasicStringRef<Char2> value);
-    UTFMemoryWriter &operator<<(fmt::BasicStringRef<Char> value)
-    {
-        const Char *str = value.data();
-        static_cast<BasicWriter<Char>*>(this)->buffer().append(str, str + value.size());
-        return *this;
-    }
-
-    void write(BasicCStringRef<Char> format, ArgList args) 
-    {
-        BasicFormatter<Char, UTFArgFormatter<Char>>(args, *this).format(format);
-    }
-    //FMT_VARIADIC_VOID_EXT(write, BasicCStringRef<Char>)
-
-    ///*
-    template <typename... Args>
-    void write(BasicCStringRef<Char> arg0, const Args& ... args)
-    {
-        typedef fmt::internal::ArgArray<sizeof...(Args)> ArgArray;
-        typedef fmt::internal::ArgArray2<sizeof...(Args)> ArgArrayExt;
-        typename ArgArray::Type array{ ArgArrayExt::make(args)... };
-        write(arg0, fmt::ArgList(fmt::internal::make_type2(args...), array));
-    }
-    //*/
+    template <typename ...Args>
+    u32format_args(Args && ... arg)
+        : basic_format_args<u32format_context>(std::forward<Args>(arg)...) {}
 };
 
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const char16_t value)
+inline u16format_context::iterator vformat_to(internal::u16buffer &buf, u16string_view format_str, u16format_args args)
 {
-    static_cast<BasicWriter<char16_t>*>(this)->buffer().push_back(value);
-    return *this;
+    typedef back_insert_range<internal::u16buffer> range;
+    return vformat_to<utf_formatter<range>>(buf, format_str, args);
 }
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const char32_t value)
+
+inline u32format_context::iterator vformat_to(internal::u32buffer &buf, u32string_view format_str, u32format_args args)
 {
-    char16_t tmp[2];
-    const auto cnt = common::str::detail::UTF16::To(value, 2, tmp);
-    if(cnt > 0)
-        static_cast<BasicWriter<char16_t>*>(this)->buffer().append(tmp, tmp + cnt);
-    return *this;
+    typedef back_insert_range<internal::u32buffer> range;
+    return vformat_to<utf_formatter<range>>(buf, format_str, args);
 }
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<<(const wchar_t value)
+
+
+template <typename... Args, std::size_t SIZE = inline_buffer_size>
+inline u16format_context::iterator format_to(basic_memory_buffer<char16_t, SIZE> &buf, u16string_view format_str, const Args & ... args)
 {
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return operator<<(*reinterpret_cast<const char16_t*>(&value));
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return operator<<(*reinterpret_cast<const char32_t*>(&value));
-    else
-        return *this;
+    return vformat_to(buf, format_str, make_format_args<u16format_context>(args...));
 }
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
 
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const char32_t value)
+template <typename... Args, std::size_t SIZE = inline_buffer_size>
+inline u32format_context::iterator format_to(basic_memory_buffer<char32_t, SIZE> &buf, u32string_view format_str, const Args & ... args)
 {
-    static_cast<BasicWriter<char32_t>*>(this)->buffer().push_back(value);
-    return *this;
+    return vformat_to(buf, format_str, make_format_args<u32format_context>(args...));
 }
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const char16_t value)
+
+inline std::u16string vformat(u16string_view format_str, u16format_args args) 
 {
-    uint8_t cnt;
-    const auto ch = common::str::detail::UTF16::From(&value, 1, cnt);
-    if (cnt > 0)
-        static_cast<BasicWriter<char32_t>*>(this)->buffer().push_back(ch);
-    return *this;
+    u16memory_buffer buffer;
+    vformat_to(buffer, format_str, args);
+    return fmt::to_string(buffer);
 }
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<<(const wchar_t value)
+
+inline std::u32string vformat(u32string_view format_str, u32format_args args) 
 {
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return operator<<(*reinterpret_cast<const char16_t*>(&value));
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return operator<<(*reinterpret_cast<const char32_t*>(&value));
-    else
-        return *this;
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
-
-
-template<>
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <char>(fmt::BasicStringRef<char> value)
-{
-    const auto u16str = common::str::to_u16string(value.data(), value.size(), common::str::Charset::UTF8);
-    static_cast<BasicWriter<char16_t>*>(this)->buffer().append(u16str.data(), u16str.data() + u16str.size());
-    return *this;
-}
-template<>
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <char32_t>(fmt::BasicStringRef<char32_t> value)
-{
-    const auto u16str = common::str::to_u16string(value.data(), value.size(), common::str::Charset::UTF32);
-    static_cast<BasicWriter<char16_t>*>(this)->buffer().append(u16str.data(), u16str.data() + u16str.size());
-    return *this;
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-template<>
-inline UTFMemoryWriter<char16_t>& UTFMemoryWriter<char16_t>::operator<< <wchar_t>(fmt::BasicStringRef<wchar_t> value)
-{
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return operator<<(*reinterpret_cast<fmt::BasicStringRef<char16_t>*>(&value));
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return operator<<(*reinterpret_cast<fmt::BasicStringRef<char32_t>*>(&value));
-    else
-        return *this;
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
-
-template<>
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <char>(fmt::BasicStringRef<char> value)
-{
-    const auto u32str = common::str::to_u32string(value.data(), value.size(), common::str::Charset::UTF8);
-    static_cast<BasicWriter<char32_t>*>(this)->buffer().append(u32str.data(), u32str.data() + u32str.size());
-    return *this;
-}
-template<>
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <char16_t>(fmt::BasicStringRef<char16_t> value)
-{
-    const auto u32str = common::str::to_u32string(value.data(), value.size(), common::str::Charset::UTF16LE);
-    static_cast<BasicWriter<char32_t>*>(this)->buffer().append(u32str.data(), u32str.data() + u32str.size());
-    return *this;
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC push_options
-#   pragma GCC optimize ("no-strict-aliasing")
-#endif
-template<>
-template<>
-inline UTFMemoryWriter<char32_t>& UTFMemoryWriter<char32_t>::operator<< <wchar_t>(fmt::BasicStringRef<wchar_t> value)
-{
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return operator<<(*reinterpret_cast<fmt::BasicStringRef<char16_t>*>(&value));
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return operator<<(*reinterpret_cast<fmt::BasicStringRef<char32_t>*>(&value));
-    else
-        return *this;
-}
-#if defined(COMPILER_GCC)
-#   pragma GCC pop_options
-#endif
-
-template class UTFMemoryWriter<char16_t>;
-template class UTFMemoryWriter<char32_t>;
-
-
-using u16CStringRef = fmt::BasicCStringRef<char16_t>;
-inline std::u16string format(u16CStringRef format_str, ArgList args)
-{
-    UTFMemoryWriter<char16_t> writer;
-    writer.write(format_str, args);
-    return writer.str();
-}
-
-using u32CStringRef = fmt::BasicCStringRef<char32_t>;
-inline std::u32string format(u32CStringRef format_str, ArgList args)
-{
-    UTFMemoryWriter<char32_t> w;
-    w.write(format_str, args);
-    return w.str();
-}
-
+    u32memory_buffer buffer;
+    vformat_to(buffer, format_str, args);
+    return to_string(buffer);
 }
 
 
-
-#define FMT_VARIADIC_U16(ReturnType, func, ...) \
-  FMT_VARIADIC_EXT_(, char16_t, ReturnType, func, return func, __VA_ARGS__)
-
-#define FMT_VARIADIC_CONST_U16(ReturnType, func, ...) \
-  FMT_VARIADIC_EXT_(const, char16_t, ReturnType, func, return func, __VA_ARGS__)
-
-#define FMT_VARIADIC_U32(ReturnType, func, ...) \
-  FMT_VARIADIC_EXT_(, char32_t, ReturnType, func, return func, __VA_ARGS__)
-
-#define FMT_VARIADIC_CONST_U32(ReturnType, func, ...) \
-  FMT_VARIADIC_EXT_(const, char32_t, ReturnType, func, return func, __VA_ARGS__)
-
-#define FMT_CAPTURE_ARG_U16_(id, index) ::fmt::arg(u###id, id)
-
-#define FMT_CAPTURE_ARG_U32_(id, index) ::fmt::arg(U###id, id)
-
-#define FMT_CAPTURE_U16(...) FMT_FOR_EACH(FMT_CAPTURE_ARG_U16_, __VA_ARGS__)
-
-#define FMT_CAPTURE_U32(...) FMT_FOR_EACH(FMT_CAPTURE_ARG_U32_, __VA_ARGS__)
-
-namespace fmt
-{
-
-FMT_VARIADIC_U16(std::u16string, format, u16CStringRef)
-
-FMT_VARIADIC_U32(std::u32string, format, u32CStringRef)
-
-}
+FMT_END_NAMESPACE

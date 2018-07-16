@@ -28,20 +28,20 @@ constexpr auto GenLevelNumStr()
 const static auto LevelNumStr = GenLevelNumStr();
 
 
-fmt::BasicMemoryWriter<char>& StrFormater<char>::GetWriter()
+fmt::basic_memory_buffer<char>& StrFormater<char>::GetBuffer()
 {
-    static thread_local fmt::BasicMemoryWriter<char> out;
+    static thread_local fmt::basic_memory_buffer<char> out;
     return out;
 }
-fmt::UTFMemoryWriter<char16_t>& StrFormater<char16_t>::GetWriter()
+fmt::basic_memory_buffer<char16_t>& StrFormater<char16_t>::GetBuffer()
 {
-    static thread_local fmt::UTFMemoryWriter<char16_t> out;
+    static thread_local fmt::basic_memory_buffer<char16_t> out;
     return out;
 }
 
-fmt::UTFMemoryWriter<char32_t>& StrFormater<char32_t>::GetWriter()
+fmt::basic_memory_buffer<char32_t>& StrFormater<char32_t>::GetBuffer()
 {
-    static thread_local fmt::UTFMemoryWriter<char32_t> out;
+    static thread_local fmt::basic_memory_buffer<char32_t> out;
     return out;
 }
 template<size_t N>
@@ -49,9 +49,9 @@ struct EquType { };
 template<> struct EquType<1> { using Formater = StrFormater<char>; };
 template<> struct EquType<2> { using Formater = StrFormater<char16_t>; };
 template<> struct EquType<4> { using Formater = StrFormater<char32_t>; };
-fmt::BasicMemoryWriter<wchar_t>& StrFormater<wchar_t>::GetWriter()
+fmt::basic_memory_buffer<wchar_t>& StrFormater<wchar_t>::GetBuffer()
 {
-    return *reinterpret_cast<fmt::BasicMemoryWriter<wchar_t>*>(&EquType<sizeof(wchar_t)>::Formater::GetWriter());
+    return *reinterpret_cast<fmt::basic_memory_buffer<wchar_t>*>(&EquType<sizeof(wchar_t)>::Formater::GetBuffer());
 }
 
 }
