@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CommonRely.hpp"
-#include "CommonMacro.hpp"
 #include "Exceptions.hpp"
 #include <cstring>
 #include <string>

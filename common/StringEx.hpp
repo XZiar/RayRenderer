@@ -16,6 +16,38 @@ namespace common
 namespace str
 {
 
+namespace detail
+{
+
+template<typename T, typename Char>
+using CanBeStringView = std::enable_if_t<
+    std::is_same_v<const T&, std::vector<T>> ||
+    (!std::is_convertible_v<const T&, const Char*> &&
+        (std::is_convertible_v<const T&, std::basic_string_view<Char>> || 
+            std::is_convertible_v<const T&, std::basic_string<Char>>
+        )
+    )
+>;
+
+template<typename Char, typename T, class = CanBeStringView<T, Char>>
+constexpr inline std::basic_string_view<Char> ToStringView(const T& str)
+{
+    if constexpr(std::is_convertible_v<const T&, std::basic_string_view<Char>>)
+        return str;
+    else
+        return std::basic_string<Char>(str);
+}
+
+template<typename Char>
+constexpr inline std::basic_string_view<Char> ToStringView(const std::vector<Char>& str)
+{
+    return std::basic_string_view<Char>(str.data(), str.size());
+}
+
+
+}
+
+
 /**
 ** @brief split source using judger, do something for each slice
 ** @param src source
@@ -275,53 +307,42 @@ inline std::basic_string<Char> ReplaceStr(const std::basic_string<Char>& str, co
 }
 
 
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string<charT>& src, const charT *prefix, const size_t objlen)
+template<typename CharT>
+inline constexpr bool IsBeginWith(const CharT* src, const size_t srclen, const CharT *prefix, const size_t objlen)
 {
-    const size_t srclen = src.length();
     if (srclen < objlen)
         return false;
-    return src.compare(0, objlen, prefix, objlen) == 0;
+    return std::char_traits<CharT>::compare(src, prefix, objlen) == 0;
 }
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string_view<charT>& src, const charT *prefix, const size_t objlen)
+template<typename CharT, typename T, class = detail::CanBeStringView<T, CharT>>
+inline constexpr bool IsBeginWith(const T& src, const CharT *prefix, const size_t objlen)
 {
-    const size_t srclen = src.length();
-    if (srclen < objlen)
-        return false;
-    return src.compare(0, objlen, prefix, objlen) == 0;
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return IsBeginWith(srcsv.data(), srcsv.length(), prefix, objlen);
 }
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string<charT>& src, const std::basic_string_view<charT>& prefix)
+template<typename CharT, typename T1, typename T2, class = detail::CanBeStringView<T1, CharT>, class = detail::CanBeStringView<T2, CharT>>
+inline constexpr bool IsBeginWith(const T1& src, const T2 &prefix)
 {
-    return IsBeginWith(src, prefix.data(), prefix.length());
+    const auto srcsv = detail::ToStringView<Char>(src), prefixsv = detail::ToStringView<Char>(prefix);
+    return IsBeginWith(srcsv.data(), srcsv.length(), prefixsv.data(), prefixsv.length());
 }
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string_view<charT>& src, const std::basic_string_view<charT>& prefix)
+template<typename CharT, typename T, size_t N, class = detail::CanBeStringView<T, CharT>>
+inline constexpr bool IsBeginWith(const T& src, const CharT(&prefix)[N])
 {
-    return IsBeginWith(src, prefix.data(), prefix.length());
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return IsBeginWith(srcsv.data(), srcsv.length(), prefix, N - 1);
 }
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string<charT>& src, const std::basic_string<charT>& prefix)
+template<typename CharT, size_t N1, size_t N2>
+inline constexpr bool IsBeginWith(const CharT(&src)[N1], const CharT(&prefix)[N2])
 {
-    return IsBeginWith(src, prefix.data(), prefix.length());
+    return IsBeginWith(src, N1 - 1, prefix, N2 - 1);
 }
-template<typename charT>
-inline bool IsBeginWith(const std::basic_string_view<charT>& src, const std::basic_string<charT>& prefix)
+template<typename CharT, typename T, size_t N, class = detail::CanBeStringView<T, CharT>>
+inline constexpr bool IsBeginWith(const CharT(&src)[N], const T& prefix)
 {
-    return IsBeginWith(src, prefix.data(), prefix.length());
+    const auto prefixsv = detail::ToStringView<Char>(prefix);
+    return IsBeginWith(src, N - 1, prefixsv.data(), prefixsv.length());
 }
-template<typename charT, size_t N>
-inline bool IsBeginWith(const std::basic_string<charT>& src, const charT(&prefix)[N])
-{
-    return IsBeginWith(src, prefix, N - 1);
-}
-template<typename charT, size_t N>
-inline bool IsBeginWith(const std::basic_string_view<charT>& src, const charT(&prefix)[N])
-{
-    return IsBeginWith(src, prefix, N - 1);
-}
-
 
 
 namespace detail

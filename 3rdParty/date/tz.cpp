@@ -84,10 +84,11 @@
 #endif  // _WIN32
 
 #include "date/tz_private.h"
-#include "date/ios.h"
 
-#ifndef __APPLE__
-#    define TARGET_OS_IPHONE 0
+#ifdef __APPLE__
+#  include "date/ios.h"
+#else
+#  define TARGET_OS_IPHONE 0
 #endif
 
 #if USE_OS_TZDB
@@ -148,7 +149,7 @@
 
 #if HAS_REMOTE_API
    // Note curl includes windows.h so we must include curl AFTER definitions of things
-   // that effect windows.h such as NOMINMAX.
+   // that affect windows.h such as NOMINMAX.
 #if defined(_MSC_VER) && defined(SHORTENED_CURL_INCLUDE)
    // For rmt_curl nuget package
 #  include <curl.h>
@@ -360,7 +361,13 @@ discover_tz_dir()
 #  endif  // __APPLE__
 }
 
-static const std::string tz_dir = discover_tz_dir();
+static
+const std::string&
+get_tz_dir()
+{
+    static const std::string tz_dir = discover_tz_dir();
+    return tz_dir;
+}
 
 #endif
 
@@ -609,7 +616,7 @@ load_timezone_mappings_from_xml_file(const std::string& input_path)
     // NOTE: We could extract the version info that follows the opening
     // mapTimezones tag and compare that to the version of other data we have.
     // I would have expected them to be kept in synch but testing has shown
-    // it is typically does not match anyway. So what's the point?
+    // it typically does not match anyway. So what's the point?
     while (!mapTimezonesCloseTagFound)
     {
         std::ws(is);
@@ -2011,7 +2018,7 @@ time_zone::init_impl()
 {
     using namespace std;
     using namespace std::chrono;
-    auto name = tz_dir + ('/' + name_);
+    auto name = get_tz_dir() + ('/' + name_);
     std::ifstream inf(name);
     if (!inf.is_open())
         throw std::runtime_error{"Unable to open " + name};
@@ -2604,7 +2611,7 @@ std::string
 get_version()
 {
     using namespace std;
-    auto path = tz_dir + string("/+VERSION");
+    auto path = get_tz_dir() + string("/+VERSION");
     ifstream in{path};
     string version;
     in >> version;
@@ -2622,7 +2629,7 @@ init_tzdb()
 
     //Iterate through folders
     std::queue<std::string> subfolders;
-    subfolders.emplace(tz_dir);
+    subfolders.emplace(get_tz_dir());
     struct dirent* d;
     struct stat s;
     while (!subfolders.empty())
@@ -2657,7 +2664,7 @@ init_tzdb()
                 }
                 else
                 {
-                    db->zones.emplace_back(subname.substr(tz_dir.size()+1),
+                    db->zones.emplace_back(subname.substr(get_tz_dir().size()+1),
                                            detail::undocumented{});
                 }
             }
@@ -2667,7 +2674,7 @@ init_tzdb()
     db->zones.shrink_to_fit();
     std::sort(db->zones.begin(), db->zones.end());
 #  if !MISSING_LEAP_SECONDS
-    std::ifstream in(tz_dir + std::string(1, folder_delimiter) + "right/UTC",
+    std::ifstream in(get_tz_dir() + std::string(1, folder_delimiter) + "right/UTC",
                      std::ios_base::binary);
     if (in)
     {
@@ -2677,7 +2684,8 @@ init_tzdb()
     else
     {
         in.clear();
-        in.open(tz_dir + std::string(1, folder_delimiter) + "UTC", std::ios_base::binary);
+        in.open(get_tz_dir() + std::string(1, folder_delimiter) +
+                "UTC", std::ios_base::binary);
         if (!in)
             throw std::runtime_error("Unable to extract leap second information");
         in.exceptions(std::ios::failbit | std::ios::badbit);
@@ -3651,7 +3659,7 @@ tzdb::current_zone() const
     // "/usr/share/zoneinfo/America/Los_Angeles"
     // If it does, we try to determine the current
     // timezone from the remainder of the path by removing the prefix
-    // and hoping the rest resolves to valid timezone.
+    // and hoping the rest resolves to a valid timezone.
     // It may not always work though. If it doesn't then an
     // exception will be thrown by local_timezone.
     // The path may also take a relative form:
@@ -3668,9 +3676,9 @@ tzdb::current_zone() const
             else
                 throw system_error(errno, system_category(), "readlink() failed");
 
-            const size_t pos = result.find(tz_dir);
+            const size_t pos = result.find(get_tz_dir());
             if (pos != result.npos)
-                result.erase(0, tz_dir.size() + 1 + pos);
+                result.erase(0, get_tz_dir().size() + 1 + pos);
             return locate_zone(result);
         }
     }
@@ -3696,9 +3704,9 @@ tzdb::current_zone() const
             else
                 throw system_error(errno, system_category(), "readlink() failed");
 
-            const size_t pos = result.find(tz_dir);
+            const size_t pos = result.find(get_tz_dir());
             if (pos != result.npos)
-                result.erase(0, tz_dir.size() + 1 + pos);
+                result.erase(0, get_tz_dir().size() + 1 + pos);
             return locate_zone(result);
         }
     }
@@ -3729,6 +3737,18 @@ tzdb::current_zone() const
                 return locate_zone(result);
         }
         // Fall through to try other means.
+    }
+    {
+    // On some versions of some bsd distro's (e.g. iOS),
+    // it is not possible to use file based approach,
+    // we switch to system API, calling functions in
+    // CoreFoundation framework.
+#if TARGET_OS_IPHONE
+        std::string result = date::iOSUtils::get_current_timezone();
+        if (!result.empty())
+            return locate_zone(result);
+#endif
+    // Fall through to try other means.
     }
     {
     // On some versions of some linux distro's (e.g. Red Hat),

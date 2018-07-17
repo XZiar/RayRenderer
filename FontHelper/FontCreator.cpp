@@ -3,7 +3,9 @@
 #include "OpenCLUtil/oclException.h"
 #include <cmath>
 #include "resource.h"
-
+#pragma warning(disable : 4996)
+#include "fmt/time.h"
+#pragma warning(default : 4996)
 
 namespace oglu
 {
@@ -173,7 +175,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     alldata.reserve(fontsizelim * fontsizelim * fontCount * fontCount);
     
     SimpleTimer timer;
-    fntLog().verbose(u"raster start at {}\n", timer.getCurTimeTxt());
+    fntLog().verbose(u"raster start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start();
     size_t offset = 0;
     for (uint32_t a = 0; a < count; ++a)
@@ -204,7 +206,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     timer.Stop();
     fntLog().verbose(u"raster cost {} us\n", timer.ElapseUs());
 
-    fntLog().verbose(u"prepare start at {}\n", timer.getCurTimeTxt());
+    fntLog().verbose(u"prepare start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start();
     inputBuf->write(clQue, alldata);
     infoBuf->write(clQue, finfos);
@@ -212,7 +214,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     fntLog().verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)
     {
-        fntLog().verbose(u"OpenCL start at {}\n", timer.getCurTimeTxt());
+        fntLog().verbose(u"OpenCL start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 
@@ -224,7 +226,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         vector<uint8_t> clImg;
         middleBuf->read(clQue, clImg, alldata.size() / 16);
 
-        fntLog().verbose(u"post-merging start at {}\n", timer.getCurTimeTxt());
+        fntLog().verbose(u"post-merging start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         Image fin(ImageDataType::GRAY);
         fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
@@ -250,7 +252,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     }
     else
     {
-        fntLog().verbose(u"OpenCL start at {}\n", timer.getCurTimeTxt());
+        fntLog().verbose(u"OpenCL start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
 
@@ -259,7 +261,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         fntLog().verbose(u"OpenCl cost {} us\n", timer.ElapseUs());
         if (false)
         {
-            fntLog().verbose(u"clDownSampler start at {}\n", timer.getCurTimeTxt());
+            fntLog().verbose(u"clDownSampler start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             localsize[0] /= 4, worksize[0] /= 4;
             kerDownSamp->run<1>(clQue, worksize, localsize, true);
@@ -268,7 +270,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             vector<uint8_t> clImg;
             outputBuf->read(clQue, clImg, alldata.size() / 16);
 
-            fntLog().verbose(u"post-merging start at {}\n", timer.getCurTimeTxt());
+            fntLog().verbose(u"post-merging start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);
             fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));
@@ -296,7 +298,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         {
             vector<int16_t> distsq;
             middleBuf->read(clQue, distsq, alldata.size());
-            fntLog().verbose(u"post-process start at {}\n", timer.getCurTimeTxt());
+            fntLog().verbose(u"post-process start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);
             fin.SetSize(newfontsize * fontCount, newfontsize * fontCount, byte(255));

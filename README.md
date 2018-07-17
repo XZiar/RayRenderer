@@ -98,7 +98,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
   
   [MIT License](./3rdParty/ispc_texcomp/license.txt)
 
-* [date](https://howardhinnant.github.io/date/date.html) 2.4
+* [date](https://howardhinnant.github.io/date/date.html) 2.4.1
 
   [MIT License](./3rdParty/date/LICENSE.txt)
 

@@ -8,11 +8,10 @@
 #   define MINILOGAPI _declspec(dllimport)
 # endif
 #else
-# define MINILOGAPI __attribute__ ((visibility ("default")))
+# define MINILOGAPI
 #endif
 
 
-#include "common/CommonMacro.hpp"
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StrCharset.hpp"

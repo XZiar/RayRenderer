@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common/CommonRely.hpp"
-#include "common/CommonMacro.hpp"
 #include "common/SIMD.hpp"
 #include <cstdint>
 #include <type_traits>

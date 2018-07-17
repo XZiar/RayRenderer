@@ -25,41 +25,41 @@ private ref class FuncWrapper
 {
 private:
     StdRetFuncType<RetType> *func = nullptr;
-	RetType doit()
-	{
-		try
-		{
-			auto ret = (*func)();
-			return ret;
-		}
-		catch (BaseException& be)
-		{
-			throw gcnew CPPException(be);
-		}
-		finally
-		{
-			delete func;
-			func = nullptr;
-		}
-	}
+    RetType doit()
+    {
+        try
+        {
+            auto ret = (*func)();
+            return ret;
+        }
+        catch (BaseException& be)
+        {
+            throw gcnew CPPException(be);
+        }
+        finally
+        {
+            delete func;
+            func = nullptr;
+        }
+    }
 public:
-	initonly Func<RetType>^ cliFunc = gcnew Func<RetType>(this, &FuncWrapper::doit);
-	FuncWrapper(const StdRetFuncType<RetType>* const func_)
-	{
-		func = new StdRetFuncType<RetType>(*func_);
-	}
-	~FuncWrapper()
-	{
-		this->!FuncWrapper();
-	}
-	!FuncWrapper()
-	{
-		if (func != nullptr)
-		{
-			delete func;
-			func = nullptr;
-		}
-	}
+    initonly Func<RetType>^ cliFunc = gcnew Func<RetType>(this, &FuncWrapper::doit);
+    FuncWrapper(const StdRetFuncType<RetType>* const func_)
+    {
+        func = new StdRetFuncType<RetType>(*func_);
+    }
+    ~FuncWrapper()
+    {
+        this->!FuncWrapper();
+    }
+    !FuncWrapper()
+    {
+        if (func != nullptr)
+        {
+            delete func;
+            func = nullptr;
+        }
+    }
 };
 
 template<class RetType, class MiddleType>
@@ -107,25 +107,25 @@ private:
     TaskCompletionSource<RetType>^ OuterTask;
     Task<Func<RetType>^>^ InnerManagedTask;
     Task<CLIWrapper<StdRetFuncType<RetType>>>^ InnerUnmanagedTask;
-	void DoManaged()
-	{
-		try
-		{
-			if (InnerManagedTask->IsFaulted)
-				OuterTask->SetException(InnerManagedTask->Exception);
-			else if (InnerManagedTask->IsCanceled)
-				OuterTask->SetCanceled();
-			else if (InnerManagedTask->IsCompleted)
-			{
-				auto callback = InnerManagedTask->Result;
-				OuterTask->SetResult(callback());
-			}
-		}
-		catch (BaseException& be)
-		{
-			OuterTask->SetException(gcnew CPPException(be));
-		}
-	}
+    void DoManaged()
+    {
+        try
+        {
+            if (InnerManagedTask->IsFaulted)
+                OuterTask->SetException(InnerManagedTask->Exception);
+            else if (InnerManagedTask->IsCanceled)
+                OuterTask->SetCanceled();
+            else if (InnerManagedTask->IsCompleted)
+            {
+                auto callback = InnerManagedTask->Result;
+                OuterTask->SetResult(callback());
+            }
+        }
+        catch (BaseException& be)
+        {
+            OuterTask->SetException(gcnew CPPException(be));
+        }
+    }
     void DoUnmanaged()
     {
         try
@@ -147,9 +147,9 @@ private:
     }
 public:
     initonly Action^ DoFunc;
-	ResultFuncWrapper(Task<Func<RetType>^>^ innerTsk, TaskCompletionSource<RetType>^ tsk) 
+    ResultFuncWrapper(Task<Func<RetType>^>^ innerTsk, TaskCompletionSource<RetType>^ tsk) 
         : OuterTask(tsk), InnerManagedTask(innerTsk), DoFunc(gcnew Action(this, &ResultFuncWrapper::DoManaged))
-	{ }
+    { }
     ResultFuncWrapper(Task<CLIWrapper<StdRetFuncType<RetType>>>^ innerTsk, TaskCompletionSource<RetType>^ tsk)
         : OuterTask(tsk), InnerUnmanagedTask(innerTsk), DoFunc(gcnew Action(this, &ResultFuncWrapper::DoUnmanaged))
     { }
@@ -158,8 +158,8 @@ public:
 template<class RetType>
 inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<Func<RetType>^>^>& tsk, const StdRetFuncType<RetType>& func)
 {
-	const FuncWrapper<RetType>^ wrapper = gcnew FuncWrapper<RetType>(&func);
-	tsk->SetResult(wrapper->cliFunc);
+    const FuncWrapper<RetType>^ wrapper = gcnew FuncWrapper<RetType>(&func);
+    tsk->SetResult(wrapper->cliFunc);
 }
 template<class RetType>
 inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<CLIWrapper<RetType>>^>& tsk, RetType&& ret)
@@ -187,13 +187,13 @@ using RealFunc = std::function<void(StdRetFuncType<RetType>)>;
 template<class RetType, class MemFunc, class Obj, class... Args>
 inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
-	std::invoke(memfunc, *obj, args..., [tsk](const StdRetFuncType<RetType>& cb)
-	{
-		SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
-	}, [tsk](const BaseException& be)
-	{
+    std::invoke(memfunc, *obj, args..., [tsk](const StdRetFuncType<RetType>& cb)
+    {
+        SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
+    }, [tsk](const BaseException& be)
+    {
         SetTaskException(tsk, be);
-	});
+    });
 }
 
 //set a std::function as result
@@ -253,21 +253,21 @@ inline void doInside4(gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetT
 template<class RetType, class MemFunc, class Obj, class... Args>
 inline Task<Func<RetType>^>^ doAsync(MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
-	gcroot<TaskCompletionSource<Func<RetType>^>^> tsk = gcnew TaskCompletionSource<Func<RetType>^>();
-	doInside(tsk, memfunc, obj, args...);
-	return tsk->Task;
+    gcroot<TaskCompletionSource<Func<RetType>^>^> tsk = gcnew TaskCompletionSource<Func<RetType>^>();
+    doInside(tsk, memfunc, obj, args...);
+    return tsk->Task;
 }
 
 //Async func that returns a callback which returns RetType, it will be called in caller's thread
 template<class RetType, class MemFunc, class Obj, class... Args>
 inline Task<RetType>^ doAsync2(MemFunc&& memfunc, Obj *obj, Args&&... args)
 {
-	gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetType>>>^> innerTask = gcnew TaskCompletionSource<CLIWrapper<StdRetFuncType<RetType>>>();
-	TaskCompletionSource<RetType>^ tsk = gcnew TaskCompletionSource<RetType>();
-	ResultFuncWrapper<RetType>^ wrapper = gcnew ResultFuncWrapper<RetType>(innerTask->Task, tsk);
-	doInside(innerTask, memfunc, obj, args...);
-	innerTask->Task->GetAwaiter().OnCompleted(wrapper->DoFunc);
-	return tsk->Task;
+    gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetType>>>^> innerTask = gcnew TaskCompletionSource<CLIWrapper<StdRetFuncType<RetType>>>();
+    TaskCompletionSource<RetType>^ tsk = gcnew TaskCompletionSource<RetType>();
+    ResultFuncWrapper<RetType>^ wrapper = gcnew ResultFuncWrapper<RetType>(innerTask->Task, tsk);
+    doInside(innerTask, memfunc, obj, args...);
+    innerTask->Task->GetAwaiter().OnCompleted(wrapper->DoFunc);
+    return tsk->Task;
 }
 
 //Async func with a managed callback to convert MiddleType to RetType, it will be called in caller's thread

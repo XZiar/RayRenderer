@@ -1,11 +1,10 @@
 #pragma once
+#include "common/AlignedContainer.hpp"
+#include "common/Exceptions.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <tuple>
-#include "common/CommonMacro.hpp"
-#include "common/AlignedContainer.hpp"
-#include "common/Exceptions.hpp"
 
 
 #define FREETYPE2_VERSION PPCAT(PPCAT(FREETYPE_MAJOR,PPCAT(.,FREETYPE_MINOR)),PPCAT(.,FREETYPE_PATCH))

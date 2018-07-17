@@ -683,7 +683,7 @@ void TgaWriter::Write(const Image& image)
     header.IdLength = sizeof(identity);
     header.ColorMapType = 0;
     header.ImageType = detail::TGAImgType::RLE_MASK | (image.isGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
-    memset(&header.ColorMapSpec[0], 0x0, 5);//5 bytes for color map spec
+    memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
     convert::WordToLE(header.OriginHorizontal, 0);
     convert::WordToLE(header.OriginVertical, 0);
     convert::WordToLE(header.Width, (uint16_t)image.Width);

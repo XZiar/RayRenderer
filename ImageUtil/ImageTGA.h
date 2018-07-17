@@ -23,16 +23,12 @@ struct TgaHeader
     uint8_t IdLength;
     uint8_t ColorMapType;
     TGAImgType ImageType;
-    union
+    struct ColorMapSpec
     {
-        uint8_t ColorMapSpec[5];
-        struct
-        {
-            byte ColorMapOffset[2];
-            byte ColorMapCount[2];
-            uint8_t ColorEntryDepth;
-        };
-    };
+        byte ColorMapOffset[2];
+        byte ColorMapCount[2];
+        uint8_t ColorEntryDepth;
+    } ColorMapData;
     byte OriginHorizontal[2];
     byte OriginVertical[2];
     byte Width[2];
@@ -48,9 +44,9 @@ struct ColorMapInfo
     uint8_t ColorDepth;
     ColorMapInfo(const TgaHeader& header)
     {
-        Offset = img::convert::ParseWordLE(header.ColorMapOffset);
-        Size = img::convert::ParseWordLE(header.ColorMapCount);
-        ColorDepth = header.ColorEntryDepth;
+        Offset = img::convert::ParseWordLE(header.ColorMapData.ColorMapOffset);
+        Size = img::convert::ParseWordLE(header.ColorMapData.ColorMapCount);
+        ColorDepth = header.ColorMapData.ColorEntryDepth;
     }
 };
 }

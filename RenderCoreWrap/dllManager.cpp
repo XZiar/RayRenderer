@@ -103,8 +103,8 @@ static void freeDLL()
 static void* delayloaddll(const char *name)
 {
     const auto lasterr = GetLastError();
-    const string tmpname(name);
-    const wstring wname(tmpname.begin(), tmpname.end());
+    const string dllname(name);
+    const wstring wname(dllname.cbegin(), dllname.cend());
     const auto preHandle = GetModuleHandle(wname.c_str());
     if (preHandle != NULL)
     {
@@ -120,7 +120,7 @@ static void* delayloaddll(const char *name)
         DebugOutput(L"Fail to load DLL [{}] with error [{:d}]", wname, err);
         throw std::runtime_error("cannot load DLL, err:" + std::to_string(err));
     }
-    hdlls.push_back({ hdll,tmpname });
+    hdlls.push_back({ hdll,dllname });
     return hdll;
 }
 

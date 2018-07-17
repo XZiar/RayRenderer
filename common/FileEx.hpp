@@ -4,15 +4,17 @@
 #   define FSeek64(fp, offset, whence) _fseeki64(fp, offset, whence)
 #   define FTell64(fp) _ftelli64(fp)
 #else
-#   define _FILE_OFFSET_VITS 64
+//#   define _FILE_OFFSET_BITS 64
+#   ifndef _LARGEFILE_SOURCE
+#       define _LARGEFILE_SOURCE 1
+#   endif
 #   include <unistd.h>
 #   include <cerrno>
-#   define FSeek64(fp, offset, whence) fseeko(fp, offset, whence)
-#   define FTell64(fp) ftello(fp)
+#   define FSeek64(fp, offset, whence) fseeko64(fp, offset, whence)
+#   define FTell64(fp) ftello64(fp)
 #endif
 
 #include "CommonRely.hpp"
-#include "CommonMacro.hpp"
 #include "StrCharset.hpp"
 #include "Exceptions.hpp"
 #include "AlignedContainer.hpp"

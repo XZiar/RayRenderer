@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CommonRely.hpp"
-#include "CommonMacro.hpp"
 #include "Wrapper.hpp"
 #include <cstdint>
 #include <string>

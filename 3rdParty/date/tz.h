@@ -734,11 +734,7 @@ zoned_time(const char*, local_time<Duration>, choose = choose::earliest)
     -> zoned_time<std::common_type_t<Duration, std::chrono::seconds>>;
 
 template <class Duration, class TimeZonePtr, class TimeZonePtr2>
-zoned_time(TimeZonePtr, zoned_time<Duration, TimeZonePtr2>)
-    -> zoned_time<Duration, TimeZonePtr>;
-
-template <class Duration, class TimeZonePtr, class TimeZonePtr2>
-zoned_time(TimeZonePtr, zoned_time<Duration, TimeZonePtr2>, choose)
+zoned_time(TimeZonePtr, zoned_time<Duration, TimeZonePtr2>, choose = choose::earliest)
     -> zoned_time<Duration, TimeZonePtr>;
 
 #endif  // HAS_DEDUCTION_GUIDES
@@ -1963,7 +1959,7 @@ from_stream(std::basic_istream<CharT, Traits>& is, const CharT* fmt,
         bool is_60_sec = fds.tod.seconds() == seconds{60};
         if (is_60_sec)
             fds.tod.seconds() -= seconds{1};
-        auto tmp = to_utc_time(sys_days(fds.ymd) - *offptr + fds.tod.to_duration());
+        auto tmp = utc_clock::from_sys(sys_days(fds.ymd) - *offptr + fds.tod.to_duration());
         if (is_60_sec)
             tmp += seconds{1};
         if (is_60_sec != is_leap_second(tmp).first || !fds.tod.in_conventional_range())
@@ -2196,8 +2192,6 @@ from_stream(std::basic_istream<CharT, Traits>& is, const CharT* fmt,
                  *offptr + fds.tod.to_duration()).time_since_epoch())};
     return is;
 }
-
-#if !defined(_MSC_VER) || _MSC_VER > 1912
 
 // clock_time_conversion
 
@@ -2438,7 +2432,8 @@ cc_impl(const time_point<SrcClock, Duration>& t, const void*)
 template <class DstClock, class SrcClock, class Duration>
 auto
 cc_impl(const time_point<SrcClock, Duration>& t, const void*)
-    -> decltype(conv_clock<DstClock>(conv_clock<utc_clock>(t)))
+    -> decltype(0,  // MSVC_WORKAROUND
+                conv_clock<DstClock>(conv_clock<utc_clock>(t)))
 {
     return conv_clock<DstClock>(conv_clock<utc_clock>(t));
 }
@@ -2456,7 +2451,8 @@ cc_impl(const time_point<SrcClock, Duration>& t, ...)
 template <class DstClock, class SrcClock, class Duration>
 auto
 cc_impl(const time_point<SrcClock, Duration>& t, ...)
-    -> decltype(conv_clock<DstClock>(conv_clock<system_clock>(conv_clock<utc_clock>(t))))
+    -> decltype(0,  // MSVC_WORKAROUND
+                conv_clock<DstClock>(conv_clock<system_clock>(conv_clock<utc_clock>(t))))
 {
     return conv_clock<DstClock>(conv_clock<system_clock>(conv_clock<utc_clock>(t)));
 }
@@ -2470,8 +2466,6 @@ clock_cast(const std::chrono::time_point<SrcClock, Duration>& tp)
 {
     return clock_cast_detail::cc_impl<DstClock>(tp, &tp);
 }
-
-#endif  // !defined(_MSC_VER) || _MSC_VER > 1912
 
 // Deprecated API
 

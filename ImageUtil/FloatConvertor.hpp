@@ -92,13 +92,13 @@ inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict src
 
 inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count, const float floatRange)
 {
+    const auto muler = floatRange / 255;
+#if COMMON_SIMD_LV >= 200
     const auto SHUF_MSK1 = _mm256_setr_epi8( 0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1,  0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1);
     const auto SHUF_MSK2 = _mm256_setr_epi8( 4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1,  4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1);
     const auto SHUF_MSK3 = _mm256_setr_epi8( 8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1,  8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1);
     const auto SHUF_MSK4 = _mm256_setr_epi8(12, -1, -1, -1, 13, -1, -1, -1, 14, -1, -1, -1, 15, -1, -1, -1, 12, -1, -1, -1, 13, -1, -1, -1, 14, -1, -1, -1, 15, -1, -1, -1);
-    const auto muler = floatRange / 255;
     const auto muler8 = _mm256_set1_ps(muler);
-    const auto muler4 = _mm_set1_ps(muler);
     while (count > 64)
     {
         const auto src0 = _mm256_loadu_si256((const __m256i*)srcPtr);//00~0f,10~1f
@@ -129,6 +129,9 @@ inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict src
         _mm256_storeu_ps(destPtr + 56, _mm256_permute2f128_ps(f4pixae, f4pixbf, 0x31));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
+#elif COMMON_SIMD_LV >= 31
+    const auto muler4 = _mm_set1_ps(muler);
+#endif
     while (count > 0)
     {
         switch (count)
@@ -142,7 +145,7 @@ inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict src
         case 2:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
         case 1:  *destPtr++ = (uint32_t)*srcPtr++ * muler; count--;
         }
-    }
+}
 }
 
 

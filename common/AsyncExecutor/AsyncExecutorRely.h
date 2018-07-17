@@ -8,15 +8,16 @@
 #   define ASYEXEAPI _declspec(dllimport)
 # endif
 #else
-# define ASYEXEAPI __attribute__ ((visibility ("default")))
+# define ASYEXEAPI
 #endif
 
+
+#include "common/Exceptions.hpp"
+#include "common/PromiseTask.hpp"
 #include <cstdint>
 #include <string>
 #include <memory>
 
-#include "common/Exceptions.hpp"
-#include "common/PromiseTask.hpp"
 
 namespace common
 {

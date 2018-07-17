@@ -44,14 +44,11 @@ fmt::basic_memory_buffer<char32_t>& StrFormater<char32_t>::GetBuffer()
     static thread_local fmt::basic_memory_buffer<char32_t> out;
     return out;
 }
-template<size_t N>
-struct EquType { };
-template<> struct EquType<1> { using Formater = StrFormater<char>; };
-template<> struct EquType<2> { using Formater = StrFormater<char16_t>; };
-template<> struct EquType<4> { using Formater = StrFormater<char32_t>; };
+
 fmt::basic_memory_buffer<wchar_t>& StrFormater<wchar_t>::GetBuffer()
 {
-    return *reinterpret_cast<fmt::basic_memory_buffer<wchar_t>*>(&EquType<sizeof(wchar_t)>::Formater::GetBuffer());
+    static thread_local fmt::basic_memory_buffer<wchar_t> out;
+    return out;
 }
 
 }

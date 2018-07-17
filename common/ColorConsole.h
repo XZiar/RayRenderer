@@ -1,6 +1,5 @@
 #pragma once
 #include "CommonRely.hpp"
-#include "CommonMacro.hpp"
 #include <string_view>
 
 namespace common

@@ -8,7 +8,6 @@
 #endif
 
 #include "common/CommonRely.hpp"
-#include "common/CommonMacro.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/CopyEx.hpp"
 #include "common/Wrapper.hpp"

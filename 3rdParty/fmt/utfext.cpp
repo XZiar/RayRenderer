@@ -59,6 +59,33 @@ FMT_API int char_traits<char32_t>::format_float(char32_t *buffer, std::size_t si
     return format_float_<common::str::detail::UTF32>(buffer, size, format, precision, value);
 }
 
+
+std::size_t strftime(char16_t *str, std::size_t count, const char16_t *format, const std::tm *time)
+{
+    using namespace common::str::detail;
+    static thread_local std::string buffer;
+    buffer.resize(count);
+    const auto u7format = CharsetConvertor<UTF16, UTF7, char16_t, char>::Convert(format, std::char_traits<char16_t>::length(format), true, true);
+    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
+    for (size_t idx = 0; idx < ret;)
+        *str++ = buffer[idx++];
+    return ret;
+}
+
+std::size_t strftime(char32_t *str, std::size_t count, const char32_t *format, const std::tm *time)
+{
+    using namespace common::str::detail;
+    static thread_local std::string buffer;
+    buffer.resize(count);
+    const auto u7format = CharsetConvertor<UTF32, UTF7, char32_t, char>::Convert(format, std::char_traits<char32_t>::length(format), true, true);
+    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
+    for (size_t idx = 0; idx < ret;)
+        *str++ = buffer[idx++];
+    return ret;
+}
+
+
+
 }
 
 
