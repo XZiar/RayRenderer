@@ -123,14 +123,14 @@ public:
 	template<typename T>
 	static auto FlatMap(T&& arg)
 	{
-		using RetType = decltype(Func::FlatMap(arg));
-		static_assert(std::is_base_of<std::tuple, RetType>::value, "FlatMap should return a tuple");
+		//using RetType = decltype(Func::FlatMap(arg));
+		//static_assert(std::is_base_of<std::tuple, RetType>::value, "FlatMap should return a tuple");
 		return Func::FlatMap(arg);
 	}
 	template<typename T, typename... Args>
 	static auto FlatMap(T&& arg, Args&&... args)
 	{
-		return std::tuple_cat(Map(std::forward<T>(arg)), Map(std::forward<Args>(args)...));
+		return std::tuple_cat(FlatMap(std::forward<T>(arg)), FlatMap(std::forward<Args>(args)...));
 	}
 	template<typename Tuple>
 	static auto MapTuple(Tuple&& args)

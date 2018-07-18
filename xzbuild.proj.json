@@ -23,6 +23,13 @@
             "dependency": []
         },
         {
+            "name": "stb",
+            "type": "static",
+            "path": "3rdParty/stblib",
+            "description": "Single-file public domain libraries for C/C++",
+            "dependency": []
+        },
+        {
             "name": "fmt",
             "type": "static",
             "path": "3rdParty/fmt",
@@ -61,7 +68,7 @@
             "name": "UtilTest",
             "type": "executable",
             "path": "Tests/UtilTest",
-            "dependency": ["fmt", "miniLogger", "AsyncExecutor"]
+            "dependency": ["fmt", "stb", "miniLogger", "AsyncExecutor", "ImageUtil"]
         }
     ]
 }

@@ -182,12 +182,15 @@ namespace common
 
 template<template<typename...> class Base, typename...Ts>
 std::true_type is_base_of_template_impl(const Base<Ts...>*);
-
 template<template<typename...> class Base>
 std::false_type is_base_of_template_impl(...);
-
 template<template<typename...> class Base, typename Derived>
 using is_base_of_template = decltype(is_base_of_template_impl<Base>(std::declval<Derived*>()));
+
+template <class T, template <typename...> class Template>
+struct is_specialization : std::false_type {};
+template <template <typename...> class Template, typename... Ts>
+struct is_specialization<Template<Ts...>, Template> : std::true_type {};
 
 
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
@@ -264,5 +267,15 @@ public:
     static constexpr size_t Align = GetAlignSize();
 };
 
+template<typename T, template <typename...> class Base>
+struct TemplateDerivedHelper
+{
+private:
+    template<typename... Ts>
+    static std::true_type is_derived_from_base_impl(const Base<Ts...>*);
+    static std::false_type is_derived_from_base_impl(const void*);
+public:
+    static constexpr bool IsDerivedFromBase = decltype(is_derived_from_base_impl(std::declval<T*>()))::value;
+};
 
 }

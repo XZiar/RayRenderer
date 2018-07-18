@@ -26,15 +26,15 @@ forceinline bool operator<(const StringType& name, const NamedSetValue<Child, St
 namespace detail
 {
 
-template<class T,class Ele>
+template<typename T, typename Ele>
 struct EleTyper
 {
-    using type = typename Ele;
+    using type = /*typename*/ Ele;
 };
-template<class T, class Ele>
+template<typename T, typename Ele>
 struct EleTyper<const T, Ele>
 {
-    using type = typename const Ele;
+    using type = /*typename*/ const Ele;
 };
 
 }
@@ -93,7 +93,7 @@ inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{}
     return it->second;
 }
 
-template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
+template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, typename Vec::value_type>::type>
 inline Val* FindInVec(Vec& thevec, const Predictor& pred)
 {
     const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
@@ -120,7 +120,7 @@ inline Val FindInVecOrDefault(Vec& thevec, const Predictor& pred, const Val def 
     return *it;
 }
 
-template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, Vec::value_type>::type>
+template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, typename Vec::value_type>::type>
 inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, const size_t cnt = SIZE_MAX)
 {
     if (cnt == 0)

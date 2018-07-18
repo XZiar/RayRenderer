@@ -1,11 +1,7 @@
 #pragma once
 
-
-#include <string>
-#include <string_view>
-#include <vector>
+#include "StrBase.hpp"
 #include <optional>
-#include <type_traits>
 #include <cctype>
 #include <cwctype>
 
@@ -16,37 +12,6 @@ namespace common
 namespace str
 {
 
-namespace detail
-{
-
-template<typename T, typename Char>
-using CanBeStringView = std::enable_if_t<
-    std::is_same_v<const T&, std::vector<T>> ||
-    (!std::is_convertible_v<const T&, const Char*> &&
-        (std::is_convertible_v<const T&, std::basic_string_view<Char>> || 
-            std::is_convertible_v<const T&, std::basic_string<Char>>
-        )
-    )
->;
-
-template<typename Char, typename T, class = CanBeStringView<T, Char>>
-constexpr inline std::basic_string_view<Char> ToStringView(const T& str)
-{
-    if constexpr(std::is_convertible_v<const T&, std::basic_string_view<Char>>)
-        return str;
-    else
-        return std::basic_string<Char>(str);
-}
-
-template<typename Char>
-constexpr inline std::basic_string_view<Char> ToStringView(const std::vector<Char>& str)
-{
-    return std::basic_string_view<Char>(str.data(), str.size());
-}
-
-
-}
-
 
 /**
 ** @brief split source using judger, do something for each slice
@@ -56,8 +21,8 @@ constexpr inline std::basic_string_view<Char> ToStringView(const std::vector<Cha
 ** @param consumer a function that accepts start pos AND length for each slice and do something
 ** @param keepblank whether should keep blank splice
 **/
-template<typename CharT, class Judger, class Consumer>
-inline void SplitAndDo(const CharT *src, const size_t len, const Judger judger, const Consumer consumer, const bool keepblank = true)
+template<typename Char, class Judger, class Consumer>
+inline void SplitAndDo(const Char *src, const size_t len, const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
     size_t cur = 0, last = 0;
     for (; cur < len; cur++)
@@ -72,23 +37,14 @@ inline void SplitAndDo(const CharT *src, const size_t len, const Judger judger, 
     if (keepblank || cur != last)
         consumer(&src[last], cur - last);
 }
-template<typename CharT, class Judger, class Consumer>
-inline void SplitAndDo(const std::basic_string_view<CharT>& src, const Judger judger, const Consumer consumer, const bool keepblank = true)
+template<typename Char, typename T, class Judger, class Consumer, class = detail::CanBeStringView<T, Char>>
+inline void SplitAndDo(const T& src, const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
-    SplitAndDo(src.data(), src.length(), judger, consumer, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    SplitAndDo(srcsv.data(), srcsv.length(), judger, consumer, keepblank);
 }
-template<typename CharT, class Judger, class Consumer>
-inline void SplitAndDo(const std::basic_string<CharT>& src, const Judger judger, const Consumer consumer, const bool keepblank = true)
-{
-    SplitAndDo(src.data(), src.length(), judger, consumer, keepblank);
-}
-template<typename CharT, class Judger, class Consumer>
-inline void SplitAndDo(const std::vector<CharT>& src, const Judger judger, const Consumer consumer, const bool keepblank = true)
-{
-    SplitAndDo(src.data(), src.length(), judger, consumer, keepblank);
-}
-template<typename CharT, size_t N, class Judger, class Consumer>
-inline void SplitAndDo(const CharT(&src)[N], const Judger judger, const Consumer consumer, const bool keepblank = true)
+template<typename Char, size_t N, class Judger, class Consumer>
+inline void SplitAndDo(const Char(&src)[N], const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
     SplitAndDo(src, N - 1, judger, consumer, keepblank);
 }
@@ -101,28 +57,19 @@ inline void SplitAndDo(const CharT(&src)[N], const Judger judger, const Consumer
 ** @param consumer a function that accepts start pos AND length for each slice and do something
 ** @param keepblank whether should keep blank splice
 **/
-template<typename CharT, class Consumer>
-inline void SplitAndDo(const CharT *src, const size_t len, const CharT delim, const Consumer consumer, const bool keepblank = true)
+template<typename Char, class Consumer>
+inline void SplitAndDo(const Char *src, const size_t len, const Char delim, const Consumer consumer, const bool keepblank = true)
 {
-    SplitAndDo(src, len, [delim](const CharT obj) { return obj == delim; }, consumer, keepblank);
+    SplitAndDo(src, len, [delim](const Char obj) { return obj == delim; }, consumer, keepblank);
 }
-template<typename CharT, class Consumer>
-inline void SplitAndDo(const std::basic_string_view<CharT>& src, const CharT delim, const Consumer consumer, const bool keepblank = true)
+template<typename Char, typename T, class Consumer, class = detail::CanBeStringView<T, Char>>
+inline void SplitAndDo(const T& src, const Char delim, const Consumer consumer, const bool keepblank = true)
 {
-    SplitAndDo(src.data(), src.length(), delim, consumer, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    SplitAndDo(srcsv.data(), srcsv.length(), delim, consumer, keepblank);
 }
-template<typename CharT, class Consumer>
-inline void SplitAndDo(const std::basic_string<CharT>& src, const CharT delim, const Consumer consumer, const bool keepblank = true)
-{
-    SplitAndDo(src.data(), src.length(), delim, consumer, keepblank);
-}
-template<typename CharT, class Consumer>
-inline void SplitAndDo(const std::vector<CharT>& src, const CharT delim, const Consumer consumer, const bool keepblank = true)
-{
-    SplitAndDo(src.data(), src.length(), delim, consumer, keepblank);
-}
-template<typename CharT, size_t N, class Consumer>
-inline void SplitAndDo(const CharT(&src)[N], const CharT delim, const Consumer consumer, const bool keepblank = true)
+template<typename Char, size_t N, class Consumer>
+inline void SplitAndDo(const Char(&src)[N], const Char delim, const Consumer consumer, const bool keepblank = true)
 {
     SplitAndDo(src, N - 1, delim, consumer, keepblank);
 }
@@ -133,71 +80,54 @@ inline void SplitAndDo(const CharT(&src)[N], const CharT delim, const Consumer c
 ** @param src source
 ** @param len length of source content
 ** @param judger a function that accepts one element and return (bool) whether it is delim
-** @param container a container that allows push_back to put a slice of std::basic_string_view<CharT>
+** @param container a container that allows push_back to put a slice of std::basic_string_view<Char>
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename CharT, class Judger, class Container>
-inline Container& Split(const CharT *src, const size_t len, const Judger judger, Container& container, const bool keepblank = true)
+template<typename Char, class Judger, class Container>
+inline Container& SplitInto(const Char *src, const size_t len, const Judger judger, Container& container, const bool keepblank = true)
 {
-    SplitAndDo(src, len, judger, [&container](const CharT *ptr, const size_t size) { container.push_back(std::basic_string_view<CharT>(ptr, size)); }, keepblank);
+    SplitAndDo(src, len, judger, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename CharT, class Judger, class Container>
-inline Container& Split(const std::basic_string_view<CharT>& src, const Judger judger, Container& container, const bool keepblank = true)
+template<typename Char, typename T, class Judger, class Container, class = detail::CanBeStringView<T, Char>>
+inline Container& SplitInto(const T& src, const Judger judger, Container& container, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), judger, container, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return SplitInto(srcsv.data(), srcsv.length(), judger, container, keepblank);
 }
-template<typename CharT, class Judger, class Container>
-inline Container& Split(const std::basic_string<CharT>& src, const Judger judger, Container& container, const bool keepblank = true)
+template<typename Char, size_t N, class Judger, class Container>
+inline Container& SplitInto(const Char(&src)[N], const Judger judger, Container& container, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), judger, container, keepblank);
+    return SplitInto(src, N - 1, judger, container, keepblank);
 }
-template<typename CharT, class Judger, class Container>
-inline Container& Split(const std::vector<CharT>& src, const Judger judger, Container& container, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), judger, container, keepblank);
-}
-template<typename CharT, size_t N, class Judger, class Container>
-inline Container& Split(const CharT(&src)[N], const Judger judger, Container& container, const bool keepblank = true)
-{
-    return Split(src, N - 1, judger, container, keepblank);
-}
+
 
 /**
 ** @brief split source using judger, putting slice into container
 ** @param src source
 ** @param len length of source content
 ** @param delim the char as delim
-** @param container a container that allows push_back to put a slice of std::basic_string_view<CharT>
+** @param container a container that allows push_back to put a slice of std::basic_string_view<Char>
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename CharT, class Container>
-inline Container& Split(const CharT *src, const size_t len, const CharT delim, Container& container, const bool keepblank = true)
+template<typename Char, class Container>
+inline Container& SplitInto(const Char *src, const size_t len, const Char delim, Container& container, const bool keepblank = true)
 {
-    SplitAndDo(src, len, delim, [&container](const CharT *ptr, const size_t size) { container.push_back(std::basic_string_view<CharT>(ptr, size)); }, keepblank);
+    SplitAndDo(src, len, delim, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename CharT, class Container>
-inline Container& Split(const std::basic_string_view<CharT>& src, const CharT delim, Container& container, const bool keepblank = true)
+template<typename Char, typename T, class Container, class = detail::CanBeStringView<T, Char>>
+inline Container& SplitInto(const T& src, const Char delim, Container& container, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), delim, container, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return SplitInto(srcsv.data(), srcsv.length(), delim, container, keepblank);
 }
-template<typename CharT, class Container>
-inline Container& Split(const std::basic_string<CharT>& src, const CharT delim, Container& container, const bool keepblank = true)
+template<typename Char, size_t N, class Container>
+inline Container& SplitInto(const Char(&src)[N], const Char delim, Container& container, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), delim, container, keepblank);
-}
-template<typename CharT, class Container>
-inline Container& Split(const std::vector<CharT>& src, const CharT delim, Container& container, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), delim, container, keepblank);
-}
-template<typename CharT, size_t N, class Container>
-inline Container& Split(const CharT(&src)[N], const CharT delim, Container& container, const bool keepblank = true)
-{
-    return Split(src, N - 1, delim, container, keepblank);
+    return SplitInto(src, N - 1, delim, container, keepblank);
 }
 
 
@@ -206,71 +136,54 @@ inline Container& Split(const CharT(&src)[N], const CharT delim, Container& cont
 ** @param src source
 ** @param len length of source content
 ** @param judger a function that accepts one element and return (bool) whether it is delim
-** @param container a container that allows push_back to put a slice of std::basic_string_view<CharT>
+** @param container a container that allows push_back to put a slice of std::basic_string_view<Char>
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename CharT, class Judger>
-inline auto& Split(const CharT *src, const size_t len, const Judger judger, const bool keepblank = true)
+template<typename Char, class Judger>
+inline std::vector<std::basic_string_view<Char>> Split(const Char *src, const size_t len, const Judger judger, const bool keepblank = true)
 {
-    std::vector<std::basic_string_view<CharT>> container;
-    SplitAndDo(src, len, judger, [&container](const CharT *ptr, const size_t size) { container.push_back(std::basic_string_view<CharT>(ptr, size)); }, keepblank);
+    std::vector<std::basic_string_view<Char>> container;
+    SplitAndDo(src, len, judger, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename CharT, class Judger>
-inline auto Split(const std::basic_string_view<CharT>& src, const Judger judger, const bool keepblank = true)
+template<typename Char, typename T, class Judger, class = detail::CanBeStringView<T, Char>>
+inline std::vector<std::basic_string_view<Char>> Split(const T& src, const Judger judger, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), judger, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return Split(srcsv.data(), srcsv.length(), judger, keepblank);
 }
-template<typename CharT, class Judger>
-inline auto Split(const std::basic_string<CharT>& src, const Judger judger, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), judger, keepblank);
-}
-template<typename CharT, class Judger>
-inline auto Split(const std::vector<CharT>& src, const Judger judger, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), judger, keepblank);
-}
-template<typename CharT, size_t N, class Judger>
-inline auto Split(const CharT(&src)[N], const Judger judger, const bool keepblank = true)
+template<typename Char, size_t N, class Judger>
+inline std::vector<std::basic_string_view<Char>> Split(const Char(&src)[N], const Judger judger, const bool keepblank = true)
 {
     return Split(src, N - 1, judger, keepblank);
 }
+
 
 /**
 ** @brief split source using judger, putting slice into container
 ** @param src source
 ** @param len length of source content
 ** @param delim the char as delim
-** @param container a container that allows push_back to put a slice of std::basic_string_view<CharT>
+** @param container a container that allows push_back to put a slice of std::basic_string_view<Char>
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename CharT>
-inline auto Split(const CharT *src, const size_t len, const CharT delim, const bool keepblank = true)
+template<typename Char>
+inline std::vector<std::basic_string_view<Char>> Split(const Char *src, const size_t len, const Char delim, const bool keepblank = true)
 {
-    std::vector<std::basic_string_view<CharT>> container;
-    SplitAndDo(src, len, delim, [&container](const CharT *ptr, const size_t size) { container.push_back(std::basic_string_view<CharT>(ptr, size)); }, keepblank);
+    std::vector<std::basic_string_view<Char>> container;
+    SplitAndDo(src, len, delim, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename CharT>
-inline auto Split(const std::basic_string_view<CharT>& src, const CharT delim, const bool keepblank = true)
+template<typename Char, typename T, class Judger, class = detail::CanBeStringView<T, Char>>
+inline std::vector<std::basic_string_view<Char>> Split(const T& src, const Char delim, const bool keepblank = true)
 {
-    return Split(src.data(), src.length(), delim, keepblank);
+    const auto srcsv = detail::ToStringView<Char>(src);
+    return Split(srcsv.data(), srcsv.length(), delim, keepblank);
 }
-template<typename CharT>
-inline auto Split(const std::basic_string<CharT>& src, const CharT delim, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), delim, keepblank);
-}
-template<typename CharT>
-inline auto Split(const std::vector<CharT>& src, const CharT delim, const bool keepblank = true)
-{
-    return Split(src.data(), src.length(), delim, keepblank);
-}
-template<typename CharT, size_t N>
-inline auto Split(const CharT(&src)[N], const CharT delim, const bool keepblank = true)
+template<typename Char, size_t N, class Judger>
+inline std::vector<std::basic_string_view<Char>> Split(const Char(&src)[N], const Char delim, const bool keepblank = true)
 {
     return Split(src, N - 1, delim, keepblank);
 }
@@ -307,38 +220,38 @@ inline std::basic_string<Char> ReplaceStr(const std::basic_string<Char>& str, co
 }
 
 
-template<typename CharT>
-inline constexpr bool IsBeginWith(const CharT* src, const size_t srclen, const CharT *prefix, const size_t objlen)
+template<typename Char>
+inline constexpr bool IsBeginWith(const Char* src, const size_t srclen, const Char *prefix, const size_t objlen)
 {
     if (srclen < objlen)
         return false;
-    return std::char_traits<CharT>::compare(src, prefix, objlen) == 0;
+    return std::char_traits<Char>::compare(src, prefix, objlen) == 0;
 }
-template<typename CharT, typename T, class = detail::CanBeStringView<T, CharT>>
-inline constexpr bool IsBeginWith(const T& src, const CharT *prefix, const size_t objlen)
+template<typename Char, typename T, class = detail::CanBeStringView<T, Char>>
+inline constexpr bool IsBeginWith(const T& src, const Char *prefix, const size_t objlen)
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     return IsBeginWith(srcsv.data(), srcsv.length(), prefix, objlen);
 }
-template<typename CharT, typename T1, typename T2, class = detail::CanBeStringView<T1, CharT>, class = detail::CanBeStringView<T2, CharT>>
+template<typename Char, typename T1, typename T2, class = detail::CanBeStringView<T1, Char>, class = detail::CanBeStringView<T2, Char>>
 inline constexpr bool IsBeginWith(const T1& src, const T2 &prefix)
 {
     const auto srcsv = detail::ToStringView<Char>(src), prefixsv = detail::ToStringView<Char>(prefix);
     return IsBeginWith(srcsv.data(), srcsv.length(), prefixsv.data(), prefixsv.length());
 }
-template<typename CharT, typename T, size_t N, class = detail::CanBeStringView<T, CharT>>
-inline constexpr bool IsBeginWith(const T& src, const CharT(&prefix)[N])
+template<typename Char, typename T, size_t N, class = detail::CanBeStringView<T, Char>>
+inline constexpr bool IsBeginWith(const T& src, const Char(&prefix)[N])
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     return IsBeginWith(srcsv.data(), srcsv.length(), prefix, N - 1);
 }
-template<typename CharT, size_t N1, size_t N2>
-inline constexpr bool IsBeginWith(const CharT(&src)[N1], const CharT(&prefix)[N2])
+template<typename Char, size_t N1, size_t N2>
+inline constexpr bool IsBeginWith(const Char(&src)[N1], const Char(&prefix)[N2])
 {
     return IsBeginWith(src, N1 - 1, prefix, N2 - 1);
 }
-template<typename CharT, typename T, size_t N, class = detail::CanBeStringView<T, CharT>>
-inline constexpr bool IsBeginWith(const CharT(&src)[N], const T& prefix)
+template<typename Char, typename T, size_t N, class = detail::CanBeStringView<T, Char>>
+inline constexpr bool IsBeginWith(const Char(&src)[N], const T& prefix)
 {
     const auto prefixsv = detail::ToStringView<Char>(prefix);
     return IsBeginWith(src, N - 1, prefixsv.data(), prefixsv.length());

@@ -118,7 +118,7 @@ struct OgluAttribute
             if (p2 < p3)
             {
                 bool inRegion = false;
-                str::SplitAndDo(line.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
+                str::SplitAndDo<char>(line.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
                 {
                     if (ch == '"')
                     {
@@ -179,7 +179,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 }
 static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line)
 {
-    const auto parts = str::Split(line, '|', true);
+    const auto parts = str::Split<char>(line, '|', true);
     return ParseExtProperty(parts);
 }
 
@@ -192,7 +192,7 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtI
     string_view partVersion;
     uint32_t lineCnt = 0, lineNum = 0;
 
-    str::SplitAndDo(src, [](const char ch) { return ch == '\r' || ch == '\n'; },
+    str::SplitAndDo<char>(src, [](const char ch) { return ch == '\r' || ch == '\n'; },
         [&](const char *pos, const size_t len) 
         {
             lineCnt++;
