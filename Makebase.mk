@@ -38,11 +38,11 @@ DEPLIBS		:=
 ifeq ($(PLATFORM), x64)
 	OBJPREFEX	 = x64/
 	CXXFLAGS	+= -mavx2 -m64
-	ASMFLAGS	+= -f elf64 -D__x86_64__
+	ASMFLAGS	+= -f elf64 -D__x86_64__ -DELF
 else
 	OBJPREFEX	 = 
 	CXXFLAGS	+= -msse2 -m32
-	ASMFLAGS	+= -f elf32
+	ASMFLAGS	+= -f elf32 -DELF
 endif
 
 ifeq ($(TARGET), Release)

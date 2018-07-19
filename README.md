@@ -18,8 +18,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | Component | Description | Platform |
 |:-------|:-------:|:-------:|
 | [3rdParty](./3rdParty) | 3rd party library | N/A |
-| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows |
-| [common](./common) | Basic but useful things | Windows |
+| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
+| [common](./common) | Basic but useful things | N/A |
 | [CommonUtil](./CommonUtil) | Basic utils for C# | Windows |
 | [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
 | [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |

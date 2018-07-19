@@ -11,7 +11,8 @@ libjpeg-turbo is covered by three compatible BSD-style open source licenses:
 
 - The Modified (3-clause) BSD License, which is listed below
 
-  This license covers the TurboJPEG API library and associated programs.
+  This license covers the TurboJPEG API library and associated programs, as
+  well as the build system.
 
 - The zlib License, which is listed below
 

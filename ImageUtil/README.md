@@ -28,7 +28,7 @@ Since This component is binded with X86 optimization, internal data layout is as
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.3
+* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.90
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
 

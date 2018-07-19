@@ -2,19 +2,21 @@ BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk
 
-ALLASMS		 = $(wildcard simd/*.asm)
-AMD64ASMS	 = $(wildcard simd/*-sse2-64.asm)
-EXCEPT_C	 = jccolext.c jcsample.c jdcol565.c jdcolext.c jdmrg565.c jdmrgext.c jstdhuff.c
-SUBDIRS		+= $(OBJPATH)simd
+I386ASMS	 = $(wildcard simd/i386/*.asm)
+AMD64ASMS	 = $(wildcard simd/x86-64/*.asm)
+EXCEPT_C	 = jccolext.c jdcol565.c jdcolext.c jdmrg565.c jdmrgext.c jstdhuff.c
+SUBDIRS		+= $(OBJPATH)simd $(OBJPATH)simd/x86-64 $(OBJPATH)simd/i386
 INCPATH		+= -I./simd/ -I./
 ifeq ($(PLATFORM), x64)
-	NASMSRCS	=  $(filter-out simd/jccolext-sse2-64.asm simd/jcgryext-sse2-64.asm simd/jdcolext-sse2-64.asm simd/jdmrgext-sse2-64.asm, $(AMD64ASMS))
-	CSRCS	+= simd/jsimd_x86_64.c
+	NASMSRCS	 =  $(filter-out simd/x86-64/jccolext-avx2.asm simd/x86-64/jccolext-sse2.asm simd/x86-64/jcgryext-avx2.asm simd/x86-64/jcgryext-sse2.asm simd/x86-64/jdcolext-avx2.asm simd/x86-64/jdcolext-sse2.asm simd/x86-64/jdmrgext-avx2.asm simd/x86-64/jdmrgext-sse2.asm, $(AMD64ASMS))
+	CSRCS		+= simd/x86-64/jsimd-x86-64.c
+	INCPATH		+= -I"./simd/x86-64/"
 else
-	NASMSRCS	=  $(filter-out simd/jccolext-mmx.asm simd/jcgryext-mmx.asm simd/jdcolext-mmx.asm simd/jdmrgext-mmx.asm simd/jccolext-sse2.asm simd/jcgryext-sse2.asm simd/jdcolext-sse2.asm simd/jdmrgext-sse2.asm $(AMD64ASMS), $(ALLASMS))
-	CSRCS	+= simd/jsimd_i386.c
+	NASMSRCS	 =  $(filter-out simd/i386/jccolext-avx2.asm simd/i386/jccolext-sse2.asm simd/i386/jccolext-mmx.asm simd/i386/jcgryext-avx2.asm simd/i386/jcgryext-sse2.asm simd/i386/jcgryext-mmx.asm simd/i386/jdcolext-avx2.asm simd/i386/jdcolext-sse2.asm simd/i386/jdmrgext-avx2.asm simd/i386/jdmrgext-sse2.asm simd/i386/jdmrgext-mmx.asm, $(I386ASMS))
+	CSRCS		+= simd/i386/jsimd-i386.c
+	INCPATH		+= -I"./simd/i386/"
 endif
-CXXFLAGS += -D_LARGEFILE64_SOURCE=1 -DNO_UNDERLINE -DASMV -DWITH_SIMD -DSIZEOF_SIZE_T
+CXXFLAGS += -D_LARGEFILE64_SOURCE=1 -DNO_PUTENV -DBMP_SUPPORTED -DPPM_SUPPORTED
 NAME	= jpeg-turbo
 
 include $(PROJPATH)/MakeTargets.mk

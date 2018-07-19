@@ -56,8 +56,30 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #   define forcenoinline    __attribute__((noinline))
 #   define CDECLCALL
 #   if !defined(STDC_LIB_EXT1)
-#       define memcpy_s(dest, destsz, src, count) memcpy(dest, src, count)
-#       define memmove_s(dest, destsz, src, count) memmove(dest, src, count)
+#       include <errno.h>
+forceinline std::remove_reference<decltype(errno)>::type memcpy_s(void * dest, size_t destsz, const void * src, size_t count)
+{
+    if (count == 0)
+        return 0;
+    if (src == nullptr || dest == nullptr || destsz < count)
+    {
+        memset(dest, 0, destsz);
+        return EINVAL;
+    }
+    memcpy(dest, src, count);
+    return 0;
+}
+forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, size_t destsz, const void * src, size_t count)
+{
+    if (count == 0)
+        return 0;
+    if (src == nullptr || dest == nullptr)
+        return EINVAL;
+    if (destsz < count)
+        return ERANGE;
+    memmove(dest, src, count);
+    return 0;
+}
 #   endif
 #else
 #   define forceinline inline

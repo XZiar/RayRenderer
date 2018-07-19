@@ -43,7 +43,7 @@ User documentation:
   change.log        Version-to-version change highlights.
 Programmer and internal documentation:
   libjpeg.txt       How to use the JPEG library in your own programs.
-  example.c         Sample code for calling the JPEG library.
+  example.txt       Sample code for calling the JPEG library.
   structure.txt     Overview of the JPEG library's internal structure.
   coderules.txt     Coding style rules --- please read if you contribute code.
 
@@ -159,12 +159,6 @@ commercial products, provided that all warranty or liability claims are
 assumed by the product vendor.
 
 
-The Unix configuration script "configure" was produced with GNU Autoconf.
-It is copyright by the Free Software Foundation but is freely distributable.
-The same holds for its supporting scripts (config.guess, config.sub,
-ltmain.sh).  Another support script, install-sh, is copyright by X Consortium
-but is also freely distributable.
-
 The IJG distribution formerly included code to read and write GIF files.
 To avoid entanglement with the Unisys LZW patent (now expired), GIF reading
 support has been removed altogether, and the GIF writer has been simplified
@@ -185,8 +179,8 @@ We recommend reading one or more of these references before trying to
 understand the innards of the JPEG software.
 
 The best short technical introduction to the JPEG compression algorithm is
-	Wallace, Gregory K.  "The JPEG Still Picture Compression Standard",
-	Communications of the ACM, April 1991 (vol. 34 no. 4), pp. 30-44.
+        Wallace, Gregory K.  "The JPEG Still Picture Compression Standard",
+        Communications of the ACM, April 1991 (vol. 34 no. 4), pp. 30-44.
 (Adjacent articles in that issue discuss MPEG motion picture compression,
 applications of JPEG, and related topics.)  If you don't have the CACM issue
 handy, a PDF file containing a revised version of Wallace's article is
@@ -255,8 +249,8 @@ and other news.answers archive sites, including the official news.answers
 archive at rtfm.mit.edu: ftp://rtfm.mit.edu/pub/usenet/news.answers/jpeg-faq/.
 If you don't have Web or FTP access, send e-mail to mail-server@rtfm.mit.edu
 with body
-	send usenet/news.answers/jpeg-faq/part1
-	send usenet/news.answers/jpeg-faq/part2
+        send usenet/news.answers/jpeg-faq/part1
+        send usenet/news.answers/jpeg-faq/part2
 
 
 FILE FORMAT WARS

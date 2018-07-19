@@ -15,7 +15,7 @@ struct JpegHelper
     static void EmptyCompFunc([[maybe_unused]] j_compress_ptr cinfo)
     { }
 
-    static uint8_t ReadFromFile(j_decompress_ptr cinfo)
+    static boolean ReadFromFile(j_decompress_ptr cinfo)
     {
         auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
         auto& imgFile = reader->ImgFile;
@@ -36,7 +36,7 @@ struct JpegHelper
         imgFile.Skip(bytes);
     }
 
-    static uint8_t WriteToFile(j_compress_ptr cinfo)
+    static boolean WriteToFile(j_compress_ptr cinfo)
     {
         auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
         auto& imgFile = writer->ImgFile;
