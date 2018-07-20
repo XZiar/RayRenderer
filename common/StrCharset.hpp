@@ -733,7 +733,6 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
     default:
         COMMON_THROW(BaseException, L"unknow charset", inchset);
     }
-    COMMON_THROW(BaseException, L"unknow charset", outchset);
 }
 template<typename Char, typename Alloc>
 forceinline std::string to_string(const std::basic_string<Char, Alloc>& str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)

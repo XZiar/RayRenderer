@@ -5,6 +5,7 @@
 # define NOMINMAX 1
 # include <Windows.h>
 # include <ProcessThreadsApi.h>
+# include "WinVersionHelper.hpp"
 #else
 //# define _GNU_SOURCE
 # include <errno.h>
@@ -29,42 +30,53 @@
 namespace common
 {
 
-//#pragma pack(push,8) 
-//struct THREADNAME_INFO
-//{
-//    DWORD dwType;  // Must be 0x1000.
-//    LPCSTR szName;  // Pointer to name (in user addr space).
-//    DWORD dwThreadID;  // Thread ID (-1=caller thread).
-//    DWORD dwFlags;  // Reserved for future use, must be zero.
-//};
-//#pragma pack(pop)
+namespace detail
+{
+#pragma pack(push,8) 
+struct THREADNAME_INFO
+{
+    DWORD dwType;  // Must be 0x1000.
+    LPCSTR szName;  // Pointer to name (in user addr space).
+    DWORD dwThreadID;  // Thread ID (-1=caller thread).
+    DWORD dwFlags;  // Reserved for future use, must be zero.
+};
+#pragma pack(pop)
+}
 
 bool CDECLCALL SetThreadName(const std::string& threadName)
 {
-    /*
-    constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
-    const DWORD tid = GetCurrentThreadId();
-    THREADNAME_INFO info;
-    info.dwType = 0x1000;
-    info.szName = threadName.c_str();
-    info.dwThreadID = tid;
-    info.dwFlags = 0;
+    const std::u16string u16TName(threadName.cbegin(), threadName.cend());
+    SetThreadName(u16TName);
+    return true;
+}
+
+static void SetThreadNameImpl(const detail::THREADNAME_INFO* info)
+{
     __try
     {
-        RaiseException(detail::MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+        RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     { }
-    */
-    std::u16string u16TName(threadName.cbegin(), threadName.cend());
-    SetThreadName(u16TName);
-    return true;
 }
 
 bool CDECLCALL SetThreadName(const std::u16string& threadName)
 {
 #if defined(_WIN32)
-    ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.c_str()); // supported since Win10 1607
+    if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
+        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.c_str()); 
+    else
+    {
+        constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
+        const DWORD tid = GetCurrentThreadId();
+        detail::THREADNAME_INFO info;
+        info.dwType = 0x1000;
+        const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
+        info.szName = asciiThreadName.c_str();
+        info.dwThreadID = tid;
+        info.dwFlags = 0;
+        SetThreadNameImpl(&info);
+    }
 #else
     const auto u8TName = str::to_u8string(threadName, str::Charset::UTF8);
 # if defined(__APPLE__)

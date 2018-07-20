@@ -3,12 +3,12 @@
 #include "DataConvertor.hpp"
 
 #include "libpng/png.h"
-#include "zlib/zlib.h"
+#include "zlib-ng/zlib.h"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
 
 
-#pragma message("Compiling ImagePNG with libpng[" STRINGIZE(PNG_LIBPNG_VER_STRING) "] AND zlib[" STRINGIZE(ZLIB_VERSION) "]")
+#pragma message("Compiling ImagePNG with libpng[" STRINGIZE(PNG_LIBPNG_VER_STRING) "] AND zlib-ng[" STRINGIZE(ZLIBNG_VERSION) "](zlib[" STRINGIZE(ZLIB_VERSION) "])")
 
 namespace xziar::img::png
 {

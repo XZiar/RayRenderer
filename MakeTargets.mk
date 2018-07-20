@@ -40,7 +40,7 @@ $(OBJPATH)%.c.o: %.c mkobjdir dependencyinfo
 	$(CCOMPILER) $(INCPATH) $(CFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)%.asm.o: %.asm mkobjdir dependencyinfo
-	$(NASMCOMPILER) $(INCPATH) $(ASMFLAGS) $< -o $@
+	$(NASMCOMPILER) $(INCPATH) $(NASMFLAGS) $< -o $@
 
 $(OBJPATH)%.S.o: %.S mkobjdir dependencyinfo
 	$(ASMCOMPILER) $(INCPATH) $(CXXFLAGS) -MMD -MP -fPIC -c $< -o $@

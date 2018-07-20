@@ -9,11 +9,18 @@
             "dependency": []
         },
         {
+            "name": "zlib-ng",
+            "type": "static",
+            "path": "3rdParty/zlib-ng",
+            "description": "A massively spiffy yet delicately unobtrusive compression library",
+            "dependency": []
+        },
+        {
             "name": "libpng",
             "type": "static",
             "path": "3rdParty/libpng",
             "description": "The official PNG reference library",
-            "dependency": ["zlib"]
+            "dependency": ["zlib-ng"]
         },
         {
             "name": "libjpeg-turbo",
@@ -62,7 +69,7 @@
             "type": "dynamic",
             "path": "ImageUtil",
             "description": "A basic image operation library",
-            "dependency": ["fmt", "miniLogger", "zlib", "libpng", "libjpeg-turbo"]
+            "dependency": ["fmt", "miniLogger", "zlib-ng", "libpng", "libjpeg-turbo"]
         },
         {
             "name": "UtilTest",

@@ -3,6 +3,7 @@
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
+#   include "WinVersionHelper.hpp"
 #else
 #   include "StrCharset.hpp"
 #endif
@@ -19,9 +20,16 @@ ConsoleHelper::ConsoleHelper()
         throw std::runtime_error("no console handle avaliable");
     Handle = reinterpret_cast<intptr_t>(handle);
     DWORD mode;
-    ::GetConsoleMode(handle, &mode);
-    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING; // since win10 1511(th2)
-    IsVTMode = ::SetConsoleMode(handle, mode) == TRUE;
+    if (::GetConsoleMode(handle, &mode) == 0)
+        throw std::runtime_error("can't get console mode");
+    if (GetWinBuildNumber() >= 10586) // since win10 1511(th2)
+    {
+        mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        ::SetConsoleMode(handle, mode);
+        IsVTMode = true;
+    }
+    else
+        IsVTMode = false;
     CONSOLE_SCREEN_BUFFER_INFO csbInfo;
     ::GetConsoleScreenBufferInfo(handle, &csbInfo);
     Dummy = csbInfo.wAttributes;
@@ -88,6 +96,8 @@ forceinline static void WriteToConsole(const HANDLE hConsole, const char16_t* st
         uint32_t outlen;
         const uint32_t desire = static_cast<uint32_t>(std::min<size_t>(len - offset, UINT32_MAX));
         ::WriteConsole(hConsole, str + offset, desire, (LPDWORD)&outlen, nullptr);
+        if (outlen == 0) // error here, just return
+            return;
         offset += outlen;
     }
 }

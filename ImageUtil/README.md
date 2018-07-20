@@ -24,6 +24,10 @@ Since This component is binded with X86 optimization, internal data layout is as
 
   [zlib License](../3rdParty/zlib/license.txt)
 
+* [zlib-ng](https://github.com/Dead2/zlib-ng)  1.9.9
+
+  [zlib License](../3rdParty/zlib-ng/LICENSE.md)
+
 * [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.34
 
   [libpng License](../3rdParty/libpng/LICENSE)

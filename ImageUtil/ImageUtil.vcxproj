@@ -169,8 +169,8 @@
     <ProjectReference Include="..\3rdParty\libpng\libpng.vcxproj">
       <Project>{506a3438-e8ee-47f6-a4c8-fdf475ebac1e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\zlib\zlib.vcxproj">
-      <Project>{fc87d46c-9ce7-4e8f-bd3a-4f25a3fb8175}</Project>
+    <ProjectReference Include="..\3rdParty\zlib-ng\zlib-ng.vcxproj">
+      <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>

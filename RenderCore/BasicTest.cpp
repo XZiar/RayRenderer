@@ -250,7 +250,7 @@ BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
     fontCreator.reset(oclu::Vendor::Intel);
     Basepath = u"C:\\Programs Temps\\RayRenderer";
     if (!fs::exists(Basepath))
-        Basepath = u"C:\\ProgramsTemps\\RayRenderer";
+        Basepath = u"D:\\ProgramsTemps\\RayRenderer";
     fontCreator->reloadFont(Basepath / u"test.ttf");
 
     fontTest(/*L'‡å'*/);

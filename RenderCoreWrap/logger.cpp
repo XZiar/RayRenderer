@@ -77,6 +77,7 @@ static void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 #pragma unmanaged
 static uint32_t setLogCB()
 {
+    //common::mlog::GetConsoleBackend()->SetLeastLevel(common::mlog::LogLevel::Error);
     return common::mlog::AddGlobalCallback(LogCallback);
 }
 static void unsetLogCB(const uint32_t id)
