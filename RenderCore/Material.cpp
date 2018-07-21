@@ -8,7 +8,7 @@ using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using oglu::TextureInnerFormat;
-
+using std::multimap;
 
 oglu::TextureInnerFormat PBRMaterial::GetInnerFormat(const TexHolder& holder)
 {
@@ -118,13 +118,7 @@ void MultiMaterialHolder::Refresh()
                 newArrange.insert(Arrangement.extract(it));
             // need new arrangement
             else 
-            {
-                const auto objTexType = PBRMaterial::GetInnerFormat(*texmap);
-                if (objTexType == TexFormat)
-                    added[*texmap] = &material;
-                else // mismatch format
-                    basLog().warning(u"[MateiralHolder] texture format mismatch, want [{}], [{}] has [{}].\n", (uint32_t)TexFormat, PBRMaterial::GetName(*texmap), (uint32_t)objTexType);
-            }
+                added[*texmap] = &material;
         }
     }
     //quick return
@@ -134,18 +128,17 @@ void MultiMaterialHolder::Refresh()
         return;
     }
     //generate avaliable map
-    set<uint16_t> avaliableMap[13 * 13];
-    for(const auto idx : AllocatedTexture)
+    set<Mapping, common::container::PairLess<detail::TexTag, uint16_t>> avaliableMap;
+    for (const auto&[tid, texarr] : Textures)
     {
-        auto avaSet = avaliableMap[idx];
-        const uint16_t layers = (uint16_t)std::get<2>(Textures[idx]->GetSize());
+        const uint16_t layers = (uint16_t)std::get<2>(texarr->GetSize());
         for (uint16_t j = 0; j < layers; ++j)
-            avaSet.insert(avaSet.end(), j);
+            avaliableMap.insert(avaliableMap.cend(), std::pair(tid, j));
     }
     for (const auto&[tex, mapping] : newArrange)
-        avaliableMap[mapping.first].erase(mapping.second);
+        avaliableMap.erase(mapping);
     //process mapping
-    map<uint8_t, set<TexHolder>> needAdd;
+    map<detail::TexTag, set<TexHolder>> needAdd;
     for (const auto&[tex, material] : added)
     {
         const auto[w, h] = PBRMaterial::GetSize(tex);
@@ -153,36 +146,36 @@ void MultiMaterialHolder::Refresh()
             COMMON_THROW(BaseException, L"binded texture size cannot be 0", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
             COMMON_THROW(BaseException, L"binded texture size should be power of 2", material->Name);
-        const uint8_t widthpow = (uint8_t)(std::log2(w) - 2), heightpow = (uint8_t)(std::log2(h) - 2);
-        const uint8_t sizepow = uint8_t(widthpow + heightpow * 13);
-        if (auto& avaSet = avaliableMap[sizepow]; avaSet.empty())
+        const detail::TexTag tid(PBRMaterial::GetInnerFormat(tex), w, h);
+        if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {
-            needAdd[sizepow].insert(tex);
+            needAdd[tid].insert(tex);
         }
         else
         {
-            const uint16_t objLayer = *avaSet.begin();
-            avaSet.erase(avaSet.begin());
-            InsertLayer(Textures[sizepow], objLayer, tex);
+            const uint16_t objLayer = avaSlot->second;
+            avaliableMap.erase(avaSlot);
+            InsertLayer(Textures[tid], objLayer, tex);
         }
     }
-    if (oglu::detail::_oglTexBase::IsCompressType(TexFormat)) // workaround for intel gen7.5
+    // workaround for intel gen7.5
+    for (auto&[tid, texs] : needAdd)
     {
-        for (auto&[sizepow, texs] : needAdd)
+        if (oglu::detail::_oglTexBase::IsCompressType(tid.Info.Format))
         {
-            auto& texarr = Textures[sizepow];
+            auto& texarr = Textures[tid];
             if (texarr)
             {
                 for (const auto&[th, p] : newArrange)
-                    if (p.first == sizepow)
+                    if (p.first == tid)
                         texs.insert(th);
                 texarr.release(); //release texture, wait for reconstruct
             }
         }
     }
-    for (const auto& [sizepow, texs] : needAdd)
+    for (const auto& [tid, texs] : needAdd)
     {
-        auto& texarr = Textures[sizepow];
+        auto& texarr = Textures[tid];
         uint32_t objLayer = 0;
         if (texarr)
         {
@@ -193,57 +186,50 @@ void MultiMaterialHolder::Refresh()
         }
         else
         {
-            const auto widthpow = sizepow % 13, heightpow = sizepow / 13;
-            texarr.reset(4 << widthpow, 4 << heightpow, (uint16_t)(texs.size()), TexFormat);
+            texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = u"MatTexArr " + str::to_u16string(std::to_string(w) + 'x' + std::to_string(h));
+            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::detail::_oglTexBase::GetFormatName(texarr->GetInnerFormat()), w, h));
             texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+            
+            static_assert(std::is_convertible_v<decltype(std::declval<u16string>().data()), const char16_t*>);
         }
         for (const auto& tex : texs)
         {
-            InsertLayer(Textures[sizepow], objLayer, tex);
-            //texarr->SetTextureLayer(objLayer, tex);
-            newArrange[tex] = { sizepow,objLayer++ };
+            InsertLayer(texarr, objLayer, tex);
+            newArrange.try_emplace(tex, tid, objLayer++);
         }
     }
     Arrangement.swap(newArrange);
     //prepare lookup
-    AllocatedTexture.clear();
-    uint32_t i = 0;
-    for (const auto& texarr : Textures)
+    TextureLookup.clear();
+    uint8_t i = 0;
+    for (const auto&[tid, texarr] : Textures)
     {
         if (texarr)
-        {
-            TextureLookup[i] = static_cast<uint8_t>(AllocatedTexture.size());
-            AllocatedTexture.push_back(i);
-        }
-        else
-            TextureLookup[i] = 0xff;
-        ++i;
+            TextureLookup[tid] = i++;
     }
 }
 
 void MultiMaterialHolder::BindTexture(oglu::detail::ProgDraw& drawcall) const
 {
-    uint8_t idx = 0;
-    for (const auto texIdx : AllocatedTexture)
+    for (const auto&[tid, bank] : TextureLookup)
     {
-        drawcall.SetTexture(Textures[texIdx], "texs", idx++);
+        drawcall.SetTexture(Textures.find(tid)->second, "texs", bank);
     }
 }
 
-static forceinline uint32_t PackMapPos(const MultiMaterialHolder::ArrangeMap& mapping, const uint8_t(&lookup)[13 * 13], const PBRMaterial::TexHolder& tex, const bool isUse)
+static forceinline uint32_t PackMapPos(const MultiMaterialHolder::ArrangeMap& mapping, const map<detail::TexTag, uint8_t>& lookup, const PBRMaterial::TexHolder& tex, const bool isUse)
 {
     if (!isUse)
         return 0xffff;
     const auto it = mapping.find(tex);
     if (it == mapping.cend())
         return 0xffff;
-    const auto&[idx, layer] = it->second;
-    const auto bank = lookup[idx];
-    if (bank == 0xff)
+    const auto&[tid, layer] = it->second;
+    const auto bank = lookup.find(tid);
+    if (bank == lookup.cend())
         return 0xffff;
-    return uint32_t((bank << 16) | layer);
+    return uint32_t((bank->second << 16) | layer);
 }
 
 uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const

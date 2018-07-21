@@ -173,6 +173,13 @@ bool _oglContext::SetFBO(const oglFBO& fbo)
     }
     return false;
 }
+void _oglContext::SetSRGBFBO(const bool isEnable)
+{
+    if (isEnable)
+        glEnable(GL_FRAMEBUFFER_SRGB);
+    else
+        glDisable(GL_FRAMEBUFFER_SRGB);
+}
 
 void _oglContext::ClearFBO()
 {

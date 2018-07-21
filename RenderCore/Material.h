@@ -43,7 +43,6 @@ struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>
 {
 public:
     using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
-    using Mapping = std::pair<uint8_t, uint16_t>;
     static oglu::TextureInnerFormat GetInnerFormat(const TexHolder& holder);
     static u16string GetName(const TexHolder& holder);
     static std::pair<uint32_t, uint32_t> GetSize(const TexHolder& holder);
@@ -64,27 +63,42 @@ public:
 };
 
 
+namespace detail
+{
+union TexTag
+{
+    uint64_t Val;
+    struct Dummy
+    {
+        oglu::TextureInnerFormat Format;
+        uint16_t Width;
+        uint16_t Height;
+    } Info;
+    template<typename T>
+    TexTag(const oglu::TextureInnerFormat format, const T width, const T height) : Info{ format, static_cast<uint16_t>(width), static_cast<uint16_t>(height) } {}
+    bool operator<(const TexTag& other) const noexcept { return Val < other.Val; }
+    bool operator==(const TexTag& other) const noexcept { return Val == other.Val; }
+};
+}
+
 struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable
 {
 public:
-    using Mapping = PBRMaterial::Mapping;
+    using Mapping = std::pair<detail::TexTag, uint16_t>;
     using TexHolder = PBRMaterial::TexHolder;
     using ArrangeMap = map<TexHolder, Mapping>;
-    using SizePair = std::pair<uint16_t, uint16_t>;
 private:
     vector<PBRMaterial> Materials;
-    vector<uint8_t> AllocatedTexture;
+    // tex -> (size, layer)
     ArrangeMap Arrangement;
-    oglu::oglTex2DArray Textures[13 * 13];
-    oglu::TextureInnerFormat TexFormat;
-    uint8_t TextureLookup[13 * 13];
+    map<detail::TexTag, oglu::oglTex2DArray> Textures;
+    map<detail::TexTag, uint8_t> TextureLookup;
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
     static oglu::oglTex2DV GetCheckTex();
 
-    MultiMaterialHolder() { AllocatedTexture.reserve(13 * 13); }
-    MultiMaterialHolder(const uint8_t count, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::RGBA8)
-        : Materials(count, PBRMaterial(u"unnamed")), TexFormat(format) { AllocatedTexture.reserve(13 * 13); }
+    MultiMaterialHolder() { }
+    MultiMaterialHolder(const uint8_t count) : Materials(count, PBRMaterial(u"unnamed")) { }
 
     vector<PBRMaterial>::iterator begin() { return Materials.begin(); }
     vector<PBRMaterial>::iterator end() { return Materials.end(); }

@@ -10,7 +10,7 @@ using common::asyexe::AsyncAgent;
 
 void Model::InitMaterial()
 {
-    MaterialHolder = MultiMaterialHolder((uint8_t)Mesh->groups.size(), oglu::TextureInnerFormat::BC7);
+    MaterialHolder = MultiMaterialHolder((uint8_t)Mesh->groups.size());
     MaterialUBO.reset(32 * MultiMaterialHolder::UnitSize);
     MaterialBuf.resize(MaterialUBO->Size());
 

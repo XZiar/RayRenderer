@@ -294,6 +294,7 @@ void BasicTest::Draw()
     }
     if (mode)
     {
+        glContext->SetSRGBFBO(true);
         glContext->SetFBO();
         prog3D->SetCamera(cam);
         auto drawcall = prog3D->Draw();
@@ -310,6 +311,7 @@ void BasicTest::Draw()
         const auto ow = cam.width, oh = cam.height;
         const auto[w, h] = fboTex->GetSize();
         glContext->SetFBO(MiddleFrame);
+        glContext->SetSRGBFBO(false);
         glContext->ClearFBO();
         Resize(w, h);
         prog3D->SetCamera(cam);
@@ -324,6 +326,7 @@ void BasicTest::Draw()
             }
         }
         glContext->SetFBO();
+        glContext->SetSRGBFBO(true);
         Resize(ow, oh);
         {
             const auto sw = w * oh / h;
@@ -348,7 +351,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h)
     MiddleFrame->AttachColorTexture(fboTex, 0);
     oglRBO mainRBO(w, h, oglu::RBOFormat::Depth24Stencil8);
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
-    basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckIsComplete() ? u"complete" : u"not complete");
+    basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     progPost->State().SetTexture(fboTex, "tex");
 }
 

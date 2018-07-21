@@ -83,7 +83,8 @@ out vec4 FragColor;
 void main() 
 {
     const vec3 color = ToneMap(texture(tex[0], tpos).rgb);
-    FragColor.rgb = GammaCorrect(color);
+    //FragColor.rgb = GammaCorrect(color);
+    FragColor.rgb = color;
     FragColor.w = 1.0f;
 }
 

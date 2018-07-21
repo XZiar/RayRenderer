@@ -225,10 +225,16 @@ const char16_t* _oglTexBase::GetFormatName(const TextureInnerFormat format)
     case TextureInnerFormat::BC5:        return u"BC5";
     case TextureInnerFormat::BC6H:       return u"BC6H";
     case TextureInnerFormat::BC7:        return u"BC7";
+    case TextureInnerFormat::BC1A:       return u"BC1A";
+    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB";
+    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB";
+    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB";
+    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB";
     case TextureInnerFormat::R8:         return u"Gray8";
     case TextureInnerFormat::RG8:        return u"RG8";
     case TextureInnerFormat::RGB8:       return u"RGB8";
     case TextureInnerFormat::RGBA8:      return u"RGBA8";
+    case TextureInnerFormat::SRGBA8:     return u"sRGBA8";
     case TextureInnerFormat::Rh:         return u"Rh";
     case TextureInnerFormat::RGh:        return u"RGh";
     case TextureInnerFormat::RGBh:       return u"RGBh";

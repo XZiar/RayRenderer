@@ -32,6 +32,11 @@ public:
 }
 using oglRBO = Wrapper<detail::_oglRenderBuffer>;
 
+enum class FBOStatus : uint8_t
+{
+    Complete, Undefined, Unsupported, IncompleteAttachment, MissingAttachment, IncompleteDrawBuffer, IncompleteReadBuffer, IncompleteMultiSample, IncompleteLayerTargets, Unknown
+};
+
 namespace detail
 {
 class OGLUAPI _oglFrameBuffer : public NonCopyable, public NonMovable
@@ -47,7 +52,7 @@ private:
 public:
     _oglFrameBuffer();
     ~_oglFrameBuffer();
-    bool CheckIsComplete() const;
+    FBOStatus CheckStatus() const;
     void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment);
     void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
     void AttachColorTexture(const oglRBO& rbo, const uint8_t attachment);

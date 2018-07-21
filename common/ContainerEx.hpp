@@ -22,6 +22,41 @@ forceinline bool operator<(const NamedSetValue<Child, StringType>& obj, const St
 template<typename Child, typename StringType>
 forceinline bool operator<(const StringType& name, const NamedSetValue<Child, StringType>& obj) noexcept { return name < ((const Child*)&obj)->Name; }
 
+template<typename Key, typename Val>
+struct PairLess
+{
+    using is_transparent = void;
+    constexpr bool operator()(const std::pair<Key, Val>& left, const std::pair<Key, Val>& right) const
+    {
+        return (left < right);
+    }
+    constexpr bool operator()(const std::pair<Key, Val>& left, const Key& right) const
+    {
+        return (left.first < right);
+    }
+    constexpr bool operator()(const Key& left, const std::pair<Key, Val>& right) const
+    {
+        return (left < right.first);
+    }
+};
+
+template<typename Key, typename Val>
+struct PairGreater
+{
+    using is_transparent = void;
+    constexpr bool operator()(const std::pair<Key, Val>& left, const std::pair<Key, Val>& right) const
+    {
+        return (left > right);
+    }
+    constexpr bool operator()(const std::pair<Key, Val>& left, const Key& right) const
+    {
+        return (left.first > right);
+    }
+    constexpr bool operator()(const Key& left, const std::pair<Key, Val>& right) const
+    {
+        return (left > right.first);
+    }
+};
 
 namespace detail
 {

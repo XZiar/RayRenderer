@@ -78,6 +78,7 @@ public:
     FaceCullingType GetFaceCulling() { return FaceCulling; }
 
     bool SetFBO(const oglFBO& fbo = {});
+    void SetSRGBFBO(const bool isEnable);
     void ClearFBO();
     
     void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }

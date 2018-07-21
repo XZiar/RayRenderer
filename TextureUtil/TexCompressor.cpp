@@ -21,16 +21,20 @@ common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerForm
     switch (format)
     {
     case TextureInnerFormat::BC1:
+    case TextureInnerFormat::BC1SRGB:
         return detail::CompressBC1(img);
     case TextureInnerFormat::BC3:
+    case TextureInnerFormat::BC3SRGB:
         return detail::CompressBC3(img);
     case TextureInnerFormat::BC7:
+    case TextureInnerFormat::BC7SRGB:
         return detail::CompressBC7(img, needAlpha);
     default:
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"not supported yet");
     }
     timer.Stop();
-    texcLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n", img.Width, img.Height, (uint32_t)format, timer.ElapseMs());
+    texcLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n", 
+        img.Width, img.Height, oglu::detail::_oglTexBase::GetFormatName(format), timer.ElapseMs());
 }
 
 common::PromiseResult<oglTex2DV> CompressToTex(const Image& img, const TextureInnerFormat format, const bool needAlpha)

@@ -2,9 +2,10 @@
 #include "OpenGLViewEvents.h"
 #include "common/TimeUtil.hpp"
 #include <string>
+#include <vector>
 
 #pragma unmanaged
-thread_local HGLRC baseRC = nullptr, curRC = nullptr;
+thread_local HGLRC curRC = nullptr;
 static void makeCurrent(HDC hDC, HGLRC hRC)
 {
     if (curRC != hRC)
@@ -21,6 +22,10 @@ namespace OpenGLView
     public ref class OGLView : public Control
     {
     private:
+        static PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = nullptr;
+        static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = nullptr;
+        static PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = nullptr;
+        static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
         HDC hDC = nullptr;
         HGLRC hRC = nullptr;
         MouseButton CurMouseButton = MouseButton::None;
@@ -29,17 +34,6 @@ namespace OpenGLView
         bool isCapital = false;
         uint64_t *drawTimes = nullptr;
         uint64_t sumTime = 0;
-        static void initExtension()
-        {
-            auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-            const auto exts = wglewGetExtensionsStringEXT();
-            if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
-            {
-                auto wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
-                //Adaptive Vsync
-                wglSwapIntervalEXT(-1);
-            }
-        }
     public:
         uint64_t rfsCount = 0;
         property bool ResizeBGDraw;
@@ -64,16 +58,14 @@ namespace OpenGLView
 
         static OGLView()
         {
-        }
-        OGLView()
-        {
-            drawTimes = new uint64_t[30];
-            memset(drawTimes, 0x0, sizeof(uint64_t) * 30);
-
-            this->ImeMode = System::Windows::Forms::ImeMode::Disable;
-            ResizeBGDraw = true;
-            Deshake = true;
-            hDC = GetDC(HWND(this->Handle.ToPointer()));
+            HWND tmpWND = CreateWindow(
+                L"Core", L"Fake Window",            // window class, title
+                WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
+                0, 0,                               // position x, y
+                1, 1,                               // width, height
+                NULL, NULL,                         // parent window, menu
+                nullptr, NULL);                     // instance, param
+            HDC tmpDC = GetDC(tmpWND);
             static PIXELFORMATDESCRIPTOR pfd =  // pfd Tells Windows How We Want Things To Be
             {
                 sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
@@ -91,14 +83,71 @@ namespace OpenGLView
                 0,                              // Reserved
                 0, 0, 0                         // Layer Masks Ignored
             };
-            const int PixelFormat = ChoosePixelFormat(hDC, &pfd);
-            SetPixelFormat(hDC, PixelFormat, &pfd);
-            if (!baseRC)
+            const int PixelFormat = ChoosePixelFormat(tmpDC, &pfd);
+            SetPixelFormat(tmpDC, PixelFormat, &pfd);
+            HGLRC tmpRC = wglCreateContext(tmpDC);
+            wglMakeCurrent(tmpDC, tmpRC);
+            
+            wglChoosePixelFormatARB = reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(wglGetProcAddress("wglChoosePixelFormatARB"));
+            wglCreateContextAttribsARB = reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(wglGetProcAddress("wglCreateContextAttribsARB"));
+            wglGetExtensionsStringEXT = reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGEXTPROC>(wglGetProcAddress("wglGetExtensionsStringEXT"));
+            const auto exts = wglGetExtensionsStringEXT();
+            if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
+                wglSwapIntervalEXT = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(wglGetProcAddress("wglSwapIntervalEXT"));
+            
+            wglMakeCurrent(nullptr, nullptr);
+            wglDeleteContext(tmpRC);
+            DeleteDC(tmpDC);
+            DestroyWindow(tmpWND);
+        }
+        OGLView() : OGLView(false, 0) { }
+        OGLView(const bool isSRGB, const uint32_t multiSample)
+        {
+            drawTimes = new uint64_t[30];
+            memset(drawTimes, 0x0, sizeof(uint64_t) * 30);
+
+            this->ImeMode = System::Windows::Forms::ImeMode::Disable;
+            ResizeBGDraw = true;
+            Deshake = true;
+            hDC = GetDC(HWND(this->Handle.ToPointer()));
+
+            std::vector<int32_t> pixelAttribs(
+                {
+                WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+                WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+                WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+                WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+                WGL_COLOR_BITS_ARB, 32,
+                WGL_ALPHA_BITS_ARB, 8,
+                WGL_DEPTH_BITS_ARB, 24,
+                WGL_STENCIL_BITS_ARB, 8,
+                });
+            if (isSRGB)
+            {
+                pixelAttribs.push_back(WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB);
+                pixelAttribs.push_back(GL_TRUE);
+            }
+            if (multiSample > 0)
+            {
+                pixelAttribs.push_back(WGL_SAMPLE_BUFFERS_ARB);
+                pixelAttribs.push_back(1);
+                pixelAttribs.push_back(WGL_SAMPLES_ARB);
+                pixelAttribs.push_back((int32_t)multiSample);
+            }
+            pixelAttribs.push_back(0);
+            int pixelFormatID; UINT numFormats;
+            wglChoosePixelFormatARB(hDC, pixelAttribs.data(), NULL, 1, &pixelFormatID, &numFormats);
+            PIXELFORMATDESCRIPTOR pfd;
+            DescribePixelFormat(hDC, pixelFormatID, sizeof(pfd), &pfd);
+            SetPixelFormat(hDC, pixelFormatID, &pfd);
+
+            /*if (!baseRC)
             {
                 baseRC = wglCreateContext(hDC);
                 wglMakeCurrent(hDC, curRC = baseRC);
-            }
-            int ctxAttrb[] =
+            }*/
+            static const int32_t ctxAttrb[] =
             {
                 /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
@@ -106,10 +155,10 @@ namespace OpenGLView
                 WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
                 0
             };
-            auto wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-            hRC = wglCreateContextAttribsARB(hDC, baseRC, ctxAttrb);
+            hRC = wglCreateContextAttribsARB(hDC, nullptr, ctxAttrb);
             makeCurrent(hDC, hRC);
-            initExtension();
+            if (wglSwapIntervalEXT)
+                wglSwapIntervalEXT(-1);
         }
         ~OGLView() { this->!OGLView(); };
         !OGLView()
@@ -269,6 +318,12 @@ namespace OpenGLView
             }
             Control::OnKeyDown(e);
         }
+    };
+
+    public ref class OGLViewSRGB : public OGLView
+    {
+    public:
+        OGLViewSRGB() : OGLView(true, 0) {}
     };
 }
 

@@ -87,7 +87,7 @@ void main()
 uniform sampler2DArray texs[16];
 
 //@OGLU@Property("srgbTexture", BOOL, "whether input texture is srgb space")
-uniform bool srgbTexture = true;
+//uniform bool srgbTexture = true;
 //@OGLU@Property("envAmbient", COLOR, "environment ambient color")
 uniform lowp vec4 envAmbient;
 //@OGLU@Property("objidx", FLOAT, "highlighted drawIdx", 0.0, 30.0)
@@ -137,11 +137,7 @@ vec3 bothNormal(const uint id)
 subroutine(AlbedoCalc)
 vec3 materialAlbedo(const uint id)
 {
-    const vec3 srgbAlbedo = materials[id].basic.xyz;
-    if (srgbTexture)
-        return pow(srgbAlbedo, vec3(2.2f));
-    else
-        return srgbAlbedo;
+    return materials[id].basic.xyz;
 }
 subroutine(AlbedoCalc)
 vec3 mappedAlbedo(const uint id)
@@ -150,11 +146,7 @@ vec3 mappedAlbedo(const uint id)
     const uint bank = pos >> 16;
     const float layer = float(pos & 0xffff);
     const vec3 newtpos = vec3(tpos, layer);
-    const vec3 srgbAlbedo = texture(texs[bank], newtpos).rgb;
-    if (srgbTexture)
-        return pow(srgbAlbedo, vec3(2.2f));
-    else
-        return srgbAlbedo;
+    return texture(texs[bank], newtpos).rgb;
 }
 subroutine(AlbedoCalc)
 vec3 bothAlbedo(const uint id)
@@ -351,7 +343,7 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
 subroutine(LightModel)
 vec3 albedoOnly()
 {
-    const vec3 albedo = getAlbedo(drawId);
+    const vec3 albedo = getAlbedo(drawId) / oglu_PI;
     return albedo;
 }
 subroutine(LightModel)

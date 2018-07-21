@@ -29,25 +29,10 @@ public:
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
     LogLevel GetLeastLevel() { return LeastLevel; }
 
-    template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char>& formater, Args&&... args)
+    template<typename Char, class... Args>
+    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<Char>& formater, Args&&... args)
     {
-        return LogMessage::MakeMessage(Prefix, StrFormater<char>::ToU16Str(formater, std::forward<Args>(args)...), level);
-    }
-    template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char16_t>& formater, Args&&... args)
-    {
-        return LogMessage::MakeMessage(Prefix, StrFormater<char16_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
-    }
-    template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<char32_t>& formater, Args&&... args)
-    {
-        return LogMessage::MakeMessage(Prefix, StrFormater<char32_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
-    }
-    template<class... Args>
-    LogMessage* GenerateLogMsg(const LogLevel level, const std::basic_string_view<wchar_t>& formater, Args&&... args)
-    {
-        return LogMessage::MakeMessage(Prefix, StrFormater<wchar_t>::ToU16Str(formater, std::forward<Args>(args)...), level);
+        return LogMessage::MakeMessage(Prefix, StrFormater<Char>::ToU16Str(formater, std::forward<Args>(args)...), level);
     }
 };
 

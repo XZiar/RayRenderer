@@ -19,7 +19,7 @@ class ModelImage
 public:
     using LoadResult = variant<FakeTex, common::PromiseResult<FakeTex>>;
     static std::optional<xziar::img::Image> ReadImage(const fs::path& picPath);
-    static LoadResult GetTexureAsync(const fs::path& picPath, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC7);
+    static LoadResult GetTexureAsync(const fs::path& picPath, const oglu::TextureInnerFormat format = oglu::TextureInnerFormat::BC7SRGB);
     static void Shrink();
 };
 

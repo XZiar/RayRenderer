@@ -71,7 +71,8 @@ public:
     template<typename T>
     static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const T& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
-        //static_assert(std::is_same_v<typename T::value_type, char16_t>, "only accept container of char16_t");
+        static_assert(std::is_convertible_v<decltype(std::declval<const T>().data()), const char16_t*>, "only accept container of char16_t");
+
         return MakeMessage(prefix, content.data(), content.size(), level, time);
     }
     static bool Consume(LogMessage* msg)
@@ -136,7 +137,7 @@ struct MINILOGAPI StrFormater<char16_t>
 {
     static fmt::basic_memory_buffer<char16_t>& GetBuffer();
     template<class... Args>
-    static const fmt::internal::basic_buffer<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& formater, Args&&... args)
+    static const fmt::basic_memory_buffer<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& formater, Args&&... args)
     {
         auto& buffer = GetBuffer();
         buffer.resize(0);

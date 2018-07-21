@@ -437,7 +437,8 @@
         </TabControl>
         <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="5" HorizontalAlignment="Stretch" Background="#FF686868" />
         <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
-            <oglv:OGLView x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True"/>
+            <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True">
+            </oglv:OGLViewSRGB>
         </WindowsFormsHost>
     </Grid>
 </Window>

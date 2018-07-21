@@ -58,14 +58,30 @@ _oglFrameBuffer::~_oglFrameBuffer()
     glDeleteFramebuffers(1, &FBOId);
 }
 
-bool _oglFrameBuffer::CheckIsComplete() const
+FBOStatus _oglFrameBuffer::CheckStatus() const
 {
     switch (glCheckNamedFramebufferStatusEXT(FBOId, GL_FRAMEBUFFER))
     {
     case GL_FRAMEBUFFER_COMPLETE:
-        return true;
+        return FBOStatus::Complete;
+    case GL_FRAMEBUFFER_UNDEFINED:
+        return FBOStatus::Undefined;
+    case GL_FRAMEBUFFER_UNSUPPORTED:
+        return FBOStatus::Unsupported;
+    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        return FBOStatus::IncompleteAttachment;
+    case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+        return FBOStatus::IncompleteDrawBuffer;
+    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        return FBOStatus::MissingAttachment;
+    case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+        return FBOStatus::IncompleteReadBuffer;
+    case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+        return FBOStatus::IncompleteMultiSample;
+    case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+        return FBOStatus::IncompleteLayerTargets;
     default:
-        return false;
+        return FBOStatus::Unknown;
     }
 }
 
