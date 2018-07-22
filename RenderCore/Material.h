@@ -35,6 +35,7 @@ public:
     uint32_t Width, Height;
     _FakeTex(common::AlignedBuffer<32>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
         : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height) {}
+    ~_FakeTex() {}
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;

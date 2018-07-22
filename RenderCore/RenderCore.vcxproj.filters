@@ -16,13 +16,27 @@
     <Filter Include="Model">
       <UniqueIdentifier>{c6d7eebc-82da-4f00-b8c7-9fc17d342438}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shader">
+      <UniqueIdentifier>{1a1ff23e-52d1-490a-bb06-683518312013}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="3d.glsl" />
-    <None Include="2d.glsl" />
-    <None Include="3d_pbr.glsl" />
     <None Include="test.cl" />
-    <None Include="postprocess.glsl" />
+    <None Include="2d.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="3d.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="3d_pbr.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="postprocess.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="shadow.glsl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -64,6 +78,9 @@
     <ClInclude Include="Model\MTLLoader.hpp">
       <Filter>Model</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMapping.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -100,6 +117,9 @@
     </ClCompile>
     <ClCompile Include="Model\ModelMesh.cpp">
       <Filter>Model</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMapping.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

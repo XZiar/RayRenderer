@@ -51,7 +51,7 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
                 continue;
             }
             ImgLog().debug(u"Using [{}]\n", support->Name);
-            const auto img = reader->Read(dataType);
+            auto img = reader->Read(dataType);
             reader->Release();
             return img;
         }

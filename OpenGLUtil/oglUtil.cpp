@@ -3,88 +3,14 @@
 #include "oglException.h"
 #include "oglContext.h"
 #include "oglProgram.h"
+#include "oglPromise.hpp"
 #include "MTWorker.h"
-#include "common/PromiseTaskSTD.hpp"
+//#include "common/PromiseTaskSTD.hpp"
 #include <GL/wglew.h>
 
 namespace oglu
 {
 using common::PromiseResultSTD;
-
-
-namespace detail
-{
-
-class PromiseResultGL : public common::asyexe::detail::AsyncResult_<void>
-{
-    friend class oglUtil;
-protected:
-    GLsync SyncObj;
-    uint64_t TimeBegin;
-    GLuint Query;
-    common::PromiseState virtual state() override
-    {
-        switch (glClientWaitSync(SyncObj, 0, 0))
-        {
-        case GL_TIMEOUT_EXPIRED:
-            return common::PromiseState::Executing;
-        case GL_ALREADY_SIGNALED:
-            return common::PromiseState::Success;
-        case GL_WAIT_FAILED:
-            return common::PromiseState::Error;
-        case GL_CONDITION_SATISFIED:
-            return common::PromiseState::Executed;
-        case GL_INVALID_VALUE:
-            [[fallthrough]];
-        default:
-            return common::PromiseState::Invalid;
-        }
-    }
-    void virtual wait() override
-    {
-        while (glClientWaitSync(SyncObj, NULL, 1000'000'000) == GL_TIMEOUT_EXPIRED)
-        { }
-    }
-public:
-    PromiseResultGL()
-    {
-        glGenQueries(1, &Query);
-        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
-        glQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
-        SyncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-        glFlush(); //ensure sync object sended
-    }
-    ~PromiseResultGL() override
-    {
-        glDeleteSync(SyncObj);
-        glDeleteQueries(1, &Query);
-    }
-    uint64_t ElapseNs() override
-    {
-        uint64_t timeEnd = 0;
-        glGetQueryObjectui64v(Query, GL_QUERY_RESULT, &timeEnd);
-        if (timeEnd == 0)
-            return 0;
-        else
-            return timeEnd - TimeBegin;
-    }
-};
-
-class PromiseResultGL2 : public common::asyexe::detail::AsyncResult_<void>
-{
-protected:
-    common::PromiseState virtual state() override 
-    {
-        return common::PromiseState::Executed; // simply return, make it invoke wait
-    }
-public:
-    void virtual wait() override
-    {
-        glFinish();
-    }
-};
-
-}
 
 
 static detail::MTWorker& getWorker(const uint8_t idx)
@@ -195,12 +121,12 @@ PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16s
 
 common::asyexe::AsyncResult<void> oglUtil::SyncGL()
 {
-    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL>());
+    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<PromiseResultGLVoid>());
 }
 
 common::asyexe::AsyncResult<void> oglUtil::ForceSyncGL()
 {
-    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<detail::PromiseResultGL2>());
+    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<PromiseResultGLVoid2>());
 }
 
 void oglUtil::TryTask()

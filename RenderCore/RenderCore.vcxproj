@@ -210,6 +210,7 @@
     <None Include="3d.glsl" />
     <None Include="3d_pbr.glsl" />
     <None Include="postprocess.glsl" />
+    <None Include="shadow.glsl" />
     <None Include="test.cl" />
   </ItemGroup>
   <ItemGroup>
@@ -226,6 +227,7 @@
     <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderElement.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="ShadowMapping.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />
@@ -251,6 +253,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="RenderElement.cpp" />
+    <ClCompile Include="ShadowMapping.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

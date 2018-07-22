@@ -1,7 +1,6 @@
 #include "RenderCoreWrapRely.h"
 #include "Material.h"
 
-using oglu::detail::_oglTexBase;
 
 namespace RayRender
 {
@@ -19,13 +18,13 @@ TexMap::TexMap(rayr::PBRMaterial::TexHolder& holder) : Holder(holder)
         {
             const auto tex = std::get<oglu::oglTex2D>(Holder);
             const auto&[w, h] = tex->GetSize();
-            const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]", w, h, _oglTexBase::GetFormatName(tex->GetInnerFormat()));
+            const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]", w, h, oglu::TexFormatUtil::GetFormatName(tex->GetInnerFormat()));
             description = ToStr(strBuffer);
         } break;
     case 2: 
         {
             const auto tex = std::get<rayr::FakeTex>(Holder);
-            const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]", tex->Width, tex->Height, _oglTexBase::GetFormatName(tex->TexFormat));
+            const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]", tex->Width, tex->Height, oglu::TexFormatUtil::GetFormatName(tex->TexFormat));
             description = ToStr(strBuffer);
         } break;
     }

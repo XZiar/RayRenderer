@@ -4,7 +4,223 @@
 #include "oglException.h"
 #include "BindingManager.h"
 
-namespace oglu::detail
+namespace oglu
+{
+using xziar::img::ImageDataType;
+using xziar::img::Image;
+
+void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept
+{
+    switch (dformat & TextureDataFormat::TYPE_MASK)
+    {
+    case TextureDataFormat::U8_TYPE:     datatype = GL_UNSIGNED_BYTE; break;
+    case TextureDataFormat::I8_TYPE:     datatype = GL_BYTE; break;
+    case TextureDataFormat::U16_TYPE:    datatype = GL_UNSIGNED_SHORT; break;
+    case TextureDataFormat::I16_TYPE:    datatype = GL_SHORT; break;
+    case TextureDataFormat::U32_TYPE:    datatype = GL_UNSIGNED_INT; break;
+    case TextureDataFormat::I32_TYPE:    datatype = GL_INT; break;
+    case TextureDataFormat::HALF_TYPE:   datatype = GL_HALF_FLOAT; break;
+    case TextureDataFormat::FLOAT_TYPE:  datatype = GL_FLOAT; break;
+    }
+    const bool normalized = HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK);
+    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
+    {
+    case TextureDataFormat::R_FORMAT:     comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
+    case TextureDataFormat::RG_FORMAT:    comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
+    case TextureDataFormat::RGB_FORMAT:   comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
+    case TextureDataFormat::BGR_FORMAT:   comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
+    case TextureDataFormat::RGBA_FORMAT:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
+    case TextureDataFormat::BGRA_FORMAT:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    }
+}
+void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
+{
+    if (HAS_FIELD(dformat, ImageDataType::FLOAT_MASK))
+        datatype = GL_FLOAT;
+    else
+        datatype = GL_UNSIGNED_BYTE;
+    switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
+    {
+    case ImageDataType::GRAY:  comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
+    case ImageDataType::RA:    comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
+    case ImageDataType::RGB:   comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
+    case ImageDataType::BGR:   comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
+    case ImageDataType::RGBA:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
+    case ImageDataType::BGRA:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    }
+}
+
+ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noexcept
+{
+    const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
+    switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
+    {
+    case TextureDataFormat::R8:     return ImageDataType::RED | isFloat;
+    case TextureDataFormat::RG8:    return ImageDataType::RA | isFloat;
+    case TextureDataFormat::RGB8:   return ImageDataType::RGB | isFloat;
+    case TextureDataFormat::RGBA8:  return ImageDataType::RGBA | isFloat;
+    case TextureDataFormat::BGR8:   return ImageDataType::BGR | isFloat;
+    case TextureDataFormat::BGRA8:  return ImageDataType::BGRA | isFloat;
+    }
+    return isFloat;//fallback
+}
+
+size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept
+{
+    size_t size = 0;
+    switch (dformat & TextureDataFormat::TYPE_MASK)
+    {
+    case TextureDataFormat::U8_TYPE:
+    case TextureDataFormat::I8_TYPE:
+        size = 8; break;
+    case TextureDataFormat::U16_TYPE:
+    case TextureDataFormat::I16_TYPE:
+    case TextureDataFormat::HALF_TYPE:
+        size = 16; break;
+    case TextureDataFormat::U32_TYPE:
+    case TextureDataFormat::I32_TYPE:
+    case TextureDataFormat::FLOAT_TYPE:
+        size = 32; break;
+    default:
+        return 0;
+    }
+    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
+    {
+    case TextureDataFormat::R_FORMAT:
+        size *= 1; break;
+    case TextureDataFormat::RG_FORMAT:
+        size *= 2; break;
+    case TextureDataFormat::RGB_FORMAT:
+    case TextureDataFormat::BGR_FORMAT:
+        size *= 3; break;
+    case TextureDataFormat::RGBA_FORMAT:
+    case TextureDataFormat::BGRA_FORMAT:
+        size *= 4; break;
+    default:
+        return 0;
+    }
+    return size / 8;
+}
+
+bool TexFormatUtil::IsCompressType(const TextureInnerFormat format) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::BC1:
+    case TextureInnerFormat::BC1A:
+    case TextureInnerFormat::BC2:
+    case TextureInnerFormat::BC3:
+    case TextureInnerFormat::BC4:
+    case TextureInnerFormat::BC5:
+    case TextureInnerFormat::BC6H:
+    case TextureInnerFormat::BC7:
+    case TextureInnerFormat::BC1ASRGB:
+    case TextureInnerFormat::BC2SRGB:
+    case TextureInnerFormat::BC3SRGB:
+    case TextureInnerFormat::BC7SRGB:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool TexFormatUtil::IsGrayType(const TextureInnerFormat format) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::R8:
+    case TextureInnerFormat::RG8:
+    case TextureInnerFormat::R8U:
+    case TextureInnerFormat::RG8U:
+    case TextureInnerFormat::Rh:
+    case TextureInnerFormat::RGh:
+    case TextureInnerFormat::Rf:
+    case TextureInnerFormat::RGf:
+    case TextureInnerFormat::BC4:
+    case TextureInnerFormat::BC5:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool TexFormatUtil::HasAlphaType(const TextureInnerFormat format) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::RG8:
+    case TextureInnerFormat::RGBA8:
+    case TextureInnerFormat::SRGBA8:
+    case TextureInnerFormat::RG8U:
+    case TextureInnerFormat::RGBA8U:
+    case TextureInnerFormat::RGh:
+    case TextureInnerFormat::RGBAh:
+    case TextureInnerFormat::RGf:
+    case TextureInnerFormat::RGBAf:
+    case TextureInnerFormat::BC1A:
+    case TextureInnerFormat::BC2:
+    case TextureInnerFormat::BC3:
+    case TextureInnerFormat::BC7:
+    case TextureInnerFormat::BC1ASRGB:
+    case TextureInnerFormat::BC2SRGB:
+    case TextureInnerFormat::BC3SRGB:
+    case TextureInnerFormat::BC7SRGB:
+    case TextureInnerFormat::RGB10A2:
+        return true;
+    default:
+        return false;
+    }
+}
+
+const char16_t* TexFormatUtil::GetTypeName(const TextureType type)
+{
+    switch (type)
+    {
+    case TextureType::Tex2D:             return u"Tex2D";
+    case TextureType::Tex2DArray:        return u"Tex2DArray";
+    case TextureType::TexBuf:            return u"TexBuffer";
+    default:                             return u"Wrong";
+    }
+}
+
+const char16_t* TexFormatUtil::GetFormatName(const TextureInnerFormat format)
+{
+    switch (format)
+    {
+    case TextureInnerFormat::BC1:        return u"BC1";
+    case TextureInnerFormat::BC2:        return u"BC2";
+    case TextureInnerFormat::BC3:        return u"BC3";
+    case TextureInnerFormat::BC4:        return u"BC4";
+    case TextureInnerFormat::BC5:        return u"BC5";
+    case TextureInnerFormat::BC6H:       return u"BC6H";
+    case TextureInnerFormat::BC7:        return u"BC7";
+    case TextureInnerFormat::BC1A:       return u"BC1A";
+    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB";
+    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB";
+    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB";
+    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB";
+    case TextureInnerFormat::R8:         return u"Gray8";
+    case TextureInnerFormat::RG8:        return u"RG8";
+    case TextureInnerFormat::RGB8:       return u"RGB8";
+    case TextureInnerFormat::SRGB8:      return u"sRGB8";
+    case TextureInnerFormat::RGBA8:      return u"RGBA8";
+    case TextureInnerFormat::SRGBA8:     return u"sRGBA8";
+    case TextureInnerFormat::Rh:         return u"Rh";
+    case TextureInnerFormat::RGh:        return u"RGh";
+    case TextureInnerFormat::RGBh:       return u"RGBh";
+    case TextureInnerFormat::RGBAh:      return u"RGBAh";
+    case TextureInnerFormat::Rf:         return u"Rf";
+    case TextureInnerFormat::RGf:        return u"RGf";
+    case TextureInnerFormat::RGBf:       return u"RGBf";
+    case TextureInnerFormat::RGBAf:      return u"RGBAf";
+    case TextureInnerFormat::RG11B10:    return u"RG11B10";
+    case TextureInnerFormat::RGB10A2:    return u"RGB10A2";
+    default:                             return u"Other";
+    }
+}
+
+
+namespace detail
 {
 
 struct TexLogItem
@@ -24,7 +240,7 @@ static void RegistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
-    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, _oglTexBase::GetTypeName(item.TexType));
+    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, TexFormatUtil::GetTypeName(item.TexType));
 #endif
     auto texmap = CTX_TEX_LOG.GetOrInsert([](const auto&) { return std::make_shared<map<GLuint, TexLogItem>>(); });
     common::SpinLocker locker(CTX_TEX_LOG_LOCK);
@@ -34,7 +250,7 @@ static void UnregistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
-    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}].\n", item.ThreadId, item.TexId, tex.Name, _oglTexBase::GetTypeName(item.TexType));
+    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}].\n", item.ThreadId, item.TexId, tex.Name, TexFormatUtil::GetTypeName(item.TexType));
 #endif
     if (auto texmap = CTX_TEX_LOG.TryGet())
     {
@@ -112,141 +328,6 @@ bool _oglTexBase::IsCompressed() const
     return ret != GL_FALSE;
 }
 
-void _oglTexBase::ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept
-{
-    switch (dformat & TextureDataFormat::TYPE_MASK)
-    {
-    case TextureDataFormat::U8_TYPE:     datatype = GL_UNSIGNED_BYTE; break;
-    case TextureDataFormat::I8_TYPE:     datatype = GL_BYTE; break;
-    case TextureDataFormat::U16_TYPE:    datatype = GL_UNSIGNED_SHORT; break;
-    case TextureDataFormat::I16_TYPE:    datatype = GL_SHORT; break;
-    case TextureDataFormat::U32_TYPE:    datatype = GL_UNSIGNED_INT; break;
-    case TextureDataFormat::I32_TYPE:    datatype = GL_INT; break;
-    case TextureDataFormat::HALF_TYPE:   datatype = GL_HALF_FLOAT; break;
-    case TextureDataFormat::FLOAT_TYPE:  datatype = GL_FLOAT; break;
-    }
-    const bool normalized = HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK);
-    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
-    {
-    case TextureDataFormat::R_FORMAT:     comptype = normalized ? GL_RED  : GL_RED_INTEGER; break;
-    case TextureDataFormat::RG_FORMAT:    comptype = normalized ? GL_RG   : GL_RG_INTEGER; break;
-    case TextureDataFormat::RGB_FORMAT:   comptype = normalized ? GL_RGB  : GL_RGB_INTEGER; break;
-    case TextureDataFormat::BGR_FORMAT:   comptype = normalized ? GL_BGR  : GL_BGR_INTEGER; break;
-    case TextureDataFormat::RGBA_FORMAT:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case TextureDataFormat::BGRA_FORMAT:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
-    }
-}
-void _oglTexBase::ParseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
-{
-    if (HAS_FIELD(dformat, ImageDataType::FLOAT_MASK))
-        datatype = GL_FLOAT;
-    else
-        datatype = GL_UNSIGNED_BYTE;
-    switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
-    {
-    case ImageDataType::GRAY:  comptype = normalized ? GL_RED  : GL_RED_INTEGER; break;
-    case ImageDataType::RA:    comptype = normalized ? GL_RG   : GL_RG_INTEGER; break;
-    case ImageDataType::RGB:   comptype = normalized ? GL_RGB  : GL_RGB_INTEGER; break;
-    case ImageDataType::BGR:   comptype = normalized ? GL_BGR  : GL_BGR_INTEGER; break;
-    case ImageDataType::RGBA:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case ImageDataType::BGRA:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
-    }
-}
-ImageDataType _oglTexBase::ConvertFormat(const TextureDataFormat dformat) noexcept
-{
-    const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
-    switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
-    {
-    case TextureDataFormat::R8:     return ImageDataType::RED  | isFloat;
-    case TextureDataFormat::RG8:    return ImageDataType::RA   | isFloat;
-    case TextureDataFormat::RGB8:   return ImageDataType::RGB  | isFloat;
-    case TextureDataFormat::RGBA8:  return ImageDataType::RGBA | isFloat;
-    case TextureDataFormat::BGR8:   return ImageDataType::BGR  | isFloat;
-    case TextureDataFormat::BGRA8:  return ImageDataType::BGRA | isFloat;
-    }
-    return isFloat;//fallback
-}
-size_t _oglTexBase::ParseFormatSize(const TextureDataFormat dformat) noexcept
-{
-    size_t size = 0;
-    switch (dformat & TextureDataFormat::TYPE_MASK)
-    {
-    case TextureDataFormat::U8_TYPE:
-    case TextureDataFormat::I8_TYPE:
-        size = 8; break;
-    case TextureDataFormat::U16_TYPE:
-    case TextureDataFormat::I16_TYPE:
-    case TextureDataFormat::HALF_TYPE:
-        size = 16; break;
-    case TextureDataFormat::U32_TYPE:
-    case TextureDataFormat::I32_TYPE:
-    case TextureDataFormat::FLOAT_TYPE:
-        size = 32; break;
-    default:
-        return 0;
-    }
-    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
-    {
-    case TextureDataFormat::R_FORMAT:
-        size *= 1; break;
-    case TextureDataFormat::RG_FORMAT:
-        size *= 2; break;
-    case TextureDataFormat::RGB_FORMAT:
-    case TextureDataFormat::BGR_FORMAT:
-        size *= 3; break;
-    case TextureDataFormat::RGBA_FORMAT:
-    case TextureDataFormat::BGRA_FORMAT:
-        size *= 4; break;
-    default:
-        return 0;
-    }
-    return size / 8;
-}
-
-const char16_t* _oglTexBase::GetTypeName(const TextureType type)
-{
-    switch (type)
-    {
-    case TextureType::Tex2D:             return u"Tex2D";
-    case TextureType::Tex2DArray:        return u"Tex2DArray";
-    case TextureType::TexBuf:            return u"TexBuffer";
-    default:                             return u"Wrong";
-    }
-}
-
-const char16_t* _oglTexBase::GetFormatName(const TextureInnerFormat format)
-{
-    switch (format)
-    {
-    case TextureInnerFormat::BC1:        return u"BC1";
-    case TextureInnerFormat::BC2:        return u"BC2";
-    case TextureInnerFormat::BC3:        return u"BC3";
-    case TextureInnerFormat::BC4:        return u"BC4";
-    case TextureInnerFormat::BC5:        return u"BC5";
-    case TextureInnerFormat::BC6H:       return u"BC6H";
-    case TextureInnerFormat::BC7:        return u"BC7";
-    case TextureInnerFormat::BC1A:       return u"BC1A";
-    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB";
-    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB";
-    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB";
-    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB";
-    case TextureInnerFormat::R8:         return u"Gray8";
-    case TextureInnerFormat::RG8:        return u"RG8";
-    case TextureInnerFormat::RGB8:       return u"RGB8";
-    case TextureInnerFormat::RGBA8:      return u"RGBA8";
-    case TextureInnerFormat::SRGBA8:     return u"sRGBA8";
-    case TextureInnerFormat::Rh:         return u"Rh";
-    case TextureInnerFormat::RGh:        return u"RGh";
-    case TextureInnerFormat::RGBh:       return u"RGBh";
-    case TextureInnerFormat::RGBAh:      return u"RGBAh";
-    case TextureInnerFormat::Rf:         return u"Rf";
-    case TextureInnerFormat::RGf:        return u"RGf";
-    case TextureInnerFormat::RGBf:       return u"RGBf";
-    case TextureInnerFormat::RGBAf:      return u"RGBAf";
-    default:                             return u"Other";
-    }
-}
-
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
     if (isSub)
@@ -257,8 +338,7 @@ void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenu
 
 void _oglTexture2D::SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept
 {
-    GLenum datatype, comptype;
-    ParseFormat(dformat, datatype, comptype);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
     SetData(isSub, datatype, comptype, data);
 }
 
@@ -271,10 +351,16 @@ void _oglTexture2D::SetData(const bool isSub, const TextureDataFormat dformat, c
 
 void _oglTexture2D::SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept
 {
-    GLenum datatype, comptype;
-    ParseFormat(img.DataType, normalized, datatype, comptype);
-    const auto theimg = flipY ? img.FlipToVertical() : img;
-    SetData(isSub, datatype, comptype, theimg.GetRawPtr());
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.DataType, normalized);
+    if (flipY)
+    {
+        const auto theimg = img.FlipToVertical();
+        SetData(isSub, datatype, comptype, theimg.GetRawPtr());
+    }
+    else
+    {
+        SetData(isSub, datatype, comptype, img.GetRawPtr());
+    }
 }
 
 void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
@@ -306,10 +392,9 @@ optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
 vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
 {
     const auto[w, h] = GetInternalSize2();
-    auto size = w * h * ParseFormatSize(dformat);
+    const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
-    GLenum datatype, comptype;
-    ParseFormat(dformat, datatype, comptype);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
     glGetTextureImageEXT(textureID, GL_TEXTURE_2D, 0, comptype, datatype, output.data());
     return output;
 }
@@ -319,8 +404,7 @@ Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
     const auto[w, h] = GetInternalSize2();
     Image image(format);
     image.SetSize(w, h);
-    GLenum datatype, comptype;
-    ParseFormat(format, true, datatype, comptype);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(format, true);
     glGetTextureImageEXT(textureID, (GLenum)Type, 0, comptype, datatype, image.GetRawPtr());
     if (flipY)
         image.FlipToVertical();
@@ -423,7 +507,7 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     : _oglTexBase(TextureType::Tex2DArray)
 {
     if (width == 0 || height == 0 || layers == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2DArray."); 
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2DArray.");
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
@@ -432,7 +516,7 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     glTextureStorage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
 }
 
-_oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) : 
+_oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) :
     _oglTexture2DArray(old->Width, old->Height, old->Layers + layerAdd, old->InnerFormat)
 {
     SetTextureLayers(0, old, 0, old->Layers);
@@ -463,10 +547,9 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img,
     if (img.Width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
     if (img.Width != Width || img.Height != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
-    GLenum datatype, comptype;
-    ParseFormat(img.DataType, true, datatype, comptype);
-    const auto theimg = flipY ? img.FlipToVertical() : img;
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch"); 
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.DataType, true);
+    const auto& theimg = flipY ? img.FlipToVertical() : img;
     glTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, img.Width, img.Height, 1, comptype, datatype, img.GetRawPtr());
 }
 
@@ -495,7 +578,7 @@ void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex
 
 oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
 {
-    if(layer >= Layers)
+    if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     const auto layerStr = std::to_string(layer);
@@ -517,5 +600,6 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
 }
 
 
+}
 
 }

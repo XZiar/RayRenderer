@@ -4,7 +4,7 @@
 #include "OpenGLUtil/oglException.h"
 #include "ispc_texcomp/ispc_texcomp.h"
 
-namespace oglu::texcomp::detail
+namespace oglu::texutil::detail
 {
 
 

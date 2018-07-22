@@ -4,7 +4,7 @@
 #include <future>
 
 
-namespace oglu::texcomp
+namespace oglu::texutil
 {
 
 
@@ -17,24 +17,26 @@ static void CheckImgSize(const Image& img)
 common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerFormat format, const bool needAlpha)
 {
     common::SimpleTimer timer;
+    common::AlignedBuffer<32> result;
     timer.Start();
     switch (format)
     {
     case TextureInnerFormat::BC1:
     case TextureInnerFormat::BC1SRGB:
-        return detail::CompressBC1(img);
+        result = detail::CompressBC1(img); break;
     case TextureInnerFormat::BC3:
     case TextureInnerFormat::BC3SRGB:
-        return detail::CompressBC3(img);
+        result = detail::CompressBC3(img); break;
     case TextureInnerFormat::BC7:
     case TextureInnerFormat::BC7SRGB:
-        return detail::CompressBC7(img, needAlpha);
+        result = detail::CompressBC7(img, needAlpha); break;
     default:
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"not supported yet");
     }
     timer.Stop();
-    texcLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n", 
-        img.Width, img.Height, oglu::detail::_oglTexBase::GetFormatName(format), timer.ElapseMs());
+    texLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",
+        img.Width, img.Height, oglu::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
+    return result;
 }
 
 common::PromiseResult<oglTex2DV> CompressToTex(const Image& img, const TextureInnerFormat format, const bool needAlpha)

@@ -27,13 +27,15 @@ MAKE_ENUM_BITFIELD(TextureDataFormat)
 enum class TextureInnerFormat : GLint
 {
     //normalized integer->as float[0,1]
-    R8 = GL_R8, RG8 = GL_RG8, RGB8 = GL_RGB8, RGBA8 = GL_RGBA8, SRGBA8 = GL_SRGB8_ALPHA8,
+    R8 = GL_R8, RG8 = GL_RG8, RGB8 = GL_RGB8, SRGB8 = GL_SRGB8, RGBA8 = GL_RGBA8, SRGBA8 = GL_SRGB8_ALPHA8,
     //non-normalized integer(uint8)
     R8U = GL_R8UI, RG8U = GL_RG8UI, RGB8U = GL_RGB8UI, RGBA8U = GL_RGBA8UI,
     //half-float(FP16)
     Rh = GL_R16F, RGh = GL_RG16F, RGBh = GL_RGB16F, RGBAh = GL_RGBA16F,
     //float(FP32)
     Rf = GL_R32F, RGf = GL_RG32F, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F,
+    //special
+    RG11B10 = GL_R11F_G11F_B10F, RGB10A2 = GL_RGB10_A2,
     //compressed(S3TC/DXT135,RGTC,BPTC)
     BC1 = GL_COMPRESSED_RGB_S3TC_DXT1_EXT, BC1A = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, BC2 = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
     BC3 = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, BC4 = GL_COMPRESSED_RED_RGTC1, BC5 = GL_COMPRESSED_RG_RGTC2,
@@ -46,6 +48,31 @@ enum class TextureInnerFormat : GLint
 enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
 
 enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
+
+struct OGLUAPI TexFormatUtil
+{
+    static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
+    {
+        GLenum datatype, comptype;
+        ParseFormat(dformat, datatype, comptype);
+        return { datatype,comptype };
+    }
+    static void ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized) noexcept
+    {
+        GLenum datatype, comptype;
+        ParseFormat(dformat, normalized, datatype, comptype);
+        return { datatype,comptype };
+    }
+    static xziar::img::ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
+    static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
+    static bool IsCompressType(const TextureInnerFormat format) noexcept;
+    static bool IsGrayType(const TextureInnerFormat format) noexcept;
+    static bool HasAlphaType(const TextureInnerFormat format) noexcept;
+    static const char16_t* GetTypeName(const TextureType type);
+    static const char16_t* GetFormatName(const TextureInnerFormat format);
+};
 
 
 namespace detail
@@ -80,33 +107,6 @@ public:
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
     bool IsCompressed() const;
     TextureInnerFormat GetInnerFormat() const { return InnerFormat; }
-
-    static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
-    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
-    {
-        GLenum datatype, comptype;
-        ParseFormat(dformat, datatype, comptype);
-        return { datatype,comptype };
-    }
-    static void ParseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
-    static std::pair<GLenum, GLenum> ParseFormat(const ImageDataType dformat, const bool normalized) noexcept
-    {
-        GLenum datatype, comptype;
-        ParseFormat(dformat, normalized, datatype, comptype);
-        return { datatype,comptype };
-    }
-    static ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
-    static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
-    static bool IsCompressType(const TextureInnerFormat format) noexcept
-    {
-        if ((GLenum)format >= (GLenum)TextureInnerFormat::BC1 && (GLenum)format <= (GLenum)TextureInnerFormat::BC3)
-            return true;
-        if ((GLenum)format >= (GLenum)TextureInnerFormat::BC4 && (GLenum)format <= (GLenum)TextureInnerFormat::BC7)
-            return true;
-        return false;
-    }
-    static const char16_t* GetTypeName(const TextureType type);
-    static const char16_t* GetFormatName(const TextureInnerFormat format);
 };
 
 class _oglTexture2DView;

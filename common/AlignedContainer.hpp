@@ -67,8 +67,8 @@ protected:
     }
     void Release()
     {
-        if (Data) free_align(Data);
-        Data = nullptr;
+        if (Data) 
+            free_align(Data);
     };
 public:
     AlignedBuffer() noexcept { }

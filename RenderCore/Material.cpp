@@ -161,7 +161,7 @@ void MultiMaterialHolder::Refresh()
     // workaround for intel gen7.5
     for (auto&[tid, texs] : needAdd)
     {
-        if (oglu::detail::_oglTexBase::IsCompressType(tid.Info.Format))
+        if (oglu::TexFormatUtil::IsCompressType(tid.Info.Format))
         {
             auto& texarr = Textures[tid];
             if (texarr)
@@ -188,7 +188,7 @@ void MultiMaterialHolder::Refresh()
         {
             texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::detail::_oglTexBase::GetFormatName(texarr->GetInnerFormat()), w, h));
+            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h));
             texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
             
             static_assert(std::is_convertible_v<decltype(std::declval<u16string>().data()), const char16_t*>);

@@ -95,11 +95,11 @@ public:
         return pointers;
     }
 
-    common::AlignedBuffer<32>&& ExtractData()
+    common::AlignedBuffer<32> ExtractData()
     {
         common::AlignedBuffer<32> data = std::move(*this);
         Width = Height = 0;
-        return std::move(data);
+        return data;
     }
 
     void FlipVertical();

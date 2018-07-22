@@ -1,7 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by TextureCompressor.rc
-#define IDR_SHADER_TEXCOMP                    108
+#define IDR_SHADER_GLRESIZER                    108
 
 // 新对象的下一组默认值
 // 

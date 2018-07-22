@@ -1,15 +1,16 @@
 #include "TexUtilRely.h"
 #include "common/ResourceHelper.h"
+#include "common/ThreadEx.inl"
 
-namespace oglu::texcomp
+namespace oglu::texutil
 {
 using common::ResourceHelper;
 
 
 using namespace common::mlog;
-MiniLogger<false>& texcLog()
+MiniLogger<false>& texLog()
 {
-    static MiniLogger<false> texclog(u"TexComp", { GetConsoleBackend() });
+    static MiniLogger<false> texclog(u"TexUtil", { GetConsoleBackend() });
     return texclog;
 }
 

@@ -17,12 +17,16 @@ using namespace xziar::img;
 static map<u16string, FakeTex> TEX_CACHE;
 
 
-struct TexCompManExecutor : public NonCopyable
+struct TexCompManExecutor : public NonCopyable, public NonMovable
 {
     common::asyexe::AsyncManager Executor;
     TexCompManExecutor() : Executor(u"TexCompMan")
     {
-        Executor.Start([] { basLog().success(u"compress thread start running.\n"); });
+        Executor.Start([] 
+        { 
+            common::SetThreadName(u"TexCompress");
+            basLog().success(u"TexCompress thread start running.\n");
+        });
     }
     ~TexCompManExecutor()
     {
@@ -52,26 +56,26 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     const auto pms = std::make_shared<std::promise<FakeTex>>();
     auto ret = std::make_shared<common::PromiseResultSTD<FakeTex, true>>(*pms);
 
-    dummy.Executor.AddTask([img = std::move(img), format, pms, picPath](const auto&) mutable
+    dummy.Executor.AddTask([img = std::make_shared<Image>(std::move(img)), format, pms, picPath](const auto&)
     {
         FakeTex tex;
-        if (oglu::detail::_oglTexBase::IsCompressType(format))
+        if (oglu::TexFormatUtil::IsCompressType(format))
         {
             try
             {
-                auto dat = oglu::texcomp::CompressToDat(img, format);
-                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img.Width, img.Height);
+                auto dat = oglu::texutil::CompressToDat(*img, format);
+                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img->Width, img->Height);
             }
             catch (const BaseException& be)
             {
                 basLog().error(u"Error when compress texture file [{}] into [{}]: {}\n", 
-                    picPath.filename().u16string(), oglu::detail::_oglTexBase::GetFormatName(format), be.message);
+                    picPath.filename().u16string(), oglu::TexFormatUtil::GetFormatName(format), be.message);
             }
         }
         else
         {
-            const auto width = img.Width, height = img.Height;
-            tex = std::make_shared<detail::_FakeTex>(std::move(img.ExtractData()), format, width, height);
+            const auto width = img->Width, height = img->Height;
+            tex = std::make_shared<detail::_FakeTex>(std::move(img->ExtractData()), format, width, height);
         }
         if (tex)
         {

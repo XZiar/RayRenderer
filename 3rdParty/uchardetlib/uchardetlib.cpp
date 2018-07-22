@@ -53,7 +53,7 @@ bool CharsetDetector::HandleData(const void *data, const size_t len) const
     auto tool = reinterpret_cast<Uchardet*>(Pointer);
     for (size_t offset = 0; offset < len && !tool->IsDone();)
     {
-        const uint32_t batchLen = static_cast<uint32_t>(std::min(len, (size_t)/*UINT32_MAX*/1024));
+        const uint32_t batchLen = static_cast<uint32_t>(std::min(len - offset, (size_t)/*UINT32_MAX*/4096));
         if (tool->HandleData(reinterpret_cast<const char*>(data) + offset, batchLen) != NS_OK)
             return false;
         offset += batchLen;

@@ -21,17 +21,18 @@ struct Init
 
 static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
 {
-    if (shaderPath.empty())
-        return getShaderFromDLL(id);
-    try
+    if (!shaderPath.empty())
     {
-        return common::file::ReadAllText(shaderPath);
+        try
+        {
+            return common::file::ReadAllText(shaderPath);
+        }
+        catch (const FileException& fe)
+        {
+            basLog().error(u"unable to load shader from [{}] : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), fe.message);
+        }
     }
-    catch (const FileException& fe)
-    {
-        basLog().error(u"unable to load shader from [{}] : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), fe.message);
-        return getShaderFromDLL(id);
-    }
+    return getShaderFromDLL(id);
 }
 
 void BasicTest::init2d(const fs::path& shaderPath)
@@ -346,7 +347,7 @@ void BasicTest::Resize(const uint32_t w, const uint32_t h)
 
 void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h)
 {
-    fboTex.reset(w, h, TextureInnerFormat::RGBAh);
+    fboTex.reset(w, h, TextureInnerFormat::RG11B10);
     fboTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     MiddleFrame->AttachColorTexture(fboTex, 0);
     oglRBO mainRBO(w, h, oglu::RBOFormat::Depth24Stencil8);

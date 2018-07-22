@@ -51,6 +51,25 @@ public:
     }
 };
 
+template<typename T, bool Shared = false>
+class PromiseWrappedResultSTD : public detail::PromiseResult_<T>
+{
+private:
+    PromiseResultSTD<std::unique_ptr<T>, Shared> Inner;
+public:
+    PromiseWrappedResultSTD(std::promise<std::unique_ptr<T>>& pms) : Inner(pms)
+    { }
+    virtual ~PromiseWrappedResultSTD() override { }
+    T virtual wait() override
+    {
+        return *Inner.wait().release();
+    }
+    PromiseState virtual state() override
+    {
+        return Inner.state();
+    }
+};
+
 
 template<class T>
 class PromiseTaskSTD : public PromiseTask<T>

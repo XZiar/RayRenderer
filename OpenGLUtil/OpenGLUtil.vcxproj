@@ -26,6 +26,7 @@
     <ClInclude Include="oglException.h" />
     <ClInclude Include="oglFBO.h" />
     <ClInclude Include="oglProgram.h" />
+    <ClInclude Include="oglPromise.hpp" />
     <ClInclude Include="oglRely.h" />
     <ClInclude Include="oglShader.h" />
     <ClInclude Include="oglStringify.hpp" />
