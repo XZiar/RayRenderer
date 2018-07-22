@@ -31,7 +31,8 @@
 #if defined(USING_CHARDET) && !defined(UCHARDETLIB_H_)
 namespace uchdet
 {
-    common::str::Charset detectEncoding(const std::string& str);
+template<typename T>
+common::str::Charset detectEncoding(const std::basic_string<T>& str);
 }
 #endif
 

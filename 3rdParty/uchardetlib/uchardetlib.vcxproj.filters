@@ -19,6 +19,9 @@
     <Filter Include="头文件\uchardet">
       <UniqueIdentifier>{8dddea9a-d0fd-4591-9550-43a5264ec8e3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="table">
+      <UniqueIdentifier>{385388cd-4efa-4fa5-8ec2-81b698b7bfe1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="uchardetlib.h">
@@ -87,9 +90,6 @@
     <ClInclude Include="prmem.h">
       <Filter>头文件\uchardet</Filter>
     </ClInclude>
-    <ClInclude Include="uchardet.h">
-      <Filter>头文件\uchardet</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="uchardetlib.cpp">
@@ -99,48 +99,6 @@
       <Filter>源文件\uchardet</Filter>
     </ClCompile>
     <ClCompile Include="JpCntx.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangArabicModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangBulgarianModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangDanishModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangEsperantoModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangFrenchModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangGermanModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangGreekModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangHebrewModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangHungarianModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangRussianModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangSpanishModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangThaiModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangTurkishModel.cpp">
-      <Filter>源文件\uchardet</Filter>
-    </ClCompile>
-    <ClCompile Include="LangModels\LangVietnameseModel.cpp">
       <Filter>源文件\uchardet</Filter>
     </ClCompile>
     <ClCompile Include="nsBig5Prober.cpp">
@@ -194,15 +152,114 @@
     <ClCompile Include="nsUTF8Prober.cpp">
       <Filter>源文件\uchardet</Filter>
     </ClCompile>
-    <ClCompile Include="uchardet.cpp">
+    <ClCompile Include="LangModels\LangDanishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangEsperantoModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangEstonianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangFinnishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangFrenchModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangGermanModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangGreekModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangHebrewModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangHungarianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangIrishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangItalianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangLatvianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangLithuanianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangMalteseModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangPolishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangPortugueseModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangRomanianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangRussianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangSlovakModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangSloveneModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangSpanishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangSwedishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangThaiModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangTurkishModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangVietnameseModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangArabicModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangBulgarianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangCroatianModel.cpp">
+      <Filter>源文件\uchardet</Filter>
+    </ClCompile>
+    <ClCompile Include="LangModels\LangCzechModel.cpp">
       <Filter>源文件\uchardet</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Big5Freq.tab" />
-    <None Include="EUCKRFreq.tab" />
-    <None Include="EUCTWFreq.tab" />
-    <None Include="GB2312Freq.tab" />
-    <None Include="JISFreq.tab" />
+    <None Include="Makefile" />
+    <None Include="README.md" />
+    <None Include="Big5Freq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="EUCKRFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="EUCTWFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="GB2312Freq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="JISFreq.tab">
+      <Filter>table</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="license.txt" />
   </ItemGroup>
 </Project>

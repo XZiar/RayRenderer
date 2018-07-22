@@ -32,33 +32,55 @@ namespace common
 
 namespace detail
 {
-#pragma pack(push,8) 
+#if defined(_WIN32)
+#   pragma pack(push,8) 
 struct THREADNAME_INFO
 {
-    DWORD dwType;  // Must be 0x1000.
+    DWORD dwType = 0x1000;  // Must be 0x1000.
     LPCSTR szName;  // Pointer to name (in user addr space).
     DWORD dwThreadID;  // Thread ID (-1=caller thread).
     DWORD dwFlags;  // Reserved for future use, must be zero.
 };
-#pragma pack(pop)
-}
-
-bool CDECLCALL SetThreadName(const std::string& threadName)
-{
-    const std::u16string u16TName(threadName.cbegin(), threadName.cend());
-    SetThreadName(u16TName);
-    return true;
-}
-
+#   pragma pack(pop)
 static void SetThreadNameImpl(const detail::THREADNAME_INFO* info)
 {
+    constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
     __try
     {
-        RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+        RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     { }
 }
+#endif
+}
+
+bool CDECLCALL SetThreadName(const std::string& threadName)
+{
+#if defined(_WIN32)
+    if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
+    {
+        const std::u16string u16ThrName(threadName.cbegin(), threadName.cend());
+        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)u16ThrName.c_str());
+    }
+    else
+    {
+        detail::THREADNAME_INFO info;
+        info.szName = threadName.c_str();
+        info.dwThreadID = GetCurrentThreadId();
+        info.dwFlags = 0;
+        detail::SetThreadNameImpl(&info);
+    }
+#else
+# if defined(__APPLE__)
+    pthread_setname_np(threadName.c_str());
+# else
+    pthread_setname_np(pthread_self(), threadName.c_str());
+# endif
+#endif
+    return true;
+}
+
 
 bool CDECLCALL SetThreadName(const std::u16string& threadName)
 {
@@ -67,15 +89,12 @@ bool CDECLCALL SetThreadName(const std::u16string& threadName)
         ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.c_str()); 
     else
     {
-        constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
-        const DWORD tid = GetCurrentThreadId();
         detail::THREADNAME_INFO info;
-        info.dwType = 0x1000;
         const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
         info.szName = asciiThreadName.c_str();
-        info.dwThreadID = tid;
+        info.dwThreadID = GetCurrentThreadId();
         info.dwFlags = 0;
-        SetThreadNameImpl(&info);
+        detail::SetThreadNameImpl(&info);
     }
 #else
     const auto u8TName = str::to_u8string(threadName, str::Charset::UTF8);

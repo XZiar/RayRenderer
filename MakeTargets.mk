@@ -16,7 +16,7 @@ else
 BUILD_TYPE2	:= executable binary
 $(NAME): $(OBJS) $(ASMOBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APPS)$(CLR_CLEAR)"
-	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(OBJS) $(ASMOBJS) -Wl,-rpath=. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
+	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(OBJS) $(ASMOBJS) -Wl,-rpath='$$ORIGIN' -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 endif
 endif
 

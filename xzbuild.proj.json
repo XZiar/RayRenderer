@@ -5,6 +5,7 @@
             "name": "zlib",
             "type": "static",
             "path": "3rdParty/zlib",
+            "version": "1.2.11",
             "description": "A massively spiffy yet delicately unobtrusive compression library",
             "dependency": []
         },
@@ -12,13 +13,31 @@
             "name": "zlib-ng",
             "type": "static",
             "path": "3rdParty/zlib-ng",
-            "description": "A massively spiffy yet delicately unobtrusive compression library",
+            "version": "1.9.9",
+            "description": "zlib replacement with optimizations for \"next generation\" systems",
+            "dependency": []
+        },
+        {
+            "name": "glew",
+            "type": "static",
+            "path": "3rdParty/glew",
+            "version": "2.1.0",
+            "description": "The OpenGL Extension Wrangler library",
+            "dependency": []
+        },
+        {
+            "name": "uchardet",
+            "type": "static",
+            "path": "3rdParty/uchardetlib",
+            "version": "0.6.0",
+            "description": "uchardet is an encoding detector library",
             "dependency": []
         },
         {
             "name": "libpng",
             "type": "static",
             "path": "3rdParty/libpng",
+            "version": "1.6.34",
             "description": "The official PNG reference library",
             "dependency": ["zlib-ng"]
         },
@@ -26,6 +45,7 @@
             "name": "libjpeg-turbo",
             "type": "static",
             "path": "3rdParty/libjpeg-turbo",
+            "version": "1.5.90",
             "description": "A SIMD accelerated JPEG image codec library",
             "dependency": []
         },
@@ -40,6 +60,7 @@
             "name": "fmt",
             "type": "static",
             "path": "3rdParty/fmt",
+            "version": "5.1.0",
             "description": "A modern formatting library",
             "dependency": []
         },
@@ -75,6 +96,7 @@
             "name": "UtilTest",
             "type": "executable",
             "path": "Tests/UtilTest",
+            "description": "Utility test",
             "dependency": ["fmt", "stb", "miniLogger", "AsyncExecutor", "ImageUtil"]
         }
     ]

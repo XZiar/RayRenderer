@@ -14,6 +14,7 @@ class Project:
         self.type = data["type"]
         self.path = data["path"]
         self.deps = data["dependency"]
+        self.version = data.get("version", "")
         self.desc = data.get("description", "")
         self.dependency = []
         pass
@@ -55,7 +56,7 @@ def clean(rootDir:str, proj:Project, args:dict):
 def listproj(projs:dict, projname: str):
     if projname == None:
         for proj in projs.values():
-            print("\033[92m[{}]\033[95m({})\033[39m\n{}".format(proj.name, proj.type, proj.desc))
+            print("\033[92m[{}] \033[95m({}) \033[39m{}\n{}".format(proj.name, proj.type, proj.version, proj.desc))
     else:
         def printDep(proj: Project, level: int):
             prefix = "|  "*(level-1) + ("" if level==0 else "|->")

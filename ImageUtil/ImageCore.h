@@ -24,7 +24,7 @@ public:
     uint32_t Width, Height;
     const ImageDataType DataType;
     const uint8_t ElementSize;
-    Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : DataType(dataType), ElementSize(GetElementSize(DataType))
+    Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
     Image(const Image& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
@@ -93,6 +93,13 @@ public:
         for (auto& ptr : pointers)
             ptr = rawPtr + offset, rawPtr += lineStep;
         return pointers;
+    }
+
+    common::AlignedBuffer<32>&& ExtractData()
+    {
+        common::AlignedBuffer<32> data = std::move(*this);
+        Width = Height = 0;
+        return std::move(data);
     }
 
     void FlipVertical();

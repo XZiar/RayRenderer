@@ -52,13 +52,32 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     const auto pms = std::make_shared<std::promise<FakeTex>>();
     auto ret = std::make_shared<common::PromiseResultSTD<FakeTex, true>>(*pms);
 
-    dummy.Executor.AddTask([img = std::move(img), format, pms, picPath](const auto&)
+    dummy.Executor.AddTask([img = std::move(img), format, pms, picPath](const auto&) mutable
     {
-        auto dat = oglu::texcomp::CompressToDat(img, format);
-
-        const auto tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img.Width, img.Height);
-        tex->Name = picPath.filename().u16string();
-        TEX_CACHE.try_emplace(picPath.u16string(), tex);
+        FakeTex tex;
+        if (oglu::detail::_oglTexBase::IsCompressType(format))
+        {
+            try
+            {
+                auto dat = oglu::texcomp::CompressToDat(img, format);
+                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img.Width, img.Height);
+            }
+            catch (const BaseException& be)
+            {
+                basLog().error(u"Error when compress texture file [{}] into [{}]: {}\n", 
+                    picPath.filename().u16string(), oglu::detail::_oglTexBase::GetFormatName(format), be.message);
+            }
+        }
+        else
+        {
+            const auto width = img.Width, height = img.Height;
+            tex = std::make_shared<detail::_FakeTex>(std::move(img.ExtractData()), format, width, height);
+        }
+        if (tex)
+        {
+            tex->Name = picPath.filename().u16string();
+            TEX_CACHE.try_emplace(picPath.u16string(), tex);
+        }
         pms->set_value(tex);
     }, picPath.filename().u16string(), StackSize::Big);
 

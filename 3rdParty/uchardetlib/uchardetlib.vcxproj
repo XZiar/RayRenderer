@@ -75,7 +75,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
@@ -93,7 +93,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
@@ -110,7 +110,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
@@ -134,7 +134,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244;</DisableSpecificWarnings>
@@ -170,7 +170,6 @@
     <ClInclude Include="nsUniversalDetector.h" />
     <ClInclude Include="nsUTF8Prober.h" />
     <ClInclude Include="prmem.h" />
-    <ClInclude Include="uchardet.h" />
     <ClInclude Include="uchardetlib.h" />
   </ItemGroup>
   <ItemGroup>
@@ -178,15 +177,30 @@
     <ClCompile Include="JpCntx.cpp" />
     <ClCompile Include="LangModels\LangArabicModel.cpp" />
     <ClCompile Include="LangModels\LangBulgarianModel.cpp" />
+    <ClCompile Include="LangModels\LangCroatianModel.cpp" />
+    <ClCompile Include="LangModels\LangCzechModel.cpp" />
     <ClCompile Include="LangModels\LangDanishModel.cpp" />
     <ClCompile Include="LangModels\LangEsperantoModel.cpp" />
+    <ClCompile Include="LangModels\LangEstonianModel.cpp" />
+    <ClCompile Include="LangModels\LangFinnishModel.cpp" />
     <ClCompile Include="LangModels\LangFrenchModel.cpp" />
     <ClCompile Include="LangModels\LangGermanModel.cpp" />
     <ClCompile Include="LangModels\LangGreekModel.cpp" />
     <ClCompile Include="LangModels\LangHebrewModel.cpp" />
     <ClCompile Include="LangModels\LangHungarianModel.cpp" />
+    <ClCompile Include="LangModels\LangIrishModel.cpp" />
+    <ClCompile Include="LangModels\LangItalianModel.cpp" />
+    <ClCompile Include="LangModels\LangLatvianModel.cpp" />
+    <ClCompile Include="LangModels\LangLithuanianModel.cpp" />
+    <ClCompile Include="LangModels\LangMalteseModel.cpp" />
+    <ClCompile Include="LangModels\LangPolishModel.cpp" />
+    <ClCompile Include="LangModels\LangPortugueseModel.cpp" />
+    <ClCompile Include="LangModels\LangRomanianModel.cpp" />
     <ClCompile Include="LangModels\LangRussianModel.cpp" />
+    <ClCompile Include="LangModels\LangSlovakModel.cpp" />
+    <ClCompile Include="LangModels\LangSloveneModel.cpp" />
     <ClCompile Include="LangModels\LangSpanishModel.cpp" />
+    <ClCompile Include="LangModels\LangSwedishModel.cpp" />
     <ClCompile Include="LangModels\LangThaiModel.cpp" />
     <ClCompile Include="LangModels\LangTurkishModel.cpp" />
     <ClCompile Include="LangModels\LangVietnameseModel.cpp" />
@@ -207,7 +221,6 @@
     <ClCompile Include="nsSJISProber.cpp" />
     <ClCompile Include="nsUniversalDetector.cpp" />
     <ClCompile Include="nsUTF8Prober.cpp" />
-    <ClCompile Include="uchardet.cpp" />
     <ClCompile Include="uchardetlib.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -216,6 +229,11 @@
     <None Include="EUCTWFreq.tab" />
     <None Include="GB2312Freq.tab" />
     <None Include="JISFreq.tab" />
+    <None Include="Makefile" />
+    <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="license.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

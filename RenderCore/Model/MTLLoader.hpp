@@ -114,7 +114,7 @@ public:
         for (const auto&[mat, pmsPtr, type] : DelayJobs)
         {
             FakeTex tex;
-            if (const auto it = std::get_if<FakeTex>(pmsPtr))
+            if (const auto it = std::get_if<FakeTex>(pmsPtr); it)
                 tex = *it;
             else
             {

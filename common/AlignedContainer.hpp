@@ -83,7 +83,7 @@ public:
         Alloc();
         memcpy_s(Data, Size_, other.Data, Size_);
     }
-    AlignedBuffer(AlignedBuffer&& other) noexcept : Size_(other.Size_), Data(other.Data)
+    AlignedBuffer(AlignedBuffer&& other) noexcept : Data(other.Data), Size_(other.Size_)
     {
         other.Data = nullptr;
     }

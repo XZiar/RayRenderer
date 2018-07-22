@@ -142,11 +142,6 @@ namespace OpenGLView
             DescribePixelFormat(hDC, pixelFormatID, sizeof(pfd), &pfd);
             SetPixelFormat(hDC, pixelFormatID, &pfd);
 
-            /*if (!baseRC)
-            {
-                baseRC = wglCreateContext(hDC);
-                wglMakeCurrent(hDC, curRC = baseRC);
-            }*/
             static const int32_t ctxAttrb[] =
             {
                 /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -175,9 +170,8 @@ namespace OpenGLView
     protected:
         void OnResize(EventArgs^ e) override
         {
-            //makeCurrent(hDC, hRC);
+            makeCurrent(hDC, hRC);
             Control::OnResize(e);
-            //glViewport((Width & 0x3f) / 2, (Height & 0x3f) / 2, Width & 0xffc0, Height & 0xffc0);
             Resize((Object^)this, gcnew ResizeEventArgs(Width, Height));
             this->Invalidate();
         }
@@ -190,7 +184,7 @@ namespace OpenGLView
         {
             common::SimpleTimer timer;
             timer.Start();
-            //makeCurrent(hDC, hRC);
+            makeCurrent(hDC, hRC);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             Draw();
             SwapBuffers(hDC);
