@@ -35,9 +35,6 @@
     <ClInclude Include="resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="BCCompress.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="TexCompressor.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -46,6 +43,12 @@
     </ClInclude>
     <ClInclude Include="TexResizer.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ISPCCompress.inl">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="STBCompress.inl">
+      <Filter>源文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

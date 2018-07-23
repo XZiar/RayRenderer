@@ -1,15 +1,17 @@
 #pragma once
 
 #include "TexUtilRely.h"
-#include "OpenGLUtil/oglException.h"
 #include "ispc_texcomp/ispc_texcomp.h"
+#include "OpenGLUtil/oglException.h"
 
 namespace oglu::texutil::detail
 {
 
-
-common::AlignedBuffer<32> CompressBC1(const Image& img)
+static common::AlignedBuffer<32> CompressBC1(const Image& img)
 {
+    if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC1");
+
     if (img.DataType != ImageDataType::RGBA)
     {
         const auto tmpImg = img.ConvertTo(ImageDataType::RGBA);
@@ -22,8 +24,11 @@ common::AlignedBuffer<32> CompressBC1(const Image& img)
     return buffer;
 }
 
-common::AlignedBuffer<32> CompressBC3(const Image& img)
+static common::AlignedBuffer<32> CompressBC3(const Image& img)
 {
+    if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC3");
+
     if (img.DataType != ImageDataType::RGBA)
     {
         const auto tmpImg = img.ConvertTo(ImageDataType::RGBA);
@@ -36,8 +41,11 @@ common::AlignedBuffer<32> CompressBC3(const Image& img)
     return buffer;
 }
 
-common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAlpha)
+static common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAlpha)
 {
+    if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC7");
+
     if (img.DataType != ImageDataType::RGBA)
     {
         const auto tmpImg = img.ConvertTo(ImageDataType::RGBA);

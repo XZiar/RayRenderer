@@ -178,8 +178,9 @@
     <ClCompile Include="TexUtilRely.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BCCompress.hpp" />
+    <ClInclude Include="ISPCCompress.inl" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="STBCompress.inl" />
     <ClInclude Include="TexCompressor.h" />
     <ClInclude Include="TexResizer.h" />
     <ClInclude Include="TexUtilRely.h" />

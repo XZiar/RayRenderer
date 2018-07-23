@@ -2,6 +2,8 @@
 #include "common/ResourceHelper.h"
 #include "common/ThreadEx.inl"
 
+#pragma message("Compiling TextureUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
+
 namespace oglu::texutil
 {
 using common::ResourceHelper;

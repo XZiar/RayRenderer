@@ -124,7 +124,8 @@ vec3 mappedNormal(const uint id)
     const uint bank = pos >> 16;
     const float layer = float(pos & 0xffff);//let it be wrong
     const vec3 newtpos = vec3(tpos, layer);
-    const vec3 ptNormTex = texture(texs[bank], newtpos).rgb * 2.0f - 1.0f;
+    const vec2 ptNormRG = texture(texs[bank], newtpos).rg * 2.0f - 1.0f;
+    const vec3 ptNormTex = vec3(ptNormRG, sqrt(1.0f - dot(ptNormRG, ptNormRG)));
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
 }
