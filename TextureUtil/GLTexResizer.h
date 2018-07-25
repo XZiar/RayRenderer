@@ -6,7 +6,7 @@
 namespace oglu::texutil
 {
 
-class TEXUTILAPI TexResizer : public NonCopyable, public NonMovable
+class TEXUTILAPI GLTexResizer : public NonCopyable, public NonMovable
 {
 private:
     common::asyexe::AsyncManager Executor;
@@ -15,18 +15,24 @@ private:
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oglFBO OutputFrame;
-    void Init();
+    common::PromiseResult<Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format);
 public:
-    TexResizer(const oglContext& baseContext);
-    ~TexResizer();
+    GLTexResizer(const oglContext& glContext);
+    ~GLTexResizer();
+    void Init();
     common::PromiseResult<Image> ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const bool flipY = false)
     {
         return ResizeToDat(img, width, height, img.DataType, flipY);
     }
     common::PromiseResult<Image> ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
+    //require in the shared context
     common::PromiseResult<Image> ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
+    common::PromiseResult<Image> ResizeToDat(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
+
     common::PromiseResult<oglTex2DS> ResizeToTex(const Image& img, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY = true);
+    //require in the shared context
     common::PromiseResult<oglTex2DS> ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY = false);
+    common::PromiseResult<oglTex2DS> ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY = false);
 };
 
 

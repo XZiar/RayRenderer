@@ -223,4 +223,5 @@
     <BitmapImage x:Key="imgParLight" UriSource="icon/sunlight.png"/>
     <BitmapImage x:Key="imgPointLight" UriSource="icon/pointlight.png"/>
     <BitmapImage x:Key="imgSpotLight" UriSource="icon/spotlight.png"/>
+    <BitmapImage x:Key="imgScreenshot" UriSource="icon/screenshot.png"/>
 </ResourceDictionary>

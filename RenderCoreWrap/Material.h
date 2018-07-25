@@ -5,6 +5,7 @@
 
 using namespace System;
 using namespace System::Collections::Generic;
+using System::Windows::Media::Imaging::BitmapSource;
 
 
 namespace RayRender
@@ -15,6 +16,7 @@ public ref class TexMap
 {
 private:
     rayr::PBRMaterial::TexHolder& Holder;
+    BitmapSource^ thumbnail;
     String^ name;
     String^ description;
 public:
@@ -26,6 +28,10 @@ public:
     property String^ Description
     {
         String^ get() { return description; }
+    }
+    property BitmapSource^ Thumbnail
+    {
+        BitmapSource^ get() { return thumbnail; }
     }
 };
 

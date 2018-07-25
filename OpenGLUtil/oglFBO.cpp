@@ -6,7 +6,6 @@
 namespace oglu::detail
 {
 
-
 static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
 {
     switch (format)
@@ -33,7 +32,7 @@ static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
     }
 }
 
-_oglRenderBuffer::_oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format) 
+_oglRenderBuffer::_oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format)
     : Width(width), Height(height), InnerFormat(format), Type(ParseType(format))
 {
     glGenRenderbuffers(1, &RBOId);
@@ -141,6 +140,29 @@ void _oglFrameBuffer::AttachDepthStencilBuffer(const oglRBO& rbo)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"rbo type missmatch");
     glNamedFramebufferRenderbufferEXT(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
     DepthAttachment = rbo; StencilAttachment = rbo;
+}
+
+static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    GLint drawFboId = 0, readFboId = 0;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFboId);
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFboId);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER_BINDING, from);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_BINDING, to);
+    const auto&[x0, y0, x1, y1] = rect;
+    glBlitFramebuffer(x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER_BINDING, readFboId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_BINDING, drawFboId);
+}
+
+void _oglFrameBuffer::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    BlitColor(FBOId, to ? to->FBOId : 0, rect);
+}
+void _oglFrameBuffer::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    BlitColor(from ? from->FBOId : 0, FBOId, rect);
 }
 
 }

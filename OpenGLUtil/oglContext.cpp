@@ -266,6 +266,9 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, in
     };
     int *attrs = attribs ? attribs : ctxAttrb;
     auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, ctxAttrb);
+    if (!newHrc)
+        oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", GetLastError());
+
     return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
 }
 

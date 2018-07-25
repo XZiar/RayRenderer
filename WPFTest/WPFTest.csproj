@@ -184,6 +184,9 @@
   <ItemGroup>
     <Resource Include="dizz.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="icon\screenshot.png" />
+  </ItemGroup>
   <Import Project="..\CommonUtil\CommonUtil.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -50,6 +50,34 @@ void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normaliz
     }
 }
 
+TextureDataFormat TexFormatUtil::DecideFormat(const TextureInnerFormat format) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::R8:        return TextureDataFormat::R8;
+    case TextureInnerFormat::RG8:       return TextureDataFormat::RG8;
+    case TextureInnerFormat::SRGB8:  
+    case TextureInnerFormat::RG11B10:
+    case TextureInnerFormat::RGB8:      return TextureDataFormat::RGB8;
+    case TextureInnerFormat::SRGBA8:    
+    case TextureInnerFormat::RGB10A2:
+    case TextureInnerFormat::RGBA8:     return TextureDataFormat::RGBA8;
+    case TextureInnerFormat::R8U:       return TextureDataFormat::R8U;
+    case TextureInnerFormat::RG8U:      return TextureDataFormat::RG8U;
+    case TextureInnerFormat::RGB8U:     return TextureDataFormat::RGB8U;
+    case TextureInnerFormat::RGBA8U:    return TextureDataFormat::RGBA8U;
+    case TextureInnerFormat::Rh:        return TextureDataFormat::Rh;
+    case TextureInnerFormat::RGh:       return TextureDataFormat::RGh;
+    case TextureInnerFormat::RGBh:      return TextureDataFormat::RGBh;
+    case TextureInnerFormat::RGBAh:     return TextureDataFormat::RGBAh;
+    case TextureInnerFormat::Rf:        return TextureDataFormat::Rf;
+    case TextureInnerFormat::RGf:       return TextureDataFormat::RGf;
+    case TextureInnerFormat::RGBf:      return TextureDataFormat::RGBf;
+    case TextureInnerFormat::RGBAf:     return TextureDataFormat::RGBAf;
+    default:                            return static_cast<TextureDataFormat>(0xff);
+    }
+}
+
 ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noexcept
 {
     const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
@@ -63,6 +91,23 @@ ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noex
     case TextureDataFormat::BGRA8:  return ImageDataType::BGRA | isFloat;
     }
     return isFloat;//fallback
+}
+
+TextureDataFormat TexFormatUtil::ConvertFormat(const ImageDataType dtype, const bool normalized) noexcept
+{
+    TextureDataFormat baseFormat = HAS_FIELD(dtype, ImageDataType::FLOAT_MASK) ? TextureDataFormat::FLOAT_TYPE : TextureDataFormat::U8_TYPE;
+    if (normalized) 
+        baseFormat |= TextureDataFormat::NORMAL_MASK;
+    switch (REMOVE_MASK(dtype, ImageDataType::FLOAT_MASK))
+    {
+    case ImageDataType::RGB:    return TextureDataFormat::RGB_FORMAT | baseFormat;
+    case ImageDataType::BGR:    return TextureDataFormat::BGR_FORMAT | baseFormat;
+    case ImageDataType::RGBA:   return TextureDataFormat::RGBA_FORMAT | baseFormat;
+    case ImageDataType::BGRA:   return TextureDataFormat::BGRA_FORMAT | baseFormat;
+    case ImageDataType::GRAY:   return TextureDataFormat::R_FORMAT | baseFormat;
+    case ImageDataType::GA:     return TextureDataFormat::RG_FORMAT | baseFormat;
+    }
+    return baseFormat;//fallback
 }
 
 size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept
@@ -522,10 +567,15 @@ _oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, c
     SetTextureLayers(0, old, 0, old->Layers);
 }
 
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
+void _oglTexture2DArray::CheckLayerRange(const uint32_t layer) const
 {
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+}
+
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
+{
+    CheckLayerRange(layer);
     if (tex->Width != Width || tex->Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
     if (tex->Mipmap < Mipmap)
@@ -542,21 +592,24 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
 {
-    if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
     if (img.Width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
     if (img.Width != Width || img.Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch"); 
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.DataType, true);
     const auto& theimg = flipY ? img.FlipToVertical() : img;
-    glTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, img.Width, img.Height, 1, comptype, datatype, img.GetRawPtr());
+    SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.DataType, true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
+}
+
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
+{
+    CheckLayerRange(layer);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+    glTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, data);
 }
 
 void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size)
 {
-    if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+    CheckLayerRange(layer);
     glCompressedTextureSubImage3DEXT(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
 }
 

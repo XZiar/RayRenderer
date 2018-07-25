@@ -67,6 +67,8 @@ public:
     bool AddShader(const oglProgram& prog);
     void ChangeShader(const oglProgram& prog);
     void ReportChanged(const ChangableUBO target);
+    xziar::img::Image Scrrenshot();
+
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
     const set<oglProgram>& Shaders() const { return glProgs; }

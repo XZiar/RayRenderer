@@ -65,7 +65,9 @@ struct OGLUAPI TexFormatUtil
         ParseFormat(dformat, normalized, datatype, comptype);
         return { datatype,comptype };
     }
+    static TextureDataFormat DecideFormat(const TextureInnerFormat format) noexcept;
     static xziar::img::ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
+    static TextureDataFormat ConvertFormat(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
     static bool IsCompressType(const TextureInnerFormat format) noexcept;
     static bool IsGrayType(const TextureInnerFormat format) noexcept;
@@ -211,6 +213,7 @@ class OGLUAPI _oglTexture2DArray : public _oglTexBase
 private:
     uint32_t Width, Height, Layers;
     uint8_t Mipmap;
+    void CheckLayerRange(const uint32_t layer) const;
 public:
     _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
     _oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd);
@@ -219,6 +222,7 @@ public:
     
     void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
     void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true);
+    void SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data);
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
 

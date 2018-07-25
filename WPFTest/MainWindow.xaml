@@ -87,6 +87,9 @@
                 </Button.ContextMenu>
             </Button>
             <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
+            <Button x:Name="btnScreenshot" ToolTip="Screenshot" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnScreenshot_Click">
+                <ImageBrush ImageSource="{StaticResource imgScreenshot}"/>
+            </Button>
         </StackPanel>
         <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="Black" >
             <StatusBar.ItemsPanel>
@@ -223,6 +226,18 @@
                                                 </Style>
                                             </ext:LabelTextBox.Style>
                                         </ext:LabelTextBox>
+                                        <Image Source="{Binding AlbedoMap.Thumbnail, Mode=OneWay}" MaxWidth="256" Stretch="Fill">
+                                            <Image.Style>
+                                                <Style TargetType="Image">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+
                                         <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Normal">
                                             <CheckBox IsChecked="{Binding IsMappedNormal, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
                                         </ext:LabelControl>

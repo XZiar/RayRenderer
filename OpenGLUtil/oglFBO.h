@@ -61,6 +61,10 @@ public:
     void AttachStencilTexture(const oglTex2D& tex);
     void AttachStencilTexture(const oglRBO& rbo);
     void AttachDepthStencilBuffer(const oglRBO& rbo);
+
+    void BlitColorTo(const Wrapper<_oglFrameBuffer>& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorFrom(const Wrapper<_oglFrameBuffer>& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+
 };
 }
 using oglFBO = Wrapper<detail::_oglFrameBuffer>;

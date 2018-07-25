@@ -482,6 +482,11 @@ namespace WPFTest
             cboxMat.SelectedIndex = 0;
         }
 
+        private void btnScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
         private void btnUseShader_Click(object sender, RoutedEventArgs e)
         {
             Core.Shaders.UseProgram(cboxShader.SelectedItem as GLProgram);

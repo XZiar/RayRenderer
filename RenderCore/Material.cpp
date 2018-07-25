@@ -1,9 +1,14 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
+#include "common/PromiseTaskSTD.hpp"
+#include "TextureUtil/GLTexResizer.h"
 
 namespace rayr
 {
 using common::asyexe::AsyncAgent;
+using common::container::FindInMap;
+using xziar::img::Image;
+using xziar::img::ImageDataType;
 using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
@@ -84,6 +89,25 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
     });
 }
 
+map<std::weak_ptr<void>, std::shared_ptr<xziar::img::Image>, std::owner_less<void>> MultiMaterialHolder::ThumbnailMap;
+
+static forceinline std::weak_ptr<void> GetWeakRef(const PBRMaterial::TexHolder& holder)
+{
+    switch (holder.index())
+    {
+    case 1:
+        return std::get<oglTex2D>(holder).weakRef();
+    case 2:
+        return std::weak_ptr<detail::_FakeTex>(std::get<FakeTex>(holder));
+    default:
+        return {};
+    }
+}
+
+std::shared_ptr<xziar::img::Image> MultiMaterialHolder::GetThumbnail(const TexHolder& holder)
+{
+    return FindInMap(ThumbnailMap, GetWeakRef(holder), std::in_place).value_or(nullptr);
+}
 
 static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const PBRMaterial::TexHolder& holder)
 {
@@ -94,11 +118,64 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
         break;
     case 2:
         {
-            const auto& texDat = std::get<FakeTex>(holder)->TexData;
-            texarr->SetCompressedTextureLayer(layer, texDat.GetRawPtr(), texDat.GetSize());
+            const auto& fakeTex = std::get<FakeTex>(holder);
+            if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                texarr->SetCompressedTextureLayer(layer, fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
+            else
+                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::DecideFormat(fakeTex->TexFormat), fakeTex->TexData.GetRawPtr());
         } break;
     default:
         break;
+    }
+}
+
+static std::unique_ptr<oglu::texutil::GLTexResizer> GetResizer()
+{
+    const auto pms = std::make_shared<std::promise<std::unique_ptr<oglu::texutil::GLTexResizer>>>();
+    auto ret = std::make_shared<common::PromiseResultSTD<std::unique_ptr<oglu::texutil::GLTexResizer>, false>>(*pms);
+    oglu::oglUtil::invokeSyncGL([pms](const auto&)
+    {
+        const auto glContext = oglu::oglContext::NewContext(oglu::oglContext::CurrentContext(), true);
+        auto resizer = std::make_unique<oglu::texutil::GLTexResizer>(glContext);
+        pms->set_value(std::move(resizer));
+    }, u"GetMainContext");
+    auto result = AsyncAgent::SafeWait(std::static_pointer_cast<common::detail::PromiseResult_<std::unique_ptr<oglu::texutil::GLTexResizer>>>(ret));
+    result->Init();
+    return result;
+}
+
+template<>
+void MultiMaterialHolder::PrepareThumbnail(const map<TexHolder, const PBRMaterial*>& container)
+{
+    static std::unique_ptr<oglu::texutil::GLTexResizer> resizer = GetResizer();
+
+    std::vector<std::pair<TexHolder, common::PromiseResult<Image>>> pmss;
+    for (const auto&[holder, dummy] : container)
+    {
+        if (GetThumbnail(holder))
+            continue;
+        switch (holder.index())
+        {
+        case 1:
+            {
+                const auto& tex = std::get<oglTex2D>(holder);
+                pmss.emplace_back(holder, resizer->ResizeToDat(tex, 96, 96 * tex->GetSize().second / tex->GetSize().first, ImageDataType::RGBA));
+            }
+            break;
+        case 2:
+            {
+                const auto& fakeTex = std::get<FakeTex>(holder);
+                pmss.emplace_back(holder, resizer->ResizeToDat(fakeTex->TexData, { fakeTex->Width, fakeTex->Height },
+                    fakeTex->TexFormat, 96, 96 * fakeTex->Height / fakeTex->Width, ImageDataType::RGBA));
+            }
+            break;
+        default:
+            continue;
+        }
+    }
+    for (const auto&[holder, result] : pmss)
+    {
+        ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(std::move(AsyncAgent::SafeWait(result))));
     }
 }
 
@@ -127,6 +204,7 @@ void MultiMaterialHolder::Refresh()
         Arrangement.swap(newArrange);
         return;
     }
+    PrepareThumbnail(added);
     //generate avaliable map
     set<Mapping, common::container::PairLess<detail::TexTag, uint16_t>> avaliableMap;
     for (const auto&[tid, texarr] : Textures)

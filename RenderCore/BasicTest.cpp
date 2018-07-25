@@ -512,5 +512,17 @@ void BasicTest::ReportChanged(const ChangableUBO target)
     IsUBOChanged |= (uint32_t)target;
 }
 
+xziar::img::Image BasicTest::Scrrenshot()
+{
+    oglu::oglFBO ssFBO(std::in_place);
+    oglu::oglTex2DS ssTex(WindowWidth, WindowHeight, TextureInnerFormat::SRGBA8);
+    ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+    ssFBO->AttachColorTexture(ssTex, 0);
+    oglRBO mainRBO(WindowWidth, WindowHeight, oglu::RBOFormat::Depth24Stencil8);
+    ssFBO->AttachDepthStencilBuffer(mainRBO);
+    basLog().info(u"Screenshot FBO [{}x{}], status:{}\n", WindowWidth, WindowHeight, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)WindowWidth, (int32_t)WindowHeight });
+    return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
+}
 
 }

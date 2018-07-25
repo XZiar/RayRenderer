@@ -27,7 +27,7 @@
     <ClCompile Include="TexUtilRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="TexResizer.cpp">
+    <ClCompile Include="GLTexResizer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -41,14 +41,14 @@
     <ClInclude Include="TexUtilRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="TexResizer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ISPCCompress.inl">
       <Filter>源文件</Filter>
     </ClInclude>
     <ClInclude Include="STBCompress.inl">
       <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GLTexResizer.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

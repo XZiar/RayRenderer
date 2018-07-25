@@ -174,7 +174,7 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="TexCompressor.cpp" />
-    <ClCompile Include="TexResizer.cpp" />
+    <ClCompile Include="GLTexResizer.cpp" />
     <ClCompile Include="TexUtilRely.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -182,7 +182,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="STBCompress.inl" />
     <ClInclude Include="TexCompressor.h" />
-    <ClInclude Include="TexResizer.h" />
+    <ClInclude Include="GLTexResizer.h" />
     <ClInclude Include="TexUtilRely.h" />
   </ItemGroup>
   <ItemGroup>
