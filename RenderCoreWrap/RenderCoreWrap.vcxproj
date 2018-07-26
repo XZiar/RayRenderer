@@ -116,7 +116,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -144,7 +144,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -169,7 +169,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -194,12 +194,13 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>OpenGLUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="b3d.h" />
+    <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="OpenGLTypes.h" />
     <ClInclude Include="ProgInputResource.hpp" />
@@ -224,6 +225,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ImageUtil.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="OpenGLTypes.cpp" />
@@ -256,6 +258,9 @@
     </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
+      <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>

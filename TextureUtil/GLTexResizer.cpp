@@ -122,7 +122,7 @@ common::PromiseResult<Image> GLTexResizer::ExtractImage(common::PromiseResult<og
     Executor.AddTask([pms, pmsTex, format](const common::asyexe::AsyncAgent& agent)
     {
         const auto outtex = agent.Await(pmsTex);
-        pms->set_value(std::make_unique<Image>(outtex->GetImage(format, false)));
+        pms->set_value(std::make_unique<Image>(outtex->GetImage(format, true))); // flip it to correctly represent GL's texture
     });
 
     return ret;
@@ -180,10 +180,22 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         oglRBO mainRBO(width, height, oglu::RBOFormat::Depth24Stencil8);
         OutputFrame->AttachDepthStencilBuffer(mainRBO);
         texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, OutputFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-        GLResizer->State().SetTexture(tex, "tex");
         GLContext->SetViewPort(0, 0, width, height);
         GLContext->ClearFBO();
-        GLResizer->Draw().Draw(vao);
+        string routineName = "PlainCopy";
+        if (uint8_t(TexFormatUtil::DecideFormat(format) & TextureDataFormat::RAW_FORMAT_MASK) >= uint8_t(TextureDataFormat::RGB_FORMAT))
+        {
+            switch (TexFormatUtil::DecideFormat(tex->GetInnerFormat()) & TextureDataFormat::RAW_FORMAT_MASK)
+            {
+            case TextureDataFormat::R_FORMAT:   routineName = "G2RGBA"; break;
+            case TextureDataFormat::RG_FORMAT:  routineName = "GA2RGBA"; break;
+                // others just keep default
+            }
+        }
+        GLResizer->Draw()
+            .SetTexture(tex, "tex")
+            .SetSubroutine("ColorConv",routineName)
+            .Draw(vao);
         agent.Await(oglUtil::SyncGL());
         pms->set_value(outtex);
     });
@@ -191,7 +203,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
     return ret;
 }
 
-common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY /*= false*/)
+common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
 {
     FilterFormat(format);
     const auto pms = std::make_shared<std::promise<oglTex2DS>>();

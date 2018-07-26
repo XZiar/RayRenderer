@@ -1,9 +1,10 @@
 #include "RenderCoreWrapRely.h"
 #include "Material.h"
+#include "ImageUtil.h"
 
 using common::container::FindInMap;
-using System::Windows::Media::PixelFormats;
-using namespace System::Windows::Media::Imaging;
+using namespace xziar::img;
+
 
 namespace RayRender
 {
@@ -11,22 +12,24 @@ namespace RayRender
 private ref class ThumbnailContainer
 {
 private:
-    static std::map<std::weak_ptr<xziar::img::Image>, gcroot<BitmapSource^>, std::owner_less<void>> *ThumbnailMap = nullptr;
+    static std::map<std::weak_ptr<Image>, gcroot<BitmapSource^>, std::owner_less<void>> *ThumbnailMap = nullptr;
+    
 public:
     static ThumbnailContainer()
     {
-        ThumbnailMap = new std::map<std::weak_ptr<xziar::img::Image>, gcroot<BitmapSource^>, std::owner_less<void>>();
+        ThumbnailMap = new std::map<std::weak_ptr<Image>, gcroot<BitmapSource^>, std::owner_less<void>>();
     }
-    static BitmapSource^ GetThumbnail(const std::shared_ptr<xziar::img::Image>& img)
+    static BitmapSource^ GetThumbnail(const std::shared_ptr<Image>& img)
     {
         const auto bmp = FindInMap(*ThumbnailMap, img, std::in_place);
         if (bmp)
             return bmp.value();
 
-        BitmapSource^ timg = BitmapSource::Create(img->Width, img->Height, 96, 96, PixelFormats::Bgra32, nullptr,
-            IntPtr(img->GetRawPtr()), (int)img->GetSize(), img->ElementSize * img->Width);
+        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert(*img);
+        if (!timg)
+            return nullptr;
         timg->Freeze();
-        ThumbnailMap->emplace(std::weak_ptr<xziar::img::Image>(img), gcroot<BitmapSource^>(timg));
+        ThumbnailMap->emplace(std::weak_ptr<Image>(img), gcroot<BitmapSource^>(timg));
         return timg;
     }
 };

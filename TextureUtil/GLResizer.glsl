@@ -31,9 +31,30 @@ uniform sampler2D tex;
 
 out vec4 FragColor;
 
+subroutine vec4 ColorConvertor(const vec4);
+subroutine uniform ColorConvertor ColorConv;
+
+subroutine(ColorConvertor)
+vec4 PlainCopy(const vec4 color)
+{
+    return color;
+}
+
+subroutine(ColorConvertor)
+vec4 GA2RGBA(const vec4 color)
+{
+    return color.rrrg;
+}
+
+subroutine(ColorConvertor)
+vec4 G2RGBA(const vec4 color)
+{
+    return color.rrra;
+}
+
 void main()
 {
-    FragColor = texture(tex, tpos);
+    FragColor = ColorConv(texture(tex, tpos));
 }
 
 #endif

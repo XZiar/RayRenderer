@@ -149,6 +149,15 @@ void MultiMaterialHolder::PrepareThumbnail(const map<TexHolder, const PBRMateria
 {
     static std::unique_ptr<oglu::texutil::GLTexResizer> resizer = GetResizer();
 
+    auto calcSize = [](const std::pair<uint32_t, uint32_t>& size) constexpr -> std::tuple<bool, uint32_t, uint32_t>
+    {
+        constexpr uint32_t thredshold = 128;
+        const auto larger = std::max(size.first, size.second);
+        if (larger <= thredshold)
+            return { false, 0,0 };
+        return { true, size.first * thredshold / larger, size.second * thredshold / larger };
+    };
+
     std::vector<std::pair<TexHolder, common::PromiseResult<Image>>> pmss;
     for (const auto&[holder, dummy] : container)
     {
@@ -159,14 +168,31 @@ void MultiMaterialHolder::PrepareThumbnail(const map<TexHolder, const PBRMateria
         case 1:
             {
                 const auto& tex = std::get<oglTex2D>(holder);
-                pmss.emplace_back(holder, resizer->ResizeToDat(tex, 96, 96 * tex->GetSize().second / tex->GetSize().first, ImageDataType::RGBA));
+                const auto&[needResize, neww, newh] = calcSize(tex->GetSize());
+                if (needResize)
+                    pmss.emplace_back(holder, resizer->ResizeToDat(tex, neww, newh, ImageDataType::RGB));
+                else
+                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
             }
             break;
         case 2:
             {
                 const auto& fakeTex = std::get<FakeTex>(holder);
-                pmss.emplace_back(holder, resizer->ResizeToDat(fakeTex->TexData, { fakeTex->Width, fakeTex->Height },
-                    fakeTex->TexFormat, 96, 96 * fakeTex->Height / fakeTex->Width, ImageDataType::RGBA));
+                const std::pair<uint32_t, uint32_t> imgSize{ fakeTex->Width, fakeTex->Height };
+                const auto&[needResize, neww, newh] = calcSize(imgSize);
+                if (needResize)
+                    pmss.emplace_back(holder, resizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB));
+                else if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                {   //promise in GL's thread
+                    oglu::oglTex2DS tex(fakeTex->Width, fakeTex->Height, fakeTex->TexFormat);
+                    tex->SetCompressedData(fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
+                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
+                }
+                else
+                {
+                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(fakeTex->TexData, fakeTex->Width, fakeTex->Height, 
+                        oglu::TexFormatUtil::ConvertFormat(oglu::TexFormatUtil::DecideFormat(fakeTex->TexFormat))));
+                }
             }
             break;
         default:

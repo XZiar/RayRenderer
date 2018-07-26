@@ -221,10 +221,10 @@ void BasicTest::fontTest(const char32_t word)
         else
         {
             fontCreator->setChar(L'G', false);
-            const auto imgG = fonttex->GetImage(ImageDataType::GRAY);
+            const auto imgG = fonttex->GetImage(ImageDataType::GRAY, false);
             img::WriteImage(imgG, Basepath / u"G.png");
             fontCreator->setChar(word, false);
-            const auto imgA = fonttex->GetImage(ImageDataType::GRAY);
+            const auto imgA = fonttex->GetImage(ImageDataType::GRAY, false);
             img::WriteImage(imgA, Basepath / u"A.png");
             auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
             img::WriteImage(imgShow, Basepath / u"Show.png");

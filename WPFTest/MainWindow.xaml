@@ -226,18 +226,19 @@
                                                 </Style>
                                             </ext:LabelTextBox.Style>
                                         </ext:LabelTextBox>
-                                        <Image Source="{Binding AlbedoMap.Thumbnail, Mode=OneWay}" MaxWidth="256" Stretch="Fill">
-                                            <Image.Style>
-                                                <Style TargetType="Image">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Image.Style>
-                                        </Image>
-
+                                        <Border BorderBrush="#FFABABAB" BorderThickness="1">
+                                            <Image Source="{Binding AlbedoMap.Thumbnail, Mode=OneWay}" MaxWidth="256" Stretch="Fill">
+                                                <Image.Style>
+                                                    <Style TargetType="Image">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Image.Style>
+                                            </Image>
+                                        </Border>
                                         <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Normal">
                                             <CheckBox IsChecked="{Binding IsMappedNormal, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
                                         </ext:LabelControl>

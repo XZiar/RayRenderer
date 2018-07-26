@@ -16,6 +16,15 @@ using namespace System::Threading::Tasks;
 
 namespace common
 {
+
+template<class RetType, class... Arguments>
+private ref class BindedFunc
+{
+private:
+
+};
+
+
 template<class RetType>
 using StdRetFuncType = std::function<RetType(void)>;
 

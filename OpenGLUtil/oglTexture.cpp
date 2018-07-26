@@ -54,13 +54,21 @@ TextureDataFormat TexFormatUtil::DecideFormat(const TextureInnerFormat format) n
 {
     switch (format)
     {
+    case TextureInnerFormat::BC4:
     case TextureInnerFormat::R8:        return TextureDataFormat::R8;
+    case TextureInnerFormat::BC5:
     case TextureInnerFormat::RG8:       return TextureDataFormat::RG8;
     case TextureInnerFormat::SRGB8:  
-    case TextureInnerFormat::RG11B10:
+    case TextureInnerFormat::BC1:
+    case TextureInnerFormat::BC1SRGB:
     case TextureInnerFormat::RGB8:      return TextureDataFormat::RGB8;
     case TextureInnerFormat::SRGBA8:    
-    case TextureInnerFormat::RGB10A2:
+    case TextureInnerFormat::BC1A:
+    case TextureInnerFormat::BC1ASRGB:
+    case TextureInnerFormat::BC2:
+    case TextureInnerFormat::BC3:
+    case TextureInnerFormat::BC7:
+    case TextureInnerFormat::BC7SRGB:
     case TextureInnerFormat::RGBA8:     return TextureDataFormat::RGBA8;
     case TextureInnerFormat::R8U:       return TextureDataFormat::R8U;
     case TextureInnerFormat::RG8U:      return TextureDataFormat::RG8U;
@@ -68,10 +76,13 @@ TextureDataFormat TexFormatUtil::DecideFormat(const TextureInnerFormat format) n
     case TextureInnerFormat::RGBA8U:    return TextureDataFormat::RGBA8U;
     case TextureInnerFormat::Rh:        return TextureDataFormat::Rh;
     case TextureInnerFormat::RGh:       return TextureDataFormat::RGh;
+    case TextureInnerFormat::RG11B10:
     case TextureInnerFormat::RGBh:      return TextureDataFormat::RGBh;
+    case TextureInnerFormat::RGB10A2:
     case TextureInnerFormat::RGBAh:     return TextureDataFormat::RGBAh;
     case TextureInnerFormat::Rf:        return TextureDataFormat::Rf;
     case TextureInnerFormat::RGf:       return TextureDataFormat::RGf;
+    case TextureInnerFormat::BC6H:
     case TextureInnerFormat::RGBf:      return TextureDataFormat::RGBf;
     case TextureInnerFormat::RGBAf:     return TextureDataFormat::RGBAf;
     default:                            return static_cast<TextureDataFormat>(0xff);
@@ -452,7 +463,7 @@ Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
     const auto[datatype, comptype] = TexFormatUtil::ParseFormat(format, true);
     glGetTextureImageEXT(textureID, (GLenum)Type, 0, comptype, datatype, image.GetRawPtr());
     if (flipY)
-        image.FlipToVertical();
+        image.FlipVertical();
     return image;
 }
 

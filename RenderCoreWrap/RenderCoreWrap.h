@@ -217,6 +217,7 @@ public ref class BasicTest : public BaseViewModel
 private:
     rayr::BasicTest *core;
 internal:
+    bool Screenshot(CLIWrapper<xziar::img::Image> theImg, Func<String^>^ fnameCallback);
 public:
     BasicTest();
     ~BasicTest() { this->!BasicTest(); }
@@ -250,6 +251,9 @@ public:
 
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
+
+    bool Screenshot(String^ fname);
+    Task<bool>^ ScreenshotAsync(Func<String^>^ fname);
 };
 
 

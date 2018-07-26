@@ -73,7 +73,22 @@ Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
 }
 
+bool BasicTest::Screenshot(String^ fname)
+{
+    return false;
+}
 
+bool BasicTest::Screenshot(CLIWrapper<xziar::img::Image> theImg, Func<String^>^ fnameCallback)
+{
+    return false;
+}
+
+Task<bool>^ BasicTest::ScreenshotAsync(Func<String^>^ fnameCallback)
+{
+    /*gcnew Func<CLIWrapper<xziar::img::Image>, bool>::
+    return doAsync3<bool>()*/
+    return nullptr;
+}
 
 #pragma managed(push, off)
 static Wrapper<b3d::Light> CreateLight(b3d::LightType type)

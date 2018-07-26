@@ -290,12 +290,13 @@ namespace WPFTest
         {
             var dlg = new OpenFileDialog()
             {
-                Filter = "Wavefront obj files(.obj)|*.obj",
+                Filter = "Wavefront obj files (*.obj)|*.obj",
                 Title = "导入obj模型",
                 AddExtension = true,
                 CheckFileExists = true,
                 CheckPathExists = true,
                 Multiselect = false,
+                ValidateNames = true,
             };
             if (dlg.ShowDialog() == true)
             {
@@ -484,7 +485,19 @@ namespace WPFTest
 
         private void btnScreenshot_Click(object sender, RoutedEventArgs e)
         {
+            var dlg = new SaveFileDialog()
+            {
+                Filter = "JPEG file (*.jpg)|*.jpg|PNG file (*.png)|*.png|BMP file (*.bmp)|*.bmp",
+                Title = "保存屏幕截图",
+                AddExtension = true,
+                OverwritePrompt = true,
+                CheckPathExists = true,
+                ValidateNames = true,
+            };
+            if (dlg.ShowDialog() == true)
+            {
 
+            }
         }
 
         private void btnUseShader_Click(object sender, RoutedEventArgs e)

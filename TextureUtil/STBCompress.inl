@@ -6,7 +6,7 @@
 #include "3rdParty/stblib/stb_dxt.h"
 #include "OpenGLUtil/oglException.h"
 
-//#define COMMON_SIMD_LV 200
+//#define COMMON_SIMD_LV 100
 namespace oglu::texutil::detail
 {
 
@@ -16,8 +16,7 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
 #if COMMON_SIMD_LV < 31
     stb_compress_bc5_block(dest, buffer);
 #else
-    const auto backup = _MM_GET_ROUNDING_MODE();
-    _MM_SET_ROUNDING_MODE(_MM_ROUND_TOWARD_ZERO);
+    
     //12345678,abcdefgh
     const auto l12 = _mm_load_si128(reinterpret_cast<const __m128i*>(buffer)), l34 = _mm_load_si128(reinterpret_cast<const __m128i*>(buffer) + 1);
     const auto max1 = _mm_max_epu8(l12, l34), min1 = _mm_min_epu8(l12, l34);//12345678
@@ -34,32 +33,33 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     dest[0] = Rmax, dest[1] = Rmin;
     dest[8] = Gmax, dest[9] = Gmin;
 #   if COMMON_SIMD_LV >= 200
-    const auto num7F = _mm256_set1_ps(7);
+    __m256i Ri1234, Gi1234, num7_16 = _mm256_set1_epi16(7);
+    if (const auto Rdist = Rmax - Rmin; Rdist > 0)
+    {
+        const auto SHUF_MSK_R = _mm256_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1, 0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+        auto R1234 = _mm256_sub_epi16(_mm256_shuffle_epi8(_mm256_set_m128i(l34, l12), SHUF_MSK_R), _mm256_set1_epi16(Rmin));
+        const auto Rbias = Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2);
+        R1234 = _mm256_add_epi16(_mm256_mullo_epi16(R1234, num7_16), _mm256_set1_epi16(static_cast<int16_t>(Rbias)));
+        const auto Rdist1 = _mm256_set1_epi16(static_cast<int16_t>(UINT16_MAX / Rdist));
+        Ri1234 = _mm256_mulhi_epi16(R1234, Rdist1);
+    }
+    else
+        Ri1234 = _mm256_setzero_si256();
 
-    const auto SHUF_MSK_R = _mm256_setr_epi8(0, -1, -1, -1, 2, -1, -1, -1, 4, -1, -1, -1, 6, -1, -1, -1, 8, -1, -1, -1, 10, -1, -1, -1, 12, -1, -1, -1, 14, -1, -1, -1);
-    const auto Rdist = Rmax - Rmin;
-    const auto Rbias = (Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2)) - Rmin * 7;
-    const auto RbiasF = _mm256_set1_ps(static_cast<int16_t>(Rbias));
-    const auto R12 = _mm256_fmadd_ps(_mm256_cvtepi32_ps(_mm256_shuffle_epi8(_mm256_broadcastsi128_si256(l12), SHUF_MSK_R)), num7F, RbiasF),
-        R34 = _mm256_fmadd_ps(_mm256_cvtepi32_ps(_mm256_shuffle_epi8(_mm256_broadcastsi128_si256(l34), SHUF_MSK_R)), num7F, RbiasF);
-    
-    const auto Rdist1F = _mm256_broadcastss_ps(_mm_rcp_ss(_mm_set1_ps(static_cast<int16_t>(Rdist))));
-    const auto Ri12 = _mm256_cvtps_epi32(_mm256_mul_ps(R12, Rdist1F)), Ri34 = _mm256_cvtps_epi32(_mm256_mul_ps(R34, Rdist1F));
+    if (const auto Gdist = Gmax - Gmin; Gdist > 0)
+    {
+        const auto SHUF_MSK_G = _mm256_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1, 1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
+        auto G1234 = _mm256_sub_epi16(_mm256_shuffle_epi8(_mm256_set_m128i(l34, l12), SHUF_MSK_G), _mm256_set1_epi16(Gmin));
+        const auto Gbias = Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2);
+        G1234 = _mm256_add_epi16(_mm256_mullo_epi16(G1234, num7_16), _mm256_set1_epi16(static_cast<int16_t>(Gbias)));
+        const auto Gdist1 = _mm256_set1_epi16(static_cast<int16_t>(UINT16_MAX / Gdist));
+        Gi1234 = _mm256_mulhi_epi16(G1234, Gdist1);
+    }
+    else
+        Gi1234 = _mm256_setzero_si256();
 
-    const auto SHUF_MSK_G = _mm256_setr_epi8(1, -1, -1, -1, 3, -1, -1, -1, 5, -1, -1, -1, 7, -1, -1, -1, 9, -1, -1, -1, 11, -1, -1, -1, 13, -1, -1, -1, 15, -1, -1, -1);
-    const auto Gdist = Gmax - Gmin;
-    const auto Gbias = (Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2)) - Gmin * 7;
-    const auto GbiasF = _mm256_set1_ps(static_cast<int16_t>(Gbias));
-    const auto G12 = _mm256_fmadd_ps(_mm256_cvtepi32_ps(_mm256_shuffle_epi8(_mm256_broadcastsi128_si256(l12), SHUF_MSK_G)), num7F, GbiasF),
-        G34 = _mm256_fmadd_ps(_mm256_cvtepi32_ps(_mm256_shuffle_epi8(_mm256_broadcastsi128_si256(l34), SHUF_MSK_G)), num7F, GbiasF);
-
-    const auto Gdist1F = _mm256_broadcastss_ps(_mm_rcp_ss(_mm_set1_ps(static_cast<int16_t>(Gdist))));
-    const auto Gi12 = _mm256_cvtps_epi32(_mm256_mul_ps(G12, Gdist1F)), Gi34 = _mm256_cvtps_epi32(_mm256_mul_ps(G34, Gdist1F));
-
-    const auto SHUF_MSK_12 = _mm256_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1),
-        SHUF_MSK_34 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
-    const auto Rtmp = _mm256_or_si256(_mm256_shuffle_epi8(Ri12, SHUF_MSK_12), _mm256_shuffle_epi8(Ri34, SHUF_MSK_34)),
-        Gtmp = _mm256_or_si256(_mm256_shuffle_epi8(Gi12, SHUF_MSK_12), _mm256_shuffle_epi8(Gi34, SHUF_MSK_34));
+    const auto SHUF_MSK = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
+    const auto Rtmp = _mm256_shuffle_epi8(Ri1234, SHUF_MSK), Gtmp = _mm256_shuffle_epi8(Gi1234, SHUF_MSK);
     auto RGidx = _mm256_or_si256(_mm256_permute2x128_si256(Rtmp, Gtmp, 0x20), _mm256_permute2x128_si256(Rtmp, Gtmp, 0x31));
 
     const auto num0 = _mm256_setzero_si256(), num7 = _mm256_set1_epi8(7);
@@ -68,45 +68,41 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     RGidx = _mm256_xor_si256(_mm256_and_si256(_mm256_cmpgt_epi8(num2, RGidx), num1), RGidx);
     _mm256_store_si256(reinterpret_cast<__m256i*>(buffer), RGidx);
 #   else
-    const auto num7F = _mm_set1_ps(7);
-    const auto SHUF_MSK_R1 = _mm_setr_epi8(0, -1, -1, -1, 2, -1, -1, -1, 4, -1, -1, -1, 6, -1, -1, -1),
-        SHUF_MSK_R2 = _mm_setr_epi8(8, -1, -1, -1, 10, -1, -1, -1, 12, -1, -1, -1, 14, -1, -1, -1);
-    const auto R1 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l12, SHUF_MSK_R1)), num7F),
-        R2 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l12, SHUF_MSK_R2)), num7F),
-        R3 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l34, SHUF_MSK_R1)), num7F),
-        R4 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l34, SHUF_MSK_R2)), num7F);
+    __m128i Ri12, Ri34, Gi12, Gi34, num7_16 = _mm_set1_epi16(7);
+    if (const auto Rdist = Rmax - Rmin; Rdist > 0)
+    {
+        const auto SHUF_MSK_R = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+        const auto Rmin8 = _mm_set1_epi16(Rmin);
+        auto R12 = _mm_sub_epi16(_mm_shuffle_epi8(l12, SHUF_MSK_R), Rmin8);
+        auto R34 = _mm_sub_epi16(_mm_shuffle_epi8(l34, SHUF_MSK_R), Rmin8);
+        const auto Rbias = Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2);
+        const auto Rbias8 = _mm_set1_epi16(static_cast<int16_t>(Rbias));
+        R12 = _mm_add_epi16(_mm_mullo_epi16(R12, num7_16), Rbias8), R34 = _mm_add_epi16(_mm_mullo_epi16(R34, num7_16), Rbias8);
+        const auto Rdist1 = _mm_set1_epi16(static_cast<int16_t>(UINT16_MAX / Rdist));
+        Ri12 = _mm_mulhi_epi16(R12, Rdist1), Ri34 = _mm_mulhi_epi16(R34, Rdist1);
+    }
+    else
+        Ri12 = Ri34 = _mm_setzero_si128();
 
-    const auto Rdist = Rmax - Rmin;
-    const auto Rbias = (Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2)) - Rmin * 7;
-    const auto RbiasF = _mm_set1_ps(static_cast<int16_t>(Rbias)), Rdist1F = _mm_rcp_ps(_mm_set1_ps(static_cast<int16_t>(Rdist)));
-    const auto Ri1 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(R1, RbiasF), Rdist1F)),
-        Ri2 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(R2, RbiasF), Rdist1F)),
-        Ri3 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(R3, RbiasF), Rdist1F)),
-        Ri4 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(R4, RbiasF), Rdist1F));
+    if (const auto Gdist = Gmax - Gmin; Gdist > 0)
+    {
+        const auto SHUF_MSK_G = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
+        const auto Gmin8 = _mm_set1_epi16(Gmin);
+        auto G12 = _mm_sub_epi16(_mm_shuffle_epi8(l12, SHUF_MSK_G), Gmin8);
+        auto G34 = _mm_sub_epi16(_mm_shuffle_epi8(l34, SHUF_MSK_G), Gmin8);
+        const auto Gbias = Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2);
+        const auto Gbias8 = _mm_set1_epi16(static_cast<int16_t>(Gbias));
+        G12 = _mm_add_epi16(_mm_mullo_epi16(G12, num7_16), Gbias8), G34 = _mm_add_epi16(_mm_mullo_epi16(G34, num7_16), Gbias8);
+        const auto Gdist1 = _mm_set1_epi16(static_cast<int16_t>(UINT16_MAX / Gdist));
+        Gi12 = _mm_mulhi_epi16(G12, Gdist1), Gi34 = _mm_mulhi_epi16(G34, Gdist1);
+    }
+    else
+        Gi12 = Gi34 = _mm_setzero_si128();
 
-    const auto SHUF_MSK_G1 = _mm_setr_epi8(1, -1, -1, -1, 3, -1, -1, -1, 5, -1, -1, -1, 7, -1, -1, -1),
-        SHUF_MSK_G2 = _mm_setr_epi8(9, -1, -1, -1, 11, -1, -1, -1, 13, -1, -1, -1, 15, -1, -1, -1);
-    const auto G1 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l12, SHUF_MSK_G1)), num7F),
-        G2 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l12, SHUF_MSK_G2)), num7F),
-        G3 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l34, SHUF_MSK_G1)), num7F),
-        G4 = _mm_mul_ps(_mm_cvtepi32_ps(_mm_shuffle_epi8(l34, SHUF_MSK_G2)), num7F);
-
-    const auto Gdist = Gmax - Gmin;
-    const auto Gbias = (Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2)) - Gmin * 7;
-    const auto GbiasF = _mm_set1_ps(static_cast<int16_t>(Gbias)), Gdist1F = _mm_rcp_ps(_mm_set1_ps(static_cast<int16_t>(Gdist)));
-    const auto Gi1 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(G1, GbiasF), Gdist1F)),
-        Gi2 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(G2, GbiasF), Gdist1F)),
-        Gi3 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(G3, GbiasF), Gdist1F)),
-        Gi4 = _mm_cvtps_epi32(_mm_mul_ps(_mm_add_ps(G4, GbiasF), Gdist1F));
-
-    const auto SHUF_MSK_1 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
-        SHUF_MSK_2 = _mm_setr_epi8(-1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1),
-        SHUF_MSK_3 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1),
-        SHUF_MSK_4 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
-    auto Ridx = _mm_or_si128(_mm_or_si128(_mm_shuffle_epi8(Ri1, SHUF_MSK_1), _mm_shuffle_epi8(Ri2, SHUF_MSK_2)),
-        _mm_or_si128(_mm_shuffle_epi8(Ri3, SHUF_MSK_3), _mm_shuffle_epi8(Ri4, SHUF_MSK_4)));
-    auto Gidx = _mm_or_si128(_mm_or_si128(_mm_shuffle_epi8(Gi1, SHUF_MSK_1), _mm_shuffle_epi8(Gi2, SHUF_MSK_2)),
-        _mm_or_si128(_mm_shuffle_epi8(Gi3, SHUF_MSK_3), _mm_shuffle_epi8(Gi4, SHUF_MSK_4)));
+    const auto SHUF_MSK_12 = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto SHUF_MSK_34 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
+    auto Ridx = _mm_or_si128(_mm_shuffle_epi8(Ri12, SHUF_MSK_12), _mm_shuffle_epi8(Ri34, SHUF_MSK_34));
+    auto Gidx = _mm_or_si128(_mm_shuffle_epi8(Gi12, SHUF_MSK_12), _mm_shuffle_epi8(Gi34, SHUF_MSK_34));
 
     const auto num0 = _mm_setzero_si128(), num7 = _mm_set1_epi8(7);
     Ridx = _mm_and_si128(_mm_sub_epi8(num0, Ridx), num7), Gidx = _mm_and_si128(_mm_sub_epi8(num0, Gidx), num7);
@@ -127,7 +123,6 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     dest[5] = static_cast<uint8_t>((buffer[8] >> 0) | (buffer[9] << 3) | (buffer[10] << 6));
     dest[6] = static_cast<uint8_t>((buffer[10] >> 2) | (buffer[11] << 1) | (buffer[12] << 4) | (buffer[13] << 7));
     dest[7] = static_cast<uint8_t>((buffer[13] >> 1) | (buffer[14] << 2) | (buffer[15] << 5));
-    _MM_SET_ROUNDING_MODE(backup);
 #endif
 }
 

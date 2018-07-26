@@ -130,7 +130,33 @@ inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict src
         srcPtr += 64; destPtr += 64; count -= 64;
     }
 #elif COMMON_SIMD_LV >= 31
+    const auto SHUF_MSK1 = _mm_setr_epi8( 0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1);
+    const auto SHUF_MSK2 = _mm_setr_epi8( 4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1);
+    const auto SHUF_MSK3 = _mm_setr_epi8( 8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1);
+    const auto SHUF_MSK4 = _mm_setr_epi8(12, -1, -1, -1, 13, -1, -1, -1, 14, -1, -1, -1, 15, -1, -1, -1);
     const auto muler4 = _mm_set1_ps(muler);
+    while (count > 32)
+    {
+        const auto src0 = _mm_loadu_si128((const __m128i*)srcPtr);//00~0f
+        const auto src1 = _mm_loadu_si128((const __m128i*)(srcPtr + 16));//10~1f
+        const auto abcd0 = _mm_shuffle_epi8(src0, SHUF_MSK1);//00-03
+        const auto abcd1 = _mm_shuffle_epi8(src0, SHUF_MSK2);//04-07
+        const auto abcd2 = _mm_shuffle_epi8(src0, SHUF_MSK3);//08-0b
+        const auto abcd3 = _mm_shuffle_epi8(src0, SHUF_MSK4);//0c-0f
+        const auto abcd4 = _mm_shuffle_epi8(src1, SHUF_MSK1);//10-13
+        const auto abcd5 = _mm_shuffle_epi8(src1, SHUF_MSK2);//14-17
+        const auto abcd6 = _mm_shuffle_epi8(src1, SHUF_MSK3);//18-1b
+        const auto abcd7 = _mm_shuffle_epi8(src1, SHUF_MSK4);//1c-1f
+        _mm_storeu_ps(destPtr, _mm_mul_ps(_mm_cvtepi32_ps(abcd0), muler4));
+        _mm_storeu_ps(destPtr + 4, _mm_mul_ps(_mm_cvtepi32_ps(abcd1), muler4));
+        _mm_storeu_ps(destPtr + 8, _mm_mul_ps(_mm_cvtepi32_ps(abcd2), muler4));
+        _mm_storeu_ps(destPtr + 12, _mm_mul_ps(_mm_cvtepi32_ps(abcd3), muler4));
+        _mm_storeu_ps(destPtr + 16, _mm_mul_ps(_mm_cvtepi32_ps(abcd4), muler4));
+        _mm_storeu_ps(destPtr + 20, _mm_mul_ps(_mm_cvtepi32_ps(abcd5), muler4));
+        _mm_storeu_ps(destPtr + 24, _mm_mul_ps(_mm_cvtepi32_ps(abcd6), muler4));
+        _mm_storeu_ps(destPtr + 28, _mm_mul_ps(_mm_cvtepi32_ps(abcd7), muler4));
+        srcPtr += 32; destPtr += 32; count -= 32;
+    }
 #endif
     while (count > 0)
     {
