@@ -293,10 +293,8 @@ void MultiMaterialHolder::Refresh()
             texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format);
             const auto[w, h, l] = texarr->GetSize();
             texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h));
-            texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
-            
-            static_assert(std::is_convertible_v<decltype(std::declval<u16string>().data()), const char16_t*>);
         }
+        texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)
         {
             InsertLayer(texarr, objLayer, tex);

@@ -184,7 +184,7 @@ public:
     }
     Task<bool>^ AddModelAsync(String^ fname);
 internal:
-    bool AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel);
+    bool AddModel(CLIWrapper<Wrapper<rayr::Model>>^ theModel);
 };
 
 public ref class ShaderHolder : public HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>
@@ -193,7 +193,7 @@ internal:
     ShaderHolder(rayr::BasicTest * const core, const std::set<oglu::oglProgram>& progs)
         : HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>(core, progs)
     { }
-    bool AddShader(CLIWrapper<oglu::oglProgram> theShader);
+    bool AddShader(CLIWrapper<oglu::oglProgram>^ theShader);
 public:
     property List<OpenGLUtil::GLProgram^>^ Shaders
     {
@@ -217,7 +217,6 @@ public ref class BasicTest : public BaseViewModel
 private:
     rayr::BasicTest *core;
 internal:
-    bool Screenshot(CLIWrapper<xziar::img::Image> theImg, Func<String^>^ fnameCallback);
 public:
     BasicTest();
     ~BasicTest() { this->!BasicTest(); }
@@ -247,13 +246,12 @@ public:
 
     void Draw();
     void Resize(const uint32_t w, const uint32_t h);
-    void ResizeOffScreen(const uint32_t w, const uint32_t h);
+    void ResizeOffScreen(const uint32_t w, const uint32_t h, const bool isFloatDepth);
 
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
 
-    bool Screenshot(String^ fname);
-    Task<bool>^ ScreenshotAsync(Func<String^>^ fname);
+    Action<String^>^ Screenshot();
 };
 
 

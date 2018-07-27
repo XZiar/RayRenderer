@@ -9,7 +9,7 @@ using common::BaseException;
 
 enum class ImageDataType : uint8_t
 {
-    ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0,
+    ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0, UNKNOWN_RESERVE = 0xff,
     RGB = 0, RGBA = RGB | ALPHA_MASK, RGBf = RGB | FLOAT_MASK, RGBAf = RGBA | FLOAT_MASK,
     BGR = 1, BGRA = BGR | ALPHA_MASK, BGRf = BGR | FLOAT_MASK, BGRAf = BGRA | FLOAT_MASK,
     GRAY = 2, RED = GRAY, GA = GRAY | ALPHA_MASK, RA = GA, GRAYf = GRAY | FLOAT_MASK, REDf = GRAYf, GAf = GA | FLOAT_MASK, RAf = GAf,

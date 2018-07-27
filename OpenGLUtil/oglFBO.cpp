@@ -21,6 +21,7 @@ static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
     case RBOFormat::Stencil16:
         return _oglRenderBuffer::RBOType::Stencil;
     case RBOFormat::Depth24Stencil8:
+    case RBOFormat::Depth32Stencil8:
         return _oglRenderBuffer::RBOType::DepthStencil;
     case RBOFormat::RGBA8:
     case RBOFormat::RGBA8U:
@@ -147,13 +148,13 @@ static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32
     GLint drawFboId = 0, readFboId = 0;
     glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFboId);
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFboId);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER_BINDING, from);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_BINDING, to);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
     const auto&[x0, y0, x1, y1] = rect;
     glBlitFramebuffer(x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER_BINDING, readFboId);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER_BINDING, drawFboId);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, readFboId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFboId);
 }
 
 void _oglFrameBuffer::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)

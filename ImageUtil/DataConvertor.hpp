@@ -1,16 +1,33 @@
 #pragma once
 
 #include "ImageUtilRely.h"
-
+#include <boost/detail/endian.hpp>
+#if BOOST_BYTE_ORDER != 1234
+#   pragma message("unsupported byte order (non little endian), fallback to SIMD_LV = 0")
+#   undef COMMON_SIMD_LV
+#   define COMMON_SIMD_LV 0
+#endif
 
 namespace xziar::img::convert
 {
 
-inline uint16_t ParseWordLE(const byte *data) { return static_cast<uint16_t>((std::to_integer<uint16_t>(data[1]) << 8) + std::to_integer<uint16_t>(data[0])); }
-inline uint16_t ParseWordBE(const byte *data) { return static_cast<uint16_t>(std::to_integer<uint16_t>(data[1]) + std::to_integer<uint16_t>(data[0] << 8)); }
-inline void WordToLE(byte *output, const uint16_t data) { output[0] = byte(data & 0xff); output[1] = byte(data >> 8); }
-inline void WordToBE(byte *output, const uint16_t data) { output[1] = byte(data & 0xff); output[0] = byte(data >> 8); }
-inline uint32_t ParseDWordLE(const byte *data) 
+inline uint16_t ParseWordLE(const byte * __restrict data) 
+{ 
+    return static_cast<uint16_t>((std::to_integer<uint16_t>(data[1]) << 8) + std::to_integer<uint16_t>(data[0]));
+}
+inline uint16_t ParseWordBE(const byte * __restrict data) 
+{ 
+    return static_cast<uint16_t>(std::to_integer<uint16_t>(data[1]) + std::to_integer<uint16_t>(data[0] << 8));
+}
+inline void WordToLE(byte * __restrict output, const uint16_t data) 
+{ 
+    output[0] = byte(data & 0xff); output[1] = byte(data >> 8);
+}
+inline void WordToBE(byte * __restrict output, const uint16_t data) 
+{ 
+    output[1] = byte(data & 0xff); output[0] = byte(data >> 8);
+}
+inline uint32_t ParseDWordLE(const byte * __restrict data)
 { 
     return static_cast<uint32_t>(
         (std::to_integer<uint32_t>(data[3]) << 24) + 
@@ -18,7 +35,7 @@ inline uint32_t ParseDWordLE(const byte *data)
         (std::to_integer<uint32_t>(data[1]) << 8) + 
         (std::to_integer<uint32_t>(data[0])));
 }
-inline uint32_t ParseDWordBE(const byte *data) 
+inline uint32_t ParseDWordBE(const byte * __restrict data)
 {
     return static_cast<uint32_t>(
         (std::to_integer<uint32_t>(data[3])) + 
@@ -26,8 +43,14 @@ inline uint32_t ParseDWordBE(const byte *data)
         (std::to_integer<uint32_t>(data[1]) << 16) + 
         (std::to_integer<uint32_t>(data[0]) << 24));
 }
-inline void DWordToLE(byte *output, const uint32_t data) { output[0] = byte(data & 0xff); output[1] = byte(data >> 8); output[2] = byte(data >> 16); output[3] = byte(data >> 24); }
-inline void DWordToBE(byte *output, const uint32_t data) { output[3] = byte(data & 0xff); output[2] = byte(data >> 8); output[1] = byte(data >> 16); output[0] = byte(data >> 24); }
+inline void DWordToLE(byte * __restrict output, const uint32_t data)
+{ 
+    output[0] = byte(data & 0xff); output[1] = byte(data >> 8); output[2] = byte(data >> 16); output[3] = byte(data >> 24);
+}
+inline void DWordToBE(byte * __restrict output, const uint32_t data)
+{ 
+    output[3] = byte(data & 0xff); output[2] = byte(data >> 8); output[1] = byte(data >> 16); output[0] = byte(data >> 24);
+}
 
 template<typename T>
 inline T EmptyStruct()
@@ -38,7 +61,7 @@ inline T EmptyStruct()
 }
 
 
-inline void FixAlpha(size_t count, uint32_t* destPtr)
+inline void FixAlpha(size_t count, uint32_t* __restrict destPtr)
 {
     while (count--)
         (*destPtr++) |= 0xff000000u;

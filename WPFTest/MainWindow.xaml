@@ -181,6 +181,9 @@
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="离屏尺寸">
                         <ComboBox x:Name="cboxOSize" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
                     </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="浮点深度">
+                        <CheckBox x:Name="ckboxFDepth" IsChecked="true"/>
+                    </ext:LabelControl>
                 </StackPanel>
             </TabItem>
             <TabItem Header="物体" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">

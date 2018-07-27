@@ -74,8 +74,8 @@ public:
     void SetDepthTest(const DepthTestType type);
     void SetFaceCulling(const FaceCullingType type);
     void SetDepthClip(const bool fix);
-    DepthTestType GetDepthTest() { return DepthTestFunc; }
-    FaceCullingType GetFaceCulling() { return FaceCulling; }
+    DepthTestType GetDepthTest() const { return DepthTestFunc; }
+    FaceCullingType GetFaceCulling() const { return FaceCulling; }
 
     bool SetFBO(const oglFBO& fbo = {});
     void SetSRGBFBO(const bool isEnable);

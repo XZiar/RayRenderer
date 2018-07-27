@@ -5,8 +5,13 @@
 #define STB_DXT_IMPLEMENTATION
 #include "3rdParty/stblib/stb_dxt.h"
 #include "OpenGLUtil/oglException.h"
+#include <boost/detail/endian.hpp>
+#if BOOST_BYTE_ORDER != 1234
+#   pragma message("unsupported byte order (non little endian), fallback to SIMD_LV = 0")
+#   undef COMMON_SIMD_LV
+#   define COMMON_SIMD_LV 0
+#endif
 
-//#define COMMON_SIMD_LV 100
 namespace oglu::texutil::detail
 {
 
@@ -14,9 +19,8 @@ namespace oglu::texutil::detail
 static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __restrict buffer)
 {
 #if COMMON_SIMD_LV < 31
-    stb_compress_bc5_block(dest, buffer);
+    return stb_compress_bc5_block(dest, buffer);
 #else
-    
     //12345678,abcdefgh
     const auto l12 = _mm_load_si128(reinterpret_cast<const __m128i*>(buffer)), l34 = _mm_load_si128(reinterpret_cast<const __m128i*>(buffer) + 1);
     const auto max1 = _mm_max_epu8(l12, l34), min1 = _mm_min_epu8(l12, l34);//12345678
@@ -33,11 +37,11 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     dest[0] = Rmax, dest[1] = Rmin;
     dest[8] = Gmax, dest[9] = Gmin;
 #   if COMMON_SIMD_LV >= 200
-    __m256i Ri1234, Gi1234, num7_16 = _mm256_set1_epi16(7);
+    const auto blk = _mm256_set_m128i(l34, l12), num7_16 = _mm256_set1_epi16(7);
+    __m256i Ri1234, Gi1234;
     if (const auto Rdist = Rmax - Rmin; Rdist > 0)
     {
-        const auto SHUF_MSK_R = _mm256_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1, 0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
-        auto R1234 = _mm256_sub_epi16(_mm256_shuffle_epi8(_mm256_set_m128i(l34, l12), SHUF_MSK_R), _mm256_set1_epi16(Rmin));
+        auto R1234 = _mm256_sub_epi16(_mm256_and_si256(blk, _mm256_set1_epi16(0xff)), _mm256_set1_epi16(Rmin));
         const auto Rbias = Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2);
         R1234 = _mm256_add_epi16(_mm256_mullo_epi16(R1234, num7_16), _mm256_set1_epi16(static_cast<int16_t>(Rbias)));
         const auto Rdist1 = _mm256_set1_epi16(static_cast<int16_t>(UINT16_MAX / Rdist));
@@ -49,7 +53,7 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     if (const auto Gdist = Gmax - Gmin; Gdist > 0)
     {
         const auto SHUF_MSK_G = _mm256_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1, 1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
-        auto G1234 = _mm256_sub_epi16(_mm256_shuffle_epi8(_mm256_set_m128i(l34, l12), SHUF_MSK_G), _mm256_set1_epi16(Gmin));
+        auto G1234 = _mm256_sub_epi16(_mm256_shuffle_epi8(blk, SHUF_MSK_G), _mm256_set1_epi16(Gmin));
         const auto Gbias = Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2);
         G1234 = _mm256_add_epi16(_mm256_mullo_epi16(G1234, num7_16), _mm256_set1_epi16(static_cast<int16_t>(Gbias)));
         const auto Gdist1 = _mm256_set1_epi16(static_cast<int16_t>(UINT16_MAX / Gdist));
@@ -71,10 +75,9 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     __m128i Ri12, Ri34, Gi12, Gi34, num7_16 = _mm_set1_epi16(7);
     if (const auto Rdist = Rmax - Rmin; Rdist > 0)
     {
-        const auto SHUF_MSK_R = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
-        const auto Rmin8 = _mm_set1_epi16(Rmin);
-        auto R12 = _mm_sub_epi16(_mm_shuffle_epi8(l12, SHUF_MSK_R), Rmin8);
-        auto R34 = _mm_sub_epi16(_mm_shuffle_epi8(l34, SHUF_MSK_R), Rmin8);
+        const auto BLEND_MSK_R = _mm_set1_epi16(0xff), Rmin8 = _mm_set1_epi16(Rmin);
+        auto R12 = _mm_sub_epi16(_mm_and_si128(l12, BLEND_MSK_R), Rmin8);
+        auto R34 = _mm_sub_epi16(_mm_and_si128(l34, BLEND_MSK_R), Rmin8);
         const auto Rbias = Rdist < 8 ? (Rdist - 1) : (Rdist / 2 + 2);
         const auto Rbias8 = _mm_set1_epi16(static_cast<int16_t>(Rbias));
         R12 = _mm_add_epi16(_mm_mullo_epi16(R12, num7_16), Rbias8), R34 = _mm_add_epi16(_mm_mullo_epi16(R34, num7_16), Rbias8);
@@ -86,8 +89,7 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
 
     if (const auto Gdist = Gmax - Gmin; Gdist > 0)
     {
-        const auto SHUF_MSK_G = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
-        const auto Gmin8 = _mm_set1_epi16(Gmin);
+        const auto SHUF_MSK_G = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1), Gmin8 = _mm_set1_epi16(Gmin);
         auto G12 = _mm_sub_epi16(_mm_shuffle_epi8(l12, SHUF_MSK_G), Gmin8);
         auto G34 = _mm_sub_epi16(_mm_shuffle_epi8(l34, SHUF_MSK_G), Gmin8);
         const auto Gbias = Gdist < 8 ? (Gdist - 1) : (Gdist / 2 + 2);
@@ -110,19 +112,13 @@ static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __
     Ridx = _mm_xor_si128(_mm_and_si128(_mm_cmpgt_epi8(num2, Ridx), num1), Ridx), Gidx = _mm_xor_si128(_mm_and_si128(_mm_cmpgt_epi8(num2, Gidx), num1), Gidx);
     _mm_store_si128(reinterpret_cast<__m128i*>(buffer), Ridx), _mm_store_si128(reinterpret_cast<__m128i*>(buffer) + 1, Gidx);
 #   endif
-    dest[2] = static_cast<uint8_t>((buffer[0] >> 0) | (buffer[1] << 3) | (buffer[2] << 6));
-    dest[3] = static_cast<uint8_t>((buffer[2] >> 2) | (buffer[3] << 1) | (buffer[4] << 4) | (buffer[5] << 7));
-    dest[4] = static_cast<uint8_t>((buffer[5] >> 1) | (buffer[6] << 2) | (buffer[7] << 5));
-    dest[5] = static_cast<uint8_t>((buffer[8] >> 0) | (buffer[9] << 3) | (buffer[10] << 6));
-    dest[6] = static_cast<uint8_t>((buffer[10] >> 2) | (buffer[11] << 1) | (buffer[12] << 4) | (buffer[13] << 7));
-    dest[7] = static_cast<uint8_t>((buffer[13] >> 1) | (buffer[14] << 2) | (buffer[15] << 5));
-    dest += 8, buffer += 16;
-    dest[2] = static_cast<uint8_t>((buffer[0] >> 0) | (buffer[1] << 3) | (buffer[2] << 6));
-    dest[3] = static_cast<uint8_t>((buffer[2] >> 2) | (buffer[3] << 1) | (buffer[4] << 4) | (buffer[5] << 7));
-    dest[4] = static_cast<uint8_t>((buffer[5] >> 1) | (buffer[6] << 2) | (buffer[7] << 5));
-    dest[5] = static_cast<uint8_t>((buffer[8] >> 0) | (buffer[9] << 3) | (buffer[10] << 6));
-    dest[6] = static_cast<uint8_t>((buffer[10] >> 2) | (buffer[11] << 1) | (buffer[12] << 4) | (buffer[13] << 7));
-    dest[7] = static_cast<uint8_t>((buffer[13] >> 1) | (buffer[14] << 2) | (buffer[15] << 5));
+    *reinterpret_cast<uint16_t*>(&dest[2]) = static_cast<uint16_t>((buffer[0] >> 0) | (buffer[1] << 3) | (buffer[2] << 6) | (buffer[3] << 9) | (buffer[4] << 12) | (buffer[5] << 15));
+    *reinterpret_cast<uint16_t*>(&dest[4]) = static_cast<uint16_t>((buffer[5] >> 1) | (buffer[6] << 2) | (buffer[7] << 5) | (buffer[8] << 8) | (buffer[9] << 11) | (buffer[10] << 14));
+    *reinterpret_cast<uint16_t*>(&dest[6]) = static_cast<uint16_t>((buffer[10] >> 2) | (buffer[11] << 1) | (buffer[12] << 4) | (buffer[13] << 7) | (buffer[14] << 10) | (buffer[15] << 13));
+    dest += 8, buffer += 16; 
+    *reinterpret_cast<uint16_t*>(&dest[2]) = static_cast<uint16_t>((buffer[0] >> 0) | (buffer[1] << 3) | (buffer[2] << 6) | (buffer[3] << 9) | (buffer[4] << 12) | (buffer[5] << 15));
+    *reinterpret_cast<uint16_t*>(&dest[4]) = static_cast<uint16_t>((buffer[5] >> 1) | (buffer[6] << 2) | (buffer[7] << 5) | (buffer[8] << 8) | (buffer[9] << 11) | (buffer[10] << 14));
+    *reinterpret_cast<uint16_t*>(&dest[6]) = static_cast<uint16_t>((buffer[10] >> 2) | (buffer[11] << 1) | (buffer[12] << 4) | (buffer[13] << 7) | (buffer[14] << 10) | (buffer[15] << 13));
 #endif
 }
 

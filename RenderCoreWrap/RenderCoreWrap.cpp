@@ -1,5 +1,6 @@
 #include "RenderCoreWrapRely.h"
 #include "RenderCoreWrap.h"
+#include "ImageUtil.h"
 #include "common/CLIAsync.hpp"
 
 
@@ -58,9 +59,9 @@ void BasicTest::Resize(const uint32_t w, const uint32_t h)
     core->Resize(w, h);
 }
 
-void BasicTest::ResizeOffScreen(const uint32_t w, const uint32_t h)
+void BasicTest::ResizeOffScreen(const uint32_t w, const uint32_t h, const bool isFloatDepth)
 {
-    core->ResizeFBO(w, h);
+    core->ResizeFBO(w, h, isFloatDepth);
 }
 
 void BasicTest::ReLoadCL(String^ fname)
@@ -73,21 +74,10 @@ Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
 }
 
-bool BasicTest::Screenshot(String^ fname)
+Action<String^>^ BasicTest::Screenshot()
 {
-    return false;
-}
-
-bool BasicTest::Screenshot(CLIWrapper<xziar::img::Image> theImg, Func<String^>^ fnameCallback)
-{
-    return false;
-}
-
-Task<bool>^ BasicTest::ScreenshotAsync(Func<String^>^ fnameCallback)
-{
-    /*gcnew Func<CLIWrapper<xziar::img::Image>, bool>::
-    return doAsync3<bool>()*/
-    return nullptr;
+    auto saver = gcnew XZiar::Img::ImageSaver(core->Scrrenshot());
+    return gcnew Action<String^>(saver, &XZiar::Img::ImageSaver::Save);
 }
 
 #pragma managed(push, off)
@@ -133,9 +123,9 @@ void LightHolder::Clear()
 }
 
 
-bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel)
+bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
 {
-    auto model = theModel.Extract();
+    auto model = theModel->Extract();
     bool ret = Core->AddObject(model);
     if (ret)
     {
@@ -145,14 +135,14 @@ bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>> theModel)
 }
 Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
 {
-    return doAsync3<bool>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>, bool>(this, &DrawableHolder::AddModel), 
+    return doAsync3<bool>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, bool>(this, &DrawableHolder::AddModel), 
         &rayr::BasicTest::LoadModelAsync, Core, ToU16Str(fname));
 }
 
 
-bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram> theShader)
+bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram>^ theShader)
 {
-    auto shader = theShader.Extract();
+    auto shader = theShader->Extract();
     if (Core->AddShader(shader))
     {
         Shaders->Add(CreateObject(shader));
@@ -163,7 +153,7 @@ bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram> theShader)
 
 Task<bool>^ ShaderHolder::AddShaderAsync(String^ fname, String^ shaderName)
 {
-    return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglProgram>, bool>(this, &ShaderHolder::AddShader),
+    return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglProgram>^, bool>(this, &ShaderHolder::AddShader),
         &rayr::BasicTest::LoadShaderAsync, Core, ToU16Str(fname), ToU16Str(shaderName));
 }
 

@@ -69,19 +69,34 @@ forceinline System::String^ ToStr(const std::wstring_view& str)
 }
 
 template<typename T>
-public value class CLIWrapper
+public ref class CLIWrapper
 {
 private:
-    T *Src;
-public:
-    CLIWrapper(const T& src) : Src(new T(src)) { }
-    CLIWrapper(T&& src) : Src(new T(std::move(src))) { }
-    T Extract() { T ret = *this; return ret; }
-    static operator T(CLIWrapper<T> val) 
+    System::IntPtr Src;
+    T* ExchangeNull()
     {
-        T obj = *val.Src;
-        delete val.Src;
-        val.Src = nullptr;
+        System::IntPtr src = System::Threading::Interlocked::Exchange(Src, System::IntPtr::Zero);
+        return reinterpret_cast<T*>(src.ToPointer());
+    }
+public:
+    template<typename U>
+    CLIWrapper(U&& src) : Src(new T(std::forward<U>(src))) { }
+    ~CLIWrapper() { this->!CLIWrapper(); }
+    !CLIWrapper() 
+    { 
+        if (auto src = ExchangeNull(); src)
+            delete src;
+    }
+    T Extract() 
+    { 
+        T ret(std::move(static_cast<T>(this)));
+        return ret;
+    }
+    static operator T(CLIWrapper<T>^ val) 
+    {
+        auto src = val->ExchangeNull();
+        T obj(std::move(*src));
+        delete src;
         return obj;
     }
 };

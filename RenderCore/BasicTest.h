@@ -55,8 +55,8 @@ public:
     Camera cam;
     BasicTest(const fs::path& shaderPath = u"");
     void Draw();
-    void Resize(const uint32_t w, const uint32_t h);
-    void ResizeFBO(const uint32_t w, const uint32_t h);
+    void Resize(const uint32_t w, const uint32_t h, const bool changeWindow = true);
+    void ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloatDepth);
     void ReloadFontLoader(const u16string& fname);
     void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError = nullptr);

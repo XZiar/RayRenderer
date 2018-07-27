@@ -277,7 +277,7 @@ BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
         AddObject(ground);
     }
     MiddleFrame.reset();
-    ResizeFBO(1280, 720);
+    ResizeFBO(1280, 720, true);
     //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
     initUBO();
     glProgs.insert(prog2D);
@@ -314,7 +314,7 @@ void BasicTest::Draw()
         glContext->SetFBO(MiddleFrame);
         glContext->SetSRGBFBO(false);
         glContext->ClearFBO();
-        Resize(w, h);
+        Resize(w, h, false);
         prog3D->SetCamera(cam);
         {
             auto drawcall = prog3D->Draw();
@@ -328,7 +328,7 @@ void BasicTest::Draw()
         }
         glContext->SetFBO();
         glContext->SetSRGBFBO(true);
-        Resize(ow, oh);
+        Resize(ow, oh, false);
         {
             const auto sw = w * oh / h;
             const auto widthscale = sw * 1.0f / ow;
@@ -338,19 +338,21 @@ void BasicTest::Draw()
     }
 }
 
-void BasicTest::Resize(const uint32_t w, const uint32_t h)
+void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWindow)
 {
     glContext->SetViewPort(0, 0, w, h);
     cam.resize(w, h);
     prog3D->SetProject(cam);
+    if (changeWindow)
+        WindowWidth = w, WindowHeight = h;
 }
 
-void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h)
+void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloatDepth)
 {
     fboTex.reset(w, h, TextureInnerFormat::RG11B10);
     fboTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     MiddleFrame->AttachColorTexture(fboTex, 0);
-    oglRBO mainRBO(w, h, oglu::RBOFormat::Depth24Stencil8);
+    oglRBO mainRBO(w, h, isFloatDepth ? oglu::RBOFormat::Depth32Stencil8 : oglu::RBOFormat::Depth24Stencil8);
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
     basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     progPost->State().SetTexture(fboTex, "tex");
@@ -514,14 +516,13 @@ void BasicTest::ReportChanged(const ChangableUBO target)
 
 xziar::img::Image BasicTest::Scrrenshot()
 {
+    const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
     oglu::oglFBO ssFBO(std::in_place);
-    oglu::oglTex2DS ssTex(WindowWidth, WindowHeight, TextureInnerFormat::SRGBA8);
+    oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
-    oglRBO mainRBO(WindowWidth, WindowHeight, oglu::RBOFormat::Depth24Stencil8);
-    ssFBO->AttachDepthStencilBuffer(mainRBO);
-    basLog().info(u"Screenshot FBO [{}x{}], status:{}\n", WindowWidth, WindowHeight, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-    ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)WindowWidth, (int32_t)WindowHeight });
+    basLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 

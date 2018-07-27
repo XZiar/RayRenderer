@@ -162,14 +162,18 @@ namespace WPFTest
             });
             cboxDTest.SelectionChanged += (o, e) => glMain.Invalidate();
             var offscreenSizes = new ValueTuple<uint, uint>[] { (800, 450), (800, 600), (1280, 720), (1280, 1024), (1440, 720), (1440, 1080), (320, 180) };
-            cboxOSize.ItemsSource = offscreenSizes.Select(x => $"{x.Item1}x{x.Item2}");
-            cboxOSize.SelectedIndex = 2;
-            cboxOSize.SelectionChanged += (o, e) =>
+            Action resizeOffscreen = () =>
             {
                 var val = offscreenSizes[cboxOSize.SelectedIndex];
-                Core.Test.ResizeOffScreen(val.Item1, val.Item2);
+                Core.Test.ResizeOffScreen(val.Item1, val.Item2, ckboxFDepth.IsChecked ?? true);
                 glMain.Invalidate();
             };
+            cboxOSize.ItemsSource = offscreenSizes.Select(x => $"{x.Item1}x{x.Item2}");
+            cboxOSize.SelectedIndex = 2;
+            cboxOSize.SelectionChanged += (o,e) => resizeOffscreen();
+            ckboxFDepth.Checked += (o, e) => resizeOffscreen();
+            ckboxFDepth.Unchecked += (o, e) => resizeOffscreen();
+
             cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
             {
                 Source = Core.Lights,
@@ -485,18 +489,32 @@ namespace WPFTest
 
         private void btnScreenshot_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new SaveFileDialog()
+            var saver = Core.Test.Screenshot();
+            string fname;
+            if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
             {
-                Filter = "JPEG file (*.jpg)|*.jpg|PNG file (*.png)|*.png|BMP file (*.bmp)|*.bmp",
-                Title = "保存屏幕截图",
-                AddExtension = true,
-                OverwritePrompt = true,
-                CheckPathExists = true,
-                ValidateNames = true,
-            };
-            if (dlg.ShowDialog() == true)
+                var dlg = new SaveFileDialog()
+                {
+                    Filter = "PNG file (*.png)|*.png|JPEG file (*.jpg)|*.jpg|BMP file (*.bmp)|*.bmp",
+                    Title = "保存屏幕截图",
+                    AddExtension = true,
+                    OverwritePrompt = true,
+                    CheckPathExists = true,
+                    ValidateNames = true,
+                };
+                if (dlg.ShowDialog() != true)
+                    return;
+                fname = dlg.FileName;
+            }
+            else
+                fname = $"{DateTime.Now.ToString("yyyyMMdd-HHmmss")}.png";
+            try
             {
-
+                saver(fname);
+            }
+            catch (Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
             }
         }
 
