@@ -3,7 +3,7 @@
 
 using namespace System;
 using namespace common::mlog;
-
+using common::container::FindInMap;
 
 namespace common
 {
@@ -22,6 +22,7 @@ public enum class LogLevel : uint8_t
 #pragma unmanaged
 static uint32_t setLogCB();
 static void unsetLogCB(const uint32_t);
+static std::unordered_map<std::u16string_view, gcroot<String^>> STR_CACHE;
 #pragma managed
 
 public ref class Logger
@@ -68,10 +69,14 @@ public:
     }
 };
 
-
+//promise thread-safety since in other thread
 static void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 {
-    Logger::RaiseOnLog((LogLevel)msg.Level, ToStr(msg.GetSource()), ToStr(msg.GetContent()));
+    const auto src = msg.GetSource();
+    if (const auto msrc = STR_CACHE.find(src); msrc != STR_CACHE.cend())
+        Logger::RaiseOnLog((LogLevel)msg.Level, msrc->second, ToStr(msg.GetContent()));
+    else
+        Logger::RaiseOnLog((LogLevel)msg.Level, STR_CACHE.emplace(src, gcroot<String^>(ToStr(src))).first->second, ToStr(msg.GetContent()));
 }
 
 #pragma unmanaged

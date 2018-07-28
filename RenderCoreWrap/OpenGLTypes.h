@@ -47,14 +47,14 @@ public:
 public ref class SubroutineResource : public BaseViewModel
 {
 private:
-    const std::weak_ptr<oglu::detail::_oglProgram> * const Prog;
+    const std::weak_ptr<oglu::detail::_oglProgram>& Prog;
     const std::string& cppname;
     initonly String^ name;
     initonly ShaderType stage;
     initonly List<String^>^ routines = gcnew List<String^>();
     String^ current;
 internal:
-    SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>* prog, const oglu::SubroutineResource& res);
+    SubroutineResource(const std::weak_ptr<oglu::detail::_oglProgram>& prog, const oglu::SubroutineResource& res);
 public:
     CLI_READONLY_PROPERTY(String^, Name, name);
     CLI_READONLY_PROPERTY(ShaderType, Stage, stage);
@@ -65,7 +65,7 @@ public:
         void set(String^ value) 
         {
             string newval = ToCharStr(value);
-            auto prog = Prog->lock();
+            auto prog = Prog.lock();
             prog->State().SetSubroutine(cppname, newval);
             current = ToStr(prog->GetSubroutine(cppname)->Name);
             OnPropertyChanged("Current");
@@ -89,7 +89,7 @@ internal:
 public ref class GLProgram : public BaseViewModel
 {
 internal:
-    std::weak_ptr<oglu::detail::_oglProgram> *prog;
+    const std::weak_ptr<oglu::detail::_oglProgram> * const prog;
 internal:
     GLProgram(const oglu::oglProgram& obj);
     initonly List<ProgramResource^>^ resources = gcnew List<ProgramResource^>();

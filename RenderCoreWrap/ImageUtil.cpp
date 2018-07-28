@@ -96,9 +96,9 @@ Image ImageUtil::Convert(BitmapSource^ image)
     }
 
     PixelFormat newpf;
-    if (pf == PixelFormats::Bgr101010 || pf == PixelFormats::Bgr555 || pf == PixelFormats::Bgr565 || pf == PixelFormats::Cmyk32
+    if (pf == PixelFormats::Bgr101010 || pf == PixelFormats::Bgr555 || pf == PixelFormats::Bgr565
         || pf == PixelFormats::Indexed8 || pf == PixelFormats::Indexed4 || pf == PixelFormats::Indexed2 || pf == PixelFormats::Indexed1
-        || pf == PixelFormats::Bgr32)
+        || pf == PixelFormats::Cmyk32 || pf == PixelFormats::Bgr32)
         newpf = PixelFormats::Rgb24;
     else if (pf == PixelFormats::BlackWhite || pf == PixelFormats::Gray2 || pf == PixelFormats::Gray4)
         newpf = PixelFormats::Gray8;

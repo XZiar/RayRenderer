@@ -156,13 +156,23 @@
                 </Style>
             </TabControl.Resources>
             <TabItem Header="日志" IsTabStop="False">
-                <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
-                    <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Inziu Iosevka SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
-                        <FlowDocument>
-                            <Paragraph x:Name="para"/>
-                        </FlowDocument>
-                    </RichTextBox>
-                </ScrollViewer>
+                <DockPanel>
+                    <StackPanel Orientation="Vertical" DockPanel.Dock="Top">
+                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="日志等级">
+                            <xctk:CheckComboBox x:Name="cboxDbgLv" Foreground="White" Text="日志等级"/>
+                        </ext:LabelControl>
+                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="日志来源">
+                            <xctk:CheckComboBox x:Name="cboxDbgSrc" Foreground="White" Text="日志来源"/>
+                        </ext:LabelControl>
+                    </StackPanel>
+                    <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
+                        <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Inziu Iosevka SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
+                            <FlowDocument>
+                                <Paragraph x:Name="para"/>
+                            </FlowDocument>
+                        </RichTextBox>
+                    </ScrollViewer>
+                </DockPanel>
             </TabItem>
             <TabItem Header="设置" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Vertical">

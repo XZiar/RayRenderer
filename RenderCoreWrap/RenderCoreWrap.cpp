@@ -45,7 +45,10 @@ BasicTest::BasicTest()
 
 BasicTest::!BasicTest()
 {
+    delete Shaders;
+    delete Drawables;
     delete Lights;
+    delete Camera;
     delete core;
 }
 
@@ -71,7 +74,7 @@ void BasicTest::ReLoadCL(String^ fname)
 
 Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 {
-    return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, core, ToU16Str(fname));
+    return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, *core, ToU16Str(fname));
 }
 
 Action<String^>^ BasicTest::Screenshot()
@@ -109,7 +112,7 @@ void LightHolder::Add(Basic3D::LightType type)
     auto light = CreateLight((b3d::LightType)type);
     if (!light)
         return;
-    bool ret = Core->AddLight(light);
+    bool ret = Core.AddLight(light);
     if (ret)
     {
         Lights->Add(CreateObject(light));
@@ -118,7 +121,7 @@ void LightHolder::Add(Basic3D::LightType type)
 
 void LightHolder::Clear()
 {
-    Core->DelAllLight();
+    Core.DelAllLight();
     Lights->Clear();
 }
 
@@ -126,7 +129,7 @@ void LightHolder::Clear()
 bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
 {
     auto model = theModel->Extract();
-    bool ret = Core->AddObject(model);
+    bool ret = Core.AddObject(model);
     if (ret)
     {
         Drawables->Add(CreateObject(model));
@@ -143,7 +146,7 @@ Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
 bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram>^ theShader)
 {
     auto shader = theShader->Extract();
-    if (Core->AddShader(shader))
+    if (Core.AddShader(shader))
     {
         Shaders->Add(CreateObject(shader));
         return true;
@@ -160,7 +163,7 @@ Task<bool>^ ShaderHolder::AddShaderAsync(String^ fname, String^ shaderName)
 void ShaderHolder::UseShader(OpenGLUtil::GLProgram^ shader)
 {
     if (shader == nullptr) return;
-    Core->ChangeShader(shader->prog->lock());
+    Core.ChangeShader(shader->prog->lock());
 }
 
 

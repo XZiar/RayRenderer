@@ -31,7 +31,9 @@ namespace WPFTest
     public partial class MainWindow : Window
     {
         private static BrushConverter Brush_Conv = new BrushConverter();
+
         private TestCore Core = null;
+        private LogManager Logger;
         private MemoryMonitor MemMonitor = null;
         private OPObject OperateTarget = OPObject.Camera;
         private ImageSource imgCamera, imgCube, imgPointLight;
@@ -59,7 +61,7 @@ namespace WPFTest
             imgPointLight = (ImageSource)this.FindResource("imgPointLight");
             brshBlue = (SolidColorBrush)this.FindResource("brshBlue");
             brshOrange = (SolidColorBrush)this.FindResource("brshOrange");
-            common.Logger.OnLog += OnLog;
+            Logger = new LogManager(cboxDbgLv, cboxDbgSrc, para, dbgScroll);
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) => 
             {
@@ -74,7 +76,7 @@ namespace WPFTest
 
         private void InitializeCore()
         {
-            OnLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
+            Logger.OnNewLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
             Core = new TestCore();
 
             Core.Test.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
@@ -162,12 +164,12 @@ namespace WPFTest
             });
             cboxDTest.SelectionChanged += (o, e) => glMain.Invalidate();
             var offscreenSizes = new ValueTuple<uint, uint>[] { (800, 450), (800, 600), (1280, 720), (1280, 1024), (1440, 720), (1440, 1080), (320, 180) };
-            Action resizeOffscreen = () =>
+            void resizeOffscreen()
             {
                 var val = offscreenSizes[cboxOSize.SelectedIndex];
                 Core.Test.ResizeOffScreen(val.Item1, val.Item2, ckboxFDepth.IsChecked ?? true);
                 glMain.Invalidate();
-            };
+            }
             cboxOSize.ItemsSource = offscreenSizes.Select(x => $"{x.Item1}x{x.Item2}");
             cboxOSize.SelectedIndex = 2;
             cboxOSize.SelectionChanged += (o,e) => resizeOffscreen();
@@ -223,29 +225,6 @@ namespace WPFTest
             var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
             fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS" : ""; };
             fpsTimer.Start();
-        }
-
-        private static readonly Dictionary<common.LogLevel, SolidColorBrush> brashMap = new Dictionary<common.LogLevel, SolidColorBrush>
-        {
-            { common.LogLevel.Error,   new SolidColorBrush(Colors.Red)     },
-            { common.LogLevel.Warning, new SolidColorBrush(Colors.Yellow)  },
-            { common.LogLevel.Success, new SolidColorBrush(Colors.LawnGreen)   },
-            { common.LogLevel.Info,    new SolidColorBrush(Colors.White)   },
-            { common.LogLevel.Verbose, new SolidColorBrush(Colors.Pink)    },
-            { common.LogLevel.Debug,   new SolidColorBrush(Colors.Cyan)    }
-        };
-        private void OnLog(common.LogLevel level, string from, string content)
-        {
-            dbgOutput.Dispatcher.InvokeAsync(() => 
-            {
-                Run r = new Run($"[{from}]{content}")
-                {
-                    Foreground = brashMap[level]
-                };
-                para.Inlines.Add(r);
-                if (dbgScroll.ScrollableHeight - dbgScroll.VerticalOffset < 120)
-                    dbgScroll.ScrollToEnd();
-            }, System.Windows.Threading.DispatcherPriority.Normal);
         }
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)

@@ -72,7 +72,7 @@ template<typename Type, typename CLIType, typename ContainerType = vector<Type>>
 public ref class HolderBase
 {
 protected:
-    rayr::BasicTest * const Core;
+    rayr::BasicTest& Core;
     const ContainerType& Src;
 public:
     initonly List<CLIType^>^ Container;
@@ -94,7 +94,7 @@ protected:
         return obj;
     }
     HolderBase(rayr::BasicTest * const core, const ContainerType& src)
-        : Core(core), Src(src), Container(gcnew List<CLIType^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &HolderBase::OnPChangded)) 
+        : Core(*core), Src(src), Container(gcnew List<CLIType^>()), PChangedHandler(gcnew PropertyChangedEventHandler(this, &HolderBase::OnPChangded)) 
     {
         Refresh();
     }
@@ -159,7 +159,7 @@ protected:
     void virtual OnPChangded(Object ^sender, PropertyChangedEventArgs ^e) override
     {
         if (e->PropertyName != "Name")
-            Core->ReportChanged(rayr::ChangableUBO::Light);
+            Core.ReportChanged(rayr::ChangableUBO::Light);
         HolderBase<Wrapper<b3d::Light>, Basic3D::Light>::OnPChangded(sender, e);
     }
 public:
@@ -203,7 +203,7 @@ public:
     { 
         for each(OpenGLUtil::GLProgram^ shader in Container)
         {
-            if (shader->prog->lock() == Core->Cur3DProg())
+            if (shader->prog->lock() == Core.Cur3DProg())
                 return shader;
         }
         return nullptr;
@@ -215,7 +215,7 @@ public:
 public ref class BasicTest : public BaseViewModel
 {
 private:
-    rayr::BasicTest *core;
+    rayr::BasicTest * core;
 internal:
 public:
     BasicTest();

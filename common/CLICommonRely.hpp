@@ -75,8 +75,7 @@ private:
     System::IntPtr Src;
     T* ExchangeNull()
     {
-        System::IntPtr src = System::Threading::Interlocked::Exchange(Src, System::IntPtr::Zero);
-        return reinterpret_cast<T*>(src.ToPointer());
+        return reinterpret_cast<T*>(System::Threading::Interlocked::Exchange(Src, System::IntPtr::Zero).ToPointer());
     }
 public:
     template<typename U>
@@ -92,12 +91,22 @@ public:
         T ret(std::move(static_cast<T>(this)));
         return ret;
     }
+    T& Ref()
+    {
+        return *reinterpret_cast<T*>(src.ToPointer());
+    }
     static operator T(CLIWrapper<T>^ val) 
     {
         auto src = val->ExchangeNull();
-        T obj(std::move(*src));
-        delete src;
-        return obj;
+        try
+        {
+            T obj(std::move(*src));
+            return obj;
+        }
+        finally
+        {
+            delete src;
+        }
     }
 };
 

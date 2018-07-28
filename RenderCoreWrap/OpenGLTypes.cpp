@@ -17,13 +17,14 @@ ProgramResource::ProgramResource(const oglu::ProgramResource& res)
 }
 
 
-SubroutineResource::SubroutineResource(std::weak_ptr<oglu::detail::_oglProgram>* prog, const oglu::SubroutineResource& res) : Prog(prog), cppname(res.Name)
+SubroutineResource::SubroutineResource(const std::weak_ptr<oglu::detail::_oglProgram>& prog, const oglu::SubroutineResource& res)
+    : Prog(prog), cppname(res.Name)
 {
     name = ToStr(cppname);
     stage = (ShaderType)res.Stage;
     for (const auto& routine : res.Routines)
         routines->Add(ToStr(routine.Name));
-    current = ToStr(Prog->lock()->GetSubroutine(cppname)->Name);
+    current = ToStr(Prog.lock()->GetSubroutine(cppname)->Name);
 }
 
 
@@ -58,7 +59,7 @@ GLProgram::GLProgram(const oglu::oglProgram& obj) : prog(new std::weak_ptr<oglu:
         resources->Add(gcnew ProgramResource(res));
     }
     for (const auto& res : obj->getSubroutineResources())
-        subroutines->Add(gcnew SubroutineResource(prog, res));
+        subroutines->Add(gcnew SubroutineResource(*prog, res));
     for (const auto& shader : obj->getShaders())
     {
         auto shd = ShaderObject(shader);
