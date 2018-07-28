@@ -201,6 +201,9 @@
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ResourcePackager\ResourcePackager.vcxproj">
+      <Project>{a9f8df7e-4636-4c92-8d78-9d8214414986}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\TextureUtil\TextureUtil.vcxproj">
       <Project>{2546bbda-0ad8-409a-8fcf-bb89ac8a9635}</Project>
     </ProjectReference>

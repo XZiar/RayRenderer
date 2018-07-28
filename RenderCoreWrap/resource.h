@@ -10,7 +10,8 @@
 #define IDR_DLL_FONTHELP                 112
 #define IDR_DLL_IMGUTIL                  113
 #define IDR_DLL_TEXUTIL                  114
-#define IDR_DLL_RENDERCORE               115
+#define IDR_DLL_RESPACKER                115
+#define IDR_DLL_RENDERCORE               116
 
 // 新对象的下一组默认值
 // 

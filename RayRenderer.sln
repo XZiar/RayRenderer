@@ -198,6 +198,17 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LinuxTest", "Tests\UtilTest
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib-ng", "3rdParty\zlib-ng\zlib-ng.vcxproj", "{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rapidjson", "rapidjson", "{184159C6-4AD1-44AA-A42C-D05144F32B13}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\rapidjson\license.txt = 3rdParty\rapidjson\license.txt
+		3rdParty\rapidjson\rapidjson.h = 3rdParty\rapidjson\rapidjson.h
+		3rdParty\rapidjson\readme.md = 3rdParty\rapidjson\readme.md
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cryptopp", "3rdParty\cryptopp\cryptopp.vcxproj", "{36E2AF6D-28D4-420C-A744-F48B6087C4F9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ResourcePackager", "ResourcePackager\ResourcePackager.vcxproj", "{A9F8DF7E-4636-4C92-8D78-9D8214414986}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
@@ -520,6 +531,26 @@ Global
 		{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9}.Release|x64.Build.0 = Release|x64
 		{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9}.Release|x86.ActiveCfg = Release|Win32
 		{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9}.Release|x86.Build.0 = Release|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Debug|x64.ActiveCfg = Debug|x64
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Debug|x64.Build.0 = Debug|x64
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Debug|x86.ActiveCfg = Debug|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Debug|x86.Build.0 = Debug|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Release|Any CPU.ActiveCfg = Release|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Release|x64.ActiveCfg = Release|x64
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Release|x64.Build.0 = Release|x64
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Release|x86.ActiveCfg = Release|Win32
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9}.Release|x86.Build.0 = Release|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Debug|x64.ActiveCfg = Debug|x64
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Debug|x64.Build.0 = Debug|x64
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Debug|x86.ActiveCfg = Debug|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Debug|x86.Build.0 = Debug|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Release|Any CPU.ActiveCfg = Release|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Release|x64.ActiveCfg = Release|x64
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Release|x64.Build.0 = Release|x64
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Release|x86.ActiveCfg = Release|Win32
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -566,6 +597,9 @@ Global
 		{2546BBDA-0AD8-409A-8FCF-BB89AC8A9635} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{F74112AF-33D4-4B34-9091-48E4B1645FAE} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{184159C6-4AD1-44AA-A42C-D05144F32B13} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{36E2AF6D-28D4-420C-A744-F48B6087C4F9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{A9F8DF7E-4636-4C92-8D78-9D8214414986} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

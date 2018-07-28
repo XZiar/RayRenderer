@@ -32,6 +32,7 @@
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "ImageUtil/ImageUtil.h"
+#include "ResourcePackager/ResourceUtil.h"
 
 #define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #pragma warning(disable:4996)
