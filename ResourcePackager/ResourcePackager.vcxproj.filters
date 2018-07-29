@@ -24,6 +24,9 @@
     <ClInclude Include="ResourceUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="EasierJson.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SerializeUtil.cpp">

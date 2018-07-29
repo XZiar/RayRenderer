@@ -256,6 +256,23 @@ public:
         return fread(ptr, sizeof(T), want, fp);
     }
 
+    template<typename T = byte>
+    bool WriteByteNE(const T data)//without checking
+    {
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+        return fputc(*reinterpret_cast<const uint8_t*>(&data), fp) != EOF;
+    }
+    template<typename T = byte>
+    bool WriteByte()
+    {
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+        const auto ret = fputc(*reinterpret_cast<const uint8_t*>(&data), fp);
+        if (ret != EOF)
+            return true;
+        else
+            COMMON_THROW(FileException, FileException::Reason::WriteFail, FilePath, L"write byte to file failed");
+    }
+
     bool Write(const size_t len, const void *ptr)
     {
         return fwrite(ptr, len, 1, fp) != 0;
@@ -309,9 +326,10 @@ private:
     AlignedBuffer<32> Buffer;
     FileObject File;
     size_t BufBegin, BufPos = 0, BufLen = 0;
-    void LoadBuffer(const bool isNext = true)
+    template<bool IsNext = true>
+    void LoadBuffer()
     {
-        if(isNext)
+        if(IsNext)
             BufBegin += BufLen;
         BufPos = 0;
         BufLen = File.ReadMany(Buffer.GetSize(), Buffer.GetRawPtr());
@@ -322,11 +340,13 @@ public:
         BufBegin = File.CurrentPos();
         LoadBuffer();
     }
-    BufferedFileReader(BufferedFileReader&& rhs) = default;
-    BufferedFileReader& operator= (BufferedFileReader&& rhs) = default;
-    ~BufferedFileReader() = default;
 
-    void Flush() { File.Rewind(BufBegin + BufPos); }
+    void Flush() 
+    {
+        File.Rewind(BufBegin + BufPos);
+        BufLen -= BufPos;
+        memmove_s(Buffer.GetRawPtr(), Buffer.GetSize(), Buffer.GetRawPtr() + BufPos, BufLen);
+    }
     FileObject Release()
     {
         Flush();
@@ -348,7 +368,7 @@ public:
         }
         //need reload
         File.Rewind(BufBegin = offset);
-        LoadBuffer(false);
+        LoadBuffer<false>();
     }
     void Skip(const size_t offset = 0) 
     {
@@ -361,7 +381,7 @@ public:
         //need reload
         BufBegin += offset;
         File.Rewind(BufBegin);
-        LoadBuffer(false);
+        LoadBuffer<false>();
     }
     size_t CurrentPos() const { return BufBegin + BufPos; }
     bool IsEnd() const { return (BufPos >= BufLen) && File.IsEnd(); }
@@ -369,63 +389,155 @@ public:
 
     bool Read(const size_t len, void * const ptr)
     {
-        if (len > Buffer.GetSize())
-        {
-            Flush();
-            const auto ret = File.Read(len, ptr);
-            BufBegin = File.CurrentPos();
-            LoadBuffer(false);
-            return ret;
-        }
+        //copy as many as possible
         const auto bufBytes = std::min(BufLen - BufPos, len);
         memcpy_s(ptr, len, Buffer.GetRawPtr() + BufPos, bufBytes);
+        BufPos += bufBytes;
+
         const auto stillNeed = len - bufBytes;
-        if (stillNeed > 0)
-        {
-            LoadBuffer();
-            const auto newbufBytes = std::min(stillNeed, BufLen);
-            memcpy_s(ptr, stillNeed, Buffer.GetRawPtr(), newbufBytes);
-            BufPos = newbufBytes;
-            if (BufPos >= BufLen)//should be end of file
-                LoadBuffer();
-            return stillNeed <= BufLen;
-        }
-        else
-        {
-            BufPos += bufBytes;
-            if (BufPos == BufLen)
-                LoadBuffer();
+        if (stillNeed == 0)
             return true;
+        // force bypass buffer
+        if (stillNeed >= Buffer.GetSize())
+        {
+            const auto ret = File.Read(stillNeed, reinterpret_cast<uint8_t*>(ptr) + bufBytes);
+            BufBegin = File.CurrentPos();
+            LoadBuffer<false>();
+            return ret;
         }
+        // 0 < stillNeed < BufSize
+        LoadBuffer();
+        if (stillNeed > BufLen) //simple reject
+            return false;
+        memcpy_s(reinterpret_cast<uint8_t*>(ptr) + bufBytes, stillNeed, Buffer.GetRawPtr(), stillNeed);
+        BufPos += stillNeed;
+        return true;
     }
 
     template<typename T = byte>
     T ReadByteNE()//without checking
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
-        const auto ret = (T)Buffer[BufPos];
-        if (++BufPos >= BufLen)
+        if (BufPos >= BufLen)
             LoadBuffer();
-        return ret;
+        return (T)Buffer[BufPos++];
     }
     template<typename T = byte>
     T ReadByte()
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
-        if (BufPos < BufLen)
-        {
-            const auto ret = (T)Buffer[BufPos];
-            if (++BufPos >= BufLen)
-                LoadBuffer();
-            return ret;
-        }
-        else
+        if (BufPos >= BufLen)
+            LoadBuffer();
+        if (BufPos >= BufLen)
             COMMON_THROW(FileException, FileException::Reason::ReadFail, File.Path(), L"reach end of file");
+        return (T)Buffer[BufPos++];
     }
 
     using Readable<BufferedFileReader>::Read;
 };
 
+class BufferedFileWriter : public Writable<BufferedFileWriter>, public NonCopyable
+{
+private:
+    AlignedBuffer<32> Buffer;
+    FileObject File;
+    size_t BufBegin, BufLen = 0;
+public:
+    BufferedFileWriter(FileObject&& file, const size_t bufSize) : Buffer(bufSize), File(std::move(file))
+    {
+        BufBegin = File.CurrentPos();
+    }
+    BufferedFileWriter(BufferedFileWriter&& other)
+        : Buffer(std::move(other.Buffer)), File(std::move(other.File)), BufBegin(other.BufBegin), BufLen(other.BufLen) 
+    {
+        other.BufLen = 0;
+    }
+    BufferedFileWriter& operator=(BufferedFileWriter&& other)
+    {
+        Flush();
+        Buffer = std::move(other.Buffer), File = std::move(other.File), BufBegin = other.BufBegin, BufLen = other.BufLen;
+        other.BufLen = 0;
+    }
+    ~BufferedFileWriter()
+    {
+        Flush();
+    }
+    template<bool CheckSuccess = true>
+    bool Flush()
+    {
+        if (BufLen == 0)
+            return true;
+        const auto writeBytes = File.WriteMany(BufLen, Buffer.GetRawPtr());
+        BufLen -= writeBytes, BufBegin += writeBytes;
+        if constexpr (CheckSuccess)
+        {
+            if(BufLen > 0)
+                COMMON_THROW(FileException, FileException::Reason::WriteFail, File.Path(), L"fail to write demanded bytes");
+        }
+        return BufLen == 0;
+    }
+    FileObject Release()
+    {
+        Flush();
+        return std::move(File);
+    }
+
+    void Rewind(const size_t offset = 0)
+    {
+        if (offset == BufBegin)
+            return;
+        Flush();
+        File.Rewind(BufBegin = offset);
+        BufLen = 0; // assume flush success
+    }
+    size_t CurrentPos() const { return BufBegin + BufLen; }
+    size_t GetSize() { return File.GetSize() + BufLen; }
+
+    bool Write(const size_t len, const void * const ptr)
+    {
+        //copy as many as possible
+        const auto bufBytes = std::min(Buffer.GetSize() - BufLen, len);
+        memcpy_s(Buffer.GetRawPtr() + BufLen, bufBytes, ptr, bufBytes);
+        BufLen += bufBytes;
+
+        const auto stillNeed = len - bufBytes;
+        if (stillNeed == 0)
+            return true;
+        Flush();
+        // force bypass buffer
+        if (stillNeed >= Buffer.GetSize())
+        {
+            const auto ret = File.Write(stillNeed, reinterpret_cast<const uint8_t*>(ptr) + bufBytes);
+            BufBegin = File.CurrentPos();
+            return ret;
+        }
+        // 0 < stillNeed < BufSize
+        memcpy_s(Buffer.GetRawPtr(), stillNeed, reinterpret_cast<const uint8_t*>(ptr) + bufBytes, stillNeed);
+        BufLen += stillNeed;
+        return true;
+    }
+
+    template<typename T = byte>
+    bool WriteByteNE(const T data)//without checking
+    {
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+        if (BufLen >= Buffer.GetSize())
+            Flush<false>();
+        Buffer.GetRawPtr<T>()[BufLen++] = data;
+        return true;
+    }
+    template<typename T = byte>
+    bool WriteByte()
+    {
+        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
+        if (BufLen >= Buffer.GetSize())
+            Flush();
+        Buffer.GetRawPtr<T>()[BufLen++] = data;
+        return true;
+    }
+
+    using Writable<BufferedFileWriter>::Write;
+};
 
 template<class T>
 inline void ReadAll(const fs::path& fpath, T& output)

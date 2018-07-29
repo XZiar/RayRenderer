@@ -200,9 +200,28 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib-ng", "3rdParty\zlib-ng
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rapidjson", "rapidjson", "{184159C6-4AD1-44AA-A42C-D05144F32B13}"
 	ProjectSection(SolutionItems) = preProject
+		3rdParty\rapidjson\allocators.h = 3rdParty\rapidjson\allocators.h
+		3rdParty\rapidjson\cursorstreamwrapper.h = 3rdParty\rapidjson\cursorstreamwrapper.h
+		3rdParty\rapidjson\document.h = 3rdParty\rapidjson\document.h
+		3rdParty\rapidjson\encodedstream.h = 3rdParty\rapidjson\encodedstream.h
+		3rdParty\rapidjson\encodings.h = 3rdParty\rapidjson\encodings.h
+		3rdParty\rapidjson\filereadstream.h = 3rdParty\rapidjson\filereadstream.h
+		3rdParty\rapidjson\filewritestream.h = 3rdParty\rapidjson\filewritestream.h
+		3rdParty\rapidjson\fwd.h = 3rdParty\rapidjson\fwd.h
+		3rdParty\rapidjson\istreamwrapper.h = 3rdParty\rapidjson\istreamwrapper.h
 		3rdParty\rapidjson\license.txt = 3rdParty\rapidjson\license.txt
+		3rdParty\rapidjson\memorybuffer.h = 3rdParty\rapidjson\memorybuffer.h
+		3rdParty\rapidjson\memorystream.h = 3rdParty\rapidjson\memorystream.h
+		3rdParty\rapidjson\ostreamwrapper.h = 3rdParty\rapidjson\ostreamwrapper.h
+		3rdParty\rapidjson\pointer.h = 3rdParty\rapidjson\pointer.h
+		3rdParty\rapidjson\prettywriter.h = 3rdParty\rapidjson\prettywriter.h
 		3rdParty\rapidjson\rapidjson.h = 3rdParty\rapidjson\rapidjson.h
+		3rdParty\rapidjson\reader.h = 3rdParty\rapidjson\reader.h
 		3rdParty\rapidjson\readme.md = 3rdParty\rapidjson\readme.md
+		3rdParty\rapidjson\schema.h = 3rdParty\rapidjson\schema.h
+		3rdParty\rapidjson\stream.h = 3rdParty\rapidjson\stream.h
+		3rdParty\rapidjson\stringbuffer.h = 3rdParty\rapidjson\stringbuffer.h
+		3rdParty\rapidjson\writer.h = 3rdParty\rapidjson\writer.h
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cryptopp", "3rdParty\cryptopp\cryptopp.vcxproj", "{36E2AF6D-28D4-420C-A744-F48B6087C4F9}"

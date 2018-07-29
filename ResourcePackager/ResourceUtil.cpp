@@ -1,6 +1,8 @@
 #include "ResourceUtil.h"
 #include "3rdParty/cryptopp/sha.h"
 
+#pragma message("Compiling ResourcePackager with crypto++[" STRINGIZE(CRYPTOPP_VERSION) "])")
+
 namespace xziar::respak
 {
 
@@ -16,12 +18,13 @@ string ResourceUtil::Hex2Str(const void * data, const size_t size)
     }
     return ret;
 }
-string ResourceUtil::TestSHA256(const void* data, const size_t size)
+bytearray<32> ResourceUtil::SHA256(const void* data, const size_t size)
 {
-    byte output[CryptoPP::SHA256::DIGESTSIZE];
+    static_assert(CryptoPP::SHA256::DIGESTSIZE == 32, "SHA256 should generate 32 bytes digest");
+    bytearray<32> output;
     CryptoPP::SHA256 sha256;
-    sha256.CalculateDigest(reinterpret_cast<CryptoPP::byte*>(output), reinterpret_cast<const CryptoPP::byte*>(data), size);
-    return Hex2Str(output, sizeof(output));
+    sha256.CalculateDigest(reinterpret_cast<CryptoPP::byte*>(output.data()), reinterpret_cast<const CryptoPP::byte*>(data), size);
+    return output;
 }
 
 

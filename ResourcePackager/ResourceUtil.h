@@ -14,11 +14,11 @@ public:
     }
     static string Hex2Str(const void* data, const size_t size);
     template<typename T>
-    static string TestSHA256(const T& data)
+    static bytearray<32> SHA256(const T& data)
     {
-        return TestSHA256(data.data(), data.size() * sizeof(T::value_type));
+        return SHA256(data.data(), data.size() * sizeof(T::value_type));
     }
-    static string TestSHA256(const void* data, const size_t size);
+    static bytearray<32> SHA256(const void* data, const size_t size);
 };
 
 }
