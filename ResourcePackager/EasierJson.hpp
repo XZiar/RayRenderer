@@ -4,26 +4,20 @@
 namespace xziar::respak::ejson
 {
 
+class JDoc;
 class JObject;
 class JArray;
 
 class DocumentHandle : public NonCopyable
 {
-private:
-    variant<std::unique_ptr<rapidjson::MemoryPoolAllocator<>>, rapidjson::MemoryPoolAllocator<>*> MemPool;
 protected:
-    rapidjson::MemoryPoolAllocator<>& GetMemPool()
-    {
-        if (MemPool.index() == 0)
-            return *std::get<0>(MemPool);
-        else
-            return *std::get<1>(MemPool);
-    }
+    std::shared_ptr<rapidjson::MemoryPoolAllocator<>> MemPool;
 public:
-    DocumentHandle() : MemPool(std::make_unique<rapidjson::MemoryPoolAllocator<>>()) {}
-    DocumentHandle(rapidjson::MemoryPoolAllocator<>& mempool) : MemPool(&mempool) {}
+    DocumentHandle() : MemPool(std::make_shared<rapidjson::MemoryPoolAllocator<>>()) {}
+    DocumentHandle(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : MemPool(mempool) {}
     JObject NewObject();
-    JArray NewArray();
+    JArray NewArray(); 
+    JDoc NewNullValue();
 };
 
 struct SharedUtil
@@ -40,22 +34,31 @@ struct SharedUtil
             return true;
         return false;
     }
-    template<typename T, typename Alloc>
-    static rapidjson::Value ToJString(const T& name, [[maybe_unused]] Alloc& alloc)
+    template<typename T>
+    static rapidjson::Value ToJString(const T& name, [[maybe_unused]] const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& alloc)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
         rapidjson::Value jstr;
-        if constexpr(!std::is_same_v<string_view, PlainType> && !std::is_convertible_v<const T&, string_view>)
-            jstr.SetString(name.data(), static_cast<uint32_t>(name.size()), alloc);
-        else
+        if constexpr(std::is_same_v<string, PlainType>)
+            jstr.SetString(name.data(), static_cast<uint32_t>(name.size()), *alloc);
+        else if constexpr(std::is_same_v<string_view, PlainType> || std::is_convertible_v<const T&, string_view>)
         {
             const string_view namesv(name);
             jstr.SetString(rapidjson::StringRef(namesv.data(), namesv.size()));
         }
+        else if constexpr(std::is_convertible_v<const T&, string>)
+        {
+            const string namestr(name);
+            jstr.SetString(namestr.data(), static_cast<uint32_t>(namestr.size()), *alloc);
+        }
+        else
+        {
+            static_assert(!ReturnTrue<T>, "unsupported type");
+        }
         return jstr;
     }
-    template<typename T, typename Alloc>
-    static rapidjson::Value ToVal(/*[[maybe_unused]]*/ T&& val, [[maybe_unused]] Alloc& alloc)
+    template<typename T>
+    static rapidjson::Value ToVal(T&& val, [[maybe_unused]] const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& alloc)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
         if constexpr(IsString<PlainType>())
@@ -101,8 +104,9 @@ private:
 protected:
     rapidjson::Value Val;
     JDoc(const rapidjson::Type type) : DocumentHandle(), Val(type) {}
-    JDoc(rapidjson::MemoryPoolAllocator<>& mempool, const rapidjson::Type type) : DocumentHandle(mempool), Val(type) {}
+    JDoc(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const rapidjson::Type type) : DocumentHandle(mempool), Val(type) {}
 public:
+    JDoc() : DocumentHandle({}), Val(rapidjson::kNullType) {}
     explicit operator rapidjson::Value() { return std::move(Val); }
     string Stringify() const
     {
@@ -118,20 +122,33 @@ public:
         rapidjson::Writer writer(streamer);
         Val.Accept(writer);
     }
+    rapidjson::Value& ValRef() { return Val; }
+    rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
 };
 
 class JArray : public JDoc
 {
     friend class DocumentHandle;
 private:
-    JArray(rapidjson::MemoryPoolAllocator<>& mempool) : JDoc(mempool, rapidjson::kArrayType) {}
+    JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kArrayType) {}
+    template<typename T>
+    forceinline void InnerPush(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, T&& val)
+    {
+        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), *mempool);
+    }
+    template<typename T, typename... Ts>
+    forceinline void InnerPush(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, T&& val, Ts&&... vals)
+    {
+        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), *mempool);
+        InnerPush(mempool, std::forward<Ts>(vals)...);
+    }
 public:
     JArray() : JDoc(rapidjson::kArrayType) {}
-    template<typename T>
-    void Push(T&& val)
+    template<typename... T>
+    JArray& Push(T&&... val)
     {
-        auto& mempool = GetMemPool();
-        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), mempool);
+        InnerPush(MemPool, std::forward<T>(val)...);
+        return *this;
     }
 };
 
@@ -139,26 +156,26 @@ class JObject : public JDoc
 {
     friend class DocumentHandle;
 private:
-    JObject(rapidjson::MemoryPoolAllocator<>& mempool) : JDoc(mempool, rapidjson::kObjectType) {}
+    JObject(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kObjectType) {}
 public:
     JObject() : JDoc(rapidjson::kObjectType) {}
     template<typename T, typename U>
-    void Add(T&& name, U&& val)
+    JObject& Add(T&& name, U&& val)
     {
-        auto& mempool = GetMemPool();
-        auto key = SharedUtil::ToJString(std::forward<T>(name), mempool);
-        auto value = SharedUtil::ToVal(std::forward<U>(val), mempool);
-        Val.AddMember(key, value, mempool);
+        auto key = SharedUtil::ToJString(std::forward<T>(name), MemPool);
+        auto value = SharedUtil::ToVal(std::forward<U>(val), MemPool);
+        Val.AddMember(key, value, *MemPool);
+        return *this;
     }
 };
 
-JObject DocumentHandle::NewObject()
+forceinline JObject DocumentHandle::NewObject()
 {
-    return JObject(GetMemPool());
+    return JObject(MemPool);
 }
-JArray DocumentHandle::NewArray()
+forceinline JArray DocumentHandle::NewArray()
 {
-    return JArray(GetMemPool());
+    return JArray(MemPool);
 }
 
 

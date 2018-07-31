@@ -33,6 +33,7 @@
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ResourcePackager/ResourceUtil.h"
+#include "ResourcePackager/SerializeUtil.h"
 
 #define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #pragma warning(disable:4996)
@@ -47,6 +48,7 @@ namespace rayr
 {
 namespace str = common::str;
 namespace fs = common::fs;
+namespace ejson = xziar::respak::ejson;
 using std::byte;
 using std::wstring;
 using std::string;
@@ -67,9 +69,30 @@ using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
 using str::Charset;
+using xziar::respak::SerializeUtil;
 
 template<class T, class... Args>
 using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
+
+namespace detail
+{
+template<typename T>
+forceinline ejson::JArray ToJArray(T& handle, const b3d::Vec3& vec)
+{
+    auto ret = handle.NewArray();
+    ret.Push(vec.x, vec.y, vec.z);
+    return ret;
+}
+template<typename T>
+forceinline ejson::JArray ToJArray(T& handle, const b3d::Vec4& vec)
+{
+    auto ret = handle.NewArray();
+    ret.Push(vec.x, vec.y, vec.z, vec.w);
+    return ret;
+}
+}
+
+
 }
 
 #ifdef RAYCORE_EXPORT

@@ -15,6 +15,8 @@ public:
     Pyramid(const float len);
     ~Pyramid() override { }
     virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual std::string_view SerializedType() const override { return "rayr#Drawable#Pytamid"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 class alignas(16) Sphere : public Drawable
@@ -30,6 +32,8 @@ public:
     Sphere(const float r);
     ~Sphere() override { }
     virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual std::string_view SerializedType() const override { return "rayr#Drawable#Sphere"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 
@@ -44,6 +48,8 @@ public:
     Box(const float length, const float height, const float width);
     ~Box() override { }
     virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual std::string_view SerializedType() const override { return "rayr#Drawable#Box"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 
@@ -51,11 +57,14 @@ class alignas(16) Plane : public Drawable
 {
 protected:
     oglu::oglVBO vbo;
+    float SideLen, TexRepeat;
 public:
     static constexpr auto TYPENAME = u"Plane";
     Plane(const float len = 500.0f, const float texRepeat = 1.0f);
     ~Plane() override { }
     virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual std::string_view SerializedType() const override { return "rayr#Drawable#Plane"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 }

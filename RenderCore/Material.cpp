@@ -14,6 +14,7 @@ using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using oglu::TextureInnerFormat;
 using std::multimap;
+using xziar::respak::SerializeUtil;
 
 oglu::TextureInnerFormat PBRMaterial::GetInnerFormat(const TexHolder& holder)
 {
@@ -59,6 +60,67 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
     ptrFloat[5] = Specular;
     ptrFloat[6] = AO;
     return 8 * sizeof(float);
+}
+
+static ejson::JDoc SerializeTex(const PBRMaterial::TexHolder& holder, SerializeUtil & context)
+{
+    switch (holder.index())
+    {
+    case 1: 
+    {
+        const auto& tex = std::get<oglTex2D>(holder);
+        auto jtex = context.NewObject();
+        jtex.Add("name", str::to_u8string(tex->Name, Charset::UTF16LE));
+        jtex.Add("format", (uint32_t)tex->GetInnerFormat());
+        const auto[w, h] = tex->GetSize();
+        jtex.Add("width", w);
+        jtex.Add("height", h);
+        std::vector<uint8_t> data;
+        if (tex->IsCompressed())
+            data = tex->GetCompressedData().value();
+        else
+            data = tex->GetData(oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()));
+        const auto datahandle = context.PutResource(data.data(), data.size());
+        jtex.Add("data", datahandle);
+        return std::move(jtex);
+    }
+    case 2: 
+    {
+        const auto& tex = std::get<FakeTex>(holder);
+        auto jtex = context.NewObject();
+        jtex.Add("name", str::to_u8string(tex->Name, Charset::UTF16LE));
+        jtex.Add("format", (uint32_t)tex->TexFormat);
+        jtex.Add("width", tex->Width);
+        jtex.Add("height", tex->Height);
+        const auto datahandle = context.PutResource(tex->TexData.GetRawPtr(), tex->TexData.GetSize());
+        jtex.Add("data", datahandle);
+        return std::move(jtex);
+    }
+    default: 
+        return {};
+    }
+}
+
+ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("albedo", detail::ToJArray(context, Albedo));
+    jself.Add("metalness", Metalness);
+    jself.Add("roughness", Roughness);
+    jself.Add("specular", Specular);
+    jself.Add("ao", AO);
+    jself.Add("UseDiffuseMap", UseDiffuseMap);
+    jself.Add("UseNormalMap", UseNormalMap);
+    jself.Add("UseMetalMap", UseMetalMap);
+    jself.Add("UseRoughMap", UseRoughMap);
+    jself.Add("UseAOMap", UseAOMap);
+    jself.Add("DiffuseMap", SerializeTex(DiffuseMap, context));
+    jself.Add("NormalMap", SerializeTex(NormalMap, context));
+    jself.Add("MetalMap", SerializeTex(MetalMap, context));
+    jself.Add("RoughMap", SerializeTex(RoughMap, context));
+    jself.Add("AOMap", SerializeTex(AOMap, context));
+    return jself;
 }
 
 
@@ -354,6 +416,16 @@ uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
         pos += UnitSize;
     }
     return pos;
+}
+
+ejson::JObject MultiMaterialHolder::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    auto jmaterials = context.NewArray();
+    for (const auto& material : Materials)
+        context.AddObject(jmaterials, material);
+    jself.Add("pbr", jmaterials);
+    return jself;
 }
 
 

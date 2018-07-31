@@ -8,6 +8,8 @@
 namespace rayr
 {
 
+using xziar::respak::SerializeUtil;
+
 struct Init
 {
     Init()
@@ -524,6 +526,24 @@ xziar::img::Image BasicTest::Scrrenshot()
     basLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
+}
+
+void BasicTest::Serialize(const fs::path & fpath) const
+{
+    SerializeUtil serializer(fpath);
+    {
+        auto jlights = serializer.NewArray();
+        for (const auto& lgt : lights)
+            serializer.AddObject(jlights, *lgt);
+        serializer.AddObject("lights", jlights);
+    }
+    {
+        auto jdrawables = serializer.NewArray();
+        for (const auto& drw : drawables)
+            serializer.AddObject(jdrawables, *drw);
+        serializer.AddObject("drawables", jdrawables);
+    }
+    serializer.Finish();
 }
 
 }

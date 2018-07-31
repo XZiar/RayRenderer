@@ -4,6 +4,7 @@
 namespace rayr
 {
 using oglu::oglTex2D;
+using xziar::respak::SerializeUtil;
 
 struct DrawableHelper
 {
@@ -100,6 +101,17 @@ void Drawable::AssignMaterial()
     MaterialHolder.Refresh();
     const size_t size = MaterialHolder.WriteData(MaterialBuf.data());
     MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
+}
+
+ejson::JObject Drawable::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("position", detail::ToJArray(context, position));
+    jself.Add("rotation", detail::ToJArray(context, rotation));
+    jself.Add("scale", detail::ToJArray(context, scale));
+    context.AddObject(jself, "material", MaterialHolder);
+    return jself;
 }
 
 void Drawable::Draw(Drawcall& drawcall) const

@@ -9,7 +9,7 @@ using namespace common;
 using namespace b3d;
 
 
-class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable
+class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable, public xziar::respak::Serializable
 {
 public:
     using Drawcall = oglu::detail::ProgDraw;
@@ -48,6 +48,9 @@ public:
         rotation.RepeatClampPos(Vec3::Vec3_2PI());
     }
     void AssignMaterial();
+
+    virtual std::string_view SerializedType() const override { return "rayr#Drawable"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 private:
     Drawable(const std::type_index type, const u16string& typeName);
 protected:

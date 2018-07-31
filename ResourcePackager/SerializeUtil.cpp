@@ -1,6 +1,7 @@
 #include "ResourcePackagerRely.h"
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
+#include "3rdParty/rapidjson/pointer.h"
 
 using common::container::FindInMap;
 
@@ -9,6 +10,10 @@ namespace xziar::respak
 
 namespace detail
 {
+
+ResourceItem::ResourceItem(bytearray<32>&& sha256, const uint64_t size, const uint64_t offset, const uint32_t index)
+    : SHA256(sha256), Size(ToLEByteArray(size)), Offset(ToLEByteArray(offset)), Index(ToLEByteArray(index))
+{ }
 
 string ResourceItem::ExtractHandle() const
 {
@@ -19,60 +24,21 @@ uint64_t ResourceItem::GetSize() const
 {
     uint64_t num = 0;
     for (uint8_t i = 0; i < 8; ++i)
-        num = num * 256 + Size[i];
+        num = num * 256 + std::to_integer<uint32_t>(Size[i]);
     return num;
 }
 
-string BlobPool::PutResource(const void * data, const size_t size)
-{
-    ResourceItem metadata;
-    metadata.SHA256 = ResourceUtil::SHA256(data, size);
-    ToLE(CurIndex, metadata.Index);
-    ToLE(CurOffset, metadata.Offset);
-    ToLE(size, metadata.Size);
-
-    const auto findres = FindInMap(ResourceSet, metadata.SHA256, std::in_place);
-    if (findres)
-    {
-        const auto& oldmeta = ResourceList[findres.value()];
-        if (oldmeta.GetSize() == size)
-            return oldmeta.ExtractHandle();
-        COMMON_THROW(BaseException, L"Hash collision detected!");
-    }
-
-    Write(&metadata, sizeof(metadata));
-    ResourceList.push_back(metadata);
-    CurIndex++;
-    CurOffset += sizeof(metadata) + size;
-    Write(data, size);
-    return metadata.ExtractHandle();
-}
-
-void BlobPool::EndWrite()
-{
-    const auto resSize = CurOffset;
-    Write(ResourceList.data(), CurIndex * sizeof(ResourceItem));
-    ResourceItem sumdata;
-    sumdata.SHA256 = ResourceUtil::SHA256(ResourceList.data(), CurIndex * sizeof(ResourceItem));
-    ToLE(CurIndex, sumdata.Index);
-    ToLE(CurOffset, sumdata.Offset);
-    sumdata.Dummy[0] = 'X';
-    sumdata.Dummy[1] = 'Z';
-    sumdata.Dummy[2] = 'P';
-    sumdata.Dummy[3] = 'K';
-    Write(&sumdata, sizeof(sumdata));
-}
 
 }
 
 SerializeUtil::SerializeUtil(const fs::path& fileName)
     : DocWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
-    ResBlob(std::make_unique<detail::FileBlobPool>(fs::path(fileName).replace_extension(u".xzrp")))
+    ResWriter(std::make_unique<detail::FileBinaryWriter>(fs::path(fileName).replace_extension(u".xzrp")))
 {
-    auto config = ResDoc.NewObject();
+    auto config = DocRoot.NewObject();
     config.Add("identity", "xziar-respak");
     config.Add("version", 0.1);
-    ResDoc.Add("#config", config);
+    DocRoot.Add("#config", config);
 }
 
 
@@ -81,22 +47,125 @@ SerializeUtil::~SerializeUtil()
     DocWriter.Flush();
 }
 
-void SerializeUtil::AddObject(const string & name, const detail::Serializable & object)
+ejson::JObject SerializeUtil::Serialize(const Serializable & object)
+{
+    auto result = object.Serialize(*this);
+    result.Add("#Type", object.SerializedType());
+    return result;
+}
+
+void SerializeUtil::CheckFinished() const
+{
+    if (HasFinished)
+        COMMON_THROW(BaseException, L"Serializer has finished and unable to add more data");
+}
+
+static void CheckName(const string& name)
 {
     if (name.empty() || name[0] == '#')
         COMMON_THROW(BaseException, L"invalid node name");
-    const auto objType = object.SerializedType();
-    auto result = object.Serialize(ResDoc, *ResBlob);
-    result.Add("#Type", objType);
-    ResDoc.Add(name.data(), result);
-    
+}
+
+void SerializeUtil::AddObject(const string& name, ejson::JDoc& node)
+{
+    CheckName(name);
+    DocRoot.Add(name, node);
+}
+
+string SerializeUtil::AddObject(const Serializable& object)
+{
+    CheckFinished();
+    const auto objptr = reinterpret_cast<intptr_t>(&object);
+    if (const auto it = FindInMap(ObjectLookup, objptr); it != nullptr)
+        return *it;
+
+    string path;
+    for (const auto& filter : Filters)
+    {
+        path = filter(*this, object);
+        if (!path.empty()) break;
+    }
+    if (path.empty())
+        path = "/#globals";
+    bool isExist = false;
+    auto& target = rapidjson::Pointer(path.data(), path.size()).Create(DocRoot.ValRef(), DocRoot.GetMemPool(), &isExist);
+    if (!isExist)
+        target.SetObject();
+
+    string id = '$' + std::to_string(objptr);
+    ObjectLookup.emplace(objptr, id);
+    return id;
+}
+
+string SerializeUtil::LookupObject(const Serializable & object) const
+{
+    const auto objptr = reinterpret_cast<intptr_t>(&object);
+    const auto it = FindInMap(ObjectLookup, objptr);
+    return it ? *it : "";
+}
+
+void SerializeUtil::AddObject(ejson::JObject& target, const string & name, const Serializable & object)
+{
+    CheckFinished();
+    CheckName(name);
+    target.Add(name, Serialize(object));
+}
+
+void SerializeUtil::AddObject(ejson::JArray & target, const Serializable & object)
+{
+    CheckFinished();
+    target.Push(Serialize(object));
+}
+
+string SerializeUtil::PutResource(const void * data, const size_t size, const string& id)
+{
+    CheckFinished();
+    detail::ResourceItem metadata(ResourceUtil::SHA256(data, size), size, ResOffset, ResCount);
+
+    const auto findres = FindInMap(ResourceSet, metadata.SHA256, std::in_place);
+    if (findres)
+    {
+        const auto& oldmeta = ResourceList[findres.value()];
+        if (oldmeta.GetSize() == size)
+        {
+            if (!id.empty())
+                ResourceLookup.insert_or_assign(id, findres.value());
+            return oldmeta.ExtractHandle();
+        }
+        COMMON_THROW(BaseException, L"Hash collision detected!");
+    }
+
+    ResWriter->Write(&metadata, sizeof(metadata));
+    ResWriter->Write(data, size);
+    ResourceList.push_back(metadata);
+    if (!id.empty())
+        ResourceLookup.insert_or_assign(id, ResCount);
+    ResCount++;
+    ResOffset += sizeof(detail::ResourceItem) + size;
+    return metadata.ExtractHandle();
+}
+
+string SerializeUtil::LookupResource(const string & id) const
+{
+    const auto it = FindInMap(ResourceLookup, id, std::in_place);
+    return it ? ResourceList[it.value()].ExtractHandle() : "";
 }
 
 void SerializeUtil::Finish()
 {
-    ResBlob->EndWrite();
-    ResDoc.Stringify(DocWriter);
+    CheckFinished();
+    const auto resSize = ResOffset;
+    ResWriter->Write(ResourceList.data(), ResCount * sizeof(detail::ResourceItem));
+    detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * sizeof(detail::ResourceItem)), 0, ResOffset, ResCount);
+    sumdata.Dummy[0] = byte('X');
+    sumdata.Dummy[1] = byte('Z');
+    sumdata.Dummy[2] = byte('P');
+    sumdata.Dummy[3] = byte('K');
+    ResWriter->Write(&sumdata, sizeof(sumdata));
+    ResWriter->Flush();
+    DocRoot.Stringify(DocWriter);
     DocWriter.Flush();
+    HasFinished = true;
 }
 
 

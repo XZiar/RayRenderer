@@ -2,18 +2,18 @@
 
 #include "RenderCoreRely.h"
 
-namespace b3d
+namespace rayr
 {
 
 
 enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
-struct RAYCOREAPI alignas(Vec4) LightData : public common::AlignBase<alignof(Vec4)>
+struct RAYCOREAPI alignas(b3d::Vec4) LightData : public common::AlignBase<alignof(b3d::Vec4)>
 {
-    Vec4 color = Vec4::one();
-    Vec3 position = Vec3::zero();
-    Vec3 direction = Vec3(0, -1, 0);
-    Vec4 attenuation = Vec4(0.5, 0.3, 0.0, 10.0);
+    b3d::Vec4 color = b3d::Vec4::one();
+    b3d::Vec3 position = b3d::Vec3::zero();
+    b3d::Vec3 direction = b3d::Vec3(0, -1, 0);
+    b3d::Vec4 attenuation = b3d::Vec4(0.5, 0.3, 0.0, 10.0);
     float cutoffOuter, cutoffInner;
     const LightType type;
 protected:
@@ -21,19 +21,19 @@ protected:
 public:
     void Move(const float x, const float y, const float z)
     {
-        position += Vec3(x, y, z);
+        position += b3d::Vec3(x, y, z);
     }
-    void Move(const Vec3& offset)
+    void Move(const b3d::Vec3& offset)
     {
         position += offset;
     }
     void Rotate(const float x, const float y, const float z)
     {
-        Rotate(Vec3(x, y, z));
+        Rotate(b3d::Vec3(x, y, z));
     }
-    void Rotate(const Vec3& radius)
+    void Rotate(const b3d::Vec3& radius)
     {
-        const auto rMat = Mat3x3::RotateMatXYZ(radius);
+        const auto rMat = b3d::Mat3x3::RotateMatXYZ(radius);
         direction = rMat * direction;
     }
     uint32_t WriteData(std::byte *ptr) const
@@ -54,13 +54,28 @@ public:
     }
 };
 
-class RAYCOREAPI alignas(LightData) Light : public LightData
+class RAYCOREAPI alignas(LightData) Light : public LightData, public xziar::respak::Serializable
 {
 protected:
     Light(const LightType type_, const std::u16string& name_) : LightData(type_), name(name_) {}
 public:
     bool isOn = true;
     std::u16string name;
+
+    virtual std::string_view SerializedType() const override { return "Light"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override
+    {
+        auto jself = context.NewObject();
+        jself.Add("name", str::to_u8string(name, Charset::UTF16LE));
+        jself.Add("position", detail::ToJArray(context, position));
+        jself.Add("direction", detail::ToJArray(context, direction));
+        jself.Add("color", detail::ToJArray(context, color));
+        jself.Add("attenuation", detail::ToJArray(context, attenuation));
+        jself.Add("cutoff", context.NewArray().Push(cutoffOuter, cutoffInner));
+        jself.Add("lightType", static_cast<int32_t>(type));
+        jself.Add("isOn", isOn);
+        return jself;
+    }
 };
 
 class alignas(16) ParallelLight : public Light

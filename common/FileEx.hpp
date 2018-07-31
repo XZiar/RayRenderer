@@ -263,7 +263,7 @@ public:
         return fputc(*reinterpret_cast<const uint8_t*>(&data), fp) != EOF;
     }
     template<typename T = byte>
-    bool WriteByte()
+    bool WriteByte(const T data)
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         const auto ret = fputc(*reinterpret_cast<const uint8_t*>(&data), fp);
@@ -457,6 +457,7 @@ public:
         Flush();
         Buffer = std::move(other.Buffer), File = std::move(other.File), BufBegin = other.BufBegin, BufLen = other.BufLen;
         other.BufLen = 0;
+        return *this;
     }
     ~BufferedFileWriter()
     {
@@ -527,7 +528,7 @@ public:
         return true;
     }
     template<typename T = byte>
-    bool WriteByte()
+    bool WriteByte(const T data)
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         if (BufLen >= Buffer.GetSize())

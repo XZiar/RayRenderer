@@ -40,7 +40,7 @@ public:
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
 
-struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>
+struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
 {
 public:
     using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
@@ -61,6 +61,9 @@ public:
     PBRMaterial& operator=(PBRMaterial&& other) = default;
     PBRMaterial& operator=(const PBRMaterial& other) = default;
     uint32_t WriteData(std::byte *ptr) const;
+
+    virtual std::string_view SerializedType() const override { return "rayr#PBRMaterial"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 
@@ -82,7 +85,7 @@ union TexTag
 };
 }
 
-struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable
+struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable, public xziar::respak::Serializable
 {
 public:
     using Mapping = std::pair<detail::TexTag, uint16_t>;
@@ -108,11 +111,14 @@ public:
 
     vector<PBRMaterial>::iterator begin() { return Materials.begin(); }
     vector<PBRMaterial>::iterator end() { return Materials.end(); }
-
     PBRMaterial& operator[](const size_t index) { return Materials[index]; }
+
     void Refresh();
     void BindTexture(oglu::detail::ProgDraw& drawcall) const;
-    uint32_t WriteData(std::byte *ptr) const;
+    uint32_t WriteData(std::byte *ptr) const; 
+    
+    virtual std::string_view SerializedType() const override { return "rayr#MultiMaterialHolder"; }
+    virtual ejson::JObject Serialize(SerializeUtil & context) const override;
 };
 
 

@@ -149,6 +149,9 @@
     <ProjectReference Include="..\RenderCore\RenderCore.vcxproj">
       <Project>{2c2fbe4d-b211-473e-9a93-3393c5e3bc4f}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ResourcePackager\ResourcePackager.vcxproj">
+      <Project>{a9f8df7e-4636-4c92-8d78-9d8214414986}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

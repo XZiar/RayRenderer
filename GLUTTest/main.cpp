@@ -177,8 +177,6 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
-#include "ResourcePackager/EasierJson.hpp"
-
 static void TestIt()
 {
     using namespace xziar::respak::ejson;
@@ -198,13 +196,13 @@ static void TestIt()
     jarr1.Push("herh");
     jobj.Add("key7", jarr1);
     const auto data = jobj.Stringify();
+    tester->Serialize(u"D:/Cache/testxzrp.dat");
 }
 
 int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
-    TestIt();
     window.reset();
     tester.reset(new rayr::BasicTest(FindPath()));
     window->funDisp = [&](FreeGLUTView wd) { tester->Draw(); };
@@ -217,11 +215,12 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
     window->funOnClose = [&](FreeGLUTView wd) { tester.release(); };
     if (false)
     {
-        const auto light = Wrapper<b3d::PointLight>(std::in_place);
+        const auto light = Wrapper<rayr::PointLight>(std::in_place);
         light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         tester->AddLight(light);
         tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
+    TestIt();
 
     FreeGLUTViewRun();
 }

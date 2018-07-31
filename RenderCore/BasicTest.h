@@ -74,6 +74,8 @@ public:
     const set<oglProgram>& Shaders() const { return glProgs; }
     const oglProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
+
+    void Serialize(const fs::path& fpath) const;
 };
 
 }

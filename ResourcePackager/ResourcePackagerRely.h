@@ -52,6 +52,8 @@ using common::NonMovable;
 
 namespace detail
 {
+
+
 struct SHA256Hash
 {
 public:
@@ -63,18 +65,29 @@ public:
         return hash;
     }
 };
+
 template<typename T>
 constexpr inline void ToLE(T intva, uint8_t* output)
 {
     for (size_t i = 0; i < sizeof(T); ++i, intva /= 256)
         output[i] = static_cast<uint8_t>(intva);
 }
+
+template<typename T>
+constexpr inline bytearray<sizeof(T)> ToLEByteArray(T intva)
+{
+    bytearray<sizeof(T)> output;
+    for (size_t i = 0; i < sizeof(T); ++i, intva /= 256)
+        output[i] = byte(intva);
+    return output;
+}
+
 }
 
 }
 
 #ifdef RESPAK_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#   include "common/miniLogger/miniLogger.h"
 namespace xziar::respak
 {
 common::mlog::MiniLogger<false>& rpakLog();

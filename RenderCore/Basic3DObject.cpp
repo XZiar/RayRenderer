@@ -42,6 +42,13 @@ void Pyramid::PrepareGL(const oglu::oglProgram& prog, const map<string, string>&
     SetVAO(prog, vao);
 }
 
+ejson::JObject Pyramid::Serialize(SerializeUtil& context) const
+{
+    auto jself = Drawable::Serialize(context);
+    jself.Add("len", sidelen);
+    return jself;
+}
+
 
 vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
 {
@@ -101,6 +108,13 @@ void Sphere::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& 
         .SetIndex(ebo)//index draw
         .SetDrawSize(0, ptcount);
     SetVAO(prog, vao);
+}
+
+ejson::JObject Sphere::Serialize(SerializeUtil& context) const
+{
+    auto jself = Drawable::Serialize(context);
+    jself.Add("radius", radius);
+    return jself;
 }
 
 
@@ -180,8 +194,15 @@ void Box::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& tra
     SetVAO(prog, vao);
 }
 
+ejson::JObject Box::Serialize(SerializeUtil& context) const
+{
+    auto jself = Drawable::Serialize(context);
+    jself.Add("size", detail::ToJArray(context, size));
+    return jself;
+}
 
-Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME)
+
+Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME), SideLen(len), TexRepeat(texRepeat)
 {
     const Point pts[] =
     {
@@ -203,6 +224,13 @@ void Plane::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& t
     DefaultBind(prog, vao, vbo)
         .SetDrawSize(0, 6);
     SetVAO(prog, vao);
+}
+
+ejson::JObject Plane::Serialize(SerializeUtil& context) const
+{
+    auto jself = Drawable::Serialize(context);
+    jself.Add("sideLen", SideLen).Add("texRepeat", TexRepeat);
+    return jself;
 }
 
 }
