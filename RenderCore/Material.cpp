@@ -97,7 +97,7 @@ static ejson::JDoc SerializeTex(const PBRMaterial::TexHolder& holder, SerializeU
         return std::move(jtex);
     }
     default: 
-        return {};
+        return ejson::JNull();
     }
 }
 
@@ -106,15 +106,15 @@ ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
     auto jself = context.NewObject();
     jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
-    jself.Add("metalness", Metalness);
-    jself.Add("roughness", Roughness);
-    jself.Add("specular", Specular);
-    jself.Add("ao", AO);
-    jself.Add("UseDiffuseMap", UseDiffuseMap);
-    jself.Add("UseNormalMap", UseNormalMap);
-    jself.Add("UseMetalMap", UseMetalMap);
-    jself.Add("UseRoughMap", UseRoughMap);
-    jself.Add("UseAOMap", UseAOMap);
+    jself.EJOBJECT_ADD(Metalness)
+        .EJOBJECT_ADD(Roughness)
+        .EJOBJECT_ADD(Specular)
+        .EJOBJECT_ADD(AO)
+        .EJOBJECT_ADD(UseDiffuseMap)
+        .EJOBJECT_ADD(UseNormalMap)
+        .EJOBJECT_ADD(UseMetalMap)
+        .EJOBJECT_ADD(UseRoughMap)
+        .EJOBJECT_ADD(UseAOMap);
     jself.Add("DiffuseMap", SerializeTex(DiffuseMap, context));
     jself.Add("NormalMap", SerializeTex(NormalMap, context));
     jself.Add("MetalMap", SerializeTex(MetalMap, context));

@@ -91,6 +91,7 @@ class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMova
 private:
     Mat4x4 matrix_Proj, matrix_View;
     set<oglShader> shaders;
+    string ExtShaderSource;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
     map<ProgramMappingTarget, string> ResBindMapping;
     set<ProgramResource, std::less<>> ProgRess;
@@ -157,6 +158,7 @@ public:
 
     void AddShader(const oglShader& shader);
     void AddExtShaders(const string& src);
+    const string& GetExtShaderSource() const { return ExtShaderSource; }
     void Link();
     void RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping);
     GLint GetLoc(const string& name) const;

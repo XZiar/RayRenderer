@@ -137,7 +137,7 @@ struct MINILOGAPI StrFormater<char16_t>
 {
     static fmt::basic_memory_buffer<char16_t>& GetBuffer();
     template<class... Args>
-    static const fmt::basic_memory_buffer<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& formater, Args&&... args)
+    static fmt::basic_memory_buffer<char16_t>& ToU16Str(const std::basic_string_view<char16_t>& formater, Args&&... args)
     {
         auto& buffer = GetBuffer();
         buffer.resize(0);

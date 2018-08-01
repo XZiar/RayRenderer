@@ -13,6 +13,18 @@ public:
         return Hex2Str(data.data(), data.size() * sizeof(T::value_type));
     }
     static string Hex2Str(const void* data, const size_t size);
+
+    static vector<byte> Str2Hex(const string_view& str);
+
+    template<typename T>
+    static string ToBase64(const T& data)
+    {
+        return ToBase64(data.data(), data.size() * sizeof(T::value_type));
+    }
+    static string ToBase64(const void* data, const size_t size);
+
+    static vector<byte> FromBase64(const string_view& str);
+
     template<typename T>
     static bytearray<32> SHA256(const T& data)
     {

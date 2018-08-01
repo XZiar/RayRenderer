@@ -1,5 +1,10 @@
 #pragma once
 #include "ResourcePackagerRely.h"
+#include "3rdParty/rapidjson/document.h"
+#include "3rdParty/rapidjson/encodings.h"
+#include "3rdParty/rapidjson/stringbuffer.h"
+#include "3rdParty/rapidjson/writer.h"
+#include "3rdParty/rapidjson/prettywriter.h"
 
 namespace xziar::respak::ejson
 {
@@ -106,24 +111,47 @@ protected:
     JDoc(const rapidjson::Type type) : DocumentHandle(), Val(type) {}
     JDoc(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const rapidjson::Type type) : DocumentHandle(mempool), Val(type) {}
 public:
-    JDoc() : DocumentHandle({}), Val(rapidjson::kNullType) {}
     explicit operator rapidjson::Value() { return std::move(Val); }
-    string Stringify() const
+    string Stringify(const bool pretty = false) const
     {
         rapidjson::StringBuffer strBuf;
-        rapidjson::Writer writer(strBuf);
-        Val.Accept(writer);
+        if (pretty)
+        {
+            rapidjson::PrettyWriter writer(strBuf);
+            Val.Accept(writer);
+        }
+        else
+        {
+            rapidjson::Writer writer(strBuf);
+            Val.Accept(writer);
+        }
         return strBuf.GetString();
     }
     template<class T>
-    void Stringify(T& writeBackend) const
+    void Stringify(T& writeBackend, const bool pretty = false) const
     {
         StreamWrapper<T> streamer(writeBackend);
-        rapidjson::Writer writer(streamer);
-        Val.Accept(writer);
+        if (pretty)
+        {
+            rapidjson::PrettyWriter writer(streamer);
+            Val.Accept(writer);
+        }
+        else
+        {
+            rapidjson::Writer writer(streamer);
+            Val.Accept(writer);
+        }
     }
     rapidjson::Value& ValRef() { return Val; }
     rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
+};
+
+class JNull : public JDoc
+{
+private:
+    using JDoc::GetMemPool;
+public:
+    JNull() : JDoc({}, rapidjson::kNullType) {}
 };
 
 class JArray : public JDoc
@@ -180,4 +208,7 @@ forceinline JArray DocumentHandle::NewArray()
 
 
 }
+#define EJSON_ADD_MEMBER(jobject, field) jobject.Add(u8"" #field, field)
+#define EJOBJECT_ADD(field) Add(u8"" #field, field)
+
 

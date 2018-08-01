@@ -177,28 +177,6 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
-static void TestIt()
-{
-    using namespace xziar::respak::ejson;
-    JObject jobj;
-    jobj.Add("key1", "val1");
-    jobj.Add("key2", 2);
-    jobj.Add("key3", true);
-    string val4("val4");
-    jobj.Add("key4", val4);
-    std::string_view val5("val5");
-    jobj.Add("key5", val5);
-    auto jobj1 = jobj.NewObject();
-    jobj.Add("key6", jobj1);
-    auto jarr1 = jobj.NewArray();
-    jarr1.Push(true);
-    jarr1.Push(3.1415);
-    jarr1.Push("herh");
-    jobj.Add("key7", jarr1);
-    const auto data = jobj.Stringify();
-    tester->Serialize(u"D:/Cache/testxzrp.dat");
-}
-
 int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
@@ -220,7 +198,7 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
         tester->AddLight(light);
         tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
-    TestIt();
+    tester->Serialize(u"D:/Cache/testxzrp.dat");
 
     FreeGLUTViewRun();
 }

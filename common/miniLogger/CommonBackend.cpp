@@ -33,6 +33,7 @@ public:
     void virtual OnPrint(const LogMessage& msg) override
     {
         auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}", GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
+        writer.push_back(u'\0');
         PrintText(std::u16string_view(writer.data(), writer.size()));
     }
 };

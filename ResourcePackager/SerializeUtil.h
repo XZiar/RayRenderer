@@ -81,6 +81,7 @@ private:
     ejson::JObject Serialize(const Serializable& object);
     void CheckFinished() const;
 public:
+    bool IsPretty = false;
     SerializeUtil(const fs::path& fileName);
     ~SerializeUtil();
     void AddFilter(const FilterFunc& filter) { Filters.push_back(filter); }

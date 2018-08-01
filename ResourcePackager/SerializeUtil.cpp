@@ -124,17 +124,8 @@ string SerializeUtil::PutResource(const void * data, const size_t size, const st
 
     const auto findres = FindInMap(ResourceSet, metadata.SHA256, std::in_place);
     if (findres)
-    {
-        const auto& oldmeta = ResourceList[findres.value()];
-        if (oldmeta.GetSize() == size)
-        {
-            if (!id.empty())
-                ResourceLookup.insert_or_assign(id, findres.value());
-            return oldmeta.ExtractHandle();
-        }
-        COMMON_THROW(BaseException, L"Hash collision detected!");
-    }
-
+        return ResourceList[findres.value()].ExtractHandle();
+    ResourceSet.try_emplace(metadata.SHA256, ResCount);
     ResWriter->Write(&metadata, sizeof(metadata));
     ResWriter->Write(data, size);
     ResourceList.push_back(metadata);
@@ -163,7 +154,7 @@ void SerializeUtil::Finish()
     sumdata.Dummy[3] = byte('K');
     ResWriter->Write(&sumdata, sizeof(sumdata));
     ResWriter->Flush();
-    DocRoot.Stringify(DocWriter);
+    DocRoot.Stringify(DocWriter, IsPretty);
     DocWriter.Flush();
     HasFinished = true;
 }

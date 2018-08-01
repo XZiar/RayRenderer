@@ -6,7 +6,7 @@ namespace oglu
 {
 
 
-enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, TexBuf = GL_TEXTURE_BUFFER, Tex2DArray = GL_TEXTURE_2D_ARRAY };
+enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, Tex3D = GL_TEXTURE_3D, TexBuf = GL_TEXTURE_BUFFER, Tex2DArray = GL_TEXTURE_2D_ARRAY };
 
 //upper for format, lower for type
 enum class TextureDataFormat : uint8_t
@@ -111,10 +111,46 @@ public:
     TextureInnerFormat GetInnerFormat() const { return InnerFormat; }
 };
 
+template<typename Base>
+struct _oglTexCommon
+{
+    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept
+    {
+        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+        ((Base&)(*this)).SetData(isSub, datatype, comptype, data);
+    }
+    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept
+    {
+        buf->bind();
+        SetData(isSub, dformat, nullptr);
+        buf->unbind();
+    }
+    forceinline void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept
+    {
+        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.DataType, normalized);
+        if (flipY)
+        {
+            const auto theimg = img.FlipToVertical();
+            ((Base&)(*this)).SetData(isSub, datatype, comptype, theimg.GetRawPtr());
+        }
+        else
+        {
+            ((Base&)(*this)).SetData(isSub, datatype, comptype, img.GetRawPtr());
+        }
+    }
+    forceinline void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept
+    {
+        buf->bind();
+        ((Base&)(*this)).SetCompressedData(isSub, nullptr, size);
+        buf->unbind();
+    }
+};
+
 class _oglTexture2DView;
 
-class OGLUAPI _oglTexture2D : public _oglTexBase
+class OGLUAPI _oglTexture2D : public _oglTexBase, protected _oglTexCommon<_oglTexture2D>
 {
+    friend _oglTexCommon<_oglTexture2D>;
     friend class _oglTexture2DArray;
     friend class _oglFrameBuffer;
     friend class ::oclu::detail::_oclGLBuffer;
@@ -125,12 +161,9 @@ protected:
     explicit _oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0), Mipmap(1) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
-    void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept;
-    void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept;
-    void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept;
-
     void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
-    void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept;
+    using _oglTexCommon<_oglTexture2D>::SetData;
+    using _oglTexCommon<_oglTexture2D>::SetCompressedData;
 public:
     std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
     optional<vector<uint8_t>> GetCompressedData();
@@ -230,6 +263,55 @@ public:
 };
 
 
+class OGLUAPI _oglTexture3D : public _oglTexBase, protected _oglTexCommon<_oglTexture3D>
+{
+    friend _oglTexCommon<_oglTexture3D>;
+    friend class ::oclu::detail::_oclGLBuffer;
+protected:
+    uint32_t Width, Height, Depth;
+    uint8_t Mipmap;
+
+    explicit _oglTexture3D() noexcept : _oglTexBase(TextureType::Tex3D), Width(0), Height(0), Depth(0), Mipmap(1) {}
+
+    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
+    void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
+    using _oglTexCommon<_oglTexture3D>::SetData;
+    using _oglTexCommon<_oglTexture3D>::SetCompressedData;
+public:
+    std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
+    optional<vector<uint8_t>> GetCompressedData();
+    vector<uint8_t> GetData(const TextureDataFormat dformat);
+};
+
+
+class OGLUAPI _oglTexture3DStatic : public _oglTexture3D
+{
+private:
+public:
+    _oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
+
+    void SetData(const TextureDataFormat dformat, const void *data);
+    void SetData(const TextureDataFormat dformat, const oglPBO& buf);
+    void SetData(const Image& img, const bool normalized = true, const bool flipY = true);
+    template<class T, class A>
+    void SetData(const TextureDataFormat dformat, const vector<T, A>& data)
+    {
+        SetData(iformat, dformat, data.data());
+    }
+
+    void SetCompressedData(const void *data, const size_t size);
+    void SetCompressedData(const oglPBO& buf, const size_t size);
+    template<class T, class A>
+    void SetCompressedData(const vector<T, A>& data)
+    {
+        SetCompressedData(data.data(), data.size() * sizeof(T));
+    }
+
+    void GenerateMipmap();
+    //Wrapper<_oglTexture2DView> GetTextureView() const;
+};
+
+
 class OGLUAPI _oglBufferTexture : public _oglTexBase
 {
 protected:
@@ -248,6 +330,7 @@ using oglTex2DS = Wrapper<detail::_oglTexture2DStatic>;
 using oglTex2DD = Wrapper<detail::_oglTexture2DDynamic>;
 using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
+using oglTex3D = Wrapper<detail::_oglTexture3D>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 
 

@@ -528,9 +528,19 @@ xziar::img::Image BasicTest::Scrrenshot()
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 
+static ejson::JObject SerializeGLProg(const oglu::oglProgram& prog, SerializeUtil& context)
+{
+    auto jprog = context.NewObject();
+    jprog.Add("Name", str::to_u8string(prog->Name, Charset::UTF16LE));
+    const auto& src = prog->GetExtShaderSource();
+    jprog.Add("source", context.PutResource(src.data(), src.size()));
+    return jprog;
+}
+
 void BasicTest::Serialize(const fs::path & fpath) const
 {
     SerializeUtil serializer(fpath);
+    serializer.IsPretty = true;
     {
         auto jlights = serializer.NewArray();
         for (const auto& lgt : lights)
@@ -542,6 +552,12 @@ void BasicTest::Serialize(const fs::path & fpath) const
         for (const auto& drw : drawables)
             serializer.AddObject(jdrawables, *drw);
         serializer.AddObject("drawables", jdrawables);
+    }
+    {
+        auto jprogs = serializer.NewArray();
+        for (const auto& prog : glProgs)
+            jprogs.Push(SerializeGLProg(prog, serializer));
+        serializer.AddObject("shaders", jprogs);
     }
     serializer.Finish();
 }

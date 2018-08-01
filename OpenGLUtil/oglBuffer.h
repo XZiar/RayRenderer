@@ -64,7 +64,8 @@ public:
 
 class OGLUAPI _oglPixelBuffer : public _oglBuffer
 {
-    friend class _oglTexture2D;
+    template<typename Base>
+    friend struct _oglTexCommon;
 public:
     _oglPixelBuffer() noexcept : _oglBuffer(BufferType::Pixel) { }
 };

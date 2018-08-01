@@ -243,7 +243,7 @@ void AsyncManager::Stop()
 
 AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Name(name), Agent(*this),
-    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend(), common::mlog::GetDebuggerBackend() })
+    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() })
 { }
 AsyncManager::~AsyncManager()
 {

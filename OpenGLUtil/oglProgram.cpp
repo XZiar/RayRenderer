@@ -346,6 +346,7 @@ void _oglProgram::AddShader(const oglShader& shader)
 
 void _oglProgram::AddExtShaders(const string& src)
 {
+    ExtShaderSource = src;
     ShaderExtInfo info;
     auto shaders = oglShader::loadFromExSrc(src, info);
     for (auto shader : shaders)

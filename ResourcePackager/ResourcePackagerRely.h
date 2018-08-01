@@ -12,10 +12,6 @@
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/FileEx.hpp"
-#include "3rdParty/rapidjson/document.h"
-#include "3rdParty/rapidjson/encodings.h"
-#include "3rdParty/rapidjson/stringbuffer.h"
-#include "3rdParty/rapidjson/writer.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

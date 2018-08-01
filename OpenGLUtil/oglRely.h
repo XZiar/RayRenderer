@@ -99,6 +99,8 @@ namespace detail
 {
 class TextureManager;
 class UBOManager;
+//template<typename Base>
+//struct _oglTexCommon;
 }
 }
 
