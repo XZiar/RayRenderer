@@ -20,11 +20,15 @@ Backend are binded with logger instance, but they are "shared". Also, logger has
 
 * **Debuger Backend** `shared`
   
-  Send debug message to debugger, such as VisualStudio's debug window.
+  Send debug message to debugger, such as VisualStudio's debug window, or stderr in Linux
 
 * **File Backend** `not-shared`
   
-  Not implemented yet.
+  Simply write log to file
+
+* **Global Backend** `shared`
+  
+  Global hooker. Used to capture logging in other runtime (.Net).
 
 ## License
 

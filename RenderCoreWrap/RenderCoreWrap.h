@@ -1,7 +1,8 @@
 #pragma once
 
 #include "RenderCoreWrapRely.h"
-#include "b3d.h"
+#include "b3d.hpp"
+#include "Light.hpp"
 #include "OpenGLTypes.h"
 #include "Material.h"
 
@@ -149,25 +150,25 @@ public:
     }
 };
 
-public ref class LightHolder : public HolderBase<Wrapper<b3d::Light>, Basic3D::Light>
+public ref class LightHolder : public HolderBase<Wrapper<rayr::Light>, Light>
 {
 internal:
-    LightHolder(rayr::BasicTest * const core, const vector<Wrapper<b3d::Light>>& lights) 
-        : HolderBase<Wrapper<b3d::Light>, Basic3D::Light>(core, lights)
+    LightHolder(rayr::BasicTest * const core, const vector<Wrapper<rayr::Light>>& lights)
+        : HolderBase<Wrapper<rayr::Light>, Light>(core, lights)
     { }
 protected:
     void virtual OnPChangded(Object ^sender, PropertyChangedEventArgs ^e) override
     {
         if (e->PropertyName != "Name")
             Core.ReportChanged(rayr::ChangableUBO::Light);
-        HolderBase<Wrapper<b3d::Light>, Basic3D::Light>::OnPChangded(sender, e);
+        HolderBase<Wrapper<rayr::Light>, Light>::OnPChangded(sender, e);
     }
 public:
-    property List<Basic3D::Light^>^ Lights
+    property List<Light^>^ Lights
     {
-        List<Basic3D::Light^>^ get() { return Container; }
+        List<Light^>^ get() { return Container; }
     }
-    void Add(Basic3D::LightType type);
+    void Add(LightType type);
     void Clear();
 };
 
@@ -252,6 +253,7 @@ public:
     Task<bool>^ ReloadCLAsync(String^ fname);
 
     Action<String^>^ Screenshot();
+    void Save(String^ fname);
 };
 
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RenderCoreWrapRely.h"
-#include "b3d.h"
+#include "b3d.hpp"
 
 using namespace System;
 using System::Windows::Media::Imaging::BitmapSource;

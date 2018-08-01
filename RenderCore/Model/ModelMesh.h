@@ -12,7 +12,7 @@ class Model;
 namespace detail
 {
 
-class alignas(b3d::Vec3)_ModelMesh : public NonCopyable, public common::AlignBase<alignof(b3d::Vec3)>
+class alignas(b3d::Vec3)_ModelMesh : public NonCopyable, public common::AlignBase<alignof(b3d::Vec3)>, public xziar::respak::Serializable
 {
     friend class ::rayr::Model;
 private:
@@ -34,6 +34,9 @@ private:
     _ModelMesh(const u16string& fname, bool asyncload = false);
 public:
     void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
+
+    virtual std::string_view SerializedType() const override { return "rayr#ModelMesh"; }
+    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
 };
 
 }

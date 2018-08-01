@@ -87,6 +87,29 @@ void _ModelMesh::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
     }
 }
 
+ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    jself.Add("mfname", str::to_u8string(mfname, Charset::UTF16LE));
+    jself.Add("size", ToJArray(context, size));
+    jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(b3d::PointEx)));
+    jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));
+    auto groupArray = context.NewArray();
+    for (const auto&[name, count] : groups)
+    {
+        auto grp = context.NewObject();
+        grp.Add("Name", name);
+        grp.Add("Offset", count);
+        groupArray.Push(grp);
+    }
+    jself.Add("groups", groupArray);
+    auto jmaterials = context.NewObject();
+    for (const auto&[name, mat] : MaterialMap)
+        context.AddObject(jmaterials, name, mat);
+    jself.Add("materials", jmaterials);
+    return jself;
+}
+
 
 void _ModelMesh::loadOBJ(const fs::path& objpath) try
 {

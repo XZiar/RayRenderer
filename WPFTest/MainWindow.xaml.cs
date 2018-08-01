@@ -349,13 +349,13 @@ namespace WPFTest
             switch (mi.Tag as string)
             {
             case "parallel":
-                Core.Lights.Add(Basic3D.LightType.Parallel);
+                Core.Lights.Add(LightType.Parallel);
                 break;
             case "point":
-                Core.Lights.Add(Basic3D.LightType.Point);
+                Core.Lights.Add(LightType.Point);
                 break;
             case "spot":
-                Core.Lights.Add(Basic3D.LightType.Spot);
+                Core.Lights.Add(LightType.Spot);
                 break;
             }
             glMain.Invalidate();
@@ -468,6 +468,7 @@ namespace WPFTest
 
         private void btnScreenshot_Click(object sender, RoutedEventArgs e)
         {
+            WaitingCount++;
             var saver = Core.Test.Screenshot();
             string fname;
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
@@ -494,6 +495,38 @@ namespace WPFTest
             catch (Exception ex)
             {
                 new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
+            }
+        }
+
+        private void btnSave_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SaveFileDialog()
+            {
+                Filter = "xziar package (*.xzrp)|*.xzrp",
+                Title = "导出场景数据",
+                AddExtension = true,
+                OverwritePrompt = true,
+                CheckPathExists = true,
+                ValidateNames = true,
+            };
+            if (dlg.ShowDialog() != true)
+                return;
+            try
+            {
+                WaitingCount++;
+                Core.Test.Save(dlg.FileName);
+            }
+            catch (Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
             }
         }
 

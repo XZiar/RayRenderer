@@ -84,6 +84,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <CompileAs>CompileAsC</CompileAs>
       <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -117,6 +118,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <MASM>
       <IncludePaths>$(ProjectDir)simd;%(IncludePaths)</IncludePaths>
@@ -145,6 +147,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <MASM>
       <IncludePaths>$(ProjectDir)simd;%(IncludePaths)</IncludePaths>
@@ -175,6 +178,7 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <CompileAs>CompileAsC</CompileAs>
       <ConformanceMode>true</ConformanceMode>
+      <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

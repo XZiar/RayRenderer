@@ -96,7 +96,7 @@
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>
@@ -119,7 +119,7 @@
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Lib>

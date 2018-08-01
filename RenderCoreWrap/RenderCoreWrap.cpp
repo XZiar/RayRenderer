@@ -83,22 +83,27 @@ Action<String^>^ BasicTest::Screenshot()
     return gcnew Action<String^>(saver, &XZiar::Img::ImageSaver::Save);
 }
 
-#pragma managed(push, off)
-static Wrapper<b3d::Light> CreateLight(b3d::LightType type)
+void BasicTest::Save(String^ fname)
 {
-    Wrapper<b3d::Light> light;
+    core->Serialize(ToU16Str(fname));
+}
+
+#pragma managed(push, off)
+static Wrapper<rayr::Light> CreateLight(rayr::LightType type)
+{
+    Wrapper<rayr::Light> light;
     switch (type)
     {
-    case b3d::LightType::Parallel:
-        light = Wrapper<b3d::ParallelLight>(std::in_place);
+    case rayr::LightType::Parallel:
+        light = Wrapper<rayr::ParallelLight>(std::in_place);
         light->color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
         break;
-    case b3d::LightType::Point:
-        light = Wrapper<b3d::PointLight>(std::in_place);
+    case rayr::LightType::Point:
+        light = Wrapper<rayr::PointLight>(std::in_place);
         light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         break;
-    case b3d::LightType::Spot:
-        light = Wrapper<b3d::SpotLight>(std::in_place);
+    case rayr::LightType::Spot:
+        light = Wrapper<rayr::SpotLight>(std::in_place);
         light->color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
         break;
     }
@@ -107,9 +112,9 @@ static Wrapper<b3d::Light> CreateLight(b3d::LightType type)
 }
 #pragma managed(pop)
 
-void LightHolder::Add(Basic3D::LightType type)
+void LightHolder::Add(RayRender::LightType type)
 {
-    auto light = CreateLight((b3d::LightType)type);
+    auto light = CreateLight((rayr::LightType)type);
     if (!light)
         return;
     bool ret = Core.AddLight(light);

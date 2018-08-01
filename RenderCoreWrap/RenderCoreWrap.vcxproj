@@ -199,8 +199,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="b3d.h" />
+    <ClInclude Include="b3d.hpp" />
     <ClInclude Include="ImageUtil.h" />
+    <ClInclude Include="Light.hpp" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="OpenGLTypes.h" />
     <ClInclude Include="ProgInputResource.hpp" />

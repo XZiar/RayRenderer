@@ -77,7 +77,7 @@ void Model::Draw(Drawcall& drawcall) const
 ejson::JObject Model::Serialize(SerializeUtil& context) const
 {
     auto jself = Drawable::Serialize(context);
-    jself.Add("mesh", "null");
+    jself.Add("mesh", context.AddObject(*Mesh));
     return jself;
 }
 

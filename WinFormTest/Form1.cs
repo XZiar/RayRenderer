@@ -22,14 +22,14 @@ namespace WinFormTest
                 ResizeBGDraw = false
             };
             test = new BasicTest();
-            test.Resize(ClientSize.Width & 0xffc0, ClientSize.Height & 0xffc0);
+            test.Resize((uint)ClientSize.Width & 0xffc0, (uint)ClientSize.Height & 0xffc0);
 
             Controls.Add(oglv);
             Resize += (o, e) => { oglv.Size = ClientSize; };
             FormClosing += (o, e) => { test.Dispose(); test = null; };
 
             oglv.Draw += test.Draw;
-            oglv.Resize += (o, e) => { test.Resize(e.Width & 0xffc0, e.Height & 0xffc0); };
+            oglv.Resize += (o, e) => { test.Resize((uint)e.Width & 0xffc0, (uint)e.Height & 0xffc0); };
             oglv.KeyDown += OnKeyDown;
             //oglv.KeyAction += OnKeyAction;
             oglv.MouseAction += OnMouse;

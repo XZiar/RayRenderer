@@ -40,12 +40,12 @@ struct SharedUtil
         return false;
     }
     template<typename T>
-    static rapidjson::Value ToJString(const T& name, [[maybe_unused]] const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& alloc)
+    static rapidjson::Value ToJString(const T& name, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
         rapidjson::Value jstr;
         if constexpr(std::is_same_v<string, PlainType>)
-            jstr.SetString(name.data(), static_cast<uint32_t>(name.size()), *alloc);
+            jstr.SetString(name.data(), static_cast<uint32_t>(name.size()), mempool);
         else if constexpr(std::is_same_v<string_view, PlainType> || std::is_convertible_v<const T&, string_view>)
         {
             const string_view namesv(name);
@@ -54,7 +54,7 @@ struct SharedUtil
         else if constexpr(std::is_convertible_v<const T&, string>)
         {
             const string namestr(name);
-            jstr.SetString(namestr.data(), static_cast<uint32_t>(namestr.size()), *alloc);
+            jstr.SetString(namestr.data(), static_cast<uint32_t>(namestr.size()), mempool);
         }
         else
         {
@@ -63,11 +63,11 @@ struct SharedUtil
         return jstr;
     }
     template<typename T>
-    static rapidjson::Value ToVal(T&& val, [[maybe_unused]] const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& alloc)
+    static rapidjson::Value ToVal(T&& val, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
         if constexpr(IsString<PlainType>())
-            return ToJString(std::forward<T>(val), alloc);
+            return ToJString(std::forward<T>(val), mempool);
         else if constexpr(std::is_convertible_v<T, rapidjson::Value>)
             return static_cast<rapidjson::Value>(val);
         else if constexpr(std::is_constructible_v<rapidjson::Value, T>)
@@ -160,14 +160,14 @@ class JArray : public JDoc
 private:
     JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kArrayType) {}
     template<typename T>
-    forceinline void InnerPush(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, T&& val)
+    forceinline void InnerPush(rapidjson::MemoryPoolAllocator<>& mempool, T&& val)
     {
-        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), *mempool);
+        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), mempool);
     }
     template<typename T, typename... Ts>
-    forceinline void InnerPush(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, T&& val, Ts&&... vals)
+    forceinline void InnerPush(rapidjson::MemoryPoolAllocator<>& mempool, T&& val, Ts&&... vals)
     {
-        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), *mempool);
+        Val.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), mempool);
         InnerPush(mempool, std::forward<Ts>(vals)...);
     }
 public:
@@ -175,7 +175,7 @@ public:
     template<typename... T>
     JArray& Push(T&&... val)
     {
-        InnerPush(MemPool, std::forward<T>(val)...);
+        InnerPush(*MemPool, std::forward<T>(val)...);
         return *this;
     }
 };
@@ -190,9 +190,10 @@ public:
     template<typename T, typename U>
     JObject& Add(T&& name, U&& val)
     {
-        auto key = SharedUtil::ToJString(std::forward<T>(name), MemPool);
-        auto value = SharedUtil::ToVal(std::forward<U>(val), MemPool);
-        Val.AddMember(key, value, *MemPool);
+        auto& mempool = *MemPool;
+        auto key = SharedUtil::ToJString(std::forward<T>(name), mempool);
+        auto value = SharedUtil::ToVal(std::forward<U>(val), mempool);
+        Val.AddMember(key, value, mempool);
         return *this;
     }
 };

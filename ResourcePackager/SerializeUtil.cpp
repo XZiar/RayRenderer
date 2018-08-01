@@ -79,6 +79,8 @@ string SerializeUtil::AddObject(const Serializable& object)
     if (const auto it = FindInMap(ObjectLookup, objptr); it != nullptr)
         return *it;
 
+    auto& mempool = DocRoot.GetMemPool();
+
     string path;
     for (const auto& filter : Filters)
     {
@@ -88,11 +90,13 @@ string SerializeUtil::AddObject(const Serializable& object)
     if (path.empty())
         path = "/#globals";
     bool isExist = false;
-    auto& target = rapidjson::Pointer(path.data(), path.size()).Create(DocRoot.ValRef(), DocRoot.GetMemPool(), &isExist);
+    auto& target = rapidjson::Pointer(path.data(), path.size()).Create(DocRoot.ValRef(), mempool, &isExist);
     if (!isExist)
         target.SetObject();
 
-    string id = '$' + std::to_string(objptr);
+    const auto strptr = std::to_string(objptr);
+    target.AddMember(ejson::SharedUtil::ToJString(strptr, mempool), static_cast<rapidjson::Value>(Serialize(object)), mempool);
+    string id = '$' + strptr;
     ObjectLookup.emplace(objptr, id);
     return id;
 }

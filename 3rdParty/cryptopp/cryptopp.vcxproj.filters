@@ -898,6 +898,12 @@
     <CustomBuild Include="rdrand.asm">
       <Filter>源文件</Filter>
     </CustomBuild>
+    <CustomBuild Include="x64dll.asm">
+      <Filter>源文件</Filter>
+    </CustomBuild>
+    <CustomBuild Include="x64masm.asm">
+      <Filter>源文件</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Readme.txt" />
