@@ -1,0 +1,20 @@
+language: cpp
+compiler: gcc
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-7
+      - nasm
+      - libboost-dev
+      - python3
+
+env:
+  - CC=gcc-7
+  - CXX=g++-7
+
+
+script:
+  - python3 build.py rebuildall all

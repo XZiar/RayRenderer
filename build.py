@@ -4,6 +4,7 @@ import platform
 import sys
 from collections import deque
 from subprocess import call
+from typing import Union
 
 projDir = os.getcwd()
 depDir  = os.environ.get("CPP_DEPENDENCY_PATH", "./")
@@ -66,15 +67,20 @@ def listproj(projs:dict, projname: str):
         printDep(projs[projname], 0)
     pass
 
-def genDependency(proj:Project):
+def genDependency(proj:Union[Project,set]):
     solved = set()
-    waiting = deque([proj])
-    while len(waiting) > 0:
-        target = waiting.popleft()
-        for p in target.dependency:
-            if p not in solved:
-                waiting.append(p)
-        solved.add(target)
+    if isinstance(proj, Project):
+        waiting = deque([proj])
+        while len(waiting) > 0:
+            target = waiting.popleft()
+            for p in target.dependency:
+                if p not in solved:
+                    waiting.append(p)
+            solved.add(target)
+    elif isinstance(proj, set):
+        solved = proj
+    else:
+        raise TypeError()
     builded = set()
     while len(solved) > 0:
         hasObj = False
@@ -89,7 +95,7 @@ def genDependency(proj:Project):
             raise Exception("some dependency can not be fullfilled")
     pass
 
-def mainmake(action:str, proj:Project, args:dict):
+def mainmake(action:str, proj:Union[Project,set], args:dict):
     if action.endswith("all"):
         projs = [x for x in genDependency(proj)]
         print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))
@@ -130,7 +136,11 @@ def main(argv=None):
         if action == "list":
             listproj(projects, objproj)
         elif action in set(["build", "clean", "buildall", "cleaall", "rebuild", "rebuildall"]):
-            proj = projects[objproj]
+            if objproj == "all":
+                action = action if action.endswith("all") else action+"all"
+                proj = set(projects.values())
+            else:
+                proj = projects[objproj]
             args = { "platform": "x64", "target": "Debug" }
             if len(argv) > 4: args["platform"] = argv[3]             
             if len(argv) > 3: args["target"] = argv[4]             

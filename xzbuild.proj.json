@@ -50,6 +50,14 @@
             "dependency": []
         },
         {
+            "name": "cryptopp",
+            "type": "static",
+            "path": "3rdParty/cryptopp",
+            "version": "7.0.0",
+            "description": "Crypto++ Library is a free C++ Class Library of Cryptographic Schemes",
+            "dependency": []
+        },
+        {
             "name": "stb",
             "type": "static",
             "path": "3rdParty/stblib",
@@ -77,6 +85,13 @@
             "path": "common/miniLogger",
             "description": "A mini logger library",
             "dependency": ["fmt"]
+        },
+        {
+            "name": "ResourcePackager",
+            "type": "dynamic",
+            "path": "ResourcePackager",
+            "description": "Resource package and management library",
+            "dependency": ["fmt", "miniLogger","cryptopp"]
         },
         {
             "name": "AsyncExecutor",

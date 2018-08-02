@@ -156,9 +156,6 @@
     <ClCompile Include="fips140.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="fipstest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="gcm.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -908,5 +905,8 @@
   <ItemGroup>
     <Text Include="Readme.txt" />
     <Text Include="License.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

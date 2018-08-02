@@ -94,8 +94,8 @@ private:
         StreamWrapper(T& backend) : Backend(backend) { }
         char Peek() const { assert(false); return '\0'; }
         char Take() { assert(false); return '\0'; }
-        size_t Tell() const {  }
-        char* PutBegin() { assert(false); return 0; }
+        size_t Tell() const { assert(false); return 0; }
+        char* PutBegin() { assert(false); return nullptr; }
         void Put(char c) 
         { 
             Backend.WriteByteNE(c);

@@ -1,10 +1,14 @@
 #pragma once
 
-#ifdef RESPAK_EXPORT
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef RESPAK_EXPORT
 #   define RESPAKAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define RESPAKAPI _declspec(dllimport)
+# endif
+#else
+# define RESPAKAPI
 #endif
 
 

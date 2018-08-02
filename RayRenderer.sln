@@ -187,6 +187,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureUtil", "TextureUtil\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build Tools", "Build Tools", "{E609F9C6-E6E5-4884-A790-434D043AB4F2}"
 	ProjectSection(SolutionItems) = preProject
+		.travis.yml = .travis.yml
 		build.py = build.py
 		build.sh = build.sh
 		Makebase.mk = Makebase.mk

@@ -20,7 +20,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
 | [common](./common) | Basic but useful things | N/A |
-| [CommonUtil](./CommonUtil) | Basic utils for C# | Windows |
+| [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
 | [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
 | [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
@@ -28,6 +28,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows |
 | [TextureUtil](./TextureUtil) | Texture Utility | Windows |
+| [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux|
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows |
@@ -43,6 +44,8 @@ Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-
 VS2017(`15.7`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
 
 Some Utilities have `Makefile` inside are capable to be compiled on Linux, only tested on GCC 7.2. They can be built by execute [`build.sh`](build.sh) or use more powerful build system via [`build.py`](build.py) (python3).
+
+`ResoucePackager` cannot be compiled by GCC7.3/7.3.1 due to compiler bug with rapidjson, see Tencent/rapidjson#1338
 
 Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 

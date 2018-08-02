@@ -20,6 +20,20 @@ define CLR_TEXT
 $(1)$(2)$(CLR_CLEAR)
 endef
 
+#X86 SIMD detect
+XZMK_HAS_SSE 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSE__)
+XZMK_HAS_SSE2 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSE2__)
+XZMK_HAS_SSE3 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSE3__)
+XZMK_HAS_SSSE3 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSSE3__)
+XZMK_HAS_SSE4_1		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSE4_1__)
+XZMK_HAS_SSE4_2 	:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SSE4_2__)
+XZMK_HAS_AVX 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __AVX__)
+XZMK_HAS_FMA 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __FMA__)
+XZMK_HAS_AVX2 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __AVX2__)
+XZMK_HAS_AES 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __AES__)
+XZMK_HAS_SHA 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SHA__)
+XZMK_HAS_PCLMUL		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __PCLMUL__)
+
 TARGET		?= Debug
 PLATFORM	?= x64
 PROJPATH	?= ./
@@ -29,25 +43,50 @@ INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)"
 SUBDIRS		:=
 CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas
+CXXOPT		:=
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
 CFLAGS		 = $(CXXFLAGS) -std=c11
 NASMFLAGS	:= -g 
 LIBRARYS	:= 
 DEPLIBS		:= 
 
+ifneq ($(TARGET), Debug)
+ifneq ($(TARGET), Release)
+@echo "$(CLR_RED)Unknown Target [$(TARGET)], Should be [Debug|Release]$(CLR_CLEAR)"
+$(error Unknown Target [$(TARGET)], Should be [Debug|Release])
+endif
+endif
+
+ifneq ($(PLATFORM), x86)
+ifneq ($(PLATFORM), x64)
+@echo "$(CLR_RED)Unknown Platform [$(PLATFORM)], Should be [x86|x64]$(CLR_CLEAR)"
+$(error Unknown Platform [$(PLATFORM)], Should be [x86|x64])
+endif
+endif
+
 ifeq ($(PLATFORM), x64)
 	OBJPREFEX	 = x64/
-	CXXFLAGS	+= -mavx2 -m64
+	CXXFLAGS	+= -march=native -m64
 	NASMFLAGS	+= -f elf64 -D__x86_64__ -DELF
 else
 	OBJPREFEX	 = 
-	CXXFLAGS	+= -msse2 -m32
+	CXXFLAGS	+= -march=native -m32
 	NASMFLAGS	+= -f elf32 -DELF
 endif
 
 ifeq ($(TARGET), Release)
-	CXXFLAGS	+= -DNDEBUG -O2 -flto
+	CXXFLAGS	+= -DNDEBUG -flto
+ifeq ($(CXXOPT),)
+	CXXFLAGS	+= -O2
+endif
 else
+ifeq ($(CXXOPT),)
+	CXXFLAGS	+= -O0
+endif
+endif
+
+ifneq ($(CXXOPT),)
+	CXXFLAGS	+= $(CXXOPT)
 endif
 
 ifneq ($(BOOST_PATH), )

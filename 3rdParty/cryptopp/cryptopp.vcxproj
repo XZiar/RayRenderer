@@ -222,7 +222,6 @@
     <ClCompile Include="files.cpp" />
     <ClCompile Include="filters.cpp" />
     <ClCompile Include="fips140.cpp" />
-    <ClCompile Include="fipstest.cpp" />
     <ClCompile Include="gcm.cpp" />
     <ClCompile Include="gcm-simd.cpp" />
     <ClCompile Include="gf256.cpp" />
@@ -497,6 +496,9 @@
   <ItemGroup>
     <Text Include="License.txt" />
     <Text Include="Readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
