@@ -3,7 +3,7 @@
 #include "RenderCoreRely.h"
 #include "Basic3DObject.h"
 #include "Model.h"
-#include "Light.hpp"
+#include "Light.h"
 #include "Material.h"
 #include "FontHelper/FontHelper.h"
 

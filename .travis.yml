@@ -12,9 +12,17 @@ addons:
       - python3
 
 env:
-  - CC=gcc-7
-  - CXX=g++-7
+  global:
+    - CCOMPILER=gcc-7
+    - ASMCOMPILER=g++-7
+    - CPPCOMPILER=g++-7
+    - DYNAMICLINKER=g++-7
+    - APPLINKER=g++-7
 
+before_script:
+  - $(CPPCOMPILER) --version
+  - python3 --version
+  - nasm --version
 
 script:
   - python3 build.py rebuildall all

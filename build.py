@@ -4,7 +4,6 @@ import platform
 import sys
 from collections import deque
 from subprocess import call
-from typing import Union
 
 projDir = os.getcwd()
 depDir  = os.environ.get("CPP_DEPENDENCY_PATH", "./")
@@ -67,7 +66,7 @@ def listproj(projs:dict, projname: str):
         printDep(projs[projname], 0)
     pass
 
-def genDependency(proj:Union[Project,set]):
+def genDependency(proj:Project,set):
     solved = set()
     if isinstance(proj, Project):
         waiting = deque([proj])
@@ -95,7 +94,7 @@ def genDependency(proj:Union[Project,set]):
             raise Exception("some dependency can not be fullfilled")
     pass
 
-def mainmake(action:str, proj:Union[Project,set], args:dict):
+def mainmake(action:str, proj:Project,set, args:dict):
     if action.endswith("all"):
         projs = [x for x in genDependency(proj)]
         print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))

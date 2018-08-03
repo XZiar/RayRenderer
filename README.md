@@ -1,5 +1,7 @@
 # RayRenderer
 
+[![Build Status](https://travis-ci.org/XZiar/RayRenderer.svg?branch=master)](https://travis-ci.org/XZiar/RayRenderer)
+
 A messy renderer based on my old RayTrace project.
 
 But it's not a renderer yet, it's just a collection of utilities.

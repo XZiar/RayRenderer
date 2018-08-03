@@ -164,6 +164,27 @@ void SerializeUtil::Finish()
 }
 
 
+std::unordered_map<std::string_view, DeserializeUtil::DeserializeFunc>& DeserializeUtil::DeserializeMap()
+{
+    static std::unordered_map<std::string_view, DeserializeFunc> desMap;
+    return desMap;
+}
+uint32_t DeserializeUtil::RegistDeserializer(const std::string_view& type, const DeserializeFunc& func)
+{
+    DeserializeMap()[type] = func;
+    return 0;
+}
+
+template<>
+std::unique_ptr<Serializable> DeserializeUtil::Deserialize(const ejson::JObject& object)
+{
+    const auto type = object.Get<string>("#Type");
+    const auto it = FindInMap(DeserializeMap(), string_view(type));
+    if (!it)
+        return nullptr;
+    return (*it)(*this, object);
+}
+
 }
 
 

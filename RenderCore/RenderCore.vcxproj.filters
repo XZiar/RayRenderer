@@ -60,9 +60,6 @@
     <ClInclude Include="Model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Light.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Model\ModelImage.h">
       <Filter>Model</Filter>
     </ClInclude>
@@ -79,6 +76,9 @@
       <Filter>Model</Filter>
     </ClInclude>
     <ClInclude Include="ShadowMapping.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -119,6 +119,9 @@
       <Filter>Model</Filter>
     </ClCompile>
     <ClCompile Include="ShadowMapping.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Light.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

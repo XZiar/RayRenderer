@@ -230,7 +230,7 @@ public:
     }
 
     template<typename T = byte>
-    T ReadByteNE()//without checking
+    T ReadByteNE() noexcept//without checking
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         return (T)fgetc(fp);
@@ -257,7 +257,7 @@ public:
     }
 
     template<typename T = byte>
-    bool WriteByteNE(const T data)//without checking
+    bool WriteByteNE(const T data) noexcept//without checking
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         return fputc(*reinterpret_cast<const uint8_t*>(&data), fp) != EOF;
@@ -355,9 +355,7 @@ public:
 
     void Rewind(const size_t offset = 0) 
     {
-        if (offset == BufBegin)
-            return;
-        if (offset > BufBegin)
+        if (offset >= BufBegin)
         {
             const auto dist = offset - BufBegin;
             if (dist < BufLen)
@@ -485,8 +483,6 @@ public:
 
     void Rewind(const size_t offset = 0)
     {
-        if (offset == BufBegin)
-            return;
         Flush();
         File.Rewind(BufBegin = offset);
         BufLen = 0; // assume flush success
