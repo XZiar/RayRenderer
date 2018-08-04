@@ -9,6 +9,7 @@ namespace rayr
 {
 
 using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 struct Init
 {
@@ -564,6 +565,18 @@ void BasicTest::Serialize(const fs::path & fpath) const
         serializer.AddObject("shaders", jprogs);
     }
     serializer.Finish();
+}
+
+void BasicTest::DeSerialize(const fs::path & fpath) const
+{
+    DeserializeUtil deserializer(fpath);
+    const auto jlights = deserializer.Root.GetArray("lights");
+    for (const auto ele : jlights)
+    {
+        const ejson::JObjectRef<true> jlgt(ele);
+        const auto lgt = deserializer.Deserialize<Light>(jlgt);
+        const auto ki = lgt->color;
+    }
 }
 
 }

@@ -86,6 +86,7 @@ Action<String^>^ BasicTest::Screenshot()
 void BasicTest::Save(String^ fname)
 {
     core->Serialize(ToU16Str(fname));
+    core->DeSerialize(ToU16Str(fname));
 }
 
 #pragma managed(push, off)

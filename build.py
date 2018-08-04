@@ -134,7 +134,7 @@ def main(argv=None):
 
         if action == "list":
             listproj(projects, objproj)
-        elif action in set(["build", "clean", "buildall", "cleaall", "rebuild", "rebuildall"]):
+        elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
             if objproj == "all":
                 action = action if action.endswith("all") else action+"all"
                 proj = set(projects.values())

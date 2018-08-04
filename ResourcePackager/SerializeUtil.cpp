@@ -5,6 +5,8 @@
 
 using common::container::FindInMap;
 
+static constexpr std::string_view TypeFieldName = "#Type";
+
 namespace xziar::respak
 {
 
@@ -33,7 +35,7 @@ uint64_t ResourceItem::GetSize() const
 
 SerializeUtil::SerializeUtil(const fs::path& fileName)
     : DocWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
-    ResWriter(std::make_unique<detail::FileBinaryWriter>(fs::path(fileName).replace_extension(u".xzrp")))
+    ResWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536)
 {
     auto config = DocRoot.NewObject();
     config.Add("identity", "xziar-respak");
@@ -50,7 +52,7 @@ SerializeUtil::~SerializeUtil()
 ejson::JObject SerializeUtil::Serialize(const Serializable & object)
 {
     auto result = object.Serialize(*this);
-    result.Add("#Type", object.SerializedType());
+    result.Add(TypeFieldName, object.SerializedType());
     return result;
 }
 
@@ -130,8 +132,8 @@ string SerializeUtil::PutResource(const void * data, const size_t size, const st
     if (findres)
         return ResourceList[findres.value()].ExtractHandle();
     ResourceSet.try_emplace(metadata.SHA256, ResCount);
-    ResWriter->Write(&metadata, sizeof(metadata));
-    ResWriter->Write(data, size);
+    ResWriter.Write(metadata);
+    ResWriter.Write(size, data);
     ResourceList.push_back(metadata);
     if (!id.empty())
         ResourceLookup.insert_or_assign(id, ResCount);
@@ -150,14 +152,14 @@ void SerializeUtil::Finish()
 {
     CheckFinished();
     const auto resSize = ResOffset;
-    ResWriter->Write(ResourceList.data(), ResCount * sizeof(detail::ResourceItem));
+    ResWriter.Write(ResCount * sizeof(detail::ResourceItem), ResourceList.data());
     detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * sizeof(detail::ResourceItem)), 0, ResOffset, ResCount);
     sumdata.Dummy[0] = byte('X');
     sumdata.Dummy[1] = byte('Z');
     sumdata.Dummy[2] = byte('P');
     sumdata.Dummy[3] = byte('K');
-    ResWriter->Write(&sumdata, sizeof(sumdata));
-    ResWriter->Flush();
+    ResWriter.Write(sumdata);
+    ResWriter.Flush();
     DocRoot.Stringify(DocWriter, IsPretty);
     DocWriter.Flush();
     HasFinished = true;
@@ -175,11 +177,21 @@ uint32_t DeserializeUtil::RegistDeserializer(const std::string_view& type, const
     return 0;
 }
 
-template<>
-std::unique_ptr<Serializable> DeserializeUtil::Deserialize(const ejson::JObject& object)
+DeserializeUtil::DeserializeUtil(const fs::path & fileName)
+    : ResReader(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ), 65536),
+    DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
+    Root(ejson::JObjectRef<true>(DocRoot))
 {
-    const auto type = object.Get<string>("#Type");
-    const auto it = FindInMap(DeserializeMap(), string_view(type));
+}
+
+DeserializeUtil::~DeserializeUtil()
+{
+}
+
+std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(const ejson::JObjectRef<true>& object)
+{
+    const auto type = object.Get<string_view>(TypeFieldName);
+    const auto it = FindInMap(DeserializeMap(), type);
     if (!it)
         return nullptr;
     return (*it)(*this, object);

@@ -20,7 +20,7 @@ env:
     - APPLINKER=g++-7
 
 before_script:
-  - $(CPPCOMPILER) --version
+  - $CPPCOMPILER --version
   - python3 --version
   - nasm --version
 

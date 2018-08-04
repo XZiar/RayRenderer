@@ -26,6 +26,11 @@ RESPAK_DESERIALIZER(Light)
 {
     auto ret = new Light(static_cast<LightType>(object.Get<int32_t>("lightType")),
         str::to_u16string(object.Get<string>("name"), Charset::UTF8));
+    detail::FromJArray(object.GetArray("position"), ret->position);
+    detail::FromJArray(object.GetArray("direction"), ret->direction);
+    detail::FromJArray(object.GetArray("color"), ret->color);
+    detail::FromJArray(object.GetArray("attenuation"), ret->attenuation);
+    object.GetArray("position").TryGetMany(0, ret->cutoffOuter, ret->cutoffInner);
     ret->isOn = object.Get<bool>("isOn");
     return std::unique_ptr<Serializable>(ret);
 }

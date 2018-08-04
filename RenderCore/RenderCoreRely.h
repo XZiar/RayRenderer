@@ -90,6 +90,16 @@ forceinline ejson::JArray ToJArray(T& handle, const b3d::Vec4& vec)
     ret.Push(vec.x, vec.y, vec.z, vec.w);
     return ret;
 }
+template<typename T>
+forceinline void FromJArray(const T& jarray, b3d::Vec3& vec)
+{
+    jarray.TryGetMany(0, vec.x, vec.y, vec.z);
+}
+template<typename T>
+forceinline void FromJArray(const T& jarray, b3d::Vec4& vec)
+{
+    jarray.TryGetMany(0, vec.x, vec.y, vec.z, vec.w);
+}
 }
 
 
