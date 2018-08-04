@@ -18,77 +18,6 @@ Drawable::Drawable(const Wrapper<rayr::Drawable>& obj) : drawable(new std::weak_
     }
 }
 
-#pragma unmanaged
-auto FindPath()
-{
-    fs::path shdpath(UTF16ER(__FILE__));
-    return shdpath.parent_path().parent_path() / u"RenderCore";
-}
-#pragma managed
-
-BasicTest::BasicTest()
-{
-    try
-    {
-        core = new rayr::BasicTest(FindPath());
-        Camera = gcnew Basic3D::Camera(&core->cam);
-        Lights = gcnew LightHolder(core, core->Lights());
-        Drawables = gcnew DrawableHolder(core, core->Objects());
-        Shaders = gcnew ShaderHolder(core, core->Shaders());
-    }
-    catch (BaseException& be)
-    {
-        Console::WriteLine(L"Initilize failed : {0}\n", ToStr(be.message));
-        throw gcnew CPPException(be);
-    }
-}
-
-BasicTest::!BasicTest()
-{
-    delete Shaders;
-    delete Drawables;
-    delete Lights;
-    delete Camera;
-    delete core;
-}
-
-void BasicTest::Draw()
-{
-    core->Draw();
-}
-
-void BasicTest::Resize(const uint32_t w, const uint32_t h)
-{
-    core->Resize(w, h);
-}
-
-void BasicTest::ResizeOffScreen(const uint32_t w, const uint32_t h, const bool isFloatDepth)
-{
-    core->ResizeFBO(w, h, isFloatDepth);
-}
-
-void BasicTest::ReLoadCL(String^ fname)
-{
-    core->ReloadFontLoader(ToU16Str(fname));
-}
-
-Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
-{
-    return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, *core, ToU16Str(fname));
-}
-
-Action<String^>^ BasicTest::Screenshot()
-{
-    auto saver = gcnew XZiar::Img::ImageSaver(core->Scrrenshot());
-    return gcnew Action<String^>(saver, &XZiar::Img::ImageSaver::Save);
-}
-
-void BasicTest::Save(String^ fname)
-{
-    core->Serialize(ToU16Str(fname));
-    core->DeSerialize(ToU16Str(fname));
-}
-
 #pragma managed(push, off)
 static Wrapper<rayr::Light> CreateLight(rayr::LightType type)
 {
@@ -170,6 +99,79 @@ void ShaderHolder::UseShader(OpenGLUtil::GLProgram^ shader)
 {
     if (shader == nullptr) return;
     Core.ChangeShader(shader->prog->lock());
+}
+
+
+#pragma unmanaged
+auto FindPath()
+{
+    fs::path shdpath(UTF16ER(__FILE__));
+    return shdpath.parent_path().parent_path() / u"RenderCore";
+}
+#pragma managed
+
+BasicTest::BasicTest()
+{
+    try
+    {
+        core = new rayr::BasicTest(FindPath());
+        Camera = gcnew Basic3D::Camera(&core->cam);
+        Lights = gcnew LightHolder(core, core->Lights());
+        Drawables = gcnew DrawableHolder(core, core->Objects());
+        Shaders = gcnew ShaderHolder(core, core->Shaders());
+    }
+    catch (BaseException& be)
+    {
+        Console::WriteLine(L"Initilize failed : {0}\n", ToStr(be.message));
+        throw gcnew CPPException(be);
+    }
+}
+
+BasicTest::!BasicTest()
+{
+    delete Shaders;
+    delete Drawables;
+    delete Lights;
+    delete Camera;
+    delete core;
+}
+
+void BasicTest::Draw()
+{
+    core->Draw();
+}
+
+void BasicTest::Resize(const uint32_t w, const uint32_t h)
+{
+    core->Resize(w, h);
+}
+
+void BasicTest::ResizeOffScreen(const uint32_t w, const uint32_t h, const bool isFloatDepth)
+{
+    core->ResizeFBO(w, h, isFloatDepth);
+}
+
+void BasicTest::ReLoadCL(String^ fname)
+{
+    core->ReloadFontLoader(ToU16Str(fname));
+}
+
+Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
+{
+    return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, *core, ToU16Str(fname));
+}
+
+Action<String^>^ BasicTest::Screenshot()
+{
+    auto saver = gcnew XZiar::Img::ImageSaver(core->Scrrenshot());
+    return gcnew Action<String^>(saver, &XZiar::Img::ImageSaver::Save);
+}
+
+void BasicTest::Serialize(String^ fname)
+{
+    core->Serialize(ToU16Str(fname));
+    core->DeSerialize(ToU16Str(fname));
+    Lights->Refresh();
 }
 
 

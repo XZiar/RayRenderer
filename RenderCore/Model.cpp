@@ -25,14 +25,14 @@ void Model::InitMaterial()
     AssignMaterial();
 }
 
-Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME), Mesh(detail::_ModelMesh::GetModel(fname, asyncload))
+Model::Model(ModelMesh mesh, bool asyncload) : Drawable(this, TYPENAME), Mesh(mesh)
 {
     const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
     scale = Vec3(resizer, resizer, resizer);
     if (asyncload)
     {
-        const auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent) 
-        { 
+        const auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent)
+        {
             InitMaterial();
             agent.Await(oglu::oglUtil::SyncGL());
         });
@@ -43,6 +43,8 @@ Model::Model(const u16string& fname, bool asyncload) : Drawable(this, TYPENAME),
         InitMaterial();
     }
 }
+
+Model::Model(const u16string& fname, bool asyncload) : Model(detail::_ModelMesh::GetModel(fname, asyncload), asyncload) {}
 
 Model::~Model()
 {
@@ -80,5 +82,18 @@ ejson::JObject Model::Serialize(SerializeUtil& context) const
     jself.Add("mesh", context.AddObject(*Mesh));
     return jself;
 }
+void Model::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Drawable::Deserialize(context, object);
+}
+
+RESPAK_DESERIALIZER(Model)
+{
+    return nullptr;
+    //auto ret = new Model(object.Get<float>("SideLen"), object.Get<float>("TexRepeat"));
+    //ret->Deserialize(context, object);
+    //return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Model)
 
 }

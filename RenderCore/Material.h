@@ -56,14 +56,11 @@ public:
     bool UseDiffuseMap = false, UseNormalMap = false, UseMetalMap = false, UseRoughMap = false, UseAOMap = false;
     std::u16string Name;
     PBRMaterial(const std::u16string& name) : Albedo(b3d::Vec3(0.58, 0.58, 0.58)), Metalness(0.0f), Roughness(0.8f), Specular(0.0f), AO(1.0f), Name(name) { }
-    PBRMaterial(const PBRMaterial& other) = default;
-    PBRMaterial(PBRMaterial&& other) = default;
-    PBRMaterial& operator=(PBRMaterial&& other) = default;
-    PBRMaterial& operator=(const PBRMaterial& other) = default;
     uint32_t WriteData(std::byte *ptr) const;
 
-    virtual std::string_view SerializedType() const override { return "rayr#PBRMaterial"; }
+    RESPAK_OVERRIDE_TYPE("rayr#PBRMaterial")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 
@@ -117,8 +114,9 @@ public:
     void BindTexture(oglu::detail::ProgDraw& drawcall) const;
     uint32_t WriteData(std::byte *ptr) const; 
     
-    virtual std::string_view SerializedType() const override { return "rayr#MultiMaterialHolder"; }
+    RESPAK_OVERRIDE_TYPE("rayr#MultiMaterialHolder")
     virtual ejson::JObject Serialize(SerializeUtil & context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 

@@ -13,6 +13,7 @@ class alignas(16) Model : public Drawable
 {
 protected:
     void InitMaterial();
+    Model(ModelMesh mesh, bool asyncload = false);
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelMesh Mesh;
@@ -20,8 +21,9 @@ public:
     ~Model() override;
     virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;
-    virtual std::string_view SerializedType() const override { return "rayr#Drawable#Model"; }
+    RESPAK_OVERRIDE_TYPE("rayr#Drawable#Model")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 }

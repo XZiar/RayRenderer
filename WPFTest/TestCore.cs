@@ -55,6 +55,11 @@ namespace WPFTest
                 OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, Holder[Holder.Size - 1]));
                 CurLgtIdx = ushort.MaxValue;
             }
+            internal void Refresh()
+            {
+                OnCollectionChanged();
+                CurLgtIdx = 0;
+            }
 
             public void Dispose()
             {
@@ -173,6 +178,11 @@ namespace WPFTest
             set { Test.Mode = value; }
         }
 
+        public void Save(string fname)
+        {
+            Test.Serialize(fname);
+            Lights.Refresh();
+        }
 
         public TestCore()
         {

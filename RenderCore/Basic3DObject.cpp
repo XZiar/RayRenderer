@@ -45,9 +45,21 @@ void Pyramid::PrepareGL(const oglu::oglProgram& prog, const map<string, string>&
 ejson::JObject Pyramid::Serialize(SerializeUtil& context) const
 {
     auto jself = Drawable::Serialize(context);
-    jself.Add("len", sidelen);
+    jself.EJOBJECT_ADD(sidelen);
     return jself;
 }
+void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Drawable::Deserialize(context, object);
+}
+
+RESPAK_DESERIALIZER(Pyramid)
+{
+    auto ret = new Pyramid(object.Get<float>("sidelen"));
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Pyramid)
 
 
 vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
@@ -113,9 +125,21 @@ void Sphere::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& 
 ejson::JObject Sphere::Serialize(SerializeUtil& context) const
 {
     auto jself = Drawable::Serialize(context);
-    jself.Add("radius", radius);
+    jself.EJOBJECT_ADD(radius);
     return jself;
 }
+void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Drawable::Deserialize(context, object);
+}
+
+RESPAK_DESERIALIZER(Sphere)
+{
+    auto ret = new Sphere(object.Get<float>("radius"));
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Sphere)
 
 
 /*
@@ -200,6 +224,20 @@ ejson::JObject Box::Serialize(SerializeUtil& context) const
     jself.Add("size", detail::ToJArray(context, size));
     return jself;
 }
+void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Drawable::Deserialize(context, object);
+}
+
+RESPAK_DESERIALIZER(Box)
+{
+    b3d::Vec3 size;
+    detail::FromJArray(object.GetArray("size"), size);
+    auto ret = new Box(size.x, size.y, size.z);
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Box)
 
 
 Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME), SideLen(len), TexRepeat(texRepeat)
@@ -229,8 +267,20 @@ void Plane::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& t
 ejson::JObject Plane::Serialize(SerializeUtil& context) const
 {
     auto jself = Drawable::Serialize(context);
-    jself.Add("sideLen", SideLen).Add("texRepeat", TexRepeat);
+    jself.EJOBJECT_ADD(SideLen).EJOBJECT_ADD(TexRepeat);
     return jself;
 }
+void Plane::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Drawable::Deserialize(context, object);
+}
+
+RESPAK_DESERIALIZER(Plane)
+{
+    auto ret = new Plane(object.Get<float>("SideLen"), object.Get<float>("TexRepeat"));
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Plane)
 
 }

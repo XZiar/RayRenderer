@@ -22,21 +22,6 @@ uint32_t LightData::WriteData(std::byte *ptr) const
 }
 
 
-RESPAK_DESERIALIZER(Light)
-{
-    auto ret = new Light(static_cast<LightType>(object.Get<int32_t>("lightType")),
-        str::to_u16string(object.Get<string>("name"), Charset::UTF8));
-    detail::FromJArray(object.GetArray("position"), ret->position);
-    detail::FromJArray(object.GetArray("direction"), ret->direction);
-    detail::FromJArray(object.GetArray("color"), ret->color);
-    detail::FromJArray(object.GetArray("attenuation"), ret->attenuation);
-    object.GetArray("position").TryGetMany(0, ret->cutoffOuter, ret->cutoffInner);
-    ret->isOn = object.Get<bool>("isOn");
-    return std::unique_ptr<Serializable>(ret);
-}
-
-RESPAK_REGIST_DESERIALZER(Light)
-
 ejson::JObject Light::Serialize(SerializeUtil& context) const
 {
     auto jself = context.NewObject();
@@ -50,5 +35,24 @@ ejson::JObject Light::Serialize(SerializeUtil& context) const
     jself.Add("isOn", isOn);
     return jself;
 }
+void Light::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) 
+{
+    detail::FromJArray(object.GetArray("position"), position);
+    detail::FromJArray(object.GetArray("direction"), direction);
+    detail::FromJArray(object.GetArray("color"), color);
+    detail::FromJArray(object.GetArray("attenuation"), attenuation);
+    object.GetArray("position").TryGetMany(0, cutoffOuter, cutoffInner);
+    isOn = object.Get<bool>("isOn");
+}
+
+RESPAK_DESERIALIZER(Light)
+{
+    auto ret = new Light(static_cast<LightType>(object.Get<int32_t>("lightType")),
+        str::to_u16string(object.Get<string>("name"), Charset::UTF8));
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(Light)
+
 
 }

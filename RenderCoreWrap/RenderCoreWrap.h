@@ -253,7 +253,7 @@ public:
     Task<bool>^ ReloadCLAsync(String^ fname);
 
     Action<String^>^ Screenshot();
-    void Save(String^ fname);
+    void Serialize(String^ fname);
 };
 
 

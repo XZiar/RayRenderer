@@ -62,6 +62,7 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
     return 8 * sizeof(float);
 }
 
+
 static ejson::JDoc SerializeTex(const PBRMaterial::TexHolder& holder, SerializeUtil & context)
 {
     switch (holder.index())
@@ -100,7 +101,6 @@ static ejson::JDoc SerializeTex(const PBRMaterial::TexHolder& holder, SerializeU
         return ejson::JNull();
     }
 }
-
 ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
 {
     auto jself = context.NewObject();
@@ -122,6 +122,26 @@ ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
     jself.Add("AOMap", SerializeTex(AOMap, context));
     return jself;
 }
+void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    detail::FromJArray(object.GetArray("albedo"), Albedo);
+    EJSON_GET_MEMBER(object, Metalness);
+    EJSON_GET_MEMBER(object, Roughness);
+    EJSON_GET_MEMBER(object, Specular);
+    EJSON_GET_MEMBER(object, AO);
+    EJSON_GET_MEMBER(object, UseDiffuseMap);
+    EJSON_GET_MEMBER(object, UseNormalMap);
+    EJSON_GET_MEMBER(object, UseMetalMap);
+    EJSON_GET_MEMBER(object, UseRoughMap);
+    EJSON_GET_MEMBER(object, UseAOMap);
+}
+RESPAK_DESERIALIZER(PBRMaterial)
+{
+    auto ret = new PBRMaterial(str::to_u16string(object.Get<string>("name"), Charset::UTF8));
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(PBRMaterial)
 
 
 static oglu::detail::ContextResource<oglu::oglTex2DV, true> CTX_CHECK_TEX;
@@ -427,6 +447,19 @@ ejson::JObject MultiMaterialHolder::Serialize(SerializeUtil & context) const
     jself.Add("pbr", jmaterials);
     return jself;
 }
+void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Materials.clear();
+    for (const auto& material : object.GetArray("pbr"))
+        Materials.push_back(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(material)));
+}
+RESPAK_DESERIALIZER(MultiMaterialHolder)
+{
+    auto ret = new MultiMaterialHolder();
+    ret->Deserialize(context, object);
+    return std::unique_ptr<Serializable>(ret);
+}
+RESPAK_REGIST_DESERIALZER(MultiMaterialHolder)
 
 
 }

@@ -49,8 +49,8 @@ public:
     }
     void AssignMaterial();
 
-    virtual std::string_view SerializedType() const override { return "rayr#Drawable"; }
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 private:
     Drawable(const std::type_index type, const u16string& typeName);
 protected:

@@ -103,17 +103,6 @@ void Drawable::AssignMaterial()
     MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
 }
 
-ejson::JObject Drawable::Serialize(SerializeUtil & context) const
-{
-    auto jself = context.NewObject();
-    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
-    jself.Add("position", detail::ToJArray(context, position));
-    jself.Add("rotation", detail::ToJArray(context, rotation));
-    jself.Add("scale", detail::ToJArray(context, scale));
-    context.AddObject(jself, "material", MaterialHolder);
-    return jself;
-}
-
 void Drawable::Draw(Drawcall& drawcall) const
 {
     MaterialHolder.BindTexture(drawcall);
@@ -193,6 +182,26 @@ oglu::oglVBO Drawable::GetDrawIdVBO()
     });
 }
 
+
+ejson::JObject Drawable::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("position", detail::ToJArray(context, position));
+    jself.Add("rotation", detail::ToJArray(context, rotation));
+    jself.Add("scale", detail::ToJArray(context, scale));
+    context.AddObject(jself, "material", MaterialHolder);
+    return jself;
+}
+
+void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+{
+    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    detail::FromJArray(object.GetArray("position"), position);
+    detail::FromJArray(object.GetArray("rotation"), rotation);
+    detail::FromJArray(object.GetArray("scale"), scale);
+    MaterialHolder.Deserialize(context, object.GetObject("material"));
+}
 
 }
 

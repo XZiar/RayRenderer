@@ -70,6 +70,7 @@ using common::BaseException;
 using common::FileException;
 using str::Charset;
 using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 template<class T, class... Args>
 using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;

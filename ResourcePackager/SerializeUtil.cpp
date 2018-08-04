@@ -190,6 +190,7 @@ DeserializeUtil::~DeserializeUtil()
 
 std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(const ejson::JObjectRef<true>& object)
 {
+    //const ejson::DocumentHandle& dh = object;
     const auto type = object.Get<string_view>(TypeFieldName);
     const auto it = FindInMap(DeserializeMap(), type);
     if (!it)

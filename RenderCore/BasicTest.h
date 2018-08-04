@@ -76,7 +76,7 @@ public:
     const oglContext& GetContext() const { return glContext; }
 
     void Serialize(const fs::path& fpath) const;
-    void DeSerialize(const fs::path& fpath) const;
+    void DeSerialize(const fs::path& fpath);
 };
 
 }

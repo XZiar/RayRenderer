@@ -8,7 +8,8 @@
 
 namespace xziar::respak::ejson
 {
-
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
+class JComplexType;
 class JDoc;
 class JNull;
 class JObject;
@@ -20,11 +21,14 @@ class JArrayRef;
 
 class DocumentHandle
 {
+    template<typename, typename, typename, bool> friend class JComplexType;
 protected:
     std::shared_ptr<rapidjson::MemoryPoolAllocator<>> MemPool;
 public:
     DocumentHandle() : MemPool(std::make_shared<rapidjson::MemoryPoolAllocator<>>()) {}
     DocumentHandle(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : MemPool(mempool) {}
+
+    rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
     JObject NewObject();
     JArray NewArray();
 };
@@ -204,10 +208,8 @@ public:
 }
 
 template<typename Child>
-class JNode : public DocumentHandle
+struct JNode
 {
-private:
-    using DocumentHandle::DocumentHandle;
 public:
     rapidjson::Value& ValRef()
     {
@@ -247,20 +249,18 @@ public:
             ValRef().Accept(writer);
         }
     }
-    rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
-
 };
 
-class JDoc : public NonCopyable, public JNode<JDoc>
+class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>
 {
-    friend class JNode<JDoc>;
+    template<typename T> friend struct JNode;
     friend class JArray;
     friend class JObject;
     template<bool C> friend class JDocRef;
 protected:
     rapidjson::Value Val;
-    JDoc(const rapidjson::Type type) : JNode<JDoc>(), Val(type) {}
-    JDoc(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const rapidjson::Type type) : JNode<JDoc>(mempool), Val(type) {}
+    JDoc(const rapidjson::Type type) : DocumentHandle(), Val(type) {}
+    JDoc(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const rapidjson::Type type) : DocumentHandle(mempool), Val(type) {}
     rapidjson::Value& GetValRef() { return Val; }
     const rapidjson::Value& GetValRef() const { return Val; }
 public:
@@ -276,17 +276,19 @@ public:
 };
 
 template<bool IsConst>
-class JDocRef : public JNode<JDocRef<IsConst>>
+class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>
 {
-    template<typename T> friend class JNode;
+    template<typename T> friend struct JNode;
 protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
-    JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : JNode<JDocRef<IsConst>>(mempool), Val(val) {}
-    template<typename = std::enable_if_t<!IsConst>>
-    JDocRef(JDoc& doc) : JNode<JDocRef<IsConst>>(doc.MemPool), Val(&doc.Val) {}
+    JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
     template<typename = std::enable_if_t<IsConst>>
-    JDocRef(const JDoc& doc) : JNode<JDocRef<IsConst>>(doc.MemPool), Val(&doc.Val) {}
+    JDocRef(const JDocRef<false>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    template<typename = std::enable_if_t<!IsConst>>
+    JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    template<typename = std::enable_if_t<IsConst>>
+    JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<!IsConst>>
     rapidjson::Value& GetValRef() { return *Val; }
     const rapidjson::Value& GetValRef() const { return *Val; }
@@ -306,29 +308,71 @@ public:
     JNull() : JDoc({}, rapidjson::kNullType) {}
 };
 
-template<bool IsConst>
-struct JMemberIterator : protected JDocRef<IsConst>
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
+class JComplexType
 {
-    template<typename Child, bool IsModifiable> friend class JArrayLike;
 protected:
-    using JDocRef<IsConst>::JDocRef;
+    const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& InnerMemPool() const
+    {
+        return static_cast<const DocumentHandle*>(static_cast<const ValHolder*>(this))->MemPool;
+    }
 public:
-    JMemberIterator<IsConst>& operator++()
+    template<typename T>
+    bool TryGet(KeyType key, T& val) const
     {
-        this->Val++; return *this;
+        return KeyChecker::GetIf(static_cast<const ValHolder*>(this)->ValRef(), key, val);
     }
-    template<bool B>
-    bool operator!=(const JMemberIterator<B>& other) { return this->Val != other.Val; }
-    JDocRef<IsConst> operator*() const
+    template<typename T>
+    T Get(KeyType key, T val = {}) const
     {
-        return *this;
+        TryGet<T>(key, val);
+        return val;
     }
+    JObjectRef<true> GetObject(KeyType key) const;
+    JArrayRef<true> GetArray(KeyType key) const;
+
+    template<typename T, typename = std::enable_if_t<!IsConst>>
+    bool TryGet(KeyType key, T& val)
+    {
+        return KeyChecker::GetIf(static_cast<ValHolder*>(this)->ValRef(), key, val);
+    }
+    template<typename T, typename = std::enable_if_t<!IsConst>>
+    T Get(KeyType key, T val = {})
+    {
+        TryGet<T>(key, val);
+        return val;
+    }
+    template<typename = std::enable_if_t<!IsConst>>
+    JObjectRef<false> GetObject(KeyType key);
+    template<typename = std::enable_if_t<!IsConst>>
+    JArrayRef<false> GetArray(KeyType key);
 };
 
-template<typename Child, bool IsModifiable>
-class JArrayLike
+template<typename Child, bool IsConst>
+class JArrayLike : public JComplexType<const rapidjson::SizeType, JArrayLike<Child, IsConst>, Child, IsConst>
 {
+    template<typename, typename, typename, bool>friend class JComplexType;
+    using Parent = JComplexType<const rapidjson::SizeType, JArrayLike<Child, IsConst>, Child, IsConst>;
 private:
+    template<bool IsConst1>
+    struct JArrayIterator : protected JDocRef<IsConst1>
+    {
+        template<typename, bool> friend class JArrayLike;
+    protected:
+        using JDocRef<IsConst1>::JDocRef;
+    public:
+        JArrayIterator<IsConst1>& operator++()
+        {
+            this->Val++; return *this;
+        }
+        template<bool B>
+        bool operator!=(const JArrayIterator<B>& other) const { return this->Val != other.Val; }
+        JDocRef<IsConst1> operator*() const
+        {
+            return *this;
+        }
+    };
+
     template<typename V, typename T>
     static forceinline bool GetIf(V& valref, const rapidjson::SizeType index, T& val)
     {
@@ -350,55 +394,97 @@ protected:
         auto& valref = static_cast<Child*>(this)->ValRef();
         (valref.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), mempool), ...);
     }
+public:
     template<typename... Ts>
     size_t TryGetMany(const rapidjson::SizeType offset, Ts&... val) const
     {
         return InnerTryGetMany(offset, std::make_index_sequence<sizeof...(Ts)>(), val...);
     }
-    template<typename T>
-    bool TryGet(const rapidjson::SizeType index, T& val) const
+    JArrayIterator<true> begin() const
     {
-        return GetIf(static_cast<const Child*>(this)->ValRef(), index, val);
+        return JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().Begin());
     }
-    template<typename T>
-    T Get(const rapidjson::SizeType index, T val = {}) const
+    JArrayIterator<true> end() const
     {
-        TryGet<T>(name, val);
-        return val;
+        return JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().End());
     }
-    template<typename T, typename = std::enable_if_t<IsModifiable>>
-    bool TryGet(const rapidjson::SizeType index, T& val)
+    JArrayIterator<IsConst> begin()
     {
-        return GetIf(static_cast<Child*>(this)->ValRef(), index, val);
+        return JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().Begin());
     }
-    template<typename T, typename = std::enable_if_t<IsModifiable>>
-    T Get(const rapidjson::SizeType index, T val = {})
+    JArrayIterator<IsConst> end()
     {
-        TryGet<T>(name, val);
-        return val;
-    }
-    JObjectRef<true> GetObject(const rapidjson::SizeType index) const;
-    JArrayRef<true> GetArray(const rapidjson::SizeType index) const;
-    template<typename = std::enable_if_t<IsModifiable>>
-    JObjectRef<false> GetObject(const rapidjson::SizeType index);
-    template<typename = std::enable_if_t<IsModifiable>>
-    JArrayRef<false> GetArray(const rapidjson::SizeType index);
-public:
-    JMemberIterator<true> begin() const
-    {
-        return JMemberIterator<true>(static_cast<const Child*>(this)->MemPool, static_cast<const Child*>(this)->ValRef().Begin());
-    }
-    JMemberIterator<true> end() const
-    {
-        return JMemberIterator<true>(static_cast<const Child*>(this)->MemPool, static_cast<const Child*>(this)->ValRef().End());
+        return JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().End());
     }
 };
 
-class JArray : public JDoc, public JArrayLike<JArray, true>
+template<typename Child, bool IsConst>
+class JObjectLike : public JComplexType<const std::string_view&, JObjectLike<Child, IsConst>, Child, IsConst>
+{
+    template<typename, typename, typename, bool>friend class JComplexType;
+    using Parent = JComplexType<const std::string_view&, JObjectLike<Child, IsConst>, Child, IsConst>;
+private:
+    template<bool IsConst1>
+    struct JObjectIterator : protected DocumentHandle
+    {
+        template<typename, bool> friend class JObjectLike;
+    protected:
+        using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
+        InnerValType InnerIterator;
+        JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
+    public:
+        JObjectIterator<IsConst1>& operator++()
+        {
+            InnerIterator++; return *this;
+        }
+        template<bool B>
+        bool operator!=(const JObjectIterator<B>& other) const { return InnerIterator != other.InnerIterator; }
+        std::pair<std::string_view, JDocRef<IsConst1>> operator*() const
+        {
+            std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
+            JDocRef<IsConst1> doc(MemPool, InnerIterator->value);
+            return { name, doc };
+        }
+    };
+
+    template<typename V, typename T>
+    static forceinline bool GetIf(V& valref, const std::string_view& name, T& val)
+    {
+        if (auto it = valref.FindMember(name.data()); it != valref.MemberEnd())
+            return SharedUtil::FromVal(it->value, val);
+        return false;
+    }
+protected:
+    template<typename T, typename U>
+    forceinline void Add(T&& name, U&& val)
+    {
+        auto& mempool = *Parent::InnerMemPool();
+        auto key = SharedUtil::ToJString(std::forward<T>(name), mempool);
+        auto value = SharedUtil::ToVal(std::forward<U>(val), mempool);
+        static_cast<Child*>(this)->ValRef().AddMember(key, value, mempool);
+    }
+public:
+    JObjectIterator<true> begin() const
+    {
+        return JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberBegin());
+    }
+    JObjectIterator<true> end() const
+    {
+        return JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberEnd());
+    }
+    JObjectIterator<IsConst> begin()
+    {
+        return JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberBegin());
+    }
+    JObjectIterator<IsConst> end()
+    {
+        return JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberEnd());
+    }
+};
+
+class JArray : public JDoc, public JArrayLike<JArray, false>
 {
     friend class DocumentHandle;
-    template<typename T, bool M> friend class JArrayLike;
-    template<typename T, bool M> friend class JObjectLike;
 protected:
     JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kArrayType) {}
 public:
@@ -412,102 +498,39 @@ public:
     template<typename... T>
     JArray& Push(T&&... val)
     {
-        JArrayLike<JArray, true>::Push(std::forward<T>(val)...);
+        JArrayLike<JArray, false>::Push(std::forward<T>(val)...);
         return *this;
     }
-    using JArrayLike<JArray, true>::TryGet;
-    using JArrayLike<JArray, true>::TryGetMany;
-    using JArrayLike<JArray, true>::Get;
-    using JArrayLike<JArray, true>::GetObject;
-    using JArrayLike<JArray, true>::GetArray;
 };
 
 template<bool IsConst>
-class JArrayRef : public JDocRef<IsConst>, public JArrayLike<JArrayRef<IsConst>, !IsConst>
+class JArrayRef : public JDocRef<IsConst>, public JArrayLike<JArrayRef<IsConst>, IsConst>
 {
     friend struct SharedUtil;
-    template<typename T, bool M> friend class JArrayLike;
-    template<typename T, bool M> friend class JObjectLike;
+    template<typename, typename, typename, bool>friend class JComplexType;
 protected:
     JArrayRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDocRef<IsConst>(mempool, nullptr) {}
 public:
-    /*explicit JArrayRef(JDocRef<IsConst>&& doc) : JDocRef(doc.MemPool, doc.Val)
+    explicit JArrayRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
-        if (!doc.Val.IsArray())
+        if (!doc.ValRef().IsArray())
             COMMON_THROW(BaseException, L"value is not an array");
-    }*/
-    template<typename = std::enable_if_t<!IsConst>>
-    JArrayRef(JArray& jarray) : JDocRef<IsConst>(jarray) {}
+    }
     template<typename = std::enable_if_t<IsConst>>
     JArrayRef(const JArray& jarray) : JDocRef<IsConst>(jarray) {}
+    template<typename = std::enable_if_t<!IsConst>>
+    JArrayRef(JArray& jarray) : JDocRef<IsConst>(jarray) {}
     template<typename... T>
     JArrayRef<IsConst>& Push(T&&... val)
     {
-        JArrayLike<JArrayRef<IsConst>, !IsConst>::Push(std::forward<T>(val)...);
+        JArrayLike<JArrayRef<IsConst>, IsConst>::Push(std::forward<T>(val)...);
         return *this;
     }
-    using JArrayLike<JArrayRef<IsConst>, !IsConst>::TryGet;
-    using JArrayLike<JArrayRef<IsConst>, !IsConst>::TryGetMany;
-    using JArrayLike<JArrayRef<IsConst>, !IsConst>::Get;
-    using JArrayLike<JArrayRef<IsConst>, !IsConst>::GetObject;
-    using JArrayLike<JArrayRef<IsConst>, !IsConst>::GetArray;
 };
 
-template<typename Child, bool IsModifiable>
-class JObjectLike
-{
-private:
-    template<typename V, typename T>
-    static forceinline bool GetIf(V& valref, const std::string_view& name, T& val)
-    {
-        if (auto it = valref.FindMember(name.data()); it != valref.MemberEnd())
-            return SharedUtil::FromVal(it->value, val);
-        return false;
-    }
-protected:
-    template<typename T, typename U>
-    forceinline void Add(T&& name, U&& val)
-    {
-        auto& mempool = static_cast<Child*>(this)->GetMemPool();
-        auto key = SharedUtil::ToJString(std::forward<T>(name), mempool);
-        auto value = SharedUtil::ToVal(std::forward<U>(val), mempool);
-        static_cast<Child*>(this)->ValRef().AddMember(key, value, mempool);
-    }
-    template<typename T>
-    bool TryGet(const std::string_view& name, T& val) const
-    {
-        return GetIf(static_cast<const Child*>(this)->ValRef(), name, val);
-    }
-    template<typename T>
-    T Get(const std::string_view& name, T val = {}) const
-    {
-        TryGet<T>(name, val);
-        return val;
-    }
-    template<typename T, typename = std::enable_if_t<IsModifiable>>
-    bool TryGet(const std::string_view& name, T& val)
-    {
-        return GetIf(static_cast<Child*>(this)->ValRef(), name, val);
-    }
-    template<typename T, typename = std::enable_if_t<IsModifiable>>
-    T Get(const std::string_view& name, T val = {})
-    {
-        TryGet<T>(name, val);
-        return val;
-    }
-    JObjectRef<true> GetObject(const std::string_view& name) const;
-    JArrayRef<true> GetArray(const std::string_view& name) const;
-    template<typename = std::enable_if_t<IsModifiable>>
-    JObjectRef<false> GetObject(const std::string_view& name);
-    template<typename = std::enable_if_t<IsModifiable>>
-    JArrayRef<false> GetArray(const std::string_view& name);
-};
-
-class JObject : public JDoc, public JObjectLike<JObject, true>
+class JObject : public JDoc, public JObjectLike<JObject, false>
 {
     friend class DocumentHandle;
-    template<typename T, bool M> friend class JArrayLike;
-    template<typename T, bool M> friend class JObjectLike;
 protected:
     JObject(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kObjectType) {}
 public:
@@ -521,21 +544,16 @@ public:
     template<typename T, typename U>
     JObject& Add(T&& name, U&& val)
     {
-        JObjectLike<JObject, true>::Add(std::forward<T>(name), std::forward<U>(val));
+        JObjectLike<JObject, false>::Add(std::forward<T>(name), std::forward<U>(val));
         return *this;
     }
-    using JObjectLike<JObject, true>::TryGet;
-    using JObjectLike<JObject, true>::Get;
-    using JObjectLike<JObject, true>::GetObject;
-    using JObjectLike<JObject, true>::GetArray;
 };
 
 template<bool IsConst>
-class JObjectRef : public JDocRef<IsConst>, public JObjectLike<JObjectRef<IsConst>, !IsConst>
+class JObjectRef : public JDocRef<IsConst>, public JObjectLike<JObjectRef<IsConst>, IsConst>
 {
     friend struct SharedUtil;
-    template<typename T, bool M> friend class JArrayLike;
-    template<typename T, bool M> friend class JObjectLike;
+    template<typename, typename, typename, bool>friend class JComplexType;
 protected:
     JObjectRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDocRef<IsConst>(mempool, nullptr) {}
 public:
@@ -551,75 +569,40 @@ public:
     template<typename T, typename U>
     JObjectRef<IsConst>& Add(T&& name, U&& val)
     {
-        JObjectLike<JObjectRef<IsConst>>::Add(std::forward<T>(name), std::forward<U>(val));
+        JObjectLike<JObjectRef<IsConst>, IsConst>::Add(std::forward<T>(name), std::forward<U>(val));
         return *this;
     }
-    using JObjectLike<JObjectRef<IsConst>, !IsConst>::TryGet;
-    using JObjectLike<JObjectRef<IsConst>, !IsConst>::Get;
-    using JObjectLike<JObjectRef<IsConst>, !IsConst>::GetObject;
-    using JObjectLike<JObjectRef<IsConst>, !IsConst>::GetArray;
 };
 
 
-template<typename Child, bool IsModifiable>
-forceinline JObjectRef<true> JArrayLike<Child, IsModifiable>::GetObject(const rapidjson::SizeType index) const
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
+forceinline JObjectRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key) const
 {
-    JObjectRef<true> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JObjectRef<true>>(index, val);
+    JObjectRef<true> val(InnerMemPool());
+    TryGet<JObjectRef<true>>(key, val);
     return val;
 }
-template<typename Child, bool IsModifiable>
-forceinline JArrayRef<true> JArrayLike<Child, IsModifiable>::GetArray(const rapidjson::SizeType index) const
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
+forceinline JArrayRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key) const
 {
-    JArrayRef<true> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JArrayRef<true>>(index, val);
+    JArrayRef<true> val(InnerMemPool());
+    TryGet<JArrayRef<true>>(key, val);
     return val;
 }
-template<typename Child, bool IsModifiable>
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 template<typename>
-forceinline JObjectRef<false> JArrayLike<Child, IsModifiable>::GetObject(const rapidjson::SizeType index)
+forceinline JObjectRef<false> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key)
 {
-    JObjectRef<false> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JObjectRef<false>>(index, val);
+    JObjectRef<false> val(InnerMemPool());
+    TryGet<JObjectRef<false>>(key, val);
     return val;
 }
-template<typename Child, bool IsModifiable>
+template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 template<typename>
-forceinline JArrayRef<false> JArrayLike<Child, IsModifiable>::GetArray(const rapidjson::SizeType index)
+forceinline JArrayRef<false> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key)
 {
-    JArrayRef<false> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JArrayRef<false>>(index, val);
-    return val;
-}
-
-template<typename Child, bool IsModifiable>
-forceinline JObjectRef<true> JObjectLike<Child, IsModifiable>::GetObject(const std::string_view& name) const
-{
-    JObjectRef<true> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JObjectRef<true>>(name, val);
-    return val;
-}
-template<typename Child, bool IsModifiable>
-forceinline JArrayRef<true> JObjectLike<Child, IsModifiable>::GetArray(const std::string_view& name) const
-{
-    JArrayRef<true> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JArrayRef<true>>(name, val);
-    return val;
-}
-template<typename Child, bool IsModifiable>
-template<typename>
-forceinline JObjectRef<false> JObjectLike<Child, IsModifiable>::GetObject(const std::string_view& name)
-{
-    JObjectRef<false> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JObjectRef<false>>(name, val);
-    return val;
-}
-template<typename Child, bool IsModifiable>
-template<typename>
-forceinline JArrayRef<false> JObjectLike<Child, IsModifiable>::GetArray(const std::string_view& name)
-{
-    JArrayRef<false> val(static_cast<const Child*>(this)->MemPool);
-    TryGet<JArrayRef<false>>(name, val);
+    JArrayRef<false> val(InnerMemPool());
+    TryGet<JArrayRef<false>>(key, val);
     return val;
 }
 
@@ -636,5 +619,6 @@ forceinline JArray DocumentHandle::NewArray()
 }
 #define EJSON_ADD_MEMBER(jobject, field) jobject.Add(u8"" #field, field)
 #define EJOBJECT_ADD(field) Add(u8"" #field, field)
+#define EJSON_GET_MEMBER(jobject, field) jobject.Get(u8"" #field, field)
 
 

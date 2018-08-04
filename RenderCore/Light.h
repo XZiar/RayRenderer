@@ -48,6 +48,7 @@ public:
     std::u16string name;
     RESPAK_OVERRIDE_TYPE("rayr#Light")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 class alignas(16) ParallelLight : public Light

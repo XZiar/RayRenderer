@@ -60,10 +60,10 @@ template<class Base>
 class Readable
 {
 private:
-    forceinline bool Read_(const size_t len, void * const ptr) { return ((Base&)(*this)).Read(len, ptr); }
-    forceinline void Rewind_(const size_t offset = 0) { return ((Base&)(*this)).Rewind(offset); }
-    forceinline size_t CurrentPos_() const { return ((const Base&)(*this)).CurrentPos(); }
-    forceinline size_t GetSize_() { return ((Base&)(*this)).GetSize(); }
+    forceinline bool Read_(const size_t len, void * const ptr) { return static_cast<Base*>(this)->Read(len, ptr); }
+    forceinline void Rewind_(const size_t offset = 0) { return static_cast<Base*>(this)->Rewind(offset); }
+    forceinline size_t CurrentPos_() const { return static_cast<const Base*>(this)->CurrentPos(); }
+    forceinline size_t GetSize_() { return static_cast<Base*>(this)->GetSize(); }
 public:
     forceinline size_t LeftSpace() { return GetSize_() - CurrentPos_(); }
 
@@ -141,7 +141,7 @@ template<class Base>
 class Writable
 {
 private:
-    forceinline bool Write_(const size_t len, const void * const ptr) { return ((Base&)(*this)).Write(len, ptr); }
+    forceinline bool Write_(const size_t len, const void * const ptr) { return static_cast<Base*>(this)->Write(len, ptr); }
 public:
     template<typename T>
     bool Write(const T& output)

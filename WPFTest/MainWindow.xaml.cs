@@ -518,7 +518,7 @@ namespace WPFTest
             try
             {
                 WaitingCount++;
-                Core.Test.Save(dlg.FileName);
+                Core.Save(dlg.FileName);
             }
             catch (Exception ex)
             {

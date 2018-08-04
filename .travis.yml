@@ -22,7 +22,7 @@ env:
 before_script:
   - $CPPCOMPILER --version
   - python3 --version
-  - nasm --version
+  - nasm -v
 
 script:
   - python3 build.py rebuildall all

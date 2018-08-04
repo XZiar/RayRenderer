@@ -567,15 +567,27 @@ void BasicTest::Serialize(const fs::path & fpath) const
     serializer.Finish();
 }
 
-void BasicTest::DeSerialize(const fs::path & fpath) const
+void BasicTest::DeSerialize(const fs::path & fpath)
 {
     DeserializeUtil deserializer(fpath);
-    const auto jlights = deserializer.Root.GetArray("lights");
-    for (const auto ele : jlights)
     {
-        const ejson::JObjectRef<true> jlgt(ele);
-        const auto lgt = deserializer.Deserialize<Light>(jlgt);
-        const auto ki = lgt->color;
+        lights.clear();
+        const auto jlights = deserializer.Root.GetArray("lights");
+        for (const auto ele : jlights)
+        {
+            const ejson::JObjectRef<true> jlgt(ele);
+            lights.push_back(deserializer.DeserializeShare<Light>(jlgt));
+        }
+    }
+    {
+        //drawables.clear();
+        const auto jdrawables = deserializer.Root.GetArray("drawables");
+        for (const auto ele : jdrawables)
+        {
+            const ejson::JObjectRef<true> jdrw(ele);
+            const auto k = deserializer.DeserializeShare<Drawable>(jdrw);
+            //drawables.push_back(deserializer.DeserializeShare<Drawable>(jdrw));
+        }
     }
 }
 

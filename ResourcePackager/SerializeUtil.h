@@ -34,16 +34,17 @@ public:
 protected:
     virtual string_view SerializedType() const = 0;
     virtual ejson::JObject Serialize(SerializeUtil& context) const = 0;
+    virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) {}
 };
 
 #define RESPAK_OVERRIDE_TYPE(type) static constexpr auto SERIALIZE_TYPE = type; \
-    static ::std::unique_ptr<::xziar::respak::Serializable> Deserialize(::xziar::respak::DeserializeUtil&, const ::xziar::respak::ejson::JObjectRef<true>& object); \
+    static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::respak::ejson::JObjectRef<true>& object); \
     virtual ::std::string_view SerializedType() const override { return SERIALIZE_TYPE; }
 #define RESPAK_REGIST_DESERIALZER(type) namespace \
     { \
-        const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::Deserialize); \
+        const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::DoDeserialize); \
     }
-#define RESPAK_DESERIALIZER(type) ::std::unique_ptr<::xziar::respak::Serializable> type::Deserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::respak::ejson::JObjectRef<true>& object)
+#define RESPAK_DESERIALIZER(type) ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::respak::ejson::JObjectRef<true>& object)
 
 class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
 {
