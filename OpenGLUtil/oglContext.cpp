@@ -21,7 +21,7 @@ namespace detail
 {
 
 
-static void GLAPIENTRY onMsg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
     DebugMessage msg(source, type, severity);
     const _oglContext::DBGLimit& limit = *(_oglContext::DBGLimit*)userParam;
@@ -265,7 +265,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, in
         0
     };
     int *attrs = attribs ? attribs : ctxAttrb;
-    auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, ctxAttrb);
+    auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attrs);
     if (!newHrc)
         oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", GetLastError());
 

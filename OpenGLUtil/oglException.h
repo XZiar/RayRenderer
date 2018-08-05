@@ -12,7 +12,7 @@ public:
 	enum class GLComponent { Compiler, Driver, GPU, OGLU };
 	const GLComponent exceptionSource;
 	OGLException(const GLComponent source, const std::wstring& msg, const std::any& data_ = std::any())
-		: BaseException(TYPENAME, msg, data), exceptionSource(source)
+		: BaseException(TYPENAME, msg, data_), exceptionSource(source)
 	{ }
 	virtual ~OGLException() {}
 };

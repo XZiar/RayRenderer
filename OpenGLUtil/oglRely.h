@@ -27,7 +27,7 @@
 #define GLEW_STATIC
 #include "glew/glew.h"
 
-#include "cpplinq.hpp"
+//#include "cpplinq.hpp"
 
 #include <cstddef>
 #include <cstdio>

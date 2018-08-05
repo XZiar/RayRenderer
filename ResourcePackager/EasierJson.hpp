@@ -253,7 +253,7 @@ public:
 
 class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>
 {
-    template<typename T> friend struct JNode;
+    friend struct JNode<JDoc>;
     friend class JArray;
     friend class JObject;
     template<bool C> friend class JDocRef;
@@ -431,7 +431,7 @@ private:
     protected:
         using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
         InnerValType InnerIterator;
-        JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
+        JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), InnerIterator(val) {}
     public:
         JObjectIterator<IsConst1>& operator++()
         {

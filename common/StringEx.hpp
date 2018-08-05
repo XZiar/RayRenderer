@@ -281,7 +281,7 @@ inline size_t getsize(const size_t size, const std::vector<std::basic_string_vie
 }
 
 template<class CharT>
-inline void appendstr(std::basic_string<CharT>& obj)
+inline void appendstr(std::basic_string<CharT>&)
 { }
 template<class CharT, class... Args>
 inline void appendstr(std::basic_string<CharT>& obj, const std::basic_string_view<CharT>& str, Args&&... args)

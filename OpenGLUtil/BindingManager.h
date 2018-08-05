@@ -263,8 +263,11 @@ public:
             }
             //in cache, has binded
             const uint16_t slot = static_cast<uint16_t>(ret + Offset);
-            if (curBindings[item.first] != slot) //resource's binded mid-loc has changed
-                outterBind(prog, item.first, curBindings[item.first] = slot);
+            if (auto& bind = curBindings[item.first]; bind != slot) //resource's binded mid-loc has changed
+            {
+                bind = slot;
+                outterBind(prog, item.first, slot);
+            }
         }
         for (uint32_t i = 0; i < rebindCnt; ++i)
         {
@@ -272,7 +275,8 @@ public:
             const auto ret = cache.push(getID(item.second), nullptr);
             const uint16_t slot = static_cast<uint16_t>(ret + Offset);
             innerBind(item.second, slot);
-            outterBind(prog, item.first, curBindings[item.first] = slot);
+            curBindings[item.first] = slot;
+            outterBind(prog, item.first, slot);
         }
         if (shouldPin)
             cache.pin(bindCount);

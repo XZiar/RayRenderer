@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import re
 import sys
 from collections import deque
 from subprocess import call
@@ -66,20 +67,15 @@ def listproj(projs:dict, projname: str):
         printDep(projs[projname], 0)
     pass
 
-def genDependency(proj:Project,set):
+def genDependency(projs:set):
     solved = set()
-    if isinstance(proj, Project):
-        waiting = deque([proj])
-        while len(waiting) > 0:
-            target = waiting.popleft()
-            for p in target.dependency:
-                if p not in solved:
-                    waiting.append(p)
-            solved.add(target)
-    elif isinstance(proj, set):
-        solved = proj
-    else:
-        raise TypeError()
+    waiting = deque(projs)
+    while len(waiting) > 0:
+        target = waiting.popleft()
+        for p in target.dependency:
+            if p not in solved:
+                waiting.append(p)
+        solved.add(target)
     builded = set()
     while len(solved) > 0:
         hasObj = False
@@ -94,21 +90,36 @@ def genDependency(proj:Project,set):
             raise Exception("some dependency can not be fullfilled")
     pass
 
-def mainmake(action:str, proj:Project,set, args:dict):
+def makeone(action:str, proj:Project, args:dict):
+    if action == "build":
+        build(projDir, proj, args)
+    elif action == "clean":
+        clean(projDir, proj, args)
+    elif action == "rebuild":
+        clean(projDir, proj, args)
+        build(projDir, proj, args)
+
+def mainmake(action:str, projs:set, args:dict):
     if action.endswith("all"):
-        projs = [x for x in genDependency(proj)]
+        projs = [x for x in genDependency(projs)]
         print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))
-        newaction = action[:-3]
-        for p in projs:
-            mainmake(newaction, p, args)
-    else:
-        if action == "build":
-            build(projDir, proj, args)
-        elif action == "clean":
-            clean(projDir, proj, args)
-        elif action == "rebuild":
-            clean(projDir, proj, args)
-            build(projDir, proj, args)
+        action = action[:-3]
+    #print("solved:\t" + "\t".join([p.name for p in projs]))
+    for proj in projs:
+        makeone(action, proj, args)
+
+def parseProj(proj:str, projs:dict):
+    wanted = set()
+    names = set(re.findall(r"[-\w']+", proj))
+    if "all" in names:
+        names.update(projs.keys())
+    names.discard("all")
+    wantRemove = set([y for x in names if x.startswith("-") for y in (x,x[1:]) ])
+    names.difference_update(wantRemove)
+    for x in names:
+        if x in projs: wanted.add(projs[x])
+        else: print("\033[97mUnknwon project\033[96m[{}]\033[39m".format(x))
+    return wanted
 
 def main(argv=None):
     try:
@@ -135,11 +146,7 @@ def main(argv=None):
         if action == "list":
             listproj(projects, objproj)
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
-            if objproj == "all":
-                action = action if action.endswith("all") else action+"all"
-                proj = set(projects.values())
-            else:
-                proj = projects[objproj]
+            proj = parseProj(objproj, projects)
             args = { "platform": "x64", "target": "Debug" }
             if len(argv) > 4: args["platform"] = argv[3]             
             if len(argv) > 3: args["target"] = argv[4]             

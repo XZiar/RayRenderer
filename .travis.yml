@@ -1,23 +1,45 @@
 language: cpp
 compiler: gcc
 
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - g++-7
-      - nasm
-      - libboost-dev
-      - python3
-
-env:
-  global:
-    - CCOMPILER=gcc-7
-    - ASMCOMPILER=g++-7
-    - CPPCOMPILER=g++-7
-    - DYNAMICLINKER=g++-7
-    - APPLINKER=g++-7
+matrix:
+  include:
+    - name: "GCC8"
+      os: linux
+      compiler: gcc-8
+      env:
+        - CCOMPILER=gcc-8
+        - ASMCOMPILER=g++-8
+        - CPPCOMPILER=g++-8
+        - DYNAMICLINKER=g++-8
+        - APPLINKER=g++-8
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - nasm
+            - libboost-dev
+            - python3
+            
+    - name: "Clang6"
+      os: linux
+      compiler: clang-6.0
+      env:
+        - CCOMPILER=clang-6.0
+        - ASMCOMPILER=clang++-6.0
+        - CPPCOMPILER=clang++-6.0
+        - DYNAMICLINKER=clang++-6.0
+        - APPLINKER=clang++-6.0
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - nasm
+            - libboost-dev
+            - python3
 
 before_script:
   - $CPPCOMPILER --version
@@ -25,4 +47,4 @@ before_script:
   - nasm -v
 
 script:
-  - python3 build.py rebuildall all
+  - python3 build.py rebuildall "all|-UtilTest"

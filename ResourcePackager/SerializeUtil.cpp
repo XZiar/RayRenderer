@@ -151,7 +151,6 @@ string SerializeUtil::LookupResource(const string & id) const
 void SerializeUtil::Finish()
 {
     CheckFinished();
-    const auto resSize = ResOffset;
     ResWriter.Write(ResCount * sizeof(detail::ResourceItem), ResourceList.data());
     detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * sizeof(detail::ResourceItem)), 0, ResOffset, ResCount);
     sumdata.Dummy[0] = byte('X');

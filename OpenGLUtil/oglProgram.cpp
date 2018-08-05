@@ -61,7 +61,7 @@ void ProgramResource::InitData(const GLuint pid, const GLint idx)
     if (type == GL_UNIFORM_BLOCK)
     {
         valtype = GL_UNIFORM_BLOCK;
-        size = GetValue(pid, GL_BUFFER_DATA_SIZE);
+        size = static_cast<uint16_t>(GetValue(pid, GL_BUFFER_DATA_SIZE));
     }
     else
     {
@@ -100,7 +100,7 @@ _oglProgram::~_oglProgram()
 {
     if (programID != 0 && usethis(*this, false)) //need unuse
     {
-        CTX_PROG_MAP.InsertOrAssign([&](auto dummy)
+        CTX_PROG_MAP.InsertOrAssign([&](auto)
         {
             glUseProgram(0);
             glDeleteProgram(programID);
@@ -116,7 +116,7 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
         return true;
     if (!change)//only return status
         return false;
-    CTX_PROG_MAP.InsertOrAssign([&](auto dummy) 
+    CTX_PROG_MAP.InsertOrAssign([&](auto) 
     {
         glUseProgram(prog.programID);
         return prog.programID;
@@ -348,8 +348,7 @@ void _oglProgram::AddExtShaders(const string& src)
 {
     ExtShaderSource = src;
     ShaderExtInfo info;
-    auto shaders = oglShader::loadFromExSrc(src, info);
-    for (auto shader : shaders)
+    for (auto shader : oglShader::loadFromExSrc(src, info))
     {
         shader->compile();
         AddShader(shader);
@@ -585,7 +584,8 @@ void _oglProgram::SetSubroutine()
 void _oglProgram::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
 {
     auto& oldRoutine = SubroutineBindings[subr];
-    auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc] = routine->Id;
+    auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc];
+    srvec = routine->Id;
     oldRoutine = routine;
 }
 

@@ -90,7 +90,7 @@ _oglUniformBuffer::~_oglUniformBuffer()
 
 UBOManager& _oglUniformBuffer::getUBOMan()
 {
-    const auto uboman = CTX_UBO_MAN.GetOrInsert([](auto dummy) { return std::make_shared<UBOManager>(); });
+    const auto uboman = CTX_UBO_MAN.GetOrInsert([](auto) { return std::make_shared<UBOManager>(); });
     return *uboman;
 }
 

@@ -322,7 +322,7 @@ static void UnregistTexture(const _oglTexBase& tex)
 
 TextureManager& _oglTexBase::getTexMan() noexcept
 {
-    const auto texman = CTX_TEX_MAN.GetOrInsert([](auto dummy) { return std::make_shared<TextureManager>(); });
+    const auto texman = CTX_TEX_MAN.GetOrInsert([](auto) { return std::make_shared<TextureManager>(); });
     return *texman;
 }
 
@@ -573,7 +573,6 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img,
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
     if (img.Width != Width || img.Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch"); 
-    const auto& theimg = flipY ? img.FlipToVertical() : img;
     SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.DataType, true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
 }
 
