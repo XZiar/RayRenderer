@@ -49,11 +49,13 @@ before_install:
   - cd tmp
   - mkdir include
   - wget -O boost_1_67_0.tar.bz2 https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.bz2
-  - tar xjvf boost_1_67_0.tar.bz2
+  - tar xjf boost_1_67_0.tar.bz2
   - mv ./boost_1_67_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
+  - cd ..
 
 before_script:
+  - echo $CPP_DEPENDENCY_PATH
   - $CPPCOMPILER --version
   - python3 --version
   - nasm -v

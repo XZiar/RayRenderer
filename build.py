@@ -180,7 +180,7 @@ def main(argv=None):
             suc, all = mainmake(action, proj, args)
             clr = "\033[91m" if suc == 0 else "\033[93m" if suc < all else "\033[92m"
             print("{}build [{}/{}] successed.\033[39m".format(clr, suc, all))
-            return suc == all
+            return 0 if suc == all else -2
         else:
             raise IndexError()
     except IndexError:
