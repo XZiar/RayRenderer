@@ -155,6 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glew.h" />
+    <ClInclude Include="glxew.h" />
     <ClInclude Include="wglew.h" />
   </ItemGroup>
   <ItemGroup>

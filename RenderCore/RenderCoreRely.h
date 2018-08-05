@@ -35,7 +35,7 @@
 #include "ResourcePackager/ResourceUtil.h"
 #include "ResourcePackager/SerializeUtil.h"
 
-#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
+//#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #pragma warning(disable:4996)
 #include <boost/bimap.hpp>
 #pragma warning(default:4996)

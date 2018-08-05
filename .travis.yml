@@ -19,8 +19,8 @@ matrix:
           packages:
             - g++-8
             - nasm
-            - libboost-dev
             - python3
+            - libx11-dev
             
     - name: "Clang6"
       os: linux
@@ -35,11 +35,23 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-6.0
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-6.0 main'
+              key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
           packages:
             - clang-6.0
             - nasm
-            - libboost-dev
             - python3
+            - libx11-dev
+
+before_install:
+  - mkdir tmp
+  - cd tmp
+  - mkdir include
+  - wget -O boost_1_67_0.tar.bz2 https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.bz2
+  - tar xjvf boost_1_67_0.tar.bz2
+  - mv ./boost_1_67_0/boost ./include/
+  - export CPP_DEPENDENCY_PATH=$(pwd)
 
 before_script:
   - $CPPCOMPILER --version

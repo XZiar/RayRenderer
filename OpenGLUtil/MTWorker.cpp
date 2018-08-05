@@ -1,7 +1,7 @@
 #include "oglRely.h"
 #include "MTWorker.h"
 #include "oglUtil.h"
-#include <GL/wglew.h>
+#include "glew/wglew.h"
 
 namespace oglu::detail
 {

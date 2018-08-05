@@ -129,7 +129,7 @@ void autoRotate()
     tester->Objects()[curObj]->Rotate(0, 3 * muler, 0);
 }
 
-bool onTimer(FreeGLUTView wd, uint32_t elapseMS)
+bool onTimer(FreeGLUTView wd, uint32_t)
 {
     if (isAnimate)
     {
@@ -177,7 +177,7 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
-int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();

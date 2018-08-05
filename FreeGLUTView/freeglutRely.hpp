@@ -12,7 +12,7 @@
 #define FREEGLUT_STATIC
 #include "freeglut/freeglut.h"
 
-#include <GL/wglext.h>
+#include "GL/wglext.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -25,12 +25,9 @@
 #include "common/miniLogger/miniLogger.h"
 #include "FreeGLUTView.h"
 
-#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
-#pragma warning(disable:4996)
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
-#pragma warning(default:4996)
 
 
 namespace glutview

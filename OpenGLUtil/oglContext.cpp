@@ -1,7 +1,7 @@
 #include "oglRely.h"
 #include "oglContext.h"
 #include <atomic>
-#include <GL/wglew.h>
+#include "glew/wglew.h"
 
 
 namespace oglu

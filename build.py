@@ -40,9 +40,9 @@ def build(rootDir:str, proj:Project, args:dict):
     os.chdir(targetPath)
     projPath = os.path.relpath(rootDir, targetPath) + "/"
     cmd = "make BOOST_PATH=\"{}/include\" PLATFORM={} TARGET={} PROJPATH=\"{}\" -j4".format(depDir, args["platform"], args["target"], projPath)
-    call(cmd, shell=True)
+    retcode = call(cmd, shell=True)
     os.chdir(rootDir)
-    pass
+    return retcode == 0
 
 def clean(rootDir:str, proj:Project, args:dict):
     targetPath = os.path.join(rootDir, proj.path)
@@ -50,9 +50,9 @@ def clean(rootDir:str, proj:Project, args:dict):
     os.chdir(targetPath)
     projPath = os.path.relpath(rootDir, targetPath) + "/"
     cmd = "make clean PROJPATH=\"{}\"".format(projPath)
-    call(cmd, shell=True)
+    retcode = call(cmd, shell=True)
     os.chdir(rootDir)
-    pass
+    return retcode == 0
 
 def listproj(projs:dict, projname: str):
     if projname == None:
@@ -90,23 +90,49 @@ def genDependency(projs:set):
             raise Exception("some dependency can not be fullfilled")
     pass
 
+def sortDependency(projs:set):
+    wanted = set(projs)
+    while len(wanted) > 0:
+        hasObj = False
+        for p in wanted:
+            if len(set(p.dependency).intersection(wanted)) == 0:
+                yield p
+                wanted.remove(p)
+                hasObj = True
+                break
+        if not hasObj:
+            raise Exception("some dependency can not be fullfilled")
+    pass
+
 def makeone(action:str, proj:Project, args:dict):
     if action == "build":
-        build(projDir, proj, args)
+        return build(projDir, proj, args)
     elif action == "clean":
-        clean(projDir, proj, args)
+        return clean(projDir, proj, args)
     elif action == "rebuild":
-        clean(projDir, proj, args)
-        build(projDir, proj, args)
+        b1 = clean(projDir, proj, args)
+        b2 = build(projDir, proj, args)
+        return b1 and b2
+    return false
 
 def mainmake(action:str, projs:set, args:dict):
     if action.endswith("all"):
         projs = [x for x in genDependency(projs)]
-        print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))
         action = action[:-3]
-    #print("solved:\t" + "\t".join([p.name for p in projs]))
+    else:
+        projs = [x for x in sortDependency(projs)]
+    print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))
+    os.makedirs("./Debug", exist_ok=True)
+    os.makedirs("./Release", exist_ok=True)
+    os.makedirs("./x64/Debug", exist_ok=True)
+    os.makedirs("./x64/Release", exist_ok=True)
+    suc = 0
+    all = 0
     for proj in projs:
-        makeone(action, proj, args)
+        b = makeone(action, proj, args)
+        all += 1
+        suc += 1 if b else 0
+    return (suc, all)
 
 def parseProj(proj:str, projs:dict):
     wanted = set()
@@ -118,7 +144,7 @@ def parseProj(proj:str, projs:dict):
     names.difference_update(wantRemove)
     for x in names:
         if x in projs: wanted.add(projs[x])
-        else: print("\033[97mUnknwon project\033[96m[{}]\033[39m".format(x))
+        else: print("\033[91mUnknwon project\033[96m[{}]\033[39m".format(x))
     return wanted
 
 def main(argv=None):
@@ -145,15 +171,18 @@ def main(argv=None):
 
         if action == "list":
             listproj(projects, objproj)
+            return 0
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
             proj = parseProj(objproj, projects)
             args = { "platform": "x64", "target": "Debug" }
             if len(argv) > 4: args["platform"] = argv[3]             
             if len(argv) > 3: args["target"] = argv[4]             
-            mainmake(action, proj, args)
+            suc, all = mainmake(action, proj, args)
+            clr = "\033[91m" if suc == 0 else "\033[93m" if suc < all else "\033[92m"
+            print("{}build [{}/{}] successed.\033[39m".format(clr, suc, all))
+            return suc == all
         else:
             raise IndexError()
-        return 0
     except IndexError:
         print("\033[91munknown action: {}\033[39m".format(argv[1:]))
         help()

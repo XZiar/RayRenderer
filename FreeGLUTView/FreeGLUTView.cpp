@@ -76,7 +76,7 @@ void _FreeGLUTView::onKeyboard(int key, int x, int y)
     case GLUT_KEY_F10:
     case GLUT_KEY_F11:
     case GLUT_KEY_F12:
-        newkey = (uint8_t)Key::F1 + (key - GLUT_KEY_F1); break;
+        newkey = static_cast<uint8_t>((uint8_t)Key::F1 + (key - GLUT_KEY_F1)); break;
         break;
     default:
         return;
@@ -112,7 +112,7 @@ void _FreeGLUTView::onKey(uint8_t key, const int x, const int y)
     }
 }
 
-void _FreeGLUTView::onWheel(int button, int dir, int x, int y)
+void _FreeGLUTView::onWheel(int, int dir, int x, int y)
 {
     if (funMouseEvent == nullptr)
         return;

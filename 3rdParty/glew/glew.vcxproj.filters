@@ -26,6 +26,9 @@
     <ClInclude Include="wglew.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="glxew.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="glew.rc">

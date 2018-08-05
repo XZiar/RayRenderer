@@ -6,7 +6,7 @@
 #define NOMINMAX 1
 #include <Windows.h>
 #include <GL/GL.h>
-#include <GL/wglext.h>
+#include "GL/wglext.h"
 
 #pragma comment (lib, "user32.lib")   /* link Windows user lib       */
 #pragma comment (lib, "gdi32.lib")    /* link Windows GDI lib        */
