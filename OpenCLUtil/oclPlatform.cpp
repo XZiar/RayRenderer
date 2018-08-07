@@ -1,9 +1,8 @@
 #include "oclRely.h"
 #include "oclPlatform.h"
 
-#define WIN32_LEAN_AND_MEAN 1
-#define NOMINMAX
-#include <Windows.h>
+
+using common::container::FindInVec;
 
 namespace oclu
 {
@@ -11,89 +10,89 @@ namespace oclu
 
 namespace detail
 {
-
-
-bool _oclPlatform::checkGL() const
+vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & context) const
 {
-	if (name.find(u"Experimental") != u16string::npos)
-		return false;
-	if (!common::container::FindInVec(devs, [](const oclDevice& dev) { return dev->type == DeviceType::GPU; }))// no GPU
-		return false;
-	//Additional attributes to OpenCL context creation
-	//which associate an OpenGL context with the OpenCL context 
-	cl_context_properties props[] =
-	{
-		//OpenCL platform
-		CL_CONTEXT_PLATFORM, (cl_context_properties)platformID,
-		//OpenGL context
-		CL_GL_CONTEXT_KHR,   (cl_context_properties)wglGetCurrentContext(),
-		//HDC used to create the OpenGL context
-		CL_WGL_HDC_KHR,      (cl_context_properties)wglGetCurrentDC(),
-		0
-	};
-	clGetGLContextInfoKHR_fn clGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(platformID, "clGetGLContextInfoKHR");
-	cl_device_id dID;
-	cl_int ret = clGetGLContext(props, CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, NULL);
-	return ret == CL_SUCCESS;
+    vector<cl_context_properties> props;
+    //OpenCL platform
+    props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID });
+    props.insert(props.cend(),
+        {
+            //OpenGL context
+            CL_GL_CONTEXT_KHR,   (cl_context_properties)context->Hrc,
+            //HDC used to create the OpenGL context
+            CL_WGL_HDC_KHR,      (cl_context_properties)context->Hdc
+        });
+    props.push_back(0);
+    return props;
 }
 
-Vendor judgeBrand(const wstring& name)
+oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) const
 {
-	if (str::ifind_first(name, L"nvidia").has_value())
-		return Vendor::NVIDIA;
-	else if (str::ifind_first(name, L"amd").has_value())
-		return Vendor::AMD;
-	else if (str::ifind_first(name, L"intel").has_value())
-		return Vendor::Intel;
-	else
-		return Vendor::Other;
+    if (!FuncClGetGLContext) return {};
+    cl_device_id dID;
+    size_t retSize = 0;
+    const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
+    if (ret == CL_SUCCESS && retSize)
+        if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
+            return *dev;
+    return {};
 }
 
-u16string _oclPlatform::getStr(const cl_platform_info type) const
+static Vendor JudgeBand(const u16string& name)
 {
-	char str[128] = { 0 };
+    const wstring& wname = *reinterpret_cast<const std::wstring*>(&name);
+    if (str::ifind_first(wname, L"nvidia").has_value())
+        return Vendor::NVIDIA;
+    else if (str::ifind_first(wname, L"amd").has_value())
+        return Vendor::AMD;
+    else if (str::ifind_first(wname, L"intel").has_value())
+        return Vendor::Intel;
+    else
+        return Vendor::Other;
+}
+
+static u16string GetStr(const cl_platform_id platformID, const cl_platform_info type)
+{
+    thread_local string ret;
     size_t size = 0;
-	clGetPlatformInfo(platformID, type, 127, str, &size); //null-terminated
-	return str::to_u16string((const char*)str);
+    clGetPlatformInfo(platformID, type, 0, nullptr, &size);
+    ret.resize(size, '\0');
+    clGetPlatformInfo(platformID, type, size, ret.data(), &size);
+    return u16string(ret.cbegin(), ret.cend() - 1); //null-terminated
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-	: platformID(pID), name(getStr(CL_PLATFORM_NAME)), ver(getStr(CL_PLATFORM_VERSION)), vendor(judgeBrand(*(const wstring*)&name))
+    : PlatformID(pID), Name(GetStr(pID, CL_PLATFORM_NAME)), Ver(GetStr(pID, CL_PLATFORM_VERSION)), vendor(JudgeBand(Name))
 {
-	cl_device_id defDevID;
-	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, NULL);
-	cl_uint numDevices;
-	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_ALL, 0, NULL, &numDevices);
-	// Get all Device Info
-	vector<cl_device_id> deviceIDs(numDevices);
-	clGetDeviceIDs(platformID, CL_DEVICE_TYPE_ALL, numDevices, deviceIDs.data(), NULL);
+    FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
+    cl_device_id defDevID;
+    clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
+    cl_uint numDevices;
+    clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
+    // Get all Device Info
+    vector<cl_device_id> deviceIDs(numDevices);
+    clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, deviceIDs.data(), nullptr);
 
-	for (const auto & dID : deviceIDs)
-	{
-		devs.push_back(oclDevice(new _oclDevice(dID)));
-		if (dID == defDevID)
-			defDev = devs.back();
-	}
-	isCurGL = checkGL();
+    for (const auto & dID : deviceIDs)
+    {
+        Devices.push_back(oclDevice(new _oclDevice(dID)));
+        if (dID == defDevID)
+            DefDevice = Devices.back();
+    }
 }
 
-oclContext _oclPlatform::createContext(const bool needGLOp) const
+bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const
 {
-	vector<cl_context_properties> props;
-	//OpenCL platform
-	props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)platformID });
-	if (isCurGL && needGLOp)
-	{
-		props.insert(props.cend(), 
-		{
-			//OpenGL context
-			CL_GL_CONTEXT_KHR,   (cl_context_properties)wglGetCurrentContext(),
-			//HDC used to create the OpenGL context
-			CL_WGL_HDC_KHR,      (cl_context_properties)wglGetCurrentDC()
-		});
-	}
-	props.push_back(0);
-	return oclContext(new _oclContext(props.data(), devs, name, vendor));
+    return (bool)GetGLDevice(GetCLProps(context));
+}
+
+oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
+{
+    const auto props = GetCLProps(context);
+    const auto dev = GetGLDevice(props);
+    if (!dev)
+        return {};
+    return oclContext(new _oclContext(props.data(), dev, Name, vendor));
 }
 
 

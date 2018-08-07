@@ -55,7 +55,7 @@ static void SetThreadNameImpl(const detail::THREADNAME_INFO* info)
 #endif
 }
 
-bool CDECLCALL SetThreadName(const std::string& threadName)
+bool SetThreadName(const std::string& threadName)
 {
 #if defined(_WIN32)
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
@@ -82,7 +82,7 @@ bool CDECLCALL SetThreadName(const std::string& threadName)
 }
 
 
-bool CDECLCALL SetThreadName(const std::u16string& threadName)
+bool SetThreadName(const std::u16string& threadName)
 {
 #if defined(_WIN32)
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
@@ -107,7 +107,7 @@ bool CDECLCALL SetThreadName(const std::u16string& threadName)
     return true;
 }
 
-ThreadExitor& CDECLCALL ThreadExitor::GetThreadExitor()
+ThreadExitor& ThreadExitor::GetThreadExitor()
 {
     thread_local static ThreadExitor exitor;
     return exitor;

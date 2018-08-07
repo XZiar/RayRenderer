@@ -23,13 +23,13 @@ class OCLUAPI _oclDevice : public NonCopyable
     friend class ::oclu::oclUtil;
 private:
     const cl_device_id deviceID;
-    DeviceType getDevType() const;
     _oclDevice(const cl_device_id dID);
 public:
+    const u16string Name, Vendor, Version;
     const uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
     const bool supportProfiling, supportOutOfOrder;
-    const u16string name, vendor, version;
-    const DeviceType type;
+    const DeviceType Type;
+    static u16string_view GetDeviceTypeName(const DeviceType type);
 };
 
 

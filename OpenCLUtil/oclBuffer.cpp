@@ -121,7 +121,7 @@ _oclGLBuffer::~_oclGLBuffer()
 {
 }
 
-void _oclGLBuffer::lock(const oclCmdQue& que) const
+void _oclGLBuffer::Lock(const oclCmdQue& que) const
 {
     glFlush();
     cl_int ret = clEnqueueAcquireGLObjects(que->cmdque, 1, &memID, 0, NULL, NULL);
@@ -129,7 +129,7 @@ void _oclGLBuffer::lock(const oclCmdQue& que) const
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot lock oglObject for clMem", ret));
 }
 
-void _oclGLBuffer::unlock(const oclCmdQue& que) const
+void _oclGLBuffer::Unlock(const oclCmdQue& que) const
 {
     clFlush(que->cmdque);
     cl_int ret = clEnqueueReleaseGLObjects(que->cmdque, 1, &memID, 0, NULL, NULL);

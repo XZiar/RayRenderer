@@ -19,6 +19,7 @@
 
 #include "OpenGLUtil/oglBuffer.h"
 #include "OpenGLUtil/oglTexture.h"
+#include "OpenGLUtil/oglContext.h"
 
 #include <cstdio>
 #include <memory>
@@ -46,6 +47,7 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using std::string_view;
+using std::u16string_view;
 using std::wstring_view;
 using std::tuple;
 using std::map;

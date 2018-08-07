@@ -38,7 +38,7 @@ public:
     }
 };
 
-std::string CDECLCALL getEncoding(const void *data, const size_t len);
+std::string getEncoding(const void *data, const size_t len);
 
 template<typename T>
 common::str::Charset detectEncoding(const std::basic_string<T>& str)

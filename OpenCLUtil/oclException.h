@@ -18,10 +18,7 @@ public:
 	virtual ~OCLException() {}
 };
 
-inline wstring errString(const wchar_t *prefix, cl_int errcode)
-{
-	return wstring(prefix) + L" --ERROR: " + oclUtil::getErrorString(errcode);
-}
+
 
 
 }

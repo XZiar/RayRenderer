@@ -52,7 +52,7 @@ fmt::basic_memory_buffer<wchar_t>& StrFormater<wchar_t>::GetBuffer()
 }
 
 }
-const char16_t* CDECLCALL GetLogLevelStr(const LogLevel level)
+const char16_t* GetLogLevelStr(const LogLevel level)
 {
     switch (level)
     {

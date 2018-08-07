@@ -49,12 +49,9 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #if defined(_MSC_VER)
 #   define forceinline      __forceinline
 #   define forcenoinline    __declspec(noinline)
-// use to please C++/CLI, otherwise ignore it
-#   define CDECLCALL        __cdecl
 #elif defined(__GNUC__)
 #   define forceinline      __inline__ __attribute__((always_inline))
 #   define forcenoinline    __attribute__((noinline))
-#   define CDECLCALL
 #   if !defined(STDC_LIB_EXT1)
 #       include <errno.h>
 forceinline std::remove_reference<decltype(errno)>::type memcpy_s(void * dest, size_t destsz, const void * src, size_t count)
@@ -84,7 +81,6 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #else
 #   define forceinline inline
 #   define forcenoinline 
-#   define CDECLCALL
 #endif
 
 #if defined(__clang__)
@@ -252,19 +248,19 @@ struct COMMONTPL AlignBase
 {
 public:
     static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
-    static void* CDECLCALL operator new(size_t size)
+    static void* operator new(size_t size)
     {
         return malloc_align(size, ALIGN_SIZE);
     };
-    static void CDECLCALL operator delete(void *p)
+    static void operator delete(void *p)
     {
         return free_align(p);
     }
-    static void* CDECLCALL operator new[](size_t size)
+    static void* operator new[](size_t size)
     {
         return malloc_align(size, ALIGN_SIZE);
     };
-    static void CDECLCALL operator delete[](void *p)
+    static void operator delete[](void *p)
     {
         return free_align(p);
     }

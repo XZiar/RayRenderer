@@ -52,6 +52,7 @@ namespace oclu
 namespace detail
 {
 class _oclGLBuffer;
+class _oclPlatform;
 }
 }
 

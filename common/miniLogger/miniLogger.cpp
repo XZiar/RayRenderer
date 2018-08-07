@@ -50,11 +50,11 @@ const std::unique_ptr<LoggerBackend> MiniLoggerBase::GlobalOutputer = std::uniqu
 
 }
 
-uint32_t CDECLCALL AddGlobalCallback(const MLoggerCallback& cb)
+uint32_t AddGlobalCallback(const MLoggerCallback& cb)
 {
     return reinterpret_cast<GlobalBackend*>(detail::MiniLoggerBase::GlobalOutputer.get())->AddCallback(cb);
 }
-void CDECLCALL DelGlobalCallback(const uint32_t id)
+void DelGlobalCallback(const uint32_t id)
 {
     reinterpret_cast<GlobalBackend*>(detail::MiniLoggerBase::GlobalOutputer.get())->DelCallback(id);
 }

@@ -39,7 +39,7 @@ class MiniLoggerBase;
 }
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
-MINILOGAPI const char16_t* CDECLCALL GetLogLevelStr(const LogLevel level);
+MINILOGAPI const char16_t* GetLogLevelStr(const LogLevel level);
 
 struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 {
@@ -105,11 +105,11 @@ public:
     LogLevel GetLeastLevel() { return LeastLevel; }
 };
 
-using MLoggerCallback = std::function<void CDECLCALL(const LogMessage& msg)>;
+using MLoggerCallback = std::function<void(const LogMessage& msg)>;
 
-MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetConsoleBackend();
-MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetDebuggerBackend();
-MINILOGAPI std::shared_ptr<LoggerBackend> CDECLCALL GetFileBackend(const fs::path& path);
+MINILOGAPI std::shared_ptr<LoggerBackend> GetConsoleBackend();
+MINILOGAPI std::shared_ptr<LoggerBackend> GetDebuggerBackend();
+MINILOGAPI std::shared_ptr<LoggerBackend> GetFileBackend(const fs::path& path);
 
 namespace detail
 {

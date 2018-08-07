@@ -89,7 +89,7 @@ public:
 protected:
     Wrapper<detail::AnyException> InnerException;
     StackTraceItem StackItem;
-    static Wrapper<detail::AnyException> CDECLCALL getCurrentException();
+    static Wrapper<detail::AnyException> getCurrentException();
     BaseException(const char * const type, const std::wstring& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
     { }
@@ -132,7 +132,7 @@ public:
     { return ::common::Wrapper<type>(*this).cast_static<::common::BaseException>(); }
 
 
-inline Wrapper<detail::AnyException> CDECLCALL BaseException::getCurrentException()
+inline Wrapper<detail::AnyException> BaseException::getCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)
@@ -158,7 +158,7 @@ class ExceptionHelper
 {
 public:
     template<class T>
-    static T CDECLCALL SetStackItem(T ex, StackTraceItem sti)
+    static T SetStackItem(T ex, StackTraceItem sti)
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         static_cast<BaseException*>(&ex)->StackItem = sti;

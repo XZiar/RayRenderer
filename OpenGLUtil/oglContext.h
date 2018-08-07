@@ -51,6 +51,7 @@ class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_share
     friend class MTWorker;
     friend class ::oglu::oglUtil;
     friend class ::oglu::oglContext;
+    friend class ::oclu::detail::_oclPlatform;
 public:
     struct DBGLimit
     {
@@ -92,18 +93,18 @@ struct OGLUAPI DebugMessage
 {
     friend class detail::_oglContext;
 private:
-    static MsgSrc CDECLCALL ParseSrc(const GLenum src)
+    static MsgSrc ParseSrc(const GLenum src)
     {
         return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
     }
-    static MsgType CDECLCALL ParseType(const GLenum type)
+    static MsgType ParseType(const GLenum type)
     {
         if (type <= GL_DEBUG_TYPE_OTHER)
             return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
         else
             return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
     }
-    static MsgLevel CDECLCALL ParseLevel(const GLenum lv)
+    static MsgLevel ParseLevel(const GLenum lv)
     {
         switch (lv)
         {

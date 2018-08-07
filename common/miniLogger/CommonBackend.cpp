@@ -111,18 +111,18 @@ public:
 };
 
 
-std::shared_ptr<LoggerBackend> CDECLCALL GetConsoleBackend()
+std::shared_ptr<LoggerBackend> GetConsoleBackend()
 {
     static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
     return backend;
 }
-std::shared_ptr<LoggerBackend> CDECLCALL GetDebuggerBackend()
+std::shared_ptr<LoggerBackend> GetDebuggerBackend()
 {
     static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();
     return backend;
 }
 
-std::shared_ptr<LoggerBackend> CDECLCALL GetFileBackend(const fs::path& path)
+std::shared_ptr<LoggerBackend> GetFileBackend(const fs::path& path)
 {
     try
     {

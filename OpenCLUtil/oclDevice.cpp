@@ -9,16 +9,18 @@ namespace oclu
 namespace detail
 {
 
-static u16string getStr(const cl_device_id deviceID, const cl_device_info type)
+static u16string GetStr(const cl_device_id deviceID, const cl_device_info type)
 {
-    char str[128] = { 0 };
-    size_t size;
-    clGetDeviceInfo(deviceID, type, 127, str, &size);
-    return str::to_u16string((const char*)str);
+    thread_local string ret;
+    size_t size = 0;
+    clGetDeviceInfo(deviceID, type, 0, nullptr, &size);
+    ret.resize(size, '\0');
+    clGetDeviceInfo(deviceID, type, size, ret.data(), &size);
+    return u16string(ret.cbegin(), ret.cend() - 1); //null-terminated
 }
 
 template<typename T>
-static T getNum(const cl_device_id deviceID, const cl_device_info type)
+static T GetNum(const cl_device_id deviceID, const cl_device_info type)
 {
     static_assert(std::is_integral_v<T>, "T should be numeric type");
     T num = 0;
@@ -27,7 +29,7 @@ static T getNum(const cl_device_id deviceID, const cl_device_info type)
 }
 
 
-DeviceType _oclDevice::getDevType() const
+static DeviceType GetDevType(const cl_device_id deviceID)
 {
     cl_device_type dtype;
     clGetDeviceInfo(deviceID, CL_DEVICE_TYPE, sizeof(dtype), &dtype, nullptr);
@@ -47,13 +49,26 @@ DeviceType _oclDevice::getDevType() const
 }
 
 _oclDevice::_oclDevice(const cl_device_id dID)
-    : deviceID(dID), name(getStr(dID, CL_DEVICE_NAME)), vendor(getStr(dID, CL_DEVICE_VENDOR)), version(getStr(dID, CL_DEVICE_VERSION)), type(getDevType()),
-    GlobalMemSize(getNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)), LocalMemSize(getNum<uint64_t>(dID, CL_DEVICE_LOCAL_MEM_SIZE)),
-    ConstantBufSize(getNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), MaxMemSize(getNum<uint64_t>(dID, CL_DEVICE_MAX_MEM_ALLOC_SIZE)),
-    GlobalCacheSize(getNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)), GlobalCacheLine(getNum<uint32_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)),
-    supportProfiling((getNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_PROFILING_ENABLE) != 0),
-    supportOutOfOrder((getNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0)
+    : deviceID(dID), Name(GetStr(dID, CL_DEVICE_NAME)), Vendor(GetStr(dID, CL_DEVICE_VENDOR)), Version(GetStr(dID, CL_DEVICE_VERSION)),
+    ConstantBufSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), GlobalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)),
+    LocalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_LOCAL_MEM_SIZE)), MaxMemSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_MEM_ALLOC_SIZE)),
+    GlobalCacheSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)), GlobalCacheLine(GetNum<uint32_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)),
+    supportProfiling((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_PROFILING_ENABLE) != 0),
+    supportOutOfOrder((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0),
+    Type(GetDevType(deviceID)) { }
+
+using namespace std::literals;
+
+u16string_view _oclDevice::GetDeviceTypeName(const DeviceType type)
 {
+    switch (type)
+    {
+    case DeviceType::CPU:           return u"CPU"sv;
+    case DeviceType::GPU:           return u"GPU"sv;
+    case DeviceType::Accelerator:   return u"Accelerator"sv;
+    case DeviceType::Custom:        return u"Custom"sv;
+    default:                        return u"Unknown"sv;
+    }
 }
 
 

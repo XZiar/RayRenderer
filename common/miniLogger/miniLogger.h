@@ -6,16 +6,16 @@ namespace common::mlog
 {
 
 
-MINILOGAPI uint32_t CDECLCALL AddGlobalCallback(const MLoggerCallback& cb);
-MINILOGAPI void CDECLCALL DelGlobalCallback(const uint32_t id);
+MINILOGAPI uint32_t AddGlobalCallback(const MLoggerCallback& cb);
+MINILOGAPI void DelGlobalCallback(const uint32_t id);
 
 namespace detail
 {
 
 class MINILOGAPI MiniLoggerBase : public NonCopyable
 {
-    friend uint32_t CDECLCALL ::common::mlog::AddGlobalCallback(const MLoggerCallback& cb);
-    friend void CDECLCALL ::common::mlog::DelGlobalCallback(const uint32_t id);
+    friend uint32_t common::mlog::AddGlobalCallback(const MLoggerCallback& cb);
+    friend void common::mlog::DelGlobalCallback(const uint32_t id);
 protected:
     static const std::unique_ptr<LoggerBackend> GlobalOutputer;
     std::atomic<LogLevel> LeastLevel;

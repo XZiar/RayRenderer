@@ -43,8 +43,8 @@ oclu::oclContext createOCLContext(const oclu::Vendor vendor)
     oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
     if (!clPlat)
         return oclContext();
-    auto clCtx = clPlat->createContext();
-    fntLog().success(u"Created Context in platform {}!\n", clPlat->name);
+    auto clCtx = clPlat->CreateContext(oglu::oglContext::CurrentContext());
+    fntLog().success(u"Created Context in platform {}!\n", clPlat->Name);
     clCtx->onMessage = [](const u16string& errtxt)
     {
         fntLog().error(u"Error from context:\t{}\n", errtxt);
@@ -61,7 +61,7 @@ void FontCreator::loadCL(const string& src)
     try
     {
         string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
-        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->devs[0]->LocalMemSize);
+        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
         clProg->build(options);
     }
     catch (OCLException& cle)
@@ -73,7 +73,7 @@ void FontCreator::loadCL(const string& src)
     kerSdfGray = clProg->getKernel("graysdf");
     kerSdfGray4 = clProg->getKernel("graysdf4");
     {
-        const auto wgInfo = kerSdfGray->GetWorkGroupInfo(clCtx->devs[0]);
+        const auto wgInfo = kerSdfGray->GetWorkGroupInfo(clCtx->Devices[0]);
         //preset arg
         kerSdfGray->setArg(0, infoBuf);
         kerSdfGray->setArg(1, inputBuf);
@@ -91,7 +91,7 @@ void FontCreator::loadDownSampler(const string& src)
     try
     {
         string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
-        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->devs[0]->LocalMemSize);
+        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
         clProg->build(options);
     }
     catch (OCLException& cle)
@@ -108,8 +108,8 @@ void FontCreator::loadDownSampler(const string& src)
 FontCreator::FontCreator(const oclu::Vendor preferredVendor)
 {
     clCtx = clRes.get(preferredVendor);
-    for (const auto& dev : clCtx->devs)
-        if (dev->type == DeviceType::GPU)
+    for (const auto& dev : clCtx->Devices)
+        if (dev->Type == DeviceType::GPU)
         {
             clQue.reset(clCtx, dev);
             break;
