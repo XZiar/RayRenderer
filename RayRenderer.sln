@@ -63,6 +63,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\SharedResource.hpp = common\SharedResource.hpp
 		common\SharedString.hpp = common\SharedString.hpp
 		common\SIMD.hpp = common\SIMD.hpp
+		common\SIMD128.hpp = common\SIMD128.hpp
 		common\SpinLock.hpp = common\SpinLock.hpp
 		common\StrBase.hpp = common\StrBase.hpp
 		common\StrCharset.hpp = common\StrCharset.hpp
