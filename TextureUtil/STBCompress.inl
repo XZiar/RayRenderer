@@ -318,7 +318,7 @@ public:
 static common::AlignedBuffer<32> CompressBC5(const Image& img)
 {
     if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC5");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC5");
 
     BCBlock block;
     switch (img.DataType)
@@ -336,7 +336,7 @@ static common::AlignedBuffer<32> CompressBC5(const Image& img)
         //return block.EachBlock(img, 16, BCBlock::R2RG, stb_compress_bc5_block);
         return block.EachBlock(img, 16, BCBlock::R2RG, CompressBC5Block);
     default:
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"error datatype for Image");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"error datatype for Image");
     }
 }
 

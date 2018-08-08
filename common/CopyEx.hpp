@@ -253,7 +253,7 @@ template<typename Src, typename Dest>
 inline void CopyLittleEndian(Dest* const dest, const size_t destCount, const Src* const src, const size_t srcCount)
 {
     if (destCount < srcCount)
-        COMMON_THROW(BaseException, L"space avaliable on Dest is smaller than space required by Src.");
+        COMMON_THROW(BaseException, u"space avaliable on Dest is smaller than space required by Src.");
     if constexpr(sizeof(Src) == sizeof(Dest))
         memcpy_s(dest, destCount * sizeof(Dest), src, srcCount * sizeof(Src));
     else
@@ -354,7 +354,7 @@ template<typename Type>
 inline void BroadcastMany(Type* const dest, const size_t destCount, const Type& src, const size_t srcCount)
 {
     if (destCount < srcCount)
-        COMMON_THROW(BaseException, L"space avaliable on Dest is smaller than space required.");
+        COMMON_THROW(BaseException, u"space avaliable on Dest is smaller than space required.");
     if constexpr(sizeof(Type) == 1)
         detail::BroadcastMany(dest, *(const uint8_t*)&src, srcCount);
     else if constexpr(sizeof(Type) == 2)

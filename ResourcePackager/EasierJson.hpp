@@ -492,7 +492,7 @@ public:
     explicit JArray(JDoc&& doc) : JArray(doc.MemPool)
     {
         if (!doc.Val.IsArray())
-            COMMON_THROW(BaseException, L"value is not an array");
+            COMMON_THROW(BaseException, u"value is not an array");
         Val = doc.Val;
     }
     template<typename... T>
@@ -514,7 +514,7 @@ public:
     explicit JArrayRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsArray())
-            COMMON_THROW(BaseException, L"value is not an array");
+            COMMON_THROW(BaseException, u"value is not an array");
     }
     template<typename = std::enable_if_t<IsConst>>
     JArrayRef(const JArray& jarray) : JDocRef<IsConst>(jarray) {}
@@ -538,7 +538,7 @@ public:
     explicit JObject(JDoc&& doc) : JObject(doc.MemPool)
     {
         if (!doc.Val.IsObject())
-            COMMON_THROW(BaseException, L"value is not an object");
+            COMMON_THROW(BaseException, u"value is not an object");
         Val = doc.Val;
     }
     template<typename T, typename U>
@@ -560,7 +560,7 @@ public:
     explicit JObjectRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsObject())
-            COMMON_THROW(BaseException, L"value is not an object");
+            COMMON_THROW(BaseException, u"value is not an object");
     }
     template<typename = std::enable_if_t<!IsConst>>
     JObjectRef(JObject& jobject) : JDocRef<IsConst>(jobject) {}

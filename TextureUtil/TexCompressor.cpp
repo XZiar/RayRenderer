@@ -13,9 +13,9 @@ namespace oglu::texutil
 static void CheckImgSize(const Image& img)
 {
     if (img.Width % 4 != 0 || img.Height % 4 != 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"image being comoressed should has a size of multiple of 4.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a size of multiple of 4.");
     if (img.Width == 0 || img.Height == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"image being comoressed should has a non-zero size.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a non-zero size.");
 }
 
 common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerFormat format, const bool needAlpha)
@@ -38,7 +38,7 @@ common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerForm
     case TextureInnerFormat::BC7SRGB:
         result = detail::CompressBC7(img, needAlpha); break;
     default:
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"not supported compression yet");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not supported compression yet");
     }
     timer.Stop();
     texLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",

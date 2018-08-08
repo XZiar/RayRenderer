@@ -377,7 +377,7 @@ void _oglProgram::Link()
     {
         oglLog().warning(u"Link program failed.\n{}\n", logstr);
         glDeleteProgram(programID);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Link program failed", logstr);
+        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logstr);
     }
     oglLog().success(u"Link program success.\n{}\n", logstr);
     InitLocs();

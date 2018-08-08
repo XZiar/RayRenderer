@@ -67,7 +67,7 @@ void FontCreator::loadCL(const string& src)
     catch (OCLException& cle)
     {
         fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
-        COMMON_THROW(BaseException, L"build Program error");
+        COMMON_THROW(BaseException, u"build Program error");
     }
     kerSdf = clProg->GetKernel("bmpsdf");
     kerSdfGray = clProg->GetKernel("graysdf");
@@ -97,7 +97,7 @@ void FontCreator::loadDownSampler(const string& src)
     catch (OCLException& cle)
     {
         fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
-        COMMON_THROW(BaseException, L"build Program error");
+        COMMON_THROW(BaseException, u"build Program error");
     }
     kerDownSamp = clProg->GetKernel("avg16");// "downsample4");
     kerDownSamp->SetArg(0, infoBuf);
@@ -115,7 +115,7 @@ FontCreator::FontCreator(const oclu::Vendor preferredVendor)
             break;
         }
     if(!clQue)
-        COMMON_THROW(BaseException, L"clQueue initialized failed! There may be no GPU device found in platform");
+        COMMON_THROW(BaseException, u"clQueue initialized failed! There may be no GPU device found in platform");
 
     //prepare LUT
     {
@@ -194,11 +194,11 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             memcpy_s(img.GetRawPtr(), img.GetSize(), tmpimg.GetRawPtr(), tmpimg.GetSize());
         }
         if (offset % 16)
-            COMMON_THROW(BaseException, L"offset wrong");
+            COMMON_THROW(BaseException, u"offset wrong");
         if (width % 4)
-            COMMON_THROW(BaseException, L"width wrong");
+            COMMON_THROW(BaseException, u"width wrong");
         if (height % 4)
-            COMMON_THROW(BaseException, L"height wrong");
+            COMMON_THROW(BaseException, u"height wrong");
         finfos.push_back(FontInfo{ (uint32_t)offset,(uint8_t)width,(uint8_t)height });
         alldata.insert(alldata.cend(), img.GetRawPtr(), img.GetRawPtr() + img.GetSize());
         offset += img.GetSize();

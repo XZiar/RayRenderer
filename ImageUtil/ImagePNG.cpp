@@ -30,7 +30,7 @@ static void OnFlushFile([[maybe_unused]] png_structp pngStruct) {}
 static void OnError([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
     ImgLog().error(u"LIBPNG report an error: {}\n", message);
-    COMMON_THROW(BaseException, L"Libpng report an error");
+    COMMON_THROW(BaseException, u"Libpng report an error");
 }
 static void OnWarn([[maybe_unused]] png_structrp pngStruct, const char *message)
 {
@@ -41,21 +41,21 @@ static png_structp CreateReadStruct()
 {
     auto handle = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, OnError, OnWarn);
     if (!handle)
-        COMMON_THROW(BaseException, L"Cannot alloc space for png struct");
+        COMMON_THROW(BaseException, u"Cannot alloc space for png struct");
     return handle;
 }
 static png_structp CreateWriteStruct()
 {
     auto handle = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, OnError, OnWarn);
     if (!handle)
-        COMMON_THROW(BaseException, L"Cannot alloc space for png struct");
+        COMMON_THROW(BaseException, u"Cannot alloc space for png struct");
     return handle;
 }
 static png_infop CreateInfo(png_structp pngStruct)
 {
     auto handle = png_create_info_struct(pngStruct);
     if (!handle)
-        COMMON_THROW(BaseException, L"Cannot alloc space for png info");
+        COMMON_THROW(BaseException, u"Cannot alloc space for png info");
     return handle;
 }
 

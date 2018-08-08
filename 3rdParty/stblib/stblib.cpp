@@ -41,7 +41,7 @@ std::tuple<int32_t, int32_t> loadImage(const common::fs::path& fpath, std::vecto
     int width, height, comp;
     auto ret = stbi_load_from_callbacks(&FileCallback, &imgFile, &width, &height, &comp, 4);
     if (ret == nullptr)
-        COMMON_THROW(FileException, FileException::Reason::ReadFail, fpath, L"cannot parse image");
+        COMMON_THROW(FileException, FileException::Reason::ReadFail, fpath, u"cannot parse image");
 
     data.resize(width*height);
     memcpy_s(data.data(), data.size() * sizeof(uint32_t), ret, width*height * 4);
@@ -72,7 +72,7 @@ void saveImage(const common::fs::path& fpath, const void *data, const uint32_t w
     auto imgFile = file::FileObject::OpenThrow(fpath, file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY);
     const auto ret = stbi_write_png_to_func(&writeToFile, &imgFile, (int)width, (int)height, compCount, data, 0);
     if (ret == 0)
-        COMMON_THROW(FileException, FileException::Reason::WriteFail, fpath, L"cannot parse image");
+        COMMON_THROW(FileException, FileException::Reason::WriteFail, fpath, u"cannot parse image");
 }
 
 

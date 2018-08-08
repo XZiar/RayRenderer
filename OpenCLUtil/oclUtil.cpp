@@ -108,9 +108,5 @@ u16string_view oclUtil::getErrorString(const cl_int err)
     }
 }
 
-wstring errString(const wchar_t *prefix, cl_int errcode)
-{
-    return wstring(prefix) + L" --ERROR: " + str::to_wstring(oclUtil::getErrorString(errcode), str::Charset::UTF16LE);
-}
 
 }

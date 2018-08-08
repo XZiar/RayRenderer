@@ -84,13 +84,13 @@ class BaseException : public detail::AnyException
     friend detail::ExceptionHelper;
 public:
     static constexpr auto TYPENAME = "BaseException";
-    std::wstring message;
+    std::u16string message;
     std::any data;
 protected:
     Wrapper<detail::AnyException> InnerException;
     StackTraceItem StackItem;
     static Wrapper<detail::AnyException> getCurrentException();
-    BaseException(const char * const type, const std::wstring& msg, const std::any& data_)
+    BaseException(const char * const type, const std::u16string_view& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
     { }
 private:
@@ -107,7 +107,7 @@ private:
         stks.push_back(StackItem);
     }
 public:
-    BaseException(const std::wstring& msg, const std::any& data_ = std::any())
+    BaseException(const std::u16string_view& msg, const std::any& data_ = std::any())
         : BaseException(TYPENAME, msg, data_)
     { }
     ~BaseException() override {}
@@ -195,7 +195,7 @@ public:
 public:
     EXCEPTION_CLONE_EX(FileException);
     const Reason reason;
-    FileException(const Reason why, const fs::path& file, const std::wstring& msg, const std::any& data_ = std::any())
+    FileException(const Reason why, const fs::path& file, const std::u16string_view& msg, const std::any& data_ = std::any())
         : BaseException(TYPENAME, msg, data_), filepath(file), reason(why)
     { }
     ~FileException() override {}

@@ -329,9 +329,9 @@ void MultiMaterialHolder::Refresh()
     {
         const auto[w, h] = PBRMaterial::GetSize(tex);
         if (w == 0 || h == 0)
-            COMMON_THROW(BaseException, L"binded texture size cannot be 0", material->Name);
+            COMMON_THROW(BaseException, u"binded texture size cannot be 0", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
-            COMMON_THROW(BaseException, L"binded texture size should be power of 2", material->Name);
+            COMMON_THROW(BaseException, u"binded texture size should be power of 2", material->Name);
         const detail::TexTag tid(PBRMaterial::GetInnerFormat(tex), w, h);
         if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {

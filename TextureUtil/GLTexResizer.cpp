@@ -47,7 +47,7 @@ void GLTexResizer::Init()
         catch (const OGLException& gle)
         {
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"GLTexResizer shader fail");
+            COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
 
         ScreenBox.reset();
@@ -104,14 +104,14 @@ static TextureInnerFormat DecideFormat(ImageDataType type, const TextureInnerFor
         type = REMOVE_MASK(type, ImageDataType::ALPHA_MASK);
     const TextureInnerFormat matched = DecideFormat(type);
     if (TexFormatUtil::IsGrayType(matched) != TexFormatUtil::IsGrayType(prefer))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"not support to convert between color and gray");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not support to convert between color and gray");
     return matched;
 }
 
 static void FilterFormat(const TextureInnerFormat format)
 {
     if (TexFormatUtil::IsCompressType(format))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"not support to resize to a compressed format");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not support to resize to a compressed format");
 }
 
 common::PromiseResult<Image> GLTexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)

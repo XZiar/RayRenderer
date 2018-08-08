@@ -38,11 +38,11 @@ public:
     oclPromise Read(const oclCmdQue& que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
     {
         if (offset >= Size)
-            COMMON_THROW(BaseException, L"offset overflow");
+            COMMON_THROW(BaseException, u"offset overflow");
         if (count == 0)
             count = (Size - offset) / sizeof(T);
         else if(count * sizeof(T) + offset > Size)
-            COMMON_THROW(BaseException, L"read size overflow");
+            COMMON_THROW(BaseException, u"read size overflow");
         buf.resize(count);
         return Read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
     }
@@ -54,7 +54,7 @@ public:
         if (count == 0)
             count = buf.size();
         else if (count > buf.size())
-            COMMON_THROW(BaseException, L"write size overflow");
+            COMMON_THROW(BaseException, u"write size overflow");
         const auto wsize = count * sizeof(T);
         return Write(que, buf.data(), wsize, offset, shouldBlock);
     }

@@ -41,7 +41,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     
     const auto w = img.Width, h = img.Height;
     if (w <= 4 || h <= 4)
-        COMMON_THROW(BaseException, L"image size to small");
+        COMMON_THROW(BaseException, u"image size to small");
     if (!IsPower2(w) || !IsPower2(h))
     {
         const auto newW = 1 << uint32_t(std::round(std::log2(w)));

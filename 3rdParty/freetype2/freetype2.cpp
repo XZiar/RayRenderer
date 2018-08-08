@@ -16,7 +16,7 @@ void* FreeTyper::createLibrary()
     FT_Library library;
     auto error = FT_Init_FreeType(&library);
     if (error)
-        COMMON_THROW(BaseException, L"cannot initialize freetype library");
+        COMMON_THROW(BaseException, u"cannot initialize freetype library");
     return library;
 }
 
@@ -39,11 +39,11 @@ FreeTyper::FreeTyper(const fs::path& fontpath, const uint16_t pixSize, const uin
     case FT_Err_Ok:
         break;
     case FT_Err_Unknown_File_Format:
-        COMMON_THROW(FileException, FileException::Reason::WrongFormat, fontpath, L"freetype does not support this kinds of format");
+        COMMON_THROW(FileException, FileException::Reason::WrongFormat, fontpath, u"freetype does not support this kinds of format");
     case FT_Err_Cannot_Open_Resource:
-        COMMON_THROW(FileException, FileException::Reason::OpenFail, fontpath, L"freetype cannot open file");
+        COMMON_THROW(FileException, FileException::Reason::OpenFail, fontpath, u"freetype cannot open file");
     default:
-        COMMON_THROW(FTException, L"unknown exception while load freetype face");
+        COMMON_THROW(FTException, u"unknown exception while load freetype face");
     }
     FT_Set_Pixel_Sizes((FT_Face)face, PixSize, PixSize);
     //FT_Set_Char_Size((FT_Face)face, 0, height * 64, 96, 96);
@@ -56,7 +56,7 @@ BMPair FreeTyper::getChBitmap(char32_t ch, bool custom) const
     FT_GlyphSlot glyph = f->glyph;
     auto ret = FT_Load_Glyph(f, idx, FT_LOAD_DEFAULT);
     if (ret)
-        COMMON_THROW(FTException, L"unknown exception while load freetype Glyph");
+        COMMON_THROW(FTException, u"unknown exception while load freetype Glyph");
     if (!custom)
     {
         FT_Render_Glyph(glyph, FT_RENDER_MODE_NORMAL);

@@ -437,9 +437,9 @@ Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
 _oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap)
 {
     if (width == 0 || height == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2D.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
     if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, InnerFormat = iformat, Mipmap = mipmap;
     //bind(0);
     //glTexStorage2D(GL_TEXTURE_2D, mipmap, (GLenum)InnerFormat, Width, Height);
@@ -459,7 +459,7 @@ void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const oglPBO&
 void _oglTexture2DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
 {
     if (img.Width != Width || img.Height != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"image's size msmatch with oglTex2D(S)");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex2D(S)");
     _oglTexture2D::SetData(true, img, normalized, flipY);
 }
 
@@ -490,7 +490,7 @@ oglTex2DV _oglTexture2DStatic::GetTextureView() const
 void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h)
 {
     if (w % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     InnerFormat = iformat, Width = w, Height = h;
 }
 
@@ -529,9 +529,9 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     : _oglTexBase(TextureType::Tex2DArray)
 {
     if (width == 0 || height == 0 || layers == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2DArray.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2DArray.");
     if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
     //bind(0);
     //glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
@@ -547,16 +547,16 @@ _oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, c
 void _oglTexture2DArray::CheckLayerRange(const uint32_t layer) const
 {
     if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
 }
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
 {
     CheckLayerRange(layer);
     if (tex->Width != Width || tex->Height != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
     if (tex->Mipmap < Mipmap)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"too few mipmap level");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
     if (tex->InnerFormat != InnerFormat)
         oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint32_t)tex->InnerFormat, textureID, (uint32_t)InnerFormat);
     for (uint8_t i = 0; i < Mipmap; ++i)
@@ -570,9 +570,9 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
 {
     if (img.Width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"each line's should be aligned to 4 pixels");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"each line's should be aligned to 4 pixels");
     if (img.Width != Width || img.Height != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch"); 
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch"); 
     SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.DataType, true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
 }
 
@@ -592,11 +592,11 @@ void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const v
 void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
 {
     if (Width != tex->Width || Height != tex->Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture size mismatch");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
     if (destLayer + layerCount > Layers || srcLayer + layerCount > tex->Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
     if (tex->Mipmap < Mipmap)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"too few mipmap level");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
         glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
@@ -608,7 +608,7 @@ void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex
 oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
 {
     if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"layer range outflow");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     const auto layerStr = std::to_string(layer);
     tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
@@ -657,9 +657,9 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
 _oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap)
 {
     if (width == 0 || height == 0 || depth == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Set size of 0 to Tex2D.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
     if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"texture's size should be aligned to 4 pixels");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Depth = depth, InnerFormat = iformat, Mipmap = mipmap;
     glTextureStorage3DEXT(textureID, GL_TEXTURE_3D, mipmap, (GLenum)InnerFormat, Width, Height, Depth);
 }
@@ -677,7 +677,7 @@ void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const oglPBO&
 void _oglTexture3DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
 {
     if (img.Width != Width || img.Height != Height * Depth)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"image's size msmatch with oglTex3D(S)");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex3D(S)");
     _oglTexture3D::SetData(true, img, normalized, flipY);
 }
 

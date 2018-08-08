@@ -35,7 +35,7 @@ void _oglShader::compile()
         glGetShaderInfoLog(shaderID, len, &len, logstr.data());
         const auto logdat = str::to_u16string(logstr.c_str());
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, L"Compile shader failed", logdat);
+        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
     }
 }
 
@@ -171,7 +171,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         {
             vector<string> realParts;
             std::transform(parts.cbegin(), parts.cend(), std::back_inserter(realParts), [](const string_view& sv) { return string(sv); });
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Error in parsing property", realParts);
+            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property", realParts);
         }
     }
     else
@@ -228,7 +228,7 @@ vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtI
         }, false);
 
     if (params.empty())
-        COMMON_THROW(BaseException, L"Invalid shader source");
+        COMMON_THROW(BaseException, u"Invalid shader source");
     string_view partOther(src.c_str() + partVersion.size(), src.size() - partVersion.size());
     string lineFix = "#line " + std::to_string(lineNum); //fix line number
     for (const auto& sv : params)

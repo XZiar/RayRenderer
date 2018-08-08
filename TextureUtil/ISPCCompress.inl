@@ -10,7 +10,7 @@ namespace oglu::texutil::detail
 static common::AlignedBuffer<32> CompressBC1(const Image& img)
 {
     if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC1");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC1");
 
     if (img.DataType != ImageDataType::RGBA)
     {
@@ -27,7 +27,7 @@ static common::AlignedBuffer<32> CompressBC1(const Image& img)
 static common::AlignedBuffer<32> CompressBC3(const Image& img)
 {
     if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC3");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC3");
 
     if (img.DataType != ImageDataType::RGBA)
     {
@@ -44,7 +44,7 @@ static common::AlignedBuffer<32> CompressBC3(const Image& img)
 static common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAlpha)
 {
     if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"float data type not supported in BC7");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC7");
 
     if (img.DataType != ImageDataType::RGBA)
     {

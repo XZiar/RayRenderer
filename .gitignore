@@ -248,5 +248,6 @@ ModelManifest.xml
 kernel*_ispc*.h
 
 # Project Exception
-/Tests/
+/Tests/Data/
+/Tests/Temp/
 /.vscode

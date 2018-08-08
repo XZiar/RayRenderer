@@ -603,7 +603,7 @@ public:
 #define CONCAT_TYPE_SIZE_STR(TYPE, SIZE) STRINGIZE(TYPE) " string should has type of at most size[" STRINGIZE(SIZE) "]"
 #define CHK_CHAR_SIZE_MOST(TYPE, SIZE) \
     if constexpr(sizeof(Char) > SIZE) \
-        COMMON_THROW(BaseException, WIDEN(CONCAT_TYPE_SIZE_STR(TYPE, SIZE))); \
+        COMMON_THROW(BaseException, UTF16ER(CONCAT_TYPE_SIZE_STR(TYPE, SIZE))); \
     else \
     {
 #define CHK_CHAR_SIZE_END \
@@ -731,7 +731,7 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
         CHK_CHAR_SIZE_END
         break;
     default:
-        COMMON_THROW(BaseException, L"unknow charset", inchset);
+        COMMON_THROW(BaseException, u"unknow charset", inchset);
     }
 }
 template<typename Char, typename Alloc>
@@ -1048,7 +1048,7 @@ inline void ForEachChar(const Char *str, const size_t size, const Consumer& cons
             detail::ForEachChar<detail::GB18030, Char, Consumer>(str, size, true, consumer);
         CHK_CHAR_SIZE_END
     default:
-        COMMON_THROW(BaseException, L"unsupported charset");
+        COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
 template<typename Char, typename Traits, typename Alloc, typename Consumer>
@@ -1130,7 +1130,7 @@ inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, co
             return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, size, true, true, detail::EngUpper);
         CHK_CHAR_SIZE_END
     default:
-        COMMON_THROW(BaseException, L"unsupported charset");
+        COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
 template<typename Char, typename Traits, typename Alloc>
@@ -1196,7 +1196,7 @@ inline std::basic_string<Char> ToLowerEng(const Char *str, const size_t size, co
             return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, size, true, true, detail::EngLower);
         CHK_CHAR_SIZE_END
     default:
-        COMMON_THROW(BaseException, L"unsupported charset");
+        COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
 template<typename Char, typename Traits, typename Alloc>
@@ -1274,7 +1274,7 @@ inline bool IsIBeginWith(const Char *str, const size_t size1, const Char *prefix
             return detail::CaseInsensitiveCompare<detail::GB18030, detail::GB18030, Char, Char>(str, size1, true, prefix, size2, true);
         CHK_CHAR_SIZE_END
     default:
-        COMMON_THROW(BaseException, L"unsupported charset");
+        COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
 template<typename Char, typename Container>

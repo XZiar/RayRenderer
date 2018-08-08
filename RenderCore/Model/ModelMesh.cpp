@@ -224,7 +224,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath) try
 catch (const FileException&)
 {
     basLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
-    COMMON_THROW(BaseException, L"fail to load model data");
+    COMMON_THROW(BaseException, u"fail to load model data");
 }
 
 void _ModelMesh::InitDataBuffers()

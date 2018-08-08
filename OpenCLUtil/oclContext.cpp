@@ -29,7 +29,7 @@ cl_context _oclContext::CreateContext(const cl_context_properties* props) const
         deviceIDs.push_back(dev->deviceID);
     const auto ctx = clCreateContext(props, 1, deviceIDs.data(), &onNotify, const_cast<_oclContext*>(this), &ret);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create opencl-context", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create opencl-context", ret));
     return ctx;
 }
 

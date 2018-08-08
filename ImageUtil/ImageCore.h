@@ -34,13 +34,13 @@ public:
         : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
         if (Width*Height*ElementSize != Size_)
-            COMMON_THROW(BaseException, L"Size not match");
+            COMMON_THROW(BaseException, u"Size not match");
     }
     Image(common::AlignedBuffer<32>&& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
         if (Width*Height*ElementSize != Size_)
-            COMMON_THROW(BaseException, L"Size not match");
+            COMMON_THROW(BaseException, u"Size not match");
     }
 
     using common::AlignedBuffer<32>::GetSize;

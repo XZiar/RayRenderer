@@ -192,7 +192,7 @@ public:
         static_assert(std::is_integral_v<T>, "input type should be of integeral type and no more than uint32_t");
         auto res = std::minmax_element(dat.begin(), dat.end());
         if (*res.first < 0)
-            COMMON_THROW(BaseException, L"element buffer cannot appear negatve value");
+            COMMON_THROW(BaseException, u"element buffer cannot appear negatve value");
         auto maxval = *res.second;
         if (maxval <= UINT8_MAX)
         {
@@ -231,7 +231,7 @@ public:
             }
         }
         else
-            COMMON_THROW(BaseException, L"Too much element held for element buffer");
+            COMMON_THROW(BaseException, u"Too much element held for element buffer");
     }
 };
 

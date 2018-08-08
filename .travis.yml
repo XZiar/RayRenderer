@@ -62,4 +62,4 @@ before_script:
   - nasm -v
 
 script:
-  - python3 build.py rebuildall "all|-UtilTest"
+  - python3 build.py rebuildall "all|-UtilTest|-ResourcePackager"

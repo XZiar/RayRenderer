@@ -20,7 +20,7 @@ FontViewer::FontViewer()
     catch (OGLException& gle)
     {
         fntLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"OpenGL compile fail");
+        COMMON_THROW(BaseException, u"OpenGL compile fail");
     }
     try
     {
@@ -29,7 +29,7 @@ FontViewer::FontViewer()
     catch (OGLException& gle)
     {
         fntLog().error(u"Fail to link Program:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, L"link Program error");
+        COMMON_THROW(BaseException, u"link Program error");
     }
 
     viewVAO.reset(VAODrawMode::Triangles);

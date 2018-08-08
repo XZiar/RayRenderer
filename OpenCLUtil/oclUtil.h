@@ -10,12 +10,16 @@ namespace oclu
 class OCLUAPI oclUtil
 {
 private:
-	static vector<oclPlatform> platforms;
+    static vector<oclPlatform> platforms;
 public:
-	static void init();
-	static const vector<oclPlatform>& getPlatforms() { return platforms; }
-	static u16string_view getErrorString(const cl_int err);
+    static void init();
+    static const vector<oclPlatform>& getPlatforms() { return platforms; }
+    static u16string_view getErrorString(const cl_int err);
 };
-wstring errString(const wchar_t *prefix, cl_int errcode);
+inline u16string errString(const u16string_view& prefix, cl_int errcode)
+{
+    return u16string(prefix).append(u" --ERROR: ").append(oclUtil::getErrorString(errcode));
+
+}
 
 }

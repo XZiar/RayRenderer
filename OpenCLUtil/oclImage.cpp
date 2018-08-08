@@ -29,7 +29,7 @@ static cl_image_format ParseImageFormat(const oglu::TextureDataFormat dformat)
         case TextureDataFormat::I8_TYPE:     format.image_channel_data_type = CL_SNORM_INT8; break;
         case TextureDataFormat::U16_TYPE:    format.image_channel_data_type = CL_UNORM_INT16; break;
         case TextureDataFormat::I16_TYPE:    format.image_channel_data_type = CL_SNORM_INT16; break;
-        default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, L"unsupported format");
+        default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format");
         }
     }
     else
@@ -53,7 +53,7 @@ static cl_image_format ParseImageFormat(const oglu::TextureDataFormat dformat)
     case TextureDataFormat::RGB_FORMAT:      format.image_channel_order = CL_RGB; break;
     case TextureDataFormat::RGBA_FORMAT:     format.image_channel_order = CL_RGBA; break;
     case TextureDataFormat::BGRA_FORMAT:     format.image_channel_order = CL_BGRA; break;
-    default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, L"unsupported format");
+    default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format");
     }
     return format;
 }
@@ -79,7 +79,7 @@ static cl_mem CreateMem(const cl_context ctx, const cl_mem_flags flag, const cl_
     const auto format = ParseImageFormat(dformat);
     const auto id = clCreateImage(ctx, flag, &format, &desc, nullptr, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create image", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create image", errcode));
     return id;
 }
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
@@ -125,7 +125,7 @@ oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldB
     cl_event e;
     const auto ret = clEnqueueReadImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot read clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
     if (shouldBlock)
         return {};
     else
@@ -135,14 +135,14 @@ oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldB
 oclPromise _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
     if (image.Width != Width || image.Height != Height)
-        COMMON_THROW(BaseException, L"write size unmatch");
+        COMMON_THROW(BaseException, u"write size unmatch");
         
     constexpr size_t origin[3] = { 0,0,0 }; 
     const size_t region[3] = { Width,Height,1 }; 
     cl_event e;
     const auto ret = clEnqueueWriteImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot write clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clImage", ret));
     if (shouldBlock)
         return {};
     else
@@ -156,7 +156,7 @@ static cl_mem CreateMemFromBuf(const cl_context ctx, const cl_mem_flags flag, co
     cl_int errcode;
     auto id = clCreateFromGLBuffer(ctx, flag, buf, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create buffer from glBuffer", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create buffer from glBuffer", errcode));
     return id;
 }
 
@@ -165,7 +165,7 @@ static cl_mem CreateMemFromTex(const cl_context ctx, const cl_mem_flags flag, co
     cl_int errcode;
     auto id = clCreateFromGLTexture(ctx, flag, texType, 0, tex, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create buffer from glTexture", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create buffer from glTexture", errcode));
     return id;
 }
 

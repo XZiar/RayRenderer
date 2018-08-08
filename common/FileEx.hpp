@@ -48,7 +48,7 @@ using common::str::Charset;
 #if defined(USING_CHARDET) || defined(UCHARDETLIB_H_)
 #   define GET_ENCODING(str, chset) chset = uchdet::detectEncoding(str)
 #else
-#   define GET_ENCODING(str, chset) COMMON_THROW(BaseException, L"UnSuppoted, lacks uchardet");
+#   define GET_ENCODING(str, chset) COMMON_THROW(BaseException, u"UnSuppoted, lacks uchardet");
 #endif
 
 
@@ -243,7 +243,7 @@ public:
         if (ret != EOF)
             return static_cast<T>(ret);
         else
-            COMMON_THROW(FileException, FileException::Reason::ReadFail, FilePath, L"reach end of file");
+            COMMON_THROW(FileException, FileException::Reason::ReadFail, FilePath, u"reach end of file");
     }
 
     bool Read(const size_t len, void * const ptr)
@@ -270,7 +270,7 @@ public:
         if (ret != EOF)
             return true;
         else
-            COMMON_THROW(FileException, FileException::Reason::WriteFail, FilePath, L"write byte to file failed");
+            COMMON_THROW(FileException, FileException::Reason::WriteFail, FilePath, u"write byte to file failed");
     }
 
     bool Write(const size_t len, const void *ptr)
@@ -305,15 +305,15 @@ public:
     static FileObject OpenThrow(const fs::path& path, const OpenFlag flag)
     {
         if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::CREATE))
-            COMMON_THROW(FileException, FileException::Reason::NotExist, path, L"target file not exist");
+            COMMON_THROW(FileException, FileException::Reason::NotExist, path, u"target file not exist");
         FILE *fp;
     #if defined(_WIN32)
         if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)
-            COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open target file");
+            COMMON_THROW(FileException, FileException::Reason::OpenFail, path, u"cannot open target file");
     #else
         fp = fopen(path.u8string().c_str(), ParseFlag(flag));
         if (fp == nullptr)
-            COMMON_THROW(FileException, FileException::Reason::OpenFail, path, L"cannot open target file");
+            COMMON_THROW(FileException, FileException::Reason::OpenFail, path, u"cannot open target file");
     #endif
         return FileObject(path, fp, flag);
     }
@@ -427,7 +427,7 @@ public:
         if (BufPos >= BufLen)
             LoadBuffer();
         if (BufPos >= BufLen)
-            COMMON_THROW(FileException, FileException::Reason::ReadFail, File.Path(), L"reach end of file");
+            COMMON_THROW(FileException, FileException::Reason::ReadFail, File.Path(), u"reach end of file");
         return (T)Buffer[BufPos++];
     }
 
@@ -471,7 +471,7 @@ public:
         if constexpr (CheckSuccess)
         {
             if(BufLen > 0)
-                COMMON_THROW(FileException, FileException::Reason::WriteFail, File.Path(), L"fail to write demanded bytes");
+                COMMON_THROW(FileException, FileException::Reason::WriteFail, File.Path(), u"fail to write demanded bytes");
         }
         return BufLen == 0;
     }

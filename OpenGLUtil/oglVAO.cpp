@@ -126,7 +126,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
 {
     const auto count = offsets.size();
     if (count != sizes.size())
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"offset and size should be of the same size.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
     vao.Count.emplace<vector<GLsizei>>(sizes.cbegin(), sizes.cend());
     if (vao.IndexBuffer)
     {
@@ -151,7 +151,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo)
 {
     if ((bool)vao.IndexBuffer != ibo->IsIndexed)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, L"Unmatched ebo state and ibo's target.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
     vao.IndirectBuffer = ibo;
     vao.Method = ibo->IsIndexed ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
     vao.Count = std::monostate();

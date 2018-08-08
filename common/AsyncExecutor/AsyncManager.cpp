@@ -105,7 +105,7 @@ PromiseResult<void> AsyncManager::AddTask(const AsyncTaskFunc& task, std::u16str
     {
         Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, node->Name);
         delete node;
-        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Executor was terminated when adding task.");
+        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Executor was terminated when adding task.");
     }
 }
 
@@ -193,11 +193,11 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
             switch (Current->Status)
             {
             case detail::AsyncTaskStatus::New:
-                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, L"Task was cancelled and not executed, due to executor was terminated.");
+                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
             case detail::AsyncTaskStatus::Wait:
                 [[fallthrough]];
             case detail::AsyncTaskStatus::Ready:
-                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, L"Task was terminated, due to executor was terminated.");
+                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
             default:
                 break;
             }

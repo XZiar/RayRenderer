@@ -60,7 +60,7 @@ public:
     static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         if (len >= UINT32_MAX)
-            COMMON_THROW(BaseException, L"Too long for a single LogMessage!");
+            COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
         uint8_t* ptr = (uint8_t*)malloc_align(sizeof(LogMessage) + sizeof(char16_t)*len, 64);
         if (!ptr)
             return nullptr; //not throw an exception yet

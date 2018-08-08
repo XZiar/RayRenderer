@@ -57,7 +57,7 @@ void BasicTest::init2d(const fs::path& shaderPath)
         catch (const OGLException& gle)
         {
             basLog().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"2D OpenGL shader fail");
+            COMMON_THROW(BaseException, u"2D OpenGL shader fail");
         }
         picVAO.reset(VAODrawMode::Triangles);
         picVAO->Prepare()
@@ -77,7 +77,7 @@ void BasicTest::init2d(const fs::path& shaderPath)
         catch (const OGLException& gle)
         {
             basLog().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"2D OpenGL shader fail");
+            COMMON_THROW(BaseException, u"2D OpenGL shader fail");
         }
         ppVAO.reset(VAODrawMode::Triangles);
         ppVAO->Prepare()
@@ -102,7 +102,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
         catch (const OGLException& gle)
         {
             basLog().error(u"3D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"3D OpenGL shader fail");
+            COMMON_THROW(BaseException, u"3D OpenGL shader fail");
         }
         progBasic->State().SetSubroutine("lighter", "tex0").SetSubroutine("getNorm", "vertedNormal");
         progBasic->SetCamera(cam);
@@ -119,7 +119,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
         catch (const OGLException& gle)
         {
             basLog().error(u"3D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, L"3D OpenGL shader fail");
+            COMMON_THROW(BaseException, u"3D OpenGL shader fail");
         }
         progPBR->State()
             .SetSubroutine("lighter", "albedoOnly")

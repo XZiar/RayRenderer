@@ -82,7 +82,7 @@ struct JpegHelper
         char jpegLastErrorMsg[JMSG_LENGTH_MAX];
         (*cinfo->err->format_message)(cinfo, jpegLastErrorMsg);
         ImgLog().error(u"LIBJPEG report an error: {}\n", jpegLastErrorMsg);
-        COMMON_THROW(BaseException, L"Libjpeg report an error");
+        COMMON_THROW(BaseException, u"Libjpeg report an error");
     }
 };
 
@@ -134,7 +134,7 @@ bool JpegReader::Validate()
     }
     catch (BaseException& be)
     {
-        ImgLog().warning(L"libjpeg-turbo validate failed {}\n", be.message);
+        ImgLog().warning(u"libjpeg-turbo validate failed {}\n", be.message);
         return false;
     }
     return true;

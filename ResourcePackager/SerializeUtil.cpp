@@ -59,13 +59,13 @@ ejson::JObject SerializeUtil::Serialize(const Serializable & object)
 void SerializeUtil::CheckFinished() const
 {
     if (HasFinished)
-        COMMON_THROW(BaseException, L"Serializer has finished and unable to add more data");
+        COMMON_THROW(BaseException, u"Serializer has finished and unable to add more data");
 }
 
 static void CheckName(const string& name)
 {
     if (name.empty() || name[0] == '#')
-        COMMON_THROW(BaseException, L"invalid node name");
+        COMMON_THROW(BaseException, u"invalid node name");
 }
 
 void SerializeUtil::AddObject(const string& name, ejson::JDoc& node)
