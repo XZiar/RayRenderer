@@ -283,8 +283,8 @@ protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
     JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
-    template<typename = std::enable_if_t<IsConst>>
-    JDocRef(const JDocRef<false>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
+    JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<!IsConst>>
     JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<IsConst>>

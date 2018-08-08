@@ -146,6 +146,15 @@ inline std::optional<Val> FindInVec(Vec& thevec, const Predictor& pred, const st
     return *it;
 }
 
+template<class Vec>
+inline bool ContainInVec(Vec& thevec, const typename Vec::value_type& val)
+{
+    for (const auto& ele : thevec)
+        if (ele == val)
+            return true;
+    return false;
+}
+
 template<class Vec, typename Predictor, typename Val = typename Vec::value_type>
 inline Val FindInVecOrDefault(Vec& thevec, const Predictor& pred, const Val def = Val{})
 {

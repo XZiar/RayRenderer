@@ -25,7 +25,7 @@ private:
     _oclPlatform(const cl_platform_id pID);
 public:
     const u16string Name, Ver;
-    const Vendor vendor;
+    const Vendor PlatVendor;
     const vector<oclDevice>& GetDevices() const { return Devices; }
     const oclDevice& GetDefaultDevice() const { return DefDevice; }
     bool IsGLShared(const oglu::oglContext& context) const;

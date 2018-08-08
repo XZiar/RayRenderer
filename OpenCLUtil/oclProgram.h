@@ -28,19 +28,20 @@ class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
     friend class _oclContext;
     friend class _oclKernel;
 private:
-    const oclContext ctx;
+    const oclContext Context;
     const string src;
     const cl_program progID;
-    vector<string> kers;
-    vector<oclDevice> getDevs() const;
-    void initKers();
+    vector<string> KernelNames;
+    map<string, Wrapper<_oclKernel>> Kernels;
+    vector<cl_device_id> getDevs() const;
+    u16string GetBuildLog(const cl_device_id dev) const;
 public:
     _oclProgram(const oclContext& ctx_, const string& str);
     ~_oclProgram();
-    void build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
-    u16string getBuildLog(const oclDevice& dev) const;
-    Wrapper<_oclKernel> getKernel(const string& name);
-    const vector<string>& getKernelNames() const;
+    void Build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
+    u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
+    Wrapper<_oclKernel> GetKernel(const string& name);
+    const vector<string>& GetKernelNames() const { return KernelNames; }
 };
 
 
@@ -55,42 +56,43 @@ class OCLUAPI _oclKernel
 {
     friend class _oclProgram;
 private:
-    const string name;
-    const oclProgram prog;
-    const cl_kernel kernel;
-    cl_kernel createKernel() const;
-    _oclKernel(const oclProgram& prog_, const string& name_);
+    const oclProgram Prog;
+    const string Name;
+    const cl_kernel Kernel;
+    _oclKernel(const oclProgram& prog, const string& name);
 public:
     ~_oclKernel();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
-    void setArg(const uint32_t idx, const oclBuffer& buf);
-    void setArg(const uint32_t idx, const void *dat, const size_t size);
+    void SetArg(const uint32_t idx, const oclBuffer& buf);
+    void SetArg(const uint32_t idx, const void *dat, const size_t size);
     template<class T, size_t N>
-    void setArg(const uint32_t idx, const T(&dat)[N])
+    void SetArg(const uint32_t idx, const T(&dat)[N])
     {
-        return setArg(idx, dat, N * sizeof(T));
+        return SetArg(idx, dat, N * sizeof(T));
     }
     template<class T>
-    void setSimpleArg(const uint32_t idx, const T &dat)
+    void SetSimpleArg(const uint32_t idx, const T &dat)
     {
-        return setArg(idx, &dat, sizeof(T));
+        return SetArg(idx, &dat, sizeof(T));
     }
     template<class T, typename A>
-    void setArg(const uint32_t idx, const vector<T, A>& dat)
+    void SetArg(const uint32_t idx, const vector<T, A>& dat)
     {
-        return setArg(idx, dat.data(), dat.size() * sizeof(T));
+        return SetArg(idx, dat.data(), dat.size() * sizeof(T));
     }
-    oclPromise run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
-    template<uint32_t N>
-    oclPromise run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    oclPromise Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
+    template<uint8_t N>
+    oclPromise Run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
-        return run(N, que, worksize, isBlock, workoffset, nullptr);
+        static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
+        return Run(N, que, worksize, isBlock, workoffset, nullptr);
     }
-    template<uint32_t N>
-    oclPromise run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    template<uint8_t N>
+    oclPromise Run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
-        return run(N, que, worksize, isBlock, workoffset, localsize);
+        static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
+        return Run(N, que, worksize, isBlock, workoffset, localsize);
     }
 };
 

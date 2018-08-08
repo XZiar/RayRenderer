@@ -62,7 +62,7 @@ static u16string GetStr(const cl_platform_id platformID, const cl_platform_info 
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-    : PlatformID(pID), Name(GetStr(pID, CL_PLATFORM_NAME)), Ver(GetStr(pID, CL_PLATFORM_VERSION)), vendor(JudgeBand(Name))
+    : PlatformID(pID), Name(GetStr(pID, CL_PLATFORM_NAME)), Ver(GetStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
 {
     FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
     cl_device_id defDevID;
@@ -92,7 +92,7 @@ oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
     const auto dev = GetGLDevice(props);
     if (!dev)
         return {};
-    return oclContext(new _oclContext(props.data(), dev, Name, vendor));
+    return oclContext(new _oclContext(props.data(), dev, Name, PlatVendor));
 }
 
 

@@ -2,7 +2,6 @@
 #include "oclCmdQue.h"
 #include "oclException.h"
 #include "oclDevice.h"
-#include "oclContext.h"
 
 namespace oclu
 {
@@ -12,7 +11,7 @@ namespace detail
 {
 
 
-cl_command_queue _oclCmdQue::createCmdQue(const bool enableProfiling, const bool enableOutOfOrder) const
+static cl_command_queue CreateCmdQue(const cl_context ctx, const cl_device_id dev, const bool enableProfiling, const bool enableOutOfOrder)
 {
     cl_int errcode;
     cl_command_queue_properties props = 0;
@@ -21,28 +20,31 @@ cl_command_queue _oclCmdQue::createCmdQue(const bool enableProfiling, const bool
     if (enableOutOfOrder)
         props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
 
-    const auto que = clCreateCommandQueue(ctx->context, dev->deviceID, props, &errcode);
+    const auto que = clCreateCommandQueue(ctx, dev, props, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(L"cannot create command queue", errcode));
     return que;
 }
 
-_oclCmdQue::_oclCmdQue(const std::shared_ptr<_oclContext>& ctx_, const oclDevice& dev_, const bool enableProfiling, const bool enableOutOfOrder) : ctx(ctx_), dev(dev_),
-    cmdque(createCmdQue(enableProfiling, enableOutOfOrder))
-{
-}
+_oclCmdQue::_oclCmdQue(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) : Context(ctx), Device(dev),
+    cmdque(CreateCmdQue(Context->context, Device->deviceID, enableProfiling && Device->SupportProfiling, enableOutOfOrder && Device->SupportOutOfOrder))
+{ }
 
 
 _oclCmdQue::~_oclCmdQue()
 {
-    flush();
+    Finish();
     clReleaseCommandQueue(cmdque);
 }
 
 
-void _oclCmdQue::flush() const
+void _oclCmdQue::Flush() const
 {
     clFlush(cmdque);
+}
+
+void _oclCmdQue::Finish() const
+{
     clFinish(cmdque);
 }
 

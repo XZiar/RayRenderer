@@ -9,8 +9,9 @@ namespace detail
 {
 class OCLUAPI oclPromise_ : public ::common::detail::PromiseResult_<void>
 {
-    friend class detail::_oclBuffer;
-    friend class detail::_oclKernel;
+    friend class _oclBuffer;
+    friend class _oclImage;
+    friend class _oclKernel;
 protected:
     cl_event eventPoint = nullptr;
     oclPromise_(const cl_event e) : eventPoint(e)

@@ -92,6 +92,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
     friend class ProgDraw;
     friend struct TexLogItem;
     friend class ::oclu::detail::_oclGLBuffer;
+    friend class ::oclu::detail::_oclGLImage;
 protected:
     const TextureType Type;
     TextureInnerFormat InnerFormat;
@@ -153,7 +154,6 @@ class OGLUAPI _oglTexture2D : public _oglTexBase, protected _oglTexCommon<_oglTe
     friend _oglTexCommon<_oglTexture2D>;
     friend class _oglTexture2DArray;
     friend class _oglFrameBuffer;
-    friend class ::oclu::detail::_oclGLBuffer;
 protected:
     uint32_t Width, Height;
     uint8_t Mipmap;

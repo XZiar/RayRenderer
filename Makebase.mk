@@ -33,6 +33,7 @@ XZMK_HAS_AVX2 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/n
 XZMK_HAS_AES 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __AES__)
 XZMK_HAS_SHA 		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __SHA__)
 XZMK_HAS_PCLMUL		:= $(shell echo | $(CPPCOMPILER) -march=native -dM -E - 2>/dev/null | grep -i -c __PCLMUL__)
+XZMK_CLANG			:= $(shell echo | $(CPPCOMPILER) -dM -E - 2>/dev/null | grep -i -c __clang__)
 
 TARGET		?= Debug
 PLATFORM	?= x64
@@ -49,6 +50,10 @@ CFLAGS		 = $(CXXFLAGS) -std=c11
 NASMFLAGS	:= -g 
 LIBRARYS	:= 
 DEPLIBS		:= 
+
+ifeq ($(XZMK_CLANG), 1)
+CXXFLAGS	+= -Wnewline-eof
+endif
 
 ifneq ($(TARGET), Debug)
 ifneq ($(TARGET), Release)

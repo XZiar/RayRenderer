@@ -4,11 +4,14 @@
 
 #if defined(__clang__)
 # if __clang_major__ < 3
-#    error clang Version too low to use this header, at least clang 3.0.0
+#   error clang Version too low to use this header, at least clang 3.0.0
 # else
 # include <x86intrin.h>
 # endif
 #elif defined(__GNUC__)
+# if defined(__arm__)
+#   error ARM is not supported yet by this header
+# endif
 # if __GNUC__ <= 4 && __GNUC_MINOR__ <= 5
 #   error GCC Version too low to use this header, at least gcc 4.5.0
 # endif

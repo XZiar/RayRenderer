@@ -17,6 +17,7 @@
 #include "common/AlignedContainer.hpp"
 #include "common/PromiseTask.hpp"
 
+#include "ImageUtil/ImageCore.h"
 #include "OpenGLUtil/oglBuffer.h"
 #include "OpenGLUtil/oglTexture.h"
 #include "OpenGLUtil/oglContext.h"
@@ -74,6 +75,7 @@ namespace detail
 {
 class _oclContext;
 class _oclBuffer;
+class _oclImage;
 class _oclKernel;
 }
 }

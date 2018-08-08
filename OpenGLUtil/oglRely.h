@@ -53,6 +53,7 @@ namespace detail
 {
 class _oclGLBuffer;
 class _oclPlatform;
+class _oclGLImage;
 }
 }
 

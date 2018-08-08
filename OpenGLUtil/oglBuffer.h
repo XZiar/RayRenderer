@@ -32,8 +32,9 @@ namespace detail
 
 class OGLUAPI _oglBuffer : public NonCopyable, public NonMovable
 {
-    friend class ::oclu::detail::_oclGLBuffer;
     friend class _oglProgram;
+    friend class ::oclu::detail::_oclGLBuffer;
+    friend class ::oclu::detail::_oclGLImage;
 protected:
     void *MappedPtr = nullptr;
     size_t BufSize;

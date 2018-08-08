@@ -4,9 +4,10 @@
 #include "oclDevice.h"
 #include "oclUtil.h"
 
+
+using common::container::FindInVec;
 namespace oclu
 {
-
 
 namespace detail
 {
@@ -20,7 +21,7 @@ static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const voi
     return;
 }
 
-cl_context _oclContext::createContext(const cl_context_properties* props) const
+cl_context _oclContext::CreateContext(const cl_context_properties* props) const
 {
     cl_int ret;
     vector<cl_device_id> deviceIDs;
@@ -33,9 +34,15 @@ cl_context _oclContext::createContext(const cl_context_properties* props) const
 }
 
 _oclContext::_oclContext(const cl_context_properties* props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor)
-    : Devices(devices), PlatformName(name), vendor(thevendor), context(createContext(props)) { }
+    : Devices(devices), PlatformName(name), vendor(thevendor), context(CreateContext(props)) { }
 _oclContext::_oclContext(const cl_context_properties* props, const oclDevice& device, const u16string name, const Vendor thevendor)
-    : Devices({ device }), PlatformName(name), vendor(thevendor), context(createContext(props)) { }
+    : Devices({ device }), PlatformName(name), vendor(thevendor), context(CreateContext(props)) { }
+
+oclDevice _oclContext::GetDevice(const cl_device_id devid) const
+{
+    const auto it = FindInVec(Devices, [=](const oclDevice& dev) {return dev->deviceID == devid; });
+    return it ? *it : oclDevice{};
+}
 
 _oclContext::~_oclContext()
 {

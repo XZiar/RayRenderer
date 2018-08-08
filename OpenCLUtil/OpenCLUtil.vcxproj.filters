@@ -48,6 +48,9 @@
     <ClInclude Include="oclBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oclImage.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">
@@ -75,6 +78,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclPromiseTask.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclImage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -8,4 +8,6 @@
 #include "oclContext.h"
 #include "oclCmdQue.h"
 #include "oclProgram.h"
+#include "oclBuffer.h"
+#include "oclImage.h"
 #include "oclUtil.h"

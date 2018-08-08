@@ -24,16 +24,16 @@ struct FontInfo
 auto FindPlatform(const std::vector<oclPlatform>& platforms, const oclu::Vendor vendor)
 {
     for (const auto& plt : platforms)
-        if (plt->vendor == vendor)
+        if (plt->PlatVendor == vendor)
             return plt;
     for (const auto& plt : platforms)
-        if (plt->vendor == Vendor::NVIDIA)
+        if (plt->PlatVendor == Vendor::NVIDIA)
             return plt;
     for (const auto& plt : platforms)
-        if (plt->vendor == Vendor::AMD)
+        if (plt->PlatVendor == Vendor::AMD)
             return plt;
     for (const auto& plt : platforms)
-        if (plt->vendor == Vendor::Intel)
+        if (plt->PlatVendor == Vendor::Intel)
             return plt;
     return oclPlatform();
 }
@@ -62,26 +62,26 @@ void FontCreator::loadCL(const string& src)
     {
         string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
         options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
-        clProg->build(options);
+        clProg->Build(options);
     }
     catch (OCLException& cle)
     {
         fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
         COMMON_THROW(BaseException, L"build Program error");
     }
-    kerSdf = clProg->getKernel("bmpsdf");
-    kerSdfGray = clProg->getKernel("graysdf");
-    kerSdfGray4 = clProg->getKernel("graysdf4");
+    kerSdf = clProg->GetKernel("bmpsdf");
+    kerSdfGray = clProg->GetKernel("graysdf");
+    kerSdfGray4 = clProg->GetKernel("graysdf4");
     {
         const auto wgInfo = kerSdfGray->GetWorkGroupInfo(clCtx->Devices[0]);
         //preset arg
-        kerSdfGray->setArg(0, infoBuf);
-        kerSdfGray->setArg(1, inputBuf);
-        kerSdfGray->setArg(2, middleBuf);
+        kerSdfGray->SetArg(0, infoBuf);
+        kerSdfGray->SetArg(1, inputBuf);
+        kerSdfGray->SetArg(2, middleBuf);
 
-        kerSdfGray4->setArg(0, infoBuf);
-        kerSdfGray4->setArg(1, inputBuf);
-        kerSdfGray4->setArg(2, middleBuf);
+        kerSdfGray4->SetArg(0, infoBuf);
+        kerSdfGray4->SetArg(1, inputBuf);
+        kerSdfGray4->SetArg(2, middleBuf);
     }
 }
 
@@ -92,17 +92,17 @@ void FontCreator::loadDownSampler(const string& src)
     {
         string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
         options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
-        clProg->build(options);
+        clProg->Build(options);
     }
     catch (OCLException& cle)
     {
         fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
         COMMON_THROW(BaseException, L"build Program error");
     }
-    kerDownSamp = clProg->getKernel("avg16");// "downsample4");
-    kerDownSamp->setArg(0, infoBuf);
-    kerDownSamp->setArg(1, middleBuf);
-    kerDownSamp->setArg(2, outputBuf);
+    kerDownSamp = clProg->GetKernel("avg16");// "downsample4");
+    kerDownSamp->SetArg(0, infoBuf);
+    kerDownSamp->SetArg(1, middleBuf);
+    kerDownSamp->SetArg(2, outputBuf);
 }
 
 FontCreator::FontCreator(const oclu::Vendor preferredVendor)
@@ -127,10 +127,10 @@ FontCreator::FontCreator(const oclu::Vendor preferredVendor)
             .Write(lut.size(), lut);*/
         //sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
         constexpr auto expectBufSize = 4096 * 128 * 128 * sizeof(uint16_t);
-        infoBuf.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, 4096 * sizeof(FontInfo));
-        inputBuf.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, 4096 * 128 * 128 * sizeof(uint8_t));
-        middleBuf.reset(clCtx, MemType::ReadWrite | MemType::HostReadOnly, 4096 * 128 * 128 * sizeof(uint16_t));
-        outputBuf.reset(clCtx, MemType::WriteOnly | MemType::HostReadOnly, 4096 * 32 * 32 * sizeof(uint8_t));
+        infoBuf.reset(clCtx, MemFlag::ReadOnly | MemFlag::HostWriteOnly, 4096 * sizeof(FontInfo));
+        inputBuf.reset(clCtx, MemFlag::ReadOnly | MemFlag::HostWriteOnly, 4096 * 128 * 128 * sizeof(uint8_t));
+        middleBuf.reset(clCtx, MemFlag::ReadWrite | MemFlag::HostReadOnly, 4096 * 128 * 128 * sizeof(uint16_t));
+        outputBuf.reset(clCtx, MemFlag::WriteOnly | MemFlag::HostReadOnly, 4096 * 32 * 32 * sizeof(uint8_t));
     }
     
     loadCL(getShaderFromDLL(IDR_SHADER_SDFTEST));
@@ -208,8 +208,8 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 
     fntLog().verbose(u"prepare start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start();
-    inputBuf->write(clQue, alldata);
-    infoBuf->write(clQue, finfos);
+    inputBuf->Write(clQue, alldata);
+    infoBuf->Write(clQue, finfos);
     timer.Stop();
     fntLog().verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)
@@ -218,13 +218,13 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         timer.Start();
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 
-        auto pms = kerSdfGray4->run<1>(clQue, worksize, localsize, false);
+        auto pms = kerSdfGray4->Run<1>(clQue, worksize, localsize, false);
         pms->wait();
         timer.Stop();
         fntLog().verbose(u"OpenCl [sdfGray4] cost {}us ({}us by OCL)\n", timer.ElapseUs(), pms->ElapseNs() / 1000);
 
         vector<uint8_t> clImg;
-        middleBuf->read(clQue, clImg, alldata.size() / 16);
+        middleBuf->Read(clQue, clImg, alldata.size() / 16);
 
         fntLog().verbose(u"post-merging start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
@@ -256,7 +256,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         timer.Start();
         size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
 
-        kerSdfGray->run<1>(clQue, worksize, localsize, true);
+        kerSdfGray->Run<1>(clQue, worksize, localsize, true);
         timer.Stop();
         fntLog().verbose(u"OpenCl cost {} us\n", timer.ElapseUs());
         if (false)
@@ -264,11 +264,11 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             fntLog().verbose(u"clDownSampler start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             localsize[0] /= 4, worksize[0] /= 4;
-            kerDownSamp->run<1>(clQue, worksize, localsize, true);
+            kerDownSamp->Run<1>(clQue, worksize, localsize, true);
             timer.Stop();
             fntLog().verbose(u"OpenCl[clDownSampler] cost {} us\n", timer.ElapseUs());
             vector<uint8_t> clImg;
-            outputBuf->read(clQue, clImg, alldata.size() / 16);
+            outputBuf->Read(clQue, clImg, alldata.size() / 16);
 
             fntLog().verbose(u"post-merging start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
@@ -297,7 +297,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         else
         {
             vector<int16_t> distsq;
-            middleBuf->read(clQue, distsq, alldata.size());
+            middleBuf->Read(clQue, distsq, alldata.size());
             fntLog().verbose(u"post-process start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);

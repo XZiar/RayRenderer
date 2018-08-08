@@ -175,6 +175,7 @@
     <ClInclude Include="oclContext.h" />
     <ClInclude Include="oclException.h" />
     <ClInclude Include="oclBuffer.h" />
+    <ClInclude Include="oclImage.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
     <ClInclude Include="oclPromiseTask.h" />
@@ -187,6 +188,12 @@
     <ClCompile Include="oclCmdQue.cpp" />
     <ClCompile Include="oclContext.cpp" />
     <ClCompile Include="oclBuffer.cpp" />
+    <ClCompile Include="oclImage.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
     <ClCompile Include="oclPromiseTask.cpp" />
@@ -207,6 +214,9 @@
     </ProjectReference>
     <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
+      <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
