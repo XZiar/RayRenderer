@@ -10,8 +10,8 @@ using xziar::img::Image;
 
 void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
 {
-    const auto& buf = *reinterpret_cast<_oclBuffer*>(user_data);
-    oclLog().debug(u"oclImage {:p} with size {}, being destroyed.\n", (void*)memobj, buf.Size);
+    const auto& buf = *reinterpret_cast<_oclImage*>(user_data);
+    oclLog().debug(u"oclImage {:p} with size [{}x{}], being destroyed.\n", (void*)memobj, buf.Width, buf.Height);
     //async callback, should not access cl-func since buffer may be released at any time.
     //size_t size = 0;
     //clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
@@ -82,22 +82,15 @@ static cl_mem CreateMem(const cl_context ctx, const cl_mem_flags flag, const cl_
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create image", errcode));
     return id;
 }
-_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
-    : Context(ctx), Width(width), Height(height), Flags(flag), Format(dformat),
-    memID(CreateMem(Context->context, (cl_mem_flags)Flags, ParseImageDesc(Width, Height), Format))
-{}
 
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat, const cl_mem id)
     :Context(ctx), Width(width), Height(height), Flags(flag), Format(dformat), memID(id)
 {
     clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
 }
-_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized)
-    : Context(ctx), Width(width), Height(height), Flags(flag), Format(oglu::TexFormatUtil::ConvertFormat(dtype, isNormalized)),
-    memID(CreateMem(Context->context, (cl_mem_flags)Flags, ParseImageDesc(width, height), Format))
-{
-    clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
-}
+_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
+    : _oclImage(ctx, flag, width, height, dformat, CreateMem(ctx->context, (cl_mem_flags)flag, ParseImageDesc(width, height), dformat))
+{ }
 
 _oclImage::~_oclImage()
 {
@@ -150,34 +143,11 @@ oclPromise _oclImage::Write(const oclCmdQue que, const Image& image, const bool 
 }
 
 
-
-static cl_mem CreateMemFromBuf(const cl_context ctx, const cl_mem_flags flag, const GLuint buf)
-{
-    cl_int errcode;
-    auto id = clCreateFromGLBuffer(ctx, flag, buf, &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create buffer from glBuffer", errcode));
-    return id;
-}
-
-static cl_mem CreateMemFromTex(const cl_context ctx, const cl_mem_flags flag, const cl_GLenum texType, GLuint tex)
-{
-    cl_int errcode;
-    auto id = clCreateFromGLTexture(ctx, flag, texType, 0, tex, &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create buffer from glTexture", errcode));
-    return id;
-}
-
-_oclGLImage::_oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::TextureDataFormat dformat, const oglu::oglBuffer buf)
-    : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, dformat, CreateMemFromBuf(ctx->context, (cl_mem_flags)Flags, buf->bufferID))
-{
-}
-
 _oclGLImage::_oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex)
-    : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()), CreateMemFromTex(ctx->context, (cl_mem_flags)Flags, (cl_GLenum)tex->Type, tex->textureID))
-{
-}
+    : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()),
+    CreateMemFromGLTex(ctx->context, (cl_mem_flags)Flags, (cl_GLenum)tex->Type, tex->textureID)),
+    GlTex(tex)
+{ }
 
 _oclGLImage::~_oclGLImage()
 {

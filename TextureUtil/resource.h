@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by TextureCompressor.rc
 #define IDR_SHADER_GLRESIZER                    108
+#define IDR_SHADER_CLRESIZER                    109
 
 // 新对象的下一组默认值
 // 

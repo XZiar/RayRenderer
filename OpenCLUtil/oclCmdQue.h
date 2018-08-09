@@ -19,7 +19,7 @@ class OCLUAPI _oclCmdQue : public NonCopyable
     friend class _oclImage;
     friend class _oclProgram;
     friend class _oclKernel;
-    template<typename> friend struct GLShared;
+    template<typename> friend class GLShared;
 private:
     const oclContext Context;
     const oclDevice Device;

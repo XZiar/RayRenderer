@@ -37,5 +37,5 @@
 
 * Global
   - [ ] Add GacUI
-  - [ ] Port some utilities to Linux 
+  - [x] Port some utilities to Linux 
   - [x] Custom build system for Linux

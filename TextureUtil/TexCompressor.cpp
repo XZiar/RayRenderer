@@ -1,3 +1,4 @@
+#include "TexUtilRely.h"
 #include "TexCompressor.h"
 #include "ISPCCompress.inl"
 #include "STBCompress.inl"

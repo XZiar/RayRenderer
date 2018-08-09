@@ -30,6 +30,16 @@ void oclUtil::init()
     }
 }
 
+oclContext oclUtil::CreateGLSharedContext(const oglu::oglContext & ctx)
+{
+    for (const auto& plat : platforms)
+    {
+        if (plat->IsGLShared(ctx))
+            return plat->CreateContext(ctx);
+    }
+    return {};
+}
+
 using namespace std::literals;
 
 u16string_view oclUtil::getErrorString(const cl_int err)

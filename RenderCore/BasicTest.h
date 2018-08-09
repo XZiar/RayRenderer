@@ -68,6 +68,8 @@ public:
     void ChangeShader(const oglProgram& prog);
     void ReportChanged(const ChangableUBO target);
     xziar::img::Image Scrrenshot();
+    std::shared_ptr<xziar::img::Image> GetThumbnail(const PBRMaterial::TexHolder& holder);
+
 
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }

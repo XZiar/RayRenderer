@@ -3,6 +3,7 @@
 #include "oclRely.h"
 #include "oclPromiseTask.h"
 #include "oclCmdQue.h"
+#include "GLInterOP.h"
 
 namespace oclu
 {
@@ -66,33 +67,12 @@ public:
     }
 };
 
-class OCLUAPI GLInterOP
-{
-protected:
-    void Lock(const cl_command_queue que, const cl_mem mem) const;
-    void Unlock(const cl_command_queue que, const cl_mem mem) const;
-};
-template<typename Child>
-struct OCLUAPI GLShared : GLInterOP
-{
-public:
-    void Lock(const oclCmdQue& que) const
-    {
-        Lock(que->cmdque, static_cast<const Child*>(this)->memID);
-    }
-    void Unlock(const oclCmdQue& que) const
-    {
-        Unlock(que->cmdque, static_cast<const Child*>(this)->memID);
-    }
-};
-
 class OCLUAPI _oclGLBuffer : public _oclBuffer, public GLShared<_oclGLBuffer>
 {
 private:
-    const std::variant<oglu::oglBuffer, std::shared_ptr<oglu::detail::_oglTexBase>> GlResource;
+    const oglu::oglBuffer GlBuf;
 public:
     _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer buf);
-    _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const std::shared_ptr<oglu::detail::_oglTexBase> tex);
     virtual ~_oclGLBuffer() override;
 };
 

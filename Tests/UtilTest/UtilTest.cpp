@@ -9,6 +9,7 @@
 using std::string;
 using std::map;
 using std::vector;
+namespace fs = common::fs;
 
 static common::mlog::MiniLogger<false>& log()
 {
@@ -16,13 +17,19 @@ static common::mlog::MiniLogger<false>& log()
     return logger;
 }
 
-common::fs::path FindPath()
+static fs::path& BasePathHolder()
 {
 #if (defined(__x86_64__) && __x86_64__) || (defined(_WIN64) && _WIN64)
-    return common::fs::current_path().parent_path().parent_path();
+    static auto basePath = fs::current_path().parent_path().parent_path();
 #else
-    return common::fs::current_path().parent_path();
+    static auto basePath = fs::current_path().parent_path();
 #endif
+    return basePath;
+}
+
+fs::path FindPath()
+{
+    return BasePathHolder();
 }
 
 static map<string, void(*)()>& GetTestMap()
@@ -41,6 +48,11 @@ uint32_t RegistTest(const char *name, void(*func)())
 int main(int argc, char *argv[])
 {
     log().info(u"UnitTest\n");
+
+    if (argc > 1)
+        BasePathHolder() = fs::absolute(argv[1]);
+    log().debug(u"Locate BasePath to [{}]\n", BasePathHolder().u16string());
+
     uint32_t idx = 0;
     const auto& testMap = GetTestMap();
     for (const auto& pair : testMap)
@@ -51,7 +63,7 @@ int main(int argc, char *argv[])
     timer.Start();
     log().info(u"Select One To Execute...");
     timer.Stop();
-    if (argc > 1)
+    if (argc > 2)
         idx = (uint32_t)std::stoul(argv[1]);
     else
         std::cin >> idx;

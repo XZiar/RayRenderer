@@ -1,6 +1,7 @@
 #include "OGLVRely.h"
 #include "OpenGLViewEvents.h"
 #include "common/TimeUtil.hpp"
+#include "common/AvgCounter.hpp"
 #include <string>
 #include <vector>
 
@@ -28,12 +29,12 @@ namespace OpenGLView
         static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
         HDC hDC = nullptr;
         HGLRC hRC = nullptr;
-        MouseButton CurMouseButton = MouseButton::None;
+        common::AvgCounter<uint64_t> *DrawTimeCounter = nullptr;
+        uint64_t avgDrawTime = 0;
         int lastX, lastY, startX, startY, curX, curY;
+        MouseButton CurMouseButton = MouseButton::None;
         bool isMoved;
         bool isCapital = false;
-        uint64_t *drawTimes = nullptr;
-        uint64_t sumTime = 0;
     public:
         uint64_t rfsCount = 0;
         property bool ResizeBGDraw;
@@ -44,7 +45,7 @@ namespace OpenGLView
         }
         property uint64_t AvgDrawTime
         {
-            uint64_t get() { return sumTime / (rfsCount > 30 ? 30 : rfsCount); }
+            uint64_t get() { return avgDrawTime; }
         }
         delegate void DrawEventHandler();
         delegate void ResizeEventHandler(Object^ o, ResizeEventArgs^ e);
@@ -103,8 +104,7 @@ namespace OpenGLView
         OGLView() : OGLView(false, 0) { }
         OGLView(const bool isSRGB, const uint32_t multiSample)
         {
-            drawTimes = new uint64_t[30];
-            memset(drawTimes, 0x0, sizeof(uint64_t) * 30);
+            DrawTimeCounter = new common::AvgCounter<uint64_t>();
 
             this->ImeMode = System::Windows::Forms::ImeMode::Disable;
             ResizeBGDraw = true;
@@ -158,14 +158,14 @@ namespace OpenGLView
         ~OGLView() { this->!OGLView(); };
         !OGLView()
         {
-            if (drawTimes)
+            if (DrawTimeCounter)
             {
-                delete drawTimes;
-                drawTimes = nullptr;
+                delete DrawTimeCounter;
+                makeCurrent(nullptr, nullptr);
+                wglDeleteContext(hRC);
+                DeleteDC(hDC);
+                DrawTimeCounter = nullptr;
             }
-            makeCurrent(nullptr, nullptr);
-            wglDeleteContext(hRC);
-            DeleteDC(hDC);
         }
     protected:
         void OnResize(EventArgs^ e) override
@@ -189,10 +189,7 @@ namespace OpenGLView
             Draw();
             SwapBuffers(hDC);
             timer.Stop();
-            auto& objTime = drawTimes[(rfsCount++) % 30];
-            sumTime -= objTime;
-            objTime = timer.ElapseUs();
-            sumTime += objTime;
+            avgDrawTime = DrawTimeCounter->Push(timer.ElapseUs());
         }
 
         void OnMouseDown(MouseEventArgs^ e) override
@@ -262,7 +259,7 @@ namespace OpenGLView
         
         bool IsInputKey(Keys key) override
         {
-            Console::WriteLine(L"key IsInputKey {0}\n", key);
+            //Console::WriteLine(L"key IsInputKey {0}\n", key);
             auto pureKey = key & (~(Keys::Shift | Keys::Control | Keys::Alt));
             if (pureKey == Keys::Left || pureKey == Keys::Right || pureKey == Keys::Up || pureKey == Keys::Down || pureKey == Keys::Tab || pureKey == Keys::Escape || pureKey == Keys::ShiftKey)
             {

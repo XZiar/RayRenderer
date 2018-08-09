@@ -1,7 +1,7 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-#include "TextureUtil/TexCompressor.h"
+//#include "TextureUtil/TexCompressor.h"
 #include <thread>
 #include <future>
 
@@ -18,6 +18,7 @@ struct Init
         basLog().verbose(u"BasicTest Static Init\n");
         oglUtil::init();
         oclu::oclUtil::init();
+        MultiMaterialHolder::Init();
     }
 };
 

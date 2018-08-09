@@ -123,9 +123,6 @@ FontCreator::FontCreator(const oclu::Vendor preferredVendor)
         //sq256lut.reset(clCtx, MemType::ReadOnly | MemType::HostWriteOnly, lut.size() * 4);
         for (uint16_t i = 0; i < 256; ++i)
             lut[i] = i * i * 65536.0f;
-        /*common::file::FileObject::OpenThrow(L"D:\\Programs Temps\\RayRenderer\\sqLUT256.bin", common::file::OpenFlag::BINARY | common::file::OpenFlag::CREATE | common::file::OpenFlag::WRITE)
-            .Write(lut.size(), lut);*/
-        //sq256lut->write(clQue, lut.data(), lut.size() * sizeof(float));
         constexpr auto expectBufSize = 4096 * 128 * 128 * sizeof(uint16_t);
         infoBuf.reset(clCtx, MemFlag::ReadOnly | MemFlag::HostWriteOnly, 4096 * sizeof(FontInfo));
         inputBuf.reset(clCtx, MemFlag::ReadOnly | MemFlag::HostWriteOnly, 4096 * 128 * 128 * sizeof(uint8_t));

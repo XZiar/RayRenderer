@@ -170,6 +170,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="GLInterOP.h" />
     <ClInclude Include="oclDevice.h" />
     <ClInclude Include="oclCmdQue.h" />
     <ClInclude Include="oclContext.h" />
@@ -184,6 +185,7 @@
     <ClInclude Include="OpenCLUtil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GLInterOP.cpp" />
     <ClCompile Include="oclDevice.cpp" />
     <ClCompile Include="oclCmdQue.cpp" />
     <ClCompile Include="oclContext.cpp" />

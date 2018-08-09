@@ -43,7 +43,7 @@ APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)"
 SUBDIRS		:=
-CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas
+CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-eof-newline
 CXXOPT		:=
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
 CFLAGS		 = $(CXXFLAGS) -std=c11
@@ -51,9 +51,6 @@ NASMFLAGS	:= -g
 LIBRARYS	:= 
 DEPLIBS		:= 
 
-ifeq ($(XZMK_CLANG), 1)
-CXXFLAGS	+= -Wnewline-eof
-endif
 
 ifneq ($(TARGET), Debug)
 ifneq ($(TARGET), Release)

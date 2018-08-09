@@ -27,19 +27,19 @@ protected:
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat, const cl_mem id);
 public:
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat);
-    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true);
+    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
+        : _oclImage(ctx, flag, width, height, oglu::TexFormatUtil::ConvertFormat(dtype, isNormalized)) { }
     virtual ~_oclImage();
     oclPromise Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
     oclPromise Write(const oclCmdQue que, const xziar::img::Image& image, const bool shouldBlock = true) const;
 };
 
-class OCLUAPI _oclGLImage : public _oclImage, public GLShared<_oclGLBuffer>
+class OCLUAPI _oclGLImage : public _oclImage, public GLShared<_oclGLImage>
 {
 private:
-    const oglu::oglTex2D tex;
+    const oglu::oglTex2D GlTex;
 public:
-    _oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::TextureDataFormat dformat, const oglu::oglBuffer buf_);
-    _oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex_);
+    _oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex);
     virtual ~_oclGLImage() override;
 };
 

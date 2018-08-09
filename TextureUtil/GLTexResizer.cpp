@@ -1,3 +1,4 @@
+#include "TexUtilRely.h"
 #include "GLTexResizer.h"
 #include "resource.h"
 #include "OpenGLUtil/oglPromise.hpp"
@@ -9,30 +10,16 @@
 namespace oglu::texutil
 {
 
-GLTexResizer::GLTexResizer(const oglContext& glContext) : Executor(u"GLTexResizer"), GLContext(glContext)
+GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), GLContext(glContext)
 {
     Executor.Start([this]
     {
         common::SetThreadName(u"GLTexResizer");
         texLog().success(u"TexResize thread start running.\n");
-    }, [&]()
-    {
-        //exit
-        if (!GLContext->UnloadContext())
-        {
-            texLog().error(u"GLTexResizer cannot terminate GL context\n");
-        }
-        GLContext.release();
-    });
-}
-
-void GLTexResizer::Init()
-{
-    Executor.AddTask([this](const auto&)
-    {
         if (!GLContext->UseContext())
         {
             texLog().error(u"GLTexResizer cannot use GL context\n");
+            return;
         }
         texLog().info(u"GLTexResizer use GL context with version {}\n", oglUtil::getVersion());
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
@@ -69,7 +56,16 @@ void GLTexResizer::Init()
 
         OutputFrame.reset();
         GLContext->SetFBO(OutputFrame);
-    })->wait();
+
+    }, [&]()
+    {
+        //exit
+        if (!GLContext->UnloadContext())
+        {
+            texLog().error(u"GLTexResizer cannot terminate GL context\n");
+        }
+        GLContext.release();
+    });
 }
 
 GLTexResizer::~GLTexResizer()

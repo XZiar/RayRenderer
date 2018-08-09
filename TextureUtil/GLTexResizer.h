@@ -17,9 +17,8 @@ private:
     oglFBO OutputFrame;
     common::PromiseResult<Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format);
 public:
-    GLTexResizer(const oglContext& glContext);
+    GLTexResizer(oglContext&& glContext);
     ~GLTexResizer();
-    void Init();
     common::PromiseResult<Image> ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const bool flipY = false)
     {
         return ResizeToDat(img, width, height, img.DataType, flipY);

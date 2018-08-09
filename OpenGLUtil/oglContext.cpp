@@ -77,25 +77,22 @@ bool _oglContext::UseContext()
         oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
         return false;
     }
-    else
-    {
-        oglContext::CurrentCtx() = this->shared_from_this();
-        return true;
-    }
+    oglContext::CurrentCtx() = this->shared_from_this();
+    return true;
 }
 
 bool _oglContext::UnloadContext()
 {
-    if (!wglMakeCurrent((HDC)Hdc, nullptr))
-    {
-        oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
-        return false;
-    }
-    else
+    if (&*oglContext::CurrentCtx() == this)
     {
         oglContext::CurrentCtx().release();
-        return true;
+        if (!wglMakeCurrent((HDC)Hdc, nullptr))
+        {
+            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
+            return false;
+        }
     }
+    return true;
 }
 
 void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)

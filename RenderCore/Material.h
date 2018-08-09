@@ -89,10 +89,6 @@ public:
     using TexHolder = PBRMaterial::TexHolder;
     using ArrangeMap = map<TexHolder, Mapping>;
 private:
-    static map<std::weak_ptr<void>, std::shared_ptr<xziar::img::Image>, std::owner_less<void>> ThumbnailMap;
-    template<typename T>
-    static void PrepareThumbnail(const T& container);
-
     vector<PBRMaterial> Materials;
     // tex -> (size, layer)
     ArrangeMap Arrangement;
@@ -100,6 +96,7 @@ private:
     map<detail::TexTag, uint8_t> TextureLookup;
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
+    static void Init();
     static oglu::oglTex2DV GetCheckTex();
     static std::shared_ptr<xziar::img::Image> GetThumbnail(const TexHolder& holder);
 

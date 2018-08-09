@@ -129,11 +129,15 @@ BasicTest::BasicTest()
 
 BasicTest::!BasicTest()
 {
-    delete Shaders;
-    delete Drawables;
-    delete Lights;
-    delete Camera;
-    delete core;
+    if (core)
+    {
+        delete Shaders;
+        delete Drawables;
+        delete Lights;
+        delete Camera;
+        delete core;
+        core = nullptr;
+    }
 }
 
 void BasicTest::Draw()

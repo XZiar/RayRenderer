@@ -30,6 +30,9 @@
     <ClCompile Include="GLTexResizer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="CLTexResizer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -50,6 +53,9 @@
     <ClInclude Include="GLTexResizer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CLTexResizer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -58,6 +64,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="GLResizer.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="CLResizer.cl">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>
