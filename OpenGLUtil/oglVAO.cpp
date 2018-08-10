@@ -24,7 +24,7 @@ void _oglVAO::VAOPrep::End() noexcept
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
-    if (attridx != GL_INVALID_INDEX)
+    if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
@@ -35,7 +35,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVB
 }
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
-    if (attridx != GL_INVALID_INDEX)
+    if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
@@ -48,19 +48,19 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO&
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset)
 {
     vbo->bind();
-    if (attridx[0] != GL_INVALID_INDEX)
+    if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[0]);//VertPos
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
         glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset));
     }
-    if (attridx[1] != GL_INVALID_INDEX)
+    if (attridx[1] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[1]);//VertNorm
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
         glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 16));
     }
-    if (attridx[2] != GL_INVALID_INDEX)
+    if (attridx[2] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[2]);//TexPos
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
@@ -72,25 +72,25 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset)
 {
     vbo->bind();
-    if (attridx[0] != GL_INVALID_INDEX)
+    if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[0]);//VertPos
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
         glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset));
     }
-    if (attridx[1] != GL_INVALID_INDEX)
+    if (attridx[1] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[1]);//VertNorm
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
         glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 16));
     }
-    if (attridx[2] != GL_INVALID_INDEX)
+    if (attridx[2] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[2]);//TexPos
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
         glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 32));
     }
-    if (attridx[4] != GL_INVALID_INDEX)
+    if (attridx[4] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[3]);//VertTan
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[3]);
@@ -236,6 +236,9 @@ void _oglVAO::Draw() const noexcept
     case DrawMethod::IndirectIndexes:
         IndirectBuffer->bind(); //IBO not included in VAO
         glMultiDrawElementsIndirect((GLenum)DrawMode, IndexBuffer->IndexType, 0, IndirectBuffer->Count, 0);
+        break;
+    case DrawMethod::UnPrepared:
+        oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
         break;
     }
     unbind();

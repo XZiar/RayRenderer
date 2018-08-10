@@ -3,7 +3,16 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+
+#if COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 #include "3DBasic/miniBLAS.hpp"
+#if COMPILER_GCC
+#   pragma GCC diagnostic pop
+#endif
+
 
 namespace b3d
 {
@@ -30,7 +39,7 @@ public:
     float u, v;
     Coord2D() noexcept { u = v = 0.0f; };
     template<class T>
-    Coord2D(const T& u_, const T& v_) noexcept :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { };
+    Coord2D(const T& u_, const T& v_) noexcept :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { }
 
     Coord2D operator+(const Coord2D &c) const
     {
@@ -130,7 +139,7 @@ public:
     Normal() noexcept : Vec3() { };
     Normal(const Vec3& v) noexcept : Vec3(v.normalize()) { }
     template<class T>
-    Normal(const T& ix, const T& iy, const T& iz) noexcept :Vec3(ix, iy, iz) { normalized(); };
+    Normal(const T& ix, const T& iy, const T& iz) noexcept :Vec3(ix, iy, iz) { normalized(); }
 
     Normal& operator=(const Vec3& v)
     {
@@ -247,7 +256,7 @@ public:
 inline float mod(const float &l, const float &r)
 {
     float t, e;
-    modf(l / r, &t);
+    std::modf(l / r, &t);
     e = t*r;
     return l - e;
 }
@@ -299,14 +308,7 @@ public:
 class alignas(32) Camera : public common::AlignBase<32>
 {
 public:
-    union
-    {
-        Mat3x3 CamMat;
-        struct
-        {
-            Normal u, v, n;//to right,up,toward
-        };
-    };
+    Mat3x3 CamMat;
     Vec3 position;
     Vec3 rotation;
     float fovy, aspect, zNear, zFar;
@@ -320,11 +322,14 @@ public:
         position = Vec3(0, 0, 10);
         rotation = Vec3::zero();
         //fit for reverse-z
-        //u = Vec3(1, 0, 0);
-        //v = Vec3(0, 1, 0);
-        //n = Vec3(0, 0, 1);
         CamMat = Mat3x3::identity();
     }
+    Normal& Right() { return *reinterpret_cast<Normal*>(&CamMat.x); }
+    Normal& Up() { return *reinterpret_cast<Normal*>(&CamMat.y); }
+    Normal& Toward() { return *reinterpret_cast<Normal*>(&CamMat.z); }
+    const Normal& Right() const { return *reinterpret_cast<const Normal*>(&CamMat.x); }
+    const Normal& Up() const { return *reinterpret_cast<const Normal*>(&CamMat.y); }
+    const Normal& Toward() const { return *reinterpret_cast<const Normal*>(&CamMat.z); }
     void resize(const int w, const int h)
     {
         width = w, height = h;

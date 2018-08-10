@@ -34,7 +34,7 @@ static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
 }
 
 _oglRenderBuffer::_oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format)
-    : Width(width), Height(height), InnerFormat(format), Type(ParseType(format))
+    : InnerFormat(format), Width(width), Height(height), Type(ParseType(format))
 {
     glGenRenderbuffers(1, &RBOId);
     glNamedRenderbufferStorageEXT(RBOId, (GLenum)InnerFormat, Width, Height);

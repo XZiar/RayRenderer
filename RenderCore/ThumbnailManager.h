@@ -37,7 +37,7 @@ public:
 
     ThumbnailManager(const oglu::oglContext& ctx);
 
-    std::shared_ptr<Image> GetThumbnail(const TexHolder& holder) const;
+    std::shared_ptr<Image> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
 
     template<typename T>
     void PrepareThumbnails(const T& container)

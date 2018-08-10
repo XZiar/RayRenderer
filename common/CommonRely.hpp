@@ -197,6 +197,8 @@ constexpr inline uint64_t operator "" _hash(const char *str, size_t)
 namespace common
 {
 
+template<typename T>
+constexpr bool AlwaysTrue() { return true; }
 
 template<template<typename...> class Base, typename...Ts>
 std::true_type is_base_of_template_impl(const Base<Ts...>*);

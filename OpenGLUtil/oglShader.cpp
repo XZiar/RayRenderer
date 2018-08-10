@@ -41,7 +41,7 @@ void _oglShader::compile()
 
 }
 
-oglShader __cdecl oglShader::loadFromFile(const ShaderType type, const fs::path& path)
+oglShader oglShader::loadFromFile(const ShaderType type, const fs::path& path)
 {
     using namespace common::file;
     string txt = FileObject::OpenThrow(path, OpenFlag::BINARY | OpenFlag::READ).ReadAllText();
@@ -50,7 +50,7 @@ oglShader __cdecl oglShader::loadFromFile(const ShaderType type, const fs::path&
 }
 
 
-vector<oglShader> __cdecl oglShader::loadFromFiles(const u16string& fname)
+vector<oglShader> oglShader::loadFromFiles(const u16string& fname)
 {
     static pair<u16string, ShaderType> types[] =
     {
@@ -164,6 +164,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
                     data = std::make_pair(std::stoi((string)parts[3]), std::stoi((string)parts[4])); break;
                 case ShaderPropertyType::Uint:
                     data = std::make_pair((uint32_t)std::stoul((string)parts[3]), (uint32_t)std::stoul((string)parts[4])); break;
+                default: break;
                 }
             return ShaderExtProperty(string(parts[0]), *type, description, data);
         }
@@ -183,7 +184,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
     return ParseExtProperty(parts);
 }
 
-vector<oglShader> __cdecl oglShader::loadFromExSrc(const string& src, ShaderExtInfo& info)
+vector<oglShader> oglShader::loadFromExSrc(const string& src, ShaderExtInfo& info)
 {
     info.Properties.clear();
     info.ResMappings.clear();

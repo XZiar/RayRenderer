@@ -1,0 +1,11 @@
+BUILD_TYPE	:= dynamic
+
+include $(PROJPATH)/Makebase.mk
+
+NAME	     = OpenCLICDLoder
+CXXFLAGS    += -DOpenCL_EXPORTS
+#using c11 will lead to undeifned enum error
+CFLAGS      := $(filter-out -std=c11, $(CFLAGS))
+EXCEPT_C    += icd_windows.c icd_windows_hkr.c
+
+include $(PROJPATH)/MakeTargets.mk

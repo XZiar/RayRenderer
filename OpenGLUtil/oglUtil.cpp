@@ -5,8 +5,12 @@
 #include "oglProgram.h"
 #include "oglPromise.hpp"
 #include "MTWorker.h"
-#include "glew/wglew.h"
-
+#if defined(_WIN32)
+#   include "glew/wglew.h"
+#else
+#   define GLEW_NO_GLU
+#   include "glew/glxew.h"
+#endif
 namespace oglu
 {
 using common::PromiseResultSTD;
@@ -26,12 +30,14 @@ void oglUtil::init()
 #if defined(_DEBUG) || 1
     glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 #endif
-    const HDC hdc = (HDC)glctx->Hdc;
-    const HGLRC hrc = (HGLRC)glctx->Hrc;
-    wglMakeCurrent(hdc, nullptr);
+    glctx->UnloadContext();
+    //const HDC hdc = (HDC)glctx->Hdc;
+    //const HGLRC hrc = (HGLRC)glctx->Hrc;
+    //wglMakeCurrent(hdc, nullptr);
     getWorker(0).start(oglContext::NewContext(glctx, true));
     getWorker(1).start(oglContext::NewContext(glctx, false));
-    wglMakeCurrent(hdc, hrc);
+    glctx->UseContext();
+    //wglMakeCurrent(hdc, hrc);
     //for reverse-z
     glctx->SetDepthClip(true);
     glctx->SetDepthTest(DepthTestType::Greater);
@@ -45,13 +51,17 @@ u16string oglUtil::getVersion()
     return u16string(str, str + len);
 }
 
-optional<wstring> oglUtil::getError()
+optional<u16string> oglUtil::getError()
 {
     const auto err = glGetError();
-    if(err == GL_NO_ERROR)
+    if (err == GL_NO_ERROR)
         return {};
     else
-        return gluErrorUnicodeStringEXT(err);
+#if defined(_WIN32)
+        return u16string(reinterpret_cast<const char16_t*>(gluErrorUnicodeStringEXT(err)));
+#else
+        return str::to_u16string(std::to_string(err));
+#endif
 }
 
 

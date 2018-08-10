@@ -197,7 +197,7 @@ public:
     template<class T, class A>
     void SetData(const TextureDataFormat dformat, const vector<T, A>& data) 
     { 
-        SetData(iformat, dformat, data.data());
+        SetData(dformat, data.data());
     }
     
     void SetCompressedData(const void *data, const size_t size);
@@ -296,7 +296,7 @@ public:
     template<class T, class A>
     void SetData(const TextureDataFormat dformat, const vector<T, A>& data)
     {
-        SetData(iformat, dformat, data.data());
+        SetData(dformat, data.data());
     }
 
     void SetCompressedData(const void *data, const size_t size);

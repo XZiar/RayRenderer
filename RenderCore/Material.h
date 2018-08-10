@@ -39,14 +39,18 @@ public:
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
-using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
+struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D, FakeTex>
+{
+    using std::variant<std::monostate, oglu::oglTex2D, FakeTex>::variant;
+    oglu::TextureInnerFormat GetInnerFormat() const;
+    u16string GetName() const;
+    std::pair<uint32_t, uint32_t> GetSize() const;
+    std::weak_ptr<void> GetWeakRef() const;
+};
 
 struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
 {
 public:
-    static oglu::TextureInnerFormat GetInnerFormat(const TexHolder& holder);
-    static u16string GetName(const TexHolder& holder);
-    static std::pair<uint32_t, uint32_t> GetSize(const TexHolder& holder);
     b3d::Vec3 Albedo;
     TexHolder DiffuseMap, NormalMap, MetalMap, RoughMap, AOMap;
     float Metalness;

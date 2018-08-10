@@ -74,6 +74,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Makefile" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>

@@ -26,6 +26,13 @@
             "dependency": []
         },
         {
+            "name": "OpenCLICDLoader",
+            "type": "dynamic",
+            "path": "3rdParty/OpenCL_ICD_Loader",
+            "description": "The OpenCL ICD Loader",
+            "dependency": []
+        },
+        {
             "name": "uchardet",
             "type": "static",
             "path": "3rdParty/uchardetlib",
@@ -106,6 +113,13 @@
             "path": "ImageUtil",
             "description": "A basic image operation library",
             "dependency": ["fmt", "miniLogger", "zlib-ng", "libpng", "libjpeg-turbo"]
+        },
+        {
+            "name": "OpenGLUtil",
+            "type": "dynamic",
+            "path": "OpenGLUtil",
+            "description": "Wrapper of OpenGL Utility",
+            "dependency": ["fmt", "miniLogger", "glew", "ImageUtil"]
         },
         {
             "name": "UtilTest",

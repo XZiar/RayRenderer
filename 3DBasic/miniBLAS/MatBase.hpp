@@ -67,8 +67,8 @@ protected:
     SQMat4Base(const T3& xy_, const T2& z_) noexcept :xy(xy_), z(z_) { };
     SQMat4Base(const T3& xy_, const T3& zw_) noexcept :xy(xy_), zw(zw_) { };
 public:
-    operator RowDataType&() { return data; };
-    operator const RowDataType&() const { return data; };
+    operator RowDataType&() { return row; };
+    operator const RowDataType&() const { return row; };
     forceinline T2& operator[](const int rowidx)
     {
         return row[rowidx];

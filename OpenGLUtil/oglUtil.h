@@ -13,15 +13,15 @@ class OGLUAPI oglUtil
 {
 private:
 public:
-    static void __cdecl init();
-    static u16string __cdecl getVersion();
-    static optional<wstring> __cdecl getError();
+    static void init();
+    static u16string getVersion();
+    static optional<u16string> getError();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
     static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-    static PromiseResult<void> __cdecl invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
-    static PromiseResult<void> __cdecl invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
-    static common::asyexe::AsyncResult<void> __cdecl SyncGL();
-    static common::asyexe::AsyncResult<void> __cdecl ForceSyncGL();
+    static PromiseResult<void> invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
+    static PromiseResult<void> invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
+    static common::asyexe::AsyncResult<void> SyncGL();
+    static common::asyexe::AsyncResult<void> ForceSyncGL();
     static void TryTask();
 };
 

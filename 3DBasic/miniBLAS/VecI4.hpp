@@ -27,13 +27,11 @@ public:
 	template<class T>
 	VecI4(const T x_, const T y_, const T z_, const T w_) noexcept
 		:Vec4Base(static_cast<int>(x_), static_cast<int>(y_), static_cast<int>(z_), static_cast<int>(w_))
-	{
-	};
+	{ }
 	template<class T>
 	VecI4(const T *ptr) noexcept
 		:Vec4Base(static_cast<int>(ptr[0]), static_cast<int>(ptr[1]), static_cast<int>(ptr[2]), static_cast<int>(ptr[3]))
-	{
-	};
+	{ }
 #if COMMON_SIMD_LV >= 20
 	VecI4(const int32_t *ptr) noexcept { int_dat = _mm_loadu_si128((__m128i*)ptr); }
 	VecI4(const __m128i& dat_) noexcept { Store128I(int_dat, dat_); };

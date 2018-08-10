@@ -177,7 +177,7 @@ void _oglProgram::InitLocs()
             else
                 datinfo.location = glGetProgramResourceLocation(programID, dtype, nameBuf.c_str());
 
-            if (datinfo.location != GL_INVALID_INDEX)
+            if (datinfo.location != (GLint)GL_INVALID_INDEX)
             {
                 dataMap.insert(datinfo); //must not exist
             }
@@ -337,8 +337,7 @@ void _oglProgram::FilterProperties()
 
 void _oglProgram::AddShader(const oglShader& shader)
 {
-    auto [it, isAdd] = shaders.insert(shader);
-    if (isAdd)
+    if (shaders.insert(shader).second)
         glAttachShader(programID, shader->shaderID);
     else
         oglLog().warning(u"Repeat adding shader {} to program [{}]\n", shader->shaderID, Name);
@@ -494,7 +493,7 @@ void _oglProgram::SetCamera(const Camera & cam)
     matrix_View = Mat4x4::TranslateMat(cam.position * -1, rMat);
 
     SetUniform(Uni_viewMat, matrix_View);
-    if (Uni_camPos != GL_INVALID_INDEX)
+    if (Uni_camPos != (GLint)GL_INVALID_INDEX)
         glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
@@ -591,7 +590,7 @@ void _oglProgram::SetSubroutine(const SubroutineResource* subr, const Subroutine
 
 void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
@@ -600,7 +599,7 @@ void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const boo
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
@@ -609,7 +608,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const b
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
@@ -618,7 +617,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const b
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, mat);
@@ -627,7 +626,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, mat);
@@ -636,7 +635,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const
 }
 void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
@@ -645,7 +644,7 @@ void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
 }
 void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
@@ -654,7 +653,7 @@ void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep
 }
 void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
@@ -663,7 +662,7 @@ void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool kee
 }
 void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
 {
-    if (pos != GL_INVALID_INDEX)
+    if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
@@ -812,7 +811,7 @@ std::weak_ptr<_oglProgram> ProgDraw::GetProg() const noexcept
 
 ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
 {
-    if (Prog.Uni_mvpMat != GL_INVALID_INDEX)
+    if (Prog.Uni_mvpMat != (GLint)GL_INVALID_INDEX)
     {
         const auto mvpMat = Prog.matrix_Proj * Prog.matrix_View * modelMat;
         Prog.SetUniform(Prog.Uni_mvpMat, mvpMat);
@@ -851,7 +850,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const string& name, const 
         const auto pos = it->location + idx;
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GL_INVALID_INDEX)
+        if (oldVal != (GLint)GL_INVALID_INDEX)
             UniBindBackup.try_emplace(pos, std::make_pair(oldVal, true));
     }
     return *this;
@@ -863,7 +862,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
     {
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GL_INVALID_INDEX)
+        if (oldVal != (GLint)GL_INVALID_INDEX)
             UniBindBackup.try_emplace(pos, std::make_pair(oldVal, true));
     }
     return *this;
@@ -877,7 +876,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const string& name, const GLuint i
         const auto pos = it->location + idx;
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GL_INVALID_INDEX)
+        if (oldVal != (GLint)GL_INVALID_INDEX)
             UniBindBackup.try_emplace(pos, std::make_pair(oldVal, false));
     }
     return *this;
@@ -889,7 +888,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
     {
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GL_INVALID_INDEX)
+        if (oldVal != (GLint)GL_INVALID_INDEX)
             UniBindBackup.try_emplace(pos, oldVal, false);
     }
     return *this;

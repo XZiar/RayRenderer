@@ -223,7 +223,7 @@ namespace WPFTest
             WaitingCount = 0;
 
             var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
-            fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS" : ""; };
+            fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS@{timeUs / 1000}ms" : ""; };
             fpsTimer.Start();
         }
 

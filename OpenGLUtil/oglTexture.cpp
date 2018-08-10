@@ -13,24 +13,26 @@ void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, GLenum& datatyp
 {
     switch (dformat & TextureDataFormat::TYPE_MASK)
     {
-    case TextureDataFormat::U8_TYPE:     datatype = GL_UNSIGNED_BYTE; break;
-    case TextureDataFormat::I8_TYPE:     datatype = GL_BYTE; break;
-    case TextureDataFormat::U16_TYPE:    datatype = GL_UNSIGNED_SHORT; break;
-    case TextureDataFormat::I16_TYPE:    datatype = GL_SHORT; break;
-    case TextureDataFormat::U32_TYPE:    datatype = GL_UNSIGNED_INT; break;
-    case TextureDataFormat::I32_TYPE:    datatype = GL_INT; break;
-    case TextureDataFormat::HALF_TYPE:   datatype = GL_HALF_FLOAT; break;
-    case TextureDataFormat::FLOAT_TYPE:  datatype = GL_FLOAT; break;
+    case TextureDataFormat::U8_TYPE:        datatype = GL_UNSIGNED_BYTE; break;
+    case TextureDataFormat::I8_TYPE:        datatype = GL_BYTE; break;
+    case TextureDataFormat::U16_TYPE:       datatype = GL_UNSIGNED_SHORT; break;
+    case TextureDataFormat::I16_TYPE:       datatype = GL_SHORT; break;
+    case TextureDataFormat::U32_TYPE:       datatype = GL_UNSIGNED_INT; break;
+    case TextureDataFormat::I32_TYPE:       datatype = GL_INT; break;
+    case TextureDataFormat::HALF_TYPE:      datatype = GL_HALF_FLOAT; break;
+    case TextureDataFormat::FLOAT_TYPE:     datatype = GL_FLOAT; break;
+    default:                                break;
     }
     const bool normalized = HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK);
     switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
     {
-    case TextureDataFormat::R_FORMAT:     comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
-    case TextureDataFormat::RG_FORMAT:    comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
-    case TextureDataFormat::RGB_FORMAT:   comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
-    case TextureDataFormat::BGR_FORMAT:   comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
-    case TextureDataFormat::RGBA_FORMAT:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case TextureDataFormat::BGRA_FORMAT:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    case TextureDataFormat::R_FORMAT:       comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
+    case TextureDataFormat::RG_FORMAT:      comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
+    case TextureDataFormat::RGB_FORMAT:     comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
+    case TextureDataFormat::BGR_FORMAT:     comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
+    case TextureDataFormat::RGBA_FORMAT:    comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
+    case TextureDataFormat::BGRA_FORMAT:    comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    default:                                break;
     }
 }
 void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept
@@ -41,12 +43,13 @@ void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normaliz
         datatype = GL_UNSIGNED_BYTE;
     switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
     {
-    case ImageDataType::GRAY:  comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
-    case ImageDataType::RA:    comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
-    case ImageDataType::RGB:   comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
-    case ImageDataType::BGR:   comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
-    case ImageDataType::RGBA:  comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case ImageDataType::BGRA:  comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    case ImageDataType::GRAY:   comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
+    case ImageDataType::RA:     comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
+    case ImageDataType::RGB:    comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
+    case ImageDataType::BGR:    comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
+    case ImageDataType::RGBA:   comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
+    case ImageDataType::BGRA:   comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    default:                    break;
     }
 }
 
@@ -94,14 +97,14 @@ ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noex
     const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
     switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
     {
-    case TextureDataFormat::R8:     return ImageDataType::RED | isFloat;
-    case TextureDataFormat::RG8:    return ImageDataType::RA | isFloat;
-    case TextureDataFormat::RGB8:   return ImageDataType::RGB | isFloat;
+    case TextureDataFormat::R8:     return ImageDataType::RED  | isFloat;
+    case TextureDataFormat::RG8:    return ImageDataType::RA   | isFloat;
+    case TextureDataFormat::RGB8:   return ImageDataType::RGB  | isFloat;
     case TextureDataFormat::RGBA8:  return ImageDataType::RGBA | isFloat;
-    case TextureDataFormat::BGR8:   return ImageDataType::BGR | isFloat;
+    case TextureDataFormat::BGR8:   return ImageDataType::BGR  | isFloat;
     case TextureDataFormat::BGRA8:  return ImageDataType::BGRA | isFloat;
+    default:                        return isFloat;
     }
-    return isFloat;//fallback
 }
 
 TextureDataFormat TexFormatUtil::ConvertFormat(const ImageDataType dtype, const bool normalized) noexcept
@@ -111,14 +114,14 @@ TextureDataFormat TexFormatUtil::ConvertFormat(const ImageDataType dtype, const 
         baseFormat |= TextureDataFormat::NORMAL_MASK;
     switch (REMOVE_MASK(dtype, ImageDataType::FLOAT_MASK))
     {
-    case ImageDataType::RGB:    return TextureDataFormat::RGB_FORMAT | baseFormat;
-    case ImageDataType::BGR:    return TextureDataFormat::BGR_FORMAT | baseFormat;
+    case ImageDataType::RGB:    return TextureDataFormat::RGB_FORMAT  | baseFormat;
+    case ImageDataType::BGR:    return TextureDataFormat::BGR_FORMAT  | baseFormat;
     case ImageDataType::RGBA:   return TextureDataFormat::RGBA_FORMAT | baseFormat;
     case ImageDataType::BGRA:   return TextureDataFormat::BGRA_FORMAT | baseFormat;
-    case ImageDataType::GRAY:   return TextureDataFormat::R_FORMAT | baseFormat;
-    case ImageDataType::GA:     return TextureDataFormat::RG_FORMAT | baseFormat;
+    case ImageDataType::GRAY:   return TextureDataFormat::R_FORMAT    | baseFormat;
+    case ImageDataType::GA:     return TextureDataFormat::RG_FORMAT   | baseFormat;
+    default:                    return baseFormat;
     }
-    return baseFormat;//fallback
 }
 
 size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept

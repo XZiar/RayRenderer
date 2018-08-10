@@ -12,32 +12,15 @@ using oglu::oglTex2D;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
-static forceinline std::weak_ptr<void> GetWeakRef(const TexHolder& holder)
-{
-    switch (holder.index())
-    {
-    case 1:
-        return std::get<oglTex2D>(holder).weakRef();
-    case 2:
-        return std::weak_ptr<detail::_FakeTex>(std::get<FakeTex>(holder));
-    default:
-        return {};
-    }
-}
 
 std::shared_ptr<Image> ThumbnailManager::GetThumbnail(const std::weak_ptr<void>& weakref) const
 {
     return FindInMap(ThumbnailMap, weakref, std::in_place).value_or(nullptr);
 }
 
-std::shared_ptr<Image> ThumbnailManager::GetThumbnail(const TexHolder& holder) const
-{
-    return GetThumbnail(GetWeakRef(holder));
-}
-
 common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHolder& holder)
 {
-    auto weakref = GetWeakRef(holder);
+    auto weakref = holder.GetWeakRef();
     if (GetThumbnail(weakref))
         return {};
     switch (holder.index())
@@ -85,7 +68,7 @@ void ThumbnailManager::InnerWaitPmss(const PmssType& pmss)
 {
     for (const auto&[holder, result] : pmss)
     {
-        ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(std::move(AsyncAgent::SafeWait(result))));
+        ThumbnailMap.emplace(holder.GetWeakRef(), std::make_shared<Image>(std::move(AsyncAgent::SafeWait(result))));
     }
 }
 

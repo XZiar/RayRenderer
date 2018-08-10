@@ -5,6 +5,7 @@
 #include "oglTexture.h"
 #include "oglVAO.h"
 #include "oglFBO.h"
+#include "oglUtil.h"
 
 namespace oglu
 {
@@ -60,14 +61,14 @@ public:
         const GLuint Id;
         Routine(const string& name, const GLuint id) : Name(name), Id(id) {}
     };
+    const string Name;
+    const vector<Routine> Routines;
+    const ShaderType Stage;
 private:
     const GLint UniLoc;
 public:
     SubroutineResource(const GLenum stage, const GLint location, const string& name, vector<Routine>&& routines)
-        : Stage(ShaderType(stage)), UniLoc(location), Name(name), Routines(std::move(routines)) {}
-    const ShaderType Stage;
-    const string Name;
-    const vector<Routine> Routines;
+        : Name(name), Routines(std::move(routines)), Stage(ShaderType(stage)), UniLoc(location) {}
 };
 
 
@@ -172,18 +173,7 @@ public:
     ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
     template<typename Iterator>
-    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept
-    {
-        static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
-        Mat4x4 matModel = Mat4x4::identity();
-        Mat3x3 matNormal = Mat3x3::identity();
-        for (auto cur = begin; cur != end; ++cur)
-        {
-            const TransformOP& trans = *cur;
-            oglUtil::applyTransform(matModel, matNormal, trans);
-        }
-        return Draw(matModel, matNormal);
-    }
+    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
 
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }
@@ -248,7 +238,7 @@ private:
     GLint GetLoc(const T& res, const GLenum valtype)
     {
         const GLint loc = Prog.GetLoc(res, valtype);
-        if (loc != GL_INVALID_INDEX)
+        if (loc != (GLint)GL_INVALID_INDEX)
             if (const auto it = common::container::FindInMap(Prog.UniValCache, loc))
                 UniValBackup.insert_or_assign(loc, *it);
         return loc;
@@ -301,6 +291,20 @@ public:
     ProgDraw& SetUniform(const string& name, const uint32_t val) { Prog.SetUniform(GetLoc(name, GL_UNSIGNED_INT), val, false); return *this; }
     ProgDraw& SetUniform(const string& name, const float val) { Prog.SetUniform(GetLoc(name, GL_FLOAT), val, false); return *this; }
 };
+
+template<typename Iterator>
+ProgDraw _oglProgram::Draw(const Iterator& begin, const Iterator& end) noexcept
+{
+    static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
+    Mat4x4 matModel = Mat4x4::identity();
+    Mat3x3 matNormal = Mat3x3::identity();
+    for (auto cur = begin; cur != end; ++cur)
+    {
+        const TransformOP& trans = *cur;
+        oglUtil::applyTransform(matModel, matNormal, trans);
+    }
+    return Draw(matModel, matNormal);
+}
 
 
 }

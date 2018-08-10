@@ -36,13 +36,13 @@ public:
 
 TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::detail::ThumbnailManager>& thumbman) : Holder(holder)
 {
-    const auto matName = rayr::PBRMaterial::GetName(Holder);
+    const auto matName = Holder.GetName();
     name = matName.empty() ? "(None)" : ToStr(matName);
     if (Holder.index() != 0)
     {
-        const auto texsize = rayr::PBRMaterial::GetSize(holder);
+        const auto texsize = Holder.GetSize();
         const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]",
-            texsize.first, texsize.second, oglu::TexFormatUtil::GetFormatName(rayr::PBRMaterial::GetInnerFormat(holder)));
+            texsize.first, texsize.second, oglu::TexFormatUtil::GetFormatName(Holder.GetInnerFormat()));
         description = ToStr(strBuffer);
         if (thumbman)
         {

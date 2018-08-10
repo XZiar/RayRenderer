@@ -10,34 +10,40 @@ using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using oglu::TextureInnerFormat;
 
-oglu::TextureInnerFormat PBRMaterial::GetInnerFormat(const TexHolder& holder)
+oglu::TextureInnerFormat TexHolder::GetInnerFormat() const
 {
-    switch (holder.index())
+    switch (index())
     {
-    case 1: return std::get<oglTex2D>(holder)->GetInnerFormat();
-    case 2: return std::get<FakeTex>(holder)->TexFormat;
+    case 1: return std::get<oglTex2D>(*this)->GetInnerFormat();
+    case 2: return std::get<FakeTex>(*this)->TexFormat;
     default: return (TextureInnerFormat)GL_INVALID_ENUM;
     }
-
 }
-
-u16string PBRMaterial::GetName(const TexHolder& holder)
+u16string TexHolder::GetName() const
 {
-    switch (holder.index())
+    switch (index())
     {
-    case 1: return std::get<oglTex2D>(holder)->Name;
-    case 2: return std::get<FakeTex>(holder)->Name;
+    case 1: return std::get<oglTex2D>(*this)->Name;
+    case 2: return std::get<FakeTex>(*this)->Name;
     default: return u"";
     }
 }
-
-std::pair<uint32_t, uint32_t> PBRMaterial::GetSize(const TexHolder& holder)
+std::pair<uint32_t, uint32_t> TexHolder::GetSize() const
 {
-    switch (holder.index())
+    switch (index())
     {
-    case 1: return std::get<oglTex2D>(holder)->GetSize();
-    case 2: {const auto& ft = std::get<FakeTex>(holder); return { ft->Width, ft->Height }; };
+    case 1: return std::get<oglTex2D>(*this)->GetSize();
+    case 2: {const auto& ft = std::get<FakeTex>(*this); return { ft->Width, ft->Height }; };
     default: return { 0,0 };
+    }
+}
+std::weak_ptr<void> TexHolder::GetWeakRef() const
+{
+    switch (index())
+    {
+    case 1: return std::get<oglTex2D>(*this).weakRef();
+    case 2: return std::weak_ptr<detail::_FakeTex>(std::get<FakeTex>(*this));
+    default: return {};
     }
 }
 
@@ -226,23 +232,23 @@ void MultiMaterialHolder::Refresh()
         avaliableMap.erase(mapping);
     //process mapping
     map<detail::TexTag, set<TexHolder>> needAdd;
-    for (const auto&[tex, material] : added)
+    for (const auto&[holder, material] : added)
     {
-        const auto[w, h] = PBRMaterial::GetSize(tex);
+        const auto[w, h] = holder.GetSize();
         if (w == 0 || h == 0)
             COMMON_THROW(BaseException, u"binded texture size cannot be 0", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
             COMMON_THROW(BaseException, u"binded texture size should be power of 2", material->Name);
-        const detail::TexTag tid(PBRMaterial::GetInnerFormat(tex), w, h);
+        const detail::TexTag tid(holder.GetInnerFormat(), w, h);
         if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {
-            needAdd[tid].insert(tex);
+            needAdd[tid].insert(holder);
         }
         else
         {
             const uint16_t objLayer = avaSlot->second;
             avaliableMap.erase(avaSlot);
-            InsertLayer(Textures[tid], objLayer, tex);
+            InsertLayer(Textures[tid], objLayer, holder);
         }
     }
     // workaround for intel gen7.5

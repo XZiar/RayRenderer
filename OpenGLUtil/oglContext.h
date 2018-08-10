@@ -61,12 +61,20 @@ public:
     };
 private:
     void *Hdc, *Hrc;
+#if defined(_WIN32)
+#else
+    unsigned long DRW;
+#endif
     DBGLimit DbgLimit;
     oglFBO FrameBuffer;
     const uint32_t Uid;
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
+#if defined(_WIN32)
     _oglContext(const uint32_t uid, void *hdc, void *hrc);
+#else
+    _oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw);
+#endif
 public:
     ~_oglContext();
     bool UseContext();
@@ -121,13 +129,13 @@ private:
         }
     }
 public:
-    const MsgType type;
-    const MsgSrc from;
-    const MsgLevel level;
-    u16string msg;
+    const MsgType Type;
+    const MsgSrc From;
+    const MsgLevel Level;
+    u16string Msg;
 
-    DebugMessage(const GLenum from_, const GLenum type_, const GLenum lv)
-        :from(ParseSrc(from_)), type(ParseType(type_)), level(ParseLevel(lv)) { }
+    DebugMessage(const GLenum from, const GLenum type, const GLenum lv)
+        :Type(ParseType(type)), From(ParseSrc(from)), Level(ParseLevel(lv)) { }
 };
 
 

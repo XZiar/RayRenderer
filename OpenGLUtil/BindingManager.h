@@ -240,7 +240,7 @@ protected:
     LRUPos<GLuint> cache;
     const uint32_t GLLimit;
     ResDister(uint8_t size) :cache(size) { }
-    ResDister(GLenum prop) :GLLimit(GetLimit(prop)), cache(GetSize(prop)) { }
+    ResDister(GLenum prop) :cache(GetSize(prop)), GLLimit(GetLimit(prop)) { }
 public:
     ///<summary>bind multiple objects</summary>
     ///<param name="prog">progID</param>

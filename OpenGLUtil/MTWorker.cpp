@@ -1,7 +1,13 @@
 #include "oglRely.h"
 #include "MTWorker.h"
 #include "oglUtil.h"
-#include "glew/wglew.h"
+#if defined(_WIN32)
+#   include "glew/wglew.h"
+#   define GetError() GetLastError()
+#else
+#   include "glew/glxew.h"
+#   define GetError() errno
+#endif
 
 namespace oglu::detail
 {
@@ -14,7 +20,7 @@ void MTWorker::start(oglContext&& context)
         common::SetThreadName(Prefix);
         if (!Context->UseContext())
         {
-            oglLog().error(u"{} with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetLastError());
+            oglLog().error(u"{} with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetError());
         }
         oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", Prefix, Context->Hdc, Context->Hrc, oglUtil::getVersion());
         Context->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
@@ -23,10 +29,9 @@ void MTWorker::start(oglContext&& context)
         //exit
         if (!Context->UnloadContext())
         {
-            oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetLastError());
+            oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", Prefix, Context->Hdc, Context->Hrc, GetError());
         }
         Context.release();
-        //wglDeleteContext((HGLRC)Context->Hrc);
     });
 }
 

@@ -70,10 +70,10 @@ class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 {
 public:
     using Wrapper::Wrapper;
-    static oglShader __cdecl loadFromFile(const ShaderType type, const fs::path& path);
-    static vector<oglShader> __cdecl loadFromFiles(const u16string& fname);
-    static vector<oglShader> __cdecl loadFromExSrc(const string& src, ShaderExtInfo& info);
-    static vector<oglShader> __cdecl loadFromExSrc(const string& src) 
+    static oglShader loadFromFile(const ShaderType type, const fs::path& path);
+    static vector<oglShader> loadFromFiles(const u16string& fname);
+    static vector<oglShader> loadFromExSrc(const string& src, ShaderExtInfo& info);
+    static vector<oglShader> loadFromExSrc(const string& src) 
     {
         ShaderExtInfo dummy;
         return loadFromExSrc(src, dummy);

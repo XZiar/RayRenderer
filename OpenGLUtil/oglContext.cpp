@@ -1,8 +1,16 @@
 #include "oglRely.h"
 #include "oglContext.h"
 #include <atomic>
-#include "glew/wglew.h"
-
+#if defined(_WIN32)
+#   include "glew/wglew.h"
+#   define GetError() GetLastError()
+#else
+#   define GLEW_NO_GLU
+#   include "glew/glxew.h"
+#   define GetError() errno
+//fucking X11 defines some terrible macro
+#   undef Always
+#endif
 
 namespace oglu
 {
@@ -25,27 +33,31 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
 {
     DebugMessage msg(source, type, severity);
     const _oglContext::DBGLimit& limit = *(_oglContext::DBGLimit*)userParam;
-    if (((limit.src & msg.from) != MsgSrc::Empty)
-        && ((limit.type & msg.type) != MsgType::Empty)
-        && (uint8_t)limit.minLV <= (uint8_t)msg.level)
+    if (((limit.src & msg.From) != MsgSrc::Empty)
+        && ((limit.type & msg.Type) != MsgType::Empty)
+        && (uint8_t)limit.minLV <= (uint8_t)msg.Level)
     {
         auto theMsg = std::make_shared<DebugMessage>(msg);
-        theMsg->msg.assign(message, message + length);
+        theMsg->Msg.assign(message, message + length);
 
-        if (theMsg->type == MsgType::Error)
+        if (theMsg->Type == MsgType::Error)
         {
-            oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->msg);
+            oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->Msg);
             BindingState state;
             oglLog().debug(u"Current Prog[{}], VAO[{}], FBO[{}] binding-state: VBO[{}], IBO[{}], EBO[{}]\n", state.progId, state.vaoId, state.fboId, state.vboId, state.iboId, state.eboId);
         }
         else
         {
-            oglLog().verbose(u"OpenGL message\n{}\n", theMsg->msg);
+            oglLog().verbose(u"OpenGL message\n{}\n", theMsg->Msg);
         }
     }
 }
 
+#if defined(_WIN32)
 _oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc), Uid(uid)
+#else
+_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw), Uid(uid)
+#endif
 {
     glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (glIsEnabled(GL_CULL_FACE))
@@ -67,14 +79,22 @@ _oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), H
 
 _oglContext::~_oglContext()
 {
+#if defined(_WIN32)
     wglDeleteContext((HGLRC)Hrc);
+#else
+    glXDestroyContext((Display*)Hdc, (GLXContext)Hrc);
+#endif
 }
 
 bool _oglContext::UseContext()
 {
+#if defined(_WIN32)
     if (!wglMakeCurrent((HDC)Hdc, (HGLRC)Hrc))
+#else
+    if (!glXMakeCurrent((Display*)Hdc, DRW, (GLXContext)Hrc))
+#endif
     {
-        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
+        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
         return false;
     }
     oglContext::CurrentCtx() = this->shared_from_this();
@@ -86,9 +106,13 @@ bool _oglContext::UnloadContext()
     if (&*oglContext::CurrentCtx() == this)
     {
         oglContext::CurrentCtx().release();
+#if defined(_WIN32)
         if (!wglMakeCurrent((HDC)Hdc, nullptr))
+#else
+        if (!glXMakeCurrent((Display*)Hdc, DRW, nullptr))
+#endif
         {
-            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
+            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
             return false;
         }
     }
@@ -221,7 +245,11 @@ uint32_t oglContext::CurrentCtxUid()
 
 oglContext oglContext::CurrentContext()
 {
+#if defined(_WIN32)
     void *hrc = wglGetCurrentContext();
+#else
+    void *hrc = glXGetCurrentContext();
+#endif
     CTX_LOCK.LockRead();
     if (auto ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc))
     {
@@ -237,7 +265,11 @@ oglContext oglContext::CurrentContext()
         { }
         else
         {
+#if defined(_WIN32)
             ctx = oglContext(new detail::_oglContext(CTX_UID++, wglGetCurrentDC(), hrc));
+#else
+            ctx = oglContext(new detail::_oglContext(CTX_UID++, glXGetCurrentDisplay(), hrc, glXGetCurrentDrawable()));
+#endif
             CTX_MAP.emplace(hrc, ctx);
         }
         CurrentCtx() = ctx;
@@ -253,6 +285,7 @@ void oglContext::Refresh()
 
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, int *attribs)
 {
+#if defined(_WIN32)
     static int ctxAttrb[] =
     {
         /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -262,11 +295,36 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, in
         0
     };
     int *attrs = attribs ? attribs : ctxAttrb;
-    auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attrs);
+    const auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attrs);
     if (!newHrc)
         oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", GetLastError());
-
     return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
+#else
+
+    static int visual_attribs[] = 
+    {
+        GLX_RENDER_TYPE, GLX_RGBA_BIT,
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_DOUBLEBUFFER, true,
+        GLX_RED_SIZE, 1,
+        GLX_GREEN_SIZE, 1,
+        GLX_BLUE_SIZE, 1,
+        None
+    };
+    int num_fbc = 0;
+    GLXFBConfig *fbc = glXChooseFBConfig((Display*)ctx->Hdc, DefaultScreen((Display*)ctx->Hdc), visual_attribs, &num_fbc);
+    static int ctxAttrb[] =
+    {
+        GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+        GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB,
+        0
+    };
+    int *attrs = attribs ? attribs : ctxAttrb;
+    const auto newHrc = glXCreateContextAttribsARB((Display*)ctx->Hdc, fbc[0], isShared ? (GLXContext)ctx->Hrc : nullptr, true, attrs);
+    if (!newHrc)
+        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", GetError());
+    return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
+#endif
 }
 
 

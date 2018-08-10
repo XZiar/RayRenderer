@@ -16,6 +16,7 @@
   - [ ] Add RenderDoc support (conditionally remove DSA_EXT, or fork RenderDoc)
   - [x] Add Intel's ISPC tex-compressor as texture compresser
   - [ ] Add debugging support
+  - [ ] Move Camera component out of OpenGLUtil (shouldn't handle here)
 
 * FontHelper
   - [ ] Implement proper text render

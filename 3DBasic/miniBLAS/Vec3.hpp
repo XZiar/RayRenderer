@@ -41,7 +41,7 @@ public:
     explicit Vec3(const float *ptr) noexcept { _mm_store_ps(data, _mm_loadu_ps(ptr)); }
     Vec3(const __m128& dat_) noexcept { _mm_store_ps(data, dat_); };
     VECCALL operator __m128&() noexcept { return float_dat; };
-    VECCALL operator __m128() const noexcept { return _mm_load_ps(data); };
+    VECCALL operator const __m128&() const noexcept { return float_dat; };
 #endif
     void save(float* ptr) const
     {

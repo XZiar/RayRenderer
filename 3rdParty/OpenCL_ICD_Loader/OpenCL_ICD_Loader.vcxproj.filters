@@ -46,5 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="OpenCL.def" />
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

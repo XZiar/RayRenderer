@@ -1,11 +1,17 @@
 #pragma once
 
-#ifdef OGLU_EXPORT
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef OGLU_EXPORT
 #   define OGLUAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define OGLUAPI _declspec(dllimport)
+# endif
+#else
+# define OGLUAPI
 #endif
+
+
 
 #include "common/CommonRely.hpp"
 #include "common/AlignedContainer.hpp"
@@ -25,6 +31,9 @@
 #include "3DElement.hpp"
 
 #define GLEW_STATIC
+#if !defined(_WIN32)
+#   define GLEW_NO_GLU
+#endif
 #include "glew/glew.h"
 
 //#include "cpplinq.hpp"

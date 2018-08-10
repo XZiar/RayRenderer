@@ -35,23 +35,13 @@ public:
     {
         friend class _oglVAO;
     private:
-        template<typename Val>
-        struct ValTypeHelper 
+        template<typename Val> constexpr GLenum ParseType() 
         {
-            static_assert(sizeof(Val) == -1, "unsupported value type!");
-        };
-        template<> struct ValTypeHelper<float>
-        {
-            static constexpr GLenum Type = GL_FLOAT;
-        };
-        template<> struct ValTypeHelper<uint32_t>
-        {
-            static constexpr GLenum Type = GL_UNSIGNED_INT;
-        };
-        template<> struct ValTypeHelper<int32_t>
-        {
-            static constexpr GLenum Type = GL_INT;
-        };
+            if constexpr(std::is_same_v<Val, float>) return GL_FLOAT;
+            else if constexpr(std::is_same_v<Val, uint32_t>) return GL_UNSIGNED_INT;
+            else if constexpr(std::is_same_v<Val, int32_t>) return GL_INT;
+            else static_assert(common::AlwaysTrue<Val>(), "unsupported type");
+        }
         _oglVAO& vao;
         bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
@@ -72,7 +62,7 @@ public:
         VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
         {
             static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
-            return SetInteger(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
+            return SetInteger(ParseType<Val>(), vbo, attridx, stride, size, offset, divisor);
         }
         ///<summary>Set single Vertex Attribute(float)</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array</param>
@@ -84,7 +74,7 @@ public:
         template<typename Val = float>
         VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
         {
-            return SetFloat(ValTypeHelper<Val>::Type, vbo, attridx, stride, size, offset, divisor);
+            return SetFloat(ParseType<Val>(), vbo, attridx, stride, size, offset, divisor);
         }
         ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord]</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::Point]</param>
