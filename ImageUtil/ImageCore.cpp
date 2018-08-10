@@ -6,6 +6,9 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stblib/stb_image_resize.h"
 
+#pragma message("Compiling ImageUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
+
+
 namespace xziar::img
 {
 

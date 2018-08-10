@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * fg_teapot.c
  *
  * Teapot(tm) rendering code.
@@ -192,15 +192,15 @@ static void rotOrReflect(int flag, int nVals, int nSubDivs, GLfloat *vals)
         int i1=nVals, i2=nVals*2, i3=nVals*3;
         for (o=0; o<nVals; o+=3)
         {
-            /* 90° rotation */
+            /* 90Â° rotation */
             vals[i1+o+0] =  vals[o+2];
             vals[i1+o+1] =  vals[o+1];
             vals[i1+o+2] = -vals[o+0];
-            /* 180° rotation */
+            /* 180Â° rotation */
             vals[i2+o+0] = -vals[o+0];
             vals[i2+o+1] =  vals[o+1];
             vals[i2+o+2] = -vals[o+2];
-            /* 270° rotation */
+            /* 270Â° rotation */
             vals[i3+o+0] = -vals[o+2];
             vals[i3+o+1] =  vals[o+1];
             vals[i3+o+2] =  vals[o+0];
@@ -367,7 +367,7 @@ static void fghTeaset( GLfloat scale, GLboolean useWireMode,
             int i;
             for (i=0; i<16; i++)
             {
-                /* Original code draws with a 270° rot around X axis, a scaling and a translation along the Z-axis.
+                /* Original code draws with a 270Â° rot around X axis, a scaling and a translation along the Z-axis.
                  * Incorporating these in the control points is much cheaper than transforming all the vertices.
                  * Original:
                  * glRotated( 270.0, 1.0, 0.0, 0.0 );

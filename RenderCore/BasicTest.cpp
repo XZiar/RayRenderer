@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+ï»¿#include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
 //#include "TextureUtil/TexCompressor.h"
@@ -18,7 +18,6 @@ struct Init
         basLog().verbose(u"BasicTest Static Init\n");
         oglUtil::init();
         oclu::oclUtil::init();
-        MultiMaterialHolder::Init();
     }
 };
 
@@ -205,7 +204,7 @@ void BasicTest::fontTest(const char32_t word)
         auto fonttex = fontCreator->getTexture();
         if (word == 0x0)
         {
-            const auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
+            const auto imgShow = fontCreator->clgraysdfs(U'å•Š', 16);
             oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
             {
                 fonttex->SetData(TextureInnerFormat::R8, imgShow);
@@ -230,7 +229,7 @@ void BasicTest::fontTest(const char32_t word)
             fontCreator->setChar(word, false);
             const auto imgA = fonttex->GetImage(ImageDataType::GRAY, false);
             img::WriteImage(imgA, Basepath / u"A.png");
-            auto imgShow = fontCreator->clgraysdfs(U'°¡', 16);
+            auto imgShow = fontCreator->clgraysdfs(U'å•Š', 16);
             img::WriteImage(imgShow, Basepath / u"Show.png");
             imgShow.FlipVertical(); // pre-flip
             fonttex->SetData(TextureInnerFormat::R8, imgShow, true, false);
@@ -248,6 +247,7 @@ BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
 {
     static Init _init;
     glContext = oglu::oglContext::CurrentContext();
+    ThumbMan.reset(glContext);
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
     cam.zNear = 0.01f;
@@ -258,7 +258,7 @@ BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
         Basepath = u"D:\\ProgramsTemps\\RayRenderer";
     fontCreator->reloadFont(Basepath / u"test.ttf");
 
-    fontTest(/*L'‡å'*/);
+    fontTest(/*U'å•Š'*/);
     initTex();
     init2d(shaderPath);
     init3d(shaderPath);
@@ -465,6 +465,8 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
+    drawable->PrepareMaterial(ThumbMan.weakRef());
+    drawable->AssignMaterial();
     for(const auto& prog : Prog3Ds)
         drawable->PrepareGL(prog);
     drawables.push_back(drawable);

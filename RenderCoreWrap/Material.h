@@ -15,12 +15,12 @@ namespace RayRender
 public ref class TexMap
 {
 private:
-    rayr::PBRMaterial::TexHolder& Holder;
+    rayr::TexHolder& Holder;
     BitmapSource^ thumbnail;
     String^ name;
     String^ description;
 public:
-    TexMap(rayr::PBRMaterial::TexHolder& holder);
+    TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::detail::ThumbnailManager>& thumbman);
     property String^ Name
     {
         String^ get() { return name; }

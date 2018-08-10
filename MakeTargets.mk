@@ -1,6 +1,4 @@
 
-#default: $(NAME)
-
 ifeq ($(BUILD_TYPE), static)
 BUILD_TYPE2	:= static library
 $(NAME): $(OBJS) $(ASMOBJS)

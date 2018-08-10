@@ -8,21 +8,18 @@ using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 
 
-void Model::InitMaterial()
+MultiMaterialHolder Model::PrepareMaterial() const
 {
-    MaterialHolder = MultiMaterialHolder((uint8_t)Mesh->groups.size());
-    MaterialUBO.reset(32 * MultiMaterialHolder::UnitSize);
-    MaterialBuf.resize(MaterialUBO->Size());
-
+    MultiMaterialHolder holder((uint8_t)Mesh->groups.size());
     uint8_t i = 0;
     for (const auto& group : Mesh->groups)
     {
         if (const auto mat = FindInMap(Mesh->MaterialMap, group.first))
-            MaterialHolder[i] = *mat;
+            holder[i] = *mat;
         ++i;
     }
 
-    AssignMaterial();
+    return holder;
 }
 
 Model::Model(ModelMesh mesh, bool asyncload) : Drawable(this, TYPENAME), Mesh(mesh)
@@ -33,14 +30,9 @@ Model::Model(ModelMesh mesh, bool asyncload) : Drawable(this, TYPENAME), Mesh(me
     {
         const auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent)
         {
-            InitMaterial();
             agent.Await(oglu::oglUtil::SyncGL());
         });
         AsyncAgent::SafeWait(task);
-    }
-    else
-    {
-        InitMaterial();
     }
 }
 

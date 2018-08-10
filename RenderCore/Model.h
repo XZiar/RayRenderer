@@ -12,7 +12,7 @@ namespace rayr
 class alignas(16) Model : public Drawable
 {
 protected:
-    void InitMaterial();
+    virtual MultiMaterialHolder PrepareMaterial() const override;
     Model(ModelMesh mesh, bool asyncload = false);
 public:
     static constexpr auto TYPENAME = u"Model";

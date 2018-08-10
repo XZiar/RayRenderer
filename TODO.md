@@ -3,6 +3,12 @@
 * AsyncExecutor
   - [ ] Add support for returning a task/promise
 
+* ImageUtil
+  - [ ] Add memory input/output
+  - [ ] Make Image mutable
+  - [ ] Add stb as fallback handler
+  - [ ] Add more format suppprt
+
 * OpenGLUtil
   - [ ] Add mipmap
   - [x] Implement FrameBuffer
@@ -21,6 +27,7 @@
   - [ ] Add convertion between BlinnPhongMaterial and PBRmaterial
   - [ ] Update blinn-phong shader, or combine them
   - [ ] Move normal mapping into VS stage
+  - [ ] Add proper deserialization
   * Core function
     - [ ] Add ShadowMapping
     - [ ] Add Raytracing
@@ -29,7 +36,6 @@
   * Model
     - [ ] Add skeleton animation
     - [ ] Add more import support
-    - [ ] Add model export
 
 * WPFTest
   - [ ] Change to move convinient mouse+keyboard operation

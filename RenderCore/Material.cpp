@@ -1,21 +1,14 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 #include "common/PromiseTaskSTD.hpp"
-#include "TextureUtil/GLTexResizer.h"
-#include "TextureUtil/CLTexResizer.h"
+#include "ThumbnailManager.h"
 
 namespace rayr
 {
-using common::asyexe::AsyncAgent;
-using common::container::FindInMap;
-using xziar::img::Image;
-using xziar::img::ImageDataType;
 using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using oglu::TextureInnerFormat;
-using std::multimap;
-using xziar::respak::SerializeUtil;
 
 oglu::TextureInnerFormat PBRMaterial::GetInnerFormat(const TexHolder& holder)
 {
@@ -64,7 +57,7 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 }
 
 
-static ejson::JDoc SerializeTex(const PBRMaterial::TexHolder& holder, SerializeUtil & context)
+static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context)
 {
     switch (holder.index())
     {
@@ -145,27 +138,23 @@ RESPAK_DESERIALIZER(PBRMaterial)
 RESPAK_REGIST_DESERIALZER(PBRMaterial)
 
 
+
 static oglu::detail::ContextResource<oglu::oglTex2DV, true> CTX_CHECK_TEX;
-constexpr auto GenerateCheckImg()
-{
-    std::array<uint32_t, 128 * 128> pixs{};
-    for (uint32_t a = 0, idx = 0; a < 128; ++a)
-    {
-        for (uint32_t b = 0; b < 128; ++b)
-        {
-            pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
-        }
-    }
-    return pixs;
-}
-static constexpr auto CHECK_IMG_DATA = GenerateCheckImg();
 
 oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
 {
     return CTX_CHECK_TEX.GetOrInsert([](const auto&)
     {
         oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::RGBA8);
-        chkTex->SetData(oglu::TextureDataFormat::RGBA8, CHECK_IMG_DATA.data());
+        std::array<uint32_t, 128 * 128> pixs{};
+        for (uint32_t a = 0, idx = 0; a < 128; ++a)
+        {
+            for (uint32_t b = 0; b < 128; ++b)
+            {
+                pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
+            }
+        }
+        chkTex->SetData(oglu::TextureDataFormat::RGBA8, pixs.data());
         const auto texv = chkTex->GetTextureView();
         texv->Name = u"Check Image";
         basLog().verbose(u"new CheckTex generated.\n");
@@ -174,7 +163,8 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
 }
 
 
-static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const PBRMaterial::TexHolder& holder)
+
+static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const TexHolder& holder)
 {
     switch (holder.index())
     {
@@ -193,93 +183,6 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
         break;
     }
 }
-
-static map<std::weak_ptr<void>, std::shared_ptr<xziar::img::Image>, std::owner_less<void>> ThumbnailMap;
-
-static forceinline std::weak_ptr<void> GetWeakRef(const PBRMaterial::TexHolder& holder)
-{
-    switch (holder.index())
-    {
-    case 1:
-        return std::get<oglTex2D>(holder).weakRef();
-    case 2:
-        return std::weak_ptr<detail::_FakeTex>(std::get<FakeTex>(holder));
-    default:
-        return {};
-    }
-}
-
-std::shared_ptr<xziar::img::Image> MultiMaterialHolder::GetThumbnail(const TexHolder& holder)
-{
-    return FindInMap(ThumbnailMap, GetWeakRef(holder), std::in_place).value_or(nullptr);
-}
-
-static void PrepareThumbnail(const map<PBRMaterial::TexHolder, const PBRMaterial*>& container)
-{
-    static oglu::texutil::GLTexResizer resizer(oglu::oglContext::NewContext(oglu::oglContext::CurrentContext(), true));
-    static oglu::texutil::CLTexResizer clResizer(oglu::oglContext::NewContext(oglu::oglContext::CurrentContext(), true));
-
-    auto calcSize = [](const std::pair<uint32_t, uint32_t>& size) constexpr -> std::tuple<bool, uint32_t, uint32_t>
-    {
-        constexpr uint32_t thredshold = 128;
-        const auto larger = std::max(size.first, size.second);
-        if (larger <= thredshold)
-            return { false, 0,0 };
-        return { true, size.first * thredshold / larger, size.second * thredshold / larger };
-    };
-
-    std::vector<std::pair<PBRMaterial::TexHolder, common::PromiseResult<Image>>> pmss;
-    for (const auto&[holder, dummy] : container)
-    {
-        if (MultiMaterialHolder::GetThumbnail(holder))
-            continue;
-        switch (holder.index())
-        {
-        case 1:
-            {
-                const auto& tex = std::get<oglTex2D>(holder);
-                const auto&[needResize, neww, newh] = calcSize(tex->GetSize());
-                if (needResize)
-                    pmss.emplace_back(holder, resizer.ResizeToDat(tex, neww, newh, ImageDataType::RGB));
-                else
-                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
-            }
-            break;
-        case 2:
-            {
-                const auto& fakeTex = std::get<FakeTex>(holder);
-                const std::pair<uint32_t, uint32_t> imgSize{ fakeTex->Width, fakeTex->Height };
-                const auto&[needResize, neww, newh] = calcSize(imgSize);
-                if (needResize)
-                    pmss.emplace_back(holder, resizer.ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB));
-                else if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                {   //promise in GL's thread
-                    oglu::oglTex2DS tex(fakeTex->Width, fakeTex->Height, fakeTex->TexFormat);
-                    tex->SetCompressedData(fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
-                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
-                }
-                else
-                {
-                    ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(fakeTex->TexData, fakeTex->Width, fakeTex->Height, 
-                        oglu::TexFormatUtil::ConvertFormat(oglu::TexFormatUtil::DecideFormat(fakeTex->TexFormat))));
-                }
-            }
-            break;
-        default:
-            continue;
-        }
-    }
-    for (const auto&[holder, result] : pmss)
-    {
-        ThumbnailMap.emplace(GetWeakRef(holder), std::make_shared<Image>(std::move(AsyncAgent::SafeWait(result))));
-    }
-}
-
-void MultiMaterialHolder::Init()
-{
-    PrepareThumbnail({});
-}
-
 
 void MultiMaterialHolder::Refresh()
 {
@@ -306,7 +209,11 @@ void MultiMaterialHolder::Refresh()
         Arrangement.swap(newArrange);
         return;
     }
-    PrepareThumbnail(added);
+    {
+        const auto thumbman = ThumbMan.lock();
+        if (thumbman)
+            thumbman->PrepareThumbnails(common::container::KeySet(added));
+    }
     //generate avaliable map
     set<Mapping, common::container::PairLess<detail::TexTag, uint16_t>> avaliableMap;
     for (const auto&[tid, texarr] : Textures)
@@ -396,7 +303,7 @@ void MultiMaterialHolder::BindTexture(oglu::detail::ProgDraw& drawcall) const
     }
 }
 
-static forceinline uint32_t PackMapPos(const MultiMaterialHolder::ArrangeMap& mapping, const map<detail::TexTag, uint8_t>& lookup, const PBRMaterial::TexHolder& tex, const bool isUse)
+static forceinline uint32_t PackMapPos(const MultiMaterialHolder::ArrangeMap& mapping, const map<detail::TexTag, uint8_t>& lookup, const TexHolder& tex, const bool isUse)
 {
     if (!isUse)
         return 0xffff;

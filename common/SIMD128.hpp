@@ -52,8 +52,8 @@ struct CommonOperators
     T operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
 };
 
-template<typename T>
-struct IntLogic : public CommonOperators<T>
+template<typename T, typename E>
+struct IntCommon : public CommonOperators<T>
 {
     // logic operations
     T And(const T& other) const
@@ -76,12 +76,14 @@ struct IntLogic : public CommonOperators<T>
     {
         return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
     }
+    template<typename T1 = E>
+    void Save(T1 *ptr) { _mm_storeu_si128(reinterpret_cast<T1*>(ptr), *static_cast<const T*>(this)); }
 };
 
 }
 
 
-struct alignas(__m128) F64x2 : public detail::CommonOperators<F64x2>
+struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
 {
     static constexpr size_t Count = 2;
     union
@@ -94,6 +96,8 @@ struct alignas(__m128) F64x2 : public detail::CommonOperators<F64x2>
     F64x2(const double val) : Data(_mm_set1_pd(val)) { }
     F64x2(const double lo, const double hi) : Data(_mm_setr_pd(lo, hi)) { }
     constexpr operator const __m128d&() { return Data; }
+    template<typename T = double>
+    void Save(T *ptr) const { _mm_storeu_pd(reinterpret_cast<double*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
@@ -191,6 +195,8 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
     F32x4(const float val) :Data(_mm_set1_ps(val)) { }
     F32x4(const float lo0, const float lo1, const float lo2, const float hi3) :Data(_mm_setr_ps(lo0, lo1, lo2, hi3)) { }
     constexpr operator const __m128&() { return Data; }
+    template<typename T = float>
+    void Save(T *ptr) const { _mm_storeu_ps(reinterpret_cast<float*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
@@ -275,7 +281,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
 };
 
 
-struct alignas(__m128i) I64x2 : public detail::IntLogic<I64x2>
+struct alignas(__m128i) I64x2 : public detail::IntCommon<I64x2, int64_t>
 {
     static constexpr size_t Count = 2;
     union
@@ -356,7 +362,7 @@ struct alignas(__m128i) I32Common
 };
 
 
-struct alignas(__m128i) I32x4 : public I32Common<I32x4, int32_t>, public detail::IntLogic<I32x4>
+struct alignas(__m128i) I32x4 : public I32Common<I32x4, int32_t>, public detail::IntCommon<I32x4, int32_t>
 {
     using I32Common<I32x4, int32_t>::I32Common;
     using I32Common<I32x4, int32_t>::operator const __m128i &;
@@ -375,7 +381,7 @@ struct alignas(__m128i) I32x4 : public I32Common<I32x4, int32_t>, public detail:
     I32x4 ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
 };
 
-struct alignas(__m128i) U32x4 : public I32Common<U32x4, uint32_t>, public detail::IntLogic<U32x4>
+struct alignas(__m128i) U32x4 : public I32Common<U32x4, uint32_t>, public detail::IntCommon<U32x4, uint32_t>
 {
     using I32Common<U32x4, uint32_t>::I32Common;
     using I32Common<U32x4, uint32_t>::operator const __m128i &;
@@ -445,7 +451,7 @@ struct alignas(__m128i) I16Common
 };
 
 
-struct alignas(__m128i) I16x8 : public I16Common<I16x8, int16_t>, public detail::IntLogic<I16x8>
+struct alignas(__m128i) I16x8 : public I16Common<I16x8, int16_t>, public detail::IntCommon<I16x8, int16_t>
 {
     using I16Common<I16x8, int16_t>::I16Common;
     using I16Common<I16x8, int16_t>::operator const __m128i &;
@@ -462,7 +468,7 @@ struct alignas(__m128i) I16x8 : public I16Common<I16x8, int16_t>, public detail:
 };
 
 
-struct alignas(__m128i) U16x8 : public I16Common<U16x8, int16_t>, public detail::IntLogic<U16x8>
+struct alignas(__m128i) U16x8 : public I16Common<U16x8, int16_t>, public detail::IntCommon<U16x8, uint16_t>
 {
     using I16Common<U16x8, int16_t>::I16Common;
     using I16Common<U16x8, int16_t>::operator const __m128i &;
@@ -523,7 +529,7 @@ struct alignas(__m128i) I8Common
 };
 
 
-struct alignas(__m128i) I8x16 : public I8Common<I8x16, int8_t>, public detail::IntLogic<I8x16>
+struct alignas(__m128i) I8x16 : public I8Common<I8x16, int8_t>, public detail::IntCommon<I8x16, int8_t>
 {
     using I8Common<I8x16, int8_t>::I8Common;
     using I8Common<I8x16, int8_t>::operator const __m128i &;
@@ -568,7 +574,7 @@ Pack<I16x8, 2> I8x16::MulX(const I8x16& other) const
 }
 #endif
 
-struct alignas(__m128i) U8x16 : public I8Common<U8x16, uint8_t>, public detail::IntLogic<U8x16>
+struct alignas(__m128i) U8x16 : public I8Common<U8x16, uint8_t>, public detail::IntCommon<U8x16, uint8_t>
 {
     using I8Common<U8x16, uint8_t>::I8Common;
     using I8Common<U8x16, uint8_t>::operator const __m128i &;
@@ -591,7 +597,7 @@ struct alignas(__m128i) U8x16 : public I8Common<U8x16, uint8_t>, public detail::
         const U16x8 u16self = Data, u16other = other.Data;
         const auto even = u16self * u16other;
         const auto odd = u16self.ShiftRightLogic<8>() * u16other.ShiftRightLogic<8>();
-        static const U16x8 mask(0xff);
+        static const U16x8 mask((int16_t)0xff);
         return U8x16(odd.ShiftLeftLogic<8>() | (even & mask));
     }
     Pack<U16x8, 2> MulX(const U8x16& other) const;

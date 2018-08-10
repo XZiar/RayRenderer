@@ -6,6 +6,7 @@
 #include "Light.h"
 #include "Material.h"
 #include "FontHelper/FontHelper.h"
+#include "ThumbnailManager.h"
 
 namespace rayr
 {
@@ -35,6 +36,7 @@ private:
     oglUBO lightUBO;
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
+    Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;
@@ -68,14 +70,13 @@ public:
     void ChangeShader(const oglProgram& prog);
     void ReportChanged(const ChangableUBO target);
     xziar::img::Image Scrrenshot();
-    std::shared_ptr<xziar::img::Image> GetThumbnail(const PBRMaterial::TexHolder& holder);
-
 
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
     const set<oglProgram>& Shaders() const { return glProgs; }
     const oglProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
+    const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
 
     void Serialize(const fs::path& fpath) const;
     void DeSerialize(const fs::path& fpath);

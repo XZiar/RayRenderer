@@ -31,7 +31,6 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
         pt.pos *= sidelen;
     vbo.reset();
     vbo->Write(pts);
-    PrepareMaterial();
 }
 
 void Pyramid::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
@@ -110,7 +109,6 @@ Sphere::Sphere(const float r) : Drawable(this, TYPENAME), radius(r), radius_sqr(
     ebo.reset();
     ebo->WriteCompact(indexs);
     ptcount = static_cast<uint32_t>(indexs.size());
-    PrepareMaterial();
 }
 
 void Sphere::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
@@ -207,7 +205,6 @@ Box::Box(const float length, const float height, const float width) : Drawable(t
         pt.pos *= size;
     vbo.reset();
     vbo->Write(pts);
-    PrepareMaterial();
 }
 
 void Box::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
@@ -253,7 +250,6 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME),
     };
     vbo.reset();
     vbo->Write(pts, sizeof(pts));
-    PrepareMaterial();
 }
 
 void Plane::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)

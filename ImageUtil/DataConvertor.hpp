@@ -697,7 +697,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
-#   if COMMON_SIMD_LV >= 100 || defined(__AVX2__)
+#   if COMMON_SIMD_LV >= 200
     const auto shuffle256 = _mm256_set_m128i(shuffle128, shuffle128);
     while (count >= 32)
     {
@@ -766,7 +766,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcP
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
-#   if COMMON_SIMD_LV >= 100 || defined(__AVX2__)
+#   if COMMON_SIMD_LV >= 200
     const auto shuffle256 = _mm256_set_m128i(shuffle128, shuffle128);
     while (count >= 32)
     {
@@ -838,7 +838,7 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
         return false;
     if (ptrA > ptrB && ptrA < ptrB + bytes)
         return false;
-#if COMMON_SIMD_LV >= 100 || defined(__AVX2__)
+#if COMMON_SIMD_LV >= 200
     if ((intptr_t)ptrA & 0x1f)
     {
         const uint64_t offset = 32 - ((intptr_t)ptrA & 0x1f);

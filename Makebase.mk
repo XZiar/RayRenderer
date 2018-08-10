@@ -43,7 +43,7 @@ APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)"
 SUBDIRS		:=
-CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-eof-newline
+CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas
 CXXOPT		:=
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
 CFLAGS		 = $(CXXFLAGS) -std=c11
@@ -51,6 +51,9 @@ NASMFLAGS	:= -g
 LIBRARYS	:= 
 DEPLIBS		:= 
 
+ifeq ($(XZMK_CLANG), 1)
+CXXFLAGS	+= -Wno-eof-newline
+endif
 
 ifneq ($(TARGET), Debug)
 ifneq ($(TARGET), Release)
@@ -101,7 +104,7 @@ EXCEPT_ASM	:=
 EXCEPT_NASM	:= 
 
 CSRCS		 = $(filter-out $(EXCEPT_C), $(wildcard *.c))
-CPPSRCS		 = $(filter-out $(EXCEPT_CPP), $(wildcard *.cpp) $(wildcard *.cc))
+CPPSRCS		 = $(filter-out $(EXCEPT_CPP), $(wildcard *.cpp) $(wildcard *.cc)) $(wildcard *.cxx))
 ASMSRCS		 = $(filter-out $(EXCEPT_ASM), $(wildcard *.S))
 NASMSRCS	 = $(filter-out $(EXCEPT_NASM), $(wildcard *.asm))
 OBJS 		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS))

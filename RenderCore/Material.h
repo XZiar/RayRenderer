@@ -10,7 +10,7 @@ struct RAYCOREAPI alignas(16) RawMaterialData : public common::AlignBase<16>
 {
 public:
     b3d::Vec4 ambient, diffuse, specular, emission;
-    float shiness, reflect, refract, rfr;//高光权重，反射比率，折射比率，折射率
+    float shiness, reflect, refract, rfr;
     enum class Property : uint8_t
     {
         Ambient = 0x1,
@@ -39,11 +39,11 @@ public:
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
+using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
 
 struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
 {
 public:
-    using TexHolder = std::variant<std::monostate, oglu::oglTex2D, FakeTex>;
     static oglu::TextureInnerFormat GetInnerFormat(const TexHolder& holder);
     static u16string GetName(const TexHolder& holder);
     static std::pair<uint32_t, uint32_t> GetSize(const TexHolder& holder);
@@ -86,7 +86,6 @@ struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable, public xziar
 {
 public:
     using Mapping = std::pair<detail::TexTag, uint16_t>;
-    using TexHolder = PBRMaterial::TexHolder;
     using ArrangeMap = map<TexHolder, Mapping>;
 private:
     vector<PBRMaterial> Materials;
@@ -96,9 +95,9 @@ private:
     map<detail::TexTag, uint8_t> TextureLookup;
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
-    static void Init();
     static oglu::oglTex2DV GetCheckTex();
-    static std::shared_ptr<xziar::img::Image> GetThumbnail(const TexHolder& holder);
+
+    std::weak_ptr<detail::ThumbnailManager> ThumbMan;
 
     MultiMaterialHolder() { }
     MultiMaterialHolder(const uint8_t count) : Materials(count, PBRMaterial(u"unnamed")) { }

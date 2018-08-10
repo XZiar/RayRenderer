@@ -34,7 +34,7 @@ public:
     }
 };
 
-TexMap::TexMap(rayr::PBRMaterial::TexHolder& holder) : Holder(holder)
+TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::detail::ThumbnailManager>& thumbman) : Holder(holder)
 {
     const auto matName = rayr::PBRMaterial::GetName(Holder);
     name = matName.empty() ? "(None)" : ToStr(matName);
@@ -44,9 +44,12 @@ TexMap::TexMap(rayr::PBRMaterial::TexHolder& holder) : Holder(holder)
         const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]",
             texsize.first, texsize.second, oglu::TexFormatUtil::GetFormatName(rayr::PBRMaterial::GetInnerFormat(holder)));
         description = ToStr(strBuffer);
-        const auto timg = rayr::MultiMaterialHolder::GetThumbnail(holder);
-        if (timg)
-            thumbnail = ThumbnailContainer::GetThumbnail(timg);
+        if (thumbman)
+        {
+            const auto timg = thumbman->GetThumbnail(holder);
+            if (timg)
+                thumbnail = ThumbnailContainer::GetThumbnail(timg);
+        }
     }
     else
     {
@@ -64,8 +67,9 @@ void PBRMaterial::RefreshMaterial()
 PBRMaterial::PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material) 
     : Drawable(*drawable), Material(material)
 {
-    albedoMap = gcnew TexMap(material.DiffuseMap);
-    normalMap = gcnew TexMap(material.NormalMap);
+    const auto thumbman = Drawable.lock()->MaterialHolder.ThumbMan.lock();
+    albedoMap = gcnew TexMap(material.DiffuseMap, thumbman);
+    normalMap = gcnew TexMap(material.NormalMap, thumbman);
 }
 
 

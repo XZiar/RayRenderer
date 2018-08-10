@@ -47,6 +47,7 @@ public:
         rotation += angles;
         rotation.RepeatClampPos(Vec3::Vec3_2PI());
     }
+    void PrepareMaterial(const std::weak_ptr<detail::ThumbnailManager>& thumbman);
     void AssignMaterial();
 
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
@@ -61,7 +62,8 @@ protected:
 
     template<typename T>
     Drawable(const T * const childThis, const u16string& typeName) : Drawable(std::type_index(typeid(childThis)), typeName) { }
-    void PrepareMaterial(const bool defaultAssign = true);
+
+    virtual MultiMaterialHolder PrepareMaterial() const;
     auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
     Drawcall& DrawPosition(Drawcall& prog) const;
     ///<summary>Assign VAO into prog-sensative map</summary>  

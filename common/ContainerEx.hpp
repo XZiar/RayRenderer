@@ -182,6 +182,98 @@ inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, c
     return replacedCnt;
 }
 
+namespace detail
+{
+template<typename ItType>
+struct KeyIterator
+{
+private:
+    ItType InnerIt;
+    using KeyType = decltype(InnerIt->first);
+public:
+    KeyIterator(ItType it) : InnerIt(it) { }
+    KeyIterator& operator++()
+    {
+        InnerIt++; return *this;
+    }
+    bool operator!=(const KeyIterator<ItType>& other) const { return InnerIt != other.InnerIt; }
+    KeyType& operator*() const
+    {
+        return InnerIt->first;
+    }
+};
+template<typename ItType>
+struct ValIterator
+{
+private:
+    ItType InnerIt;
+    using ValType = decltype(InnerIt->second);
+public:
+    ValIterator(ItType it) : InnerIt(it) { }
+    ValIterator& operator++()
+    {
+        InnerIt++; return *this;
+    }
+    bool operator!=(const ValIterator<ItType>& other) const { return InnerIt != other.InnerIt; }
+    ValType& operator*() const
+    {
+        return InnerIt->second;
+    }
+};
+}
+
+template<typename Map>
+struct KeySet
+{
+private:
+    Map& TheMap;
+    using ItType = decltype(TheMap.begin());
+    using ConstItType = decltype(TheMap.cbegin());
+public:
+    KeySet(Map& themap) : TheMap(themap) { }
+    detail::KeyIterator<ItType> begin()
+    {
+        return detail::KeyIterator<ItType>(TheMap.begin());
+    }
+    detail::KeyIterator<ItType> end()
+    {
+        return detail::KeyIterator<ItType>(TheMap.end());
+    }
+    detail::KeyIterator<ConstItType> begin() const
+    {
+        return detail::KeyIterator<ConstItType>(TheMap.cbegin());
+    }
+    detail::KeyIterator<ConstItType> end() const
+    {
+        return detail::KeyIterator<ConstItType>(TheMap.cend());
+    }
+};
+template<typename Map>
+struct ValSet
+{
+private:
+    Map& TheMap;
+    using ItType = decltype(TheMap.begin());
+    using ConstItType = decltype(TheMap.cbegin());
+public:
+    ValSet(Map& themap) : TheMap(themap) { }
+    detail::ValIterator<ItType> begin()
+    {
+        return detail::ValIterator<ItType>(TheMap.begin());
+    }
+    detail::ValIterator<ItType> end()
+    {
+        return detail::ValIterator<ItType>(TheMap.end());
+    }
+    detail::ValIterator<ConstItType> begin() const
+    {
+        return detail::ValIterator<ConstItType>(TheMap.cbegin());
+    }
+    detail::ValIterator<ConstItType> end() const
+    {
+        return detail::ValIterator<ConstItType>(TheMap.cend());
+    }
+};
 
 namespace detail
 {

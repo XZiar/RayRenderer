@@ -7,6 +7,7 @@ NAME	= UtilTest
 CPPSRCS		 = UtilTest.cpp AsyncTest.cpp ImageUtilTest.cpp CharsetTest.cpp #$(wildcard *.cpp)
 LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lAsyncExecutor -lImageUtil
 DEPLIBS		+= -lfmt -lstb -luchardet
+CXXFLAGS	+= -Wno-unused-function
 
 include $(PROJPATH)/MakeTargets.mk
 
