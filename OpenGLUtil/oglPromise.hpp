@@ -35,7 +35,7 @@ protected:
     }
     T virtual wait() override
     {
-        while (glClientWaitSync(SyncObj, NULL, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+        while (glClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
         {
         }
         return Result;

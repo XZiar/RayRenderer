@@ -293,15 +293,15 @@ public:
     template<typename Prepare, typename Process>
     common::AlignedBuffer<32> EachBlock(const Image& img, const size_t bytePerBlock, Prepare&& prepare, Process&& process)
     {
-        common::AlignedBuffer<32> buffer(bytePerBlock * (img.Width * img.Height / 4 / 4));
-        const auto blockStride = img.ElementSize * 4;
-        const auto rowStride = img.Width * img.ElementSize;
+        common::AlignedBuffer<32> buffer(bytePerBlock * (img.GetWidth() * img.GetHeight() / 4 / 4));
+        const auto blockStride = img.GetElementSize() * 4;
+        const auto rowStride = img.GetWidth() * img.GetElementSize();
         const uint8_t * __restrict row = img.GetRawPtr<uint8_t>();
         uint8_t * __restrict output = buffer.GetRawPtr<uint8_t>();
 
-        for (uint32_t y = img.Height; y > 0; y -= 4)
+        for (uint32_t y = img.GetHeight(); y > 0; y -= 4)
         {
-            for (uint32_t x = img.Width; x > 0; x -= 4)
+            for (uint32_t x = img.GetWidth(); x > 0; x -= 4)
             {
                 prepare(row, rowStride, data);
                 process(output, data);
@@ -317,11 +317,11 @@ public:
 
 static common::AlignedBuffer<32> CompressBC5(const Image& img)
 {
-    if (HAS_FIELD(img.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC5");
 
     BCBlock block;
-    switch (img.DataType)
+    switch (img.GetDataType())
     {
     case ImageDataType::RGBA:
         //return block.EachBlock(img, 16, BCBlock::RGBA2RG, stb_compress_bc5_block);

@@ -162,15 +162,15 @@ Image JpegReader::Read(const ImageDataType dataType)
     jpeg_start_decompress(decompStruct);
 
     image.SetSize(decompStruct->image_width, decompStruct->image_height);
-    auto ptrs = image.GetRowPtrs(needAlpha ? image.Width : 0);
+    auto ptrs = image.GetRowPtrs(needAlpha ? image.GetWidth() : 0);
     while (decompStruct->output_scanline < decompStruct->output_height)
     {
         jpeg_read_scanlines(decompStruct, reinterpret_cast<uint8_t**>(&ptrs[decompStruct->output_scanline]), decompStruct->output_height - decompStruct->output_scanline);
     }
     if (needAlpha)
     {
-        for (uint32_t row = 0; row < image.Height; ++row)
-            convert::RGBsToRGBAs(image.GetRawPtr(row), ptrs[row], image.Width);
+        for (uint32_t row = 0; row < image.GetHeight(); ++row)
+            convert::RGBsToRGBAs(image.GetRawPtr(row), ptrs[row], image.GetWidth());
     }
 
     jpeg_finish_decompress(decompStruct);
@@ -217,12 +217,12 @@ inline JpegWriter::~JpegWriter()
 
 void JpegWriter::Write(const Image& image)
 {
-    if (image.Width > JPEG_MAX_DIMENSION || image.Height > JPEG_MAX_DIMENSION)
+    if (image.GetWidth() > JPEG_MAX_DIMENSION || image.GetHeight() > JPEG_MAX_DIMENSION)
         return;
-    if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         return;
     auto compStruct = (j_compress_ptr)JpegCompStruct;
-    const auto dataType = REMOVE_MASK(image.DataType, { ImageDataType::FLOAT_MASK });
+    const auto dataType = REMOVE_MASK(image.GetDataType(), { ImageDataType::FLOAT_MASK });
     switch (dataType)
     {
     case ImageDataType::BGR:
@@ -236,16 +236,17 @@ void JpegWriter::Write(const Image& image)
     default:
         return;
     }
-    compStruct->image_width = image.Width;
-    compStruct->image_height = image.Height;
-    compStruct->input_components = image.ElementSize;
+    compStruct->image_width = image.GetWidth();
+    compStruct->image_height = image.GetHeight();
+    compStruct->input_components = image.GetElementSize();
     jpeg_set_defaults(compStruct);
     jpeg_set_quality(compStruct, 90, TRUE);
 
     jpeg_start_compress(compStruct, TRUE);
     auto ptrs = image.GetRowPtrs();
-    jpeg_write_scanlines(compStruct, (uint8_t**)ptrs.data(), image.Height);
+    jpeg_write_scanlines(compStruct, (uint8_t**)ptrs.data(), image.GetHeight());
     jpeg_finish_compress(compStruct);
 }
+static auto DUMMY = RegistImageSupport<JpegSupport>();
 
 }

@@ -8,7 +8,12 @@
 #   define IMGUTILAPI _declspec(dllimport)
 # endif
 #else
-# define IMGUTILAPI 
+# ifdef IMGUTIL_EXPORT
+#   define IMGUTILAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define IMGUTILAPI
+# endif
 #endif
 
 #include "common/CommonRely.hpp"
@@ -39,6 +44,13 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using std::tuple;
+class ImgSupport;
+IMGUTILAPI uint32_t RegistImageSupport(const common::Wrapper<ImgSupport>& support);
+template<typename T>
+uint32_t RegistImageSupport()
+{
+    return RegistImageSupport(common::Wrapper<T>(std::in_place).template cast_static<ImgSupport>());
+}
 }
 
 #if COMMON_SIMD_LV >= 20

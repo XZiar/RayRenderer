@@ -6,8 +6,6 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stblib/stb_image_resize.h"
 
-#pragma message("Compiling ImageUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
-
 
 namespace xziar::img
 {
@@ -254,7 +252,7 @@ Image Image::ConvertTo(const ImageDataType dataType, const uint32_t x, const uin
     return newimg;
 }
 
-Image Image::ConvertFloat(const float floatRange) const
+Image Image::ConvertToFloat(const float floatRange) const
 {
     if (!HAS_FIELD(DataType, ImageDataType::FLOAT_MASK))
     {

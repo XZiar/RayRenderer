@@ -128,7 +128,7 @@ struct _oglTexCommon
     }
     forceinline void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept
     {
-        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.DataType, normalized);
+        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.GetDataType(), normalized);
         if (flipY)
         {
             const auto theimg = img.FlipToVertical();

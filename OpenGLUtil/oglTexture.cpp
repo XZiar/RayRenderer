@@ -461,7 +461,7 @@ void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const oglPBO&
 
 void _oglTexture2DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
 {
-    if (img.Width != Width || img.Height != Height)
+    if (img.GetWidth() != Width || img.GetHeight() != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex2D(S)");
     _oglTexture2D::SetData(true, img, normalized, flipY);
 }
@@ -511,7 +511,7 @@ void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const Textu
 
 void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized, const bool flipY)
 {
-    CheckAndSetMetadata(iformat, img.Width, img.Height);
+    CheckAndSetMetadata(iformat, img.GetWidth(), img.GetHeight());
     _oglTexture2D::SetData(false, img, normalized, flipY);
 }
 
@@ -572,11 +572,11 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
 {
-    if (img.Width % 4)
+    if (img.GetWidth() % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"each line's should be aligned to 4 pixels");
-    if (img.Width != Width || img.Height != Height)
+    if (img.GetWidth() != Width || img.GetHeight() != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch"); 
-    SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.DataType, true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
+    SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.GetDataType(), true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
 }
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
@@ -679,7 +679,7 @@ void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const oglPBO&
 
 void _oglTexture3DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
 {
-    if (img.Width != Width || img.Height != Height * Depth)
+    if (img.GetWidth() != Width || img.GetHeight() != Height * Depth)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex3D(S)");
     _oglTexture3D::SetData(true, img, normalized, flipY);
 }

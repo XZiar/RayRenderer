@@ -62,13 +62,13 @@ static png_infop CreateInfo(png_structp pngStruct)
 
 static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const bool needAlpha, const bool isColor)
 {
-    auto ptrs = image.GetRowPtrs<uint8_t>(needAlpha ? image.Width : 0);
+    auto ptrs = image.GetRowPtrs<uint8_t>(needAlpha ? image.GetWidth() : 0);
     common::SimpleTimer timer;
     timer.Start();
     for (auto pass = passes; pass--;)
     {
         //Sparkle, read all rows at a time
-        png_read_rows((png_structp)pngStruct, ptrs.data(), NULL, image.Height);
+        png_read_rows((png_structp)pngStruct, ptrs.data(), NULL, image.GetHeight());
     }
     timer.Stop();
     ImgLog().debug(u"[libpng]decode {} pass cost {} ms\n", passes, timer.ElapseMs());
@@ -77,21 +77,21 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
 
     //post process, add alpha
     auto *rowPtr = image.GetRawPtr();
-    const size_t lineStep = image.ElementSize * image.Width;
+    const size_t lineStep = image.GetElementSize() * image.GetWidth();
     timer.Start();
     if (isColor)
-        for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
+        for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
         {
             auto * __restrict destPtr = rowPtr;
-            auto * __restrict srcPtr = rowPtr + image.Width;
-            convert::RGBsToRGBAs(destPtr, srcPtr, image.Width);
+            auto * __restrict srcPtr = rowPtr + image.GetWidth();
+            convert::RGBsToRGBAs(destPtr, srcPtr, image.GetWidth());
         }
     else
-        for (uint32_t row = 0; row < image.Height; row++, rowPtr += lineStep)
+        for (uint32_t row = 0; row < image.GetHeight(); row++, rowPtr += lineStep)
         {
             auto * __restrict destPtr = rowPtr;
-            auto * __restrict srcPtr = rowPtr + image.Width;
-            convert::GraysToGrayAs(destPtr, srcPtr, image.Width);
+            auto * __restrict srcPtr = rowPtr + image.GetWidth();
+            convert::GraysToGrayAs(destPtr, srcPtr, image.GetWidth());
         }
     timer.Stop();
     ImgLog().debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());
@@ -217,19 +217,19 @@ void PngWriter::Write(const Image& image)
 {
     auto pngStruct = (png_structp)PngStruct;
     auto pngInfo = (png_infop)PngInfo;
-    if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         //NotSupported Yet
         return;
     ImgFile.Rewind();
 
-    const auto alphaMask = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
+    const auto alphaMask = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
     const auto colorMask = image.isGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
     const auto colorType = alphaMask | colorMask;
-    png_set_IHDR(pngStruct, pngInfo, image.Width, image.Height, 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+    png_set_IHDR(pngStruct, pngInfo, image.GetWidth(), image.GetHeight(), 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
     png_set_compression_level(pngStruct, 3);
     png_write_info(pngStruct, pngInfo);
 
-    if (REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
+    if (REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)
         png_set_swap_alpha(pngStruct);
 
     auto ptrs = image.GetRowPtrs();
@@ -238,5 +238,6 @@ void PngWriter::Write(const Image& image)
 }
 
 
+static auto DUMMY = RegistImageSupport<PngSupport>();
 
 }

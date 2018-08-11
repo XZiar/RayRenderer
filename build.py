@@ -113,7 +113,7 @@ def makeone(action:str, proj:Project, args:dict):
         b1 = clean(projDir, proj, args)
         b2 = build(projDir, proj, args)
         return b1 and b2
-    return false
+    return False
 
 def mainmake(action:str, projs:set, args:dict):
     if action.endswith("all"):
@@ -139,7 +139,13 @@ def parseProj(proj:str, projs:dict):
     names = set(re.findall(r"[-\w']+", proj))
     if "all" in names:
         names.update(projs.keys())
-    names.discard("all")
+    if "all-dynamic" in names:
+        names.update([pn for pn,p in projs.items() if p.type == "dynamic"])
+    if "all-static" in names:
+        names.update([pn for pn,p in projs.items() if p.type == "static"])
+    if "all-executable" in names:
+        names.update([pn for pn,p in projs.items() if p.type == "executable"])
+    names.difference_update(["all", "all-dynamic", "all-static", "all-executable"])
     wantRemove = set([y for x in names if x.startswith("-") for y in (x,x[1:]) ])
     names.difference_update(wantRemove)
     for x in names:

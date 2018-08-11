@@ -39,7 +39,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
 {
     static TexCompManExecutor dummy;
     
-    const auto w = img.Width, h = img.Height;
+    const auto w = img.GetWidth(), h = img.GetHeight();
     if (w <= 4 || h <= 4)
         COMMON_THROW(BaseException, u"image size to small");
     if (!IsPower2(w) || !IsPower2(h))
@@ -64,7 +64,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
             try
             {
                 auto dat = oglu::texutil::CompressToDat(*img, format);
-                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img->Width, img->Height);
+                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img->GetWidth(), img->GetHeight());
             }
             catch (const BaseException& be)
             {
@@ -74,7 +74,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
         }
         else
         {
-            const auto width = img->Width, height = img->Height;
+            const auto width = img->GetWidth(), height = img->GetHeight();
             tex = std::make_shared<detail::_FakeTex>(std::move(img->ExtractData()), format, width, height);
         }
         if (tex)

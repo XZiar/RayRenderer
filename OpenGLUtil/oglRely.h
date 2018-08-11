@@ -8,7 +8,12 @@
 #   define OGLUAPI _declspec(dllimport)
 # endif
 #else
-# define OGLUAPI
+# ifdef OGLU_EXPORT
+#   define OGLUAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define OGLUAPI
+# endif
 #endif
 
 
@@ -99,7 +104,7 @@ using common::FileException;
 
 
 enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI alignas(alignof(Vec4)) TransformOP : public common::AlignBase<alignof(Vec4)>
+struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
 {
     Vec4 vec;
     TransformType type;

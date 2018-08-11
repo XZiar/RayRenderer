@@ -28,8 +28,8 @@ static img::Image stbToImage(const vector<uint32_t>& stbimg, const tuple<int32_t
 static img::Image keepGray(const img::Image& src)
 {
     img::Image ret(img::ImageDataType::GA);
-    ret.SetSize(src.Width, src.Height);
-    const auto step = src.ElementSize;
+    ret.SetSize(src.GetWidth(), src.GetHeight());
+    const auto step = src.GetElementSize();
     auto srcPtr = src.GetRawPtr(); auto destPtr = ret.GetRawPtr();
     for (auto cnt = src.PixelCount(); cnt--; srcPtr += step)
     {
@@ -50,7 +50,7 @@ static void TestImageUtil()
         auto img = img::ReadImage(srcPath, img::ImageDataType::RGB);
         timer.Stop();
         log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
-        ::stb::saveImage(basePath / u"CTC16-stb.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+        ::stb::saveImage(basePath / u"CTC16-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
     }
     {
         const fs::path srcPath = basePath / u"pngtest.png";
@@ -69,9 +69,9 @@ static void TestImageUtil()
         log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
 
         log().info(u"Test PNG(Alpha)-Writing\n");
-        auto size = img.Width * img.Height + data.size();
+        auto size = img.GetWidth() * img.GetHeight() + data.size();
         timer.Start();
-        ::stb::saveImage(basePath / u"pngtest-stb.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+        ::stb::saveImage(basePath / u"pngtest-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
         timer.Stop();
         log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
 
@@ -110,10 +110,10 @@ static void TestImageUtil()
         auto img2 = ::stb::loadImage(srcPath, data);
         timer.Stop();
         log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
-        auto size = img.Width * img.Height + data.size();
+        auto size = img.GetWidth() * img.GetHeight() + data.size();
         log().info(u"Test PNG-Writing\n");
         timer.Start();
-        ::stb::saveImage(basePath / u"qw11-stb.png", img.GetRawPtr(), img.Width, img.Height, img.ElementSize);
+        ::stb::saveImage(basePath / u"qw11-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
         timer.Stop();
         log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
         timer.Start();
@@ -204,7 +204,7 @@ static void TestImageUtil()
         file::FileObject::OpenThrow(srcPath, file::OpenFlag::READ | file::OpenFlag::BINARY).ReadAll();
         auto img = img::ReadImage(srcPath, img::ImageDataType::BGRA);
         auto imgs = img::Image(img::ImageDataType::RGB);
-        imgs.SetSize(img.Width * 2, img.Height * 2);
+        imgs.SetSize(img.GetWidth() * 2, img.GetHeight() * 2);
         timer.Start();
         auto img2 = img.ConvertTo(img::ImageDataType::BGR);
         timer.Stop();
@@ -219,13 +219,13 @@ static void TestImageUtil()
         img2.FlipHorizontal();
         timer.Stop();
         log().debug(u"flip horizontal(3) cost {} ms\n", timer.ElapseMs());
-        imgs.PlaceImage(img2, 0, 0, img.Width, 0);
+        imgs.PlaceImage(img2, 0, 0, img.GetWidth(), 0);
         timer.Start();
         img.FlipHorizontal();
         timer.Stop();
         log().debug(u"flip horizontal(4) cost {} ms\n", timer.ElapseMs());
         timer.Start();
-        imgs.PlaceImage(img, 0, 0, 0, img.Height);
+        imgs.PlaceImage(img, 0, 0, 0, img.GetHeight());
         timer.Stop();
         log().debug(u"place with convert cost {} ms\n", timer.ElapseMs());
 
@@ -242,7 +242,7 @@ static void TestDiffShow()
     const auto img1 = img::ReadImage(srcPath1, img::ImageDataType::GRAY);
     const auto img2 = img::ReadImage(srcPath2, img::ImageDataType::GRAY);
     img::Image img3(img::ImageDataType::GRAY);
-    img3.SetSize(img2.Width, img2.Height);
+    img3.SetSize(img2.GetWidth(), img2.GetHeight());
     auto p1 = img1.GetRawPtr<uint8_t>();
     auto p2 = img2.GetRawPtr<uint8_t>();
     auto p3 = img3.GetRawPtr<uint8_t>();
@@ -259,9 +259,9 @@ static void TestFloat()
     float* imgPtr = gfimg.GetRawPtr<float>();
     for (uint32_t i = 0; i < 256; ++i)
         imgPtr[i] = (float)i;
-    auto gimg = gfimg.ConvertFloat(255);
-    auto newgfimg = gimg.ConvertFloat(255);
-    auto newgimg = newgfimg.ConvertFloat(255);
+    auto gimg = gfimg.ConvertToFloat(255);
+    auto newgfimg = gimg.ConvertToFloat(255);
+    auto newgimg = newgfimg.ConvertToFloat(255);
 }
 
 static void ImgUtilTest()

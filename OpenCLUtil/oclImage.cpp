@@ -6,7 +6,6 @@
 
 namespace oclu::detail
 {
-using xziar::img::Image;
 
 void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
 {
@@ -127,7 +126,7 @@ oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldB
 
 oclPromise _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
-    if (image.Width != Width || image.Height != Height)
+    if (image.GetWidth() != Width || image.GetHeight() != Height)
         COMMON_THROW(BaseException, u"write size unmatch");
         
     constexpr size_t origin[3] = { 0,0,0 }; 

@@ -61,7 +61,7 @@ public:
     template<typename ReadFunc>
     static void ReadColorData4(const uint8_t colorDepth, const uint64_t count, Image& output, const bool isOutputRGB, ReadFunc& reader)
     {
-        if (output.ElementSize != 4)
+        if (output.GetElementSize() != 4)
             return;
         switch (colorDepth)
         {
@@ -114,7 +114,7 @@ public:
     template<typename ReadFunc>
     static void ReadColorData3(const uint8_t colorDepth, const uint64_t count, Image& output, const bool isOutputRGB, ReadFunc& reader)
     {
-        if (output.ElementSize != 3)
+        if (output.GetElementSize() != 3)
             return;
         //auto& color16Map = isOutputRGB ? convert::BGR16ToRGBAMapper : convert::RGB16ToRGBAMapper;
         switch (colorDepth)
@@ -146,10 +146,10 @@ public:
         case 32://BGRA
             {
                 Image tmp(ImageDataType::RGBA);
-                tmp.SetSize(output.Width, 1);
-                for (uint32_t row = 0; row < output.Height; ++row)
+                tmp.SetSize(output.GetWidth(), 1);
+                for (uint32_t row = 0; row < output.GetHeight(); ++row)
                 {
-                    reader.Read(4 * output.Width, tmp.GetRawPtr());
+                    reader.Read(4 * output.GetWidth(), tmp.GetRawPtr());
                     if (isOutputRGB)
                         convert::BGRAsToRGBs(output.GetRawPtr(row), tmp.GetRawPtr(), count);
                     else
@@ -162,9 +162,9 @@ public:
     template<typename MapperReader, typename IndexReader>
     static void ReadFromColorMapped(const detail::TgaHeader& header, Image& image, MapperReader& mapperReader, IndexReader& reader)
     {
-        const uint64_t count = (uint64_t)image.Width * image.Height;
-        const bool isOutputRGB = REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
-        const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
+        const uint64_t count = (uint64_t)image.GetWidth() * image.GetHeight();
+        const bool isOutputRGB = REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
+        const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
 
         const detail::ColorMapInfo mapInfo(header);
         mapperReader.Skip(mapInfo.Offset);
@@ -228,8 +228,8 @@ public:
     template<typename ReadFunc>
     static void ReadDirect(const detail::TgaHeader& header, Image& image, ReadFunc& reader)
     {
-        const uint64_t count = (uint64_t)image.Width * image.Height;
-        const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
+        const uint64_t count = (uint64_t)image.GetWidth() * image.GetHeight();
+        const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
         if (image.isGray())
         {
             if (needAlpha)
@@ -244,7 +244,7 @@ public:
         }
         else
         {
-            const bool isOutputRGB = REMOVE_MASK(image.DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
+            const bool isOutputRGB = REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             if (needAlpha)
                 ReadColorData4(header.PixelDepth, count, image, isOutputRGB, reader);
             else
@@ -348,10 +348,10 @@ public:
     template<typename Writer>
     static void WriteRLEColor3(const Image& image, Writer& writer)
     {
-        if (image.ElementSize != 3)
+        if (image.GetElementSize() != 3)
             return;
-        const uint32_t colMax = image.Width * 3;//tga's limit should promise this will not overflow
-        for (uint32_t row = 0; row < image.Height; ++row)
+        const uint32_t colMax = image.GetWidth() * 3;//tga's limit should promise this will not overflow
+        for (uint32_t row = 0; row < image.GetHeight(); ++row)
         {
             const uint8_t * __restrict data = image.GetRawPtr<uint8_t>(row);
             uint32_t last = 0;
@@ -382,22 +382,22 @@ public:
                 last = cur;
             }
             if (len > 0)
-                WriteRLE3((const byte*)&data[image.Width - len], len, repeat, writer);
+                WriteRLE3((const byte*)&data[image.GetWidth() - len], len, repeat, writer);
         }
     }
 
     template<typename Writer>
     static void WriteRLEColor4(const Image& image, Writer& writer)
     {
-        if (image.ElementSize != 4)
+        if (image.GetElementSize() != 4)
             return;
-        for (uint32_t row = 0; row < image.Height; ++row)
+        for (uint32_t row = 0; row < image.GetHeight(); ++row)
         {
             const uint32_t * __restrict data = image.GetRawPtr<uint32_t>(row);
             uint32_t last = 0;
             uint32_t len = 0;
             bool repeat = false;
-            for (uint32_t col = 0; col < image.Width; ++col, ++len)
+            for (uint32_t col = 0; col < image.GetWidth(); ++col, ++len)
             {
                 switch (len)
                 {
@@ -421,21 +421,21 @@ public:
                 last = data[col];
             }
             if (len > 0)
-                WriteRLE4((const byte*)&data[image.Width - len], len, repeat, writer);
+                WriteRLE4((const byte*)&data[image.GetWidth() - len], len, repeat, writer);
         }
     }
     template<typename Writer>
     static void WriteRLEGray(const Image& image, Writer& writer)
     {
-        if (image.ElementSize != 1)
+        if (image.GetElementSize() != 1)
             return;
-        for (uint32_t row = 0; row < image.Height; ++row)
+        for (uint32_t row = 0; row < image.GetHeight(); ++row)
         {
             const byte * __restrict data = image.GetRawPtr(row);
             byte last{};
             uint32_t len = 0;
             bool repeat = false;
-            for (uint32_t col = 0; col < image.Width; ++col, ++len)
+            for (uint32_t col = 0; col < image.GetWidth(); ++col, ++len)
             {
                 switch (len)
                 {
@@ -459,7 +459,7 @@ public:
                 last = data[col];
             }
             if (len > 0)
-                WriteRLE1(&data[image.Width - len], len, repeat, writer);
+                WriteRLE1(&data[image.GetWidth() - len], len, repeat, writer);
         }
     }
 };
@@ -672,11 +672,11 @@ TgaWriter::TgaWriter(FileObject& file) : ImgFile(file)
 void TgaWriter::Write(const Image& image)
 {
     constexpr char identity[] = "Truevision TGA file created by zexTGA";
-    if (image.Width > INT16_MAX || image.Height > INT16_MAX)
+    if (image.GetWidth() > INT16_MAX || image.GetHeight() > INT16_MAX)
         return;
-    if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         return;
-    if (image.DataType == ImageDataType::GA)
+    if (image.GetDataType() == ImageDataType::GA)
         return;
     detail::TgaHeader header;
     
@@ -686,10 +686,10 @@ void TgaWriter::Write(const Image& image)
     memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
     convert::WordToLE(header.OriginHorizontal, 0);
     convert::WordToLE(header.OriginVertical, 0);
-    convert::WordToLE(header.Width, (uint16_t)image.Width);
-    convert::WordToLE(header.Height, (uint16_t)image.Height);
-    header.PixelDepth = image.ElementSize * 8;
-    header.ImageDescriptor = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
+    convert::WordToLE(header.Width, (uint16_t)image.GetWidth());
+    convert::WordToLE(header.Height, (uint16_t)image.GetHeight());
+    header.PixelDepth = image.GetElementSize() * 8;
+    header.ImageDescriptor = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
     
     ImgFile.Write(header);
     ImgFile.Write(identity);
@@ -698,7 +698,7 @@ void TgaWriter::Write(const Image& image)
     //next: true image data
     if (image.isGray())
         TgaHelper::WriteRLEGray(image, ImgFile);
-    else if (HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK))
+    else if (HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK))
         TgaHelper::WriteRLEColor4(image, ImgFile);
     else
         TgaHelper::WriteRLEColor3(image, ImgFile);
@@ -710,5 +710,7 @@ void TgaWriter::Write(const Image& image)
 TgaSupport::TgaSupport() : ImgSupport(u"Tga") 
 {
 }
+
+static auto DUMMY = RegistImageSupport<TgaSupport>();
 
 }

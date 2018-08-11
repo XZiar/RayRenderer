@@ -19,16 +19,13 @@ MAKE_ENUM_BITFIELD(ImageDataType)
 /*Custom Image Data Holder, with pixel data alignment promise*/
 class IMGUTILAPI Image : protected common::AlignedBuffer<32>
 {
+private:
+    uint32_t Width, Height;
+    ImageDataType DataType;
+    uint8_t ElementSize;
 public:
     static constexpr uint8_t GetElementSize(const ImageDataType dataType);
-    uint32_t Width, Height;
-    const ImageDataType DataType;
-    const uint8_t ElementSize;
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
-    { }
-    Image(const Image& other) : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), DataType(other.DataType), ElementSize(other.ElementSize)
-    { }
-    Image(Image&& other) noexcept : common::AlignedBuffer<32>(other), Width(other.Width), Height(other.Height), DataType(other.DataType), ElementSize(other.ElementSize)
     { }
     Image(const common::AlignedBuffer<32>& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
@@ -44,6 +41,10 @@ public:
     }
 
     using common::AlignedBuffer<32>::GetSize;
+    uint32_t GetWidth() const noexcept { return Width; }
+    uint32_t GetHeight() const noexcept { return Height; }
+    ImageDataType GetDataType() const noexcept { return DataType; }
+    uint8_t GetElementSize() const noexcept { return ElementSize; }
     size_t RowSize() const noexcept { return Width * ElementSize; }
     size_t PixelCount() const noexcept { return Width * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
@@ -60,7 +61,7 @@ public:
     template<typename T>
     void SetSize(const tuple<T, T>& size, const bool zero = true)
     {
-        SetSize(std::get<0>(size), std::get<1>(size), zero);
+        SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
     bool isGray() const { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
@@ -122,7 +123,7 @@ public:
 
     Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    Image ConvertFloat(const float floatRange = 1) const;
+    Image ConvertToFloat(const float floatRange = 1) const;
 };
 
 constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)

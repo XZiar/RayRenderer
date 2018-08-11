@@ -21,7 +21,7 @@ public:
     ~GLTexResizer();
     common::PromiseResult<Image> ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const bool flipY = false)
     {
-        return ResizeToDat(img, width, height, img.DataType, flipY);
+        return ResizeToDat(img, width, height, img.GetDataType(), flipY);
     }
     common::PromiseResult<Image> ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
     //require in the shared context

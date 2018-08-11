@@ -9,8 +9,8 @@ namespace xziar::img::bmp
 
 static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool needFlip, const detail::BmpInfo& info)
 {
-    const auto width = image.Width, height = image.Height;
-    const auto dataType = image.DataType;
+    const auto width = image.GetWidth(), height = image.GetHeight();
+    const auto dataType = image.GetDataType();
     const size_t frowsize = ((info.BitCount * width + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
     AlignedBuffer<32> buffer(frowsize);
@@ -209,24 +209,24 @@ BmpWriter::BmpWriter(FileObject& file) : ImgFile(file)
 
 void BmpWriter::Write(const Image& image)
 {
-    if (image.Width > INT32_MAX || image.Height > INT32_MAX)
+    if (image.GetWidth() > INT32_MAX || image.GetHeight() > INT32_MAX)
         return;
-    if (HAS_FIELD(image.DataType, ImageDataType::FLOAT_MASK))
+    if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         return;
-    if (image.DataType == ImageDataType::GA)
+    if (image.GetDataType() == ImageDataType::GA)
         return;
 
-    const bool isInputBGR = REMOVE_MASK(image.DataType, ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
-    const bool needAlpha = HAS_FIELD(image.DataType, ImageDataType::ALPHA_MASK);
+    const bool isInputBGR = REMOVE_MASK(image.GetDataType(), ImageDataType::FLOAT_MASK, ImageDataType::ALPHA_MASK) == ImageDataType::BGR;
+    const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
 
     auto header = convert::EmptyStruct<detail::BmpHeader>();
     header.Sig[0] = 'B', header.Sig[1] = 'M';
     convert::DWordToLE(header.Offset, detail::BMP_HEADER_SIZE + detail::BMP_INFO_SIZE);
     auto info = convert::EmptyStruct<detail::BmpInfo>();
     info.Size = static_cast<uint32_t>(detail::BMP_INFO_SIZE);
-    convert::DWordToLE(info.Width, image.Width); convert::DWordToLE(info.Height, -static_cast<int32_t>(image.Height));
+    convert::DWordToLE(info.Width, image.GetWidth()); convert::DWordToLE(info.Height, -static_cast<int32_t>(image.GetHeight()));
     info.Planes = 1;
-    info.BitCount = image.ElementSize * 8;
+    info.BitCount = image.GetElementSize() * 8;
     info.Compression = 0;
 
     ImgFile.Write(header);
@@ -234,7 +234,7 @@ void BmpWriter::Write(const Image& image)
     SimpleTimer timer;
     timer.Start();
 
-    const size_t frowsize = ((info.BitCount * image.Width + 31) / 32) * 4;
+    const size_t frowsize = ((info.BitCount * image.GetWidth() + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
     
     if (image.isGray())//must be ImageDataType::Gray only
@@ -247,7 +247,7 @@ void BmpWriter::Write(const Image& image)
             const byte* __restrict imgptr = image.GetRawPtr();
             const uint8_t empty[4] = { 0 };
             const size_t padding = frowsize - irowsize;
-            for (uint32_t i = 0; i < image.Height; ++i)
+            for (uint32_t i = 0; i < image.GetHeight(); ++i)
             {
                 ImgFile.Write(irowsize, imgptr);
                 ImgFile.Write(padding, empty);
@@ -260,19 +260,19 @@ void BmpWriter::Write(const Image& image)
     {
         AlignedBuffer<32> buffer(frowsize);
         byte* __restrict const bufptr = buffer.GetRawPtr();
-        for (uint32_t i = 0; i < image.Height; ++i)
+        for (uint32_t i = 0; i < image.GetHeight(); ++i)
         {
             auto rowptr = image.GetRawPtr(i);
             if (isInputBGR)
                 ImgFile.Write(frowsize, rowptr);
             else if(needAlpha)
             {
-                convert::BGRAsToRGBAs(bufptr, rowptr, image.Width);
+                convert::BGRAsToRGBAs(bufptr, rowptr, image.GetWidth());
                 ImgFile.Write(frowsize, bufptr);
             }
             else
             {
-                convert::BGRsToRGBs(bufptr, rowptr, image.Width);
+                convert::BGRsToRGBs(bufptr, rowptr, image.GetWidth());
                 ImgFile.Write(frowsize, bufptr);
             }
         }
@@ -285,5 +285,7 @@ void BmpWriter::Write(const Image& image)
 BmpSupport::BmpSupport() : ImgSupport(u"Bmp")
 {
 }
+
+static auto DUMMY = RegistImageSupport<BmpSupport>();
 
 }

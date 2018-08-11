@@ -10,8 +10,13 @@
 # endif
 # define StrText(x) L ##x
 #else
-# define COMMONAPI 
-# define COMMONTPL 
+# ifdef COMMON_EXPORT
+#   define COMMONAPI __attribute__((visibility("default")))
+#   define COMMONTPL __attribute__((visibility("default")))
+# else
+#   define COMMONAPI 
+#   define COMMONTPL
+# endif
 # define StrText(x) x
 #endif
 

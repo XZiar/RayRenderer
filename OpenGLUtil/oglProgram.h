@@ -83,7 +83,7 @@ namespace detail
 {
 
 
-class OGLUAPI alignas(32) _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
+class OGLUAPI _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
 {
     friend class TextureManager;
     friend class UBOManager;

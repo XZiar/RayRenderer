@@ -5,7 +5,7 @@
 
 * ImageUtil
   - [ ] Add memory input/output
-  - [ ] Make Image mutable
+  - [x] Make Image mutable
   - [ ] Add stb as fallback handler
   - [ ] Add more format suppprt
 

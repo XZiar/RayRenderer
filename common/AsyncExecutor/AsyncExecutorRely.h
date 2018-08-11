@@ -8,7 +8,12 @@
 #   define ASYEXEAPI _declspec(dllimport)
 # endif
 #else
-# define ASYEXEAPI
+# ifdef ASYEXE_EXPORT
+#   define ASYEXEAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define ASYEXEAPI
+# endif
 #endif
 
 

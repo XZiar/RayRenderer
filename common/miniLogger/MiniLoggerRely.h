@@ -8,7 +8,12 @@
 #   define MINILOGAPI _declspec(dllimport)
 # endif
 #else
-# define MINILOGAPI
+# ifdef MINILOG_EXPORT
+#   define MINILOGAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define MINILOGAPI
+# endif
 #endif
 
 

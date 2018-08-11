@@ -13,9 +13,9 @@ namespace oglu::texutil
 
 static void CheckImgSize(const Image& img)
 {
-    if (img.Width % 4 != 0 || img.Height % 4 != 0)
+    if (img.GetWidth() % 4 != 0 || img.GetHeight() % 4 != 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a size of multiple of 4.");
-    if (img.Width == 0 || img.Height == 0)
+    if (img.GetWidth() == 0 || img.GetHeight() == 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a non-zero size.");
 }
 
@@ -43,7 +43,7 @@ common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerForm
     }
     timer.Stop();
     texLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",
-        img.Width, img.Height, oglu::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
+        img.GetWidth(), img.GetHeight(), oglu::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
     return result;
 }
 
@@ -52,7 +52,7 @@ common::PromiseResult<oglTex2DV> CompressToTex(const Image& img, const TextureIn
     auto buffer = CompressToDat(img, format, needAlpha);
     const auto pms = std::make_shared<std::promise<oglTex2DV>>();
     auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DV, true>>(*pms);
-    oglUtil::invokeSyncGL([buf = std::move(buffer), w=img.Width, h=img.Height, iformat = format, pms](const auto& agent)
+    oglUtil::invokeSyncGL([buf = std::move(buffer), w=img.GetWidth(), h=img.GetHeight(), iformat = format, pms](const auto& agent)
     {
         oglTex2DS tex(w, h, iformat);
         tex->SetCompressedData(buf.GetRawPtr(), buf.GetSize());

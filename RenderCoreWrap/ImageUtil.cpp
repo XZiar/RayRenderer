@@ -65,13 +65,13 @@ void ImageUtil::WriteImage(const xziar::img::Image& image, String^ filePath)
 BitmapSource^ ImageUtil::Convert(const xziar::img::Image& image)
 {
     BitmapSource^ bmp = nullptr;
-    if (const auto pf = ConvertFormat(image.DataType); pf != PixelFormats::Default)
-        return BitmapSource::Create(image.Width, image.Height, 96, 96, pf, nullptr,
-            IntPtr(const_cast<std::byte*>(image.GetRawPtr())), (int)image.GetSize(), image.ElementSize * image.Width);
+    if (const auto pf = ConvertFormat(image.GetDataType()); pf != PixelFormats::Default)
+        return BitmapSource::Create(image.GetWidth(), image.GetHeight(), 96, 96, pf, nullptr,
+            IntPtr(const_cast<std::byte*>(image.GetRawPtr())), (int)image.GetSize(), (int)image.RowSize());
     else
     {
         std::unique_ptr<Image> newimg;
-        switch (image.DataType)
+        switch (image.GetDataType())
         {
         case ImageDataType::RGBA:   newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
         case ImageDataType::GA:     newimg = std::make_unique<Image>(image.ConvertTo(ImageDataType::BGRA)); break;
@@ -79,8 +79,8 @@ BitmapSource^ ImageUtil::Convert(const xziar::img::Image& image)
         }
         if (!newimg)
             return nullptr;
-        return BitmapSource::Create(newimg->Width, newimg->Height, 96, 96, ConvertFormat(newimg->DataType), nullptr,
-            IntPtr(newimg->GetRawPtr()), (int)newimg->GetSize(), newimg->ElementSize * newimg->Width);
+        return BitmapSource::Create(newimg->GetWidth(), newimg->GetHeight(), 96, 96, ConvertFormat(newimg->GetDataType()), nullptr,
+            IntPtr(newimg->GetRawPtr()), (int)newimg->GetSize(), (int)newimg->RowSize());
     }
 }
 
@@ -91,7 +91,7 @@ Image ImageUtil::Convert(BitmapSource^ image)
     {
         Image ret(dt);
         ret.Resize(image->PixelWidth, image->PixelHeight);
-        image->CopyPixels(Windows::Int32Rect::Empty, IntPtr(ret.GetRawPtr()), (int)ret.GetSize(), ret.ElementSize * ret.Width);
+        image->CopyPixels(Windows::Int32Rect::Empty, IntPtr(ret.GetRawPtr()), (int)ret.GetSize(), (int)ret.RowSize());
         return ret;
     }
 
