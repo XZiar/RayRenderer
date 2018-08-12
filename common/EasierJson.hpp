@@ -1,13 +1,25 @@
 #pragma once
-#include "ResourcePackagerRely.h"
+#include "common/CommonRely.hpp"
+#include "common/Exceptions.hpp"
+#include "common/FileEx.hpp"
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <string_view>
 #include "3rdParty/rapidjson/document.h"
 #include "3rdParty/rapidjson/encodings.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/prettywriter.h"
 
-namespace xziar::respak::ejson
+namespace xziar::ejson
 {
+using common::NonCopyable;
+using common::BaseException;
+using std::string;
+using std::string_view;
+
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 class JComplexType;
 class JDoc;

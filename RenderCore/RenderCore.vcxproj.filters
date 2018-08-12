@@ -84,6 +84,9 @@
     <ClInclude Include="ThumbnailManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -128,6 +131,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ThumbnailManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -26,10 +26,10 @@ internal:
 public ref class Camera : BaseViewModel
 {
 internal:
-    b3d::Camera *cam;
+    rayr::Camera *cam;
     bool isRef = false;
 internal:
-    Camera(b3d::Camera *obj) :cam(obj), isRef(true) { }
+    Camera(rayr::Camera *obj) :cam(obj), isRef(true) { }
 public:
     ~Camera() { this->!Camera(); }
     !Camera()
@@ -40,23 +40,23 @@ public:
 
     property int Width
     {
-        int get() { return cam->width; }
-        void set(int value) { cam->width = value; }
+        int get() { return cam->Width; }
+        void set(int value) { cam->Width = value; }
     }
     property int Height
     {
-        int get() { return cam->height; }
-        void set(int value) { cam->height = value; }
+        int get() { return cam->Height; }
+        void set(int value) { cam->Height = value; }
     }
     property Vec3F Position
     {
-        Vec3F get() { return Vec3F(cam->position); }
-        void set(Vec3F value) { value.Store(cam->position); OnPropertyChanged("Position"); }
+        Vec3F get() { return Vec3F(cam->Position); }
+        void set(Vec3F value) { value.Store(cam->Position); OnPropertyChanged("Position"); }
     }
     property Vec3F Direction
     {
-        Vec3F get() { return Vec3F(cam->rotation); }
-        void set(Vec3F value) { value.Store(cam->rotation); OnPropertyChanged("Direction"); }
+        Vec3F get() { return Vec3F(cam->Rotation); }
+        void set(Vec3F value) { value.Store(cam->Rotation); OnPropertyChanged("Direction"); }
     }
 
     void Move(const float dx, const float dy, const float dz)
@@ -67,19 +67,19 @@ public:
     //rotate along x-axis, radius
     void Pitch(const float radx)
     {
-        cam->pitch(radx);
+        cam->Pitch(radx);
         OnPropertyChanged("Direction");
     }
     //rotate along y-axis, radius
     void Yaw(const float rady)
     {
-        cam->yaw(rady);
+        cam->Yaw(rady);
         OnPropertyChanged("Direction");
     }
     //rotate along z-axis, radius
     void Roll(const float radz)
     {
-        cam->roll(radz);
+        cam->Roll(radz);
         OnPropertyChanged("Direction");
     }
     void Rotate(const float dx, const float dy, const float dz)

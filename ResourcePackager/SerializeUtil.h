@@ -1,6 +1,6 @@
 #pragma once
 #include "ResourcePackagerRely.h"
-#include "EasierJson.hpp"
+#include "common/EasierJson.hpp"
 
 namespace xziar::respak
 {
@@ -38,13 +38,13 @@ protected:
 };
 
 #define RESPAK_OVERRIDE_TYPE(type) static constexpr auto SERIALIZE_TYPE = type; \
-    static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::respak::ejson::JObjectRef<true>& object); \
+    static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::ejson::JObjectRef<true>& object); \
     virtual ::std::string_view SerializedType() const override { return SERIALIZE_TYPE; }
 #define RESPAK_REGIST_DESERIALZER(type) namespace \
     { \
         const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::DoDeserialize); \
     }
-#define RESPAK_DESERIALIZER(type) ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::respak::ejson::JObjectRef<true>& object)
+#define RESPAK_DESERIALIZER(type) ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object)
 
 class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
 {
@@ -66,6 +66,7 @@ private:
     ejson::JObject Serialize(const Serializable& object);
     void CheckFinished() const;
 public:
+    ejson::JObjectRef<false> Root;
     bool IsPretty = false;
     SerializeUtil(const fs::path& fileName);
     ~SerializeUtil();
@@ -92,8 +93,10 @@ public:
     string LookupObject(const Serializable& object) const;
     //add object to an object, bypassing filter
     void AddObject(ejson::JObject& target, const string& name, const Serializable& object);
+    void AddObject(ejson::JObjectRef<false>& target, const string& name, const Serializable& object);
     //add object to an array, bypassing filter
     void AddObject(ejson::JArray& target, const Serializable& object);
+    void AddObject(ejson::JArrayRef<false>& target, const Serializable& object);
 
     string PutResource(const void* data, const size_t size, const string& id = "");
     string LookupResource(const string& id) const;

@@ -48,7 +48,7 @@ namespace rayr
 {
 namespace str = common::str;
 namespace fs = common::fs;
-namespace ejson = xziar::respak::ejson;
+namespace ejson = xziar::ejson;
 using std::byte;
 using std::wstring;
 using std::string;
@@ -80,26 +80,26 @@ namespace detail
 class ThumbnailManager;
 
 template<typename T>
-forceinline ejson::JArray ToJArray(T& handle, const b3d::Vec3& vec)
+forceinline ejson::JArray ToJArray(T& handle, const miniBLAS::Vec3& vec)
 {
     auto ret = handle.NewArray();
     ret.Push(vec.x, vec.y, vec.z);
     return ret;
 }
 template<typename T>
-forceinline ejson::JArray ToJArray(T& handle, const b3d::Vec4& vec)
+forceinline ejson::JArray ToJArray(T& handle, const miniBLAS::Vec4& vec)
 {
     auto ret = handle.NewArray();
     ret.Push(vec.x, vec.y, vec.z, vec.w);
     return ret;
 }
 template<typename T>
-forceinline void FromJArray(const T& jarray, b3d::Vec3& vec)
+forceinline void FromJArray(const T& jarray, miniBLAS::Vec3& vec)
 {
     jarray.TryGetMany(0, vec.x, vec.y, vec.z);
 }
 template<typename T>
-forceinline void FromJArray(const T& jarray, b3d::Vec4& vec)
+forceinline void FromJArray(const T& jarray, miniBLAS::Vec4& vec)
 {
     jarray.TryGetMany(0, vec.x, vec.y, vec.z, vec.w);
 }

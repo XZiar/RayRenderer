@@ -167,8 +167,8 @@ public:
     const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     ProgState State() noexcept;
-    void SetProject(const Camera &);
-    void SetCamera(const Camera &);
+    void SetProject(const Mat4x4 &);
+    void SetView(const Mat4x4 &);
 
     ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;

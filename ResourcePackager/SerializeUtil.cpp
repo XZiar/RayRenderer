@@ -35,7 +35,8 @@ uint64_t ResourceItem::GetSize() const
 
 SerializeUtil::SerializeUtil(const fs::path& fileName)
     : DocWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
-    ResWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536)
+    ResWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
+    Root(DocRoot)
 {
     auto config = DocRoot.NewObject();
     config.Add("identity", "xziar-respak");
@@ -116,8 +117,19 @@ void SerializeUtil::AddObject(ejson::JObject& target, const string & name, const
     CheckName(name);
     target.Add(name, Serialize(object));
 }
+void SerializeUtil::AddObject(ejson::JObjectRef<false>& target, const string & name, const Serializable & object)
+{
+    CheckFinished();
+    CheckName(name);
+    target.Add(name, Serialize(object));
+}
 
-void SerializeUtil::AddObject(ejson::JArray & target, const Serializable & object)
+void SerializeUtil::AddObject(ejson::JArray& target, const Serializable & object)
+{
+    CheckFinished();
+    target.Push(Serialize(object));
+}
+void SerializeUtil::AddObject(ejson::JArrayRef<false>& target, const Serializable & object)
 {
     CheckFinished();
     target.Push(Serialize(object));

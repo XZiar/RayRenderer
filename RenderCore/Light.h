@@ -8,7 +8,7 @@ namespace rayr
 
 enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
-struct RAYCOREAPI alignas(b3d::Vec4) LightData : public common::AlignBase<alignof(b3d::Vec4)>
+struct RAYCOREAPI LightData : public common::AlignBase<alignof(b3d::Vec4)>
 {
     b3d::Vec4 color = b3d::Vec4::one();
     b3d::Vec3 position = b3d::Vec3::zero();

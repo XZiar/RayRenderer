@@ -17,14 +17,15 @@ namespace XZiar.Util
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
-            var handler = PropertyChanged;
-            if (handler == null)
-                return;
-            var arg = new PropertyChangedEventArgs(propertyName);
-            if (SynchronizationContext.Current == SyncContext)
-                handler(this, arg);
-            else
-                SyncContext.Post(x => handler(this, arg), null);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            //var handler = PropertyChanged;
+            //if (handler == null)
+            //    return;
+            //var arg = new PropertyChangedEventArgs(propertyName);
+            //if (SynchronizationContext.Current == SyncContext)
+            //    handler(this, arg);
+            //else
+            //    SyncContext.Post(x => handler(this, arg), null);
         }
     }
 

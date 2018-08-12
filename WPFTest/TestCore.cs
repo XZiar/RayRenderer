@@ -57,6 +57,7 @@ namespace WPFTest
             }
             internal void Refresh()
             {
+                Holder.Refresh();
                 OnCollectionChanged();
                 CurLgtIdx = 0;
             }
@@ -181,6 +182,11 @@ namespace WPFTest
         public void Save(string fname)
         {
             Test.Serialize(fname);
+        }
+
+        public void Load(string fname)
+        {
+            Test.DeSerialize(fname);
             Lights.Refresh();
         }
 

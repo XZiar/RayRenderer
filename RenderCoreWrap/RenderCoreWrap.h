@@ -254,6 +254,7 @@ public:
 
     Action<String^>^ Screenshot();
     void Serialize(String^ fname);
+    void DeSerialize(String^ fname);
 };
 
 

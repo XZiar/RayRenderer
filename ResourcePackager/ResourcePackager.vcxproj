@@ -161,7 +161,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="EasierJson.hpp" />
     <ClInclude Include="ResourcePackagerRely.h" />
     <ClInclude Include="ResourceUtil.h" />
     <ClInclude Include="SerializeUtil.h" />

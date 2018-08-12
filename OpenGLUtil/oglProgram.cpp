@@ -445,56 +445,16 @@ GLint _oglProgram::GetLoc(const string& name) const
     return GL_INVALID_INDEX;
 }
 
-void _oglProgram::SetProject(const Camera& cam)
+void _oglProgram::SetProject(const Mat4x4& projMat)
 {
-    //glViewport((wdWidth & 0x3f) / 2, (wdHeight & 0x3f) / 2, cam.width & 0xffc0, cam.height & 0xffc0);
-    //assert(cam.aspect > std::numeric_limits<float>::epsilon());
-    if (cam.aspect <= std::numeric_limits<float>::epsilon())
-        return;
-    const float cotHalfFovy = 1 / std::tan(b3d::ang2rad(cam.fovy / 2));
-
-    //reverse-z with infinite far
-    matrix_Proj = Mat4x4
-    {
-        { cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f },
-        { 0.f, cotHalfFovy, 0.f, 0.f },
-        { 0.f, 0.f, 0.f, cam.zNear },
-        { 0.f, 0.f, -1.0f, 0.f }
-    };
-    //(0,0,1,1)->(0,0,near,-1),(0,0,-1,1)->(0,0,near,1)
-
-    //const float viewDepthR = 1 / (cam.zFar - cam.zNear);
-    //*   cot(fovy/2)
-    //*  -------------		0		   0			0
-    //*     aspect
-    //*
-    //*       0         cot(fovy/2)	   0			0
-    //*
-    //*								  F+N         2*F*N
-    //*       0              0		 -----	   - -------
-    //*								  F-N          F-N
-    //*
-    //*       0              0           1			0
-    //*
-    //*/
-    //matrix_Proj = Mat4x4(Vec4(cotHalfFovy / cam.aspect, 0.f, 0.f, 0.f),
-    //    Vec4(0.f, cotHalfFovy, 0.f, 0.f),
-    //    Vec4(0.f, 0.f, (cam.zFar + cam.zNear) * viewDepthR, (-2 * cam.zFar * cam.zNear) * viewDepthR),
-    //    Vec4(0.f, 0.f, 1.f, 0.f));
-
+    matrix_Proj = projMat;
     SetUniform(Uni_projMat, matrix_Proj);
 }
 
-void _oglProgram::SetCamera(const Camera & cam)
+void _oglProgram::SetView(const Mat4x4 & viewMat)
 {
-    //LookAt
-    //matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
-    const auto rMat = cam.CamMat.inv();
-    matrix_View = Mat4x4::TranslateMat(cam.position * -1, rMat);
-
+    matrix_View = viewMat;
     SetUniform(Uni_viewMat, matrix_View);
-    if (Uni_camPos != (GLint)GL_INVALID_INDEX)
-        glProgramUniform3fv(programID, Uni_camPos, 1, cam.position);
 }
 
 ProgDraw _oglProgram::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept

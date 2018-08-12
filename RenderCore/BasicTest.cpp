@@ -1,7 +1,6 @@
 ﻿#include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
-//#include "TextureUtil/TexCompressor.h"
 #include <thread>
 #include <future>
 
@@ -90,7 +89,7 @@ void BasicTest::init2d(const fs::path& shaderPath)
 
 void BasicTest::init3d(const fs::path& shaderPath)
 {
-    cam.position = Vec3(0.0f, 0.0f, 4.0f);
+    cam.Position = Vec3(0.0f, 0.0f, 4.0f);
     {
         oglProgram progBasic(u"3D Prog");
         const string shaderSrc = LoadShaderFallback(shaderPath / u"3d.glsl", IDR_SHADER_3D);
@@ -105,7 +104,8 @@ void BasicTest::init3d(const fs::path& shaderPath)
             COMMON_THROW(BaseException, u"3D OpenGL shader fail");
         }
         progBasic->State().SetSubroutine("lighter", "tex0").SetSubroutine("getNorm", "vertedNormal");
-        progBasic->SetCamera(cam);
+        progBasic->SetView(cam.GetView());
+        progBasic->SetVec("vecCamPos", cam.Position);
         Prog3Ds.insert(progBasic);
     }
     {
@@ -125,7 +125,8 @@ void BasicTest::init3d(const fs::path& shaderPath)
             .SetSubroutine("lighter", "albedoOnly")
             .SetSubroutine("getNorm", "bothNormal")
             .SetSubroutine("getAlbedo", "bothAlbedo");
-        progPBR->SetCamera(cam);
+        progPBR->SetView(cam.GetView());
+        progPBR->SetVec("vecCamPos", cam.Position);
         Prog3Ds.insert(progPBR);
         prog3D = progPBR;
     }
@@ -243,13 +244,14 @@ void BasicTest::fontTest(const char32_t word)
     }
 }
 
-BasicTest::BasicTest(const fs::path& shaderPath) : cam(1280, 720)
+BasicTest::BasicTest(const fs::path& shaderPath)
 {
     static Init _init;
     glContext = oglu::oglContext::CurrentContext();
     ThumbMan.reset(glContext);
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
+    cam.Resize(1280, 720);
     cam.zNear = 0.01f;
     fontViewer.reset();
     fontCreator.reset(oclu::Vendor::Intel);
@@ -301,7 +303,8 @@ void BasicTest::Draw()
     {
         glContext->SetSRGBFBO(true);
         glContext->SetFBO();
-        prog3D->SetCamera(cam);
+        prog3D->SetView(cam.GetView());
+        prog3D->SetVec("vecCamPos", cam.Position);
         auto drawcall = prog3D->Draw();
         for (const auto& d : drawables)
         {
@@ -313,13 +316,14 @@ void BasicTest::Draw()
     }
     else
     {
-        const auto ow = cam.width, oh = cam.height;
+        const auto ow = cam.Width, oh = cam.Height;
         const auto[w, h] = fboTex->GetSize();
         glContext->SetFBO(MiddleFrame);
         glContext->SetSRGBFBO(false);
         glContext->ClearFBO();
         Resize(w, h, false);
-        prog3D->SetCamera(cam);
+        prog3D->SetView(cam.GetView());
+        prog3D->SetVec("vecCamPos", cam.Position);
         {
             auto drawcall = prog3D->Draw();
             for (const auto& d : drawables)
@@ -345,8 +349,8 @@ void BasicTest::Draw()
 void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWindow)
 {
     glContext->SetViewPort(0, 0, w, h);
-    cam.resize(w, h);
-    prog3D->SetProject(cam);
+    cam.Resize(w, h);
+    prog3D->SetProject(cam.GetProjection());
     if (changeWindow)
         WindowWidth = w, WindowHeight = h;
 }
@@ -501,8 +505,8 @@ void BasicTest::ChangeShader(const oglProgram& prog)
     if (Prog3Ds.count(prog))
     {
         prog3D = prog;
-        prog3D->SetProject(cam);
-        prog3D->SetCamera(cam);
+        prog3D->SetProject(cam.GetProjection());
+        prog3D->SetView(cam.GetView());
         prepareLight();
     }
     else
@@ -567,6 +571,7 @@ void BasicTest::Serialize(const fs::path & fpath) const
             jprogs.Push(SerializeGLProg(prog, serializer));
         serializer.AddObject("shaders", jprogs);
     }
+    serializer.AddObject(serializer.Root, "camera", cam);
     serializer.Finish();
 }
 
@@ -581,6 +586,7 @@ void BasicTest::DeSerialize(const fs::path & fpath)
             const ejson::JObjectRef<true> jlgt(ele);
             lights.push_back(deserializer.DeserializeShare<Light>(jlgt));
         }
+        ReportChanged(ChangableUBO::Light);
     }
     {
         //drawables.clear();
@@ -592,6 +598,7 @@ void BasicTest::DeSerialize(const fs::path & fpath)
             //drawables.push_back(deserializer.DeserializeShare<Drawable>(jdrw));
         }
     }
+    Camera cam0 = *deserializer.Deserialize<Camera>(deserializer.Root.GetObject("camera"));
 }
 
 }

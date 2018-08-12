@@ -22,6 +22,7 @@ using System.Windows.Threading;
 using System.Threading;
 using OpenGLUtil;
 using System.ComponentModel;
+using System.Windows.Input;
 
 namespace WPFTest
 {
@@ -434,9 +435,9 @@ namespace WPFTest
             switch (e.Type)
             {
                 case MouseEventType.Moving:
-                    if (e.Button.HasFlag(MouseButton.Left))
+                    if (e.Button.HasFlag(OpenGLView.MouseButton.Left))
                         Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
-                    else if (e.Button.HasFlag(MouseButton.Right))
+                    else if (e.Button.HasFlag(OpenGLView.MouseButton.Right))
                         Core.Rotate((e.dy * MouseSensative / Core.Test.Camera.Height), (e.dx * -MouseSensative / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
                     break;
                 case MouseEventType.Wheel:
@@ -471,7 +472,7 @@ namespace WPFTest
             WaitingCount++;
             var saver = Core.Test.Screenshot();
             string fname;
-            if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 var dlg = new SaveFileDialog()
                 {
@@ -504,30 +505,62 @@ namespace WPFTest
 
         private void btnSave_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new SaveFileDialog()
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
-                Filter = "xziar package (*.xzrp)|*.xzrp",
-                Title = "导出场景数据",
-                AddExtension = true,
-                OverwritePrompt = true,
-                CheckPathExists = true,
-                ValidateNames = true,
-            };
-            if (dlg.ShowDialog() != true)
-                return;
-            try
-            {
-                WaitingCount++;
-                Core.Save(dlg.FileName);
+                var dlg = new OpenFileDialog()
+                {
+                    Filter = "xziar package (*.xzrp)|*.xzrp",
+                    Title = "导入场景数据",
+                    AddExtension = true,
+                    CheckFileExists = true,
+                    CheckPathExists = true,
+                    Multiselect = false,
+                    ValidateNames = true,
+                };
+                if (dlg.ShowDialog() != true)
+                    return;
+                try
+                {
+                    WaitingCount++;
+                    Core.Load(dlg.FileName);
+                }
+                catch (Exception ex)
+                {
+                    new TextDialog(ex).ShowDialog();
+                }
+                finally
+                {
+                    WaitingCount--;
+                }
             }
-            catch (Exception ex)
+            else
             {
-                new TextDialog(ex).ShowDialog();
+                var dlg = new SaveFileDialog()
+                {
+                    Filter = "xziar package (*.xzrp)|*.xzrp",
+                    Title = "导出场景数据",
+                    AddExtension = true,
+                    OverwritePrompt = true,
+                    CheckPathExists = true,
+                    ValidateNames = true,
+                };
+                if (dlg.ShowDialog() != true)
+                    return;
+                try
+                {
+                    WaitingCount++;
+                    Core.Save(dlg.FileName);
+                }
+                catch (Exception ex)
+                {
+                    new TextDialog(ex).ShowDialog();
+                }
+                finally
+                {
+                    WaitingCount--;
+                }
             }
-            finally
-            {
-                WaitingCount--;
-            }
+            glMain.Invalidate();
         }
 
         private void btnUseShader_Click(object sender, RoutedEventArgs e)

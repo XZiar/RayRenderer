@@ -47,6 +47,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\CPPAsync.cpp = common\CPPAsync.cpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
+		common\EasierJson.hpp = common\EasierJson.hpp
 		common\Exceptions.hpp = common\Exceptions.hpp
 		common\Exceptions.natvis = common\Exceptions.natvis
 		common\FileEx.hpp = common\FileEx.hpp

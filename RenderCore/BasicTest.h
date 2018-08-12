@@ -4,6 +4,7 @@
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.h"
+#include "Camera.h"
 #include "Material.h"
 #include "FontHelper/FontHelper.h"
 #include "ThumbnailManager.h"

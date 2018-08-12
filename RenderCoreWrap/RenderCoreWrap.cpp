@@ -174,8 +174,11 @@ Action<String^>^ BasicTest::Screenshot()
 void BasicTest::Serialize(String^ fname)
 {
     core->Serialize(ToU16Str(fname));
+}
+
+void BasicTest::DeSerialize(String^ fname)
+{
     core->DeSerialize(ToU16Str(fname));
-    Lights->Refresh();
 }
 
 
