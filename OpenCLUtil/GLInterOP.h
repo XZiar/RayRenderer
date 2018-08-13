@@ -12,21 +12,21 @@ class OCLUAPI GLInterOP
 protected:
     static cl_mem CreateMemFromGLBuf(const cl_context ctx, const cl_mem_flags flag, const GLuint bufId);
     static cl_mem CreateMemFromGLTex(const cl_context ctx, const cl_mem_flags flag, const cl_GLenum texType, const GLuint texId);
-    void Lock(const cl_command_queue que, const cl_mem mem) const;
-    void Unlock(const cl_command_queue que, const cl_mem mem) const;
+    void Lock(const cl_command_queue que, const cl_mem mem, const bool needSync = true) const;
+    void Unlock(const cl_command_queue que, const cl_mem mem, const bool needSync = true) const;
 };
 template<typename Child>
-class OCLUAPI GLShared : protected GLInterOP
+class COMMONTPL GLShared : protected GLInterOP
 {
 protected:
 public:
     void Lock(const oclCmdQue& que) const
     {
-        Lock(que->cmdque, static_cast<const Child*>(this)->memID);
+        GLInterOP::Lock(que->cmdque, static_cast<const Child*>(this)->memID, !que->SupportImplicitGLSync());
     }
     void Unlock(const oclCmdQue& que) const
     {
-        Unlock(que->cmdque, static_cast<const Child*>(this)->memID);
+        GLInterOP::Unlock(que->cmdque, static_cast<const Child*>(this)->memID, !que->SupportImplicitGLSync());
     }
 };
 

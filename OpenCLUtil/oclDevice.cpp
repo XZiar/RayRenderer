@@ -55,6 +55,7 @@ _oclDevice::_oclDevice(const cl_device_id dID)
     GlobalCacheSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)), GlobalCacheLine(GetNum<uint32_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)),
     SupportProfiling((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_PROFILING_ENABLE) != 0),
     SupportOutOfOrder((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0),
+    SupportImplicitGLSync(GetStr(dID, CL_DEVICE_EXTENSIONS).find(u"cl_khr_gl_sharing") != u16string::npos),
     Type(GetDevType(deviceID)) { }
 
 using namespace std::literals;

@@ -30,7 +30,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             const auto& tex = std::get<oglTex2D>(holder);
             const auto&[needResize, neww, newh] = CalcSize(tex->GetSize());
             if (needResize)
-                return GlResizer->ResizeToDat(tex, neww, newh, ImageDataType::RGB);
+                return ClResizer->ResizeToDat(tex, neww, newh, ImageDataType::RGB);
             else
                 ThumbnailMap.emplace(weakref, std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
         }
@@ -41,7 +41,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             const std::pair<uint32_t, uint32_t> imgSize{ fakeTex->Width, fakeTex->Height };
             const auto&[needResize, neww, newh] = CalcSize(imgSize);
             if (needResize)
-                return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+                return ClResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
             else
             {
                 std::shared_ptr<Image> img;

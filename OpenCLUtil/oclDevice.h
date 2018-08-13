@@ -27,7 +27,7 @@ private:
 public:
     const u16string Name, Vendor, Version;
     const uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
-    const bool SupportProfiling, SupportOutOfOrder;
+    const bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     const DeviceType Type;
     static u16string_view GetDeviceTypeName(const DeviceType type);
 };

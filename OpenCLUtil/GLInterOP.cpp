@@ -25,17 +25,19 @@ cl_mem GLInterOP::CreateMemFromGLTex(const cl_context ctx, const cl_mem_flags fl
     return id;
 }
 
-void GLInterOP::Lock(const cl_command_queue que, const cl_mem mem) const
+void GLInterOP::Lock(const cl_command_queue que, const cl_mem mem, const bool needSync) const
 {
-    glFlush();
+    if (needSync)
+        glFinish();
     cl_int ret = clEnqueueAcquireGLObjects(que, 1, &mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot lock oglObject for oclMemObject", ret));
 }
 
-void GLInterOP::Unlock(const cl_command_queue que, const cl_mem mem) const
+void GLInterOP::Unlock(const cl_command_queue que, const cl_mem mem, const bool needSync) const
 {
-    clFlush(que);
+    if (needSync)
+        clFlush(que); // assume promise is correctly waited before relase lock
     cl_int ret = clEnqueueReleaseGLObjects(que, 1, &mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot unlock oglObject for oclMemObject", ret));

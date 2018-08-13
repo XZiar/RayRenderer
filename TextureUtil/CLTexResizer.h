@@ -13,9 +13,14 @@ private:
     oclu::oclContext CLContext;
     oclu::oclCmdQue ComQue;
     oclu::oclKernel KernelResizer;
+    common::PromiseResult<Image> ResizeToDat(const oclu::oclImage& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
 public:
     CLTexResizer(const oglContext& glContext);
     ~CLTexResizer();
+    //require in the shared context
+    common::PromiseResult<Image> ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
+    common::PromiseResult<Image> ResizeToDat(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
+
 };
 
 

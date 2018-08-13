@@ -28,7 +28,7 @@ private:
 public:
     static constexpr std::tuple<bool, uint32_t, uint32_t> CalcSize(const std::pair<uint32_t, uint32_t>& size)
     {
-        constexpr uint32_t thredshold = 128;
+        constexpr uint32_t thredshold = 64;
         const auto larger = std::max(size.first, size.second);
         if (larger <= thredshold)
             return { false, 0,0 };

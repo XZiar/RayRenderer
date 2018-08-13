@@ -66,7 +66,7 @@ oclPromise _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, 
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
+        return std::make_shared<oclPromise_>(oclPromise_(e, que->cmdque));
 }
 
 oclPromise _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
@@ -82,7 +82,7 @@ oclPromise _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
+        return std::make_shared<oclPromise_>(oclPromise_(e, que->cmdque));
 }
 
 

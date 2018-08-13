@@ -8,6 +8,12 @@ namespace oclu
 
 namespace detail
 {
+
+oclPromise_::oclPromise_(const cl_event e, const cl_command_queue que) : eventPoint(e)
+{
+    clFlush(que);
+}
+
 oclPromise_::oclPromise_(oclPromise_ &&other)
 {
     eventPoint = other.eventPoint;
@@ -16,7 +22,8 @@ oclPromise_::oclPromise_(oclPromise_ &&other)
 
 oclPromise_::~oclPromise_()
 {
-    clReleaseEvent(eventPoint);
+    if (eventPoint)
+        clReleaseEvent(eventPoint);
 }
 
 common::PromiseState oclPromise_::state()

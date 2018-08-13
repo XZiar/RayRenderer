@@ -29,6 +29,7 @@ public:
     ~_oclCmdQue();
     void Flush() const;
     void Finish() const;
+    bool SupportImplicitGLSync() const { return Device->SupportImplicitGLSync; }
 };
 
 

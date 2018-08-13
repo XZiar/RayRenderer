@@ -33,10 +33,12 @@ public:
     virtual ~_oclImage();
     oclPromise Read(const oclCmdQue que, Image& image, const bool shouldBlock = true) const;
     oclPromise Write(const oclCmdQue que, const Image& image, const bool shouldBlock = true) const;
+    oclPromise Write(const oclCmdQue que, const common::AlignedBuffer<32>& data, const bool shouldBlock = true) const;
 };
 
 class OCLUAPI _oclGLImage : public _oclImage, public GLShared<_oclGLImage>
 {
+    friend class GLShared<_oclGLImage>;
 private:
     const oglu::oglTex2D GlTex;
 public:

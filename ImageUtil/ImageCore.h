@@ -96,6 +96,11 @@ public:
         return pointers;
     }
 
+    const common::AlignedBuffer<32>& GetData() const
+    {
+        return *static_cast<const common::AlignedBuffer<32>*>(this);
+    }
+
     common::AlignedBuffer<32> ExtractData()
     {
         common::AlignedBuffer<32> data = std::move(*this);

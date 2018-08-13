@@ -97,12 +97,12 @@ ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noex
     const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
     switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
     {
-    case TextureDataFormat::R8:     return ImageDataType::RED  | isFloat;
-    case TextureDataFormat::RG8:    return ImageDataType::RA   | isFloat;
-    case TextureDataFormat::RGB8:   return ImageDataType::RGB  | isFloat;
-    case TextureDataFormat::RGBA8:  return ImageDataType::RGBA | isFloat;
-    case TextureDataFormat::BGR8:   return ImageDataType::BGR  | isFloat;
-    case TextureDataFormat::BGRA8:  return ImageDataType::BGRA | isFloat;
+    case TextureDataFormat::R_FORMAT:     return ImageDataType::RED  | isFloat;
+    case TextureDataFormat::RG_FORMAT:    return ImageDataType::RA   | isFloat;
+    case TextureDataFormat::RGB_FORMAT:   return ImageDataType::RGB  | isFloat;
+    case TextureDataFormat::RGBA_FORMAT:  return ImageDataType::RGBA | isFloat;
+    case TextureDataFormat::BGR_FORMAT:   return ImageDataType::BGR  | isFloat;
+    case TextureDataFormat::BGRA_FORMAT:  return ImageDataType::BGRA | isFloat;
     default:                        return isFloat;
     }
 }

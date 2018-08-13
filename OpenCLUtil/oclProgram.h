@@ -4,6 +4,7 @@
 #include "oclContext.h"
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
+#include "oclImage.h"
 #include "oclPromiseTask.h"
 
 
@@ -65,6 +66,7 @@ public:
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
     void SetArg(const uint32_t idx, const oclBuffer& buf);
+    void SetArg(const uint32_t idx, const oclImage& img);
     void SetArg(const uint32_t idx, const void *dat, const size_t size);
     template<class T, size_t N>
     void SetArg(const uint32_t idx, const T(&dat)[N])

@@ -68,7 +68,10 @@ static void OCLStub()
             }
             catch (OCLException& cle)
             {
-                log().error(u"Fail to build opencl Program:\n{}\n", cle.message);
+                u16string buildLog;
+                if (cle.data.has_value())
+                    buildLog = std::any_cast<u16string>(cle.data);
+                log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
                 COMMON_THROW(BaseException, u"build Program error");
             }
         }

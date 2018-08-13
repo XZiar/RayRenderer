@@ -14,8 +14,7 @@ class OCLUAPI oclPromise_ : public ::common::detail::PromiseResult_<void>
     friend class _oclKernel;
 protected:
     cl_event eventPoint = nullptr;
-    oclPromise_(const cl_event e) : eventPoint(e)
-    { }
+    oclPromise_(const cl_event e, const cl_command_queue que);
 public:
     oclPromise_(oclPromise_&&);
     ~oclPromise_() override;

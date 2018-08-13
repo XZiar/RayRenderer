@@ -16,9 +16,11 @@ void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
     //clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
 }
 
-static cl_image_format ParseImageFormat(const oglu::TextureDataFormat dformat)
+using oglu::TextureDataFormat;
+
+
+static cl_image_format ParseImageFormat(const TextureDataFormat dformat)
 {
-    using oglu::TextureDataFormat;
     cl_image_format format;
     if (HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK))
     {
@@ -111,9 +113,10 @@ _oclImage::~_oclImage()
 
 oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
 {
+    image = Image(oglu::TexFormatUtil::ConvertFormat(Format));
     image.SetSize(Width, Height);
-    constexpr size_t origin[3] = { 0,0,0 }; 
-    const size_t region[3] = { Width,Height,1 }; 
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,1 };
     cl_event e;
     const auto ret = clEnqueueReadImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
@@ -121,30 +124,34 @@ oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldB
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
+        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e, que->cmdque));
 }
 
 oclPromise _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
     if (image.GetWidth() != Width || image.GetHeight() != Height)
         COMMON_THROW(BaseException, u"write size unmatch");
-        
-    constexpr size_t origin[3] = { 0,0,0 }; 
-    const size_t region[3] = { Width,Height,1 }; 
+    return Write(que, image.GetData(), shouldBlock);
+}
+
+oclPromise _oclImage::Write(const oclCmdQue que, const common::AlignedBuffer<32>& data, const bool shouldBlock) const
+{
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,1 };
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueWriteImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clImage", ret));
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e));
+        return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e, que->cmdque));
 }
 
 
 _oclGLImage::_oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex)
     : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()),
-    CreateMemFromGLTex(ctx->context, (cl_mem_flags)Flags, (cl_GLenum)tex->Type, tex->textureID)),
+        CreateMemFromGLTex(ctx->context, (cl_mem_flags)flag, (cl_GLenum)tex->Type, tex->textureID)),
     GlTex(tex)
 { }
 

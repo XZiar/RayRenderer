@@ -69,6 +69,7 @@ public:
 
 class OCLUAPI _oclGLBuffer : public _oclBuffer, public GLShared<_oclGLBuffer>
 {
+    friend class GLShared<_oclGLBuffer>;
 private:
     const oglu::oglBuffer GlBuf;
 public:

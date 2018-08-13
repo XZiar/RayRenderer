@@ -163,6 +163,13 @@ void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
 }
 
+void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
+{
+    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->memID);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
+}
+
 void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
 {
     auto ret = clSetKernelArg(Kernel, idx, size, dat);
@@ -185,7 +192,7 @@ oclu::oclPromise _oclKernel::Run(const uint32_t workdim, const oclCmdQue que, co
         return {};
     }
     else
-        return std::make_shared<oclPromise_>(oclPromise_(e));
+        return std::make_shared<oclPromise_>(oclPromise_(e, que->cmdque));
 }
 
 
