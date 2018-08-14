@@ -20,6 +20,17 @@ struct NodeBlock
     uint16_t prev, next;
     uint8_t link;
 };
+#if defined(COMPILER_GCC) && COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#elif defined(COMPILER_CLANG) && COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wno-nested-anon-types"
+#   pragma clang diagnostic ignored "-Wno-gnu-anonymous-struct"
+#elif defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4201)
+#endif
 
 template<class Key>
 class LRUPos : public NonCopyable
@@ -194,6 +205,13 @@ public:
     }
 };
 
+#if defined(COMPILER_GCC) && COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif defined(COMPILER_CLANG) && COMPILER_CLANG
+#   pragma clang diagnostic pop
+#elif defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 class _oglProgram;
 

@@ -93,6 +93,7 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
     friend struct TexLogItem;
     friend class ::oclu::detail::_oclGLBuffer;
     friend class ::oclu::detail::_oclGLImage;
+    friend class ::oclu::detail::GLInterOP;
 protected:
     const TextureType Type;
     TextureInnerFormat InnerFormat;

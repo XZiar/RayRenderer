@@ -52,7 +52,7 @@ LIBRARYS	:=
 DEPLIBS		:= 
 
 ifeq ($(XZMK_CLANG), 1)
-CXXFLAGS	+= -Wno-eof-newline
+CXXFLAGS	+= -Wno-newline-eof
 endif
 
 ifneq ($(TARGET), Debug)

@@ -16,10 +16,12 @@ cl_mem GLInterOP::CreateMemFromGLBuf(const cl_context ctx, const cl_mem_flags fl
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glBuffer", errcode));
     return id;
 }
-cl_mem GLInterOP::CreateMemFromGLTex(const cl_context ctx, const cl_mem_flags flag, const cl_GLenum texType, const GLuint texId)
+cl_mem GLInterOP::CreateMemFromGLTex(const cl_context ctx, const cl_mem_flags flag, const oglu::detail::_oglTexBase& tex)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLTexture(ctx, flag, texType, 0, texId, &errcode);
+    if (oglu::TexFormatUtil::IsCompressType(tex.GetInnerFormat()))
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
+    const auto id = clCreateFromGLTexture(ctx, flag, (GLenum)tex.Type, 0, tex.textureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glTexture", errcode));
     return id;

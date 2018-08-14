@@ -15,7 +15,8 @@ vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & 
     vector<cl_context_properties> props;
     //OpenCL platform
     props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID });
-    props.insert(props.cend(),
+    if (context)
+        props.insert(props.cend(),
         {
             //OpenGL context
             CL_GL_CONTEXT_KHR,   (cl_context_properties)context->Hrc,
@@ -89,10 +90,14 @@ bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const
 oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
 {
     const auto props = GetCLProps(context);
-    const auto dev = GetGLDevice(props);
-    if (!dev)
+    if (context)
+    {
+        if (const auto dev = GetGLDevice(props); dev)
+            return oclContext(new _oclContext(props.data(), dev, Name, PlatVendor));
         return {};
-    return oclContext(new _oclContext(props.data(), dev, Name, PlatVendor));
+    }
+    else
+        return oclContext(new _oclContext(props.data(), Devices, Name, PlatVendor));
 }
 
 

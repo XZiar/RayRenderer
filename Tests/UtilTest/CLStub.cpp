@@ -43,6 +43,7 @@ static void OCLStub()
         }
     if (!que)
         que.reset(ctx, ctx->Devices[0]);
+    const auto dev = ctx->Devices[0];
     while (true)
     {
         log().info(u"input opencl file:");
@@ -61,10 +62,15 @@ static void OCLStub()
                     options += " -cl-kernel-arg-info -cl-nv-verbose -DNVIDIA";
                 options += " -DLOC_MEM_SIZE=" + std::to_string(ctx->Devices[0]->LocalMemSize);
                 clProg->Build(options);
-                string names;
-                for (const auto& name : clProg->GetKernelNames())
-                    names.append(name).push_back('\t');
-                log().success(u"loaded! kernels:\n{}\n\n", names);
+                log().success(u"loaded! kernels:\n");
+                for (const auto& ker : clProg->GetKernels())
+                {
+                    const auto wgInfo = ker->GetWorkGroupInfo(dev);
+                    log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name, 
+                        wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
+                        wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+                }
+                log().info(u"\n\n");
             }
             catch (OCLException& cle)
             {

@@ -51,17 +51,17 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             window.release();
             return;
         case 'a'://pan to left
-            tester->cam.yaw(3 * muler); break;
+            tester->cam.Yaw(3 * muler); break;
         case 'd'://pan to right
-            tester->cam.yaw(-3 * muler); break;
+            tester->cam.Yaw(-3 * muler); break;
         case 'w'://pan to up
-            tester->cam.pitch(3 * muler); break;
+            tester->cam.Pitch(3 * muler); break;
         case 's'://pan to down
-            tester->cam.pitch(-3 * muler); break;
+            tester->cam.Pitch(-3 * muler); break;
         case 'q'://pan to left
-            tester->cam.roll(-3 * muler); break;
+            tester->cam.Roll(-3 * muler); break;
         case 'e'://pan to left
-            tester->cam.roll(3 * muler); break;
+            tester->cam.Roll(3 * muler); break;
         case 'A':
             tester->Objects()[curObj]->Rotate(0, 0, 3 * muler); break;
         case 'D':
@@ -98,8 +98,8 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             curObj--;
             break;
         }
-        printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n",
-            tester->cam.u.x, tester->cam.u.y, tester->cam.u.z, tester->cam.v.x, tester->cam.v.y, tester->cam.v.z, tester->cam.n.x, tester->cam.n.y, tester->cam.n.z);
+        printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->cam.Right().x, tester->cam.Right().y, tester->cam.Right().z,
+            tester->cam.Up().x, tester->cam.Up().y, tester->cam.Up().z, tester->cam.Toward().x, tester->cam.Toward().y, tester->cam.Toward().z);
         break;
     }
     wd->refresh();
@@ -112,11 +112,11 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
     switch (msevent.type)
     {
     case MouseEventType::Moving:
-        tester->cam.Move((msevent.dx * 10.f / tester->cam.width), (msevent.dy * 10.f / tester->cam.height), 0);
+        tester->cam.Move((msevent.dx * 10.f / tester->cam.Width), (msevent.dy * 10.f / tester->cam.Height), 0);
         break;
     case MouseEventType::Wheel:
         tester->cam.Move(0, 0, (float)msevent.dx);
-        printf("camera at %5f,%5f,%5f\n", tester->cam.position.x, tester->cam.position.y, tester->cam.position.z);
+        printf("camera at %5f,%5f,%5f\n", tester->cam.Position.x, tester->cam.Position.y, tester->cam.Position.z);
         break;
     default:
         return;

@@ -12,7 +12,7 @@ private:
     oglContext GLContext;
     oclu::oclContext CLContext;
     oclu::oclCmdQue ComQue;
-    oclu::oclKernel KernelResizer;
+    oclu::oclKernel ResizeToImg, ResizeToDat3, ResizeToDat4;
     common::PromiseResult<Image> ResizeToDat(const oclu::oclImage& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
 public:
     CLTexResizer(const oglContext& glContext);

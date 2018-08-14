@@ -50,12 +50,14 @@ CLTexResizer::CLTexResizer(const oglContext& glContext) : Executor(u"CLTexResize
             texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
             COMMON_THROW(BaseException, u"build Program error");
         }
-        KernelResizer = clProg->GetKernel("resizer");
-        const auto wgInfo = KernelResizer->GetWorkGroupInfo(CLContext->Devices[0]);
+        ResizeToImg = clProg->GetKernel("ResizeToImg");
+        ResizeToDat3 = clProg->GetKernel("ResizeToDat3");
+        ResizeToDat4 = clProg->GetKernel("ResizeToDat4");
+        const auto wgInfo = ResizeToImg->GetWorkGroupInfo(CLContext->Devices[0]);
         texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] private mem\n", wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize);
     }, [this] 
     {
-        KernelResizer.release();
+        ResizeToImg.release();
         ComQue.release();
         CLContext.release();
         GLContext->UnloadContext();
@@ -96,23 +98,27 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImage& inp
     Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto wantFormat = TexFormatUtil::ConvertFormat(format, true);
-        oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
+        //oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
+        oclBuffer output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
         ImageInfo info{ input->Width, input->Height, width, height, 1.0f / width, 1.0f / height };
-        KernelResizer->SetArg(0, input);
-        KernelResizer->SetArg(1, output);
-        KernelResizer->SetSimpleArg(2, 1);
-        KernelResizer->SetSimpleArg(3, info);
+        const auto& ker = HAS_FIELD(format, ImageDataType::ALPHA_MASK) ? ResizeToDat4 : ResizeToDat3;
+        ker->SetArg(0, input);
+        ker->SetArg(1, output);
+        ker->SetSimpleArg(2, 1);
+        ker->SetSimpleArg(3, info);
 
         const size_t worksize[] = { width, height };
-        auto pms1 = KernelResizer->Run<2>(ComQue, worksize, false);
+        auto pms1 = ker->Run<2>(ComQue, worksize, false);
         agent.Await(common::PromiseResult<void>(pms1));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms1->ElapseNs() / 1000);
 
-        Image result;
-        auto pms2 = output->Read(ComQue, result, false);
+        Image result(format);
+        result.SetSize(width, height);
+        auto pms2 = output->Read(ComQue, result.GetRawPtr(), result.GetSize(), 0, false);
+        //auto pms2 = output->Read(ComQue, result, false);
         agent.Await(common::PromiseResult<void>(pms2));
-        if (result.GetDataType() != format)
-            result = result.ConvertTo(format);
+        //if (result.GetDataType() != format)
+        //    result = result.ConvertTo(format);
         pms->set_value(std::move(result));
     });
 

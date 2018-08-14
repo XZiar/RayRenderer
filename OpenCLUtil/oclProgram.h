@@ -42,6 +42,7 @@ public:
     void Build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
     u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
     Wrapper<_oclKernel> GetKernel(const string& name);
+    auto GetKernels() const { return common::container::ValSet(Kernels); }
     const vector<string>& GetKernelNames() const { return KernelNames; }
 };
 
@@ -58,10 +59,10 @@ class OCLUAPI _oclKernel
     friend class _oclProgram;
 private:
     const oclProgram Prog;
-    const string Name;
     const cl_kernel Kernel;
     _oclKernel(const oclProgram& prog, const string& name);
 public:
+    const string Name;
     ~_oclKernel();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);

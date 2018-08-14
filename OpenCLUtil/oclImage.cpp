@@ -151,7 +151,7 @@ oclPromise _oclImage::Write(const oclCmdQue que, const common::AlignedBuffer<32>
 
 _oclGLImage::_oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex)
     : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()),
-        CreateMemFromGLTex(ctx->context, (cl_mem_flags)flag, (cl_GLenum)tex->Type, tex->textureID)),
+        CreateMemFromGLTex(ctx->context, (cl_mem_flags)flag, *tex)),
     GlTex(tex)
 { }
 

@@ -63,8 +63,8 @@ protected:
     SQMat4Base(const T2& x_, const T2& y_) noexcept :x(x_), y(y_) { };
     SQMat4Base(const T2& x_, const T2& y_, const T2& z_) noexcept :x(x_), y(y_), z(z_) { };
     SQMat4Base(const T2& x_, const T2& y_, const T2& z_, const T2& w_) noexcept :x(x_), y(y_), z(z_), w(w_) { };
-    SQMat4Base(const T3& xy_) noexcept :xy(xy_) { };
-    SQMat4Base(const T3& xy_, const T2& z_) noexcept :xy(xy_), z(z_) { };
+    //SQMat4Base(const T3& xy_) noexcept :xy(xy_) { };
+    //SQMat4Base(const T3& xy_, const T2& z_) noexcept :xy(xy_), z(z_) { };
     SQMat4Base(const T3& xy_, const T3& zw_) noexcept :xy(xy_), zw(zw_) { };
 public:
     operator RowDataType&() { return row; };

@@ -41,7 +41,12 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             const std::pair<uint32_t, uint32_t> imgSize{ fakeTex->Width, fakeTex->Height };
             const auto&[needResize, neww, newh] = CalcSize(imgSize);
             if (needResize)
-                return ClResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+            {
+                if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+                else
+                    return ClResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+            }
             else
             {
                 std::shared_ptr<Image> img;

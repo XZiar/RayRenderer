@@ -207,7 +207,8 @@ struct ValIterator
 {
 private:
     ItType InnerIt;
-    using ValType = decltype(InnerIt->second);
+    using PairType = typename std::remove_reference_t<typename std::iterator_traits<ItType>::reference>;
+    using ValType = std::conditional_t<std::is_const_v<PairType>, const typename PairType::second_type, typename PairType::second_type>;
 public:
     ValIterator(ItType it) : InnerIt(it) { }
     ValIterator& operator++()
@@ -215,7 +216,11 @@ public:
         InnerIt++; return *this;
     }
     bool operator!=(const ValIterator<ItType>& other) const { return InnerIt != other.InnerIt; }
-    ValType& operator*() const
+    const ValType& operator*() const
+    {
+        return InnerIt->second;
+    }
+    ValType& operator*()
     {
         return InnerIt->second;
     }
@@ -252,7 +257,7 @@ template<typename Map>
 struct ValSet
 {
 private:
-    Map& TheMap;
+    Map & TheMap;
     using ItType = decltype(TheMap.begin());
     using ConstItType = decltype(TheMap.cbegin());
 public:

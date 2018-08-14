@@ -134,7 +134,7 @@ static cl_kernel CreateKernel(const cl_program prog, const std::string& name)
     return kid;
 }
 
-_oclKernel::_oclKernel(const oclProgram& prog, const string& name) : Prog(prog), Name(name), Kernel(CreateKernel(Prog->progID, Name))
+_oclKernel::_oclKernel(const oclProgram& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)), Name(name)
 {
 }
 
