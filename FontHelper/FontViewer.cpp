@@ -43,9 +43,9 @@ FontViewer::FontViewer()
 
         viewRect->Write(DatVert, sizeof(DatVert));
         viewVAO->Prepare()
-            .SetFloat(viewRect, prog->Attr_Vert_Pos, sizeof(Point), 2, 0)
-            .SetFloat(viewRect, prog->Attr_Vert_Color, sizeof(Point), 3, sizeof(Vec3))
-            .SetFloat(viewRect, prog->Attr_Vert_Texc, sizeof(Point), 2, 2 * sizeof(Vec3))
+            .SetFloat(viewRect, prog->GetLoc("@VertPos"), sizeof(Point), 2, 0)
+            .SetFloat(viewRect, prog->GetLoc("@VertColor"), sizeof(Point), 3, sizeof(Vec3))
+            .SetFloat(viewRect, prog->GetLoc("@VertTexc"), sizeof(Point), 2, 2 * sizeof(Vec3))
             .SetDrawSize(0, 6);
     }
     prog->State().SetSubroutine("fontRenderer", "sdfMid");

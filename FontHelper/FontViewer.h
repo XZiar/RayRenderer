@@ -13,7 +13,7 @@ private:
     oglVBO viewRect;
     oglVAO viewVAO;
 public:
-    oglProgram prog;
+    oglDrawProgram prog;
     FontViewer();
     void Draw();
     void BindTexture(const oglTex2D& tex);

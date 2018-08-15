@@ -20,13 +20,13 @@ public:
 
     ///<summary>Release all related VAO for the shader-program</summary>  
     ///<param name="prog">shader program</param>
-    static void ReleaseAll(const oglu::oglProgram& prog);
+    static void ReleaseAll(const oglu::oglDrawProgram& prog);
     
     virtual ~Drawable();
     ///<summary>Prepare for specific shader program(Generate VAO)</summary>  
     ///<param name="prog">shader program</param>
     ///<param name="translator">mapping from common resource name to program's resource name</param>
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
     virtual void Draw(Drawcall& drawcall) const;
 
     u16string GetType() const;
@@ -64,15 +64,15 @@ protected:
     Drawable(const T * const childThis, const u16string& typeName) : Drawable(std::type_index(typeid(childThis)), typeName) { }
 
     virtual MultiMaterialHolder PrepareMaterial() const;
-    auto DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
+    auto DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
     Drawcall& DrawPosition(Drawcall& prog) const;
     ///<summary>Assign VAO into prog-sensative map</summary>  
     ///<param name="prog">target shader program</param>
     ///<param name="vao">saved VAO</param>
-    void SetVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const;
-    const oglu::oglVAO& GetVAO(const oglu::oglProgram& prog) const { return GetVAO(prog.weakRef()); }
+    void SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const;
+    const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram& prog) const { return GetVAO(prog.weakRef()); }
     const oglu::oglVAO& GetVAO(const Drawcall& drawcall) const { return GetVAO(drawcall.GetProg()); }
-    const oglu::oglVAO& GetVAO(const oglu::oglProgram::weak_type& weakProg) const;
+    const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram::weak_type& weakProg) const;
     template<typename T>
     static std::type_index GetType(const T* const obj) { return std::type_index(typeid(obj)); }
     static oglu::oglVBO GetDrawIdVBO();

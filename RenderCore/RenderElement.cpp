@@ -34,15 +34,15 @@ private:
 struct VAOPack
 {
     const Drawable *drawable;
-    const oglu::oglProgram::weak_type prog;
+    const oglu::oglDrawProgram::weak_type prog;
     oglu::oglVAO vao;
 };
 
 using VAOKey = boost::multi_index::composite_key<VAOPack,
     boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>,
-    boost::multi_index::member<VAOPack, const oglu::oglProgram::weak_type, &VAOPack::prog>
+    boost::multi_index::member<VAOPack, const oglu::oglDrawProgram::weak_type, &VAOPack::prog>
 >;
-using ProgKey = boost::multi_index::member<VAOPack, const oglu::oglProgram::weak_type, &VAOPack::prog>;
+using ProgKey = boost::multi_index::member<VAOPack, const oglu::oglDrawProgram::weak_type, &VAOPack::prog>;
 using VAOKeyComp = boost::multi_index::composite_key_compare<
     std::less<const Drawable*>, std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>
 >;
@@ -56,7 +56,7 @@ oglu::detail::ContextResource<std::shared_ptr<VAOMap>, false> CTX_VAO_MAP;
 
 struct VAOKeyX
 {
-    const oglu::oglProgram::weak_type prog;
+    const oglu::oglDrawProgram::weak_type prog;
     const Drawable *drawable;
     bool operator<(const VAOKeyX& other)
     {
@@ -111,7 +111,7 @@ u16string Drawable::GetType() const
     return DrawableHelper::GetType(DrawableType);
 }
 
-void Drawable::ReleaseAll(const oglu::oglProgram& prog)
+void Drawable::ReleaseAll(const oglu::oglDrawProgram& prog)
 {
     if (auto vaomap = CTX_VAO_MAP.TryGet())
     {
@@ -131,9 +131,9 @@ MultiMaterialHolder Drawable::PrepareMaterial() const
     return holder;
 }
 
-auto Drawable::DefaultBind(const oglu::oglProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
+auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
 {
-    const GLint attrs[3] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc };
+    const GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
     return std::move(vao->Prepare().Set(vbo, attrs, 0));
 }
 
@@ -143,7 +143,7 @@ Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
     return drawcall.SetPosition(Mat4x4::TranslateMat(position) * Mat4x4(matNormal * Mat3x3::ScaleMat(scale)), matNormal);
 }
 
-void Drawable::SetVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) const
+void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const
 {
     auto vaomap = CTX_VAO_MAP.GetOrInsert([](const auto& dummy) { return std::make_shared<VAOMap>(); });
     const auto& it = vaomap->find(std::make_tuple(this, prog.weakRef()));
@@ -153,7 +153,7 @@ void Drawable::SetVAO(const oglu::oglProgram& prog, const oglu::oglVAO& vao) con
         vaomap->modify(it, [&](VAOPack& pack) { pack.vao = vao; });
 }
 
-const oglu::oglVAO& Drawable::GetVAO(const oglu::oglProgram::weak_type& weakProg) const
+const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weakProg) const
 {
     if (auto vaomap = CTX_VAO_MAP.TryGet())
     {

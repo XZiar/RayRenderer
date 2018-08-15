@@ -11,7 +11,7 @@ class TEXUTILAPI GLTexResizer : public NonCopyable, public NonMovable
 private:
     common::asyexe::AsyncManager Executor;
     oglContext GLContext;
-    oglProgram GLResizer;
+    oglDrawProgram GLResizer;
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oglFBO OutputFrame;

@@ -45,13 +45,13 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
 
         NormalVAO.reset(VAODrawMode::Triangles);
         NormalVAO->Prepare()
-            .SetFloat(ScreenBox, GLResizer->Attr_Vert_Pos, sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, GLResizer->Attr_Vert_Texc, sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         FlipYVAO.reset(VAODrawMode::Triangles);
         FlipYVAO->Prepare()
-            .SetFloat(ScreenBox, GLResizer->Attr_Vert_Pos, sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, GLResizer->Attr_Vert_Texc, sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
         OutputFrame.reset();

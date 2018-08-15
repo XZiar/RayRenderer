@@ -27,7 +27,7 @@ class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignB
 private:
     oglContext glContext;
     oclContext clContext;
-    oglProgram prog2D, prog3D, progPost;
+    oglDrawProgram prog2D, prog3D, progPost;
     oglTex2DS picTex;
     oglTex2DV chkTex;
     oglTex2DS fboTex;
@@ -42,8 +42,8 @@ private:
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;
     vector<Wrapper<Light>> lights;
-    set<oglProgram> Prog3Ds;
-    set<oglProgram> glProgs;
+    set<oglDrawProgram> Prog3Ds;
+    set<oglDrawProgram> glProgs;
     fs::path Basepath;
     std::atomic_uint32_t IsUBOChanged{ 0 };
     uint32_t WindowWidth, WindowHeight;
@@ -62,20 +62,20 @@ public:
     void ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloatDepth);
     void ReloadFontLoader(const u16string& fname);
     void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError = nullptr);
-    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglDrawProgram)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
-    bool AddShader(const oglProgram& prog);
-    void ChangeShader(const oglProgram& prog);
+    bool AddShader(const oglDrawProgram& prog);
+    void ChangeShader(const oglDrawProgram& prog);
     void ReportChanged(const ChangableUBO target);
     xziar::img::Image Scrrenshot();
 
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
-    const set<oglProgram>& Shaders() const { return glProgs; }
-    const oglProgram& Cur3DProg() const { return prog3D; }
+    const set<oglDrawProgram>& Shaders() const { return glProgs; }
+    const oglDrawProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
     const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
 

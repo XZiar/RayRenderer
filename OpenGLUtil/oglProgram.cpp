@@ -17,7 +17,7 @@ using common::container::ReplaceInVec;
 
 
 static detail::ContextResource<GLuint> CTX_PROG_MAP;
-
+using namespace std::literals;
 
 
 GLint ProgramResource::GetValue(const GLuint pid, const GLenum prop)
@@ -28,30 +28,30 @@ GLint ProgramResource::GetValue(const GLuint pid, const GLenum prop)
 }
 
 
-const char* ProgramResource::GetTypeName() const noexcept
+string_view ProgramResource::GetTypeName() const noexcept
 {
     switch (type)
     {
     case GL_UNIFORM_BLOCK:
-        return "UniBlk";
+        return "UniBlk"sv;
     case GL_UNIFORM:
-        return isTexture() ? "TexUni" : "Uniform";
+        return isTexture() ? "TexUni"sv : "Uniform"sv;
     case GL_PROGRAM_INPUT:
-        return "Attrib";
+        return "Attrib"sv;
     default:
         return nullptr;
     }
 }
 
 
-const char* ProgramResource::GetValTypeName() const noexcept
+string_view ProgramResource::GetValTypeName() const noexcept
 {
     switch (valtype)
     {
     case GL_UNIFORM_BLOCK:
-        return "uniBlock";
+        return "uniBlock"sv;
     default:
-        return FindInMap(detail::GLENUM_STR, valtype, std::in_place).value_or(nullptr);
+        return FindInMap(detail::GLENUM_STR, valtype, std::in_place).value_or("UNKNOWN"sv);
     }
 }
 
@@ -278,8 +278,9 @@ void _oglProgram::InitSubroutines()
 void _oglProgram::FilterProperties()
 {
     set<ShaderExtProperty, std::less<>> newProperties;
-    for (const auto& prop : ShaderProperties)
+    for (const auto& prop : ExtInfo.Properties)
     {
+        oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
         if (auto res = FindInSet(ProgRess, prop.Name))
             if (prop.MatchType(res->valtype))
             {
@@ -331,7 +332,7 @@ void _oglProgram::FilterProperties()
         else
             oglLog().warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
     }
-    ShaderProperties.swap(newProperties);
+    ExtInfo.Properties.swap(newProperties);
 }
 
 
@@ -341,23 +342,6 @@ void _oglProgram::AddShader(const oglShader& shader)
         glAttachShader(programID, shader->shaderID);
     else
         oglLog().warning(u"Repeat adding shader {} to program [{}]\n", shader->shaderID, Name);
-}
-
-void _oglProgram::AddExtShaders(const string& src)
-{
-    ExtShaderSource = src;
-    ShaderExtInfo info;
-    for (auto shader : oglShader::loadFromExSrc(src, info))
-    {
-        shader->compile();
-        AddShader(shader);
-    }
-    ShaderProperties = std::move(info.Properties);
-    for (const auto& prop : ShaderProperties)
-        oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
-    ResBindMapping.clear();
-    for (const auto&[target, name] : info.ResMappings)
-        ResBindMapping.insert_or_assign((ProgramMappingTarget)hash_(target), name);
 }
 
 
@@ -371,7 +355,7 @@ void _oglProgram::Link()
     glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
     string logstr((size_t)len, '\0');
     glGetProgramInfoLog(programID, len, &len, logstr.data());
-
+    logstr.pop_back(); //null-terminated so pop back
     if (!result)
     {
         oglLog().warning(u"Link program failed.\n{}\n", logstr);
@@ -383,47 +367,31 @@ void _oglProgram::Link()
     InitSubroutines();
     FilterProperties();
 
-    static const map<ProgramMappingTarget, string> DefaultMapping =
+    map<string, string> defaultMapping =
     {
-        { ProgramMappingTarget::ProjectMat,  "oglu_matProj" },
-        { ProgramMappingTarget::ViewMat,     "oglu_matView" },
-        { ProgramMappingTarget::ModelMat,    "oglu_matModel" },
-        { ProgramMappingTarget::MVPNormMat,  "oglu_matNormal" },
-        { ProgramMappingTarget::MVPMat,      "oglu_matMVP" },
-        { ProgramMappingTarget::CamPosVec,   "oglu_camPos" },
-        { ProgramMappingTarget::DrawID,      "oglu_drawId" },
-        { ProgramMappingTarget::VertPos,     "oglu_vertPos" },
-        { ProgramMappingTarget::VertNorm,    "oglu_vertNorm" },
-        { ProgramMappingTarget::VertTexc,    "oglu_texPos" },
-        { ProgramMappingTarget::VertColor,   "oglu_vertColor" },
-        { ProgramMappingTarget::VertTan,     "oglu_vertTan" },
+        { "ProjectMat",  "oglu_matProj" },
+        { "ViewMat",     "oglu_matView" },
+        { "ModelMat",    "oglu_matModel" },
+        { "MVPNormMat",  "oglu_matNormal" },
+        { "MVPMat",      "oglu_matMVP" },
+        { "CamPosVec",   "oglu_camPos" },
+        { "DrawID",      "oglu_drawId" },
+        { "VertPos",     "oglu_vertPos" },
+        { "VertNorm",    "oglu_vertNorm" },
+        { "VertTexc",    "oglu_texPos" },
+        { "VertColor",   "oglu_vertColor" },
+        { "VertTan",     "oglu_vertTan" },
     };
-    ResBindMapping.insert(DefaultMapping.cbegin(), DefaultMapping.cend()); //will not overwrite exist value
-    RegisterLocation(ResBindMapping);
-}
-
-
-void _oglProgram::RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping)
-{
-    for (const auto&[target, name] : bindMapping)
+    ExtInfo.ResMappings.merge(defaultMapping);
+    ResNameMapping.clear(); 
+    for (const auto&[target, name] : ExtInfo.ResMappings)
     {
-        switch (target)
-        {
-        case ProgramMappingTarget::ProjectMat:  Uni_projMat = GetLoc(name, GL_FLOAT_MAT4); break; //projectMatrix
-        case ProgramMappingTarget::ViewMat:     Uni_viewMat = GetLoc(name, GL_FLOAT_MAT4); break; //viewMatrix
-        case ProgramMappingTarget::ModelMat:    Uni_modelMat = GetLoc(name, GL_FLOAT_MAT4); break; //modelMatrix
-        case ProgramMappingTarget::MVPMat:      Uni_mvpMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
-        case ProgramMappingTarget::MVPNormMat:  Uni_normalMat = GetLoc(name, GL_FLOAT_MAT4); break; //model-view-project-Matrix
-        case ProgramMappingTarget::CamPosVec:   Uni_camPos = GetLoc(name, GL_FLOAT_VEC3); break; //camera position
-        case ProgramMappingTarget::VertPos:     Attr_Vert_Pos = GetLoc(name, GL_FLOAT_VEC3); break;
-        case ProgramMappingTarget::VertNorm:    Attr_Vert_Norm = GetLoc(name, GL_FLOAT_VEC3); break;
-        case ProgramMappingTarget::VertTexc:    Attr_Vert_Texc = GetLoc(name, GL_FLOAT_VEC2); break;
-        case ProgramMappingTarget::VertColor:   Attr_Vert_Color = GetLoc(name, GL_FLOAT_VEC4); break;
-        case ProgramMappingTarget::VertTan:     Attr_Vert_Tan = GetLoc(name, GL_FLOAT_VEC4); break;
-        case ProgramMappingTarget::DrawID:      Attr_Draw_ID = GetLoc(name, GL_UNSIGNED_INT); break; //draw-id
-        }
+        if (auto obj = FindInSet(ProgRess, name); obj)
+            ResNameMapping.insert_or_assign(target, obj);
     }
+    OnPrepare();
 }
+
 
 GLint _oglProgram::GetLoc(const ProgramResource* res, GLenum valtype) const
 {
@@ -433,37 +401,19 @@ GLint _oglProgram::GetLoc(const ProgramResource* res, GLenum valtype) const
 }
 GLint _oglProgram::GetLoc(const string& name, GLenum valtype) const
 {
-    if (auto obj = FindInSet(ProgRess, name))
-        if (obj->valtype == valtype)
-            return obj->location;
+    auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
+        : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
+    if (obj && obj->valtype == valtype)
+        return obj->location;
     return GL_INVALID_INDEX;
 }
 GLint _oglProgram::GetLoc(const string& name) const
 {
-    if (auto obj = FindInSet(ProgRess, name))
+    auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
+        : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
+    if (obj)
         return obj->location;
     return GL_INVALID_INDEX;
-}
-
-void _oglProgram::SetProject(const Mat4x4& projMat)
-{
-    matrix_Proj = projMat;
-    SetUniform(Uni_projMat, matrix_Proj);
-}
-
-void _oglProgram::SetView(const Mat4x4 & viewMat)
-{
-    matrix_View = viewMat;
-    SetUniform(Uni_viewMat, matrix_View);
-}
-
-ProgDraw _oglProgram::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-{
-    return ProgDraw(*this, modelMat, normMat);
-}
-ProgDraw _oglProgram::Draw(const Mat4x4& modelMat) noexcept
-{
-    return Draw(modelMat, (Mat3x3)modelMat);
 }
 
 const SubroutineResource::Routine* _oglProgram::GetSubroutine(const string& sruname)
@@ -704,7 +654,60 @@ ProgState& ProgState::SetSubroutine(const string& subrName, const string& routin
 }
 
 
-ProgDraw::ProgDraw(_oglProgram& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+void _oglDrawProgram::OnPrepare()
+{
+    RegisterLocation();
+}
+
+void _oglDrawProgram::AddExtShaders(const string& src)
+{
+    ExtShaderSource = src;
+    for (auto shader : oglShader::LoadFromExSrc(src, ExtInfo, false))
+    {
+        shader->compile();
+        AddShader(shader);
+    }
+}
+
+void _oglDrawProgram::RegisterLocation()
+{
+    for (const auto&[target, res] : ResNameMapping)
+    {
+        switch (hash_(target))
+        {
+        case "ProjectMat"_hash:  Uni_projMat = res->location; break; //projectMatrix
+        case "ViewMat"_hash:     Uni_viewMat = res->location; break; //viewMatrix
+        case "ModelMat"_hash:    Uni_modelMat = res->location; break; //modelMatrix
+        case "MVPMat"_hash:      Uni_mvpMat = res->location; break; //model-view-project-Matrix
+        case "MVPNormMat"_hash:  Uni_normalMat = res->location; break; //model-view-project-Matrix
+        case "CamPosVec"_hash:   Uni_camPos = res->location; break; //camera position
+        }
+    }
+}
+
+void _oglDrawProgram::SetProject(const Mat4x4& projMat)
+{
+    matrix_Proj = projMat;
+    SetUniform(Uni_projMat, matrix_Proj);
+}
+
+void _oglDrawProgram::SetView(const Mat4x4 & viewMat)
+{
+    matrix_View = viewMat;
+    SetUniform(Uni_viewMat, matrix_View);
+}
+
+ProgDraw _oglDrawProgram::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+{
+    return ProgDraw(*this, modelMat, normMat);
+}
+ProgDraw _oglDrawProgram::Draw(const Mat4x4& modelMat) noexcept
+{
+    return Draw(modelMat, (Mat3x3)modelMat);
+}
+
+
+ProgDraw::ProgDraw(_oglDrawProgram& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
     : Prog(prog), TexMan(_oglTexBase::getTexMan()), UboMan(_oglUniformBuffer::getUBOMan())
 {
     _oglProgram::usethis(Prog);
@@ -752,7 +755,7 @@ ProgDraw& ProgDraw::Restore(const bool quick)
 
     for (const auto&[pos, val] : UniValBackup)
     {
-        std::visit([&](auto&& arg) { Prog.SetUniform(pos, arg, false); }, val);
+        std::visit([&, pos](auto&& arg) { Prog.SetUniform(pos, arg, false); }, val);
     }
     UniValBackup.clear();
     if (!SubroutineCache.empty())
@@ -764,9 +767,9 @@ ProgDraw& ProgDraw::Restore(const bool quick)
     }
     return *this;
 }
-std::weak_ptr<_oglProgram> ProgDraw::GetProg() const noexcept
+std::weak_ptr<_oglDrawProgram> ProgDraw::GetProg() const noexcept
 {
-    return Prog.weak_from_this();
+    return std::dynamic_pointer_cast<_oglDrawProgram>(Prog.shared_from_this());
 }
 
 ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
@@ -885,6 +888,27 @@ ProgDraw& ProgDraw::SetSubroutine(const string& subrName, const string& routineN
     return *this;
 }
 
+
+_oglComputeProgram::_oglComputeProgram(const u16string name, const oglShader& shader) : _oglProgram(name)
+{ 
+    if (shader->shaderType != ShaderType::Compute)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Only Compute Shader can be add to compute program");
+    AddShader(shader);
+}
+_oglComputeProgram::_oglComputeProgram(const u16string name, const string& src) : _oglProgram(name)
+{ 
+    ExtShaderSource = src;
+    const auto s = oglShader::LoadFromExSrc(src, ExtInfo, true, false);
+    if (s.empty()) return;
+    auto shader = *s.cbegin();
+    shader->compile();
+    AddShader(shader);
+}
+void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
+{
+    usethis(*this, false);
+    glDispatchCompute(groupX, groupY, groupZ);
+}
 
 }
 

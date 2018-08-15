@@ -37,8 +37,8 @@ public:
     uint8_t ifidx;
     const string Name;
     ProgramResource(const GLenum type_, const string& name) :type(type_), Name(name) { }
-    const char* GetTypeName() const noexcept;
-    const char* GetValTypeName() const noexcept;
+    string_view GetTypeName() const noexcept;
+    string_view GetValTypeName() const noexcept;
     bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
     bool isAttrib() const noexcept { return type == GL_PROGRAM_INPUT; }
     bool isTexture() const noexcept;
@@ -83,18 +83,18 @@ namespace detail
 {
 
 
-class OGLUAPI _oglProgram final : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
+class OGLUAPI _oglProgram : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
 {
     friend class TextureManager;
     friend class UBOManager;
     friend class ProgState;
-    friend class ProgDraw;
-private:
+protected:
     Mat4x4 matrix_Proj, matrix_View;
     set<oglShader> shaders;
     string ExtShaderSource;
+    ShaderExtInfo ExtInfo;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
-    map<ProgramMappingTarget, string> ResBindMapping;
+    map<string, const ProgramResource*, std::less<>> ResNameMapping;
     set<ProgramResource, std::less<>> ProgRess;
     set<ProgramResource, std::less<>> TexRess;
     set<ProgramResource, std::less<>> UBORess;
@@ -107,13 +107,6 @@ private:
     map<GLuint, oglUBO> UBOBindings;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
     map<ShaderType, vector<GLuint>> SubroutineSettings;
-    GLint
-        Uni_projMat = GL_INVALID_INDEX,
-        Uni_viewMat = GL_INVALID_INDEX,
-        Uni_modelMat = GL_INVALID_INDEX,
-        Uni_normalMat = GL_INVALID_INDEX,
-        Uni_mvpMat = GL_INVALID_INDEX,
-        Uni_camPos = GL_INVALID_INDEX;
     GLuint programID = 0; //zero means invalid program
 
     static bool usethis(_oglProgram& prog, const bool change = true);
@@ -121,6 +114,7 @@ private:
     void InitLocs();
     void InitSubroutines();
     void FilterProperties();
+    virtual void OnPrepare() = 0;
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
     GLint GetLoc(const string& name, GLenum valtype) const;
 
@@ -141,40 +135,24 @@ private:
     void SetUniform(const GLint pos, const uint32_t val, const bool keep = true);
     void SetUniform(const GLint pos, const float val, const bool keep = true);
 public:
-    GLint Attr_Vert_Pos = GL_INVALID_INDEX;//Vertex Position
-    GLint Attr_Vert_Norm = GL_INVALID_INDEX;//Vertex Normal
-    GLint Attr_Vert_Texc = GL_INVALID_INDEX;//Vertex Texture Coordinate
-    GLint Attr_Vert_Color = GL_INVALID_INDEX;//Vertex Color
-    GLint Attr_Vert_Tan = GL_INVALID_INDEX;//Vertex Tangent
-    GLint Attr_Draw_ID = GL_INVALID_INDEX;
     u16string Name;
     _oglProgram(const u16string& name);
-    ~_oglProgram();
+    virtual ~_oglProgram();
 
     const set<ProgramResource, std::less<>>& getResources() const { return ProgRess; }
-    const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ShaderProperties; }
+    const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ExtInfo.Properties; }
     const set<SubroutineResource, std::less<>>& getSubroutineResources() const { return SubroutineRess; }
     const set<oglShader>& getShaders() const { return shaders; }
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
     void AddShader(const oglShader& shader);
-    void AddExtShaders(const string& src);
     const string& GetExtShaderSource() const { return ExtShaderSource; }
     void Link();
-    void RegisterLocation(const map<ProgramMappingTarget, string>& bindMapping);
     GLint GetLoc(const string& name) const;
     const ProgramResource* GetResource(const string& name) const { return FindInSet(ProgRess, name); }
     const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     ProgState State() noexcept;
-    void SetProject(const Mat4x4 &);
-    void SetView(const Mat4x4 &);
-
-    ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
-    ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
-    template<typename Iterator>
-    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
-
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); }
@@ -201,7 +179,6 @@ public:
     void SetUniform(const string& name, const float val) { SetUniform(GetLoc(name, GL_FLOAT), val); }
 };
 
-
 class OGLUAPI ProgState : public NonCopyable
 {
     friend class _oglProgram;
@@ -221,11 +198,39 @@ public:
     ProgState& SetSubroutine(const string& subrName, const string& routineName);
 };
 
+
+class OGLUAPI _oglDrawProgram : public _oglProgram
+{
+    friend class ProgDraw;
+private:
+    virtual void OnPrepare() override;
+    GLint
+        Uni_projMat = GL_INVALID_INDEX,
+        Uni_viewMat = GL_INVALID_INDEX,
+        Uni_modelMat = GL_INVALID_INDEX,
+        Uni_normalMat = GL_INVALID_INDEX,
+        Uni_mvpMat = GL_INVALID_INDEX,
+        Uni_camPos = GL_INVALID_INDEX;
+public:
+    using _oglProgram::_oglProgram;
+    virtual ~_oglDrawProgram() override {}
+
+    void AddExtShaders(const string& src);
+    void RegisterLocation();
+    void SetProject(const Mat4x4 &);
+    void SetView(const Mat4x4 &);
+
+    ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
+    template<typename Iterator>
+    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
+};
+
 class OGLUAPI ProgDraw
 {
-    friend class _oglProgram;
+    friend class _oglDrawProgram;
 private:
-    _oglProgram & Prog;
+    _oglDrawProgram & Prog;
     TextureManager & TexMan;
     UBOManager& UboMan;
     map<GLuint, oglTexBase> TexCache;
@@ -233,7 +238,7 @@ private:
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     map<GLuint, std::pair<GLint, bool>> UniBindBackup;
     map<GLint, UniformValue> UniValBackup;
-    ProgDraw(_oglProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw(_oglDrawProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {
@@ -250,7 +255,7 @@ public:
     ///<param name="quick">whether perform quick restore</param>
     ///<returns>self</returns>
     ProgDraw& Restore(const bool quick = false);
-    std::weak_ptr<_oglProgram> GetProg() const noexcept;
+    std::weak_ptr<_oglDrawProgram> GetProg() const noexcept;
     ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
     ProgDraw& SetPosition(const Mat4x4& modelMat) { return SetPosition(modelMat, (Mat3x3)modelMat); }
     ///<summary>draw actual vao</summary>  
@@ -293,7 +298,7 @@ public:
 };
 
 template<typename Iterator>
-ProgDraw _oglProgram::Draw(const Iterator& begin, const Iterator& end) noexcept
+ProgDraw _oglDrawProgram::Draw(const Iterator& begin, const Iterator& end) noexcept
 {
     static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
     Mat4x4 matModel = Mat4x4::identity();
@@ -307,9 +312,25 @@ ProgDraw _oglProgram::Draw(const Iterator& begin, const Iterator& end) noexcept
 }
 
 
+class OGLUAPI _oglComputeProgram : public _oglProgram
+{
+private:
+    virtual void OnPrepare() override {}
+    using _oglProgram::AddShader;
+public:
+    _oglComputeProgram(const u16string name, const oglShader& shader);
+    _oglComputeProgram(const u16string name, const string& src);
+    virtual ~_oglComputeProgram() override {}
+
+    void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
+};
+
+
 }
 
 
 using oglProgram = Wrapper<detail::_oglProgram>;
+using oglDrawProgram = Wrapper<detail::_oglDrawProgram>;
+using oglComputeProgram = Wrapper<detail::_oglComputeProgram>;
 
 }

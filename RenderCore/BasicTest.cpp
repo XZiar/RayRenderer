@@ -60,8 +60,8 @@ void BasicTest::init2d(const fs::path& shaderPath)
         }
         picVAO.reset(VAODrawMode::Triangles);
         picVAO->Prepare()
-            .SetFloat(screenBox, prog2D->Attr_Vert_Pos, sizeof(Vec4), 2, 0)
-            .SetFloat(screenBox, prog2D->Attr_Vert_Texc, sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(screenBox, prog2D->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(screenBox, prog2D->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         prog2D->State().SetTexture(picTex, "tex");
     }
@@ -80,8 +80,8 @@ void BasicTest::init2d(const fs::path& shaderPath)
         }
         ppVAO.reset(VAODrawMode::Triangles);
         ppVAO->Prepare()
-            .SetFloat(screenBox, progPost->Attr_Vert_Pos, sizeof(Vec4), 2, 0)
-            .SetFloat(screenBox, progPost->Attr_Vert_Texc, sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(screenBox, progPost->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(screenBox, progPost->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         prog2D->State().SetSubroutine("ToneMap", "NoTone");
     }
@@ -91,7 +91,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
 {
     cam.Position = Vec3(0.0f, 0.0f, 4.0f);
     {
-        oglProgram progBasic(u"3D Prog");
+        oglDrawProgram progBasic(u"3D Prog");
         const string shaderSrc = LoadShaderFallback(shaderPath / u"3d.glsl", IDR_SHADER_3D);
         try
         {
@@ -109,7 +109,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
         Prog3Ds.insert(progBasic);
     }
     {
-        oglProgram progPBR(u"3D-pbr");
+        oglDrawProgram progPBR(u"3D-pbr");
         const string shaderSrc = LoadShaderFallback(shaderPath / u"3d_pbr.glsl", IDR_SHADER_3DPBR);
         try
         {
@@ -419,14 +419,14 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
     }, fname).detach();
 }
 
-void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
+void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglDrawProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
     using common::asyexe::StackSize;
-    const auto loadPms = std::make_shared<std::promise<oglProgram>>();
+    const auto loadPms = std::make_shared<std::promise<oglDrawProgram>>();
     auto fut = loadPms->get_future();
     oglUtil::invokeSyncGL([fname, shdName, loadPms](const common::asyexe::AsyncAgent& agent)
     {
-        oglProgram prog(shdName);
+        oglDrawProgram prog(shdName);
         try
         {
             prog->AddExtShaders(common::file::ReadAllText(fname));
@@ -453,7 +453,7 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
         }
         loadPms->set_value(prog);
     }, u"load shader " + shdName, StackSize::Big);
-    std::thread([onFinish, onError](std::future<oglProgram>&& fut)
+    std::thread([onFinish, onError](std::future<oglDrawProgram>&& fut)
     {
         common::SetThreadName(u"AsyncLoader for Shader");
         try
@@ -478,7 +478,7 @@ bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
     return true;
 }
 
-bool BasicTest::AddShader(const oglProgram& prog)
+bool BasicTest::AddShader(const oglDrawProgram& prog)
 {
     const auto isAdd = Prog3Ds.insert(prog).second;
     if (isAdd)
@@ -500,7 +500,7 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
     return true;
 }
 
-void BasicTest::ChangeShader(const oglProgram& prog)
+void BasicTest::ChangeShader(const oglDrawProgram& prog)
 {
     if (Prog3Ds.count(prog))
     {
@@ -536,7 +536,7 @@ xziar::img::Image BasicTest::Scrrenshot()
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 
-static ejson::JObject SerializeGLProg(const oglu::oglProgram& prog, SerializeUtil& context)
+static ejson::JObject SerializeGLProg(const oglu::oglDrawProgram& prog, SerializeUtil& context)
 {
     auto jprog = context.NewObject();
     jprog.Add("Name", str::to_u8string(prog->Name, Charset::UTF16LE));

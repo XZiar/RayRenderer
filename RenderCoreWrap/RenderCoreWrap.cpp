@@ -78,7 +78,7 @@ Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
 }
 
 
-bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram>^ theShader)
+bool ShaderHolder::AddShader(CLIWrapper<oglu::oglDrawProgram>^ theShader)
 {
     auto shader = theShader->Extract();
     if (Core.AddShader(shader))
@@ -91,14 +91,14 @@ bool ShaderHolder::AddShader(CLIWrapper<oglu::oglProgram>^ theShader)
 
 Task<bool>^ ShaderHolder::AddShaderAsync(String^ fname, String^ shaderName)
 {
-    return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglProgram>^, bool>(this, &ShaderHolder::AddShader),
+    return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglDrawProgram>^, bool>(this, &ShaderHolder::AddShader),
         &rayr::BasicTest::LoadShaderAsync, Core, ToU16Str(fname), ToU16Str(shaderName));
 }
 
 void ShaderHolder::UseShader(OpenGLUtil::GLProgram^ shader)
 {
     if (shader == nullptr) return;
-    Core.ChangeShader(shader->prog->lock());
+    Core.ChangeShader(std::dynamic_pointer_cast<oglu::detail::_oglDrawProgram>(shader->prog->lock()));
 }
 
 

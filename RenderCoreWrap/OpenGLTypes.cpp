@@ -9,8 +9,8 @@ namespace OpenGLUtil
 ProgramResource::ProgramResource(const oglu::ProgramResource& res)
 {
     name = ToStr(res.Name);
-    type = gcnew String(res.GetTypeName());
-    valtype = gcnew String(res.GetValTypeName());
+    type = ToStr(res.GetTypeName());
+    valtype = ToStr(res.GetValTypeName());
     size = res.size;
     location = res.location;
     len = res.len;

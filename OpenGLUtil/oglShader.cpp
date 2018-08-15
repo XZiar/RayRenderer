@@ -41,7 +41,7 @@ void _oglShader::compile()
 
 }
 
-oglShader oglShader::loadFromFile(const ShaderType type, const fs::path& path)
+oglShader oglShader::LoadFromFile(const ShaderType type, const fs::path& path)
 {
     using namespace common::file;
     string txt = FileObject::OpenThrow(path, OpenFlag::BINARY | OpenFlag::READ).ReadAllText();
@@ -50,7 +50,7 @@ oglShader oglShader::loadFromFile(const ShaderType type, const fs::path& path)
 }
 
 
-vector<oglShader> oglShader::loadFromFiles(const u16string& fname)
+vector<oglShader> oglShader::LoadFromFiles(const u16string& fname)
 {
     static pair<u16string, ShaderType> types[] =
     {
@@ -67,7 +67,7 @@ vector<oglShader> oglShader::loadFromFiles(const u16string& fname)
         fs::path fpath = fname + type.first;
         try
         {
-            auto shader = loadFromFile(type.second, fpath);
+            auto shader = LoadFromFile(type.second, fpath);
             shaders.push_back(shader);
         }
         catch (const FileException& fe)
@@ -184,12 +184,12 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
     return ParseExtProperty(parts);
 }
 
-vector<oglShader> oglShader::loadFromExSrc(const string& src, ShaderExtInfo& info)
+vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& info, const bool allowCompute, const bool allowDraw)
 {
     info.Properties.clear();
     info.ResMappings.clear();
     vector<oglShader> shaders;
-    vector<string_view> params;
+    set<string_view> stypes;
     string_view partVersion;
     uint32_t lineCnt = 0, lineNum = 0;
 
@@ -216,7 +216,7 @@ vector<oglShader> oglShader::loadFromExSrc(const string& src, ShaderExtInfo& inf
                         info.ResMappings.insert_or_assign(string(ogluAttr.Params[0]), string(ogluAttr.Params[1]));
                     break;
                 case "Stage"_hash:
-                    params.insert(params.cend(), ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
+                    stypes.insert(ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
                     break;
                 case "Property"_hash:
                     if (auto prop = ParseExtProperty(ogluAttr.Params))
@@ -228,11 +228,11 @@ vector<oglShader> oglShader::loadFromExSrc(const string& src, ShaderExtInfo& inf
             }
         }, false);
 
-    if (params.empty())
+    if (stypes.empty())
         COMMON_THROW(BaseException, u"Invalid shader source");
     string_view partOther(src.c_str() + partVersion.size(), src.size() - partVersion.size());
     string lineFix = "#line " + std::to_string(lineNum); //fix line number
-    for (const auto& sv : params)
+    for (const auto& sv : stypes)
     {
         ShaderType shaderType;
         const char *scopeDef = nullptr;
@@ -257,8 +257,11 @@ vector<oglShader> oglShader::loadFromExSrc(const string& src, ShaderExtInfo& inf
                 scopeDef = "#define OGLU_GEOM\r\n";
             } break;
         default:
+            oglLog().warning(u"meet shader type [{}], ignoreed.\n", sv);
             continue;
         }
+        if (shaderType == ShaderType::Compute && !allowCompute) continue;
+        if (shaderType != ShaderType::Compute && !allowDraw) continue;
         oglShader shader(shaderType, str::Concat<char>(partVersion, OGLU_EXT_STR, scopeDef, OGLU_DEFS, OGLU_EXT_STR2, lineFix, partOther));
         shaders.push_back(shader);
     }

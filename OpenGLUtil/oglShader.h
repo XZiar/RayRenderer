@@ -68,15 +68,18 @@ struct OGLUAPI ShaderExtInfo
 
 class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 {
+private:
 public:
     using Wrapper::Wrapper;
-    static oglShader loadFromFile(const ShaderType type, const fs::path& path);
-    static vector<oglShader> loadFromFiles(const u16string& fname);
-    static vector<oglShader> loadFromExSrc(const string& src, ShaderExtInfo& info);
-    static vector<oglShader> loadFromExSrc(const string& src) 
+    static oglShader LoadFromFile(const ShaderType type, const fs::path& path);
+    static vector<oglShader> LoadFromFiles(const u16string& fname);
+    static vector<oglShader> LoadFromExSrc(const string& src, ShaderExtInfo& info, const bool allowCompute = true, const bool allowDraw = true);
+    static vector<oglShader> LoadDrawFromExSrc(const string& src, ShaderExtInfo& info) { return LoadFromExSrc(src, info, false); }
+    static vector<oglShader> LoadComputeFromExSrc(const string& src, ShaderExtInfo& info) { return LoadFromExSrc(src, info, true, false); }
+    static vector<oglShader> LoadFromExSrc(const string& src) 
     {
         ShaderExtInfo dummy;
-        return loadFromExSrc(src, dummy);
+        return LoadFromExSrc(src, dummy);
     }
 };
 

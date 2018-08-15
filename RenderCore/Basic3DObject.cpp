@@ -33,7 +33,7 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
     vbo->Write(pts);
 }
 
-void Pyramid::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
@@ -111,7 +111,7 @@ Sphere::Sphere(const float r) : Drawable(this, TYPENAME), radius(r), radius_sqr(
     ptcount = static_cast<uint32_t>(indexs.size());
 }
 
-void Sphere::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)//bind vertex attribute
@@ -207,7 +207,7 @@ Box::Box(const float length, const float height, const float width) : Drawable(t
     vbo->Write(pts);
 }
 
-void Box::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
@@ -252,7 +252,7 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME),
     vbo->Write(pts, sizeof(pts));
 }
 
-void Plane::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)

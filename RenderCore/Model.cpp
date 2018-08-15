@@ -45,14 +45,14 @@ Model::~Model()
     detail::_ModelMesh::ReleaseModel(mfname);
 }
 
-void Model::PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator)
+void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
-    const GLint attrs[4] = { prog->Attr_Vert_Pos, prog->Attr_Vert_Norm, prog->Attr_Vert_Texc, prog->Attr_Vert_Tan };
+    const GLint attrs[4] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc"), prog->GetLoc("@VertTan") };
     {
         auto vaoprep = std::move(vao->Prepare()
             .Set(Mesh->vbo, attrs, 0)
-            .SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->Attr_Draw_ID, sizeof(uint32_t), 1, 0, 1)
+            .SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->GetLoc("@DrawID"), sizeof(uint32_t), 1, 0, 1)
             .SetIndex(Mesh->ebo));
         Mesh->PrepareVAO(vaoprep);
     }

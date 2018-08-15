@@ -188,13 +188,13 @@ internal:
     bool AddModel(CLIWrapper<Wrapper<rayr::Model>>^ theModel);
 };
 
-public ref class ShaderHolder : public HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>
+public ref class ShaderHolder : public HolderBase<oglu::oglDrawProgram, OpenGLUtil::GLProgram, std::set<oglu::oglDrawProgram>>
 {
 internal:
-    ShaderHolder(rayr::BasicTest * const core, const std::set<oglu::oglProgram>& progs)
-        : HolderBase<oglu::oglProgram, OpenGLUtil::GLProgram, std::set<oglu::oglProgram>>(core, progs)
+    ShaderHolder(rayr::BasicTest * const core, const std::set<oglu::oglDrawProgram>& progs)
+        : HolderBase<oglu::oglDrawProgram, OpenGLUtil::GLProgram, std::set<oglu::oglDrawProgram>>(core, progs)
     { }
-    bool AddShader(CLIWrapper<oglu::oglProgram>^ theShader);
+    bool AddShader(CLIWrapper<oglu::oglDrawProgram>^ theShader);
 public:
     property List<OpenGLUtil::GLProgram^>^ Shaders
     {

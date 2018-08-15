@@ -19,7 +19,7 @@ public:
     ModelMesh Mesh;
     Model(const u16string& fname, bool asyncload = false);
     ~Model() override;
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;
     RESPAK_OVERRIDE_TYPE("rayr#Drawable#Model")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;

@@ -14,7 +14,7 @@ public:
     static constexpr auto TYPENAME = u"Pyramid";
     Pyramid(const float len);
     ~Pyramid() override { }
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     RESPAK_OVERRIDE_TYPE("rayr#Drawable#Pyramid")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
@@ -32,7 +32,7 @@ public:
     static constexpr auto TYPENAME = u"Sphere";
     Sphere(const float r);
     ~Sphere() override { }
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     RESPAK_OVERRIDE_TYPE("rayr#Drawable#Sphere")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
@@ -49,7 +49,7 @@ public:
     Box(const float len) : Box(len, len, len) { };
     Box(const float length, const float height, const float width);
     ~Box() override { }
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     RESPAK_OVERRIDE_TYPE("rayr#Drawable#Box")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
@@ -65,7 +65,7 @@ public:
     static constexpr auto TYPENAME = u"Plane";
     Plane(const float len = 500.0f, const float texRepeat = 1.0f);
     ~Plane() override { }
-    virtual void PrepareGL(const oglu::oglProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     RESPAK_OVERRIDE_TYPE("rayr#Drawable#Plane")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
