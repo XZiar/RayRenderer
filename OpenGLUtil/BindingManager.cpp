@@ -23,6 +23,22 @@ void TextureManager::outterBind(const GLuint prog, const GLuint loc, const uint1
 }
 
 
+GLuint TexImgManager::getID(const oglImgBase& obj) const
+{
+	return obj->GetTextureID();
+}
+
+void TexImgManager::innerBind(const oglImgBase& obj, const uint16_t slot) const
+{
+	obj->bind(slot);
+}
+
+void TexImgManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
+{
+	glProgramUniform1i(prog, loc, slot);
+}
+
+
 GLuint UBOManager::getID(const oglUBO& obj) const
 {
 	return obj->bufferID;

@@ -1,13 +1,14 @@
 #version 430 core
 
-//@OGLU@Stage("VERT", "FRAG")
+//@OGLU@Stage("VERT", "FRAG", "COMP")
 
-
+#ifndef OGLU_COMP
 GLVARY perVert
 {
     vec2 pos;
     vec2 tpos;
 };
+#endif
 
 #ifdef OGLU_VERT
 
@@ -25,11 +26,10 @@ void main()
 
 #endif
 
-#ifdef OGLU_FRAG
+#if defined(OGLU_FRAG) || defined(OGLU_COMP)
 
 uniform sampler2D tex;
 
-out vec4 FragColor;
 
 subroutine vec4 ColorConvertor(const vec4);
 subroutine uniform ColorConvertor ColorConv;
@@ -51,10 +51,30 @@ vec4 G2RGBA(const vec4 color)
 {
     return color.rrra;
 }
+#endif
+
+#ifdef OGLU_FRAG
+
+out vec4 FragColor;
 
 void main()
 {
     FragColor = ColorConv(texture(tex, tpos));
 }
 
+#endif
+
+#ifdef OGLU_COMP
+
+layout(local_size_x = 16, local_size_y = 16) in;
+uniform vec2 coordStep;
+writeonly uniform image2D result;
+
+void main() 
+{
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 tpos = coord * coordStep;
+    vec4 color = ColorConv(texture(tex, tpos));
+    imageStore(result, coord, color);
+}
 #endif

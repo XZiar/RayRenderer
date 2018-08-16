@@ -256,6 +256,12 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
                 shaderType = ShaderType::Geometry;
                 scopeDef = "#define OGLU_GEOM\r\n";
             } break;
+        case "Compute"_hash:
+        case "COMP"_hash:
+            {
+                shaderType = ShaderType::Compute;
+                scopeDef = "#define OGLU_COMP\r\n";
+            } break;
         default:
             oglLog().warning(u"meet shader type [{}], ignoreed.\n", sv);
             continue;

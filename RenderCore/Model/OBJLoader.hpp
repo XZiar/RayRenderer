@@ -77,6 +77,7 @@ public:
         template<size_t N>
         int8_t ParseFloats(const uint8_t idx, float(&output)[N])
         {
+            int8_t cnt = 0;
             str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
             {
                 if (cnt < N)

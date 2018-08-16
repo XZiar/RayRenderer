@@ -36,6 +36,15 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
+        try
+        {
+            GLResizer2.reset(u"GLResizer2", shaderSrc);
+        }
+        catch (const OGLException& gle)
+        {
+            texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
+            //COMMON_THROW(BaseException, u"GLResizer2 shader fail");
+        }
 
         ScreenBox.reset();
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);

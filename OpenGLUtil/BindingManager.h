@@ -25,8 +25,8 @@ struct NodeBlock
 #   pragma GCC diagnostic ignored "-Wpedantic"
 #elif defined(COMPILER_CLANG) && COMPILER_CLANG
 #   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wno-nested-anon-types"
-#   pragma clang diagnostic ignored "-Wno-gnu-anonymous-struct"
+#   pragma clang diagnostic ignored "-Wnested-anon-types"
+#   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 #elif defined(COMPILER_MSVC) && COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4201)
@@ -336,6 +336,18 @@ protected:
 public:
     TextureManager() :ResDister((GLenum)GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS) { }
 };
+
+class TexImgManager : public ResDister<TexImgManager, oglImgBase, 4>
+{
+    friend class ResDister<TexImgManager, oglImgBase, 4>;
+protected:
+    GLuint getID(const oglImgBase& obj) const;
+    void innerBind(const oglImgBase& obj, const uint16_t slot) const;
+    void outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const;
+public:
+    TexImgManager() :ResDister((GLenum)GL_MAX_IMAGE_UNITS) { }
+};
+
 
 class UBOManager : public ResDister<UBOManager, oglUBO, 4>
 {

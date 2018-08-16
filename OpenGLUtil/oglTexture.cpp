@@ -231,50 +231,52 @@ bool TexFormatUtil::HasAlphaType(const TextureInnerFormat format) noexcept
     }
 }
 
-const char16_t* TexFormatUtil::GetTypeName(const TextureType type)
+using namespace std::literals;
+
+const u16string_view TexFormatUtil::GetTypeName(const TextureType type)
 {
     switch (type)
     {
-    case TextureType::Tex2D:             return u"Tex2D";
-    case TextureType::Tex2DArray:        return u"Tex2DArray";
-    case TextureType::TexBuf:            return u"TexBuffer";
-    default:                             return u"Wrong";
+    case TextureType::Tex2D:             return u"Tex2D"sv;
+    case TextureType::Tex2DArray:        return u"Tex2DArray"sv;
+    case TextureType::TexBuf:            return u"TexBuffer"sv;
+    default:                             return u"Wrong"sv;
     }
 }
 
-const char16_t* TexFormatUtil::GetFormatName(const TextureInnerFormat format)
+const u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat format)
 {
     switch (format)
     {
-    case TextureInnerFormat::BC1:        return u"BC1";
-    case TextureInnerFormat::BC2:        return u"BC2";
-    case TextureInnerFormat::BC3:        return u"BC3";
-    case TextureInnerFormat::BC4:        return u"BC4";
-    case TextureInnerFormat::BC5:        return u"BC5";
-    case TextureInnerFormat::BC6H:       return u"BC6H";
-    case TextureInnerFormat::BC7:        return u"BC7";
-    case TextureInnerFormat::BC1A:       return u"BC1A";
-    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB";
-    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB";
-    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB";
-    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB";
-    case TextureInnerFormat::R8:         return u"Gray8";
-    case TextureInnerFormat::RG8:        return u"RG8";
-    case TextureInnerFormat::RGB8:       return u"RGB8";
-    case TextureInnerFormat::SRGB8:      return u"sRGB8";
-    case TextureInnerFormat::RGBA8:      return u"RGBA8";
-    case TextureInnerFormat::SRGBA8:     return u"sRGBA8";
-    case TextureInnerFormat::Rh:         return u"Rh";
-    case TextureInnerFormat::RGh:        return u"RGh";
-    case TextureInnerFormat::RGBh:       return u"RGBh";
-    case TextureInnerFormat::RGBAh:      return u"RGBAh";
-    case TextureInnerFormat::Rf:         return u"Rf";
-    case TextureInnerFormat::RGf:        return u"RGf";
-    case TextureInnerFormat::RGBf:       return u"RGBf";
-    case TextureInnerFormat::RGBAf:      return u"RGBAf";
-    case TextureInnerFormat::RG11B10:    return u"RG11B10";
-    case TextureInnerFormat::RGB10A2:    return u"RGB10A2";
-    default:                             return u"Other";
+    case TextureInnerFormat::BC1:        return u"BC1"sv;
+    case TextureInnerFormat::BC2:        return u"BC2"sv;
+    case TextureInnerFormat::BC3:        return u"BC3"sv;
+    case TextureInnerFormat::BC4:        return u"BC4"sv;
+    case TextureInnerFormat::BC5:        return u"BC5"sv;
+    case TextureInnerFormat::BC6H:       return u"BC6H"sv;
+    case TextureInnerFormat::BC7:        return u"BC7"sv;
+    case TextureInnerFormat::BC1A:       return u"BC1A"sv;
+    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB"sv;
+    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB"sv;
+    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB"sv;
+    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB"sv;
+    case TextureInnerFormat::R8:         return u"Gray8"sv;
+    case TextureInnerFormat::RG8:        return u"RG8"sv;
+    case TextureInnerFormat::RGB8:       return u"RGB8"sv;
+    case TextureInnerFormat::SRGB8:      return u"sRGB8"sv;
+    case TextureInnerFormat::RGBA8:      return u"RGBA8"sv;
+    case TextureInnerFormat::SRGBA8:     return u"sRGBA8"sv;
+    case TextureInnerFormat::Rh:         return u"Rh"sv;
+    case TextureInnerFormat::RGh:        return u"RGh"sv;
+    case TextureInnerFormat::RGBh:       return u"RGBh"sv;
+    case TextureInnerFormat::RGBAh:      return u"RGBAh"sv;
+    case TextureInnerFormat::Rf:         return u"Rf"sv;
+    case TextureInnerFormat::RGf:        return u"RGf"sv;
+    case TextureInnerFormat::RGBf:       return u"RGBf"sv;
+    case TextureInnerFormat::RGBAf:      return u"RGBAf"sv;
+    case TextureInnerFormat::RG11B10:    return u"RG11B10"sv;
+    case TextureInnerFormat::RGB10A2:    return u"RGB10A2"sv;
+    default:                             return u"Other"sv;
     }
 }
 
@@ -352,7 +354,7 @@ void _oglTexBase::bind(const uint16_t pos) const noexcept
 
 void _oglTexBase::unbind() const noexcept
 {
-    glBindTexture((GLenum)Type, 0);
+    //glBindTexture((GLenum)Type, 0);
 }
 
 std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
@@ -717,6 +719,33 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
     InnerBuf = tbo;
     InnerFormat = iformat;
     glTextureBufferEXT(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
+}
+
+
+
+static ContextResource<std::shared_ptr<TexImgManager>, false> CTX_TEXIMG_MAN;
+TexImgManager& _oglImgBase::getImgMan() noexcept
+{
+    const auto texman = CTX_TEXIMG_MAN.GetOrInsert([](auto) { return std::make_shared<TexImgManager>(); });
+    return *texman;
+}
+
+_oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
+    : InnerTex(tex), Usage(usage) 
+{
+    if (!InnerTex)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
+    if (TexFormatUtil::IsCompressType(InnerTex->GetInnerFormat()))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"TexImg does not support compressed texture type");
+}
+
+void _oglImgBase::bind(const uint16_t pos) const noexcept
+{
+    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, (GLenum)InnerTex->GetInnerFormat());
+}
+
+void _oglImgBase::unbind() const noexcept
+{
 }
 
 

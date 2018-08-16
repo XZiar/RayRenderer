@@ -49,6 +49,8 @@ enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, 
 
 enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
 
+enum class TexImgUsage : GLenum { ReadOnly = GL_READ_ONLY, WriteOnly = GL_WRITE_ONLY, ReadWrite = GL_READ_WRITE };
+
 struct OGLUAPI TexFormatUtil
 {
     static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
@@ -72,8 +74,8 @@ struct OGLUAPI TexFormatUtil
     static bool IsCompressType(const TextureInnerFormat format) noexcept;
     static bool IsGrayType(const TextureInnerFormat format) noexcept;
     static bool HasAlphaType(const TextureInnerFormat format) noexcept;
-    static const char16_t* GetTypeName(const TextureType type);
-    static const char16_t* GetFormatName(const TextureInnerFormat format);
+    static const u16string_view GetTypeName(const TextureType type);
+    static const u16string_view GetFormatName(const TextureInnerFormat format);
 };
 
 
@@ -86,6 +88,7 @@ using xziar::img::Image;
 class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
 {
     friend class TextureManager;
+    friend class _oglImgBase;
     friend class _oglFrameBuffer;
     friend class _oglProgram;
     friend class ProgState;
@@ -323,6 +326,25 @@ public:
 };
 
 
+class OGLUAPI _oglImgBase : public NonMovable, NonCopyable
+{
+    friend class TexImgManager;
+    friend class _oglProgram;
+    friend class ProgState;
+    friend class ProgDraw;
+protected:
+    Wrapper<detail::_oglTexBase> InnerTex;
+    TextureDataFormat DataType;
+    TexImgUsage Usage;
+    static TexImgManager& getImgMan() noexcept;
+    GLuint GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
+    void bind(const uint16_t pos) const noexcept;
+    void unbind() const noexcept;
+    _oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage);
+public:
+};
+
+
 }
 
 using oglTexBase = Wrapper<detail::_oglTexBase>;
@@ -333,6 +355,7 @@ using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
 using oglTex3D = Wrapper<detail::_oglTexture3D>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
+using oglImgBase = Wrapper<detail::_oglImgBase>;
 
 
 }

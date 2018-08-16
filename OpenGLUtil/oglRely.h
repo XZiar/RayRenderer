@@ -16,8 +16,6 @@
 # endif
 #endif
 
-
-
 #include "common/CommonRely.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/CopyEx.hpp"
@@ -41,7 +39,11 @@
 #endif
 #include "glew/glew.h"
 
-//#include "cpplinq.hpp"
+
+#if defined(COMPILER_MSVC) && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
+#   error "require aligned storage fix"
+#endif
+
 
 #include <cstddef>
 #include <cstdio>
@@ -80,6 +82,7 @@ using std::string;
 using std::string_view;
 using std::wstring;
 using std::u16string;
+using std::u16string_view;
 using std::byte;
 using std::tuple;
 using std::pair;
@@ -114,6 +117,7 @@ struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
 namespace detail
 {
 class TextureManager;
+class TexImgManager;
 class UBOManager;
 }
 }

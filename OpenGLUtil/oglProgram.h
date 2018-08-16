@@ -42,6 +42,7 @@ public:
     bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
     bool isAttrib() const noexcept { return type == GL_PROGRAM_INPUT; }
     bool isTexture() const noexcept;
+    bool isImage() const noexcept;
 };
 
 class OGLUAPI SubroutineResource : public common::container::NamedSetValue<SubroutineResource, string>
@@ -88,8 +89,8 @@ class OGLUAPI _oglProgram : public NonCopyable, public NonMovable, public common
     friend class TextureManager;
     friend class UBOManager;
     friend class ProgState;
+    friend class ProgDraw;
 protected:
-    Mat4x4 matrix_Proj, matrix_View;
     set<oglShader> shaders;
     string ExtShaderSource;
     ShaderExtInfo ExtInfo;
@@ -97,6 +98,7 @@ protected:
     map<string, const ProgramResource*, std::less<>> ResNameMapping;
     set<ProgramResource, std::less<>> ProgRess;
     set<ProgramResource, std::less<>> TexRess;
+    set<ProgramResource, std::less<>> ImgRess;
     set<ProgramResource, std::less<>> UBORess;
     set<ProgramResource, std::less<>> AttrRess;
     set<SubroutineResource, std::less<>> SubroutineRess;
@@ -104,6 +106,7 @@ protected:
     map<GLint, UniformValue> UniValCache;
     vector<GLint> UniBindCache; 
     map<GLuint, oglTexBase> TexBindings;
+    map<GLuint, oglImgBase> ImgBindings;
     map<GLuint, oglUBO> UBOBindings;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
     map<ShaderType, vector<GLuint>> SubroutineSettings;
@@ -120,6 +123,8 @@ protected:
 
     void SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
     void SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
+    void SetImage(TexImgManager& texMan, const GLint pos, const oglImgBase& tex, const bool shouldPin = false);
+    void SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>& texs, const bool shouldPin = false);
     void SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
     void SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void SetSubroutine();
@@ -191,6 +196,9 @@ public:
     ProgState& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
+    ProgState& SetImage(const oglImgBase& img, const string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetImage(const oglImgBase& img, const GLuint pos);
     ProgState& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
@@ -203,7 +211,7 @@ class OGLUAPI _oglDrawProgram : public _oglProgram
 {
     friend class ProgDraw;
 private:
-    virtual void OnPrepare() override;
+    Mat4x4 matrix_Proj, matrix_View;
     GLint
         Uni_projMat = GL_INVALID_INDEX,
         Uni_viewMat = GL_INVALID_INDEX,
@@ -211,6 +219,7 @@ private:
         Uni_normalMat = GL_INVALID_INDEX,
         Uni_mvpMat = GL_INVALID_INDEX,
         Uni_camPos = GL_INVALID_INDEX;
+    virtual void OnPrepare() override;
 public:
     using _oglProgram::_oglProgram;
     virtual ~_oglDrawProgram() override {}
@@ -230,13 +239,16 @@ class OGLUAPI ProgDraw
 {
     friend class _oglDrawProgram;
 private:
-    _oglDrawProgram & Prog;
-    TextureManager & TexMan;
+    enum class UniformType : uint8_t { Tex = 0, Img = 1, Ubo = 2 };
+    _oglDrawProgram& Prog;
+    TextureManager& TexMan;
+    TexImgManager& ImgMan;
     UBOManager& UboMan;
     map<GLuint, oglTexBase> TexCache;
+    map<GLuint, oglImgBase> ImgCache;
     map<GLuint, oglUBO> UBOCache;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
-    map<GLuint, std::pair<GLint, bool>> UniBindBackup;
+    map<GLuint, std::pair<GLint, UniformType>> UniBindBackup;
     map<GLint, UniformValue> UniValBackup;
     ProgDraw(_oglDrawProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     template<typename T>
@@ -266,6 +278,8 @@ public:
     ProgDraw& Draw(const oglVAO& vao);
     ProgDraw& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);
     ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);
+    ProgDraw& SetImage(const oglImgBase& tex, const string& name, const GLuint idx = 0);
+    ProgDraw& SetImage(const oglImgBase& tex, const GLuint pos);
     ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
@@ -317,6 +331,7 @@ class OGLUAPI _oglComputeProgram : public _oglProgram
 private:
     virtual void OnPrepare() override {}
     using _oglProgram::AddShader;
+    using _oglProgram::Link;
 public:
     _oglComputeProgram(const u16string name, const oglShader& shader);
     _oglComputeProgram(const u16string name, const string& src);

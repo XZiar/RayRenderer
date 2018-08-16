@@ -269,10 +269,10 @@ void MultiMaterialHolder::Refresh()
     for (const auto& [tid, texs] : needAdd)
     {
         auto& texarr = Textures[tid];
-        uint32_t objLayer = 0;
+        uint16_t objLayer = 0;
         if (texarr)
         {
-            objLayer = std::get<2>(texarr->GetSize());
+            objLayer = (uint16_t)std::get<2>(texarr->GetSize());
             const auto texname = texarr->Name;
             texarr = oglTex2DArray(texarr, (uint32_t)(texs.size()));
             texarr->Name = texname;

@@ -369,7 +369,7 @@ public:
         return Mat4x4(tmp, tmp);
     #elif COMMON_SIMD_LV >= 20
         const auto tmp = _mm_set1_ps(val);
-        return Mat4x4(tmp, tmp, tmp);
+        return Mat4x4(tmp, tmp, tmp, tmp);
     #else
         float dat[12] = { val };
         return Mat4x4(dat);

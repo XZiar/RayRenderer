@@ -12,6 +12,7 @@ private:
     common::asyexe::AsyncManager Executor;
     oglContext GLContext;
     oglDrawProgram GLResizer;
+    oglComputeProgram GLResizer2;
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oglFBO OutputFrame;
