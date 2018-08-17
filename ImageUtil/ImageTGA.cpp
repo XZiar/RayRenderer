@@ -25,18 +25,18 @@ bool TgaReader::Validate()
     switch (Header.ColorMapType)
     {
     case 1://paletted image
-        if (REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }) != TGAImgType::COLOR_MAP)
+        if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) != TGAImgType::COLOR_MAP)
             return false;
         if (Header.PixelDepth != 8 && Header.PixelDepth != 16)
             return false;
         break;
     case 0://color image
-        if (REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }) == TGAImgType::GRAY)
+        if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::GRAY)
         {
             if (Header.PixelDepth != 8)//gray must be 8 bit
                 return false;
         }
-        else if (REMOVE_MASK(Header.ImageType, { TGAImgType::RLE_MASK }) == TGAImgType::COLOR)
+        else if (REMOVE_MASK(Header.ImageType, TGAImgType::RLE_MASK) == TGAImgType::COLOR)
         {
             if (Header.PixelDepth != 15 && Header.PixelDepth != 16 && Header.PixelDepth != 24 && Header.PixelDepth != 32)//gray must not be 8 bit
                 return false;
@@ -622,7 +622,7 @@ Image TgaReader::Read(const ImageDataType dataType)
     Image image(dataType);
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))//NotSuported 
         return image;
-    if (image.isGray() && REMOVE_MASK(Header.ImageType, { detail::TGAImgType::RLE_MASK }) != detail::TGAImgType::GRAY)//down-convert, not supported
+    if (image.isGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
         return image;
     ImgFile.Rewind(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
     image.SetSize(Width, Height);
@@ -706,10 +706,6 @@ void TgaWriter::Write(const Image& image)
     ImgLog().debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 }
 
-
-TgaSupport::TgaSupport() : ImgSupport(u"Tga") 
-{
-}
 
 static auto DUMMY = RegistImageSupport<TgaSupport>();
 

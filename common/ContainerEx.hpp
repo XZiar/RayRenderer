@@ -22,6 +22,38 @@ forceinline bool operator<(const NamedSetValue<Child, StringType>& obj, const St
 template<typename Child, typename StringType>
 forceinline bool operator<(const StringType& name, const NamedSetValue<Child, StringType>& obj) noexcept { return name < ((const Child*)&obj)->Name; }
 
+namespace detail
+{
+struct LessTester
+{
+    template<typename T>
+    auto operator()(const T& left, const T& right) -> decltype(left < right);
+};
+}
+
+template<typename T, auto Key>
+struct SetKeyLess
+{
+    using is_transparent = void;
+    template<typename C>
+    constexpr bool operator()(const T& left, const C& right) const noexcept
+    {
+        return ((left.*Key) < right);
+    }
+    template<typename C>
+    constexpr bool operator()(const C& left, const T& right) const noexcept
+    {
+        return (left < (right.*Key));
+    }
+    constexpr bool operator()(const T& left, const T& right) const noexcept
+    {
+        if constexpr(std::is_invocable<detail::LessTester, T, T>::value)
+            return (left < right);
+        else
+            return ((left.*Key) < (right.*Key));
+    }
+};
+
 template<typename Key, typename Val>
 struct PairLess
 {

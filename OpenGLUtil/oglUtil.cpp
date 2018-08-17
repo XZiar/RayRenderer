@@ -138,6 +138,11 @@ common::asyexe::AsyncResult<void> oglUtil::ForceSyncGL()
     return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<PromiseResultGLVoid2>());
 }
 
+void oglUtil::MemBarrier(const GLMemBarrier mbar)
+{
+    glMemoryBarrier((GLenum)mbar);
+}
+
 void oglUtil::TryTask()
 {
     std::array<uint32_t, 128 * 128> empty{};

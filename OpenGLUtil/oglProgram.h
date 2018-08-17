@@ -19,33 +19,37 @@ class ProgState;
 class ProgDraw;
 }
 
-struct OGLUAPI ProgramResource : public common::container::NamedSetValue<ProgramResource, string>
+enum class ProgResType : uint16_t 
+{ 
+    Empty = 0, CategoryMask = 0xf000, TypeMask = 0x0fff, TypeCatMask = 0x0f00, FullCatMask = 0xff00, RawTypeMask = 0x00ff,
+    InputCat = 0x0000, UniformCat = 0x1000, UBOCat = 0x2000,
+    PrimitiveType = 0x000, TexType = 0x100, ImgType = 0x200,
+    Tex1D = 0x100, Tex2D = 0x110, Tex3D = 0x120, TexCube = 0x130, Tex1DArray = 0x140, Tex2DArray = 0x150,
+    Img1D = 0x200, Img2D = 0x210, Img3D = 0x220, ImgCube = 0x230, Img1DArray = 0x240, Img2DArray = 0x250,
+};
+MAKE_ENUM_BITFIELD(ProgResType)
+
+struct OGLUAPI ProgramResource
 {
     friend class detail::_oglProgram;
     friend class detail::ProgState;
     friend class detail::ProgDraw;
-private:
-    GLint GetValue(const GLuint pid, const GLenum prop);
-    void InitData(const GLuint pid, const GLint idx);
 public:
+    string Name;
+    GLenum Type;
+    GLenum Valtype;
     GLint location = GL_INVALID_INDEX;
     //length of array
-    mutable GLuint len = 1;
-    GLenum type;
-    GLenum valtype;
-    uint16_t size = 0;
+    mutable GLuint len;
+    uint16_t size;
+    ProgResType ResType;
     uint8_t ifidx;
-    const string Name;
-    ProgramResource(const GLenum type_, const string& name) :type(type_), Name(name) { }
     string_view GetTypeName() const noexcept;
     string_view GetValTypeName() const noexcept;
-    bool isUniformBlock() const noexcept { return type == GL_UNIFORM_BLOCK; }
-    bool isAttrib() const noexcept { return type == GL_PROGRAM_INPUT; }
-    bool isTexture() const noexcept;
-    bool isImage() const noexcept;
+    using Lesser = common::container::SetKeyLess<ProgramResource, &ProgramResource::Name>;
 };
 
-class OGLUAPI SubroutineResource : public common::container::NamedSetValue<SubroutineResource, string>
+class OGLUAPI SubroutineResource
 {
     friend class detail::_oglProgram;
     friend class detail::ProgState;
@@ -70,6 +74,7 @@ private:
 public:
     SubroutineResource(const GLenum stage, const GLint location, const string& name, vector<Routine>&& routines)
         : Name(name), Routines(std::move(routines)), Stage(ShaderType(stage)), UniLoc(location) {}
+    using Lesser = common::container::SetKeyLess<SubroutineResource, &SubroutineResource::Name>;
 };
 
 
@@ -96,12 +101,8 @@ protected:
     ShaderExtInfo ExtInfo;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
     map<string, const ProgramResource*, std::less<>> ResNameMapping;
-    set<ProgramResource, std::less<>> ProgRess;
-    set<ProgramResource, std::less<>> TexRess;
-    set<ProgramResource, std::less<>> ImgRess;
-    set<ProgramResource, std::less<>> UBORess;
-    set<ProgramResource, std::less<>> AttrRess;
-    set<SubroutineResource, std::less<>> SubroutineRess;
+    set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess, AttrRess;
+    set<SubroutineResource, SubroutineResource::Lesser> SubroutineRess;
     map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     map<GLint, UniformValue> UniValCache;
     vector<GLint> UniBindCache; 
@@ -144,9 +145,9 @@ public:
     _oglProgram(const u16string& name);
     virtual ~_oglProgram();
 
-    const set<ProgramResource, std::less<>>& getResources() const { return ProgRess; }
+    const set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
     const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ExtInfo.Properties; }
-    const set<SubroutineResource, std::less<>>& getSubroutineResources() const { return SubroutineRess; }
+    const set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
     const set<oglShader>& getShaders() const { return shaders; }
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
@@ -154,8 +155,8 @@ public:
     const string& GetExtShaderSource() const { return ExtShaderSource; }
     void Link();
     GLint GetLoc(const string& name) const;
-    const ProgramResource* GetResource(const string& name) const { return FindInSet(ProgRess, name); }
-    const SubroutineResource* GetSubroutines(const string& name) const { return FindInSet(SubroutineRess, name); }
+    const ProgramResource* GetResource(const string& name) const { return common::container::FindInSet(ProgRess, name); }
+    const SubroutineResource* GetSubroutines(const string& name) const { return common::container::FindInSet(SubroutineRess, name); }
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     ProgState State() noexcept;
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
@@ -239,7 +240,6 @@ class OGLUAPI ProgDraw
 {
     friend class _oglDrawProgram;
 private:
-    enum class UniformType : uint8_t { Tex = 0, Img = 1, Ubo = 2 };
     _oglDrawProgram& Prog;
     TextureManager& TexMan;
     TexImgManager& ImgMan;
@@ -248,7 +248,7 @@ private:
     map<GLuint, oglImgBase> ImgCache;
     map<GLuint, oglUBO> UBOCache;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
-    map<GLuint, std::pair<GLint, UniformType>> UniBindBackup;
+    map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
     map<GLint, UniformValue> UniValBackup;
     ProgDraw(_oglDrawProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
     template<typename T>
@@ -278,8 +278,8 @@ public:
     ProgDraw& Draw(const oglVAO& vao);
     ProgDraw& SetTexture(const oglTexBase& tex, const string& name, const GLuint idx = 0);
     ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);
-    ProgDraw& SetImage(const oglImgBase& tex, const string& name, const GLuint idx = 0);
-    ProgDraw& SetImage(const oglImgBase& tex, const GLuint pos);
+    ProgDraw& SetImage(const oglImgBase& img, const string& name, const GLuint idx = 0);
+    ProgDraw& SetImage(const oglImgBase& img, const GLuint pos);
     ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);

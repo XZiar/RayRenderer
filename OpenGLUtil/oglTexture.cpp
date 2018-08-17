@@ -748,6 +748,7 @@ void _oglImgBase::unbind() const noexcept
 {
 }
 
+_oglImg2D::_oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage) {}
 
 }
 

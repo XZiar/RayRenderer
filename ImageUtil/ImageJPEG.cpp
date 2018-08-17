@@ -222,7 +222,7 @@ void JpegWriter::Write(const Image& image)
     if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         return;
     auto compStruct = (j_compress_ptr)JpegCompStruct;
-    const auto dataType = REMOVE_MASK(image.GetDataType(), { ImageDataType::FLOAT_MASK });
+    const auto dataType = REMOVE_MASK(image.GetDataType(), ImageDataType::FLOAT_MASK);
     switch (dataType)
     {
     case ImageDataType::BGR:

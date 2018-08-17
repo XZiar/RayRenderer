@@ -312,7 +312,7 @@ public:
     }
 
     void GenerateMipmap();
-    //Wrapper<_oglTexture2DView> GetTextureView() const;
+    //Wrapper<_oglTexture2DView> GetTextureLayer(const uint32_t layer) const;
 };
 
 
@@ -342,8 +342,15 @@ protected:
     void unbind() const noexcept;
     _oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage);
 public:
+    TextureType GetType() const { return InnerTex->Type; }
 };
 
+class OGLUAPI _oglImg2D : public _oglImgBase
+{
+protected:
+public:
+    _oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage);
+};
 
 }
 
@@ -356,6 +363,7 @@ using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
 using oglTex3D = Wrapper<detail::_oglTexture3D>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 using oglImgBase = Wrapper<detail::_oglImgBase>;
+using oglImg2D = Wrapper<detail::_oglImg2D>;
 
 
 }

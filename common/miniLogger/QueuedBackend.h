@@ -29,7 +29,6 @@ protected:
     std::atomic_bool ShouldRun = false;
     std::atomic_bool IsWaiting = false;
     void LoggerWorker();
-    void virtual OnPrint(const LogMessage& msg) = 0;
     void virtual OnStart() {}
     void virtual OnStop() {}
     void Start();

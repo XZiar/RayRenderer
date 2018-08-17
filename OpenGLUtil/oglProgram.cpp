@@ -19,81 +19,85 @@ using common::container::ReplaceInVec;
 static detail::ContextResource<GLuint> CTX_PROG_MAP;
 using namespace std::literals;
 
-
-GLint ProgramResource::GetValue(const GLuint pid, const GLenum prop)
+template<typename T = GLint>
+static T ProgResGetValue(const GLuint pid, const GLenum type, const GLint ifidx, const GLenum prop)
 {
     GLint ret;
     glGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
-    return ret;
+    return static_cast<T>(ret);
 }
 
 
 string_view ProgramResource::GetTypeName() const noexcept
 {
-    switch (type)
+    switch (ResType & ProgResType::CategoryMask)
     {
-    case GL_UNIFORM_BLOCK:
-        return "UniBlk"sv;
-    case GL_UNIFORM:
-        return isTexture() ? "TexUni"sv : "Uniform"sv;
-    case GL_PROGRAM_INPUT:
-        return "Attrib"sv;
-    default:
-        return nullptr;
+    case ProgResType::InputCat:   return "Attrib"sv;
+    case ProgResType::UBOCat:     return "UniBlk"sv;
+    case ProgResType::UniformCat:
+        switch (ResType&ProgResType::TypeCatMask)
+        {
+        case ProgResType::TexType:    return "TexUni"sv;
+        case ProgResType::ImgType:    return "ImgUni"sv;
+        default:                      return "Other"sv;
+        }
+    default:                      return "Other"sv;
     }
 }
 
 
 string_view ProgramResource::GetValTypeName() const noexcept
 {
-    switch (valtype)
+    switch (Valtype)
     {
     case GL_UNIFORM_BLOCK:
         return "uniBlock"sv;
     default:
-        return FindInMap(detail::GLENUM_STR, valtype, std::in_place).value_or("UNKNOWN"sv);
+        return FindInMap(detail::GLENUM_STR, Valtype, std::in_place).value_or("UNKNOWN"sv);
     }
 }
 
-void ProgramResource::InitData(const GLuint pid, const GLint idx)
+ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint programID, const GLint idx)
 {
-    ifidx = (uint8_t)idx;
+    ProgramResource progres;
+    progres.Name = name;
+    progres.Type = type;
+    progres.ifidx = (uint8_t)idx;
+    progres.ResType = ProgResType::Empty;
     if (type == GL_UNIFORM_BLOCK)
     {
-        valtype = GL_UNIFORM_BLOCK;
-        size = static_cast<uint16_t>(GetValue(pid, GL_BUFFER_DATA_SIZE));
+        progres.Valtype = GL_UNIFORM_BLOCK;
+        progres.ResType |= ProgResType::UBOCat;
+        progres.location = glGetProgramResourceIndex(programID, type, name.c_str());
+        progres.size = ProgResGetValue<uint16_t>(programID, type, idx, GL_BUFFER_DATA_SIZE);
+        progres.len = 1;
     }
     else
     {
-        valtype = (GLenum)GetValue(pid, GL_TYPE);
-        len = GetValue(pid, GL_ARRAY_SIZE);
+        progres.Valtype = ProgResGetValue<GLenum>(programID, type, idx, GL_TYPE);
+        switch (type)
+        {
+        case GL_PROGRAM_INPUT:
+            progres.ResType |= ProgResType::InputCat;
+            break;
+        case GL_UNIFORM:
+            progres.ResType |= ProgResType::UniformCat;
+            if (progres.Valtype >= GL_IMAGE_1D && progres.Valtype <= GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY)
+                progres.ResType |= ProgResType::ImgType;
+            else if ((progres.Valtype >= GL_SAMPLER_1D && progres.Valtype <= GL_SAMPLER_2D_RECT_SHADOW)
+                || (progres.Valtype >= GL_SAMPLER_1D_ARRAY && progres.Valtype <= GL_SAMPLER_CUBE_SHADOW)
+                || (progres.Valtype >= GL_INT_SAMPLER_1D && progres.Valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
+                || (progres.Valtype >= GL_SAMPLER_2D_MULTISAMPLE && progres.Valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY))
+                progres.ResType |= ProgResType::TexType;
+            else
+                progres.ResType |= ProgResType::PrimitiveType;
+            break;
+        }
+        progres.location = glGetProgramResourceLocation(programID, type, name.c_str());
+        progres.size = 0;
+        progres.len = ProgResGetValue<GLuint>(programID, type, idx, GL_ARRAY_SIZE);
     }
-}
-
-bool ProgramResource::isTexture() const noexcept
-{
-    if (type != GL_UNIFORM)
-        return false;
-    if (valtype >= GL_SAMPLER_1D && valtype <= GL_SAMPLER_2D_RECT_SHADOW)
-        return true;
-    else if (valtype >= GL_SAMPLER_1D_ARRAY && valtype <= GL_SAMPLER_CUBE_SHADOW)
-        return true;
-    else if (valtype >= GL_INT_SAMPLER_1D && valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
-        return true;
-    else if (valtype >= GL_SAMPLER_2D_MULTISAMPLE && valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY)
-        return true;
-    else
-        return false;
-}
-
-bool ProgramResource::isImage() const noexcept
-{
-    if (type != GL_UNIFORM)
-        return false;
-    if (valtype >= GL_IMAGE_1D && valtype <= GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY)
-        return true;
-    else
-        return false;
+    return progres;
 }
 
 
@@ -153,7 +157,7 @@ void _oglProgram::RecoverState()
 
 void _oglProgram::InitLocs()
 {
-    set<ProgramResource, std::less<>> dataMap;
+    set<ProgramResource, ProgramResource::Lesser> dataMap;
     string nameBuf;
     GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
     for (const GLenum dtype : datatypes)
@@ -183,12 +187,8 @@ void _oglProgram::InitLocs()
                 it->len = common::max(it->len, arraylen);
                 continue;
             }
-            ProgramResource datinfo(dtype, nameBuf);
-            datinfo.InitData(programID, a);
-            if (dtype == GL_UNIFORM_BLOCK)
-                datinfo.location = glGetProgramResourceIndex(programID, dtype, nameBuf.c_str());
-            else
-                datinfo.location = glGetProgramResourceLocation(programID, dtype, nameBuf.c_str());
+
+            ProgramResource datinfo = GenProgRes(nameBuf, dtype, programID, a);
 
             if (datinfo.location != (GLint)GL_INVALID_INDEX)
             {
@@ -200,18 +200,23 @@ void _oglProgram::InitLocs()
     GLuint maxUniLoc = 0;
     for (const auto& info : dataMap)
     {
-        if (info.isAttrib())
-            AttrRess.insert(info);
-        else
+        switch (info.ResType & ProgResType::CategoryMask)
         {
-            maxUniLoc = common::max(maxUniLoc, info.location + info.len);
-            if (info.isUniformBlock())
-                UBORess.insert(info);
-            else if (info.isTexture())
-                TexRess.insert(info);
-            else if (info.isImage())
-                ImgRess.insert(info);
+        case ProgResType::InputCat:
+            AttrRess.insert(info); break;
+        case ProgResType::UBOCat:
+            UBORess.insert(info); break;
+        case ProgResType::UniformCat:
+            switch (info.ResType & ProgResType::TypeCatMask)
+            {
+            case ProgResType::TexType:  TexRess.insert(info); break;
+            case ProgResType::ImgType:  ImgRess.insert(info); break;
+            default:                    break;
+            } break;
+        default:                break;
         }
+        if ((info.ResType & ProgResType::CategoryMask) != ProgResType::InputCat)
+            maxUniLoc = common::max(maxUniLoc, info.location + info.len);
         ProgRess.insert(info);
         oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
@@ -297,7 +302,7 @@ void _oglProgram::FilterProperties()
     {
         oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
         if (auto res = FindInSet(ProgRess, prop.Name))
-            if (prop.MatchType(res->valtype))
+            if (prop.MatchType(res->Valtype))
             {
                 newProperties.insert(prop);
                 switch (prop.Type)
@@ -370,7 +375,8 @@ void _oglProgram::Link()
     glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
     string logstr((size_t)len, '\0');
     glGetProgramInfoLog(programID, len, &len, logstr.data());
-    logstr.pop_back(); //null-terminated so pop back
+    if (len > 0 && logstr.back() == '\0')
+        logstr.pop_back(); //null-terminated so pop back
     if (!result)
     {
         oglLog().warning(u"Link program failed.\n{}\n", logstr);
@@ -410,7 +416,7 @@ void _oglProgram::Link()
 
 GLint _oglProgram::GetLoc(const ProgramResource* res, GLenum valtype) const
 {
-    if (res && res->valtype == valtype)
+    if (res && res->Valtype == valtype)
         return res->location;
     return GL_INVALID_INDEX;
 }
@@ -418,7 +424,7 @@ GLint _oglProgram::GetLoc(const string& name, GLenum valtype) const
 {
     auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
         : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
-    if (obj && obj->valtype == valtype)
+    if (obj && obj->Valtype == valtype)
         return obj->location;
     return GL_INVALID_INDEX;
 }
@@ -786,17 +792,19 @@ ProgDraw& ProgDraw::Restore(const bool quick)
         {
             switch (binding.second)
             {
-            case UniformType::Tex:
+            case ProgResType::TexType:
                 if (const auto ptrTex = FindInMap(Prog.TexBindings, pos); ptrTex)
                     TexCache.insert_or_assign(pos, *ptrTex);
                 break;
-            case UniformType::Img:
+            case ProgResType::ImgType:
                 if (const auto ptrImg = FindInMap(Prog.ImgBindings, pos); ptrImg)
                     ImgCache.insert_or_assign(pos, *ptrImg);
                 break;
-            case UniformType::Ubo:
+            case ProgResType::UBOCat:
                 if (const auto ptrUbo = FindInMap(Prog.UBOBindings, pos); ptrUbo)
                     UBOCache.insert_or_assign(pos, *ptrUbo);
+                break;
+            default:
                 break;
             }
         }
@@ -811,13 +819,14 @@ ProgDraw& ProgDraw::Restore(const bool quick)
             {
                 switch (binding.second)
                 {
-                case UniformType::Tex:
-                case UniformType::Img:
+                case ProgResType::TexType:
+                case ProgResType::ImgType:
                     glProgramUniform1i(Prog.programID, pos, obj = val);
                     break;
-                case UniformType::Ubo:
+                case ProgResType::UBOCat:
                     glUniformBlockBinding(Prog.programID, pos, obj = val);
                     break;
+                default: break;
                 }
             }
         }
@@ -889,7 +898,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const string& name, const 
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Tex);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TexType);
     }
     return *this;
 }
@@ -901,7 +910,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Tex);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TexType);
     }
     return *this;
 }
@@ -915,7 +924,7 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const string& name, const GL
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Img);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::ImgType);
     }
     return *this;
 }
@@ -927,7 +936,7 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const GLuint pos)
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Img);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::ImgType);
     }
     return *this;
 }
@@ -941,7 +950,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const string& name, const GLuint i
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Ubo);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::UBOCat);
     }
     return *this;
 }
@@ -953,7 +962,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, UniformType::Ubo);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::UBOCat);
     }
     return *this;
 }

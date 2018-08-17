@@ -143,7 +143,7 @@ BmpReader::BmpReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(O
 
 void BmpReader::Release()
 {
-    OriginalFile = std::move(ImgFile.Release());
+    OriginalFile = ImgFile.Release();
 }
 
 bool BmpReader::Validate()

@@ -213,7 +213,7 @@ public:
         {
             Lock.UnlockRead();
             Lock.LockWrite();
-            if (obj = common::container::FindInMap(Map, key, std::in_place))
+            if (obj = common::container::FindInMap(Map, key, std::in_place); obj)
             {
                 Lock.UnlockWrite();
                 return *obj;
