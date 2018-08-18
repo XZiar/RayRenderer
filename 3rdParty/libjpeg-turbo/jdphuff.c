@@ -4,7 +4,7 @@
  * This file was part of the Independent JPEG Group's software:
  * Copyright (C) 1995-1997, Thomas G. Lane.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2015-2016, D. R. Commander.
+ * Copyright (C) 2015-2016, 2018, D. R. Commander.
  * For conditions of distribution and use, see the accompanying README.ijg
  * file.
  *
@@ -15,12 +15,16 @@
  * up to the start of the current MCU.  To do this, we copy state variables
  * into local working storage, and update them back to the permanent
  * storage only upon successful completion of an MCU.
+ *
+ * NOTE: All referenced figures are from
+ * Recommendation ITU-T T.81 (1992) | ISO/IEC 10918-1:1994.
  */
 
 #define JPEG_INTERNALS
 #include "jinclude.h"
 #include "jpeglib.h"
 #include "jdhuff.h"             /* Declarations shared with jdhuff.c */
+#include <limits.h>
 
 
 #ifdef D_PROGRESSIVE_SUPPORTED
@@ -340,6 +344,10 @@ decode_mcu_DC_first(j_decompress_ptr cinfo, JBLOCKROW *MCU_data)
       }
 
       /* Convert DC difference to actual value, update last_dc_val */
+      if ((state.last_dc_val[ci] >= 0 &&
+           s > INT_MAX - state.last_dc_val[ci]) ||
+          (state.last_dc_val[ci] < 0 && s < INT_MIN - state.last_dc_val[ci]))
+        ERREXIT(cinfo, JERR_BAD_DCT_COEF);
       s += state.last_dc_val[ci];
       state.last_dc_val[ci] = s;
       /* Scale and output the coefficient (assumes jpeg_natural_order[0]=0) */

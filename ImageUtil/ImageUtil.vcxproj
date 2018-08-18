@@ -183,6 +183,7 @@
     <ClInclude Include="ImageCore.h" />
     <ClInclude Include="ImageJPEG.h" />
     <ClInclude Include="ImagePNG.h" />
+    <ClInclude Include="ImageSTB.h" />
     <ClInclude Include="ImageSupport.hpp" />
     <ClInclude Include="ImageTGA.h" />
     <ClInclude Include="ImageUtil.h" />
@@ -194,6 +195,7 @@
     <ClCompile Include="ImageCore.cpp" />
     <ClCompile Include="ImageJPEG.cpp" />
     <ClCompile Include="ImagePNG.cpp" />
+    <ClCompile Include="ImageSTB.cpp" />
     <ClCompile Include="ImageTGA.cpp" />
     <ClCompile Include="ImageUtil.cpp" />
     <ClCompile Include="ImageUtilRely.cpp">

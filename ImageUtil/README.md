@@ -28,11 +28,11 @@ Since This component is binded with X86 optimization, internal data layout is as
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
-* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.34
+* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.35
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  1.5.90
+* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  2.0.0
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
 

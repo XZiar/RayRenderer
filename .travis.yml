@@ -49,9 +49,9 @@ before_install:
   - mkdir tmp
   - cd tmp
   - mkdir include
-  - wget -O boost_1_67_0.tar.bz2 https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.bz2
-  - tar xjf boost_1_67_0.tar.bz2
-  - mv ./boost_1_67_0/boost ./include/
+  - wget -O boost_1_68_0.tar.bz2 https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.bz2
+  - tar xjf boost_1_68_0.tar.bz2
+  - mv ./boost_1_68_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
   - cd ..
 

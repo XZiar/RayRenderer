@@ -19,14 +19,14 @@ uint32_t RegistImageSupport(const Wrapper<ImgSupport>& support)
     return 0;
 }
 
-static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, const bool allowDisMatch)
+static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
     vector<Wrapper<ImgSupport>> ret;
     ret.reserve(SUPPORT_MAP().size());
     for (auto& support : SUPPORT_MAP())
     {
         //make supportor with proper extension first
-        if (support->MatchExtension(ext))
+        if (support->MatchExtension(ext, dataType, isRead))
             ret.insert(ret.cbegin(), support);
         else if (allowDisMatch)
             ret.push_back(support);
@@ -39,7 +39,7 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
     auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY);
     ImgLog().debug(u"Read Image {}\n", path.u16string());
     const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
-    auto testList = GenerateSupportList(ext, true);
+    auto testList = GenerateSupportList(ext, dataType, true, true);
     for (auto& support : testList)
     {
         try
@@ -48,6 +48,7 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
             if (!reader->Validate())
             {
                 reader->Release();
+                imgFile.Rewind();
                 continue;
             }
             ImgLog().debug(u"Using [{}]\n", support->Name);
@@ -68,7 +69,7 @@ void WriteImage(const Image& image, const fs::path & path)
     auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY);
     ImgLog().debug(u"Write Image {}\n", path.u16string());
     const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
-    auto testList = GenerateSupportList(ext, false);
+    auto testList = GenerateSupportList(ext, image.GetDataType(), false, false);
     for (auto& support : testList)
     {
         try

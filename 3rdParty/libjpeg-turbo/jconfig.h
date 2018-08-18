@@ -2,8 +2,8 @@
 
 
 #define JPEG_LIB_VERSION  62
-#define LIBJPEG_TURBO_VERSION  1.5.90
-#define LIBJPEG_TURBO_VERSION_NUMBER  1005090
+#define LIBJPEG_TURBO_VERSION  2.0.0
+#define LIBJPEG_TURBO_VERSION_NUMBER  2000000
 
 #define C_ARITH_CODING_SUPPORTED
 #define D_ARITH_CODING_SUPPORTED
@@ -46,10 +46,10 @@ typedef signed int INT32;
 #define JPEG_LIB_VERSION  62
 
 /* libjpeg-turbo version */
-#define LIBJPEG_TURBO_VERSION  1.5.90
+#define LIBJPEG_TURBO_VERSION  2.0.0
 
 /* libjpeg-turbo version in integer form */
-#define LIBJPEG_TURBO_VERSION_NUMBER  1005090
+#define LIBJPEG_TURBO_VERSION_NUMBER  2000000
 
 /* Support arithmetic encoding */
 #define C_ARITH_CODING_SUPPORTED

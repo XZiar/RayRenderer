@@ -65,6 +65,12 @@ struct my_error_mgr {
 };
 typedef struct my_error_mgr *my_error_ptr;
 
+#define JMESSAGE(code, string)  string,
+static const char *turbojpeg_message_table[] = {
+#include "cderror.h"
+  NULL
+};
+
 static void my_error_exit(j_common_ptr cinfo)
 {
   my_error_ptr myerr = (my_error_ptr)cinfo->err;
@@ -168,7 +174,7 @@ static int cs2pf[JPEG_NUMCS] = {
 }
 #define _throw(m) { \
   snprintf(this->errStr, JMSG_LENGTH_MAX, "%s", m); \
-  this->isInstanceError = TRUE;  _throwg(m); \
+  this->isInstanceError = TRUE;  _throwg(m) \
 }
 
 #define getinstance(handle) \
@@ -319,7 +325,8 @@ static int getSubsamp(j_decompress_ptr dinfo)
         for (k = 1; k < dinfo->num_components; k++) {
           int href = 1, vref = 1;
 
-          if (dinfo->jpeg_color_space == JCS_YCCK && k == 3) {
+          if ((dinfo->jpeg_color_space == JCS_YCCK ||
+               dinfo->jpeg_color_space == JCS_CMYK) && k == 3) {
             href = tjMCUWidth[i] / 8;  vref = tjMCUHeight[i] / 8;
           }
           if (dinfo->comp_info[k].h_samp_factor == href &&
@@ -340,7 +347,8 @@ static int getSubsamp(j_decompress_ptr dinfo)
         for (k = 1; k < dinfo->num_components; k++) {
           int href = tjMCUHeight[i] / 8, vref = tjMCUWidth[i] / 8;
 
-          if (dinfo->jpeg_color_space == JCS_YCCK && k == 3) {
+          if ((dinfo->jpeg_color_space == JCS_YCCK ||
+               dinfo->jpeg_color_space == JCS_CMYK) && k == 3) {
             href = vref = 2;
           }
           if (dinfo->comp_info[k].h_samp_factor == href &&
@@ -429,6 +437,9 @@ static tjhandle _tjInitCompress(tjinstance *this)
   this->jerr.pub.output_message = my_output_message;
   this->jerr.emit_message = this->jerr.pub.emit_message;
   this->jerr.pub.emit_message = my_emit_message;
+  this->jerr.pub.addon_message_table = turbojpeg_message_table;
+  this->jerr.pub.first_addon_message = JMSG_FIRSTADDONCODE;
+  this->jerr.pub.last_addon_message = JMSG_LASTADDONCODE;
 
   if (setjmp(this->jerr.setjmp_buffer)) {
     /* If we get here, the JPEG code has signaled an error. */
@@ -1085,6 +1096,9 @@ static tjhandle _tjInitDecompress(tjinstance *this)
   this->jerr.pub.output_message = my_output_message;
   this->jerr.emit_message = this->jerr.pub.emit_message;
   this->jerr.pub.emit_message = my_emit_message;
+  this->jerr.pub.addon_message_table = turbojpeg_message_table;
+  this->jerr.pub.first_addon_message = JMSG_FIRSTADDONCODE;
+  this->jerr.pub.last_addon_message = JMSG_LASTADDONCODE;
 
   if (setjmp(this->jerr.setjmp_buffer)) {
     /* If we get here, the JPEG code has signaled an error. */

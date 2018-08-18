@@ -41,12 +41,12 @@ oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) 
 
 static Vendor JudgeBand(const u16string& name)
 {
-    const wstring& wname = *reinterpret_cast<const std::wstring*>(&name);
-    if (str::ifind_first(wname, L"nvidia").has_value())
+    const auto capName = str::ToUpperEng(name, str::Charset::UTF16LE);
+    if (capName.find(u"NVIDIA") != u16string::npos)
         return Vendor::NVIDIA;
-    else if (str::ifind_first(wname, L"amd").has_value())
+    else if (capName.find(u"AMD") != u16string::npos)
         return Vendor::AMD;
-    else if (str::ifind_first(wname, L"intel").has_value())
+    else if (capName.find(u"INTEL") != u16string::npos)
         return Vendor::Intel;
     else
         return Vendor::Other;

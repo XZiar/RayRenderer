@@ -4,7 +4,7 @@
  * This file was part of the Independent JPEG Group's software:
  * Copyright (C) 1994-1996, Thomas G. Lane.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2010, 2015-2017, D. R. Commander.
+ * Copyright (C) 2010, 2015-2018, D. R. Commander.
  * Copyright (C) 2015, Google, Inc.
  * For conditions of distribution and use, see the accompanying README.ijg
  * file.
@@ -318,12 +318,15 @@ read_and_discard_scanlines(j_decompress_ptr cinfo, JDIMENSION num_lines)
   JDIMENSION n;
   void (*color_convert) (j_decompress_ptr cinfo, JSAMPIMAGE input_buf,
                          JDIMENSION input_row, JSAMPARRAY output_buf,
-                         int num_rows);
+                         int num_rows) = NULL;
   void (*color_quantize) (j_decompress_ptr cinfo, JSAMPARRAY input_buf,
                           JSAMPARRAY output_buf, int num_rows) = NULL;
 
-  color_convert = cinfo->cconvert->color_convert;
-  cinfo->cconvert->color_convert = noop_convert;
+  if (cinfo->cconvert && cinfo->cconvert->color_convert) {
+    color_convert = cinfo->cconvert->color_convert;
+    cinfo->cconvert->color_convert = noop_convert;
+  }
+
   if (cinfo->cquantize && cinfo->cquantize->color_quantize) {
     color_quantize = cinfo->cquantize->color_quantize;
     cinfo->cquantize->color_quantize = noop_quantize;
@@ -332,7 +335,9 @@ read_and_discard_scanlines(j_decompress_ptr cinfo, JDIMENSION num_lines)
   for (n = 0; n < num_lines; n++)
     jpeg_read_scanlines(cinfo, NULL, 1);
 
-  cinfo->cconvert->color_convert = color_convert;
+  if (color_convert)
+    cinfo->cconvert->color_convert = color_convert;
+
   if (color_quantize)
     cinfo->cquantize->color_quantize = color_quantize;
 }
@@ -479,7 +484,7 @@ jpeg_skip_scanlines(j_decompress_ptr cinfo, JDIMENSION num_lines)
     if (cinfo->upsample->need_context_rows) {
       cinfo->output_scanline += lines_to_skip;
       cinfo->output_iMCU_row += lines_to_skip / lines_per_iMCU_row;
-      main_ptr->iMCU_row_ctr += lines_after_iMCU_row / lines_per_iMCU_row;
+      main_ptr->iMCU_row_ctr += lines_to_skip / lines_per_iMCU_row;
       /* It is complex to properly move to the middle of a context block, so
        * read the remaining lines instead of skipping them.
        */

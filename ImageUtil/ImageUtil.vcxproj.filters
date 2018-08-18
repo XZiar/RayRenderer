@@ -58,6 +58,9 @@
     <ClInclude Include="RGB15Converter.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ImageSTB.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">
@@ -79,6 +82,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ImageCore.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ImageSTB.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

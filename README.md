@@ -73,7 +73,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.67.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.68.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
