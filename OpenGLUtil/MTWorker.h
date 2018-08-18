@@ -16,7 +16,7 @@ private:
     common::asyexe::AsyncManager Executor;
     oglContext Context;
 public:
-    MTWorker(u16string name_) : Name(name_), Prefix(u"OGLU-Worker " + name_), Executor(u"OGLU-" + name_)
+    MTWorker(u16string name) : Name(name), Prefix(u"OGLU-Worker " + name), Executor(u"OGLU-" + name)
     {
     }
     ~MTWorker()

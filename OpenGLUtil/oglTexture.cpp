@@ -41,7 +41,7 @@ void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normaliz
         datatype = GL_FLOAT;
     else
         datatype = GL_UNSIGNED_BYTE;
-    switch (REMOVE_MASK(dformat, { ImageDataType::FLOAT_MASK }))
+    switch (REMOVE_MASK(dformat, ImageDataType::FLOAT_MASK))
     {
     case ImageDataType::GRAY:   comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
     case ImageDataType::RA:     comptype = normalized ? GL_RG : GL_RG_INTEGER; break;

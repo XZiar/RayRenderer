@@ -13,7 +13,7 @@ TgaReader::TgaReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(O
 
 void TgaReader::Release()
 {
-    OriginalFile = std::move(ImgFile.Release());
+    OriginalFile = ImgFile.Release();
 }
 
 bool TgaReader::Validate()

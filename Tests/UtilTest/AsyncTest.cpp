@@ -23,7 +23,7 @@ volatile uint32_t taskid = 0;
 
 static auto getTimer(const uint32_t sec)
 {
-    return AsyncTaskFunc([=](const AsyncAgent& agent) 
+    return [=](const AsyncAgent& agent) 
     {
         const auto tid = taskid++;
         SimpleTimer timer;
@@ -35,12 +35,12 @@ static auto getTimer(const uint32_t sec)
             timer.Stop();
             log().info(u"[{}]time reached within {}ms\n", tid, timer.ElapseMs());
         }
-    });
+    };
 }
 
 static auto getException(const uint32_t sec, const std::u16string& str)
 {
-    return AsyncTaskFunc([=](const AsyncAgent& agent)
+    return [=](const AsyncAgent& agent)
     {
         const auto tid = taskid++;
         SimpleTimer timer;
@@ -48,7 +48,7 @@ static auto getException(const uint32_t sec, const std::u16string& str)
         agent.Sleep(sec * 1000);
         log().info(u"[{}]begin throw\n", tid);
         COMMON_THROW(BaseException, u"Error Msg:\n" + str);
-    });
+    };
 }
 
 static auto getStall(const uint32_t stms, const uint32_t slsec)

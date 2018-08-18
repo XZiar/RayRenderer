@@ -90,7 +90,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
         glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 32));
     }
-    if (attridx[4] != (GLint)GL_INVALID_INDEX)
+    if (attridx[3] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[3]);//VertTan
         glEnableVertexArrayAttribEXT(vao.VAOId, attridx[3]);

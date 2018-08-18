@@ -52,7 +52,7 @@ namespace detail
 {
 
 template<class T>
-class COMMONTPL AsyncResult_ : public ::common::detail::PromiseResultCore, public std::enable_shared_from_this<AsyncResult_<T>>
+class COMMONTPL AsyncResult_ : public common::detail::PromiseResult_<void>
 {
     friend class common::asyexe::AsyncAgent;
 protected:
@@ -60,14 +60,17 @@ protected:
     { }
     T virtual wait() = 0;
 public:
-    AsyncResult_(AsyncResult_&&) = default;
 };
 
 }
+// for the results which should only be waited inside executor thread
 template<typename T>
 using AsyncResult = std::shared_ptr<detail::AsyncResult_<T>>;
 
-enum class StackSize : uint32_t { Default = 0, Tiny = 4096, Small = 65536, Big = 512 * 1024, Large = 1024 * 1024, Huge = 4 * 1024 * 1024 };
+struct StackSize 
+{
+    constexpr static uint32_t Default = 0, Tiny = 4096, Small = 65536, Big = 512 * 1024, Large = 1024 * 1024, Huge = 4 * 1024 * 1024;
+};
 
 
 }

@@ -45,7 +45,7 @@ protected:
     void unbind() const noexcept;
     _oglBuffer(const BufferType type) noexcept;
 public:
-    ~_oglBuffer() noexcept;
+    virtual ~_oglBuffer() noexcept;
 
     void PersistentMap(const size_t size, const BufferFlags flags);
 
@@ -98,7 +98,7 @@ protected:
     void bind(const uint16_t pos) const;
 public:
     _oglUniformBuffer(const size_t size) noexcept;
-    ~_oglUniformBuffer() noexcept;
+    virtual ~_oglUniformBuffer() noexcept override;
     size_t Size() const { return BufSize; };
 };
 

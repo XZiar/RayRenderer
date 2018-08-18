@@ -29,10 +29,10 @@ public:
     static optional<u16string> getError();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
     static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-    static PromiseResult<void> invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
-    static PromiseResult<void> invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const common::asyexe::StackSize stackSize = common::asyexe::StackSize::Default);
-    static common::asyexe::AsyncResult<void> SyncGL();
-    static common::asyexe::AsyncResult<void> ForceSyncGL();
+    static PromiseResult<void> invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const uint32_t stackSize = 0);
+    static PromiseResult<void> invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName = u"", const uint32_t stackSize = 0);
+    static PromiseResult<void> SyncGL();
+    static PromiseResult<void> ForceSyncGL();
     static void MemBarrier(const GLMemBarrier mbar);
     static void TryTask();
 };

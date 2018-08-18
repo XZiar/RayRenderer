@@ -82,7 +82,7 @@ _oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(Bu
     Write(empty, BufferWriteMode::StreamDraw);
 }
 
-_oglUniformBuffer::~_oglUniformBuffer()
+_oglUniformBuffer::~_oglUniformBuffer() noexcept
 {
     //force unbind ubo, since bufID may be reused after releasaed
     getUBOMan().forcePop(bufferID);

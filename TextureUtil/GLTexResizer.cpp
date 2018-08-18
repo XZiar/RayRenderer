@@ -121,16 +121,11 @@ static void FilterFormat(const TextureInnerFormat format)
 
 common::PromiseResult<Image> GLTexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)
 {
-    const auto pms = std::make_shared<std::promise<Image>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<Image, false>>(*pms);
-
-    Executor.AddTask([pms, pmsTex, format](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([pmsTex, format](const common::asyexe::AsyncAgent& agent)
     {
         const auto outtex = agent.Await(pmsTex);
-        pms->set_value(outtex->GetImage(format, true)); // flip it to correctly represent GL's texture
+        return outtex->GetImage(format, true); // flip it to correctly represent GL's texture
     });
-
-    return ret;
 }
 
 common::PromiseResult<Image> GLTexResizer::ResizeToDat(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
@@ -153,20 +148,15 @@ common::PromiseResult<Image> GLTexResizer::ResizeToDat(const common::AlignedBuff
 common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const Image& img, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
 {
     FilterFormat(format);
-    const auto pms = std::make_shared<std::promise<oglTex2DS>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DS, false>>(*pms);
 
-    Executor.AddTask([this, pms, rawimg = std::make_shared<Image>(img), width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([this, rawimg = std::make_shared<Image>(img), width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
     {
         const auto middleFormat = DecideFormat(rawimg->GetDataType(), format);
         oglTex2DS tex(rawimg->GetWidth(), rawimg->GetHeight(), middleFormat);
         tex->SetData(*rawimg, true, false);
         tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-        const auto outtex = agent.Await(ResizeToTex(tex, width, height, format, flipY));
-        pms->set_value(outtex);
+        return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });
-
-    return ret;
 }
 
 common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
@@ -174,10 +164,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
     FilterFormat(format);
     const auto vao = flipY ? FlipYVAO : NormalVAO;
 
-    const auto pms = std::make_shared<std::promise<oglTex2DS>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DS, false>>(*pms);
-
-    Executor.AddTask([this, pms, tex, width, height, format, vao](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([this, tex, width, height, format, vao](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS outtex(width, height, format);
         outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
@@ -202,19 +189,15 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
             .SetSubroutine("ColorConv",routineName)
             .Draw(vao);
         agent.Await(oglUtil::SyncGL());
-        pms->set_value(outtex);
+        return outtex;
     });
-
-    return ret;
 }
 
 common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
 {
     FilterFormat(format);
-    const auto pms = std::make_shared<std::promise<oglTex2DS>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DS, false>>(*pms);
 
-    Executor.AddTask([this, pms, rawdata = std::make_shared<common::AlignedBuffer<32>>(data), size, dataFormat, width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([this, rawdata = std::make_shared<common::AlignedBuffer<32>>(data), size, dataFormat, width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex(size.first, size.second, dataFormat);
 
@@ -223,10 +206,8 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::Aligned
         else
             tex->SetData(TexFormatUtil::DecideFormat(dataFormat), rawdata->GetRawPtr());
         tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-        const auto outtex = agent.Await(ResizeToTex(tex, width, height, format, flipY));
-        pms->set_value(outtex);
+        return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });
-    return ret;
 }
 
 }

@@ -6,7 +6,7 @@ namespace oglu
 {
 
 template<typename T>
-class PromiseResultGL : public common::asyexe::detail::AsyncResult_<T>
+class PromiseResultGL : public common::detail::PromiseResult_<T>
 {
     friend class oglUtil;
     friend class PromiseResultGLVoid;
@@ -67,7 +67,7 @@ public:
 };
 
 
-class PromiseResultGLVoid : public common::asyexe::detail::AsyncResult_<void>
+class PromiseResultGLVoid : public common::detail::PromiseResult_<void>
 {
 protected:
     PromiseResultGL<int> Promise;
@@ -83,7 +83,7 @@ public:
         Promise.wait();
     }
 };
-class PromiseResultGLVoid2 : public common::asyexe::detail::AsyncResult_<void>
+class PromiseResultGLVoid2 : public common::detail::PromiseResult_<void>
 {
 protected:
     common::PromiseState virtual state() override

@@ -53,18 +53,15 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     }
     img.FlipVertical(); // pre-flip since after compression, OGLU won't care about vertical coordnate system
 
-    const auto pms = std::make_shared<std::promise<FakeTex>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<FakeTex, true>>(*pms);
-
-    dummy.Executor.AddTask([img = std::make_shared<Image>(std::move(img)), format, pms, picPath](const auto&)
+    return dummy.Executor.AddTask([img = std::move(img), format, picPath](const auto&) mutable
     {
         FakeTex tex;
         if (oglu::TexFormatUtil::IsCompressType(format))
         {
             try
             {
-                auto dat = oglu::texutil::CompressToDat(*img, format);
-                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img->GetWidth(), img->GetHeight());
+                auto dat = oglu::texutil::CompressToDat(img, format);
+                tex = std::make_shared<detail::_FakeTex>(std::move(dat), format, img.GetWidth(), img.GetHeight());
             }
             catch (const BaseException& be)
             {
@@ -74,18 +71,17 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
         }
         else
         {
-            const auto width = img->GetWidth(), height = img->GetHeight();
-            tex = std::make_shared<detail::_FakeTex>(std::move(img->ExtractData()), format, width, height);
+            const auto width = img.GetWidth(), height = img.GetHeight();
+            tex = std::make_shared<detail::_FakeTex>(std::move(img.ExtractData()), format, width, height);
         }
         if (tex)
         {
             tex->Name = picPath.filename().u16string();
             TEX_CACHE.try_emplace(picPath.u16string(), tex);
         }
-        pms->set_value(tex);
+        return tex;
     }, picPath.filename().u16string(), StackSize::Big);
 
-    return ret;
 }
 
 

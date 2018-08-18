@@ -118,24 +118,24 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 
 using common::asyexe::StackSize;
 
-PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName, const StackSize stackSize)
+PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName, const uint32_t stackSize)
 {
-    return getWorker(0).DoWork(task, taskName, static_cast<uint32_t>(stackSize));
+    return getWorker(0).DoWork(task, taskName, stackSize);
 }
 
-PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName, const StackSize stackSize)
+PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName, const uint32_t stackSize)
 {
-    return getWorker(1).DoWork(task, taskName, static_cast<uint32_t>(stackSize));
+    return getWorker(1).DoWork(task, taskName, stackSize);
 }
 
-common::asyexe::AsyncResult<void> oglUtil::SyncGL()
+PromiseResult<void> oglUtil::SyncGL()
 {
-    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<PromiseResultGLVoid>());
+    return std::static_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultGLVoid>());
 }
 
-common::asyexe::AsyncResult<void> oglUtil::ForceSyncGL()
+PromiseResult<void> oglUtil::ForceSyncGL()
 {
-    return std::static_pointer_cast<common::asyexe::detail::AsyncResult_<void>>(std::make_shared<PromiseResultGLVoid2>());
+    return std::static_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultGLVoid2>());
 }
 
 void oglUtil::MemBarrier(const GLMemBarrier mbar)

@@ -1,7 +1,7 @@
 ## TODO list for RayRenderer
 
 * AsyncExecutor
-  - [ ] Add support for returning a task/promise
+  - [x] Add support for returning value
 
 * ImageUtil
   - [ ] Add memory input/output

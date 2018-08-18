@@ -18,7 +18,7 @@ Execution thread will sleep several milliseconds if no task is avaliable, and wi
 
 Tasks can wait for normal promise but not stall thread by await provided by AsyncAgent.
 
-Yield and Sleep is also nativly supported.
+Yield and Sleep is also natively supported.
 
 ## License
 

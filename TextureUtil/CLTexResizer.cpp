@@ -92,10 +92,7 @@ static TextureDataFormat FixFormat(const TextureDataFormat dformat)
 
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImage& input, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
-    const auto pms = std::make_shared<std::promise<Image>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<Image, false>>(*pms);
-
-    Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto wantFormat = TexFormatUtil::ConvertFormat(format, true);
         //oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
@@ -119,33 +116,23 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImage& inp
         agent.Await(common::PromiseResult<void>(pms2));
         //if (result.GetDataType() != format)
         //    result = result.ConvertTo(format);
-        pms->set_value(std::move(result));
+        return result;
     });
-
-    return ret;
 }
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
-    const auto pms = std::make_shared<std::promise<Image>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<Image, false>>(*pms);
-
-    Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
         glimg->Lock(ComQue);
-        common::PromiseResult<Image> innerPms = ResizeToDat(glimg, width, height, format, flipY);
-        pms->set_value(agent.Await(innerPms));
+        auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
         glimg->Unlock(ComQue);
+        return img;
     });
-
-    return ret;
 }
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
-    const auto pms = std::make_shared<std::promise<Image>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<Image, false>>(*pms);
-
-    Executor.AddTask([=, &data](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([=, &data](const common::asyexe::AsyncAgent& agent)
     {
         if (TexFormatUtil::IsCompressType(dataFormat))
         {
@@ -153,21 +140,18 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
             tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
             auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
             glimg->Lock(ComQue);
-            common::PromiseResult<Image> innerPms = ResizeToDat(glimg, width, height, format, flipY);
-            pms->set_value(agent.Await(innerPms));
+            auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
             glimg->Unlock(ComQue);
+            return img;
         }
         else
         {
             oclImage input (CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::DecideFormat(dataFormat));
             auto pms1 = input->Write(ComQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
-            common::PromiseResult<Image> innerPms = ResizeToDat(input, width, height, format, flipY);
-            pms->set_value(agent.Await(innerPms));
+            return agent.Await(ResizeToDat(input, width, height, format, flipY));
         }
     });
-
-    return ret;
 }
 
 }

@@ -251,7 +251,8 @@ oglContext oglContext::CurrentContext()
     void *hrc = glXGetCurrentContext();
 #endif
     CTX_LOCK.LockRead();
-    if (auto ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc))
+    oglContext ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc);
+    if (ctx)
     {
         CTX_LOCK.UnlockRead();
         CurrentCtx() = ctx;
@@ -261,9 +262,8 @@ oglContext oglContext::CurrentContext()
     {
         CTX_LOCK.UnlockRead();
         CTX_LOCK.LockWrite();
-        if (ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc))
-        { }
-        else
+        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc); // second check
+        if (!ctx) // need to create the wrapper
         {
 #if defined(_WIN32)
             ctx = oglContext(new detail::_oglContext(CTX_UID++, wglGetCurrentDC(), hrc));

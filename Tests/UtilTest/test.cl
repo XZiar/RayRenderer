@@ -1,4 +1,3 @@
-//["huang-he-yang-26","ke-yu-45-73","li-zheng-yan-25-3","luka-liu","qie-you-65","song-guo-ke-85","sun-ran-96-27","xiaoying-fan-82","xym-57","zhu-shen-jie-18"]
 
 kernel void main(constant uchar* ptr, global uchar* out)
 {
