@@ -4,7 +4,7 @@
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"
-#include "MTWorker.h"
+#include "common/PromiseTaskSTD.hpp"
 #if defined(_WIN32)
 #   include "glew/wglew.h"
 #else
@@ -16,12 +16,6 @@ namespace oglu
 using common::PromiseResultSTD;
 
 
-static detail::MTWorker& getWorker(const uint8_t idx)
-{
-    static detail::MTWorker syncGL(u"SYNC"), asyncGL(u"ASYNC");
-    return idx == 0 ? syncGL : asyncGL;
-}
-
 void oglUtil::init()
 {
     glewInit();
@@ -30,14 +24,6 @@ void oglUtil::init()
 #if defined(_DEBUG) || 1
     glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 #endif
-    glctx->UnloadContext();
-    //const HDC hdc = (HDC)glctx->Hdc;
-    //const HGLRC hrc = (HGLRC)glctx->Hrc;
-    //wglMakeCurrent(hdc, nullptr);
-    getWorker(0).start(oglContext::NewContext(glctx, true));
-    getWorker(1).start(oglContext::NewContext(glctx, false));
-    glctx->UseContext();
-    //wglMakeCurrent(hdc, hrc);
     //for reverse-z
     glctx->SetDepthClip(true);
     glctx->SetDepthTest(DepthTestType::Greater);
@@ -116,17 +102,6 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
     }
 }
 
-using common::asyexe::StackSize;
-
-PromiseResult<void> oglUtil::invokeSyncGL(const AsyncTaskFunc& task, const u16string& taskName, const uint32_t stackSize)
-{
-    return getWorker(0).DoWork(task, taskName, stackSize);
-}
-
-PromiseResult<void> oglUtil::invokeAsyncGL(const AsyncTaskFunc& task, const u16string& taskName, const uint32_t stackSize)
-{
-    return getWorker(1).DoWork(task, taskName, stackSize);
-}
 
 PromiseResult<void> oglUtil::SyncGL()
 {

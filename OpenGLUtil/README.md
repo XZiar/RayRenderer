@@ -144,21 +144,19 @@ Setting value to uniform / binding ubo or tex resources in `ProgDraw` is tempora
 
 ### Multi-thread Worker
 
-There are two workers inside OpenGLUtil, proving multi-thread operation ability. Operations inside should be minimized, leaving heavy task on other threads.
+There is an optional worker, which can provide multi-thread operation ability. Operations inside are handled by AsyncExecutor, so only GL operations should be executed inside, leaving heavy task on other threads.
 
-Both of them are under async environment, so multiple tasks can be executed in a single thread. Tasks' waiting should be handled by AsyncAgent. OpenGL-Sync promise can be obtained for operation sync.
+* Share Worker
 
-* Sync Worker
-
-  It has unique GL-context, but shared with main context(Acording to wgl's spec, buffer objects are shared but VAOs are not shared).
+  It has unique GL-context, but shared with object context(according to wgl's spec, buffer objects are shared but VAOs are not shared).
   
   It's useful for uploading/dowloading data
 
-* Async Worker
+* Isolate Worker
 
-  It has unique GL-context, not shared with main context.
+  It has unique GL-context, not shared with object context.
   
-  It can be used to do some extra work just like another gl program, and data can be sent back to main context by invoking main-thread or invoking Sync Worker
+  It can be used to do some extra work just like another gl program, and data can be sent back to main context by invoking main-thread or invoking Share Worker
 
 ## License
 

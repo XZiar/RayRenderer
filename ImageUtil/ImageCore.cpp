@@ -44,7 +44,7 @@ void Image::FlipHorizontal()
     }
     else
     {
-        //not supported yet
+        COMMON_THROW(BaseException, u"unsupported operation");
     }
 }
 
@@ -61,7 +61,7 @@ void Image::Rotate180()
     }
     else
     {
-        //not supported yet
+        COMMON_THROW(BaseException, u"unsupported operation");
     }
 }
 
@@ -118,9 +118,9 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     else
     {
         if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK))//not supported yet
-            return;
+            COMMON_THROW(BaseException, u"float source not supported");
         if (isGray() && !src.isGray())//not supported yet
-            return;
+            COMMON_THROW(BaseException, u"need explicit conversion between color & gray image");
 
         const auto diff = DataType ^ src.DataType;
         auto pixcnt = copypix;

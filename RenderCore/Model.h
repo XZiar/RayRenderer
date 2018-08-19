@@ -13,11 +13,11 @@ class alignas(16) Model : public Drawable
 {
 protected:
     virtual MultiMaterialHolder PrepareMaterial() const override;
-    Model(ModelMesh mesh, bool asyncload = false);
+    Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer = {});
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelMesh Mesh;
-    Model(const u16string& fname, bool asyncload = false);
+    Model(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer = {});
     ~Model() override;
     virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;

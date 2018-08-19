@@ -38,6 +38,7 @@ private:
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
     Wrapper<detail::ThumbnailManager> ThumbMan;
+    Wrapper<oglu::oglWorker> GLWorker;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;

@@ -13,13 +13,23 @@
 #define STBI_NO_PIC
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#if defined(COMPILER_GCC) && COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wunused-function"
+#elif defined(COMPILER_CLANG) && COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wunused-function"
+#elif defined(COMPILER_MSVC) && COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4505 4100)
 #endif
 #include "3rdParty/stblib/stb_image.h"
 #include "3rdParty/stblib/stb_image_write.h"
-#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#if defined(COMPILER_GCC) && COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif defined(COMPILER_CLANG) && COMPILER_CLANG
+#   pragma clang diagnostic pop
+#elif defined(COMPILER_MSVC) && COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 
@@ -46,38 +56,39 @@ static int IsEof(void *user)
 
 StbReader::StbReader(FileObject& file) : ImgFile(file)
 {
-    StbCallback = new stbi_io_callbacks{ ReadFile, SkipFile, IsEof };
-    StbContext = new stbi__context();
-    stbi__start_callbacks(reinterpret_cast<stbi__context*>(StbContext), reinterpret_cast<stbi_io_callbacks*>(StbCallback), &ImgFile);
+    auto callback = new stbi_io_callbacks{ ReadFile, SkipFile, IsEof };
+    StbCallback = callback;
+    auto context = new stbi__context();
+    StbContext = context;
+    stbi__start_callbacks(context, callback, &ImgFile);
 }
 
 StbReader::~StbReader()
 {
     if (!StbCallback)
-        delete StbCallback;
+        delete static_cast<stbi_io_callbacks*>(StbCallback);
     if (!StbContext)
-        delete StbContext;
+        delete static_cast<stbi__context*>(StbContext);
     if (!StbResult)
-        delete StbResult;
+        delete static_cast<stbi__result_info*>(StbResult);
 }
 
 bool StbReader::Validate()
 {
-    StbResult = new stbi__result_info();
-    auto ri = reinterpret_cast<stbi__result_info*>(StbResult);
+    auto ri = new stbi__result_info();
+    StbResult = ri;
     memset(ri, 0, sizeof(stbi__result_info)); // make sure it's initialized if we add new fields
     ri->bits_per_channel = 8; // default is 8 so most paths don't have to be changed
     ri->channel_order = STBI_ORDER_RGB; // all current input & output are this, but this is here so we can add BGR order
     ri->num_channels = 0;
-    return stbi__pnm_test(reinterpret_cast<stbi__context*>(StbContext));
-    //return stbi__pnm_load(s, x, y, comp, req_comp, ri);
+    return stbi__pnm_test(static_cast<stbi__context*>(StbContext));
 }
 
 Image StbReader::Read(const ImageDataType dataType)
 {
     const int reqComp = Image::GetElementSize(dataType);
     int width, height, comp;
-    auto ret = stbi__pnm_load(reinterpret_cast<stbi__context*>(StbContext), &width, &height, &comp, reqComp, reinterpret_cast<stbi__result_info*>(StbResult));
+    auto ret = stbi__pnm_load(static_cast<stbi__context*>(StbContext), &width, &height, &comp, reqComp, static_cast<stbi__result_info*>(StbResult));
     if (ret == nullptr)
         COMMON_THROW(BaseException, u"cannot parse image");
     ImageDataType retType;

@@ -1,5 +1,6 @@
 #include "RenderCoreRely.h"
 #include "Model.h"
+#include "OpenGLUtil/oglWorker.h"
 
 
 namespace rayr
@@ -22,13 +23,13 @@ MultiMaterialHolder Model::PrepareMaterial() const
     return holder;
 }
 
-Model::Model(ModelMesh mesh, bool asyncload) : Drawable(this, TYPENAME), Mesh(mesh)
+Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer) : Drawable(this, TYPENAME), Mesh(mesh)
 {
     const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
     scale = Vec3(resizer, resizer, resizer);
-    if (asyncload)
+    if (asyncer)
     {
-        const auto task = oglu::oglUtil::invokeSyncGL([&](const common::asyexe::AsyncAgent& agent)
+        const auto task = asyncer->InvokeShare([&](const common::asyexe::AsyncAgent& agent)
         {
             agent.Await(oglu::oglUtil::SyncGL());
         });
@@ -36,7 +37,7 @@ Model::Model(ModelMesh mesh, bool asyncload) : Drawable(this, TYPENAME), Mesh(me
     }
 }
 
-Model::Model(const u16string& fname, bool asyncload) : Model(detail::_ModelMesh::GetModel(fname, asyncload), asyncload) {}
+Model::Model(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer) : Model(detail::_ModelMesh::GetModel(fname, asyncer), asyncer) {}
 
 Model::~Model()
 {

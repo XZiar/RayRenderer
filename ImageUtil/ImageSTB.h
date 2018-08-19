@@ -40,8 +40,8 @@ public:
     virtual ~StbSupport() override {}
     virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<StbReader>(file).cast_dynamic<ImgReader>(); }
     virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<StbWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual bool MatchExtension(const u16string& ext, const ImageDataType, const bool IsRead) const override 
-    { return (ext == u".PPM" || ext == u".PGM") && IsRead; }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool IsRead) const override
+    { return ((ext == u".PPM" || ext == u".PGM") && IsRead) ? 255 : 0; }
 };
 
 

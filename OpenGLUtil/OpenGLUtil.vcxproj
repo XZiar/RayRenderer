@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3DElement.hpp" />
-    <ClInclude Include="MTWorker.h" />
+    <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglContext.h" />
     <ClInclude Include="oglException.h" />
@@ -38,7 +38,7 @@
     <ClInclude Include="PointEnhance.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MTWorker.cpp" />
+    <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglContext.cpp" />
     <ClCompile Include="oglException.cpp" />

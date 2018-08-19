@@ -2,6 +2,7 @@
 #include "ModelMesh.h"
 #include "OBJLoader.hpp"
 #include "MTLLoader.hpp"
+#include "OpenGLUtil/oglWorker.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr::detail
@@ -48,11 +49,11 @@ struct PTstubHasher
 
 static map<u16string, ModelMesh> MODEL_CACHE;
 
-ModelMesh _ModelMesh::GetModel(const u16string& fname, bool asyncload)
+ModelMesh _ModelMesh::GetModel(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
-    auto md = new _ModelMesh(fname, asyncload);
+    auto md = new _ModelMesh(fname, asyncer);
     ModelMesh m(std::move(md));
     MODEL_CACHE.insert_or_assign(fname, m);
     return m;
@@ -248,13 +249,13 @@ void _ModelMesh::InitDataBuffers()
     }
 }
 
-_ModelMesh::_ModelMesh(const u16string& fname, bool asyncload) :mfname(fname)
+_ModelMesh::_ModelMesh(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
 {
     loadOBJ(mfname);
-    if (asyncload)
+    if (asyncer)
     {
         const auto fileName = fs::path(fname).filename().u16string();
-        auto task = oglu::oglUtil::invokeSyncGL([&](const auto& agent) 
+        auto task = asyncer->InvokeShare([&](const auto& agent)
         { 
             InitDataBuffers();
             auto sync = oglu::oglUtil::SyncGL();

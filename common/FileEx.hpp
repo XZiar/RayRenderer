@@ -52,7 +52,11 @@ using common::str::Charset;
 #endif
 
 
-enum class OpenFlag : uint8_t { READ = 0b1, WRITE = 0b10, CREATE = 0b100, APPEND = 0b1110, TRUNC = 0b0110, TEXT = 0b00000, BINARY = 0b10000 };
+enum class OpenFlag : uint8_t 
+{ 
+    READ = 0b1, WRITE = 0b10, CREATE = 0b100, TEXT = 0b00000, BINARY = 0b10000,
+    APPEND = 0b1110, TRUNC = 0b0110, CreatNewBinary = CREATE|WRITE|BINARY, 
+};
 MAKE_ENUM_BITFIELD(OpenFlag)
 
 

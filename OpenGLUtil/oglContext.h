@@ -48,7 +48,7 @@ struct ContextResourceHelper;
 class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_shared_from_this<_oglContext>
 {
     friend class _oglProgram;
-    friend class MTWorker;
+    friend class ::oglu::oglWorker;
     friend class ::oglu::oglUtil;
     friend class ::oglu::oglContext;
     friend class ::oclu::detail::_oclPlatform;

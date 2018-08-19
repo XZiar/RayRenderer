@@ -47,21 +47,5 @@ common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerForm
     return result;
 }
 
-common::PromiseResult<oglTex2DV> CompressToTex(const Image& img, const TextureInnerFormat format, const bool needAlpha)
-{
-    auto buffer = CompressToDat(img, format, needAlpha);
-    const auto pms = std::make_shared<std::promise<oglTex2DV>>();
-    auto ret = std::make_shared<common::PromiseResultSTD<oglTex2DV, true>>(*pms);
-    oglUtil::invokeSyncGL([buf = std::move(buffer), w=img.GetWidth(), h=img.GetHeight(), iformat = format, pms](const auto& agent)
-    {
-        oglTex2DS tex(w, h, iformat);
-        tex->SetCompressedData(buf.GetRawPtr(), buf.GetSize());
-        const auto texv = tex->GetTextureView();
-        agent.Await(oglu::oglUtil::SyncGL());
-        pms->set_value(texv);
-    });
-    return ret;
-}
-
 
 }

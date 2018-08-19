@@ -76,7 +76,7 @@ public:
     virtual ~BmpSupport() override {}
     virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<BmpReader>(file).cast_dynamic<ImgReader>(); }
     virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<BmpWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual bool MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".BMP"; }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".BMP" ? 255 : 0; }
 };
 
 

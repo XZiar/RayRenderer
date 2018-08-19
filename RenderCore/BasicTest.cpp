@@ -1,6 +1,7 @@
 ﻿#include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
+#include "OpenGLUtil/oglWorker.h"
 #include <thread>
 #include <future>
 
@@ -206,7 +207,7 @@ void BasicTest::fontTest(const char32_t word)
         if (word == 0x0)
         {
             const auto imgShow = fontCreator->clgraysdfs(U'啊', 16);
-            oglUtil::invokeSyncGL([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
+            GLWorker->InvokeShare([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
             {
                 fonttex->SetData(TextureInnerFormat::R8, imgShow);
                 agent.Await(oglu::oglUtil::SyncGL());
@@ -249,6 +250,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     static Init _init;
     glContext = oglu::oglContext::CurrentContext();
     ThumbMan.reset(glContext);
+    GLWorker.reset(u"Core");
+    GLWorker->Start();
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
     cam.Resize(1280, 720);
@@ -399,12 +402,12 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
 
 void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError)
 {
-    std::thread([onFinish, onError](const u16string name)
+    std::thread([onFinish, onError, this](const u16string name)
     {
         common::SetThreadName(u"AsyncLoader for Model");
         try
         {
-            Wrapper<Model> mod(name, true);
+            Wrapper<Model> mod(name, GLWorker);
             mod->Name = u"model";
             onFinish(mod);
         }
@@ -424,7 +427,7 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
     using common::asyexe::StackSize;
     const auto loadPms = std::make_shared<std::promise<oglDrawProgram>>();
     auto fut = loadPms->get_future();
-    oglUtil::invokeSyncGL([fname, shdName, loadPms](const common::asyexe::AsyncAgent& agent)
+    GLWorker->InvokeShare([fname, shdName, loadPms](const common::asyexe::AsyncAgent& agent)
     {
         oglDrawProgram prog(shdName);
         try

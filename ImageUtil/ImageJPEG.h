@@ -53,7 +53,8 @@ public:
     virtual ~JpegSupport() override {}
     virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<JpegReader>(file).cast_dynamic<ImgReader>(); }
     virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<JpegWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual bool MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".JPEG" || ext == u".JPG"; }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    { return (ext == u".JPEG" || ext == u".JPG") ? 255 : 0; }
 };
 
 }
