@@ -19,6 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinFormTest", "WinFormTest\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3852083F-B857-4C65-BA1D-BC2A614C8D24}"
 	ProjectSection(SolutionItems) = preProject
+		.travis.yml = .travis.yml
 		dizz.png = dizz.png
 		License.txt = License.txt
 		README.md = README.md
@@ -112,6 +113,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "miniBLAS", "miniBLAS", "{B2
 		3DBasic\miniBLAS\Vec4.hpp = 3DBasic\miniBLAS\Vec4.hpp
 		3DBasic\miniBLAS\VecBase.hpp = 3DBasic\miniBLAS\VecBase.hpp
 		3DBasic\miniBLAS\VecI4.hpp = 3DBasic\miniBLAS\VecI4.hpp
+		3DBasic\miniBLAS\VecNew.hpp = 3DBasic\miniBLAS\VecNew.hpp
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stblib", "3rdParty\stblib\stblib.vcxproj", "{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}"

@@ -36,6 +36,13 @@ struct CastTyper
     using Type = std::conditional_t<(From::Count > To::Count), Pack<To, From::Count / To::Count>, To>;
 };
 
+enum class VecPos : uint8_t 
+{ 
+    X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000, 
+    XY = X|Y, XYZ = X|Y|Z, XYZW =X|Y|Z|W, YZ = Y|Z, YZW = Y|Z|W, ZW = Z|W
+};
+MAKE_ENUM_BITFIELD(VecPos)
+
 namespace detail
 {
 
@@ -76,8 +83,8 @@ struct IntCommon : public CommonOperators<T>
     {
         return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
     }
-    template<typename T1 = E>
-    void Save(T1 *ptr) { _mm_storeu_si128(reinterpret_cast<T1*>(ptr), *static_cast<const T*>(this)); }
+    void Load(const E *ptr) { *static_cast<E*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+    void Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
 };
 
 }
@@ -91,13 +98,14 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
         __m128d Data;
         double Val[2];
     };
-    F64x2() :Data(_mm_undefined_pd()) { }
+    constexpr F64x2() : Data() { }
+    explicit F64x2(const double* ptr) : Data(_mm_loadu_pd(ptr)) { }
     constexpr F64x2(const __m128d val) : Data(val) { }
     F64x2(const double val) : Data(_mm_set1_pd(val)) { }
     F64x2(const double lo, const double hi) : Data(_mm_setr_pd(lo, hi)) { }
     constexpr operator const __m128d&() { return Data; }
-    template<typename T = double>
-    void Save(T *ptr) const { _mm_storeu_pd(reinterpret_cast<double*>(ptr), Data); }
+    void Load(const double *ptr) { Data = _mm_loadu_pd(ptr); }
+    void Save(double *ptr) const { _mm_storeu_pd(ptr, Data); }
 
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
@@ -190,13 +198,14 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
         __m128 Data;
         float Val[2];
     };
-    F32x4() :Data(_mm_undefined_ps()) { }
+    constexpr F32x4() : Data() { }
+    explicit F32x4(const float* ptr) : Data(_mm_loadu_ps(ptr)) { }
     constexpr F32x4(const __m128 val) :Data(val) { }
     F32x4(const float val) :Data(_mm_set1_ps(val)) { }
     F32x4(const float lo0, const float lo1, const float lo2, const float hi3) :Data(_mm_setr_ps(lo0, lo1, lo2, hi3)) { }
-    constexpr operator const __m128&() { return Data; }
-    template<typename T = float>
-    void Save(T *ptr) const { _mm_storeu_ps(reinterpret_cast<float*>(ptr), Data); }
+    constexpr operator const __m128&() const noexcept { return Data; }
+    void Load(const float *ptr) { Data = _mm_loadu_ps(ptr); }
+    void Save(float *ptr) const { _mm_storeu_ps(ptr, Data); }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
@@ -275,6 +284,13 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
         return _mm_xor_ps(_mm_add_ps(_mm_mul_ps(Data, muler.Data), suber.Data), _mm_set1_ps(-0.));
 #endif
     }
+#if COMMON_SIMD_LV >= 42
+    template<VecPos Mul, VecPos Res>
+    F32x4 Dot(const F32x4& other) const 
+    { 
+        return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
+    }
+#endif
     F32x4 operator*(const F32x4& other) const { return Mul(other); }
     F32x4 operator/(const F32x4& other) const { return Div(other); }
 
@@ -289,12 +305,14 @@ struct alignas(__m128i) I64x2 : public detail::IntCommon<I64x2, int64_t>
         __m128i Data;
         int64_t Ints[2];
     };
-    I64x2() :Data(_mm_undefined_si128()) { }
+    constexpr I64x2() : Data() { }
+    explicit I64x2(const int64_t* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
     constexpr I64x2(const __m128i val) :Data(val) { }
     I64x2(const int64_t val) :Data(_mm_set1_epi64x(val)) { }
     I64x2(const int64_t lo, const int64_t hi) :Data(_mm_set_epi64x(hi, lo)) { }
-
-    operator const __m128i&() { return Data; }
+    constexpr operator const __m128i&() const noexcept { return Data; }
+    void Load(const int64_t *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+    void Save(int64_t *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
@@ -329,12 +347,13 @@ struct alignas(__m128i) I32Common
         __m128i Data;
         E Val[4];
     };
-    I32Common() :Data(_mm_undefined_si128()) { }
+    constexpr I32Common() : Data() { }
+    explicit I32Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
     constexpr I32Common(const __m128i val) : Data(val) { }
     I32Common(const E val) : Data(_mm_set1_epi32(static_cast<int32_t>(val))) { }
     I32Common(const E lo0, const E lo1, const E lo2, const E hi3)
         : Data(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
-    constexpr operator const __m128i&() const { return Data; }
+    constexpr operator const __m128i&() const noexcept { return Data; }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
@@ -347,8 +366,6 @@ struct alignas(__m128i) I32Common
     // arithmetic operations
     T Add(const T& other) const { return _mm_add_epi32(Data, other.Data); }
     T Sub(const T& other) const { return _mm_sub_epi32(Data, other.Data); }
-    T operator+(const T& other) const { return Add(other); }
-    T operator-(const T& other) const { return Sub(other); }
     T ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi32(Data, I64x2(bits)); }
     T ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
@@ -410,12 +427,17 @@ struct alignas(__m128i) I16Common
         __m128i Data;
         E Val[8];
     };
-    I16Common() :Data(_mm_undefined_si128()) { }
+    constexpr I16Common() : Data() { }
+    explicit I16Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
     constexpr I16Common(const __m128i val) :Data(val) { }
     I16Common(const E val) :Data(_mm_set1_epi16(val)) { }
     I16Common(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
         :Data(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
-    constexpr operator const __m128i&() const { return Data; }
+    constexpr operator const __m128i&() const noexcept { return Data; }
+    template<typename T1 = E>
+    void Load(const T1 *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+    template<typename T1 = E>
+    void Save(T1 *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
 #if COMMON_SIMD_LV >= 31
@@ -498,7 +520,8 @@ struct alignas(__m128i) I8Common
         __m128i Data;
         E Val[16];
     };
-    I8Common() :Data(_mm_undefined_si128()) { }
+    constexpr I8Common() : Data() { }
+    explicit I8Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
     constexpr I8Common(const __m128i val) :Data(val) { }
     I8Common(const E val) :Data(_mm_set1_epi8(val)) { }
     I8Common(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
@@ -506,7 +529,11 @@ struct alignas(__m128i) I8Common
             static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
             static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),
             static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
-    constexpr operator const __m128i&() const { return Data; }
+    constexpr operator const __m128i&() const noexcept { return Data; }
+    template<typename T1 = E>
+    void Load(const T1 *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+    template<typename T1 = E>
+    void Save(T1 *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
 #if COMMON_SIMD_LV >= 31

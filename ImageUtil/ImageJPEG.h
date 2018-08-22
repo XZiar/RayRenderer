@@ -20,7 +20,6 @@ class IMGUTILAPI JpegReader : public ImgReader
 private:
     FileObject & ImgFile;
     common::AlignedBuffer<32> Buffer;
-    uint32_t Width, Height;
     void *JpegDecompStruct = nullptr;
     void *JpegSource = nullptr;
     void *JpegErrorHandler = nullptr;

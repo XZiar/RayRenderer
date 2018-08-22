@@ -7,11 +7,11 @@ namespace miniBLAS
 {
 
 /*vector contains 4 int*/
-class alignas(Vec4Align) VecI4 :public Vec4Base<int>
+class alignas(16) VecI4 :public Vec4Base<int32_t>
 {
 protected:
 public:
-	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
+	using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w; using Vec4Base::data;
 
 	VecI4(const bool setZero = false) noexcept
 	{
@@ -26,11 +26,11 @@ public:
 	}
 	template<class T>
 	VecI4(const T x_, const T y_, const T z_, const T w_) noexcept
-		:Vec4Base(static_cast<int>(x_), static_cast<int>(y_), static_cast<int>(z_), static_cast<int>(w_))
+		:Vec4Base(static_cast<int32_t>(x_), static_cast<int32_t>(y_), static_cast<int32_t>(z_), static_cast<int32_t>(w_))
 	{ }
 	template<class T>
 	VecI4(const T *ptr) noexcept
-		:Vec4Base(static_cast<int>(ptr[0]), static_cast<int>(ptr[1]), static_cast<int>(ptr[2]), static_cast<int>(ptr[3]))
+		:Vec4Base(static_cast<int32_t>(ptr[0]), static_cast<int32_t>(ptr[1]), static_cast<int32_t>(ptr[2]), static_cast<int32_t>(ptr[3]))
 	{ }
 #if COMMON_SIMD_LV >= 20
 	VecI4(const int32_t *ptr) noexcept { int_dat = _mm_loadu_si128((__m128i*)ptr); }

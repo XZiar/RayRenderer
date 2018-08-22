@@ -16,14 +16,12 @@ namespace miniBLAS
 #define Store128I(vec, val) _mm_store_si128(&vec, val)
 
 /*a vector contains 4 element(int32 or float)*/
-static constexpr uint32_t Vec4Align = 16;
 template<typename T>
-class alignas(Vec4Align) Vec4Base : public common::AlignBase<Vec4Align>
+class alignas(16) Vec4Base : public common::AlignBase<16>
 {
 private:
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
-    using RawDataType = T[4];
     union
     {
         T data[4];
@@ -44,29 +42,18 @@ protected:
     };
 
     Vec4Base() noexcept { };
-    Vec4Base(const T x_) noexcept :x(x_) { };
-    Vec4Base(const T x_, const T y_) noexcept :x(x_), y(y_) { };
-    Vec4Base(const T x_, const T y_, const T z_) noexcept :x(x_), y(y_), z(z_) { };
+    Vec4Base(const __m128&  dat) noexcept : float_dat(dat) { };
+    Vec4Base(const __m128i& dat) noexcept : int_dat(dat) { };
     Vec4Base(const T x_, const T y_, const T z_, const T w_) noexcept :x(x_), y(y_), z(z_), w(w_) { };
 public:
-    RawDataType& raw() noexcept { return data; }
-    const RawDataType& raw() const noexcept { return data; }
-    operator RawDataType&() { return data; };
-    operator const RawDataType&() const { return data; };
-    forceinline T& operator[](int idx)
-    {
-        return data[idx];
-    }
-    forceinline T const& operator[](int idx) const
-    {
-        return data[idx];
-    }
+    forceinline operator T*() { return data; }
+    forceinline operator const T*() const { return data; }
     bool operator<(const Vec4Base& other) const = delete;
 };
 
 
-class alignas(Vec4Align) Vec3;
-class alignas(Vec4Align) Vec4;
+class Vec3;
+class Vec4;
 
 }
 

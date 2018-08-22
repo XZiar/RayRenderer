@@ -7,10 +7,9 @@ namespace miniBLAS
 {
 
 /*vector contains 4 float, while only xyz are considered in some calculation*/
-class alignas(Vec4Align) Vec3 :public Vec4Base<float>
+class Vec3 :public Vec4Base<float>
 {
 private:
-protected:
 public:
     using Vec4Base::x; using Vec4Base::y; using Vec4Base::z;
 
@@ -26,22 +25,19 @@ public:
         }
     }
     template<typename T>
-    Vec3(const T x_, const T y_, const T z_) noexcept
-        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(0)) 
+    Vec3(const T x_, const T y_, const T z_) noexcept :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), 0.f) 
     { }
     template<typename T>
-    Vec3(const T x_, const T y_, const T z_, const T w_) noexcept
-        :Vec4Base(static_cast<float>(x_), static_cast<float>(y_), static_cast<float>(z_), static_cast<float>(w_))
+    Vec3(const T all) noexcept :Vec4Base(_mm_set1_ps(static_cast<float>(all)))
     { }
     template<typename T>
-    explicit Vec3(const T *ptr) noexcept
-        :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) 
+    explicit Vec3(const T *ptr) noexcept :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) 
     { }
 #if COMMON_SIMD_LV >= 20
-    explicit Vec3(const float *ptr) noexcept { _mm_store_ps(data, _mm_loadu_ps(ptr)); }
-    Vec3(const __m128& dat_) noexcept { _mm_store_ps(data, dat_); };
-    VECCALL operator __m128&() noexcept { return float_dat; };
-    VECCALL operator const __m128&() const noexcept { return float_dat; };
+    explicit Vec3(const float *ptr) noexcept :Vec4Base(_mm_loadu_ps(ptr)) { }
+    Vec3(const __m128& dat_) noexcept :Vec4Base(dat_) { };
+    constexpr operator __m128&() noexcept { return float_dat; };
+    constexpr operator const __m128&() const noexcept { return float_dat; };
 #endif
     void save(float* ptr) const
     {

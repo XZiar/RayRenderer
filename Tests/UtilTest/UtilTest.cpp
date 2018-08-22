@@ -5,6 +5,7 @@
 #include "common/TimeUtil.hpp"
 #include "common/StringEx.hpp"
 #include "common/SIMD128.hpp"
+#include "3DBasic/miniBLAS/VecNew.hpp"
 
 using std::string;
 using std::map;
@@ -44,9 +45,9 @@ uint32_t RegistTest(const char *name, void(*func)())
     return 0;
 }
 
-
 int main(int argc, char *argv[])
 {
+    constexpr miniBLAS::Vec4 vec(1, 2, 3, 4);
     log().info(u"UnitTest\n");
 
     if (argc > 1)

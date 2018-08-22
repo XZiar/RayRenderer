@@ -8,10 +8,9 @@ namespace miniBLAS
 {
 
 /*vector contains 4 float*/
-class alignas(Vec4Align) Vec4 :public Vec4Base<float>
+class Vec4 :public Vec4Base<float>
 {
 private:
-protected:
 public:
     using Vec4Base::x; using Vec4Base::y; using Vec4Base::z; using Vec4Base::w;
     explicit Vec4(const bool setZero = false) noexcept

@@ -167,7 +167,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath) try
                 }
                 for (uint32_t a = 0; a < lim; ++a)
                 {
-                    line.ParseInts(a + 1, tmpi.raw());//vert,texc,norm
+                    line.ParseInts(a + 1, tmpi.data);//vert,texc,norm
                     PTstub stub(tmpi.x, tmpi.z, tmpi.y);
                     auto[it, isAdd] = idxmap.try_emplace(stub, static_cast<uint32_t>(pts.size()));
                     if (isAdd)
