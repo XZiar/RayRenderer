@@ -43,35 +43,48 @@
 #error Unknown compiler, not supported by this header
 #endif
 
-#if defined(__AVX2__)
-# define COMMON_SIMD_INTRIN AVX2
-# define COMMON_SIMD_LV 200
-#elif defined(__FMA__)
-# define COMMON_SIMD_INTRIN FMA
-# define COMMON_SIMD_LV 150
-#elif defined(__AVX__)
-# define COMMON_SIMD_INTRIN AVX
-# define COMMON_SIMD_LV 100
-#elif defined(__SSE4_2__)
-# define COMMON_SIMD_INTRIN SSE4.2
-# define COMMON_SIMD_LV 42
-#elif defined(__SSE4_1__)
-# define COMMON_SIMD_INTRIN SSE4.1
-# define COMMON_SIMD_LV 41
-#elif defined(__SSSE3__)
-# define COMMON_SIMD_INTRIN SSSE3
-# define COMMON_SIMD_LV 31
-#elif defined(__SSE3__)
-# define COMMON_SIMD_INTRIN SSE3
-# define COMMON_SIMD_LV 30
-#elif defined(__SSE2__)
-# define COMMON_SIMD_INTRIN SSE2
-# define COMMON_SIMD_LV 20
-#elif defined(__SSE__)
-# define COMMON_SIMD_INTRIN SSE
-# define COMMON_SIMD_LV 10
-#else
-# define COMMON_SIMD_INTRIN NONE
-# define COMMON_SIMD_LV 0
+#ifndef COMMON_SIMD_LV
+# if defined(__AVX2__)
+#   define COMMON_SIMD_LV 200
+# elif defined(__FMA__)
+#   define COMMON_SIMD_LV 150
+# elif defined(__AVX__)
+#   define COMMON_SIMD_LV 100
+# elif defined(__SSE4_2__)
+#   define COMMON_SIMD_LV 42
+# elif defined(__SSE4_1__)
+#   define COMMON_SIMD_LV 41
+# elif defined(__SSSE3__)
+#   define COMMON_SIMD_LV 31
+# elif defined(__SSE3__)
+#   define COMMON_SIMD_LV 30
+# elif defined(__SSE2__)
+#   define COMMON_SIMD_LV 20
+# elif defined(__SSE__)
+#   define COMMON_SIMD_LV 10
+# else
+#   define COMMON_SIMD_LV 0
+# endif
 #endif
 
+#if COMMON_SIMD_LV >= 200
+# define COMMON_SIMD_INTRIN AVX2
+#elif COMMON_SIMD_LV >= 150
+# define COMMON_SIMD_INTRIN FMA
+#elif COMMON_SIMD_LV >= 100
+# define COMMON_SIMD_INTRIN AVX
+#elif COMMON_SIMD_LV >= 42
+# define COMMON_SIMD_INTRIN SSE4.2
+#elif COMMON_SIMD_LV >= 41
+# define COMMON_SIMD_INTRIN SSE4.1
+#elif COMMON_SIMD_LV >= 31
+# define COMMON_SIMD_INTRIN SSSE3
+#elif COMMON_SIMD_LV >= 30
+# define COMMON_SIMD_INTRIN SSE3
+#elif COMMON_SIMD_LV >= 20
+# define COMMON_SIMD_INTRIN SSE2
+#elif COMMON_SIMD_LV >= 10
+# define COMMON_SIMD_INTRIN SSE
+#else
+# define COMMON_SIMD_INTRIN NONE
+#endif

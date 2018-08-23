@@ -1,7 +1,8 @@
 #pragma once
 #include "SIMD.hpp"
+#include "SIMDVec.hpp"
 
-#define COMMON_SIMD_LV 200
+//#define COMMON_SIMD_LV 200
 #if COMMON_SIMD_LV < 20
 #   error require at least SSE2
 #endif
@@ -21,21 +22,6 @@ struct F32x4;
 struct I64x2;
 struct F64x2;
 
-template<typename T, size_t N>
-struct alignas(T) Pack
-{
-    T Data[N];
-    Pack(const T& val0, const T& val1) : Data{ val0,val1 } {}
-    constexpr T& operator[](const size_t idx) { return Data[idx]; }
-    constexpr const T& operator[](const size_t idx) const { return Data[idx]; }
-};
-
-template<typename From, typename To>
-struct CastTyper
-{
-    using Type = std::conditional_t<(From::Count > To::Count), Pack<To, From::Count / To::Count>, To>;
-};
-
 enum class VecPos : uint8_t 
 { 
     X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000, 
@@ -46,21 +32,8 @@ MAKE_ENUM_BITFIELD(VecPos)
 namespace detail
 {
 
-template<typename T>
-struct CommonOperators
-{
-    // logic operations
-    T operator&(const T& other) const { return static_cast<const T*>(this)->And(other); }
-    T operator|(const T& other) const { return static_cast<const T*>(this)->Or(other); }
-    T operator^(const T& other) const { return static_cast<const T*>(this)->Xor(other); }
-    T operator~() const { return static_cast<const T*>(this)->Not(); }
-    // arithmetic operations
-    T operator+(const T& other) const { return static_cast<const T*>(this)->Add(other); }
-    T operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
-};
-
 template<typename T, typename E>
-struct IntCommon : public CommonOperators<T>
+struct Int128Common : public CommonOperators<T>
 {
     // logic operations
     T And(const T& other) const
@@ -85,6 +58,7 @@ struct IntCommon : public CommonOperators<T>
     }
     void Load(const E *ptr) { *static_cast<E*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
     void Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
+    constexpr operator const __m128i&() const noexcept { return static_cast<const T*>(this)->Data; }
 };
 
 }
@@ -196,7 +170,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
     union
     {
         __m128 Data;
-        float Val[2];
+        float Val[4];
     };
     constexpr F32x4() : Data() { }
     explicit F32x4(const float* ptr) : Data(_mm_loadu_ps(ptr)) { }
@@ -297,7 +271,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
 };
 
 
-struct alignas(__m128i) I64x2 : public detail::IntCommon<I64x2, int64_t>
+struct alignas(__m128i) I64x2 : public detail::Int128Common<I64x2, int64_t>
 {
     static constexpr size_t Count = 2;
     union
@@ -310,9 +284,6 @@ struct alignas(__m128i) I64x2 : public detail::IntCommon<I64x2, int64_t>
     constexpr I64x2(const __m128i val) :Data(val) { }
     I64x2(const int64_t val) :Data(_mm_set1_epi64x(val)) { }
     I64x2(const int64_t lo, const int64_t hi) :Data(_mm_set_epi64x(hi, lo)) { }
-    constexpr operator const __m128i&() const noexcept { return Data; }
-    void Load(const int64_t *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-    void Save(int64_t *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
@@ -339,7 +310,7 @@ struct alignas(__m128i) I64x2 : public detail::IntCommon<I64x2, int64_t>
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I32Common
+struct alignas(__m128i) I32Common4
 {
     static constexpr size_t Count = 4;
     union
@@ -347,13 +318,12 @@ struct alignas(__m128i) I32Common
         __m128i Data;
         E Val[4];
     };
-    constexpr I32Common() : Data() { }
-    explicit I32Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I32Common(const __m128i val) : Data(val) { }
-    I32Common(const E val) : Data(_mm_set1_epi32(static_cast<int32_t>(val))) { }
-    I32Common(const E lo0, const E lo1, const E lo2, const E hi3)
+    constexpr I32Common4() : Data() { }
+    explicit I32Common4(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
+    constexpr I32Common4(const __m128i val) : Data(val) { }
+    I32Common4(const E val) : Data(_mm_set1_epi32(static_cast<int32_t>(val))) { }
+    I32Common4(const E lo0, const E lo1, const E lo2, const E hi3)
         : Data(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
-    constexpr operator const __m128i&() const noexcept { return Data; }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
@@ -379,10 +349,9 @@ struct alignas(__m128i) I32Common
 };
 
 
-struct alignas(__m128i) I32x4 : public I32Common<I32x4, int32_t>, public detail::IntCommon<I32x4, int32_t>
+struct alignas(__m128i) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int128Common<I32x4, int32_t>
 {
-    using I32Common<I32x4, int32_t>::I32Common;
-    using I32Common<I32x4, int32_t>::operator const __m128i &;
+    using I32Common4<I32x4, int32_t>::I32Common4;
 
     // arithmetic operations
 #if COMMON_SIMD_LV >= 41
@@ -398,10 +367,9 @@ struct alignas(__m128i) I32x4 : public I32Common<I32x4, int32_t>, public detail:
     I32x4 ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
 };
 
-struct alignas(__m128i) U32x4 : public I32Common<U32x4, uint32_t>, public detail::IntCommon<U32x4, uint32_t>
+struct alignas(__m128i) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::Int128Common<U32x4, uint32_t>
 {
-    using I32Common<U32x4, uint32_t>::I32Common;
-    using I32Common<U32x4, uint32_t>::operator const __m128i &;
+    using I32Common4<U32x4, uint32_t>::I32Common4;
 
     // arithmetic operations
 #if COMMON_SIMD_LV >= 41
@@ -419,7 +387,7 @@ struct alignas(__m128i) U32x4 : public I32Common<U32x4, uint32_t>, public detail
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I16Common
+struct alignas(__m128i) I16Common8
 {
     static constexpr size_t Count = 8;
     union
@@ -427,17 +395,12 @@ struct alignas(__m128i) I16Common
         __m128i Data;
         E Val[8];
     };
-    constexpr I16Common() : Data() { }
-    explicit I16Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I16Common(const __m128i val) :Data(val) { }
-    I16Common(const E val) :Data(_mm_set1_epi16(val)) { }
-    I16Common(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
+    constexpr I16Common8() : Data() { }
+    explicit I16Common8(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
+    constexpr I16Common8(const __m128i val) :Data(val) { }
+    I16Common8(const E val) :Data(_mm_set1_epi16(val)) { }
+    I16Common8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
         :Data(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
-    constexpr operator const __m128i&() const noexcept { return Data; }
-    template<typename T1 = E>
-    void Load(const T1 *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-    template<typename T1 = E>
-    void Save(T1 *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
 #if COMMON_SIMD_LV >= 31
@@ -473,10 +436,9 @@ struct alignas(__m128i) I16Common
 };
 
 
-struct alignas(__m128i) I16x8 : public I16Common<I16x8, int16_t>, public detail::IntCommon<I16x8, int16_t>
+struct alignas(__m128i) I16x8 : public I16Common8<I16x8, int16_t>, public detail::Int128Common<I16x8, int16_t>
 {
-    using I16Common<I16x8, int16_t>::I16Common;
-    using I16Common<I16x8, int16_t>::operator const __m128i &;
+    using I16Common8<I16x8, int16_t>::I16Common8;
 
     // arithmetic operations
     I16x8 SatAdd(const I16x8& other) const { return _mm_adds_epi16(Data, other.Data); }
@@ -490,10 +452,9 @@ struct alignas(__m128i) I16x8 : public I16Common<I16x8, int16_t>, public detail:
 };
 
 
-struct alignas(__m128i) U16x8 : public I16Common<U16x8, int16_t>, public detail::IntCommon<U16x8, uint16_t>
+struct alignas(__m128i) U16x8 : public I16Common8<U16x8, int16_t>, public detail::Int128Common<U16x8, uint16_t>
 {
-    using I16Common<U16x8, int16_t>::I16Common;
-    using I16Common<U16x8, int16_t>::operator const __m128i &;
+    using I16Common8<U16x8, int16_t>::I16Common8;
 
     // arithmetic operations
     U16x8 SatAdd(const U16x8& other) const { return _mm_adds_epu16(Data, other.Data); }
@@ -512,7 +473,7 @@ struct alignas(__m128i) U16x8 : public I16Common<U16x8, int16_t>, public detail:
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I8Common
+struct alignas(__m128i) I8Common16
 {
     static constexpr size_t Count = 16;
     union
@@ -520,20 +481,15 @@ struct alignas(__m128i) I8Common
         __m128i Data;
         E Val[16];
     };
-    constexpr I8Common() : Data() { }
-    explicit I8Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I8Common(const __m128i val) :Data(val) { }
-    I8Common(const E val) :Data(_mm_set1_epi8(val)) { }
-    I8Common(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
+    constexpr I8Common16() : Data() { }
+    explicit I8Common16(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
+    constexpr I8Common16(const __m128i val) :Data(val) { }
+    I8Common16(const E val) :Data(_mm_set1_epi8(val)) { }
+    I8Common16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
         :Data(_mm_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
             static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
             static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),
             static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
-    constexpr operator const __m128i&() const noexcept { return Data; }
-    template<typename T1 = E>
-    void Load(const T1 *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-    template<typename T1 = E>
-    void Save(T1 *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
 
     // shuffle operations
 #if COMMON_SIMD_LV >= 31
@@ -556,10 +512,9 @@ struct alignas(__m128i) I8Common
 };
 
 
-struct alignas(__m128i) I8x16 : public I8Common<I8x16, int8_t>, public detail::IntCommon<I8x16, int8_t>
+struct alignas(__m128i) I8x16 : public I8Common16<I8x16, int8_t>, public detail::Int128Common<I8x16, int8_t>
 {
-    using I8Common<I8x16, int8_t>::I8Common;
-    using I8Common<I8x16, int8_t>::operator const __m128i &;
+    using I8Common16<I8x16, int8_t>::I8Common16;
 
     // arithmetic operations
     I8x16 SatAdd(const I8x16& other) const { return _mm_adds_epi8(Data, other.Data); }
@@ -568,11 +523,11 @@ struct alignas(__m128i) I8x16 : public I8Common<I8x16, int8_t>, public detail::I
     I8x16 Max(const I8x16& other) const { return _mm_max_epi8(Data, other.Data); }
     I8x16 Min(const I8x16& other) const { return _mm_min_epi8(Data, other.Data); }
 #endif
-    I8x16 operator*(const I8x16& other) const { return MulLo(other); }
     template<typename T>
     typename CastTyper<I8x16, T>::Type Cast() const;
 #if COMMON_SIMD_LV >= 41
-    I8x16 MulHi(const I8x16& other) const 
+    Pack<I16x8, 2> MulX(const I8x16& other) const;
+    I8x16 MulHi(const I8x16& other) const
     {
         const auto full = MulX(other);
         const auto lo = full[0].ShiftRightArth<8>(), hi = full[1].ShiftRightArth<8>();
@@ -586,7 +541,7 @@ struct alignas(__m128i) I8x16 : public I8Common<I8x16, int8_t>, public detail::I
         const auto lo = full[0] & signlo, hi = full[1] & signhi;
         return _mm_packs_epi16(lo, hi);
     }
-    Pack<I16x8, 2> MulX(const I8x16& other) const;
+    I8x16 operator*(const I8x16& other) const { return MulLo(other); }
 #endif
 };
 #if COMMON_SIMD_LV >= 41
@@ -601,10 +556,9 @@ Pack<I16x8, 2> I8x16::MulX(const I8x16& other) const
 }
 #endif
 
-struct alignas(__m128i) U8x16 : public I8Common<U8x16, uint8_t>, public detail::IntCommon<U8x16, uint8_t>
+struct alignas(__m128i) U8x16 : public I8Common16<U8x16, uint8_t>, public detail::Int128Common<U8x16, uint8_t>
 {
-    using I8Common<U8x16, uint8_t>::I8Common;
-    using I8Common<U8x16, uint8_t>::operator const __m128i &;
+    using I8Common16<U8x16, uint8_t>::I8Common16;
 
     // arithmetic operations
     U8x16 SatAdd(const U8x16& other) const { return _mm_adds_epu8(Data, other.Data); }

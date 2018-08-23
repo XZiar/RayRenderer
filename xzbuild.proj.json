@@ -126,7 +126,14 @@
             "type": "executable",
             "path": "Tests/UtilTest",
             "description": "Utility test",
-            "dependency": ["fmt", "stb", "miniLogger", "AsyncExecutor", "ImageUtil"]
+            "dependency": ["fmt", "stb", "uchardet", "miniLogger", "AsyncExecutor", "ImageUtil"]
+        },
+        {
+            "name": "SIMDTest",
+            "type": "executable",
+            "path": "Tests/SIMDTest",
+            "description": "SIMD test",
+            "dependency": ["fmt"]
         }
     ]
 }

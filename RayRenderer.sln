@@ -66,6 +66,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\SharedString.hpp = common\SharedString.hpp
 		common\SIMD.hpp = common\SIMD.hpp
 		common\SIMD128.hpp = common\SIMD128.hpp
+		common\SIMD256.hpp = common\SIMD256.hpp
+		common\SIMDVec.hpp = common\SIMDVec.hpp
 		common\SpinLock.hpp = common\SpinLock.hpp
 		common\StrBase.hpp = common\StrBase.hpp
 		common\StrCharset.hpp = common\StrCharset.hpp
@@ -238,6 +240,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CL", "CL", "{1C8E3D45-3BDA-
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL_ICD_Loader", "3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SIMDTest", "Tests\SIMDTest\SIMDTest.vcxproj", "{DCA497AF-8000-4163-B6FD-E0C09C89612E}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -610,6 +614,16 @@ Global
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Release|x64.Build.0 = Release|x64
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Release|x86.ActiveCfg = Release|Win32
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Release|x86.Build.0 = Release|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x64.ActiveCfg = Debug|x64
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x64.Build.0 = Debug|x64
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x86.ActiveCfg = Debug|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x86.Build.0 = Debug|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|Any CPU.ActiveCfg = Release|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x64.ActiveCfg = Release|x64
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x64.Build.0 = Release|x64
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x86.ActiveCfg = Release|Win32
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -654,6 +668,7 @@ Global
 		{A9F8DF7E-4636-4C92-8D78-9D8214414986} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{1C8E3D45-3BDA-426A-8170-B5F2472BFBCF} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{5C5933E1-4992-47F8-87ED-7921735157BA} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{DCA497AF-8000-4163-B6FD-E0C09C89612E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

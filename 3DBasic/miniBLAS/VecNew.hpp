@@ -50,7 +50,6 @@ public:
             int32_t int_x, int_y, int_z, int_w;
         };
     };
-    constexpr Vec4Base() noexcept : FloatData() { }
 #if COMMON_SIMD_LV >= 20
     constexpr Vec4Base(const F32x4& data) noexcept : FloatData(data) {}
     constexpr Vec4Base(const I32x4& data) noexcept : IntData(data) {}
@@ -61,6 +60,7 @@ public:
     constexpr operator __m128i&() noexcept { return IntData.Data; };
     constexpr operator const __m128i&() const noexcept { return IntData.Data; };
 #endif
+    constexpr Vec4Base() noexcept : Data() { }
     constexpr forceinline operator T*() noexcept { return Data; }
     constexpr forceinline operator const T*() const noexcept { return Data; }
     bool operator<(const Vec4Base& other) const = delete;

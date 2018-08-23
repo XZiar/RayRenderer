@@ -31,7 +31,7 @@ public:
     Vec3(const T all) noexcept :Vec4Base(_mm_set1_ps(static_cast<float>(all)))
     { }
     template<typename T>
-    explicit Vec3(const T *ptr) noexcept :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2])) 
+    explicit Vec3(const T *ptr) noexcept :Vec4Base(static_cast<float>(ptr[0]), static_cast<float>(ptr[1]), static_cast<float>(ptr[2]), 0.f) 
     { }
 #if COMMON_SIMD_LV >= 20
     explicit Vec3(const float *ptr) noexcept :Vec4Base(_mm_loadu_ps(ptr)) { }
