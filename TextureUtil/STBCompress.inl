@@ -1,16 +1,17 @@
 #pragma once
 
 #include "TexUtilRely.h"
-#include "common/SIMD.hpp"
-#define STB_DXT_IMPLEMENTATION
-#include "3rdParty/stblib/stb_dxt.h"
-#include "OpenGLUtil/oglException.h"
 #include <boost/detail/endian.hpp>
 #if BOOST_BYTE_ORDER != 1234
 #   pragma message("unsupported byte order (non little endian), fallback to SIMD_LV = 0")
 #   undef COMMON_SIMD_LV
 #   define COMMON_SIMD_LV 0
 #endif
+#include "common/SIMD.hpp"
+#define STB_DXT_IMPLEMENTATION
+#include "3rdParty/stblib/stb_dxt.h"
+#include "OpenGLUtil/oglException.h"
+
 
 namespace oglu::texutil::detail
 {

@@ -93,9 +93,32 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 #else
             constexpr uint8_t lane0 = Lo0 & 0b10, lane1 = Lo1 & 0b10, lane2 = Lo2 & 0b10, lane3 = Hi3 & 0b10;
             constexpr uint8_t off0 = Lo0 & 0b1, off1 = Lo1 & 0b1, off2 = Lo2 & 0b1, off3 = Hi3 & 0b1;
-            const auto tmpa = _mm256_permute2f128_pd(Data, Data, (lane0 ? 0b1 : 0b0) + (lane2 ? 0b100 : 0b000));
-            const auto tmpb = _mm256_permute2f128_pd(Data, Data, (lane1 ? 0b1 : 0b0) + (lane3 ? 0b100 : 0b000));
+            const auto tmpa = _mm256_permute2f128_pd(Data, Data, (lane0 ? 0x1 : 0x0) + (lane2 ? 0x10 : 0x00));
+            const auto tmpb = _mm256_permute2f128_pd(Data, Data, (lane1 ? 0x1 : 0x0) + (lane3 ? 0x10 : 0x00));
             return _mm256_shuffle_pd(tmpa, tmpb, (off3 << 3) + (off2 << 2) + (off1 << 1) + off0);
+#endif
+        }
+    }
+    F64x4 Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+        //assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        // _mm256_permutevar_pd checks offset[1] rather than offset[0]
+        if (Lo0 < 2 && Lo1 < 2 && Lo2 >= 2 && Hi3 >= 2) // no cross lane
+        {
+            return _mm256_permutevar_pd(Data, _mm256_setr_epi64x(Lo0 << 1, Lo1 << 1, Lo2 << 1, Hi3 << 1));
+        }
+        else
+        {
+#if COMMON_SIMD_LV >= 200
+            const auto mask = _mm256_setr_epi32(Lo0*2, Lo0*2+1, Lo1*2, Lo1*2+1, Lo2*2, Lo2*2+1, Hi3*2, Hi3*2+1);
+            return _mm256_castps_pd(_mm256_permutevar8x32_ps(_mm256_castpd_ps(Data), mask));
+#else
+            const auto offMask = _mm256_setr_epi64x(Lo0 << 1, Lo1 << 1, Lo2 << 1, Hi3 << 1);
+            const auto laneMask = _mm256_setr_epi64x((int64_t)(Lo0) << 62, (int64_t)(Lo1) << 62, (int64_t)(~Lo2) << 62, (int64_t)(~Hi3) << 62);
+            const auto hilo = _mm256_permute2f128_pd(Data, Data, 0b0001);//0123->2301
+            const auto lohiShuffle = _mm256_permutevar_pd(Data, offMask);
+            const auto hiloShuffle = _mm256_permutevar_pd(hilo, offMask);
+            return _mm256_blendv_pd(lohiShuffle, hiloShuffle, _mm256_castsi256_pd(laneMask));
 #endif
         }
     }
@@ -107,8 +130,8 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     F64x4 AndNot(const F64x4& other) const { return _mm256_andnot_pd(Data, other.Data); }
     F64x4 Not() const
     {
-        static const int64_t i = -1;
-        return _mm256_xor_pd(Data, _mm256_set1_pd(*reinterpret_cast<const double*>(&i)));
+        alignas(32) static const int64_t i[] = { -1, -1, -1, -1 };
+        return _mm256_xor_pd(Data, _mm256_load_pd(reinterpret_cast<const double*>(i)));
     }
 
     // arithmetic operations
@@ -185,7 +208,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     {
         static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
         if constexpr (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 &&
-            Lo4 - Lo0 == 4 && Lo5 - Lo1 == 4 && Lo6 - Lo2 == 4 && Hi7 - Lo3 == 4) // no cross lane
+            Lo4 - Lo0 == 4 && Lo5 - Lo1 == 4 && Lo6 - Lo2 == 4 && Hi7 - Lo3 == 4) // no cross lane and same shuffle for two lane
         {
             return _mm256_permute_ps(Data, (Lo3 << 6) + (Lo2 << 4) + (Lo1 << 2) + Lo0);
         }
@@ -195,30 +218,56 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
             static const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
             return _mm256_permutevar8x32_ps(Data, mask);
 #else
-            constexpr uint8_t lane0 = Lo1 & 0b100, lane1 = Lo2 & 0b100, lane2 = Lo3 & 0b100, lane3 = Lo4 & 0b100,
-                lane4 = Lo5 & 0b100, lane5 = Lo6 & 0b100, lane6 = Lo7 & 0b100, lane7 = Hi7 & 0b100;
-            constexpr uint8_t off0 = Lo1 & 0b11, off1 = Lo2 & 0b11, off2 = Lo3 & 0b11, off3 = Lo4 & 0b11,
-                off4 = Lo5 & 0b11, off5 = Lo6 & 0b11, off6 = Lo7 & 0b11, off7 = Hi7 & 0b11;
+            constexpr uint8_t lane0 = Lo0 & 0b100, lane1 = Lo1 & 0b100, lane2 = Lo2 & 0b100, lane3 = Lo3 & 0b100,
+                lane4 = Lo4 & 0b100, lane5 = Lo5 & 0b100, lane6 = Lo6 & 0b100, lane7 = Hi7 & 0b100;
+            constexpr uint8_t off0 = Lo0 & 0b11, off1 = Lo1 & 0b11, off2 = Lo2 & 0b11, off3 = Lo3 & 0b11,
+                off4 = Lo4 & 0b11, off5 = Lo5 & 0b11, off6 = Lo6 & 0b11, off7 = Hi7 & 0b11;
             if constexpr (lane0 == lane1 && lane2 == lane3 && lane4 == lane5 && lane6 == lane7 &&
                 off0 == off4 && off1 == off5 && off2 == off6 && off3 == off7)
             {
-                const auto tmpa = _mm256_permute2f128_ps(Data, Data, (lane0 ? 0b1 : 0b0) + (lane4 ? 0b100 : 0b000));
-                const auto tmpb = _mm256_permute2f128_ps(Data, Data, (lane2 ? 0b1 : 0b0) + (lane6 ? 0b100 : 0b000));
+                const auto tmpa = _mm256_permute2f128_ps(Data, Data, (lane0 ? 0x1 : 0x0) + (lane4 ? 0x10 : 0x00));
+                const auto tmpb = _mm256_permute2f128_ps(Data, Data, (lane2 ? 0x1 : 0x0) + (lane6 ? 0x10 : 0x00));
                 return _mm256_shuffle_ps(tmpa, tmpb, (off3 << 6) + (off2 << 4) + (off1 << 2) + off0);
             }
             else
             {
-                const auto tmpa = _mm256_permute2f128_ps(Data, Data, (lane0 ? 0b1 : 0b0) + (lane5 ? 0b100 : 0b000));
-                const auto tmpb = _mm256_permute2f128_ps(Data, Data, (lane2 ? 0b1 : 0b0) + (lane7 ? 0b100 : 0b000));
+                const auto tmpa = _mm256_permute2f128_ps(Data, Data, (lane0 ? 0x1 : 0x0) + (lane5 ? 0x10 : 0x00));
+                const auto tmpb = _mm256_permute2f128_ps(Data, Data, (lane2 ? 0x1 : 0x0) + (lane7 ? 0x10 : 0x00));
                 const auto f0257 = _mm256_shuffle_ps(tmpa, tmpb, (off7 << 6) + (off2 << 4) + (off5 << 2) + off0);
-                const auto tmpc = _mm256_permute2f128_ps(Data, Data, (lane1 ? 0b1 : 0b0) + (lane4 ? 0b100 : 0b000));
-                const auto tmpd = _mm256_permute2f128_ps(Data, Data, (lane3 ? 0b1 : 0b0) + (lane6 ? 0b100 : 0b000));
+                const auto tmpc = _mm256_permute2f128_ps(Data, Data, (lane1 ? 0x1 : 0x0) + (lane4 ? 0x10 : 0x00));
+                const auto tmpd = _mm256_permute2f128_ps(Data, Data, (lane3 ? 0x1 : 0x0) + (lane6 ? 0x10 : 0x00));
                 const auto f1346 = _mm256_shuffle_ps(tmpc, tmpd, (off6 << 6) + (off3 << 4) + (off4 << 2) + off1);
                 return _mm256_blend_ps(f0257, f1346, 0b01011010);
             }
 #endif
         }
     }
+    ///*
+    F32x8 Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
+    {
+        //static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+        if (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 && Lo4 >= 4 && Lo5 >= 4 && Lo6 >= 4 && Hi7 >= 4) // no cross lane
+        {
+            const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+            return _mm256_permutevar_ps(Data, mask);
+        }
+        else
+        {
+#if COMMON_SIMD_LV >= 200
+            const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+            return _mm256_permutevar8x32_ps(Data, mask);
+#else
+            const auto offMask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+            const auto laneMask = _mm256_setr_epi32((int64_t)(Lo0) << 29, (int64_t)(Lo1) << 29, (int64_t)(Lo2) << 29, (int64_t)(Lo3) << 29, 
+                (int64_t)(~Lo4) << 29, (int64_t)(~Lo5) << 29, (int64_t)(~Lo6) << 29, (int64_t)(~Hi7) << 29);
+            const auto hilo = _mm256_permute2f128_ps(Data, Data, 0b0001);//01234567->45670123
+            const auto lohiShuffle = _mm256_permutevar_ps(Data, offMask);
+            const auto hiloShuffle = _mm256_permutevar_ps(hilo, offMask);
+            return _mm256_blendv_ps(lohiShuffle, hiloShuffle, _mm256_castsi256_ps(laneMask));
+#endif
+        }
+    }
+    //*/
 
     // logic operations
     F32x8 And(const F32x8& other) const
@@ -239,8 +288,8 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     }
     F32x8 Not() const
     {
-        static const int32_t i = -1;
-        return _mm256_xor_ps(Data, _mm256_set1_ps(*reinterpret_cast<const float*>(&i)));
+        alignas(32) static const int64_t i[] = { -1, -1, -1, -1 };
+        return _mm256_xor_ps(Data, _mm256_load_ps(reinterpret_cast<const float*>(i)));
     }
 
     // arithmetic operations
@@ -285,13 +334,11 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         return _mm256_xor_ps(_mm256_add_ps(_mm256_mul_ps(Data, muler.Data), suber.Data), _mm256_set1_ps(-0.));
 #endif
     }
-#if COMMON_SIMD_LV >= 42
-    template<VecPos Mul, VecPos Res>
-    F32x8 Dot(const F32x8& other) const 
+    template<DotPos Mul, DotPos Res>
+    F32x8 Dot2(const F32x8& other) const 
     { 
         return _mm256_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
     }
-#endif
     F32x8 operator*(const F32x8& other) const { return Mul(other); }
     F32x8 operator/(const F32x8& other) const { return Div(other); }
 

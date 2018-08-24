@@ -119,7 +119,7 @@ public:
     forceinline float VECCALL dot(const Vec3& v) const noexcept//dot product
     {
     #if COMMON_SIMD_LV >= 42
-        return _mm_cvtss_f32(FloatData.Dot<VecPos::XYZ, VecPos::X>(v.FloatData));
+        return _mm_cvtss_f32(FloatData.Dot<DotPos::XYZ, DotPos::X>(v.FloatData));
     #else
         return x*v.x + y*v.y + z*v.z;
     #endif
@@ -128,7 +128,7 @@ public:
     forceinline float VECCALL length() const noexcept
     {
     #if COMMON_SIMD_LV >= 42
-        return _mm_cvtss_f32(FloatData.Dot<VecPos::XYZ, VecPos::X>(FloatData).Sqrt());
+        return _mm_cvtss_f32(FloatData.Dot<DotPos::XYZ, DotPos::X>(FloatData).Sqrt());
     #else
         return std::sqrt(length_sqr());
     #endif
@@ -223,7 +223,7 @@ public:
     forceinline Vec3 VECCALL normalize() const noexcept
     {
     #if COMMON_SIMD_LV >= 42
-        return FloatData * FloatData.Dot<VecPos::XYZ, VecPos::XYZ>(FloatData).Rsqrt();
+        return FloatData * FloatData.Dot<DotPos::XYZ, DotPos::XYZ>(FloatData).Rsqrt();
     #else
         return (*this) / this->length();
     #endif
@@ -484,7 +484,7 @@ public:
     forceinline float VECCALL dot(const Vec4& v) const noexcept//dot product
     {
 #if COMMON_SIMD_LV >= 42
-        return _mm_cvtss_f32(FloatData.Dot<VecPos::XYZW, VecPos::X>(v.FloatData));
+        return _mm_cvtss_f32(FloatData.Dot<DotPos::XYZW, DotPos::X>(v.FloatData));
 #else
         return x * v.x + y * v.y + z * v.z + w * v.w;
 #endif
@@ -498,7 +498,7 @@ public:
     forceinline float VECCALL length() const noexcept
     {
 #if COMMON_SIMD_LV >= 42
-        return _mm_cvtss_f32(FloatData.Dot<VecPos::XYZW, VecPos::X>(FloatData).Sqrt());
+        return _mm_cvtss_f32(FloatData.Dot<DotPos::XYZW, DotPos::X>(FloatData).Sqrt());
 #else
         return std::sqrt(length_sqr());
 #endif
@@ -588,7 +588,7 @@ public:
     forceinline Vec4 VECCALL normalize() const noexcept
     {
 #if COMMON_SIMD_LV >= 42
-        return FloatData * FloatData.Dot<VecPos::XYZW, VecPos::XYZW>(FloatData).Rsqrt();
+        return FloatData * FloatData.Dot<DotPos::XYZW, DotPos::XYZW>(FloatData).Rsqrt();
 #else
         return (*this) / this->length();
 #endif

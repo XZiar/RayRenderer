@@ -26,7 +26,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
 | [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
-| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows |
+| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows |
 | [TextureUtil](./TextureUtil) | Texture Utility | Windows |

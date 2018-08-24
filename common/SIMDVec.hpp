@@ -40,6 +40,12 @@ struct CommonOperators
 
 }
 
+enum class DotPos : uint8_t 
+{ 
+    X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000, 
+    XY = X|Y, XZ = X|Z, XW = X|W, YZ = Y|Z, YW = Y|W, ZW = Z|W, XYZ = X|Y|Z, XYW = X|Y|W, XZW = X|Z|W, YZW = Y|Z|W, XYZW = X|Y|Z|W,
+};
+MAKE_ENUM_BITFIELD(DotPos)
 
 }
 }

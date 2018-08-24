@@ -22,12 +22,6 @@ struct F32x4;
 struct I64x2;
 struct F64x2;
 
-enum class VecPos : uint8_t 
-{ 
-    X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000, 
-    XY = X|Y, XYZ = X|Y|Z, XYZW =X|Y|Z|W, YZ = Y|Z, YZW = Y|Z|W, ZW = Z|W
-};
-MAKE_ENUM_BITFIELD(VecPos)
 
 namespace detail
 {
@@ -112,8 +106,8 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
     }
     F64x2 Not() const
     {
-        static const int64_t i = -1;
-        return _mm_xor_pd(Data, _mm_set1_pd(*reinterpret_cast<const double*>(&i)));
+        alignas(16) static const int64_t i[] = { -1, -1 };
+        return _mm_xor_pd(Data, _mm_load_pd(reinterpret_cast<const double*>(i)));
     }
 
     // arithmetic operations
@@ -212,8 +206,8 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
     }
     F32x4 Not() const
     {
-        static const int32_t i = -1;
-        return _mm_xor_ps(Data, _mm_set1_ps(*reinterpret_cast<const float*>(&i)));
+        alignas(16) static const int64_t i[] = { -1, -1 };
+        return _mm_xor_ps(Data, _mm_load_ps(reinterpret_cast<const float*>(i)));
     }
 
     // arithmetic operations
@@ -259,7 +253,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
 #endif
     }
 #if COMMON_SIMD_LV >= 42
-    template<VecPos Mul, VecPos Res>
+    template<DotPos Mul, DotPos Res>
     F32x4 Dot(const F32x4& other) const 
     { 
         return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
@@ -545,11 +539,11 @@ struct alignas(__m128i) I8x16 : public I8Common16<I8x16, int8_t>, public detail:
 #endif
 };
 #if COMMON_SIMD_LV >= 41
-template<> Pack<I16x8, 2> I8x16::Cast<I16x8>() const
+template<> Pack<I16x8, 2> forceinline I8x16::Cast<I16x8>() const
 {
     return { _mm_cvtepi8_epi16(Data), _mm_cvtepi8_epi16(_mm_shuffle_epi32(Data, _MM_SHUFFLE(3,2,3,2))) };
 }
-Pack<I16x8, 2> I8x16::MulX(const I8x16& other) const
+Pack<I16x8, 2> forceinline I8x16::MulX(const I8x16& other) const
 {
     const auto self16 = Cast<I16x8>(), other16 = other.Cast<I16x8>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
@@ -585,17 +579,17 @@ struct alignas(__m128i) U8x16 : public I8Common16<U8x16, uint8_t>, public detail
 };
 
 
-template<> Pack<I16x8, 2> U8x16::Cast<I16x8>() const
+template<> Pack<I16x8, 2> forceinline U8x16::Cast<I16x8>() const
 {
     const auto tmp = _mm_setzero_si128();
     return { _mm_unpacklo_epi8(*this, tmp), _mm_unpackhi_epi8(*this, tmp) };
 }
-template<> Pack<U16x8, 2> U8x16::Cast<U16x8>() const
+template<> Pack<U16x8, 2> forceinline U8x16::Cast<U16x8>() const
 {
     const auto tmp = _mm_setzero_si128();
     return { _mm_unpacklo_epi8(*this, tmp), _mm_unpackhi_epi8(*this, tmp) };
 }
-Pack<U16x8, 2> U8x16::MulX(const U8x16& other) const
+Pack<U16x8, 2> forceinline U8x16::MulX(const U8x16& other) const
 {
     const auto self16 = Cast<U16x8>(), other16 = other.Cast<U16x8>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };

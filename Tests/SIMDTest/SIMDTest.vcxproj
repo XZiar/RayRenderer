@@ -138,6 +138,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ShuffleTestAVX.cpp" />
+    <ClCompile Include="ShuffleTestAVX2.cpp" />
     <ClCompile Include="SIMDTest.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -147,6 +149,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ShuffleTest.h" />
+    <ClInclude Include="SIMDRely.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

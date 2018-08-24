@@ -88,3 +88,12 @@
 #else
 # define COMMON_SIMD_INTRIN NONE
 #endif
+
+
+namespace common::simd
+{
+inline constexpr auto GetSIMDIntrin()
+{
+    return STRINGIZE(COMMON_SIMD_INTRIN);
+}
+}

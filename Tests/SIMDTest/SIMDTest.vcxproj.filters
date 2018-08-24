@@ -18,8 +18,22 @@
     <ClCompile Include="SIMDTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ShuffleTestAVX.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ShuffleTestAVX2.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SIMDRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ShuffleTest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

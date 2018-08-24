@@ -181,8 +181,8 @@ def main(argv=None):
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
             proj = parseProj(objproj, projects)
             args = { "platform": "x64", "target": "Debug" }
-            if len(argv) > 4: args["platform"] = argv[3]             
-            if len(argv) > 3: args["target"] = argv[4]             
+            if len(argv) > 4: args["platform"] = argv[4]             
+            if len(argv) > 3: args["target"] = argv[3]             
             suc, all = mainmake(action, proj, args)
             clr = "\033[91m" if suc == 0 else "\033[93m" if suc < all else "\033[92m"
             print("{}build [{}/{}] successed.\033[39m".format(clr, suc, all))
