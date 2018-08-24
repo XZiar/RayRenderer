@@ -21,7 +21,7 @@ inline std::u16string_view ToU16Str(const std::u16string_view& content)
     return content;
 }
 
-enum class LogType { Error, Success, Info, Verbose };
+enum class LogType { Error, Success, Warning, Info, Verbose };
 inline std::u16string ToColor(const LogType type)
 {
     using namespace common::console;
@@ -29,6 +29,7 @@ inline std::u16string ToColor(const LogType type)
     {
     case LogType::Error:    return ConsoleHelper::GetColorStr(ConsoleColor::BrightRed);
     case LogType::Success:  return ConsoleHelper::GetColorStr(ConsoleColor::BrightGreen);
+    case LogType::Warning:  return ConsoleHelper::GetColorStr(ConsoleColor::BrightYellow);
     default:
     case LogType::Info:     return ConsoleHelper::GetColorStr(ConsoleColor::BrightWhite);
     case LogType::Verbose:  return ConsoleHelper::GetColorStr(ConsoleColor::BrightCyan);
@@ -43,4 +44,4 @@ inline void Log(const LogType type, const std::u16string_view& formater, Args&&.
 }
 
 
-uint32_t RegistTest(const char16_t *name, bool(*func)());
+uint32_t RegistTest(const char16_t *name, const uint32_t simdLv, bool(*func)());

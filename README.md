@@ -119,6 +119,10 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 * [itoa](https://github.com/miloyip/itoa-benchmark)
 
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.0 master@2018-08-09
+
+  [BSD License](./3rdParty/cpuid/COPYING)
+
 ## License
 
 RayRenderer (including its component) is licensed under the [MIT license](License.txt).

@@ -63,3 +63,5 @@ before_script:
 
 script:
   - python3 build.py rebuildall "all|-ResourcePackager"
+  - python3 build.py rebuildall "SIMDTest" Release
+  - ./x64/Release/SIMDTest

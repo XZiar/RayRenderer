@@ -130,7 +130,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     F64x4 AndNot(const F64x4& other) const { return _mm256_andnot_pd(Data, other.Data); }
     F64x4 Not() const
     {
-        alignas(32) static const int64_t i[] = { -1, -1, -1, -1 };
+        alignas(32) static constexpr int64_t i[] = { -1, -1, -1, -1 };
         return _mm256_xor_pd(Data, _mm256_load_pd(reinterpret_cast<const double*>(i)));
     }
 
@@ -288,7 +288,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     }
     F32x8 Not() const
     {
-        alignas(32) static const int64_t i[] = { -1, -1, -1, -1 };
+        alignas(32) static constexpr int64_t i[] = { -1, -1, -1, -1 };
         return _mm256_xor_ps(Data, _mm256_load_ps(reinterpret_cast<const float*>(i)));
     }
 

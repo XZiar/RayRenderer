@@ -86,6 +86,18 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
         return _mm_shuffle_pd(Data, Data, (Hi << 1) + Lo);
 #endif
     }
+    F64x2 Shuffle(const uint8_t Lo, const uint8_t Hi) const
+    {
+        //static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
+        switch ((Hi << 1) + Lo)
+        {
+        case 0: return Shuffle<0, 0>();
+        case 1: return Shuffle<1, 0>();
+        case 2: return Shuffle<0, 1>();
+        case 3: return Shuffle<1, 1>();
+        default: return F64x2(); // should not happen
+        }
+    }
 
     // logic operations
     F64x2 And(const F64x2& other) const
@@ -106,7 +118,7 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
     }
     F64x2 Not() const
     {
-        alignas(16) static const int64_t i[] = { -1, -1 };
+        alignas(16) static constexpr int64_t i[] = { -1, -1 };
         return _mm_xor_pd(Data, _mm_load_pd(reinterpret_cast<const double*>(i)));
     }
 
@@ -186,6 +198,20 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
         return _mm_shuffle_ps(Data, Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
 #endif
     }
+    F32x4 Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+        //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+#if COMMON_SIMD_LV >= 100
+        return _mm_permutevar_ps(Data, _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3));
+//SSSE3 may be slower due to too many calculations
+//#elif COMMON_SIMD_LV >= 31
+//        const auto mask = _mm_setr_epi8(Lo0 * 4, Lo0 * 4 + 1, Lo0 * 4 + 2, Lo0 * 4 + 3, Lo1 * 4, Lo1 * 4 + 1, Lo1 * 4 + 2, Lo1 * 4 + 3,
+//            Lo2 * 4, Lo2 * 4 + 1, Lo2 * 4 + 2, Lo2 * 4 + 3, Hi3 * 4, Hi3 * 4 + 1, Hi3 * 4 + 2, Hi3 * 4 + 3);
+//        return _mm_castsi128_ps(_mm_shuffle_epi8(_mm_castps_si128(Data), mask));
+#else
+        return F32x4(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
+#endif
+    }
 
     // logic operations
     F32x4 And(const F32x4& other) const
@@ -206,7 +232,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
     }
     F32x4 Not() const
     {
-        alignas(16) static const int64_t i[] = { -1, -1 };
+        alignas(16) static constexpr int64_t i[] = { -1, -1 };
         return _mm_xor_ps(Data, _mm_load_ps(reinterpret_cast<const float*>(i)));
     }
 
@@ -286,6 +312,17 @@ struct alignas(__m128i) I64x2 : public detail::Int128Common<I64x2, int64_t>
         static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
         return _mm_shuffle_epi32(Data, _MM_SHUFFLE(Hi*2+1, Hi*2, Lo*2+1, Lo*2));
     }
+    I64x2 Shuffle(const uint8_t Lo, const uint8_t Hi) const
+    {
+        switch ((Hi << 1) + Lo)
+        {
+        case 0: return Shuffle<0, 0>();
+        case 1: return Shuffle<1, 0>();
+        case 2: return Shuffle<0, 1>();
+        case 3: return Shuffle<1, 1>();
+        default: return I64x2(); // should not happen
+        }
+    }
 
     // arithmetic operations
     I64x2 Add(const I64x2& other) const { return _mm_add_epi64(Data, other.Data); }
@@ -325,6 +362,14 @@ struct alignas(__m128i) I32Common4
     {
         static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
         return _mm_shuffle_epi32(Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
+    }
+    T Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+#if COMMON_SIMD_LV >= 100
+        return _mm_castps_si128(_mm_permutevar_ps(_mm_castsi128_ps(Data), _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3)));
+#else
+        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
+#endif
     }
 
     // arithmetic operations

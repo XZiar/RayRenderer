@@ -1,10 +1,11 @@
 #include "SIMDRely.h"
 #include "common/TimeUtil.hpp"
 #include "common/ColorConsole.inl"
-#include <map>
+#include "3rdParty/cpuid/libcpuid.h"
+#include <vector>
 
 using std::u16string;
-using std::map;
+using std::vector;
 
 
 
@@ -19,38 +20,71 @@ const common::console::ConsoleHelper& GetConsole()
     return TheConsole;
 }
 
-
-static map<u16string, bool(*)()>& GetTestMap()
+struct TestItem
 {
-    static map<u16string, bool(*)()> testMap;
+    u16string Name;
+    bool(*Func)();
+    uint32_t SIMDLevel;
+};
+static vector<TestItem>& GetTestMap()
+{
+    static vector<TestItem> testMap;
     return testMap;
 }
-uint32_t RegistTest(const char16_t *name, bool(*func)())
+uint32_t RegistTest(const char16_t *name, const uint32_t simdLv, bool(*func)())
 {
-    GetTestMap()[name] = func;
+    GetTestMap().emplace_back(TestItem{ name, func, simdLv });
     //printf("Test [%-30s] registed.\n", name);
+    return 0;
+}
+
+static uint32_t GetSIMDLevel()
+{
+    if (!cpuid_present())               return 0;
+    struct cpu_raw_data_t raw;
+    if (cpuid_get_raw_data(&raw) < 0)   return 0;
+    struct cpu_id_t data;
+    if (cpu_identify(&raw, &data) < 0)  return 0;
+
+    if (data.flags[CPU_FEATURE_AVX2])   return 200;
+    if (data.flags[CPU_FEATURE_FMA3])   return 150;
+    if (data.flags[CPU_FEATURE_AVX])    return 100;
+    if (data.flags[CPU_FEATURE_SSE4_2]) return 42;
+    if (data.flags[CPU_FEATURE_SSE4_1]) return 41;
+    if (data.flags[CPU_FEATURE_SSSE3])  return 31;
+    if (data.flags[CPU_FEATURE_PNI])    return 30;
+    if (data.flags[CPU_FEATURE_SSE2])   return 20;
+    if (data.flags[CPU_FEATURE_SSE])    return 10;
     return 0;
 }
 
 
 int main()
 {
-    uint32_t count = 0;
-    const auto& testMap = GetTestMap();
-    Log(LogType::Success, u"[{}] Test found.", testMap.size());
-    for (const auto&[name, func] : testMap)
+    const auto& tests = GetTestMap();
+    Log(LogType::Success, u"[{}] Test found.", tests.size());
     {
-        Log(LogType::Verbose, u"[{:2}] {:<30}", count++, name);
+        uint32_t idx = 0;
+        for (const auto test : tests)
+            Log(LogType::Verbose, u"[{:2}] {:<30}", idx++, test.Name);
     }
+    const auto simdLv = GetSIMDLevel();
+    Log(LogType::Info, u"Runtime SIMD Level: [{}]", simdLv);
     Log(LogType::Success, u"Start Test.\n");
 
-    uint32_t pass = 0;
-    for (const auto&[name, func] : testMap)
+    uint32_t pass = 0, total = 0;
+    for (const auto test : tests)
     {
-        Log(LogType::Info, u"begin {}", name);
+        Log(LogType::Info, u"begin {}", test.Name);
+        if (simdLv < test.SIMDLevel)
+        {
+            Log(LogType::Warning, u"SIMD [{}] required unsatisfied, skip.\n", test.SIMDLevel);
+            continue;
+        }
+        total++;
         common::SimpleTimer timer;
         timer.Start();
-        const auto ret = func();
+        const auto ret = test.Func();
         timer.Stop();
         if (ret)
             Log(LogType::Success, u"Test passes in {} ms.\n", timer.ElapseMs()), pass++;
@@ -58,7 +92,7 @@ int main()
             Log(LogType::Error,   u"Test failed in {} ms.\n", timer.ElapseMs());
     }
 
-    Log(pass == count ? LogType::Success : LogType::Error, u"[{}/{}] Test pases.\n", pass, count);
+    Log(pass == total ? LogType::Success : LogType::Error, u"[{}/{}] Test pases.\n", pass, total);
 
 #if defined(COMPILER_MSVC) && COMPILER_MSVC
     getchar();
