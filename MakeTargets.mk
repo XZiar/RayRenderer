@@ -9,12 +9,12 @@ ifeq ($(BUILD_TYPE), dynamic)
 BUILD_TYPE2	:= dynamic library
 $(NAME): $(OBJS) $(ASMOBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APPS)$(CLR_CLEAR)"
-	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) -fvisibility=hidden -shared $(OBJS) $(ASMOBJS) -Wl,-rpath='$$ORIGIN' -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
+	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) -fvisibility=hidden -shared $(OBJS) $(ASMOBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 else
 BUILD_TYPE2	:= executable binary
 $(NAME): $(OBJS) $(ASMOBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APPS)$(CLR_CLEAR)"
-	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(OBJS) $(ASMOBJS) -Wl,-rpath='$$ORIGIN' -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
+	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(OBJS) $(ASMOBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 endif
 endif
 

@@ -44,7 +44,7 @@
             "name": "libpng",
             "type": "static",
             "path": "3rdParty/libpng",
-            "version": "1.6.34",
+            "version": "1.6.35",
             "description": "The official PNG reference library",
             "dependency": ["zlib-ng"]
         },
@@ -52,7 +52,7 @@
             "name": "libjpeg-turbo",
             "type": "static",
             "path": "3rdParty/libjpeg-turbo",
-            "version": "1.5.90",
+            "version": "2.0.0",
             "description": "A SIMD accelerated JPEG image codec library",
             "dependency": []
         },
@@ -87,10 +87,19 @@
             "dependency": []
         },
         {
+            "name": "freetype2",
+            "type": "static",
+            "path": "3rdParty/freetype2",
+            "version": "2.9.1",
+            "description": "A freely available software library to render fonts",
+            "dependency": ["zlib-ng", "libpng"]
+        },
+        {
             "name": "cpuid",
             "type": "static",
             "path": "3rdParty/cpuid",
-            "description": "A foundational library provides multitasking on a single thread",
+            "version": "0.4.0",
+            "description": "A small C library for x86 CPU detection and feature extraction",
             "dependency": []
         },
         {

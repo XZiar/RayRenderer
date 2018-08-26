@@ -97,7 +97,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
 
-* [FreeType2](https://www.freetype.org/) 2.8.1
+* [FreeType2](https://www.freetype.org/) 2.9.1
 
   [The FreeType License](./3rdParty/freetype2/license.txt)
 

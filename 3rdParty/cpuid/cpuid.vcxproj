@@ -171,6 +171,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="Readme.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

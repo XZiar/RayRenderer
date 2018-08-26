@@ -82,5 +82,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="Readme.md" />
   </ItemGroup>
 </Project>

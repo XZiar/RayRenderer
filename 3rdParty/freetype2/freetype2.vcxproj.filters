@@ -75,9 +75,6 @@
     <ClCompile Include="base\ftgxval.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
-    <ClCompile Include="base\ftlcdfil.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
     <ClCompile Include="base\ftmm.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
@@ -102,9 +99,6 @@
     <ClCompile Include="base\ftbbox.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
-    <ClCompile Include="base\ftfntfmt.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
     <ClCompile Include="pcf\pcf.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
@@ -115,9 +109,6 @@
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
     <ClCompile Include="pshinter\pshinter.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="psnames\psmodule.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
     <ClCompile Include="raster\raster.c">
@@ -142,6 +133,15 @@
       <Filter>源文件\freetype</Filter>
     </ClCompile>
     <ClCompile Include="cid\type1cid.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftbdf.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftcid.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="psnames\psnames.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
   </ItemGroup>
@@ -170,5 +170,14 @@
     <ClInclude Include="ftException.h">
       <Filter>头文件</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="base\ftver.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
+    <None Include="README" />
   </ItemGroup>
 </Project>

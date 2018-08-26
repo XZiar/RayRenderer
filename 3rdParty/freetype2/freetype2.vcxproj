@@ -70,16 +70,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib-ng;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib-ng;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib-ng;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir);$(ProjectDir)..\libpng;$(ProjectDir)..\zlib-ng;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -87,7 +87,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;_LIB;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
       <CompileAsManaged>false</CompileAsManaged>
@@ -110,7 +110,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;_LIB;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
       <CompileAsManaged>false</CompileAsManaged>
@@ -134,7 +134,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;_LIB;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
@@ -162,7 +162,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;_LIB;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
@@ -185,15 +185,15 @@
     <ClCompile Include="autofit\autofit.c" />
     <ClCompile Include="base\ftbase.c" />
     <ClCompile Include="base\ftbbox.c" />
+    <ClCompile Include="base\ftbdf.c" />
     <ClCompile Include="base\ftbitmap.c" />
+    <ClCompile Include="base\ftcid.c" />
     <ClCompile Include="base\ftdebug.c" />
-    <ClCompile Include="base\ftfntfmt.c" />
     <ClCompile Include="base\ftfstype.c" />
     <ClCompile Include="base\ftgasp.c" />
     <ClCompile Include="base\ftglyph.c" />
     <ClCompile Include="base\ftgxval.c" />
     <ClCompile Include="base\ftinit.c" />
-    <ClCompile Include="base\ftlcdfil.c" />
     <ClCompile Include="base\ftmm.c" />
     <ClCompile Include="base\ftotval.c" />
     <ClCompile Include="base\ftpatent.c" />
@@ -214,7 +214,7 @@
     <ClCompile Include="pfr\pfr.c" />
     <ClCompile Include="psaux\psaux.c" />
     <ClCompile Include="pshinter\pshinter.c" />
-    <ClCompile Include="psnames\psmodule.c" />
+    <ClCompile Include="psnames\psnames.c" />
     <ClCompile Include="raster\raster.c" />
     <ClCompile Include="sfnt\sfnt.c" />
     <ClCompile Include="smooth\smooth.c" />
@@ -237,6 +237,16 @@
     <ProjectReference Include="..\libpng\libpng.vcxproj">
       <Project>{506a3438-e8ee-47f6-a4c8-fdf475ebac1e}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\zlib-ng\zlib-ng.vcxproj">
+      <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="base\ftver.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
+    <None Include="README" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
