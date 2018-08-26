@@ -7,7 +7,7 @@
 #include <cmath>
 
 
-#pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
+//#pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace miniBLAS
 {

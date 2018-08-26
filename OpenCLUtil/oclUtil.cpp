@@ -7,7 +7,7 @@ namespace oclu
 
 vector<oclPlatform> oclUtil::platforms;
 
-void oclUtil::init()
+void oclUtil::init(const bool checkGL)
 {
     platforms.clear();
     cl_uint numPlatforms = 0;
@@ -15,7 +15,7 @@ void oclUtil::init()
     //Get all Platforms
     vector<cl_platform_id> platformIDs(numPlatforms);
     clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
-    const auto curGLCtx = oglu::oglContext::CurrentContext();
+    const auto curGLCtx = checkGL ? oglu::oglContext::CurrentContext() : oglu::oglContext{};
     for (const auto& pID : platformIDs)
     {
         auto plt = oclPlatform(new detail::_oclPlatform(pID));

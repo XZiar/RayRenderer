@@ -21,6 +21,7 @@ matrix:
             - nasm
             - python3
             - libx11-dev
+            - libgl1-mesa-dev
             
     - name: "Clang6"
       os: linux
@@ -45,6 +46,7 @@ matrix:
             - nasm
             - python3
             - libx11-dev
+            - libgl1-mesa-dev
 
 before_install:
   - mkdir tmp

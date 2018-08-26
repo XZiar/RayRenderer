@@ -32,7 +32,7 @@ static auto LoadCtx()
 
 static void OCLStub()
 {
-    oclUtil::init();
+    oclUtil::init(false);
     auto ctx = LoadCtx();
     oclCmdQue que;
     for (const auto& dev : ctx->Devices)

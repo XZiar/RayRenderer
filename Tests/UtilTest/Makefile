@@ -4,8 +4,8 @@ include $(PROJPATH)/Makebase.mk
 
 NAME	= UtilTest
 
-CPPSRCS		 = UtilTest.cpp AsyncTest.cpp ImageUtilTest.cpp CharsetTest.cpp #$(wildcard *.cpp)
-LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lAsyncExecutor -lImageUtil
+#CPPSRCS		 = UtilTest.cpp AsyncTest.cpp ImageUtilTest.cpp CharsetTest.cpp GLStub.cpp #$(wildcard *.cpp)
+LIBRARYS	+= -lpthread -lstdc++fs -lGL -lX11 -lminiLogger -lAsyncExecutor -lImageUtil -lOpenGLUtil -lOpenCLUtil
 DEPLIBS		+= -lfmt -lstb -luchardet
 CXXFLAGS	+= -Wno-unused-function
 

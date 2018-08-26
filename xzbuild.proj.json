@@ -129,11 +129,18 @@
             "dependency": ["fmt", "miniLogger", "glew", "ImageUtil"]
         },
         {
+            "name": "OpenCLUtil",
+            "type": "dynamic",
+            "path": "OpenCLUtil",
+            "description": "Wrapper of OpenCL Utility",
+            "dependency": ["fmt", "miniLogger", "ImageUtil", "OpenGLUtil", "OpenCLICDLoader"]
+        },
+        {
             "name": "UtilTest",
             "type": "executable",
             "path": "Tests/UtilTest",
             "description": "Utility test",
-            "dependency": ["fmt", "stb", "uchardet", "miniLogger", "AsyncExecutor", "ImageUtil"]
+            "dependency": ["fmt", "stb", "uchardet", "miniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil"]
         },
         {
             "name": "SIMDTest",

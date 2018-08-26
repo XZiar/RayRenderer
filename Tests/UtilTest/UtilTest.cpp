@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     log().info(u"Select One To Execute...");
     timer.Stop();
     if (argc > 2)
-        idx = (uint32_t)std::stoul(argv[1]);
+        idx = (uint32_t)std::stoul(argv[2]);
     else
         std::cin >> idx;
     if (idx < testMap.size())

@@ -4,7 +4,7 @@ include $(PROJPATH)/Makebase.mk
 
 NAME	= OpenGLUtil
 
-LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lImageUtil
+LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lImageUtil -lGL
 DEPLIBS		+= -lglew -lfmt
 CPPFLAGS	+= -DOGLU_EXPORT
 

@@ -577,23 +577,35 @@ struct alignas(__m256i) I8Common32
     explicit I8Common32(const E* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr I8Common32(const __m256i val) :Data(val) { }
     I8Common32(const E val) :Data(_mm256_set1_epi8(val)) { }
-    I8Common32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
+    I8Common32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, 
+        const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E lo15,
+        const E lo16, const E lo17, const E lo18, const E lo19, const E lo20, const E lo21, const E lo22, const E lo23,
+        const E lo24, const E lo25, const E lo26, const E lo27, const E lo28, const E lo29, const E lo30, const E hi31)
         :Data(_mm256_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
             static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
             static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),
-            static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
+            static_cast<int8_t>(lo14), static_cast<int8_t>(lo15), static_cast<int8_t>(lo16), static_cast<int8_t>(lo17), static_cast<int8_t>(lo18),
+            static_cast<int8_t>(lo19), static_cast<int8_t>(lo20), static_cast<int8_t>(lo21), static_cast<int8_t>(lo22), static_cast<int8_t>(lo23), 
+            static_cast<int8_t>(lo24), static_cast<int8_t>(lo25), static_cast<int8_t>(lo26), static_cast<int8_t>(lo27), static_cast<int8_t>(lo28), 
+            static_cast<int8_t>(lo29), static_cast<int8_t>(lo30), static_cast<int8_t>(hi31))) { }
 
     // shuffle operations
 #if COMMON_SIMD_LV >= 31
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Lo15,
+        uint8_t Lo16, uint8_t Lo17, uint8_t Lo18, uint8_t Lo19, uint8_t Lo20, uint8_t Lo21, uint8_t Lo22, uint8_t Lo23, uint8_t Lo24, uint8_t Lo25, uint8_t Lo26, uint8_t Lo27, uint8_t Lo28, uint8_t Lo29, uint8_t Lo30, uint8_t Hi31>
     forceinline T VECCALL Shuffle() const
     {
-        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
-            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
+        static_assert(Lo0 < 32 && Lo1 < 32 && Lo2 < 32 && Lo3 < 32 && Lo4 < 32 && Lo5 < 32 && Lo6 < 32 && Lo7 < 32
+            && Lo8 < 32 && Lo9 < 32 && Lo10 < 32 && Lo11 < 32 && Lo12 < 32 && Lo13 < 32 && Lo14 < 32 && Lo15 < 32
+            && Lo16 < 32 && Lo17 < 32 && Lo18 < 32 && Lo19 < 32 && Lo20 < 32 && Lo21 < 32 && Lo22 < 32 && Lo23 < 32
+            && Lo24 < 32 && Lo25 < 32 && Lo26 < 32 && Lo27 < 32 && Lo28 < 32 && Lo29 < 32 && Lo30 < 32 && Hi31 < 32, "shuffle index should be in [0,31]");
         static const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
             static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
             static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
-            static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
+            static_cast<int8_t>(Lo14), static_cast<int8_t>(Lo15), static_cast<int8_t>(Lo16), static_cast<int8_t>(Lo17), static_cast<int8_t>(Lo18),
+            static_cast<int8_t>(Lo19), static_cast<int8_t>(Lo20), static_cast<int8_t>(Lo21), static_cast<int8_t>(Lo22), static_cast<int8_t>(Lo23),
+            static_cast<int8_t>(Lo24), static_cast<int8_t>(Lo25), static_cast<int8_t>(Lo26), static_cast<int8_t>(Lo27), static_cast<int8_t>(Lo28),
+            static_cast<int8_t>(Lo29), static_cast<int8_t>(Lo30), static_cast<int8_t>(Hi31));
         return _mm256_shuffle_epi8(Data, mask);
     }
 #endif

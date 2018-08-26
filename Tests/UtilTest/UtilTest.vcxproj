@@ -143,6 +143,9 @@
     <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj">
+      <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\3rdParty\stblib\stblib.vcxproj">
       <Project>{67325dfe-3cba-49ad-b9d8-e04cbca6c7f8}</Project>
     </ProjectReference>
@@ -174,6 +177,7 @@
     </ClCompile>
     <ClCompile Include="CharsetTest.cpp" />
     <ClCompile Include="CLStub.cpp" />
+    <ClCompile Include="GLStub.cpp" />
     <ClCompile Include="ImageUtilTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>

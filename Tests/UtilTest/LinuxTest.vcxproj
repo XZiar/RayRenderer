@@ -70,6 +70,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x86'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="CharsetTest.cpp" />
+    <ClCompile Include="CLStub.cpp" />
+    <ClCompile Include="GLStub.cpp" />
     <ClCompile Include="ImageUtilTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">false</ExcludedFromBuild>

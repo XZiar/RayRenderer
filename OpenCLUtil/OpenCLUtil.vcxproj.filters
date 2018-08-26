@@ -92,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="OpenCLUtil.natvis" />

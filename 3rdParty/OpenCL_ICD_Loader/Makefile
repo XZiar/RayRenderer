@@ -2,7 +2,7 @@ BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk
 
-NAME	     = OpenCLICDLoder
+NAME	     = OpenCLICDLoader
 CXXFLAGS    += -DOpenCL_EXPORTS
 #using c11 will lead to undeifned enum error
 CFLAGS      := $(filter-out -std=c11, $(CFLAGS))

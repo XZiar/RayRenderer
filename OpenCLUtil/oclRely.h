@@ -1,10 +1,19 @@
 #pragma once
 
-#ifdef OCLU_EXPORT
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef OCLU_EXPORT
 #   define OCLUAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define OCLUAPI _declspec(dllimport)
+# endif
+#else
+# ifdef OCLU_EXPORT
+#   define OCLUAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define OCLUAPI
+# endif
 #endif
 
 #include "3DBasic/miniBLAS.hpp"
@@ -38,7 +47,7 @@
 
 #define CL_TARGET_OPENCL_VERSION 120
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
-#include "CL\opencl.h"
+#include "3rdParty/CL/opencl.h"
 
 namespace oclu
 {

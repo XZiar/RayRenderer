@@ -4,25 +4,7 @@
 #include <string>
 #include <algorithm>
 
-#if defined(COMPILER_GCC) && COMPILER_GCC
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wpedantic"
-#elif defined(COMPILER_CLANG) && COMPILER_CLANG
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wnested-anon-types"
-#   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#elif defined(COMPILER_MSVC) && COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4201)
-#endif
 #include "3DBasic/miniBLAS.hpp"
-#if defined(COMPILER_GCC) && COMPILER_GCC
-#   pragma GCC diagnostic pop
-#elif defined(COMPILER_CLANG) && COMPILER_CLANG
-#   pragma clang diagnostic pop
-#elif defined(COMPILER_MSVC) && COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 
 namespace b3d

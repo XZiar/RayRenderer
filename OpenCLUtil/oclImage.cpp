@@ -45,6 +45,7 @@ static cl_image_format ParseImageFormat(const TextureDataFormat dformat)
         case TextureDataFormat::I32_TYPE:    format.image_channel_data_type = CL_SIGNED_INT32; break;
         case TextureDataFormat::HALF_TYPE:   format.image_channel_data_type = CL_HALF_FLOAT; break;
         case TextureDataFormat::FLOAT_TYPE:  format.image_channel_data_type = CL_FLOAT; break;
+        default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format"); // should not enter
         }
     }
     switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)

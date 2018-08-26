@@ -87,8 +87,8 @@ void _oclProgram::Build(const string& options, const oclDevice dev)
                 devices.push_back(d);
     }
     u16string buildlog;
-    for (auto& dev : devices)
-        buildlog += dev->Name + u":\n" + GetBuildLog(dev) + u"\n";
+    for (auto& thedev : devices)
+        buildlog += thedev->Name + u":\n" + GetBuildLog(thedev) + u"\n";
     if (ret == CL_SUCCESS)
     {
         oclLog().success(u"build program {:p} success:\n{}\n", (void*)progID, buildlog);

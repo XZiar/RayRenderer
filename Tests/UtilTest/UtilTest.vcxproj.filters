@@ -30,6 +30,9 @@
     <ClCompile Include="CharsetTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="GLStub.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestRely.h">
