@@ -45,3 +45,13 @@ inline void Log(const LogType type, const std::u16string_view& formater, Args&&.
 
 
 uint32_t RegistTest(const char16_t *name, const uint32_t simdLv, bool(*func)());
+
+
+template<uint8_t Base, uint8_t Exp>
+inline constexpr uint64_t Pow()
+{
+    uint64_t ret = Base;
+    for (uint8_t i = 1; i < Exp; ++i)
+        ret *= Base;
+    return ret;
+}

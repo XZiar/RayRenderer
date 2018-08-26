@@ -32,7 +32,7 @@ bool RealCheck(const T& data, std::index_sequence<Indexes...>, const uint8_t(&po
     return (... && (data.Val[Indexes] == poses[Indexes]));
 }
 
-template<typename T, uint32_t PosCount, uint8_t PosRange, uint64_t N, uint8_t... Poses>
+template<typename T, uint32_t PosCount, uint64_t N, uint8_t... Poses>
 bool GenerateShuffle(const T& data)
 {
     if constexpr (PosCount == 0)
@@ -47,22 +47,23 @@ bool GenerateShuffle(const T& data)
     }
     else
     {
-        return GenerateShuffle<T, PosCount - 1, PosRange, N / PosRange, Poses..., (uint8_t)(N%PosRange)>(data);
+        constexpr uint8_t PosRange = T::Count;
+        return GenerateShuffle<T, PosCount - 1, N / PosRange, Poses..., (uint8_t)(N%PosRange)>(data);
     }
 }
 
-template<typename T, uint8_t PosCount, uint8_t IdxRange, size_t IdxBegin, size_t IdxEnd>
+template<typename T, size_t IdxBegin, size_t IdxEnd>
 bool TestShuffle(const T& data)
 {
     if constexpr (IdxBegin == IdxEnd)
-        return GenerateShuffle<T, PosCount, IdxRange, IdxBegin>(data);
+        return GenerateShuffle<T, T::Count, IdxBegin>(data);
     else
-        return TestShuffle<T, PosCount, IdxRange, IdxBegin, IdxBegin + (IdxEnd - IdxBegin) / 2>(data)
-        && TestShuffle<T, PosCount, IdxRange, IdxBegin + (IdxEnd - IdxBegin) / 2 + 1, IdxEnd>(data);
+        return TestShuffle<T, IdxBegin, IdxBegin + (IdxEnd - IdxBegin) / 2>(data)
+        && TestShuffle<T, IdxBegin + (IdxEnd - IdxBegin) / 2 + 1, IdxEnd>(data);
 }
 
-template<typename T, uint32_t PosCount, uint8_t PosRange, typename... Poses>
-bool GenerateShuffleVar(const T& data, [[maybe_unused]]const uint64_t N, Poses... poses)
+template<typename T, uint32_t PosCount, typename... Poses>
+bool GenerateShuffleVar(const T& data, [[maybe_unused]]const uint64_t N, const Poses... poses)
 {
     if constexpr (PosCount == 0)
     {
@@ -76,16 +77,17 @@ bool GenerateShuffleVar(const T& data, [[maybe_unused]]const uint64_t N, Poses..
     }
     else
     {
-        return GenerateShuffleVar<T, PosCount - 1, PosRange>(data, N / PosRange, poses..., (uint8_t)(N%PosRange));
+        constexpr uint8_t PosRange = T::Count;
+        return GenerateShuffleVar<T, PosCount - 1>(data, N / PosRange, poses..., (uint8_t)(N%PosRange));
     }
 }
 
-template<typename T, uint8_t PosCount, uint8_t IdxRange>
-bool TestShuffleVar(const T& data, uint64_t idxBegin, uint64_t idxEnd)
+template<typename T>
+bool TestShuffleVar(const T& data, const uint64_t idxBegin, const uint64_t idxEnd)
 {
     if (idxBegin == idxEnd)
-        return GenerateShuffleVar<T, PosCount, IdxRange>(data, idxBegin);
+        return GenerateShuffleVar<T, T::Count>(data, idxBegin);
     else
-        return TestShuffleVar<T, PosCount, IdxRange>(data, idxBegin, idxBegin + (idxEnd - idxBegin) / 2)
-        && TestShuffleVar<T, PosCount, IdxRange>(data, idxBegin + (idxEnd - idxBegin) / 2 + 1, idxEnd);
+        return TestShuffleVar<T>(data, idxBegin, idxBegin + (idxEnd - idxBegin) / 2)
+        && TestShuffleVar<T>(data, idxBegin + (idxEnd - idxBegin) / 2 + 1, idxEnd);
 }

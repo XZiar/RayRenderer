@@ -7,12 +7,6 @@
 #include <cmath>
 
 
-#if defined(_WIN32) && defined(__SSE2__) && !defined(_MANAGED) && !defined(_M_CEE)
-#   define VECCALL __vectorcall
-#else
-#   define VECCALL 
-#endif
-
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace miniBLAS

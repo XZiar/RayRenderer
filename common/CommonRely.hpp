@@ -88,6 +88,12 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #   define forcenoinline 
 #endif
 
+#if defined(_WIN32) && !defined(_MANAGED) && !defined(_M_CEE)
+#   define VECCALL __vectorcall
+#else
+#   define VECCALL 
+#endif
+
 #if defined(__clang__)
 #   define COMPILER_CLANG 1
 #elif defined(__GNUC__)

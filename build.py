@@ -49,7 +49,7 @@ def clean(rootDir:str, proj:Project, args:dict):
     print("clean \033[92m[{}]\033[39m at [{}]".format(proj.name, targetPath))
     os.chdir(targetPath)
     projPath = os.path.relpath(rootDir, targetPath) + "/"
-    cmd = "make clean PROJPATH=\"{}\"".format(projPath)
+    cmd = "make clean PLATFORM={} TARGET={} PROJPATH=\"{}\"".format(args["platform"], args["target"], projPath)
     retcode = call(cmd, shell=True)
     os.chdir(rootDir)
     return retcode == 0

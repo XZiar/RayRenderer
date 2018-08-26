@@ -1,6 +1,7 @@
 #pragma once
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
+#include "SIMD128.hpp"
 
 //#define COMMON_SIMD_LV 200
 #if COMMON_SIMD_LV < 100
@@ -31,29 +32,31 @@ template<typename T, typename E>
 struct Int256Common : public CommonOperators<T>
 {
     // logic operations
-    T And(const T& other) const
+    forceinline T VECCALL And(const T& other) const
     {
         return _mm256_and_si256(*static_cast<const T*>(this), other);
     }
-    T Or(const T& other) const
+    forceinline T VECCALL Or(const T& other) const
     {
         return _mm256_or_si256(*static_cast<const T*>(this), other);
     }
-    T Xor(const T& other) const
+    forceinline T VECCALL Xor(const T& other) const
     {
         return _mm256_xor_si256(*static_cast<const T*>(this), other);
     }
-    T AndNot(const T& other) const
+    forceinline T VECCALL AndNot(const T& other) const
     {
         return _mm256_andnot_si256(*static_cast<const T*>(this), other);
     }
-    T Not() const
+    forceinline T VECCALL Not() const
     {
         return _mm256_xor_si256(*static_cast<const T*>(this), _mm256_set1_epi8(-1));
     }
-    void Load(const E *ptr) { *static_cast<E*>(this) = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
-    void Save(E *ptr) const { _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), *static_cast<const T*>(this)); }
-    constexpr operator const __m256i&() const noexcept { return static_cast<const T*>(this)->Data; }
+    forceinline T VECCALL MoveHiToLo() const { return _mm256_permute4x64_epi64(*static_cast<const T*>(this), 0b01001110); }
+    forceinline T VECCALL ShuffleHiLo() const { return _mm256_permute4x64_epi64(*static_cast<const T*>(this), 0b01001110); }
+    forceinline void VECCALL Load(const E *ptr) { *static_cast<E*>(this) = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
+    forceinline void VECCALL Save(E *ptr) const { _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), *static_cast<const T*>(this)); }
+    forceinline constexpr operator const __m256i&() const noexcept { return static_cast<const T*>(this)->Data; }
 };
 #endif
 
@@ -72,14 +75,15 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     explicit F64x4(const double* ptr) : Data(_mm256_loadu_pd(ptr)) { }
     constexpr F64x4(const __m256d val) : Data(val) { }
     F64x4(const double val) : Data(_mm256_set1_pd(val)) { }
+    F64x4(const Pack<F64x2, 2>& pack) : Data(_mm256_set_m128d(pack[1].Data, pack[0].Data)) {}
     F64x4(const double lo0, const double lo1, const double lo2, const double hi3) :Data(_mm256_setr_pd(lo0, lo1, lo2, hi3)) { }
-    constexpr operator const __m256d&() { return Data; }
-    void Load(const double *ptr) { Data = _mm256_loadu_pd(ptr); }
-    void Save(double *ptr) const { _mm256_storeu_pd(ptr, Data); }
+    forceinline constexpr operator const __m256d&() { return Data; }
+    forceinline void VECCALL Load(const double *ptr) { Data = _mm256_loadu_pd(ptr); }
+    forceinline void VECCALL Save(double *ptr) const { _mm256_storeu_pd(ptr, Data); }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
-    F64x4 Shuffle() const
+    forceinline F64x4 VECCALL Shuffle() const
     {
         static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
         if constexpr (Lo0 < 2 && Lo1 < 2 && Lo2 >= 2 && Hi3 >= 2) // no cross lane
@@ -99,7 +103,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 #endif
         }
     }
-    F64x4 Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    forceinline F64x4 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
     {
         //assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
         // _mm256_permutevar_pd checks offset[1] rather than offset[0]
@@ -124,28 +128,28 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     }
 
     // logic operations
-    F64x4 And(const F64x4& other) const { return _mm256_and_pd(Data, other.Data); }
-    F64x4 Or(const F64x4& other) const { return _mm256_or_pd(Data, other.Data); }
-    F64x4 Xor(const F64x4& other) const { return _mm256_xor_pd(Data, other.Data); }
-    F64x4 AndNot(const F64x4& other) const { return _mm256_andnot_pd(Data, other.Data); }
-    F64x4 Not() const
+    forceinline F64x4 VECCALL And(const F64x4& other) const { return _mm256_and_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Or(const F64x4& other) const { return _mm256_or_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Xor(const F64x4& other) const { return _mm256_xor_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL AndNot(const F64x4& other) const { return _mm256_andnot_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Not() const
     {
         alignas(32) static constexpr int64_t i[] = { -1, -1, -1, -1 };
         return _mm256_xor_pd(Data, _mm256_load_pd(reinterpret_cast<const double*>(i)));
     }
 
     // arithmetic operations
-    F64x4 Add(const F64x4& other) const { return _mm256_add_pd(Data, other.Data); }
-    F64x4 Sub(const F64x4& other) const { return _mm256_sub_pd(Data, other.Data); }
-    F64x4 Mul(const F64x4& other) const { return _mm256_mul_pd(Data, other.Data); }
-    F64x4 Div(const F64x4& other) const { return _mm256_div_pd(Data, other.Data); }
-    F64x4 Max(const F64x4& other) const { return _mm256_max_pd(Data, other.Data); }
-    F64x4 Min(const F64x4& other) const { return _mm256_min_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Add(const F64x4& other) const { return _mm256_add_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Sub(const F64x4& other) const { return _mm256_sub_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Mul(const F64x4& other) const { return _mm256_mul_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Div(const F64x4& other) const { return _mm256_div_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Max(const F64x4& other) const { return _mm256_max_pd(Data, other.Data); }
+    forceinline F64x4 VECCALL Min(const F64x4& other) const { return _mm256_min_pd(Data, other.Data); }
     //F64x4 Rcp() const { return _mm256_rcp_pd(Data); }
-    F64x4 Sqrt() const { return _mm256_sqrt_pd(Data); }
+    forceinline F64x4 VECCALL Sqrt() const { return _mm256_sqrt_pd(Data); }
     //F64x4 Rsqrt() const { return _mm256_rsqrt_pd(Data); }
 
-    F64x4 MulAdd(const F64x4& muler, const F64x4& adder) const
+    forceinline F64x4 VECCALL MulAdd(const F64x4& muler, const F64x4& adder) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fmadd_pd(Data, muler.Data, adder.Data);
@@ -153,7 +157,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_add_pd(_mm256_mul_pd(Data, muler.Data), adder.Data);
 #endif
     }
-    F64x4 MulSub(const F64x4& muler, const F64x4& suber) const
+    forceinline F64x4 VECCALL MulSub(const F64x4& muler, const F64x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fmsub_pd(Data, muler.Data, suber.Data);
@@ -161,7 +165,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_sub_pd(_mm256_mul_pd(Data, muler.Data), suber.Data);
 #endif
     }
-    F64x4 NMulAdd(const F64x4& muler, const F64x4& adder) const
+    forceinline F64x4 VECCALL NMulAdd(const F64x4& muler, const F64x4& adder) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fnmadd_pd(Data, muler.Data, adder.Data);
@@ -169,7 +173,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_sub_pd(adder.Data, _mm256_mul_pd(Data, muler.Data));
 #endif
     }
-    F64x4 NMulSub(const F64x4& muler, const F64x4& suber) const
+    forceinline F64x4 VECCALL NMulSub(const F64x4& muler, const F64x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fnmsub_pd(Data, muler.Data, suber.Data);
@@ -177,8 +181,8 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_xor_pd(_mm256_add_pd(_mm256_mul_pd(Data, muler.Data), suber.Data), _mm256_set1_pd(-0.));
 #endif
     }
-    F64x4 operator*(const F64x4& other) const { return Mul(other); }
-    F64x4 operator/(const F64x4& other) const { return Div(other); }
+    forceinline F64x4 VECCALL operator*(const F64x4& other) const { return Mul(other); }
+    forceinline F64x4 VECCALL operator/(const F64x4& other) const { return Div(other); }
 
 };
 
@@ -195,16 +199,17 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     explicit F32x8(const float* ptr) : Data(_mm256_loadu_ps(ptr)) { }
     constexpr F32x8(const __m256 val) :Data(val) { }
     F32x8(const float val) :Data(_mm256_set1_ps(val)) { }
+    F32x8(const Pack<F32x4, 2>& pack) : Data(_mm256_set_m128(pack[1].Data, pack[0].Data)) {}
     F32x8(const float lo0, const float lo1, const float lo2, const float lo3, const float lo4, const float lo5, const float lo6, const float hi7)
         :Data(_mm256_setr_ps(lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7)) { }
 
-    constexpr operator const __m256&() const noexcept { return Data; }
-    void Load(const float *ptr) { Data = _mm256_loadu_ps(ptr); }
-    void Save(float *ptr) const { _mm256_storeu_ps(ptr, Data); }
+    forceinline constexpr operator const __m256&() const noexcept { return Data; }
+    forceinline void VECCALL Load(const float *ptr) { Data = _mm256_loadu_ps(ptr); }
+    forceinline void VECCALL Save(float *ptr) const { _mm256_storeu_ps(ptr, Data); }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
-    F32x8 Shuffle() const
+    forceinline F32x8 VECCALL Shuffle() const
     {
         static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
         if constexpr (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 &&
@@ -242,10 +247,12 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
 #endif
         }
     }
-    ///*
-    F32x8 Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
+    forceinline F32x8 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
     {
-        //static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+        const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+        return _mm256_permutevar8x32_ps(Data, mask);
+#else
         if (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 && Lo4 >= 4 && Lo5 >= 4 && Lo6 >= 4 && Hi7 >= 4) // no cross lane
         {
             const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
@@ -253,10 +260,6 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         }
         else
         {
-#if COMMON_SIMD_LV >= 200
-            const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
-            return _mm256_permutevar8x32_ps(Data, mask);
-#else
             const auto offMask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
             const auto laneMask = _mm256_setr_epi32((int64_t)(Lo0) << 29, (int64_t)(Lo1) << 29, (int64_t)(Lo2) << 29, (int64_t)(Lo3) << 29, 
                 (int64_t)(~Lo4) << 29, (int64_t)(~Lo5) << 29, (int64_t)(~Lo6) << 29, (int64_t)(~Hi7) << 29);
@@ -264,45 +267,44 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
             const auto lohiShuffle = _mm256_permutevar_ps(Data, offMask);
             const auto hiloShuffle = _mm256_permutevar_ps(hilo, offMask);
             return _mm256_blendv_ps(lohiShuffle, hiloShuffle, _mm256_castsi256_ps(laneMask));
-#endif
         }
-    }
-    //*/
+#endif
+}
 
     // logic operations
-    F32x8 And(const F32x8& other) const
+    forceinline F32x8 VECCALL And(const F32x8& other) const
     {
         return _mm256_and_ps(Data, other.Data);
     }
-    F32x8 Or(const F32x8& other) const
+    forceinline F32x8 VECCALL Or(const F32x8& other) const
     {
         return _mm256_or_ps(Data, other.Data);
     }
-    F32x8 Xor(const F32x8& other) const
+    forceinline F32x8 VECCALL Xor(const F32x8& other) const
     {
         return _mm256_xor_ps(Data, other.Data);
     }
-    F32x8 AndNot(const F32x8& other) const
+    forceinline F32x8 VECCALL AndNot(const F32x8& other) const
     {
         return _mm256_andnot_ps(Data, other.Data);
     }
-    F32x8 Not() const
+    forceinline F32x8 VECCALL Not() const
     {
         alignas(32) static constexpr int64_t i[] = { -1, -1, -1, -1 };
         return _mm256_xor_ps(Data, _mm256_load_ps(reinterpret_cast<const float*>(i)));
     }
 
     // arithmetic operations
-    F32x8 Add(const F32x8& other) const { return _mm256_add_ps(Data, other.Data); }
-    F32x8 Sub(const F32x8& other) const { return _mm256_sub_ps(Data, other.Data); }
-    F32x8 Mul(const F32x8& other) const { return _mm256_mul_ps(Data, other.Data); }
-    F32x8 Div(const F32x8& other) const { return _mm256_div_ps(Data, other.Data); }
-    F32x8 Max(const F32x8& other) const { return _mm256_max_ps(Data, other.Data); }
-    F32x8 Min(const F32x8& other) const { return _mm256_min_ps(Data, other.Data); }
-    F32x8 Rcp() const { return _mm256_rcp_ps(Data); }
-    F32x8 Sqrt() const { return _mm256_sqrt_ps(Data); }
-    F32x8 Rsqrt() const { return _mm256_rsqrt_ps(Data); }
-    F32x8 MulAdd(const F32x8& muler, const F32x8& adder) const
+    forceinline F32x8 VECCALL Add(const F32x8& other) const { return _mm256_add_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Sub(const F32x8& other) const { return _mm256_sub_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Mul(const F32x8& other) const { return _mm256_mul_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Div(const F32x8& other) const { return _mm256_div_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Max(const F32x8& other) const { return _mm256_max_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Min(const F32x8& other) const { return _mm256_min_ps(Data, other.Data); }
+    forceinline F32x8 VECCALL Rcp() const { return _mm256_rcp_ps(Data); }
+    forceinline F32x8 VECCALL Sqrt() const { return _mm256_sqrt_ps(Data); }
+    forceinline F32x8 VECCALL Rsqrt() const { return _mm256_rsqrt_ps(Data); }
+    forceinline F32x8 VECCALL MulAdd(const F32x8& muler, const F32x8& adder) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fmadd_ps(Data, muler.Data, adder.Data);
@@ -310,7 +312,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         return _mm256_add_ps(_mm256_mul_ps(Data, muler.Data), adder.Data);
 #endif
     }
-    F32x8 MulSub(const F32x8& muler, const F32x8& suber) const
+    forceinline F32x8 VECCALL MulSub(const F32x8& muler, const F32x8& suber) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fmsub_ps(Data, muler.Data, suber.Data);
@@ -318,7 +320,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         return _mm256_sub_ps(_mm256_mul_ps(Data, muler.Data), suber.Data);
 #endif
     }
-    F32x8 NMulAdd(const F32x8& muler, const F32x8& adder) const
+    forceinline F32x8 VECCALL NMulAdd(const F32x8& muler, const F32x8& adder) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fnmadd_ps(Data, muler.Data, adder.Data);
@@ -326,7 +328,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         return _mm256_sub_ps(adder.Data, _mm256_mul_ps(Data, muler.Data));
 #endif
     }
-    F32x8 NMulSub(const F32x8& muler, const F32x8& suber) const
+    forceinline F32x8 VECCALL NMulSub(const F32x8& muler, const F32x8& suber) const
     {
 #if COMMON_SIMD_LV >= 150
         return _mm256_fnmsub_ps(Data, muler.Data, suber.Data);
@@ -335,52 +337,59 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
 #endif
     }
     template<DotPos Mul, DotPos Res>
-    F32x8 Dot2(const F32x8& other) const 
+    forceinline F32x8 VECCALL Dot2(const F32x8& other) const 
     { 
         return _mm256_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
     }
-    F32x8 operator*(const F32x8& other) const { return Mul(other); }
-    F32x8 operator/(const F32x8& other) const { return Div(other); }
+    forceinline F32x8 VECCALL operator*(const F32x8& other) const { return Mul(other); }
+    forceinline F32x8 VECCALL operator/(const F32x8& other) const { return Div(other); }
 
 };
 
 
-#if COMMON_SIMD_LV >= 300
+#if COMMON_SIMD_LV >= 200
 struct alignas(__m256i) I64x4 : public detail::Int256Common<I64x4, int64_t>
 {
     static constexpr size_t Count = 4;
     union
     {
         __m256i Data;
-        int64_t Ints[4];
+        int64_t Val[4];
     };
     constexpr I64x4() : Data() { }
     explicit I64x4(const int64_t* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr I64x4(const __m256i val) :Data(val) { }
     I64x4(const int64_t val) :Data(_mm256_set1_epi64x(val)) { }
-    I64x4(const int64_t lo, const int64_t hi) :Data(_mm256_set_epi64x(hi, lo)) { }
+    I64x4(const Pack<I64x2, 2>& pack) : Data(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    I64x4(const int64_t lo0, const int64_t lo1, const int64_t lo2, const int64_t hi3) :Data(_mm256_setr_epi64x(lo0, lo1, lo2, hi3)) { }
 
     // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    I64x4 Shuffle() const
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
+    forceinline I64x4 VECCALL Shuffle() const
     {
-        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-        return _mm256_shuffle_epi32(Data, _mm256_SHUFFLE(Hi*2+1, Hi*2, Lo*2+1, Lo*2));
+        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        return _mm256_permute4x64_epi64(Data, (Hi3 << 6) + (Lo2 << 4) + (Lo1 << 2) + Lo0);
+    }
+    forceinline I64x4 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+        //assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        const auto mask = _mm256_setr_epi32(Lo0*2, Lo0*2+1, Lo1*2, Lo1*2+1, Lo2*2, Lo2*2+1, Hi3*2, Hi3*2+1);
+        return _mm256_permutevar8x32_epi32(Data, mask);
     }
 
     // arithmetic operations
-    I64x4 Add(const I64x4& other) const { return _mm256_add_epi64(Data, other.Data); }
-    I64x4 Sub(const I64x4& other) const { return _mm256_sub_epi64(Data, other.Data); }
-    I64x4 Max(const I64x4& other) const { return _mm256_max_epi64(Data, other.Data); }
-    I64x4 Min(const I64x4& other) const { return _mm256_min_epi64(Data, other.Data); }
-    I64x4 ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi64(Data, I64x4(bits)); }
-    I64x4 ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi64(Data, I64x4(bits)); }
+    forceinline I64x4 VECCALL Add(const I64x4& other) const { return _mm256_add_epi64(Data, other.Data); }
+    forceinline I64x4 VECCALL Sub(const I64x4& other) const { return _mm256_sub_epi64(Data, other.Data); }
+    forceinline I64x4 VECCALL Max(const I64x4& other) const { return _mm256_max_epi64(Data, other.Data); }
+    forceinline I64x4 VECCALL Min(const I64x4& other) const { return _mm256_min_epi64(Data, other.Data); }
+    forceinline I64x4 VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi64(Data, I64x2(bits)); }
+    forceinline I64x4 VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi64(Data, I64x2(bits)); }
     template<uint8_t N>
-    I64x4 ShiftRightArth() const { return _mm256_srai_epi64(Data, N); }
+    forceinline I64x4 VECCALL ShiftRightArth() const { return _mm256_srai_epi64(Data, N); }
     template<uint8_t N>
-    I64x4 ShiftRightLogic() const { return _mm256_srli_epi64(Data, N); }
+    forceinline I64x4 VECCALL ShiftRightLogic() const { return _mm256_srli_epi64(Data, N); }
     template<uint8_t N>
-    I64x4 ShiftLeftLogic() const { return _mm256_slli_epi64(Data, N); }
+    forceinline I64x4 VECCALL ShiftLeftLogic() const { return _mm256_slli_epi64(Data, N); }
 };
 
 
@@ -397,29 +406,36 @@ struct alignas(__m256i) I32Common8
     explicit I32Common8(const E* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr I32Common8(const __m256i val) : Data(val) { }
     I32Common8(const E val) : Data(_mm256_set1_epi32(static_cast<int32_t>(val))) { }
-    I32Common8(const E lo0, const E lo1, const E lo2, const E hi3)
-        : Data(_mm256_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
+    I32Common8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
+        :Data(_mm256_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(lo3), static_cast<int32_t>(lo4), static_cast<int32_t>(lo5), static_cast<int32_t>(lo6), static_cast<int32_t>(hi7))) { }
 
     // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
-    T Shuffle() const
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
+    forceinline T VECCALL Shuffle() const
     {
-        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        return _mm256_shuffle_epi32(Data, _mm256_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
+        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+        static const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+        return _mm256_permutevar8x32_epi32(Data, mask);
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
+    {
+        //static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+        const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+        return _mm256_permutevar8x32_epi32(Data, mask);
     }
 
     // arithmetic operations
-    T Add(const T& other) const { return _mm256_add_epi32(Data, other.Data); }
-    T Sub(const T& other) const { return _mm256_sub_epi32(Data, other.Data); }
-    T ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi32(Data, I64x4(bits)); }
-    T ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x4(bits)); }
+    forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi32(Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi32(Data, other.Data); }
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi32(Data, I64x2(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
-    T ShiftRightLogic() const { return _mm256_srli_epi32(Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi32(Data, N); }
     template<uint8_t N>
-    T ShiftLeftLogic() const { return _mm256_slli_epi32(Data, N); }
+    forceinline T VECCALL ShiftLeftLogic() const { return _mm256_slli_epi32(Data, N); }
 #if COMMON_SIMD_LV >= 41
-    T MulLo(const T& other) const { return _mm256_mullo_epi32(Data, other.Data); }
-    T operator*(const T& other) const { return MulLo(other); }
+    forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi32(Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
 #endif
 };
 
@@ -427,36 +443,34 @@ struct alignas(__m256i) I32Common8
 struct alignas(__m256i) I32x8 : public I32Common8<I32x8, int32_t>, public detail::Int256Common<I32x8, int32_t>
 {
     using I32Common8<I32x8, int32_t>::I32Common8;
+    I32x8(const Pack<I32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
-    I32x8 Max(const I32x8& other) const { return _mm256_max_epi32(Data, other.Data); }
-    I32x8 Min(const I32x8& other) const { return _mm256_min_epi32(Data, other.Data); }
+    forceinline I32x8 VECCALL Max(const I32x8& other) const { return _mm256_max_epi32(Data, other.Data); }
+    forceinline I32x8 VECCALL Min(const I32x8& other) const { return _mm256_min_epi32(Data, other.Data); }
     Pack<I64x4, 2> MulX(const I32x8& other) const
     {
-        return { I64x4(_mm256_mul_epi32(Data, other.Data)), I64x4(_mm256_mul_epi32(Shuffle<2, 3, 0, 1>(), other.Shuffle<2, 3, 0, 1>())) };
+        return { I64x4(_mm256_mul_epi32(Data, other.Data)), I64x4(_mm256_mul_epi32(ShuffleHiLo(), other.ShuffleHiLo())) };
     }
-#endif
-    I32x8 operator>>(const uint8_t bits) const { return _mm256_sra_epi32(Data, I64x4(bits)); }
+    forceinline I32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
-    I32x8 ShiftRightArth() const { return _mm256_srai_epi32(Data, N); }
+    forceinline I32x8 VECCALL ShiftRightArth() const { return _mm256_srai_epi32(Data, N); }
 };
 
 struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>, public detail::Int256Common<U32x8, uint32_t>
 {
     using I32Common8<U32x8, uint32_t>::I32Common8;
+    U32x8(const Pack<U32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
-    U32x8 Max(const U32x8& other) const { return _mm256_max_epu32(Data, other.Data); }
-    U32x8 Min(const U32x8& other) const { return _mm256_min_epu32(Data, other.Data); }
-#endif
-    U32x8 operator>>(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x4(bits)); }
+    forceinline U32x8 VECCALL Max(const U32x8& other) const { return _mm256_max_epu32(Data, other.Data); }
+    forceinline U32x8 VECCALL Min(const U32x8& other) const { return _mm256_min_epu32(Data, other.Data); }
+    forceinline U32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
-    U32x8 ShiftRightArth() const { return _mm256_srli_epi32(Data, N); }
+    forceinline U32x8 VECCALL ShiftRightArth() const { return _mm256_srli_epi32(Data, N); }
     Pack<I64x4, 2> MulX(const U32x8& other) const
     {
-        return { I64x4(_mm256_mul_epu32(Data, other.Data)), I64x4(_mm256_mul_epu32(Shuffle<2, 3, 0, 1>(), other.Shuffle<2, 3, 0, 1>())) };
+        return { I64x4(_mm256_mul_epu32(Data, other.Data)), I64x4(_mm256_mul_epu32(ShuffleHiLo(), other.ShuffleHiLo())) };
     }
 };
 
@@ -474,35 +488,38 @@ struct alignas(__m256i) I16Common16
     explicit I16Common16(const E* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr I16Common16(const __m256i val) :Data(val) { }
     I16Common16(const E val) :Data(_mm256_set1_epi16(val)) { }
-    I16Common16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
-        :Data(_mm256_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
+    I16Common16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
+        :Data(_mm256_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(lo7),
+            static_cast<int16_t>(lo8), static_cast<int16_t>(lo9), static_cast<int16_t>(lo10), static_cast<int16_t>(lo11), static_cast<int16_t>(lo12), static_cast<int16_t>(lo13), static_cast<int16_t>(lo14), static_cast<int16_t>(hi15))) { }
 
     // shuffle operations
-#if COMMON_SIMD_LV >= 31
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
-    T Shuffle() const
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
+    forceinline T VECCALL Shuffle() const
     {
-        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-        static const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
-            static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
-            static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
-            static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
-            static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
+        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
+            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
+        static const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1),
+            static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1), static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1),
+            static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1), static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1),
+            static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1), static_cast<int8_t>(Lo7 * 2), static_cast<int8_t>(Lo7 * 2 + 1),
+            static_cast<int8_t>(Lo8 * 2), static_cast<int8_t>(Lo8 * 2 + 1), static_cast<int8_t>(Lo9 * 2), static_cast<int8_t>(Lo9 * 2 + 1), 
+            static_cast<int8_t>(Lo10 * 2), static_cast<int8_t>(Lo10 * 2 + 1), static_cast<int8_t>(Lo11 * 2), static_cast<int8_t>(Lo11 * 2 + 1), 
+            static_cast<int8_t>(Lo12 * 2), static_cast<int8_t>(Lo12 * 2 + 1), static_cast<int8_t>(Lo13 * 2), static_cast<int8_t>(Lo13 * 2 + 1), 
+            static_cast<int8_t>(Lo14 * 2), static_cast<int8_t>(Lo14 * 2 + 1), static_cast<int8_t>(Hi15 * 2), static_cast<int8_t>(Hi15 * 2 + 1));
         return _mm256_shuffle_epi8(Data, mask);
     }
-#endif
     
     // arithmetic operations
-    T Add(const T& other) const { return _mm256_add_epi16(Data, other.Data); }
-    T Sub(const T& other) const { return _mm256_sub_epi16(Data, other.Data); }
-    T MulLo(const T& other) const { return _mm256_mullo_epi16(Data, other.Data); }
-    T operator*(const T& other) const { return MulLo(other); }
-    T ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi16(Data, I64x4(bits)); }
-    T ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x4(bits)); }
+    forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi16(Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi16(Data, other.Data); }
+    forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi16(Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm256_sll_epi16(Data, I64x2(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
-    T ShiftLeftLogic() const { return _mm256_slli_epi16(Data, N); }
+    forceinline T VECCALL ShiftLeftLogic() const { return _mm256_slli_epi16(Data, N); }
     template<uint8_t N>
-    T ShiftRightLogic() const { return _mm256_srli_epi16(Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi16(Data, N); }
     Pack<I32x8, 2> MulX(const T& other) const
     {
         const auto los = MulLo(other), his = static_cast<const T*>(this)->MulHi(other);
@@ -514,36 +531,36 @@ struct alignas(__m256i) I16Common16
 struct alignas(__m256i) I16x16 : public I16Common16<I16x16, int16_t>, public detail::Int256Common<I16x16, int16_t>
 {
     using I16Common16<I16x16, int16_t>::I16Common16;
+    I16x16(const Pack<I16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-    I16x16 SatAdd(const I16x16& other) const { return _mm256_adds_epi16(Data, other.Data); }
-    I16x16 SatSub(const I16x16& other) const { return _mm256_subs_epi16(Data, other.Data); }
-    I16x16 MulHi(const I16x16& other) const { return _mm256_mulhi_epi16(Data, other.Data); }
-    I16x16 Max(const I16x16& other) const { return _mm256_max_epi16(Data, other.Data); }
-    I16x16 Min(const I16x16& other) const { return _mm256_min_epi16(Data, other.Data); }
-    I16x16 operator>>(const uint8_t bits) const { return _mm256_sra_epi16(Data, I64x4(bits)); }
+    forceinline I16x16 VECCALL SatAdd(const I16x16& other) const { return _mm256_adds_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL SatSub(const I16x16& other) const { return _mm256_subs_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL MulHi(const I16x16& other) const { return _mm256_mulhi_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL Max(const I16x16& other) const { return _mm256_max_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL Min(const I16x16& other) const { return _mm256_min_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
-    I16x16 ShiftRightArth() const { return _mm256_srai_epi16(Data, N); }
+    forceinline I16x16 VECCALL ShiftRightArth() const { return _mm256_srai_epi16(Data, N); }
 };
 
 
 struct alignas(__m256i) U16x16 : public I16Common16<U16x16, int16_t>, public detail::Int256Common<U16x16, uint16_t>
 {
     using I16Common16<U16x16, int16_t>::I16Common16;
+    U16x16(const Pack<U16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-    U16x16 SatAdd(const U16x16& other) const { return _mm256_adds_epu16(Data, other.Data); }
-    U16x16 SatSub(const U16x16& other) const { return _mm256_subs_epu16(Data, other.Data); }
-    U16x16 MulHi(const U16x16& other) const { return _mm256_mulhi_epu16(Data, other.Data); }
-    U16x16 Div(const uint16_t other) const { return MulHi(U16x16(static_cast<uint16_t>(UINT16_MAX / other))); }
-    U16x16 operator/(const uint16_t other) const { return Div(other); }
-#if COMMON_SIMD_LV >= 41
-    U16x16 Max(const U16x16& other) const { return _mm256_max_epu16(Data, other.Data); }
-    U16x16 Min(const U16x16& other) const { return _mm256_min_epu16(Data, other.Data); }
-#endif
-    U16x16 operator>>(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x4(bits)); }
+    forceinline U16x16 VECCALL SatAdd(const U16x16& other) const { return _mm256_adds_epu16(Data, other.Data); }
+    forceinline U16x16 VECCALL SatSub(const U16x16& other) const { return _mm256_subs_epu16(Data, other.Data); }
+    forceinline U16x16 VECCALL MulHi(const U16x16& other) const { return _mm256_mulhi_epu16(Data, other.Data); }
+    forceinline U16x16 VECCALL Div(const uint16_t other) const { return MulHi(U16x16(static_cast<uint16_t>(UINT16_MAX / other))); }
+    forceinline U16x16 VECCALL operator/(const uint16_t other) const { return Div(other); }
+    forceinline U16x16 VECCALL Max(const U16x16& other) const { return _mm256_max_epu16(Data, other.Data); }
+    forceinline U16x16 VECCALL Min(const U16x16& other) const { return _mm256_min_epu16(Data, other.Data); }
+    forceinline U16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
-    U16x16 ShiftRightArth() const { return _mm256_srli_epi16(Data, N); }
+    forceinline U16x16 VECCALL ShiftRightArth() const { return _mm256_srli_epi16(Data, N); }
 };
 
 
@@ -569,7 +586,7 @@ struct alignas(__m256i) I8Common32
     // shuffle operations
 #if COMMON_SIMD_LV >= 31
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
-    T Shuffle() const
+    forceinline T VECCALL Shuffle() const
     {
         static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
             && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
@@ -582,33 +599,34 @@ struct alignas(__m256i) I8Common32
 #endif
 
     // arithmetic operations
-    T Add(const T& other) const { return _mm256_add_epi8(Data, other.Data); }
-    T Sub(const T& other) const { return _mm256_sub_epi8(Data, other.Data); }
+    forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi8(Data, other.Data); }
 };
 
 
 struct alignas(__m256i) I8x32 : public I8Common32<I8x32, int8_t>, public detail::Int256Common<I8x32, int8_t>
 {
     using I8Common32<I8x32, int8_t>::I8Common32;
+    I8x32(const Pack<I8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-    I8x32 SatAdd(const I8x32& other) const { return _mm256_adds_epi8(Data, other.Data); }
-    I8x32 SatSub(const I8x32& other) const { return _mm256_subs_epi8(Data, other.Data); }
+    forceinline I8x32 VECCALL SatAdd(const I8x32& other) const { return _mm256_adds_epi8(Data, other.Data); }
+    forceinline I8x32 VECCALL SatSub(const I8x32& other) const { return _mm256_subs_epi8(Data, other.Data); }
 #if COMMON_SIMD_LV >= 41
-    I8x32 Max(const I8x32& other) const { return _mm256_max_epi8(Data, other.Data); }
-    I8x32 Min(const I8x32& other) const { return _mm256_min_epi8(Data, other.Data); }
+    forceinline I8x32 VECCALL Max(const I8x32& other) const { return _mm256_max_epi8(Data, other.Data); }
+    forceinline I8x32 VECCALL Min(const I8x32& other) const { return _mm256_min_epi8(Data, other.Data); }
 #endif
     template<typename T>
-    typename CastTyper<I8x32, T>::Type Cast() const;
+    typename CastTyper<I8x32, T>::Type VECCALL Cast() const;
 #if COMMON_SIMD_LV >= 41
-    Pack<I16x16, 2> MulX(const I8x32& other) const;
-    I8x32 MulHi(const I8x32& other) const
+    Pack<I16x16, 2> VECCALL MulX(const I8x32& other) const;
+    forceinline I8x32 VECCALL MulHi(const I8x32& other) const
     {
         const auto full = MulX(other);
         const auto lo = full[0].ShiftRightArth<8>(), hi = full[1].ShiftRightArth<8>();
         return _mm256_packs_epi16(lo, hi);
     }
-    I8x32 MulLo(const I8x32& other) const 
+    forceinline I8x32 VECCALL MulLo(const I8x32& other) const 
     { 
         const auto full = MulX(other);
         const auto mask = I16x16(INT16_MIN);
@@ -616,65 +634,63 @@ struct alignas(__m256i) I8x32 : public I8Common32<I8x32, int8_t>, public detail:
         const auto lo = full[0] & signlo, hi = full[1] & signhi;
         return _mm256_packs_epi16(lo, hi);
     }
-    I8x32 operator*(const I8x32& other) const { return MulLo(other); }
+    forceinline I8x32 VECCALL operator*(const I8x32& other) const { return MulLo(other); }
 #endif
 };
-#if COMMON_SIMD_LV >= 41
-template<> Pack<I16x16, 2> I8x32::Cast<I16x16>() const
+template<> forceinline Pack<I16x16, 2> VECCALL I8x32::Cast<I16x16>() const
 {
-    return { _mm256_cvtepi8_epi16(Data), _mm256_cvtepi8_epi16(_mm256_shuffle_epi32(Data, _mm256_SHUFFLE(3,2,3,2))) };
+    return { _mm256_cvtepi8_epi16(_mm256_castsi256_si128(Data)), _mm256_cvtepi8_epi16(_mm256_extracti128_si256(Data, 1)) };
 }
-Pack<I16x16, 2> I8x32::MulX(const I8x32& other) const
+forceinline Pack<I16x16, 2> VECCALL I8x32::MulX(const I8x32& other) const
 {
     const auto self16 = Cast<I16x16>(), other16 = other.Cast<I16x16>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
-#endif
 
 struct alignas(__m256i) U8x32 : public I8Common32<U8x32, uint8_t>, public detail::Int256Common<U8x32, uint8_t>
 {
     using I8Common32<U8x32, uint8_t>::I8Common32;
+    U8x32(const Pack<U8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
-    U8x32 SatAdd(const U8x32& other) const { return _mm256_adds_epu8(Data, other.Data); }
-    U8x32 SatSub(const U8x32& other) const { return _mm256_subs_epu8(Data, other.Data); }
-    U8x32 Max(const U8x32& other) const { return _mm256_max_epu8(Data, other.Data); }
-    U8x32 Min(const U8x32& other) const { return _mm256_min_epu8(Data, other.Data); }
-    U8x32 operator*(const U8x32& other) const { return MulLo(other); }
+    forceinline U8x32 VECCALL SatAdd(const U8x32& other) const { return _mm256_adds_epu8(Data, other.Data); }
+    forceinline U8x32 VECCALL SatSub(const U8x32& other) const { return _mm256_subs_epu8(Data, other.Data); }
+    forceinline U8x32 VECCALL Max(const U8x32& other) const { return _mm256_max_epu8(Data, other.Data); }
+    forceinline U8x32 VECCALL Min(const U8x32& other) const { return _mm256_min_epu8(Data, other.Data); }
+    forceinline U8x32 VECCALL operator*(const U8x32& other) const { return MulLo(other); }
     template<typename T>
-    typename CastTyper<U8x32, T>::Type Cast() const;
-    U8x32 MulHi(const U8x32& other) const
+    typename CastTyper<U8x32, T>::Type VECCALL Cast() const;
+    forceinline U8x32 VECCALL MulHi(const U8x32& other) const
     {
         const auto full = MulX(other);
         return _mm256_packus_epi16(full[0].ShiftRightLogic<8>(), full[1].ShiftRightLogic<8>());
     }
-    U8x32 MulLo(const U8x32& other) const
+    forceinline U8x32 VECCALL MulLo(const U8x32& other) const
     {
         const U16x16 u16self = Data, u16other = other.Data;
         const auto even = u16self * u16other;
         const auto odd = u16self.ShiftRightLogic<8>() * u16other.ShiftRightLogic<8>();
-        static const U16x16 mask((int16_t)0xff);
+        static const U16x16 mask((uint16_t)0x00ff);
         return U8x32(odd.ShiftLeftLogic<8>() | (even & mask));
     }
-    Pack<U16x16, 2> MulX(const U8x32& other) const;
+    Pack<U16x16, 2> VECCALL MulX(const U8x32& other) const;
 };
 
 
-template<> Pack<I16x16, 2> U8x32::Cast<I16x16>() const
+template<> forceinline Pack<I16x16, 2> VECCALL U8x32::Cast<I16x16>() const
 {
-    const auto tmp = _mm256_setzero_si256();
-    return { _mm256_unpacklo_epi8(*this, tmp), _mm256_unpackhi_epi8(*this, tmp) };
+    return { _mm256_cvtepu8_epi16(_mm256_castsi256_si128(Data)), _mm256_cvtepu8_epi16(_mm256_extracti128_si256(Data, 1)) };
 }
-template<> Pack<U16x16, 2> U8x32::Cast<U16x16>() const
+template<> forceinline Pack<U16x16, 2> VECCALL U8x32::Cast<U16x16>() const
 {
-    const auto tmp = _mm256_setzero_si256();
-    return { _mm256_unpacklo_epi8(*this, tmp), _mm256_unpackhi_epi8(*this, tmp) };
+    return { _mm256_cvtepu8_epi16(_mm256_castsi256_si128(Data)), _mm256_cvtepu8_epi16(_mm256_extracti128_si256(Data, 1)) };
 }
-Pack<U16x16, 2> U8x32::MulX(const U8x32& other) const
+forceinline Pack<U16x16, 2> VECCALL U8x32::MulX(const U8x32& other) const
 {
     const auto self16 = Cast<U16x16>(), other16 = other.Cast<U16x16>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
+
 #endif
 
 }

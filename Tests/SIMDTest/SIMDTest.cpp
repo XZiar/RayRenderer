@@ -75,7 +75,7 @@ int main()
     uint32_t pass = 0, total = 0;
     for (const auto test : tests)
     {
-        Log(LogType::Info, u"begin {}", test.Name);
+        Log(LogType::Info, u"begin [{}]", test.Name);
         if (simdLv < test.SIMDLevel)
         {
             Log(LogType::Warning, u"SIMD [{}] required unsatisfied, skip.\n", test.SIMDLevel);
