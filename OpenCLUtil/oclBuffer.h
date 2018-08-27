@@ -53,8 +53,8 @@ public:
     {
         const auto vsize = buf.size();
         if (count == 0)
-            count = buf.size();
-        else if (count > buf.size())
+            count = vsize;
+        else if (count > vsize)
             COMMON_THROW(BaseException, u"write size overflow");
         const auto wsize = count * sizeof(T);
         return Write(que, buf.data(), wsize, offset, shouldBlock);

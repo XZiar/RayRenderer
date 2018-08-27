@@ -11,7 +11,7 @@ namespace ft
 {
 using namespace common;
 
-void* FreeTyper::createLibrary()
+static void* CreateLibrary()
 {
     FT_Library library;
     auto error = FT_Init_FreeType(&library);
@@ -20,9 +20,9 @@ void* FreeTyper::createLibrary()
     return library;
 }
 
-FT_LibraryRec_& FreeTyper::getLibrary()
+static FT_LibraryRec_& GetLibrary()
 {
-    static FT_Library lib = (FT_Library)createLibrary();
+    static FT_Library lib = (FT_Library)CreateLibrary();
     return *lib;
 }
 
@@ -33,7 +33,7 @@ uint32_t FreeTyper::getGlyphIndex(char32_t ch) const
 
 FreeTyper::FreeTyper(const fs::path& fontpath, const uint16_t pixSize, const uint16_t border) : PixSize(pixSize), Border(border)
 {
-    auto ret = FT_New_Face(&getLibrary(), fontpath.string().c_str(), 0, (FT_Face*)&face);
+    auto ret = FT_New_Face(&GetLibrary(), fontpath.string().c_str(), 0, (FT_Face*)&face);
     switch (ret)
     {
     case FT_Err_Ok:
@@ -123,7 +123,7 @@ pair<vector<FreeTyper::PerLine>, pair<uint32_t, uint32_t>> FreeTyper::TryRenderL
     intptr_t ptr[] = { (intptr_t)&lines,(intptr_t)&maxw,(intptr_t)&maxh,(intptr_t)&minw,(intptr_t)&minh };
     auto t = &ptr;
     params.user = &ptr;
-    FT_Outline_Render(&getLibrary(), (FT_Outline*)outline, &params);
+    FT_Outline_Render(&GetLibrary(), (FT_Outline*)outline, &params);
     for (auto& l : lines)
         l.x -= minw, l.y = maxh - l.y;
     return { lines,{maxw - minw + 1,maxh - minh + 1} };

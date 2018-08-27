@@ -184,6 +184,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build Tools", "Build Tools"
 		build.sh = build.sh
 		Makebase.mk = Makebase.mk
 		MakeTargets.mk = MakeTargets.mk
+		ResourceCompiler.py = ResourceCompiler.py
 		xzbuild.proj.json = xzbuild.proj.json
 	EndProjectSection
 EndProject

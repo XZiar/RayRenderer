@@ -81,6 +81,9 @@ endif
 
 ifeq ($(TARGET), Release)
 	CXXFLAGS	+= -DNDEBUG -flto
+ifeq ($(XZMK_CLANG), 1)
+	CXXFLAGS	+= -fuse-ld=gold
+endif
 ifeq ($(CXXOPT),)
 	CXXFLAGS	+= -O2
 endif
@@ -100,14 +103,16 @@ endif
 
 EXCEPT_C	:= 
 EXCEPT_CPP	:= 
+EXCEPT_RC	:=
 EXCEPT_ASM	:= 
 EXCEPT_NASM	:= 
 
 CSRCS		 = $(filter-out $(EXCEPT_C), $(wildcard *.c))
 CPPSRCS		 = $(filter-out $(EXCEPT_CPP), $(wildcard *.cpp) $(wildcard *.cc) $(wildcard *.cxx))
+RCSRCS		 = $(filter-out $(EXCEPT_RC), $(wildcard *.rc))
 ASMSRCS		 = $(filter-out $(EXCEPT_ASM), $(wildcard *.S))
 NASMSRCS	 = $(filter-out $(EXCEPT_NASM), $(wildcard *.asm))
-OBJS 		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS))
+OBJS 		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS) $(RCSRCS))
 ASMOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS))
 DEPS 		 = $(patsubst %.o, %.d, $(OBJS))
 NAME		?= 

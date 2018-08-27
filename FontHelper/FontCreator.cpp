@@ -1,5 +1,6 @@
 #include "FontRely.h"
 #include "FontCreator.h"
+#include "freetype2/freetype2.h"
 #include "OpenCLUtil/oclException.h"
 #include <cmath>
 #include "resource.h"
@@ -180,7 +181,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         auto[img, width, height] = ft2->getChBitmap(ch + a, false);
         if (width > fontsizelim || height > fontsizelim)
         {
-            const auto chstr = *(std::wstring*)&str::to_u16string(std::u32string(1, ch + a), str::Charset::UTF32);
+            const auto chstr = str::to_u16string(std::u32string(1, ch + a), str::Charset::UTF32);
             fntLog().warning(u"ch {} has invalid size {} x {}\n", chstr, width, height);
             Image tmpimg(std::move(img), width, height, ImageDataType::GRAY);
             const auto ratio = std::max(width, height) * 4 / 128.0f;

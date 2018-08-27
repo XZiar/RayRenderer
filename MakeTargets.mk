@@ -43,6 +43,9 @@ $(OBJPATH)%.asm.o: %.asm mkobjdir dependencyinfo
 $(OBJPATH)%.S.o: %.S mkobjdir dependencyinfo
 	$(ASMCOMPILER) $(INCPATH) $(CXXFLAGS) -MMD -MP -fPIC -c $< -o $@
 
+$(OBJPATH)%.rc.o: %.rc mkobjdir dependencyinfo
+	python3 $(PROJPATH)/ResourceCompiler.py $< $(PLATFORM) $(OBJPATH)
+
 .PHONY: clean
 
 clean:

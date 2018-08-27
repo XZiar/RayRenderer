@@ -18,7 +18,6 @@ static MiniLogger<false>& log()
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
-#   include "GL/wglext.h"
 #   pragma comment(lib, "Opengl32.lib")
 oglContext CreateContext()
 {
@@ -59,8 +58,10 @@ oglContext CreateContext()
     return ctx;
 }
 #else
-#   define GLEW_NO_GLU
-#   include "glew/glxew.h"
+#   include <X11/X.h>
+#   include <X11/Xlib.h>
+#   include <GL/gl.h>
+#   include <GL/glx.h>
 //fucking X11 defines some terrible macro
 #   undef Always
 oglContext CreateContext()
@@ -80,7 +81,7 @@ oglContext CreateContext()
         GLX_STENCIL_SIZE, 8,
         None
     };
-    Display* display = XOpenDisplay(nullptr);
+    Display* display = XOpenDisplay(":0.0");
     /* open display */
     if (!display)
     {

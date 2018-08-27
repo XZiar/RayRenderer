@@ -10,8 +10,6 @@
 #define FREETYPE2_VERSION PPCAT(PPCAT(FREETYPE_MAJOR,PPCAT(.,FREETYPE_MINOR)),PPCAT(.,FREETYPE_PATCH))
 
 
-struct FT_LibraryRec_;
-
 namespace ft
 {
 namespace fs = common::fs;
@@ -24,8 +22,6 @@ using BMPair = tuple<common::AlignedBuffer<32>, uint32_t, uint32_t>;
 class FreeTyper
 {
 private:
-    static void* createLibrary();
-    static FT_LibraryRec_& getLibrary();
     void *face;
     const uint16_t PixSize, Border;
     uint32_t getGlyphIndex(char32_t ch) const;

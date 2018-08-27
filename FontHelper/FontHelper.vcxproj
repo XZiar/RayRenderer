@@ -220,6 +220,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="downsample.cl" />
+    <None Include="Makefile" />
     <None Include="printfont.glsl" />
     <None Include="sdf.cl" />
   </ItemGroup>

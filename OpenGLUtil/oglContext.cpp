@@ -90,13 +90,17 @@ bool _oglContext::UseContext()
 {
 #if defined(_WIN32)
     if (!wglMakeCurrent((HDC)Hdc, (HGLRC)Hrc))
-#else
-    if (!glXMakeCurrent((Display*)Hdc, DRW, (GLXContext)Hrc))
-#endif
     {
         oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
         return false;
     }
+#else
+    if (!glXMakeCurrent((Display*)Hdc, DRW, (GLXContext)Hrc))
+    {
+        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, GetError());
+        return false;
+    }
+#endif
     oglContext::CurrentCtx() = this->shared_from_this();
     return true;
 }
@@ -108,13 +112,17 @@ bool _oglContext::UnloadContext()
         oglContext::CurrentCtx().release();
 #if defined(_WIN32)
         if (!wglMakeCurrent((HDC)Hdc, nullptr))
-#else
-        if (!glXMakeCurrent((Display*)Hdc, DRW, nullptr))
-#endif
         {
             oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
             return false;
         }
+#else
+        if (!glXMakeCurrent((Display*)Hdc, DRW, nullptr))
+        {
+            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, GetError());
+            return false;
+        }
+#endif
     }
     return true;
 }
