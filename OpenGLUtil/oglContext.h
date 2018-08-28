@@ -149,9 +149,11 @@ private:
     static uint32_t CurrentCtxUid();
 public:
     using common::Wrapper<detail::_oglContext>::Wrapper;
+    static std::pair<uint8_t, uint8_t> GetLatestVersion();
     static oglContext CurrentContext();
     static void Refresh();
-    static oglContext NewContext(const oglContext& ctx, const bool isShared = false, int *attribs = nullptr);
+    static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs);
+    static oglContext NewContext(const oglContext& ctx, const bool isShared = false, std::pair<uint8_t, uint8_t> version = { uint8_t(0),uint8_t(0) });
 };
 
 namespace detail

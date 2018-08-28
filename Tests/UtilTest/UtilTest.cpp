@@ -67,7 +67,10 @@ int main(int argc, char *argv[])
     if (argc > 2)
         idx = (uint32_t)std::stoul(argv[2]);
     else
+    {
         std::cin >> idx;
+        std::cin.ignore();
+    }
     if (idx < testMap.size())
     {
         log().info(u"Simple logging cost {} ns.\n", timer.ElapseNs());

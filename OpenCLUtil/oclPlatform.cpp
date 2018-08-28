@@ -52,20 +52,34 @@ static Vendor JudgeBand(const u16string& name)
         return Vendor::Other;
 }
 
-static u16string GetStr(const cl_platform_id platformID, const cl_platform_info type)
+static string GetStr(const cl_platform_id platformID, const cl_platform_info type)
 {
     thread_local string ret;
     size_t size = 0;
     clGetPlatformInfo(platformID, type, 0, nullptr, &size);
     ret.resize(size, '\0');
     clGetPlatformInfo(platformID, type, size, ret.data(), &size);
-    return u16string(ret.cbegin(), ret.cend() - 1); //null-terminated
+    if(!ret.empty())
+        ret.pop_back();
+    return ret;
+}
+static u16string GetUStr(const cl_platform_id platformID, const cl_platform_info type)
+{
+    thread_local string ret;
+    size_t size = 0;
+    clGetPlatformInfo(platformID, type, 0, nullptr, &size);
+    ret.resize(size, '\0');
+    clGetPlatformInfo(platformID, type, size, ret.data(), &size);
+    if(!ret.empty())
+        return u16string(ret.cbegin(), ret.cend() - 1); 
+    return u"";
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-    : PlatformID(pID), Name(GetStr(pID, CL_PLATFORM_NAME)), Ver(GetStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
+    : PlatformID(pID), Name(GetUStr(pID, CL_PLATFORM_NAME)), Ver(GetUStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
 {
-    FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
+    if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
+        FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
     cl_device_id defDevID;
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
     cl_uint numDevices;
@@ -80,6 +94,11 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
         if (dID == defDevID)
             DefDevice = Devices.back();
     }
+    const auto exts = GetStr(PlatformID, CL_PLATFORM_EXTENSIONS);
+    common::str::SplitAndDo(exts, ' ', [&](const char* ptr, const size_t len)
+    {
+        Extensions.emplace(ptr, len);
+    }, false);
 }
 
 bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const

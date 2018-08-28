@@ -14,12 +14,23 @@ static MiniLogger<false>& log()
     return logger;
 }
 
+oglContext CreateContext()
+{
+    oglUtil::init();
+    uint32_t major, minor;
+    log().info(u"Input major and minor version...");
+    std::cin >> major >> minor;
+    std::cin.ignore();
+    auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
+    ctx->UseContext();
+    return ctx;
+}
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
 #   pragma comment(lib, "Opengl32.lib")
-oglContext CreateContext()
+oglContext InitContext()
 {
     HWND tmpWND = CreateWindow(
         L"Core", L"Fake Window",            // window class, title
@@ -51,9 +62,7 @@ oglContext CreateContext()
     HGLRC tmpRC = wglCreateContext(tmpDC);
     wglMakeCurrent(tmpDC, tmpRC);
 
-    oglUtil::init();
-    auto ctx = oglContext::NewContext(oglContext::CurrentContext());
-    ctx->UseContext();
+    auto ctx = CreateContext();
     wglDeleteContext(tmpRC);
     return ctx;
 }
@@ -64,7 +73,7 @@ oglContext CreateContext()
 #   include <GL/glx.h>
 //fucking X11 defines some terrible macro
 #   undef Always
-oglContext CreateContext()
+oglContext InitContext()
 {
     static int visual_attribs[] = 
     {
@@ -102,9 +111,7 @@ oglContext CreateContext()
     Window win = DefaultRootWindow(display);
     glXMakeCurrent(display, win, tmpCtx);
 
-    oglUtil::init();
-    auto ctx = oglContext::NewContext(oglContext::CurrentContext());
-    ctx->UseContext();
+    auto ctx = CreateContext();
     glXDestroyContext(display, tmpCtx);
     return ctx;
 }
@@ -112,7 +119,8 @@ oglContext CreateContext()
 
 static void OGLStub()
 {
-    const auto ctx = CreateContext();
+    const auto ctx = InitContext();
+    log().success(u"GL Context Version: [{}]\n", oglu::oglUtil::getVersion());
     while (true)
     {
         log().info(u"input opengl file:");

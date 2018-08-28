@@ -252,6 +252,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     ThumbMan.reset(glContext);
     GLWorker.reset(u"Core");
     GLWorker->Start();
+    //for reverse-z
+    glContext->SetDepthClip(true);
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
     cam.Resize(1280, 720);

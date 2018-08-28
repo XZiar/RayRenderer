@@ -38,7 +38,8 @@ if __name__ == "__main__":
             mth2 = re.match(r'\#include\s+\"(.+)\"', line)
             if mth2 != None:
                 incs.append(mth2.group(1))
-    incs.remove("winres.h")
+    incs = set(incs)
+    incs.difference_update(["winres.h", "windows.h", "Windows.h"])
     cpp = "#include<cstdint>\r\nuint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd);\r\n"
     for inc in incs: 
         cpp += '#include "{}"\r\n'.format(inc)

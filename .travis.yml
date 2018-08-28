@@ -20,6 +20,7 @@ matrix:
             - g++-8
             - nasm
             - python3
+            - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
             
@@ -47,6 +48,7 @@ matrix:
             - g++-8
             - nasm
             - python3
+            - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
 
@@ -64,6 +66,7 @@ before_script:
   - echo $CPP_DEPENDENCY_PATH
   - $CPPCOMPILER --version
   - python3 --version
+  - pip install chardet
   - nasm -v
 
 script:

@@ -1,7 +1,10 @@
 #include "oglRely.h"
 #include "oglContext.h"
+#include "oglUtil.h"
 #include <atomic>
 #if defined(_WIN32)
+#   define WIN32_LEAN_AND_MEAN 1
+#   define NOMINMAX 1
 #   include "glew/wglew.h"
 #   define GetError() GetLastError()
 #else
@@ -251,6 +254,15 @@ uint32_t oglContext::CurrentCtxUid()
     return ctx ? ctx->Uid : 0;
 }
 
+static std::pair<uint8_t, uint8_t>& LatestVersion()
+{
+    static std::pair<uint8_t, uint8_t> version;
+    return version;
+}
+std::pair<uint8_t, uint8_t> oglContext::GetLatestVersion()
+{
+    return LatestVersion();
+}
 oglContext oglContext::CurrentContext()
 {
 #if defined(_WIN32)
@@ -291,25 +303,19 @@ void oglContext::Refresh()
     CurrentContext();
 }
 
-oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, int *attribs)
+oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs)
 {
+    oglContext newCtx;
 #if defined(_WIN32)
-    static int ctxAttrb[] =
-    {
-        /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-        WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
-        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
-        0
-    };
-    int *attrs = attribs ? attribs : ctxAttrb;
-    const auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attrs);
+    const auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attribs);
     if (!newHrc)
+    {
         oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", GetLastError());
-    return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
+        return {};
+    }
+    newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
 #else
-
-    static int visual_attribs[] = 
+    static int visual_attribs[] =
     {
         GLX_X_RENDERABLE, true,
         GLX_RENDER_TYPE, GLX_RGBA_BIT,
@@ -326,18 +332,60 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, in
     };
     int num_fbc = 0;
     GLXFBConfig *fbc = glXChooseFBConfig((Display*)ctx->Hdc, DefaultScreen((Display*)ctx->Hdc), visual_attribs, &num_fbc);
-    static int ctxAttrb[] =
+    // version too high will cause termination
+    const auto newHrc = glXCreateContextAttribsARB((Display*)ctx->Hdc, fbc[0], isShared ? (GLXContext)ctx->Hrc : nullptr, true, attribs);
+    if (!newHrc)
+    {
+        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", GetError());
+        return {};
+    }
+    newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
+#endif
+    int32_t major = 0;
+    int32_t minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    auto& curVer = LatestVersion();
+    if (major * 10 + minor > curVer.first * 10 + curVer.second)
+    {
+        curVer.first = (uint8_t)major;
+        curVer.second = (uint8_t)minor;
+        oglLog().info(u"update API Version to [{}.{}]\n", curVer.first, curVer.second);
+        oglUtil::init();
+    }
+    return newCtx;
+}
+oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, std::pair<uint8_t, uint8_t> version)
+{
+    if (version.first == 0) version.first = LatestVersion().first;
+    if (version.second == 0) version.second = LatestVersion().second;
+#if defined(_WIN32)
+    vector<int32_t> ctxAttrb
+    {
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
+    };
+    constexpr int32_t verMajor = WGL_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t verMinor = WGL_CONTEXT_MINOR_VERSION_ARB;
+#else
+    vector<int32_t> ctxAttrb
     {
         GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
-        GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB,
-        0
+        GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB
     };
-    int *attrs = attribs ? attribs : ctxAttrb;
-    const auto newHrc = glXCreateContextAttribsARB((Display*)ctx->Hdc, fbc[0], isShared ? (GLXContext)ctx->Hrc : nullptr, true, attrs);
-    if (!newHrc)
-        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", GetError());
-    return oglContext(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
+    constexpr int32_t verMajor = GLX_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t verMinor = GLX_CONTEXT_MINOR_VERSION_ARB;
 #endif
+    if (version.first != 0 && version.second != 0)
+    {
+        ctxAttrb.insert(ctxAttrb.end(),
+        {
+            verMajor, version.first,
+            verMinor, version.second,
+        });
+    }
+    ctxAttrb.push_back(0);
+    return NewContext(ctx, isShared, ctxAttrb.data());
 }
 
 

@@ -5,31 +5,35 @@
 #include "oglProgram.h"
 #include "oglPromise.hpp"
 #include "common/PromiseTaskSTD.hpp"
-#if defined(_WIN32)
-#   include "glew/wglew.h"
-#else
-#   define GLEW_NO_GLU
-#   include "glew/glxew.h"
-#endif
 namespace oglu
 {
 using common::PromiseResultSTD;
 
 
-void oglUtil::init()
+constexpr std::pair<uint8_t, uint8_t> VERSIONS[] =
+{
+    { uint8_t(4),uint8_t(6) },{ uint8_t(4),uint8_t(5) },{ uint8_t(4),uint8_t(4) },{ uint8_t(4),uint8_t(3) },{ uint8_t(4),uint8_t(2) },{ uint8_t(4),uint8_t(1) }, { uint8_t(4),uint8_t(0) },
+    { uint8_t(3),uint8_t(3) },{ uint8_t(3),uint8_t(2) },{ uint8_t(3),uint8_t(1) },{ uint8_t(3),uint8_t(0) },
+};
+void oglUtil::init(const bool initLatestVer)
 {
     glewInit();
     oglLog().info(u"GL Version:{}\n", getVersion());
     auto glctx = oglContext::CurrentContext();
+    if (initLatestVer)
+    {
+        for (const auto& ver : VERSIONS)
+        {
+            const auto ctx = oglContext::NewContext(glctx, false, ver);
+            if (ctx) break;
+        }
+    }
+    glewInit();
 #if defined(_DEBUG) || 1
     glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 #endif
-    //for reverse-z
-    glctx->SetDepthClip(true);
-    glctx->SetDepthTest(DepthTestType::Greater);
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
-
 u16string oglUtil::getVersion()
 {
     const auto str = (const char*)glGetString(GL_VERSION);

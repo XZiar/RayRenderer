@@ -24,7 +24,7 @@ class OGLUAPI oglUtil
 {
 private:
 public:
-    static void init();
+    static void init(const bool initLatestVer = false);
     static u16string getVersion();
     static optional<u16string> getError();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
