@@ -103,6 +103,14 @@
             "dependency": []
         },
         {
+            "name": "freeglut",
+            "type": "static",
+            "path": "3rdParty/freeglut",
+            "version": "3.0.0",
+            "description": "A GLUT replacement",
+            "dependency": []
+        },
+        {
             "name": "miniLogger",
             "type": "dynamic",
             "path": "common/miniLogger",

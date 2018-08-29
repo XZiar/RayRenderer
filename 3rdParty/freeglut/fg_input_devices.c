@@ -28,7 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <GL/freeglut.h>
+#include "freeglut.h"
 #include "fg_internal.h"
 
 typedef struct _serialport SERIALPORT;
@@ -111,7 +111,7 @@ void fgInitialiseInputDevices ( void )
     {
         const char *dial_device=NULL;
         dial_device = getenv ( "GLUT_DIALS_SERIAL" );
-		fgPlatformRegisterDialDevice ( dial_device );
+        fgPlatformRegisterDialDevice ( dial_device );
 
         if ( !dial_device ) return;
         if ( !( dialbox_port = serial_open ( dial_device ) ) ) return;

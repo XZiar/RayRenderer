@@ -23,6 +23,8 @@ matrix:
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
+            - libglu1-mesa-dev
+            - libxi-dev
             
     - name: "Clang6"
       os: linux
@@ -51,6 +53,8 @@ matrix:
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
+            - libglu1-mesa-dev
+            - libxi-dev
 
 before_install:
   - mkdir tmp

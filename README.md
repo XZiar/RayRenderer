@@ -57,7 +57,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
 `boost` headers folder should be found inside `include path`, or inside environment `CPP_DEPENDENCY_PATH`.
 
-`gl*.h` headers should be found inside `include path\GL`.
+`gl.h` and `glu.h` headers should be found inside `include path\GL`.
 
 [nasm](https://www.nasm.us/) needed for [libjpeg-turbo](./3rdParty/libjpeg-turbo) --- add it to system environment path
 
@@ -69,7 +69,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [Modified BSD & MIT License](./3rdParty/glew/license.txt)
 
-* [FreeGLUT](http://freeglut.sourceforge.net)  3.0.0
+* [FreeGLUT](http://freeglut.sourceforge.net)  3.0.0 master@2018-04-02
 
   [MIT License](./3rdParty/freeglut/license.txt)
 

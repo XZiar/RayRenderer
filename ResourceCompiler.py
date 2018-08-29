@@ -65,7 +65,7 @@ if __name__ == "__main__":
     cppfpath = os.path.join(objdir, rcfile+".cpp")
     with open(cppfpath, "w") as fp:
         fp.write(cpp)
-    cmd = "g++ -fPIC -I. -c {0} -o {0}.o".format(cppfpath)
+    cmd = "g++ -fPIC -std=c++11 -I. -c {0} -o {0}.o".format(cppfpath)
     print(cmd)
     retcode = call(cmd, shell=True)
     objs = " ".join([r.objpath for r in ress])

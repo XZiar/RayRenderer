@@ -25,7 +25,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <GL/freeglut.h>
+#include "freeglut.h"
 #include "../fg_internal.h"
 
 
@@ -170,7 +170,7 @@ static int fghJoystickGetOEMProductName ( SFG_Joystick* joy, char *buf, int buf_
 
 void fgPlatformJoystickOpen( SFG_Joystick* joy )
 {
-	int i = 0;
+    int i = 0;
 
     joy->pJoystick.js.dwFlags = JOY_RETURNALL;
     joy->pJoystick.js.dwSize  = sizeof( joy->pJoystick.js );

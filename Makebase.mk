@@ -45,8 +45,9 @@ LDPATH		 = -L"$(APPPATH)" -L.
 SUBDIRS		:=
 CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes
 CXXOPT		:=
+CVERSION	:= -std=c11
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
-CFLAGS		 = $(CXXFLAGS) -std=c11
+CFLAGS		 = $(CXXFLAGS) $(CVERSION)
 NASMFLAGS	:= -g 
 LIBRARYS	:= 
 DEPLIBS		:= 

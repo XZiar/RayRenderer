@@ -246,6 +246,18 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SIMDTest", "Tests\SIMDTest\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpuid", "3rdParty\cpuid\cpuid.vcxproj", "{8F5ADF15-4807-4EC9-888E-290C1A3169A4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GL", "GL", "{11B95B5A-BD8C-4B17-AC69-9E290D6E50E1}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\GL\glext.h = 3rdParty\GL\glext.h
+		3rdParty\GL\glxext.h = 3rdParty\GL\glxext.h
+		3rdParty\GL\wglext.h = 3rdParty\GL\wglext.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KHR", "KHR", "{483ED897-89C7-4125-86AD-E7146C933B46}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\KHR\khrplatform.h = 3rdParty\KHR\khrplatform.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
@@ -683,6 +695,8 @@ Global
 		{5C5933E1-4992-47F8-87ED-7921735157BA} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{DCA497AF-8000-4163-B6FD-E0C09C89612E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{11B95B5A-BD8C-4B17-AC69-9E290D6E50E1} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{483ED897-89C7-4125-86AD-E7146C933B46} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

@@ -25,7 +25,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <GL/freeglut.h>
+#include "freeglut.h"
 #include "fg_internal.h"
 
 
@@ -42,10 +42,10 @@ void FGAPIENTRY glutPostRedisplay( void )
 {
     FREEGLUT_EXIT_IF_NOT_INITIALISED ( "glutPostRedisplay" );
     if ( ! fgStructure.CurrentWindow )
-	{
+    {
       fgError ( " ERROR:  Function <%s> called"
                 " with no current window defined.", "glutPostRedisplay" ) ;
-	}
+    }
 
     fgStructure.CurrentWindow->State.WorkMask |= GLUT_DISPLAY_WORK;
 }

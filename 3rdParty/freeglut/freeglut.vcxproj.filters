@@ -161,10 +161,26 @@
     <ClInclude Include="util\xparsegeometry_repl.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="fg_callback_macros.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="freeglut_ucall.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fg_version.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="freeglut.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

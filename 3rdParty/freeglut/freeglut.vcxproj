@@ -71,15 +71,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>$(ProjectName)_staticd</TargetName>
+    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)_staticd</TargetName>
+    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>$(ProjectName)_static</TargetName>
+    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>$(ProjectName)_static</TargetName>
+    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -88,7 +92,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_WIN32_WINNT=0x0601;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;_DEBUG</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CompileAs>CompileAsC</CompileAs>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -106,7 +110,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_WIN32_WINNT=0x0601;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;_DEBUG</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CompileAs>CompileAsC</CompileAs>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -123,7 +127,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_WIN32_WINNT=0x0601;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;NDEBUG</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CompileAs>CompileAsC</CompileAs>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -146,7 +150,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_WIN32_WINNT=0x0601;FREEGLUT_STATIC;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;NDEBUG</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CompileAs>CompileAsC</CompileAs>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -198,19 +202,27 @@
     <ClCompile Include="util\xparsegeometry_repl.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
+    <ClInclude Include="fg_callback_macros.h" />
     <ClInclude Include="fg_gl2.h" />
     <ClInclude Include="fg_init.h" />
     <ClInclude Include="fg_internal.h" />
     <ClInclude Include="fg_teapot_data.h" />
+    <ClInclude Include="fg_version.h" />
     <ClInclude Include="freeglut.h" />
     <ClInclude Include="freeglut_ext.h" />
     <ClInclude Include="freeglut_std.h" />
+    <ClInclude Include="freeglut_ucall.h" />
     <ClInclude Include="glut.h" />
     <ClInclude Include="mswin\fg_internal_mswin.h" />
     <ClInclude Include="util\xparsegeometry_repl.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="freeglut.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Makefile" />
+    <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
