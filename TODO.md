@@ -17,6 +17,7 @@
   - [x] Add Intel's ISPC tex-compressor as texture compresser
   - [ ] Add debugging support
   - [ ] Move Camera component out of OpenGLUtil (shouldn't handle here)
+  - [ ] Combine subroutine with macro-based static dispatch
 
 * FontHelper
   - [ ] Implement proper text render
@@ -45,4 +46,5 @@
 * Global
   - [ ] Add GacUI
   - [x] Port some utilities to Linux 
+  - [ ] Port core components to Linux 
   - [x] Custom build system for Linux

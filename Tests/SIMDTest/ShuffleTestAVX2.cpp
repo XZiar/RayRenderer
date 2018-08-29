@@ -1,5 +1,7 @@
 #define COMMON_SIMD_LV 200
-#include "ShuffleTest.h"
+#include "common/SIMD.hpp"
+#if COMMON_SIMD_LV_ >= 200
+#   include "ShuffleTest.h"
 
 using namespace common::simd;
 
@@ -58,3 +60,5 @@ static bool TestI32x8VarAVX2()
     return TestShuffleVar<I32x8>(data, 0, Pow<8, 8>() - 1);
 }
 static auto Dummy7 = RegistTest(u"ShuffleTest@AVX2 I32x8[Var]", 200, TestI32x8VarAVX2);
+
+#endif

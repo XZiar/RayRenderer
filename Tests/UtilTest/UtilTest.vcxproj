@@ -187,10 +187,15 @@
     <ClCompile Include="UtilTest.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="TestRely.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="test.cl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

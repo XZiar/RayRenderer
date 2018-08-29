@@ -1,16 +1,13 @@
 #include "oglRely.h"
 #include "oglContext.h"
 #include "oglUtil.h"
-#include <atomic>
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include "glew/wglew.h"
-#   define GetError() GetLastError()
 #else
 #   define GLEW_NO_GLU
 #   include "glew/glxew.h"
-#   define GetError() errno
 //fucking X11 defines some terrible macro
 #   undef Always
 #endif
@@ -94,13 +91,13 @@ bool _oglContext::UseContext()
 #if defined(_WIN32)
     if (!wglMakeCurrent((HDC)Hdc, (HGLRC)Hrc))
     {
-        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
+        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
         return false;
     }
 #else
     if (!glXMakeCurrent((Display*)Hdc, DRW, (GLXContext)Hrc))
     {
-        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, GetError());
+        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, errno);
         return false;
     }
 #endif
@@ -116,13 +113,13 @@ bool _oglContext::UnloadContext()
 #if defined(_WIN32)
         if (!wglMakeCurrent((HDC)Hdc, nullptr))
         {
-            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetError());
+            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, GetLastError());
             return false;
         }
 #else
         if (!glXMakeCurrent((Display*)Hdc, DRW, nullptr))
         {
-            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, GetError());
+            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, errno);
             return false;
         }
 #endif
@@ -256,8 +253,22 @@ uint32_t oglContext::CurrentCtxUid()
 
 static std::pair<uint8_t, uint8_t>& LatestVersion()
 {
-    static std::pair<uint8_t, uint8_t> version;
+    static std::pair<uint8_t, uint8_t> version { uint8_t(0),uint8_t(0) };
     return version;
+}
+bool oglContext::RefreshVersion()
+{
+    int32_t major = 0, minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);   
+    auto& curVer = LatestVersion();
+    if (major * 10 + minor > curVer.first * 10 + curVer.second)
+    {
+        curVer.first = (uint8_t)major, curVer.second = (uint8_t)minor;
+        oglLog().info(u"update API Version to [{}.{}]\n", curVer.first, curVer.second);
+        return true;
+    }
+    return false;
 }
 std::pair<uint8_t, uint8_t> oglContext::GetLatestVersion()
 {
@@ -303,6 +314,18 @@ void oglContext::Refresh()
     CurrentContext();
 }
 
+#if !defined(_WIN32)
+static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
+{
+    thread_local string txtBuf;
+    txtBuf.resize(1024, '\0');
+    XGetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
+    txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
+    oglLog().warning(u"X11 report an error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code, 
+        str::to_u16string(txtBuf, str::Charset::UTF8));
+    return 0;
+}
+#endif
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs)
 {
     oglContext newCtx;
@@ -332,27 +355,20 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
     };
     int num_fbc = 0;
     GLXFBConfig *fbc = glXChooseFBConfig((Display*)ctx->Hdc, DefaultScreen((Display*)ctx->Hdc), visual_attribs, &num_fbc);
-    // version too high will cause termination
+    const auto oldHandler = XSetErrorHandler(&TmpXErrorHandler);
     const auto newHrc = glXCreateContextAttribsARB((Display*)ctx->Hdc, fbc[0], isShared ? (GLXContext)ctx->Hrc : nullptr, true, attribs);
+    XSetErrorHandler(oldHandler);
     if (!newHrc)
     {
-        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", GetError());
+        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", errno);
         return {};
     }
     newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
 #endif
-    int32_t major = 0;
-    int32_t minor = 0;
-    glGetIntegerv(GL_MAJOR_VERSION, &major);
-    glGetIntegerv(GL_MINOR_VERSION, &minor);
-    auto& curVer = LatestVersion();
-    if (major * 10 + minor > curVer.first * 10 + curVer.second)
-    {
-        curVer.first = (uint8_t)major;
-        curVer.second = (uint8_t)minor;
-        oglLog().info(u"update API Version to [{}.{}]\n", curVer.first, curVer.second);
+    newCtx->UseContext();
+    if (RefreshVersion())
         oglUtil::init();
-    }
+    ctx->UseContext();
     return newCtx;
 }
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, std::pair<uint8_t, uint8_t> version)

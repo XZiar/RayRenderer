@@ -16,12 +16,13 @@ static MiniLogger<false>& log()
 
 oglContext CreateContext()
 {
-    oglUtil::init();
-    uint32_t major, minor;
-    log().info(u"Input major and minor version...");
-    std::cin >> major >> minor;
-    std::cin.ignore();
-    auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
+    oglUtil::init(true);
+    // uint32_t major, minor;
+    // log().info(u"Input major and minor version...");
+    // std::cin >> major >> minor;
+    // std::cin.ignore();
+    // auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
+    auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
     return ctx;
 }

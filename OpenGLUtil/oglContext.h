@@ -143,10 +143,12 @@ class OGLUAPI oglContext : public common::Wrapper<detail::_oglContext>
 {
     template<bool Shared> friend struct ::oglu::detail::ContextResourceHelper;
     friend class detail::_oglContext;
+    friend class oglUtil;
 private:
     static void* CurrentHRC();
     static oglContext& CurrentCtx();
     static uint32_t CurrentCtxUid();
+    static bool RefreshVersion();
 public:
     using common::Wrapper<detail::_oglContext>::Wrapper;
     static std::pair<uint8_t, uint8_t> GetLatestVersion();

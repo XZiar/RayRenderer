@@ -12,6 +12,11 @@ namespace detail
 {
 vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & context) const
 {
+#if defined(_WIN32)
+    constexpr cl_context_properties glPropName = CL_WGL_HDC_KHR;
+#else
+    constexpr cl_context_properties glPropName = CL_GLX_DISPLAY_KHR;
+#endif
     vector<cl_context_properties> props;
     //OpenCL platform
     props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID });
@@ -21,7 +26,7 @@ vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & 
             //OpenGL context
             CL_GL_CONTEXT_KHR,   (cl_context_properties)context->Hrc,
             //HDC used to create the OpenGL context
-            CL_WGL_HDC_KHR,      (cl_context_properties)context->Hdc
+            glPropName,          (cl_context_properties)context->Hdc
         });
     props.push_back(0);
     return props;

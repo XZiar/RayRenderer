@@ -20,6 +20,7 @@ void oglUtil::init(const bool initLatestVer)
     glewInit();
     oglLog().info(u"GL Version:{}\n", getVersion());
     auto glctx = oglContext::CurrentContext();
+    oglContext::RefreshVersion();
     if (initLatestVer)
     {
         for (const auto& ver : VERSIONS)
@@ -27,8 +28,8 @@ void oglUtil::init(const bool initLatestVer)
             const auto ctx = oglContext::NewContext(glctx, false, ver);
             if (ctx) break;
         }
+        glewInit();
     }
-    glewInit();
 #if defined(_DEBUG) || 1
     glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 #endif

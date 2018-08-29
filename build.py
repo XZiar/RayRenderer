@@ -6,6 +6,17 @@ import sys
 from collections import deque
 from subprocess import call
 
+class COLOR:
+    black	= "\033[90m"
+    red		= "\033[91m"
+    green	= "\033[92m"
+    yellow	= "\033[93m"
+    clue	= "\033[94m"
+    magenta	= "\033[95m"
+    cyan	= "\033[96m"
+    white	= "\033[97m"
+    clear	= "\033[39m"
+
 projDir = os.getcwd()
 depDir  = os.environ.get("CPP_DEPENDENCY_PATH", "./")
 
@@ -30,13 +41,13 @@ class Project:
         pass
 
 def help():
-    print("\033[97mbuild.py \033[96m<build|clean|buildall|cleanall|rebuild|rebuildall> <project> \033[95m[<Debug|Release>] [<x64|x86>]\033[39m")
-    print("\033[97mbuild.py \033[96m<list|help>\033[39m")
+    print("{0.white}build.py {0.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project> {0.magenta}[<Debug|Release>] [<x64|x86>]{0.clear}".format(COLOR))
+    print("{0.white}build.py {0.cyan}<list|help>{0.clear}".format(COLOR))
     pass
 
 def build(rootDir:str, proj:Project, args:dict):
     targetPath = os.path.join(rootDir, proj.path)
-    print("build \033[92m[{}]\033[39m at [{}]".format(proj.name, targetPath))
+    print("build {clr.green}[{}]{clr.clear} at [{}]".format(proj.name, targetPath, clr=COLOR))
     os.chdir(targetPath)
     projPath = os.path.relpath(rootDir, targetPath) + "/"
     cmd = "make BOOST_PATH=\"{}/include\" PLATFORM={} TARGET={} PROJPATH=\"{}\" -j4".format(depDir, args["platform"], args["target"], projPath)
@@ -46,7 +57,7 @@ def build(rootDir:str, proj:Project, args:dict):
 
 def clean(rootDir:str, proj:Project, args:dict):
     targetPath = os.path.join(rootDir, proj.path)
-    print("clean \033[92m[{}]\033[39m at [{}]".format(proj.name, targetPath))
+    print("clean {clr.green}[{}]{clr.clear} at [{}]".format(proj.name, targetPath, clr=COLOR))
     os.chdir(targetPath)
     projPath = os.path.relpath(rootDir, targetPath) + "/"
     cmd = "make clean PLATFORM={} TARGET={} PROJPATH=\"{}\"".format(args["platform"], args["target"], projPath)
@@ -57,11 +68,11 @@ def clean(rootDir:str, proj:Project, args:dict):
 def listproj(projs:dict, projname: str):
     if projname == None:
         for proj in projs.values():
-            print("\033[92m[{}] \033[95m({}) \033[39m{}\n{}".format(proj.name, proj.type, proj.version, proj.desc))
+            print("{clr.green}[{}] {clr.magenta}({}) {clr.clear}{}\n{}".format(proj.name, proj.type, proj.version, proj.desc, clr=COLOR))
     else:
         def printDep(proj: Project, level: int):
             prefix = "|  "*(level-1) + ("" if level==0 else "|->")
-            print("{}\033[92m[{}]\033[95m({})\033[39m{}".format(prefix, proj.name, proj.type, proj.desc))
+            print("{}{clr.green}[{}]{clr.magenta}({}){}".format(prefix, proj.name, proj.type, proj.desc, clr=COLOR))
             for dep in proj.dependency:
                 printDep(dep, level+1)
         printDep(projs[projname], 0)
@@ -121,7 +132,7 @@ def mainmake(action:str, projs:set, args:dict):
         action = action[:-3]
     else:
         projs = [x for x in sortDependency(projs)]
-    print("build dependency:\t" + "->".join(["\033[92m[" + p.name + "]\033[39m" for p in projs]))
+    print("build dependency:\t" + "->".join(["{clr.green}[{}]{clr.clear}".format(p.name, clr=COLOR) for p in projs]))
     os.makedirs("./Debug", exist_ok=True)
     os.makedirs("./Release", exist_ok=True)
     os.makedirs("./x64/Debug", exist_ok=True)
@@ -150,7 +161,7 @@ def parseProj(proj:str, projs:dict):
     names.difference_update(wantRemove)
     for x in names:
         if x in projs: wanted.add(projs[x])
-        else: print("\033[91mUnknwon project\033[96m[{}]\033[39m".format(x))
+        else: print("{clr.red}Unknwon project{clr.cyan}[{}]{clr.clear}".format(x, clr=COLOR))
     return wanted
 
 def main(argv=None):
@@ -167,7 +178,7 @@ def main(argv=None):
             for proj in projects.values():
                 proj.solve(projects)
         except IOError as e:
-            print("\033[91munavaliabe project data [xzbuild.proj.json]", e.strerror)
+            print("{clr.red}unavaliabe project data [xzbuild.proj.json]\n{}".format(e.strerror, clr=COLOR))
             return -1
         except Exception as e:
             print(e)
@@ -184,28 +195,28 @@ def main(argv=None):
             if len(argv) > 4: args["platform"] = argv[4]             
             if len(argv) > 3: args["target"] = argv[3]             
             suc, all = mainmake(action, proj, args)
-            clr = "\033[91m" if suc == 0 else "\033[93m" if suc < all else "\033[92m"
-            print("{}build [{}/{}] successed.\033[39m".format(clr, suc, all))
+            preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < all else COLOR.green
+            print("{}build [{}/{}] successed.{clr.clear}".format(preclr, suc, all, clr=COLOR))
             return 0 if suc == all else -2
         else:
             raise IndexError()
     except IndexError:
-        print("\033[91munknown action: {}\033[39m".format(argv[1:]))
+        print("{clr.red}unknown action: {}{clr.clear}".format(argv[1:], clr=COLOR))
         help()
         return -1
     except KeyError:
-        print("\033[91mcannot find target project [{}]\033[39m".format(objproj))
+        print("{clr.red}cannot find target project [{}]{clr.clear}".format(objproj, clr=COLOR))
         return -1
     pass
 
 if __name__ == "__main__":
     osname = platform.system()
     if osname == "Windows":
-        print("\033[93mFor Windows, use Visual Studio 2017 to build!\033[39m")
+        print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))
         sys.exit(0)
     elif osname == "Darwin":
-        print("\033[93mmaxOS support is not tested!\033[39m")
+        print("{0.yellow}maxOS support is not tested!{0.clear}".format(COLOR))
     elif osname != "Linux":
-        print("\033[91munknown OS!\033[39m")
+        print("{0.yellow}unknown OS!{0.clear}".format(COLOR))
         sys.exit(-1)
     sys.exit(main(sys.argv))

@@ -8,7 +8,7 @@ namespace common
 {
 static HMODULE& ThisDll()
 {
-    static HMODULE dll;
+    static HMODULE dll = nullptr;
     return dll;
 }
 void ResourceHelper::init(void* dll)
@@ -45,15 +45,17 @@ static std::map<int32_t, std::pair<const char*, size_t>>& RES_MAP()
     static std::map<int32_t, std::pair<const char*, size_t>> resMap;
     return resMap;
 }
-
+namespace detail
+{
 uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd)
 {
-    RES_MAP().emplace(id, ptrBegin, ptrEnd - ptrBegin);
+    RES_MAP().emplace(id, std::pair<const char*, size_t>(ptrBegin, ptrEnd - ptrBegin));
     return 0;
+}
 }
 void ResourceHelper::init(void* dll)
 { }
-std::vector<uint8_t> ResourceHelper::getData(const wchar_t *type, const int32_t id)
+std::vector<uint8_t> ResourceHelper::getData(const wchar_t *, const int32_t id)
 {
     const auto& resMap = RES_MAP();
     const auto res = resMap.find(id);

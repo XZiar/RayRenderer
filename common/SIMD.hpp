@@ -43,28 +43,29 @@
 #error Unknown compiler, not supported by this header
 #endif
 
+#if defined(__AVX2__)
+#   define COMMON_SIMD_LV_ 200
+#elif defined(__FMA__)
+#   define COMMON_SIMD_LV_ 150
+#elif defined(__AVX__)
+#   define COMMON_SIMD_LV_ 100
+#elif defined(__SSE4_2__)
+#   define COMMON_SIMD_LV_ 42
+#elif defined(__SSE4_1__)
+#   define COMMON_SIMD_LV_ 41
+#elif defined(__SSSE3__)
+#   define COMMON_SIMD_LV_ 31
+#elif defined(__SSE3__)
+#   define COMMON_SIMD_LV_ 30
+#elif defined(__SSE2__)
+#   define COMMON_SIMD_LV_ 20
+#elif defined(__SSE__)
+#   define COMMON_SIMD_LV_ 10
+#else
+#   define COMMON_SIMD_LV_ 0
+#endif
 #ifndef COMMON_SIMD_LV
-# if defined(__AVX2__)
-#   define COMMON_SIMD_LV 200
-# elif defined(__FMA__)
-#   define COMMON_SIMD_LV 150
-# elif defined(__AVX__)
-#   define COMMON_SIMD_LV 100
-# elif defined(__SSE4_2__)
-#   define COMMON_SIMD_LV 42
-# elif defined(__SSE4_1__)
-#   define COMMON_SIMD_LV 41
-# elif defined(__SSSE3__)
-#   define COMMON_SIMD_LV 31
-# elif defined(__SSE3__)
-#   define COMMON_SIMD_LV 30
-# elif defined(__SSE2__)
-#   define COMMON_SIMD_LV 20
-# elif defined(__SSE__)
-#   define COMMON_SIMD_LV 10
-# else
-#   define COMMON_SIMD_LV 0
-# endif
+#   define COMMON_SIMD_LV COMMON_SIMD_LV_
 #endif
 
 #if COMMON_SIMD_LV >= 200

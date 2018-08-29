@@ -6,6 +6,7 @@
 #include "common/StringEx.hpp"
 #include "common/SIMD128.hpp"
 #include "3DBasic/miniBLAS/VecNew.hpp"
+#include "common/ResourceHelper.inl"
 
 using std::string;
 using std::map;
@@ -47,7 +48,7 @@ uint32_t RegistTest(const char *name, void(*func)())
 
 int main(int argc, char *argv[])
 {
-    constexpr miniBLAS::Vec4 vec(1, 2, 3, 4);
+    common::ResourceHelper::init(nullptr);
     log().info(u"UnitTest\n");
 
     if (argc > 1)
@@ -81,6 +82,9 @@ int main(int argc, char *argv[])
     else
     {
         log().error(u"Index out of range.\n");
+        const auto txtdat = common::ResourceHelper::getData(L"BIN", IDR_CL_TEST);
+        std::string_view txt((const char*)txtdat.data(), txtdat.size());
+        log().verbose(u"\n{}\n\n", txt);
     }
     getchar();
     static_assert(common::str::detail::is_str_vector_v<char, std::vector<char, common::AlignAllocator<char>>>(), "");
