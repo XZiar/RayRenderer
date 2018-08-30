@@ -1,10 +1,19 @@
 #pragma once
 
-#ifdef GLUTVIEW_EXPORT
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef GLUTVIEW_EXPORT
 #   define GLUTVIEWAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define GLUTVIEWAPI _declspec(dllimport)
+# endif
+#else
+# ifdef GLUTVIEW_EXPORT
+#   define GLUTVIEWAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define GLUTVIEWAPI
+# endif
 #endif
 
 #include "common/Wrapper.hpp"
@@ -25,28 +34,28 @@ using namespace b3d;
 
 enum class Key : uint8_t
 {
-	Space = ' ', ESC = 27, Enter = 13, Delete = 127, Backspace = 8,
-	F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-	Left, Up, Right, Down, Home, End, PageUp, PageDown, Insert,
-	UNDEFINE = 255
+    Space = ' ', ESC = 27, Enter = 13, Delete = 127, Backspace = 8,
+    F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    Left, Up, Right, Down, Home, End, PageUp, PageDown, Insert,
+    UNDEFINE = 255
 };
 class GLUTVIEWAPI KeyEvent
 {
 private:
-	uint8_t helperKey;
+    uint8_t helperKey;
 public:
-	uint8_t key;
-	int x, y;
-	KeyEvent(const uint8_t key_, const int x_, const int y_, const bool isCtrl = false, const bool isShift = false, const bool isAlt = false)
-		:key(key_), x(x_), y(y_)
-	{
-		helperKey = (isCtrl ? 0x1 : 0x0) + (isShift ? 0x2 : 0x0) + (isAlt ? 0x4 : 0x0);
-	}
-	bool isSpecialKey() const { return key > 127; }
-	bool hasCtrl() const { return (helperKey & 0x1) != 0; }
-	bool hasShift() const { return (helperKey & 0x2) != 0; }
-	bool hasAlt() const { return (helperKey & 0x4) != 0; }
-	Key SpecialKey() const { return (key > 127 ? (Key)key : Key::UNDEFINE); }
+    uint8_t key;
+    int x, y;
+    KeyEvent(const uint8_t key_, const int x_, const int y_, const bool isCtrl = false, const bool isShift = false, const bool isAlt = false)
+        :key(key_), x(x_), y(y_)
+    {
+        helperKey = (isCtrl ? 0x1 : 0x0) + (isShift ? 0x2 : 0x0) + (isAlt ? 0x4 : 0x0);
+    }
+    bool isSpecialKey() const { return key > 127; }
+    bool hasCtrl() const { return (helperKey & 0x1) != 0; }
+    bool hasShift() const { return (helperKey & 0x2) != 0; }
+    bool hasAlt() const { return (helperKey & 0x4) != 0; }
+    Key SpecialKey() const { return (key > 127 ? (Key)key : Key::UNDEFINE); }
 };
 
 enum class MouseButton : uint8_t { None = 0, Left = 1, Middle = 2, Right = 3 };
@@ -54,13 +63,13 @@ enum class MouseEventType : uint8_t { Down, Up, Moving, Over, Wheel };
 class GLUTVIEWAPI MouseEvent
 {
 public:
-	MouseEventType type;
-	MouseButton btn;
-	int x, y, dx, dy;
-	MouseEvent(const MouseEventType type_, const MouseButton btn_, const int x_, const int y_, const int dx_, const int dy_)
-		:type(type_), btn(btn_), x(x_), y(y_), dx(dx_), dy(dy_)
-	{
-	}
+    MouseEventType type;
+    MouseButton btn;
+    int x, y, dx, dy;
+    MouseEvent(const MouseEventType type_, const MouseButton btn_, const int x_, const int y_, const int dx_, const int dy_)
+        :type(type_), btn(btn_), x(x_), y(y_), dx(dx_), dy(dy_)
+    {
+    }
 };
 
 
@@ -82,53 +91,48 @@ using FuncTimer = std::function<bool(FreeGLUTView, uint32_t)>;
 using FuncDropFile = std::function<void(FreeGLUTView, u16string filePath)>;
 
 
-class GLUTHacker;
 namespace detail
 {
-
+class FreeGLUTManager;
 
 class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public std::enable_shared_from_this<_FreeGLUTView>
 {
-	friend class GLUTHacker;
+    friend class FreeGLUTManager;
 public:
 
 private:
-	SimpleTimer uitimer;
-	int64_t timerus = INT64_MIN;
-	FuncTimer funTimer = nullptr;
-	int wdID;
-	int width, height;
-	int sx, sy, lx, ly;//record x/y, last x/y
-	uint8_t isMovingMouse = 0;
-	bool isMoved = false;
+    int wdID;
+    int width, height;
+    int sx, sy, lx, ly;//record x/y, last x/y
+    uint8_t isMovingMouse = 0;
+    bool isMoved = false;
 
-	FreeGLUTView getSelf();
-	void usethis();
-	void display();
-	void reshape(const int w, const int h);
-	void onKeyboard(int key, int x, int y);
-	void onKeyboard(unsigned char key, int x, int y);
-	void onKey(const uint8_t key, const int x, const int y);
-	void onWheel(int button, int dir, int x, int y);
-	void onMouse(int x, int y);
-	void onMouse(int button, int state, int x, int y);
-	void onTimer();
-	void onDropFile(const u16string& fname);
+    FreeGLUTView getSelf();
+    void usethis();
+    void display();
+    void reshape(const int w, const int h);
+    void onKeyboard(int key, int x, int y);
+    void onKeyboard(unsigned char key, int x, int y);
+    void onKey(const uint8_t key, const int x, const int y);
+    void onWheel(int button, int dir, int x, int y);
+    void onMouse(int x, int y);
+    void onMouse(int button, int state, int x, int y);
+    void onDropFile(const u16string& fname);
     void onClose();
 public:
-	bool deshake = true;
-	FuncBasic funDisp = nullptr;
+    bool deshake = true;
+    FuncBasic funDisp = nullptr;
     FuncBasic funOnClose = nullptr;
-	FuncReshape funReshape = nullptr;
-	FuncKeyEvent funKeyEvent = nullptr;
-	FuncMouseEvent funMouseEvent = nullptr;
-	FuncDropFile funDropFile = nullptr;
-	_FreeGLUTView(const int w = 1280, const int h = 720);
-	~_FreeGLUTView();
-	void setTimerCallback(FuncTimer funTime, const uint16_t ms);
-	void setTitle(const string& title);
-	void refresh();
-	void invoke(std::function<bool(void)> task);
+    FuncReshape funReshape = nullptr;
+    FuncKeyEvent funKeyEvent = nullptr;
+    FuncMouseEvent funMouseEvent = nullptr;
+    FuncDropFile funDropFile = nullptr;
+    _FreeGLUTView(const int w = 1280, const int h = 720);
+    ~_FreeGLUTView();
+    void setTimerCallback(FuncTimer funTime, const uint16_t ms);
+    void setTitle(const string& title);
+    void refresh();
+    void invoke(std::function<bool(void)> task);
 };
 
 

@@ -124,11 +124,12 @@ private:
     boost::context::continuation Context;
     std::atomic<detail::AsyncTaskNode*> Head { nullptr }, Tail { nullptr };
     detail::AsyncTaskNode *Current = nullptr;
-    uint32_t TimeYieldSleep, TimeSensitive;
     const std::u16string Name;
     const AsyncAgent Agent;
     common::mlog::MiniLogger<false> Logger;
     std::thread RunningThread;
+    uint32_t TimeYieldSleep, TimeSensitive;
+    bool AllowStopAdd;
 
     bool AddNode(detail::AsyncTaskNode* node);
 
@@ -137,10 +138,11 @@ private:
     void MainLoop();
     void OnTerminate(const std::function<void(void)>& exiter = {}); //run at worker thread
 public:
-    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20);
+    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
     ~AsyncManager();
     bool Start(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
     void Stop();
+    bool Run(const std::function<void(std::function<void(void)>)>& initer = {});
 
     template<typename Func, typename Ret = std::invoke_result_t<Func, const AsyncAgent&>>
     PromiseResult<Ret> AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)

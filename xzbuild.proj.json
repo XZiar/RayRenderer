@@ -160,6 +160,13 @@
             "dependency": ["fmt", "miniLogger", "ImageUtil", "freetype2", "OpenGLUtil", "OpenCLUtil"]
         },
         {
+            "name": "FreeGLUTView",
+            "type": "dynamic",
+            "path": "FreeGLUTView",
+            "description": "FreeGLUT wrapper",
+            "dependency": ["fmt", "miniLogger", "freeglut", "AsyncExecutor"]
+        },
+        {
             "name": "UtilTest",
             "type": "executable",
             "path": "Tests/UtilTest",

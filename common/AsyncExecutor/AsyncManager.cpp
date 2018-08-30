@@ -16,7 +16,7 @@ bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 {
     node->Next = nullptr;
     common::SpinLocker::Lock(ModifyFlag);//ensure add is done
-    if (!ShouldRun)
+    if (!AllowStopAdd && !ShouldRun)
     {
         common::SpinLocker::Unlock(ModifyFlag);
         return false;
@@ -58,6 +58,8 @@ detail::AsyncTaskNode* AsyncManager::DelNode(detail::AsyncTaskNode* node)
 void AsyncManager::Resume()
 {
     Context = Context.resume();
+    if (!ShouldRun.load(std::memory_order_relaxed))
+        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
 }
 
 void AsyncManager::MainLoop()
@@ -128,6 +130,7 @@ void AsyncManager::MainLoop()
         if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
             std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
     }
+    AsyncAgent::GetRawAsyncAgent() = nullptr;
 }
 
 void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
@@ -139,24 +142,26 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
     for (Current = Head; Current != nullptr;)
     {
         auto next = Current->Next;
-        try
+        switch (Current->Status)
         {
-            switch (Current->Status)
+        case detail::AsyncTaskStatus::New:
+            Logger.warning(u"Task [{}] cancelled due to termination.\n", Current->Name); 
+            try
             {
-            case detail::AsyncTaskStatus::New:
                 COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
-            case detail::AsyncTaskStatus::Wait:
-                [[fallthrough]];
-            case detail::AsyncTaskStatus::Ready:
-                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
-            default:
-                break;
             }
-        }
-        catch (AsyncTaskException& e)
-        {
-            Logger.warning(u"Task [{}] {} due to termination.\n", Current->Name, e.reason == AsyncTaskException::Reason::Cancelled ? u"cancelled" : u"terminated");
-            Current->OnException(std::current_exception());
+            catch (AsyncTaskException&)
+            {
+                Current->OnException(std::current_exception());
+            }
+            break;
+        case detail::AsyncTaskStatus::Wait:
+            [[fallthrough]];
+        case detail::AsyncTaskStatus::Ready:
+            Current->Context = Current->Context.resume(); // need to resume so that stack will be released
+            break;
+        default:
+            break;
         }
         delete Current;
         Current = next;
@@ -180,21 +185,30 @@ bool AsyncManager::Start(const std::function<void(void)>& initer, const std::fun
     }, initer, exiter);
     return true;
 }
-
 void AsyncManager::Stop()
 {
-    std::unique_lock<std::mutex> terminateLock(TerminateMtx); //ensure Mainloop no enter before waiting
+    std::unique_lock<std::mutex> terminateLock(TerminateMtx); //ensure no repeat enter before stopped
     if (!RunningThread.joinable()) //thread has been terminated
         return;
     ShouldRun = false;
     CondWait.notify_all();
     RunningThread.join();
 }
+bool AsyncManager::Run(const std::function<void(std::function<void(void)>)>& initer)
+{
+    if (RunningThread.joinable() || ShouldRun.exchange(true)) //has turn state into true, just return
+        return false;
+    if (initer)
+        initer([&]() { ShouldRun = false; });
+    this->MainLoop();
+    this->OnTerminate();
+    return true;
+}
 
 
-AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive) :
-    TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), Name(name), Agent(*this),
-    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() })
+AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
+    Name(name), Agent(*this), Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }), 
+    TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
 { }
 AsyncManager::~AsyncManager()
 {
