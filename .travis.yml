@@ -64,16 +64,20 @@ before_install:
   - tar xjf boost_1_68_0.tar.bz2
   - mv ./boost_1_68_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
+  - wget -O ispc-v1.9.2-linux.tar.gz http://sourceforge.net/projects/ispcmirror/files/v1.9.2/ispc-v1.9.2-linux.tar.gz/download
+  - tar xzf ispc-v1.9.2-linux.tar.gz
+  - export ISPCCOMPILER=$(pwd)/ispc-v1.9.2-linux/ispc
   - cd ..
 
 before_script:
   - echo $CPP_DEPENDENCY_PATH
   - $CPPCOMPILER --version
+  - $ISPCCOMPILER --version
   - python3 --version
   - pip install chardet
   - nasm -v
 
 script:
-  - python3 build.py rebuildall "all|-ResourcePackager"
+  - python3 build.py rebuildall "all,-ResourcePackager,-ispc_texcomp"
   - python3 build.py rebuildall "SIMDTest" Release
   - ./x64/Release/SIMDTest

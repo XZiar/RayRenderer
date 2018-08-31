@@ -464,7 +464,7 @@ _FreeGLUTView::_FreeGLUTView(const int w, const int h)
     const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
     const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
 #else
-    Display *display = glXGetCurrentDisplay();
+    Display *display = XOpenDisplay(nullptr);
     const auto screenWidth = XDisplayWidth(display, DefaultScreen(display));
     const auto screenHeight = XDisplayHeight(display, DefaultScreen(display));
 #endif
@@ -540,7 +540,7 @@ void FreeGLUTViewInit()
     const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
     const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
 #else
-    Display *display = glXGetCurrentDisplay();
+    Display *display = XOpenDisplay(nullptr);
     const auto screenWidth = XDisplayWidth(display, DefaultScreen(display));
     const auto screenHeight = XDisplayHeight(display, DefaultScreen(display));
 #endif

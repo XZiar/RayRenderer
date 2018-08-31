@@ -2,6 +2,7 @@
 
 * AsyncExecutor
   - [x] Add support for returning value
+  - [ ] Add multi thread executor
 
 * ImageUtil
   - [ ] Add memory input/output
@@ -18,6 +19,7 @@
   - [ ] Add debugging support
   - [ ] Move Camera component out of OpenGLUtil (shouldn't handle here)
   - [ ] Combine subroutine with macro-based static dispatch
+  - [ ] Add context-sesative dispatching for version-based functions 
 
 * FontHelper
   - [ ] Implement proper text render
@@ -48,3 +50,4 @@
   - [x] Port some utilities to Linux 
   - [ ] Port core components to Linux 
   - [x] Custom build system for Linux
+  - [ ] Real custom build system similar to Scons, get rid of makefiles

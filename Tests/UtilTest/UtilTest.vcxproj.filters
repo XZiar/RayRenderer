@@ -33,6 +33,9 @@
     <ClCompile Include="GLStub.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FreeGLUTTest.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestRely.h">
@@ -50,5 +53,8 @@
     <ResourceCompile Include="Resource.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="fgTest.glsl" />
   </ItemGroup>
 </Project>

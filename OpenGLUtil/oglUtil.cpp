@@ -55,6 +55,19 @@ optional<u16string> oglUtil::getError()
 #endif
 }
 
+set<string, std::less<>> oglUtil::GetExtensions()
+{
+    set<string, std::less<>> exts;
+    int32_t count;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+    for(int32_t i = 0; i < count; i++) 
+    {
+        const GLubyte *ext = glGetStringi(GL_EXTENSIONS, i);
+        exts.emplace(reinterpret_cast<const char*>(ext));
+    }
+    return exts;
+}
+
 
 void oglUtil::applyTransform(Mat4x4& matModel, const TransformOP& op)
 {

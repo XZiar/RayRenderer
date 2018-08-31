@@ -111,6 +111,13 @@
             "dependency": []
         },
         {
+            "name": "ispc_texcomp",
+            "type": "static",
+            "path": "3rdParty/ispc_texcomp",
+            "description": "ISPC Texture Compressor",
+            "dependency": []
+        },
+        {
             "name": "miniLogger",
             "type": "dynamic",
             "path": "common/miniLogger",
@@ -171,7 +178,7 @@
             "type": "executable",
             "path": "Tests/UtilTest",
             "description": "Utility test",
-            "dependency": ["fmt", "stb", "uchardet", "miniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil"]
+            "dependency": ["fmt", "stb", "uchardet", "miniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil", "FreeGLUTView"]
         },
         {
             "name": "SIMDTest",

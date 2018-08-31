@@ -2,7 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by Resource.rc
 #define IDR_CL_TEST                     108
-// 新对象的下一组默认值
+#define IDR_GL_FGTEST                   109
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

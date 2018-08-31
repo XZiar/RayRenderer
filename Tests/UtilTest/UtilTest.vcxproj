@@ -158,6 +158,9 @@
     <ProjectReference Include="..\..\common\miniLogger\miniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\FreeGLUTView\FreeGLUTView.vcxproj">
+      <Project>{944b3981-336e-4807-b5be-55b8f05920d4}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
@@ -177,6 +180,7 @@
     </ClCompile>
     <ClCompile Include="CharsetTest.cpp" />
     <ClCompile Include="CLStub.cpp" />
+    <ClCompile Include="FreeGLUTTest.cpp" />
     <ClCompile Include="GLStub.cpp" />
     <ClCompile Include="ImageUtilTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
@@ -196,6 +200,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="fgTest.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

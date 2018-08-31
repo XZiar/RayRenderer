@@ -54,14 +54,21 @@ void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
         access = GL_WRITE_ONLY;
     else
         access = GL_READ_WRITE;
-    MappedPtr = glMapNamedBufferEXT(bufferID, access);
+
+    if (GLEW_ARB_direct_state_access)
+        MappedPtr = glMapNamedBuffer(bufferID, access);
+    else if (GLEW_EXT_direct_state_access)
+        MappedPtr = glMapNamedBufferEXT(bufferID, access);
 }
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
     if (MappedPtr == nullptr)
     {
-        glNamedBufferDataEXT(bufferID, size, dat, (GLenum)mode);
+        if (GLEW_ARB_direct_state_access)
+            glNamedBufferData(bufferID, size, dat, (GLenum)mode);
+        else if (GLEW_EXT_direct_state_access)
+            glNamedBufferDataEXT(bufferID, size, dat, (GLenum)mode);
         BufSize = size;
     }
     else

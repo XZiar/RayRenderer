@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenGLUtil/oglException.h"
+#include <algorithm>
 
 using namespace common;
 using namespace common::mlog;
@@ -127,6 +128,14 @@ static void OGLStub()
         log().info(u"input opengl file:");
         string fpath;
         std::getline(cin, fpath);
+        if (fpath == "EXTENSION")
+        {
+            string exttxts("Extensions:\n");
+            for(const auto& ext : oglUtil::GetExtensions())
+                exttxts.append(ext).append("\n");
+            log().verbose(u"{}\n", exttxts);
+            continue;
+        }
         common::fs::path filepath(fpath);
         log().debug(u"loading gl file [{}]\n", filepath.u16string());
         try

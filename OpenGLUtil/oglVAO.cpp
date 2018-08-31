@@ -27,7 +27,10 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVB
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
         glVertexAttribIPointer(attridx, size, valType, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
@@ -38,7 +41,10 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO&
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx);//vertex attr index
         glVertexAttribPointer(attridx, size, valType, GL_FALSE, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
@@ -51,19 +57,28 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
     if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[0]);//VertPos
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[0]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
         glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset));
     }
     if (attridx[1] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[1]);//VertNorm
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[1]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
         glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 16));
     }
     if (attridx[2] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[2]);//TexPos
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[2]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
         glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 32));
     }
     return *this;
@@ -75,25 +90,37 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
     if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[0]);//VertPos
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[0]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[0]);
         glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset));
     }
     if (attridx[1] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[1]);//VertNorm
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[1]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[1]);
         glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 16));
     }
     if (attridx[2] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[2]);//TexPos
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[2]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[2]);
         glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 32));
     }
     if (attridx[3] != (GLint)GL_INVALID_INDEX)
     {
         //glEnableVertexAttribArray(attridx[3]);//VertTan
-        glEnableVertexArrayAttribEXT(vao.VAOId, attridx[3]);
+        if (GLEW_ARB_direct_state_access)
+            glEnableVertexArrayAttrib(vao.VAOId, attridx[3]);//vertex attr index
+        else if (GLEW_EXT_direct_state_access)
+            glEnableVertexArrayAttribEXT(vao.VAOId, attridx[3]);
         glVertexAttribPointer(attridx[3], 4, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 48));
     }
     return *this;
