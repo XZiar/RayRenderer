@@ -8,7 +8,6 @@ else
 	ASMSRCS	= $(wildcard asm/*i386_*_elf_gas.S)
 endif
 CPPSRCS		+= posix/stack_traits.cpp
-SUBDIRS		+= $(OBJPATH)asm $(OBJPATH)posix
 NAME	= boost.context
 
 include $(PROJPATH)/MakeTargets.mk

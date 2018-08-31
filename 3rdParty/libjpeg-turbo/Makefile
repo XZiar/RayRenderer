@@ -5,7 +5,6 @@ include $(PROJPATH)/Makebase.mk
 I386ASMS	 = $(wildcard simd/i386/*.asm)
 AMD64ASMS	 = $(wildcard simd/x86-64/*.asm)
 EXCEPT_C	 = jccolext.c jdcol565.c jdcolext.c jdmrg565.c jdmrgext.c jstdhuff.c
-SUBDIRS		+= $(OBJPATH)simd $(OBJPATH)simd/x86-64 $(OBJPATH)simd/i386
 INCPATH		+= -I./simd/ -I./
 ifeq ($(PLATFORM), x64)
 	NASMSRCS	 =  $(filter-out simd/x86-64/jccolext-avx2.asm simd/x86-64/jccolext-sse2.asm simd/x86-64/jcgryext-avx2.asm simd/x86-64/jcgryext-sse2.asm simd/x86-64/jdcolext-avx2.asm simd/x86-64/jdcolext-sse2.asm simd/x86-64/jdmrgext-avx2.asm simd/x86-64/jdmrgext-sse2.asm, $(AMD64ASMS))

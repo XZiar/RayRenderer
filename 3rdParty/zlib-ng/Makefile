@@ -2,7 +2,6 @@ BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk
 
-SUBDIRS		+= $(OBJPATH)arch/i386
 CSRCS		+= $(wildcard arch/i386/*.c)
 EXCEPT_C	 = arch/i386/crc_folding.c
 INCPATH		+= -I./

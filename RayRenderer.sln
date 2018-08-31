@@ -185,7 +185,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build Tools", "Build Tools"
 		Makebase.mk = Makebase.mk
 		MakeTargets.mk = MakeTargets.mk
 		ResourceCompiler.py = ResourceCompiler.py
-		xzbuild.proj.json = xzbuild.proj.json
+		xzbuild.sol.json = xzbuild.sol.json
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LinuxTest", "Tests\UtilTest\LinuxTest.vcxproj", "{F74112AF-33D4-4B34-9091-48E4B1645FAE}"

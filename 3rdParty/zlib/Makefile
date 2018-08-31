@@ -2,7 +2,6 @@ BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk
 
-SUBDIRS		+= $(OBJPATH)masmx64 $(OBJPATH)masmx86
 ifeq ($(PLATFORM), x64)
 	ASMSRCS	= $(wildcard masmx64/*.S)
 else

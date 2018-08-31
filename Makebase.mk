@@ -43,7 +43,6 @@ OBJPATH 	 = ./$(OBJPREFEX)$(TARGET)/
 APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
-SUBDIRS		:=
 CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes
 CXXOPT		:=
 CVERSION	:= -std=c11
@@ -118,9 +117,10 @@ ASMSRCS		 = $(filter-out $(EXCEPT_ASM), $(wildcard *.S))
 NASMSRCS	 = $(filter-out $(EXCEPT_NASM), $(wildcard *.asm))
 ISPCSRCS	 = $(filter-out $(EXCEPT_ISPC), $(wildcard *.ispc))
 ISPCFSRCS	 = $(foreach tar,$(ISPC_TARGETS),$(patsubst %.ispc, %_$(tar).ispc, $(ISPCSRCS)))
-OBJS 		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS) $(RCSRCS) $(ISPCSRCS))
-ASMOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS))
-DEPS 		 = $(patsubst %.o, %.d, $(OBJS))
+CXXOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS))
+OTHEROBJS	 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS) $(RCSRCS) $(ISPCSRCS))
+DIRS		 = $(dir $(CXXOBJS) $(OTHEROBJS))
+DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS))
 NAME		?= 
 
 ifeq ($(BUILD_TYPE), static)
@@ -133,3 +133,4 @@ APPS		 = $(APPPATH)$(NAME)
 endif
 endif
 
+all: postbuild

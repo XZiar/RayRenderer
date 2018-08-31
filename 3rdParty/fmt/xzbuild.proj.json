@@ -1,0 +1,14 @@
+{
+    "name": "fmt",
+    "type": "static",
+    "version": "5.1.0",
+    "description": "A modern formatting library",
+    "dependency": [],
+    "targets":
+    {
+        "cpp": 
+        {
+            "src": ["*.cc"]
+        }
+    }
+}

@@ -147,7 +147,7 @@ def mainmake(action:str, projs:set, args:dict):
 
 def parseProj(proj:str, projs:dict):
     wanted = set()
-    names = set(re.findall(r"[-\w']+", proj))
+    names = set(re.findall(r"[-.\w']+", proj))
     if "all" in names:
         names.update(projs.keys())
     if "all-dynamic" in names:
@@ -172,7 +172,7 @@ def main(argv=None):
             return 0
         
         try:
-            with open('xzbuild.proj.json', 'r') as f:
+            with open('xzbuild.sol.json', 'r') as f:
                 data = json.load(f)
             projects = {p.name:p for p in [Project(proj) for proj in data["projects"]]}
             for proj in projects.values():
