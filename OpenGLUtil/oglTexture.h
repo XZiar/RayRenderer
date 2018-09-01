@@ -102,7 +102,7 @@ protected:
     TextureInnerFormat InnerFormat;
     GLuint textureID = GL_INVALID_INDEX;
     static TextureManager& getTexMan() noexcept;
-    explicit _oglTexBase(const TextureType type) noexcept;
+    explicit _oglTexBase(const TextureType type, const bool shouldBindType) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
@@ -162,7 +162,7 @@ protected:
     uint32_t Width, Height;
     uint8_t Mipmap;
 
-    explicit _oglTexture2D() noexcept : _oglTexBase(TextureType::Tex2D), Width(0), Height(0), Mipmap(1) {}
+    explicit _oglTexture2D(const bool shouldBindType) noexcept : _oglTexBase(TextureType::Tex2D, shouldBindType), Width(0), Height(0), Mipmap(1) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
     void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
@@ -182,7 +182,7 @@ class OGLUAPI _oglTexture2DView : public _oglTexture2D
     friend class _oglTexture2DArray;
     friend class _oglTexture2DStatic;
 private:
-    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap)
+    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture2D(false)
     {
         Width = width, Height = height; InnerFormat = iformat, Mipmap = mipmap;
     }
@@ -222,7 +222,7 @@ class OGLUAPI _oglTexture2DDynamic : public _oglTexture2D
 protected:
     void CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h);
 public:
-    _oglTexture2DDynamic() noexcept {}
+    _oglTexture2DDynamic() noexcept : _oglTexture2D(true) {}
 
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
@@ -275,7 +275,7 @@ protected:
     uint32_t Width, Height, Depth;
     uint8_t Mipmap;
 
-    explicit _oglTexture3D() noexcept : _oglTexBase(TextureType::Tex3D), Width(0), Height(0), Depth(0), Mipmap(1) {}
+    explicit _oglTexture3D(const bool shouldBindType) noexcept : _oglTexBase(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0), Mipmap(1) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
     void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;

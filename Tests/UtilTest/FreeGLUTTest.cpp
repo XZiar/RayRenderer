@@ -25,7 +25,7 @@ static void FGTest()
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
     FreeGLUTView window(std::in_place);
-    oglUtil::init(true);
+    oglUtil::Init(true);
     auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
     window->setTitle("FGTest");

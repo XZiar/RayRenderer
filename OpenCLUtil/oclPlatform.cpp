@@ -1,6 +1,6 @@
 #include "oclRely.h"
 #include "oclPlatform.h"
-
+#include "oclUtil.h"
 
 using common::container::FindInVec;
 
@@ -35,12 +35,27 @@ vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & 
 oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) const
 {
     if (!FuncClGetGLContext) return {};
-    cl_device_id dID;
-    size_t retSize = 0;
-    const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
-    if (ret == CL_SUCCESS && retSize)
-        if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
-            return *dev;
+    {
+        cl_device_id dID;
+        size_t retSize = 0;
+        const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
+        if (ret == CL_SUCCESS && retSize)
+            if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
+                return *dev;
+        if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
+            oclLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::getErrorString(ret));
+    }
+    //try context that may be associated 
+    {
+        std::vector<cl_device_id> dIDs(Devices.size());
+        size_t retSize = 0;
+        const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id) * Devices.size(), dIDs.data(), &retSize);
+        if (ret == CL_SUCCESS && retSize)
+            if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dIDs[0]; }); dev)
+                return *dev;
+        if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
+            oclLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::getErrorString(ret));
+    }
     return {};
 }
 

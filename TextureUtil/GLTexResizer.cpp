@@ -21,7 +21,7 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
             texLog().error(u"GLTexResizer cannot use GL context\n");
             return;
         }
-        texLog().info(u"GLTexResizer use GL context with version {}\n", oglUtil::getVersion());
+        texLog().info(u"GLTexResizer use GL context with version {}\n", oglUtil::GetVersionStr());
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         GLContext->SetSRGBFBO(true);
         GLResizer.reset(u"GLResizer");

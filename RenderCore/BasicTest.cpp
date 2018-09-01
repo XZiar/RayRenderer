@@ -16,7 +16,7 @@ struct Init
     Init()
     {
         basLog().verbose(u"BasicTest Static Init\n");
-        oglUtil::init();
+        oglUtil::Init();
         oclu::oclUtil::init();
     }
 };
@@ -259,7 +259,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     cam.Resize(1280, 720);
     cam.zNear = 0.01f;
     fontViewer.reset();
-    fontCreator.reset(oclu::Vendor::Intel);
+    fontCreator.reset(oclu::Vendor::NVIDIA);
     Basepath = u"C:\\Programs Temps\\RayRenderer";
     if (!fs::exists(Basepath))
         Basepath = u"D:\\ProgramsTemps\\RayRenderer";

@@ -44,7 +44,7 @@ oclu::oclContext createOCLContext(const oclu::Vendor vendor)
     oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
     if (!clPlat)
         return oclContext();
-    auto clCtx = clPlat->CreateContext(oglu::oglContext::CurrentContext());
+    auto clCtx = clPlat->CreateContext();
     fntLog().success(u"Created Context in platform {}!\n", clPlat->Name);
     clCtx->onMessage = [](const u16string& errtxt)
     {
@@ -108,7 +108,7 @@ void FontCreator::loadDownSampler(const string& src)
 
 FontCreator::FontCreator(const oclu::Vendor preferredVendor)
 {
-    clCtx = clRes.get(preferredVendor);
+    clCtx = createOCLContext(preferredVendor);
     for (const auto& dev : clCtx->Devices)
         if (dev->Type == DeviceType::GPU)
         {

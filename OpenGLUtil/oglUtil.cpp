@@ -11,9 +11,9 @@ using common::PromiseResultSTD;
 
 
 constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-void oglUtil::init(const bool initLatestVer)
+void oglUtil::Init(const bool initLatestVer)
 {
-    oglLog().info(u"GL Version:{}\n", getVersion());
+    oglLog().info(u"GL Version:{}\n", GetVersionStr());
     oglContext::BasicInit();
     auto glctx = oglContext::CurrentContext();
     glctx->UseContext();
@@ -22,7 +22,13 @@ void oglUtil::init(const bool initLatestVer)
         for (const auto ver : VERSIONS)
         {
             const auto ctx = oglContext::NewContext(glctx, false, ver);
-            if (ctx) break;
+            if (ctx)
+            {
+                ctx->UseContext();
+                oglLog().info(u"Latest GL Version:{}\n", GetVersionStr());
+                glctx->UseContext();
+                break;
+            }
         }
     }
 #if defined(_DEBUG) || 1
@@ -30,24 +36,28 @@ void oglUtil::init(const bool initLatestVer)
 #endif
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
-u16string oglUtil::getVersion()
+u16string oglUtil::GetVersionStr()
 {
     const auto str = (const char*)glGetString(GL_VERSION);
     const auto len = strlen(str);
     return u16string(str, str + len);
 }
 
-optional<u16string> oglUtil::getError()
+optional<string_view> oglUtil::GetError()
 {
     const auto err = glGetError();
-    if (err == GL_NO_ERROR)
-        return {};
-    else
-#if defined(_WIN32)
-        return u16string(reinterpret_cast<const char16_t*>(gluErrorUnicodeStringEXT(err)));
-#else
-        return str::to_u16string(std::to_string(err));
-#endif
+    switch (err)
+    {
+    case GL_NO_ERROR:                       return {};
+    case GL_INVALID_ENUM:                   return "GL_INVALID_ENUM";
+    case GL_INVALID_VALUE:                  return "GL_INVALID_VALUE";
+    case GL_INVALID_OPERATION:              return "GL_INVALID_OPERATION";
+    case GL_INVALID_FRAMEBUFFER_OPERATION:  return "GL_INVALID_FRAMEBUFFER_OPERATION";
+    case GL_OUT_OF_MEMORY:                  return "GL_OUT_OF_MEMORY";
+    case GL_STACK_UNDERFLOW:                return "GL_STACK_UNDERFLOW";
+    case GL_STACK_OVERFLOW:                 return "GL_STACK_OVERFLOW";
+    default:                                return "UNKNOWN ERROR";
+    }
 }
 
 set<string_view, std::less<>> oglUtil::GetExtensions()

@@ -25,7 +25,7 @@ void oglWorker::Start()
         {
             oglLog().error(u"{} with HDC[{}] HRC[{}], error: {}\n", prefix, ShareContext->Hdc, ShareContext->Hrc, GetError());
         }
-        oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, ShareContext->Hdc, ShareContext->Hrc, oglUtil::getVersion());
+        oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, ShareContext->Hdc, ShareContext->Hrc, oglUtil::GetVersionStr());
         ShareContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     }, [&]()
     {
@@ -44,7 +44,7 @@ void oglWorker::Start()
         {
             oglLog().error(u"{} with HDC[{}] HRC[{}], error: {}\n", prefix, IsolateContext->Hdc, IsolateContext->Hrc, GetError());
         }
-        oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, IsolateContext->Hdc, IsolateContext->Hrc, oglUtil::getVersion());
+        oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, IsolateContext->Hdc, IsolateContext->Hrc, oglUtil::GetVersionStr());
         IsolateContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     }, [&]()
     {

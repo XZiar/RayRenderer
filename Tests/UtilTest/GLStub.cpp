@@ -17,7 +17,7 @@ static MiniLogger<false>& log()
 
 oglContext CreateContext()
 {
-    oglUtil::init(true);
+    oglUtil::Init(true);
     // uint32_t major, minor;
     // log().info(u"Input major and minor version...");
     // std::cin >> major >> minor;
@@ -36,7 +36,7 @@ oglContext CreateContext()
 oglContext InitContext()
 {
     HWND tmpWND = CreateWindow(
-        L"Core", L"Fake Window",            // window class, title
+        L"Static", L"Fake Window",            // window class, title
         WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
         0, 0,                               // position x, y
         1, 1,                               // width, height
@@ -123,7 +123,7 @@ oglContext InitContext()
 static void OGLStub()
 {
     const auto ctx = InitContext();
-    log().success(u"GL Context Version: [{}]\n", oglu::oglUtil::getVersion());
+    log().success(u"GL Context Version: [{}]\n", oglu::oglUtil::GetVersionStr());
     while (true)
     {
         log().info(u"input opengl file:");

@@ -20,7 +20,7 @@ CLTexResizer::CLTexResizer(const oglContext& glContext) : Executor(u"CLTexResize
             texLog().error(u"CLTexResizer cannot use GL context\n");
             return;
         }
-        texLog().info(u"CLTexResizer use GL context with version {}\n", oglUtil::getVersion());
+        texLog().info(u"CLTexResizer use GL context with version {}\n", oglUtil::GetVersionStr());
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         CLContext = oclUtil::CreateGLSharedContext(GLContext);
         if (!CLContext)
