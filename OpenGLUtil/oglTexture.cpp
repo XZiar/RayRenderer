@@ -3,6 +3,7 @@
 #include "oglContext.h"
 #include "oglException.h"
 #include "BindingManager.h"
+#include "DSAWrapper.h"
 
 namespace oglu
 {
@@ -360,41 +361,41 @@ void _oglTexBase::unbind() const noexcept
 std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
 {
     GLint w = 0, h = 0;
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
     return { (uint32_t)w,(uint32_t)h };
 }
 
 std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
 {
     GLint w = 0, h = 0, z = 0;
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
     return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
 }
 
 void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT)
 {
-    glTextureParameteriEXT(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
-    glTextureParameteriEXT(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
-    glTextureParameteriEXT(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
-    glTextureParameteriEXT(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, (GLint)minFilter);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, (GLint)minFilter);
 }
 
 bool _oglTexBase::IsCompressed() const
 {
     GLint ret = GL_FALSE;
-    glGetTextureLevelParameterivEXT(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
     return ret != GL_FALSE;
 }
 
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
     if (isSub)
-        glTextureSubImage2DEXT(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
+        DSA->ogluTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
     else
-        glTextureImage2DEXT(textureID, GL_TEXTURE_2D, 0, (GLint)InnerFormat, Width, Height, 0, comptype, datatype, data);
+        DSA->ogluTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)InnerFormat, Width, Height, 0, comptype, datatype, data);
 }
 
 void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
@@ -410,7 +411,7 @@ optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
     if (!IsCompressed())
         return {};
     GLint size = 0;
-    glGetTextureLevelParameterivEXT(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
+    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
     optional<vector<uint8_t>> output(std::in_place, size);
     glGetCompressedTextureImageEXT(textureID, GL_TEXTURE_2D, 0, (*output).data());
     return output;
@@ -643,7 +644,7 @@ optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
     if (!IsCompressed())
         return {};
     GLint size = 0;
-    glGetTextureLevelParameterivEXT(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
+    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
     optional<vector<uint8_t>> output(std::in_place, size);
     glGetCompressedTextureImageEXT(textureID, GL_TEXTURE_2D, 0, (*output).data());
     return output;

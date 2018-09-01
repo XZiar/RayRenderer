@@ -66,6 +66,9 @@
     <ClInclude Include="oglWorker.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DSAWrapper.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">
@@ -102,6 +105,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oglWorker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DSAWrapper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

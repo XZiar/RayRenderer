@@ -53,7 +53,7 @@ static void FGTest()
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
     }
-    window->funDisp = [&](FreeGLUTView wd) { drawer->Draw().Draw(basicVAO); };
+    window->funDisp = [&](FreeGLUTView wd) { ctx->UseContext(); drawer->Draw().Draw(basicVAO); };
     // window->funReshape = onResize;
     // window->funKeyEvent = onKeyboard;
     // window->funMouseEvent = onMouseEvent;
@@ -63,7 +63,7 @@ static void FGTest()
 
     FreeGLUTViewRun();
     window.release();
-    getchar();
+    ctx->UseContext();
 }
 
 const static uint32_t ID = RegistTest("FGTest", &FGTest);

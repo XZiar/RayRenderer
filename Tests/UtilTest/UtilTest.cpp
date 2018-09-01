@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
         std::string_view txt((const char*)txtdat.data(), txtdat.size());
         log().verbose(u"\n{}\n\n", txt);
     }
+    std::cin.ignore();
     getchar();
     static_assert(common::str::detail::is_str_vector_v<char, std::vector<char, common::AlignAllocator<char>>>(), "");
     static_assert(common::str::detail::is_str_vector_v<char, std::vector<char>>(), "");

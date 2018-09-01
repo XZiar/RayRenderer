@@ -25,6 +25,7 @@ oglContext CreateContext()
     // auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
     auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
+    ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     return ctx;
 }
 #if defined(_WIN32)

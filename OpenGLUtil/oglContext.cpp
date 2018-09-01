@@ -1,33 +1,36 @@
 #include "oglRely.h"
 #include "oglContext.h"
 #include "oglUtil.h"
+#include "DSAWrapper.h"
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include "glew/wglew.h"
 #else
-#   define GLEW_NO_GLU
 #   include "glew/glxew.h"
 //fucking X11 defines some terrible macro
 #   undef Always
+#   undef None
 #endif
 
 namespace oglu
 {
 
-BindingState::BindingState()
+BindingState::BindingState(const oglContext& ctx)
 {
     glGetIntegerv(GL_CURRENT_PROGRAM, &progId);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fboId);
     glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboId);
-    glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
+    if (ctx->Version >= 40)
+        glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
+    else
+        iboId = 0;
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
 }
 
 namespace detail
 {
-
 
 static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
@@ -53,12 +56,37 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
     }
 }
 
-#if defined(_WIN32)
-_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc), Uid(uid)
-#else
-_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw), Uid(uid)
-#endif
+static uint32_t& LatestVersion()
 {
+    static uint32_t version = 0;
+    return version;
+}
+
+#if defined(_WIN32)
+_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc),
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), Uid(uid) { }
+#else
+_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw), 
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), Uid(uid) { }
+#endif
+
+void _oglContext::Init()
+{
+    const auto oldCtx = oglContext::CurrentContext();
+    UseContext();
+    int32_t major = 0, minor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    Version = major * 10 + minor;
+    auto& latestVer = LatestVersion();
+    if (Version > latestVer)
+    {
+        oglLog().info(u"update API Version to [{}.{}]\n", Version / 10, Version % 10);
+        glewInit();
+        latestVer = Version;
+    }
+    InitDSAFuncs(*DSAs);
+
     glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (glIsEnabled(GL_CULL_FACE))
     {
@@ -75,6 +103,8 @@ _oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long
     }
     else
         FaceCulling = FaceCullingType::OFF;
+
+    oldCtx->UseContext();
 }
 
 _oglContext::~_oglContext()
@@ -101,6 +131,7 @@ bool _oglContext::UseContext()
         return false;
     }
 #endif
+    DSA = DSAs.get(); //threadlocal of CurrentContext make sure lifetime
     oglContext::CurrentCtx() = this->shared_from_this();
     return true;
 }
@@ -250,29 +281,15 @@ uint32_t oglContext::CurrentCtxUid()
     const auto& ctx = CurrentCtx();
     return ctx ? ctx->Uid : 0;
 }
-
-static std::pair<uint8_t, uint8_t>& LatestVersion()
+uint32_t oglContext::GetLatestVersion()
 {
-    static std::pair<uint8_t, uint8_t> version { uint8_t(0),uint8_t(0) };
-    return version;
+    return detail::LatestVersion();
 }
-bool oglContext::RefreshVersion()
+void oglContext::BasicInit()
 {
-    int32_t major = 0, minor = 0;
-    glGetIntegerv(GL_MAJOR_VERSION, &major);
-    glGetIntegerv(GL_MINOR_VERSION, &minor);   
-    auto& curVer = LatestVersion();
-    if (major * 10 + minor > curVer.first * 10 + curVer.second)
-    {
-        curVer.first = (uint8_t)major, curVer.second = (uint8_t)minor;
-        oglLog().info(u"update API Version to [{}.{}]\n", curVer.first, curVer.second);
-        return true;
-    }
-    return false;
-}
-std::pair<uint8_t, uint8_t> oglContext::GetLatestVersion()
-{
-    return LatestVersion();
+#if !defined(_WIN32)
+    glxewInit(); // for some glx API
+#endif
 }
 oglContext oglContext::CurrentContext()
 {
@@ -305,6 +322,7 @@ oglContext oglContext::CurrentContext()
         }
         CurrentCtx() = ctx;
         CTX_LOCK.UnlockWrite();
+        ctx->Init();
         return ctx;
     }
 }
@@ -351,7 +369,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
         GLX_ALPHA_SIZE, 8,
         GLX_DEPTH_SIZE, 24,
         GLX_STENCIL_SIZE, 8,
-        None
+        0
     };
     int num_fbc = 0;
     GLXFBConfig *fbc = glXChooseFBConfig((Display*)ctx->Hdc, DefaultScreen((Display*)ctx->Hdc), visual_attribs, &num_fbc);
@@ -365,40 +383,37 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
     }
     newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
 #endif
-    newCtx->UseContext();
-    if (RefreshVersion())
-        oglUtil::init();
-    ctx->UseContext();
+    newCtx->Init();
     return newCtx;
 }
-oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, std::pair<uint8_t, uint8_t> version)
+oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, uint32_t version)
 {
-    if (version.first == 0) version.first = LatestVersion().first;
-    if (version.second == 0) version.second = LatestVersion().second;
+    if (version == 0) 
+        version = detail::LatestVersion();
 #if defined(_WIN32)
     vector<int32_t> ctxAttrb
     {
         WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
         WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
     };
-    constexpr int32_t verMajor = WGL_CONTEXT_MAJOR_VERSION_ARB;
-    constexpr int32_t verMinor = WGL_CONTEXT_MINOR_VERSION_ARB;
+    constexpr int32_t VerMajor = WGL_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t VerMinor = WGL_CONTEXT_MINOR_VERSION_ARB;
 #else
     vector<int32_t> ctxAttrb
     {
         GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
         GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB
     };
-    constexpr int32_t verMajor = GLX_CONTEXT_MAJOR_VERSION_ARB;
-    constexpr int32_t verMinor = GLX_CONTEXT_MINOR_VERSION_ARB;
+    constexpr int32_t VerMajor = GLX_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t VerMinor = GLX_CONTEXT_MINOR_VERSION_ARB;
 #endif
-    if (version.first != 0 && version.second != 0)
+    if (version != 0)
     {
         ctxAttrb.insert(ctxAttrb.end(),
-        {
-            verMajor, version.first,
-            verMinor, version.second,
-        });
+            {
+                VerMajor, static_cast<int32_t>(version / 10),
+                VerMinor, static_cast<int32_t>(version % 10),
+            });
     }
     ctxAttrb.push_back(0);
     return NewContext(ctx, isShared, ctxAttrb.data());

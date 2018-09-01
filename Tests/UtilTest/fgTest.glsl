@@ -1,4 +1,4 @@
-#version 400 core
+#version 330 core
 
 //@OGLU@Stage("VERT", "FRAG")
 
@@ -30,9 +30,9 @@ out vec4 FragColor;
 
 void main() 
 {
-    FragColor.x = pos.x;
-    FragColor.y = pos.y;
-    FragColor.z = (pos.x+pos.y)/2.0f;
+    FragColor.x = (pos.x + 1.0f)/2.0f;
+    FragColor.y = (pos.y + 1.0f)/2.0f;
+    FragColor.z = (pos.x + pos.y)/2.0f;
     FragColor.w = 1.0f;
 }
 

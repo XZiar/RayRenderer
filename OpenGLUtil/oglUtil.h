@@ -27,7 +27,7 @@ public:
     static void init(const bool initLatestVer = false);
     static u16string getVersion();
     static optional<u16string> getError();
-    static set<string, std::less<>> GetExtensions();
+    static set<string_view, std::less<>> GetExtensions();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
     static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
     static PromiseResult<void> SyncGL();

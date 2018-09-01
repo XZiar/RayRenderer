@@ -34,9 +34,6 @@
 #include "3DElement.hpp"
 
 #define GLEW_STATIC
-#if !defined(_WIN32)
-#   define GLEW_NO_GLU
-#endif
 #include "glew/glew.h"
 
 

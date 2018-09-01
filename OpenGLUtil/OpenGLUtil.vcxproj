@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3DElement.hpp" />
+    <ClInclude Include="DSAWrapper.h" />
     <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglContext.h" />
@@ -38,6 +39,7 @@
     <ClInclude Include="PointEnhance.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DSAWrapper.cpp" />
     <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglContext.cpp" />

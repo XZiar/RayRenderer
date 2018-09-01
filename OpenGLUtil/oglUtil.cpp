@@ -10,25 +10,20 @@ namespace oglu
 using common::PromiseResultSTD;
 
 
-constexpr std::pair<uint8_t, uint8_t> VERSIONS[] =
-{
-    { uint8_t(4),uint8_t(6) },{ uint8_t(4),uint8_t(5) },{ uint8_t(4),uint8_t(4) },{ uint8_t(4),uint8_t(3) },{ uint8_t(4),uint8_t(2) },{ uint8_t(4),uint8_t(1) }, { uint8_t(4),uint8_t(0) },
-    { uint8_t(3),uint8_t(3) },{ uint8_t(3),uint8_t(2) },{ uint8_t(3),uint8_t(1) },{ uint8_t(3),uint8_t(0) },
-};
+constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
 void oglUtil::init(const bool initLatestVer)
 {
-    glewInit();
     oglLog().info(u"GL Version:{}\n", getVersion());
+    oglContext::BasicInit();
     auto glctx = oglContext::CurrentContext();
-    oglContext::RefreshVersion();
+    glctx->UseContext();
     if (initLatestVer)
     {
-        for (const auto& ver : VERSIONS)
+        for (const auto ver : VERSIONS)
         {
             const auto ctx = oglContext::NewContext(glctx, false, ver);
             if (ctx) break;
         }
-        glewInit();
     }
 #if defined(_DEBUG) || 1
     glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
@@ -55,9 +50,9 @@ optional<u16string> oglUtil::getError()
 #endif
 }
 
-set<string, std::less<>> oglUtil::GetExtensions()
+set<string_view, std::less<>> oglUtil::GetExtensions()
 {
-    set<string, std::less<>> exts;
+    set<string_view, std::less<>> exts;
     int32_t count;
     glGetIntegerv(GL_NUM_EXTENSIONS, &count);
     for(int32_t i = 0; i < count; i++) 

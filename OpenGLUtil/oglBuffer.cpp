@@ -3,6 +3,7 @@
 #include "oglContext.h"
 #include "oglException.h"
 #include "BindingManager.h"
+#include "DSAWrapper.h"
 
 namespace oglu::detail
 {
@@ -19,7 +20,7 @@ _oglBuffer::~_oglBuffer() noexcept
 {
     if (MappedPtr != nullptr)
     {
-        if (glUnmapNamedBufferEXT(bufferID) == GL_FALSE)
+        if (DSA->ogluUnmapNamedBuffer(bufferID) == GL_FALSE)
             oglLog().error(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
         MappedPtr = nullptr;
     }
@@ -55,20 +56,14 @@ void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
     else
         access = GL_READ_WRITE;
 
-    if (GLEW_ARB_direct_state_access)
-        MappedPtr = glMapNamedBuffer(bufferID, access);
-    else if (GLEW_EXT_direct_state_access)
-        MappedPtr = glMapNamedBufferEXT(bufferID, access);
+    MappedPtr = DSA->ogluMapNamedBuffer(bufferID, access);
 }
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
     if (MappedPtr == nullptr)
     {
-        if (GLEW_ARB_direct_state_access)
-            glNamedBufferData(bufferID, size, dat, (GLenum)mode);
-        else if (GLEW_EXT_direct_state_access)
-            glNamedBufferDataEXT(bufferID, size, dat, (GLenum)mode);
+        DSA->ogluNamedBufferData(bufferID, size, dat, (GLenum)mode);
         BufSize = size;
     }
     else

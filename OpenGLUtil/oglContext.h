@@ -6,6 +6,8 @@ namespace oglu
 {
 class oglUtil;
 class oglContext;
+struct BindingState;
+struct DSAFuncs;
 
 enum class MsgSrc :uint8_t 
 {
@@ -30,17 +32,10 @@ enum class DepthTestType : GLenum
 enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 
-struct OGLUAPI BindingState
-{
-    GLint progId = 0, vaoId = 0, fboId = 0, vboId = 0, iboId = 0, eboId = 0;
-    BindingState();
-};
-
 namespace detail
 {
 
 class _oglProgram;
-class MTWorker;
 
 template<bool Shared>
 struct ContextResourceHelper;
@@ -51,6 +46,7 @@ class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_share
     friend class ::oglu::oglWorker;
     friend class ::oglu::oglUtil;
     friend class ::oglu::oglContext;
+    friend struct ::oglu::BindingState;
     friend class ::oclu::detail::_oclPlatform;
 public:
     struct DBGLimit
@@ -65,16 +61,19 @@ private:
 #else
     unsigned long DRW;
 #endif
+    std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
     DBGLimit DbgLimit;
     oglFBO FrameBuffer;
     const uint32_t Uid;
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
+    uint32_t Version;
 #if defined(_WIN32)
     _oglContext(const uint32_t uid, void *hdc, void *hrc);
 #else
     _oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw);
 #endif
+    void Init();
 public:
     ~_oglContext();
     bool UseContext();
@@ -148,19 +147,25 @@ private:
     static void* CurrentHRC();
     static oglContext& CurrentCtx();
     static uint32_t CurrentCtxUid();
-    static bool RefreshVersion();
+    static void BasicInit();
 public:
     using common::Wrapper<detail::_oglContext>::Wrapper;
-    static std::pair<uint8_t, uint8_t> GetLatestVersion();
+    static uint32_t GetLatestVersion();
     static oglContext CurrentContext();
     static void Refresh();
     static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs);
-    static oglContext NewContext(const oglContext& ctx, const bool isShared = false, std::pair<uint8_t, uint8_t> version = { uint8_t(0),uint8_t(0) });
+    static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
+};
+
+struct OGLUAPI BindingState
+{
+    GLint progId = 0, vaoId = 0, fboId = 0, vboId = 0, iboId = 0, eboId = 0;
+    BindingState(const oglContext& ctx);
+    BindingState() : BindingState(oglContext::CurrentContext()) {}
 };
 
 namespace detail
 {
-
 
 template<> struct ContextResourceHelper<true>
 {
