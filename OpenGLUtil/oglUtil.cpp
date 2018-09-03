@@ -15,8 +15,7 @@ void oglUtil::Init(const bool initLatestVer)
 {
     oglLog().info(u"GL Version:{}\n", GetVersionStr());
     oglContext::BasicInit();
-    auto glctx = oglContext::CurrentContext();
-    glctx->UseContext();
+    const auto glctx = oglContext::Refresh();
     if (initLatestVer)
     {
         for (const auto ver : VERSIONS)

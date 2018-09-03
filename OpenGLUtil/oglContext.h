@@ -34,12 +34,17 @@ enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 namespace detail
 {
-
 class _oglProgram;
 
-template<bool Shared>
-struct ContextResourceHelper;
+struct OGLUAPI SharedContextCore
+{
+    std::vector<std::function<void(uint32_t)>> OnDestroy;
+    const uint32_t Id;
+    SharedContextCore();
+    ~SharedContextCore();
+};
 
+///<summary>oglContext, all set/get method should be called after UseContext</summary>  
 class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_shared_from_this<_oglContext>
 {
     friend class _oglProgram;
@@ -48,6 +53,7 @@ class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_share
     friend class ::oglu::oglContext;
     friend struct ::oglu::BindingState;
     friend class ::oclu::detail::_oclPlatform;
+    template<typename, bool> friend class ContextResource;
 public:
     struct DBGLimit
     {
@@ -62,22 +68,25 @@ private:
     unsigned long DRW;
 #endif
     std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
+    std::vector<std::function<void(void*)>> OnDestroy;
+    common::container::FrozenDenseSet<string_view> Extensions;
+    const std::shared_ptr<SharedContextCore> SharedCore;
     DBGLimit DbgLimit;
     oglFBO FrameBuffer;
-    const uint32_t Uid;
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
     uint32_t Version;
 #if defined(_WIN32)
-    _oglContext(const uint32_t uid, void *hdc, void *hrc);
+    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc);
 #else
-    _oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw);
+    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw);
 #endif
-    void Init();
+    void Init(const bool isCurrent);
 public:
     ~_oglContext();
-    bool UseContext();
+    bool UseContext(const bool force = false);
     bool UnloadContext();
+
     void SetDebug(MsgSrc src, MsgType type, MsgLevel minLV);
     void SetDepthTest(const DepthTestType type);
     void SetFaceCulling(const FaceCullingType type);
@@ -95,6 +104,7 @@ public:
 };
 
 }
+
 
 struct OGLUAPI DebugMessage
 {
@@ -140,19 +150,15 @@ public:
 
 class OGLUAPI oglContext : public common::Wrapper<detail::_oglContext>
 {
-    template<bool Shared> friend struct ::oglu::detail::ContextResourceHelper;
     friend class detail::_oglContext;
     friend class oglUtil;
 private:
-    static void* CurrentHRC();
-    static oglContext& CurrentCtx();
-    static uint32_t CurrentCtxUid();
     static void BasicInit();
 public:
     using common::Wrapper<detail::_oglContext>::Wrapper;
     static uint32_t GetLatestVersion();
     static oglContext CurrentContext();
-    static void Refresh();
+    static oglContext Refresh();
     static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs);
     static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
 };
@@ -167,23 +173,6 @@ struct OGLUAPI BindingState
 namespace detail
 {
 
-template<> struct ContextResourceHelper<true>
-{
-    using KeyType = uint32_t;
-    static KeyType CurCtx() 
-    {
-        return oglContext::CurrentCtxUid();
-    }
-};
-template<> struct ContextResourceHelper<false>
-{
-    using KeyType = void*;
-    static KeyType CurCtx()
-    {
-        return oglContext::CurrentHRC();
-    }
-};
-
 ///<summary>Context-related resource map</summary>  
 ///<param name="Val">resource type</param>
 ///<param name="Shared">is the resource shared between shared context</param>
@@ -192,26 +181,51 @@ class ContextResource : public common::NonCopyable, public common::NonMovable
 {
     static_assert(common::SharedPtrHelper<Val>::IsSharedPtr || std::is_trivial_v<Val>, "Val type should be trivial or shared_ptr.");
 private:
-    using KeyType = typename ContextResourceHelper<Shared>::KeyType;
+    using KeyType = std::conditional_t<Shared, uint32_t, void*>;
     std::map<KeyType, Val> Map;
     common::RWSpinLock Lock;
-public:
-    std::optional<Val> TryGet(KeyType key)
+    KeyType GetKey(const oglContext& ctx)
     {
+        if constexpr (Shared)
+            return ctx->SharedCore->Id;
+        else
+            return ctx->Hrc;
+    }
+    void Delete(KeyType key)
+    {
+        Lock.LockWrite();
+        Map.erase(key);
+        Lock.UnlockWrite();
+    }
+    template<class Creator>
+    void InsertOrAssign(KeyType key, Creator creator)
+    {
+        Lock.LockWrite();
+        if (auto obj = common::container::FindInMap(Map, key))
+            *obj = creator(key);
+        else
+            Map.emplace(key, creator(key));
+        Lock.UnlockWrite();
+    }
+public:
+    ///<summary>Try get current context's resource</summary>  
+    ///<returns>optional of resource</returns>
+    std::optional<Val> TryGet()
+    {
+        const auto key = GetKey(oglContext::CurrentContext());
         Lock.LockRead();
         auto obj = common::container::FindInMap(Map, key, std::in_place);
         Lock.UnlockRead();
         return obj;
     }
-    ///<summary>Try get current context's resource</summary>  
-    ///<returns>optional of resource</returns>
-    std::optional<Val> TryGet()
-    {
-        return TryGet(ContextResourceHelper<Shared>::CurCtx());
-    }
+    ///<summary>Get or create current context's resource</summary>  
+    ///<param name="creator">callable that create resource with given key</param>
+    ///<returns>resource</returns>
     template<class Creator>
-    Val GetOrInsert(KeyType key, Creator creator)
-    {
+    Val GetOrInsert(Creator creator) 
+    { 
+        const auto curCtx = oglContext::CurrentContext();
+        const auto key = GetKey(curCtx);
         Lock.LockRead();
         if (auto obj = common::container::FindInMap(Map, key, std::in_place))
         {
@@ -227,37 +241,20 @@ public:
                 Lock.UnlockWrite();
                 return *obj;
             }
+            if constexpr (Shared)
+                curCtx->SharedCore->OnDestroy.push_back([this](uint32_t ctxKey) { Delete(ctxKey); });
+            else
+                curCtx->OnDestroy.push_back([this](void* ctxKey) { Delete(ctxKey); });
             auto& ret = Map.emplace(key, creator(key)).first->second;
             Lock.UnlockWrite();
             return ret;
         }
     }
-    ///<summary>Get or create current context's resource</summary>  
-    ///<param name="creator">callable that create resource with given key</param>
-    ///<returns>resource</returns>
-    template<class Creator>
-    Val GetOrInsert(Creator creator) { return GetOrInsert(ContextResourceHelper<Shared>::CurCtx(), creator); }
-    void Delete(KeyType key)
-    {
-        Lock.LockWrite();
-        Map.erase(key);
-        Lock.UnlockWrite();
-    }
-    void Delete() { Delete(ContextResourceHelper<Shared>::CurCtx()); }
-    template<class Creator>
-    void InsertOrAssign(uint32_t key, Creator creator)
-    {
-        Lock.LockWrite();
-        if (auto obj = common::container::FindInMap(Map, key))
-            *obj = creator(key);
-        else
-            Map.emplace(key, creator(key));
-        Lock.UnlockWrite();
-    }
+    //void Delete() { Delete(GetKey(oglContext::CurrentContext())); }
     ///<summary>Insert or repalce current context's resource</summary>  
     ///<param name="creator">callable that create resource with given key</param>
     template<class Creator>
-    void InsertOrAssign(Creator creator) { InsertOrAssign(ContextResourceHelper<Shared>::CurCtx(), creator); }
+    void InsertOrAssign(Creator creator) { InsertOrAssign(GetKey(oglContext::CurrentContext()), creator); }
 };
 
 }

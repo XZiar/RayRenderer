@@ -18,9 +18,6 @@
     <ClInclude Include="resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="OGLVRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="OpenGLViewEvents.h">
       <Filter>头文件</Filter>
     </ClInclude>

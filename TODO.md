@@ -32,6 +32,7 @@
   - [ ] Update blinn-phong shader, or combine them
   - [ ] Move normal mapping into VS stage
   - [ ] Add proper deserialization
+  - [ ] Seperate color correction pass using 3D LUT
   * Core function
     - [ ] Add ShadowMapping
     - [ ] Add Raytracing
@@ -51,3 +52,4 @@
   - [ ] Port core components to Linux 
   - [x] Custom build system for Linux
   - [ ] Real custom build system similar to Scons, get rid of makefiles
+  - [ ] Replace glew since it lacks support for multi-thread & multi-contxt

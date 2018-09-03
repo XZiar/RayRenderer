@@ -1,6 +1,7 @@
 #include "oglRely.h"
 #include "DSAWrapper.h"
 #include "oglUtil.h"
+#include "oglException.h"
 
 namespace oglu
 {
@@ -8,9 +9,9 @@ namespace oglu
 thread_local const DSAFuncs* DSA = nullptr;
 
 template<typename T>
-T DecideFunc() { return nullptr; }
+static forceinline T DecideFunc() { return nullptr; }
 template<typename T, typename... Ts>
-T DecideFunc(const T& func, Ts... funcs)
+static forceinline T DecideFunc(const T& func, Ts... funcs)
 {
     if constexpr (sizeof...(Ts) > 0)
         return func ? func : DecideFunc<T>(funcs...);
@@ -18,7 +19,7 @@ T DecideFunc(const T& func, Ts... funcs)
         return func ? func : nullptr;
 }
 template<typename T, typename T2, typename... Ts>
-T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
+static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
 {
     if constexpr (sizeof...(Ts) > 0)
         return func.first ? func.second : DecideFunc<T>(funcs...);
@@ -200,36 +201,102 @@ static void GLAPIENTRY ogluBindTextureUnit(GLuint unit, GLenum target, GLuint te
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(target, texture);
 }
+static void GLAPIENTRY ogluGenerateTextureMipmapARB(GLuint texture, GLenum)
+{
+    glGenerateTextureMipmap(texture);
+}
+static void GLAPIENTRY ogluGenerateTextureMipmap(GLuint texture, GLenum target)
+{
+    glBindTexture(target, texture);
+    glGenerateMipmap(target);
+    glBindTexture(target, 0);
+}
+static void GLAPIENTRY ogluTextureBufferARB(GLuint texture, GLenum, GLenum internalformat, GLuint buffer)
+{
+    glTextureBuffer(texture, internalformat, buffer);
+}
+static void GLAPIENTRY ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer)
+{
+    glBindTexture(target, texture);
+    glTexBuffer(target, internalformat, buffer);
+    glBindTexture(target, 0);
+}
 
+static void GLAPIENTRY ogluFramebufferTextureARB(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
+{
+    glNamedFramebufferTexture(framebuffer, attachment, texture, level);
+}
+static void GLAPIENTRY ogluFramebufferTextureEXT(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
+{
+    glNamedFramebufferTextureEXT(framebuffer, attachment, texture, level);
+}
+static void GLAPIENTRY ogluFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    switch (textarget)
+    {
+    case GL_TEXTURE_1D:
+        glFramebufferTexture1D(framebuffer, attachment, textarget, texture, level); break;
+    case GL_TEXTURE_2D:
+        glFramebufferTexture2D(framebuffer, attachment, textarget, texture, level); break;
+    default:
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported texture argument when calling Non-DSA FramebufferTexture");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+static void GLAPIENTRY ogluFramebufferTextureLayerARB(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+    glNamedFramebufferTextureLayer(framebuffer, attachment, texture, level, layer);
+}
+static void GLAPIENTRY ogluFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture, level, layer);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
 void InitDSAFuncs(DSAFuncs& dsa)
 {
     dsa.ogluNamedBufferData = DecideFunc(glNamedBufferData, glNamedBufferDataEXT);
     dsa.ogluMapNamedBuffer = DecideFunc(glMapNamedBuffer, glMapNamedBufferEXT);
     dsa.ogluUnmapNamedBuffer = DecideFunc(glUnmapNamedBuffer, glUnmapNamedBufferEXT);
-    dsa.ogluEnableVertexArrayAttrib = DecideFunc(glEnableVertexArrayAttrib, glEnableVertexArrayAttribEXT, ogluEnableVertexArrayAttrib);
+    dsa.ogluEnableVertexArrayAttrib = DecideFunc(glEnableVertexArrayAttrib, glEnableVertexArrayAttribEXT, &ogluEnableVertexArrayAttrib);
 
-    dsa.ogluCreateTextures = DecideFunc(glCreateTextures, ogluCreateTextures);
-    dsa.ogluGetTextureLevelParameteriv = DecideFunc(std::pair{ glGetTextureLevelParameteriv, ogluGetTextureLevelParameterivARB }, glGetTextureLevelParameterivEXT);
-    dsa.ogluTextureParameteri = DecideFunc(std::pair{ glTextureParameteri, ogluTextureParameteriARB }, glTextureParameteriEXT);
-    dsa.ogluTextureImage1D = DecideFunc(glTextureImage1DEXT, ogluTextureImage1D);
-    dsa.ogluTextureImage2D = DecideFunc(glTextureImage2DEXT, ogluTextureImage2D);
-    dsa.ogluTextureImage3D = DecideFunc(glTextureImage3DEXT, ogluTextureImage3D);
-    dsa.ogluTextureSubImage1D = DecideFunc(std::pair{ glTextureSubImage1D, ogluTextureSubImage1DARB }, glTextureSubImage1DEXT, ogluTextureSubImage1D);
-    dsa.ogluTextureSubImage2D = DecideFunc(std::pair{ glTextureSubImage2D, ogluTextureSubImage2DARB }, glTextureSubImage2DEXT, ogluTextureSubImage2D);
-    dsa.ogluTextureSubImage3D = DecideFunc(std::pair{ glTextureSubImage3D, ogluTextureSubImage3DARB }, glTextureSubImage3DEXT, ogluTextureSubImage3D);
-    dsa.ogluGetTextureImage = DecideFunc(std::pair{ glGetTextureImage, ogluGetTextureImageARB }, std::pair{ glGetTextureImageEXT, ogluGetTextureImageEXT });
-    dsa.ogluCompressedTextureImage1D = DecideFunc(glCompressedTextureImage1DEXT, ogluCompressedTextureImage1D);
-    dsa.ogluCompressedTextureImage2D = DecideFunc(glCompressedTextureImage2DEXT, ogluCompressedTextureImage2D);
-    dsa.ogluCompressedTextureImage3D = DecideFunc(glCompressedTextureImage3DEXT, ogluCompressedTextureImage3D);
-    dsa.ogluCompressedTextureSubImage1D = DecideFunc(std::pair{ glCompressedTextureSubImage1D, ogluCompressedTextureSubImage1DARB }, glCompressedTextureSubImage1DEXT, ogluCompressedTextureSubImage1D);
-    dsa.ogluCompressedTextureSubImage2D = DecideFunc(std::pair{ glCompressedTextureSubImage2D, ogluCompressedTextureSubImage2DARB }, glCompressedTextureSubImage2DEXT, ogluCompressedTextureSubImage2D);
-    dsa.ogluCompressedTextureSubImage3D = DecideFunc(std::pair{ glCompressedTextureSubImage3D, ogluCompressedTextureSubImage3DARB }, glCompressedTextureSubImage3DEXT, ogluCompressedTextureSubImage3D);
-    dsa.ogluGetCompressedTextureImage = DecideFunc(std::pair{ glGetCompressedTextureImage, ogluGetCompressedTextureImageARB }, std::pair{ glGetCompressedTextureImageEXT, ogluGetCompressedTextureImageEXT });
-    dsa.ogluTextureStorage1D = DecideFunc(std::pair{ glTextureStorage1D, ogluTextureStorage1DARB }, glTextureStorage1DEXT, ogluTextureStorage1D);
-    dsa.ogluTextureStorage2D = DecideFunc(std::pair{ glTextureStorage2D, ogluTextureStorage2DARB }, glTextureStorage2DEXT, ogluTextureStorage2D);
-    dsa.ogluTextureStorage3D = DecideFunc(std::pair{ glTextureStorage3D, ogluTextureStorage3DARB }, glTextureStorage3DEXT, ogluTextureStorage3D);
-    dsa.ogluBindTextureUnit = DecideFunc(std::pair{ glBindTextureUnit, ogluBindTextureUnitARB }, std::pair{ glBindMultiTextureEXT, ogluBindTextureUnitEXT }, ogluBindTextureUnit);
+    dsa.ogluCreateTextures = DecideFunc(glCreateTextures, &ogluCreateTextures);
+    dsa.ogluGetTextureLevelParameteriv = DecideFunc(std::pair{ glGetTextureLevelParameteriv, &ogluGetTextureLevelParameterivARB }, glGetTextureLevelParameterivEXT);
+    dsa.ogluTextureParameteri = DecideFunc(std::pair{ glTextureParameteri, &ogluTextureParameteriARB }, glTextureParameteriEXT);
+    dsa.ogluTextureImage1D = DecideFunc(glTextureImage1DEXT, &ogluTextureImage1D);
+    dsa.ogluTextureImage2D = DecideFunc(glTextureImage2DEXT, &ogluTextureImage2D);
+    dsa.ogluTextureImage3D = DecideFunc(glTextureImage3DEXT, &ogluTextureImage3D);
+    dsa.ogluTextureSubImage1D = DecideFunc(std::pair{ glTextureSubImage1D, &ogluTextureSubImage1DARB }, glTextureSubImage1DEXT, &ogluTextureSubImage1D);
+    dsa.ogluTextureSubImage2D = DecideFunc(std::pair{ glTextureSubImage2D, &ogluTextureSubImage2DARB }, glTextureSubImage2DEXT, &ogluTextureSubImage2D);
+    dsa.ogluTextureSubImage3D = DecideFunc(std::pair{ glTextureSubImage3D, &ogluTextureSubImage3DARB }, glTextureSubImage3DEXT, &ogluTextureSubImage3D);
+    dsa.ogluGetTextureImage = DecideFunc(std::pair{ glGetTextureImage, &ogluGetTextureImageARB }, std::pair{ glGetTextureImageEXT, &ogluGetTextureImageEXT });
+    dsa.ogluCompressedTextureImage1D = DecideFunc(glCompressedTextureImage1DEXT, &ogluCompressedTextureImage1D);
+    dsa.ogluCompressedTextureImage2D = DecideFunc(glCompressedTextureImage2DEXT, &ogluCompressedTextureImage2D);
+    dsa.ogluCompressedTextureImage3D = DecideFunc(glCompressedTextureImage3DEXT, &ogluCompressedTextureImage3D);
+    dsa.ogluCompressedTextureSubImage1D = DecideFunc(std::pair{ glCompressedTextureSubImage1D, &ogluCompressedTextureSubImage1DARB }, glCompressedTextureSubImage1DEXT, &ogluCompressedTextureSubImage1D);
+    dsa.ogluCompressedTextureSubImage2D = DecideFunc(std::pair{ glCompressedTextureSubImage2D, &ogluCompressedTextureSubImage2DARB }, glCompressedTextureSubImage2DEXT, &ogluCompressedTextureSubImage2D);
+    dsa.ogluCompressedTextureSubImage3D = DecideFunc(std::pair{ glCompressedTextureSubImage3D, &ogluCompressedTextureSubImage3DARB }, glCompressedTextureSubImage3DEXT, &ogluCompressedTextureSubImage3D);
+    dsa.ogluGetCompressedTextureImage = DecideFunc(std::pair{ glGetCompressedTextureImage, &ogluGetCompressedTextureImageARB }, std::pair{ glGetCompressedTextureImageEXT, &ogluGetCompressedTextureImageEXT });
+    dsa.ogluTextureStorage1D = DecideFunc(std::pair{ glTextureStorage1D, &ogluTextureStorage1DARB }, glTextureStorage1DEXT, &ogluTextureStorage1D);
+    dsa.ogluTextureStorage2D = DecideFunc(std::pair{ glTextureStorage2D, &ogluTextureStorage2DARB }, glTextureStorage2DEXT, &ogluTextureStorage2D);
+    dsa.ogluTextureStorage3D = DecideFunc(std::pair{ glTextureStorage3D, &ogluTextureStorage3DARB }, glTextureStorage3DEXT, &ogluTextureStorage3D);
+    dsa.ogluBindTextureUnit = DecideFunc(std::pair{ glBindTextureUnit, &ogluBindTextureUnitARB }, std::pair{ glBindMultiTextureEXT, &ogluBindTextureUnitEXT }, &ogluBindTextureUnit);
+    dsa.ogluGenerateTextureMipmap = DecideFunc(std::pair{ glGenerateTextureMipmap, &ogluGenerateTextureMipmapARB }, glGenerateTextureMipmapEXT, &ogluGenerateTextureMipmap);
+    dsa.ogluTextureBuffer = DecideFunc(std::pair{ glTextureBuffer, &ogluTextureBufferARB }, glTextureBufferEXT, &ogluTextureBuffer);
+
+    dsa.ogluFramebufferTexture = DecideFunc(std::pair{ glNamedFramebufferTexture, &ogluFramebufferTextureARB }, std::pair{ glNamedFramebufferTextureEXT, ogluFramebufferTextureEXT }, &ogluFramebufferTexture);
+    dsa.ogluFramebufferTextureLayer = DecideFunc(std::pair{ glNamedFramebufferTextureLayer, &ogluFramebufferTextureLayerARB }, glNamedFramebufferTextureLayerEXT, &ogluFramebufferTextureLayer);
+    dsa.ogluFramebufferRenderbuffer = DecideFunc(glNamedFramebufferRenderbuffer, glNamedFramebufferRenderbufferEXT, &ogluFramebufferRenderbuffer);
+
 }
 
 }

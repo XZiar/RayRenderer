@@ -45,7 +45,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                     return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
                 else
-                    return ClResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
             }
             else
             {

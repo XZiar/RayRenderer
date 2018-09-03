@@ -482,7 +482,7 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
 
 void _oglTexture2DStatic::GenerateMipmap()
 {
-    glGenerateTextureMipmapEXT(textureID, GL_TEXTURE_2D);
+    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
 }
 
 oglTex2DV _oglTexture2DStatic::GetTextureView() const
@@ -698,7 +698,7 @@ void _oglTexture3DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
 
 void _oglTexture3DStatic::GenerateMipmap()
 {
-    glGenerateTextureMipmapEXT(textureID, GL_TEXTURE_3D);
+    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
 }
 //
 //oglTex3DV _oglTexture3DStatic::GetTextureView() const
@@ -718,7 +718,7 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
 {
     InnerBuf = tbo;
     InnerFormat = iformat;
-    glTextureBufferEXT(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
+    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
 }
 
 

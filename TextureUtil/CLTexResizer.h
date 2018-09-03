@@ -15,7 +15,7 @@ private:
     oclu::oclKernel ResizeToImg, ResizeToDat3, ResizeToDat4;
     common::PromiseResult<Image> ResizeToDat(const oclu::oclImage& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
 public:
-    CLTexResizer(const oglContext& glContext);
+    CLTexResizer(oglContext&& glContext);
     ~CLTexResizer();
     //require in the shared context
     common::PromiseResult<Image> ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);

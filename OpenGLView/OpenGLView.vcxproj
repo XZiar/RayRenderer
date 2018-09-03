@@ -172,7 +172,6 @@
   <ItemGroup>
     <ClInclude Include="OpenGLViewEvents.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="OGLVRely.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />

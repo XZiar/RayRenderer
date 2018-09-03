@@ -9,7 +9,7 @@ namespace oglu::texutil
 {
 using namespace oclu;
 
-CLTexResizer::CLTexResizer(const oglContext& glContext) : Executor(u"CLTexResizer"), GLContext(glContext)
+CLTexResizer::CLTexResizer(oglContext&& glContext) : Executor(u"CLTexResizer"), GLContext(glContext)
 {
     Executor.Start([this]
     {
@@ -121,29 +121,35 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImage& inp
 }
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    if (CLContext->vendor == Vendor::Intel) //seems nvidia not handle cl_gl_share correctly.
     {
-        auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
-        glimg->Lock(ComQue);
-        auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
-        glimg->Unlock(ComQue);
-        return img;
-    });
+        return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+        {
+            auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
+            glimg->Lock(ComQue);
+            auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
+            glimg->Unlock(ComQue);
+            return img;
+        });
+    }
+    else
+    {
+        return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+        {
+            const auto img = tex->GetImage(ImageDataType::RGBA);
+            oclImage input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureDataFormat::RGBA8);
+            auto pms1 = input->Write(ComQue, img, false);
+            agent.Await(common::PromiseResult<void>(pms1));
+            return agent.Await(ResizeToDat(input, width, height, format, flipY));
+        });
+    }
 }
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
     return Executor.AddTask([=, &data](const common::asyexe::AsyncAgent& agent)
     {
         if (TexFormatUtil::IsCompressType(dataFormat))
-        {
-            oglTex2DS tex(size.first, size.second, dataFormat);
-            tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
-            auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
-            glimg->Lock(ComQue);
-            auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
-            glimg->Unlock(ComQue);
-            return img;
-        }
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL doesnot support compressed texture yet.");
         else
         {
             oclImage input (CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::DecideFormat(dataFormat));

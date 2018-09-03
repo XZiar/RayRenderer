@@ -1,4 +1,16 @@
-#include "OGLVRely.h"
+#pragma unmanaged
+
+#define WIN32_LEAN_AND_MEAN 1
+#define NOMINMAX 1
+#include <Windows.h>
+#include <GL/GL.h>
+#include "GL/wglext.h"
+#pragma comment (lib, "user32.lib")   /* link Windows user lib       */
+#pragma comment (lib, "gdi32.lib")    /* link Windows GDI lib        */
+#pragma comment (lib, "opengl32.lib") /* link Microsoft OpenGL lib   */
+
+#pragma managed
+
 #include "OpenGLViewEvents.h"
 #include "common/TimeUtil.hpp"
 #include "common/AvgCounter.hpp"
@@ -27,6 +39,7 @@ namespace OpenGLView
         static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = nullptr;
         static PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = nullptr;
         static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
+        static bool supportFlushControl = false;
         HDC hDC = nullptr;
         HGLRC hRC = nullptr;
         common::AvgCounter<uint64_t> *DrawTimeCounter = nullptr;
@@ -95,6 +108,8 @@ namespace OpenGLView
             const auto exts = wglGetExtensionsStringEXT();
             if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
                 wglSwapIntervalEXT = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(wglGetProcAddress("wglSwapIntervalEXT"));
+            if (strstr(exts, "KHR_context_flush_control") != nullptr)
+                supportFlushControl = true;
             
             wglMakeCurrent(nullptr, nullptr);
             wglDeleteContext(tmpRC);
@@ -142,15 +157,17 @@ namespace OpenGLView
             DescribePixelFormat(hDC, pixelFormatID, sizeof(pfd), &pfd);
             SetPixelFormat(hDC, pixelFormatID, &pfd);
 
-            static const int32_t ctxAttrb[] =
+            std::vector<int32_t> ctxAttrb =
             {
                 /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
                 WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-                WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
-                0
+                WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
             };
-            hRC = wglCreateContextAttribsARB(hDC, nullptr, ctxAttrb);
+            if (supportFlushControl)
+                ctxAttrb.insert(ctxAttrb.end(), { WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB });
+            ctxAttrb.push_back(0);
+            hRC = wglCreateContextAttribsARB(hDC, nullptr, ctxAttrb.data());
             makeCurrent(hDC, hRC);
             if (wglSwapIntervalEXT)
                 wglSwapIntervalEXT(-1);

@@ -1,13 +1,16 @@
 #include "oglRely.h"
 #include "oglContext.h"
 #include "oglUtil.h"
+#include "oglException.h"
 #include "DSAWrapper.h"
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include "glew/wglew.h"
+#   include "GL/wglext.h"
 #else
 #   include "glew/glxew.h"
+#   include "GL/glxext.h"
 //fucking X11 defines some terrible macro
 #   undef Always
 #   undef None
@@ -29,13 +32,27 @@ BindingState::BindingState(const oglContext& ctx)
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
 }
 
+thread_local oglContext InnerCurCtx{ };
+
+#if defined(_DEBUG)
+#define CHECKCURRENT() if (!InnerCurCtx || InnerCurCtx.get() != this) COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+#else
+#define CHECKCURRENT()
+#endif
+
+static uint32_t& LatestVersion()
+{
+    static uint32_t version = 0;
+    return version;
+}
+
 namespace detail
 {
 
 static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
     DebugMessage msg(source, type, severity);
-    const _oglContext::DBGLimit& limit = *(_oglContext::DBGLimit*)userParam;
+    const _oglContext::DBGLimit& limit = *reinterpret_cast<const _oglContext::DBGLimit*>(userParam);
     if (((limit.src & msg.From) != MsgSrc::Empty)
         && ((limit.type & msg.Type) != MsgType::Empty)
         && (uint8_t)limit.minLV <= (uint8_t)msg.Level)
@@ -56,24 +73,31 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
     }
 }
 
-static uint32_t& LatestVersion()
+static std::atomic_uint32_t SharedContextUID = 0;
+SharedContextCore::SharedContextCore() : Id(SharedContextUID++) {}
+SharedContextCore::~SharedContextCore()
 {
-    static uint32_t version = 0;
-    return version;
+    oglLog().debug(u"Here destroy GLContext Shared core [{}].\n", Id);
+    for (const auto& deleter : OnDestroy)
+        deleter(Id);
 }
 
 #if defined(_WIN32)
-_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc),
-    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), Uid(uid) { }
+_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc),
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore) { }
 #else
-_oglContext::_oglContext(const uint32_t uid, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw), 
-    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), Uid(uid) { }
+_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw),
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore) { }
 #endif
 
-void _oglContext::Init()
+void _oglContext::Init(const bool isCurrent)
 {
-    const auto oldCtx = oglContext::CurrentContext();
-    UseContext();
+    oglContext oldCtx;
+    if (!isCurrent)
+    {
+        oldCtx = oglContext::CurrentContext();
+        UseContext();
+    }
     int32_t major = 0, minor = 0;
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
@@ -85,8 +109,6 @@ void _oglContext::Init()
         glewInit();
         latestVer = Version;
     }
-    InitDSAFuncs(*DSAs);
-
     glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (glIsEnabled(GL_CULL_FACE))
     {
@@ -104,11 +126,21 @@ void _oglContext::Init()
     else
         FaceCulling = FaceCullingType::OFF;
 
-    oldCtx->UseContext();
+    InitDSAFuncs(*DSAs);
+    Extensions = oglUtil::GetExtensions();
+    if (!isCurrent)
+        oldCtx->UseContext();
+    else
+        DSA = DSAs.get(); // DSA just initialized, set it
 }
 
 _oglContext::~_oglContext()
 {
+#if defined(_DEBUG)
+    oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
+#endif
+    for (const auto& deleter : OnDestroy)
+        deleter(Hrc);
 #if defined(_WIN32)
     wglDeleteContext((HGLRC)Hrc);
 #else
@@ -116,8 +148,13 @@ _oglContext::~_oglContext()
 #endif
 }
 
-bool _oglContext::UseContext()
+bool _oglContext::UseContext(const bool force)
 {
+    if (!force)
+    {
+        if (InnerCurCtx && InnerCurCtx.get() == this)
+            return true;
+    }
 #if defined(_WIN32)
     if (!wglMakeCurrent((HDC)Hdc, (HGLRC)Hrc))
     {
@@ -132,15 +169,15 @@ bool _oglContext::UseContext()
     }
 #endif
     DSA = DSAs.get(); //threadlocal of CurrentContext make sure lifetime
-    oglContext::CurrentCtx() = this->shared_from_this();
+    InnerCurCtx = this->shared_from_this();
     return true;
 }
 
 bool _oglContext::UnloadContext()
 {
-    if (&*oglContext::CurrentCtx() == this)
+    if (InnerCurCtx && InnerCurCtx.get() == this)
     {
-        oglContext::CurrentCtx().release();
+        InnerCurCtx.release();
 #if defined(_WIN32)
         if (!wglMakeCurrent((HDC)Hdc, nullptr))
         {
@@ -160,6 +197,7 @@ bool _oglContext::UnloadContext()
 
 void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 {
+    CHECKCURRENT();
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     DbgLimit = { type, src, minLV };
@@ -168,6 +206,7 @@ void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 
 void _oglContext::SetDepthTest(const DepthTestType type)
 {
+    CHECKCURRENT();
     switch (type)
     {
     case DepthTestType::OFF: glDisable(GL_DEPTH_TEST); break;
@@ -189,6 +228,7 @@ void _oglContext::SetDepthTest(const DepthTestType type)
 
 void _oglContext::SetFaceCulling(const FaceCullingType type)
 {
+    CHECKCURRENT();
     switch (type)
     {
     case FaceCullingType::OFF:
@@ -208,6 +248,7 @@ void _oglContext::SetFaceCulling(const FaceCullingType type)
 
 void _oglContext::SetDepthClip(const bool fix)
 {
+    CHECKCURRENT();
     if (fix)
     {
         glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
@@ -222,6 +263,7 @@ void _oglContext::SetDepthClip(const bool fix)
 
 bool _oglContext::SetFBO(const oglFBO& fbo)
 {
+    CHECKCURRENT();
     if (FrameBuffer != fbo)
     {
         if (fbo)
@@ -235,6 +277,7 @@ bool _oglContext::SetFBO(const oglFBO& fbo)
 }
 void _oglContext::SetSRGBFBO(const bool isEnable)
 {
+    CHECKCURRENT();
     if (isEnable)
         glEnable(GL_FRAMEBUFFER_SRGB);
     else
@@ -243,16 +286,19 @@ void _oglContext::SetSRGBFBO(const bool isEnable)
 
 void _oglContext::ClearFBO()
 {
+    CHECKCURRENT();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void _oglContext::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
 {
+    CHECKCURRENT();
     glViewport(x, y, (GLsizei)width, (GLsizei)height);
 }
 
 miniBLAS::VecI4 _oglContext::GetViewPort() const
 {
+    CHECKCURRENT();
     miniBLAS::VecI4 viewport;
     glGetIntegerv(GL_VIEWPORT, viewport);
     return viewport;
@@ -262,28 +308,12 @@ miniBLAS::VecI4 _oglContext::GetViewPort() const
 }
 
 
-static std::map<void*, oglContext> CTX_MAP;
+static std::map<void*, std::weak_ptr<detail::_oglContext>> CTX_MAP;
 static common::RWSpinLock CTX_LOCK;
-static std::atomic_uint32_t CTX_UID = 1;
 
-void* oglContext::CurrentHRC()
-{
-    const auto& ctx = CurrentCtx();
-    return ctx ? ctx->Hrc : nullptr;
-}
-oglContext& oglContext::CurrentCtx()
-{
-    thread_local oglContext ctx { };
-    return ctx;
-}
-uint32_t oglContext::CurrentCtxUid()
-{
-    const auto& ctx = CurrentCtx();
-    return ctx ? ctx->Uid : 0;
-}
 uint32_t oglContext::GetLatestVersion()
 {
-    return detail::LatestVersion();
+    return LatestVersion();
 }
 void oglContext::BasicInit()
 {
@@ -293,43 +323,43 @@ void oglContext::BasicInit()
 }
 oglContext oglContext::CurrentContext()
 {
+    return InnerCurCtx;
+}
+
+oglContext oglContext::Refresh()
+{
+    oglContext ctx;
 #if defined(_WIN32)
     void *hrc = wglGetCurrentContext();
 #else
     void *hrc = glXGetCurrentContext();
 #endif
     CTX_LOCK.LockRead();
-    oglContext ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc);
+    ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock();
     if (ctx)
     {
         CTX_LOCK.UnlockRead();
-        CurrentCtx() = ctx;
         return ctx;
     }
     else
     {
         CTX_LOCK.UnlockRead();
         CTX_LOCK.LockWrite();
-        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc); // second check
+        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock(); // second check
         if (!ctx) // need to create the wrapper
         {
 #if defined(_WIN32)
-            ctx = oglContext(new detail::_oglContext(CTX_UID++, wglGetCurrentDC(), hrc));
+            ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), wglGetCurrentDC(), hrc));
 #else
-            ctx = oglContext(new detail::_oglContext(CTX_UID++, glXGetCurrentDisplay(), hrc, glXGetCurrentDrawable()));
+            ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), glXGetCurrentDisplay(), hrc, glXGetCurrentDrawable()));
 #endif
             CTX_MAP.emplace(hrc, ctx);
         }
-        CurrentCtx() = ctx;
+        InnerCurCtx = ctx;
         CTX_LOCK.UnlockWrite();
-        ctx->Init();
+        ctx->Init(true);
         return ctx;
     }
-}
-
-void oglContext::Refresh()
-{
-    CurrentContext();
 }
 
 #if !defined(_WIN32)
@@ -347,6 +377,7 @@ static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs)
 {
     oglContext newCtx;
+
 #if defined(_WIN32)
     const auto newHrc = wglCreateContextAttribsARB((HDC)ctx->Hdc, isShared ? (HGLRC)ctx->Hrc : nullptr, attribs);
     if (!newHrc)
@@ -354,7 +385,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
         oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", GetLastError());
         return {};
     }
-    newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc));
+    newCtx.reset(new detail::_oglContext(isShared ? ctx->SharedCore : std::make_shared<detail::SharedContextCore>(), ctx->Hdc, newHrc));
 #else
     static int visual_attribs[] =
     {
@@ -381,15 +412,20 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
         oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", errno);
         return {};
     }
-    newCtx.reset(new detail::_oglContext(isShared ? ctx->Uid : CTX_UID++, ctx->Hdc, newHrc, ctx->DRW));
+    newCtx.reset(new detail::_oglContext(isShared ? ctx->SharedCore : std::make_shared<detail::SharedContextCore>(), ctx->Hdc, newHrc, ctx->DRW));
 #endif
-    newCtx->Init();
+    newCtx->Init(false);
+
+    CTX_LOCK.LockWrite();
+    CTX_MAP.emplace(newHrc, newCtx.weakRef());
+    CTX_LOCK.UnlockWrite();
+
     return newCtx;
 }
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, uint32_t version)
 {
     if (version == 0) 
-        version = detail::LatestVersion();
+        version = LatestVersion();
 #if defined(_WIN32)
     vector<int32_t> ctxAttrb
     {
@@ -398,6 +434,9 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     };
     constexpr int32_t VerMajor = WGL_CONTEXT_MAJOR_VERSION_ARB;
     constexpr int32_t VerMinor = WGL_CONTEXT_MINOR_VERSION_ARB;
+    // constexpr int32_t FlushFlag = WGL_CONTEXT_RELEASE_BEHAVIOR_ARB;
+    // constexpr int32_t FlushVal = WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+    const bool supportFlushControl = WGLEW_ARB_context_flush_control == 1;
 #else
     vector<int32_t> ctxAttrb
     {
@@ -406,7 +445,12 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     };
     constexpr int32_t VerMajor = GLX_CONTEXT_MAJOR_VERSION_ARB;
     constexpr int32_t VerMinor = GLX_CONTEXT_MINOR_VERSION_ARB;
+    // constexpr int32_t FlushFlag = GLX_CONTEXT_RELEASE_BEHAVIOR_ARB;
+    // constexpr int32_t FlushVal = GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+    const bool supportFlushControl = GLXEW_ARB_context_flush_control == 1;
 #endif
+    constexpr int32_t FlushFlag = 0x2097;
+    constexpr int32_t FlushVal = 0;
     if (version != 0)
     {
         ctxAttrb.insert(ctxAttrb.end(),
@@ -414,6 +458,10 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
                 VerMajor, static_cast<int32_t>(version / 10),
                 VerMinor, static_cast<int32_t>(version % 10),
             });
+    }
+    if (GLEW_KHR_context_flush_control == GL_TRUE || supportFlushControl)
+    {
+        ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
     }
     ctxAttrb.push_back(0);
     return NewContext(ctx, isShared, ctxAttrb.data());

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <tuple>
+#include <set>
 #include <algorithm>
 #include <functional>
 #include <type_traits>
@@ -309,6 +310,37 @@ public:
     detail::ValIterator<ConstItType> end() const
     {
         return detail::ValIterator<ConstItType>(TheMap.cend());
+    }
+};
+
+template<typename T, typename Compare = std::less<>>
+class FrozenDenseSet
+{
+private:
+    std::vector<T> Data;
+public:
+    FrozenDenseSet() {}
+    template<typename T1>
+    FrozenDenseSet(const std::set<T1, Compare>& data)
+    {
+        Data.reserve(data.size());
+        for (const auto& dat : data)
+            Data.emplace_back(dat);
+    }
+    //template<typename T, typename Compare = std::less<>>
+    //FrozenDenseSet(const FrozenDenseSet<T, Compare>& other) = default;
+    //template<typename T, typename Compare = std::less<>>
+    //FrozenDenseSet(FrozenDenseSet<T, Compare>&& other)
+    //{
+    //    Data = std::move(other.Data);
+    //}
+
+    //FrozenDenseSet<T, Compare>& operator=(const FrozenDenseSet<T, Compare>& other)
+
+    template<typename E>
+    bool Has(E&& element)
+    {
+        return std::binary_search(Data.cbegin(), Data.cend(), element, Compare());
     }
 };
 
