@@ -35,6 +35,7 @@ struct DSAFuncs
     void (GLAPIENTRY *ogluGenerateTextureMipmap) (GLuint texture, GLenum target) = nullptr;
     void (GLAPIENTRY *ogluTextureBuffer) (GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) = nullptr;
 
+    void (GLAPIENTRY *ogluCreateFramebuffers) (GLsizei n, GLuint *framebuffers) = nullptr;
     void (GLAPIENTRY *ogluFramebufferTexture) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
     void (GLAPIENTRY *ogluFramebufferTextureLayer) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
     void (GLAPIENTRY *ogluFramebufferRenderbuffer) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;

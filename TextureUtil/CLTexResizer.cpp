@@ -57,7 +57,7 @@ CLTexResizer::CLTexResizer(oglContext&& glContext) : Executor(u"CLTexResizer"), 
         texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] private mem\n", wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize);
     }, [this] 
     {
-        ResizeToImg.release();
+        ResizeToImg.release(); ResizeToDat3.release(); ResizeToDat4.release();
         ComQue.release();
         CLContext.release();
         GLContext->UnloadContext();

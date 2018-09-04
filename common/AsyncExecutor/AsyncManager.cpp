@@ -187,12 +187,12 @@ bool AsyncManager::Start(const std::function<void(void)>& initer, const std::fun
 }
 void AsyncManager::Stop()
 {
-    std::unique_lock<std::mutex> terminateLock(TerminateMtx); //ensure no repeat enter before stopped
-    if (!RunningThread.joinable()) //thread has been terminated
-        return;
-    ShouldRun = false;
-    CondWait.notify_all();
-    RunningThread.join();
+    if (ShouldRun.exchange(false))
+    {
+        CondWait.notify_all();
+        if (RunningThread.joinable()) //thread has not been terminated
+            RunningThread.join();
+    }
 }
 bool AsyncManager::Run(const std::function<void(std::function<void(void)>)>& initer)
 {

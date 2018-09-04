@@ -64,11 +64,17 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
             .SetDrawSize(6, 6);
 
         OutputFrame.reset();
-        GLContext->SetFBO(OutputFrame);
+        OutputFrame->Use();
 
     }, [&]()
     {
         //exit
+        GLResizer.release();
+        GLResizer2.release();
+        ScreenBox.release();
+        NormalVAO.release();
+        FlipYVAO.release();
+        OutputFrame.release();
         if (!GLContext->UnloadContext())
         {
             texLog().error(u"GLTexResizer cannot terminate GL context\n");

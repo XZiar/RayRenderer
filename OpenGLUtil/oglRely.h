@@ -103,6 +103,7 @@ using common::BaseException;
 using common::FileException;
 
 class oglWorker;
+struct DSAFuncs;
 
 enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
 struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>

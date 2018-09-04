@@ -51,8 +51,15 @@ using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed
     boost::multi_index::ordered_non_unique<ProgKey, std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>>
 >>;
 
-oglu::detail::ContextResource<std::shared_ptr<VAOMap>, false> CTX_VAO_MAP;
-
+struct VAOMAPCtxConfig : public oglu::CtxResConfig<true, VAOMap>
+{
+    VAOMap Construct() const { return {}; }
+};
+static VAOMAPCtxConfig VAOMAP_CTX_CFG;
+static VAOMap& GetVAOMap()
+{
+    return oglu::oglContext::CurrentContext()->GetOrCreate<false>(VAOMAP_CTX_CFG);
+}
 
 struct VAOKeyX
 {
@@ -76,11 +83,9 @@ Drawable::Drawable(const std::type_index type, const u16string& typeName) : Draw
 
 Drawable::~Drawable()
 {
-    if (auto vaomap = CTX_VAO_MAP.TryGet())
-    {
-        const auto& its = (*vaomap)->equal_range(this);
-        (*vaomap)->erase(its.first, its.second);
-    }
+    auto& vaomap = GetVAOMap();
+    const auto& its = vaomap.equal_range(this);
+    vaomap.erase(its.first, its.second);
 }
 
 void Drawable::PrepareMaterial(const std::weak_ptr<detail::ThumbnailManager>& thumbman)
@@ -113,12 +118,9 @@ u16string Drawable::GetType() const
 
 void Drawable::ReleaseAll(const oglu::oglDrawProgram& prog)
 {
-    if (auto vaomap = CTX_VAO_MAP.TryGet())
-    {
-        auto& keyPart = (*vaomap)->get<1>();
-        const auto its = keyPart.equal_range(prog.weakRef());
-        keyPart.erase(its.first, its.second);
-    }
+    auto& keyPart = GetVAOMap().get<1>();
+    const auto its = keyPart.equal_range(prog.weakRef());
+    keyPart.erase(its.first, its.second);
 }
 
 MultiMaterialHolder Drawable::PrepareMaterial() const
@@ -145,46 +147,42 @@ Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
 
 void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const
 {
-    auto vaomap = CTX_VAO_MAP.GetOrInsert([](const auto& dummy) { return std::make_shared<VAOMap>(); });
-    const auto& it = vaomap->find(std::make_tuple(this, prog.weakRef()));
-    if (it == vaomap->cend())
-        vaomap->insert({ this, prog.weakRef(),vao });
+    auto& vaomap = GetVAOMap();
+    const auto& it = vaomap.find(std::make_tuple(this, prog.weakRef()));
+    if (it == vaomap.cend())
+        vaomap.insert({ this, prog.weakRef(),vao });
     else
-        vaomap->modify(it, [&](VAOPack& pack) { pack.vao = vao; });
+        vaomap.modify(it, [&](VAOPack& pack) { pack.vao = vao; });
 }
 
 const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weakProg) const
 {
-    if (auto vaomap = CTX_VAO_MAP.TryGet())
-    {
-        const auto& it = (*vaomap)->find(std::make_tuple(this, weakProg));
-        if (it != (*vaomap)->cend())
-            return it->vao;
-    }
+    auto& vaomap = GetVAOMap();
+    const auto& it = vaomap.find(std::make_tuple(this, weakProg));
+    if (it != vaomap.cend())
+        return it->vao;
     basLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
     return EmptyVAO;
 }
 
-static oglu::detail::ContextResource<oglu::oglVBO, true> CTX_DRAWID_VBO;
-
-static constexpr auto GenDrawIdArray()
+struct DRAWIDCtxConfig : public oglu::CtxResConfig<true, oglu::oglVBO>
 {
-    std::array<uint32_t, 32768> ids{};
-    for (uint32_t i = 0; i < 32768; ++i)
-        ids[i] = i;
-    return ids;
-}
-static constexpr auto DRAW_IDS = GenDrawIdArray();
+    oglu::oglVBO Construct() const 
+    { 
+        std::array<uint32_t, 32768> ids{};
+        for (uint32_t i = 0; i < 32768; ++i)
+            ids[i] = i;
+        oglu::oglVBO drawIdVBO(std::in_place);
+        drawIdVBO->Write(ids.data(), ids.size() * sizeof(uint32_t));
+        basLog().verbose(u"new DrawIdVBO generated.\n");
+        return drawIdVBO;
+    }
+};
+static DRAWIDCtxConfig DRAWID_CTX_CFG;
 
 oglu::oglVBO Drawable::GetDrawIdVBO()
 {
-    return CTX_DRAWID_VBO.GetOrInsert([](const auto&) 
-    {
-        oglu::oglVBO drawIdVBO(std::in_place);
-        drawIdVBO->Write(DRAW_IDS.data(), DRAW_IDS.size() * sizeof(uint32_t));
-        basLog().verbose(u"new DrawIdVBO generated.\n");
-        return drawIdVBO;
-    });
+    return oglu::oglContext::CurrentContext()->GetOrCreate<false>(DRAWID_CTX_CFG);
 }
 
 

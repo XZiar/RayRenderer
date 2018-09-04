@@ -7,7 +7,6 @@
 
 namespace oglu::detail
 {
-static ContextResource<std::shared_ptr<UBOManager>, false> CTX_UBO_MAN;
 
 _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 {
@@ -90,10 +89,14 @@ _oglUniformBuffer::~_oglUniformBuffer() noexcept
     getUBOMan().forcePop(bufferID);
 }
 
+struct UBOCtxConfig : public CtxResConfig<false, UBOManager>
+{
+    UBOManager Construct() const { return {}; }
+};
+static UBOCtxConfig UBO_CTXCFG;
 UBOManager& _oglUniformBuffer::getUBOMan()
 {
-    const auto uboman = CTX_UBO_MAN.GetOrInsert([](auto) { return std::make_shared<UBOManager>(); });
-    return *uboman;
+    return oglContext::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
 }
 
 void _oglUniformBuffer::bind(const uint16_t pos) const

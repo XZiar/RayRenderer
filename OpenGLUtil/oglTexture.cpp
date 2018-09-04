@@ -294,19 +294,26 @@ struct TexLogItem
     bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
 };
 
-static ContextResource<std::shared_ptr<TextureManager>, false> CTX_TEX_MAN;
-static ContextResource<std::shared_ptr<map<GLuint, TexLogItem>>, true> CTX_TEX_LOG;
+
+struct TLogCtxConfig : public CtxResConfig<false, std::map<GLuint, TexLogItem>>
+{
+    std::map<GLuint, TexLogItem> Construct() const { return {}; }
+};
+static TLogCtxConfig TEXLOG_CTXCFG;
 static std::atomic_flag CTX_TEX_LOG_LOCK = { 0 };
 
+static std::map<GLuint, TexLogItem>& GetTexLogMap()
+{
+    return oglContext::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG);
+}
 static void RegistTexture(const _oglTexBase& tex)
 {
     TexLogItem item(tex);
 #ifdef _DEBUG
     oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, TexFormatUtil::GetTypeName(item.TexType));
 #endif
-    auto texmap = CTX_TEX_LOG.GetOrInsert([](const auto&) { return std::make_shared<map<GLuint, TexLogItem>>(); });
     common::SpinLocker locker(CTX_TEX_LOG_LOCK);
-    texmap->insert_or_assign(item.TexId, item);
+    GetTexLogMap().insert_or_assign(item.TexId, item);
 }
 static void UnregistTexture(const _oglTexBase& tex)
 {
@@ -314,22 +321,20 @@ static void UnregistTexture(const _oglTexBase& tex)
 #ifdef _DEBUG
     oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}].\n", item.ThreadId, item.TexId, tex.Name, TexFormatUtil::GetTypeName(item.TexType));
 #endif
-    if (auto texmap = CTX_TEX_LOG.TryGet())
-    {
-        common::SpinLocker locker(CTX_TEX_LOG_LOCK);
-        (*texmap)->erase(item.TexId);
-    }
-    else
-    {
-        oglLog().warning(u"delete before TexLogMap created.");
-    }
+    common::SpinLocker locker(CTX_TEX_LOG_LOCK);
+    GetTexLogMap().erase(item.TexId);
 }
 
 
+struct TManCtxConfig : public CtxResConfig<false, TextureManager>
+{
+    TextureManager Construct() const { return {}; }
+};
+static TManCtxConfig TEXMAN_CTXCFG;
+
 TextureManager& _oglTexBase::getTexMan() noexcept
 {
-    const auto texman = CTX_TEX_MAN.GetOrInsert([](auto) { return std::make_shared<TextureManager>(); });
-    return *texman;
+    return oglContext::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
 }
 
 _oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type)
@@ -722,12 +727,15 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
 }
 
 
+struct TIManCtxConfig : public CtxResConfig<false, TexImgManager>
+{
+    TexImgManager Construct() const { return {}; }
+};
+static TIManCtxConfig TEXIMGMAN_CTXCFG;
 
-static ContextResource<std::shared_ptr<TexImgManager>, false> CTX_TEXIMG_MAN;
 TexImgManager& _oglImgBase::getImgMan() noexcept
 {
-    const auto texman = CTX_TEXIMG_MAN.GetOrInsert([](auto) { return std::make_shared<TexImgManager>(); });
-    return *texman;
+    return oglContext::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
 }
 
 _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)

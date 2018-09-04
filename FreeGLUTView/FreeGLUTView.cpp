@@ -512,7 +512,7 @@ void _FreeGLUTView::refresh()
 void _FreeGLUTView::invoke(std::function<bool(void)> task)
 {
     auto self = getSelf();
-    auto fut = FreeGLUTManager::Executor().AddTask([self=std::move(self), task=std::move(task)](const AsyncAgent& agent)
+    auto fut = FreeGLUTManager::Executor().AddTask([self=std::move(self), task=std::move(task)](const AsyncAgent&)
     {
         if (task())
             self->refresh();

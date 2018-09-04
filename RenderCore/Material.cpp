@@ -143,14 +143,10 @@ RESPAK_DESERIALIZER(PBRMaterial)
 }
 RESPAK_REGIST_DESERIALZER(PBRMaterial)
 
-
-
-static oglu::detail::ContextResource<oglu::oglTex2DV, true> CTX_CHECK_TEX;
-
-oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
+struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
 {
-    return CTX_CHECK_TEX.GetOrInsert([](const auto&)
-    {
+    oglu::oglTex2DV Construct() const 
+    { 
         oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::RGBA8);
         std::array<uint32_t, 128 * 128> pixs{};
         for (uint32_t a = 0, idx = 0; a < 128; ++a)
@@ -165,9 +161,14 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
         texv->Name = u"Check Image";
         basLog().verbose(u"new CheckTex generated.\n");
         return texv;
-    });
-}
+    }
+};
+static CheckTexCtxConfig CHKTEX_CTXCFG;
 
+oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
+{
+    return oglu::oglContext::CurrentContext()->GetOrCreate<true>(CHKTEX_CTXCFG);
+}
 
 
 static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const TexHolder& holder)

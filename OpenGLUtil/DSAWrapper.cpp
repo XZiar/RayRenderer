@@ -2,6 +2,7 @@
 #include "DSAWrapper.h"
 #include "oglUtil.h"
 #include "oglException.h"
+#include "oglContext.h"
 
 namespace oglu
 {
@@ -25,6 +26,16 @@ static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
         return func.first ? func.second : DecideFunc<T>(funcs...);
     else
         return func.first ? func.second : nullptr;
+}
+
+//template<>
+//static GLuint DSAFuncs::GetId<detail::_oglFrameBuffer>(const std::shared_ptr<detail::_oglFrameBuffer>& obj)
+//{
+//    return obj->FBOId;
+//}
+namespace detail
+{
+extern GLuint GetCurFBO();
 }
 
 static void GLAPIENTRY ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index)
@@ -222,6 +233,13 @@ static void GLAPIENTRY ogluTextureBuffer(GLuint texture, GLenum target, GLenum i
     glBindTexture(target, 0);
 }
 
+static void GLAPIENTRY ogluCreateFramebuffers(GLsizei n, GLuint *framebuffers)
+{
+    glGenFramebuffers(n, framebuffers);
+    for (int i = 0; i < n; ++i)
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
+    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+}
 static void GLAPIENTRY ogluFramebufferTextureARB(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
 {
     glNamedFramebufferTexture(framebuffer, attachment, texture, level);
@@ -232,18 +250,21 @@ static void GLAPIENTRY ogluFramebufferTextureEXT(GLuint framebuffer, GLenum atta
 }
 static void GLAPIENTRY ogluFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     switch (textarget)
     {
     case GL_TEXTURE_1D:
-        glFramebufferTexture1D(framebuffer, attachment, textarget, texture, level); break;
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferTexture1D(framebuffer, attachment, textarget, texture, level);
+        glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+        break;
     case GL_TEXTURE_2D:
-        glFramebufferTexture2D(framebuffer, attachment, textarget, texture, level); break;
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferTexture2D(framebuffer, attachment, textarget, texture, level);
+        glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+        break;
     default:
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported texture argument when calling Non-DSA FramebufferTexture");
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 static void GLAPIENTRY ogluFramebufferTextureLayerARB(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
@@ -253,13 +274,13 @@ static void GLAPIENTRY ogluFramebufferTextureLayer(GLuint framebuffer, GLenum at
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture, level, layer);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
 }
 static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
 }
 
 void InitDSAFuncs(DSAFuncs& dsa)
@@ -293,7 +314,8 @@ void InitDSAFuncs(DSAFuncs& dsa)
     dsa.ogluGenerateTextureMipmap = DecideFunc(std::pair{ glGenerateTextureMipmap, &ogluGenerateTextureMipmapARB }, glGenerateTextureMipmapEXT, &ogluGenerateTextureMipmap);
     dsa.ogluTextureBuffer = DecideFunc(std::pair{ glTextureBuffer, &ogluTextureBufferARB }, glTextureBufferEXT, &ogluTextureBuffer);
 
-    dsa.ogluFramebufferTexture = DecideFunc(std::pair{ glNamedFramebufferTexture, &ogluFramebufferTextureARB }, std::pair{ glNamedFramebufferTextureEXT, ogluFramebufferTextureEXT }, &ogluFramebufferTexture);
+    dsa.ogluCreateFramebuffers = DecideFunc(std::pair{ glNamedFramebufferTexture, glCreateFramebuffers }, std::pair{ glNamedFramebufferTextureEXT, glGenFramebuffers }, ogluCreateFramebuffers);
+    dsa.ogluFramebufferTexture = DecideFunc(std::pair{ glNamedFramebufferTexture, &ogluFramebufferTextureARB }, std::pair{ glNamedFramebufferTextureEXT, &ogluFramebufferTextureEXT }, &ogluFramebufferTexture);
     dsa.ogluFramebufferTextureLayer = DecideFunc(std::pair{ glNamedFramebufferTextureLayer, &ogluFramebufferTextureLayerARB }, glNamedFramebufferTextureLayerEXT, &ogluFramebufferTextureLayer);
     dsa.ogluFramebufferRenderbuffer = DecideFunc(glNamedFramebufferRenderbuffer, glNamedFramebufferRenderbufferEXT, &ogluFramebufferRenderbuffer);
 

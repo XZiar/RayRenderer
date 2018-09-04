@@ -307,7 +307,7 @@ void BasicTest::Draw()
     if (mode)
     {
         glContext->SetSRGBFBO(true);
-        glContext->SetFBO();
+        oglu::oglFBO::UseDefault();
         prog3D->SetView(cam.GetView());
         prog3D->SetVec("vecCamPos", cam.Position);
         auto drawcall = prog3D->Draw();
@@ -323,7 +323,7 @@ void BasicTest::Draw()
     {
         const auto ow = cam.Width, oh = cam.Height;
         const auto[w, h] = fboTex->GetSize();
-        glContext->SetFBO(MiddleFrame);
+        MiddleFrame->Use();
         glContext->SetSRGBFBO(false);
         glContext->ClearFBO();
         Resize(w, h, false);
@@ -339,7 +339,7 @@ void BasicTest::Draw()
                 drawcall.Restore(true);
             }
         }
-        glContext->SetFBO();
+        oglu::oglFBO::UseDefault();
         glContext->SetSRGBFBO(true);
         Resize(ow, oh, false);
         {

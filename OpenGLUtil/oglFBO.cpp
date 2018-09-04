@@ -1,10 +1,14 @@
 #include "oglRely.h"
 #include "oglFBO.h"
+#include "oglContext.h"
 #include "oglException.h"
 #include "DSAWrapper.h"
 
 
-namespace oglu::detail
+namespace oglu
+{
+
+namespace detail
 {
 
 static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
@@ -46,9 +50,10 @@ _oglRenderBuffer::~_oglRenderBuffer()
     glDeleteRenderbuffers(1, &RBOId);
 }
 
+
 _oglFrameBuffer::_oglFrameBuffer()
 {
-    glGenFramebuffers(1, &FBOId);
+    DSA->ogluCreateFramebuffers(1, &FBOId);
     GLint maxAttach;
     glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxAttach);
     ColorAttachemnts.resize(maxAttach);
@@ -165,6 +170,30 @@ void _oglFrameBuffer::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, in
 void _oglFrameBuffer::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     BlitColor(from ? from->FBOId : 0, FBOId, rect);
+}
+
+struct FBOCtxConfig : public CtxResConfig<false, GLuint>
+{
+    GLuint Construct() const { return 0; }
+};
+static FBOCtxConfig FBO_CTXCFG;
+GLuint GetCurFBO()
+{
+    return oglContext::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
+}
+void _oglFrameBuffer::Use() const
+{
+    auto& fbo = oglContext::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
+    if (FBOId != fbo)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo = FBOId);
+}
+
+}
+
+void oglFBO::UseDefault()
+{
+    auto& fbo = oglContext::CurrentContext()->GetOrCreate<false>(detail::FBO_CTXCFG);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo = 0);
 }
 
 }

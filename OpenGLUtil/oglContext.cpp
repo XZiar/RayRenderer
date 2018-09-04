@@ -73,13 +73,25 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
     }
 }
 
+void CtxResHandler::Release()
+{
+    Lock.LockWrite();
+    for (const auto&[key, val] : Resources)
+        delete val;
+    Resources.clear();
+    Lock.UnlockWrite();
+}
+CtxResHandler::~CtxResHandler()
+{
+    Release();
+}
+
 static std::atomic_uint32_t SharedContextUID = 0;
 SharedContextCore::SharedContextCore() : Id(SharedContextUID++) {}
 SharedContextCore::~SharedContextCore()
 {
     oglLog().debug(u"Here destroy GLContext Shared core [{}].\n", Id);
-    for (const auto& deleter : OnDestroy)
-        deleter(Id);
+    ResHandler.Release();
 }
 
 #if defined(_WIN32)
@@ -128,6 +140,7 @@ void _oglContext::Init(const bool isCurrent)
 
     InitDSAFuncs(*DSAs);
     Extensions = oglUtil::GetExtensions();
+
     if (!isCurrent)
         oldCtx->UseContext();
     else
@@ -139,8 +152,7 @@ _oglContext::~_oglContext()
 #if defined(_DEBUG)
     oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
-    for (const auto& deleter : OnDestroy)
-        deleter(Hrc);
+    ResHandler.Release();
 #if defined(_WIN32)
     wglDeleteContext((HGLRC)Hrc);
 #else
@@ -193,6 +205,27 @@ bool _oglContext::UnloadContext()
 #endif
     }
     return true;
+}
+
+void _oglContext::Release()
+{
+    std::vector<const CtxResCfg*> deletes;
+    //Lock.LockRead();
+    for (auto it = ResHandler.Resources.begin(); it != ResHandler.Resources.end();)
+    {
+        if (it->first->IsEagerRelease())
+        {
+            delete it->second;
+            deletes.push_back(it->first);
+        }
+        else
+            ++it;
+    }
+    //Lock.UnlockRead();
+    //Lock.LockWrite();
+    for (const auto key : deletes)
+        ResHandler.Resources.erase(key);
+    //Lock.UnlockWrite();
 }
 
 void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
@@ -261,20 +294,6 @@ void _oglContext::SetDepthClip(const bool fix)
     }
 }
 
-bool _oglContext::SetFBO(const oglFBO& fbo)
-{
-    CHECKCURRENT();
-    if (FrameBuffer != fbo)
-    {
-        if (fbo)
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo->FBOId);
-        else
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        FrameBuffer = fbo;
-        return true;
-    }
-    return false;
-}
 void _oglContext::SetSRGBFBO(const bool isEnable)
 {
     CHECKCURRENT();

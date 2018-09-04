@@ -16,7 +16,6 @@ using common::container::FindInVec;
 using common::container::ReplaceInVec;
 
 
-static detail::ContextResource<GLuint> CTX_PROG_MAP;
 using namespace std::literals;
 
 template<typename T = GLint>
@@ -104,6 +103,11 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint p
 namespace detail
 {
 
+struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
+{
+    GLuint Construct() const { return 0; }
+};
+static ProgRecCtxConfig PROGREC_CTXCFG;
 
 _oglProgram::_oglProgram(const u16string& name) : Name(name)
 {
@@ -112,30 +116,23 @@ _oglProgram::_oglProgram(const u16string& name) : Name(name)
 
 _oglProgram::~_oglProgram()
 {
-    if (programID != 0 && usethis(*this, false)) //need unuse
+    if (usethis(*this, false)) //need unuse
     {
-        CTX_PROG_MAP.InsertOrAssign([&](auto)
-        {
-            glUseProgram(0);
-            glDeleteProgram(programID);
-            return 0;
-        });
-        programID = 0;
+        auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
+        glUseProgram(progRec = 0);
     }
+    glDeleteProgram(programID);
 }
 
 bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 {
-    if (CTX_PROG_MAP.TryGet() == prog.programID)
+    auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
+    if (progRec == prog.programID)
         return true;
     if (!change)//only return status
         return false;
-    CTX_PROG_MAP.InsertOrAssign([&](auto) 
-    {
-        glUseProgram(prog.programID);
-        return prog.programID;
-    });
 
+    glUseProgram(progRec = prog.programID);
     prog.RecoverState();
     return true;
 }

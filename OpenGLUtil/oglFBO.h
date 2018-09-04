@@ -37,11 +37,13 @@ enum class FBOStatus : uint8_t
     Complete, Undefined, Unsupported, IncompleteAttachment, MissingAttachment, IncompleteDrawBuffer, IncompleteReadBuffer, IncompleteMultiSample, IncompleteLayerTargets, Unknown
 };
 
+class oglFBO;
 namespace detail
 {
 class OGLUAPI _oglFrameBuffer : public NonCopyable, public NonMovable
 {
     friend class _oglContext;
+    //friend struct DSAFuncs;
 public:
     using FBOAttachment = variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, pair<oglTex2DArray, uint32_t>>;
 private:
@@ -62,11 +64,18 @@ public:
     void AttachStencilTexture(const oglRBO& rbo);
     void AttachDepthStencilBuffer(const oglRBO& rbo);
 
-    void BlitColorTo(const Wrapper<_oglFrameBuffer>& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-    void BlitColorFrom(const Wrapper<_oglFrameBuffer>& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void Use() const;
 
 };
 }
-using oglFBO = Wrapper<detail::_oglFrameBuffer>;
+
+class OGLUAPI oglFBO : public common::Wrapper<detail::_oglFrameBuffer>
+{
+public:
+    using common::Wrapper<detail::_oglFrameBuffer>::Wrapper;
+    static void UseDefault();
+};
 
 }
