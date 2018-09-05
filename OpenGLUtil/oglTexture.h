@@ -85,7 +85,7 @@ using xziar::img::ImageDataType;
 using xziar::img::Image;
 
 
-class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
+class OGLUAPI _oglTexBase : public NonMovable, public oglCtxObject<true>
 {
     friend class TextureManager;
     friend class _oglImgBase;
@@ -94,8 +94,6 @@ class OGLUAPI _oglTexBase : public NonCopyable, public NonMovable
     friend class ProgState;
     friend class ProgDraw;
     friend struct TexLogItem;
-    friend class ::oclu::detail::_oclGLBuffer;
-    friend class ::oclu::detail::_oclGLImage;
     friend class ::oclu::detail::GLInterOP;
 protected:
     const TextureType Type;
@@ -326,7 +324,7 @@ public:
 };
 
 
-class OGLUAPI _oglImgBase : public NonMovable, NonCopyable
+class OGLUAPI _oglImgBase : public NonMovable, public oglCtxObject<true>
 {
     friend class TexImgManager;
     friend class _oglProgram;

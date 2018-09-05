@@ -16,7 +16,7 @@ namespace detail
 {
 
 
-class OGLUAPI _oglVAO : public NonCopyable, public NonMovable
+class OGLUAPI _oglVAO : public NonMovable, public oglCtxObject<false>
 {
 protected:
     friend class _oglProgram;

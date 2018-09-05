@@ -15,7 +15,7 @@ enum class ShaderType : GLenum
 namespace detail
 {
 
-class OGLUAPI _oglShader : public NonCopyable
+class OGLUAPI _oglShader : public oglCtxObject<true>
 {
     friend class _oglProgram;
 public:

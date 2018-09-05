@@ -15,7 +15,7 @@ enum class RBOFormat : GLenum
 
 namespace detail
 {
-class OGLUAPI _oglRenderBuffer : public NonCopyable, public NonMovable
+class OGLUAPI _oglRenderBuffer : public NonMovable, public oglCtxObject<true>
 {
     friend class _oglFrameBuffer;
 public:
@@ -40,10 +40,9 @@ enum class FBOStatus : uint8_t
 class oglFBO;
 namespace detail
 {
-class OGLUAPI _oglFrameBuffer : public NonCopyable, public NonMovable
+class OGLUAPI _oglFrameBuffer : public NonMovable, public oglCtxObject<false>
 {
     friend class _oglContext;
-    //friend struct DSAFuncs;
 public:
     using FBOAttachment = variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, pair<oglTex2DArray, uint32_t>>;
 private:

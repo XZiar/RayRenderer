@@ -46,6 +46,23 @@ uint32_t RegistTest(const char *name, void(*func)())
     return 0;
 }
 
+string LoadShaderFallback(const std::u16string& filename, int32_t id)
+{
+    static const fs::path shdpath(UTF16ER(__FILE__));
+    const auto shaderPath = fs::path(shdpath).replace_filename(filename);
+    try
+    {
+        return common::file::ReadAllText(shaderPath);
+    }
+    catch (const common::FileException& fe)
+    {
+        log().error(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
+    }
+    auto data = common::ResourceHelper::getData(L"BIN", id);
+    data.push_back('\0');
+    return string((const char*)data.data());
+}
+
 int main(int argc, char *argv[])
 {
     common::ResourceHelper::init(nullptr);

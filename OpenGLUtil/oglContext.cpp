@@ -19,8 +19,14 @@
 namespace oglu
 {
 
-BindingState::BindingState(const oglContext& ctx)
+BindingState::BindingState()
 {
+#if defined(_WIN32)
+    HRC = wglGetCurrentContext();
+#else
+    HRC = glXGetCurrentContext();
+#endif
+    const oglContext ctx = oglContext::CurrentContext();
     glGetIntegerv(GL_CURRENT_PROGRAM, &progId);
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fboId);
@@ -153,11 +159,14 @@ _oglContext::~_oglContext()
     oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
     ResHandler.Release();
+    if (!IsRetain)
+    {
 #if defined(_WIN32)
-    wglDeleteContext((HGLRC)Hrc);
+        wglDeleteContext((HGLRC)Hrc);
 #else
-    glXDestroyContext((Display*)Hdc, (GLXContext)Hrc);
+        glXDestroyContext((Display*)Hdc, (GLXContext)Hrc);
 #endif
+    }
 }
 
 bool _oglContext::UseContext(const bool force)
@@ -209,6 +218,7 @@ bool _oglContext::UnloadContext()
 
 void _oglContext::Release()
 {
+    UseContext();
     std::vector<const CtxResCfg*> deletes;
     //Lock.LockRead();
     for (auto it = ResHandler.Resources.begin(); it != ResHandler.Resources.end();)
@@ -226,6 +236,22 @@ void _oglContext::Release()
     for (const auto key : deletes)
         ResHandler.Resources.erase(key);
     //Lock.UnlockWrite();
+    UnloadContext();
+}
+void _oglContext::SetRetain(const bool isRetain)
+{
+    static std::set<oglContext> retainMap;
+    static std::atomic_flag mapLock = {0};
+    if(isRetain != IsRetain)
+    {
+        common::SpinLocker lock(mapLock);
+        auto self = this->shared_from_this();
+        if (isRetain)
+            retainMap.insert(self);
+        else
+            retainMap.erase(self);
+    }
+    IsRetain = isRetain;
 }
 
 void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
@@ -358,6 +384,7 @@ oglContext oglContext::Refresh()
     if (ctx)
     {
         CTX_LOCK.UnlockRead();
+        InnerCurCtx = ctx;
         return ctx;
     }
     else
@@ -377,6 +404,7 @@ oglContext oglContext::Refresh()
         InnerCurCtx = ctx;
         CTX_LOCK.UnlockWrite();
         ctx->Init(true);
+        ctx->SetRetain(true);
         return ctx;
     }
 }
@@ -425,7 +453,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
     GLXFBConfig *fbc = glXChooseFBConfig((Display*)ctx->Hdc, DefaultScreen((Display*)ctx->Hdc), visual_attribs, &num_fbc);
     const auto oldHandler = XSetErrorHandler(&TmpXErrorHandler);
     const auto newHrc = glXCreateContextAttribsARB((Display*)ctx->Hdc, fbc[0], isShared ? (GLXContext)ctx->Hrc : nullptr, true, attribs);
-    XSetErrorHandler(oldHandler);
+    //XSetErrorHandler(oldHandler);
     if (!newHrc)
     {
         oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", errno);
@@ -480,11 +508,64 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     }
     if (GLEW_KHR_context_flush_control == GL_TRUE || supportFlushControl)
     {
-        ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
+        //ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
     }
     ctxAttrb.push_back(0);
     return NewContext(ctx, isShared, ctxAttrb.data());
 }
 
+namespace detail
+{
+template<>
+std::weak_ptr<SharedContextCore> oglCtxObject<true>::GetCtx()
+{
+    return oglContext::CurrentContext()->SharedCore;
+}
+template<>
+std::weak_ptr<_oglContext> oglCtxObject<false>::GetCtx()
+{
+    return oglContext::CurrentContext().weakRef();
+}
+template<>
+void oglCtxObject<true>::CheckCurrent() const
+{
+#if defined(_DEBUG)
+    if (!InnerCurCtx || Context.owner_before(InnerCurCtx->SharedCore) || InnerCurCtx->SharedCore.owner_before(Context))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+#endif
+}
+template<>
+void oglCtxObject<false>::CheckCurrent() const
+{
+#if defined(_DEBUG)
+    if (Context.owner_before(InnerCurCtx) || InnerCurCtx.owner_before(Context))
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+#endif
+}
+template<>
+bool oglCtxObject<true>::EnsureValid()
+{
+    const bool result = InnerCurCtx && InnerCurCtx->SharedCore == Context.lock();
+#if defined(_DEBUG)
+    if (!result)
+        oglLog().warning(u"oglCtxObject(shared) is now invalid due to released-context or uncurrent-context.\n");
+#endif
+    return result;
+}
+template<>
+bool oglCtxObject<false>::EnsureValid()
+{
+    const auto ctx = Context.lock();
+    if (ctx)
+    {
+        ctx->UseContext();
+        return true;
+    }
+#if defined(_DEBUG)
+    oglLog().warning(u"oglCtxObject(shared) is now invalid due to released-context.\n");
+#endif
+    return false;
+}
+}
 
 }

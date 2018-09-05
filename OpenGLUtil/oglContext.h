@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "oglFBO.h"
 
 namespace oglu
 {
@@ -119,6 +118,7 @@ class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_share
     friend class ::oglu::oglContext;
     friend struct ::oglu::BindingState;
     friend class ::oclu::detail::_oclPlatform;
+    template<bool> friend class oglCtxObject;
 public:
     struct DBGLimit
     {
@@ -137,10 +137,10 @@ private:
     common::container::FrozenDenseSet<string_view> Extensions;
     const std::shared_ptr<SharedContextCore> SharedCore;
     DBGLimit DbgLimit;
-    //oglFBO FrameBuffer;
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
     uint32_t Version;
+    bool IsRetain = false;
 #if defined(_WIN32)
     _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc);
 #else
@@ -152,6 +152,7 @@ public:
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
+    void SetRetain(const bool isRetain);
     template<bool IsShared, typename T, bool Dummy>
     T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
@@ -168,8 +169,6 @@ public:
     DepthTestType GetDepthTest() const { return DepthTestFunc; }
     FaceCullingType GetFaceCulling() const { return FaceCulling; }
 
-    //oglFBO GetFBO() const { return FrameBuffer; }
-    //bool SetFBO(const oglFBO& fbo = {});
     void SetSRGBFBO(const bool isEnable);
     void ClearFBO();
     
@@ -240,9 +239,10 @@ public:
 
 struct OGLUAPI BindingState
 {
+    void *HRC = nullptr;
     GLint progId = 0, vaoId = 0, fboId = 0, vboId = 0, iboId = 0, eboId = 0;
-    BindingState(const oglContext& ctx);
-    BindingState() : BindingState(oglContext::CurrentContext()) {}
+    BindingState();
 };
+
 
 }

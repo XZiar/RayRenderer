@@ -4,7 +4,6 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
-#include "oglFBO.h"
 #include "oglUtil.h"
 
 namespace oglu
@@ -89,7 +88,7 @@ namespace detail
 {
 
 
-class OGLUAPI _oglProgram : public NonCopyable, public NonMovable, public common::AlignBase<32>, public std::enable_shared_from_this<_oglProgram>
+class OGLUAPI _oglProgram : public NonMovable, public common::AlignBase<32>, public oglCtxObject<true>, public std::enable_shared_from_this<_oglProgram>
 {
     friend class TextureManager;
     friend class UBOManager;

@@ -430,6 +430,8 @@ void _FreeGLUTView::onMouse(int button, int state, int x, int y)
         btn = MouseButton::Middle;
     else if (button == GLUT_RIGHT_BUTTON)
         btn = MouseButton::Right;
+    else
+        return;
     if (state == GLUT_DOWN)
     {
         isMovingMouse = (uint8_t)btn;

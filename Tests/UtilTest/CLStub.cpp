@@ -49,11 +49,11 @@ static void OCLStub()
         log().info(u"input opencl file:");
         string fpath;
         std::getline(cin, fpath);
-        common::fs::path filepath(fpath);
+        common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading cl file [{}]\n", filepath.u16string());
         try
         {
-            const auto kertxt = common::file::ReadAllText(fpath);
+            const auto kertxt = common::file::ReadAllText(filepath);
             oclProgram clProg(ctx, kertxt);
             try
             {

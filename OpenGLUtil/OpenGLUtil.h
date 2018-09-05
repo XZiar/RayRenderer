@@ -8,4 +8,5 @@
 #include "oglVAO.h"
 #include "oglTexture.h"
 #include "oglProgram.h"
+#include "oglFBO.h"
 #include "oglUtil.h"

@@ -22,6 +22,7 @@ _oglShader::~_oglShader()
 
 void _oglShader::compile()
 {
+    CheckCurrent();
     glCompileShader(shaderID);
 
     GLint result;

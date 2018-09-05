@@ -17,6 +17,7 @@ _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 
 _oglBuffer::~_oglBuffer() noexcept
 {
+    if (!EnsureValid()) return;
     if (MappedPtr != nullptr)
     {
         if (DSA->ogluUnmapNamedBuffer(bufferID) == GL_FALSE)
@@ -31,6 +32,7 @@ _oglBuffer::~_oglBuffer() noexcept
 
 void _oglBuffer::bind() const noexcept
 {
+    CheckCurrent();
     glBindBuffer((GLenum)BufType, bufferID);
     //if (BufType == BufferType::Indirect)
         //oglLog().verbose(u"binding ibo[{}].\n", bufferID);
@@ -38,11 +40,13 @@ void _oglBuffer::bind() const noexcept
 
 void _oglBuffer::unbind() const noexcept
 {
+    CheckCurrent();
     glBindBuffer((GLenum)BufType, 0);
 }
 
 void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
 {
+    CheckCurrent();
     BufFlag = flags | BufferFlags::PersistentMap;
     bind();
     glBufferStorage((GLenum)BufType, size, nullptr, (GLenum)(BufFlag & BufferFlags::PrepareMask));
@@ -60,6 +64,7 @@ void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
+    CheckCurrent();
     if (MappedPtr == nullptr)
     {
         DSA->ogluNamedBufferData(bufferID, size, dat, (GLenum)mode);
@@ -85,6 +90,7 @@ _oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(Bu
 
 _oglUniformBuffer::~_oglUniformBuffer() noexcept
 {
+    if (!EnsureValid()) return;
     //force unbind ubo, since bufID may be reused after releasaed
     getUBOMan().forcePop(bufferID);
 }
@@ -101,6 +107,7 @@ UBOManager& _oglUniformBuffer::getUBOMan()
 
 void _oglUniformBuffer::bind(const uint16_t pos) const
 {
+    CheckCurrent();
     glBindBufferBase(GL_UNIFORM_BUFFER, pos, bufferID);
 }
 
@@ -110,6 +117,7 @@ _oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferType::Indir
 
 void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
 {
+    CheckCurrent();
     const auto count = offsets.size();
     if (count != sizes.size())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
@@ -135,6 +143,7 @@ void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const ve
 
 void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed)
 {
+    CheckCurrent();
     Count = 1;
     IsIndexed = isIndexed;
     if (isIndexed)

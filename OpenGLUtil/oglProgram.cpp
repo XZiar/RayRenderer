@@ -126,6 +126,7 @@ _oglProgram::~_oglProgram()
 
 bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 {
+    prog.CheckCurrent();
     auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
     if (progRec == prog.programID)
         return true;
@@ -139,6 +140,7 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 
 void _oglProgram::RecoverState()
 {
+    CheckCurrent();
     SetSubroutine();
     auto& texMan = _oglTexBase::getTexMan();
     texMan.unpin();
@@ -154,6 +156,7 @@ void _oglProgram::RecoverState()
 
 void _oglProgram::InitLocs()
 {
+    CheckCurrent();
     set<ProgramResource, ProgramResource::Lesser> dataMap;
     string nameBuf;
     GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
@@ -223,6 +226,7 @@ void _oglProgram::InitLocs()
 
 void _oglProgram::InitSubroutines()
 {
+    CheckCurrent();
     const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
     SubroutineRess.clear();
     subrLookup.clear();
@@ -294,6 +298,7 @@ void _oglProgram::InitSubroutines()
 
 void _oglProgram::FilterProperties()
 {
+    CheckCurrent();
     set<ShaderExtProperty, std::less<>> newProperties;
     for (const auto& prop : ExtInfo.Properties)
     {
@@ -355,6 +360,7 @@ void _oglProgram::FilterProperties()
 
 void _oglProgram::AddShader(const oglShader& shader)
 {
+    CheckCurrent();
     if (shaders.insert(shader).second)
         glAttachShader(programID, shader->shaderID);
     else
@@ -364,6 +370,7 @@ void _oglProgram::AddShader(const oglShader& shader)
 
 void _oglProgram::Link()
 {
+    CheckCurrent();
     glLinkProgram(programID);
 
     int result;
@@ -450,6 +457,7 @@ ProgState _oglProgram::State() noexcept
 
 void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin)
 {
+    CheckCurrent();
     auto& obj = UniBindCache[pos];
     const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
     if (obj == val)//no change
@@ -460,6 +468,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglT
 
 void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
 {
+    CheckCurrent();
     switch (texs.size())
     {
     case 0:
@@ -475,6 +484,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBas
 
 void _oglProgram::SetImage(TexImgManager& texMan, const GLint pos, const oglImgBase& img, const bool shouldPin)
 {
+    CheckCurrent();
     auto& obj = UniBindCache[pos];
     const GLsizei val = img ? texMan.bind(img, shouldPin) : 0;
     if (obj == val)//no change
@@ -485,6 +495,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const GLint pos, const oglImgB
 
 void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>& imgs, const bool shouldPin)
 {
+    CheckCurrent();
     switch (imgs.size())
     {
     case 0:
@@ -500,6 +511,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>&
 
 void _oglProgram::SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin)
 {
+    CheckCurrent();
     auto& obj = UniBindCache[pos];
     const auto val = ubo ? uboMan.bind(ubo, shouldPin) : 0;
     if (obj == val)//no change
@@ -510,6 +522,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo,
 
 void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
 {
+    CheckCurrent();
     switch (ubos.size())
     {
     case 0:
@@ -525,6 +538,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, co
 
 void _oglProgram::SetSubroutine()
 {
+    CheckCurrent();
     for (const auto&[stage, subrs] : SubroutineSettings)
     {
         GLsizei cnt = (GLsizei)subrs.size();
@@ -535,6 +549,7 @@ void _oglProgram::SetSubroutine()
 
 void _oglProgram::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
 {
+    CheckCurrent();
     auto& oldRoutine = SubroutineBindings[subr];
     auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc];
     srvec = routine->Id;
@@ -543,6 +558,7 @@ void _oglProgram::SetSubroutine(const SubroutineResource* subr, const Subroutine
 
 void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -552,6 +568,7 @@ void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const boo
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -561,6 +578,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const b
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -570,6 +588,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const b
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -579,6 +598,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -588,6 +608,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const
 }
 void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -597,6 +618,7 @@ void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
 }
 void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -606,6 +628,7 @@ void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep
 }
 void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -615,6 +638,7 @@ void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool kee
 }
 void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
 {
+    CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
     {
         if (keep)
@@ -783,6 +807,7 @@ ProgDraw::~ProgDraw()
 
 ProgDraw& ProgDraw::Restore(const bool quick)
 {
+    Prog.CheckCurrent();
     if (quick) // only set binding-delegate
     {
         for (const auto&[pos, binding] : UniBindBackup)
@@ -1016,6 +1041,7 @@ _oglComputeProgram::_oglComputeProgram(const u16string name, const string& src) 
 }
 void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
 {
+    CheckCurrent();
     usethis(*this, false);
     glDispatchCompute(groupX, groupY, groupZ);
 }

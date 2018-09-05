@@ -26,7 +26,7 @@ static void FGTest()
     FreeGLUTViewInit();
     FreeGLUTView window(std::in_place);
     oglUtil::Init(true);
-    auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
+    const auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
     window->setTitle("FGTest");
     oglDrawProgram drawer(u"MainDrawer");
@@ -38,9 +38,8 @@ static void FGTest()
         screenBox->Write(DatVert, sizeof(DatVert));
         try
         {
-            auto data = ResourceHelper::getData(L"BIN", IDR_GL_FGTEST);
-            data.push_back('\0');
-            drawer->AddExtShaders(string((const char*)data.data()));
+            const auto src = LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST);
+            drawer->AddExtShaders(src);
             drawer->Link();
         }
         catch (const OGLException& gle)
@@ -53,18 +52,39 @@ static void FGTest()
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
     }
-    window->funDisp = [&](FreeGLUTView wd) { ctx->UseContext(); drawer->Draw().Draw(basicVAO); };
-    // window->funReshape = onResize;
+    window->funDisp = [&](FreeGLUTView) 
+    { 
+        oglContext::Refresh(); 
+        ctx->UseContext(); 
+        drawer->Draw().Draw(basicVAO); 
+    };
+    window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)
+    {
+        oglContext::Refresh();
+        ctx->UseContext();
+        ctx->SetViewPort(0, 0, w, h);
+        log().verbose(u"Resize to [{},{}].\n", w, h);
+    };
     // window->funKeyEvent = onKeyboard;
     // window->funMouseEvent = onMouseEvent;
     // window->setTimerCallback(onTimer, 20);
     // window->funDropFile = onDropFile;
-    // window->funOnClose = [&](FreeGLUTView wd) { tester.release(); };
-
+    window->funOnClose = [&](FreeGLUTView) 
+    { 
+        auto oldCtx = oglContext::Refresh(); 
+        ctx->UseContext();
+        drawer.release();
+        screenBox.release();
+        basicVAO.release();
+        ctx->Release();
+        oldCtx->UseContext();
+    };
     FreeGLUTViewRun();
     window.release();
-    ctx->UseContext();
 }
 
 const static uint32_t ID = RegistTest("FGTest", &FGTest);
+
+
+
 

@@ -28,11 +28,19 @@ void main()
 
 out vec4 FragColor;
 
+float getNoise()
+{
+    uvec2 posi = uvec2(tpos * 8192);
+    uint n = posi.y * 2048u + posi.x;
+    return (n * (n * n * 15731u + 789221u) + 1376312589u) / 4294967296.0f;
+}
+
 void main() 
 {
     FragColor.x = (pos.x + 1.0f)/2.0f;
     FragColor.y = (pos.y + 1.0f)/2.0f;
-    FragColor.z = (pos.x + pos.y)/2.0f;
+    FragColor.z = getNoise();// (pos.x + pos.y) / 2.0f;
+    //FragColor.xyz = vec3(getNoise());
     FragColor.w = 1.0f;
 }
 

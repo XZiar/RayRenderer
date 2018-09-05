@@ -169,7 +169,7 @@ struct DRAWIDCtxConfig : public oglu::CtxResConfig<true, oglu::oglVBO>
 {
     oglu::oglVBO Construct() const 
     { 
-        std::array<uint32_t, 32768> ids{};
+        std::vector<uint32_t> ids(32768);
         for (uint32_t i = 0; i < 32768; ++i)
             ids[i] = i;
         oglu::oglVBO drawIdVBO(std::in_place);

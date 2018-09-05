@@ -45,8 +45,8 @@ private:
     uint8_t helperKey;
 public:
     uint8_t key;
-    int x, y;
-    KeyEvent(const uint8_t key_, const int x_, const int y_, const bool isCtrl = false, const bool isShift = false, const bool isAlt = false)
+    int32_t x, y;
+    KeyEvent(const uint8_t key_, const int32_t x_, const int32_t y_, const bool isCtrl = false, const bool isShift = false, const bool isAlt = false)
         :key(key_), x(x_), y(y_)
     {
         helperKey = (isCtrl ? 0x1 : 0x0) + (isShift ? 0x2 : 0x0) + (isAlt ? 0x4 : 0x0);
@@ -65,8 +65,8 @@ class GLUTVIEWAPI MouseEvent
 public:
     MouseEventType type;
     MouseButton btn;
-    int x, y, dx, dy;
-    MouseEvent(const MouseEventType type_, const MouseButton btn_, const int x_, const int y_, const int dx_, const int dy_)
+    int32_t x, y, dx, dy;
+    MouseEvent(const MouseEventType type_, const MouseButton btn_, const int32_t x_, const int32_t y_, const int32_t dx_, const int32_t dy_)
         :type(type_), btn(btn_), x(x_), y(y_), dx(dx_), dy(dy_)
     {
     }
@@ -81,7 +81,7 @@ using FreeGLUTView = Wrapper<detail::_FreeGLUTView>;
 
 
 using FuncBasic = std::function<void(FreeGLUTView)>;
-using FuncReshape = std::function<void(FreeGLUTView, const int, const int)>;
+using FuncReshape = std::function<void(FreeGLUTView, const int32_t, const int32_t)>;
 using FuncKeyEvent = std::function<void(FreeGLUTView, KeyEvent)>;
 using FuncMouseEvent = std::function<void(FreeGLUTView, MouseEvent)>;
 //-param Window self
@@ -101,9 +101,9 @@ class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public std::enable_shared_
 public:
 
 private:
-    int wdID;
-    int width, height;
-    int sx, sy, lx, ly;//record x/y, last x/y
+    int32_t wdID;
+    int32_t width, height;
+    int32_t sx, sy, lx, ly;//record x/y, last x/y
     uint8_t isMovingMouse = 0;
     bool isMoved = false;
 

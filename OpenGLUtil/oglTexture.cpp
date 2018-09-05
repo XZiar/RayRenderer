@@ -347,6 +347,7 @@ _oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noex
 
 _oglTexBase::~_oglTexBase() noexcept
 {
+    if (!EnsureValid()) return;
     UnregistTexture(*this);
     //force unbind texture, since texID may be reused after releasaed
     getTexMan().forcePop(textureID);
@@ -355,6 +356,7 @@ _oglTexBase::~_oglTexBase() noexcept
 
 void _oglTexBase::bind(const uint16_t pos) const noexcept
 {
+    CheckCurrent();
     DSA->ogluBindTextureUnit(pos, (GLenum)Type, textureID);
     //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
     //glActiveTexture(GL_TEXTURE0 + pos);
@@ -368,6 +370,7 @@ void _oglTexBase::unbind() const noexcept
 
 std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
 {
+    CheckCurrent();
     GLint w = 0, h = 0;
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
@@ -376,6 +379,7 @@ std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
 
 std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
 {
+    CheckCurrent();
     GLint w = 0, h = 0, z = 0;
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
@@ -385,6 +389,7 @@ std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
 
 void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT)
 {
+    CheckCurrent();
     DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
     DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
     DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
@@ -393,6 +398,7 @@ void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFil
 
 bool _oglTexBase::IsCompressed() const
 {
+    CheckCurrent();
     GLint ret = GL_FALSE;
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
     return ret != GL_FALSE;
@@ -400,6 +406,7 @@ bool _oglTexBase::IsCompressed() const
 
 void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
+    CheckCurrent();
     if (isSub)
         DSA->ogluTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
     else
@@ -408,6 +415,7 @@ void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenu
 
 void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
 {
+    CheckCurrent();
     if (isSub)
         DSA->ogluCompressedTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, (GLint)InnerFormat, (GLsizei)size, data);
     else
@@ -416,6 +424,7 @@ void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const
 
 optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
 {
+    CheckCurrent();
     if (!IsCompressed())
         return {};
     GLint size = 0;
@@ -427,6 +436,7 @@ optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
 
 vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
 {
+    CheckCurrent();
     const auto[w, h] = GetInternalSize2();
     const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
@@ -437,6 +447,7 @@ vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
 
 Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
 {
+    CheckCurrent();
     const auto[w, h] = GetInternalSize2();
     Image image(format);
     image.SetSize(w, h);
@@ -487,11 +498,13 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
 
 void _oglTexture2DStatic::GenerateMipmap()
 {
+    CheckCurrent();
     DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
 }
 
 oglTex2DV _oglTexture2DStatic::GetTextureView() const
 {
+    CheckCurrent();
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     tex->Name = Name + u"-View";
     glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, Mipmap, 0, 1);
@@ -501,6 +514,7 @@ oglTex2DV _oglTexture2DStatic::GetTextureView() const
 
 void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h)
 {
+    CheckCurrent();
     if (w % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     InnerFormat = iformat, Width = w, Height = h;
@@ -562,6 +576,7 @@ void _oglTexture2DArray::CheckLayerRange(const uint32_t layer) const
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
 {
+    CheckCurrent();
     CheckLayerRange(layer);
     if (tex->Width != Width || tex->Height != Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
@@ -588,6 +603,7 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img,
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
 {
+    CheckCurrent();
     CheckLayerRange(layer);
     const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
     DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, data);
@@ -595,12 +611,14 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureData
 
 void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size)
 {
+    CheckCurrent();
     CheckLayerRange(layer);
     DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
 }
 
 void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
 {
+    CheckCurrent();
     if (Width != tex->Width || Height != tex->Height)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
     if (destLayer + layerCount > Layers || srcLayer + layerCount > tex->Layers)
@@ -617,6 +635,7 @@ void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex
 
 oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
 {
+    CheckCurrent();
     if (layer >= Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
@@ -629,6 +648,7 @@ oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
 
 void _oglTexture3D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
 {
+    CheckCurrent();
     if (isSub)
         DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, comptype, datatype, data);
     else
@@ -637,6 +657,7 @@ void _oglTexture3D::SetData(const bool isSub, const GLenum datatype, const GLenu
 
 void _oglTexture3D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
 {
+    CheckCurrent();
     if (isSub)
         DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, (GLint)InnerFormat, (GLsizei)size, data);
     else
@@ -645,6 +666,7 @@ void _oglTexture3D::SetCompressedData(const bool isSub, const void * data, const
 
 optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
 {
+    CheckCurrent();
     if (!IsCompressed())
         return {};
     GLint size = 0;
@@ -656,8 +678,9 @@ optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
 
 vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
 {
-    const auto[w, h] = GetInternalSize2();
-    const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
+    CheckCurrent();
+    const auto[w, h, d] = GetInternalSize3();
+    const auto size = w * h * d * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
     const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
     DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
@@ -666,6 +689,7 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
 
 _oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(false)
 {
+    CheckCurrent();
     if (width == 0 || height == 0 || depth == 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
     if (width % 4)
@@ -703,6 +727,7 @@ void _oglTexture3DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
 
 void _oglTexture3DStatic::GenerateMipmap()
 {
+    CheckCurrent();
     DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
 }
 //
@@ -721,6 +746,7 @@ _oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBu
 
 void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO& tbo)
 {
+    CheckCurrent();
     InnerBuf = tbo;
     InnerFormat = iformat;
     DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
@@ -741,6 +767,7 @@ TexImgManager& _oglImgBase::getImgMan() noexcept
 _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
     : InnerTex(tex), Usage(usage) 
 {
+    tex->CheckCurrent();
     if (!InnerTex)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
     if (TexFormatUtil::IsCompressType(InnerTex->GetInnerFormat()))
@@ -749,6 +776,7 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
 
 void _oglImgBase::bind(const uint16_t pos) const noexcept
 {
+    CheckCurrent();
     glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, (GLenum)InnerTex->GetInnerFormat());
 }
 

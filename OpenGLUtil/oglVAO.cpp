@@ -16,6 +16,7 @@ _oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) noexcept :vao(vao_), isEmpty(false)
 
 void _oglVAO::VAOPrep::End() noexcept
 {
+    vao.CheckCurrent();
     if (!isEmpty)
     {
         isEmpty = true;
@@ -25,6 +26,7 @@ void _oglVAO::VAOPrep::End() noexcept
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
+    vao.CheckCurrent();
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
@@ -36,6 +38,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVB
 }
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
+    vao.CheckCurrent();
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
@@ -48,6 +51,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO&
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset)
 {
+    vao.CheckCurrent();
     vbo->bind();
     if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
@@ -69,6 +73,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset)
 {
+    vao.CheckCurrent();
     vbo->bind();
     if (attridx[0] != (GLint)GL_INVALID_INDEX)
     {
@@ -95,6 +100,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
 {
+    vao.CheckCurrent();
     ebo->bind();
     vao.IndexBuffer = ebo;
     return *this;
@@ -102,6 +108,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const uint32_t offset, const uint32_t size)
 {
+    vao.CheckCurrent();
     vao.Count = (GLsizei)size;
     if (vao.IndexBuffer)
     {
@@ -118,6 +125,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const uint32_t offset, const uin
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes)
 {
+    vao.CheckCurrent();
     const auto count = offsets.size();
     if (count != sizes.size())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
@@ -155,6 +163,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo)
 
 void _oglVAO::bind() const noexcept
 {
+    CheckCurrent();
     glBindVertexArray(VAOId);
 }
 
@@ -170,16 +179,19 @@ _oglVAO::_oglVAO(const VAODrawMode mode) noexcept :DrawMode(mode)
 
 _oglVAO::~_oglVAO() noexcept
 {
+    if (!EnsureValid()) return;
     glDeleteVertexArrays(1, &VAOId);
 }
 
 _oglVAO::VAOPrep _oglVAO::Prepare() noexcept
 {
+    CheckCurrent();
     return VAOPrep(*this);
 }
 
 void _oglVAO::Draw(const uint32_t size, const uint32_t offset) const noexcept
 {
+    CheckCurrent();
     bind();
     switch (Method)
     {
@@ -197,6 +209,7 @@ void _oglVAO::Draw(const uint32_t size, const uint32_t offset) const noexcept
 
 void _oglVAO::Draw() const noexcept
 {
+    CheckCurrent();
     bind();
     switch (Method)
     {
@@ -240,6 +253,7 @@ void _oglVAO::Draw() const noexcept
 
 void _oglVAO::Test() const noexcept
 {
+    CheckCurrent();
     bind();
     BindingState state;
     unbind();

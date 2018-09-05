@@ -137,12 +137,12 @@ static void OGLStub()
             log().verbose(u"{}\n", exttxts);
             continue;
         }
-        common::fs::path filepath(fpath);
+        common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading gl file [{}]\n", filepath.u16string());
         try
         {
             oglDrawProgram glProg(u"GLProg");
-            const auto shaderSrc = common::file::ReadAllText(fpath);
+            const auto shaderSrc = common::file::ReadAllText(filepath);
             try
             {
                 glProg->AddExtShaders(shaderSrc);

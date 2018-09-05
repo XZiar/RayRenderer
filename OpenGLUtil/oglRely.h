@@ -118,6 +118,22 @@ namespace detail
 class TextureManager;
 class TexImgManager;
 class UBOManager;
+struct SharedContextCore;
+class _oglContext;
+
+template<bool IsShared>
+class OGLUAPI oglCtxObject : public common::NonCopyable
+{
+private:
+    using CtxType = std::conditional_t<IsShared, SharedContextCore, _oglContext>;
+    const std::weak_ptr<CtxType> Context;
+    static std::weak_ptr<CtxType> GetCtx();
+protected:
+    oglCtxObject() : Context(GetCtx()) { }
+    void CheckCurrent() const;
+    bool EnsureValid();
+};
+
 }
 }
 
