@@ -21,7 +21,7 @@ namespace str
 ** @param consumer a function that accepts start pos AND length for each slice and do something
 ** @param keepblank whether should keep blank splice
 **/
-template<typename Char, class Judger, class Consumer>
+template<typename Char, class Judger, class Consumer, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline void SplitAndDo(const Char *src, const size_t len, const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
     size_t cur = 0, last = 0;
@@ -37,13 +37,13 @@ inline void SplitAndDo(const Char *src, const size_t len, const Judger judger, c
     if (keepblank || cur != last)
         consumer(&src[last], cur - last);
 }
-template<typename Char, typename T, class Judger, class Consumer, class = detail::CanBeStringView<T, Char>>
+template<typename Char, typename T, class Judger, class Consumer, class = detail::CanBeStringView<T, Char>, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline void SplitAndDo(const T& src, const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     SplitAndDo(srcsv.data(), srcsv.length(), judger, consumer, keepblank);
 }
-template<typename Char, size_t N, class Judger, class Consumer>
+template<typename Char, size_t N, class Judger, class Consumer, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline void SplitAndDo(const Char(&src)[N], const Judger judger, const Consumer consumer, const bool keepblank = true)
 {
     SplitAndDo(src, N - 1, judger, consumer, keepblank);
@@ -84,19 +84,19 @@ inline void SplitAndDo(const Char(&src)[N], const Char delim, const Consumer con
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename Char, class Judger, class Container>
+template<typename Char, class Judger, class Container, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline Container& SplitInto(const Char *src, const size_t len, const Judger judger, Container& container, const bool keepblank = true)
 {
     SplitAndDo(src, len, judger, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename Char, typename T, class Judger, class Container, class = detail::CanBeStringView<T, Char>>
+template<typename Char, typename T, class Judger, class Container, class = detail::CanBeStringView<T, Char>, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline Container& SplitInto(const T& src, const Judger judger, Container& container, const bool keepblank = true)
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     return SplitInto(srcsv.data(), srcsv.length(), judger, container, keepblank);
 }
-template<typename Char, size_t N, class Judger, class Container>
+template<typename Char, size_t N, class Judger, class Container, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline Container& SplitInto(const Char(&src)[N], const Judger judger, Container& container, const bool keepblank = true)
 {
     return SplitInto(src, N - 1, judger, container, keepblank);
@@ -140,20 +140,20 @@ inline Container& SplitInto(const Char(&src)[N], const Char delim, Container& co
 ** @param keepblank whether should keep blank splice
 ** @return container
 **/
-template<typename Char, class Judger>
+template<typename Char, class Judger, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline std::vector<std::basic_string_view<Char>> Split(const Char *src, const size_t len, const Judger judger, const bool keepblank = true)
 {
     std::vector<std::basic_string_view<Char>> container;
     SplitAndDo(src, len, judger, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename Char, typename T, class Judger, class = detail::CanBeStringView<T, Char>>
+template<typename Char, typename T, class Judger, class = detail::CanBeStringView<T, Char>, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline std::vector<std::basic_string_view<Char>> Split(const T& src, const Judger judger, const bool keepblank = true)
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     return Split(srcsv.data(), srcsv.length(), judger, keepblank);
 }
-template<typename Char, size_t N, class Judger>
+template<typename Char, size_t N, class Judger, class = std::enable_if_t<std::is_invocable_r_v<bool, Judger, Char>>>
 inline std::vector<std::basic_string_view<Char>> Split(const Char(&src)[N], const Judger judger, const bool keepblank = true)
 {
     return Split(src, N - 1, judger, keepblank);
@@ -176,13 +176,13 @@ inline std::vector<std::basic_string_view<Char>> Split(const Char *src, const si
     SplitAndDo(src, len, delim, [&container](const Char *ptr, const size_t size) { container.push_back(std::basic_string_view<Char>(ptr, size)); }, keepblank);
     return container;
 }
-template<typename Char, typename T, class Judger, class = detail::CanBeStringView<T, Char>>
+template<typename Char, typename T, class = detail::CanBeStringView<T, Char>>
 inline std::vector<std::basic_string_view<Char>> Split(const T& src, const Char delim, const bool keepblank = true)
 {
     const auto srcsv = detail::ToStringView<Char>(src);
     return Split(srcsv.data(), srcsv.length(), delim, keepblank);
 }
-template<typename Char, size_t N, class Judger>
+template<typename Char, size_t N>
 inline std::vector<std::basic_string_view<Char>> Split(const Char(&src)[N], const Char delim, const bool keepblank = true)
 {
     return Split(src, N - 1, delim, keepblank);

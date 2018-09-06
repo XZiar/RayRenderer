@@ -162,7 +162,7 @@ inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{}
 }
 
 template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, typename Vec::value_type>::type>
-inline Val* FindInVec(Vec& thevec, const Predictor& pred)
+inline auto FindInVec(Vec& thevec, const Predictor& pred) -> decltype(&*thevec.begin())
 {
     const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
     if (it == thevec.end())//not exist

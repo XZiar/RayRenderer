@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     else
     {
         std::cin >> idx;
-        std::cin.ignore();
+        std::cin.ignore(1024, '\n');
     }
     if (idx < testMap.size())
     {
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
         std::string_view txt((const char*)txtdat.data(), txtdat.size());
         log().verbose(u"\n{}\n\n", txt);
     }
-    std::cin.ignore();
+    std::cin.ignore(1024, '\n');
     getchar();
     static_assert(common::str::detail::is_str_vector_v<char, std::vector<char, common::AlignAllocator<char>>>(), "");
     static_assert(common::str::detail::is_str_vector_v<char, std::vector<char>>(), "");

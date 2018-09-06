@@ -746,10 +746,10 @@ void _oglDrawProgram::OnPrepare()
     RegisterLocation();
 }
 
-void _oglDrawProgram::AddExtShaders(const string& src)
+void _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& config)
 {
     ExtShaderSource = src;
-    for (auto shader : oglShader::LoadFromExSrc(src, ExtInfo, false))
+    for (auto shader : oglShader::LoadDrawFromExSrc(src, ExtInfo, config))
     {
         shader->compile();
         AddShader(shader);
@@ -1028,10 +1028,10 @@ _oglComputeProgram::_oglComputeProgram(const u16string name, const oglShader& sh
     AddShader(shader);
     Link();
 }
-_oglComputeProgram::_oglComputeProgram(const u16string name, const string& src) : _oglProgram(name)
+_oglComputeProgram::_oglComputeProgram(const u16string name, const string& src, const ShaderConfig& config) : _oglProgram(name)
 { 
     ExtShaderSource = src;
-    const auto s = oglShader::LoadFromExSrc(src, ExtInfo, true, false);
+    const auto s = oglShader::LoadComputeFromExSrc(src, ExtInfo, config);
     if (s.empty())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");
     auto shader = *s.cbegin();

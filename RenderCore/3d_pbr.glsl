@@ -97,22 +97,17 @@ uniform float idxscale = 1.0f;
 
 out vec4 FragColor;
 
-subroutine vec3 LightModel();
-subroutine uniform LightModel lighter;
+OGLU_ROUTINE(LightModel, lighter, vec3)
 
-subroutine vec3 NormalCalc(const uint);
-subroutine uniform NormalCalc getNorm;
+OGLU_ROUTINE(NormalCalc, getNorm, vec3, const uint id)
 
-subroutine vec3 AlbedoCalc(const uint);
-subroutine uniform AlbedoCalc getAlbedo;
+OGLU_ROUTINE(AlbedoCalc, getAlbedo, vec3, const uint id)
 
-subroutine(NormalCalc)
-vec3 vertedNormal(const uint id)
+OGLU_SUBROUTINE(NormalCalc, vertedNormal)
 {
     return normalize(norm);
 }
-subroutine(NormalCalc)
-vec3 mappedNormal(const uint id)
+OGLU_SUBROUTINE(NormalCalc, mappedNormal)
 {
     const vec3 ptNorm = normalize(norm);
     const vec3 ptTan = normalize(tannorm.xyz);
@@ -129,19 +124,16 @@ vec3 mappedNormal(const uint id)
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
 }
-subroutine(NormalCalc)
-vec3 bothNormal(const uint id)
+OGLU_SUBROUTINE(NormalCalc, bothNormal)
 {
     return (materials[id].mappos.y == 0xffff) ? vertedNormal(id) : mappedNormal(id);
 }
 
-subroutine(AlbedoCalc)
-vec3 materialAlbedo(const uint id)
+OGLU_SUBROUTINE(AlbedoCalc, materialAlbedo)
 {
     return materials[id].basic.xyz;
 }
-subroutine(AlbedoCalc)
-vec3 mappedAlbedo(const uint id)
+OGLU_SUBROUTINE(AlbedoCalc, mappedAlbedo)
 {
     const uint pos = materials[id].mappos.x;
     const uint bank = pos >> 16;
@@ -149,8 +141,7 @@ vec3 mappedAlbedo(const uint id)
     const vec3 newtpos = vec3(tpos, layer);
     return texture(texs[bank], newtpos).rgb;
 }
-subroutine(AlbedoCalc)
-vec3 bothAlbedo(const uint id)
+OGLU_SUBROUTINE(AlbedoCalc, bothAlbedo)
 {
     return (materials[id].mappos.x == 0xffff) ? materialAlbedo(id) : mappedAlbedo(id);
 }
@@ -191,26 +182,23 @@ float ClampDot(const vec3 v1, const vec3 v2)
     return max(dot(v1, v2), 0.0f);
 }
 
-subroutine(LightModel)
-vec3 tex0()
+
+OGLU_SUBROUTINE(LightModel, tex0)
 {
     const vec4 texColor = texture(texs[0], vec3(tpos, 0.0f));
     return texColor.rgb;
 }
-subroutine(LightModel)
-vec3 tanvec()
+OGLU_SUBROUTINE(LightModel, tanvec)
 {
     const vec3 ptNorm = normalize(tannorm.xyz);
     return (ptNorm + 1.0f) * 0.5f;
 }
-subroutine(LightModel)
-vec3 normal()
+OGLU_SUBROUTINE(LightModel, normal)
 {
     const vec3 ptNorm = getNorm(drawId);
     return (ptNorm + 1.0f) * 0.5f;
 }
-subroutine(LightModel)
-vec3 normdiff()
+OGLU_SUBROUTINE(LightModel, normdiff)
 {
     if(materials[drawId].mappos.y == 0xffff)
         return vec3(0.5f, 0.5f, 0.5f);
@@ -219,34 +207,29 @@ vec3 normdiff()
     const vec3 diff = ptNorm2 - ptNorm;
     return (diff + 1.0f) * 0.5f;
 }
-subroutine(LightModel)
-vec3 dist()
+OGLU_SUBROUTINE(LightModel, dist)
 {
     float depth = pow(gl_FragCoord.z, 5);
     return vec3(depth);
 }
-subroutine(LightModel)
-vec3 view()
+OGLU_SUBROUTINE(LightModel, view)
 {
     const vec3 viewRay = normalize(pt2cam);
     return (viewRay + 1.0f) * 0.5f;
 }
-subroutine(LightModel)
-vec3 lgt0p2l()
+OGLU_SUBROUTINE(LightModel, lgt0p2l)
 {
     vec3 p2l, color;
     parseLight(0, p2l, color);
     return (p2l + 1.0f) * 0.5f;
 }
-subroutine(LightModel)
-vec3 lgt0color()
+OGLU_SUBROUTINE(LightModel, lgt0color)
 {
     vec3 p2l, color;
     parseLight(0, p2l, color);
     return color;
 }
-subroutine(LightModel)
-vec3 drawidx()
+OGLU_SUBROUTINE(LightModel, drawidx)
 {
     //const uint didX = drawId % 3 + 1, didY = (drawId / 3) % 3 + 1, didZ = drawId / 9 + 1;
     //const float stride = 0.25f;
@@ -256,8 +239,7 @@ vec3 drawidx()
     else
         return vec3(0.0f, 1.0f, 0.0f);
 }
-subroutine(LightModel)
-vec3 mat0()
+OGLU_SUBROUTINE(LightModel, mat0)
 {
     const uint pos = materials[0].mappos.x;
     if(pos == 0xffff)
@@ -341,20 +323,17 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
     }
 }
 
-subroutine(LightModel)
-vec3 albedoOnly()
+OGLU_SUBROUTINE(LightModel, albedoOnly)
 {
     const vec3 albedo = getAlbedo(drawId) / oglu_PI;
     return albedo;
 }
-subroutine(LightModel)
-vec3 metalOnly()
+OGLU_SUBROUTINE(LightModel, metalOnly)
 {
     const float metallic = materials[drawId].basic.w;
     return vec3(metallic);
 }
-subroutine(LightModel)
-vec3 basic()
+OGLU_SUBROUTINE(LightModel, basic)
 {
     const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;
@@ -365,8 +344,7 @@ vec3 basic()
     lowp vec3 finalColor = ambientColor + diffuseColor + specularColor;
     return finalColor;
 }
-subroutine(LightModel)
-vec3 diffuse()
+OGLU_SUBROUTINE(LightModel, diffuse)
 {
     const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;
@@ -378,8 +356,7 @@ vec3 diffuse()
     return finalColor;
 }
 
-subroutine(LightModel)
-vec3 specular()
+OGLU_SUBROUTINE(LightModel, specular)
 {
     const float AO = materials[drawId].other.z;
     const lowp vec3 ambientColor = envAmbient.rgb * AO;

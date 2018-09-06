@@ -137,15 +137,43 @@ static void OGLStub()
             log().verbose(u"{}\n", exttxts);
             continue;
         }
+        bool exConfig = false;
+        if (fpath.size() > 0 && fpath.back() == '#')
+            fpath.pop_back(), exConfig = true;
         common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading gl file [{}]\n", filepath.u16string());
         try
         {
             oglDrawProgram glProg(u"GLProg");
             const auto shaderSrc = common::file::ReadAllText(filepath);
+            ShaderConfig config;
+            if (exConfig)
+            {
+                string line;
+                while (cin >> line)
+                {
+                    cin.ignore(1024, '\n');
+                    if (line.size() == 0) break;
+                    const auto parts = common::str::Split(&line[1], line.size() - 1, '=');
+                    switch (line.front())
+                    {
+                    case '#':
+                        if (parts.size() > 1)
+                            config.Defines.insert_or_assign(string(parts[0]), string(parts[1].cbegin(), parts.back().cend()));
+                        else
+                            config.Defines.insert_or_assign(string(parts[0]), std::monostate{});
+                        continue;
+                    case '@':
+                        if (parts.size() == 2)
+                            config.Routines.insert_or_assign(string(parts[0]), string(parts[1]));
+                        continue;
+                    }
+                    break;
+                }
+            }
             try
             {
-                glProg->AddExtShaders(shaderSrc);
+                glProg->AddExtShaders(shaderSrc, config);
                 glProg->Link();
             }
             catch (const OGLException& gle)

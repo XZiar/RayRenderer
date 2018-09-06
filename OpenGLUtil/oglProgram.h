@@ -224,7 +224,7 @@ public:
     using _oglProgram::_oglProgram;
     virtual ~_oglDrawProgram() override {}
 
-    void AddExtShaders(const string& src);
+    void AddExtShaders(const string& src, const ShaderConfig& config = {});
     void RegisterLocation();
     void SetProject(const Mat4x4 &);
     void SetView(const Mat4x4 &);
@@ -333,7 +333,7 @@ private:
     using _oglProgram::Link;
 public:
     _oglComputeProgram(const u16string name, const oglShader& shader);
-    _oglComputeProgram(const u16string name, const string& src);
+    _oglComputeProgram(const u16string name, const string& src, const ShaderConfig& config = {});
     virtual ~_oglComputeProgram() override {}
 
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);

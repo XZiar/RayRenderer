@@ -18,7 +18,7 @@
   - [x] Add Intel's ISPC tex-compressor as texture compresser
   - [ ] Add debugging support
   - [ ] Move Camera component out of OpenGLUtil (shouldn't handle here)
-  - [ ] Combine subroutine with macro-based static dispatch
+  - [x] Combine subroutine with macro-based static dispatch
   - [ ] Add context-sesative dispatching for version-based functions 
 
 * FontHelper

@@ -114,7 +114,10 @@ void BasicTest::init3d(const fs::path& shaderPath)
         const string shaderSrc = LoadShaderFallback(shaderPath / u"3d_pbr.glsl", IDR_SHADER_3DPBR);
         try
         {
-            progPBR->AddExtShaders(shaderSrc);
+            oglu::ShaderConfig config;
+            config.Routines["getNorm"] = "bothNormal";
+            config.Routines["getAlbedo"] = "bothAlbedo";
+            progPBR->AddExtShaders(shaderSrc, config);
             progPBR->Link();
         }
         catch (const OGLException& gle)

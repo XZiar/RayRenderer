@@ -66,6 +66,13 @@ struct OGLUAPI ShaderExtInfo
     map<string, string> ResMappings;
 };
 
+struct ShaderConfig
+{
+    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, float, double, std::string>;
+    map<string, DefineVal> Defines;
+    map<string, string> Routines;
+};
+
 class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 {
 private:
@@ -73,13 +80,15 @@ public:
     using Wrapper::Wrapper;
     static oglShader LoadFromFile(const ShaderType type, const fs::path& path);
     static vector<oglShader> LoadFromFiles(const u16string& fname);
-    static vector<oglShader> LoadFromExSrc(const string& src, ShaderExtInfo& info, const bool allowCompute = true, const bool allowDraw = true);
-    static vector<oglShader> LoadDrawFromExSrc(const string& src, ShaderExtInfo& info) { return LoadFromExSrc(src, info, false); }
-    static vector<oglShader> LoadComputeFromExSrc(const string& src, ShaderExtInfo& info) { return LoadFromExSrc(src, info, true, false); }
-    static vector<oglShader> LoadFromExSrc(const string& src) 
+    static vector<oglShader> LoadFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
+    static vector<oglShader> LoadDrawFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
+    { return LoadFromExSrc(src, info, config, false); }
+    static vector<oglShader> LoadComputeFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
+    { return LoadFromExSrc(src, info, config, true, false); }
+    static vector<oglShader> LoadFromExSrc(const string& src, const ShaderConfig& config = {}) 
     {
         ShaderExtInfo dummy;
-        return LoadFromExSrc(src, dummy);
+        return LoadFromExSrc(src, dummy, config);
     }
 };
 
