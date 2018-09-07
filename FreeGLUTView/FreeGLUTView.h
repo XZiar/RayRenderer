@@ -18,7 +18,6 @@
 
 #include "common/Wrapper.hpp"
 #include "common/TimeUtil.hpp"
-#include "OpenGLUtil/3DElement.hpp"
 #include <string>
 #include <functional>
 
@@ -30,7 +29,6 @@ using namespace common;
 using std::string;
 using std::wstring;
 using std::u16string;
-using namespace b3d;
 
 enum class Key : uint8_t
 {

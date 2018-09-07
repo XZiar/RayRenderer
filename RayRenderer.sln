@@ -258,6 +258,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KHR", "KHR", "{483ED897-89C
 		3rdParty\KHR\khrplatform.h = 3rdParty\KHR\khrplatform.h
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "half", "half", "{44E6B6BE-CFAA-40EE-8359-F9F393971FB7}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\half\half.hpp = 3rdParty\half\half.hpp
+		3rdParty\half\LICENSE.txt = 3rdParty\half\LICENSE.txt
+		3rdParty\half\README.txt = 3rdParty\half\README.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
@@ -697,6 +704,7 @@ Global
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{11B95B5A-BD8C-4B17-AC69-9E290D6E50E1} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{483ED897-89C7-4125-86AD-E7146C933B46} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{44E6B6BE-CFAA-40EE-8359-F9F393971FB7} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

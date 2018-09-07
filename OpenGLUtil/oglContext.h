@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "3DElement.hpp"
 
 namespace oglu
 {

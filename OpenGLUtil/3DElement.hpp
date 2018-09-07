@@ -1,15 +1,13 @@
 #pragma once
 
 #include <cmath>
-#include <string>
 #include <algorithm>
-
 #include "3DBasic/miniBLAS.hpp"
+#include "half/half.hpp"
 
 
 namespace b3d
 {
-using std::string;
 
 constexpr float PI_float = (float)(3.14159265358979323846);
 constexpr double PI_double = (double)(3.14159265358979323846);
@@ -25,6 +23,8 @@ inline T rad2ang(T in)
 {
     return static_cast<T>(in * 180 / PI_double);
 }
+
+using half_float::half;
 
 class Coord2D
 {
@@ -296,6 +296,7 @@ public:
     {
     }
 };
+
 
 
 }

@@ -4,7 +4,13 @@
 
 namespace common::mlog
 {
-
+namespace detail
+{
+struct ThreadWrapper : public std::thread
+{
+    using thread::thread;
+};
+}
 
 void LoggerQBackend::LoggerWorker()
 {
@@ -36,7 +42,7 @@ void LoggerQBackend::LoggerWorker()
 void LoggerQBackend::Start()
 {
     if(!ShouldRun.exchange(true) && !RunningThread)
-        RunningThread = std::make_unique<std::thread>(&LoggerQBackend::LoggerWorker, this);
+        RunningThread = std::make_unique<detail::ThreadWrapper>(&LoggerQBackend::LoggerWorker, this);
 }
 
 LoggerQBackend::LoggerQBackend(const size_t initSize) : MsgQueue(initSize)

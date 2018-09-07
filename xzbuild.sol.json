@@ -150,7 +150,7 @@
             "type": "dynamic",
             "path": "OpenGLUtil",
             "description": "Wrapper of OpenGL Utility",
-            "dependency": ["fmt", "miniLogger", "glew", "ImageUtil"]
+            "dependency": ["fmt", "cpuid", "miniLogger", "glew", "ImageUtil"]
         },
         {
             "name": "OpenCLUtil",

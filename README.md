@@ -43,13 +43,13 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-VS2017(`15.7`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
+VS2017(`15.8`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
 
-Some Utilities have `Makefile` inside are capable to be compiled on Linux, only tested on GCC 7.2. They can be built by execute [`build.sh`](build.sh) or use more powerful build system via [`build.py`](build.py) (python3).
+Some Utilities have `Makefile` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`build.sh`](build.sh) or use more powerful build utility via [`build.py`](build.py) (python3).
 
-`ResoucePackager` cannot be compiled by GCC7.3/7.3.1 due to compiler bug with rapidjson, see Tencent/rapidjson#1338
+`ResoucePackager` cannot be compiled by GCC7/8 due to compiler bug with rapidjson, see [Tencent/rapidjson#1338](https://github.com/Tencent/rapidjson/issues/1338)
 
-Several C++17 technic are taken, like STL-Containers(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
+Several C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 
 ## Additional Requirements
 
@@ -89,7 +89,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-06-05
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-08-05
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
@@ -118,6 +118,10 @@ Some VC++ default props should be set --- `include path` and `libpath`.
   [License](./3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
 
 * [itoa](https://github.com/miloyip/itoa-benchmark)
+
+* [half](http://half.sourceforge.net/) 1.12.0
+  
+  [MIT License](./3rdParty/half/LICENSE.txt)
 
 * [libcpuid](http://libcpuid.sourceforge.net/) 0.4.0 master@2018-08-09
 

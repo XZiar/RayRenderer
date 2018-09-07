@@ -94,21 +94,17 @@ struct PairGreater
 namespace detail
 {
 
-template<typename T, typename Ele>
-struct EleTyper
-{
-    using type = /*typename*/ Ele;
-};
-template<typename T, typename Ele>
-struct EleTyper<const T, Ele>
-{
-    using type = /*typename*/ const Ele;
-};
+template<typename T>
+using IteratorTyper = decltype(std::declval<T>().begin());
+template<typename T>
+using ElementTyper = decltype(*std::declval<IteratorTyper<T>>());
+template<typename T>
+using MapTyper = decltype(std::declval<ElementTyper<T>>().second);
 
 }
 
-template<class Set, typename Key, typename Val = typename detail::EleTyper<Set, typename Set::value_type>::type>
-inline const Val* FindInSet(Set& theset, const Key& key)
+template<class Set, typename Key>
+inline auto FindInSet(Set& theset, const Key& key) -> decltype(&*theset.begin())
 {
     const auto it = theset.find(key);
     if (it == theset.end())//not exist
@@ -116,7 +112,7 @@ inline const Val* FindInSet(Set& theset, const Key& key)
     return &(*it);
 }
 
-template<class Set, typename Key, typename Val = typename detail::EleTyper<Set, typename Set::value_type>::type>
+template<class Set, typename Key, typename Val = detail::ElementTyper<Set>>
 inline std::optional<Val> FindInSet(Set& theset, const Key& key, const std::in_place_t)
 {
     const auto it = theset.find(key);
@@ -125,8 +121,8 @@ inline std::optional<Val> FindInSet(Set& theset, const Key& key, const std::in_p
     return *it;
 }
 
-template<class Set, typename Key, typename Val = typename detail::EleTyper<Set, typename Set::value_type>::type>
-inline Val FindInSetOrDefault(Set& theset, const Key& key, const Val def = Val{})
+template<class Set, typename Key, typename Val = detail::ElementTyper<Set>>
+inline Val FindInSetOrDefault(Set& theset, const Key& key, Val def = Val{})
 {
     const auto it = theset.find(key);
     if (it == theset.end())//not exist
@@ -134,8 +130,8 @@ inline Val FindInSetOrDefault(Set& theset, const Key& key, const Val def = Val{}
     return *it;
 }
 
-template<class Map, typename Key = typename Map::key_type, typename Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
-inline Val* FindInMap(Map& themap, const Key& key)
+template<class Map, typename Key = typename Map::key_type>
+inline auto FindInMap(Map& themap, const Key& key) -> decltype(&(themap.begin()->second))
 {
     const auto it = themap.find(key);
     if (it == themap.end())//not exist
@@ -143,7 +139,7 @@ inline Val* FindInMap(Map& themap, const Key& key)
     return &it->second;
 }
 
-template<class Map, typename Key = typename Map::key_type, typename Val = typename Map::mapped_type>
+template<class Map, typename Key = typename Map::key_type, typename Val = detail::MapTyper<Map>>
 inline std::optional<Val> FindInMap(Map& themap, const Key& key, const std::in_place_t)
 {
     const auto it = themap.find(key);
@@ -152,7 +148,7 @@ inline std::optional<Val> FindInMap(Map& themap, const Key& key, const std::in_p
     return it->second;
 }
 
-template<class Map, typename Key = typename Map::key_type, typename Val = typename detail::EleTyper<Map, typename Map::mapped_type>::type>
+template<class Map, typename Key = typename Map::key_type, typename Val = detail::MapTyper<Map>>
 inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{})
 {
     const auto it = themap.find(key);
@@ -161,7 +157,7 @@ inline Val FindInMapOrDefault(Map& themap, const Key& key, const Val def = Val{}
     return it->second;
 }
 
-template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, typename Vec::value_type>::type>
+template<class Vec, typename Predictor>
 inline auto FindInVec(Vec& thevec, const Predictor& pred) -> decltype(&*thevec.begin())
 {
     const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
@@ -170,7 +166,7 @@ inline auto FindInVec(Vec& thevec, const Predictor& pred) -> decltype(&*thevec.b
     return &(*it);
 }
 
-template<class Vec, typename Predictor, typename Val = typename Vec::value_type>
+template<class Vec, typename Predictor, typename Val = detail::ElementTyper<Vec>>
 inline std::optional<Val> FindInVec(Vec& thevec, const Predictor& pred, const std::in_place_t)
 {
     const auto it = std::find_if(thevec.begin(), thevec.end(), pred);
@@ -197,9 +193,10 @@ inline Val FindInVecOrDefault(Vec& thevec, const Predictor& pred, const Val def 
     return *it;
 }
 
-template<class Vec, typename Predictor, typename Val = typename detail::EleTyper<Vec, typename Vec::value_type>::type>
+template<class Vec, typename Predictor, typename Val = detail::ElementTyper<Vec>>
 inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, const size_t cnt = SIZE_MAX)
 {
+    static_assert(std::is_invocable_r_v<Predictor, bool, const Val&>, "Predictor type mismatch");
     if (cnt == 0)
         return 0;
     size_t replacedCnt = 0;

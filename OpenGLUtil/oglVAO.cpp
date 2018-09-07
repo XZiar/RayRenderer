@@ -36,20 +36,20 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVB
     }
     return *this;
 }
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const bool isInteger, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
     vao.CheckCurrent();
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         vbo->bind();
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        glVertexAttribPointer(attridx, size, valType, GL_FALSE, stride, (const void*)intptr_t(offset));
+        glVertexAttribPointer(attridx, size, valType, isInteger ? GL_TRUE : GL_FALSE, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetPoints(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset)
 {
     vao.CheckCurrent();
     vbo->bind();
@@ -71,7 +71,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::Set(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetPointExs(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset)
 {
     vao.CheckCurrent();
     vbo->bind();

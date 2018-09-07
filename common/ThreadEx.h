@@ -7,10 +7,9 @@
 #include <list>
 #include <tuple>
 
-namespace std
-{
-class thread;
-}
+#if !defined(_MANAGED) && !defined(_M_CEE)
+#   include <thread>
+#endif
 
 namespace common
 {
@@ -55,7 +54,9 @@ protected:
 public:
     static ThreadObject GetCurrentThreadObject();
     static uint64_t GetCurrentThreadId();
+#if !defined(_MANAGED) && !defined(_M_CEE)
     static ThreadObject GetThreadObject(std::thread& thr);
+#endif
     constexpr ThreadObject() noexcept : Handle(0), TId(0) { }
     ThreadObject(ThreadObject&& other) noexcept
     {

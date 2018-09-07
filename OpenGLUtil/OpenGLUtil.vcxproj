@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3DElement.hpp" />
+    <ClInclude Include="DataTypeConvert.h" />
     <ClInclude Include="DSAWrapper.h" />
     <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
@@ -39,6 +40,7 @@
     <ClInclude Include="PointEnhance.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DataTypeConvert.cpp" />
     <ClCompile Include="DSAWrapper.cpp" />
     <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
@@ -59,6 +61,9 @@
     <ClCompile Include="oglVAO.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\cpuid\cpuid.vcxproj">
+      <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>

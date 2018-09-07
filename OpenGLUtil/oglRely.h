@@ -31,7 +31,6 @@
 #include "common/PromiseTask.hpp"
 #include "common/ThreadEx.h"
 #include "ImageUtil/ImageUtil.h"
-#include "3DElement.hpp"
 
 #define GLEW_STATIC
 #include "glew/glew.h"
@@ -59,6 +58,7 @@
 #include <variant>
 #include <algorithm>
 #include <atomic>
+#include "half/half.hpp"
 
 namespace oclu
 {
@@ -89,10 +89,6 @@ using std::set;
 using std::function;
 using std::optional;
 using std::variant;
-using b3d::Vec3;
-using b3d::Vec4;
-using b3d::Mat3x3;
-using b3d::Mat4x4;
 using common::Wrapper;
 using common::SimpleTimer;
 using common::NonCopyable;
@@ -105,13 +101,6 @@ using common::FileException;
 class oglWorker;
 struct DSAFuncs;
 
-enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
-{
-    Vec4 vec;
-    TransformType type;
-    TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
-};
 
 namespace detail
 {

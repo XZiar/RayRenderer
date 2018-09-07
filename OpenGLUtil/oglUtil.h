@@ -1,11 +1,23 @@
 #pragma once
 #include "oglRely.h"
 #include "common/AsyncExecutor/AsyncAgent.h"
+#include "3DElement.hpp"
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
 
 namespace oglu
 {
+using b3d::Vec3;
+using b3d::Vec4;
+using b3d::Mat3x3;
+using b3d::Mat4x4;
+enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
+struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
+{
+    Vec4 vec;
+    TransformType type;
+    TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
+};
 
 using common::asyexe::AsyncTaskFunc;
 

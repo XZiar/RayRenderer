@@ -5,9 +5,14 @@
 #include "oglTexture.h"
 #include "oglVAO.h"
 #include "oglUtil.h"
+#include "3DElement.hpp"
 
 namespace oglu
 {
+using b3d::Vec3;
+using b3d::Vec4;
+using b3d::Mat3x3;
+using b3d::Mat4x4;
 
 using UniformValue = std::variant<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
 

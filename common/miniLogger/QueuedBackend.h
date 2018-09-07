@@ -11,19 +11,19 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace std
-{
-class thread;
-}
-
 namespace common::mlog
 {
+
+namespace detail
+{
+struct ThreadWrapper;
+}
 
 class MINILOGAPI LoggerQBackend : public LoggerBackend
 {
 protected:
     boost::lockfree::queue<LogMessage*> MsgQueue;
-    std::unique_ptr<std::thread> RunningThread;
+    std::unique_ptr<detail::ThreadWrapper> RunningThread;
     std::mutex RunningMtx;
     std::condition_variable CondWait;
     std::atomic_bool ShouldRun = false;

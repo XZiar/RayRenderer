@@ -52,7 +52,7 @@ void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
     const GLint attrs[4] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc"), prog->GetLoc("@VertTan") };
     {
         auto vaoprep = std::move(vao->Prepare()
-            .Set(Mesh->vbo, attrs, 0)
+            .SetPointExs(Mesh->vbo, attrs, 0)
             .SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->GetLoc("@DrawID"), sizeof(uint32_t), 1, 0, 1)
             .SetIndex(Mesh->ebo));
         Mesh->PrepareVAO(vaoprep);

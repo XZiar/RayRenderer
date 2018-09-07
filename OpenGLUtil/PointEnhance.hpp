@@ -42,4 +42,30 @@ inline void GenerateTanPoint(b3d::PointEx& pt0, b3d::PointEx& pt1, b3d::PointEx&
 }
 
 
+struct PointExCompressed
+{
+public:
+    int16_t Pos[4];
+    int16_t TCoord[2];
+    uint32_t Norm;
+    uint32_t Tan;
+    static uint32_t CompressVec4(const miniBLAS::Vec4& v)
+    {
+        const auto int9V = v * 512.f;
+        const auto x = ((int32_t)int9V.x) & 0x3ff, y = ((int32_t)int9V.y) & 0x3ff, z = ((int32_t)int9V.x) & 0x3ff;
+        const bool w = int9V.w >= 0.f;
+        return x + (y << 10) + (x << 10) + w ? 0x00000000u : 0xc0000000u;
+    }
+    PointExCompressed(const b3d::PointEx& pt) noexcept
+    {
+        const auto int16Pos = pt.pos * INT16_MAX;
+        Pos[0] = static_cast<int16_t>(int16Pos.x), Pos[1] = static_cast<int16_t>(int16Pos.y), Pos[2] = static_cast<int16_t>(int16Pos.z);
+        const auto int16Tcoord = pt.tcoord * INT16_MAX;
+        TCoord[0] = static_cast<int16_t>(int16Tcoord.u), TCoord[1] = static_cast<int16_t>(int16Tcoord.v);
+        Norm = CompressVec4(b3d::Vec4(pt.norm, 1.f));
+        Tan = CompressVec4(b3d::Vec4(b3d::Normal(pt.norm), pt.norm.w));
+    }
+};
+
+
 }
