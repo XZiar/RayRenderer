@@ -1,4 +1,7 @@
-#version 430 core
+#version 330 core
+#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shader_subroutine : require
+#extension GL_ARB_gpu_shader5 : require
 precision mediump float;
 //@OGLU@Stage("VERT", "FRAG")
 
@@ -30,27 +33,23 @@ void main()
 #ifdef OGLU_FRAG
 uniform sampler2D tex;
 out vec4 FragColor;
-subroutine vec4 fontType(vec2 texpos);
-subroutine uniform fontType fontRenderer;
+OGLU_ROUTINE(fontType, fontRenderer, vec4, const vec2 texpos)
 
 //@OGLU@Property("distRange", RANGE, "range of dist", 0.0, 1.0)
 uniform vec2 distRange = vec2(0.44f, 0.57f); 
 //@OGLU@Property("fontColor", COLOR, "font color")
 uniform lowp vec4 fontColor = vec4(1.0f);
 
-subroutine(fontType)
-vec4 plainFont(in vec2 texpos)
+OGLU_SUBROUTINE(fontType, plainFont)
 {
 	return vec4(fontColor.rgb * (1.0f - texture(tex, texpos).r), 1.0f);
 }
-subroutine(fontType)
-vec4 sdfMid(in vec2 texpos)
+OGLU_SUBROUTINE(fontType, sdfMid)
 {
 	const float dist = texture(tex, texpos).r;
 	return fontColor * smoothstep(distRange.y, distRange.x, dist);//make foreground white most
 }
-subroutine(fontType)
-vec4 compare(in vec2 texpos)
+OGLU_SUBROUTINE(fontType, compare)
 {
 	if (texpos.x < 0.5f)
 		return plainFont(vec2(texpos.x * 2.0f, texpos.y));

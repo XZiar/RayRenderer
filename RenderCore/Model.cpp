@@ -53,7 +53,8 @@ void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
     {
         auto vaoprep = std::move(vao->Prepare()
             .SetPointExs(Mesh->vbo, attrs, 0)
-            .SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->GetLoc("@DrawID"), sizeof(uint32_t), 1, 0, 1)
+            .SetDrawId(prog)
+            //.SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->GetLoc("@DrawID"), sizeof(uint32_t), 1, 0, 1)
             .SetIndex(Mesh->ebo));
         Mesh->PrepareVAO(vaoprep);
     }

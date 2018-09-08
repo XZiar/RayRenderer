@@ -1,4 +1,7 @@
-#version 430 core
+#version 330 core
+#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shader_subroutine : require
+#extension GL_ARB_gpu_shader5 : require
 
 //@OGLU@Stage("VERT", "FRAG")
 
@@ -38,30 +41,25 @@ uniform float gamma = 2.2f;
 //@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 5.0)
 uniform float exposure = 1.0f;
 
-subroutine vec3 ToneMapping(const vec3);
-subroutine uniform ToneMapping ToneMap;
+OGLU_ROUTINE(ToneMapping, ToneMap, vec3, const vec3 color)
 
-subroutine(ToneMapping)
-vec3 NoTone(const vec3 color)
+OGLU_SUBROUTINE(ToneMapping, NoTone)
 {
     return color;
 }
 
-subroutine(ToneMapping)
-vec3 Reinhard(const vec3 color)
+OGLU_SUBROUTINE(ToneMapping, Reinhard)
 {
     const vec3 lum = exposure * color;
     return lum / (lum + 1.0f);
 }
 
-subroutine(ToneMapping)
-vec3 ExpTone(const vec3 color)
+OGLU_SUBROUTINE(ToneMapping, ExpTone)
 {
     return 1.0f - exp(color * -exposure);
 }
 
-subroutine(ToneMapping)
-vec3 ACES(const vec3 color)
+OGLU_SUBROUTINE(ToneMapping, ACES)
 {
     const float A = 2.51f;
     const float B = 0.03f;

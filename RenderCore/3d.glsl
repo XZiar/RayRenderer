@@ -1,4 +1,6 @@
-#version 430 core
+#version 330 core
+#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shader_subroutine : require
 precision mediump float;
 precision lowp sampler2D;
 //@OGLU@Stage("VERT", "FRAG")
@@ -14,7 +16,7 @@ layout(std140) uniform lightBlock
 {
     LightData lights[16];
 };
-uniform uint lightCount = 0;
+uniform uint lightCount = 0u;
 
 struct MaterialData
 {
@@ -80,22 +82,19 @@ uniform bool useNormalMap = false;
 
 out vec4 FragColor;
 
-subroutine vec4 LightModel();
-subroutine uniform LightModel lighter;
+OGLU_ROUTINE(LightModel, lighter, vec4)
 
-subroutine vec3 NormalCalc();
-subroutine uniform NormalCalc getNorm;
+OGLU_ROUTINE(NormalCalc, getNorm, vec3)
+
 
 //@OGLU@Property("envAmbient", COLOR, "environment ambient color")
 uniform vec4 envAmbient;
 
-subroutine(NormalCalc)
-vec3 vertedNormal()
+OGLU_SUBROUTINE(NormalCalc, vertedNormal)
 {
     return normalize(norm);
 }
-subroutine(NormalCalc)
-vec3 mappedNormal()
+OGLU_SUBROUTINE(NormalCalc, mappedNormal)
 {
     const vec3 ptNorm = normalize(norm);
     const vec3 ptTan = normalize(tannorm.xyz);
@@ -106,33 +105,28 @@ vec3 mappedNormal()
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
 }
-subroutine(NormalCalc)
-vec3 both()
+OGLU_SUBROUTINE(NormalCalc, both)
 {
     return useNormalMap ? mappedNormal() : vertedNormal();
 }
 
 
-subroutine(LightModel)
-vec4 tex0()
+OGLU_SUBROUTINE(LightModel, tex0)
 {
     vec4 texColor = texture(tex[0], tpos);
     return texColor;
 }
-subroutine(LightModel)
-vec4 tanvec()
+OGLU_SUBROUTINE(LightModel, tanvec)
 {
     const vec3 ptNorm = normalize(tannorm.xyz);
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
-subroutine(LightModel)
-vec4 normal()
+OGLU_SUBROUTINE(LightModel, normal)
 {
     const vec3 ptNorm = getNorm();
     return vec4((ptNorm + 1.0f) * 0.5f, 1.0f);
 }
-subroutine(LightModel)
-vec4 normdiff()
+OGLU_SUBROUTINE(LightModel, normdiff)
 {
     if(!useNormalMap)
         return vec4(0.5f, 0.5f, 0.5f, 1.0f);
@@ -141,20 +135,17 @@ vec4 normdiff()
     const vec3 diff = ptNorm2 - ptNorm;
     return vec4((diff + 1.0f) * 0.5f, 1.0f);
 }
-subroutine(LightModel)
-vec4 dist()
+OGLU_SUBROUTINE(LightModel, dist)
 {
     float depth = pow(gl_FragCoord.z, 5);
     return vec4(vec3(depth), 1.0f);
 }
-subroutine(LightModel)
-vec4 eye()
+OGLU_SUBROUTINE(LightModel, eye)
 {
     const vec3 eyeRay = normalize(cam2pt);
     return vec4((eyeRay + 1.0f) * 0.5f, 1.0f);
 }
-subroutine(LightModel)
-vec4 lgt0()
+OGLU_SUBROUTINE(LightModel, lgt0)
 {
     const vec3 p2l = lights[0].direction;
     return vec4((p2l + 1.0f) * 0.5f, 1.0f);
@@ -165,7 +156,7 @@ void bilinnPhong(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
 {
     const vec3 eyeRay = normalize(cam2pt);
     const vec3 ptNorm = getNorm();
-    for (int id = 0; id < lightCount; id++)
+    for (uint id = 0u; id < lightCount; id++)
     {
         vec3 p2l;
         float atten = 1.0f;
@@ -196,8 +187,7 @@ void bilinnPhong(out lowp vec3 diffuseColor, out lowp vec3 specularColor)
     }
 }
 
-subroutine(LightModel)
-vec4 basic()
+OGLU_SUBROUTINE(LightModel, basic)
 {
     const lowp vec3 ambientColor = envAmbient.rgb;
     lowp vec3 diffuseColor = vec3(0.0f);
@@ -207,8 +197,7 @@ vec4 basic()
     finalColor.rgb *= ambientColor + diffuseColor + specularColor;
     return finalColor;
 }
-subroutine(LightModel)
-vec4 diffuse()
+OGLU_SUBROUTINE(LightModel, diffuse)
 {
     const lowp vec3 ambientColor = envAmbient.rgb;
     lowp vec3 diffuseColor = vec3(0.0f);
@@ -219,8 +208,7 @@ vec4 diffuse()
     return finalColor;
 }
 
-subroutine(LightModel)
-vec4 specular()
+OGLU_SUBROUTINE(LightModel, specular)
 {
     const lowp vec3 ambientColor = envAmbient.rgb;
     lowp vec3 diffuseColor = vec3(0.0f);

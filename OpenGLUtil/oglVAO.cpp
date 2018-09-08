@@ -3,6 +3,7 @@
 #include "oglException.h"
 #include "oglContext.h"
 #include "oglUtil.h"
+#include "oglProgram.h"
 #include "DSAWrapper.h"
 
 namespace oglu::detail
@@ -160,6 +161,28 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo)
     vao.Offsets = std::monostate();
     return *this;
 }
+
+struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
+{
+    oglVBO Construct() const
+    {
+        std::vector<int32_t> ids(4096);
+        for (int32_t i = 0; i < 4096; ++i)
+            ids[i] = i;
+        oglVBO drawIdVBO(std::in_place);
+        drawIdVBO->Write(ids.data(), ids.size() * sizeof(int32_t));
+        oglLog().success(u"new DrawIdVBO generated.\n");
+        return drawIdVBO;
+    }
+};
+static DRAWIDCtxConfig DRAWID_CTX_CFG;
+
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const oglDrawProgram& prog)
+{
+    vao.CheckCurrent();
+    return SetInteger<int32_t>(oglContext::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), prog->GetLoc("@DrawID"), sizeof(int32_t), 1, 0, 1);
+}
+
 
 void _oglVAO::bind() const noexcept
 {

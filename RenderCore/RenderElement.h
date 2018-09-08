@@ -75,7 +75,6 @@ protected:
     const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram::weak_type& weakProg) const;
     template<typename T>
     static std::type_index GetType(const T* const obj) { return std::type_index(typeid(obj)); }
-    static oglu::oglVBO GetDrawIdVBO();
 };
 
 }

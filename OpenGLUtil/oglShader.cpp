@@ -1,8 +1,11 @@
 #include "oglRely.h"
 #include "oglException.h"
 #include "oglShader.h"
+#include <regex>
 
 using namespace std::literals;
+using std::regex;
+using std::smatch;
 using common::container::FindInMap;
 using common::container::FindInSet;
 using common::container::FindInVec;
@@ -185,8 +188,15 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line
 }
 
 constexpr static auto OGLU_DEFS = R"(
+#extension GL_ARB_shader_draw_parameters : enable
 #if defined(OGLU_VERT)
 #   define GLVARY out
+#   if defined(GL_ARB_shader_draw_parameters) && GL_ARB_shader_draw_parameters
+#       define ogluDrawId gl_DrawIDARB
+#   else
+        //@OGLU@Mapping(DrawID, "ogluDrawId")
+        in int ogluDrawId;
+#endif
 #elif defined(OGLU_FRAG)
 #   define GLVARY in
 #else
@@ -268,9 +278,10 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
     set<RoutineItem, common::container::SetKeyLess<RoutineItem, &RoutineItem::RoutineVal>> routines;
     vector<std::variant<string_view, string>> lines;
     string finalShader;
-    size_t lineNum = 0;
+    size_t verLineNum = string::npos;
 
     finalShader.reserve(src.size() + 1024);
+    info.ResMappings.insert_or_assign("DrawID", "ogluDrawId");
     str::SplitAndDo<char>(src, '\n',
         [&](const char *pos, size_t len) 
         {
@@ -278,14 +289,16 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
             if (pos[len - 1] == '\r') len--; // fix for "\r\n"
             string_view line(pos, len);
             lines.push_back(line);
-            if (len <= 6) return;
-            if (str::IsBeginWith(line, "#version"))
+            const auto p0 = line.find_first_not_of(' ');
+            const string_view realline = line.substr(p0 == string_view::npos ? 0 : p0);
+            if (realline.size() <= 6) return;
+            if (str::IsBeginWith(realline, "#version"))
             {
-                lineNum = curLine;
+                verLineNum = curLine;
             }
-            else if (str::IsBeginWith(line, "//@OGLU@"))
+            else if (str::IsBeginWith(realline, "//@OGLU@"))
             {
-                OgluAttribute ogluAttr(line.substr(8));
+                OgluAttribute ogluAttr(realline.substr(8));
                 switch (hash_(ogluAttr.Name))
                 {
                 case "Mapping"_hash:
@@ -303,13 +316,13 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
                     break;
                 }
             }
-            else if(str::IsBeginWith(line, "OGLU_ROUTINE("))
+            else if(str::IsBeginWith(realline, "OGLU_ROUTINE("))
             {
                 const auto&[it,ret] = routines.insert(RoutineItem(line, curLine));
                 if (!ret)
                     oglLog().warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
             }
-            else if(str::IsBeginWith(line, "OGLU_SUBROUTINE("))
+            else if(str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
             {
                 const auto sub = RoutineItem::TryParseSubroutine(line);
                 if (sub.has_value())
@@ -329,9 +342,29 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
             }
         }, true);
 
-    const string_view partVersion(src.data(), std::get<string_view>(lines[lineNum + 1]).data() - src.data());
+    const string_view partHead = verLineNum == string::npos ? "" : string_view(src.data(), std::get<string_view>(lines[verLineNum]).data() - src.data());
+    size_t restLineNum = 0;
+    string verPrefix, verSuffix;
+    uint32_t version = UINT32_MAX;
+    if (verLineNum != string::npos)
+    {
+        restLineNum = verLineNum + 1;
+        std::smatch mth;
+        const auto verLine = string(std::get<string_view>(lines[verLineNum]));
+        if (std::regex_search(verLine, mth, std::regex(R"((\#\s*version\s+)([1-9][0-9]0))")))
+        {
+            verPrefix = mth[1], verSuffix = verLine.substr(mth[0].length());
+            version = std::stoi(mth[2]);
+            constexpr std::array vers{ 110u,120u,130u,140u,150u,330u,400u,410u,420u,430u,440u,450u,460u };
+            if (!std::binary_search(vers.cbegin(), vers.cend(), version))
+                COMMON_THROW(BaseException, u"unsupported GLSL version");
+        }
+    }
+    if (version == UINT32_MAX)
+        COMMON_THROW(BaseException, u"no correct GLSL version found");
     if (stypes.empty())
         COMMON_THROW(BaseException, u"Invalid shader source");
+    //apply routines
     for (const auto&[rname, srname] : config.Routines)
     {
         const auto ptrRoutine = FindInSet(routines, rname);
@@ -347,11 +380,7 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
     }
     for (const auto sr : routines)
         sr.Apply(lines);
-
-    string rest; 
-    rest.reserve(src.size() + 1024);
-    for (auto it = lines.cbegin() + lineNum + 1; it != lines.cend(); ++it)
-        std::visit([&](const auto& val) { rest.append(val).append("\r\n"); }, *it);
+    //apply defines
     string defs;
     for (const auto& def : config.Defines)
     {
@@ -366,10 +395,16 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
         }, def.second);
         defs.append("\r\n");
     }
+    //prepare rest content
+    string rest; 
+    rest.reserve(src.size() + 1024);
+    for (auto it = lines.cbegin() + restLineNum; it != lines.cend(); ++it)
+        std::visit([&](const auto& val) { rest.append(val).append("\r\n"); }, *it);
 
-    const string lineFix = "#line " + std::to_string(lineNum + 2) + "\r\n"; //fix line number
+    const string lineFix = "#line " + std::to_string(restLineNum + 1) + "\r\n"; //fix line number
     for (const auto& stype : stypes)
     {
+        uint32_t curVer = version;
         ShaderType shaderType;
         const char *scopeDef = nullptr;
         switch (hash_(stype))
@@ -395,6 +430,7 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
         case "Compute"_hash:
         case "COMP"_hash:
             {
+                if (curVer < 430) curVer = 430;
                 shaderType = ShaderType::Compute;
                 scopeDef = "#define OGLU_COMP\r\n";
             } break;
@@ -405,7 +441,8 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
         if (shaderType == ShaderType::Compute && !allowCompute) continue;
         if (shaderType != ShaderType::Compute && !allowDraw) continue;
         finalShader.clear();
-        finalShader.append(partVersion).append("\r\n\r\n//vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\r\n//Below generated by OpenGLUtil\r\n")
+        finalShader.append(partHead).append(fmt::format("{}{}{}", verPrefix, curVer, verSuffix))
+            .append("\r\n\r\n//vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\r\n//Below generated by OpenGLUtil\r\n")
             .append(scopeDef).append(OGLU_DEFS).append(defs);
         
         finalShader.append("\r\n//Above generated by OpenGLUtil\r\n//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n\r\n")

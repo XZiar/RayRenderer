@@ -1,4 +1,7 @@
-#version 430 core
+#version 330 core
+#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shader_subroutine : require
+#extension GL_ARB_gpu_shader5 : require
 
 //@OGLU@Stage("VERT", "FRAG", "COMP")
 
@@ -30,24 +33,19 @@ void main()
 
 uniform sampler2D tex;
 
+OGLU_ROUTINE(ColorConvertor, ColorConv, vec4, const vec4 color)
 
-subroutine vec4 ColorConvertor(const vec4);
-subroutine uniform ColorConvertor ColorConv;
-
-subroutine(ColorConvertor)
-vec4 PlainCopy(const vec4 color)
+OGLU_SUBROUTINE(ColorConvertor, PlainCopy)
 {
     return color;
 }
 
-subroutine(ColorConvertor)
-vec4 GA2RGBA(const vec4 color)
+OGLU_SUBROUTINE(ColorConvertor, GA2RGBA)
 {
     return color.rrrg;
 }
 
-subroutine(ColorConvertor)
-vec4 G2RGBA(const vec4 color)
+OGLU_SUBROUTINE(ColorConvertor, G2RGBA)
 {
     return color.rrra;
 }

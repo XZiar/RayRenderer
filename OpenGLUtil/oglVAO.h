@@ -6,7 +6,6 @@
 namespace oglu
 {
 
-
 enum class VAODrawMode : GLenum
 {
     Triangles = GL_TRIANGLES
@@ -15,6 +14,7 @@ enum class VAODrawMode : GLenum
 
 namespace detail
 {
+class _oglDrawProgram;
 
 
 class OGLUAPI _oglVAO : public NonMovable, public oglCtxObject<false>
@@ -102,6 +102,9 @@ public:
         ///<summary>Set Indirect buffer</summary>  
         ///<param name="ibo">indirect buffer</param>
         VAOPrep& SetDrawSize(const oglIBO& ibo);
+        ///<summary>Set DrawId</summary>  
+        ///<param name="prog">drawProgram</param>
+        VAOPrep& SetDrawId(const Wrapper<_oglDrawProgram>& prog);
     };
     _oglVAO(const VAODrawMode) noexcept;
     ~_oglVAO() noexcept;

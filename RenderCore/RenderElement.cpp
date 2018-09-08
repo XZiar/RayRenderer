@@ -136,7 +136,7 @@ MultiMaterialHolder Drawable::PrepareMaterial() const
 auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
 {
     const GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
-    return std::move(vao->Prepare().SetPoints(vbo, attrs, 0));
+    return std::move(vao->Prepare().SetPoints(vbo, attrs, 0).SetDrawId(prog));
 }
 
 Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
@@ -163,26 +163,6 @@ const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weak
         return it->vao;
     basLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
     return EmptyVAO;
-}
-
-struct DRAWIDCtxConfig : public oglu::CtxResConfig<true, oglu::oglVBO>
-{
-    oglu::oglVBO Construct() const 
-    { 
-        std::vector<uint32_t> ids(32768);
-        for (uint32_t i = 0; i < 32768; ++i)
-            ids[i] = i;
-        oglu::oglVBO drawIdVBO(std::in_place);
-        drawIdVBO->Write(ids.data(), ids.size() * sizeof(uint32_t));
-        basLog().verbose(u"new DrawIdVBO generated.\n");
-        return drawIdVBO;
-    }
-};
-static DRAWIDCtxConfig DRAWID_CTX_CFG;
-
-oglu::oglVBO Drawable::GetDrawIdVBO()
-{
-    return oglu::oglContext::CurrentContext()->GetOrCreate<false>(DRAWID_CTX_CFG);
 }
 
 

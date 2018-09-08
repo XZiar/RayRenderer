@@ -1,4 +1,7 @@
-#version 430 core
+#version 330 core
+#extension GL_ARB_shading_language_420pack : require
+#extension GL_ARB_shader_subroutine : require
+#extension GL_ARB_gpu_shader5 : require
 precision mediump float;
 precision lowp sampler2D;
 //@OGLU@Stage("VERT", "FRAG")
@@ -16,7 +19,7 @@ layout(std140) uniform lightBlock
 {
     LightData lights[16];
 };
-uniform uint lightCount = 0;
+uniform uint lightCount = 0u;
 
 struct MaterialData
 {
@@ -63,8 +66,6 @@ in vec3 vertNorm;
 in vec2 vertTexc;
 //@OGLU@Mapping(VertTan, "vertTan")
 in vec4 vertTan;
-//@OGLU@Mapping(DrawID, "ogluDrawId")
-in uint ogluDrawId;
 
 void main() 
 {
@@ -117,7 +118,7 @@ OGLU_SUBROUTINE(NormalCalc, mappedNormal)
 
     const uint pos = materials[id].mappos.y;
     const uint bank = pos >> 16;
-    const float layer = float(pos & 0xffff);//let it be wrong
+    const float layer = float(pos & 0xffffu);//let it be wrong
     const vec3 newtpos = vec3(tpos, layer);
     const vec2 ptNormRG = texture(texs[bank], newtpos).rg * 2.0f - 1.0f;
     const vec3 ptNormTex = vec3(ptNormRG, sqrt(1.0f - dot(ptNormRG, ptNormRG)));
@@ -126,7 +127,7 @@ OGLU_SUBROUTINE(NormalCalc, mappedNormal)
 }
 OGLU_SUBROUTINE(NormalCalc, bothNormal)
 {
-    return (materials[id].mappos.y == 0xffff) ? vertedNormal(id) : mappedNormal(id);
+    return (materials[id].mappos.y == 0xffffu) ? vertedNormal(id) : mappedNormal(id);
 }
 
 OGLU_SUBROUTINE(AlbedoCalc, materialAlbedo)
@@ -137,13 +138,13 @@ OGLU_SUBROUTINE(AlbedoCalc, mappedAlbedo)
 {
     const uint pos = materials[id].mappos.x;
     const uint bank = pos >> 16;
-    const float layer = float(pos & 0xffff);
+    const float layer = float(pos & 0xffffu);
     const vec3 newtpos = vec3(tpos, layer);
     return texture(texs[bank], newtpos).rgb;
 }
 OGLU_SUBROUTINE(AlbedoCalc, bothAlbedo)
 {
-    return (materials[id].mappos.x == 0xffff) ? materialAlbedo(id) : mappedAlbedo(id);
+    return (materials[id].mappos.x == 0xffffu) ? materialAlbedo(id) : mappedAlbedo(id);
 }
 
 
@@ -200,7 +201,7 @@ OGLU_SUBROUTINE(LightModel, normal)
 }
 OGLU_SUBROUTINE(LightModel, normdiff)
 {
-    if(materials[drawId].mappos.y == 0xffff)
+    if(materials[drawId].mappos.y == 0xffffu)
         return vec3(0.5f, 0.5f, 0.5f);
     const vec3 ptNorm = vertedNormal(drawId);
     const vec3 ptNorm2 = mappedNormal(drawId);
@@ -242,10 +243,10 @@ OGLU_SUBROUTINE(LightModel, drawidx)
 OGLU_SUBROUTINE(LightModel, mat0)
 {
     const uint pos = materials[0].mappos.x;
-    if(pos == 0xffff)
+    if(pos == 0xffffu)
         return vec3(1.0f, 0.0f, 0.0f);
     const uint bank = pos >> 16;
-    const float layer = float(pos & 0xffff);
+    const float layer = float(pos & 0xffffu);
     return vec3(0.0f, bank / 16.0f, layer / 16.0f);
 }
 

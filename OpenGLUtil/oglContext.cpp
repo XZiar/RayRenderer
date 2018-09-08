@@ -260,7 +260,8 @@ void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     DbgLimit = { type, src, minLV };
-    glDebugMessageCallback(onMsg, &DbgLimit);
+    if (glDebugMessageCallback)
+        glDebugMessageCallback(onMsg, &DbgLimit);
 }
 
 void _oglContext::SetDepthTest(const DepthTestType type)
