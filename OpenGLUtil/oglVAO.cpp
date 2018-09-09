@@ -96,14 +96,20 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo, GLint offset, GLsizei size)
 {
     if ((bool)vao.IndexBuffer != ibo->IsIndexed)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
+    if (offset > ibo->Count || offset < 0)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset exceed ebo size.");
+    if (size == 0)
+        size = ibo->Count - offset;
+    else if (size + offset > ibo->Count)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"draw size exceed ebo size.");
     vao.IndirectBuffer = ibo;
     vao.Method = ibo->IsIndexed ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
-    vao.Count = std::monostate();
-    vao.Offsets = std::monostate();
+    vao.Count = size;
+    vao.Offsets = offset;
     return *this;
 }
 
@@ -122,10 +128,14 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
 };
 static DRAWIDCtxConfig DRAWID_CTX_CFG;
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const Wrapper<_oglDrawProgram>& prog)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const GLint attridx)
 {
     vao.CheckCurrent();
-    return SetInteger<int32_t>(oglContext::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), prog->GetLoc("@DrawID"), sizeof(int32_t), 1, 0, 1);
+    return SetInteger<int32_t>(oglContext::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), attridx, sizeof(int32_t), 1, 0, 1);
+}
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const Wrapper<_oglDrawProgram>& prog)
+{
+    return SetDrawId(prog->GetLoc("@DrawID"));
 }
 
 
@@ -205,12 +215,10 @@ void _oglVAO::Draw() const noexcept
             //}
         } break;
     case DrawMethod::IndirectArrays:
-        IndirectBuffer->bind(); //IBO not included in VAO
-        glMultiDrawArraysIndirect((GLenum)DrawMode, 0, IndirectBuffer->Count, 0);
+        DSA->ogluMultiDrawArraysIndirect((GLenum)DrawMode, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::IndirectIndexes:
-        IndirectBuffer->bind(); //IBO not included in VAO
-        glMultiDrawElementsIndirect((GLenum)DrawMode, IndexBuffer->IndexType, 0, IndirectBuffer->Count, 0);
+        DSA->ogluMultiDrawElementsIndirect((GLenum)DrawMode, IndexBuffer->IndexType, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::UnPrepared:
         oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);

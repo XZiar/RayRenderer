@@ -3,6 +3,7 @@
 #include "oglUtil.h"
 #include "oglException.h"
 #include "oglContext.h"
+#include "oglBuffer.h"
 
 namespace oglu
 {
@@ -28,11 +29,7 @@ static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
         return func.first ? func.second : nullptr;
 }
 
-//template<>
-//static GLuint DSAFuncs::GetId<detail::_oglFrameBuffer>(const std::shared_ptr<detail::_oglFrameBuffer>& obj)
-//{
-//    return obj->FBOId;
-//}
+
 namespace detail
 {
 extern GLuint GetCurFBO();
@@ -283,6 +280,50 @@ static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum at
     glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
 }
 
+
+static void GLAPIENTRY ogluMultiDrawArraysIndirect(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    DSAFuncs::Bind(indirect); //IBO not included in VAO
+    glMultiDrawArraysIndirect(mode, (const void*)(intptr_t)(offset * sizeof(detail::_oglIndirectBuffer::DrawArraysIndirectCommand)), primcount, 0);
+}
+static void GLAPIENTRY ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    DSAFuncs::Bind(indirect); //IBO not included in VAO
+    glMultiDrawElementsIndirect(mode, type, (const void*)(intptr_t)(offset * sizeof(detail::_oglIndirectBuffer::DrawArraysIndirectCommand)), primcount, 0);
+}
+static void GLAPIENTRY ogluMultiDrawArraysIndirectIB(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    const auto& cmd = &indirect->GetArrayCommands()[offset];
+    for (GLsizei i = 0; i < primcount; i++)
+    {
+        glDrawArraysInstancedBaseInstance(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
+    }
+}
+static void GLAPIENTRY ogluMultiDrawElementsIndirectIB(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    const auto& cmd = &indirect->GetElementCommands()[offset];
+    for (GLsizei i = 0; i < primcount; i++)
+    {
+        glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd[i].count, type, (const void*)(intptr_t)cmd[i].firstIndex, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
+    }
+}
+static void GLAPIENTRY ogluMultiDrawArraysIndirectI(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    const auto& cmd = &indirect->GetArrayCommands()[offset];
+    for (GLsizei i = 0; i < primcount; i++)
+    {
+        glDrawArraysInstanced(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
+    }
+}
+static void GLAPIENTRY ogluMultiDrawElementsIndirectI(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+{
+    const auto& cmd = &indirect->GetElementCommands()[offset];
+    for (GLsizei i = 0; i < primcount; i++)
+    {
+        glDrawElementsInstanced(mode, cmd[i].count, type, (const void*)(intptr_t)cmd[i].firstIndex, cmd[i].instanceCount);
+    }
+}
+
 void InitDSAFuncs(DSAFuncs& dsa)
 {
     dsa.ogluNamedBufferData = DecideFunc(glNamedBufferData, glNamedBufferDataEXT);
@@ -319,6 +360,8 @@ void InitDSAFuncs(DSAFuncs& dsa)
     dsa.ogluFramebufferTextureLayer = DecideFunc(std::pair{ glNamedFramebufferTextureLayer, &ogluFramebufferTextureLayerARB }, glNamedFramebufferTextureLayerEXT, &ogluFramebufferTextureLayer);
     dsa.ogluFramebufferRenderbuffer = DecideFunc(glNamedFramebufferRenderbuffer, glNamedFramebufferRenderbufferEXT, &ogluFramebufferRenderbuffer);
 
+    dsa.ogluMultiDrawArraysIndirect = DecideFunc(std::pair{ glMultiDrawArraysIndirect, &ogluMultiDrawArraysIndirect }, std::pair{ glDrawArraysInstancedBaseInstance, &ogluMultiDrawArraysIndirectIB }, &ogluMultiDrawArraysIndirectI);
+    dsa.ogluMultiDrawElementsIndirect = DecideFunc(std::pair{ glMultiDrawElementsIndirect, &ogluMultiDrawElementsIndirect }, std::pair{ glDrawElementsInstancedBaseVertexBaseInstance, &ogluMultiDrawElementsIndirectIB }, &ogluMultiDrawElementsIndirectI);
 }
 
 }

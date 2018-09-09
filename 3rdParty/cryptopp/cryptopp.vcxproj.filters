@@ -441,12 +441,6 @@
     <ClCompile Include="xtrcrypt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="eccrypto.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="eprecomp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3way.h">

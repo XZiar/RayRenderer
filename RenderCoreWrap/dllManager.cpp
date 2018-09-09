@@ -5,6 +5,8 @@
 #include "common/ResourceHelper.inl"
 #include "common/DelayLoader.inl"
 #include "3rdParty/fmt/format.h"
+#define CRYPTOPP_ENABLE_NAMESPACE_WEAK 1
+#include "3rdParty/cryptopp/md5.h"
 #include "resource.h"
 #include <cstdio>
 #include <string>
@@ -126,7 +128,7 @@ static void* delayloaddll(const char *name)
 }
 
 
-std::wstring HashSelf()
+std::string HashSelf()
 {
     std::vector<uint8_t> dllsData;
     for (const auto& dllpair : DLL_MAP)
@@ -134,41 +136,46 @@ std::wstring HashSelf()
         const auto dlldata = common::ResourceHelper::getData(L"DLL", dllpair.first);
         dllsData.insert(dllsData.end(), dlldata.cbegin(), dlldata.cend());
     }
-    
-    HCRYPTPROV hProv = NULL;
-    // Get handle to the crypto provider
-    if (!CryptAcquireContext(&hProv,NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-    {
-        DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
-        throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
-    }
-    HCRYPTHASH hHash = NULL;
-    if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
-    {
-        DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
-        CryptReleaseContext(hProv, 0);
-        throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
-    }
-    if (!CryptHashData(hHash, dllsData.data(), (DWORD)dllsData.size(), 0))
-    {
-        DebugOutput(L"CryptHashData failed, {}\n", GetLastError());
-        CryptReleaseContext(hProv, 0);
-        CryptDestroyHash(hHash);
-        throw std::runtime_error("cannot CryptHashData, errorno:" + std::to_string(GetLastError()));
-    }
-    uint8_t MD5[16];
-    DWORD dwHashLen = sizeof(MD5);
-    constexpr wchar_t HASH_HEX[] = L"0123456789abcdef";
-    const auto ret = CryptGetHashParam(hHash, HP_HASHVAL, MD5, &dwHashLen, 0);
-    CryptDestroyHash(hHash);
-    CryptReleaseContext(hProv, 0);
-    if (!ret)
-    {
-        DebugOutput(L"CryptGetHashParam failed, {}\n", GetLastError());
-        throw std::runtime_error("cannot CryptGetHashParam, errorno:" + std::to_string(GetLastError()));
-    }
+  
+    //HCRYPTPROV hProv = NULL;
+    //// Get handle to the crypto provider
+    //if (!CryptAcquireContext(&hProv,NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+    //{
+    //    DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
+    //    throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
+    //}
+    //HCRYPTHASH hHash = NULL;
+    //if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
+    //{
+    //    DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
+    //    CryptReleaseContext(hProv, 0);
+    //    throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
+    //}
+    //if (!CryptHashData(hHash, dllsData.data(), (DWORD)dllsData.size(), 0))
+    //{
+    //    DebugOutput(L"CryptHashData failed, {}\n", GetLastError());
+    //    CryptReleaseContext(hProv, 0);
+    //    CryptDestroyHash(hHash);
+    //    throw std::runtime_error("cannot CryptHashData, errorno:" + std::to_string(GetLastError()));
+    //}
+    //uint8_t MD5[16];
+    //DWORD dwHashLen = sizeof(MD5);
+    //const auto ret = CryptGetHashParam(hHash, HP_HASHVAL, MD5, &dwHashLen, 0);
+    //CryptDestroyHash(hHash);
+    //CryptReleaseContext(hProv, 0);
+    //if (!ret)
+    //{
+    //    DebugOutput(L"CryptGetHashParam failed, {}\n", GetLastError());
+    //    throw std::runtime_error("cannot CryptGetHashParam, errorno:" + std::to_string(GetLastError()));
+    //}
 
-    std::wstring hash;
+    static_assert(CryptoPP::Weak::MD5::DIGESTSIZE == 16, "MD5 should generate 16 bytes digest");
+    std::array<uint8_t, 16> MD5;
+    CryptoPP::Weak::MD5 md5er;
+    md5er.CalculateDigest(reinterpret_cast<CryptoPP::byte*>(MD5.data()), reinterpret_cast<const CryptoPP::byte*>(dllsData.data()), dllsData.size());
+
+    constexpr char HASH_HEX[] = "0123456789abcdef";
+    std::string hash;
     for (auto u8 : MD5)
     {
         hash.push_back(HASH_HEX[u8 / 16]);

@@ -106,6 +106,7 @@ public:
 class OGLUAPI _oglIndirectBuffer : public _oglBuffer
 {
     friend class _oglVAO;
+    friend struct ::oglu::DSAFuncs;
 public:
     struct DrawElementsIndirectCommand
     {
@@ -139,6 +140,8 @@ public:
     ///<param name="size">size</param>
     ///<param name="isIndexed">Indexed commands or not</param>
     void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
+    const vector<DrawElementsIndirectCommand>& GetElementCommands() const { return std::get<vector<DrawElementsIndirectCommand>>(Commands); }
+    const vector<DrawArraysIndirectCommand>& GetArrayCommands() const { return std::get<vector<DrawArraysIndirectCommand>>(Commands); }
 };
 
 

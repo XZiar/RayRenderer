@@ -20,9 +20,10 @@
 # define StrText(x) x
 #endif
 
+#define __STDC_WANT_SECURE_LIB__ 1
+#define __STDC_WANT_LIB_EXT1__ 1
 #include <cstddef>
 #include <cstdint>
-#define __STDC_WANT_LIB_EXT1__ 1
 #include <cstring>
 #include <string>
 #include <new>
@@ -164,7 +165,6 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 
 //for std::byte
 #if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
-#   include<cstddef>
 inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
 #endif
 
@@ -177,7 +177,6 @@ inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return 
 template<typename T>
 inline uint64_t hash_(const T& str)
 {
-    static_assert(std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>, "only string/string_view supported for hash_");
     uint64_t hash = 0;
     for (size_t a = 0, len = str.length(); a < len; ++a)
         hash = hash * 33 + str[a];
@@ -222,7 +221,12 @@ template <class T, template <typename...> class Template>
 struct is_specialization : std::false_type {};
 template <template <typename...> class Template, typename... Ts>
 struct is_specialization<Template<Ts...>, Template> : std::true_type {};
-
+template <class T, template <auto...> class Template>
+#if (defined(__cpp_nontype_template_parameter_auto) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+struct is_specialization2 : std::false_type {};
+template <template <auto...> class Template, auto... Vs>
+struct is_specialization2<Template<Vs...>, Template> : std::true_type {};
+#endif
 
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
 constexpr const T& max(const T& left, const T& right)
@@ -260,7 +264,12 @@ template<size_t Align>
 struct COMMONTPL AlignBase
 {
 public:
+#if defined(__cpp_lib_gcd_lcm)
     static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
+#else
+#   message("C++17 unsupported, AlignSize may be incorrect")
+    static constexpr size_t ALIGN_SIZE = std::max((size_t)Align, (size_t)32);
+#endif
     static void* operator new(size_t size)
     {
         return malloc_align(size, ALIGN_SIZE);

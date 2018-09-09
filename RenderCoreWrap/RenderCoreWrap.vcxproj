@@ -251,6 +251,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\cryptopp\cryptopp.vcxproj">
+      <Project>{36e2af6d-28d4-420c-a744-f48b6087c4f9}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>

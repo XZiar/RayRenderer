@@ -13,20 +13,6 @@ namespace common::mlog
 namespace detail
 {
 
-constexpr auto GenLevelNumStr()
-{
-    std::array<char16_t, 256 * 4> ret{ u'\0' };
-    for (uint16_t i = 0, j = 0; i < 256; ++i)
-    {
-        ret[j++] = i / 100 + u'0';
-        ret[j++] = (i % 100) / 10 + u'0';
-        ret[j] = (i % 10) + u'0';
-        j += 2;
-    }
-    return ret;
-}
-const static auto LevelNumStr = GenLevelNumStr();
-
 
 fmt::basic_memory_buffer<char>& StrFormater<char>::GetBuffer()
 {
@@ -52,6 +38,22 @@ fmt::basic_memory_buffer<wchar_t>& StrFormater<wchar_t>::GetBuffer()
 }
 
 }
+
+
+constexpr auto GenLevelNumStr()
+{
+    std::array<char16_t, 256 * 4> ret{ u'\0' };
+    for (uint16_t i = 0, j = 0; i < 256; ++i)
+    {
+        ret[j++] = i / 100 + u'0';
+        ret[j++] = (i % 100) / 10 + u'0';
+        ret[j] = (i % 10) + u'0';
+        j += 2;
+    }
+    return ret;
+}
+static constexpr auto LevelNumStr = GenLevelNumStr();
+
 const char16_t* GetLogLevelStr(const LogLevel level)
 {
     switch (level)
@@ -64,7 +66,7 @@ const char16_t* GetLogLevelStr(const LogLevel level)
     case LogLevel::Error: return u"Error";
     case LogLevel::None: return u"None";
     default:
-        return &detail::LevelNumStr[(uint8_t)level * 4];
+        return &LevelNumStr[(uint8_t)level * 4];
     }
 }
 

@@ -109,6 +109,7 @@ class TexImgManager;
 class UBOManager;
 struct SharedContextCore;
 class _oglContext;
+class _oglBuffer;
 
 template<bool IsShared>
 class OGLUAPI oglCtxObject : public common::NonCopyable

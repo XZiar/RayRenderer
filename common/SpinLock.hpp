@@ -103,6 +103,7 @@ public:
         while (!Flag.compare_exchange_weak(expected, expected + 0x80000000))
         {
             expected &= 0x7fffffff; //assume no other writer
+            COMMON_PAUSE();
         }
         while ((Flag.load() & 0x7fffffff) != 0) //loop until no reader
         {

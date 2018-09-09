@@ -4,8 +4,15 @@
 namespace oglu
 {
 
+namespace detail
+{
+class _oglIndirectBuffer;
+}
 struct DSAFuncs
 {
+    template<typename T>
+    static void Bind(const T& obj) { obj->bind(); }
+    
     void  (GLAPIENTRY *ogluNamedBufferData) (GLuint buffer, GLsizeiptr size, const void *data, GLenum usage) = nullptr;
     void* (GLAPIENTRY *ogluMapNamedBuffer) (GLuint buffer, GLenum access) = nullptr;
     GLboolean (GLAPIENTRY *ogluUnmapNamedBuffer) (GLuint buffer) = nullptr;
@@ -39,6 +46,9 @@ struct DSAFuncs
     void (GLAPIENTRY *ogluFramebufferTexture) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
     void (GLAPIENTRY *ogluFramebufferTextureLayer) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
     void (GLAPIENTRY *ogluFramebufferRenderbuffer) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
+
+    void (GLAPIENTRY *ogluMultiDrawArraysIndirect) (GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawElementsIndirect) (GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount) = nullptr;
 
 };
 extern thread_local const DSAFuncs* DSA;

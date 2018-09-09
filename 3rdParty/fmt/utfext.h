@@ -188,17 +188,16 @@ public:
         switch (charSize)
         {
         case 1:
-            return internal::arg_formatter_base<Range>::operator()(
-                std::basic_string<char_type>(reinterpret_cast<const char*>(value.data()), reinterpret_cast<const char*>(value.data()) + realSize));
+            return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char*>(value.data()), realSize));
         case 2:
             if constexpr (sizeof(char_type) == 2)
                 return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
-            else // UTF32
+            else // UTF16 -> UTF32
                 return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char16_t*>(value.data()), realSize));
         case 4:
             if constexpr (sizeof(char_type) == 4)
                 return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
-            else // UTF16
+            else // UTF32 -> UTF16
                 return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char32_t*>(value.data()), realSize));
         }
         return this->out();

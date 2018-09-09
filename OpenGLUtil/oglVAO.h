@@ -46,7 +46,12 @@ struct VAComponent : public VARawComponent<ParseType<T>(), IsNormalize_, IsNorma
 namespace detail
 {
 class _oglDrawProgram;
-
+template<typename T>
+struct IsVAComp : public std::false_type {};
+template <GLenum ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
+struct IsVAComp<VARawComponent<ValType_, IsNormalize_, AsInteger_, Size_, Offset_>> : public std::true_type {};
+template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
+struct IsVAComp<VAComponent<T, IsNormalize_, Size_, Offset_>> : public std::true_type {};
 
 class OGLUAPI _oglVAO : public NonMovable, public oglCtxObject<false>
 {
@@ -67,7 +72,6 @@ public:
     {
         friend class _oglVAO;
     private:
-        
         _oglVAO& vao;
         bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
@@ -76,6 +80,7 @@ public:
         template<typename T>
         void SetAttrib(const uint16_t eleSize, const GLint offset, const GLint attridx)
         {
+            static_assert(IsVAComp<T>::value, "Attribe descriptor should be VARawComponent or VAComponent");
             if constexpr(T::AsInteger)
                 SetInteger(T::ValType, attridx, eleSize, T::Size, offset + T::Offset, 0);
             else
@@ -136,6 +141,12 @@ public:
             SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attridx, std::make_index_sequence<N>{});
             return *this;
         }
+        ///<summary>Set DrawId</summary>  
+        ///<param name="attridx">drawID attribute index</param>
+        VAOPrep& SetDrawId(const GLint attridx);
+        ///<summary>Set DrawId</summary>  
+        ///<param name="prog">drawProgram</param>
+        VAOPrep& SetDrawId(const Wrapper<_oglDrawProgram>& prog);
         ///<summary>Set Indexed buffer</summary>  
         ///<param name="ebo">element buffer</param>
         VAOPrep& SetIndex(const oglEBO& ebo);
@@ -149,10 +160,7 @@ public:
         VAOPrep& SetDrawSize(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes);
         ///<summary>Set Indirect buffer</summary>  
         ///<param name="ibo">indirect buffer</param>
-        VAOPrep& SetDrawSize(const oglIBO& ibo);
-        ///<summary>Set DrawId</summary>  
-        ///<param name="prog">drawProgram</param>
-        VAOPrep& SetDrawId(const Wrapper<_oglDrawProgram>& prog);
+        VAOPrep& SetDrawSize(const oglIBO& ibo, GLint offset = 0, GLsizei size = 0);
     };
     _oglVAO(const VAODrawMode) noexcept;
     ~_oglVAO() noexcept;

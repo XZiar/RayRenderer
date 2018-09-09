@@ -153,7 +153,7 @@ constexpr auto MAKE_GRAY2RGBA()
         ret[i] = (i * 0x00010101u) | 0xff000000u;
     return ret;
 }
-inline const auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
+inline constexpr auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
 #define LOOP_GRAY_RGBA *(uint32_t*)destPtr = GrayToRGBAMAP[*(uint8_t*)srcPtr++]; destPtr += 4; count--;
 inline void GraysToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
@@ -280,16 +280,7 @@ inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict src
 
 #pragma region GRAYA->RGBA
 #pragma warning(disable: 4309)
-constexpr auto MAKE_GRAYA2RGBA()
-{
-    constexpr uint32_t size = 256 * 256;
-    std::array<uint32_t, size> ret{ 0 };
-    for (uint32_t i = 0; i < size; ++i)
-        ret[i] = ((i & 0xffu) * 0x00010101u) | ((i & 0xff00u) << 16);
-    return ret;
-}
-inline const auto GrayAToRGBAMAP = MAKE_GRAYA2RGBA();
-#define LOOP_GRAYA_RGBA *(uint32_t*)destPtr = GrayAToRGBAMAP[*(uint16_t*)srcPtr]; destPtr += 4; srcPtr+=2; count--;
+#define LOOP_GRAYA_RGBA { const uint16_t dat = *(uint16_t*)srcPtr; *(uint32_t*)destPtr = ((dat & 0xffu) * 0x00010101u) | ((dat & 0xff00u) << 16); destPtr += 4; srcPtr+=2; count--; }
 inline void GrayAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
