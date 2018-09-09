@@ -3,6 +3,7 @@
 #include "../RenderCoreRely.h"
 #include "ModelImage.h"
 #include "../Material.h"
+#include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
 {
@@ -21,7 +22,7 @@ private:
 public:
     b3d::Vec3 size;
 private:
-    vectorEx<b3d::PointEx> pts;
+    vectorEx<oglu::PointEx> pts;
     vector<uint32_t> indexs;
     vector<std::pair<string, uint32_t>> groups;
     map<string, PBRMaterial> MaterialMap;

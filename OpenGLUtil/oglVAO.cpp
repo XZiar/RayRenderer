@@ -25,78 +25,23 @@ void _oglVAO::VAOPrep::End() noexcept
     }
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void _oglVAO::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
-    vao.CheckCurrent();
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
-        vbo->bind();
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
         glVertexAttribIPointer(attridx, size, valType, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
-    return *this;
 }
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetFloat(const GLenum valType, const bool isInteger, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void _oglVAO::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
-    vao.CheckCurrent();
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
-        vbo->bind();
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        glVertexAttribPointer(attridx, size, valType, isInteger ? GL_TRUE : GL_FALSE, stride, (const void*)intptr_t(offset));
+        glVertexAttribPointer(attridx, size, valType, isNormalize ? GL_TRUE : GL_FALSE, stride, (const void*)intptr_t(offset));
         glVertexAttribDivisor(attridx, divisor);
     }
-    return *this;
-}
-
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetPoints(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset)
-{
-    vao.CheckCurrent();
-    vbo->bind();
-    if (attridx[0] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[0]);//VertPos
-        glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset));
-    }
-    if (attridx[1] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[1]);//VertPos
-        glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 16));
-    }
-    if (attridx[2] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[2]);//TexPos
-        glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::Point), (void*)intptr_t(offset + 32));
-    }
-    return *this;
-}
-
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetPointExs(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset)
-{
-    vao.CheckCurrent();
-    vbo->bind();
-    if (attridx[0] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[0]);//VertPos
-        glVertexAttribPointer(attridx[0], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset));
-    }
-    if (attridx[1] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[1]);//VertNorm
-        glVertexAttribPointer(attridx[1], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 16));
-    }
-    if (attridx[2] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[2]);//TexPos
-        glVertexAttribPointer(attridx[2], 3, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 32));
-    }
-    if (attridx[3] != (GLint)GL_INVALID_INDEX)
-    {
-        DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx[3]);//VertTan
-        glVertexAttribPointer(attridx[3], 4, GL_FLOAT, GL_FALSE, sizeof(b3d::PointEx), (void*)intptr_t(offset + 48));
-    }
-    return *this;
 }
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
@@ -177,7 +122,7 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
 };
 static DRAWIDCtxConfig DRAWID_CTX_CFG;
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const oglDrawProgram& prog)
+_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const Wrapper<_oglDrawProgram>& prog)
 {
     vao.CheckCurrent();
     return SetInteger<int32_t>(oglContext::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), prog->GetLoc("@DrawID"), sizeof(int32_t), 1, 0, 1);

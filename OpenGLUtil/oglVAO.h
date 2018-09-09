@@ -11,6 +11,37 @@ enum class VAODrawMode : GLenum
     Triangles = GL_TRIANGLES
 };
 
+template<GLenum ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
+struct VARawComponent
+{
+    static constexpr auto ValType = ValType_;
+    static constexpr auto IsNormalize = IsNormalize_;
+    static constexpr auto AsInteger = AsInteger_;
+    static constexpr auto Size = Size_;
+    static constexpr auto Offset = Offset_;
+    static_assert(Size > 0 && Size <= 4, "Size should be [1~4]");
+    static_assert(ValType != GL_INT_2_10_10_10_REV || Size != 4, "GL_INT_2_10_10_10_REV only accept size of 4");
+    static_assert(ValType != GL_UNSIGNED_INT_2_10_10_10_REV || Size != 4, "GL_UNSIGNED_INT_2_10_10_10_REV only accept size of 4");
+    static_assert(ValType != GL_UNSIGNED_INT_10F_11F_11F_REV || Size != 3, "GL_UNSIGNED_INT_10F_11F_11F_REV  only accept size of 3");
+};
+template<typename Val>
+inline constexpr GLenum ParseType()
+{
+    if constexpr (std::is_same_v<Val, float>) return GL_FLOAT;
+    else if constexpr (std::is_same_v<Val, b3d::half>) return GL_HALF_FLOAT;
+    else if constexpr (std::is_same_v<Val, uint32_t>) return GL_UNSIGNED_INT;
+    else if constexpr (std::is_same_v<Val, int32_t>) return GL_INT;
+    else if constexpr (std::is_same_v<Val, uint16_t>) return GL_UNSIGNED_SHORT;
+    else if constexpr (std::is_same_v<Val, int16_t>) return GL_SHORT;
+    else if constexpr (std::is_same_v<Val, uint8_t>) return GL_UNSIGNED_BYTE;
+    else if constexpr (std::is_same_v<Val, int8_t>) return GL_BYTE;
+    else static_assert(common::AlwaysTrue<Val>(), "unsupported type");
+}
+template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
+struct VAComponent : public VARawComponent<ParseType<T>(), IsNormalize_, IsNormalize_ ? false : std::is_integral_v<T>, Size_, Offset_>
+{
+    static_assert(std::is_integral_v<T> || !IsNormalize_, "Float type cannot be set as Integer");
+};
 
 namespace detail
 {
@@ -36,19 +67,25 @@ public:
     {
         friend class _oglVAO;
     private:
-        template<typename Val> constexpr GLenum ParseType() 
-        {
-            if constexpr(std::is_same_v<Val, float>) return GL_FLOAT;
-            else if constexpr (std::is_same_v<Val, b3d::half>) return GL_HALF_FLOAT;
-            else if constexpr(std::is_same_v<Val, uint32_t>) return GL_UNSIGNED_INT;
-            else if constexpr(std::is_same_v<Val, int32_t>) return GL_INT;
-            else static_assert(common::AlwaysTrue<Val>(), "unsupported type");
-        }
+        
         _oglVAO& vao;
         bool isEmpty;
         VAOPrep(_oglVAO& vao_) noexcept;
-        VAOPrep& SetInteger(const GLenum valType, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
-        VAOPrep& SetFloat(const GLenum valType, const bool isInteger, const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        void SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        void SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        template<typename T>
+        void SetAttrib(const uint16_t eleSize, const GLint offset, const GLint attridx)
+        {
+            if constexpr(T::AsInteger)
+                SetInteger(T::ValType, attridx, eleSize, T::Size, offset + T::Offset, 0);
+            else
+                SetFloat(T::ValType, T::IsNormalize, attridx, eleSize, T::Size, offset + T::Offset, 0);
+        }
+        template<typename Tuple, size_t N, std::size_t... Indexes>
+        void SetAttribs(const uint16_t eleSize, const GLint offset, const GLint(&attridx)[N], std::index_sequence<Indexes...>)
+        {
+            (SetAttrib<std::tuple_element_t<Indexes, Tuple>>(eleSize, offset, attridx[Indexes]), ...);
+        }
     public:
         VAOPrep(VAOPrep&& other) : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
         ~VAOPrep() noexcept { End(); }
@@ -64,7 +101,10 @@ public:
         VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
         {
             static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
-            return SetInteger(ParseType<Val>(), vbo, attridx, stride, size, offset, divisor);
+            vao.CheckCurrent();
+            vbo->bind();
+            SetInteger(ParseType<Val>(), attridx, stride, size, offset, divisor);
+            return *this;
         }
         ///<summary>Set single Vertex Attribute(float)</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array</param>
@@ -76,18 +116,26 @@ public:
         template<typename Val = float>
         VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
         {
-            return SetFloat(ParseType<Val>(), std::is_integral_v<Val>, vbo, attridx, stride, size, offset, divisor);
+            vao.CheckCurrent();
+            vbo->bind();
+            SetFloat(ParseType<Val>(), std::is_integral_v<Val>, attridx, stride, size, offset, divisor);
+            return *this;
         }
-        ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord]</summary>  
-        ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::Point]</param>
-        ///<param name="attridx">vertex attribute index x3</param>
+        ///<summary>Set multiple Vertex Attributed</summary>  
+        ///<typeparam name="T">Data Type, should contain ComponentType member type as attributes mapping</param>
+        ///<param name="vbo">vertex attribute datasource, must be array</param>
         ///<param name="offset">offset(byte) od the 1st elements</param>
-        VAOPrep& SetPoints(const oglVBO& vbo, const GLint(&attridx)[3], const GLint offset);
-        ///<summary>Set Vertex Attribute [VertexPos, VertexNormal, TexCoord, VertexTangent]</summary>  
-        ///<param name="vbo">vertex attribute datasource, must be array, data should be [b3d::PointEx]</param>
-        ///<param name="attridx">vertex attribute index x4</param>
-        ///<param name="offset">offset(byte) od the 1st elements</param>
-        VAOPrep& SetPointExs(const oglVBO& vbo, const GLint(&attridx)[4], const GLint offset);
+        ///<param name="attridx">vertex attribute index</param>
+        template<typename T, size_t N, typename C = typename T::ComponentType>
+        VAOPrep& SetAttribs(const oglVBO& vbo, const GLint offset, const GLint(&attridx)[N])
+        {
+            static_assert(common::is_specialization<C, std::tuple>::value, "ComponentType should be tuple of VAComponent");
+            static_assert(std::tuple_size_v<C> == N, "attrib index size mismatch with component count");
+            vao.CheckCurrent();
+            vbo->bind();
+            SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attridx, std::make_index_sequence<N>{});
+            return *this;
+        }
         ///<summary>Set Indexed buffer</summary>  
         ///<param name="ebo">element buffer</param>
         VAOPrep& SetIndex(const oglEBO& ebo);

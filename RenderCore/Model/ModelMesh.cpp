@@ -12,7 +12,7 @@ using common::asyexe::AsyncAgent;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Normal;
-using b3d::PointEx;
+using oglu::PointEx;
 using b3d::Coord2D;
 
 union alignas(uint64_t)PTstub
@@ -93,7 +93,7 @@ ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
     auto jself = context.NewObject();
     jself.Add("mfname", str::to_u8string(mfname, Charset::UTF16LE));
     jself.Add("size", ToJArray(context, size));
-    jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(b3d::PointEx)));
+    jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
     jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));
     auto groupArray = context.NewArray();
     for (const auto&[name, count] : groups)

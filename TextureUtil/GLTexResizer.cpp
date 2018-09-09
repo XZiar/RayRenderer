@@ -2,6 +2,7 @@
 #include "GLTexResizer.h"
 #include "resource.h"
 #include "OpenGLUtil/oglPromise.hpp"
+#include "OpenGLUtil/PointEnhance.hpp"
 #include "common/PromiseTaskSTD.hpp"
 #include <future>
 #include <thread>

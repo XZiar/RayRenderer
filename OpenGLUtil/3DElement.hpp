@@ -254,49 +254,6 @@ inline float mod(const float &l, const float &r)
     return l - e;
 }
 
-class alignas(16) Point : public common::AlignBase<16>
-{
-public:
-    Vec3 pos;
-    Normal norm;
-    union
-    {
-        Coord2D tcoord;
-        Vec3 tcoord3;
-    };
-
-    Point() noexcept { };
-    Point(const Vec3 &v, const Normal &n, const Coord2D &t) noexcept : pos(v), norm(n), tcoord(t) { };
-    Point(const Vec3 &v, const Normal &n, const Vec3 &t3) noexcept : pos(v), norm(n), tcoord3(t3) { };
-};
-class alignas(16) PointEx : public Point
-{
-public:
-    Vec4 tan;
-
-    PointEx() noexcept { };
-    PointEx(const Vec3 &v, const Normal &n, const Coord2D &t, const Vec4 &tanNorm = Vec4::zero()) noexcept : Point(v, n, t), tan(tanNorm) { };
-    PointEx(const Vec3 &v, const Normal &n, const Vec3 &t3, const Vec4 &tanNorm = Vec4::zero()) noexcept : Point(v, n, t3), tan(tanNorm) { };
-};
-
-struct alignas(32) Triangle : public common::AlignBase<32>
-{
-public:
-    Vec3 points[3];
-    Normal norms[3];
-    Coord2D tcoords[3];
-    float dummy[2];
-
-    Triangle() noexcept { };
-    Triangle(const Vec3& va, const Vec3& vb, const Vec3& vc) noexcept : points{ va, vb, vc } { }
-    Triangle(const Vec3& va, const Normal& na, const Vec3& vb, const Normal& nb, const Vec3& vc, const Normal& nc) noexcept
-        : points{ va, vb, vc }, norms{ na, nb, nc } { }
-    Triangle(const Vec3& va, const Normal& na, const Coord2D& ta, const Vec3& vb, const Normal& nb, const Coord2D& tb, const Vec3& vc, const Normal& nc, const Coord2D& tc) noexcept
-        : points{ va, vb, vc }, norms{ na, nb, nc }, tcoords{ ta, tb, tc }
-    {
-    }
-};
-
 
 
 }

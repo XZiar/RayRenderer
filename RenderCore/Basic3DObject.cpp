@@ -1,9 +1,11 @@
 #include "RenderCoreRely.h"
 #include "Basic3DObject.h"
+#include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
 {
 using b3d::PI_float;
+using oglu::Point;
 
 
 Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
@@ -61,7 +63,7 @@ RESPAK_DESERIALIZER(Pyramid)
 RESPAK_REGIST_DESERIALZER(Pyramid)
 
 
-vector<uint16_t> Sphere::CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings /*= 80*/, const uint16_t sectors /*= 80*/)
+static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
 {
     const float rstep = 1.0f / (rings - 1);
     const float sstep = 1.0f / (sectors - 1);

@@ -48,13 +48,13 @@ Model::~Model()
 
 void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
 {
+    using oglu::PointEx;
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     const GLint attrs[4] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc"), prog->GetLoc("@VertTan") };
     {
         auto vaoprep = std::move(vao->Prepare()
-            .SetPointExs(Mesh->vbo, attrs, 0)
+            .SetAttribs<PointEx>(Mesh->vbo, 0, attrs)
             .SetDrawId(prog)
-            //.SetInteger<uint32_t>(Drawable::GetDrawIdVBO(), prog->GetLoc("@DrawID"), sizeof(uint32_t), 1, 0, 1)
             .SetIndex(Mesh->ebo));
         Mesh->PrepareVAO(vaoprep);
     }

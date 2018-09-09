@@ -1,7 +1,7 @@
 #include "FontRely.h"
 #include "FontViewer.h"
-#include <cmath>
 #include "resource.h"
+#include "OpenGLUtil/PointEnhance.hpp"
 
 
 namespace oglu
@@ -10,7 +10,6 @@ namespace oglu
 
 FontViewer::FontViewer()
 {
-    using b3d::Point;
 
     prog.reset(u"FontViewer");
     try

@@ -1,5 +1,6 @@
 #include "RenderCoreRely.h"
 #include "RenderElement.h"
+#include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
 {
@@ -133,10 +134,12 @@ MultiMaterialHolder Drawable::PrepareMaterial() const
     return holder;
 }
 
+
 auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
 {
+    using oglu::Point;
     const GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
-    return std::move(vao->Prepare().SetPoints(vbo, attrs, 0).SetDrawId(prog));
+    return std::move(vao->Prepare().SetAttribs<Point>(vbo, 0, attrs).SetDrawId(prog));
 }
 
 Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
