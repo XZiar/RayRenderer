@@ -189,6 +189,7 @@ public:
     void SetUniform(const string& name, const float val) { SetUniform(GetLoc(name, GL_FLOAT), val); }
 };
 
+///<summary>ProgState, use to batch set program binding states</summary>  
 class OGLUAPI ProgState : public NonCopyable
 {
     friend class _oglProgram;

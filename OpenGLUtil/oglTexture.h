@@ -74,6 +74,9 @@ struct OGLUAPI TexFormatUtil
     static bool IsCompressType(const TextureInnerFormat format) noexcept;
     static bool IsGrayType(const TextureInnerFormat format) noexcept;
     static bool HasAlphaType(const TextureInnerFormat format) noexcept;
+    static bool IsSRGBType(const TextureInnerFormat format) noexcept;
+    static TextureInnerFormat GetSRGBType(const TextureInnerFormat format, const bool needSRGB) noexcept;
+    static TextureInnerFormat GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept;
     static const u16string_view GetTypeName(const TextureType type);
     static const u16string_view GetFormatName(const TextureInnerFormat format);
 };

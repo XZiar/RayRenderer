@@ -25,6 +25,7 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
         texLog().info(u"GLTexResizer use GL context with version {}\n", oglUtil::GetVersionStr());
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         GLContext->SetSRGBFBO(true);
+        GLContext->SetDepthTest(DepthTestType::OFF);
         GLResizer.reset(u"GLResizer");
         const string shaderSrc = getShaderFromDLL(IDR_SHADER_GLRESIZER);
         try
@@ -170,34 +171,57 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
 {
     FilterFormat(format);
     const auto vao = flipY ? FlipYVAO : NormalVAO;
-
-    return Executor.AddTask([this, tex, width, height, format, vao](const common::asyexe::AsyncAgent& agent)
+    string routineName = "PlainCopy";
+    if (uint8_t(TexFormatUtil::DecideFormat(format) & TextureDataFormat::RAW_FORMAT_MASK) >= uint8_t(TextureDataFormat::RGB_FORMAT))
     {
+        switch (TexFormatUtil::DecideFormat(tex->GetInnerFormat()) & TextureDataFormat::RAW_FORMAT_MASK)
+        {
+        case TextureDataFormat::R_FORMAT:   routineName = "G2RGBA"; break;
+        case TextureDataFormat::RG_FORMAT:  routineName = "GA2RGBA"; break;
+            // others just keep default
+        }
+    }
+
+    return Executor.AddTask([this, tex, width, height, format, vao, rt = routineName](const common::asyexe::AsyncAgent& agent)
+    {
+        tex->CheckCurrent();
         oglTex2DS outtex(width, height, format);
         outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        
         OutputFrame->AttachColorTexture(outtex, 0);
-        oglRBO mainRBO(width, height, oglu::RBOFormat::Depth24Stencil8);
-        OutputFrame->AttachDepthStencilBuffer(mainRBO);
+        oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
+        OutputFrame->AttachDepthTexture(mainRBO);
         texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, OutputFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
         GLContext->SetViewPort(0, 0, width, height);
         GLContext->ClearFBO();
-        string routineName = "PlainCopy";
-        if (uint8_t(TexFormatUtil::DecideFormat(format) & TextureDataFormat::RAW_FORMAT_MASK) >= uint8_t(TextureDataFormat::RGB_FORMAT))
-        {
-            switch (TexFormatUtil::DecideFormat(tex->GetInnerFormat()) & TextureDataFormat::RAW_FORMAT_MASK)
-            {
-            case TextureDataFormat::R_FORMAT:   routineName = "G2RGBA"; break;
-            case TextureDataFormat::RG_FORMAT:  routineName = "GA2RGBA"; break;
-                // others just keep default
-            }
-        }
         GLResizer->Draw()
             .SetTexture(tex, "tex")
-            .SetSubroutine("ColorConv",routineName)
+            .SetSubroutine("ColorConv", rt)
             .Draw(vao);
         agent.Await(oglUtil::SyncGL());
         return outtex;
     });
+
+    /*return Executor.AddTask([this, tex, width, height, format, rt = routineName](const common::asyexe::AsyncAgent& agent)
+    {
+        tex->CheckCurrent();
+        oglTex2DS outtex(width, height, TexFormatUtil::GetAlphaType(TexFormatUtil::GetSRGBType(format, false), true));
+        outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
+        b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
+        GLResizer2->SetVec("coordStep", coordStep);
+        GLResizer2->SetUniform("isSrgbDst", TexFormatUtil::IsSRGBType(format));
+        GLResizer2->State()
+            .SetTexture(tex, "tex")
+            .SetImage(outimg, "result")
+            .SetSubroutine("ColorConv", rt);
+        GLResizer2->Run(width, height);
+        GLResizer2->State()
+            .SetTexture({}, "tex")
+            .SetImage({}, "result");
+        agent.Await(oglUtil::SyncGL());
+        return outtex;
+    });*/
 }
 
 common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)

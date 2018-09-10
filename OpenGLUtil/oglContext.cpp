@@ -495,7 +495,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     constexpr int32_t VerMinor = GLX_CONTEXT_MINOR_VERSION_ARB;
     // constexpr int32_t FlushFlag = GLX_CONTEXT_RELEASE_BEHAVIOR_ARB;
     // constexpr int32_t FlushVal = GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
-    const bool supportFlushControl = GLXEW_ARB_context_flush_control == 1;
+    const bool supportFlushControl = false;// GLXEW_ARB_context_flush_control == 1;
 #endif
     constexpr int32_t FlushFlag = 0x2097;
     constexpr int32_t FlushVal = 0;
@@ -509,7 +509,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     }
     if (GLEW_KHR_context_flush_control == GL_TRUE || supportFlushControl)
     {
-        //ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
+        ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
     }
     ctxAttrb.push_back(0);
     return NewContext(ctx, isShared, ctxAttrb.data());

@@ -147,7 +147,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
 {
     oglu::oglTex2DV Construct() const 
     { 
-        oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::RGBA8);
+        oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::SRGBA8);
         std::array<uint32_t, 128 * 128> pixs{};
         for (uint32_t a = 0, idx = 0; a < 128; ++a)
         {

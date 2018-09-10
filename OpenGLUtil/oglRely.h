@@ -120,8 +120,9 @@ private:
     static std::weak_ptr<CtxType> GetCtx();
 protected:
     oglCtxObject() : Context(GetCtx()) { }
-    void CheckCurrent() const;
     bool EnsureValid();
+public:
+    void CheckCurrent() const;
 };
 
 }

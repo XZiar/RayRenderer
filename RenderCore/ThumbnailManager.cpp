@@ -30,7 +30,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             const auto& tex = std::get<oglTex2D>(holder);
             const auto&[needResize, neww, newh] = CalcSize(tex->GetSize());
             if (needResize)
-                return ClResizer->ResizeToDat(tex, neww, newh, ImageDataType::RGB);
+                return GlResizer->ResizeToDat(tex, neww, newh, ImageDataType::RGBA);
             else
                 ThumbnailMap.emplace(weakref, std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
         }
@@ -43,9 +43,9 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             if (needResize)
             {
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
                 else
-                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGB);
+                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
             }
             else
             {
@@ -73,7 +73,10 @@ void ThumbnailManager::InnerWaitPmss(const PmssType& pmss)
 {
     for (const auto&[holder, result] : pmss)
     {
-        ThumbnailMap.emplace(holder.GetWeakRef(), std::make_shared<Image>(std::move(AsyncAgent::SafeWait(result))));
+        auto img = AsyncAgent::SafeWait(result);
+        if (img.GetDataType() != xziar::img::ImageDataType::RGB)
+            img = img.ConvertTo(xziar::img::ImageDataType::RGB);
+        ThumbnailMap.emplace(holder.GetWeakRef(), std::make_shared<Image>(std::move(img)));
     }
 }
 

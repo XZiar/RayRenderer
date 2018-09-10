@@ -50,6 +50,7 @@
   - [ ] Add GacUI
   - [x] Port some utilities to Linux 
   - [ ] Port core components to Linux 
-  - [x] Custom build system for Linux
+  - [x] Custom build procedure for Linux
   - [ ] Real custom build system similar to Scons, get rid of makefiles
   - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
+  - [ ] Add Pch for Linux build

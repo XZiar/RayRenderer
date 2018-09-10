@@ -459,17 +459,24 @@ void _FreeGLUTView::onClose()
     funOnClose(getSelf());
 }
 
+static std::pair<int32_t, int32_t> GetScreenSize()
+{
+//#if defined(_WIN32)
+//    const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
+//    const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
+//#else
+//    Display *display = XOpenDisplay(nullptr);
+//    const auto screenWidth = XDisplayWidth(display, DefaultScreen(display));
+//    const auto screenHeight = XDisplayHeight(display, DefaultScreen(display));
+//#endif
+    const auto screenWidth = glutGet(GLUT_SCREEN_WIDTH);
+    const auto screenHeight = glutGet(GLUT_SCREEN_HEIGHT);
+    return { screenWidth, screenHeight };
+}
 
 _FreeGLUTView::_FreeGLUTView(const int w, const int h)
 {
-#if defined(_WIN32)
-    const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
-#else
-    Display *display = XOpenDisplay(nullptr);
-    const auto screenWidth = XDisplayWidth(display, DefaultScreen(display));
-    const auto screenHeight = XDisplayHeight(display, DefaultScreen(display));
-#endif
+    const auto[screenWidth, screenHeight] = GetScreenSize();
     glutInitWindowSize(w, h);
     glutInitWindowPosition((screenWidth - w) / 2, (screenHeight - h) / 2);
     wdID = glutCreateWindow("");
@@ -537,15 +544,8 @@ void FreeGLUTViewInit()
     glutInitContextProfile(GLUT_CORE_PROFILE);
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
     //glutSetOption(GLUT_RENDERING_CONTEXT, GLUT_USE_CURRENT_CONTEXT);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL);
-#if defined(_WIN32)
-    const auto screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    const auto screenHeight = GetSystemMetrics(SM_CYSCREEN);
-#else
-    Display *display = XOpenDisplay(nullptr);
-    const auto screenWidth = XDisplayWidth(display, DefaultScreen(display));
-    const auto screenHeight = XDisplayHeight(display, DefaultScreen(display));
-#endif
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH | GLUT_STENCIL/* | GLUT_SRGB*/);
+    const auto[screenWidth, screenHeight] = detail::GetScreenSize();
     fgvLog().info(L"screen W/H [{},{}]\n", screenWidth, screenHeight);
 }
 

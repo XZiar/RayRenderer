@@ -227,7 +227,9 @@ void _oglProgram::InitLocs()
 void _oglProgram::InitSubroutines()
 {
     CheckCurrent();
-    const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
+    set<GLenum> stages;
+    for (const auto& shd : shaders)
+        stages.insert(static_cast<GLenum>(shd->shaderType));
     SubroutineRess.clear();
     subrLookup.clear();
     SubroutineBindings.clear();
@@ -1042,7 +1044,7 @@ _oglComputeProgram::_oglComputeProgram(const u16string name, const string& src, 
 void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
 {
     CheckCurrent();
-    usethis(*this, false);
+    usethis(*this);
     glDispatchCompute(groupX, groupY, groupZ);
 }
 

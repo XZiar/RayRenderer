@@ -231,6 +231,69 @@ bool TexFormatUtil::HasAlphaType(const TextureInnerFormat format) noexcept
         return false;
     }
 }
+bool TexFormatUtil::IsSRGBType(const TextureInnerFormat format) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::SRGBA8:
+    case TextureInnerFormat::BC1ASRGB:
+    case TextureInnerFormat::BC2SRGB:
+    case TextureInnerFormat::BC3SRGB:
+    case TextureInnerFormat::BC7SRGB:
+        return true;
+    default:
+        return false;
+    }
+}
+TextureInnerFormat TexFormatUtil::GetSRGBType(const TextureInnerFormat format, const bool needSRGB) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::RGB8:
+    case TextureInnerFormat::SRGB8:     return needSRGB ? TextureInnerFormat::SRGB8    : TextureInnerFormat::RGB8;
+    case TextureInnerFormat::RGBA8:
+    case TextureInnerFormat::SRGBA8:    return needSRGB ? TextureInnerFormat::SRGBA8   : TextureInnerFormat::RGBA8;
+    case TextureInnerFormat::BC1A:
+    case TextureInnerFormat::BC1ASRGB:  return needSRGB ? TextureInnerFormat::BC1ASRGB : TextureInnerFormat::BC1A;
+    case TextureInnerFormat::BC2:
+    case TextureInnerFormat::BC2SRGB:   return needSRGB ? TextureInnerFormat::BC2SRGB  : TextureInnerFormat::BC2;
+    case TextureInnerFormat::BC3:
+    case TextureInnerFormat::BC3SRGB:   return needSRGB ? TextureInnerFormat::BC3SRGB  : TextureInnerFormat::BC3;
+    case TextureInnerFormat::BC7:
+    case TextureInnerFormat::BC7SRGB:   return needSRGB ? TextureInnerFormat::BC7SRGB  : TextureInnerFormat::BC7;
+    default:                            return format;
+    }
+}
+TextureInnerFormat TexFormatUtil::GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept
+{
+    switch (format)
+    {
+    case TextureInnerFormat::R8:
+    case TextureInnerFormat::RG8:       return needAlpha ? TextureInnerFormat::RG8 : TextureInnerFormat::R8;
+    case TextureInnerFormat::RGB8:
+    case TextureInnerFormat::RGBA8:     return needAlpha ? TextureInnerFormat::RGBA8 : TextureInnerFormat::RGB8;
+    case TextureInnerFormat::SRGB8:
+    case TextureInnerFormat::SRGBA8:    return needAlpha ? TextureInnerFormat::SRGBA8 : TextureInnerFormat::SRGB8;
+    case TextureInnerFormat::R8U:
+    case TextureInnerFormat::RG8U:      return needAlpha ? TextureInnerFormat::RG8U : TextureInnerFormat::R8U;
+    case TextureInnerFormat::RGB8U:
+    case TextureInnerFormat::RGBA8U:    return needAlpha ? TextureInnerFormat::RGBA8U : TextureInnerFormat::RGB8U;
+    case TextureInnerFormat::Rh:
+    case TextureInnerFormat::RGh:       return needAlpha ? TextureInnerFormat::RGh : TextureInnerFormat::Rh;
+    case TextureInnerFormat::RGBh:
+    case TextureInnerFormat::RGBAh:     return needAlpha ? TextureInnerFormat::RGBAh : TextureInnerFormat::RGBh;
+    case TextureInnerFormat::Rf:
+    case TextureInnerFormat::RGf:       return needAlpha ? TextureInnerFormat::RGf : TextureInnerFormat::Rf;
+    case TextureInnerFormat::RGBf:
+    case TextureInnerFormat::RGBAf:     return needAlpha ? TextureInnerFormat::RGBAf : TextureInnerFormat::RGBf;
+    case TextureInnerFormat::BC1:
+    case TextureInnerFormat::BC1A:      return needAlpha ? TextureInnerFormat::BC1A : TextureInnerFormat::BC1;
+    case TextureInnerFormat::BC1SRGB:
+    case TextureInnerFormat::BC1ASRGB:  return needAlpha ? TextureInnerFormat::BC1ASRGB : TextureInnerFormat::BC1SRGB;
+    default:                            return format;
+    }
+}
+
 
 using namespace std::literals;
 

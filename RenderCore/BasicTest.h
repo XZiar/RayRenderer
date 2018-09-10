@@ -54,6 +54,7 @@ private:
     void initUBO();
     void fontTest(const char32_t word = 0x554A);
     void prepareLight();
+    void RefreshContext() const;
 public:
     bool mode = true;
     Camera cam;

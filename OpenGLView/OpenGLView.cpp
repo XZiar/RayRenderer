@@ -73,7 +73,7 @@ namespace OpenGLView
         static OGLView()
         {
             HWND tmpWND = CreateWindow(
-                L"Core", L"Fake Window",            // window class, title
+                L"Static", L"Fake Window",            // window class, title
                 WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
                 0, 0,                               // position x, y
                 1, 1,                               // width, height

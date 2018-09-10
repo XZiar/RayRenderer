@@ -251,7 +251,11 @@ void BasicTest::fontTest(const char32_t word)
 BasicTest::BasicTest(const fs::path& shaderPath)
 {
     static Init _init;
-    glContext = oglu::oglContext::CurrentContext();
+    const auto oriCtx = oglu::oglContext::CurrentContext();
+    oriCtx->SetRetain(true);
+    glContext = oglu::oglContext::NewContext(oriCtx);
+    glContext->UseContext();
+    //glContext = oglu::oglContext::CurrentContext();
     ThumbMan.reset(glContext);
     GLWorker.reset(u"Core");
     GLWorker->Start();
@@ -299,9 +303,16 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     glProgs.insert(Prog3Ds.cbegin(), Prog3Ds.cend());
     glProgs.insert(fontViewer->prog);
 }
+void BasicTest::RefreshContext() const
+{
+    oglu::oglContext::Refresh();
+    glContext->UseContext();
+}
+
 
 void BasicTest::Draw()
 {
+    RefreshContext();
     {
         const auto changed = (ChangableUBO)IsUBOChanged.exchange(0, std::memory_order::memory_order_relaxed);
         if (HAS_FIELD(changed, ChangableUBO::Light))
@@ -356,6 +367,7 @@ void BasicTest::Draw()
 
 void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWindow)
 {
+    RefreshContext();
     glContext->SetViewPort(0, 0, w, h);
     cam.Resize(w, h);
     prog3D->SetProject(cam.GetProjection());
@@ -365,6 +377,7 @@ void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWind
 
 void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloatDepth)
 {
+    RefreshContext();
     fboTex.reset(w, h, TextureInnerFormat::RG11B10);
     fboTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     MiddleFrame->AttachColorTexture(fboTex, 0);
@@ -376,6 +389,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloat
 
 void BasicTest::ReloadFontLoader(const u16string& fname)
 {
+    RefreshContext();
     auto clsrc = file::ReadAllText(fs::path(fname));
     fontCreator->reload(clsrc);
     fontTest(0);
@@ -477,6 +491,7 @@ void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
+    RefreshContext();
     drawable->PrepareMaterial(ThumbMan.weakRef());
     drawable->AssignMaterial();
     for(const auto& prog : Prog3Ds)
@@ -488,6 +503,7 @@ bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 
 bool BasicTest::AddShader(const oglDrawProgram& prog)
 {
+    RefreshContext();
     const auto isAdd = Prog3Ds.insert(prog).second;
     if (isAdd)
     {
@@ -502,6 +518,7 @@ bool BasicTest::AddShader(const oglDrawProgram& prog)
 
 bool BasicTest::AddLight(const Wrapper<Light>& light)
 {
+    RefreshContext();
     lights.push_back(light);
     prepareLight();
     basLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
@@ -510,6 +527,7 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
 
 void BasicTest::ChangeShader(const oglDrawProgram& prog)
 {
+    RefreshContext();
     if (Prog3Ds.count(prog))
     {
         prog3D = prog;
@@ -523,6 +541,7 @@ void BasicTest::ChangeShader(const oglDrawProgram& prog)
 
 void BasicTest::DelAllLight()
 {
+    RefreshContext();
     lights.clear();
     prepareLight();
 }
@@ -534,6 +553,7 @@ void BasicTest::ReportChanged(const ChangableUBO target)
 
 xziar::img::Image BasicTest::Scrrenshot()
 {
+    RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
     oglu::oglFBO ssFBO(std::in_place);
     oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);

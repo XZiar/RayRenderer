@@ -13,6 +13,15 @@ GLVARY perVert
 };
 #endif
 
+vec3 LinearToSRGB(vec3 rgb)
+{
+    return pow(rgb, vec3(1.0f / 2.2f));
+}
+vec3 SRGBToLinear(vec3 rgb)
+{
+    return pow(rgb, vec3(2.2f));
+}
+
 #ifdef OGLU_VERT
 
 //@OGLU@Mapping(VertPos, "vertPos")
@@ -57,15 +66,18 @@ out vec4 FragColor;
 
 void main()
 {
-    FragColor = ColorConv(texture(tex, tpos));
+    //FragColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
+    vec4 color = ColorConv(texture(tex, tpos));
+    FragColor = color;
 }
 
 #endif
 
 #ifdef OGLU_COMP
 
-layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 8, local_size_y = 8) in;
 uniform vec2 coordStep;
+uniform bool isSrgbDst = true;
 writeonly uniform image2D result;
 
 void main() 
@@ -73,6 +85,8 @@ void main()
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
     vec2 tpos = coord * coordStep;
     vec4 color = ColorConv(texture(tex, tpos));
+    if (isSrgbDst)
+        color.rgb = LinearToSRGB(color.rgb);
     imageStore(result, coord, color);
 }
 #endif
