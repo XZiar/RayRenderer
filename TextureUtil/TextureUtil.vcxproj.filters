@@ -69,5 +69,6 @@
     <None Include="CLResizer.cl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

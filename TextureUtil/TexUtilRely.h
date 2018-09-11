@@ -1,10 +1,19 @@
 #pragma once
 
-#ifdef TEXUTIL_EXPORT
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef TEXUTIL_EXPORT
 #   define TEXUTILAPI _declspec(dllexport)
 #   define COMMON_EXPORT
-#else
+# else
 #   define TEXUTILAPI _declspec(dllimport)
+# endif
+#else
+# ifdef TEXUTIL_EXPORT
+#   define TEXUTILAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define TEXUTILAPI
+# endif
 #endif
 
 
@@ -12,10 +21,10 @@
 #include <cstdio>
 #include <string>
 #include <map>
-#include <filesystem>
 #include "common/Wrapper.hpp"
 #include "common/Exceptions.hpp"
 #include "common/TimeUtil.hpp"
+#include "common/FileEx.hpp"
 #include "common/PromiseTask.hpp"
 #include "common/ThreadEx.h"
 #include "OpenGLUtil/OpenGLUtil.h"

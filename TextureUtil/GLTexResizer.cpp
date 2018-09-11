@@ -113,7 +113,7 @@ static TextureInnerFormat DecideFormat(const ImageDataType& type)
 
 static TextureInnerFormat DecideFormat(ImageDataType type, const TextureInnerFormat prefer)
 {
-    if (!TexFormatUtil::HasAlphaType(prefer))
+    if (!TexFormatUtil::IsAlphaType(prefer))
         type = REMOVE_MASK(type, ImageDataType::ALPHA_MASK);
     const TextureInnerFormat matched = DecideFormat(type);
     if (TexFormatUtil::IsGrayType(matched) != TexFormatUtil::IsGrayType(prefer))
@@ -172,13 +172,13 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
     FilterFormat(format);
     const auto vao = flipY ? FlipYVAO : NormalVAO;
     string routineName = "PlainCopy";
-    if (uint8_t(TexFormatUtil::DecideFormat(format) & TextureDataFormat::RAW_FORMAT_MASK) >= uint8_t(TextureDataFormat::RGB_FORMAT))
-    {
-        switch (TexFormatUtil::DecideFormat(tex->GetInnerFormat()) & TextureDataFormat::RAW_FORMAT_MASK)
+    if (static_cast<uint16_t>(format & TextureInnerFormat::CHANNEL_MASK) > static_cast<uint16_t>(tex->GetInnerFormat() & TextureInnerFormat::CHANNEL_MASK))
+    { // need more channel
+        switch (tex->GetInnerFormat() & TextureInnerFormat::CHANNEL_MASK)
         {
-        case TextureDataFormat::R_FORMAT:   routineName = "G2RGBA"; break;
-        case TextureDataFormat::RG_FORMAT:  routineName = "GA2RGBA"; break;
-            // others just keep default
+        case TextureInnerFormat::CHANNEL_R:     routineName = "G2RGBA"; break;
+        case TextureInnerFormat::CHANNEL_RG:    routineName = "GA2RGBA"; break;
+        default:                                break; // others just keep default
         }
     }
 
@@ -235,7 +235,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::Aligned
         if (TexFormatUtil::IsCompressType(dataFormat))
             tex->SetCompressedData(rawdata->GetRawPtr(), rawdata->GetSize());
         else
-            tex->SetData(TexFormatUtil::DecideFormat(dataFormat), rawdata->GetRawPtr());
+            tex->SetData(TexFormatUtil::ConvertDtypeFrom(dataFormat), rawdata->GetRawPtr());
         tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });

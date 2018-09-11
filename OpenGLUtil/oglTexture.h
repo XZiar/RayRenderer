@@ -1,6 +1,7 @@
 #pragma once
 #include "oglRely.h"
 #include "oglBuffer.h"
+#include "oglException.h"
 
 namespace oglu
 {
@@ -8,41 +9,104 @@ namespace oglu
 
 enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, Tex3D = GL_TEXTURE_3D, TexBuf = GL_TEXTURE_BUFFER, Tex2DArray = GL_TEXTURE_2D_ARRAY };
 
-//upper for format, lower for type
-enum class TextureDataFormat : uint8_t
+//[  flags|formats|channel|   bits]
+//[15...13|12....8|7.....5|4.....0]
+enum class TextureInnerFormat : uint16_t
 {
-    NORMAL_MASK = 0x80, TYPE_MASK = 0x0f, FORMAT_MASK = 0xf0, RAW_FORMAT_MASK = 0x70,
-    R_FORMAT = 0x00, RG_FORMAT = 0x10, RGB_FORMAT = 0x20, BGR_FORMAT = 0x30, RGBA_FORMAT = 0x40, BGRA_FORMAT = 0x50,
-    U8_TYPE = 0x0, I8_TYPE = 0x1, U16_TYPE = 0x2, I16_TYPE = 0x3, U32_TYPE = 0x4, I32_TYPE = 0x5, HALF_TYPE = 0x6, FLOAT_TYPE = 0x7,
-    //non-normalized integer(uint8)
-    R8U = R_FORMAT | U8_TYPE, RG8U = RG_FORMAT | U8_TYPE, RGB8U = RGB_FORMAT | U8_TYPE, BGR8U = BGR_FORMAT | U8_TYPE, RGBA8U = RGBA_FORMAT | U8_TYPE, BGRA8U = BGRA_FORMAT | U8_TYPE,
-    //normalized integer(uint8)
-    R8 = R8U | NORMAL_MASK, RG8 = RG8U | NORMAL_MASK, RGB8 = RGB8U | NORMAL_MASK, BGR8 = BGR8U | NORMAL_MASK, RGBA8 = RGBA8U | NORMAL_MASK, BGRA8 = BGRA8U | NORMAL_MASK,
+    BITS_MASK = 0x001f, CHANNEL_MASK = 0x00e0, FORMAT_MASK = 0x1f00, FLAG_MASK = 0xe000, CAT_MASK = FORMAT_MASK | BITS_MASK, ERROR = 0xffff,
+    //Bits
+    BITS_2 = 0, BITS_4 = 2, BITS_5 = 3, BITS_8 = 4, BITS_10 = 5, BITS_11 = 6, BITS_12 = 7, BITS_16 = 8, BITS_32 = 9,
+    //Channels[842]
+    CHANNEL_R = 0x00, CHANNEL_RG = 0x20, CHANNEL_RA = CHANNEL_RG, CHANNEL_RGB = 0x60, CHANNEL_RGBA = 0x80,
+    //Formats
+    FORMAT_UNORM = 0x0000, FORMAT_SNORM = 0x0100, FORMAT_UINT = 0x0200, FORMAT_SINT = 0x0300, FORMAT_FLOAT = 0x0400,
+    FORMAT_INT_SIGNED = 0x0100, FORMAT_INT_INTEGER = 0x0200,
+    FORMAT_DXT1 = 0x0500, FORMAT_DXT3 = 0x0600, FORMAT_DXT5 = 0x0700, FORMAT_RGTC = 0x0800, FORMAT_BPTC = 0x0900,
+    FORMAT_ETC = 0x0a00, FORMAT_ETC2 = 0x0b00, FORMAT_PVRTC = 0x0c00, FORMAT_PVRTC2 = 0x0d00, FORMAT_ASTC = 0x0e00,
+    //Flags
+    FLAG_SRGB = 0x8000, FLAG_COMP = 0x4000,
+    //Categories
+    CAT_UNORM8 = BITS_8 | FORMAT_UNORM, CAT_U8 = BITS_8 | FORMAT_UINT, CAT_SNORM8 = BITS_8 | FORMAT_SNORM, CAT_S8 = BITS_8 | FORMAT_SINT,
+    CAT_UNORM16 = BITS_16 | FORMAT_UNORM, CAT_U16 = BITS_16 | FORMAT_UINT, CAT_SNORM16 = BITS_16 | FORMAT_SNORM, CAT_S16 = BITS_16 | FORMAT_SINT,
+    CAT_UNORM32 = BITS_32 | FORMAT_UNORM, CAT_U32 = BITS_32 | FORMAT_UINT, CAT_SNORM32 = BITS_32 | FORMAT_SNORM, CAT_S32 = BITS_32 | FORMAT_SINT,
+    CAT_FLOAT = BITS_32 | FORMAT_FLOAT, CAT_HALF = BITS_16 | FORMAT_FLOAT,
+    //Actual Types
+    //normalized integer->as float[0,1]
+    R8 = CAT_UNORM8 | CHANNEL_R, RG8 = CAT_UNORM8 | CHANNEL_RG, RGB8 = CAT_UNORM8 | CHANNEL_RGB, RGBA8 = CAT_UNORM8 | CHANNEL_RGBA,
+    SRGB8 = RGB8 | FLAG_SRGB, SRGBA8 = RGBA8 | FLAG_SRGB,
+    R16 = CAT_UNORM16 | CHANNEL_R, RG16 = CAT_UNORM16 | CHANNEL_RG, RGB16 = CAT_UNORM16 | CHANNEL_RGB, RGBA16 = CAT_UNORM16 | CHANNEL_RGBA,
+    //normalized integer->as float[-1,1]
+    R8S = CAT_SNORM8 | CHANNEL_R, RG8S = CAT_SNORM8 | CHANNEL_RG, RGB8S = CAT_SNORM8 | CHANNEL_RGB, RGBA8S = CAT_SNORM8 | CHANNEL_RGBA,
+    R16S = CAT_SNORM16 | CHANNEL_R, RG16S = CAT_SNORM16 | CHANNEL_RG, RGB16S = CAT_SNORM16 | CHANNEL_RGB, RGBA16S = CAT_SNORM16 | CHANNEL_RGBA,
+    //non-normalized integer(unsigned)
+    R8U = CAT_U8 | CHANNEL_R, RG8U = CAT_U8 | CHANNEL_RG, RGB8U = CAT_U8 | CHANNEL_RGB, RGBA8U = CAT_U8 | CHANNEL_RGBA,
+    R16U = CAT_U16 | CHANNEL_R, RG16U = CAT_U16 | CHANNEL_RG, RGB16U = CAT_U16 | CHANNEL_RGB, RGBA16U = CAT_U16 | CHANNEL_RGBA,
+    R32U = CAT_U32 | CHANNEL_R, RG32U = CAT_U32 | CHANNEL_RG, RGB32U = CAT_U32 | CHANNEL_RGB, RGBA32U = CAT_U32 | CHANNEL_RGBA,
+    //non-normalized integer(signed)
+    R8I = CAT_S8 | CHANNEL_R, RG8I = CAT_S8 | CHANNEL_RG, RGB8I = CAT_S8 | CHANNEL_RGB, RGBA8I = CAT_S8 | CHANNEL_RGBA,
+    R16I = CAT_S16 | CHANNEL_R, RG16I = CAT_S16 | CHANNEL_RG, RGB16I = CAT_S16 | CHANNEL_RGB, RGBA16I = CAT_S16 | CHANNEL_RGBA,
+    R32I = CAT_S32 | CHANNEL_R, RG32I = CAT_S32 | CHANNEL_RG, RGB32I = CAT_S32 | CHANNEL_RGB, RGBA32I = CAT_S32 | CHANNEL_RGBA,
     //half-float(FP16)
-    Rh = R_FORMAT | HALF_TYPE | NORMAL_MASK, RGh = RG_FORMAT | HALF_TYPE | NORMAL_MASK, RGBh = RGB_FORMAT | HALF_TYPE | NORMAL_MASK, BGRh = BGR_FORMAT | HALF_TYPE | NORMAL_MASK, RGBAh = RGBA_FORMAT | HALF_TYPE | NORMAL_MASK, BGRAh = BGRA_FORMAT | HALF_TYPE | NORMAL_MASK,
+    Rh = CAT_HALF | CHANNEL_R, RGh = CAT_HALF | CHANNEL_RG, RGBh = CAT_HALF | CHANNEL_RGB, RGBAh = CAT_HALF | CHANNEL_RGBA,
     //float(FP32)
-    Rf = R_FORMAT | FLOAT_TYPE | NORMAL_MASK, RGf = RG_FORMAT | FLOAT_TYPE | NORMAL_MASK, RGBf = RGB_FORMAT | FLOAT_TYPE | NORMAL_MASK, BGRf = BGR_FORMAT | FLOAT_TYPE | NORMAL_MASK, RGBAf = RGBA_FORMAT | FLOAT_TYPE | NORMAL_MASK, BGRAf = BGRA_FORMAT | FLOAT_TYPE | NORMAL_MASK,
+    Rf = CAT_FLOAT | CHANNEL_R, RGf = CAT_FLOAT | CHANNEL_RG, RGBf = CAT_FLOAT | CHANNEL_RGB, RGBAf = CAT_FLOAT | CHANNEL_RGBA,
+    //special
+    RG11B10 = BITS_11 | FORMAT_FLOAT | FLAG_COMP | CHANNEL_RGB, 
+    RGB332 = BITS_2 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB, RGBA12 = BITS_12 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
+    RGB5A1 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB565 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
+    RGB10A2 = BITS_10 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB10A2U = BITS_10 | FORMAT_UINT | FLAG_COMP | CHANNEL_RGBA,
+    //compressed(S3TC/DXT135,RGTC,BPTC)
+    BC1 = BITS_4 | FORMAT_DXT1 | CHANNEL_RGB, BC1A = BITS_4 | FORMAT_DXT1 | CHANNEL_RGBA, BC2 = BITS_8 | FORMAT_DXT3 | CHANNEL_RGBA, BC3 = BITS_8 | FORMAT_DXT5 | CHANNEL_RGBA,
+    BC4 = BITS_4 | FORMAT_DXT5 | CHANNEL_R, BC5 = BITS_8 | FORMAT_DXT5 | CHANNEL_RG, BC6H = BITS_8 | FORMAT_BPTC | CHANNEL_RGB, BC7 = BITS_8 | FORMAT_BPTC | CHANNEL_RGBA,
+    BC1SRGB = BC1 | FLAG_SRGB, BC1ASRGB = BC1A | FLAG_SRGB, BC2SRGB = BC2 | FLAG_SRGB, BC3SRGB = BC3 | FLAG_SRGB, BC7SRGB = BC7 | FLAG_SRGB,
+};
+MAKE_ENUM_BITFIELD(TextureInnerFormat)
+
+//[reverse|component|normal|data type]
+//[     15|14......8|     7|6.......0]
+enum class TextureDataFormat : uint16_t
+{
+    TYPE_MASK = 0x00ff, INTEGER_MASK = 0x0080, TYPE_RAW_MASK = 0x007f, COMP_MASK = 0x0010, FORMAT_MASK = 0xff00, REVERSE_MASK = 0x8000, EMPTY_MASK = 0x0000,
+    FORMAT_R = 0x0100, FORMAT_G = 0x0200, FORMAT_B = 0x0400, FORMAT_A = 0x0800, 
+    FORMAT_RG = 0x0900, FORMAT_RGB = 0x0700, FORMAT_BGR = 0x8700, FORMAT_RGBA = 0x0f00, FORMAT_BGRA = 0x8f00,
+    TYPE_U8 = 0x0, TYPE_I8 = 0x1, TYPE_U16 = 0x2, TYPE_I16 = 0x3, TYPE_U32 = 0x4, TYPE_I32 = 0x5, TYPE_HALF = 0x6, TYPE_FLOAT = 0x7,
+    TYPE_332 = 0x10, TYPE_233R = 0x11, TYPE_565 = 0x12, TYPE_565R = 0x13, TYPE_4444 = 0x14, TYPE_4444R = 0x15, TYPE_5551 = 0x16, TYPE_1555R = 0x17,
+    TYPE_8888 = 0x18, TYPE_8888R = 0x19, TYPE_10_2 = 0x1a, TYPE_10_2R = 0x1b,
+    //normalized integer[0,1]
+    R8 = FORMAT_R | TYPE_U8, RG8 = FORMAT_RG | TYPE_U8, RGB8 = FORMAT_RGB | TYPE_U8, BGR8 = FORMAT_BGR | TYPE_U8, RGBA8 = FORMAT_RGBA | TYPE_U8, BGRA8 = FORMAT_BGRA | TYPE_U8,
+    R16 = FORMAT_R | TYPE_U16, RG16 = FORMAT_RG | TYPE_U16, RGB16 = FORMAT_RGB | TYPE_U16, BGR16 = FORMAT_BGR | TYPE_U16, RGBA16 = FORMAT_RGBA | TYPE_U16, BGRA16 = FORMAT_BGRA | TYPE_U16,
+    //normalized integer[-1,1]
+    R8S = FORMAT_R | TYPE_U8, RG8S = FORMAT_RG | TYPE_U8, RGB8S = FORMAT_RGB | TYPE_U8, BGR8S = FORMAT_BGR | TYPE_U8, RGBA8S = FORMAT_RGBA | TYPE_U8, BGRA8S = FORMAT_BGRA | TYPE_U8,
+    R16S = FORMAT_R | TYPE_U16, RG16S = FORMAT_RG | TYPE_U16, RGB16S = FORMAT_RGB | TYPE_U16, BGR16S = FORMAT_BGR | TYPE_U16, RGBA16S = FORMAT_RGBA | TYPE_U16, BGRA16S = FORMAT_BGRA | TYPE_U16,
+    //non-normalized integer(unsigned)
+    R8U = R8 | INTEGER_MASK, RG8U = RG8 | INTEGER_MASK, RGB8U = RGB8 | INTEGER_MASK, BGR8U = BGR8 | INTEGER_MASK, RGBA8U = RGBA8 | INTEGER_MASK, BGRA8U = BGRA8 | INTEGER_MASK,
+    R16U = R16 | INTEGER_MASK, RG16U = RG16 | INTEGER_MASK, RGB16U = RGB16 | INTEGER_MASK, BGR16U = BGR16 | INTEGER_MASK, RGBA16U = RGBA16 | INTEGER_MASK, BGRA16U = BGRA16 | INTEGER_MASK,
+    R32U = FORMAT_R | TYPE_U32 | INTEGER_MASK, RG32U = FORMAT_RG | TYPE_U32 | INTEGER_MASK, RGB32U = FORMAT_RGB | TYPE_U32 | INTEGER_MASK, 
+    BGR32U = FORMAT_BGR | TYPE_U32 | INTEGER_MASK, RGBA32U = FORMAT_RGBA | TYPE_U32 | INTEGER_MASK, BGRA32U = FORMAT_BGRA | TYPE_U32 | INTEGER_MASK,
+    //non-normalized integer(signed)
+    R8I = R8S | INTEGER_MASK, RG8I = RG8S | INTEGER_MASK, RGB8I = RGB8S | INTEGER_MASK, BGR8I = BGR8S | INTEGER_MASK, RGBA8I = RGBA8S | INTEGER_MASK, BGRA8I = BGRA8S | INTEGER_MASK,
+    R16I = R16S | INTEGER_MASK, RG16I = RG16S | INTEGER_MASK, RGB16I = RGB16S | INTEGER_MASK, BGR16I = BGR16S | INTEGER_MASK, RGBA16I = RGBA16S | INTEGER_MASK, BGRA16I = BGRA16S | INTEGER_MASK,
+    R32I = FORMAT_R | TYPE_I32 | INTEGER_MASK, RG32I = FORMAT_RG | TYPE_I32 | INTEGER_MASK, RGB32I = FORMAT_RGB | TYPE_I32 | INTEGER_MASK,
+    BGR32I = FORMAT_BGR | TYPE_I32 | INTEGER_MASK, RGBA32I = FORMAT_RGBA | TYPE_I32 | INTEGER_MASK, BGRA32I = FORMAT_BGRA | TYPE_I32 | INTEGER_MASK,
+    //half-float(FP16)
+    Rh = FORMAT_R | TYPE_HALF, RGh = FORMAT_RG | TYPE_HALF, RGBh = FORMAT_RGB | TYPE_HALF, BGRh = FORMAT_BGR | TYPE_HALF, RGBAh = FORMAT_RGBA | TYPE_HALF, BGRAh = FORMAT_BGRA | TYPE_HALF,
+    //float(FP32)
+    Rf = FORMAT_R | TYPE_FLOAT, RGf = FORMAT_RG | TYPE_FLOAT, RGBf = FORMAT_RGB | TYPE_FLOAT, BGRf = FORMAT_BGR | TYPE_FLOAT, RGBAf = FORMAT_RGBA | TYPE_FLOAT, BGRAf = FORMAT_BGRA | TYPE_FLOAT,
 };
 MAKE_ENUM_BITFIELD(TextureDataFormat)
-enum class TextureInnerFormat : GLint
+
+class OGLWrongFormatException : public OGLException
 {
-    //normalized integer->as float[0,1]
-    R8 = GL_R8, RG8 = GL_RG8, RGB8 = GL_RGB8, SRGB8 = GL_SRGB8, RGBA8 = GL_RGBA8, SRGBA8 = GL_SRGB8_ALPHA8,
-    //non-normalized integer(uint8)
-    R8U = GL_R8UI, RG8U = GL_RG8UI, RGB8U = GL_RGB8UI, RGBA8U = GL_RGBA8UI,
-    //half-float(FP16)
-    Rh = GL_R16F, RGh = GL_RG16F, RGBh = GL_RGB16F, RGBAh = GL_RGBA16F,
-    //float(FP32)
-    Rf = GL_R32F, RGf = GL_RG32F, RGBf = GL_RGB32F, RGBAf = GL_RGBA32F,
-    //special
-    RG11B10 = GL_R11F_G11F_B10F, RGB10A2 = GL_RGB10_A2,
-    //compressed(S3TC/DXT135,RGTC,BPTC)
-    BC1 = GL_COMPRESSED_RGB_S3TC_DXT1_EXT, BC1A = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, BC2 = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,
-    BC3 = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, BC4 = GL_COMPRESSED_RED_RGTC1, BC5 = GL_COMPRESSED_RG_RGTC2,
-    BC6H = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT, BC7 = GL_COMPRESSED_RGBA_BPTC_UNORM,
-    BC1SRGB = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT, BC1ASRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,
-    BC2SRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT, BC3SRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT,
-    BC7SRGB = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
+public:
+    EXCEPTION_CLONE_EX(OGLWrongFormatException);
+    std::variant<oglu::TextureDataFormat, oglu::TextureInnerFormat> Format;
+    OGLWrongFormatException(const std::u16string_view& msg, const oglu::TextureDataFormat format, const std::any& data_ = std::any())
+        : OGLException(GLComponent::OGLU, msg, data_), Format(format)
+    { }
+    OGLWrongFormatException(const std::u16string_view& msg, const oglu::TextureInnerFormat format, const std::any& data_ = std::any())
+        : OGLException(GLComponent::OGLU, msg, data_), Format(format)
+    { }
+    virtual ~OGLWrongFormatException() {}
 };
 
 enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
@@ -53,11 +117,30 @@ enum class TexImgUsage : GLenum { ReadOnly = GL_READ_ONLY, WriteOnly = GL_WRITE_
 
 struct OGLUAPI TexFormatUtil
 {
-    static void ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept;
-    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat) noexcept
+    static GLenum GetInnerFormat(const TextureInnerFormat format) noexcept;
+    static bool IsCompressType(const TextureInnerFormat format) noexcept 
+    { 
+        return static_cast<uint16_t>(format & TextureInnerFormat::FORMAT_MASK) > static_cast<uint16_t>(TextureInnerFormat::FORMAT_FLOAT);
+    }
+    static bool IsGrayType(const TextureInnerFormat format) noexcept
+    {
+        const auto channel = format & TextureInnerFormat::CHANNEL_MASK;
+        return channel == TextureInnerFormat::CHANNEL_R || channel == TextureInnerFormat::CHANNEL_RA;
+    }
+    static bool IsAlphaType(const TextureInnerFormat format) noexcept
+    {
+        const auto channel = format & TextureInnerFormat::CHANNEL_MASK;
+        return channel == TextureInnerFormat::CHANNEL_RA || channel == TextureInnerFormat::CHANNEL_RGBA;
+    }
+    static bool IsSRGBType(const TextureInnerFormat format) noexcept { return HAS_FIELD(format, TextureInnerFormat::FLAG_SRGB); }
+    static TextureInnerFormat ConvertFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
+    static xziar::img::ImageDataType ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert = false) noexcept;
+
+    static void ParseFormat(const TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat, const bool isUpload) noexcept
     {
         GLenum datatype, comptype;
-        ParseFormat(dformat, datatype, comptype);
+        ParseFormat(dformat, isUpload, datatype, comptype);
         return { datatype,comptype };
     }
     static void ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
@@ -67,16 +150,13 @@ struct OGLUAPI TexFormatUtil
         ParseFormat(dformat, normalized, datatype, comptype);
         return { datatype,comptype };
     }
-    static TextureDataFormat DecideFormat(const TextureInnerFormat format) noexcept;
-    static xziar::img::ImageDataType ConvertFormat(const TextureDataFormat dformat) noexcept;
-    static TextureDataFormat ConvertFormat(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
-    static bool IsCompressType(const TextureInnerFormat format) noexcept;
-    static bool IsGrayType(const TextureInnerFormat format) noexcept;
-    static bool HasAlphaType(const TextureInnerFormat format) noexcept;
-    static bool IsSRGBType(const TextureInnerFormat format) noexcept;
+    static TextureDataFormat ConvertDtypeFrom(const TextureInnerFormat format);
+    static TextureDataFormat ConvertDtypeFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
+    static xziar::img::ImageDataType ConvertToImgType(const TextureDataFormat format, const bool relaxConvert = false) noexcept;
+    /*static TextureDataFormat DecideFormat(const TextureInnerFormat format) noexcept;
     static TextureInnerFormat GetSRGBType(const TextureInnerFormat format, const bool needSRGB) noexcept;
-    static TextureInnerFormat GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept;
+    static TextureInnerFormat GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept;*/
     static const u16string_view GetTypeName(const TextureType type);
     static const u16string_view GetFormatName(const TextureInnerFormat format);
 };
@@ -122,7 +202,7 @@ struct _oglTexCommon
 {
     forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept
     {
-        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+        const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
         ((Base&)(*this)).SetData(isSub, datatype, comptype, data);
     }
     forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept
@@ -229,7 +309,7 @@ public:
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
     void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data) 
+    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data)
     { 
         SetData(iformat, dformat, w, h, data.data()); 
     }
@@ -237,7 +317,7 @@ public:
     void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const void *data, const size_t size);
     void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const oglPBO& buf, const size_t size);
     template<class T, class A>
-    void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const vector<T, A>& data) 
+    void SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const vector<T, A>& data)
     { 
         SetCompressedData(iformat, w, h, data.data(), data.size() * sizeof(T));
     }

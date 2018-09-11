@@ -10,29 +10,162 @@ namespace oglu
 using xziar::img::ImageDataType;
 using xziar::img::Image;
 
-void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, GLenum& datatype, GLenum& comptype) noexcept
+GLenum TexFormatUtil::GetInnerFormat(const TextureInnerFormat format) noexcept
 {
-    switch (dformat & TextureDataFormat::TYPE_MASK)
+    switch (format)
     {
-    case TextureDataFormat::U8_TYPE:        datatype = GL_UNSIGNED_BYTE; break;
-    case TextureDataFormat::I8_TYPE:        datatype = GL_BYTE; break;
-    case TextureDataFormat::U16_TYPE:       datatype = GL_UNSIGNED_SHORT; break;
-    case TextureDataFormat::I16_TYPE:       datatype = GL_SHORT; break;
-    case TextureDataFormat::U32_TYPE:       datatype = GL_UNSIGNED_INT; break;
-    case TextureDataFormat::I32_TYPE:       datatype = GL_INT; break;
-    case TextureDataFormat::HALF_TYPE:      datatype = GL_HALF_FLOAT; break;
-    case TextureDataFormat::FLOAT_TYPE:     datatype = GL_FLOAT; break;
+    case TextureInnerFormat::R8:            return GL_R8;
+    case TextureInnerFormat::RG8:           return GL_RG8;
+    case TextureInnerFormat::RGB8:          return GL_RGB8;
+    case TextureInnerFormat::SRGB8:         return GL_SRGB8;
+    case TextureInnerFormat::RGBA8:         return GL_RGBA8;
+    case TextureInnerFormat::SRGBA8:        return GL_SRGB8_ALPHA8;
+    case TextureInnerFormat::R16:           return GL_R16;
+    case TextureInnerFormat::RG16:          return GL_RG16;
+    case TextureInnerFormat::RGB16:         return GL_RGB16;
+    case TextureInnerFormat::RGBA16:        return GL_RGBA16;
+    case TextureInnerFormat::R8S:           return GL_R8_SNORM;
+    case TextureInnerFormat::RG8S:          return GL_RG8_SNORM;
+    case TextureInnerFormat::RGB8S:         return GL_RGB8_SNORM;
+    case TextureInnerFormat::RGBA8S:        return GL_RGBA8_SNORM;
+    case TextureInnerFormat::R16S:          return GL_R16_SNORM;
+    case TextureInnerFormat::RG16S:         return GL_RG16_SNORM;
+    case TextureInnerFormat::RGB16S:        return GL_RGB16_SNORM;
+    case TextureInnerFormat::RGBA16S:       return GL_RGBA16_SNORM;
+    case TextureInnerFormat::R8U:           return GL_R8UI;
+    case TextureInnerFormat::RG8U:          return GL_RG8UI;
+    case TextureInnerFormat::RGB8U:         return GL_RGB8UI;
+    case TextureInnerFormat::RGBA8U:        return GL_RGBA8UI;
+    case TextureInnerFormat::R16U:          return GL_R16UI;
+    case TextureInnerFormat::RG16U:         return GL_RG16UI;
+    case TextureInnerFormat::RGB16U:        return GL_RGB16UI;
+    case TextureInnerFormat::RGBA16U:       return GL_RGBA16UI;
+    case TextureInnerFormat::R32U:          return GL_R32UI;
+    case TextureInnerFormat::RG32U:         return GL_RG32UI;
+    case TextureInnerFormat::RGB32U:        return GL_RGB32UI;
+    case TextureInnerFormat::RGBA32U:       return GL_RGBA32UI;
+    case TextureInnerFormat::R8I:           return GL_R8I;
+    case TextureInnerFormat::RG8I:          return GL_RG8I;
+    case TextureInnerFormat::RGB8I:         return GL_RGB8I;
+    case TextureInnerFormat::RGBA8I:        return GL_RGBA8I;
+    case TextureInnerFormat::R16I:          return GL_R16I;
+    case TextureInnerFormat::RG16I:         return GL_RG16I;
+    case TextureInnerFormat::RGB16I:        return GL_RGB16I;
+    case TextureInnerFormat::RGBA16I:       return GL_RGBA16I;
+    case TextureInnerFormat::R32I:          return GL_R32I;
+    case TextureInnerFormat::RG32I:         return GL_RG32I;
+    case TextureInnerFormat::RGB32I:        return GL_RGB32I;
+    case TextureInnerFormat::RGBA32I:       return GL_RGBA32I;
+    case TextureInnerFormat::Rh:            return GL_R16F;
+    case TextureInnerFormat::RGh:           return GL_RG16F;
+    case TextureInnerFormat::RGBh:          return GL_RGB16F;
+    case TextureInnerFormat::RGBAh:         return GL_RGBA16F;
+    case TextureInnerFormat::Rf:            return GL_R32F;
+    case TextureInnerFormat::RGf:           return GL_RG32F;
+    case TextureInnerFormat::RGBf:          return GL_RGB32F;
+    case TextureInnerFormat::RGBAf:         return GL_RGBA32F;
+    case TextureInnerFormat::RG11B10:       return GL_R11F_G11F_B10F;
+    case TextureInnerFormat::RGB332:        return GL_R3_G3_B2;
+    case TextureInnerFormat::RGB5A1:        return GL_RGB5_A1;
+    case TextureInnerFormat::RGB565:        return GL_RGB565;
+    case TextureInnerFormat::RGB10A2:       return GL_RGB10_A2;
+    case TextureInnerFormat::RGB10A2U:      return GL_RGB10_A2UI;
+    case TextureInnerFormat::RGBA12:        return GL_RGB12;
+    case TextureInnerFormat::BC1:           return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+    case TextureInnerFormat::BC1A:          return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+    case TextureInnerFormat::BC2:           return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+    case TextureInnerFormat::BC3:           return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+    case TextureInnerFormat::BC4:           return GL_COMPRESSED_RED_RGTC1;
+    case TextureInnerFormat::BC5:           return GL_COMPRESSED_RG_RGTC2;
+    case TextureInnerFormat::BC6H:          return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
+    case TextureInnerFormat::BC7:           return GL_COMPRESSED_RGBA_BPTC_UNORM;
+    case TextureInnerFormat::BC1SRGB:       return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+    case TextureInnerFormat::BC1ASRGB:      return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+    case TextureInnerFormat::BC2SRGB:       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
+    case TextureInnerFormat::BC3SRGB:       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+    case TextureInnerFormat::BC7SRGB:       return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM;
+    default:                                return GL_INVALID_ENUM;
+    }
+}
+TextureInnerFormat TexFormatUtil::ConvertFrom(const ImageDataType type, const bool normalized) noexcept
+{
+    TextureInnerFormat baseFormat = HAS_FIELD(type, ImageDataType::FLOAT_MASK) ? TextureInnerFormat::FORMAT_FLOAT :
+        (normalized ? TextureInnerFormat::FORMAT_UNORM : TextureInnerFormat::FORMAT_UINT) | TextureInnerFormat::FLAG_SRGB;
+    switch (REMOVE_MASK(type, ImageDataType::FLOAT_MASK))
+    {
+    case ImageDataType::RGB:
+    case ImageDataType::BGR:    return TextureInnerFormat::CHANNEL_RGB  | baseFormat;
+    case ImageDataType::RGBA:
+    case ImageDataType::BGRA:   return TextureInnerFormat::CHANNEL_RGBA | baseFormat;
+    case ImageDataType::GRAY:   return TextureInnerFormat::CHANNEL_R    | baseFormat;
+    case ImageDataType::GA:     return TextureInnerFormat::CHANNEL_RG   | baseFormat;
+    default:                    return TextureInnerFormat::ERROR;
+    }
+}
+ImageDataType TexFormatUtil::ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert) noexcept
+{
+    if (!HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
+    {
+        ImageDataType dtype;
+        switch (format & TextureInnerFormat::CHANNEL_MASK)
+        {
+        case TextureInnerFormat::CHANNEL_R:      dtype = ImageDataType::RED; break;
+        case TextureInnerFormat::CHANNEL_RG:     dtype = ImageDataType::RA; break;
+        case TextureInnerFormat::CHANNEL_RGB:    dtype = ImageDataType::RGB; break;
+        case TextureInnerFormat::CHANNEL_RGBA:   dtype = ImageDataType::RGBA; break;
+        default:                            return ImageDataType::UNKNOWN_RESERVE;
+        }
+        switch (format & TextureInnerFormat::CAT_MASK)
+        {
+        case TextureInnerFormat::CAT_SNORM8:
+        case TextureInnerFormat::CAT_U8:
+        case TextureInnerFormat::CAT_S8:         if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; //only pass through when relaxConvert
+        case TextureInnerFormat::CAT_UNORM8:     return dtype;
+        case TextureInnerFormat::CAT_FLOAT:      return dtype | ImageDataType::FLOAT_MASK;
+        default:                            return ImageDataType::UNKNOWN_RESERVE;
+        }
+    }
+    return ImageDataType::UNKNOWN_RESERVE;
+}
+
+void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept
+{
+    switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
+    {
+    case TextureDataFormat::TYPE_U8:        datatype = GL_UNSIGNED_BYTE; break;
+    case TextureDataFormat::TYPE_I8:        datatype = GL_BYTE; break;
+    case TextureDataFormat::TYPE_U16:       datatype = GL_UNSIGNED_SHORT; break;
+    case TextureDataFormat::TYPE_I16:       datatype = GL_SHORT; break;
+    case TextureDataFormat::TYPE_U32:       datatype = GL_UNSIGNED_INT; break;
+    case TextureDataFormat::TYPE_I32:       datatype = GL_INT; break;
+    case TextureDataFormat::TYPE_HALF:      datatype = isUpload ? GL_FLOAT : GL_HALF_FLOAT; break;
+    case TextureDataFormat::TYPE_FLOAT:     datatype = GL_FLOAT; break;
+    case TextureDataFormat::TYPE_332:       datatype = GL_UNSIGNED_BYTE_3_3_2; break;
+    case TextureDataFormat::TYPE_233R:      datatype = GL_UNSIGNED_BYTE_2_3_3_REV; break;
+    case TextureDataFormat::TYPE_565:       datatype = GL_UNSIGNED_SHORT_5_6_5; break;
+    case TextureDataFormat::TYPE_565R:      datatype = GL_UNSIGNED_SHORT_5_6_5_REV; break;
+    case TextureDataFormat::TYPE_4444:      datatype = GL_UNSIGNED_SHORT_4_4_4_4; break;
+    case TextureDataFormat::TYPE_4444R:     datatype = GL_UNSIGNED_SHORT_4_4_4_4_REV; break;
+    case TextureDataFormat::TYPE_5551:      datatype = GL_UNSIGNED_SHORT_5_5_5_1; break;
+    case TextureDataFormat::TYPE_1555R:     datatype = GL_UNSIGNED_SHORT_1_5_5_5_REV; break;
+    case TextureDataFormat::TYPE_8888:      datatype = GL_UNSIGNED_INT_8_8_8_8; break;
+    case TextureDataFormat::TYPE_8888R:     datatype = GL_UNSIGNED_INT_8_8_8_8_REV; break;
+    case TextureDataFormat::TYPE_10_2:      datatype = GL_UNSIGNED_INT_10_10_10_2; break;
+    case TextureDataFormat::TYPE_10_2R:     datatype = GL_UNSIGNED_INT_2_10_10_10_REV; break;
     default:                                break;
     }
-    const bool normalized = HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK);
-    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
+    const bool normalized = !HAS_FIELD(dformat, TextureDataFormat::INTEGER_MASK);
+    switch (dformat & TextureDataFormat::FORMAT_MASK)
     {
-    case TextureDataFormat::R_FORMAT:       comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
-    case TextureDataFormat::RG_FORMAT:      comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
-    case TextureDataFormat::RGB_FORMAT:     comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
-    case TextureDataFormat::BGR_FORMAT:     comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
-    case TextureDataFormat::RGBA_FORMAT:    comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
-    case TextureDataFormat::BGRA_FORMAT:    comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
+    case TextureDataFormat::FORMAT_R:       comptype = normalized ? GL_RED   : GL_RED_INTEGER; break;
+    case TextureDataFormat::FORMAT_G:       comptype = normalized ? GL_GREEN : GL_GREEN_INTEGER; break;
+    case TextureDataFormat::FORMAT_B:       comptype = normalized ? GL_BLUE  : GL_BLUE_INTEGER; break;
+    case TextureDataFormat::FORMAT_A:       comptype = normalized ? GL_ALPHA : GL_ALPHA_INTEGER; break;
+    case TextureDataFormat::FORMAT_RG:      comptype = normalized ? GL_RG    : GL_RG_INTEGER; break;
+    case TextureDataFormat::FORMAT_RGB:     comptype = normalized ? GL_RGB   : GL_RGB_INTEGER; break;
+    case TextureDataFormat::FORMAT_BGR:     comptype = normalized ? GL_BGR   : GL_BGR_INTEGER; break;
+    case TextureDataFormat::FORMAT_RGBA:    comptype = normalized ? GL_RGBA  : GL_RGBA_INTEGER; break;
+    case TextureDataFormat::FORMAT_BGRA:    comptype = normalized ? GL_BGRA  : GL_BGRA_INTEGER; break;
     default:                                break;
     }
 }
@@ -44,254 +177,188 @@ void TexFormatUtil::ParseFormat(const ImageDataType dformat, const bool normaliz
         datatype = GL_UNSIGNED_BYTE;
     switch (REMOVE_MASK(dformat, ImageDataType::FLOAT_MASK))
     {
-    case ImageDataType::GRAY:   comptype = normalized ? GL_RED : GL_RED_INTEGER; break;
-    case ImageDataType::RA:     comptype = normalized ? GL_RG : GL_RG_INTEGER; break;
-    case ImageDataType::RGB:    comptype = normalized ? GL_RGB : GL_RGB_INTEGER; break;
-    case ImageDataType::BGR:    comptype = normalized ? GL_BGR : GL_BGR_INTEGER; break;
+    case ImageDataType::GRAY:   comptype = normalized ? GL_RED  : GL_RED_INTEGER; break;
+    case ImageDataType::RA:     comptype = normalized ? GL_RG   : GL_RG_INTEGER; break;
+    case ImageDataType::RGB:    comptype = normalized ? GL_RGB  : GL_RGB_INTEGER; break;
+    case ImageDataType::BGR:    comptype = normalized ? GL_BGR  : GL_BGR_INTEGER; break;
     case ImageDataType::RGBA:   comptype = normalized ? GL_RGBA : GL_RGBA_INTEGER; break;
     case ImageDataType::BGRA:   comptype = normalized ? GL_BGRA : GL_BGRA_INTEGER; break;
     default:                    break;
     }
 }
 
-TextureDataFormat TexFormatUtil::DecideFormat(const TextureInnerFormat format) noexcept
+oglu::TextureDataFormat TexFormatUtil::ConvertDtypeFrom(const oglu::TextureInnerFormat format)
 {
-    switch (format)
+    using oglu::TextureInnerFormat;
+    using oglu::TextureDataFormat;
+    if (oglu::TexFormatUtil::IsCompressType(format))
+        COMMON_THROW(OGLWrongFormatException, u"compressed texture format cannot be convert to common data format", format);
+    if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
     {
-    case TextureInnerFormat::BC4:
-    case TextureInnerFormat::R8:        return TextureDataFormat::R8;
-    case TextureInnerFormat::BC5:
-    case TextureInnerFormat::RG8:       return TextureDataFormat::RG8;
-    case TextureInnerFormat::SRGB8:  
-    case TextureInnerFormat::BC1:
-    case TextureInnerFormat::BC1SRGB:
-    case TextureInnerFormat::RGB8:      return TextureDataFormat::RGB8;
-    case TextureInnerFormat::SRGBA8:    
-    case TextureInnerFormat::BC1A:
-    case TextureInnerFormat::BC1ASRGB:
-    case TextureInnerFormat::BC2:
-    case TextureInnerFormat::BC3:
-    case TextureInnerFormat::BC7:
-    case TextureInnerFormat::BC7SRGB:
-    case TextureInnerFormat::RGBA8:     return TextureDataFormat::RGBA8;
-    case TextureInnerFormat::R8U:       return TextureDataFormat::R8U;
-    case TextureInnerFormat::RG8U:      return TextureDataFormat::RG8U;
-    case TextureInnerFormat::RGB8U:     return TextureDataFormat::RGB8U;
-    case TextureInnerFormat::RGBA8U:    return TextureDataFormat::RGBA8U;
-    case TextureInnerFormat::Rh:        return TextureDataFormat::Rh;
-    case TextureInnerFormat::RGh:       return TextureDataFormat::RGh;
-    case TextureInnerFormat::RG11B10:
-    case TextureInnerFormat::RGBh:      return TextureDataFormat::RGBh;
-    case TextureInnerFormat::RGB10A2:
-    case TextureInnerFormat::RGBAh:     return TextureDataFormat::RGBAh;
-    case TextureInnerFormat::Rf:        return TextureDataFormat::Rf;
-    case TextureInnerFormat::RGf:       return TextureDataFormat::RGf;
-    case TextureInnerFormat::BC6H:
-    case TextureInnerFormat::RGBf:      return TextureDataFormat::RGBf;
-    case TextureInnerFormat::RGBAf:     return TextureDataFormat::RGBAf;
-    default:                            return static_cast<TextureDataFormat>(0xff);
+        switch (format)
+        {
+        case TextureInnerFormat::RGB565:    return TextureDataFormat::TYPE_565    | TextureDataFormat::FORMAT_RGB;
+        case TextureInnerFormat::RGB5A1:    return TextureDataFormat::TYPE_5551   | TextureDataFormat::FORMAT_RGBA;
+        case TextureInnerFormat::RGB10A2:   return TextureDataFormat::TYPE_10_2   | TextureDataFormat::FORMAT_RGBA;
+        case TextureInnerFormat::RGB10A2U:  return TextureDataFormat::TYPE_10_2   | TextureDataFormat::FORMAT_RGBA | TextureDataFormat::INTEGER_MASK;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported composite glTex format", format);
+        }
+    }
+    TextureDataFormat dformat = TextureDataFormat::EMPTY_MASK;
+    switch (format & TextureInnerFormat::FORMAT_MASK)
+    {
+    case TextureInnerFormat::FORMAT_UINT:
+        dformat |= TextureDataFormat::INTEGER_MASK;
+        switch (format & TextureInnerFormat::BITS_MASK)
+        {
+        case TextureInnerFormat::BITS_8:    dformat = TextureDataFormat::TYPE_U8; break;
+        case TextureInnerFormat::BITS_16:   dformat = TextureDataFormat::TYPE_U16; break;
+        case TextureInnerFormat::BITS_32:   dformat = TextureDataFormat::TYPE_U32; break;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported UINT glTex format", format);
+        }
+        break;
+    case TextureInnerFormat::FORMAT_SINT:
+        dformat |= TextureDataFormat::INTEGER_MASK;
+        switch (format & TextureInnerFormat::BITS_MASK)
+        {
+        case TextureInnerFormat::BITS_8:    dformat = TextureDataFormat::TYPE_I8; break;
+        case TextureInnerFormat::BITS_16:   dformat = TextureDataFormat::TYPE_I16; break;
+        case TextureInnerFormat::BITS_32:   dformat = TextureDataFormat::TYPE_I32; break;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported INT glTex format", format);
+        }
+        break;
+    case TextureInnerFormat::FORMAT_UNORM:
+        switch (format & TextureInnerFormat::BITS_MASK)
+        {
+        case TextureInnerFormat::BITS_8:    dformat = TextureDataFormat::TYPE_U8; break;
+        case TextureInnerFormat::BITS_16:   dformat = TextureDataFormat::TYPE_U16; break;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported UNORM glTex format", format);
+        }
+        break;
+    case TextureInnerFormat::FORMAT_SNORM:
+        switch (format & TextureInnerFormat::BITS_MASK)
+        {
+        case TextureInnerFormat::BITS_8:    dformat = TextureDataFormat::TYPE_I8; break;
+        case TextureInnerFormat::BITS_16:   dformat = TextureDataFormat::TYPE_I16; break;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported SNORM glTex format", format);
+        }
+        break;
+    case TextureInnerFormat::FORMAT_FLOAT:
+        switch (format & TextureInnerFormat::BITS_MASK)
+        {
+        case TextureInnerFormat::BITS_16:   dformat = TextureDataFormat::TYPE_HALF; break;
+        case TextureInnerFormat::BITS_32:   dformat = TextureDataFormat::TYPE_FLOAT; break;
+        default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported FLOAT glTex format", format);
+        }
+        break;
+    default:
+        COMMON_THROW(OGLWrongFormatException, u"unsupported glTex datatype format", format);
+    }
+    switch (format & TextureInnerFormat::CHANNEL_MASK)
+    {
+    case TextureInnerFormat::CHANNEL_R:     return dformat | TextureDataFormat::FORMAT_R;
+    case TextureInnerFormat::CHANNEL_RG:    return dformat | TextureDataFormat::FORMAT_RG;
+    case TextureInnerFormat::CHANNEL_RGB:   return dformat | TextureDataFormat::FORMAT_RGB;
+    case TextureInnerFormat::CHANNEL_RGBA:  return dformat | TextureDataFormat::FORMAT_RGBA;
+    default:                                COMMON_THROW(OGLWrongFormatException, u"unsupported glTex channel", format);
     }
 }
 
-ImageDataType TexFormatUtil::ConvertFormat(const TextureDataFormat dformat) noexcept
+TextureDataFormat TexFormatUtil::ConvertDtypeFrom(const ImageDataType dtype, const bool normalized) noexcept
 {
-    const ImageDataType isFloat = HAS_FIELD(dformat, TextureDataFormat::FLOAT_TYPE) ? ImageDataType::FLOAT_MASK : ImageDataType::EMPTY_MASK;
-    switch (REMOVE_MASK(dformat, TextureDataFormat::TYPE_MASK, TextureDataFormat::NORMAL_MASK))
-    {
-    case TextureDataFormat::R_FORMAT:     return ImageDataType::RED  | isFloat;
-    case TextureDataFormat::RG_FORMAT:    return ImageDataType::RA   | isFloat;
-    case TextureDataFormat::RGB_FORMAT:   return ImageDataType::RGB  | isFloat;
-    case TextureDataFormat::RGBA_FORMAT:  return ImageDataType::RGBA | isFloat;
-    case TextureDataFormat::BGR_FORMAT:   return ImageDataType::BGR  | isFloat;
-    case TextureDataFormat::BGRA_FORMAT:  return ImageDataType::BGRA | isFloat;
-    default:                        return isFloat;
-    }
-}
-
-TextureDataFormat TexFormatUtil::ConvertFormat(const ImageDataType dtype, const bool normalized) noexcept
-{
-    TextureDataFormat baseFormat = HAS_FIELD(dtype, ImageDataType::FLOAT_MASK) ? TextureDataFormat::FLOAT_TYPE : TextureDataFormat::U8_TYPE;
-    if (normalized) 
-        baseFormat |= TextureDataFormat::NORMAL_MASK;
+    TextureDataFormat baseFormat = HAS_FIELD(dtype, ImageDataType::FLOAT_MASK) ? TextureDataFormat::TYPE_FLOAT : TextureDataFormat::TYPE_U8;
+    if (!normalized)
+        baseFormat |= TextureDataFormat::INTEGER_MASK;
     switch (REMOVE_MASK(dtype, ImageDataType::FLOAT_MASK))
     {
-    case ImageDataType::RGB:    return TextureDataFormat::RGB_FORMAT  | baseFormat;
-    case ImageDataType::BGR:    return TextureDataFormat::BGR_FORMAT  | baseFormat;
-    case ImageDataType::RGBA:   return TextureDataFormat::RGBA_FORMAT | baseFormat;
-    case ImageDataType::BGRA:   return TextureDataFormat::BGRA_FORMAT | baseFormat;
-    case ImageDataType::GRAY:   return TextureDataFormat::R_FORMAT    | baseFormat;
-    case ImageDataType::GA:     return TextureDataFormat::RG_FORMAT   | baseFormat;
+    case ImageDataType::RGB:    return TextureDataFormat::FORMAT_RGB  | baseFormat;
+    case ImageDataType::BGR:    return TextureDataFormat::FORMAT_BGR  | baseFormat;
+    case ImageDataType::RGBA:   return TextureDataFormat::FORMAT_RGBA | baseFormat;
+    case ImageDataType::BGRA:   return TextureDataFormat::FORMAT_BGRA | baseFormat;
+    case ImageDataType::GRAY:   return TextureDataFormat::FORMAT_R    | baseFormat;
+    case ImageDataType::GA:     return TextureDataFormat::FORMAT_RG   | baseFormat;
     default:                    return baseFormat;
+    }
+}
+ImageDataType TexFormatUtil::ConvertToImgType(const TextureDataFormat format, const bool relaxConvert) noexcept
+{
+    ImageDataType isFloat;
+    switch (format & TextureDataFormat::TYPE_MASK)
+    {
+    case TextureDataFormat::TYPE_I8 | TextureDataFormat::INTEGER_MASK:
+    case TextureDataFormat::TYPE_U8 | TextureDataFormat::INTEGER_MASK:
+    case TextureDataFormat::TYPE_I8:        if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; //only pass through when relaxConvert
+    case TextureDataFormat::TYPE_U8:        isFloat = ImageDataType::EMPTY_MASK; break;
+    case TextureDataFormat::TYPE_FLOAT:     isFloat = ImageDataType::FLOAT_MASK; break;
+    default:                                return ImageDataType::UNKNOWN_RESERVE;
+    }
+    switch (format & TextureDataFormat::FORMAT_MASK)
+    {
+    case TextureDataFormat::FORMAT_R:
+    case TextureDataFormat::FORMAT_G:
+    case TextureDataFormat::FORMAT_B:       return ImageDataType::RED  | isFloat;
+    case TextureDataFormat::FORMAT_RG:      return ImageDataType::RA   | isFloat;
+    case TextureDataFormat::FORMAT_RGB:     return ImageDataType::RGB  | isFloat;
+    case TextureDataFormat::FORMAT_RGBA:    return ImageDataType::RGBA | isFloat;
+    case TextureDataFormat::FORMAT_BGR:     return ImageDataType::BGR  | isFloat;
+    case TextureDataFormat::FORMAT_BGRA:    return ImageDataType::BGRA | isFloat;
+    default:                                return ImageDataType::UNKNOWN_RESERVE;
     }
 }
 
 size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept
 {
     size_t size = 0;
-    switch (dformat & TextureDataFormat::TYPE_MASK)
+    switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
     {
-    case TextureDataFormat::U8_TYPE:
-    case TextureDataFormat::I8_TYPE:
+    case TextureDataFormat::TYPE_U8:
+    case TextureDataFormat::TYPE_I8:
+    case TextureDataFormat::TYPE_332:
+    case TextureDataFormat::TYPE_233R:
         size = 8; break;
-    case TextureDataFormat::U16_TYPE:
-    case TextureDataFormat::I16_TYPE:
-    case TextureDataFormat::HALF_TYPE:
+    case TextureDataFormat::TYPE_U16:
+    case TextureDataFormat::TYPE_I16:
+    case TextureDataFormat::TYPE_HALF:
+    case TextureDataFormat::TYPE_4444:
+    case TextureDataFormat::TYPE_4444R:
+    case TextureDataFormat::TYPE_565:
+    case TextureDataFormat::TYPE_565R:
+    case TextureDataFormat::TYPE_5551:
+    case TextureDataFormat::TYPE_1555R:
         size = 16; break;
-    case TextureDataFormat::U32_TYPE:
-    case TextureDataFormat::I32_TYPE:
-    case TextureDataFormat::FLOAT_TYPE:
+    case TextureDataFormat::TYPE_U32:
+    case TextureDataFormat::TYPE_I32:
+    case TextureDataFormat::TYPE_FLOAT:
+    case TextureDataFormat::TYPE_8888:
+    case TextureDataFormat::TYPE_8888R:
+    case TextureDataFormat::TYPE_10_2:
+    case TextureDataFormat::TYPE_10_2R:
         size = 32; break;
     default:
         return 0;
     }
-    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
+    if (!HAS_FIELD(dformat, TextureDataFormat::COMP_MASK))
     {
-    case TextureDataFormat::R_FORMAT:
-        size *= 1; break;
-    case TextureDataFormat::RG_FORMAT:
-        size *= 2; break;
-    case TextureDataFormat::RGB_FORMAT:
-    case TextureDataFormat::BGR_FORMAT:
-        size *= 3; break;
-    case TextureDataFormat::RGBA_FORMAT:
-    case TextureDataFormat::BGRA_FORMAT:
-        size *= 4; break;
-    default:
-        return 0;
+        switch (dformat & TextureDataFormat::FORMAT_MASK)
+        {
+        case TextureDataFormat::FORMAT_R:
+        case TextureDataFormat::FORMAT_G:
+        case TextureDataFormat::FORMAT_B:
+        case TextureDataFormat::FORMAT_A:
+            size *= 1; break;
+        case TextureDataFormat::FORMAT_RG:
+            size *= 2; break;
+        case TextureDataFormat::FORMAT_RGB:
+        case TextureDataFormat::FORMAT_BGR:
+            size *= 3; break;
+        case TextureDataFormat::FORMAT_RGBA:
+        case TextureDataFormat::FORMAT_BGRA:
+            size *= 4; break;
+        default:
+            return 0;
+        }
     }
     return size / 8;
-}
-
-bool TexFormatUtil::IsCompressType(const TextureInnerFormat format) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::BC1:
-    case TextureInnerFormat::BC1A:
-    case TextureInnerFormat::BC2:
-    case TextureInnerFormat::BC3:
-    case TextureInnerFormat::BC4:
-    case TextureInnerFormat::BC5:
-    case TextureInnerFormat::BC6H:
-    case TextureInnerFormat::BC7:
-    case TextureInnerFormat::BC1ASRGB:
-    case TextureInnerFormat::BC2SRGB:
-    case TextureInnerFormat::BC3SRGB:
-    case TextureInnerFormat::BC7SRGB:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool TexFormatUtil::IsGrayType(const TextureInnerFormat format) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::R8:
-    case TextureInnerFormat::RG8:
-    case TextureInnerFormat::R8U:
-    case TextureInnerFormat::RG8U:
-    case TextureInnerFormat::Rh:
-    case TextureInnerFormat::RGh:
-    case TextureInnerFormat::Rf:
-    case TextureInnerFormat::RGf:
-    case TextureInnerFormat::BC4:
-    case TextureInnerFormat::BC5:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool TexFormatUtil::HasAlphaType(const TextureInnerFormat format) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::RG8:
-    case TextureInnerFormat::RGBA8:
-    case TextureInnerFormat::SRGBA8:
-    case TextureInnerFormat::RG8U:
-    case TextureInnerFormat::RGBA8U:
-    case TextureInnerFormat::RGh:
-    case TextureInnerFormat::RGBAh:
-    case TextureInnerFormat::RGf:
-    case TextureInnerFormat::RGBAf:
-    case TextureInnerFormat::BC1A:
-    case TextureInnerFormat::BC2:
-    case TextureInnerFormat::BC3:
-    case TextureInnerFormat::BC7:
-    case TextureInnerFormat::BC1ASRGB:
-    case TextureInnerFormat::BC2SRGB:
-    case TextureInnerFormat::BC3SRGB:
-    case TextureInnerFormat::BC7SRGB:
-    case TextureInnerFormat::RGB10A2:
-        return true;
-    default:
-        return false;
-    }
-}
-bool TexFormatUtil::IsSRGBType(const TextureInnerFormat format) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::SRGBA8:
-    case TextureInnerFormat::BC1ASRGB:
-    case TextureInnerFormat::BC2SRGB:
-    case TextureInnerFormat::BC3SRGB:
-    case TextureInnerFormat::BC7SRGB:
-        return true;
-    default:
-        return false;
-    }
-}
-TextureInnerFormat TexFormatUtil::GetSRGBType(const TextureInnerFormat format, const bool needSRGB) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::RGB8:
-    case TextureInnerFormat::SRGB8:     return needSRGB ? TextureInnerFormat::SRGB8    : TextureInnerFormat::RGB8;
-    case TextureInnerFormat::RGBA8:
-    case TextureInnerFormat::SRGBA8:    return needSRGB ? TextureInnerFormat::SRGBA8   : TextureInnerFormat::RGBA8;
-    case TextureInnerFormat::BC1A:
-    case TextureInnerFormat::BC1ASRGB:  return needSRGB ? TextureInnerFormat::BC1ASRGB : TextureInnerFormat::BC1A;
-    case TextureInnerFormat::BC2:
-    case TextureInnerFormat::BC2SRGB:   return needSRGB ? TextureInnerFormat::BC2SRGB  : TextureInnerFormat::BC2;
-    case TextureInnerFormat::BC3:
-    case TextureInnerFormat::BC3SRGB:   return needSRGB ? TextureInnerFormat::BC3SRGB  : TextureInnerFormat::BC3;
-    case TextureInnerFormat::BC7:
-    case TextureInnerFormat::BC7SRGB:   return needSRGB ? TextureInnerFormat::BC7SRGB  : TextureInnerFormat::BC7;
-    default:                            return format;
-    }
-}
-TextureInnerFormat TexFormatUtil::GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept
-{
-    switch (format)
-    {
-    case TextureInnerFormat::R8:
-    case TextureInnerFormat::RG8:       return needAlpha ? TextureInnerFormat::RG8 : TextureInnerFormat::R8;
-    case TextureInnerFormat::RGB8:
-    case TextureInnerFormat::RGBA8:     return needAlpha ? TextureInnerFormat::RGBA8 : TextureInnerFormat::RGB8;
-    case TextureInnerFormat::SRGB8:
-    case TextureInnerFormat::SRGBA8:    return needAlpha ? TextureInnerFormat::SRGBA8 : TextureInnerFormat::SRGB8;
-    case TextureInnerFormat::R8U:
-    case TextureInnerFormat::RG8U:      return needAlpha ? TextureInnerFormat::RG8U : TextureInnerFormat::R8U;
-    case TextureInnerFormat::RGB8U:
-    case TextureInnerFormat::RGBA8U:    return needAlpha ? TextureInnerFormat::RGBA8U : TextureInnerFormat::RGB8U;
-    case TextureInnerFormat::Rh:
-    case TextureInnerFormat::RGh:       return needAlpha ? TextureInnerFormat::RGh : TextureInnerFormat::Rh;
-    case TextureInnerFormat::RGBh:
-    case TextureInnerFormat::RGBAh:     return needAlpha ? TextureInnerFormat::RGBAh : TextureInnerFormat::RGBh;
-    case TextureInnerFormat::Rf:
-    case TextureInnerFormat::RGf:       return needAlpha ? TextureInnerFormat::RGf : TextureInnerFormat::Rf;
-    case TextureInnerFormat::RGBf:
-    case TextureInnerFormat::RGBAf:     return needAlpha ? TextureInnerFormat::RGBAf : TextureInnerFormat::RGBf;
-    case TextureInnerFormat::BC1:
-    case TextureInnerFormat::BC1A:      return needAlpha ? TextureInnerFormat::BC1A : TextureInnerFormat::BC1;
-    case TextureInnerFormat::BC1SRGB:
-    case TextureInnerFormat::BC1ASRGB:  return needAlpha ? TextureInnerFormat::BC1ASRGB : TextureInnerFormat::BC1SRGB;
-    default:                            return format;
-    }
 }
 
 
@@ -312,35 +379,77 @@ const u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat forma
 {
     switch (format)
     {
-    case TextureInnerFormat::BC1:        return u"BC1"sv;
-    case TextureInnerFormat::BC2:        return u"BC2"sv;
-    case TextureInnerFormat::BC3:        return u"BC3"sv;
-    case TextureInnerFormat::BC4:        return u"BC4"sv;
-    case TextureInnerFormat::BC5:        return u"BC5"sv;
-    case TextureInnerFormat::BC6H:       return u"BC6H"sv;
-    case TextureInnerFormat::BC7:        return u"BC7"sv;
-    case TextureInnerFormat::BC1A:       return u"BC1A"sv;
-    case TextureInnerFormat::BC1SRGB:    return u"BC1SRGB"sv;
-    case TextureInnerFormat::BC1ASRGB:   return u"BC1ASRGB"sv;
-    case TextureInnerFormat::BC3SRGB:    return u"BC3SRGB"sv;
-    case TextureInnerFormat::BC7SRGB:    return u"BC7SRGB"sv;
-    case TextureInnerFormat::R8:         return u"Gray8"sv;
-    case TextureInnerFormat::RG8:        return u"RG8"sv;
-    case TextureInnerFormat::RGB8:       return u"RGB8"sv;
-    case TextureInnerFormat::SRGB8:      return u"sRGB8"sv;
-    case TextureInnerFormat::RGBA8:      return u"RGBA8"sv;
-    case TextureInnerFormat::SRGBA8:     return u"sRGBA8"sv;
-    case TextureInnerFormat::Rh:         return u"Rh"sv;
-    case TextureInnerFormat::RGh:        return u"RGh"sv;
-    case TextureInnerFormat::RGBh:       return u"RGBh"sv;
-    case TextureInnerFormat::RGBAh:      return u"RGBAh"sv;
-    case TextureInnerFormat::Rf:         return u"Rf"sv;
-    case TextureInnerFormat::RGf:        return u"RGf"sv;
-    case TextureInnerFormat::RGBf:       return u"RGBf"sv;
-    case TextureInnerFormat::RGBAf:      return u"RGBAf"sv;
-    case TextureInnerFormat::RG11B10:    return u"RG11B10"sv;
-    case TextureInnerFormat::RGB10A2:    return u"RGB10A2"sv;
-    default:                             return u"Other"sv;
+    case TextureInnerFormat::R8:            return u"R8"sv;
+    case TextureInnerFormat::RG8:           return u"RG8"sv;
+    case TextureInnerFormat::RGB8:          return u"RGB8"sv;
+    case TextureInnerFormat::SRGB8:         return u"SRGB8"sv;
+    case TextureInnerFormat::RGBA8:         return u"RGBA8"sv;
+    case TextureInnerFormat::SRGBA8:        return u"SRGBA8"sv;
+    case TextureInnerFormat::R16:           return u"R16"sv;
+    case TextureInnerFormat::RG16:          return u"RG16"sv;
+    case TextureInnerFormat::RGB16:         return u"RGB16"sv;
+    case TextureInnerFormat::RGBA16:        return u"RGBA16"sv;
+    case TextureInnerFormat::R8S:           return u"R8S"sv;
+    case TextureInnerFormat::RG8S:          return u"RG8S"sv;
+    case TextureInnerFormat::RGB8S:         return u"RGB8S"sv;
+    case TextureInnerFormat::RGBA8S:        return u"RGBA8S"sv;
+    case TextureInnerFormat::R16S:          return u"R16S"sv;
+    case TextureInnerFormat::RG16S:         return u"RG16S"sv;
+    case TextureInnerFormat::RGB16S:        return u"RGB16S"sv;
+    case TextureInnerFormat::RGBA16S:       return u"RGBA16S"sv;
+    case TextureInnerFormat::R8U:           return u"R8U"sv;
+    case TextureInnerFormat::RG8U:          return u"RG8U"sv;
+    case TextureInnerFormat::RGB8U:         return u"RGB8U"sv;
+    case TextureInnerFormat::RGBA8U:        return u"RGBA8U"sv;
+    case TextureInnerFormat::R16U:          return u"R16U"sv;
+    case TextureInnerFormat::RG16U:         return u"RG16U"sv;
+    case TextureInnerFormat::RGB16U:        return u"RGB16U"sv;
+    case TextureInnerFormat::RGBA16U:       return u"RGBA16U"sv;
+    case TextureInnerFormat::R32U:          return u"R32U"sv;
+    case TextureInnerFormat::RG32U:         return u"RG32U"sv;
+    case TextureInnerFormat::RGB32U:        return u"RGB32U"sv;
+    case TextureInnerFormat::RGBA32U:       return u"RGBA32U"sv;
+    case TextureInnerFormat::R8I:           return u"R8I"sv;
+    case TextureInnerFormat::RG8I:          return u"RG8I"sv;
+    case TextureInnerFormat::RGB8I:         return u"RGB8I"sv;
+    case TextureInnerFormat::RGBA8I:        return u"RGBA8I"sv;
+    case TextureInnerFormat::R16I:          return u"R16I"sv;
+    case TextureInnerFormat::RG16I:         return u"RG16I"sv;
+    case TextureInnerFormat::RGB16I:        return u"RGB16I"sv;
+    case TextureInnerFormat::RGBA16I:       return u"RGBA16I"sv;
+    case TextureInnerFormat::R32I:          return u"R32I"sv;
+    case TextureInnerFormat::RG32I:         return u"RG32I"sv;
+    case TextureInnerFormat::RGB32I:        return u"RGB32I"sv;
+    case TextureInnerFormat::RGBA32I:       return u"RGBA32I"sv;
+    case TextureInnerFormat::Rh:            return u"Rh"sv;
+    case TextureInnerFormat::RGh:           return u"RGh"sv;
+    case TextureInnerFormat::RGBh:          return u"RGBh"sv;
+    case TextureInnerFormat::RGBAh:         return u"RGBAh"sv;
+    case TextureInnerFormat::Rf:            return u"Rf"sv;
+    case TextureInnerFormat::RGf:           return u"RGf"sv;
+    case TextureInnerFormat::RGBf:          return u"RGBf"sv;
+    case TextureInnerFormat::RGBAf:         return u"RGBAf"sv;
+    case TextureInnerFormat::RG11B10:       return u"RG11B10"sv;
+    case TextureInnerFormat::RGB332:        return u"RGB332"sv;
+    case TextureInnerFormat::RGB5A1:        return u"RGB5A1"sv;
+    case TextureInnerFormat::RGB565:        return u"RGB565"sv;
+    case TextureInnerFormat::RGB10A2:       return u"RGB10A2"sv;
+    case TextureInnerFormat::RGB10A2U:      return u"RGB10A2U"sv;
+    case TextureInnerFormat::RGBA12:        return u"RGBA12"sv;
+    case TextureInnerFormat::BC1:           return u"BC1"sv;
+    case TextureInnerFormat::BC1A:          return u"BC1A"sv;
+    case TextureInnerFormat::BC2:           return u"BC2"sv;
+    case TextureInnerFormat::BC3:           return u"BC3"sv;
+    case TextureInnerFormat::BC4:           return u"BC4"sv;
+    case TextureInnerFormat::BC5:           return u"BC5"sv;
+    case TextureInnerFormat::BC6H:          return u"BC6H"sv;
+    case TextureInnerFormat::BC7:           return u"BC7"sv;
+    case TextureInnerFormat::BC1SRGB:       return u"BC1SRGB"sv;
+    case TextureInnerFormat::BC1ASRGB:      return u"BC1ASRGB"sv;
+    case TextureInnerFormat::BC2SRGB:       return u"BC2SRGB"sv;
+    case TextureInnerFormat::BC3SRGB:       return u"BC3SRGB"sv;
+    case TextureInnerFormat::BC7SRGB:       return u"BC7SRGB"sv;
+    default:                                return u"Other"sv;
     }
 }
 
@@ -473,16 +582,16 @@ void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenu
     if (isSub)
         DSA->ogluTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
     else
-        DSA->ogluTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)InnerFormat, Width, Height, 0, comptype, datatype, data);
+        DSA->ogluTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, comptype, datatype, data);
 }
 
 void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
 {
     CheckCurrent();
     if (isSub)
-        DSA->ogluCompressedTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, (GLint)InnerFormat, (GLsizei)size, data);
+        DSA->ogluCompressedTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
     else
-        DSA->ogluCompressedTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)InnerFormat, Width, Height, 0, (GLsizei)size, data);
+        DSA->ogluCompressedTextureImage2D(textureID, GL_TEXTURE_2D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, (GLsizei)size, data);
 }
 
 optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
@@ -503,7 +612,7 @@ vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
     const auto[w, h] = GetInternalSize2();
     const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
     DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
     return output;
 }
@@ -529,7 +638,7 @@ _oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t he
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage2D(textureID, GL_TEXTURE_2D, mipmap, (GLenum)InnerFormat, Width, Height);
+    DSA->ogluTextureStorage2D(textureID, GL_TEXTURE_2D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height);
 }
 
 void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const void *data)
@@ -570,7 +679,7 @@ oglTex2DV _oglTexture2DStatic::GetTextureView() const
     CheckCurrent();
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     tex->Name = Name + u"-View";
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, Mipmap, 0, 1);
+    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
     return tex;
 }
 
@@ -622,7 +731,7 @@ _oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t heig
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_2D_ARRAY, 1, (GLenum)InnerFormat, width, height, layers);
+    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_2D_ARRAY, 1, TexFormatUtil::GetInnerFormat(InnerFormat), width, height, layers);
 }
 
 _oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) :
@@ -646,7 +755,7 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
     if (tex->Mipmap < Mipmap)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
     if (tex->InnerFormat != InnerFormat)
-        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint32_t)tex->InnerFormat, textureID, (uint32_t)InnerFormat);
+        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint16_t)tex->InnerFormat, textureID, (uint16_t)InnerFormat);
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
         glCopyImageSubData(tex->textureID, (GLenum)tex->Type, i, 0, 0, 0,
@@ -660,15 +769,18 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img,
     if (img.GetWidth() % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"each line's should be aligned to 4 pixels");
     if (img.GetWidth() != Width || img.GetHeight() != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch"); 
-    SetTextureLayer(layer, TexFormatUtil::ConvertFormat(img.GetDataType(), true), flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
+    CheckCurrent();
+    CheckLayerRange(layer);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.GetDataType(), true);
+    DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
 }
 
 void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
 {
     CheckCurrent();
     CheckLayerRange(layer);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
     DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, data);
 }
 
@@ -676,7 +788,7 @@ void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const v
 {
     CheckCurrent();
     CheckLayerRange(layer);
-    DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, (GLint)InnerFormat, (GLsizei)size, data);
+    DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
 }
 
 void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
@@ -704,7 +816,7 @@ oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
     oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
     const auto layerStr = std::to_string(layer);
     tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, (GLenum)InnerFormat, 0, Mipmap, layer, 1);
+    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, layer, 1);
     return tex;
 }
 
@@ -715,16 +827,16 @@ void _oglTexture3D::SetData(const bool isSub, const GLenum datatype, const GLenu
     if (isSub)
         DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, comptype, datatype, data);
     else
-        DSA->ogluTextureImage3D(textureID, GL_TEXTURE_3D, 0, (GLint)InnerFormat, Width, Height, Depth, 0, comptype, datatype, data);
+        DSA->ogluTextureImage3D(textureID, GL_TEXTURE_3D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, comptype, datatype, data);
 }
 
 void _oglTexture3D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
 {
     CheckCurrent();
     if (isSub)
-        DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, (GLint)InnerFormat, (GLsizei)size, data);
+        DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
     else
-        DSA->ogluCompressedTextureImage3D(textureID, GL_TEXTURE_3D, 0, (GLint)InnerFormat, Width, Height, Depth, 0, (GLsizei)size, data);
+        DSA->ogluCompressedTextureImage3D(textureID, GL_TEXTURE_3D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, (GLsizei)size, data);
 }
 
 optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
@@ -745,7 +857,7 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
     const auto[w, h, d] = GetInternalSize3();
     const auto size = w * h * d * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
     DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
     return output;
 }
@@ -758,7 +870,7 @@ _oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t he
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Depth = depth, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_3D, mipmap, (GLenum)InnerFormat, Width, Height, Depth);
+    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_3D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
 }
 
 void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const void *data)
@@ -793,14 +905,6 @@ void _oglTexture3DStatic::GenerateMipmap()
     CheckCurrent();
     DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
 }
-//
-//oglTex3DV _oglTexture3DStatic::GetTextureView() const
-//{
-//    oglTex3DV tex(new _oglTexture3DView(Width, Height, InnerFormat, Mipmap));
-//    tex->Name = Name + u"-View";
-//    glTextureView(tex->textureID, GL_TEXTURE_3D, textureID, (GLenum)InnerFormat, 0, Mipmap, 0, 1);
-//    return tex;
-//}
 
 
 _oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBuf, true)
@@ -828,7 +932,7 @@ TexImgManager& _oglImgBase::getImgMan() noexcept
 }
 
 _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
-    : InnerTex(tex), Usage(usage) 
+    : InnerTex(tex), Usage(usage)
 {
     tex->CheckCurrent();
     if (!InnerTex)

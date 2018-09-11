@@ -80,7 +80,7 @@ static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context
         if (tex->IsCompressed())
             data = tex->GetCompressedData().value();
         else
-            data = tex->GetData(oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()));
+            data = tex->GetData(oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()));
         const auto datahandle = context.PutResource(data.data(), data.size());
         jtex.Add("data", datahandle);
         return std::move(jtex);
@@ -184,7 +184,7 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
             if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                 texarr->SetCompressedTextureLayer(layer, fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
             else
-                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::DecideFormat(fakeTex->TexFormat), fakeTex->TexData.GetRawPtr());
+                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), fakeTex->TexData.GetRawPtr());
         } break;
     default:
         break;

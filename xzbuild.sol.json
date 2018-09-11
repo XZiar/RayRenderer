@@ -167,6 +167,13 @@
             "dependency": ["fmt", "miniLogger", "ImageUtil", "freetype2", "OpenGLUtil", "OpenCLUtil"]
         },
         {
+            "name": "TextureUtil",
+            "type": "dynamic",
+            "path": "TextureUtil",
+            "description": "Texture Utility",
+            "dependency": ["fmt", "miniLogger", "ImageUtil", "ispc_texcomp", "OpenGLUtil", "OpenCLUtil"]
+        },
+        {
             "name": "FreeGLUTView",
             "type": "dynamic",
             "path": "FreeGLUTView",

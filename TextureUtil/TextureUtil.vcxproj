@@ -211,6 +211,7 @@
   <ItemGroup>
     <None Include="CLResizer.cl" />
     <None Include="GLResizer.glsl" />
+    <None Include="Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

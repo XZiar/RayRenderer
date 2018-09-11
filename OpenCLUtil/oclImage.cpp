@@ -1,6 +1,5 @@
 #include "oclRely.h"
 #include "oclImage.h"
-#include "oclException.h"
 #include "oclUtil.h"
 
 
@@ -22,40 +21,54 @@ using oglu::TextureDataFormat;
 static cl_image_format ParseImageFormat(const TextureDataFormat dformat)
 {
     cl_image_format format;
-    if (HAS_FIELD(dformat, TextureDataFormat::NORMAL_MASK))
+    if (HAS_FIELD(dformat, TextureDataFormat::INTEGER_MASK))
     {
-        switch (dformat & TextureDataFormat::TYPE_MASK)
+        switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
         {
-        case TextureDataFormat::U8_TYPE:     format.image_channel_data_type = CL_UNORM_INT8; break;
-        case TextureDataFormat::I8_TYPE:     format.image_channel_data_type = CL_SNORM_INT8; break;
-        case TextureDataFormat::U16_TYPE:    format.image_channel_data_type = CL_UNORM_INT16; break;
-        case TextureDataFormat::I16_TYPE:    format.image_channel_data_type = CL_SNORM_INT16; break;
-        default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format");
+        case TextureDataFormat::TYPE_U8:     format.image_channel_data_type = CL_UNSIGNED_INT8; break;
+        case TextureDataFormat::TYPE_I8:     format.image_channel_data_type = CL_SIGNED_INT8; break;
+        case TextureDataFormat::TYPE_U16:    format.image_channel_data_type = CL_UNSIGNED_INT16; break;
+        case TextureDataFormat::TYPE_I16:    format.image_channel_data_type = CL_SIGNED_INT16; break;
+        case TextureDataFormat::TYPE_U32:    format.image_channel_data_type = CL_UNSIGNED_INT32; break;
+        case TextureDataFormat::TYPE_I32:    format.image_channel_data_type = CL_SIGNED_INT32; break;
+        default: COMMON_THROW(OCLWrongFormatException, u"unsupported integer format", dformat); // should not enter
         }
     }
     else
     {
-        switch (dformat & TextureDataFormat::TYPE_MASK)
+        switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
         {
-        case TextureDataFormat::U8_TYPE:     format.image_channel_data_type = CL_UNSIGNED_INT8; break;
-        case TextureDataFormat::I8_TYPE:     format.image_channel_data_type = CL_SIGNED_INT8; break;
-        case TextureDataFormat::U16_TYPE:    format.image_channel_data_type = CL_UNSIGNED_INT16; break;
-        case TextureDataFormat::I16_TYPE:    format.image_channel_data_type = CL_SIGNED_INT16; break;
-        case TextureDataFormat::U32_TYPE:    format.image_channel_data_type = CL_UNSIGNED_INT32; break;
-        case TextureDataFormat::I32_TYPE:    format.image_channel_data_type = CL_SIGNED_INT32; break;
-        case TextureDataFormat::HALF_TYPE:   format.image_channel_data_type = CL_HALF_FLOAT; break;
-        case TextureDataFormat::FLOAT_TYPE:  format.image_channel_data_type = CL_FLOAT; break;
-        default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format"); // should not enter
+        case TextureDataFormat::TYPE_U8:     format.image_channel_data_type = CL_UNORM_INT8; break;
+        case TextureDataFormat::TYPE_I8:     format.image_channel_data_type = CL_SNORM_INT8; break;
+        case TextureDataFormat::TYPE_U16:    format.image_channel_data_type = CL_UNORM_INT16; break;
+        case TextureDataFormat::TYPE_I16:    format.image_channel_data_type = CL_SNORM_INT16; break;
+        case TextureDataFormat::TYPE_565:    format.image_channel_data_type = CL_UNORM_SHORT_565; break;
+        case TextureDataFormat::TYPE_5551:   format.image_channel_data_type = CL_UNORM_SHORT_555; break;
+        case TextureDataFormat::TYPE_10_2:   format.image_channel_data_type = CL_UNORM_INT_101010; break;
+        case TextureDataFormat::TYPE_HALF:   format.image_channel_data_type = CL_HALF_FLOAT; break;
+        case TextureDataFormat::TYPE_FLOAT:  format.image_channel_data_type = CL_FLOAT; break;
+        default: COMMON_THROW(OCLWrongFormatException, u"unsupported normalized/float format", dformat);
         }
     }
-    switch (dformat & TextureDataFormat::RAW_FORMAT_MASK)
+    switch (dformat & TextureDataFormat::FORMAT_MASK)
     {
-    case TextureDataFormat::R_FORMAT:        format.image_channel_order = CL_R; break;
-    case TextureDataFormat::RG_FORMAT:       format.image_channel_order = CL_RG; break;
-    case TextureDataFormat::RGB_FORMAT:      format.image_channel_order = CL_RGB; break;
-    case TextureDataFormat::RGBA_FORMAT:     format.image_channel_order = CL_RGBA; break;
-    case TextureDataFormat::BGRA_FORMAT:     format.image_channel_order = CL_BGRA; break;
-    default: COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported format");
+    case TextureDataFormat::FORMAT_R:        format.image_channel_order = CL_R; break;
+    case TextureDataFormat::FORMAT_RG:       format.image_channel_order = CL_RG; break;
+    case TextureDataFormat::FORMAT_RGB:      format.image_channel_order = CL_RGB; break;
+    case TextureDataFormat::FORMAT_RGBA:     format.image_channel_order = CL_RGBA; break;
+    case TextureDataFormat::FORMAT_BGRA:     format.image_channel_order = CL_BGRA; break;
+    default: COMMON_THROW(OCLWrongFormatException, u"unsupported channel", dformat);
+    }
+    if (format.image_channel_order == CL_RGB)
+    {
+        if (format.image_channel_data_type != CL_UNORM_SHORT_565 && format.image_channel_data_type != CL_UNORM_SHORT_555 && format.image_channel_data_type != CL_UNORM_INT_101010)
+            COMMON_THROW(OCLWrongFormatException, u"unsupported format for RGB channel image", dformat);
+    }
+    if (format.image_channel_order == CL_BGRA)
+    {
+        const auto rdtype = dformat & TextureDataFormat::TYPE_RAW_MASK;
+        if (rdtype != TextureDataFormat::TYPE_U8 && rdtype != TextureDataFormat::TYPE_I8)
+            COMMON_THROW(OCLWrongFormatException, u"unsupported format for BGRA channel image", dformat);
     }
     return format;
 }
@@ -114,7 +127,7 @@ _oclImage::~_oclImage()
 
 oclPromise _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
 {
-    image = Image(oglu::TexFormatUtil::ConvertFormat(Format));
+    image = Image(oglu::TexFormatUtil::ConvertToImgType(Format));
     image.SetSize(Width, Height);
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,1 };
@@ -149,9 +162,8 @@ oclPromise _oclImage::Write(const oclCmdQue que, const common::AlignedBuffer<32>
         return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e, que->cmdque));
 }
 
-
 _oclGLImage::_oclGLImage(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D tex)
-    : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::DecideFormat(tex->GetInnerFormat()),
+    : _oclImage(ctx, flag, UINT32_MAX, UINT32_MAX, oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()),
         CreateMemFromGLTex(ctx->context, (cl_mem_flags)flag, *tex)),
     GlTex(tex)
 { }

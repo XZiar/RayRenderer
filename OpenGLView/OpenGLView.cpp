@@ -3,7 +3,7 @@
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
 #include <Windows.h>
-#include <GL/GL.h>
+#include <GL/gl.h>
 #include "GL/wglext.h"
 #pragma comment (lib, "user32.lib")   /* link Windows user lib       */
 #pragma comment (lib, "gdi32.lib")    /* link Windows GDI lib        */

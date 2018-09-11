@@ -28,10 +28,10 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows & Linux |
-| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows |
-| [TextureUtil](./TextureUtil) | Texture Utility | Windows |
-| [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux|
-| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows |
+| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows & Linux |
+| [TextureUtil](./TextureUtil) | Texture Utility | Windows & Linux |
+| [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux |
+| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |

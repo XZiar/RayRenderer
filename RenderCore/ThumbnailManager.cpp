@@ -59,7 +59,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
                 else
                 {
                     img = std::make_shared<Image>(fakeTex->TexData, fakeTex->Width, fakeTex->Height, 
-                        oglu::TexFormatUtil::ConvertFormat(oglu::TexFormatUtil::DecideFormat(fakeTex->TexFormat)));
+                        oglu::TexFormatUtil::ConvertToImgType(fakeTex->TexFormat));
                 }
                 ThumbnailMap.emplace(weakref, img);
             }

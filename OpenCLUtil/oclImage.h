@@ -5,9 +5,24 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclContext.h"
+#include "oclException.h"
 
 namespace oclu
 {
+
+class OCLWrongFormatException : public OCLException
+{
+public:
+    EXCEPTION_CLONE_EX(OCLWrongFormatException);
+    std::variant<oglu::TextureDataFormat, oglu::TextureInnerFormat> Format;
+    OCLWrongFormatException(const std::u16string_view& msg, const oglu::TextureDataFormat format, const std::any& data_ = std::any())
+        : OCLException(CLComponent::OCLU, msg, data_), Format(format)
+    { }
+    OCLWrongFormatException(const std::u16string_view& msg, const oglu::TextureInnerFormat format, const std::any& data_ = std::any())
+        : OCLException(CLComponent::OCLU, msg, data_), Format(format)
+    { }
+    virtual ~OCLWrongFormatException() {}
+};
 
 namespace detail
 {
@@ -29,7 +44,7 @@ protected:
 public:
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat);
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
-        : _oclImage(ctx, flag, width, height, oglu::TexFormatUtil::ConvertFormat(dtype, isNormalized)) { }
+        : _oclImage(ctx, flag, width, height, oglu::TexFormatUtil::ConvertDtypeFrom(dtype, isNormalized)) { }
     virtual ~_oclImage();
     oclPromise Read(const oclCmdQue que, Image& image, const bool shouldBlock = true) const;
     oclPromise Write(const oclCmdQue que, const Image& image, const bool shouldBlock = true) const;
