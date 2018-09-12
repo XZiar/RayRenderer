@@ -45,7 +45,6 @@
     <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglContext.cpp" />
-    <ClCompile Include="oglException.cpp" />
     <ClCompile Include="oglFBO.cpp" />
     <ClCompile Include="oglRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

@@ -10,6 +10,563 @@ namespace oglu
 using xziar::img::ImageDataType;
 using xziar::img::Image;
 
+
+namespace detail
+{
+
+struct TexLogItem
+{
+    uint64_t ThreadId;
+    GLuint TexId;
+    TextureInnerFormat InnerFormat;
+    TextureType TexType;
+    TexLogItem(const _oglTexBase& tex) : ThreadId(common::ThreadObject::GetCurrentThreadId()), TexId(tex.textureID), InnerFormat(tex.InnerFormat), TexType(tex.Type) {}
+    bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
+};
+struct TexLogMap
+{
+    std::map<GLuint, TexLogItem> TexMap;
+    std::atomic_flag MapLock = { 0 };
+    TexLogMap() {}
+    TexLogMap(TexLogMap&& other)
+    {
+        common::SpinLocker locker(MapLock);
+        common::SpinLocker locker2(other.MapLock);
+        TexMap.swap(other.TexMap);
+    }
+    void Insert(TexLogItem&& item) 
+    {
+        common::SpinLocker locker(MapLock);
+        TexMap.insert_or_assign(item.TexId, item);
+    }
+    void Remove(const GLuint texId) 
+    {
+        common::SpinLocker locker(MapLock);
+        TexMap.erase(texId);
+    }
+};
+
+struct TLogCtxConfig : public CtxResConfig<false, TexLogMap>
+{
+    TexLogMap Construct() const { return {}; }
+};
+static TLogCtxConfig TEXLOG_CTXCFG;
+
+static void RegistTexture(const _oglTexBase& tex)
+{
+    TexLogItem item(tex);
+#ifdef _DEBUG
+    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, TexFormatUtil::GetTypeName(item.TexType));
+#endif
+    oglContext::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG).Insert(std::move(item));
+}
+static void UnregistTexture(const _oglTexBase& tex)
+{
+    TexLogItem item(tex);
+#ifdef _DEBUG
+    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}], detail[{}].\n", item.ThreadId, item.TexId, tex.Name,
+        TexFormatUtil::GetTypeName(item.TexType), TexFormatUtil::GetFormatName(item.InnerFormat));
+#endif
+    oglContext::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG).Remove(item.TexId);
+}
+
+
+struct TManCtxConfig : public CtxResConfig<false, TextureManager>
+{
+    TextureManager Construct() const { return {}; }
+};
+static TManCtxConfig TEXMAN_CTXCFG;
+
+TextureManager& _oglTexBase::getTexMan() noexcept
+{
+    return oglContext::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
+}
+
+_oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type)
+{
+    glGenTextures(1, &textureID);
+    if (shouldBindType)
+        glBindTexture((GLenum)Type, textureID);
+    RegistTexture(*this);
+}
+
+_oglTexBase::~_oglTexBase() noexcept
+{
+    if (!EnsureValid()) return;
+    UnregistTexture(*this);
+    //force unbind texture, since texID may be reused after releasaed
+    getTexMan().forcePop(textureID);
+    glDeleteTextures(1, &textureID);
+}
+
+void _oglTexBase::bind(const uint16_t pos) const noexcept
+{
+    CheckCurrent();
+    DSA->ogluBindTextureUnit(pos, (GLenum)Type, textureID);
+    //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
+    //glActiveTexture(GL_TEXTURE0 + pos);
+    //glBindTexture((GLenum)Type, textureID);
+}
+
+void _oglTexBase::unbind() const noexcept
+{
+    //glBindTexture((GLenum)Type, 0);
+}
+
+std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
+{
+    CheckCurrent();
+    GLint w = 0, h = 0;
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
+    return { (uint32_t)w,(uint32_t)h };
+}
+
+std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
+{
+    CheckCurrent();
+    GLint w = 0, h = 0, z = 0;
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
+    return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
+}
+
+void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT)
+{
+    CheckCurrent();
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, (GLint)minFilter);
+}
+
+bool _oglTexBase::IsCompressed() const
+{
+    CheckCurrent();
+    GLint ret = GL_FALSE;
+    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
+    return ret != GL_FALSE;
+}
+
+void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
+{
+    CheckCurrent();
+    if (isSub)
+        DSA->ogluTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
+    else
+        DSA->ogluTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, comptype, datatype, data);
+}
+
+void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
+{
+    CheckCurrent();
+    if (isSub)
+        DSA->ogluCompressedTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
+    else
+        DSA->ogluCompressedTextureImage2D(textureID, GL_TEXTURE_2D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, (GLsizei)size, data);
+}
+
+optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
+{
+    CheckCurrent();
+    if (!IsCompressed())
+        return {};
+    GLint size = 0;
+    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
+    optional<vector<uint8_t>> output(std::in_place, size);
+    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_2D, 0, size, (*output).data());
+    return output;
+}
+
+vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
+{
+    CheckCurrent();
+    const auto[w, h] = GetInternalSize2();
+    const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
+    vector<uint8_t> output(size);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
+    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
+    return output;
+}
+
+Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
+{
+    CheckCurrent();
+    const auto[w, h] = GetInternalSize2();
+    Image image(format);
+    image.SetSize(w, h);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(format, true);
+    DSA->ogluGetTextureImage(textureID, (GLenum)Type, 0, comptype, datatype, image.GetSize(), image.GetRawPtr());
+    if (flipY)
+        image.FlipVertical();
+    return image;
+}
+
+
+_oglTexture2DView::_oglTexture2DView(const _oglTexture2DStatic& tex, const TextureInnerFormat iformat) : _oglTexture2D(false)
+{
+    Width = tex.Width, Height = tex.Height, Mipmap = tex.Mipmap; InnerFormat = iformat;
+    Name = tex.Name + u"-View";
+    glTextureView(textureID, GL_TEXTURE_2D, tex.textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
+}
+_oglTexture2DView::_oglTexture2DView(const _oglTexture2DArray& tex, const TextureInnerFormat iformat, const uint32_t layer) : _oglTexture2D(false)
+{
+    Width = tex.Width, Height = tex.Height, Mipmap = tex.Mipmap; InnerFormat = iformat;
+    glTextureView(textureID, GL_TEXTURE_2D, tex.textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, layer, 1);
+}
+static void CheckCompatible(const TextureInnerFormat formatA, const TextureInnerFormat formatB)
+{
+    if (formatA == formatB) return;
+    const bool isCompressA = TexFormatUtil::IsCompressType(formatA), isCompressB = TexFormatUtil::IsCompressType(formatB);
+    if (isCompressA != isCompressB)
+        COMMON_THROW(OGLWrongFormatException, u"texture aliases not compatible between compress/non-compress format", formatB, formatA);
+    if(isCompressA)
+    {
+        if ((formatA & TextureInnerFormat::FORMAT_MASK) != (formatB & TextureInnerFormat::FORMAT_MASK))
+            COMMON_THROW(OGLWrongFormatException, u"texture aliases not compatible between different compressed format", formatB, formatA);
+        else
+            return;
+    }
+    else
+    {
+        if (TexFormatUtil::ParseFormatSize(formatA) != TexFormatUtil::ParseFormatSize(formatB))
+            COMMON_THROW(OGLWrongFormatException, u"texture aliases not compatible between different sized format", formatB, formatA);
+        else
+            return;
+    }
+}
+
+
+_oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture2D(true)
+{
+    if (width == 0 || height == 0)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
+    if (width % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
+    Width = width, Height = height, InnerFormat = iformat, Mipmap = mipmap;
+    DSA->ogluTextureStorage2D(textureID, GL_TEXTURE_2D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height);
+}
+
+void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const void *data)
+{
+    _oglTexture2D::SetData(true, dformat, data);
+}
+
+void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const oglPBO& buf)
+{
+    _oglTexture2D::SetData(true, dformat, buf);
+}
+
+void _oglTexture2DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
+{
+    if (img.GetWidth() != Width || img.GetHeight() != Height)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex2D(S)");
+    _oglTexture2D::SetData(true, img, normalized, flipY);
+}
+
+void _oglTexture2DStatic::SetCompressedData(const void *data, const size_t size)
+{
+    _oglTexture2D::SetCompressedData(true, data, size);
+}
+
+void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t size)
+{
+    _oglTexture2D::SetCompressedData(true, buf, size);
+}
+
+void _oglTexture2DStatic::GenerateMipmap()
+{
+    CheckCurrent();
+    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
+}
+
+oglTex2DV _oglTexture2DStatic::GetTextureView(const TextureInnerFormat format) const
+{
+    CheckCurrent();
+    CheckCompatible(InnerFormat, format);
+    oglTex2DV tex(new _oglTexture2DView(*this, InnerFormat));
+    tex->Name = Name + u"-View";
+    return tex;
+}
+
+
+void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h)
+{
+    CheckCurrent();
+    if (w % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
+    InnerFormat = iformat, Width = w, Height = h;
+}
+
+void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data)
+{
+    CheckAndSetMetadata(iformat, w, h);
+    _oglTexture2D::SetData(false, dformat, data);
+}
+
+void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf)
+{
+    CheckAndSetMetadata(iformat, w, h);
+    _oglTexture2D::SetData(false, dformat, buf);
+}
+
+void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized, const bool flipY)
+{
+    CheckAndSetMetadata(iformat, img.GetWidth(), img.GetHeight());
+    _oglTexture2D::SetData(false, img, normalized, flipY);
+}
+
+void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const void *data, const size_t size)
+{
+    CheckAndSetMetadata(iformat, w, h);
+    _oglTexture2D::SetCompressedData(false, data, size);
+}
+
+void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const oglPBO& buf, const size_t size)
+{
+    CheckAndSetMetadata(iformat, w, h);
+    _oglTexture2D::SetCompressedData(false, buf, size);
+}
+
+
+_oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap)
+    : _oglTexBase(TextureType::Tex2DArray, true)
+{
+    if (width == 0 || height == 0 || layers == 0)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2DArray.");
+    if (width % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
+    Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
+    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_2D_ARRAY, 1, TexFormatUtil::GetInnerFormat(InnerFormat), width, height, layers);
+}
+
+_oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) :
+    _oglTexture2DArray(old->Width, old->Height, old->Layers + layerAdd, old->InnerFormat)
+{
+    SetTextureLayers(0, old, 0, old->Layers);
+}
+
+void _oglTexture2DArray::CheckLayerRange(const uint32_t layer) const
+{
+    if (layer >= Layers)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
+}
+
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
+{
+    CheckCurrent();
+    CheckLayerRange(layer);
+    if (tex->Width != Width || tex->Height != Height)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
+    if (tex->Mipmap < Mipmap)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
+    if (tex->InnerFormat != InnerFormat)
+        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint16_t)tex->InnerFormat, textureID, (uint16_t)InnerFormat);
+    for (uint8_t i = 0; i < Mipmap; ++i)
+    {
+        glCopyImageSubData(tex->textureID, (GLenum)tex->Type, i, 0, 0, 0,
+            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, layer,
+            tex->Width, tex->Height, 1);
+    }
+}
+
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
+{
+    if (img.GetWidth() % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"each line's should be aligned to 4 pixels");
+    if (img.GetWidth() != Width || img.GetHeight() != Height)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
+    CheckCurrent();
+    CheckLayerRange(layer);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.GetDataType(), true);
+    DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
+}
+
+void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
+{
+    CheckCurrent();
+    CheckLayerRange(layer);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
+    DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, data);
+}
+
+void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size)
+{
+    CheckCurrent();
+    CheckLayerRange(layer);
+    DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
+}
+
+void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
+{
+    CheckCurrent();
+    if (Width != tex->Width || Height != tex->Height)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
+    if (destLayer + layerCount > Layers || srcLayer + layerCount > tex->Layers)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
+    if (tex->Mipmap < Mipmap)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
+    for (uint8_t i = 0; i < Mipmap; ++i)
+    {
+        glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
+            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, destLayer,
+            tex->Width, tex->Height, layerCount);
+    }
+}
+
+oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer, const TextureInnerFormat format) const
+{
+    CheckCurrent();
+    if (layer >= Layers)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
+    CheckCompatible(InnerFormat, format);
+    oglTex2DV tex(new _oglTexture2DView(*this, InnerFormat, layer));
+    const auto layerStr = std::to_string(layer);
+    tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
+    return tex;
+}
+
+
+void _oglTexture3D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
+{
+    CheckCurrent();
+    if (isSub)
+        DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, comptype, datatype, data);
+    else
+        DSA->ogluTextureImage3D(textureID, GL_TEXTURE_3D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, comptype, datatype, data);
+}
+
+void _oglTexture3D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
+{
+    CheckCurrent();
+    if (isSub)
+        DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
+    else
+        DSA->ogluCompressedTextureImage3D(textureID, GL_TEXTURE_3D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, (GLsizei)size, data);
+}
+
+optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
+{
+    CheckCurrent();
+    if (!IsCompressed())
+        return {};
+    GLint size = 0;
+    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
+    optional<vector<uint8_t>> output(std::in_place, size);
+    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_2D, 0, size, (*output).data());
+    return output;
+}
+
+vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
+{
+    CheckCurrent();
+    const auto[w, h, d] = GetInternalSize3();
+    const auto size = w * h * d * TexFormatUtil::ParseFormatSize(dformat);
+    vector<uint8_t> output(size);
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
+    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
+    return output;
+}
+
+_oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(false)
+{
+    CheckCurrent();
+    if (width == 0 || height == 0 || depth == 0)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
+    if (width % 4)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
+    Width = width, Height = height, Depth = depth, InnerFormat = iformat, Mipmap = mipmap;
+    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_3D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
+}
+
+void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const void *data)
+{
+    _oglTexture3D::SetData(true, dformat, data);
+}
+
+void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const oglPBO& buf)
+{
+    _oglTexture3D::SetData(true, dformat, buf);
+}
+
+void _oglTexture3DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
+{
+    if (img.GetWidth() != Width || img.GetHeight() != Height * Depth)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex3D(S)");
+    _oglTexture3D::SetData(true, img, normalized, flipY);
+}
+
+void _oglTexture3DStatic::SetCompressedData(const void *data, const size_t size)
+{
+    _oglTexture3D::SetCompressedData(true, data, size);
+}
+
+void _oglTexture3DStatic::SetCompressedData(const oglPBO & buf, const size_t size)
+{
+    _oglTexture3D::SetCompressedData(true, buf, size);
+}
+
+void _oglTexture3DStatic::GenerateMipmap()
+{
+    CheckCurrent();
+    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
+}
+
+
+_oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBuf, true)
+{
+}
+
+void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO& tbo)
+{
+    CheckCurrent();
+    InnerBuf = tbo;
+    InnerFormat = iformat;
+    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
+}
+
+
+struct TIManCtxConfig : public CtxResConfig<false, TexImgManager>
+{
+    TexImgManager Construct() const { return {}; }
+};
+static TIManCtxConfig TEXIMGMAN_CTXCFG;
+
+TexImgManager& _oglImgBase::getImgMan() noexcept
+{
+    return oglContext::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
+}
+
+_oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
+    : InnerTex(tex), Usage(usage)
+{
+    tex->CheckCurrent();
+    if (!InnerTex)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
+    const auto format = InnerTex->GetInnerFormat();
+    if (TexFormatUtil::IsCompressType(format))
+        COMMON_THROW(OGLWrongFormatException, u"TexImg does not support compressed texture type", format);
+    if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP) &&
+        MATCH_ANY(format & TextureInnerFormat::BITS_MASK, { TextureInnerFormat::BITS_2, TextureInnerFormat::BITS_4, TextureInnerFormat::BITS_5, TextureInnerFormat::BITS_12 }))
+        COMMON_THROW(OGLWrongFormatException, u"TexImg does not support some composite texture type", format);
+}
+
+void _oglImgBase::bind(const uint16_t pos) const noexcept
+{
+    CheckCurrent();
+    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, (GLenum)InnerTex->GetInnerFormat());
+}
+
+void _oglImgBase::unbind() const noexcept
+{
+}
+
+_oglImg2D::_oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage) {}
+
+}
+
+
 GLenum TexFormatUtil::GetInnerFormat(const TextureInnerFormat format) noexcept
 {
     switch (format)
@@ -306,6 +863,42 @@ ImageDataType TexFormatUtil::ConvertToImgType(const TextureDataFormat format, co
     }
 }
 
+size_t TexFormatUtil::ParseFormatSize(const TextureInnerFormat format) noexcept
+{
+    if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
+    {
+        switch (format)
+        {
+        case TextureInnerFormat::RG11B10:       return 4;
+        case TextureInnerFormat::RGB332:        return 1;
+        case TextureInnerFormat::RGB5A1:        return 2;
+        case TextureInnerFormat::RGB565:        return 2;
+        case TextureInnerFormat::RGB10A2:       return 4;
+        case TextureInnerFormat::RGB10A2U:      return 4;
+        case TextureInnerFormat::RGBA12:        return 6;
+        default:                                return 0;
+        }
+    }
+    if (IsCompressType(format))
+        return 0; // should not use this
+    size_t size = 0;
+    switch (format & TextureInnerFormat::BITS_MASK)
+    {
+    case TextureInnerFormat::BITS_8:        size = 8; break;
+    case TextureInnerFormat::BITS_16:       size = 8; break;
+    case TextureInnerFormat::BITS_32:       size = 8; break;
+    default:                                return 0;
+    }
+    switch (format & TextureInnerFormat::CHANNEL_MASK)
+    {
+    case TextureInnerFormat::CHANNEL_R:     size *= 1; break;
+    case TextureInnerFormat::CHANNEL_RG:    size *= 2; break;
+    case TextureInnerFormat::CHANNEL_RGB:   size *= 3; break;
+    case TextureInnerFormat::CHANNEL_RGBA:  size *= 4; break;
+    default:                                return 0;
+    }
+    return size / 8;
+}
 size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept
 {
     size_t size = 0;
@@ -361,10 +954,9 @@ size_t TexFormatUtil::ParseFormatSize(const TextureDataFormat dformat) noexcept
     return size / 8;
 }
 
-
 using namespace std::literals;
 
-const u16string_view TexFormatUtil::GetTypeName(const TextureType type)
+u16string_view TexFormatUtil::GetTypeName(const TextureType type) noexcept
 {
     switch (type)
     {
@@ -375,7 +967,7 @@ const u16string_view TexFormatUtil::GetTypeName(const TextureType type)
     }
 }
 
-const u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat format)
+u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat format) noexcept
 {
     switch (format)
     {
@@ -453,506 +1045,108 @@ const u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat forma
     }
 }
 
-
-namespace detail
+string TexFormatUtil::GetFormatDetail(const TextureInnerFormat format) noexcept
 {
-
-struct TexLogItem
-{
-    uint64_t ThreadId;
-    GLuint TexId;
-    TextureType TexType;
-    TexLogItem(const _oglTexBase& tex) : ThreadId(common::ThreadObject::GetCurrentThreadId()), TexId(tex.textureID), TexType(tex.Type) {}
-    bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
-};
-
-
-struct TLogCtxConfig : public CtxResConfig<false, std::map<GLuint, TexLogItem>>
-{
-    std::map<GLuint, TexLogItem> Construct() const { return {}; }
-};
-static TLogCtxConfig TEXLOG_CTXCFG;
-static std::atomic_flag CTX_TEX_LOG_LOCK = { 0 };
-
-static std::map<GLuint, TexLogItem>& GetTexLogMap()
-{
-    return oglContext::CurrentContext()->GetOrCreate<true>(TEXLOG_CTXCFG);
-}
-static void RegistTexture(const _oglTexBase& tex)
-{
-    TexLogItem item(tex);
-#ifdef _DEBUG
-    oglLog().verbose(u"here[{}] create texture [{}], type[{}].\n", item.ThreadId, item.TexId, TexFormatUtil::GetTypeName(item.TexType));
-#endif
-    common::SpinLocker locker(CTX_TEX_LOG_LOCK);
-    GetTexLogMap().insert_or_assign(item.TexId, item);
-}
-static void UnregistTexture(const _oglTexBase& tex)
-{
-    TexLogItem item(tex);
-#ifdef _DEBUG
-    oglLog().verbose(u"here[{}] delete texture [{}][{}], type[{}].\n", item.ThreadId, item.TexId, tex.Name, TexFormatUtil::GetTypeName(item.TexType));
-#endif
-    common::SpinLocker locker(CTX_TEX_LOG_LOCK);
-    GetTexLogMap().erase(item.TexId);
-}
-
-
-struct TManCtxConfig : public CtxResConfig<false, TextureManager>
-{
-    TextureManager Construct() const { return {}; }
-};
-static TManCtxConfig TEXMAN_CTXCFG;
-
-TextureManager& _oglTexBase::getTexMan() noexcept
-{
-    return oglContext::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
-}
-
-_oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type)
-{
-    glGenTextures(1, &textureID);
-    if (shouldBindType)
-        glBindTexture((GLenum)Type, textureID);
-    RegistTexture(*this);
-}
-
-_oglTexBase::~_oglTexBase() noexcept
-{
-    if (!EnsureValid()) return;
-    UnregistTexture(*this);
-    //force unbind texture, since texID may be reused after releasaed
-    getTexMan().forcePop(textureID);
-    glDeleteTextures(1, &textureID);
-}
-
-void _oglTexBase::bind(const uint16_t pos) const noexcept
-{
-    CheckCurrent();
-    DSA->ogluBindTextureUnit(pos, (GLenum)Type, textureID);
-    //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
-    //glActiveTexture(GL_TEXTURE0 + pos);
-    //glBindTexture((GLenum)Type, textureID);
-}
-
-void _oglTexBase::unbind() const noexcept
-{
-    //glBindTexture((GLenum)Type, 0);
-}
-
-std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
-{
-    CheckCurrent();
-    GLint w = 0, h = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
-    return { (uint32_t)w,(uint32_t)h };
-}
-
-std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
-{
-    CheckCurrent();
-    GLint w = 0, h = 0, z = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
-    return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
-}
-
-void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT)
-{
-    CheckCurrent();
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, (GLint)minFilter);
-}
-
-bool _oglTexBase::IsCompressed() const
-{
-    CheckCurrent();
-    GLint ret = GL_FALSE;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
-    return ret != GL_FALSE;
-}
-
-void _oglTexture2D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
-{
-    CheckCurrent();
-    if (isSub)
-        DSA->ogluTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, comptype, datatype, data);
-    else
-        DSA->ogluTextureImage2D(textureID, GL_TEXTURE_2D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, comptype, datatype, data);
-}
-
-void _oglTexture2D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
-{
-    CheckCurrent();
-    if (isSub)
-        DSA->ogluCompressedTextureSubImage2D(textureID, GL_TEXTURE_2D, 0, 0, 0, Width, Height, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
-    else
-        DSA->ogluCompressedTextureImage2D(textureID, GL_TEXTURE_2D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, 0, (GLsizei)size, data);
-}
-
-optional<vector<uint8_t>> _oglTexture2D::GetCompressedData()
-{
-    CheckCurrent();
-    if (!IsCompressed())
-        return {};
-    GLint size = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
-    optional<vector<uint8_t>> output(std::in_place, size);
-    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_2D, 0, size, (*output).data());
-    return output;
-}
-
-vector<uint8_t> _oglTexture2D::GetData(const TextureDataFormat dformat)
-{
-    CheckCurrent();
-    const auto[w, h] = GetInternalSize2();
-    const auto size = w * h * TexFormatUtil::ParseFormatSize(dformat);
-    vector<uint8_t> output(size);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
-    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
-    return output;
-}
-
-Image _oglTexture2D::GetImage(const ImageDataType format, const bool flipY)
-{
-    CheckCurrent();
-    const auto[w, h] = GetInternalSize2();
-    Image image(format);
-    image.SetSize(w, h);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(format, true);
-    DSA->ogluGetTextureImage(textureID, (GLenum)Type, 0, comptype, datatype, image.GetSize(), image.GetRawPtr());
-    if (flipY)
-        image.FlipVertical();
-    return image;
-}
-
-
-_oglTexture2DStatic::_oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture2D(true)
-{
-    if (width == 0 || height == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
-    if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
-    Width = width, Height = height, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage2D(textureID, GL_TEXTURE_2D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height);
-}
-
-void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const void *data)
-{
-    _oglTexture2D::SetData(true, dformat, data);
-}
-
-void _oglTexture2DStatic::SetData(const TextureDataFormat dformat, const oglPBO& buf)
-{
-    _oglTexture2D::SetData(true, dformat, buf);
-}
-
-void _oglTexture2DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
-{
-    if (img.GetWidth() != Width || img.GetHeight() != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex2D(S)");
-    _oglTexture2D::SetData(true, img, normalized, flipY);
-}
-
-void _oglTexture2DStatic::SetCompressedData(const void *data, const size_t size)
-{
-    _oglTexture2D::SetCompressedData(true, data, size);
-}
-
-void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t size)
-{
-    _oglTexture2D::SetCompressedData(true, buf, size);
-}
-
-void _oglTexture2DStatic::GenerateMipmap()
-{
-    CheckCurrent();
-    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
-}
-
-oglTex2DV _oglTexture2DStatic::GetTextureView() const
-{
-    CheckCurrent();
-    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
-    tex->Name = Name + u"-View";
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
-    return tex;
-}
-
-
-void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h)
-{
-    CheckCurrent();
-    if (w % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
-    InnerFormat = iformat, Width = w, Height = h;
-}
-
-void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data)
-{
-    CheckAndSetMetadata(iformat, w, h);
-    _oglTexture2D::SetData(false, dformat, data);
-}
-
-void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf)
-{
-    CheckAndSetMetadata(iformat, w, h);
-    _oglTexture2D::SetData(false, dformat, buf);
-}
-
-void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const xziar::img::Image& img, const bool normalized, const bool flipY)
-{
-    CheckAndSetMetadata(iformat, img.GetWidth(), img.GetHeight());
-    _oglTexture2D::SetData(false, img, normalized, flipY);
-}
-
-void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const void *data, const size_t size)
-{
-    CheckAndSetMetadata(iformat, w, h);
-    _oglTexture2D::SetCompressedData(false, data, size);
-}
-
-void _oglTexture2DDynamic::SetCompressedData(const TextureInnerFormat iformat, const uint32_t w, const uint32_t h, const oglPBO& buf, const size_t size)
-{
-    CheckAndSetMetadata(iformat, w, h);
-    _oglTexture2D::SetCompressedData(false, buf, size);
-}
-
-
-_oglTexture2DArray::_oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap)
-    : _oglTexBase(TextureType::Tex2DArray, true)
-{
-    if (width == 0 || height == 0 || layers == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2DArray.");
-    if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
-    Width = width, Height = height, Layers = layers, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_2D_ARRAY, 1, TexFormatUtil::GetInnerFormat(InnerFormat), width, height, layers);
-}
-
-_oglTexture2DArray::_oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd) :
-    _oglTexture2DArray(old->Width, old->Height, old->Layers + layerAdd, old->InnerFormat)
-{
-    SetTextureLayers(0, old, 0, old->Layers);
-}
-
-void _oglTexture2DArray::CheckLayerRange(const uint32_t layer) const
-{
-    if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
-}
-
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
-{
-    CheckCurrent();
-    CheckLayerRange(layer);
-    if (tex->Width != Width || tex->Height != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
-    if (tex->Mipmap < Mipmap)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
-    if (tex->InnerFormat != InnerFormat)
-        oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint16_t)tex->InnerFormat, textureID, (uint16_t)InnerFormat);
-    for (uint8_t i = 0; i < Mipmap; ++i)
+    //[  flags|formats|channel|   bits]
+    //[15...13|12....8|7.....5|4.....0]
+    uint8_t bits = 0;
+    switch (format & TextureInnerFormat::BITS_MASK)
     {
-        glCopyImageSubData(tex->textureID, (GLenum)tex->Type, i, 0, 0, 0,
-            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, layer,
-            tex->Width, tex->Height, 1);
+    case TextureInnerFormat::BITS_2:    bits = 2; break;
+    case TextureInnerFormat::BITS_4:    bits = 4; break;
+    case TextureInnerFormat::BITS_5:    bits = 5; break;
+    case TextureInnerFormat::BITS_8:    bits = 8; break;
+    case TextureInnerFormat::BITS_10:   bits = 10; break;
+    case TextureInnerFormat::BITS_11:   bits = 11; break;
+    case TextureInnerFormat::BITS_12:   bits = 12; break;
+    case TextureInnerFormat::BITS_16:   bits = 16; break;
+    case TextureInnerFormat::BITS_32:   bits = 32; break;
+    default:                            break;
     }
-}
-
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY)
-{
-    if (img.GetWidth() % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"each line's should be aligned to 4 pixels");
-    if (img.GetWidth() != Width || img.GetHeight() != Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
-    CheckCurrent();
-    CheckLayerRange(layer);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.GetDataType(), true);
-    DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, flipY ? img.FlipToVertical().GetRawPtr() : img.GetRawPtr());
-}
-
-void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data)
-{
-    CheckCurrent();
-    CheckLayerRange(layer);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
-    DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, comptype, datatype, data);
-}
-
-void _oglTexture2DArray::SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size)
-{
-    CheckCurrent();
-    CheckLayerRange(layer);
-    DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, layer, Width, Height, 1, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
-}
-
-void _oglTexture2DArray::SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount)
-{
-    CheckCurrent();
-    if (Width != tex->Width || Height != tex->Height)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture size mismatch");
-    if (destLayer + layerCount > Layers || srcLayer + layerCount > tex->Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
-    if (tex->Mipmap < Mipmap)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
-    for (uint8_t i = 0; i < Mipmap; ++i)
+    string_view channel;
+    switch (format & TextureInnerFormat::CHANNEL_MASK)
     {
-        glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
-            textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, destLayer,
-            tex->Width, tex->Height, layerCount);
+    case TextureInnerFormat::CHANNEL_R:     channel = "Red"sv; break;
+    case TextureInnerFormat::CHANNEL_RG:    channel = "RG"sv; break;
+    case TextureInnerFormat::CHANNEL_RGB:   channel = "RGB"sv; break;
+    case TextureInnerFormat::CHANNEL_RGBA:  channel = "RGBA"sv; break;
+    default:                                channel = "UNKNOWN"sv; break;
     }
+    string_view dtype;
+    switch (format & TextureInnerFormat::FORMAT_MASK)
+    {
+    case TextureInnerFormat::FORMAT_UNORM:      dtype = "UNORM"sv; break;
+    case TextureInnerFormat::FORMAT_SNORM:      dtype = "SNORM"sv; break;
+    case TextureInnerFormat::FORMAT_UINT:       dtype = "UINT"sv; break;
+    case TextureInnerFormat::FORMAT_SINT:       dtype = "INT"sv; break;
+    case TextureInnerFormat::FORMAT_FLOAT:      dtype = "FLOAT"sv; break;
+    case TextureInnerFormat::FORMAT_DXT1:       dtype = "DXT1"sv; break;
+    case TextureInnerFormat::FORMAT_DXT3:       dtype = "DXT3"sv; break;
+    case TextureInnerFormat::FORMAT_DXT5:       dtype = "DXT5"sv; break;
+    case TextureInnerFormat::FORMAT_RGTC:       dtype = "RGTC"sv; break;
+    case TextureInnerFormat::FORMAT_BPTC:       dtype = "BPTC"sv; break;
+    case TextureInnerFormat::FORMAT_ETC:        dtype = "ETC"sv; break;
+    case TextureInnerFormat::FORMAT_ETC2:       dtype = "ETC2"sv; break;
+    case TextureInnerFormat::FORMAT_PVRTC:      dtype = "PVRTC"sv; break;
+    case TextureInnerFormat::FORMAT_PVRTC2:     dtype = "PVRTC2"sv; break;
+    case TextureInnerFormat::FORMAT_ASTC:       dtype = "ASTC"sv; break;
+    default:                                    dtype = "UNKNOWN"sv; break;
+    }
+    string flag = "|";
+    if (HAS_FIELD(format, TextureInnerFormat::FLAG_SRGB))
+        flag += "sRGB|";
+    if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
+        flag += "Comp|";
+    flag.pop_back();
+    return fmt::format("dtype[{}]channel[{}]bits[{}]flags[{}]", dtype, channel, bits, flag);
 }
-
-oglTex2DV _oglTexture2DArray::ViewTextureLayer(const uint32_t layer) const
+string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
 {
-    CheckCurrent();
-    if (layer >= Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"layer range outflow");
-    oglTex2DV tex(new _oglTexture2DView(Width, Height, InnerFormat, Mipmap));
-    const auto layerStr = std::to_string(layer);
-    tex->Name = Name + u"-Layer" + u16string(layerStr.cbegin(), layerStr.cend());
-    glTextureView(tex->textureID, GL_TEXTURE_2D, textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, layer, 1);
-    return tex;
-}
-
-
-void _oglTexture3D::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data) noexcept
-{
-    CheckCurrent();
-    if (isSub)
-        DSA->ogluTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, comptype, datatype, data);
+    string_view dtype, dflag;
+    const auto rawType = format & TextureDataFormat::TYPE_RAW_MASK;
+    if (static_cast<uint16_t>(rawType) >= static_cast<uint16_t>(TextureDataFormat::TYPE_COMP))
+    {
+        dflag = HAS_FIELD(rawType, TextureDataFormat::TYPE_REV_MASK) ? "REV"sv : ""sv;
+        switch (REMOVE_MASK(rawType, TextureDataFormat::TYPE_REV_MASK))
+        {
+        case TextureDataFormat::TYPE_332:       dtype = "UNORM332"sv; break;
+        case TextureDataFormat::TYPE_565:       dtype = "UNORM565"sv; break;
+        case TextureDataFormat::TYPE_5551:      dtype = "UNORM5551"sv; break;
+        case TextureDataFormat::TYPE_4444:      dtype = "UNORM4444"sv; break;
+        case TextureDataFormat::TYPE_10_2:      dtype = "UNORM10_2"sv; break;
+        case TextureDataFormat::TYPE_8888:      dtype = "UNORM8888"sv; break;
+        default:                                dtype = "UNKNOWN"sv; break;
+        }
+    }
     else
-        DSA->ogluTextureImage3D(textureID, GL_TEXTURE_3D, 0, (GLint)TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, comptype, datatype, data);
-}
-
-void _oglTexture3D::SetCompressedData(const bool isSub, const void * data, const size_t size) noexcept
-{
-    CheckCurrent();
-    if (isSub)
-        DSA->ogluCompressedTextureSubImage3D(textureID, GL_TEXTURE_3D, 0, 0, 0, 0, Width, Height, Depth, TexFormatUtil::GetInnerFormat(InnerFormat), (GLsizei)size, data);
-    else
-        DSA->ogluCompressedTextureImage3D(textureID, GL_TEXTURE_3D, 0, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth, 0, (GLsizei)size, data);
-}
-
-optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
-{
-    CheckCurrent();
-    if (!IsCompressed())
-        return {};
-    GLint size = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
-    optional<vector<uint8_t>> output(std::in_place, size);
-    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_2D, 0, size, (*output).data());
-    return output;
-}
-
-vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
-{
-    CheckCurrent();
-    const auto[w, h, d] = GetInternalSize3();
-    const auto size = w * h * d * TexFormatUtil::ParseFormatSize(dformat);
-    vector<uint8_t> output(size);
-    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
-    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
-    return output;
-}
-
-_oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(false)
-{
-    CheckCurrent();
-    if (width == 0 || height == 0 || depth == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
-    if (width % 4)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
-    Width = width, Height = height, Depth = depth, InnerFormat = iformat, Mipmap = mipmap;
-    DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_3D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
-}
-
-void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const void *data)
-{
-    _oglTexture3D::SetData(true, dformat, data);
-}
-
-void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const oglPBO& buf)
-{
-    _oglTexture3D::SetData(true, dformat, buf);
-}
-
-void _oglTexture3DStatic::SetData(const Image & img, const bool normalized, const bool flipY)
-{
-    if (img.GetWidth() != Width || img.GetHeight() != Height * Depth)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image's size msmatch with oglTex3D(S)");
-    _oglTexture3D::SetData(true, img, normalized, flipY);
-}
-
-void _oglTexture3DStatic::SetCompressedData(const void *data, const size_t size)
-{
-    _oglTexture3D::SetCompressedData(true, data, size);
-}
-
-void _oglTexture3DStatic::SetCompressedData(const oglPBO & buf, const size_t size)
-{
-    _oglTexture3D::SetCompressedData(true, buf, size);
-}
-
-void _oglTexture3DStatic::GenerateMipmap()
-{
-    CheckCurrent();
-    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
-}
-
-
-_oglBufferTexture::_oglBufferTexture() noexcept : _oglTexBase(TextureType::TexBuf, true)
-{
-}
-
-void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO& tbo)
-{
-    CheckCurrent();
-    InnerBuf = tbo;
-    InnerFormat = iformat;
-    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
-}
-
-
-struct TIManCtxConfig : public CtxResConfig<false, TexImgManager>
-{
-    TexImgManager Construct() const { return {}; }
-};
-static TIManCtxConfig TEXIMGMAN_CTXCFG;
-
-TexImgManager& _oglImgBase::getImgMan() noexcept
-{
-    return oglContext::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
-}
-
-_oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
-    : InnerTex(tex), Usage(usage)
-{
-    tex->CheckCurrent();
-    if (!InnerTex)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
-    if (TexFormatUtil::IsCompressType(InnerTex->GetInnerFormat()))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"TexImg does not support compressed texture type");
-}
-
-void _oglImgBase::bind(const uint16_t pos) const noexcept
-{
-    CheckCurrent();
-    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, (GLenum)InnerTex->GetInnerFormat());
-}
-
-void _oglImgBase::unbind() const noexcept
-{
-}
-
-_oglImg2D::_oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage) {}
-
+    {
+        dflag = HAS_FIELD(rawType, TextureDataFormat::INTEGER_MASK) ? "INTEGER"sv : "NORMAL"sv;
+        switch (REMOVE_MASK(rawType, TextureDataFormat::INTEGER_MASK))
+        {
+        case TextureDataFormat::TYPE_U8:    dtype = "U8"sv; break;
+        case TextureDataFormat::TYPE_I8:    dtype = "I8"sv; break;
+        case TextureDataFormat::TYPE_U16:   dtype = "U16"sv; break;
+        case TextureDataFormat::TYPE_I16:   dtype = "I16"sv; break;
+        case TextureDataFormat::TYPE_HALF:  dtype = "Half"sv; break;
+        case TextureDataFormat::TYPE_FLOAT: dtype = "Float"sv; break;
+        default:                            dtype = "UNKNOWN"sv; break;
+        }
+    }
+    string_view channel;
+    switch (format & TextureDataFormat::FORMAT_MASK)
+    {
+    case TextureDataFormat::FORMAT_R:       channel = "R"sv; break;
+    case TextureDataFormat::FORMAT_G:       channel = "G"sv; break;
+    case TextureDataFormat::FORMAT_B:       channel = "B"sv; break;
+    case TextureDataFormat::FORMAT_A:       channel = "A"sv; break;
+    case TextureDataFormat::FORMAT_RG:      channel = "RG"sv; break;
+    case TextureDataFormat::FORMAT_RGB:     channel = "RGB"sv; break;
+    case TextureDataFormat::FORMAT_BGR:     channel = "BGR"sv; break;
+    case TextureDataFormat::FORMAT_RGBA:    channel = "RGBA"sv; break;
+    case TextureDataFormat::FORMAT_BGRA:    channel = "BGRA"sv; break;
+    default:                                channel = "UNKNOWN"sv; break;
+    }
+    return fmt::format("dtype[{}]({})channel[{}]", dtype, dflag, channel);
 }
 
 }

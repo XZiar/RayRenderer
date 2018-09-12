@@ -16,10 +16,10 @@ public:
     EXCEPTION_CLONE_EX(OCLWrongFormatException);
     std::variant<oglu::TextureDataFormat, oglu::TextureInnerFormat> Format;
     OCLWrongFormatException(const std::u16string_view& msg, const oglu::TextureDataFormat format, const std::any& data_ = std::any())
-        : OCLException(CLComponent::OCLU, msg, data_), Format(format)
+        : OCLException(TYPENAME, CLComponent::OCLU, msg, data_), Format(format)
     { }
     OCLWrongFormatException(const std::u16string_view& msg, const oglu::TextureInnerFormat format, const std::any& data_ = std::any())
-        : OCLException(CLComponent::OCLU, msg, data_), Format(format)
+        : OCLException(TYPENAME, CLComponent::OCLU, msg, data_), Format(format)
     { }
     virtual ~OCLWrongFormatException() {}
 };

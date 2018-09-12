@@ -117,14 +117,14 @@ static TextureInnerFormat DecideFormat(ImageDataType type, const TextureInnerFor
         type = REMOVE_MASK(type, ImageDataType::ALPHA_MASK);
     const TextureInnerFormat matched = DecideFormat(type);
     if (TexFormatUtil::IsGrayType(matched) != TexFormatUtil::IsGrayType(prefer))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not support to convert between color and gray");
+        COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to convert between color and gray");
     return matched;
 }
 
 static void FilterFormat(const TextureInnerFormat format)
 {
     if (TexFormatUtil::IsCompressType(format))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not support to resize to a compressed format");
+        COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to resize to a compressed format");
 }
 
 common::PromiseResult<Image> GLTexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)
@@ -181,47 +181,47 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         default:                                break; // others just keep default
         }
     }
-
-    return Executor.AddTask([this, tex, width, height, format, vao, rt = routineName](const common::asyexe::AsyncAgent& agent)
-    {
-        tex->CheckCurrent();
-        oglTex2DS outtex(width, height, format);
-        outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+    if (true)
+        return Executor.AddTask([this, tex, width, height, format, vao, rt = routineName](const common::asyexe::AsyncAgent& agent)
+        {
+            tex->CheckCurrent();
+            oglTex2DS outtex(width, height, format);
+            outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         
-        OutputFrame->AttachColorTexture(outtex, 0);
-        oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
-        OutputFrame->AttachDepthTexture(mainRBO);
-        texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, OutputFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-        GLContext->SetViewPort(0, 0, width, height);
-        GLContext->ClearFBO();
-        GLResizer->Draw()
-            .SetTexture(tex, "tex")
-            .SetSubroutine("ColorConv", rt)
-            .Draw(vao);
-        agent.Await(oglUtil::SyncGL());
-        return outtex;
-    });
-
-    /*return Executor.AddTask([this, tex, width, height, format, rt = routineName](const common::asyexe::AsyncAgent& agent)
-    {
-        tex->CheckCurrent();
-        oglTex2DS outtex(width, height, TexFormatUtil::GetAlphaType(TexFormatUtil::GetSRGBType(format, false), true));
-        outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-        oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
-        b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
-        GLResizer2->SetVec("coordStep", coordStep);
-        GLResizer2->SetUniform("isSrgbDst", TexFormatUtil::IsSRGBType(format));
-        GLResizer2->State()
-            .SetTexture(tex, "tex")
-            .SetImage(outimg, "result")
-            .SetSubroutine("ColorConv", rt);
-        GLResizer2->Run(width, height);
-        GLResizer2->State()
-            .SetTexture({}, "tex")
-            .SetImage({}, "result");
-        agent.Await(oglUtil::SyncGL());
-        return outtex;
-    });*/
+            OutputFrame->AttachColorTexture(outtex, 0);
+            oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
+            OutputFrame->AttachDepthTexture(mainRBO);
+            texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, OutputFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+            GLContext->SetViewPort(0, 0, width, height);
+            GLContext->ClearFBO();
+            GLResizer->Draw()
+                .SetTexture(tex, "tex")
+                .SetSubroutine("ColorConv", rt)
+                .Draw(vao);
+            agent.Await(oglUtil::SyncGL());
+            return outtex;
+        });
+    else
+        return Executor.AddTask([this, tex, width, height, format, rt = routineName](const common::asyexe::AsyncAgent& agent)
+        {
+            tex->CheckCurrent();
+            oglTex2DS outtex(width, height, REMOVE_MASK(format, TextureInnerFormat::FLAG_SRGB) | TextureInnerFormat::CHANNEL_ALPHA_MASK);
+            outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+            oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
+            b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
+            GLResizer2->SetVec("coordStep", coordStep);
+            GLResizer2->SetUniform("isSrgbDst", TexFormatUtil::IsSRGBType(format));
+            GLResizer2->State()
+                .SetTexture(tex, "tex")
+                .SetImage(outimg, "result")
+                .SetSubroutine("ColorConv", rt);
+            GLResizer2->Run(width, height);
+            GLResizer2->State()
+                .SetTexture({}, "tex")
+                .SetImage({}, "result");
+            agent.Await(oglUtil::SyncGL());
+            return outtex;
+        });
 }
 
 common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)

@@ -98,9 +98,6 @@
     <ClCompile Include="oglShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="oglException.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="oglContext.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

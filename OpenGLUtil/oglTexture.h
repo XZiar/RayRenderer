@@ -13,11 +13,11 @@ enum class TextureType : GLenum { Tex2D = GL_TEXTURE_2D, Tex3D = GL_TEXTURE_3D, 
 //[15...13|12....8|7.....5|4.....0]
 enum class TextureInnerFormat : uint16_t
 {
-    BITS_MASK = 0x001f, CHANNEL_MASK = 0x00e0, FORMAT_MASK = 0x1f00, FLAG_MASK = 0xe000, CAT_MASK = FORMAT_MASK | BITS_MASK, ERROR = 0xffff,
+    BITS_MASK = 0x001f, CHANNEL_MASK = 0x00e0, FORMAT_MASK = 0x1f00, FLAG_MASK = 0xe000, CAT_MASK = FORMAT_MASK | BITS_MASK, EMPTY_MASK = 0x0000, ERROR = 0xffff,
     //Bits
     BITS_2 = 0, BITS_4 = 2, BITS_5 = 3, BITS_8 = 4, BITS_10 = 5, BITS_11 = 6, BITS_12 = 7, BITS_16 = 8, BITS_32 = 9,
     //Channels[842]
-    CHANNEL_R = 0x00, CHANNEL_RG = 0x20, CHANNEL_RA = CHANNEL_RG, CHANNEL_RGB = 0x60, CHANNEL_RGBA = 0x80,
+    CHANNEL_R = 0x00, CHANNEL_RG = 0x20, CHANNEL_RA = CHANNEL_RG, CHANNEL_RGB = 0x40, CHANNEL_RGBA = 0x60, CHANNEL_ALPHA_MASK = 0x20,
     //Formats
     FORMAT_UNORM = 0x0000, FORMAT_SNORM = 0x0100, FORMAT_UINT = 0x0200, FORMAT_SINT = 0x0300, FORMAT_FLOAT = 0x0400,
     FORMAT_INT_SIGNED = 0x0100, FORMAT_INT_INTEGER = 0x0200,
@@ -67,9 +67,12 @@ MAKE_ENUM_BITFIELD(TextureInnerFormat)
 enum class TextureDataFormat : uint16_t
 {
     TYPE_MASK = 0x00ff, INTEGER_MASK = 0x0080, TYPE_RAW_MASK = 0x007f, COMP_MASK = 0x0010, FORMAT_MASK = 0xff00, REVERSE_MASK = 0x8000, EMPTY_MASK = 0x0000,
+    //format(channel)
     FORMAT_R = 0x0100, FORMAT_G = 0x0200, FORMAT_B = 0x0400, FORMAT_A = 0x0800, 
     FORMAT_RG = 0x0900, FORMAT_RGB = 0x0700, FORMAT_BGR = 0x8700, FORMAT_RGBA = 0x0f00, FORMAT_BGRA = 0x8f00,
+    //data type
     TYPE_U8 = 0x0, TYPE_I8 = 0x1, TYPE_U16 = 0x2, TYPE_I16 = 0x3, TYPE_U32 = 0x4, TYPE_I32 = 0x5, TYPE_HALF = 0x6, TYPE_FLOAT = 0x7,
+    TYPE_COMP = 0x10, TYPE_REV_MASK = 0x01,
     TYPE_332 = 0x10, TYPE_233R = 0x11, TYPE_565 = 0x12, TYPE_565R = 0x13, TYPE_4444 = 0x14, TYPE_4444R = 0x15, TYPE_5551 = 0x16, TYPE_1555R = 0x17,
     TYPE_8888 = 0x18, TYPE_8888R = 0x19, TYPE_10_2 = 0x1a, TYPE_10_2R = 0x1b,
     //normalized integer[0,1]
@@ -99,12 +102,12 @@ class OGLWrongFormatException : public OGLException
 {
 public:
     EXCEPTION_CLONE_EX(OGLWrongFormatException);
-    std::variant<oglu::TextureDataFormat, oglu::TextureInnerFormat> Format;
-    OGLWrongFormatException(const std::u16string_view& msg, const oglu::TextureDataFormat format, const std::any& data_ = std::any())
-        : OGLException(GLComponent::OGLU, msg, data_), Format(format)
+    std::variant<TextureDataFormat, TextureInnerFormat> Format;
+    OGLWrongFormatException(const std::u16string_view& msg, const TextureDataFormat format, const std::any& data_ = std::any())
+        : OGLException(TYPENAME, GLComponent::OGLU, msg, data_), Format(format)
     { }
-    OGLWrongFormatException(const std::u16string_view& msg, const oglu::TextureInnerFormat format, const std::any& data_ = std::any())
-        : OGLException(GLComponent::OGLU, msg, data_), Format(format)
+    OGLWrongFormatException(const std::u16string_view& msg, const TextureInnerFormat format, const std::any& data_ = std::any())
+        : OGLException(TYPENAME, GLComponent::OGLU, msg, data_), Format(format)
     { }
     virtual ~OGLWrongFormatException() {}
 };
@@ -150,15 +153,15 @@ struct OGLUAPI TexFormatUtil
         ParseFormat(dformat, normalized, datatype, comptype);
         return { datatype,comptype };
     }
+    static size_t ParseFormatSize(const TextureInnerFormat dformat) noexcept;
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
     static TextureDataFormat ConvertDtypeFrom(const TextureInnerFormat format);
     static TextureDataFormat ConvertDtypeFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
     static xziar::img::ImageDataType ConvertToImgType(const TextureDataFormat format, const bool relaxConvert = false) noexcept;
-    /*static TextureDataFormat DecideFormat(const TextureInnerFormat format) noexcept;
-    static TextureInnerFormat GetSRGBType(const TextureInnerFormat format, const bool needSRGB) noexcept;
-    static TextureInnerFormat GetAlphaType(const TextureInnerFormat format, const bool needAlpha) noexcept;*/
-    static const u16string_view GetTypeName(const TextureType type);
-    static const u16string_view GetFormatName(const TextureInnerFormat format);
+    static u16string_view GetTypeName(const TextureType type) noexcept;
+    static u16string_view GetFormatName(const TextureInnerFormat format) noexcept;
+    static string GetFormatDetail(const TextureInnerFormat format) noexcept;
+    static string GetFormatDetail(const TextureDataFormat format) noexcept;
 };
 
 
@@ -190,7 +193,7 @@ protected:
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
 public:
     u16string Name;
-    ~_oglTexBase() noexcept;
+    virtual ~_oglTexBase() noexcept;
     void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
     bool IsCompressed() const;
@@ -263,15 +266,14 @@ class OGLUAPI _oglTexture2DView : public _oglTexture2D
     friend class _oglTexture2DArray;
     friend class _oglTexture2DStatic;
 private:
-    _oglTexture2DView(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture2D(false)
-    {
-        Width = width, Height = height; InnerFormat = iformat, Mipmap = mipmap;
-    }
+    _oglTexture2DView(const _oglTexture2DStatic& tex, const TextureInnerFormat iformat);
+    _oglTexture2DView(const _oglTexture2DArray& tex, const TextureInnerFormat iformat, const uint32_t layer);
 };
 
 
 class OGLUAPI _oglTexture2DStatic : public _oglTexture2D
 {
+    friend class _oglTexture2DView;
 private:
 public:
     _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
@@ -294,7 +296,8 @@ public:
     }
 
     void GenerateMipmap();
-    Wrapper<_oglTexture2DView> GetTextureView() const;
+    Wrapper<_oglTexture2DView> GetTextureView(const TextureInnerFormat format) const;
+    Wrapper<_oglTexture2DView> GetTextureView() const { return GetTextureView(InnerFormat); }
 };
 
 
@@ -328,6 +331,7 @@ public:
 class OGLUAPI _oglTexture2DArray : public _oglTexBase
 {
     friend class _oglFrameBuffer;
+    friend class _oglTexture2DView;
 private:
     uint32_t Width, Height, Layers;
     uint8_t Mipmap;
@@ -344,7 +348,8 @@ public:
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
 
-    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const;
+    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer, const TextureInnerFormat format) const;
+    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const { return ViewTextureLayer(layer, InnerFormat); }
 };
 
 
