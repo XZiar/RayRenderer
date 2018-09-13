@@ -44,11 +44,20 @@ static void OCLStub()
     if (!que)
         que.reset(ctx, ctx->Devices[0]);
     const auto dev = ctx->Devices[0];
+    ClearReturn();
     while (true)
     {
         log().info(u"input opencl file:");
         string fpath;
         std::getline(cin, fpath);
+        if (fpath == "EXTENSION")
+        {
+            string exttxts("Extensions:\n");
+            for(const auto& ext : dev->Extensions)
+                exttxts.append(ext).append("\n");
+            log().verbose(u"{}\n", exttxts);
+            continue;
+        }
         common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading cl file [{}]\n", filepath.u16string());
         try

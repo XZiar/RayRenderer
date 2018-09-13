@@ -507,7 +507,7 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
                 VerMinor, static_cast<int32_t>(version % 10),
             });
     }
-    if (GLEW_KHR_context_flush_control == GL_TRUE || supportFlushControl)
+    if (GLEW_KHR_context_flush_control == GL_TRUE && supportFlushControl)
     {
         ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
     }

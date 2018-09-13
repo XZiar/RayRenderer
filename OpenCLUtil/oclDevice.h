@@ -26,6 +26,7 @@ private:
     _oclDevice(const cl_device_id dID);
 public:
     const u16string Name, Vendor, Version;
+    const common::container::FrozenDenseSet<string> Extensions;
     const uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
     const bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     const DeviceType Type;

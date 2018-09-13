@@ -212,6 +212,8 @@
     <None Include="2d.glsl" />
     <None Include="3d.glsl" />
     <None Include="3d_pbr.glsl" />
+    <None Include="ColorLUT.cl" />
+    <None Include="ColorLUT.glsl" />
     <None Include="postprocess.glsl" />
     <None Include="shadow.glsl" />
     <None Include="test.cl" />

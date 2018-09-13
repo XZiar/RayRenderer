@@ -150,6 +150,8 @@ private:
     void Init(const bool isCurrent);
 public:
     ~_oglContext();
+    const auto& GetExtensions() const { return Extensions; }
+
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();

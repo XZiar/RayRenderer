@@ -85,18 +85,13 @@ static string GetStr(const cl_platform_id platformID, const cl_platform_info typ
 }
 static u16string GetUStr(const cl_platform_id platformID, const cl_platform_info type)
 {
-    thread_local string ret;
-    size_t size = 0;
-    clGetPlatformInfo(platformID, type, 0, nullptr, &size);
-    ret.resize(size, '\0');
-    clGetPlatformInfo(platformID, type, size, ret.data(), &size);
-    if(!ret.empty())
-        return u16string(ret.cbegin(), ret.cend() - 1); 
-    return u"";
+    const auto u8str = GetStr(platformID, type);
+    return u16string(u8str.cbegin(), u8str.cend()); 
 }
 
 _oclPlatform::_oclPlatform(const cl_platform_id pID)
-    : PlatformID(pID), Name(GetUStr(pID, CL_PLATFORM_NAME)), Ver(GetUStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
+    : PlatformID(pID), Extensions(common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false)), 
+    Name(GetUStr(pID, CL_PLATFORM_NAME)), Ver(GetUStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
 {
     if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
         FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
@@ -114,11 +109,6 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
         if (dID == defDevID)
             DefDevice = Devices.back();
     }
-    const auto exts = GetStr(PlatformID, CL_PLATFORM_EXTENSIONS);
-    common::str::SplitAndDo(exts, ' ', [&](const char* ptr, const size_t len)
-    {
-        Extensions.emplace(ptr, len);
-    }, false);
 }
 
 bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const

@@ -132,7 +132,7 @@ static void OGLStub()
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");
-            for(const auto& ext : oglUtil::GetExtensions())
+            for(const auto& ext : ctx->GetExtensions())
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
             continue;
@@ -144,7 +144,6 @@ static void OGLStub()
         log().debug(u"loading gl file [{}]\n", filepath.u16string());
         try
         {
-            oglDrawProgram glProg(u"GLProg");
             const auto shaderSrc = common::file::ReadAllText(filepath);
             ShaderConfig config;
             if (exConfig)
@@ -173,8 +172,11 @@ static void OGLStub()
             }
             try
             {
+                oglDrawProgram glProg(u"GLProg");
                 glProg->AddExtShaders(shaderSrc, config);
-                glProg->Link();
+                if (glProg->getShaders().size() > 0)
+                    glProg->Link();
+                oglComputeProgram glPRog2(u"GLProg2", shaderSrc, config);
             }
             catch (const OGLException& gle)
             {

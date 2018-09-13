@@ -317,25 +317,25 @@ private:
     std::vector<T> Data;
 public:
     FrozenDenseSet() {}
-    template<typename T1>
-    FrozenDenseSet(const std::set<T1, Compare>& data)
+    template<typename T1, typename Alloc>
+    FrozenDenseSet(const std::set<T1, Compare, Alloc>& data)
     {
         Data.reserve(data.size());
         for (const auto& dat : data)
             Data.emplace_back(dat);
     }
-    //template<typename T, typename Compare = std::less<>>
-    //FrozenDenseSet(const FrozenDenseSet<T, Compare>& other) = default;
-    //template<typename T, typename Compare = std::less<>>
-    //FrozenDenseSet(FrozenDenseSet<T, Compare>&& other)
-    //{
-    //    Data = std::move(other.Data);
-    //}
+    template<typename T1, typename Alloc>
+    FrozenDenseSet(const std::vector<T1, Alloc>& data)
+    {
+        Data.resize(data.size());
+        std::partial_sort_copy(data.cbegin(), data.cend(), Data.begin(), Data.end(), Compare());
+    }
+    decltype(auto) begin() const { return Data.cbegin();}
+    decltype(auto) end() const { return Data.cend();}
 
-    //FrozenDenseSet<T, Compare>& operator=(const FrozenDenseSet<T, Compare>& other)
 
     template<typename E>
-    bool Has(E&& element)
+    bool Has(E&& element) const
     {
         return std::binary_search(Data.cbegin(), Data.cend(), element, Compare());
     }

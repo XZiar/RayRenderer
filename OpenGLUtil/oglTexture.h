@@ -259,7 +259,8 @@ public:
     Image GetImage(const ImageDataType format, const bool flipY = true);
 };
 
-
+class _oglTexture2DArray;
+class _oglTexture2DStatic;
 ///<summary>Texture2D View, readonly</summary>  
 class OGLUAPI _oglTexture2DView : public _oglTexture2D
 {

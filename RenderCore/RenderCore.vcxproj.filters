@@ -37,6 +37,12 @@
     <None Include="shadow.glsl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="ColorLUT.cl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="ColorLUT.glsl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
