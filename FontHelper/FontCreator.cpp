@@ -61,9 +61,10 @@ void FontCreator::loadCL(const string& src)
     oclProgram clProg(clCtx, src);
     try
     {
-        string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
-        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
-        clProg->Build(options);
+        oclu::CLProgConfig config;
+        config.Flags.insert("-cl-fast-relaxed-math");
+        config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
+        clProg->Build(config);
     }
     catch (OCLException& cle)
     {
@@ -91,9 +92,14 @@ void FontCreator::loadDownSampler(const string& src)
     oclProgram clProg(clCtx, src);
     try
     {
-        string options = clCtx->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
-        options += " -DLOC_MEM_SIZE=" + std::to_string(clCtx->Devices[0]->LocalMemSize);
-        clProg->Build(options);
+        oclu::CLProgConfig config;
+        if (clCtx->vendor == Vendor::NVIDIA)
+        {
+            config.Flags.insert({"-cl-kernel-arg-info", "-cl-nv-verbose"});
+            config.Defines.insert_or_assign("NVIDIA", std::monostate{});
+        }
+        config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
+        clProg->Build(config);
     }
     catch (OCLException& cle)
     {

@@ -10,23 +10,21 @@ namespace oclu
 
 namespace detail
 {
-vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & context) const
+vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & glContext) const
 {
 #if defined(_WIN32)
     constexpr cl_context_properties glPropName = CL_WGL_HDC_KHR;
 #else
     constexpr cl_context_properties glPropName = CL_GLX_DISPLAY_KHR;
 #endif
-    vector<cl_context_properties> props;
-    //OpenCL platform
-    props.assign({ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID });
-    if (context)
+    vector<cl_context_properties> props{ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID };
+    if (glContext)
         props.insert(props.cend(),
         {
             //OpenGL context
-            CL_GL_CONTEXT_KHR,   (cl_context_properties)context->Hrc,
+            CL_GL_CONTEXT_KHR,   (cl_context_properties)glContext->Hrc,
             //HDC used to create the OpenGL context
-            glPropName,          (cl_context_properties)context->Hdc
+            glPropName,          (cl_context_properties)glContext->Hdc
         });
     props.push_back(0);
     return props;
@@ -122,11 +120,11 @@ oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
     if (context)
     {
         if (const auto dev = GetGLDevice(props); dev)
-            return oclContext(new _oclContext(props.data(), dev, Name, PlatVendor));
+            return oclContext(new _oclContext(props, dev, Name, PlatVendor));
         return {};
     }
     else
-        return oclContext(new _oclContext(props.data(), Devices, Name, PlatVendor));
+        return oclContext(new _oclContext(props, Devices, Name, PlatVendor));
 }
 
 

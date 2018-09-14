@@ -86,8 +86,8 @@ oclPromise _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const
 }
 
 
-_oclGLBuffer::_oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer buf)
-    : _oclBuffer(ctx, flag, SIZE_MAX, CreateMemFromGLBuf(ctx->context, (cl_mem_flags)flag, buf->bufferID)), GlBuf(buf)
+_oclGLBuffer::_oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
+    : _oclBuffer(ctx, flag, SIZE_MAX, CreateMemFromGLBuf(ctx, (cl_mem_flags)flag, buf)), GlBuf(buf)
 {
 }
 

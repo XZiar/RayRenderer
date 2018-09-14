@@ -66,11 +66,9 @@ static void OCLStub()
             oclProgram clProg(ctx, kertxt);
             try
             {
-                string options = "-cl-fast-relaxed-math";
-                if (ctx->vendor == Vendor::NVIDIA)
-                    options += " -cl-kernel-arg-info -cl-nv-verbose -DNVIDIA";
-                options += " -DLOC_MEM_SIZE=" + std::to_string(ctx->Devices[0]->LocalMemSize);
-                clProg->Build(options);
+                oclu::CLProgConfig config;
+                config.Defines.insert_or_assign("LOC_MEM_SIZE", ctx->Devices[0]->LocalMemSize);
+                clProg->Build(config);
                 log().success(u"loaded! kernels:\n");
                 for (const auto& ker : clProg->GetKernels())
                 {

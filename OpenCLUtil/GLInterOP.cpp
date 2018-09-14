@@ -8,20 +8,20 @@ namespace detail
 {
 
 
-cl_mem GLInterOP::CreateMemFromGLBuf(const cl_context ctx, const cl_mem_flags flag, const GLuint bufId)
+cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, const cl_mem_flags flag, const oglu::oglBuffer& buf)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx, flag, bufId, &errcode);
+    const auto id = clCreateFromGLBuffer(ctx->context, flag, buf->bufferID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glBuffer", errcode));
     return id;
 }
-cl_mem GLInterOP::CreateMemFromGLTex(const cl_context ctx, const cl_mem_flags flag, const oglu::detail::_oglTexBase& tex)
+cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, const cl_mem_flags flag, const oglu::oglTexBase& tex)
 {
     cl_int errcode;
-    if (oglu::TexFormatUtil::IsCompressType(tex.GetInnerFormat()))
+    if (oglu::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx, flag, (GLenum)tex.Type, 0, tex.textureID, &errcode);
+    const auto id = clCreateFromGLTexture(ctx->context, flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glTexture", errcode));
     return id;

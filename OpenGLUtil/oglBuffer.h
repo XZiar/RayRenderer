@@ -33,8 +33,7 @@ namespace detail
 class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
 {
     friend class _oglProgram;
-    friend class ::oclu::detail::_oclGLBuffer;
-    friend class ::oclu::detail::_oclGLImage;
+    friend class ::oclu::detail::GLInterOP;
 protected:
     void *MappedPtr = nullptr;
     size_t BufSize;

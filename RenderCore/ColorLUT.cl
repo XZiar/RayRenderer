@@ -1,16 +1,26 @@
-//#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
+#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
 
 //Color space conversion
 
 float3 LinearToSRGB(const float3 color)
 {
-    return color <= 0.00304f ? 12.92f * color : 
-        1.055f * native_powr(color, (float3)(1.0f/2.4f)) - 0.055f;
+    float3 ret;
+    ret.x = color.x <= 0.00304f ? 12.92f * color.x : 1.055f * native_powr(color.x, 1.0f / 2.4f) - 0.055f;
+    ret.y = color.y <= 0.00304f ? 12.92f * color.y : 1.055f * native_powr(color.y, 1.0f / 2.4f) - 0.055f;
+    ret.z = color.z <= 0.00304f ? 12.92f * color.z : 1.055f * native_powr(color.z, 1.0f / 2.4f) - 0.055f;
+    return ret;
+    // return color <= 0.00304f ? 12.92f * color : 
+    //     1.055f * native_powr(color, (float3)(1.0f/2.4f)) - 0.055f;
 }
 float3 SRGBToLinear(const float3 color)
 {
-    return color <= 0.04045f ? (1.0f/12.92f) * color : 
-        native_powr((1.0f/1.055f) * (color + 0.055f), (float3)(2.4f));
+    float3 ret;
+    ret.x = color.x <= 0.04045f ? (1.0f / 12.92f) * color.x : pow((1.0f / 1.055f) * (color.x + 0.055f), 2.4f);
+    ret.y = color.y <= 0.04045f ? (1.0f / 12.92f) * color.y : pow((1.0f / 1.055f) * (color.y + 0.055f), 2.4f);
+    ret.z = color.z <= 0.04045f ? (1.0f / 12.92f) * color.z : pow((1.0f / 1.055f) * (color.z + 0.055f), 2.4f);
+    return ret;
+    // return color <= 0.04045f ? (1.0f/12.92f) * color : 
+    //     native_powr((1.0f/1.055f) * (color + 0.055f), (float3)(2.4f));
 }
 
 //Tonemappings

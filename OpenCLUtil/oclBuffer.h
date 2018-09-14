@@ -73,7 +73,7 @@ class OCLUAPI _oclGLBuffer : public _oclBuffer, public GLShared<_oclGLBuffer>
 private:
     const oglu::oglBuffer GlBuf;
 public:
-    _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer buf);
+    _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
     virtual ~_oclGLBuffer() override;
 };
 

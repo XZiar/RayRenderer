@@ -3,7 +3,6 @@
 #include "oclException.h"
 #include "oclUtil.h"
 
-
 namespace oclu
 {
 
@@ -12,6 +11,7 @@ namespace detail
 {
 using common::container::FindInMap;
 using common::container::ContainInVec;
+using namespace std::literals::string_view_literals;
 
 static cl_program LoadProgram(const string& src, const cl_context& ctx)
 {
@@ -69,17 +69,42 @@ u16string _oclProgram::GetBuildLog(const cl_device_id dev) const
 }
 
 
-void _oclProgram::Build(const string& options, const oclDevice dev)
+void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
 {
+    string options;
+    switch (Context->vendor)
+    {
+    case Vendor::NVIDIA:    options = "-DOCLU_NVIDIA -cl-kernel-arg-info -cl-nv-verbose "; break;
+    case Vendor::AMD:       options = "-DOCLU_AMD "; break;
+    case Vendor::Intel:     options = "-DOCLU_INTEL "; break;
+    default:                break;
+    }
+    for (const auto& def : config.Defines)
+    {
+        options.append("-D"sv).append(def.first);
+        std::visit([&](auto&& val)
+        {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, string>)
+                options.append("="sv).append(val);
+            else if constexpr (!std::is_same_v<T, std::monostate>)
+                options.append("="sv).append(std::to_string(val));
+        }, def.second);
+        options.append(" "sv);
+    }
+    for (const auto& flag : config.Flags)
+        options.append(flag).append(" "sv);
     cl_int ret;
     vector<oclDevice> devices;
     if (dev)
     {
         devices.push_back(dev);
+        options.append("-DOCLU_LOCAL_MEM_SIZE=").append(std::to_string(dev->LocalMemSize));
         ret = clBuildProgram(progID, 1, &dev->deviceID, options.c_str(), nullptr, nullptr);
     }
     else
     {
+        options.append("-DOCLU_LOCAL_MEM_SIZE=0 "); //default as zero
         ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
         const auto dids = getDevs();
         for (const auto& d : Context->Devices)
@@ -99,13 +124,15 @@ void _oclProgram::Build(const string& options, const oclDevice dev)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"Build Program failed", ret), buildlog);
     }
 
-    char buf[8192];
     size_t len = 0;
-    ret = clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, sizeof(buf) - 2, &buf, &len);
+    ret = clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, 0, nullptr, &len);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot find kernels", ret));
-    buf[len] = '\0';
-    const auto names = str::Split<char>(string_view(buf), ';', false);
+    vector<char> buf(len, '\0');
+    clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
+    if(len > 0)
+        buf.pop_back(); //null-terminated
+    const auto names = str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
     Kernels.clear();
@@ -176,7 +203,6 @@ void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
 }
-
 
 
 oclu::oclPromise _oclKernel::Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)

@@ -20,6 +20,12 @@ struct WorkGroupInfo
     size_t PreferredWorkGroupSizeMultiple;
 };
 
+struct CLProgConfig
+{
+    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
+    map<string, DefineVal> Defines;
+    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable" };
+};
 
 namespace detail
 {
@@ -39,7 +45,7 @@ private:
 public:
     _oclProgram(const oclContext& ctx_, const string& str);
     ~_oclProgram();
-    void Build(const string& options = "-cl-fast-relaxed-math -cl-mad-enable", const oclDevice dev = oclDevice());
+    void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
     u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
     Wrapper<_oclKernel> GetKernel(const string& name);
     auto GetKernels() const { return common::container::ValSet(Kernels); }

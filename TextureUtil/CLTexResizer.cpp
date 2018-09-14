@@ -39,8 +39,8 @@ CLTexResizer::CLTexResizer(oglContext&& glContext) : Executor(u"CLTexResizer"), 
         oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
         try
         {
-            const string options = CLContext->vendor == Vendor::NVIDIA ? "-cl-kernel-arg-info -cl-fast-relaxed-math -cl-nv-verbose -DNVIDIA" : "-cl-fast-relaxed-math";
-            clProg->Build(options);
+            oclu::CLProgConfig config;
+            clProg->Build(config);
         }
         catch (OCLException& cle)
         {
@@ -84,17 +84,17 @@ static TextureDataFormat FixFormat(const TextureDataFormat dformat)
 {
     switch (dformat)
     {
-    case TextureDataFormat::RGB8:      return TextureDataFormat::RGBA8;
-    case TextureDataFormat::BGR8:      return TextureDataFormat::BGRA8;
+    case TextureDataFormat::RGB8:       return TextureDataFormat::RGBA8;
+    case TextureDataFormat::BGR8:       return TextureDataFormat::BGRA8;
     default:                            return dformat;
     }
 }
 
-common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImage& input, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
+common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& input, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
     return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        const auto wantFormat = TexFormatUtil::ConvertDtypeFrom(format, true);
+        //const auto wantFormat = TexFormatUtil::ConvertDtypeFrom(format, true);
         //oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
         oclBuffer output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
         ImageInfo info{ input->Width, input->Height, width, height, 1.0f / width, 1.0f / height };
@@ -125,7 +125,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
     {
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
-            auto glimg = oclGLImage(CLContext, MemFlag::ReadOnly, tex);
+            auto glimg = oclGLImg2D(CLContext, MemFlag::ReadOnly, tex);
             glimg->Lock(ComQue);
             auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
             glimg->Unlock(ComQue);
@@ -137,7 +137,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
             const auto img = tex->GetImage(ImageDataType::RGBA);
-            oclImage input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureDataFormat::RGBA8);
+            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureDataFormat::RGBA8);
             auto pms1 = input->Write(ComQue, img, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
@@ -152,7 +152,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL doesnot support compressed texture yet.");
         else
         {
-            oclImage input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(dataFormat));
+            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(dataFormat));
             auto pms1 = input->Write(ComQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));

@@ -409,6 +409,7 @@ protected:
     oglTBO InnerBuf;
 public:
     _oglBufferTexture() noexcept;
+    virtual ~_oglBufferTexture() noexcept {}
     void SetBuffer(const TextureInnerFormat iformat, const oglTBO& tbo);
 };
 
