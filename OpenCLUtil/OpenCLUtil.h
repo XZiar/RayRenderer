@@ -2,7 +2,6 @@
 
 #include "oclRely.h"
 #include "oclException.h"
-#include "oclPromiseTask.h"
 #include "oclDevice.h"
 #include "oclPlatform.h"
 #include "oclContext.h"

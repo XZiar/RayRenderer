@@ -5,18 +5,31 @@
 namespace oglu
 {
 
-template<typename T>
-class PromiseResultGL : public common::detail::PromiseResult_<T>
+class oglPromiseCore : public detail::oglCtxObject<true>
 {
-    friend class oglUtil;
-    friend class PromiseResultGLVoid;
 protected:
-    T Result;
     GLsync SyncObj;
-    uint64_t TimeBegin;
+    uint64_t TimeBegin = 0, TimeEnd = 0;
     GLuint Query;
-    common::PromiseState virtual state() override
+    oglPromiseCore()
     {
+        glGenQueries(1, &Query);
+        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
+        glQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        SyncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        glFlush(); //ensure sync object sended
+    }
+    ~oglPromiseCore()
+    {
+        if (EnsureValid())
+        {
+            glDeleteSync(SyncObj);
+            glDeleteQueries(1, &Query);
+        }
+    }
+    common::PromiseState State()
+    {
+        CheckCurrent();
         switch (glClientWaitSync(SyncObj, 0, 0))
         {
         case GL_TIMEOUT_EXPIRED:
@@ -33,57 +46,61 @@ protected:
             return common::PromiseState::Invalid;
         }
     }
-    T virtual wait() override
+    void Wait()
     {
+        CheckCurrent();
         while (glClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+        { }
+    }
+    uint64_t ElapseNs()
+    {
+        if (TimeEnd == 0)
         {
+            CheckCurrent();
+            glGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
         }
-        return Result;
-    }
-public:
-    template<typename U>
-    PromiseResultGL(U&& data) : Result(std::forward<U>(data))
-    {
-        glGenQueries(1, &Query);
-        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
-        glQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
-        SyncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-        glFlush(); //ensure sync object sended
-    }
-    ~PromiseResultGL() override
-    {
-        glDeleteSync(SyncObj);
-        glDeleteQueries(1, &Query);
-    }
-    uint64_t ElapseNs() override
-    {
-        uint64_t timeEnd = 0;
-        glGetQueryObjectui64v(Query, GL_QUERY_RESULT, &timeEnd);
-        if (timeEnd == 0)
+        if (TimeEnd == 0)
             return 0;
         else
-            return timeEnd - TimeBegin;
+            return TimeEnd - TimeBegin;
     }
 };
 
 
-class PromiseResultGLVoid : public common::detail::PromiseResult_<void>
+template<typename T>
+class oglPromise : public common::detail::PromiseResult_<T>, public oglPromiseCore
 {
+    friend class oglUtil;
 protected:
-    PromiseResultGL<int> Promise;
-    common::PromiseState virtual state() override
+    common::PromiseState virtual state() override { return State(); }
+    T virtual wait() override
     {
-        return Promise.state();
+        Wait();
+        return std::move(Result);
     }
 public:
-    PromiseResultGLVoid() : Promise(0) {}
-    ~PromiseResultGLVoid() override {}
-    void virtual wait() override
-    {
-        Promise.wait();
-    }
+    T Result;
+    template<typename U>
+    oglPromise(U&& data) : Result(std::forward<U>(data)) { }
+    ~oglPromise() override { }
+    uint64_t ElapseNs() override { return oglPromiseCore::ElapseNs(); }
 };
-class PromiseResultGLVoid2 : public common::detail::PromiseResult_<void>
+
+
+class oglPromiseVoid : public common::detail::PromiseResult_<void>, public oglPromiseCore
+{
+    friend class oglUtil;
+protected:
+    common::PromiseState virtual state() override { return State(); }
+    void virtual wait() override { Wait(); }
+public:
+    oglPromiseVoid() { }
+    ~oglPromiseVoid() override { }
+    uint64_t ElapseNs() override { return oglPromiseCore::ElapseNs(); }
+};
+
+
+class oglPromiseVoid2 : public common::detail::PromiseResult_<void>
 {
 protected:
     common::PromiseState virtual state() override

@@ -2,6 +2,7 @@
 #include "oclBuffer.h"
 #include "oclException.h"
 #include "oclUtil.h"
+#include "oclPromise.hpp"
 
 
 namespace oclu::detail
@@ -53,7 +54,7 @@ _oclBuffer::~_oclBuffer()
 #endif
 }
 
-oclPromise _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
 {
     if (offset >= Size)
         COMMON_THROW(BaseException, u"offset overflow");
@@ -66,10 +67,10 @@ oclPromise _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, 
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromise_>(oclPromise_(e, que->cmdque));
+        return std::make_shared<oclPromiseVoid>(e, que->cmdque);
 }
 
-oclPromise _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
 {
     if (offset >= Size)
         COMMON_THROW(BaseException, u"offset overflow");
@@ -82,7 +83,7 @@ oclPromise _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromise_>(oclPromise_(e, que->cmdque));
+        return std::make_shared<oclPromiseVoid>(e, que->cmdque);
 }
 
 

@@ -42,9 +42,6 @@
     <ClInclude Include="oclCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oclPromiseTask.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oclBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -52,6 +49,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="GLInterOP.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclPromise.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -78,9 +78,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclBuffer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="oclPromiseTask.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclImage.cpp">

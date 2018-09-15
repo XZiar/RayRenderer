@@ -4,10 +4,8 @@
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"
-#include "common/PromiseTaskSTD.hpp"
 namespace oglu
 {
-using common::PromiseResultSTD;
 
 
 constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
@@ -127,12 +125,12 @@ void oglUtil::applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const Transfor
 
 PromiseResult<void> oglUtil::SyncGL()
 {
-    return std::static_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultGLVoid>());
+    return std::make_shared<oglPromiseVoid>();
 }
 
 PromiseResult<void> oglUtil::ForceSyncGL()
 {
-    return std::static_pointer_cast<common::detail::PromiseResult_<void>>(std::make_shared<PromiseResultGLVoid2>());
+    return std::make_shared<oglPromiseVoid2>();
 }
 
 void oglUtil::MemBarrier(const GLMemBarrier mbar)

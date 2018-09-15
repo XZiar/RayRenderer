@@ -1,7 +1,6 @@
 #pragma once
 
 #include "oclRely.h"
-#include "oclPromiseTask.h"
 #include "oclCmdQue.h"
 #include "GLInterOP.h"
 
@@ -34,9 +33,9 @@ protected:
 public:
     _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size);
     virtual ~_oclBuffer();
-    oclPromise Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
+    PromiseResult<void> Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
     template<class T, class A>
-    oclPromise Read(const oclCmdQue& que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+    PromiseResult<void> Read(const oclCmdQue& que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
     {
         if (offset >= Size)
             COMMON_THROW(BaseException, u"offset overflow");
@@ -47,9 +46,9 @@ public:
         buf.resize(count);
         return Read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
     }
-    oclPromise Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
+    PromiseResult<void> Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
     template<class T, class A>
-    oclPromise Write(const oclCmdQue& que, const vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+    PromiseResult<void> Write(const oclCmdQue& que, const vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
     {
         const auto vsize = buf.size();
         if (count == 0)
@@ -60,7 +59,7 @@ public:
         return Write(que, buf.data(), wsize, offset, shouldBlock);
     }
     template<class T, size_t N>
-    oclPromise Write(const oclCmdQue& que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
+    PromiseResult<void> Write(const oclCmdQue& que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
     {
         auto wsize = N * sizeof(T);
         return Write(que, buf, wsize, offset, shouldBlock);

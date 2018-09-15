@@ -1,6 +1,7 @@
 #include "oclRely.h"
 #include "oclImage.h"
 #include "oclUtil.h"
+#include "oclPromise.hpp"
 
 
 namespace oclu::detail
@@ -107,9 +108,9 @@ _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t w
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type)
     :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, (cl_mem_flags)flag, CreateImageDesc(type, width, height, depth), dformat))
 { }
-oclPromise _oclImage::ReturnPromise(cl_event e, const oclCmdQue que)
+PromiseResult<void> _oclImage::ReturnPromise(cl_event e, const oclCmdQue que)
 {
-    return std::make_shared<detail::oclPromise_>(detail::oclPromise_(e, que->cmdque));
+    return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 
 
@@ -131,9 +132,11 @@ _oclImage::~_oclImage()
 }
 
 
-oclPromise _oclImage::Write(const oclCmdQue que, const void *data, const bool shouldBlock) const
+PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock) const
 {
     constexpr size_t origin[3] = { 0,0,0 };
+    if (Width*Height*Depth*oglu::TexFormatUtil::ParseFormatSize(Format) > size)
+        COMMON_THROW(BaseException, u"write size not sufficient");
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
     const auto ret = clEnqueueWriteImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
@@ -144,7 +147,16 @@ oclPromise _oclImage::Write(const oclCmdQue que, const void *data, const bool sh
     else
         return ReturnPromise(e, que);
 }
-oclPromise _oclImage::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
+PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
+{
+    if (image.GetWidth() != Width || image.GetHeight() != Height * Depth)
+        COMMON_THROW(BaseException, u"write image size mismatch");
+    const auto wantFormat = oglu::TexFormatUtil::ConvertToImgType(Format, true);
+    if (wantFormat != image.GetDataType())
+        COMMON_THROW(OCLWrongFormatException, u"image datatype mismatch", Format, std::any(image.GetDataType()));
+    return Write(que, image.GetRawPtr(), image.GetSize(), shouldBlock);
+}
+PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
@@ -157,29 +169,32 @@ oclPromise _oclImage::Read(const oclCmdQue que, void *data, const bool shouldBlo
     else
         return ReturnPromise(e, que);
 }
+PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
+{
+    image = Image(oglu::TexFormatUtil::ConvertToImgType(Format, true));
+    image.SetSize(Width, Height*Depth);
+    return _oclImage::Read(que, image.GetRawPtr(), shouldBlock);
+}
 
 
 _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
     : _oclImage(ctx, flag, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D)
 { }
 
-oclPromise _oclImage2D::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
-{
-    image = Image(oglu::TexFormatUtil::ConvertToImgType(Format));
-    image.SetSize(Width, Height);
-    return _oclImage::Read(que, image.GetRawPtr(), shouldBlock);
-}
 
-oclPromise _oclImage2D::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
-{
-    if (image.GetWidth() != Width || image.GetHeight() != Height)
-        COMMON_THROW(BaseException, u"write size unmatch");
-    return Write(que, image.GetData(), shouldBlock);
-}
+_oclImage3D::_oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat)
+    : _oclImage(ctx, flag, width, height, depth, dformat, CL_MEM_OBJECT_IMAGE3D)
+{ }
 
 
 _oclGLImage2D::_oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
     : _oclImage2D(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1, 
+        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, (cl_mem_flags)flag, tex))
+{ }
+
+
+_oclGLImage3D::_oclGLImage3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
+    : _oclImage3D(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
         oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, (cl_mem_flags)flag, tex))
 { }
 

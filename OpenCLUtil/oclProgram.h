@@ -5,7 +5,6 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclImage.h"
-#include "oclPromiseTask.h"
 
 
 namespace oclu
@@ -24,7 +23,7 @@ struct CLProgConfig
 {
     using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
     map<string, DefineVal> Defines;
-    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable" };
+    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
 };
 
 namespace detail
@@ -56,6 +55,21 @@ public:
 }
 using oclProgram = Wrapper<detail::_oclProgram>;
 
+enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
+enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
+enum class KerArgFlag : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
+MAKE_ENUM_BITFIELD(KerArgFlag)
+struct KernelArgInfo
+{
+    string Name;
+    string Type;
+    KerArgSpace Space;
+    ImgAccess Access;
+    KerArgFlag Qualifier;
+    string_view GetSpace() const;
+    string_view GetImgAccess() const;
+    string GetQualifier() const;
+};
 
 namespace detail
 {
@@ -67,8 +81,11 @@ private:
     const oclProgram Prog;
     const cl_kernel Kernel;
     _oclKernel(const oclProgram& prog, const string& name);
+    void CheckArgIdx(const uint32_t idx) const;
 public:
     const string Name;
+    //const uint32_t ArgCount;
+    const vector<KernelArgInfo> ArgsInfo;
     ~_oclKernel();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
@@ -90,15 +107,15 @@ public:
     {
         return SetArg(idx, dat.data(), dat.size() * sizeof(T));
     }
-    oclPromise Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
+    PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
     template<uint8_t N>
-    oclPromise Run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
         return Run(N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint8_t N>
-    oclPromise Run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
         return Run(N, que, worksize, isBlock, workoffset, localsize);

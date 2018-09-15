@@ -76,6 +76,10 @@ static void OCLStub()
                     log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name, 
                         wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                         wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+                    for (const auto& arg : ker->ArgsInfo)
+                    {
+                        log().verbose(u"---[{:8}][{:9}]({:12})[{}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                    }
                 }
                 log().info(u"\n\n");
             }

@@ -187,7 +187,7 @@
     <ClInclude Include="oclImage.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
-    <ClInclude Include="oclPromiseTask.h" />
+    <ClInclude Include="oclPromise.hpp" />
     <ClInclude Include="oclRely.h" />
     <ClInclude Include="oclUtil.h" />
     <ClInclude Include="OpenCLUtil.h" />
@@ -206,7 +206,6 @@
     </ClCompile>
     <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
-    <ClCompile Include="oclPromiseTask.cpp" />
     <ClCompile Include="oclRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
