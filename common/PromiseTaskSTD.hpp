@@ -95,4 +95,13 @@ public:
 };
 
 
+template<typename T, typename U>
+inline PromiseResult<T> GetFinishedResult(U&& data)
+{
+    std::promise<T> pms;
+    auto ret = std::make_shared<PromiseResultSTD<T>>(pms);
+    pms.set_value(std::forward<U>(data));
+    return ret;
+}
+
 }

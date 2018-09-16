@@ -35,7 +35,7 @@ public:
         return { true, size.first * thredshold / larger, size.second * thredshold / larger };
     }
 
-    ThumbnailManager(const oglu::oglContext& ctx);
+    ThumbnailManager(const oglu::oglContext& glCtx, const oclu::oclContext& sharedCLCtx);
 
     std::shared_ptr<Image> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
 

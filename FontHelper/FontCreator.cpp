@@ -21,41 +21,6 @@ struct FontInfo
     uint8_t w, h;
 };
 
-
-auto FindPlatform(const std::vector<oclPlatform>& platforms, const oclu::Vendor vendor)
-{
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == vendor)
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::NVIDIA)
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::AMD)
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::Intel)
-            return plt;
-    return oclPlatform();
-}
-
-oclu::oclContext createOCLContext(const oclu::Vendor vendor)
-{
-    oclPlatform clPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
-    if (!clPlat)
-        return oclContext();
-    auto clCtx = clPlat->CreateContext();
-    fntLog().success(u"Created Context in platform {}!\n", clPlat->Name);
-    clCtx->onMessage = [](const u16string& errtxt)
-    {
-        fntLog().error(u"Error from context:\t{}\n", errtxt);
-    };
-    return clCtx;
-}
-
-static SharedResource<oclu::oclContext, const oclu::Vendor> clRes(createOCLContext);
-
-
 void FontCreator::loadCL(const string& src)
 {
     oclProgram clProg(clCtx, src);
@@ -112,17 +77,12 @@ void FontCreator::loadDownSampler(const string& src)
     kerDownSamp->SetArg(2, outputBuf);
 }
 
-FontCreator::FontCreator(const oclu::Vendor preferredVendor)
+FontCreator::FontCreator(const oclu::oclContext ctx) : clCtx(ctx)
 {
-    clCtx = createOCLContext(preferredVendor);
-    for (const auto& dev : clCtx->Devices)
-        if (dev->Type == DeviceType::GPU)
-        {
-            clQue.reset(clCtx, dev);
-            break;
-        }
-    if(!clQue)
-        COMMON_THROW(BaseException, u"clQueue initialized failed! There may be no GPU device found in platform");
+    const auto dev = ctx->GetGPUDevice();
+    if (!dev)
+        COMMON_THROW(BaseException, u"There may be no GPU device found in context");
+    clQue.reset(clCtx, dev);
 
     //prepare LUT
     {

@@ -100,6 +100,30 @@ static cl_mem CreateMem(const cl_context ctx, const cl_mem_flags flag, const cl_
     return id;
 }
 
+bool _oclImage::CheckFormatCompatible(oglu::TextureDataFormat format)
+{
+    try
+    {
+        ParseImageFormat(format);
+        return true;
+    }
+    catch (const BaseException&)
+    {
+        return false;
+    }
+}
+bool _oclImage::CheckFormatCompatible(oglu::TextureInnerFormat format)
+{
+    try
+    {
+        return CheckFormatCompatible(oglu::TexFormatUtil::ConvertDtypeFrom(format));
+    }
+    catch (const BaseException&)
+    {
+        return false;
+    }
+}
+
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, const cl_mem id)
     :Context(ctx), Width(width), Height(height), Depth(depth), Flags(flag), Format(dformat), memID(id)
 {
@@ -175,12 +199,42 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const boo
     image.SetSize(Width, Height*Depth);
     return _oclImage::Read(que, image.GetRawPtr(), shouldBlock);
 }
-
+PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
+{
+    auto pms = std::make_shared<detail::oclPromise<Image>>();
+    pms->Result = Image(oglu::TexFormatUtil::ConvertToImgType(Format, true));
+    pms->Result.SetSize(Width, Height*Depth);
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,Depth };
+    cl_event e;
+    const auto ret = clEnqueueReadImage(que->cmdque, memID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
+    glFlush();
+    return pms;
+}
+PromiseResult<common::AlignedBuffer<32>> _oclImage::ReadRaw(const oclCmdQue que) const
+{
+    const size_t size = Width * Height * Depth * oglu::TexFormatUtil::ParseFormatSize(Format);
+    auto pms = std::make_shared<detail::oclPromise<common::AlignedBuffer<32>>>(size);
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,Depth };
+    cl_event e;
+    const auto ret = clEnqueueReadImage(que->cmdque, memID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
+    glFlush();
+    return pms;
+}
 
 _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
     : _oclImage(ctx, flag, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D)
 { }
-
+_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const oclCmdQue que, const bool isNormalized)
+    : _oclImage2D(ctx, flag, image.GetWidth(), image.GetHeight(), image.GetDataType(), isNormalized)
+{
+    Write(que, image);
+}
 
 _oclImage3D::_oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat)
     : _oclImage(ctx, flag, width, height, depth, dformat, CL_MEM_OBJECT_IMAGE3D)

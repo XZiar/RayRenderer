@@ -209,7 +209,7 @@ public:
     //no check on pos, carefully use
     ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
-    ProgState& SetSubroutine(const string& subrName, const string& routineName);
+    ProgState& SetSubroutine(const string_view& subrName, const string_view& routineName);
 };
 
 
@@ -288,7 +288,7 @@ public:
     ProgDraw& SetUBO(const oglUBO& ubo, const string& name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
-    ProgDraw& SetSubroutine(const string& subrName, const string& routineName);
+    ProgDraw& SetSubroutine(const string_view& subrName, const string_view& routineName);
 
     ProgDraw& SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); return *this; }
     ProgDraw& SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); return *this; }

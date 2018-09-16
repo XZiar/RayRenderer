@@ -26,7 +26,7 @@ class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignB
 {
 private:
     oglContext glContext;
-    oclContext clContext;
+    oclContext ClContext, ClSharedContext;
     oglDrawProgram prog2D, prog3D, progPost;
     oglTex2DS picTex;
     oglTex2DV chkTex;

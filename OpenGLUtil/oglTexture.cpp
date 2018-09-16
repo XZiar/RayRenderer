@@ -623,6 +623,7 @@ GLenum TexFormatUtil::GetInnerFormat(const TextureInnerFormat format) noexcept
     case TextureInnerFormat::RGBAf:         return GL_RGBA32F;
     case TextureInnerFormat::RG11B10:       return GL_R11F_G11F_B10F;
     case TextureInnerFormat::RGB332:        return GL_R3_G3_B2;
+    case TextureInnerFormat::RGBA4444:      return GL_RGBA4;
     case TextureInnerFormat::RGB5A1:        return GL_RGB5_A1;
     case TextureInnerFormat::RGB565:        return GL_RGB565;
     case TextureInnerFormat::RGB10A2:       return GL_RGB10_A2;
@@ -658,6 +659,49 @@ TextureInnerFormat TexFormatUtil::ConvertFrom(const ImageDataType type, const bo
     case ImageDataType::GA:     return TextureInnerFormat::CHANNEL_RG   | baseFormat;
     default:                    return TextureInnerFormat::ERROR;
     }
+}
+TextureInnerFormat TexFormatUtil::ConvertFrom(const TextureDataFormat dformat) noexcept
+{
+    const bool isInteger = HAS_FIELD(dformat, TextureDataFormat::INTEGER_MASK);
+    if (HAS_FIELD(dformat, TextureDataFormat::TYPE_COMP))
+    {
+        switch (REMOVE_MASK(dformat, TextureDataFormat::REVERSE_MASK))
+        {
+        case TextureDataFormat::TYPE_10_2:      return isInteger ? TextureInnerFormat::RGB10A2U : TextureInnerFormat::RGB10A2;
+        case TextureDataFormat::TYPE_5551:      return TextureInnerFormat::RGB5A1;
+        case TextureDataFormat::TYPE_565:       return TextureInnerFormat::RGB565;
+        case TextureDataFormat::TYPE_4444:      return TextureInnerFormat::RGBA4444;
+        case TextureDataFormat::TYPE_332:       return TextureInnerFormat::RGB332;
+        }
+        return TextureInnerFormat::ERROR;
+    }
+    TextureInnerFormat format = TextureInnerFormat::EMPTY_MASK;
+    switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
+    {
+    case TextureDataFormat::TYPE_U8:        format |= isInteger ? TextureInnerFormat::CAT_U8 : TextureInnerFormat::CAT_UNORM8; break;
+    case TextureDataFormat::TYPE_I8:        format |= isInteger ? TextureInnerFormat::CAT_S8 : TextureInnerFormat::CAT_SNORM8; break;
+    case TextureDataFormat::TYPE_U16:       format |= isInteger ? TextureInnerFormat::CAT_U16 : TextureInnerFormat::CAT_UNORM16; break;
+    case TextureDataFormat::TYPE_I16:       format |= isInteger ? TextureInnerFormat::CAT_S16 : TextureInnerFormat::CAT_SNORM16; break;
+    case TextureDataFormat::TYPE_U32:       format |= isInteger ? TextureInnerFormat::CAT_U32 : TextureInnerFormat::CAT_UNORM32; break;
+    case TextureDataFormat::TYPE_I32:       format |= isInteger ? TextureInnerFormat::CAT_S32 : TextureInnerFormat::CAT_SNORM32; break;
+    case TextureDataFormat::TYPE_HALF:      format |= TextureInnerFormat::CAT_HALF; break;
+    case TextureDataFormat::TYPE_FLOAT:     format |= TextureInnerFormat::CAT_FLOAT; break;
+    default:                                break;
+    }
+    switch (dformat & TextureDataFormat::FORMAT_MASK)
+    {
+    case TextureDataFormat::FORMAT_R:       format |= TextureInnerFormat::CHANNEL_R; break;
+    case TextureDataFormat::FORMAT_G:       format |= TextureInnerFormat::CHANNEL_R; break;
+    case TextureDataFormat::FORMAT_B:       format |= TextureInnerFormat::CHANNEL_R; break;
+    case TextureDataFormat::FORMAT_A:       format |= TextureInnerFormat::CHANNEL_R; break;
+    case TextureDataFormat::FORMAT_RG:      format |= TextureInnerFormat::CHANNEL_RA; break;
+    case TextureDataFormat::FORMAT_RGB:     format |= TextureInnerFormat::CHANNEL_RGB; break;
+    case TextureDataFormat::FORMAT_BGR:     format |= TextureInnerFormat::CHANNEL_RGB; break;
+    case TextureDataFormat::FORMAT_RGBA:    format |= TextureInnerFormat::CHANNEL_RGBA; break;
+    case TextureDataFormat::FORMAT_BGRA:    format |= TextureInnerFormat::CHANNEL_RGBA; break;
+    default:                                break;
+    }
+    return format;
 }
 ImageDataType TexFormatUtil::ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert) noexcept
 {
@@ -1023,6 +1067,7 @@ u16string_view TexFormatUtil::GetFormatName(const TextureInnerFormat format) noe
     case TextureInnerFormat::RGBAf:         return u"RGBAf"sv;
     case TextureInnerFormat::RG11B10:       return u"RG11B10"sv;
     case TextureInnerFormat::RGB332:        return u"RGB332"sv;
+    case TextureInnerFormat::RGBA4444:      return u"RGBA4444"sv;
     case TextureInnerFormat::RGB5A1:        return u"RGB5A1"sv;
     case TextureInnerFormat::RGB565:        return u"RGB565"sv;
     case TextureInnerFormat::RGB10A2:       return u"RGB10A2"sv;

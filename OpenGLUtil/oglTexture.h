@@ -52,8 +52,8 @@ enum class TextureInnerFormat : uint16_t
     Rf = CAT_FLOAT | CHANNEL_R, RGf = CAT_FLOAT | CHANNEL_RG, RGBf = CAT_FLOAT | CHANNEL_RGB, RGBAf = CAT_FLOAT | CHANNEL_RGBA,
     //special
     RG11B10 = BITS_11 | FORMAT_FLOAT | FLAG_COMP | CHANNEL_RGB, 
-    RGB332 = BITS_2 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB, RGBA12 = BITS_12 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
-    RGB5A1 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB565 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
+    RGBA4444 = BITS_4 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGBA12 = BITS_12 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
+    RGB332 = BITS_2 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB, RGB5A1 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB565 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
     RGB10A2 = BITS_10 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB10A2U = BITS_10 | FORMAT_UINT | FLAG_COMP | CHANNEL_RGBA,
     //compressed(S3TC/DXT135,RGTC,BPTC)
     BC1 = BITS_4 | FORMAT_DXT1 | CHANNEL_RGB, BC1A = BITS_4 | FORMAT_DXT1 | CHANNEL_RGBA, BC2 = BITS_8 | FORMAT_DXT3 | CHANNEL_RGBA, BC3 = BITS_8 | FORMAT_DXT5 | CHANNEL_RGBA,
@@ -137,7 +137,7 @@ struct OGLUAPI TexFormatUtil
     }
     static bool IsSRGBType(const TextureInnerFormat format) noexcept { return HAS_FIELD(format, TextureInnerFormat::FLAG_SRGB); }
     static TextureInnerFormat ConvertFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
-    static xziar::img::ImageDataType ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert = false) noexcept;
+    static TextureInnerFormat ConvertFrom(const TextureDataFormat dformat) noexcept;
 
     static void ParseFormat(const TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept;
     static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat, const bool isUpload) noexcept
@@ -157,6 +157,7 @@ struct OGLUAPI TexFormatUtil
     static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
     static TextureDataFormat ConvertDtypeFrom(const TextureInnerFormat format);
     static TextureDataFormat ConvertDtypeFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
+    static xziar::img::ImageDataType ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert = false) noexcept;
     static xziar::img::ImageDataType ConvertToImgType(const TextureDataFormat format, const bool relaxConvert = false) noexcept;
     static u16string_view GetTypeName(const TextureType type) noexcept;
     static u16string_view GetFormatName(const TextureInnerFormat format) noexcept;

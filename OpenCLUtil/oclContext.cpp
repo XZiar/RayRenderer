@@ -71,6 +71,14 @@ _oclContext::~_oclContext()
 #endif
 }
 
+oclDevice _oclContext::GetGPUDevice() const
+{
+    const auto gpuDev = std::find_if(Devices.cbegin(), Devices.cend(), [&](const oclDevice& dev)
+    {
+        return dev->Type == DeviceType::GPU;
+    });
+    return gpuDev == Devices.cend() ? oclDevice{} : *gpuDev;
+}
 
 }
 

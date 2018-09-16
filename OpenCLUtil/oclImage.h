@@ -49,8 +49,14 @@ public:
 
     PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
     PromiseResult<void> Read(const oclCmdQue que, Image& image, const bool shouldBlock = true) const;
+    PromiseResult<Image> Read(const oclCmdQue que) const;
+    PromiseResult<common::AlignedBuffer<32>> ReadRaw(const oclCmdQue que) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width,Height, Depth }; }
+    oglu::TextureDataFormat GetFormat() const { return Format; }
+
+    static bool CheckFormatCompatible(oglu::TextureDataFormat format);
+    static bool CheckFormatCompatible(oglu::TextureInnerFormat format);
 };
 
 class OCLUAPI _oclImage2D : public _oclImage 
@@ -62,6 +68,7 @@ public:
     _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat);
     _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
         : _oclImage2D(ctx, flag, width, height, oglu::TexFormatUtil::ConvertDtypeFrom(dtype, isNormalized)) { }
+    _oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const oclCmdQue que, const bool isNormalized = true);
 };
 
 class OCLUAPI _oclImage3D : public _oclImage
@@ -78,9 +85,8 @@ public:
 class OCLUAPI _oclGLImage2D : public _oclImage2D, public GLShared<_oclGLImage2D>
 {
     friend class GLShared<_oclGLImage2D>;
-private:
-    const oglu::oglTex2D GlTex;
 public:
+    const oglu::oglTex2D GlTex;
     _oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex);
     virtual ~_oclGLImage2D() override {}
 };
@@ -88,9 +94,8 @@ public:
 class OCLUAPI _oclGLImage3D : public _oclImage3D, public GLShared<_oclGLImage3D>
 {
     friend class GLShared<_oclGLImage3D>;
-private:
-    const oglu::oglTex3D GlTex;
 public:
+    const oglu::oglTex3D GlTex;
     _oclGLImage3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex);
     virtual ~_oclGLImage3D() override {}
 };

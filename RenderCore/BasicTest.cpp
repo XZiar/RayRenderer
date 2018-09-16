@@ -38,6 +38,114 @@ static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
     return getShaderFromDLL(id);
 }
 
+static oclPlatform FindPlatform(const std::vector<oclPlatform>& platforms, const Vendor vendor)
+{
+    const auto FindHasGPU = [](const oclPlatform& plat) 
+    {
+        return std::any_of(plat->GetDevices().cbegin(), plat->GetDevices().cend(),
+            [](const oclDevice& dev) { return dev->Type == DeviceType::GPU; });
+    };
+    for (const auto& plt : platforms)
+        if (plt->PlatVendor == vendor && FindHasGPU(plt))
+            return plt;
+    for (const auto& plt : platforms)
+        if (plt->PlatVendor == Vendor::NVIDIA && FindHasGPU(plt))
+            return plt;
+    for (const auto& plt : platforms)
+        if (plt->PlatVendor == Vendor::AMD && FindHasGPU(plt))
+            return plt;
+    for (const auto& plt : platforms)
+        if (plt->PlatVendor == Vendor::Intel && FindHasGPU(plt))
+            return plt;
+    for (const auto& plt : platforms)
+        if (FindHasGPU(plt))
+            return plt;
+    return oclPlatform();
+}
+static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, const oglContext glContext)
+{
+    const auto venderClPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
+    const auto glPlat = std::find_if(oclUtil::getPlatforms().cbegin(), oclUtil::getPlatforms().cend(), [&](const oclPlatform& plat) 
+    {
+        return plat->IsGLShared(glContext);
+    });
+    oclContext defCtx, sharedCtx;
+    if (!venderClPlat)
+        COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");
+    if (glPlat != oclUtil::getPlatforms().cend())
+    {
+        sharedCtx = (*glPlat)->CreateContext(glContext);
+        basLog().success(u"Created Shared OCLContext in platform {}!\n", (*glPlat)->Name);
+        sharedCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
+        if (*glPlat == venderClPlat)
+            defCtx = sharedCtx;
+    }
+    defCtx = venderClPlat->CreateContext();
+    basLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
+    defCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from CLContext:\t{}\n", errtxt); };
+    return { defCtx, sharedCtx };
+}
+
+BasicTest::BasicTest(const fs::path& shaderPath)
+{
+    static Init _init;
+    const auto oriCtx = oglu::oglContext::CurrentContext();
+    oriCtx->SetRetain(true);
+    glContext = oglu::oglContext::NewContext(oriCtx);
+    glContext->UseContext();
+    //glContext = oglu::oglContext::CurrentContext();
+    {
+        const auto ctxs = CreateOCLContext(Vendor::NVIDIA, glContext);
+        ClContext = ctxs.first; ClSharedContext = ctxs.second;
+    }
+    ThumbMan.reset(glContext, ClSharedContext);
+    GLWorker.reset(u"Core");
+    GLWorker->Start();
+    //for reverse-z
+    glContext->SetDepthClip(true);
+    glContext->SetDepthTest(DepthTestType::GreaterEqual);
+    //glContext->SetFaceCulling(FaceCullingType::CullCW);
+    cam.Resize(1280, 720);
+    cam.zNear = 0.01f;
+    fontViewer.reset();
+    fontCreator.reset(ClContext);
+    Basepath = u"C:\\Programs Temps\\RayRenderer";
+    if (!fs::exists(Basepath))
+        Basepath = u"D:\\ProgramsTemps\\RayRenderer";
+    fontCreator->reloadFont(Basepath / u"test.ttf");
+
+    fontTest(/*U'啊'*/);
+    initTex();
+    init2d(shaderPath);
+    init3d(shaderPath);
+    {
+        Wrapper<Pyramid> pyramid(1.0f);
+        pyramid->Name = u"Pyramid";
+        pyramid->position = { 0,0,0 };
+        AddObject(pyramid);
+        Wrapper<Sphere> ball(0.75f);
+        ball->Name = u"Ball";
+        ball->position = { 1,0,0 };
+        AddObject(ball);
+        Wrapper<Box> box(0.5f, 1.0f, 2.0f);
+        box->Name = u"Box";
+        box->position = { 0,1,0 };
+        AddObject(box);
+        Wrapper<Plane> ground(500.0f, 50.0f);
+        ground->Name = u"Ground";
+        ground->position = { 0,-2,0 };
+        AddObject(ground);
+    }
+    MiddleFrame.reset();
+    ResizeFBO(1280, 720, true);
+    //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
+    initUBO();
+    glProgs.insert(prog2D);
+    glProgs.insert(progPost);
+    glProgs.insert(Prog3Ds.cbegin(), Prog3Ds.cend());
+    glProgs.insert(fontViewer->prog);
+}
+
 void BasicTest::init2d(const fs::path& shaderPath)
 {
     {
@@ -248,61 +356,6 @@ void BasicTest::fontTest(const char32_t word)
     }
 }
 
-BasicTest::BasicTest(const fs::path& shaderPath)
-{
-    static Init _init;
-    const auto oriCtx = oglu::oglContext::CurrentContext();
-    oriCtx->SetRetain(true);
-    glContext = oglu::oglContext::NewContext(oriCtx);
-    glContext->UseContext();
-    //glContext = oglu::oglContext::CurrentContext();
-    ThumbMan.reset(glContext);
-    GLWorker.reset(u"Core");
-    GLWorker->Start();
-    //for reverse-z
-    glContext->SetDepthClip(true);
-    glContext->SetDepthTest(DepthTestType::GreaterEqual);
-    //glContext->SetFaceCulling(FaceCullingType::CullCW);
-    cam.Resize(1280, 720);
-    cam.zNear = 0.01f;
-    fontViewer.reset();
-    fontCreator.reset(oclu::Vendor::NVIDIA);
-    Basepath = u"C:\\Programs Temps\\RayRenderer";
-    if (!fs::exists(Basepath))
-        Basepath = u"D:\\ProgramsTemps\\RayRenderer";
-    fontCreator->reloadFont(Basepath / u"test.ttf");
-
-    fontTest(/*U'啊'*/);
-    initTex();
-    init2d(shaderPath);
-    init3d(shaderPath);
-    {
-        Wrapper<Pyramid> pyramid(1.0f);
-        pyramid->Name = u"Pyramid";
-        pyramid->position = { 0,0,0 };
-        AddObject(pyramid);
-        Wrapper<Sphere> ball(0.75f);
-        ball->Name = u"Ball";
-        ball->position = { 1,0,0 };
-        AddObject(ball);
-        Wrapper<Box> box(0.5f, 1.0f, 2.0f);
-        box->Name = u"Box";
-        box->position = { 0,1,0 };
-        AddObject(box);
-        Wrapper<Plane> ground(500.0f, 50.0f);
-        ground->Name = u"Ground";
-        ground->position = { 0,-2,0 };
-        AddObject(ground);
-    }
-    MiddleFrame.reset();
-    ResizeFBO(1280, 720, true);
-    //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
-    initUBO();
-    glProgs.insert(prog2D);
-    glProgs.insert(progPost);
-    glProgs.insert(Prog3Ds.cbegin(), Prog3Ds.cend());
-    glProgs.insert(fontViewer->prog);
-}
 void BasicTest::RefreshContext() const
 {
     oglu::oglContext::Refresh();

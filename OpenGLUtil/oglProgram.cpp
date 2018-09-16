@@ -728,7 +728,7 @@ ProgState& ProgState::SetSubroutine(const SubroutineResource::Routine* routine)
     return *this;
 }
 
-ProgState& ProgState::SetSubroutine(const string& subrName, const string& routineName)
+ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_view& routineName)
 {
     if (auto pSubr = FindInSet(Prog.SubroutineRess, subrName))
     {
@@ -1004,7 +1004,7 @@ ProgDraw& ProgDraw::SetSubroutine(const SubroutineResource::Routine* routine)
     return *this;
 }
 
-ProgDraw& ProgDraw::SetSubroutine(const string& subrName, const string& routineName)
+ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view& routineName)
 {
     if (auto pSubr = FindInSet(Prog.SubroutineRess, subrName))
     {

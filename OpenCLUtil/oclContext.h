@@ -32,6 +32,7 @@ private:
 public:
     MessageCallBack onMessage = nullptr;
     ~_oclContext();
+    oclDevice GetGPUDevice() const;
 };
 
 }

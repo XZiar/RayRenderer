@@ -13,7 +13,9 @@ class oclPromiseCore
     friend class _oclImage;
     friend class _oclKernel;
 protected:
-    const cl_event Event;
+    cl_event Event;
+    std::exception_ptr Exception;
+    oclPromiseCore() { }
     oclPromiseCore(const cl_event e, const cl_command_queue que) : Event(e) 
     { 
         clFlush(que);
@@ -58,6 +60,8 @@ protected:
         clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
         return to - from;
     }
+    cl_event& GetEvent() { return Event; }
+    void SetException(const std::exception_ptr ex) { Exception = ex; }
 };
 
 template<typename T>
@@ -70,6 +74,9 @@ public:
     oclPromise(const cl_event e, const cl_command_queue que) : oclPromiseCore(e, que) { }
     template<typename U>
     oclPromise(const cl_event e, const cl_command_queue que, U&& data) : oclPromiseCore(e, que), Result(std::forward<U>(data)) { }
+    oclPromise() { }
+    template<typename U>
+    oclPromise(U&& data) : Result(std::forward<U>(data)) { }
     ~oclPromise() override { }
     common::PromiseState virtual state() override { return State(); }
     T wait() override
@@ -86,6 +93,7 @@ class oclPromiseVoid : public ::common::detail::PromiseResult_<void>, public ocl
     friend class _oclImage;
     friend class _oclKernel;
 public:
+    oclPromiseVoid() { }
     oclPromiseVoid(const cl_event e, const cl_command_queue que) : oclPromiseCore(e, que) { }
     ~oclPromiseVoid() override { }
     common::PromiseState virtual state() override { return oclPromiseCore::State(); }

@@ -20,7 +20,7 @@ private:
     void loadCL(const string& src);
     void loadDownSampler(const string& src);
 public:
-    FontCreator(const oclu::Vendor preferredVendor = oclu::Vendor::NVIDIA);
+    FontCreator(const oclu::oclContext ctx);
     ~FontCreator();
     void reloadFont(const fs::path& fontpath);
     void reload(const string& src);

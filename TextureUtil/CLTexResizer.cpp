@@ -9,7 +9,7 @@ namespace oglu::texutil
 {
 using namespace oclu;
 
-CLTexResizer::CLTexResizer(oglContext&& glContext) : Executor(u"CLTexResizer"), GLContext(glContext)
+CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) : Executor(u"CLTexResizer"), GLContext(glContext), CLContext(clContext)
 {
     Executor.Start([this]
     {
@@ -22,17 +22,12 @@ CLTexResizer::CLTexResizer(oglContext&& glContext) : Executor(u"CLTexResizer"), 
         }
         texLog().info(u"CLTexResizer use GL context with version {}\n", oglUtil::GetVersionStr());
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-        CLContext = oclUtil::CreateGLSharedContext(GLContext);
         if (!CLContext)
         {
             texLog().error(u"CLTexResizer cannot create shared CL context from given OGL context\n");
             return;
         }
-        CLContext->onMessage = [](const u16string& errtxt)
-        {
-            texLog().error(u"Error from context:\t{}\n", errtxt);
-        };
-        ComQue.reset(CLContext, CLContext->Devices[0]);
+        ComQue.reset(CLContext, CLContext->GetGPUDevice());
         if (!ComQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
 

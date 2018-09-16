@@ -189,6 +189,7 @@
     </ClCompile>
     <ClCompile Include="TexCompressor.cpp" />
     <ClCompile Include="GLTexResizer.cpp" />
+    <ClCompile Include="TexResizer.cpp" />
     <ClCompile Include="TexUtilRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -203,6 +204,7 @@
     <ClInclude Include="STBCompress.inl" />
     <ClInclude Include="TexCompressor.h" />
     <ClInclude Include="GLTexResizer.h" />
+    <ClInclude Include="TexResizer.h" />
     <ClInclude Include="TexUtilRely.h" />
   </ItemGroup>
   <ItemGroup>
