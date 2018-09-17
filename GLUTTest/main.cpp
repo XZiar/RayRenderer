@@ -98,8 +98,8 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             curObj--;
             break;
         }
-        printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->cam.Right().x, tester->cam.Right().y, tester->cam.Right().z,
-            tester->cam.Up().x, tester->cam.Up().y, tester->cam.Up().z, tester->cam.Toward().x, tester->cam.Toward().y, tester->cam.Toward().z);
+        //printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->cam.Right().x, tester->cam.Right().y, tester->cam.Right().z,
+        //    tester->cam.Up().x, tester->cam.Up().y, tester->cam.Up().z, tester->cam.Toward().x, tester->cam.Toward().y, tester->cam.Toward().z);
         break;
     }
     wd->refresh();

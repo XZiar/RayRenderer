@@ -1,7 +1,6 @@
 #include "RenderCoreRely.h"
 #include "ThumbnailManager.h"
-#include "TextureUtil/GLTexResizer.h"
-#include "TextureUtil/CLTexResizer.h"
+#include "TextureUtil/TexResizer.h"
 
 
 namespace rayr::detail
@@ -11,6 +10,7 @@ using common::asyexe::AsyncAgent;
 using oglu::oglTex2D;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
+using oglu::texutil::ResizeMethod;
 
 
 std::shared_ptr<Image> ThumbnailManager::GetThumbnail(const std::weak_ptr<void>& weakref) const
@@ -30,7 +30,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             const auto& tex = std::get<oglTex2D>(holder);
             const auto&[needResize, neww, newh] = CalcSize(tex->GetSize());
             if (needResize)
-                return GlResizer->ResizeToDat(tex, neww, newh, ImageDataType::RGBA);
+                return Resizer->ResizeToImg<ResizeMethod::Compute>(tex, neww, newh, ImageDataType::RGBA);
             else
                 ThumbnailMap.emplace(weakref, std::make_shared<Image>(tex->GetImage(ImageDataType::RGB)));
         }
@@ -43,9 +43,9 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             if (needResize)
             {
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
                 else
-                    return GlResizer->ResizeToDat(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
             }
             else
             {
@@ -82,8 +82,7 @@ void ThumbnailManager::InnerWaitPmss(const PmssType& pmss)
 
 
 ThumbnailManager::ThumbnailManager(const oglu::oglContext& glCtx, const oclu::oclContext& sharedCLCtx)
-    : GlResizer(std::make_shared<oglu::texutil::GLTexResizer>(oglu::oglContext::NewContext(glCtx, true))),
-    ClResizer(std::make_shared<oglu::texutil::CLTexResizer>(oglu::oglContext::NewContext(glCtx, true), sharedCLCtx))
+    : Resizer(std::make_shared<oglu::texutil::TexResizer>(oglu::oglContext::NewContext(glCtx, true), sharedCLCtx))
 { }
 
 }

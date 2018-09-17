@@ -100,6 +100,7 @@ public:
     template<class T>
     void SetSimpleArg(const uint32_t idx, const T &dat)
     {
+        static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
         return SetArg(idx, &dat, sizeof(T));
     }
     template<class T, typename A>

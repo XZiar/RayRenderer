@@ -423,7 +423,6 @@ class OGLUAPI _oglImgBase : public NonMovable, public oglCtxObject<true>
     friend class ProgDraw;
 protected:
     Wrapper<detail::_oglTexBase> InnerTex;
-    TextureDataFormat DataType;
     TexImgUsage Usage;
     static TexImgManager& getImgMan() noexcept;
     GLuint GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }

@@ -523,7 +523,7 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
     CheckCurrent();
     InnerBuf = tbo;
     InnerFormat = iformat;
-    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, (GLenum)iformat, tbo->bufferID);
+    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, TexFormatUtil::GetInnerFormat(iformat), tbo->bufferID);
 }
 
 
@@ -555,7 +555,7 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
 void _oglImgBase::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
-    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, (GLenum)InnerTex->GetInnerFormat());
+    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, TexFormatUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
 }
 
 void _oglImgBase::unbind() const noexcept
@@ -647,8 +647,8 @@ GLenum TexFormatUtil::GetInnerFormat(const TextureInnerFormat format) noexcept
 }
 TextureInnerFormat TexFormatUtil::ConvertFrom(const ImageDataType type, const bool normalized) noexcept
 {
-    TextureInnerFormat baseFormat = HAS_FIELD(type, ImageDataType::FLOAT_MASK) ? TextureInnerFormat::FORMAT_FLOAT :
-        (normalized ? TextureInnerFormat::FORMAT_UNORM : TextureInnerFormat::FORMAT_UINT) | TextureInnerFormat::FLAG_SRGB;
+    TextureInnerFormat baseFormat = HAS_FIELD(type, ImageDataType::FLOAT_MASK) ? TextureInnerFormat::CAT_FLOAT :
+        (normalized ? TextureInnerFormat::CAT_UNORM8 : TextureInnerFormat::CAT_U8) | TextureInnerFormat::FLAG_SRGB;
     switch (REMOVE_MASK(type, ImageDataType::FLOAT_MASK))
     {
     case ImageDataType::RGB:
@@ -710,20 +710,20 @@ ImageDataType TexFormatUtil::ConvertToImgType(const TextureInnerFormat format, c
         ImageDataType dtype;
         switch (format & TextureInnerFormat::CHANNEL_MASK)
         {
-        case TextureInnerFormat::CHANNEL_R:      dtype = ImageDataType::RED; break;
-        case TextureInnerFormat::CHANNEL_RG:     dtype = ImageDataType::RA; break;
-        case TextureInnerFormat::CHANNEL_RGB:    dtype = ImageDataType::RGB; break;
-        case TextureInnerFormat::CHANNEL_RGBA:   dtype = ImageDataType::RGBA; break;
-        default:                            return ImageDataType::UNKNOWN_RESERVE;
+        case TextureInnerFormat::CHANNEL_R:     dtype = ImageDataType::RED; break;
+        case TextureInnerFormat::CHANNEL_RG:    dtype = ImageDataType::RA; break;
+        case TextureInnerFormat::CHANNEL_RGB:   dtype = ImageDataType::RGB; break;
+        case TextureInnerFormat::CHANNEL_RGBA:  dtype = ImageDataType::RGBA; break;
+        default:                                return ImageDataType::UNKNOWN_RESERVE;
         }
         switch (format & TextureInnerFormat::CAT_MASK)
         {
         case TextureInnerFormat::CAT_SNORM8:
         case TextureInnerFormat::CAT_U8:
-        case TextureInnerFormat::CAT_S8:         if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; //only pass through when relaxConvert
-        case TextureInnerFormat::CAT_UNORM8:     return dtype;
-        case TextureInnerFormat::CAT_FLOAT:      return dtype | ImageDataType::FLOAT_MASK;
-        default:                            return ImageDataType::UNKNOWN_RESERVE;
+        case TextureInnerFormat::CAT_S8:        if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; //only pass through when relaxConvert
+        case TextureInnerFormat::CAT_UNORM8:    return dtype;
+        case TextureInnerFormat::CAT_FLOAT:     return dtype | ImageDataType::FLOAT_MASK;
+        default:                                return ImageDataType::UNKNOWN_RESERVE;
         }
     }
     return ImageDataType::UNKNOWN_RESERVE;

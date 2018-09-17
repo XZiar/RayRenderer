@@ -28,7 +28,8 @@ kernel void ResizeToDat4(read_only image2d_t input, global uchar* restrict outpu
     if (coordX < info.DestWidth && coordY < info.DestHeight)
     {
         private const float2 texPos = (float2)(info.WidthStep * coordX, info.HeightStep * coordY);
-        private const float4 color = read_imagef(input, defsampler, texPos);
+        private float4 color = read_imagef(input, defsampler, texPos);
+        if (isSrgb) color.xyz = pow(color.xyz, (float3)(1.0f / 2.2f));
         private const uchar4 bcolor = convert_uchar4_sat(color * 255.0f);
         private uint offset = coordY * info.DestWidth + coordX;
         vstore4(bcolor, offset, output);
@@ -40,7 +41,8 @@ kernel void ResizeToDat3(read_only image2d_t input, global uchar* restrict outpu
     if (coordX < info.DestWidth && coordY < info.DestHeight)
     {
         private const float2 texPos = (float2)(info.WidthStep * coordX, info.HeightStep * coordY);
-        private const float3 color = read_imagef(input, defsampler, texPos).xyz;
+        private float3 color = read_imagef(input, defsampler, texPos).xyz;
+        if (isSrgb) color.xyz = pow(color.xyz, (float3)(1.0f / 2.2f));
         private const uchar3 bcolor = convert_uchar3_sat(color * 255.0f);
         private uint offset = coordY * info.DestWidth + coordX;
         vstore3(bcolor, offset, output);
