@@ -82,6 +82,15 @@ using MessageCallBack = std::function<void(const u16string&)>;
 
 enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
 
+enum class MemFlag : cl_mem_flags
+{
+    ReadOnly = CL_MEM_READ_ONLY, WriteOnly = CL_MEM_WRITE_ONLY, ReadWrite = CL_MEM_READ_WRITE,
+    UseHost = CL_MEM_USE_HOST_PTR, HostAlloc = CL_MEM_ALLOC_HOST_PTR, HostCopy = CL_MEM_COPY_HOST_PTR,
+    HostWriteOnly = CL_MEM_HOST_WRITE_ONLY, HostReadOnly = CL_MEM_HOST_READ_ONLY, HostNoAccess = CL_MEM_HOST_NO_ACCESS,
+    DeviceAccessMask = ReadOnly | WriteOnly | ReadWrite, HostInitMask = UseHost | HostAlloc | HostCopy, HostAccessMask = HostWriteOnly | HostReadOnly | HostNoAccess,
+};
+MAKE_ENUM_BITFIELD(MemFlag)
+
 namespace detail
 {
 class _oclContext;

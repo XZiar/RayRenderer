@@ -44,11 +44,11 @@ static cl_image_format ParseImageFormat(const TextureDataFormat dformat)
         case TextureDataFormat::TYPE_I8:     format.image_channel_data_type = CL_SNORM_INT8; break;
         case TextureDataFormat::TYPE_U16:    format.image_channel_data_type = CL_UNORM_INT16; break;
         case TextureDataFormat::TYPE_I16:    format.image_channel_data_type = CL_SNORM_INT16; break;
-        case TextureDataFormat::TYPE_565:    format.image_channel_data_type = CL_UNORM_SHORT_565; break;
-        case TextureDataFormat::TYPE_5551:   format.image_channel_data_type = CL_UNORM_SHORT_555; break;
-        case TextureDataFormat::TYPE_10_2:   format.image_channel_data_type = CL_UNORM_INT_101010; break;
         case TextureDataFormat::TYPE_HALF:   format.image_channel_data_type = CL_HALF_FLOAT; break;
         case TextureDataFormat::TYPE_FLOAT:  format.image_channel_data_type = CL_FLOAT; break;
+        case TextureDataFormat::TYPE_565:    format.image_channel_data_type = CL_UNORM_SHORT_565; format.image_channel_order = CL_RGBx; return format;
+        case TextureDataFormat::TYPE_5551:   format.image_channel_data_type = CL_UNORM_SHORT_555; format.image_channel_order = CL_RGBx; return format;
+        case TextureDataFormat::TYPE_10_2:   format.image_channel_data_type = CL_UNORM_INT_101010; format.image_channel_order = CL_RGBx; return format;
         default: COMMON_THROW(OCLWrongFormatException, u"unsupported normalized/float format", dformat);
         }
     }
@@ -243,13 +243,13 @@ _oclImage3D::_oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32
 
 _oclGLImage2D::_oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
     : _oclImage2D(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1, 
-        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, (cl_mem_flags)flag, tex))
+        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, flag, tex))
 { }
 
 
 _oclGLImage3D::_oclGLImage3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
     : _oclImage3D(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
-        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, (cl_mem_flags)flag, tex))
+        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, flag, tex))
 { }
 
 

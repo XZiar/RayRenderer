@@ -18,7 +18,7 @@ static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const voi
 {
     const _oclContext& ctx = *(_oclContext*)user_data;
     const auto u16Info = str::to_u16string(errinfo);
-    oclLog().verbose(u16Info);
+    oclLog().verbose("{}\n", u16Info);
     if (ctx.onMessage)
         ctx.onMessage(u16Info);
     return;

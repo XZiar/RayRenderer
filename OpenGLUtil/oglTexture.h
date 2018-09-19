@@ -95,6 +95,8 @@ enum class TextureDataFormat : uint16_t
     Rh = FORMAT_R | TYPE_HALF, RGh = FORMAT_RG | TYPE_HALF, RGBh = FORMAT_RGB | TYPE_HALF, BGRh = FORMAT_BGR | TYPE_HALF, RGBAh = FORMAT_RGBA | TYPE_HALF, BGRAh = FORMAT_BGRA | TYPE_HALF,
     //float(FP32)
     Rf = FORMAT_R | TYPE_FLOAT, RGf = FORMAT_RG | TYPE_FLOAT, RGBf = FORMAT_RGB | TYPE_FLOAT, BGRf = FORMAT_BGR | TYPE_FLOAT, RGBAf = FORMAT_RGBA | TYPE_FLOAT, BGRAf = FORMAT_BGRA | TYPE_FLOAT,
+    //composite
+    RGB10A2 = FORMAT_RGBA | TYPE_10_2, RGB10A2U = RGB10A2 | INTEGER_MASK,
 };
 MAKE_ENUM_BITFIELD(TextureDataFormat)
 
@@ -449,6 +451,7 @@ using oglTex2DD = Wrapper<detail::_oglTexture2DDynamic>;
 using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
 using oglTex3D = Wrapper<detail::_oglTexture3D>;
+using oglTex3DS = Wrapper<detail::_oglTexture3DStatic>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 using oglImgBase = Wrapper<detail::_oglImgBase>;
 using oglImg2D = Wrapper<detail::_oglImg2D>;

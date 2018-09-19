@@ -8,6 +8,7 @@
 #include "Material.h"
 #include "FontHelper/FontHelper.h"
 #include "ThumbnailManager.h"
+#include "PostProcessor.h"
 
 namespace rayr
 {
@@ -27,6 +28,7 @@ class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignB
 private:
     oglContext glContext;
     oclContext ClContext, ClSharedContext;
+    oclCmdQue ClQue;
     oglDrawProgram prog2D, prog3D, progPost;
     oglTex2DS picTex;
     oglTex2DV chkTex;
@@ -38,6 +40,7 @@ private:
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
     Wrapper<detail::ThumbnailManager> ThumbMan;
+    Wrapper<PostProcessor> PostProc;
     Wrapper<oglu::oglWorker> GLWorker;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;

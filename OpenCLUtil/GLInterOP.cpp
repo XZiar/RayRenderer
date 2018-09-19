@@ -8,20 +8,25 @@ namespace detail
 {
 
 
-cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, const cl_mem_flags flag, const oglu::oglBuffer& buf)
+cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& buf)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx->context, flag, buf->bufferID, &errcode);
+    const auto id = clCreateFromGLBuffer(ctx->context, (cl_mem_flags)flag, buf->bufferID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glBuffer", errcode));
     return id;
 }
-cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, const cl_mem_flags flag, const oglu::oglTexBase& tex)
+cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex)
 {
+    if (HAS_FIELD(flag, MemFlag::HostAccessMask) || HAS_FIELD(flag, MemFlag::HostInitMask))
+    {
+        flag &= MemFlag::DeviceAccessMask;
+        oclLog().warning(u"When Create CLGLImage, only DeviceAccessFlag can be use, others are ignored.\n");
+    }
     cl_int errcode;
     if (oglu::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx->context, flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
+    const auto id = clCreateFromGLTexture(ctx->context, (cl_mem_flags)flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glTexture", errcode));
     return id;
