@@ -7,17 +7,19 @@ namespace rayr
 
 class PostProcessor
 {
+    friend class BasicTest;
 private:
     oclu::oclContext CLContext;
     oclu::oclCmdQue CmdQue;
     oclu::oclProgram LutProg;
     oclu::oclKernel LutGenerator;
+    oglu::oglContext GLContext;
     oglu::oglTex3DS LutTex;
-    oclu::oclGLImg3D LutImg;
-    oclu::oclImg3D LutImgRaw;
+    oglu::oglImg3D LutImg;
+    oglu::oglComputeProgram LutGenerator2;
     float Exposure = 1.0f;
     bool ShouldUpdate = true;
-    void UpdateLut();
+    bool UpdateLut();
 public:
     PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que);
     ~PostProcessor();

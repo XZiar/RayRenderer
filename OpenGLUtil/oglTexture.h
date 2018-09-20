@@ -426,20 +426,26 @@ class OGLUAPI _oglImgBase : public NonMovable, public oglCtxObject<true>
 protected:
     Wrapper<detail::_oglTexBase> InnerTex;
     TexImgUsage Usage;
+    const bool IsLayered;
     static TexImgManager& getImgMan() noexcept;
     GLuint GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
-    _oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage);
+    _oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered);
 public:
     TextureType GetType() const { return InnerTex->Type; }
 };
 
 class OGLUAPI _oglImg2D : public _oglImgBase
 {
-protected:
 public:
     _oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage);
+};
+
+class OGLUAPI _oglImg3D : public _oglImgBase
+{
+public:
+    _oglImg3D(const Wrapper<detail::_oglTexture3D>& tex, const TexImgUsage usage);
 };
 
 }
@@ -455,6 +461,7 @@ using oglTex3DS = Wrapper<detail::_oglTexture3DStatic>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 using oglImgBase = Wrapper<detail::_oglImgBase>;
 using oglImg2D = Wrapper<detail::_oglImg2D>;
+using oglImg3D = Wrapper<detail::_oglImg3D>;
 
 
 }

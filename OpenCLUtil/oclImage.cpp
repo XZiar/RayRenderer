@@ -19,7 +19,44 @@ void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
 
 using oglu::TextureDataFormat;
 
-
+TextureDataFormat ParseImageFormat(const cl_image_format& format)
+{
+    TextureDataFormat dformat = TextureDataFormat::EMPTY_MASK;
+    switch(format.image_channel_data_type)
+    {
+    case CL_SIGNED_INT8:        dformat |= TextureDataFormat::TYPE_I8  | TextureDataFormat::INTEGER_MASK; break;
+    case CL_UNSIGNED_INT8:      dformat |= TextureDataFormat::TYPE_U8  | TextureDataFormat::INTEGER_MASK; break;
+    case CL_SIGNED_INT16:       dformat |= TextureDataFormat::TYPE_I16 | TextureDataFormat::INTEGER_MASK; break;
+    case CL_UNSIGNED_INT16:     dformat |= TextureDataFormat::TYPE_U16 | TextureDataFormat::INTEGER_MASK; break;
+    case CL_SIGNED_INT32:       dformat |= TextureDataFormat::TYPE_I32 | TextureDataFormat::INTEGER_MASK; break;
+    case CL_UNSIGNED_INT32:     dformat |= TextureDataFormat::TYPE_U32 | TextureDataFormat::INTEGER_MASK; break;
+    case CL_SNORM_INT8:         dformat |= TextureDataFormat::TYPE_I8; break;
+    case CL_UNORM_INT8:         dformat |= TextureDataFormat::TYPE_U8; break;
+    case CL_SNORM_INT16:        dformat |= TextureDataFormat::TYPE_I16; break;
+    case CL_UNORM_INT16:        dformat |= TextureDataFormat::TYPE_U16; break;
+    case CL_HALF_FLOAT:         dformat |= TextureDataFormat::TYPE_HALF; break;
+    case CL_FLOAT:              dformat |= TextureDataFormat::TYPE_FLOAT; break;
+    case CL_UNORM_SHORT_565:    dformat |= TextureDataFormat::TYPE_565; break;
+    case CL_UNORM_SHORT_555:    dformat |= TextureDataFormat::TYPE_5551; break;
+    case CL_UNORM_INT_101010:   dformat |= TextureDataFormat::TYPE_10_2; break;
+    default:                    return TextureDataFormat::EMPTY_MASK;
+    }
+    switch(format.image_channel_order)
+    {
+    case CL_A:
+    case CL_LUMINANCE:
+    case CL_INTENSITY:
+    case CL_R:          dformat |= TextureDataFormat::FORMAT_R; break;
+    case CL_RA:
+    case CL_RG:         dformat |= TextureDataFormat::FORMAT_RG; break;
+    case CL_RGB:        dformat |= TextureDataFormat::FORMAT_RGB; break;
+    case CL_RGBx:
+    case CL_RGBA:       dformat |= TextureDataFormat::FORMAT_RGBA; break;
+    case CL_BGRA:       dformat |= TextureDataFormat::FORMAT_BGRA; break;
+    default:            return TextureDataFormat::EMPTY_MASK;
+    }
+    return dformat;
+}
 static cl_image_format ParseImageFormat(const TextureDataFormat dformat)
 {
     cl_image_format format;
@@ -132,10 +169,6 @@ _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t w
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type)
     :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, (cl_mem_flags)flag, CreateImageDesc(type, width, height, depth), dformat))
 { }
-PromiseResult<void> _oclImage::ReturnPromise(cl_event e, const oclCmdQue que)
-{
-    return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
-}
 
 
 _oclImage::~_oclImage()
@@ -169,7 +202,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, cons
     if (shouldBlock)
         return {};
     else
-        return ReturnPromise(e, que);
+        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
@@ -191,7 +224,7 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool 
     if (shouldBlock)
         return {};
     else
-        return ReturnPromise(e, que);
+        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
 {

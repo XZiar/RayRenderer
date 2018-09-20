@@ -34,11 +34,12 @@ void main()
 #ifdef OGLU_FRAG
 
 uniform sampler2D tex[4];
+uniform sampler3D lut;
 
 //@OGLU@Property("gamma", FLOAT, "gamma correction", 0.4, 3.2)
 uniform float gamma = 2.2f;
 
-//@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 5.0)
+//@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 10.0)
 uniform float exposure = 1.0f;
 
 OGLU_ROUTINE(ToneMapping, ToneMap, vec3, const vec3 color)
@@ -76,11 +77,38 @@ vec3 GammaCorrect(const vec3 color)
     return pow(color, vec3(1.0f / gamma));
 }
 
+
+//Range compression
+
+vec3 LinearToLogP1(const vec3 val)
+{
+    return val / (val + 1.0f);
+}
+vec3 LogP1ToLinear(const vec3 val)
+{
+    return val / (1.0f - val);
+}
+
 out vec4 FragColor;
 
 void main() 
 {
-    const vec3 color = ToneMap(texture(tex[0], tpos).rgb);
+    //const vec3 color = ToneMap(texture(tex[0], tpos).rgb);
+    const vec3 linColor = texture(tex[0], tpos).rgb;
+    const vec3 logColor = LinearToLogP1(linColor * exposure);
+    vec3 color;
+    if (tpos.x < 0.25f)
+        color = linColor;
+    else if (tpos.x < 0.5f)
+        color = logColor;
+    else if (tpos.x < 0.75f)
+        color = texture(lut, logColor).rgb;
+    else
+        color = ToneMap(linColor);
+    if (tpos.x < 0.5f)
+        color = texture(lut, vec3(tpos, exposure / 5.0f)).rgb;
+    else
+        color = LogP1ToLinear(vec3(tpos, exposure / 5.0f));
     //FragColor.rgb = GammaCorrect(color);
     FragColor.rgb = color;
     FragColor.w = 1.0f;

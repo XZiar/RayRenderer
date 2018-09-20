@@ -39,7 +39,6 @@ protected:
     const cl_mem memID;
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, const cl_mem id);
     _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type);
-    static PromiseResult<void> ReturnPromise(cl_event e, const oclCmdQue que);
 public:
     virtual ~_oclImage();
     PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;

@@ -59,7 +59,8 @@ enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
 enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
 enum class KerArgFlag : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
 MAKE_ENUM_BITFIELD(KerArgFlag)
-struct KernelArgInfo
+
+struct OCLUAPI KernelArgInfo
 {
     string Name;
     string Type;
@@ -84,7 +85,6 @@ private:
     void CheckArgIdx(const uint32_t idx) const;
 public:
     const string Name;
-    //const uint32_t ArgCount;
     const vector<KernelArgInfo> ArgsInfo;
     ~_oclKernel();
 
@@ -112,13 +112,13 @@ public:
     template<uint8_t N>
     PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
-        static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run(N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint8_t N>
     PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
-        static_assert(N > 0 && N < 4, "work dim should be in [0,3]");
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run(N, que, worksize, isBlock, workoffset, localsize);
     }
 };

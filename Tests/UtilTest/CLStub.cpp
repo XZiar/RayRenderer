@@ -6,6 +6,7 @@
 using namespace common;
 using namespace common::mlog;
 using namespace oclu;
+using namespace oglu;
 using std::string;
 using std::cin;
 
@@ -29,6 +30,10 @@ static auto LoadCtx()
     return ctx;
 }
 
+static void SimpleTest(const oclContext& ctx)
+{
+    oclImg3D img3d(ctx, MemFlag::WriteOnly | MemFlag::HostReadOnly, 64, 64, 64, TextureDataFormat::RGB10A2);
+}
 
 static void OCLStub()
 {
@@ -45,6 +50,7 @@ static void OCLStub()
         que.reset(ctx, ctx->Devices[0]);
     const auto dev = ctx->Devices[0];
     ClearReturn();
+    //SimpleTest(ctx);
     while (true)
     {
         log().info(u"input opencl file:");
@@ -56,6 +62,17 @@ static void OCLStub()
             for(const auto& ext : dev->Extensions)
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
+            continue;
+        }
+        else if (fpath == "IMAGE")
+        {
+            string img2d("2DImage Supports:\n");
+            for(const auto& dformat : ctx->Img2DFormatSupport)
+                img2d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
+            string img3d("3DImage Supports:\n");
+            for(const auto& dformat : ctx->Img3DFormatSupport)
+                img3d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
+            log().verbose(u"{}{}\n", img2d, img3d);
             continue;
         }
         common::fs::path filepath = FindPath() / fpath;

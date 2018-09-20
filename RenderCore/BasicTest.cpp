@@ -196,7 +196,9 @@ void BasicTest::init2d(const fs::path& shaderPath)
             .SetFloat(screenBox, progPost->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(screenBox, progPost->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
-        prog2D->State().SetSubroutine("ToneMap", "NoTone");
+        progPost->State()
+            .SetSubroutine("ToneMap", "ACES")
+            .SetTexture(PostProc->LutTex, "lut");
     }
 }
 
@@ -375,9 +377,19 @@ void BasicTest::Draw()
         if (HAS_FIELD(changed, ChangableUBO::Light))
             prepareLight();
     }
+    if (PostProc->UpdateLut())
+    {
+        //const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGBA10A2);
+        const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGBA8);
+        Image img(ImageDataType::RGBA);
+        img.SetSize(64, 64 * 64);
+        memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
+        xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
+    }
     if (mode)
     {
-        glContext->SetSRGBFBO(true);
+        //glContext->SetSRGBFBO(true);
+        glContext->SetSRGBFBO(false);
         oglu::oglFBO::UseDefault();
         prog3D->SetView(cam.GetView());
         prog3D->SetVec("vecCamPos", cam.Position);
@@ -411,7 +423,7 @@ void BasicTest::Draw()
             }
         }
         oglu::oglFBO::UseDefault();
-        glContext->SetSRGBFBO(true);
+        //glContext->SetSRGBFBO(true);
         Resize(ow, oh, false);
         {
             const auto sw = w * oh / h;

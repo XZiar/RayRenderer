@@ -452,9 +452,9 @@ optional<vector<uint8_t>> _oglTexture3D::GetCompressedData()
     if (!IsCompressed())
         return {};
     GLint size = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
+    DSA->ogluGetTextureLevelParameteriv(textureID, GL_TEXTURE_3D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE, &size);
     optional<vector<uint8_t>> output(std::in_place, size);
-    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_2D, 0, size, (*output).data());
+    DSA->ogluGetCompressedTextureImage(textureID, GL_TEXTURE_3D, 0, size, (*output).data());
     return output;
 }
 
@@ -465,7 +465,7 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
     const auto size = w * h * d * TexFormatUtil::ParseFormatSize(dformat);
     vector<uint8_t> output(size);
     const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, false);
-    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_2D, 0, comptype, datatype, size, output.data());
+    DSA->ogluGetTextureImage(textureID, GL_TEXTURE_3D, 0, comptype, datatype, size, output.data());
     return output;
 }
 
@@ -538,8 +538,8 @@ TexImgManager& _oglImgBase::getImgMan() noexcept
     return oglContext::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
 }
 
-_oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage)
-    : InnerTex(tex), Usage(usage)
+_oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered)
+    : InnerTex(tex), Usage(usage), IsLayered(isLayered)
 {
     tex->CheckCurrent();
     if (!InnerTex)
@@ -555,14 +555,18 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
 void _oglImgBase::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
-    glBindImageTexture(pos, GetTextureID(), 0, GL_FALSE, 0, (GLenum)Usage, TexFormatUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
+    glBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, (GLenum)Usage, TexFormatUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
 }
 
 void _oglImgBase::unbind() const noexcept
 {
 }
 
-_oglImg2D::_oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage) {}
+_oglImg2D::_oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage, false) {}
+
+_oglImg3D::_oglImg3D(const Wrapper<detail::_oglTexture3D>& tex, const TexImgUsage usage) : _oglImgBase(tex, usage, true) {}
+
+
 
 }
 
@@ -672,14 +676,14 @@ TextureInnerFormat TexFormatUtil::ConvertFrom(const TextureDataFormat dformat) n
         case TextureDataFormat::TYPE_565:       return TextureInnerFormat::RGB565;
         case TextureDataFormat::TYPE_4444:      return TextureInnerFormat::RGBA4444;
         case TextureDataFormat::TYPE_332:       return TextureInnerFormat::RGB332;
+        default:                                return TextureInnerFormat::ERROR;
         }
-        return TextureInnerFormat::ERROR;
     }
     TextureInnerFormat format = TextureInnerFormat::EMPTY_MASK;
     switch (dformat & TextureDataFormat::TYPE_RAW_MASK)
     {
-    case TextureDataFormat::TYPE_U8:        format |= isInteger ? TextureInnerFormat::CAT_U8 : TextureInnerFormat::CAT_UNORM8; break;
-    case TextureDataFormat::TYPE_I8:        format |= isInteger ? TextureInnerFormat::CAT_S8 : TextureInnerFormat::CAT_SNORM8; break;
+    case TextureDataFormat::TYPE_U8:        format |= isInteger ? TextureInnerFormat::CAT_U8  : TextureInnerFormat::CAT_UNORM8; break;
+    case TextureDataFormat::TYPE_I8:        format |= isInteger ? TextureInnerFormat::CAT_S8  : TextureInnerFormat::CAT_SNORM8; break;
     case TextureDataFormat::TYPE_U16:       format |= isInteger ? TextureInnerFormat::CAT_U16 : TextureInnerFormat::CAT_UNORM16; break;
     case TextureDataFormat::TYPE_I16:       format |= isInteger ? TextureInnerFormat::CAT_S16 : TextureInnerFormat::CAT_SNORM16; break;
     case TextureDataFormat::TYPE_U32:       format |= isInteger ? TextureInnerFormat::CAT_U32 : TextureInnerFormat::CAT_UNORM32; break;
@@ -1143,7 +1147,7 @@ string TexFormatUtil::GetFormatDetail(const TextureInnerFormat format) noexcept
     if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
         flag += "Comp|";
     flag.pop_back();
-    return fmt::format("dtype[{}]channel[{}]bits[{}]flags[{}]", dtype, channel, bits, flag);
+    return fmt::format("dtype[{:^7}]channel[{:^7}]bits[{:2}]flags[{}]", dtype, channel, bits, flag);
 }
 string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
 {
@@ -1165,13 +1169,15 @@ string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
     }
     else
     {
-        dflag = HAS_FIELD(rawType, TextureDataFormat::INTEGER_MASK) ? "INTEGER"sv : "NORMAL"sv;
-        switch (REMOVE_MASK(rawType, TextureDataFormat::INTEGER_MASK))
+        dflag = HAS_FIELD(format, TextureDataFormat::INTEGER_MASK) ? "INTEGER"sv : "NORMAL"sv;
+        switch (rawType)
         {
         case TextureDataFormat::TYPE_U8:    dtype = "U8"sv; break;
         case TextureDataFormat::TYPE_I8:    dtype = "I8"sv; break;
         case TextureDataFormat::TYPE_U16:   dtype = "U16"sv; break;
         case TextureDataFormat::TYPE_I16:   dtype = "I16"sv; break;
+        case TextureDataFormat::TYPE_U32:   dtype = "U32"sv; break;
+        case TextureDataFormat::TYPE_I32:   dtype = "I32"sv; break;
         case TextureDataFormat::TYPE_HALF:  dtype = "Half"sv; break;
         case TextureDataFormat::TYPE_FLOAT: dtype = "Float"sv; break;
         default:                            dtype = "UNKNOWN"sv; break;
@@ -1191,7 +1197,7 @@ string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
     case TextureDataFormat::FORMAT_BGRA:    channel = "BGRA"sv; break;
     default:                                channel = "UNKNOWN"sv; break;
     }
-    return fmt::format("dtype[{}]({})channel[{}]", dtype, dflag, channel);
+    return fmt::format("dtype[{:^7}]({:7})channel[{:^7}]", dtype, dflag, channel);
 }
 
 }

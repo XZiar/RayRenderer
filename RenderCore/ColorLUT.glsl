@@ -70,19 +70,25 @@ vec3 LogP1ToLinear(const vec3 val)
     return val / (1.0f - val);
 }
 
+vec3 PosToLogP1Color(const uvec3 pos, const float step)
+{
+    const vec3 fpos = pos * step;
+    return /*(1.0f - step) - */fpos;
+}
+
 
 writeonly uniform image3D result;
 uniform float step;
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
-    const ivec3 coord = ivec3(gl_GlobalInvocationID.xyz);
-    const vec3 color01 = coord * step;
-    const vec3 linearColor = LogP1ToLinear(color01);
+    const vec3 srcColor = PosToLogP1Color(gl_GlobalInvocationID.xyz, step);
+    const vec3 linearColor = LogP1ToLinear(srcColor);
     const vec3 acesColor = ToneMap(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
-    const vec4 color = vec4(srgbColor, 1.0f);
-    imageStore(result, coord, color);
+    //const vec4 color = vec4(srgbColor, 1.0f);
+    const vec4 color = vec4(linearColor, 1.0f);
+    imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
 }
 
 

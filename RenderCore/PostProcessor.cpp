@@ -9,7 +9,7 @@ namespace rayr
 using namespace oclu;
 using namespace oglu;
 
-PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que) : CLContext(ctx), CmdQue(que)
+PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que) : CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que)
 {
     LutProg.reset(CLContext, getShaderFromDLL(IDR_SHADER_CLRLUTCL));
     try
@@ -25,28 +25,29 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
             buildLog = std::any_cast<u16string>(cle.data);
         basLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
     }
-    LutTex.reset(64, 64, 64, TextureInnerFormat::RGB10A2);
-    LutGenerator->SetSimpleArg(0, 1.0f / 64);
-    try
-    {
-        LutImg.reset(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, LutTex);
-        LutImgRaw.reset(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, 64, 64, 64, TextureDataFormat::RGB10A2);
-        LutGenerator->SetArg(1, LutImgRaw);
-    }
-    catch (const BaseException& be)
-    {
-        basLog().error(u"Failed to create clImage:\n {}\n", be.message);
-    }
+    //LutTex.reset(64, 64, 64, TextureInnerFormat::RGB10A2);
+    LutTex.reset(64, 64, 64, TextureInnerFormat::RGBA8);
+    LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+    LutImg.reset(LutTex, oglu::TexImgUsage::WriteOnly);
+    LutGenerator2.reset(u"ColorLut", getShaderFromDLL(IDR_SHADER_CLRLUTGL));
+    LutGenerator2->State()
+        .SetSubroutine("ToneMap","ACES")
+        .SetImage(LutImg, "result");
+    LutGenerator2->SetUniform("step", 1.0f / 64);
+    LutGenerator2->SetUniform("exposure", 1.0f);
 }
 
-void PostProcessor::UpdateLut()
+bool PostProcessor::UpdateLut()
 {
     if (ShouldUpdate)
     {
-        LutGenerator->SetSimpleArg(2, Exposure);
-        LutGenerator->Run<3>(CmdQue, { 64,64,64 }, false)->wait();
+        LutGenerator2->Run(64, 64, 64);
+        //LutGenerator->SetSimpleArg(2, Exposure);
+        //LutGenerator->Run<3>(CmdQue, { 64,64,64 }, false)->wait();
     }
+    const bool ret = ShouldUpdate;
     ShouldUpdate = false;
+    return ret;
 }
 
 PostProcessor::~PostProcessor()
