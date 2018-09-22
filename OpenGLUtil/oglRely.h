@@ -84,6 +84,7 @@ using std::byte;
 using std::tuple;
 using std::pair;
 using std::vector;
+using std::array;
 using std::map;
 using std::set;
 using std::function;

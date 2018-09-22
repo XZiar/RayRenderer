@@ -28,19 +28,20 @@
 * RenderCore
   - [x] Implement SpotLight
   - [ ] Implement IBL
-  - [ ] Add convertion between BlinnPhongMaterial and PBRmaterial
   - [ ] Update blinn-phong shader, or combine them
   - [ ] Move normal mapping into VS stage
   - [ ] Add proper deserialization
-  - [ ] Seperate color correction pass using 3D LUT
+  - [ ] Design plugin system, provide common interface
+  - [x] Seperate color correction pass using 3D LUT
   * Core function
     - [ ] Add ShadowMapping
     - [ ] Add Raytracing
-    - [ ] Add multi-pass
+    - [ ] Add multi-pass workflow
     - [ ] Add Deffered rendering
   * Model
     - [ ] Add skeleton animation
     - [ ] Add more import support
+
 
 * WPFTest
   - [ ] Change to move convinient mouse+keyboard operation

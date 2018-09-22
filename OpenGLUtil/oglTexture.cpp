@@ -485,6 +485,13 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
     return output;
 }
 
+_oglTexture3DView::_oglTexture3DView(const _oglTexture3DStatic& tex, const TextureInnerFormat iformat) : _oglTexture3D(false)
+{
+    Width = tex.Width, Height = tex.Height, Depth = tex.Depth, Mipmap = tex.Mipmap; InnerFormat = iformat;
+    Name = tex.Name + u"-View";
+    glTextureView(textureID, GL_TEXTURE_3D, tex.textureID, TexFormatUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
+}
+
 _oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(true)
 {
     CheckCurrent();
@@ -529,6 +536,15 @@ void _oglTexture3DStatic::GenerateMipmap()
 {
     CheckCurrent();
     DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
+}
+
+oglTex3DV _oglTexture3DStatic::GetTextureView(const TextureInnerFormat format) const
+{
+    CheckCurrent();
+    CheckCompatible(InnerFormat, format);
+    oglTex3DV tex(new _oglTexture3DView(*this, InnerFormat));
+    tex->Name = Name + u"-View";
+    return tex;
 }
 
 

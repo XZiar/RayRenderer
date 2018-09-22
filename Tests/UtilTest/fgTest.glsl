@@ -1,19 +1,18 @@
 #version 330 core
 #extension GL_ARB_shading_language_420pack : require
 #extension GL_ARB_shader_subroutine : require
-#extension GL_ARB_gpu_shader5 : require
+//#extension GL_ARB_gpu_shader5 : require
 
 //@OGLU@Stage("VERT", "FRAG", "COMP")
 
 //Range compression
-
-vec3 LinearToLogP1(const vec3 val)
+vec3 LinearToLogUE(const vec3 val)
 {
-    return val / (val + 1.0f);
+    return log2(val) / 14.0f - log2(0.18) / 14.0f + 444.0f / 1023.0f;
 }
-vec3 LogP1ToLinear(const vec3 val)
+vec3 LogUEToLinear(const vec3 val)
 {
-    return val / (1.0f - val);
+    return exp2((val - 444.0f / 1023.0f) * 14.0f) * 0.18f;
 }
 
 #if defined(OGLU_VERT) || defined(OGLU_FRAG)
@@ -45,6 +44,7 @@ void main()
 uniform sampler3D lut;
 uniform float lutZ = 0.5f;
 uniform int shouldLut = 0;
+uniform vec2 lutOffset = vec2(63.0f / 64.0f, 0.5f / 64.0f);
 out vec4 FragColor;
 
 float getNoise()
@@ -65,8 +65,8 @@ void main()
     if (shouldLut > 0)
     {
         vec3 lutpos = vec3(tpos, lutZ);
-        lutpos = LinearToLogP1(FragColor.xyz);
-        FragColor.xyz = texture(lut, lutpos).rgb;
+        lutpos = LinearToLogUE(FragColor.xyz);
+        FragColor.xyz = texture(lut, lutpos * lutOffset.x + lutOffset.y).rgb;
     }
     FragColor.w = 1.0f;
 }
@@ -130,20 +130,14 @@ OGLU_SUBROUTINE(ToneMapping, ACES)
     return (lum * (A * lum + B)) / (lum * (C * lum + D) + E);
 }
 
-vec3 PosToLogP1Color(const uvec3 pos, const float step)
-{
-    const vec3 fpos = pos * step;
-    return /*(1.0f - step) - */fpos;
-}
-
 
 writeonly uniform image3D result;
 uniform float step;
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
-    const vec3 srcColor = PosToLogP1Color(gl_GlobalInvocationID.xyz, step);
-    const vec3 linearColor = LogP1ToLinear(srcColor);
+    const vec3 srcColor = gl_GlobalInvocationID.xyz * step;
+    const vec3 linearColor = LogUEToLinear(srcColor);
     const vec3 acesColor = ToneMap(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
     //const vec4 color = vec4(srgbColor, 1.0f);

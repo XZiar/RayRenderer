@@ -170,22 +170,28 @@ static void OGLStub()
                     break;
                 }
             }
-            try
+            auto AssembleProg = [&config, &shaderSrc](auto& prog) 
             {
-                oglDrawProgram glProg(u"GLProg");
-                glProg->AddExtShaders(shaderSrc, config);
-                if (glProg->getShaders().size() > 0)
-                    glProg->Link();
-                oglComputeProgram glPRog2(u"GLProg2", shaderSrc, config);
-            }
-            catch (const OGLException& gle)
-            {
-                log().error(u"OpenGL shader fail:\n{}\n", gle.message);
-                const auto buildLog = gle.data.has_value() ? std::any_cast<u16string>(&gle.data) : nullptr;
-                if (buildLog)
-                    log().error(u"Extra info:{}\n", *buildLog);
-                continue;
-            }
+                try
+                {
+                    prog->AddExtShaders(shaderSrc, config);
+                    if (prog->getShaders().size() > 0)
+                        prog->Link();
+                }
+                catch (const OGLException& gle)
+                {
+                    log().error(u"OpenGL shader fail:\n{}\n", gle.message);
+                    const auto buildLog = gle.data.has_value() ? std::any_cast<u16string>(&gle.data) : nullptr;
+                    if (buildLog)
+                        log().error(u"Extra info:{}\n", *buildLog);
+                }
+            };
+            oglDrawProgram drawProg(u"Draw Prog");
+            oglComputeProgram compProg(u"Compute Prog");
+            log().info(u"Try Draw Program\n");
+            AssembleProg(drawProg);
+            log().info(u"Try Compute Program\n");
+            AssembleProg(compProg);
         }
         catch (const BaseException& be)
         {

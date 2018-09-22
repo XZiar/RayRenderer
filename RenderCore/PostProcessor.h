@@ -7,24 +7,27 @@ namespace rayr
 
 class PostProcessor
 {
-    friend class BasicTest;
 private:
     oclu::oclContext CLContext;
     oclu::oclCmdQue CmdQue;
-    oclu::oclProgram LutProg;
-    oclu::oclKernel LutGenerator;
     oglu::oglContext GLContext;
     oglu::oglTex3DS LutTex;
+    oglu::oglTex3DV LutTexView;
     oglu::oglImg3D LutImg;
-    oglu::oglComputeProgram LutGenerator2;
-    float Exposure = 1.0f;
+    oglu::oglComputeProgram LutGenerator;
+    const uint32_t LutSize;
+    array<uint32_t, 3> GroupCount;
+    float Exposure = 0.0f;
     bool ShouldUpdate = true;
-    bool UpdateLut();
 public:
-    PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que);
+    PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize = 32);
     ~PostProcessor();
+    constexpr uint32_t GetLutSize() const { return LutSize; }
+    oglu::oglTex3DV GetLut() const { return LutTexView; }
     float GetExposure() const { return Exposure; }
     void SetExposure(const float exposure) { Exposure = exposure; ShouldUpdate = true; }
+    
+    bool UpdateLut();
 };
 
 }

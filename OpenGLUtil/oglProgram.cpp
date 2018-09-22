@@ -745,34 +745,47 @@ ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_vi
 
 void _oglDrawProgram::OnPrepare()
 {
-    RegisterLocation();
-}
-
-void _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& config)
-{
-    ExtShaderSource = src;
-    for (auto shader : oglShader::LoadDrawFromExSrc(src, ExtInfo, config))
-    {
-        shader->compile();
-        AddShader(shader);
-    }
-}
-
-void _oglDrawProgram::RegisterLocation()
-{
     for (const auto&[target, res] : ResNameMapping)
     {
         switch (hash_(target))
         {
-        case "ProjectMat"_hash:  Uni_projMat = res->location; break; //projectMatrix
-        case "ViewMat"_hash:     Uni_viewMat = res->location; break; //viewMatrix
-        case "ModelMat"_hash:    Uni_modelMat = res->location; break; //modelMatrix
-        case "MVPMat"_hash:      Uni_mvpMat = res->location; break; //model-view-project-Matrix
+        case "ProjectMat"_hash:  Uni_projMat   = res->location; break; //projectMatrix
+        case "ViewMat"_hash:     Uni_viewMat   = res->location; break; //viewMatrix
+        case "ModelMat"_hash:    Uni_modelMat  = res->location; break; //modelMatrix
+        case "MVPMat"_hash:      Uni_mvpMat    = res->location; break; //model-view-project-Matrix
         case "MVPNormMat"_hash:  Uni_normalMat = res->location; break; //model-view-project-Matrix
-        case "CamPosVec"_hash:   Uni_camPos = res->location; break; //camera position
+        case "CamPosVec"_hash:   Uni_camPos    = res->location; break; //camera position
         }
     }
 }
+
+bool _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& config)
+{
+    ExtShaderSource = src;
+    const auto s = oglShader::LoadDrawFromExSrc(src, ExtInfo, config);
+    for (auto shader : s)
+    {
+        shader->compile();
+        AddShader(shader);
+    }
+    return !s.empty();
+}
+
+//void _oglDrawProgram::RegisterLocation()
+//{
+//    for (const auto&[target, res] : ResNameMapping)
+//    {
+//        switch (hash_(target))
+//        {
+//        case "ProjectMat"_hash:  Uni_projMat = res->location; break; //projectMatrix
+//        case "ViewMat"_hash:     Uni_viewMat = res->location; break; //viewMatrix
+//        case "ModelMat"_hash:    Uni_modelMat = res->location; break; //modelMatrix
+//        case "MVPMat"_hash:      Uni_mvpMat = res->location; break; //model-view-project-Matrix
+//        case "MVPNormMat"_hash:  Uni_normalMat = res->location; break; //model-view-project-Matrix
+//        case "CamPosVec"_hash:   Uni_camPos = res->location; break; //camera position
+//        }
+//    }
+//}
 
 void _oglDrawProgram::SetProject(const Mat4x4& projMat)
 {
@@ -1023,23 +1036,22 @@ ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view
 }
 
 
-_oglComputeProgram::_oglComputeProgram(const u16string name, const oglShader& shader) : _oglProgram(name)
-{ 
-    if (shader->shaderType != ShaderType::Compute)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Only Compute Shader can be add to compute program");
-    AddShader(shader);
-    Link();
-}
-_oglComputeProgram::_oglComputeProgram(const u16string name, const string& src, const ShaderConfig& config) : _oglProgram(name)
-{ 
+
+bool _oglComputeProgram::AddExtShaders(const string& src, const ShaderConfig& config)
+{
     ExtShaderSource = src;
     const auto s = oglShader::LoadComputeFromExSrc(src, ExtInfo, config);
     if (s.empty())
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");
+        return false;// COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");
     auto shader = *s.cbegin();
     shader->compile();
     AddShader(shader);
-    Link();
+    return true;
+}
+void _oglComputeProgram::OnPrepare()
+{
+    glGetProgramiv(programID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
+    oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
 void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
 {

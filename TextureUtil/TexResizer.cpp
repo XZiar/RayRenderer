@@ -11,7 +11,7 @@ namespace oglu::texutil
 using namespace oclu;
 using namespace std::literals;
 
-TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Executor(u"CLTexResizer"), GLContext(glContext), CLContext(clContext)
+TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Executor(u"TexResizer"), GLContext(glContext), CLContext(clContext)
 {
     Executor.Start([this]
     {
@@ -38,9 +38,11 @@ TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Ex
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
+        GLResizer2.reset(u"GLResizer2");
         try
         {
-            GLResizer2.reset(u"GLResizer2", shaderSrc);
+            GLResizer2->AddExtShaders(shaderSrc);
+            GLResizer2->Link();
         }
         catch (const OGLException& gle)
         {
@@ -246,13 +248,14 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
         outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
         b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
+        const auto& localSize = GLResizer2->GetLocalSize();
         GLResizer2->SetVec("coordStep", coordStep);
         GLResizer2->SetUniform("isSrgbDst", true);
         GLResizer2->State()
             .SetTexture(tex, "tex")
             .SetImage(outimg, "result")
             .SetSubroutine("ColorConv", GetSubroutine(tex->GetInnerFormat(), outformat));
-        GLResizer2->Run(width, height);
+        GLResizer2->Run(width / localSize[0], height / localSize[1]);
         GLResizer2->State()
             .SetTexture({}, "tex")
             .SetImage({}, "result");

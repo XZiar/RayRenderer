@@ -17,17 +17,6 @@
 #endif
 
 
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <string>
-#include <tuple>
-#include <map>
-#include <unordered_map>
-#include <set>
-#include <deque>
-#include <variant>
-#include <typeindex>
 #include "common/CommonRely.hpp"
 #include "common/Wrapper.hpp"
 #include "common/AlignedContainer.hpp"
@@ -43,6 +32,17 @@
 #include "ImageUtil/ImageUtil.h"
 #include "ResourcePackager/ResourceUtil.h"
 #include "ResourcePackager/SerializeUtil.h"
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <tuple>
+#include <array>
+#include <map>
+#include <unordered_map>
+#include <set>
+#include <deque>
+#include <variant>
+#include <typeindex>
 
 //#define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #pragma warning(disable:4996)
@@ -66,6 +66,7 @@ using std::map;
 using std::set;
 using std::deque;
 using std::vector;
+using std::array;
 using std::variant;
 using common::min;
 using common::max;

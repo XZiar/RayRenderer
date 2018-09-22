@@ -36,7 +36,9 @@ static void FGTest()
     oglTex3DS lutTex(64, 64, 64, TextureInnerFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     oglImg3D lutImg(lutTex, TexImgUsage::WriteOnly);
-    oglComputeProgram lutGenerator(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+    oglComputeProgram lutGenerator(u"ColorLut");
+    lutGenerator->AddExtShaders(LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+    lutGenerator->Link();
     lutGenerator->State()
         .SetSubroutine("ToneMap","ACES")
         .SetImage(lutImg, "result");

@@ -148,6 +148,7 @@ public:
     u16string Name;
     _oglProgram(const u16string& name);
     virtual ~_oglProgram();
+    virtual bool AddExtShaders(const string& src, const ShaderConfig& config = {}) = 0;
 
     const set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
     const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ExtInfo.Properties; }
@@ -230,8 +231,8 @@ public:
     using _oglProgram::_oglProgram;
     virtual ~_oglDrawProgram() override {}
 
-    void AddExtShaders(const string& src, const ShaderConfig& config = {});
-    void RegisterLocation();
+    virtual bool AddExtShaders(const string& src, const ShaderConfig& config = {}) override;
+    //void RegisterLocation();
     void SetProject(const Mat4x4 &);
     void SetView(const Mat4x4 &);
 
@@ -334,13 +335,15 @@ ProgDraw _oglDrawProgram::Draw(const Iterator& begin, const Iterator& end) noexc
 class OGLUAPI _oglComputeProgram : public _oglProgram
 {
 private:
-    virtual void OnPrepare() override {}
+    array<uint32_t, 3> LocalSize = { 0, 0, 0 };
+    virtual void OnPrepare() override;
     using _oglProgram::AddShader;
-    using _oglProgram::Link;
 public:
-    _oglComputeProgram(const u16string name, const oglShader& shader);
-    _oglComputeProgram(const u16string name, const string& src, const ShaderConfig& config = {});
+    using _oglProgram::_oglProgram;
     virtual ~_oglComputeProgram() override {}
+
+    virtual bool AddExtShaders(const string& src, const ShaderConfig& config = {}) override;
+    const array<uint32_t, 3>& GetLocalSize() const { return LocalSize; }
 
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
 };

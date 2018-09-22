@@ -378,9 +378,18 @@ public:
     vector<uint8_t> GetData(const TextureDataFormat dformat);
 };
 
+class _oglTexture3DStatic;
+///<summary>Texture3D View, readonly</summary>  
+class OGLUAPI _oglTexture3DView : public _oglTexture3D
+{
+    friend class _oglTexture3DStatic;
+private:
+    _oglTexture3DView(const _oglTexture3DStatic& tex, const TextureInnerFormat iformat);
+};
 
 class OGLUAPI _oglTexture3DStatic : public _oglTexture3D
 {
+    friend class _oglTexture3DView;
 private:
 public:
     _oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
@@ -403,7 +412,8 @@ public:
     }
 
     void GenerateMipmap();
-    //Wrapper<_oglTexture2DView> GetTextureLayer(const uint32_t layer) const;
+    Wrapper<_oglTexture3DView> GetTextureView(const TextureInnerFormat format) const;
+    Wrapper<_oglTexture3DView> GetTextureView() const { return GetTextureView(InnerFormat); }
 };
 
 
@@ -459,6 +469,7 @@ using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
 using oglTex3D = Wrapper<detail::_oglTexture3D>;
 using oglTex3DS = Wrapper<detail::_oglTexture3DStatic>;
+using oglTex3DV = Wrapper<detail::_oglTexture3DView>;
 using oglBufTex = Wrapper<detail::_oglBufferTexture>;
 using oglImgBase = Wrapper<detail::_oglImgBase>;
 using oglImg2D = Wrapper<detail::_oglImg2D>;

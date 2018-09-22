@@ -38,9 +38,11 @@ GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), 
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
+        GLResizer2.reset(u"GLResizer2");
         try
         {
-            GLResizer2.reset(u"GLResizer2", shaderSrc);
+            GLResizer2->AddExtShaders(shaderSrc);
+            GLResizer2->Link();
         }
         catch (const OGLException& gle)
         {

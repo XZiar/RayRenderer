@@ -198,7 +198,7 @@ void BasicTest::init2d(const fs::path& shaderPath)
             .SetDrawSize(0, 6);
         progPost->State()
             .SetSubroutine("ToneMap", "ACES")
-            .SetTexture(PostProc->LutTex, "lut");
+            .SetTexture(PostProc->GetLut(), "lut");
     }
 }
 
@@ -379,10 +379,10 @@ void BasicTest::Draw()
     }
     if (PostProc->UpdateLut())
     {
-        const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGB10A2);
+        const auto lutdata = PostProc->GetLut()->GetData(TextureDataFormat::RGB10A2);
         Image img(ImageDataType::RGBA);
-        const auto[w,h,d] = PostProc->LutTex->GetSize();
-        img.SetSize(w, h * d);
+        const auto lutSize = PostProc->GetLutSize();
+        img.SetSize(lutSize, lutSize * lutSize);
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
         xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
     }
