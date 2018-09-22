@@ -379,17 +379,16 @@ void BasicTest::Draw()
     }
     if (PostProc->UpdateLut())
     {
-        //const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGBA10A2);
-        const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGBA8);
+        const auto lutdata = PostProc->LutTex->GetData(TextureDataFormat::RGB10A2);
         Image img(ImageDataType::RGBA);
-        img.SetSize(64, 64 * 64);
+        const auto[w,h,d] = PostProc->LutTex->GetSize();
+        img.SetSize(w, h * d);
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
         xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
     }
     if (mode)
     {
-        //glContext->SetSRGBFBO(true);
-        glContext->SetSRGBFBO(false);
+        glContext->SetSRGBFBO(true);
         oglu::oglFBO::UseDefault();
         prog3D->SetView(cam.GetView());
         prog3D->SetVec("vecCamPos", cam.Position);

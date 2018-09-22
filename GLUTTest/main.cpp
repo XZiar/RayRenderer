@@ -190,7 +190,7 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
     window->funMouseEvent = onMouseEvent;
     window->setTimerCallback(onTimer, 20);
     window->funDropFile = onDropFile;
-    window->funOnClose = [&](FreeGLUTView wd) { tester.release(); };
+    window->funOnClose = [&](FreeGLUTView wd) { isAnimate = false; tester.release(); };
     if (false)
     {
         const auto light = Wrapper<rayr::PointLight>(std::in_place);

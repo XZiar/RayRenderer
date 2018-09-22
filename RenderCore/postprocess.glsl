@@ -42,6 +42,8 @@ uniform float gamma = 2.2f;
 //@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 10.0)
 uniform float exposure = 1.0f;
 
+uniform vec2 lutOffset = vec2(31.0f / 32.0f, 0.5f / 32.0f);
+
 OGLU_ROUTINE(ToneMapping, ToneMap, vec3, const vec3 color)
 
 OGLU_SUBROUTINE(ToneMapping, NoTone)
@@ -76,17 +78,24 @@ vec3 GammaCorrect(const vec3 color)
 {
     return pow(color, vec3(1.0f / gamma));
 }
-
+vec3 LinearToSRGB(const vec3 color)
+{
+    vec3 ret;
+    ret.r = color.r <= 0.00304f ? 12.92f * color.r : 1.055f * pow(color.r, 1.0f / 2.4f) - 0.055f;
+    ret.g = color.g <= 0.00304f ? 12.92f * color.g : 1.055f * pow(color.g, 1.0f / 2.4f) - 0.055f;
+    ret.b = color.b <= 0.00304f ? 12.92f * color.b : 1.055f * pow(color.b, 1.0f / 2.4f) - 0.055f;
+    return ret;
+}
 
 //Range compression
 
-vec3 LinearToLogP1(const vec3 val)
+vec3 LinearToLogUE(const vec3 val)
 {
-    return val / (val + 1.0f);
+    return log2(val) / 14.0f - log2(0.18) / 14.0f + 444.0f / 1023.0f;
 }
-vec3 LogP1ToLinear(const vec3 val)
+vec3 LogUEToLinear(const vec3 val)
 {
-    return val / (1.0f - val);
+    return exp2((val - 444.0f / 1023.0f) * 14.0f) * 0.18;
 }
 
 out vec4 FragColor;
@@ -95,20 +104,12 @@ void main()
 {
     //const vec3 color = ToneMap(texture(tex[0], tpos).rgb);
     const vec3 linColor = texture(tex[0], tpos).rgb;
-    const vec3 logColor = LinearToLogP1(linColor * exposure);
+    const vec3 logColor = LinearToLogUE(linColor);
     vec3 color;
-    if (tpos.x < 0.25f)
-        color = linColor;
-    else if (tpos.x < 0.5f)
-        color = logColor;
-    else if (tpos.x < 0.75f)
-        color = texture(lut, logColor).rgb;
-    else
-        color = ToneMap(linColor);
-    if (tpos.x < 0.5f)
-        color = texture(lut, vec3(tpos, exposure / 5.0f)).rgb;
-    else
-        color = LogP1ToLinear(vec3(tpos, exposure / 5.0f));
+    /*if (tpos.x < 0.5f)
+        color = LinearToSRGB(ToneMap(linColor));
+    else*/
+        color = texture(lut, logColor * lutOffset.x + lutOffset.y).rgb;
     //FragColor.rgb = GammaCorrect(color);
     FragColor.rgb = color;
     FragColor.w = 1.0f;

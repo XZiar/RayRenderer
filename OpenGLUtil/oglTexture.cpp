@@ -2,6 +2,7 @@
 #include "oglTexture.h"
 #include "oglContext.h"
 #include "oglException.h"
+#include "oglUtil.h"
 #include "BindingManager.h"
 #include "DSAWrapper.h"
 
@@ -85,6 +86,8 @@ TextureManager& _oglTexBase::getTexMan() noexcept
 _oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type)
 {
     glGenTextures(1, &textureID);
+    if (const auto e = oglUtil::GetError(); e.has_value())
+        oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
     if (shouldBindType)
         glBindTexture((GLenum)Type, textureID);
     RegistTexture(*this);
@@ -129,9 +132,22 @@ std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
     DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
+    if (const auto e = oglUtil::GetError(); e.has_value())
+    {
+        oglLog().warning(u"GetInternalSize3 occurs error due to {}.\n", e.value());
+    }
     return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
 }
 
+void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR)
+{
+    CheckCurrent();
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_R, (GLint)wrapR);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, (GLint)magFilter);
+    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, (GLint)minFilter);
+}
 void _oglTexBase::SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT)
 {
     CheckCurrent();
@@ -469,15 +485,17 @@ vector<uint8_t> _oglTexture3D::GetData(const TextureDataFormat dformat)
     return output;
 }
 
-_oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(false)
+_oglTexture3DStatic::_oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap) : _oglTexture3D(true)
 {
     CheckCurrent();
     if (width == 0 || height == 0 || depth == 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex2D.");
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Set size of 0 to Tex3D.");
     if (width % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Depth = depth, InnerFormat = iformat, Mipmap = mipmap;
     DSA->ogluTextureStorage3D(textureID, GL_TEXTURE_3D, mipmap, TexFormatUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
+    if (const auto e = oglUtil::GetError(); e.has_value())
+        oglLog().warning(u"oglTex3DS occurs error due to {}.\n", e.value());
 }
 
 void _oglTexture3DStatic::SetData(const TextureDataFormat dformat, const void *data)

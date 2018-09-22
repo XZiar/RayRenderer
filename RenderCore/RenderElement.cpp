@@ -57,9 +57,9 @@ struct VAOMAPCtxConfig : public oglu::CtxResConfig<true, VAOMap>
     VAOMap Construct() const { return {}; }
 };
 static VAOMAPCtxConfig VAOMAP_CTX_CFG;
-static VAOMap& GetVAOMap()
+static VAOMap& GetVAOMap(const oglu::oglContext& ctx = oglu::oglContext::CurrentContext())
 {
-    return oglu::oglContext::CurrentContext()->GetOrCreate<false>(VAOMAP_CTX_CFG);
+    return ctx->GetOrCreate<false>(VAOMAP_CTX_CFG);
 }
 
 struct VAOKeyX
@@ -84,6 +84,8 @@ Drawable::Drawable(const std::type_index type, const u16string& typeName) : Draw
 
 Drawable::~Drawable()
 {
+    const auto ctx = oglu::oglContext::CurrentContext();
+    if (!ctx) return;
     auto& vaomap = GetVAOMap();
     const auto& its = vaomap.equal_range(this);
     vaomap.erase(its.first, its.second);

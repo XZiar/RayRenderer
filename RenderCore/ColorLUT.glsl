@@ -61,16 +61,16 @@ OGLU_SUBROUTINE(ToneMapping, ACES)
 
 //Range compression
 
-vec3 LinearToLogP1(const vec3 val)
+vec3 LinearToLogUE(const vec3 val)
 {
-    return val / (val + 1.0f);
+    return log2(val) / 14.0f - log2(0.18) / 14.0f + 444.0f / 1023.0f;
 }
-vec3 LogP1ToLinear(const vec3 val)
+vec3 LogUEToLinear(const vec3 val)
 {
-    return val / (1.0f - val);
+    return exp2((val - 444.0f / 1023.0f) * 14.0f) * 0.18;
 }
 
-vec3 PosToLogP1Color(const uvec3 pos, const float step)
+vec3 PosToLogColor(const uvec3 pos, const float step)
 {
     const vec3 fpos = pos * step;
     return /*(1.0f - step) - */fpos;
@@ -82,12 +82,11 @@ uniform float step;
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
-    const vec3 srcColor = PosToLogP1Color(gl_GlobalInvocationID.xyz, step);
-    const vec3 linearColor = LogP1ToLinear(srcColor);
+    const vec3 srcColor = PosToLogColor(gl_GlobalInvocationID.xyz, step);
+    const vec3 linearColor = LogUEToLinear(srcColor);
     const vec3 acesColor = ToneMap(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
-    //const vec4 color = vec4(srgbColor, 1.0f);
-    const vec4 color = vec4(linearColor, 1.0f);
+    const vec4 color = vec4(srgbColor, 1.0f);
     imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
 }
 

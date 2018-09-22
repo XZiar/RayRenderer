@@ -116,7 +116,7 @@ public:
 
 enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
 
-enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, };
+enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, ClampEdge = GL_CLAMP_TO_EDGE, ClampBorder = GL_CLAMP_TO_BORDER };
 
 enum class TexImgUsage : GLenum { ReadOnly = GL_READ_ONLY, WriteOnly = GL_WRITE_ONLY, ReadWrite = GL_READ_WRITE };
 
@@ -197,8 +197,9 @@ protected:
 public:
     u16string Name;
     virtual ~_oglTexBase() noexcept;
+    void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
     void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
-    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype); }
+    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype, wraptype); }
     bool IsCompressed() const;
     TextureInnerFormat GetInnerFormat() const { return InnerFormat; }
 };

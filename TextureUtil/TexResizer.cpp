@@ -196,11 +196,21 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         auto rawimg = agent.Await(img->ReadRaw(que));
         oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
         tex->SetData(img->GetFormat(), rawimg.GetRawPtr());
+        tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
         return (oglTex2D)tex;
     }
 }
-
+static oglTex2DS ConvertDataToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat)
+{
+    oglTex2DS tex(size.first, size.second, innerFormat);
+    if (TexFormatUtil::IsCompressType(innerFormat))
+        tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
+    else
+        tex->SetData(TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
+    tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
+    return tex;
+}
 template<>
 TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
 {
@@ -371,8 +381,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 {
     return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(size.first, size.second, innerFormat);
-        tex->SetData(TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
+        oglTex2DS tex = ConvertDataToTex(data, size, innerFormat);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::OpenGL>(tex, width, height, output, flipY);
         return agent.Await(pms);
@@ -383,8 +392,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 {
     return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(size.first, size.second, innerFormat);
-        tex->SetData(TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
+        oglTex2DS tex = ConvertDataToTex(data, size, innerFormat);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::Compute>(tex, width, height, output, flipY);
         return agent.Await(pms);

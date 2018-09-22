@@ -8,6 +8,7 @@ namespace rayr
 
 using namespace oclu;
 using namespace oglu;
+constexpr static uint32_t LutSize = 32;
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que) : CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que)
 {
@@ -25,15 +26,14 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
             buildLog = std::any_cast<u16string>(cle.data);
         basLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
     }
-    //LutTex.reset(64, 64, 64, TextureInnerFormat::RGB10A2);
-    LutTex.reset(64, 64, 64, TextureInnerFormat::RGBA8);
-    LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+    LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
+    LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     LutImg.reset(LutTex, oglu::TexImgUsage::WriteOnly);
     LutGenerator2.reset(u"ColorLut", getShaderFromDLL(IDR_SHADER_CLRLUTGL));
     LutGenerator2->State()
         .SetSubroutine("ToneMap","ACES")
         .SetImage(LutImg, "result");
-    LutGenerator2->SetUniform("step", 1.0f / 64);
+    LutGenerator2->SetUniform("step", 1.0f / (LutSize - 1));
     LutGenerator2->SetUniform("exposure", 1.0f);
 }
 
@@ -41,9 +41,7 @@ bool PostProcessor::UpdateLut()
 {
     if (ShouldUpdate)
     {
-        LutGenerator2->Run(64, 64, 64);
-        //LutGenerator->SetSimpleArg(2, Exposure);
-        //LutGenerator->Run<3>(CmdQue, { 64,64,64 }, false)->wait();
+        LutGenerator2->Run(LutSize, LutSize, LutSize);
     }
     const bool ret = ShouldUpdate;
     ShouldUpdate = false;

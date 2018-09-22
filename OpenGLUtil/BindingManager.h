@@ -176,13 +176,13 @@ public:
             return;
         fixed.head = used.head;
         uint16_t tail = fixed.head;
-        data[tail].link = static_cast<uint8_t>(&fixed - links);
         for (uint16_t i = 1; i < count && tail != UINT16_MAX; ++i)
         {
             auto& node = data[tail];
             tail = node.next;
             node.link = static_cast<uint8_t>(&fixed - links);
         }
+        data[tail].link = static_cast<uint8_t>(&fixed - links);
         fixed.tail = tail;
         used.head = data[tail].next;
         data[tail].next = UINT16_MAX;

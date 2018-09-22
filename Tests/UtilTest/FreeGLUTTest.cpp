@@ -5,6 +5,7 @@
 
 using namespace common;
 using namespace common::mlog;
+using namespace xziar::img;
 using namespace oglu;
 using std::string;
 using std::cin;
@@ -32,6 +33,17 @@ static void FGTest()
     oglDrawProgram drawer(u"MainDrawer");
     oglVBO screenBox(std::in_place);
     oglVAO basicVAO(VAODrawMode::Triangles);
+    oglTex3DS lutTex(64, 64, 64, TextureInnerFormat::RGBA8);
+    lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
+    oglImg3D lutImg(lutTex, TexImgUsage::WriteOnly);
+    oglComputeProgram lutGenerator(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+    lutGenerator->State()
+        .SetSubroutine("ToneMap","ACES")
+        .SetImage(lutImg, "result");
+    lutGenerator->SetUniform("step", 1.0f / 64);
+    lutGenerator->SetUniform("exposure", 1.0f);
+    float lutZ = 0.5f;
+    bool shouldLut = false;
     {
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
@@ -51,12 +63,25 @@ static void FGTest()
             .SetFloat(screenBox, drawer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
+        drawer->State().SetTexture(lutTex, "lut");
+    }
+    {
+        lutGenerator->Run(64, 64, 64);
+        oglUtil::ForceSyncGL()->wait();
+        const auto lutdata = lutTex->GetData(TextureDataFormat::RGBA8);
+        Image img(ImageDataType::RGBA);
+        img.SetSize(64, 64 * 64);
+        memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
+        //xziar::img::WriteImage(img, u"lut.png");
     }
     window->funDisp = [&](FreeGLUTView) 
     { 
         oglContext::Refresh(); 
         ctx->UseContext(); 
-        drawer->Draw().Draw(basicVAO); 
+        drawer->Draw()
+            .SetUniform("lutZ", lutZ)
+            .SetUniform("shouldLut", shouldLut ? 1 : 0)
+            .Draw(basicVAO); 
     };
     window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)
     {
@@ -65,8 +90,32 @@ static void FGTest()
         ctx->SetViewPort(0, 0, w, h);
         log().verbose(u"Resize to [{},{}].\n", w, h);
     };
-    // window->funKeyEvent = onKeyboard;
-    // window->funMouseEvent = onMouseEvent;
+    window->funMouseEvent = [&](FreeGLUTView wd, MouseEvent evt)
+    {
+        switch (evt.type)
+        {
+        case MouseEventType::Moving:
+            lutZ += evt.dx / 1000.0f;
+            log().verbose("lutZ is now {}.\n", lutZ);
+            break;
+        default:
+            return;
+        }
+        wd->refresh();
+    };
+    window->funKeyEvent = [&](FreeGLUTView wd, KeyEvent evt)
+    {
+        switch (evt.key)
+        {
+        case 13:
+            shouldLut = !shouldLut;
+            log().verbose("shouldLut is now {}.\n", shouldLut ? "ON" : "OFF");
+            break;
+        default:
+            return;
+        }
+        wd->refresh();
+    };
     // window->setTimerCallback(onTimer, 20);
     // window->funDropFile = onDropFile;
     window->funOnClose = [&](FreeGLUTView) 
