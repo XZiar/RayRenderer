@@ -176,6 +176,13 @@ namespace WPFTest
             cboxOSize.SelectionChanged += (o,e) => resizeOffscreen();
             ckboxFDepth.Checked += (o, e) => resizeOffscreen();
             ckboxFDepth.Unchecked += (o, e) => resizeOffscreen();
+            slExposure.SetBinding(Slider.ValueProperty, new Binding
+            {
+                Source = Core.Test,
+                Path = new PropertyPath("Exposure"),
+                Mode = BindingMode.TwoWay
+            });
+            slExposure.ValueChanged += (o, e) => glMain.Invalidate();
 
             cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
             {

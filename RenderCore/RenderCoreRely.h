@@ -62,6 +62,8 @@ using std::byte;
 using std::wstring;
 using std::string;
 using std::u16string;
+using std::string_view;
+using std::u16string_view;
 using std::map;
 using std::set;
 using std::deque;

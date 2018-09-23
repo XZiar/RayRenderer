@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+﻿#include "RenderCoreRely.h"
 #include "PostProcessor.h"
 #include "resource.h"
 
@@ -10,8 +10,13 @@ using namespace oclu;
 using namespace oglu;
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize) 
-    : CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
+    : Controllable(u"后处理"),
+    CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
 {
+    //RegistControlItemDirect<float>("exposure", "", u"曝光补偿", Exposure, std::pair(-4.0f, 4.0f), u"");
+    RegistControlItemInDirect<float, PostProcessor>("exposure", "", u"曝光补偿", 
+        &PostProcessor::GetExposure, &PostProcessor::SetExposure, std::pair(-4.0f, 4.0f), u"");
+
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
     LutTexView = LutTex->GetTextureView();
     LutTexView->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);

@@ -255,6 +255,12 @@ public:
     Action<String^>^ Screenshot();
     void Serialize(String^ fname);
     void DeSerialize(String^ fname);
+
+    property float Exposure
+    {
+        float get() { return core->GetPostProc().ControllableGet<float>("exposure"); }
+        void set(float value) { SetControllable(core->GetPostProc(), "exposure", value); }
+    }
 };
 
 

@@ -83,6 +83,7 @@ public:
     const oglDrawProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
     const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
+    PostProcessor& GetPostProc() const { return *PostProc; };
 
     void Serialize(const fs::path& fpath) const;
     void DeSerialize(const fs::path& fpath);

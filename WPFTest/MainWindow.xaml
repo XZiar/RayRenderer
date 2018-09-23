@@ -204,9 +204,6 @@
                     <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="曝光补偿">
                         <Slider x:Name="slExposure" Value="0" Minimum="-4" Maximum="4" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                     </ext:LabelControl>
-                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="完整转换">
-                        <CheckBox x:Name="ckboxFullConv" IsChecked="false"/>
-                    </ext:LabelControl>
                 </StackPanel>
             </TabItem>
             <TabItem Header="物体" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">

@@ -33,6 +33,7 @@ public:
     Coord2D() noexcept { u = v = 0.0f; };
     template<class T>
     Coord2D(const T& u_, const T& v_) noexcept :u(static_cast<float>(u_)), v(static_cast<float>(v_)) { }
+    Coord2D(const std::pair<float, float>& data) : u(data.first), v(data.second) { }
 
     Coord2D operator+(const Coord2D &c) const
     {
@@ -64,6 +65,7 @@ public:
     }
     operator float*() noexcept { return &u; };
     operator const float*() const noexcept { return &u; };
+    constexpr operator std::pair<float, float>() const noexcept { return { u,v }; }
 };
 
 

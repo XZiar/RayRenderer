@@ -96,6 +96,9 @@
     <ClInclude Include="PostProcessor.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Controllable.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

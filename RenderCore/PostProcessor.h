@@ -1,11 +1,11 @@
 #pragma once
 #include "RenderCoreRely.h"
-
+#include "Controllable.hpp"
 
 namespace rayr
 {
 
-class PostProcessor
+class PostProcessor : public NonCopyable, public Controllable
 {
 private:
     oclu::oclContext CLContext;

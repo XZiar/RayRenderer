@@ -30,6 +30,9 @@
 #include <numeric>
 #include <type_traits> 
 #include <initializer_list>
+#if defined(__cpp_lib_variant)
+#   include<variant>
+#endif
 
 
 #if defined(__APPLE__)
@@ -226,6 +229,20 @@ template <class T, template <auto...> class Template>
 struct is_specialization2 : std::false_type {};
 template <template <auto...> class Template, auto... Vs>
 struct is_specialization2<Template<Vs...>, Template> : std::true_type {};
+#endif
+
+#if defined(__cpp_lib_variant)
+template <typename> struct variant_tag { };
+template <typename T, typename... Ts>
+inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>)
+{
+    return std::variant<variant_tag<Ts>...>(variant_tag<T>()).index();
+}
+template <typename T, typename V>
+inline constexpr size_t get_variant_index_v()
+{
+    return get_variant_index<T>(variant_tag<V>());
+}
 #endif
 
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
