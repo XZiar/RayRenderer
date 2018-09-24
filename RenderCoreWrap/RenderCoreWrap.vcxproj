@@ -200,6 +200,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="b3d.hpp" />
+    <ClInclude Include="ControllableWrap.h" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="Light.hpp" />
     <ClInclude Include="Material.h" />
@@ -216,6 +217,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ControllableWrap.cpp" />
     <ClCompile Include="dllManager.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</CompileAsManaged>
@@ -272,6 +274,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
+    <Reference Include="System.Core" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

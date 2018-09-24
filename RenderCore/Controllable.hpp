@@ -20,6 +20,7 @@ class /*RAYCOREAPI*/ Controllable
 {
 public:
     using ControlArg = std::variant<bool, int32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
+    enum class ArgType : uint8_t { RawValue, Color };
     struct ControlItem
     {
         std::string Id;
@@ -30,6 +31,7 @@ public:
         std::function<ControlArg(const Controllable&, const std::string&)> Getter;
         std::function<void(Controllable&, const std::string&, const ControlArg&)> Setter;
         size_t TypeIdx;
+        ArgType Type;
         mutable bool IsEnable;
     };
 private:
@@ -46,16 +48,16 @@ protected:
     }
     template<typename T, typename Get, typename Set>
     void RegistControlItem(const std::string& id, const std::string& category, const std::u16string& name, Get&& getter, Set&& setter,
-        const std::any& cookie = {}, const std::u16string& description = u"")
+        const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         constexpr auto index = common::get_variant_index_v<T, ControlArg>();
         Categories.try_emplace(category, category.cbegin(), category.cend());
-        ControlItem item{ id, category, name, description, cookie, getter, setter, index, true };
+        ControlItem item{ id, category, name, description, cookie, getter, setter, index, argType, true };
         ControlItems.insert(item);
     }
     template<typename T, typename T1>
     void RegistControlItemDirect2(const std::string& id, const std::string& category, const std::u16string& name, T1& object,
-        const std::any& cookie = {}, const std::u16string& description = u"")
+        const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         if constexpr (std::is_constructible_v<ControlArg, T>)
         {
@@ -63,7 +65,7 @@ protected:
             RegistControlItem<T>(id, category, name,
                 [&object](const Controllable&, const std::string&) { return ControlArg((T)object); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::get<T>(arg); },
-                cookie, description);
+                argType, cookie, description);
         }
         else
         {
@@ -71,19 +73,19 @@ protected:
                 [&object](const Controllable&, const std::string&) { return ControlArg(std::any(object)); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg)
                 { object = std::any_cast<T1>(std::get<std::any>(arg)); },
-                cookie, description);
+                argType, cookie, description);
         }
     }
     template<typename T>
     void RegistControlItemDirect(const std::string& id, const std::string& category, const std::u16string& name, T& object,
-        const std::any& cookie = {}, const std::u16string& description = u"")
+        const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         if constexpr (std::is_constructible_v<ControlArg, T>)
         {
             RegistControlItem<T>(id, category, name,
                 [&object](const Controllable&, const std::string&) { return ControlArg(object); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::get<T>(arg); },
-                cookie, description);
+                argType, cookie, description);
         }
         else
         {
@@ -91,13 +93,13 @@ protected:
                 [&object](const Controllable&, const std::string&) { return ControlArg(std::any(object)); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg) 
                 { object = std::any_cast<T>(std::get<std::any>(arg)); },
-                cookie, description);
+                argType, cookie, description);
         }
     }
     template<typename T, typename D, typename T1, typename T2>
     void RegistControlItemInDirect(const std::string& id, const std::string& category, const std::u16string& name,
         T1(D::*getter)(void) const, void(D::*setter)(T2),
-        const std::any& cookie = {}, const std::u16string& description = u"")
+        const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         static_assert(std::is_same_v<std::remove_cv_t<std::remove_reference_t<T1>>, T> &&
             std::is_same_v<std::remove_cv_t<std::remove_reference_t<T2>>, T>, "getter and setter should have same type of T");
@@ -106,7 +108,7 @@ protected:
             RegistControlItem<T>(id, category, name,
                 [getter](const Controllable& obj, const std::string&) { return (dynamic_cast<const D&>(obj).*getter)(); },
                 [setter](Controllable& obj, const std::string&, const ControlArg& arg) { (dynamic_cast<D&>(obj).*setter)(std::get<T>(arg)); },
-                cookie, description);
+                argType, cookie, description);
         }
         else
         {
@@ -114,7 +116,7 @@ protected:
                 [getter](const Controllable& obj, const std::string&) { return std::any((dynamic_cast<const D&>(obj).*getter)()); },
                 [setter](Controllable& obj, const std::string&, const ControlArg& arg) 
                 { (dynamic_cast<D&>(obj).*setter)(std::any_cast<T>(std::get<std::any>(arg))); },
-                cookie, description);
+                argType, cookie, description);
         }
     }
 public:

@@ -178,8 +178,8 @@ namespace WPFTest
             ckboxFDepth.Unchecked += (o, e) => resizeOffscreen();
             slExposure.SetBinding(Slider.ValueProperty, new Binding
             {
-                Source = Core.Test,
-                Path = new PropertyPath("Exposure"),
+                Source = Core.Test.PostProc,
+                Path = new PropertyPath("exposure"),
                 Mode = BindingMode.TwoWay
             });
             slExposure.ValueChanged += (o, e) => glMain.Invalidate();

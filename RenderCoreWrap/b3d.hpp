@@ -17,10 +17,26 @@ public value struct Vec3F
         return String::Format("{0:F3},{1:F3},{2:F3}", x, y, z);
     }
 internal:
-    Vec3F(const b3d::Vec3& vec) : x(vec.x), y(vec.y), z(vec.z) { }
-    Vec3F(const b3d::Vec4& vec) : x(vec.x), y(vec.y), z(vec.z) { }
-    void Store(b3d::Vec3& vec) { vec.x = x; vec.y; vec.z = z; }
-    void Store(b3d::Vec4& vec) { vec.x = x; vec.y; vec.z = z; }
+    Vec3F(const miniBLAS::Vec3& vec) : x(vec.x), y(vec.y), z(vec.z) { }
+    Vec3F(const miniBLAS::Vec4& vec) : x(vec.x), y(vec.y), z(vec.z) { }
+    void Load(const miniBLAS::Vec3& vec) { x = vec.x; y = vec.y; z = vec.z; }
+    void Load(const miniBLAS::Vec4& vec) { x = vec.x; y = vec.y; z = vec.z; }
+    void Store(miniBLAS::Vec3& vec) { vec.x = x; vec.y = y; vec.z = z; }
+    void Store(miniBLAS::Vec4& vec) { vec.x = x; vec.y = y; vec.z = z; }
+};
+
+public value struct Vec4F
+{
+    float x, y, z, w;
+    Vec4F(float x_, float y_, float z_, float w_) : x(x_), y(y_), z(z_), w(w_) { }
+    virtual String^ ToString() override
+    {
+        return String::Format("{0:F3},{1:F3},{2:F3},{3:F3}", x, y, z, w);
+    }
+internal:
+    Vec4F(const miniBLAS::Vec4& vec) : x(vec.x), y(vec.y), z(vec.z), w(vec.w) { }
+    void Load(const miniBLAS::Vec4& vec) { x = vec.x; y = vec.y; z = vec.z; w = vec.w; }
+    void Store(miniBLAS::Vec4& vec) { vec.x = x; vec.y = y; vec.z = z; vec.w = w; }
 };
 
 public ref class Camera : BaseViewModel

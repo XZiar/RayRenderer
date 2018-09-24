@@ -119,6 +119,7 @@ BasicTest::BasicTest()
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());
         Shaders = gcnew ShaderHolder(core, core->Shaders());
+        PostProc = gcnew Controllable(core->GetPostProc());
     }
     catch (BaseException& be)
     {

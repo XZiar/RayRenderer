@@ -5,6 +5,7 @@
 #include "Light.hpp"
 #include "OpenGLTypes.h"
 #include "Material.h"
+#include "ControllableWrap.h"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -233,6 +234,7 @@ public:
     initonly LightHolder^ Lights;
     initonly DrawableHolder^ Drawables;
     initonly ShaderHolder^ Shaders;
+    initonly Controllable^ PostProc;
 
     property OpenGLUtil::FaceCullingType FaceCulling
     {
@@ -256,11 +258,6 @@ public:
     void Serialize(String^ fname);
     void DeSerialize(String^ fname);
 
-    property float Exposure
-    {
-        float get() { return core->GetPostProc().ControllableGet<float>("exposure"); }
-        void set(float value) { SetControllable(core->GetPostProc(), "exposure", value); }
-    }
 };
 
 

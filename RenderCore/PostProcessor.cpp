@@ -15,7 +15,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
 {
     //RegistControlItemDirect<float>("exposure", "", u"曝光补偿", Exposure, std::pair(-4.0f, 4.0f), u"");
     RegistControlItemInDirect<float, PostProcessor>("exposure", "", u"曝光补偿", 
-        &PostProcessor::GetExposure, &PostProcessor::SetExposure, std::pair(-4.0f, 4.0f), u"");
+        &PostProcessor::GetExposure, &PostProcessor::SetExposure, ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)");
 
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
     LutTexView = LutTex->GetTextureView();

@@ -23,7 +23,7 @@ private:
         PropertyChanged(this, safe_cast<PropertyChangedEventArgs^>(state));
     }
 protected:
-    virtual void OnPropertyChanged(System::String^ propertyName)
+    void OnPropertyChanged(System::String^ propertyName)
     {
         auto arg = gcnew PropertyChangedEventArgs(propertyName);
         if (SynchronizationContext::Current == SyncContext)
@@ -53,6 +53,14 @@ public:
     }
 };
 
+public ref class ViewModelStub : public BaseViewModel
+{
+public:
+    void OnPropertyChanged(System::String^ propertyName)
+    {
+        BaseViewModel::OnPropertyChanged(propertyName);
+    }
+};
 
 
 }
