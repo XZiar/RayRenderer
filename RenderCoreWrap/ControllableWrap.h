@@ -14,16 +14,14 @@ public ref class Controllable : public DynamicObject
 private:
     ViewModelStub ViewModel;
     IntPtr Control;
+    initonly String^ controlType;
     static auto GetControlPtr(IntPtr control)
     {
         return reinterpret_cast<const std::weak_ptr<rayr::Controllable>*>(control.ToPointer());
     }
     std::shared_ptr<rayr::Controllable> GetControl() { return GetControlPtr(Control)->lock(); }
 internal:
-    Controllable(const Wrapper<rayr::Controllable>& control)
-    {
-        Control = IntPtr(new std::weak_ptr<rayr::Controllable>(control.weakRef()));
-    }
+    Controllable(const std::shared_ptr<rayr::Controllable>& control);
 public:
     ~Controllable() { this->!Controllable(); }
     !Controllable() 
@@ -50,6 +48,8 @@ public:
     virtual System::Collections::Generic::IEnumerable<String^>^ GetDynamicMemberNames() override;
     virtual bool TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg) override;
     virtual bool TrySetMember(SetMemberBinder^ binder, Object^ arg) override;
+
+    CLI_READONLY_PROPERTY(String^, ControlType, controlType)
 };
 
 }

@@ -83,6 +83,10 @@ public:
     }
     void AddFilter(const FilterFunc& filter) { Filters.push_back(filter); }
 
+    template<typename T>
+    ejson::JObject NewObject(const T& data) { return DocRoot.NewObject(data); }
+    template<typename T>
+    ejson::JArray NewArray(const T& data) { return DocRoot.NewArray(data); }
     ejson::JObject NewObject() { return DocRoot.NewObject(); }
     ejson::JArray NewArray() { return DocRoot.NewArray(); }
 

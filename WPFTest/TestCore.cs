@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Basic3D;
 using OpenGLUtil;
 using RayRender;
 using XZiar.Util;
@@ -169,7 +168,7 @@ namespace WPFTest
         public readonly DrawableList Drawables;
         public readonly LightList Lights;
         public readonly ShaderList Shaders;
-        public readonly Camera Camera;
+        public readonly CameraHolder Camera;
 
         public bool IsAnimate = false;
 

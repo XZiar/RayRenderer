@@ -199,7 +199,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="b3d.hpp" />
     <ClInclude Include="ControllableWrap.h" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="Light.hpp" />
@@ -275,6 +274,7 @@
   <ItemGroup>
     <Reference Include="PresentationCore" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

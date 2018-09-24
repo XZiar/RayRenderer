@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderCoreWrapRely.h"
-#include "b3d.hpp"
 #include "Light.hpp"
 #include "OpenGLTypes.h"
 #include "Material.h"
@@ -15,7 +14,6 @@ using namespace msclr::interop;
 
 namespace RayRender
 {
-using Basic3D::Vec3F;
 
 public ref class Drawable : public BaseViewModel
 {
@@ -32,15 +30,15 @@ public:
         String^ get() { return ToStr(drawable->lock()->Name); }
         void set(String^ value) { drawable->lock()->Name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
-    property Vec3F Position
+    property Vector3 Position
     {
-        Vec3F get() { return Vec3F(drawable->lock()->position); }
-        void set(Vec3F value) { value.Store(drawable->lock()->position); OnPropertyChanged("Position"); }
+        Vector3 get() { return ToVector3(drawable->lock()->position); }
+        void set(Vector3 value) { StoreVector3(value, drawable->lock()->position); OnPropertyChanged("Position"); }
     }
-    property Vec3F Rotation
+    property Vector3 Rotation
     {
-        Vec3F get() { return Vec3F(drawable->lock()->rotation); }
-        void set(Vec3F value) { value.Store(drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
+        Vector3 get() { return ToVector3(drawable->lock()->rotation); }
+        void set(Vector3 value) { StoreVector3(value, drawable->lock()->rotation); OnPropertyChanged("Rotation"); }
     }
     property bool ShouldRender
     {
@@ -214,6 +212,74 @@ public:
     void UseShader(OpenGLUtil::GLProgram^ shader);
 };
 
+
+public ref class CameraHolder : BaseViewModel
+{
+internal:
+    rayr::Camera *cam;
+    bool isRef = false;
+internal:
+    CameraHolder(rayr::Camera *obj) :cam(obj), isRef(true) { }
+public:
+    ~CameraHolder() { this->!CameraHolder(); }
+    !CameraHolder()
+    {
+        if (!isRef)
+            delete cam;
+    }
+
+    property int Width
+    {
+        int get() { return cam->Width; }
+        void set(int value) { cam->Width = value; }
+    }
+    property int Height
+    {
+        int get() { return cam->Height; }
+        void set(int value) { cam->Height = value; }
+    }
+    property Vector3 Position
+    {
+        Vector3 get() { return ToVector3(cam->Position); }
+        void set(Vector3 value) { StoreVector3(value, cam->Position); OnPropertyChanged("Position"); }
+    }
+    property Vector3 Direction
+    {
+        Vector3 get() { return ToVector3(cam->Rotation); }
+        void set(Vector3 value) { StoreVector3(value, cam->Rotation); OnPropertyChanged("Direction"); }
+    }
+
+    void Move(const float dx, const float dy, const float dz)
+    {
+        cam->Move(dx, dy, dz);
+        OnPropertyChanged("Position");
+    }
+    //rotate along x-axis, radius
+    void Pitch(const float radx)
+    {
+        cam->Pitch(radx);
+        OnPropertyChanged("Direction");
+    }
+    //rotate along y-axis, radius
+    void Yaw(const float rady)
+    {
+        cam->Yaw(rady);
+        OnPropertyChanged("Direction");
+    }
+    //rotate along z-axis, radius
+    void Roll(const float radz)
+    {
+        cam->Roll(radz);
+        OnPropertyChanged("Direction");
+    }
+    void Rotate(const float dx, const float dy, const float dz)
+    {
+        cam->Rotate(dx, dy, dz);
+        OnPropertyChanged("Direction");
+    }
+};
+
+
 public ref class BasicTest : public BaseViewModel
 {
 private:
@@ -230,11 +296,12 @@ public:
         void set(bool value) { core->mode = value; }
     }
 
-    initonly Basic3D::Camera^ Camera;
+    initonly CameraHolder^ Camera;
     initonly LightHolder^ Lights;
     initonly DrawableHolder^ Drawables;
     initonly ShaderHolder^ Shaders;
     initonly Controllable^ PostProc;
+    initonly List<Controllable^>^ GLShaders;
 
     property OpenGLUtil::FaceCullingType FaceCulling
     {

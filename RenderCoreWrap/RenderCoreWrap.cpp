@@ -115,11 +115,14 @@ BasicTest::BasicTest()
     try
     {
         core = new rayr::BasicTest(FindPath());
-        Camera = gcnew Basic3D::Camera(&core->cam);
+        Camera = gcnew CameraHolder(&core->cam);
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());
+        GLShaders = gcnew List<Controllable^>(0);
         Shaders = gcnew ShaderHolder(core, core->Shaders());
         PostProc = gcnew Controllable(core->GetPostProc());
+        for (const auto& glshader : core->GLShaders())
+            GLShaders->Add(gcnew Controllable(glshader));
     }
     catch (BaseException& be)
     {

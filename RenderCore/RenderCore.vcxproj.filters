@@ -99,6 +99,9 @@
     <ClInclude Include="Controllable.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="GLShader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -149,6 +152,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="PostProcessor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GLShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

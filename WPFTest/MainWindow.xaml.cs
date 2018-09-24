@@ -15,7 +15,6 @@ using OpenGLView;
 using RayRender;
 using Microsoft.Win32;
 using static XZiar.Util.BindingHelper;
-using Basic3D;
 using XZiar.WPFControl;
 using XZiar.Util;
 using System.Windows.Threading;
@@ -179,7 +178,7 @@ namespace WPFTest
             slExposure.SetBinding(Slider.ValueProperty, new Binding
             {
                 Source = Core.Test.PostProc,
-                Path = new PropertyPath("exposure"),
+                Path = new PropertyPath("Exposure"),
                 Mode = BindingMode.TwoWay
             });
             slExposure.ValueChanged += (o, e) => glMain.Invalidate();

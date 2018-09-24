@@ -30,7 +30,7 @@
 #include <numeric>
 #include <type_traits> 
 #include <initializer_list>
-#if defined(__cpp_lib_variant)
+#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
 #   include<variant>
 #endif
 
@@ -167,7 +167,7 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 
 
 //for std::byte
-#if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+#if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L) || defined(__cpp_lib_byte))
 inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
 #endif
 

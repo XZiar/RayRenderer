@@ -36,3 +36,22 @@ forceinline System::String^ ToStr(const fmt::internal::basic_buffer<char16_t>& s
 {
     return gcnew System::String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());
 }
+
+
+using namespace System::Numerics;
+forceinline Vector3 ToVector3(const miniBLAS::Vec3& vec)
+{
+    return Vector3(vec.x, vec.y, vec.z);
+}
+forceinline void StoreVector3(Vector3% val, miniBLAS::Vec3& vec)
+{
+    vec.x = val.X, vec.y = val.Y, vec.z = val.Z;
+}
+forceinline Vector4 ToVector4(const miniBLAS::Vec4& vec)
+{
+    return Vector4(vec.x, vec.y, vec.z, vec.w);
+}
+forceinline void StoreVector4(Vector4% val, miniBLAS::Vec4& vec)
+{
+    vec.x = val.X, vec.y = val.Y, vec.z = val.Z, vec.w = val.W;
+}

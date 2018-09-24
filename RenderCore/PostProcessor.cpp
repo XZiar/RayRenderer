@@ -8,15 +8,18 @@ namespace rayr
 
 using namespace oclu;
 using namespace oglu;
+using namespace std::literals;
+
+void PostProcessor::RegistControllable(PostProcessor* self)
+{
+    self->RegistControlItemInDirect<float, PostProcessor>("Exposure", "", u"曝光补偿",
+        &PostProcessor::GetExposure, &PostProcessor::SetExposure, ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)");
+}
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize) 
-    : Controllable(u"后处理"),
+    : Controllable(u"后处理", RegistControllable, this),
     CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
 {
-    //RegistControlItemDirect<float>("exposure", "", u"曝光补偿", Exposure, std::pair(-4.0f, 4.0f), u"");
-    RegistControlItemInDirect<float, PostProcessor>("exposure", "", u"曝光补偿", 
-        &PostProcessor::GetExposure, &PostProcessor::SetExposure, ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)");
-
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
     LutTexView = LutTex->GetTextureView();
     LutTexView->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
@@ -37,6 +40,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
 PostProcessor::~PostProcessor()
 {
 }
+
 
 bool PostProcessor::UpdateLut()
 {

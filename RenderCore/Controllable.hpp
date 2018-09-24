@@ -39,8 +39,8 @@ private:
     std::set<ControlItem, common::container::SetKeyLess<ControlItem, &ControlItem::Id>> ControlItems;
 protected:
     Controllable(const std::u16string& name) : Name(name) {}
-    template<typename Func>
-    Controllable(const std::u16string& name, Func&& func) : Name(name) { func(); }
+    template<typename Func, typename T>
+    Controllable(const std::u16string& name, Func&& func, T* self) : Name(name) { func(self); }
 
     void AddCategory(const std::string category, const std::u16string name)
     {
@@ -96,13 +96,15 @@ protected:
                 argType, cookie, description);
         }
     }
-    template<typename T, typename D, typename T1, typename T2>
+    template<typename T, typename D, typename G, typename S>
     void RegistControlItemInDirect(const std::string& id, const std::string& category, const std::u16string& name,
-        T1(D::*getter)(void) const, void(D::*setter)(T2),
+        G(D::*getter)(void) const, void(D::*setter)(S),
         const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
-        static_assert(std::is_same_v<std::remove_cv_t<std::remove_reference_t<T1>>, T> &&
-            std::is_same_v<std::remove_cv_t<std::remove_reference_t<T2>>, T>, "getter and setter should have same type of T");
+        using GetType = std::remove_cv_t<std::remove_reference_t<G>>;
+        using SetType = std::remove_cv_t<std::remove_reference_t<S>>;
+        static_assert(std::is_convertible_v<GetType, T>, "getter's return cannot be convert to T");
+        static_assert(std::is_convertible_v<T, SetType>, "setter does not accept value of T");
         if constexpr (std::is_constructible_v<ControlArg, T>)
         {
             RegistControlItem<T>(id, category, name,
@@ -119,9 +121,57 @@ protected:
                 argType, cookie, description);
         }
     }
+    template<typename T, typename D, typename M>
+    void RegistControlItemInDirect(const std::string& id, const std::string& category, const std::u16string& name,
+        M D::*member, const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
+    {
+        static_assert(std::is_convertible_v<M, T>, "member cannot be convert to T");
+        static_assert(std::is_convertible_v<T, M>, "member cannot be convert from T");
+        if constexpr (std::is_constructible_v<ControlArg, T>)
+        {
+            RegistControlItem<T>(id, category, name,
+                [member](const Controllable& obj, const std::string&) { return dynamic_cast<const D&>(obj).*member; },
+                [member](Controllable& obj, const std::string&, const ControlArg& arg) { dynamic_cast<D&>(obj).*member = std::get<T>(arg); },
+                argType, cookie, description);
+        }
+        else
+        {
+            RegistControlItem<std::any>(id, category, name,
+                [member](const Controllable& obj, const std::string&) { return std::any(dynamic_cast<const D&>(obj).*member); },
+                [member](Controllable& obj, const std::string&, const ControlArg& arg)
+                { dynamic_cast<D&>(obj).*member = std::any_cast<T>(std::get<std::any>(arg)); },
+                argType, cookie, description);
+        }
+    }
+    template<typename T, typename D, typename Func, typename = std::enable_if_t<std::is_invocable_v<Func, D&> && std::is_invocable_v<Func, const D&>>>
+    void RegistControlItemInDirect(const std::string& id, const std::string& category, const std::u16string& name,
+        Func&& func, const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
+    {
+        using GetType = std::invoke_result_t<Func, const D&>;
+        using SetType = std::invoke_result_t<Func, D&>;
+        static_assert(std::is_convertible_v<GetType, T>, "object cannot be convert to T");
+        static_assert(std::is_lvalue_reference_v<SetType>, "object is not a lvalue reference when being set");
+        static_assert(std::is_assignable_v<SetType, T>, "object cannot be assigned from value of T when being set");
+        if constexpr (std::is_constructible_v<ControlArg, T>)
+        {
+            RegistControlItem<T>(id, category, name,
+                [func](const Controllable& obj, const std::string&) { return func(dynamic_cast<const D&>(obj)); },
+                [func](Controllable& obj, const std::string&, const ControlArg& arg) { func(dynamic_cast<D&>(obj)) = std::get<T>(arg); },
+                argType, cookie, description);
+        }
+        else
+        {
+            RegistControlItem<std::any>(id, category, name,
+                [func](const Controllable& obj, const std::string&) { return std::any(func(dynamic_cast<const D&>(obj))); },
+                [func](Controllable& obj, const std::string&, const ControlArg& arg)
+                { func(dynamic_cast<D&>(obj)) = std::any_cast<T>(std::get<std::any>(arg)); },
+                argType, cookie, description);
+        }
+    }
 public:
     const u16string Name;
     virtual ~Controllable() {}
+    virtual u16string_view GetControlType() = 0;
     const auto& GetControlItems() const { return ControlItems; }
     const auto& GetCategories() const { return Categories; }
     const ControlItem* GetControlItem(const std::string& id) const

@@ -1,6 +1,5 @@
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
-#include "b3d.hpp"
 
 
 namespace RayRender
@@ -8,6 +7,13 @@ namespace RayRender
 
 using std::string;
 using std::u16string;
+using System::Globalization::CultureInfo;
+
+Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
+{
+    Control = IntPtr(new std::weak_ptr<rayr::Controllable>(control));
+    controlType = ToStr(control->GetControlType());
+}
 
 #pragma managed(push, off)
 static bool GetBool(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
@@ -77,14 +83,14 @@ static void SetArg(const rayr::Controllable::ControlItem* item, const std::share
 }
 #pragma managed(pop)
 
-static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexStr     = common::get_variant_index_v<string, rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string, rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,             rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,          rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,         rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,            rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,   rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,   rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,           rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,        rayr::Controllable::ControlArg>();
 
 System::Collections::Generic::IEnumerable<String^>^ Controllable::GetDynamicMemberNames()
 {
@@ -116,8 +122,8 @@ bool Controllable::TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg)
         case ValIndexInt32:     arg = GetInt32(item, control, id); break;
         case ValIndexUInt64:    arg = GetUInt64(item, control, id); break;
         case ValIndexFloat:     arg = GetFloat(item, control, id); break;
-        case ValIndexVec3:      arg = gcnew Basic3D::Vec3F(GetVec3(item, control, id)); break;
-        case ValIndexVec4:      arg = gcnew Basic3D::Vec4F(GetVec4(item, control, id)); break;
+        case ValIndexVec3:      arg = ToVector3(GetVec3(item, control, id)); break;
+        case ValIndexVec4:      arg = ToVector4(GetVec4(item, control, id)); break;
         case ValIndexStr:       arg = ToStr(GetStr(item, control, id)); break;
         case ValIndexU16Str:    arg = ToStr(GetU16Str(item, control, id)); break;
         default:                return false;
@@ -134,6 +140,11 @@ bool Controllable::TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg)
     return true;
 }
 
+template<typename T> T ForceCast(Object^ value)
+{
+    return safe_cast<T>(Convert::ChangeType(value, T::typeid, CultureInfo::InvariantCulture));
+}
+
 bool Controllable::TrySetMember(SetMemberBinder^ binder, Object^ arg)
 {
     const auto id = ToCharStr(binder->Name);
@@ -147,20 +158,20 @@ bool Controllable::TrySetMember(SetMemberBinder^ binder, Object^ arg)
         switch (item->TypeIdx)
         {
         case ValIndexBool:      SetArg(item, control, id, safe_cast<bool>(arg)); break;
-        case ValIndexInt32:     SetArg(item, control, id, safe_cast<int32_t>(Convert::ChangeType(arg, int32_t::typeid))); break;
-        case ValIndexUInt64:    SetArg(item, control, id, safe_cast<uint64_t>(Convert::ChangeType(arg, uint64_t::typeid))); break;
-        case ValIndexFloat:     SetArg(item, control, id, safe_cast<float>(Convert::ChangeType(arg, float::typeid))); break;
+        case ValIndexInt32:     SetArg(item, control, id, ForceCast<int32_t>(arg)); break;
+        case ValIndexUInt64:    SetArg(item, control, id, ForceCast<uint64_t>(arg)); break;
+        case ValIndexFloat:     SetArg(item, control, id, ForceCast<float>(arg)); break;
         case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
         case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
         case ValIndexVec3:
         {
-            const auto& tmp = safe_cast<Basic3D::Vec3F>(arg);
-            SetArg(item, control, id, tmp.x, tmp.y, tmp.z);
+            const auto& tmp = safe_cast<Vector3>(arg);
+            SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z);
         } break;
         case ValIndexVec4:
         {
-            const auto& tmp = safe_cast<Basic3D::Vec4F>(arg);
-            SetArg(item, control, id, tmp.x, tmp.y, tmp.z, tmp.w);
+            const auto& tmp = safe_cast<Vector4>(arg);
+            SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z, tmp.W);
         } break;
         default:                return false;
         } break;

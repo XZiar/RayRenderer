@@ -41,6 +41,10 @@ public:
     DocumentHandle(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : MemPool(mempool) {}
 
     rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
+    template<typename T>
+    JObject NewObject(const T& data);
+    template<typename T>
+    JArray NewArray(const T& data);
     JObject NewObject();
     JArray NewArray();
 };
@@ -261,6 +265,7 @@ public:
             ValRef().Accept(writer);
         }
     }
+    bool IsNull() const { return ValRef().IsNull(); }
 };
 
 class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>
@@ -290,7 +295,8 @@ public:
 template<bool IsConst>
 class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>
 {
-    template<typename T> friend struct JNode;
+    template<typename> friend struct JNode;
+    template<typename, bool> friend class JObjectLike;
 protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
@@ -307,7 +313,12 @@ protected:
 public:
     template<typename = std::enable_if_t<!IsConst>>
     explicit operator rapidjson::Value() { return std::move(Val); }
-    //operator bool() { return Val != nullptr; }
+    template<typename T>
+    T AsValue(T val = {}) const
+    {
+        SharedUtil::FromVal(*Val, val);
+        return val;
+    }
 };
 
 class JNull : public JDoc
@@ -454,7 +465,7 @@ private:
         std::pair<std::string_view, JDocRef<IsConst1>> operator*() const
         {
             std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
-            JDocRef<IsConst1> doc(MemPool, InnerIterator->value);
+            JDocRef<IsConst1> doc(MemPool, &InnerIterator->value);
             return { name, doc };
         }
     };
@@ -499,6 +510,12 @@ class JArray : public JDoc, public JArrayLike<JArray, false>
     friend class DocumentHandle;
 protected:
     JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kArrayType) {}
+    template<typename T>
+    JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const T& data) : JArray(mempool)
+    {
+        for (const auto& val : data)
+            JArrayLike<JArray, false>::Push(val);
+    }
 public:
     JArray() : JDoc(rapidjson::kArrayType) {}
     explicit JArray(JDoc&& doc) : JArray(doc.MemPool)
@@ -507,6 +524,8 @@ public:
             COMMON_THROW(BaseException, u"value is not an array");
         Val = doc.Val;
     }
+    template<typename T>
+    explicit JArray(JDoc&& doc, const T& data) : JArray(doc.MemPool, data) {}
     template<typename... T>
     JArray& Push(T&&... val)
     {
@@ -545,6 +564,12 @@ class JObject : public JDoc, public JObjectLike<JObject, false>
     friend class DocumentHandle;
 protected:
     JObject(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDoc(mempool, rapidjson::kObjectType) {}
+    template<typename T>
+    JObject(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const T& datamap) : JObject(mempool)
+    {
+        for (const auto&[name, val] : datamap)
+            JObjectLike<JObject, false>::Add(name, val);
+    }
 public:
     JObject() : JDoc(rapidjson::kObjectType) {}
     explicit JObject(JDoc&& doc) : JObject(doc.MemPool)
@@ -553,6 +578,8 @@ public:
             COMMON_THROW(BaseException, u"value is not an object");
         Val = doc.Val;
     }
+    template<typename T>
+    explicit JObject(JDoc&& doc, const T& datamap) : JObject(doc.MemPool, datamap) {}
     template<typename T, typename U>
     JObject& Add(T&& name, U&& val)
     {
@@ -618,6 +645,17 @@ forceinline JArrayRef<false> JComplexType<KeyType, KeyChecker, ValHolder, IsCons
     return val;
 }
 
+
+template<typename T>
+forceinline JObject DocumentHandle::NewObject(const T& data)
+{
+    return JObject(MemPool, data);
+}
+template<typename T>
+forceinline JArray DocumentHandle::NewArray(const T& data)
+{
+    return JArray(MemPool, data);
+}
 forceinline JObject DocumentHandle::NewObject()
 {
     return JObject(MemPool);

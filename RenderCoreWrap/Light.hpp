@@ -1,6 +1,6 @@
 #pragma once
 #include "RenderCoreWrapRely.h"
-#include "b3d.hpp"
+
 
 using namespace System;
 
@@ -9,7 +9,6 @@ using namespace System;
 
 namespace RayRender
 {
-using Basic3D::Vec3F;
 
 
 public enum class LightType : int32_t
@@ -31,15 +30,15 @@ public:
         String^ get() { return ToStr((*light)->name); }
         void set(String^ value) { (*light)->name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
-    property Vec3F Position
+    property Vector3 Position
     {
-        Vec3F get() { return Vec3F((*light)->position); }
-        void set(Vec3F value) { value.Store((*light)->position); OnPropertyChanged("Position"); }
+        Vector3 get() { return ToVector3((*light)->position); }
+        void set(Vector3 value) { StoreVector3(value, (*light)->position); OnPropertyChanged("Position"); }
     }
-    property Vec3F Direction
+    property Vector3 Direction
     {
-        Vec3F get() { return Vec3F((*light)->direction); }
-        void set(Vec3F value) { value.Store((*light)->direction); OnPropertyChanged("Direction"); }
+        Vector3 get() { return ToVector3((*light)->direction); }
+        void set(Vector3 value) { StoreVector3(value, (*light)->direction); OnPropertyChanged("Direction"); }
     }
     property bool IsOn
     {

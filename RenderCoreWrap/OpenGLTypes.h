@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderCoreWrapRely.h"
-#include "b3d.hpp"
 
 using namespace System;
 using namespace System::Collections::Generic;

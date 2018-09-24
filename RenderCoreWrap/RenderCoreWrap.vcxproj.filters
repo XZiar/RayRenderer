@@ -39,9 +39,6 @@
     <ClInclude Include="Light.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="b3d.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ControllableWrap.h">
       <Filter>头文件</Filter>
     </ClInclude>

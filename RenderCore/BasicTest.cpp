@@ -144,10 +144,9 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     ResizeFBO(1280, 720, true);
     //prog2D->State().SetTexture(fontCreator->getTexture(), "tex");
     initUBO();
-    glProgs.insert(prog2D);
-    glProgs.insert(progPost);
-    glProgs.insert(Prog3Ds.cbegin(), Prog3Ds.cend());
-    glProgs.insert(fontViewer->prog);
+    for (const auto& shader : glProgs)
+        glProgs2.insert(shader->Program);
+    glProgs2.insert(fontViewer->prog);
 }
 
 void BasicTest::init2d(const fs::path& shaderPath)
@@ -159,18 +158,9 @@ void BasicTest::init2d(const fs::path& shaderPath)
         screenBox->Write(DatVert, sizeof(DatVert));
     }
     {
-        prog2D.reset(u"Prog 2D");
-        const string shaderSrc = LoadShaderFallback(shaderPath / u"2d.glsl", IDR_SHADER_2D);
-        try
-        {
-            prog2D->AddExtShaders(shaderSrc);
-            prog2D->Link();
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, u"2D OpenGL shader fail");
-        }
+        Prog2D = Wrapper<GLShader>(u"Prog 2D", LoadShaderFallback(shaderPath / u"2d.glsl", IDR_SHADER_2D));
+        glProgs.insert(Prog2D);
+        prog2D = Prog2D->Program;
         picVAO.reset(VAODrawMode::Triangles);
         picVAO->Prepare()
             .SetFloat(screenBox, prog2D->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
@@ -179,18 +169,9 @@ void BasicTest::init2d(const fs::path& shaderPath)
         prog2D->State().SetTexture(picTex, "tex");
     }
     {
-        progPost.reset(u"PostProcess");
-        const string shaderSrc = LoadShaderFallback(shaderPath / u"postprocess.glsl", IDR_SHADER_POSTPROC);
-        try
-        {
-            progPost->AddExtShaders(shaderSrc);
-            progPost->Link();
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, u"2D OpenGL shader fail");
-        }
+        ProgPost = Wrapper<GLShader>(u"PostProcess", LoadShaderFallback(shaderPath / u"postprocess.glsl", IDR_SHADER_POSTPROC));
+        glProgs.insert(ProgPost);
+        progPost = ProgPost->Program;
         ppVAO.reset(VAODrawMode::Triangles);
         ppVAO->Prepare()
             .SetFloat(screenBox, progPost->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
@@ -206,39 +187,21 @@ void BasicTest::init3d(const fs::path& shaderPath)
 {
     cam.Position = Vec3(0.0f, 0.0f, 4.0f);
     {
-        oglDrawProgram progBasic(u"3D Prog");
-        const string shaderSrc = LoadShaderFallback(shaderPath / u"3d.glsl", IDR_SHADER_3D);
-        try
-        {
-            progBasic->AddExtShaders(shaderSrc);
-            progBasic->Link();
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"3D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, u"3D OpenGL shader fail");
-        }
+        Prog3D = Wrapper<GLShader>(u"3D Prog", LoadShaderFallback(shaderPath / u"3d.glsl", IDR_SHADER_3D));
+        glProgs.insert(Prog3D);
+        const auto progBasic = Prog3D->Program;
         progBasic->State().SetSubroutine("lighter", "tex0").SetSubroutine("getNorm", "vertedNormal");
         progBasic->SetView(cam.GetView());
         progBasic->SetVec("vecCamPos", cam.Position);
         Prog3Ds.insert(progBasic);
     }
     {
-        oglDrawProgram progPBR(u"3D-pbr");
-        const string shaderSrc = LoadShaderFallback(shaderPath / u"3d_pbr.glsl", IDR_SHADER_3DPBR);
-        try
-        {
-            oglu::ShaderConfig config;
-            config.Routines["getNorm"] = "bothNormal";
-            config.Routines["getAlbedo"] = "bothAlbedo";
-            progPBR->AddExtShaders(shaderSrc, config);
-            progPBR->Link();
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"3D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, u"3D OpenGL shader fail");
-        }
+        oglu::ShaderConfig config;
+        config.Routines["getNorm"] = "bothNormal";
+        config.Routines["getAlbedo"] = "bothAlbedo";
+        Prog3DPBR = Wrapper<GLShader>(u"3D-pbr", LoadShaderFallback(shaderPath / u"3d_pbr.glsl", IDR_SHADER_3DPBR), config);
+        glProgs.insert(Prog3DPBR);
+        const auto progPBR = Prog3DPBR->Program;
         progPBR->State()
             .SetSubroutine("lighter", "albedoOnly")
             .SetSubroutine("getNorm", "bothNormal")
@@ -632,14 +595,14 @@ xziar::img::Image BasicTest::Scrrenshot()
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 
-static ejson::JObject SerializeGLProg(const oglu::oglDrawProgram& prog, SerializeUtil& context)
-{
-    auto jprog = context.NewObject();
-    jprog.Add("Name", str::to_u8string(prog->Name, Charset::UTF16LE));
-    const auto& src = prog->GetExtShaderSource();
-    jprog.Add("source", context.PutResource(src.data(), src.size()));
-    return jprog;
-}
+//static ejson::JObject SerializeGLProg(const oglu::oglDrawProgram& prog, SerializeUtil& context)
+//{
+//    auto jprog = context.NewObject();
+//    jprog.Add("Name", str::to_u8string(prog->Name, Charset::UTF16LE));
+//    const auto& src = prog->GetExtShaderSource();
+//    jprog.Add("source", context.PutResource(src.data(), src.size()));
+//    return jprog;
+//}
 
 void BasicTest::Serialize(const fs::path & fpath) const
 {
@@ -663,8 +626,10 @@ void BasicTest::Serialize(const fs::path & fpath) const
     }
     {
         auto jprogs = serializer.NewArray();
-        for (const auto& prog : glProgs)
-            jprogs.Push(SerializeGLProg(prog, serializer));
+        for (const auto& prog : { Prog2D,Prog3D, Prog3DPBR, ProgPost })
+        {
+            serializer.AddObject(jprogs, *prog);
+        }
         serializer.AddObject("shaders", jprogs);
     }
     serializer.AddObject(serializer.Root, "camera", cam);

@@ -19,9 +19,15 @@ private:
     array<uint32_t, 3> GroupCount;
     float Exposure = 0.0f;
     bool ShouldUpdate = true;
+    static void RegistControllable(PostProcessor* self);
 public:
     PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize = 32);
     ~PostProcessor();
+    virtual u16string_view GetControlType() override
+    {
+        using namespace std::literals;
+        return u"PostProcess"sv;
+    }
     constexpr uint32_t GetLutSize() const { return LutSize; }
     oglu::oglTex3DV GetLut() const { return LutTexView; }
     float GetExposure() const { return Exposure; }

@@ -9,6 +9,7 @@
 #include "FontHelper/FontHelper.h"
 #include "ThumbnailManager.h"
 #include "PostProcessor.h"
+#include "GLShader.h"
 
 namespace rayr
 {
@@ -23,13 +24,14 @@ using xziar::img::ImageDataType;
 enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
 MAKE_ENUM_BITFIELD(ChangableUBO)
 
-class RAYCOREAPI alignas(32) BasicTest final : public NonCopyable, public AlignBase<32>
+class RAYCOREAPI BasicTest final : public NonCopyable, public AlignBase<32>
 {
 private:
     oglContext glContext;
     oclContext ClContext, ClSharedContext;
     oclCmdQue ClQue;
     oglDrawProgram prog2D, prog3D, progPost;
+    Wrapper<GLShader> Prog2D, Prog3D, Prog3DPBR, ProgPost;
     oglTex2DS picTex;
     oglTex2DV chkTex;
     oglTex2DS fboTex;
@@ -47,7 +49,8 @@ private:
     vector<Wrapper<Drawable>> drawables;
     vector<Wrapper<Light>> lights;
     set<oglDrawProgram> Prog3Ds;
-    set<oglDrawProgram> glProgs;
+    set<Wrapper<GLShader>> glProgs;
+    set<oglDrawProgram> glProgs2;
     fs::path Basepath;
     std::atomic_uint32_t IsUBOChanged{ 0 };
     uint32_t WindowWidth, WindowHeight;
@@ -79,7 +82,8 @@ public:
 
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
-    const set<oglDrawProgram>& Shaders() const { return glProgs; }
+    const set<Wrapper<GLShader>>& GLShaders() const { return glProgs; }
+    const set<oglDrawProgram>& Shaders() const { return glProgs2; }
     const oglDrawProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
     const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
