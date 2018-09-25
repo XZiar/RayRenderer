@@ -222,7 +222,6 @@
     <ClInclude Include="Basic3DObject.h" />
     <ClInclude Include="BasicTest.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="Controllable.hpp" />
     <ClInclude Include="GLShader.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />

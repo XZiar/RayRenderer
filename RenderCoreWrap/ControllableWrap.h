@@ -13,23 +13,14 @@ public ref class Controllable : public DynamicObject
 {
 private:
     ViewModelStub ViewModel;
-    IntPtr Control;
+    const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
-    static auto GetControlPtr(IntPtr control)
-    {
-        return reinterpret_cast<const std::weak_ptr<rayr::Controllable>*>(control.ToPointer());
-    }
-    std::shared_ptr<rayr::Controllable> GetControl() { return GetControlPtr(Control)->lock(); }
+    std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
 internal:
-    Controllable(const std::shared_ptr<rayr::Controllable>& control);
+    Controllable(const std::shared_ptr<common::Controllable>& control);
 public:
     ~Controllable() { this->!Controllable(); }
-    !Controllable() 
-    {
-        const auto ptr = GetControlPtr(System::Threading::Interlocked::Exchange(Control, IntPtr::Zero));
-        if (ptr)
-            delete ptr;
-    }
+    !Controllable();
     virtual event PropertyChangedEventHandler^ PropertyChanged
     {
         void add(PropertyChangedEventHandler^ handler)

@@ -1,11 +1,11 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "Controllable.hpp"
+#include "common/Controllable.hpp"
 
 namespace rayr
 {
 
-class PostProcessor : public NonCopyable, public Controllable
+class PostProcessor : public NonCopyable, public common::Controllable
 {
 private:
     oclu::oclContext CLContext;
@@ -19,11 +19,11 @@ private:
     array<uint32_t, 3> GroupCount;
     float Exposure = 0.0f;
     bool ShouldUpdate = true;
-    static void RegistControllable(PostProcessor* self);
+    void RegistControllable();
 public:
     PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize = 32);
     ~PostProcessor();
-    virtual u16string_view GetControlType() override
+    virtual u16string_view GetControlType() const override
     {
         using namespace std::literals;
         return u"PostProcess"sv;

@@ -1,4 +1,4 @@
-#include "FontRely.h"
+﻿#include "FontRely.h"
 #include "FontViewer.h"
 #include "resource.h"
 #include "OpenGLUtil/PointEnhance.hpp"
@@ -7,10 +7,37 @@
 namespace oglu
 {
 
-
-FontViewer::FontViewer()
+void FontViewer::RegisterControllable()
 {
+    if (const auto res = prog->GetResource("fontColor"); res)
+    {
+        const GLint loc = res->location;
+        RegistControlItem<miniBLAS::Vec4>("Color", "", u"颜色",
+            [loc](const Controllable& self, const string&)
+            {
+                return std::get<miniBLAS::Vec4>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc));
+            }, [res](Controllable& self, const string&, const ControlArg& val)
+            {
+                dynamic_cast<FontViewer&>(self).prog->SetVec(res, std::get<miniBLAS::Vec4>(val));
+            }, ArgType::Color, {}, u"文字颜色");
+    }
+    if (const auto res = prog->GetResource("distRange"); res)
+    {
+        const GLint loc = res->location;
+        RegistControlItem<std::pair<float, float>>("Dist", "", u"边缘阈值",
+            [loc](const Controllable& self, const string&)
+            {
+                const auto& c2d = std::get<b3d::Coord2D>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc));
+                return std::pair{ c2d.u, c2d.v };
+            }, [res](Controllable& self, const string&, const ControlArg& val)
+            {
+                dynamic_cast<FontViewer&>(self).prog->SetVec(res, b3d::Coord2D(std::get<std::pair<float, float>>(val)));
+            }, ArgType::RawValue, {}, u"sdf边缘阈值");
+    }
+}
 
+FontViewer::FontViewer() : Controllable(u"文本")
+{
     prog.reset(u"FontViewer");
     try
     {
@@ -48,6 +75,7 @@ FontViewer::FontViewer()
             .SetDrawSize(0, 6);
     }
     prog->State().SetSubroutine("fontRenderer", "sdfMid");
+    RegisterControllable();
 }
 
 void FontViewer::Draw()

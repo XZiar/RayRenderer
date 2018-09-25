@@ -1,7 +1,7 @@
 #pragma once
-#include "common/CommonRely.hpp"
-#include "common/ContainerEx.hpp"
-#include "common/Exceptions.hpp"
+#include "CommonRely.hpp"
+#include "ContainerEx.hpp"
+#include "Exceptions.hpp"
 #include "3DBasic/miniBLAS.hpp"
 #include <string>
 #include <string_view>
@@ -12,11 +12,11 @@
 #include <functional>
 #include <type_traits>
 
-namespace rayr
+namespace common
 {
 
 
-class /*RAYCOREAPI*/ Controllable
+class COMMONTPL Controllable
 {
 public:
     using ControlArg = std::variant<bool, int32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
@@ -36,11 +36,9 @@ public:
     };
 private:
     std::map<std::string, std::u16string, std::less<>> Categories;
-    std::set<ControlItem, common::container::SetKeyLess<ControlItem, &ControlItem::Id>> ControlItems;
+    std::map<std::string, ControlItem, std::less<>> ControlItems;
 protected:
     Controllable(const std::u16string& name) : Name(name) {}
-    template<typename Func, typename T>
-    Controllable(const std::u16string& name, Func&& func, T* self) : Name(name) { func(self); }
 
     void AddCategory(const std::string category, const std::u16string name)
     {
@@ -53,17 +51,18 @@ protected:
         constexpr auto index = common::get_variant_index_v<T, ControlArg>();
         Categories.try_emplace(category, category.cbegin(), category.cend());
         ControlItem item{ id, category, name, description, cookie, getter, setter, index, argType, true };
-        ControlItems.insert(item);
+        ControlItems.insert_or_assign(id, item);
     }
-    template<typename T, typename T1>
-    void RegistControlItemDirect2(const std::string& id, const std::string& category, const std::u16string& name, T1& object,
+    template<typename T, typename V>
+    void RegistControlItemDirect(const std::string& id, const std::string& category, const std::u16string& name, V& object,
         const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
     {
+        static_assert(std::is_convertible_v<T, V>, "object cannot be converted from value of T");
+        static_assert(std::is_convertible_v<V, T>, "object cannot be converted to T");
         if constexpr (std::is_constructible_v<ControlArg, T>)
         {
-            static_assert(std::is_convertible_v<T, T1> && std::is_convertible_v<T1, T>, "cannot convert");
             RegistControlItem<T>(id, category, name,
-                [&object](const Controllable&, const std::string&) { return ControlArg((T)object); },
+                [&object](const Controllable&, const std::string&) { return ControlArg(static_cast<T>(object)); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::get<T>(arg); },
                 argType, cookie, description);
         }
@@ -72,27 +71,7 @@ protected:
             RegistControlItem<std::any>(id, category, name,
                 [&object](const Controllable&, const std::string&) { return ControlArg(std::any(object)); },
                 [&object](Controllable&, const std::string&, const ControlArg& arg)
-                { object = std::any_cast<T1>(std::get<std::any>(arg)); },
-                argType, cookie, description);
-        }
-    }
-    template<typename T>
-    void RegistControlItemDirect(const std::string& id, const std::string& category, const std::u16string& name, T& object,
-        const ArgType argType, const std::any& cookie = {}, const std::u16string& description = u"")
-    {
-        if constexpr (std::is_constructible_v<ControlArg, T>)
-        {
-            RegistControlItem<T>(id, category, name,
-                [&object](const Controllable&, const std::string&) { return ControlArg(object); },
-                [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::get<T>(arg); },
-                argType, cookie, description);
-        }
-        else
-        {
-            RegistControlItem<std::any>(id, category, name,
-                [&object](const Controllable&, const std::string&) { return ControlArg(std::any(object)); },
-                [&object](Controllable&, const std::string&, const ControlArg& arg) 
-                { object = std::any_cast<T>(std::get<std::any>(arg)); },
+                { object = std::any_cast<V>(std::get<std::any>(arg)); },
                 argType, cookie, description);
         }
     }
@@ -169,14 +148,14 @@ protected:
         }
     }
 public:
-    const u16string Name;
+    const std::u16string Name;
     virtual ~Controllable() {}
-    virtual u16string_view GetControlType() = 0;
+    virtual std::u16string_view GetControlType() const = 0;
     const auto& GetControlItems() const { return ControlItems; }
     const auto& GetCategories() const { return Categories; }
     const ControlItem* GetControlItem(const std::string& id) const
     { 
-        return common::container::FindInSet(ControlItems, id);
+        return common::container::FindInMap(ControlItems, id);
     }
 
     ControlArg ControllableGet(const std::string& id) const

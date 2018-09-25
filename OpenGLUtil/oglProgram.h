@@ -101,7 +101,6 @@ class OGLUAPI _oglProgram : public NonMovable, public common::AlignBase<32>, pub
     friend class ProgDraw;
 protected:
     set<oglShader> shaders;
-    string ExtShaderSource;
     ShaderExtInfo ExtInfo;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
     map<string, const ProgramResource*, std::less<>> ResNameMapping;
@@ -157,12 +156,12 @@ public:
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
     void AddShader(const oglShader& shader);
-    const string& GetExtShaderSource() const { return ExtShaderSource; }
     void Link();
     GLint GetLoc(const string& name) const;
     const ProgramResource* GetResource(const string& name) const { return common::container::FindInSet(ProgRess, name); }
     const SubroutineResource* GetSubroutines(const string& name) const { return common::container::FindInSet(SubroutineRess, name); }
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
+    const SubroutineResource::Routine* GetSubroutine(const SubroutineResource& sru);
     ProgState State() noexcept;
     void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
     void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }
@@ -220,12 +219,12 @@ class OGLUAPI _oglDrawProgram : public _oglProgram
 private:
     Mat4x4 matrix_Proj, matrix_View;
     GLint
-        Uni_projMat = GL_INVALID_INDEX,
-        Uni_viewMat = GL_INVALID_INDEX,
-        Uni_modelMat = GL_INVALID_INDEX,
+        Uni_projMat   = GL_INVALID_INDEX,
+        Uni_viewMat   = GL_INVALID_INDEX,
+        Uni_modelMat  = GL_INVALID_INDEX,
         Uni_normalMat = GL_INVALID_INDEX,
-        Uni_mvpMat = GL_INVALID_INDEX,
-        Uni_camPos = GL_INVALID_INDEX;
+        Uni_mvpMat    = GL_INVALID_INDEX,
+        Uni_camPos    = GL_INVALID_INDEX;
     virtual void OnPrepare() override;
 public:
     using _oglProgram::_oglProgram;

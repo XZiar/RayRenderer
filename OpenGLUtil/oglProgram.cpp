@@ -445,10 +445,14 @@ GLint _oglProgram::GetLoc(const string& name) const
 
 const SubroutineResource::Routine* _oglProgram::GetSubroutine(const string& sruname)
 {
-    if (const SubroutineResource* pSru = FindInSet(SubroutineRess, sruname))
-        return SubroutineBindings[pSru];
+    if (const SubroutineResource* pSru = FindInSet(SubroutineRess, sruname); pSru)
+        return GetSubroutine(*pSru);
     oglLog().warning(u"cannot find subroutine object {}\n", sruname);
     return nullptr;
+}
+const SubroutineResource::Routine* _oglProgram::GetSubroutine(const SubroutineResource& sru)
+{
+    return FindInMapOrDefault(SubroutineBindings, &sru);
 }
 
 ProgState _oglProgram::State() noexcept
@@ -761,7 +765,6 @@ void _oglDrawProgram::OnPrepare()
 
 bool _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& config)
 {
-    ExtShaderSource = src;
     const auto s = oglShader::LoadDrawFromExSrc(src, ExtInfo, config);
     for (auto shader : s)
     {
@@ -770,22 +773,6 @@ bool _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& confi
     }
     return !s.empty();
 }
-
-//void _oglDrawProgram::RegisterLocation()
-//{
-//    for (const auto&[target, res] : ResNameMapping)
-//    {
-//        switch (hash_(target))
-//        {
-//        case "ProjectMat"_hash:  Uni_projMat = res->location; break; //projectMatrix
-//        case "ViewMat"_hash:     Uni_viewMat = res->location; break; //viewMatrix
-//        case "ModelMat"_hash:    Uni_modelMat = res->location; break; //modelMatrix
-//        case "MVPMat"_hash:      Uni_mvpMat = res->location; break; //model-view-project-Matrix
-//        case "MVPNormMat"_hash:  Uni_normalMat = res->location; break; //model-view-project-Matrix
-//        case "CamPosVec"_hash:   Uni_camPos = res->location; break; //camera position
-//        }
-//    }
-//}
 
 void _oglDrawProgram::SetProject(const Mat4x4& projMat)
 {
@@ -1039,7 +1026,6 @@ ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view
 
 bool _oglComputeProgram::AddExtShaders(const string& src, const ShaderConfig& config)
 {
-    ExtShaderSource = src;
     const auto s = oglShader::LoadComputeFromExSrc(src, ExtInfo, config);
     if (s.empty())
         return false;// COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");

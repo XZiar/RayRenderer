@@ -14,6 +14,13 @@ using std::vector;
 
 #include "common/CLICommonRely.hpp"
 #include "common/CLIViewModel.hpp"
+using namespace System;
+
+template<typename T>
+inline T ExchangeNullptr(T% pointer)
+{
+    return reinterpret_cast<T>(Threading::Interlocked::Exchange((IntPtr%)pointer, IntPtr::Zero).ToPointer());
+}
 
 inline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
 {
@@ -32,9 +39,9 @@ inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
 }
 
-forceinline System::String^ ToStr(const fmt::internal::basic_buffer<char16_t>& strBuffer)
+forceinline String^ ToStr(const fmt::internal::basic_buffer<char16_t>& strBuffer)
 {
-    return gcnew System::String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());
+    return gcnew String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());
 }
 
 

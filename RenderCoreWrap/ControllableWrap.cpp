@@ -1,7 +1,6 @@
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
 
-
 namespace RayRender
 {
 
@@ -11,8 +10,13 @@ using System::Globalization::CultureInfo;
 
 Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
 {
-    Control = IntPtr(new std::weak_ptr<rayr::Controllable>(control));
+    Control = new std::weak_ptr<rayr::Controllable>(control);
     controlType = ToStr(control->GetControlType());
+}
+Controllable::!Controllable()
+{
+    if (const auto ptr = ExchangeNullptr(Control); ptr)
+        delete ptr;
 }
 
 #pragma managed(push, off)
@@ -101,7 +105,7 @@ System::Collections::Generic::IEnumerable<String^>^ Controllable::GetDynamicMemb
     int32_t i = 0;
     for (const auto& item : items)
     {
-        names[i++] = ToStr(item.Id);
+        names[i++] = ToStr(item.first);
     }
     return names;
 }

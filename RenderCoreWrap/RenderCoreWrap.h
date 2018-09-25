@@ -283,7 +283,7 @@ public:
 public ref class BasicTest : public BaseViewModel
 {
 private:
-    rayr::BasicTest * core;
+    rayr::BasicTest* core;
 internal:
 public:
     BasicTest();
@@ -301,6 +301,7 @@ public:
     initonly DrawableHolder^ Drawables;
     initonly ShaderHolder^ Shaders;
     initonly Controllable^ PostProc;
+    initonly Controllable^ FontView;
     initonly List<Controllable^>^ GLShaders;
 
     property OpenGLUtil::FaceCullingType FaceCulling

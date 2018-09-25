@@ -78,7 +78,7 @@ public:
     bool AddShader(const oglDrawProgram& prog);
     void ChangeShader(const oglDrawProgram& prog);
     void ReportChanged(const ChangableUBO target);
-    xziar::img::Image Scrrenshot();
+    xziar::img::Image Screenshot();
 
     const vector<Wrapper<Light>>& Lights() const { return lights; }
     const vector<Wrapper<Drawable>>& Objects() const { return drawables; }
@@ -88,6 +88,7 @@ public:
     const oglContext& GetContext() const { return glContext; }
     const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
     const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; };
+    const Wrapper<FontViewer>& GetFontViewer() const { return fontViewer; };
 
     void Serialize(const fs::path& fpath) const;
     void DeSerialize(const fs::path& fpath);

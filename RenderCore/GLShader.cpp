@@ -7,17 +7,10 @@ namespace rayr
 {
 
 using namespace oglu;
-
-void GLShader::RegistControllable(GLShader* self)
-{
-    self->RegistControlItemInDirect<string, GLShader>("Source", "", u"Sourcecode",
-        &GLShader::Source, ArgType::RawValue, {}, u"Shader源码");
-    self->RegistControlItemInDirect<u16string, GLShader>("Name", "", u"名称",
-        [](const GLShader& control) -> u16string& { return control.Program->Name; }, ArgType::RawValue, {}, u"Shader名称");
-}
+using common::container::FindInSet;
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
-    : Controllable(u"GLShader", RegistControllable, this), Source(source), Config(config)
+    : Controllable(u"GLShader"), Source(source), Config(config)
 {
     Program.reset(name);
     try
@@ -29,6 +22,23 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     {
         basLog().error(u"OpenGL shader [{}] fail:\n{}\n", name, gle.message);
         COMMON_THROW(BaseException, u"OpenGL shader fail");
+    }
+    RegistControllable();
+}
+void GLShader::RegistControllable()
+{
+    RegistControlItemInDirect<string, GLShader>("Source", "", u"Sourcecode",
+        &GLShader::Source, ArgType::RawValue, {}, u"Shader源码");
+    RegistControlItemInDirect<u16string, GLShader>("Name", "", u"名称",
+        [](const GLShader& control) -> u16string& { return control.Program->Name; }, ArgType::RawValue, {}, u"Shader名称");
+    for (const auto& res : Program->getSubroutineResources())
+    {
+        const u16string u16Name(res.Name.cbegin(), res.Name.cend());
+        RegistControlItem<string>("Subroutine_" + res.Name, "Subroutine", u16Name,
+            [&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; },
+            [&res](Controllable& self, const string&, const ControlArg& val) 
+            { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); },
+            ArgType::RawValue, {}, u16Name);
     }
 }
 

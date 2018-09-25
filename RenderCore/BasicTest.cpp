@@ -582,7 +582,7 @@ void BasicTest::ReportChanged(const ChangableUBO target)
     IsUBOChanged |= (uint32_t)target;
 }
 
-xziar::img::Image BasicTest::Scrrenshot()
+xziar::img::Image BasicTest::Screenshot()
 {
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
@@ -594,15 +594,6 @@ xziar::img::Image BasicTest::Scrrenshot()
     ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
-
-//static ejson::JObject SerializeGLProg(const oglu::oglDrawProgram& prog, SerializeUtil& context)
-//{
-//    auto jprog = context.NewObject();
-//    jprog.Add("Name", str::to_u8string(prog->Name, Charset::UTF16LE));
-//    const auto& src = prog->GetExtShaderSource();
-//    jprog.Add("source", context.PutResource(src.data(), src.size()));
-//    return jprog;
-//}
 
 void BasicTest::Serialize(const fs::path & fpath) const
 {
@@ -657,6 +648,16 @@ void BasicTest::DeSerialize(const fs::path & fpath)
             const ejson::JObjectRef<true> jdrw(ele);
             const auto k = deserializer.DeserializeShare<Drawable>(jdrw);
             //drawables.push_back(deserializer.DeserializeShare<Drawable>(jdrw));
+        }
+    }
+    {
+        vector<Wrapper<GLShader>> tmpShaders;
+        const auto jprogs = deserializer.Root.GetArray("shaders");
+        for (const auto ele : jprogs)
+        {
+            const ejson::JObjectRef<true> jdrw(ele);
+            const auto k = deserializer.DeserializeShare<GLShader>(jdrw);
+            tmpShaders.push_back(k);
         }
     }
     Camera cam0 = *deserializer.Deserialize<Camera>(deserializer.Root.GetObject("camera"));

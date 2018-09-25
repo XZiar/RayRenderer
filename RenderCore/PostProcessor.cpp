@@ -10,14 +10,14 @@ using namespace oclu;
 using namespace oglu;
 using namespace std::literals;
 
-void PostProcessor::RegistControllable(PostProcessor* self)
+void PostProcessor::RegistControllable()
 {
-    self->RegistControlItemInDirect<float, PostProcessor>("Exposure", "", u"曝光补偿",
+    RegistControlItemInDirect<float, PostProcessor>("Exposure", "", u"曝光补偿",
         &PostProcessor::GetExposure, &PostProcessor::SetExposure, ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)");
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize) 
-    : Controllable(u"后处理", RegistControllable, this),
+    : Controllable(u"后处理"),
     CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
 {
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
@@ -35,6 +35,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
         .SetImage(LutImg, "result");
     LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
     LutGenerator->SetUniform("exposure", 1.0f);
+    RegistControllable();
 }
 
 PostProcessor::~PostProcessor()

@@ -118,9 +118,10 @@ BasicTest::BasicTest()
         Camera = gcnew CameraHolder(&core->cam);
         Lights = gcnew LightHolder(core, core->Lights());
         Drawables = gcnew DrawableHolder(core, core->Objects());
-        GLShaders = gcnew List<Controllable^>(0);
         Shaders = gcnew ShaderHolder(core, core->Shaders());
         PostProc = gcnew Controllable(core->GetPostProc());
+        FontView = gcnew Controllable(core->GetFontViewer());
+        GLShaders = gcnew List<Controllable^>(0);
         for (const auto& glshader : core->GLShaders())
             GLShaders->Add(gcnew Controllable(glshader));
     }
@@ -133,14 +134,13 @@ BasicTest::BasicTest()
 
 BasicTest::!BasicTest()
 {
-    if (core)
+    if (const auto ptr = ExchangeNullptr(core); ptr)
     {
         delete Shaders;
         delete Drawables;
         delete Lights;
         delete Camera;
-        delete core;
-        core = nullptr;
+        delete ptr;
     }
 }
 
@@ -171,7 +171,7 @@ Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 
 Action<String^>^ BasicTest::Screenshot()
 {
-    auto saver = gcnew XZiar::Img::ImageSaver(core->Scrrenshot());
+    auto saver = gcnew XZiar::Img::ImageSaver(core->Screenshot());
     return gcnew Action<String^>(saver, &XZiar::Img::ImageSaver::Save);
 }
 

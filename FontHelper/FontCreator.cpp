@@ -110,7 +110,7 @@ FontCreator::~FontCreator()
 
 void FontCreator::reloadFont(const fs::path& fontpath)
 {
-    ft2.reset(fontpath, 124, 2);
+    ft2.reset(fontpath, (uint16_t)124, (uint16_t)2);
 }
 
 
@@ -301,14 +301,14 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
                                 possum += dist, poscnt++;
                         }
                         if (negcnt == 0)
-                            finPtr[opos] = std::clamp(possum / (poscnt * 32) + 128, 0, 255);
+                            finPtr[opos] = (uint8_t)std::clamp(possum / (poscnt * 32) + 128, 0, 255);
                         else if (poscnt == 0)
-                            finPtr[opos] = std::clamp(negsum * 3 / (negcnt * 64) + 128, 0, 255);
+                            finPtr[opos] = (uint8_t)std::clamp(negsum * 3 / (negcnt * 64) + 128, 0, 255);
                         else
                         {
                             const bool isInside = avg4 < 0;
                             const auto distsum = isInside ? ((negsum + avg4) * 4 / (negcnt + 1)) : ((possum + avg4) * 2 / (poscnt + 1));
-                            finPtr[opos] = std::clamp(distsum / 64 + 128, 0, 255);
+                            finPtr[opos] = (uint8_t)std::clamp(distsum / 64 + 128, 0, 255);
                         }
                     }
                 }
