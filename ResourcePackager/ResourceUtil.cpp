@@ -1,7 +1,7 @@
 #include "ResourceUtil.h"
 #include "3rdParty/cryptopp/sha.h"
 
-#pragma message("Compiling ResourcePackager with crypto++[" STRINGIZE(CRYPTOPP_VERSION) "])")
+#pragma message("Compiling ResourcePackager with crypto++[" STRINGIZE(CRYPTOPP_VERSION) "]")
 
 namespace xziar::respak
 {

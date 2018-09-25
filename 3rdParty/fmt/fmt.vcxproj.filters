@@ -47,6 +47,9 @@
     <ClInclude Include="utfext.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="color.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="posix.cc">

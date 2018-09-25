@@ -81,7 +81,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [MIT License](./3rdParty/stblib/license.txt)
 
-* [fmt](http://fmtlib.net) 5.1.0 (customized with utf-support)
+* [fmt](http://fmtlib.net) 5.2.1 (customized with utf-support)
 
   [BSD-2 License](./3rdParty/fmt/license.rst)
 
@@ -89,7 +89,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-08-05
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-09-18
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 

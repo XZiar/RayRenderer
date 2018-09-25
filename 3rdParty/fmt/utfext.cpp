@@ -120,4 +120,5 @@ std::basic_string<char32_t> utf_formatter<back_insert_range<internal::u32buffer>
     return CharsetConvertor<UTF16, UTF32, char16_t, char32_t>::Convert(str, size, true, true);
 }
 
+
 FMT_END_NAMESPACE

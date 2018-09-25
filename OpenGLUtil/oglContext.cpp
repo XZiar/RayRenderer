@@ -8,9 +8,11 @@
 #   define NOMINMAX 1
 #   include "glew/wglew.h"
 #   include "GL/wglext.h"
+#   pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 #else
 #   include "glew/glxew.h"
 #   include "GL/glxext.h"
+#   pragma message("Compiling OpenGLUtil with glx-ext[" STRINGIZE(GLX_GLXEXT_VERSION) "]")
 //fucking X11 defines some terrible macro
 #   undef Always
 #   undef None

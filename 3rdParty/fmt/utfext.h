@@ -65,7 +65,7 @@ struct StrConv
     constexpr StrConv(const wchar_t* ptr, const size_t size) : PtrWChar(ptr), Size((size & SizeMask) | WCharTag) {}
     constexpr StrConv(const char32_t* ptr, const size_t size) : PtrChar32(ptr), Size((size & SizeMask) | Char32Tag) {}
     constexpr basic_string_view<Char> Result() const { return basic_string_view<Char>(Ptr, Size); }
-    constexpr typed_value<typename buffer_context<Char>::type, string_type> Value() const { return basic_string_view<Char>(Ptr, Size); }
+    constexpr init<typename buffer_context<Char>::type, basic_string_view<Char>, string_type> Value() const { return basic_string_view<Char>(Ptr, Size); }
 };
 
 
@@ -153,7 +153,6 @@ public:
     typedef typename base::iterator iterator;
     typedef typename base::format_specs format_specs;
 
-
     /**
     \rst
     Constructs an argument formatter object.
@@ -161,8 +160,12 @@ public:
     *spec* contains format specifier information for standard argument types.
     \endrst
     */
-    utf_formatter(context_type &ctx, format_specs &spec)
+    explicit utf_formatter(context_type &ctx, format_specs *spec = {})
         : base(Range(ctx.out()), spec), ctx_(ctx) {}
+
+    // Deprecated.
+    utf_formatter(context_type &ctx, format_specs &spec)
+        : base(Range(ctx.out()), &spec), ctx_(ctx) {}
 
     using base::operator();
 
@@ -175,7 +178,6 @@ public:
 
     iterator operator()(basic_string_view<char_type> value)
     {
-        internal::check_string_type_spec(this->spec().type(), internal::error_handler());
         uint8_t charSize = 0;
         switch (value.size() & internal::SizeTag)
         {
@@ -239,33 +241,6 @@ inline u32format_context::iterator vformat_to(internal::u32buffer &buf, u32strin
 {
     typedef back_insert_range<internal::u32buffer> range;
     return vformat_to<utf_formatter<range>>(buf, format_str, args);
-}
-
-
-template <typename... Args, std::size_t SIZE = inline_buffer_size>
-inline u16format_context::iterator format_to(basic_memory_buffer<char16_t, SIZE> &buf, u16string_view format_str, const Args & ... args)
-{
-    return vformat_to(buf, format_str, make_format_args<u16format_context>(args...));
-}
-
-template <typename... Args, std::size_t SIZE = inline_buffer_size>
-inline u32format_context::iterator format_to(basic_memory_buffer<char32_t, SIZE> &buf, u32string_view format_str, const Args & ... args)
-{
-    return vformat_to(buf, format_str, make_format_args<u32format_context>(args...));
-}
-
-inline std::u16string vformat(u16string_view format_str, u16format_args args) 
-{
-    u16memory_buffer buffer;
-    vformat_to(buffer, format_str, args);
-    return fmt::to_string(buffer);
-}
-
-inline std::u32string vformat(u32string_view format_str, u32format_args args) 
-{
-    u32memory_buffer buffer;
-    vformat_to(buffer, format_str, args);
-    return to_string(buffer);
 }
 
 

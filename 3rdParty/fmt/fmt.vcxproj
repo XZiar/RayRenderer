@@ -171,6 +171,7 @@
     <None Include="README.rst" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="color.h" />
     <ClInclude Include="core.h" />
     <ClInclude Include="format-inl.h" />
     <ClInclude Include="format.h" />
