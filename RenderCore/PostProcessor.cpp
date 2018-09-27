@@ -12,8 +12,8 @@ using namespace std::literals;
 
 void PostProcessor::RegistControllable()
 {
-    RegistControlItemInDirect<float, PostProcessor>("Exposure", "", u"曝光补偿",
-        &PostProcessor::GetExposure, &PostProcessor::SetExposure, ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)");
+    RegistItem<float>("Exposure", "", u"曝光补偿", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)")
+        .RegistGetter(&PostProcessor::GetExposure).RegistSetter(&PostProcessor::SetExposure);
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize) 

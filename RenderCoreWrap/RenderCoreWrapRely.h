@@ -46,6 +46,14 @@ forceinline String^ ToStr(const fmt::internal::basic_buffer<char16_t>& strBuffer
 
 
 using namespace System::Numerics;
+forceinline Vector2 ToVector2(const std::pair<float, float>& pair)
+{
+    return Vector2(pair.first, pair.second);
+}
+forceinline void StoreVector2(Vector3% val, std::pair<float, float>& pair)
+{
+    pair.first = val.X, pair.second = val.Y;
+}
 forceinline Vector3 ToVector3(const miniBLAS::Vec3& vec)
 {
     return Vector3(vec.x, vec.y, vec.z);

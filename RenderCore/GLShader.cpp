@@ -25,20 +25,81 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     }
     RegistControllable();
 }
+template<typename T>
+static T GetProgCurUniform(const common::Controllable& control, const GLint location, const T defVal = {})
+{
+    const auto ptrVal = common::container::FindInMap(dynamic_cast<const GLShader&>(control).Program->getCurUniforms(), location);
+    if (ptrVal)
+    {
+        const auto ptrRealVal = std::get_if<T>(ptrVal);
+        if (ptrRealVal)
+            return *ptrRealVal;
+    }
+    return defVal;
+}
+template<typename T>
+static void SetProgUniform(const common::Controllable& control, const oglu::ProgramResource* res, const T& val)
+{
+    if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Coord2D>)
+        dynamic_cast<const GLShader&>(control).Program->SetVec(res, val);
+    else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3> || std::is_same_v<T, miniBLAS::Mat4x4>)
+        dynamic_cast<const GLShader&>(control).Program->SetMat(res, val);
+    else
+        dynamic_cast<const GLShader&>(control).Program->SetUniform(res, val);
+}
 void GLShader::RegistControllable()
 {
-    RegistControlItemInDirect<string, GLShader>("Source", "", u"Sourcecode",
-        &GLShader::Source, ArgType::RawValue, {}, u"Shader源码");
-    RegistControlItemInDirect<u16string, GLShader>("Name", "", u"名称",
-        [](const GLShader& control) -> u16string& { return control.Program->Name; }, ArgType::RawValue, {}, u"Shader名称");
+    RegistItem<string>("Source", "", u"Sourcecode", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"Shader源码")
+        .RegistMember<false, true>(&GLShader::Source);
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue, {}, u"Shader名称")
+        .RegistMemberProxy<GLShader>([](const GLShader& control) -> u16string& { return control.Program->Name; });
+
     for (const auto& res : Program->getSubroutineResources())
     {
-        const u16string u16Name(res.Name.cbegin(), res.Name.cend());
-        RegistControlItem<string>("Subroutine_" + res.Name, "Subroutine", u16Name,
-            [&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; },
-            [&res](Controllable& self, const string&, const ControlArg& val) 
-            { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); },
-            ArgType::RawValue, {}, u16Name);
+        const auto u16name = str::to_u16string(res.Name, str::Charset::UTF8);
+        vector<string> routines;
+        std::transform(res.Routines.cbegin(), res.Routines.cend(), std::back_inserter(routines), [](const auto& rt) {return rt.Name; });
+        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::RawValue, routines, u16name)
+            .RegistGetter([&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; })
+            .RegistSetter([&res](Controllable& self, const string&, const ControlArg& val) 
+            { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); });
+    }
+    const auto& props = Program->getResourceProperties();
+    for (const auto& res : Program->getResources())
+    {
+        if (auto prop = common::container::FindInSet(props, res.Name); prop)
+        {
+            const GLint loc = res.location;
+            auto prep = RegistItem("Uniform_" + res.Name, "Uniform", str::to_u16string(res.Name, str::Charset::UTF8),
+                ArgType::RawValue, prop->Data, str::to_u16string(prop->Description, str::Charset::UTF8));
+            if (prop->Type == oglu::ShaderPropertyType::Range && prop->Data.has_value())
+            {
+                prep.AsType<std::pair<float, float>>()
+                    .RegistGetter([loc](const Controllable& self, const string&)
+                    { return (std::pair<float, float>)GetProgCurUniform<b3d::Coord2D>(self, loc); })
+                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg)
+                    { SetProgUniform(self, &res, (b3d::Coord2D)std::get<std::pair<float, float>>(arg)); });
+            }
+            else if (prop->Type == oglu::ShaderPropertyType::Float && prop->Data.has_value())
+            {
+                prep.AsType<float>()
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<float>(self, loc); })
+                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<float>(arg)); });
+            }
+            else if (prop->Type == oglu::ShaderPropertyType::Color)
+            {
+                prep.AsType<miniBLAS::Vec4>().SetArgType(ArgType::Color)
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<miniBLAS::Vec4>(self, loc, miniBLAS::Vec4::zero()); })
+                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<miniBLAS::Vec4>(arg)); });
+            }
+            else if (prop->Type == oglu::ShaderPropertyType::Bool)
+            {
+                prep.AsType<bool>()
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<bool>(self, loc); })
+                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<bool>(arg)); });
+            }
+            
+        }
     }
 }
 
