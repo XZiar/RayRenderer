@@ -14,7 +14,10 @@ using namespace System::Runtime::InteropServices;
 public ref struct ControlItem
 {
     enum struct PropAccess : uint8_t { Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
-    enum struct PropType : uint8_t { RawValue = (uint8_t)common::Controllable::ArgType::RawValue, Color = (uint8_t)common::Controllable::ArgType::Color };
+    enum struct PropType : uint8_t 
+    {   RawValue = (uint8_t)common::Controllable::ArgType::RawValue, Color = (uint8_t)common::Controllable::ArgType::Color,
+        LongText = (uint8_t)common::Controllable::ArgType::LongText
+    };
     initonly String^ Id;
     initonly String^ Name;
     initonly String^ Category;
@@ -28,7 +31,7 @@ internal:
 };
 
 
-public ref class Controllable : public DynamicObject
+public ref class Controllable : public DynamicObject, public INotifyPropertyChanged
 {
 private:
     ViewModelStub ViewModel;
@@ -69,11 +72,6 @@ public:
         return DoSetMember(binder->Name, arg);
     }
     void RefreshControl();
-
-    virtual String^ ToString() override
-    {
-        return "[" + controlType + "]" + name;
-    }
 
     initonly Dictionary<String^, String^>^ Categories;
     initonly List<ControlItem^>^ Items;

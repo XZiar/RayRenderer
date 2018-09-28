@@ -18,12 +18,11 @@ namespace detail
 class OGLUAPI _oglShader : public oglCtxObject<true>
 {
     friend class _oglProgram;
+private:
+    string src;
+    GLuint shaderID = GL_INVALID_INDEX;
 public:
     const ShaderType shaderType;
-private:
-    GLuint shaderID = GL_INVALID_INDEX;
-    string src;
-public:
     _oglShader(const ShaderType type, const string& txt);
     ~_oglShader();
 
@@ -90,6 +89,7 @@ public:
         ShaderExtInfo dummy;
         return LoadFromExSrc(src, dummy, config);
     }
+    static string_view GetStageName(const ShaderType type);
 };
 
 

@@ -8,6 +8,8 @@ namespace rayr
 
 using namespace oglu;
 using common::container::FindInSet;
+using common::container::FindInMap;
+using namespace std::literals;
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
     : Controllable(u"GLShader"), Source(source), Config(config)
@@ -49,11 +51,22 @@ static void SetProgUniform(const common::Controllable& control, const oglu::Prog
 }
 void GLShader::RegistControllable()
 {
-    RegistItem<string>("Source", "", u"Sourcecode", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"Shader源码")
-        .RegistMember<false, true>(&GLShader::Source);
+    AddCategory("Subroutine", u"Subroutine");
+    AddCategory("Uniform", u"Uniform");
+    AddCategory("Source", u"源代码");
     RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue, {}, u"Shader名称")
         .RegistMemberProxy<GLShader>([](const GLShader& control) -> u16string& { return control.Program->Name; });
 
+    RegistItem<string>("ExtSource", "Source", u"Sourcecode", ArgType::LongText, {}, u"Shader合并源码")
+        .RegistMember<false, true>(&GLShader::Source);
+    for (const auto&[type, shader] : Program->getShaders())
+    {
+        const auto stage = oglu::oglShader::GetStageName(shader->shaderType);
+        const auto u16stage = str::to_u16string(stage);
+        RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
+            .RegistGetter([type](const Controllable& self, const string&)
+            { return (*FindInMap(dynamic_cast<const GLShader&>(self).Program->getShaders(), type))->SourceText(); });
+    }
     for (const auto& res : Program->getSubroutineResources())
     {
         const auto u16name = str::to_u16string(res.Name, str::Charset::UTF8);

@@ -1,5 +1,8 @@
 ## TODO list for RayRenderer
 
+* common
+  - [ ] Add async file operation (cross-platform)
+
 * AsyncExecutor
   - [x] Add support for returning value
   - [ ] Add multi thread executor
@@ -46,6 +49,7 @@
 * WPFTest
   - [ ] Change to move convinient mouse+keyboard operation
   - [ ] More buttons and proper icon
+  - [ ] Use xctk's PropertyGrid as editor layout, with Controllable
 
 * Global
   - [ ] Add GacUI

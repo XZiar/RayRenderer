@@ -100,7 +100,7 @@ class OGLUAPI _oglProgram : public NonMovable, public common::AlignBase<32>, pub
     friend class ProgState;
     friend class ProgDraw;
 protected:
-    set<oglShader> shaders;
+    map<ShaderType, oglShader> shaders;
     ShaderExtInfo ExtInfo;
     set<ShaderExtProperty, std::less<>> ShaderProperties;
     map<string, const ProgramResource*, std::less<>> ResNameMapping;
@@ -152,7 +152,7 @@ public:
     const set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
     const set<ShaderExtProperty, std::less<>>& getResourceProperties() const { return ExtInfo.Properties; }
     const set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
-    const set<oglShader>& getShaders() const { return shaders; }
+    const map<ShaderType, oglShader>& getShaders() const { return shaders; }
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
     void AddShader(const oglShader& shader);

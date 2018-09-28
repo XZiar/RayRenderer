@@ -15,13 +15,13 @@ void FontViewer::RegisterControllable()
         RegistItem<miniBLAS::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"文字颜色")
             .RegistGetter([loc](const Controllable& self, const string&)
             { return std::get<miniBLAS::Vec4>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc)); })
-            .RegistSetter([&res](Controllable& self, const string&, const ControlArg& val)
+            .RegistSetter([res](Controllable& self, const string&, const ControlArg& val)
             { dynamic_cast<FontViewer&>(self).prog->SetVec(res, std::get<miniBLAS::Vec4>(val)); });
     }
     if (const auto res = prog->GetResource("distRange"); res)
     {
         const GLint loc = res->location;
-        RegistItem<std::pair<float, float>>("Dist", "", u"边缘阈值", ArgType::RawValue, {}, u"sdf边缘阈值")
+        RegistItem<std::pair<float, float>>("Dist", "", u"边缘阈值", ArgType::RawValue, std::pair<float, float>(0.f, 1.f), u"sdf边缘阈值")
             .RegistGetter([loc](const Controllable& self, const string&)
             {
                 const auto& c2d = std::get<b3d::Coord2D>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc));

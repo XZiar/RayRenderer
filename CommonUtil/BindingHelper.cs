@@ -65,6 +65,12 @@ namespace XZiar.Util
         {
             private readonly ValueConvertDelegate Convertor;
             private readonly ValueConvertDelegate BackConvertor;
+            public static TwoWayValueConvertor DefaultConvertor = new TwoWayValueConvertor
+                ((o, t, p, c) => System.Convert.ChangeType(o, t), (o, t, p, c) => System.Convert.ChangeType(o, t));
+            public static TwoWayValueConvertor From<T>(Func<object, T> convertor)
+            {
+                return new TwoWayValueConvertor((o, t, p, c) => convertor(o) as object, (o, t, p, c) => convertor(o) as object);
+            }
             public TwoWayValueConvertor(ValueConvertDelegate convertor, ValueConvertDelegate backConvertor) { Convertor = convertor; BackConvertor = backConvertor; }
             public TwoWayValueConvertor(Func<object, object> convertor, Func<object, object> backConvertor) { Convertor = (o, t, p, c) => convertor(o); BackConvertor = (o, t, p, c) => backConvertor(o); }
             public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

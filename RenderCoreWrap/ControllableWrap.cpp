@@ -217,6 +217,13 @@ bool Controllable::DoGetMember(String^ id_, [Out] Object^% arg)
         case ValIndexVec4:      arg = ToColor(GetVec4(item, control, id)); break;
         default:                return false;
         } break;
+    case rayr::Controllable::ArgType::LongText:
+        switch (item->TypeIdx)
+        {
+        case ValIndexStr:       arg = ToStr(GetStr(item, control, id)); break;
+        case ValIndexU16Str:    arg = ToStr(GetU16Str(item, control, id)); break;
+        default:                return false;
+        } break;
     default:                return false;
     }
     return true;
@@ -240,9 +247,9 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         switch (item->TypeIdx)
         {
         case ValIndexBool:      SetArg(item, control, id, safe_cast<bool>(arg)); break;
-        case ValIndexInt32:     SetArg(item, control, id, ForceCast<int32_t>(arg)); break;
-        case ValIndexUInt64:    SetArg(item, control, id, ForceCast<uint64_t>(arg)); break;
-        case ValIndexFloat:     SetArg(item, control, id, ForceCast<float>(arg)); break;
+        case ValIndexInt32:     SetArg(item, control, id, Convert::ToInt32(arg)); break;
+        case ValIndexUInt64:    SetArg(item, control, id, Convert::ToUInt64(arg)); break;
+        case ValIndexFloat:     SetArg(item, control, id, Convert::ToSingle(arg)); break;
         case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
         case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
         case ValIndexFPair:     
@@ -273,6 +280,14 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         default:                return false;
         }
     } break;
+    case rayr::Controllable::ArgType::LongText:
+        switch (item->TypeIdx)
+        {
+        case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
+        case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        default:                return false;
+        }
+        break;
     default:                return false;
     }
     ViewModel.OnPropertyChanged(id_);

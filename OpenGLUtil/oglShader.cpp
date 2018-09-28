@@ -460,4 +460,20 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
     return shaders;
 }
 
+
+string_view oglShader::GetStageName(const ShaderType type)
+{
+    switch (type)
+    {
+    case ShaderType::Vertex:    return "Vertex"sv;
+    case ShaderType::Fragment:  return "Fragment"sv;
+    case ShaderType::Geometry:  return "Geometry"sv;
+    case ShaderType::TessCtrl:  return "TessCtrl"sv;
+    case ShaderType::TessEval:  return "TessEval"sv;
+    case ShaderType::Compute:   return "Compute"sv;
+    default:                    return "Unknown"sv;
+    }
+}
+
+
 }

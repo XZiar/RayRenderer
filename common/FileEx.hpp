@@ -119,7 +119,6 @@ public:
     {
         std::string text;
         ReadAll(text);
-        text.push_back('\0');
         return text;
     }
 

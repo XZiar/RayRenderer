@@ -60,7 +60,7 @@ GLProgram::GLProgram(const oglu::oglProgram& obj) : prog(new std::weak_ptr<oglu:
     }
     for (const auto& res : obj->getSubroutineResources())
         subroutines->Add(gcnew SubroutineResource(*prog, res));
-    for (const auto& shader : obj->getShaders())
+    for (const auto&[type, shader] : obj->getShaders())
     {
         auto shd = ShaderObject(shader);
         shaders->Add(shd.Type, shd);

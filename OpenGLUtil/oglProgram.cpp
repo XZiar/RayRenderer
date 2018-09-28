@@ -228,8 +228,8 @@ void _oglProgram::InitSubroutines()
 {
     CheckCurrent();
     set<GLenum> stages;
-    for (const auto& shd : shaders)
-        stages.insert(static_cast<GLenum>(shd->shaderType));
+    for (const auto& shdpair : shaders)
+        stages.insert(static_cast<GLenum>(shdpair.first));
     SubroutineRess.clear();
     subrLookup.clear();
     SubroutineBindings.clear();
@@ -363,10 +363,10 @@ void _oglProgram::FilterProperties()
 void _oglProgram::AddShader(const oglShader& shader)
 {
     CheckCurrent();
-    if (shaders.insert(shader).second)
+    if (shaders.try_emplace(shader->shaderType, shader).second)
         glAttachShader(programID, shader->shaderID);
     else
-        oglLog().warning(u"Repeat adding shader {} to program [{}]\n", shader->shaderID, Name);
+        oglLog().warning(u"Repeat adding shader {} to program [{}], ignored\n", shader->shaderID, Name);
 }
 
 

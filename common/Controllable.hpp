@@ -20,7 +20,7 @@ class COMMONTPL Controllable
     friend struct ControlHelper;
 public:
     using ControlArg = std::variant<bool, int32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
-    enum class ArgType : uint8_t { RawValue, Color };
+    enum class ArgType : uint8_t { RawValue, Color, LongText };
     struct ControlItem
     {
         std::string Id;

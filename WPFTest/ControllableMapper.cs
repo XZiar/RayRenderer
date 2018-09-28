@@ -3,42 +3,29 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
 using RayRender;
+using Xceed.Wpf.Toolkit;
 using Xceed.Wpf.Toolkit.PropertyGrid;
 using Xceed.Wpf.Toolkit.PropertyGrid.Editors;
+using static XZiar.Util.BindingHelper;
 
 namespace WPFTest
 {
     public class XCTKPropertyDescriptor : PropertyDescriptor
     {
         internal readonly ControlItem Item;
-        public XCTKPropertyDescriptor(ControlItem item) : base(item.Id, GenerateAttributes(item))
+        public XCTKPropertyDescriptor(ControlItem item, Attribute[] attributes) : base(item.Id, attributes)
         {
             Item = item;
         }
-        private static Attribute[] GenerateAttributes(ControlItem item)
-        {
-            var attrs = new List<Attribute>
-            {
-                new DisplayNameAttribute(item.Name),
-                new DescriptionAttribute(item.Description)
-            };
-
-            if (!string.IsNullOrEmpty(item.Category))
-                attrs.Add(new CategoryAttribute(item.Category));
-            if (item.ValType == typeof(string) && item.Cookie is string[] choices)
-            {
-                attrs.Add(new EditorAttribute(typeof(EnumStringEditor), typeof(EnumStringEditor)));
-            }
-            return attrs.ToArray();
-        }
-        //public override string Category { get => Item.Category; }
 
         public override Type ComponentType => typeof(XCTKControllable);
 
@@ -50,25 +37,55 @@ namespace WPFTest
 
         public override object GetValue(object component)
         {
-            return (component as XCTKControllable).DoGetMember(Item.Id, out object val) ? val : null;
+            return (component as XCTKControllable).Control.DoGetMember(Item.Id, out object val) ? val : null;
         }
 
         public override void ResetValue(object component) => throw new NotImplementedException();
 
         public override void SetValue(object component, object value)
         {
-            (component as XCTKControllable).DoSetMember(Item.Id, value);
+            (component as XCTKControllable).Control.DoSetMember(Item.Id, value);
         }
 
         public override bool ShouldSerializeValue(object component) => false;
     }
 
-    public class XCTKControllable : Controllable, ICustomTypeDescriptor
+    public class XCTKControllable : ICustomTypeDescriptor, INotifyPropertyChanged
     {
-        private readonly List<XCTKPropertyDescriptor> CustomFields;
-        public XCTKControllable(Controllable control) : base(control)
+        internal readonly Controllable Control;
+        private readonly XCTKPropertyDescriptor[] CustomFields;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private Attribute[] GenerateAttributes(ControlItem item)
         {
-            CustomFields = Items.Select(item => new XCTKPropertyDescriptor(item)).ToList();
+            var attrs = new List<Attribute>
+            {
+                new DisplayNameAttribute(item.Name),
+                new DescriptionAttribute(item.Description)
+            };
+
+            if (Control.Categories.TryGetValue(item.Category, out string catName) && !string.IsNullOrEmpty(catName))
+                attrs.Add(new CategoryAttribute(catName));
+            if (item.Type == ControlItem.PropType.LongText)
+                attrs.Add(new EditorAttribute(typeof(ButtonTextEditor), typeof(ButtonTextEditor)));
+            if (item.ValType == typeof(string) && item.Cookie is string[] choices)
+                attrs.Add(new EditorAttribute(typeof(EnumStringEditor), typeof(EnumStringEditor)));
+            if (item.ValType == typeof(Vector2))
+                attrs.Add(new EditorAttribute(typeof(Range2Editor), typeof(Range2Editor)));
+            if (item.ValType == typeof(float))
+                attrs.Add(new EditorAttribute(typeof(RangeEditor), typeof(RangeEditor)));
+            return attrs.ToArray();
+        }
+        public XCTKControllable(Controllable control)
+        {
+            Control = control;
+            Control.PropertyChanged += (o, e) => PropertyChanged?.Invoke(this, e);
+            CustomFields = Control.Items.Select(item => new XCTKPropertyDescriptor(item, GenerateAttributes(item))).ToArray();
+        }
+        public override string ToString()
+        {
+            return $"[{Control.ControlType}]{Control.Name}";
         }
         #region Hide not implemented members
         public AttributeCollection GetAttributes()
@@ -83,7 +100,7 @@ namespace WPFTest
 
         public string GetComponentName()
         {
-            return Name;
+            return Control.Name;
         }
 
         public TypeConverter GetConverter()
@@ -123,12 +140,12 @@ namespace WPFTest
         #endregion
         public PropertyDescriptorCollection GetProperties()
         {
-            return new PropertyDescriptorCollection(CustomFields.ToArray());
+            return new PropertyDescriptorCollection(CustomFields);
         }
 
         public PropertyDescriptorCollection GetProperties(Attribute[] attributes)
         {
-            return new PropertyDescriptorCollection(CustomFields.ToArray());
+            return new PropertyDescriptorCollection(CustomFields);
         }
     }
 
@@ -139,7 +156,77 @@ namespace WPFTest
             return (propertyItem.PropertyDescriptor as XCTKPropertyDescriptor).Item.Cookie as string[];
         }
     }
+    public class ButtonTextEditor : ITypeEditor
+    {
+        public FrameworkElement ResolveEditor(PropertyItem propertyItem)
+        {
+            var btn = new Button
+            {
+                Content = "查看"
+            };
+            btn.Click += (o, e) =>
+            {
+                new TextDialog(propertyItem.Value as string, $"{(propertyItem.Instance as XCTKControllable).Control.Name} --- {propertyItem.PropertyDescriptor.Name}").Show();
+                e.Handled = true;
+            };
+            return btn;
+        }
+    }
+    public class RangeEditor : ITypeEditor
+    {
+        static readonly TwoWayValueConvertor Convertor = TwoWayValueConvertor.From(Convert.ToSingle);
+        public FrameworkElement ResolveEditor(PropertyItem propertyItem)
+        {
+            var limit = (Vector2)(propertyItem.PropertyDescriptor as XCTKPropertyDescriptor).Item.Cookie;
+            var slider = new Slider
+            {
+                AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                AutoToolTipPrecision = 3,
+                Minimum = limit.X,
+                Maximum = limit.Y
+            };
 
+            slider.SetBinding(Slider.ValueProperty, new Binding("Value")
+            {
+                Source = propertyItem,
+                Mode = BindingMode.TwoWay,
+                Converter = Convertor
+            });
+            return slider;
+        }
+    }
+    public class Range2Editor : ITypeEditor
+    {
+        public FrameworkElement ResolveEditor(PropertyItem propertyItem)
+        {
+            var limit = (Vector2)(propertyItem.PropertyDescriptor as XCTKPropertyDescriptor).Item.Cookie;
+            var slider = new RangeSlider
+            {
+                AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                AutoToolTipPrecision = 3,
+                Minimum = limit.X,
+                Maximum = limit.Y
+            };
+
+            slider.SetBinding(RangeSlider.LowerValueProperty, new Binding("Value")
+            {
+                Source = propertyItem,
+                Mode = BindingMode.TwoWay,
+                Converter = new TwoWayValueConvertor(
+                    o => ((Vector2)o).X,
+                    o => new Vector2(Convert.ToSingle(o), (float)slider.HigherValue))
+            });
+            slider.SetBinding(RangeSlider.HigherValueProperty, new Binding("Value")
+            {
+                Source = propertyItem,
+                Mode = BindingMode.TwoWay,
+                Converter = new TwoWayValueConvertor(
+                    o => ((Vector2)o).Y, 
+                    o => new Vector2((float)slider.LowerValue, Convert.ToSingle(o)))
+            });
+            return slider;
+        }
+    }
     public static class ControllableMapper
     {
         private static readonly BrushConverter BrushConv = new BrushConverter();
