@@ -10,6 +10,17 @@ using std::u16string;
 using common::ControlHelper;
 using System::Globalization::CultureInfo;
 
+static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,                     rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,                  rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,           rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,           rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,                   rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                rayr::Controllable::ControlArg>();
+
+
 template<typename Char>
 static array<String^>^ ToStrArray(const vector<std::basic_string<Char>>& src)
 {
@@ -36,6 +47,24 @@ ControlItem::ControlItem(const common::Controllable::ControlItem& item)
     if (item.Setter) access = access | PropAccess::Write;
     Access = access;
     Type = (PropType)item.Type;
+    if (Type == PropType::Color) 
+        ValType = System::Windows::Media::Color::typeid;
+    else
+    {
+        switch (item.TypeIdx)
+        {
+        case ValIndexBool:          ValType = bool::typeid; break;
+        case ValIndexInt32:         ValType = int32_t::typeid; break;
+        case ValIndexUInt64:        ValType = uint64_t::typeid; break;
+        case ValIndexFloat:         ValType = float::typeid; break;
+        case ValIndexFPair:         ValType = Vector2::typeid; break;
+        case ValIndexVec3:          ValType = Vector3::typeid; break;
+        case ValIndexVec4:          ValType = Vector4::typeid; break;
+        case ValIndexStr:           ValType = String::typeid; break;
+        case ValIndexU16Str:        ValType = String::typeid; break;
+        default:                    ValType = Object::typeid; break;
+        }
+    }
 }
 
 
@@ -43,9 +72,13 @@ Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
 {
     Control = new std::weak_ptr<rayr::Controllable>(control);
     controlType = ToStr(ControlHelper::GetControlType(*control));
+    name = ToStr(ControlHelper::GetControlName(*control));
     Categories = gcnew Dictionary<String^, String^>(0);
     Items = gcnew List<ControlItem^>(0);
     RefreshControl();
+}
+Controllable::Controllable(Controllable^ other) : Controllable(other->Control->lock())
+{
 }
 Controllable::!Controllable()
 {
@@ -144,16 +177,6 @@ static void SetArg(const rayr::Controllable::ControlItem* item, const std::share
 }
 #pragma managed(pop)
 
-static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,                     rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,                  rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,           rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,           rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,                   rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                rayr::Controllable::ControlArg>();
-
 String^ GetControlItemIds(ControlItem^ item)
 {
     return item->Id;
@@ -164,9 +187,9 @@ IEnumerable<String^>^ Controllable::GetDynamicMemberNames()
     return Enumerable::Select(Items, gcnew Func<ControlItem^, String^>(GetControlItemIds));
 }
 
-bool Controllable::TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg)
+bool Controllable::DoGetMember(String^ id_, [Out] Object^% arg)
 {
-    const auto id = ToCharStr(binder->Name);
+    const auto id = ToCharStr(id_);
     const auto control = GetControl();
     if (!control) return false;
     const auto item = ControlHelper::GetControlItem(*control, id);
@@ -204,9 +227,9 @@ template<typename T> T ForceCast(Object^ value)
     return safe_cast<T>(Convert::ChangeType(value, T::typeid, CultureInfo::InvariantCulture));
 }
 
-bool Controllable::TrySetMember(SetMemberBinder^ binder, Object^ arg)
+bool Controllable::DoSetMember(String^ id_, Object^ arg)
 {
-    const auto id = ToCharStr(binder->Name);
+    const auto id = ToCharStr(id_);
     const auto control = GetControl();
     if (!control) return false;
     const auto item = ControlHelper::GetControlItem(*control, id);
@@ -252,7 +275,7 @@ bool Controllable::TrySetMember(SetMemberBinder^ binder, Object^ arg)
     } break;
     default:                return false;
     }
-    ViewModel.OnPropertyChanged(binder->Name);
+    ViewModel.OnPropertyChanged(id_);
     return true;
 }
 

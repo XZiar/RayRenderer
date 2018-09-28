@@ -82,6 +82,14 @@ namespace WPFTest
             Core.Test.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
             this.Closed += (o, e) => { Core.Dispose(); Core = null; };
 
+            var shaderCtl = Core.Test.GLShaders.Select(ctl => new XCTKControllable(ctl)).ToList();
+            var postCtl = new XCTKControllable(Core.Test.PostProc);
+            var fontCtl = new XCTKControllable(Core.Test.FontView);
+            shaderCtl.Add(postCtl);
+            shaderCtl.Add(fontCtl);
+            cboxShader2.ItemsSource = shaderCtl;
+            pgTest.PropertyChanged += (o, e) => glMain.Invalidate();
+
             glMain.Draw += Core.Test.Draw;
             glMain.Resize += (o, e) => { Core.Test.Resize((uint)e.Width, (uint)e.Height); };
 

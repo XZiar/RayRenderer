@@ -473,6 +473,13 @@
                     </ScrollViewer>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="Test" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <DockPanel>
+                    <ComboBox x:Name="cboxShader2" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                        <xctk:PropertyGrid x:Name="pgTest" AutoGenerateProperties="True" SelectedObject="{Binding SelectedItem, ElementName=cboxShader2, Mode=OneWay}">
+                        </xctk:PropertyGrid>
+                </DockPanel>
+            </TabItem>
         </TabControl>
         <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="5" HorizontalAlignment="Stretch" Background="#FF686868" />
         <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">

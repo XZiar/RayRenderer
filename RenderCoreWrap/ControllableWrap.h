@@ -6,8 +6,9 @@ namespace RayRender
 
 
 using namespace System;
-using namespace System::Dynamic;
+using namespace System::ComponentModel;
 using namespace System::Collections::Generic;
+using namespace System::Dynamic;
 using namespace System::Runtime::InteropServices;
 
 public ref struct ControlItem
@@ -21,19 +22,24 @@ public ref struct ControlItem
     initonly Object^ Cookie;
     initonly PropAccess Access;
     initonly PropType Type;
+    initonly System::Type^ ValType;
 internal:
     ControlItem(const common::Controllable::ControlItem& item);
 };
+
+
 public ref class Controllable : public DynamicObject
 {
 private:
     ViewModelStub ViewModel;
     const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
+    initonly String^ name;
     std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
 internal:
     Controllable(const std::shared_ptr<common::Controllable>& control);
 public:
+    Controllable(Controllable^ other);
     ~Controllable() { this->!Controllable(); }
     !Controllable();
     virtual event PropertyChangedEventHandler^ PropertyChanged
@@ -52,13 +58,27 @@ public:
         }
     }
     virtual IEnumerable<String^>^ GetDynamicMemberNames() override;
-    virtual bool TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg) override;
-    virtual bool TrySetMember(SetMemberBinder^ binder, Object^ arg) override;
+    bool DoGetMember(String^ id, [Out] Object^% arg);
+    bool DoSetMember(String^ id, Object^ arg);
+    virtual bool TryGetMember(GetMemberBinder^ binder, [Out] Object^% arg) override
+    {
+        return DoGetMember(binder->Name, arg);
+    }
+    virtual bool TrySetMember(SetMemberBinder^ binder, Object^ arg) override
+    {
+        return DoSetMember(binder->Name, arg);
+    }
     void RefreshControl();
+
+    virtual String^ ToString() override
+    {
+        return "[" + controlType + "]" + name;
+    }
 
     initonly Dictionary<String^, String^>^ Categories;
     initonly List<ControlItem^>^ Items;
     CLI_READONLY_PROPERTY(String^, ControlType, controlType)
+    CLI_READONLY_PROPERTY(String^, Name, name)
 };
 
 }

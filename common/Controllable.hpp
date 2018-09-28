@@ -41,6 +41,7 @@ private:
     template<typename T>
     class ItemPrep
     {
+        friend class Controllable; // gcc&clang need it
         friend class ItemPrepNonType;
         ControlItem& Item;
         ItemPrep(ControlItem& item) : Item(item) {}
@@ -153,7 +154,7 @@ private:
         ItemPrepNonType(ControlItem& item) : Item(item) {}
     public:
         template<typename T>
-        auto AsType() 
+        decltype(auto) AsType()
         {
             using RealType = std::conditional_t<std::is_constructible_v<ControlArg, T>, T, std::any>;
             Item.TypeIdx = common::get_variant_index_v<RealType, ControlArg>();
@@ -175,7 +176,7 @@ protected:
         return it->second;
     }
     template<typename T>
-    auto RegistItem(const std::string& id, const std::string& category, const std::u16string& name, const ArgType argType,
+    decltype(auto) RegistItem(const std::string& id, const std::string& category, const std::u16string& name, const ArgType argType,
         const std::any& cookie = {}, const std::u16string& description = u"")
     {
         return RegistItem(id, category, name, argType, cookie, description).AsType<T>();
