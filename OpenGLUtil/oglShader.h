@@ -34,34 +34,19 @@ public:
 
 enum class ShaderPropertyType : uint8_t { Vector, Color, Range, Matrix, Float, Bool, Int, Uint };
 
-struct OGLUAPI ShaderExtProperty : public common::container::NamedSetValue<ShaderExtProperty, string>
+struct ShaderExtProperty
 {
     const string Name;
     const string Description;
     const ShaderPropertyType Type;
     const std::any Data;
     ShaderExtProperty(const string& name, const ShaderPropertyType type, const string& desc = "", const std::any& data = {}) :Name(name), Description(desc), Type(type), Data(data) {}
-    bool MatchType(const GLenum glType) const
-    {
-        switch (Type)
-        {
-        case ShaderPropertyType::Vector: return (glType >= GL_FLOAT_VEC2 && glType <= GL_INT_VEC4) || (glType >= GL_BOOL_VEC2 && glType <= GL_BOOL_VEC4) ||
-            (glType >= GL_UNSIGNED_INT_VEC2 && glType <= GL_UNSIGNED_INT_VEC4) || (glType >= GL_DOUBLE_VEC2 && glType <= GL_DOUBLE_VEC4);
-        case ShaderPropertyType::Bool: return glType == GL_BOOL;
-        case ShaderPropertyType::Int: return glType == GL_INT;
-        case ShaderPropertyType::Uint: return glType == GL_UNSIGNED_INT;
-        case ShaderPropertyType::Float: return glType == GL_FLOAT;
-        case ShaderPropertyType::Color: return glType == GL_FLOAT_VEC4;
-        case ShaderPropertyType::Range: return glType == GL_FLOAT_VEC2;
-        case ShaderPropertyType::Matrix: return (glType >= GL_FLOAT_MAT2 && glType <= GL_FLOAT_MAT4) || (glType >= GL_DOUBLE_MAT2 && glType <= GL_DOUBLE_MAT4x3);
-        default: return false;
-        }
-    }
+    using Lesser = common::container::SetKeyLess<ShaderExtProperty, &ShaderExtProperty::Name>;
 };
 
-struct OGLUAPI ShaderExtInfo
+struct ShaderExtInfo
 {
-    set<ShaderExtProperty, std::less<>> Properties;
+    set<ShaderExtProperty, ShaderExtProperty::Lesser> Properties;
     map<string, string> ResMappings;
 };
 

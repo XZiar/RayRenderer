@@ -15,7 +15,7 @@
 namespace common
 {
 
-class COMMONTPL Controllable
+class Controllable
 {
     friend struct ControlHelper;
 public:

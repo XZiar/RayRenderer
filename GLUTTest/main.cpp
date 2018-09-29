@@ -165,7 +165,8 @@ void onDropFile(FreeGLUTView wd, u16string fname)
         {
             wd->invoke([&, shd] 
             {
-                return tester->AddShader(shd);
+                //return tester->AddShader(shd);
+                return true;
             });
         });
     }

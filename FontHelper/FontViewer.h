@@ -6,7 +6,10 @@
 namespace oglu
 {
 
-
+#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
 class FONTHELPAPI FontViewer : public NonCopyable, public common::Controllable
 {
 private:
@@ -24,5 +27,8 @@ public:
     void Draw();
     void BindTexture(const oglTex2D& tex);
 };
+#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 }

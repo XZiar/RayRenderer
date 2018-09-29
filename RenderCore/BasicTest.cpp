@@ -472,52 +472,31 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
     }, fname).detach();
 }
 
-void BasicTest::LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(oglDrawProgram)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
+void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
-    using common::asyexe::StackSize;
-    const auto loadPms = std::make_shared<std::promise<oglDrawProgram>>();
-    auto fut = loadPms->get_future();
-    GLWorker->InvokeShare([fname, shdName, loadPms](const common::asyexe::AsyncAgent& agent)
+    auto pms = GLWorker->InvokeShare([fpath, shdName](const common::asyexe::AsyncAgent& agent)
     {
-        oglDrawProgram prog(shdName);
-        try
-        {
-            prog->AddExtShaders(common::file::ReadAllText(fname));
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
-            loadPms->set_exception(std::current_exception());
-            return;
-        }
-        try
-        {
-            prog->Link();
-            prog->State()
-                .SetSubroutine("lighter", "tex0")
-                .SetSubroutine("getNorm", "bothNormal")
-                .SetSubroutine("getAlbedo", "bothAlbedo");
-        }
-        catch (const OGLException& gle)
-        {
-            basLog().error(u"Fail to link Program:\n{}\n", gle.message);
-            loadPms->set_exception(std::current_exception());
-            return;
-        }
-        loadPms->set_value(prog);
-    }, u"load shader " + shdName, StackSize::Big);
-    std::thread([onFinish, onError](std::future<oglDrawProgram>&& fut)
+        auto shader = Wrapper<GLShader>(shdName, common::file::ReadAllText(fpath));
+        shader->Program->State()
+            .SetSubroutine("lighter", "tex0")
+            .SetSubroutine("getNorm", "bothNormal")
+            .SetSubroutine("getAlbedo", "bothAlbedo");
+        return shader;
+    }, u"load shader " + shdName, common::asyexe::StackSize::Big);
+    std::thread([this, onFinish, onError](common::PromiseResult<Wrapper<GLShader>>&& pms)
     {
         common::SetThreadName(u"AsyncLoader for Shader");
         try
         {
-            onFinish(fut.get());
+            auto shader = pms->wait();
+            glProgs.insert(shader);
+            onFinish(shader);
         }
         catch (const BaseException& be)
         {
             onError(be);
         }
-    }, std::move(fut)).detach();
+    }, std::move(pms)).detach();
 }
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)

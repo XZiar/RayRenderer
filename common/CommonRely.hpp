@@ -278,7 +278,7 @@ struct NonMovable
 
 
 template<size_t Align>
-struct COMMONTPL AlignBase
+struct AlignBase
 {
 public:
 #if defined(__cpp_lib_gcd_lcm)

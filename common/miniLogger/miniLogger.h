@@ -40,7 +40,7 @@ public:
 
 
 template<bool DynamicBackend>
-class COMMONTPL MiniLogger : public detail::MiniLoggerBase
+class MINILOGAPI MiniLogger : public detail::MiniLoggerBase
 {
 protected:
     common::WRSpinLock WRLock;
@@ -194,19 +194,27 @@ public:
         }
     }
 
-    void AddOuputer(const std::shared_ptr<LoggerBackend>& outputer)
+    void AddOuputer([[maybe_unused]]const std::shared_ptr<LoggerBackend>& outputer)
     {
-        static_assert(DynamicBackend, "Add output only supported by Dynamic-backend Logger");
-        WRLock.LockWrite();
-        Outputer.insert(outputer);
-        WRLock.UnlockWrite();
+        if constexpr (DynamicBackend)
+        {
+            WRLock.LockWrite();
+            Outputer.insert(outputer);
+            WRLock.UnlockWrite();
+        }
+        else
+            COMMON_THROW(BaseException, u"Add output only supported by Dynamic-backend Logger");
     }
-    void DelOutputer(const std::shared_ptr<LoggerBackend>& outputer)
+    void DelOutputer([[maybe_unused]]const std::shared_ptr<LoggerBackend>& outputer)
     {
-        static_assert(DynamicBackend, "Del output only supported by Dynamic-backend Logger");
-        WRLock.LockWrite();
-        Outputer.erase(outputer);
-        WRLock.UnlockWrite();
+        if constexpr (DynamicBackend)
+        {
+            WRLock.LockWrite();
+            Outputer.erase(outputer);
+            WRLock.UnlockWrite();
+        }
+        else
+            COMMON_THROW(BaseException, u"Del output only supported by Dynamic-backend Logger");
     }
 };
 

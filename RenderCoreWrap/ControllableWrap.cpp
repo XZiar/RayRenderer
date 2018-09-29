@@ -30,22 +30,28 @@ static array<String^>^ ToStrArray(const vector<std::basic_string<Char>>& src)
         arr[i++] = ToStr(str);
     return arr;
 }
+static Object^ ParseCookie(const std::any& cookie)
+{
+    if (const auto ck = std::any_cast<std::pair<float, float>>(&cookie); ck)
+        return gcnew Vector2(ck->first, ck->second);
+    else if (const auto ck = std::any_cast<vector<string>>(&cookie); ck)
+        return ToStrArray(*ck);
+    else if (const auto ck = std::any_cast<vector<u16string>>(&cookie); ck)
+        return ToStrArray(*ck);
+    else if (const auto ck = std::any_cast<std::pair<int32_t, int32_t>>(&cookie); ck)
+        return gcnew Tuple<int32_t, int32_t>(ck->first, ck->second);
+    else if (const auto ck = std::any_cast<std::pair<uint32_t, uint32_t>>(&cookie); ck)
+        return gcnew Tuple<uint32_t, uint32_t>(ck->first, ck->second);
+    return nullptr;
+}
 ControlItem::ControlItem(const common::Controllable::ControlItem& item)
 {
     Id = ToStr(item.Id);
     Name = ToStr(item.Name);
     Category = ToStr(item.Category);
     Description = ToStr(item.Description);
-    if (const auto ck = std::any_cast<std::pair<float, float>>(&item.Cookie); ck)
-        Cookie = gcnew System::Numerics::Vector2(ck->first, ck->second);
-    else if (const auto ck = std::any_cast<vector<string>>(&item.Cookie); ck)
-        Cookie = ToStrArray(*ck);
-    else if (const auto ck = std::any_cast<vector<u16string>>(&item.Cookie); ck)
-        Cookie = ToStrArray(*ck);
-    PropAccess access;
-    if (item.Getter) access = access | PropAccess::Read;
-    if (item.Setter) access = access | PropAccess::Write;
-    Access = access;
+    Cookie = ParseCookie(item.Cookie);
+    Access = (item.Getter ? PropAccess::Read : PropAccess::Empty) | (item.Setter ? PropAccess::Write : PropAccess::Empty);
     Type = (PropType)item.Type;
     if (Type == PropType::Color) 
         ValType = System::Windows::Media::Color::typeid;
@@ -77,12 +83,9 @@ Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
     Items = gcnew List<ControlItem^>(0);
     RefreshControl();
 }
-Controllable::Controllable(Controllable^ other) : Controllable(other->Control->lock())
-{
-}
 Controllable::!Controllable()
 {
-    if (const auto ptr = ExchangeNullptr(Control); ptr)
+    if (const auto ptr = common::ExchangeNullptr(Control); ptr)
         delete ptr;
 }
 
@@ -253,33 +256,32 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
         case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
         case ValIndexFPair:     
-        {
-            const auto& tmp = safe_cast<Vector2>(arg);
-            SetArg(item, control, id, tmp.X, tmp.Y);
-        } break;
+            {
+                const auto& tmp = safe_cast<Vector2>(arg);
+                SetArg(item, control, id, tmp.X, tmp.Y);
+            } break;
         case ValIndexVec3:
-        {
-            const auto& tmp = safe_cast<Vector3>(arg);
-            SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z);
-        } break;
+            {
+                const auto& tmp = safe_cast<Vector3>(arg);
+                SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z);
+            } break;
         case ValIndexVec4:
-        {
-            const auto& tmp = safe_cast<Vector4>(arg);
-            SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z, tmp.W);
+            {
+                const auto& tmp = safe_cast<Vector4>(arg);
+                SetArg(item, control, id, tmp.X, tmp.Y, tmp.Z, tmp.W);
+            } break;
+        default:                return false;
         } break;
-        default:                return false;
-        } 
-        break;
     case rayr::Controllable::ArgType::Color:
-    {
-        auto color = safe_cast<System::Windows::Media::Color>(arg);
-        switch (item->TypeIdx)
         {
-        case ValIndexVec3:  SetArg(item, control, id, color.ScR, color.ScG, color.ScB); break;
-        case ValIndexVec4:  SetArg(item, control, id, color.ScR, color.ScG, color.ScB, color.ScA); break;
-        default:                return false;
-        }
-    } break;
+            auto color = safe_cast<System::Windows::Media::Color>(arg);
+            switch (item->TypeIdx)
+            {
+            case ValIndexVec3:  SetArg(item, control, id, color.ScR, color.ScG, color.ScB); break;
+            case ValIndexVec4:  SetArg(item, control, id, color.ScR, color.ScG, color.ScB, color.ScA); break;
+            default:                return false;
+            }
+        } break;
     case rayr::Controllable::ArgType::LongText:
         switch (item->TypeIdx)
         {

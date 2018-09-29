@@ -284,6 +284,7 @@ public ref class BasicTest : public BaseViewModel
 {
 private:
     rayr::BasicTest* core;
+    Controllable^ AddShader(CLIWrapper<Wrapper<rayr::GLShader>>^ theShader);
 internal:
 public:
     BasicTest();
@@ -321,6 +322,7 @@ public:
 
     void ReLoadCL(String^ fname);
     Task<bool>^ ReloadCLAsync(String^ fname);
+    Task<Controllable^>^ AddShaderAsync(String^ fname, String^ shaderName);
 
     Action<String^>^ Screenshot();
     void Serialize(String^ fname);

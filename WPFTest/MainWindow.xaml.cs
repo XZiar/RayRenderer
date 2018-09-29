@@ -22,6 +22,7 @@ using System.Threading;
 using OpenGLUtil;
 using System.ComponentModel;
 using System.Windows.Input;
+using System.Collections.ObjectModel;
 
 namespace WPFTest
 {
@@ -44,6 +45,7 @@ namespace WPFTest
         private float ScrollSensative => (float)slScrollSen.Value;
         private ushort waitingCount = 0;
         public ushort WaitingCount { get { return waitingCount; } set { waitingCount = value; ChangeStatusBar(value); } }
+        private ObservableCollection<XCTKControllable> XCTKControls = new ObservableCollection<XCTKControllable>();
 
         private void ChangeStatusBar(ushort value)
         {
@@ -82,12 +84,10 @@ namespace WPFTest
             Core.Test.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
             this.Closed += (o, e) => { Core.Dispose(); Core = null; };
 
-            var shaderCtl = Core.Test.GLShaders.Select(ctl => new XCTKControllable(ctl)).ToList();
-            var postCtl = new XCTKControllable(Core.Test.PostProc);
-            var fontCtl = new XCTKControllable(Core.Test.FontView);
-            shaderCtl.Add(postCtl);
-            shaderCtl.Add(fontCtl);
-            cboxShader2.ItemsSource = shaderCtl;
+            Core.Test.GLShaders.ForEach(ctl => XCTKControls.Add(new XCTKControllable(ctl)));
+            XCTKControls.Add(new XCTKControllable(Core.Test.PostProc));
+            XCTKControls.Add(new XCTKControllable(Core.Test.FontView));
+            cboxShader2.ItemsSource = XCTKControls;
             pgTest.PropertyChanged += (o, e) => glMain.Invalidate();
 
             glMain.Draw += Core.Test.Draw;
@@ -596,8 +596,11 @@ namespace WPFTest
                 try
                 {
                     WaitingCount++;
-                    if (await Core.Shaders.AddShaderAsync(fname))
-                        glMain.Invalidate();
+                    //if (await Core.Shaders.AddShaderAsync(fname))
+                    //    glMain.Invalidate();
+                    var shader = await Core.AddShaderAsync(fname);
+                    XCTKControls.Add(new XCTKControllable(shader));
+                    glMain.Invalidate();
                 }
                 catch (Exception ex)
                 {

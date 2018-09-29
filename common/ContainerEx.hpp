@@ -13,16 +13,6 @@
 namespace common::container
 {
 
-template<typename Child, typename StringType>
-struct COMMONTPL NamedSetValue
-{
-    bool operator<(const Child& other) const noexcept { return ((const Child*)this)->Name < other.Name; }
-};
-template<typename Child, typename StringType>
-forceinline bool operator<(const NamedSetValue<Child, StringType>& obj, const StringType& name) noexcept { return ((const Child*)&obj)->Name < name; }
-template<typename Child, typename StringType>
-forceinline bool operator<(const StringType& name, const NamedSetValue<Child, StringType>& obj) noexcept { return name < ((const Child*)&obj)->Name; }
-
 namespace detail
 {
 struct LessTester
@@ -48,12 +38,10 @@ struct SetKeyLess
     }
     constexpr bool operator()(const T& left, const T& right) const noexcept
     {
-        if constexpr(std::is_invocable<detail::LessTester, T, T>::value)
-            return (left < right);
-        else
-            return ((left.*Key) < (right.*Key));
+        return ((left.*Key) < (right.*Key));
     }
 };
+
 
 template<typename Key, typename Val>
 struct PairLess

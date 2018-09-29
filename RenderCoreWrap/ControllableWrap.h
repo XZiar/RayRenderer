@@ -13,7 +13,7 @@ using namespace System::Runtime::InteropServices;
 
 public ref struct ControlItem
 {
-    enum struct PropAccess : uint8_t { Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
+    enum struct PropAccess : uint8_t { Empty = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     enum struct PropType : uint8_t 
     {   RawValue = (uint8_t)common::Controllable::ArgType::RawValue, Color = (uint8_t)common::Controllable::ArgType::Color,
         LongText = (uint8_t)common::Controllable::ArgType::LongText
@@ -42,7 +42,6 @@ private:
 internal:
     Controllable(const std::shared_ptr<common::Controllable>& control);
 public:
-    Controllable(Controllable^ other);
     ~Controllable() { this->!Controllable(); }
     !Controllable();
     virtual event PropertyChangedEventHandler^ PropertyChanged

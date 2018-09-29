@@ -2,6 +2,7 @@
 
 * common
   - [ ] Add async file operation (cross-platform)
+  - [ ] Add linq (iterator-based)
 
 * AsyncExecutor
   - [x] Add support for returning value
@@ -34,12 +35,15 @@
   - [ ] Update blinn-phong shader, or combine them
   - [ ] Move normal mapping into VS stage
   - [ ] Add proper deserialization
-  - [ ] Design plugin system, provide common interface
   - [x] Seperate color correction pass using 3D LUT
+  * Architecture
+    - [ ] Design plugin system, provide common interface
+    - [ ] Redesign shader-drawable's binding strategy
+    - [ ] Add pass concept (customizable)
+    - [ ] Add render pipeline concept (layers of passes)
   * Core function
     - [ ] Add ShadowMapping
     - [ ] Add Raytracing
-    - [ ] Add multi-pass workflow
     - [ ] Add Deffered rendering
   * Model
     - [ ] Add skeleton animation

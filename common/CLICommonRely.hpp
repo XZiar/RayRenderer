@@ -69,21 +69,23 @@ forceinline System::String^ ToStr(const std::wstring_view& str)
 }
 
 template<typename T>
+inline T ExchangeNullptr(T% pointer)
+{
+    return reinterpret_cast<T>(System::Threading::Interlocked::Exchange((System::IntPtr%)pointer, System::IntPtr::Zero).ToPointer());
+}
+
+template<typename T>
 public ref class CLIWrapper
 {
 private:
-    System::IntPtr Src;
-    T* ExchangeNull()
-    {
-        return reinterpret_cast<T*>(System::Threading::Interlocked::Exchange(Src, System::IntPtr::Zero).ToPointer());
-    }
+    T* Src;
 public:
     template<typename U>
     CLIWrapper(U&& src) : Src(new T(std::forward<U>(src))) { }
     ~CLIWrapper() { this->!CLIWrapper(); }
     !CLIWrapper() 
     { 
-        if (auto src = ExchangeNull(); src)
+        if (auto src = ExchangeNullptr(Src); src)
             delete src;
     }
     T Extract() 
@@ -93,11 +95,11 @@ public:
     }
     T& Ref()
     {
-        return *reinterpret_cast<T*>(src.ToPointer());
+        return *Src;
     }
     static operator T(CLIWrapper<T>^ val) 
     {
-        auto src = val->ExchangeNull();
+        auto src = ExchangeNullptr(val->Src);
         try
         {
             T obj(std::move(*src));

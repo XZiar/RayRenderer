@@ -59,5 +59,7 @@ void DelGlobalCallback(const uint32_t id)
     reinterpret_cast<GlobalBackend*>(detail::MiniLoggerBase::GlobalOutputer.get())->DelCallback(id);
 }
 
+template class MINILOGAPI MiniLogger<true>;
+template class MINILOGAPI MiniLogger<false>;
 
 }

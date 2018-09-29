@@ -298,15 +298,33 @@ void _oglProgram::InitSubroutines()
     }
 }
 
+static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
+{
+    const auto glType = (GLenum)res.Valtype;
+    switch (prop.Type)
+    {
+    case ShaderPropertyType::Vector: return (glType >= GL_FLOAT_VEC2 && glType <= GL_INT_VEC4) || (glType >= GL_BOOL_VEC2 && glType <= GL_BOOL_VEC4) ||
+        (glType >= GL_UNSIGNED_INT_VEC2 && glType <= GL_UNSIGNED_INT_VEC4) || (glType >= GL_DOUBLE_VEC2 && glType <= GL_DOUBLE_VEC4);
+    case ShaderPropertyType::Bool: return glType == GL_BOOL;
+    case ShaderPropertyType::Int: return glType == GL_INT;
+    case ShaderPropertyType::Uint: return glType == GL_UNSIGNED_INT;
+    case ShaderPropertyType::Float: return glType == GL_FLOAT;
+    case ShaderPropertyType::Color: return glType == GL_FLOAT_VEC4;
+    case ShaderPropertyType::Range: return glType == GL_FLOAT_VEC2;
+    case ShaderPropertyType::Matrix: return (glType >= GL_FLOAT_MAT2 && glType <= GL_FLOAT_MAT4) || (glType >= GL_DOUBLE_MAT2 && glType <= GL_DOUBLE_MAT4x3);
+    default: return false;
+    }
+}
+
 void _oglProgram::FilterProperties()
 {
     CheckCurrent();
-    set<ShaderExtProperty, std::less<>> newProperties;
+    set<ShaderExtProperty, ShaderExtProperty::Lesser> newProperties;
     for (const auto& prop : ExtInfo.Properties)
     {
         oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
         if (auto res = FindInSet(ProgRess, prop.Name))
-            if (prop.MatchType(res->Valtype))
+            if (MatchType(prop, *res))
             {
                 newProperties.insert(prop);
                 switch (prop.Type)

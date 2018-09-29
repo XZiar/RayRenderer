@@ -91,8 +91,9 @@ bool ShaderHolder::AddShader(CLIWrapper<oglu::oglDrawProgram>^ theShader)
 
 Task<bool>^ ShaderHolder::AddShaderAsync(String^ fname, String^ shaderName)
 {
-    return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglDrawProgram>^, bool>(this, &ShaderHolder::AddShader),
-        &rayr::BasicTest::LoadShaderAsync, Core, ToU16Str(fname), ToU16Str(shaderName));
+    /*return doAsync3<bool>(gcnew Func<CLIWrapper<oglu::oglDrawProgram>^, bool>(this, &ShaderHolder::AddShader),
+        &rayr::BasicTest::LoadShaderAsync, Core, ToU16Str(fname), ToU16Str(shaderName));*/
+    return nullptr;
 }
 
 void ShaderHolder::UseShader(OpenGLUtil::GLProgram^ shader)
@@ -134,7 +135,7 @@ BasicTest::BasicTest()
 
 BasicTest::!BasicTest()
 {
-    if (const auto ptr = ExchangeNullptr(core); ptr)
+    if (const auto ptr = common::ExchangeNullptr(core); ptr)
     {
         delete Shaders;
         delete Drawables;
@@ -167,6 +168,19 @@ void BasicTest::ReLoadCL(String^ fname)
 Task<bool>^ BasicTest::ReloadCLAsync(String^ fname)
 {
     return doAsync2<bool>(&rayr::BasicTest::ReloadFontLoaderAsync, *core, ToU16Str(fname));
+}
+
+Controllable^ BasicTest::AddShader(CLIWrapper<Wrapper<rayr::GLShader>>^ theShader)
+{
+    auto shader = theShader->Extract();
+    auto control = gcnew Controllable(shader);
+    GLShaders->Add(control);
+    return control;
+}
+Task<Controllable^>^ BasicTest::AddShaderAsync(String^ fname, String^ shaderName)
+{
+    return doAsync3<Controllable^>(gcnew Func<CLIWrapper<Wrapper<rayr::GLShader>>^, Controllable^>(this, &BasicTest::AddShader),
+        &rayr::BasicTest::LoadShaderAsync, *core, ToU16Str(fname), ToU16Str(shaderName));
 }
 
 Action<String^>^ BasicTest::Screenshot()

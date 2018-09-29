@@ -16,12 +16,6 @@ using std::vector;
 #include "common/CLIViewModel.hpp"
 using namespace System;
 
-template<typename T>
-inline T ExchangeNullptr(T% pointer)
-{
-    return reinterpret_cast<T>(Threading::Interlocked::Exchange((IntPtr%)pointer, IntPtr::Zero).ToPointer());
-}
-
 inline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
 {
     return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
