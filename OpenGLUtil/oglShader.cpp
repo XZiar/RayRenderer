@@ -15,7 +15,7 @@ namespace oglu
 namespace detail
 {
 
-_oglShader::_oglShader(const ShaderType type, const string & txt) : shaderType(type), src(txt)
+_oglShader::_oglShader(const ShaderType type, const string & txt) : src(txt), shaderType(type)
 {
     auto ptr = txt.c_str();
     shaderID = glCreateShader(GLenum(type));
