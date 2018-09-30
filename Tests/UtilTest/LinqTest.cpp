@@ -1,5 +1,6 @@
 #include "TestRely.h"
 #include "common/Linq.hpp"
+#include "common/ContainerEx.hpp"
 
 using namespace common::mlog;
 using namespace common;
@@ -50,16 +51,26 @@ string ToString(const T& data)
         return std::to_string(data);
     else if constexpr (common::is_specialization<T, std::vector>::value
         || common::is_specialization<T, std::set>::value
-        || common::is_specialization<T, std::list>::value
-        || common::is_specialization<T, std::map>::value
-        || common::is_specialization<T, std::unordered_set>::value
-        || common::is_specialization<T, std::unordered_map>::value)
+        || common::is_specialization<T, std::list>::value)
     {
         string ret = "[";
         for (const auto& dat : data)
             ret.append(ToString(dat)).append(", ");
         ret.pop_back();
         ret.back() = ']';
+        return ret;
+    }
+    else if constexpr (common::is_specialization<T, std::map>::value
+        || common::is_specialization<T, std::unordered_set>::value
+        || common::is_specialization<T, std::unordered_map>::value
+        || common::is_specialization<T, std::multimap>::value
+        || common::is_specialization<T, std::multiset>::value)
+    {
+        string ret = "{";
+        for (const auto& [key, val] : data)
+            ret.append(ToString(key)).append(": ").append(ToString(val)).append(", ");
+        ret.pop_back();
+        ret.back() = '}';
         return ret;
     }
     else
@@ -96,13 +107,21 @@ static void TestLinq()
     const auto ret4 = Linq::FromRange(0, 4, 1)
         .SelectMany([](const int i) { return Linq::Repeat(i, i); })
         .Pair(Linq::FromRange(0, 4, 1))
-        .ToMap();
+        .AsMap();
     log().info(u"====ret4====\n{}\n", ToString(ret4));
     const auto ret5 = Linq::Repeat(5, 50)
         .AllIf([](const auto& i) { return i == 5; });
     log().info(u"====ret5====\n{}\n", ToString(ret5));
     constexpr auto ret6 = Linq::FromRange(5, 1, 1).Empty();
     log().info(u"====ret6====\n{}\n", ToString(ret6));
+    const auto ret7 = Linq::FromRange(5, 1, -1)
+        .SortBy<std::less<>>()
+        .ToMap<false>(std::multimap<int32_t, int32_t>{}, [](const int32_t i) { return i; }, [](const int32_t i) { return i; });
+    //for (const auto& p : common::container::ValSet(ret7))
+    //{
+    //    log().info(u"{}", p);
+    //}
+    log().info(u"====ret7====\n{}\n", ToString(ret7));
     getchar();
 }
 

@@ -9,6 +9,7 @@ using std::smatch;
 using common::container::FindInMap;
 using common::container::FindInSet;
 using common::container::FindInVec;
+using common::linq::Linq;
 
 namespace oglu
 {
@@ -173,18 +174,12 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         }
         catch (...)
         {
-            vector<string> realParts;
-            std::transform(parts.cbegin(), parts.cend(), std::back_inserter(realParts), [](const string_view& sv) { return string(sv); });
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property", realParts);
+            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property",
+                Linq::FromIterable(parts).Cast<string>().ToVector());
         }
     }
     else
         return {};
-}
-static std::optional<ShaderExtProperty> ParseExtProperty(const string_view& line)
-{
-    const auto parts = str::Split<char>(line, '|', true);
-    return ParseExtProperty(parts);
 }
 
 constexpr static auto OGLU_DEFS = R"(
@@ -344,7 +339,8 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
         }, true);
 
     const string_view partHead = verLineNum == string::npos ? "" : string_view(src.data(), std::get<string_view>(lines[verLineNum]).data() - src.data());
-    if (initLineNum == string::npos) initLineNum = verLineNum;
+    if (initLineNum == string::npos) 
+        initLineNum = verLineNum;
     size_t restLineNum = initLineNum != string::npos ? initLineNum + 1 : 0;
     string verPrefix, verSuffix;
     uint32_t version = UINT32_MAX;

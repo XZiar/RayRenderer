@@ -30,6 +30,7 @@
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
 #include "common/ThreadEx.h"
+#include "common/Linq.hpp"
 #include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC

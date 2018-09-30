@@ -7,9 +7,10 @@ namespace rayr
 {
 
 using namespace oglu;
+using namespace std::literals;
 using common::container::FindInSet;
 using common::container::FindInMap;
-using namespace std::literals;
+using common::linq::Linq;
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
     : Controllable(u"GLShader"), Source(source), Config(config)
@@ -70,9 +71,9 @@ void GLShader::RegistControllable()
     for (const auto& res : Program->getSubroutineResources())
     {
         const auto u16name = str::to_u16string(res.Name, str::Charset::UTF8);
-        vector<string> routines;
-        std::transform(res.Routines.cbegin(), res.Routines.cend(), std::back_inserter(routines), [](const auto& rt) {return rt.Name; });
-        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::RawValue, routines, u16name)
+        auto rtNames = Linq::FromIterable(res.Routines)
+            .Select([](const auto& rt) {return rt.Name; }).ToVector();
+        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::RawValue, std::move(rtNames), u16name)
             .RegistGetter([&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; })
             .RegistSetter([&res](Controllable& self, const string&, const ControlArg& val) 
             { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); });
@@ -162,28 +163,26 @@ RESPAK_DESERIALIZER(GLShader)
     ShaderConfig config;
     {
         const auto jconfig = object.GetObject("config");
-        for (const auto&[name, val] : jconfig.GetObject("defines"))
-        {
-            string strName(name);
-            if (val.IsNull())
-                config.Defines[strName] = std::monostate{};
-            else
-            {
-                xziar::ejson::JArrayRef<true> valarray(val);
-                switch (valarray.Get<size_t>(0))
+        config.Defines = Linq::FromIterable(jconfig.GetObject("defines"))
+            .ToMap(config.Defines,
+                [](const auto& kvpair) { return string(kvpair.first); },
+                [](const auto& kvpair) -> ShaderConfig::DefineVal
                 {
-                case DefineInt32:   config.Defines[strName] = valarray.Get<int32_t>(1);  break;
-                case DefineUInt32:  config.Defines[strName] = valarray.Get<uint32_t>(1); break;
-                case DefineFloat:   config.Defines[strName] = valarray.Get<float>(1);    break;
-                case DefineDouble:  config.Defines[strName] = valarray.Get<double>(1);   break;
-                default:            break;
-                }
-            }
-        }
-        for (const auto&[name, val] : jconfig.GetObject("routines"))
-        {
-            config.Routines[string(name)] = val.AsValue<string>();
-        }
+                    if (kvpair.second.IsNull()) return {};
+                    xziar::ejson::JArrayRef<true> valarray(kvpair.second);
+                    switch (valarray.Get<size_t>(0))
+                    {
+                    case DefineInt32:   return valarray.Get<int32_t>(1);
+                    case DefineUInt32:  return valarray.Get<uint32_t>(1);
+                    case DefineFloat:   return valarray.Get<float>(1);
+                    case DefineDouble:  return valarray.Get<double>(1);
+                    default:            return {};
+                    }
+                });
+        config.Routines = Linq::FromIterable(jconfig.GetObject("routines"))
+            .ToMap(std::map<string, string>{},
+                [](const auto& kvpair) { return string(kvpair.first); },
+                [](const auto& kvpair) { return kvpair.second.AsValue<string>(); });
     }
     const u16string name = str::to_u16string(object.Get<string>("config"), Charset::UTF8);
     auto ret = new GLShader(name, object.Get<string>("source"), config);

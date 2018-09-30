@@ -6,6 +6,9 @@
 #include "oglProgram.h"
 #include "DSAWrapper.h"
 
+
+using common::linq::Linq;
+
 namespace oglu::detail
 {
 
@@ -79,19 +82,17 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
     if (vao.IndexBuffer)
     {
         vao.Method = DrawMethod::Indexs;
-        vector<const void*> tmpOffsets;
         const uint32_t idxSize = vao.IndexBuffer->IndexSize;
-        std::transform(offsets.cbegin(), offsets.cend(), std::back_inserter(tmpOffsets),
-            [=](const uint32_t off) { return (const void*)intptr_t(off * idxSize); });
-        vao.Offsets = std::move(tmpOffsets);
+        vao.Offsets = Linq::FromIterable(offsets)
+            .Select([=](const uint32_t off) { return (const void*)intptr_t(off * idxSize); })
+            .ToVector();
     }
     else
     {
         vao.Method = DrawMethod::Arrays;
-        vector<GLint> tmpOffsets;
-        std::transform(offsets.cbegin(), offsets.cend(), std::back_inserter(tmpOffsets),
-            [](const uint32_t off) { return (GLint)off; });
-        vao.Offsets = std::move(tmpOffsets);
+        vao.Offsets = Linq::FromIterable(offsets)
+            .Select([=](const uint32_t off) { return (GLint)off; })
+            .ToVector();
     }
     return *this;
 }

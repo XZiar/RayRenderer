@@ -13,12 +13,12 @@
   - [x] Make Image mutable
   - [ ] Add stb as fallback handler
   - [ ] Add more format suppprt
+  - [ ] Throw proper exception when facing error
 
 * OpenGLUtil
   - [ ] Add mipmap
   - [x] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
-  - [ ] Add RenderDoc support (conditionally remove DSA_EXT, or fork RenderDoc)
   - [x] Add Intel's ISPC tex-compressor as texture compresser
   - [ ] Add debugging support
   - [x] Move Camera component out of OpenGLUtil (shouldn't handle here)

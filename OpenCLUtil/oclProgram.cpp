@@ -181,13 +181,13 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
     const auto self = shared_from_this();
     for (const auto& kername : KernelNames)
     {
-        Kernels.insert_or_assign(kername, oclKernel(new _oclKernel(self, kername)));
+        Kernels.insert(oclKernel(new _oclKernel(self, kername)));
     }
 }
 
 oclKernel _oclProgram::GetKernel(const string& name)
 {
-    if (const auto it = FindInMap(Kernels, name); it)
+    if (const auto it = FindInSet(Kernels, name); it)
         return *it;
     return {};
 }

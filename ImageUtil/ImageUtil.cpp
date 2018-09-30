@@ -1,6 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageUtil.h"
-#include <algorithm>
+#include "common/Linq.hpp"
 
 
 namespace xziar::img
@@ -23,21 +23,12 @@ uint32_t RegistImageSupport(const Wrapper<ImgSupport>& support)
 
 static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
-    vector<std::pair<Wrapper<ImgSupport>, uint8_t>> middle;
-    middle.reserve(SUPPORT_MAP().size());
-    for (auto& support : SUPPORT_MAP())
-    {
-        const auto level = support->MatchExtension(ext, dataType, isRead);
-        if (!allowDisMatch && level == 0)
-            continue;
-        middle.emplace_back(support, level);
-    }
-    std::sort(middle.begin(), middle.end(), [](const auto& l, const auto& r) { return l.second > r.second; });
-
-    vector<Wrapper<ImgSupport>> ret;
-    ret.reserve(middle.size());
-    std::transform(middle.cbegin(), middle.cend(), std::back_inserter(ret), [](const auto& p) { return p.first; });
-    return ret;
+    return common::linq::Linq::FromIterable(SUPPORT_MAP())
+        .Select([&](const auto& support) { return std::pair(support, support->MatchExtension(ext, dataType, isRead)); })
+        .Where([=](const auto& spPair) { return allowDisMatch || spPair.second > 0; })
+        .SortBy([](const auto& l, const auto& r) { return l.second > r.second; })
+        .Select([](const auto& spPair) { return spPair.first; })
+        .ToVector();
 }
 
 Image ReadImage(const fs::path& path, const ImageDataType dataType)

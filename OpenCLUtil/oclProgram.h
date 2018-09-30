@@ -10,6 +10,7 @@
 namespace oclu
 {
 
+
 struct WorkGroupInfo
 {
     uint64_t LocalMemorySize;
@@ -18,42 +19,6 @@ struct WorkGroupInfo
     size_t CompiledWorkGroupSize[3];
     size_t PreferredWorkGroupSizeMultiple;
 };
-
-struct CLProgConfig
-{
-    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
-    map<string, DefineVal> Defines;
-    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
-};
-
-namespace detail
-{
-
-class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
-{
-    friend class _oclContext;
-    friend class _oclKernel;
-private:
-    const oclContext Context;
-    const string src;
-    const cl_program progID;
-    vector<string> KernelNames;
-    map<string, Wrapper<_oclKernel>> Kernels;
-    vector<cl_device_id> getDevs() const;
-    u16string GetBuildLog(const cl_device_id dev) const;
-public:
-    _oclProgram(const oclContext& ctx_, const string& str);
-    ~_oclProgram();
-    void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
-    u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
-    Wrapper<_oclKernel> GetKernel(const string& name);
-    auto GetKernels() const { return common::container::ValSet(Kernels); }
-    const vector<string>& GetKernelNames() const { return KernelNames; }
-};
-
-
-}
-using oclProgram = Wrapper<detail::_oclProgram>;
 
 enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
 enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
@@ -74,14 +39,15 @@ struct OCLUAPI KernelArgInfo
 
 namespace detail
 {
+class _oclProgram;
 
 class OCLUAPI _oclKernel
 {
     friend class _oclProgram;
 private:
-    const oclProgram Prog;
+    const Wrapper<_oclProgram> Prog;
     const cl_kernel Kernel;
-    _oclKernel(const oclProgram& prog, const string& name);
+    _oclKernel(const Wrapper<_oclProgram>& prog, const string& name);
     void CheckArgIdx(const uint32_t idx) const;
 public:
     const string Name;
@@ -125,6 +91,43 @@ public:
 
 }
 using oclKernel = Wrapper<detail::_oclKernel>;
+
+
+struct CLProgConfig
+{
+    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
+    map<string, DefineVal> Defines;
+    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
+};
+
+namespace detail
+{
+
+class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
+{
+    friend class _oclContext;
+    friend class _oclKernel;
+private:
+    const oclContext Context;
+    const string src;
+    const cl_program progID;
+    vector<string> KernelNames;
+    set<oclKernel, common::container::SetPtrKeyLess<oclKernel, &_oclKernel::Name>> Kernels;
+    vector<cl_device_id> getDevs() const;
+    u16string GetBuildLog(const cl_device_id dev) const;
+public:
+    _oclProgram(const oclContext& ctx_, const string& str);
+    ~_oclProgram();
+    void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
+    u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
+    oclKernel GetKernel(const string& name);
+    auto GetKernels() const { return Kernels; }
+    const vector<string>& GetKernelNames() const { return KernelNames; }
+};
+
+
+}
+using oclProgram = Wrapper<detail::_oclProgram>;
 
 
 }

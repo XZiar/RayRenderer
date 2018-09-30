@@ -42,6 +42,25 @@ struct SetKeyLess
     }
 };
 
+template<typename T, auto Key>
+struct SetPtrKeyLess
+{
+    using is_transparent = void;
+    template<typename C>
+    constexpr bool operator()(const T& left, const C& right) const noexcept
+    {
+        return (((*left).*Key) < right);
+    }
+    template<typename C>
+    constexpr bool operator()(const C& left, const T& right) const noexcept
+    {
+        return (left < ((*right).*Key));
+    }
+    constexpr bool operator()(const T& left, const T& right) const noexcept
+    {
+        return (((*left).*Key) < ((*right).*Key));
+    }
+};
 
 template<typename Key, typename Val>
 struct PairLess
@@ -200,6 +219,7 @@ inline size_t ReplaceInVec(Vec& thevec, const Predictor& pred, const Val& val, c
     return replacedCnt;
 }
 
+
 namespace detail
 {
 template<typename ItType>
@@ -225,8 +245,9 @@ struct ValIterator
 {
 private:
     ItType InnerIt;
+    using RawValType = decltype(InnerIt->second);
     using PairType = typename std::remove_reference_t<typename std::iterator_traits<ItType>::reference>;
-    using ValType = std::conditional_t<std::is_const_v<PairType>, const typename PairType::second_type, typename PairType::second_type>;
+    using ValType = std::conditional_t<std::is_const_v<PairType>, const RawValType, RawValType>;
 public:
     ValIterator(ItType it) : InnerIt(it) { }
     ValIterator& operator++()
@@ -243,60 +264,45 @@ public:
         return InnerIt->second;
     }
 };
-}
-
-template<typename Map>
-struct KeySet
+template<typename Map, bool IsKey>
+struct KVSet
 {
 private:
     Map& TheMap;
+    template<typename T> using RetType = std::conditional_t<IsKey, KeyIterator<T>, ValIterator<T>>;
     using ItType = decltype(TheMap.begin());
     using ConstItType = decltype(TheMap.cbegin());
 public:
-    KeySet(Map& themap) : TheMap(themap) { }
-    detail::KeyIterator<ItType> begin()
+    KVSet(Map& themap) : TheMap(themap) { }
+    RetType<ItType> begin()
     {
-        return detail::KeyIterator<ItType>(TheMap.begin());
+        return TheMap.begin();
     }
-    detail::KeyIterator<ItType> end()
+    RetType<ItType> end()
     {
-        return detail::KeyIterator<ItType>(TheMap.end());
+        return TheMap.end();
     }
-    detail::KeyIterator<ConstItType> begin() const
+    RetType<ConstItType> begin() const
     {
-        return detail::KeyIterator<ConstItType>(TheMap.cbegin());
+        return TheMap.cbegin();
     }
-    detail::KeyIterator<ConstItType> end() const
+    RetType<ConstItType> end() const
     {
-        return detail::KeyIterator<ConstItType>(TheMap.cend());
+        return TheMap.cend();
     }
+};
+}
+template<typename Map>
+struct KeySet : public detail::KVSet<Map, true>
+{
+    KeySet(Map& themap) : detail::KVSet<Map, true>(themap) { }
 };
 template<typename Map>
-struct ValSet
+struct ValSet : public detail::KVSet<Map, false>
 {
-private:
-    Map & TheMap;
-    using ItType = decltype(TheMap.begin());
-    using ConstItType = decltype(TheMap.cbegin());
-public:
-    ValSet(Map& themap) : TheMap(themap) { }
-    detail::ValIterator<ItType> begin()
-    {
-        return detail::ValIterator<ItType>(TheMap.begin());
-    }
-    detail::ValIterator<ItType> end()
-    {
-        return detail::ValIterator<ItType>(TheMap.end());
-    }
-    detail::ValIterator<ConstItType> begin() const
-    {
-        return detail::ValIterator<ConstItType>(TheMap.cbegin());
-    }
-    detail::ValIterator<ConstItType> end() const
-    {
-        return detail::ValIterator<ConstItType>(TheMap.cend());
-    }
+    ValSet(Map& themap) : detail::KVSet<Map, false>(themap) { }
 };
+
 
 template<typename T, typename Compare = std::less<>>
 class FrozenDenseSet

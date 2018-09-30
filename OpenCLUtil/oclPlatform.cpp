@@ -3,6 +3,7 @@
 #include "oclUtil.h"
 
 using common::container::FindInVec;
+using common::linq::Linq;
 
 namespace oclu
 {
@@ -93,20 +94,21 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
 {
     if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
         FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
-    cl_device_id defDevID;
-    clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
     cl_uint numDevices;
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
     // Get all Device Info
     vector<cl_device_id> deviceIDs(numDevices);
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, deviceIDs.data(), nullptr);
 
-    for (const auto & dID : deviceIDs)
-    {
-        Devices.push_back(oclDevice(new _oclDevice(dID)));
-        if (dID == defDevID)
-            DefDevice = Devices.back();
-    }
+    Devices = Linq::FromIterable(deviceIDs)
+        .Select([](const auto dID) { return oclDevice(new _oclDevice(dID)); })
+        .ToVector();
+
+    cl_device_id defDevID;
+    clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
+    DefDevice = Linq::FromIterable(Devices)
+        .Where([=](const auto& dev) { return dev->deviceID == defDevID; })
+        .TryGetFirst().value_or(oclDevice{});
 }
 
 bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const

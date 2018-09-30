@@ -14,6 +14,7 @@ using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
+using common::linq::Linq;
 
 
 using namespace std::literals;
@@ -227,9 +228,6 @@ void _oglProgram::InitLocs()
 void _oglProgram::InitSubroutines()
 {
     CheckCurrent();
-    set<GLenum> stages;
-    for (const auto& shdpair : shaders)
-        stages.insert(static_cast<GLenum>(shdpair.first));
     SubroutineRess.clear();
     subrLookup.clear();
     SubroutineBindings.clear();
@@ -241,8 +239,9 @@ void _oglProgram::InitSubroutines()
         strBuffer.append(tmp.data(), tmp.data() + tmp.size());
     }
     string nameBuf;
-    for (auto stage : stages)
+    for (const auto stype : common::container::KeySet(shaders))
     {
+        const auto stage = static_cast<GLenum>(stype);
         GLint count;
         glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
         GLint maxNameLen = 0;

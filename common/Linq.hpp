@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <algorithm>
 
 namespace common
 {
@@ -46,6 +47,26 @@ struct EnumerableHelper
     static constexpr bool IsEnumerable()
     {
         return decltype(IsEnumerable(std::declval<const T*>()))::value;
+    }
+    template<typename T>
+    static const auto& KeyMapper(const T& data)
+    {
+        if constexpr (common::is_specialization<T, std::pair>::value)
+            return data.first;
+        else if constexpr (common::is_specialization<T, std::tuple>::value)
+            return std::get<0>(data);
+        else
+            static_assert(common::AlignAllocator<T>());
+    }
+    template<typename T>
+    static const auto& ValueMapper(const T& data)
+    {
+        if constexpr (common::is_specialization<T, std::pair>::value)
+            return data.second;
+        else if constexpr (common::is_specialization<T, std::tuple>::value)
+            return std::get<1>(data);
+        else
+            static_assert(common::AlignAllocator<T>());
     }
 };
 
@@ -117,8 +138,23 @@ struct Enumerable
         }
         return ret;
     }
+    template<bool ShouldReplace = true, typename Map = void, typename KeyF, typename ValF>
+    Map ToMap(Map themap, KeyF&& keyMapper = EnumerableHelper::KeyMapper, ValF&& valMapper = EnumerableHelper::ValueMapper)
+    {
+        Child* self = static_cast<Child*>(this);
+        while (!self->IsEnd())
+        {
+            const auto& tmp = self->GetCurrent();
+            if constexpr (ShouldReplace)
+                themap.insert_or_assign(keyMapper(tmp), valMapper(tmp));
+            else
+                themap.emplace(keyMapper(tmp), valMapper(tmp));
+            self->MoveNext();
+        }
+        return themap;
+    }
     template<bool ShouldReplace = true, typename Comp = void>
-    auto ToMap()
+    auto AsMap()
     {
         static_assert(IsKVPair || IsKVTuple, "Element should be pair or tuple of 2");
         using Comparator = std::conditional_t<std::is_same_v<void, Comp>, std::less<typename MapElement<ElementType>::KeyType>, Comp>;
@@ -146,7 +182,7 @@ struct Enumerable
         return ret;
     }
     template<bool ShouldReplace = true, typename Hash = void>
-    auto ToHashMap()
+    auto AsHashMap()
     {
         static_assert(IsKVPair || IsKVTuple, "Element should be pair or tuple of 2");
         using Hasher = std::conditional_t<std::is_same_v<void, Hash>, std::hash<typename MapElement<ElementType>::KeyType>, Hash>;
@@ -265,6 +301,8 @@ struct Enumerable
     auto SelectMany(Func&& mapper);
     template<typename Func>
     auto Where(Func&& filter);
+    template<typename Func>
+    auto SortBy(Func&& comparator = {});
     template<typename Other>
     auto Concat(Other&& other);
     template<typename Other>
@@ -272,6 +310,11 @@ struct Enumerable
     template<typename Type>
     auto Cast();
     constexpr bool Empty() const { return static_cast<Child*>(this)->IsEnd(); }
+    constexpr std::optional<ElementType> TryGetFirst() const
+    {
+        const Child* self = static_cast<const Child*>(this);
+        return self->IsEnd() ? std::optional<ElementType>{} : self->GetCurrent();
+    }
 };
 
 
@@ -459,12 +502,26 @@ struct CastedSource : public Enumerable<CastedSource<Src, ElementType>, ElementT
     bool IsEnd() const { return Source.IsEnd(); }
 };
 
+template<typename Src, typename ElementType>
+struct CastCtorSource : public Enumerable<CastCtorSource<Src, ElementType>, ElementType>
+{
+    Src Source;
+    CastCtorSource(Src&& source) : Source(source) {}
+    ElementType GetCurrent() const { return ElementType(Source.GetCurrent()); }
+    void MoveNext() { Source.MoveNext(); }
+    bool IsEnd() const { return Source.IsEnd(); }
+};
+
 template<typename Child, typename ElementType>
 template<typename Type>
 auto Enumerable<Child, ElementType>::Cast()
 {
-    static_assert(std::is_convertible_v<ElementType, Type>, "cannot convert current type to the target type");
-    return CastedSource<Child, Type>(std::move(*static_cast<Child*>(this)));
+    if constexpr (std::is_convertible_v<ElementType, Type>)
+        return CastedSource<Child, Type>(std::move(*static_cast<Child*>(this)));
+    else if constexpr (std::is_constructible_v<Type, ElementType>)
+        return CastCtorSource<Child, Type>(std::move(*static_cast<Child*>(this)));
+    else
+        static_assert(common::AlwaysTrue<Type>(), "cannot convert to or construct to the target type");
 }
 
 
@@ -480,7 +537,7 @@ struct IteratorSource : public Enumerable<IteratorSource<T>, std::remove_cv_t<st
     constexpr IteratorSource(T& source) : Source(), Current(std::begin(source)), End(std::end(source)) {}
     constexpr decltype(*std::declval<TB>()) GetCurrent() const { return *Current; }
     constexpr void MoveNext() { ++Current; }
-    constexpr bool IsEnd() const { return Current == End; }
+    constexpr bool IsEnd() const { return !(Current != End); }
     constexpr bool Empty() const { return IsEnd(); }
 };
 
@@ -508,6 +565,17 @@ struct RepeatSource : public Enumerable<RepeatSource<T>, T>
     constexpr bool IsEnd() const { return Count == 0; }
     constexpr bool Empty() const { return IsEnd(); }
 };
+
+
+template<typename Child, typename ElementType>
+template<typename Func>
+auto Enumerable<Child, ElementType>::SortBy(Func&& comparator)
+{
+    static_assert(std::is_invocable_r_v<bool, Func, const ElementType&, const ElementType&>, "sort need a comparator that accept two element and return bool");
+    auto tmp = ToVector();
+    std::sort(tmp.begin(), tmp.end(), comparator);
+    return IteratorSource(std::move(tmp));
+}
 
 }
 
