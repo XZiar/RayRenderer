@@ -45,9 +45,9 @@ class OCLUAPI _oclKernel
 {
     friend class _oclProgram;
 private:
-    const Wrapper<_oclProgram> Prog;
+    const std::shared_ptr<_oclProgram> Prog;
     const cl_kernel Kernel;
-    _oclKernel(const Wrapper<_oclProgram>& prog, const string& name);
+    _oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name);
     void CheckArgIdx(const uint32_t idx) const;
 public:
     const string Name;
@@ -108,11 +108,12 @@ class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
     friend class _oclContext;
     friend class _oclKernel;
 private:
+    using KernelLesser = common::container::SetPtrKeyLess<oclKernel, &_oclKernel::Name>;
     const oclContext Context;
     const string src;
     const cl_program progID;
     vector<string> KernelNames;
-    set<oclKernel, common::container::SetPtrKeyLess<oclKernel, &_oclKernel::Name>> Kernels;
+    set<oclKernel, KernelLesser> Kernels;
     vector<cl_device_id> getDevs() const;
     u16string GetBuildLog(const cl_device_id dev) const;
 public:

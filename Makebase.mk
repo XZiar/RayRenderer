@@ -47,6 +47,7 @@ CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attri
 CXXOPT		:=
 CVERSION	:= -std=c11
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
+CPPPCH		:= 
 CFLAGS		 = $(CXXFLAGS) $(CVERSION)
 NASMFLAGS	:= -g 
 LIBRARYS	:= 
@@ -108,6 +109,7 @@ EXCEPT_RC	:=
 EXCEPT_ASM	:= 
 EXCEPT_NASM	:= 
 EXCEPT_ISPC	:=
+PCH_HEADER	:=
 ISPC_TARGETS	:= 
 
 CSRCS		 = $(filter-out $(EXCEPT_C), $(wildcard *.c))
@@ -120,8 +122,11 @@ ISPCFSRCS	 = $(foreach tar,$(ISPC_TARGETS),$(patsubst %.ispc, %_$(tar).ispc, $(I
 CXXOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS) $(RCSRCS))
 OTHEROBJS	 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS) $(ISPCSRCS))
 DIRS		 = $(dir $(CXXOBJS) $(OTHEROBJS))
-DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS))
+PCH_PCH		 = $(patsubst %, $(OBJPATH)%.gch, $(PCH_HEADER))
+DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 NAME		?= 
+
+
 
 ifeq ($(BUILD_TYPE), static)
 APPS		 = $(APPPATH)lib$(NAME).a

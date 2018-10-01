@@ -25,6 +25,7 @@
 #include "common/StrCharset.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/PromiseTask.hpp"
+#include "common/Linq.hpp"
 
 #include "ImageUtil/ImageCore.h"
 #include "OpenGLUtil/oglBuffer.h"
@@ -76,6 +77,7 @@ using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
+using common::linq::Linq;
 
 class oclUtil;
 using MessageCallBack = std::function<void(const u16string&)>;

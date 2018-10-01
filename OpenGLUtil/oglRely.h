@@ -99,6 +99,7 @@ using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
+using common::linq::Linq;
 
 class oglWorker;
 struct DSAFuncs;

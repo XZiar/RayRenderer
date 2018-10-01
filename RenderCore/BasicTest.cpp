@@ -38,49 +38,38 @@ static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
     return getShaderFromDLL(id);
 }
 
-static oclPlatform FindPlatform(const std::vector<oclPlatform>& platforms, const Vendor vendor)
+static int32_t JudgeVendor(const Vendor vendor)
 {
-    const auto FindHasGPU = [](const oclPlatform& plat) 
+    switch (vendor)
     {
-        return std::any_of(plat->GetDevices().cbegin(), plat->GetDevices().cend(),
-            [](const oclDevice& dev) { return dev->Type == DeviceType::GPU; });
-    };
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == vendor && FindHasGPU(plt))
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::NVIDIA && FindHasGPU(plt))
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::AMD && FindHasGPU(plt))
-            return plt;
-    for (const auto& plt : platforms)
-        if (plt->PlatVendor == Vendor::Intel && FindHasGPU(plt))
-            return plt;
-    for (const auto& plt : platforms)
-        if (FindHasGPU(plt))
-            return plt;
-    return oclPlatform();
+    case Vendor::NVIDIA: return 1;
+    case Vendor::AMD:    return 2;
+    case Vendor::Intel:  return 3;
+    default:             return 4;
+    }
 }
+
 static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, const oglContext glContext)
 {
-    const auto venderClPlat = FindPlatform(oclUtil::getPlatforms(), vendor);
-    const auto glPlat = std::find_if(oclUtil::getPlatforms().cbegin(), oclUtil::getPlatforms().cend(), [&](const oclPlatform& plat) 
-    {
-        return plat->IsGLShared(glContext);
-    });
-    oclContext defCtx, sharedCtx;
+    const auto venderClPlat = Linq::FromIterable(oclUtil::getPlatforms())
+        .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
+            .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
+        .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
+        .SortBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
+        .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
         COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");
-    if (glPlat != oclUtil::getPlatforms().cend())
+    const auto glPlat = Linq::FromIterable(oclUtil::getPlatforms())
+        .Where([&](const auto& plat) { return plat->IsGLShared(glContext); })
+        .TryGetFirst().value_or(oclPlatform{});
+    oclContext defCtx, sharedCtx;
+    if (glPlat)
     {
-        sharedCtx = (*glPlat)->CreateContext(glContext);
-        basLog().success(u"Created Shared OCLContext in platform {}!\n", (*glPlat)->Name);
+        sharedCtx = glPlat->CreateContext(glContext);
+        basLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
         sharedCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
-        if (*glPlat == venderClPlat)
-            defCtx = sharedCtx;
     }
-    defCtx = venderClPlat->CreateContext();
+    defCtx = glPlat == venderClPlat ? sharedCtx : venderClPlat->CreateContext();
     basLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
     defCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from CLContext:\t{}\n", errtxt); };
     return { defCtx, sharedCtx };

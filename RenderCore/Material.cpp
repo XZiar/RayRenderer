@@ -222,7 +222,7 @@ void MultiMaterialHolder::Refresh()
             thumbman->PrepareThumbnails(common::container::KeySet(added));
     }
     //generate avaliable map
-    set<Mapping, common::container::PairLess<detail::TexTag, uint16_t>> avaliableMap;
+    set<Mapping, common::container::PairLess> avaliableMap;
     for (const auto&[tid, texarr] : Textures)
     {
         const uint16_t layers = (uint16_t)std::get<2>(texarr->GetSize());

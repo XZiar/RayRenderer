@@ -1,5 +1,15 @@
 
 $(shell mkdir -p $(OBJPATH) $(DIRS))
+ifneq ($(PCH_HEADER), )
+    $(shell touch -a $(OBJPATH)/$(PCH_HEADER))
+ifneq ($(XZMK_CLANG), 1)
+	CPPPCH += -I"$(OBJPATH)"
+endif
+	CPPPCH += -include $(PCH_HEADER)
+ifeq ($(XZMK_CLANG), 1)
+	CPPPCH += -include-pch $(PCH_PCH)
+endif
+endif
 
 ifeq ($(BUILD_TYPE), static)
 BUILD_TYPE2	:= static library
@@ -41,7 +51,13 @@ endif
 prebuild: buildinfo
 	@echo "$(CLR_CYAN)pre build$(CLR_CLEAR)"
 
-mainbuild: prebuild
+buildpch: prebuild
+ifneq ($(PCH_HEADER), )
+	@echo "$(CLR_CYAN)preparing precompiled header$(CLR_CLEAR)"
+	+@$(MAKE) BOOST_PATH=$(BOOST_PATH) PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH=$(PROJPATH) --no-print-directory $(PCH_PCH)
+endif
+
+mainbuild: buildpch
 	@echo "$(CLR_CYAN)main build$(CLR_CLEAR)"
 	+@$(MAKE) BOOST_PATH=$(BOOST_PATH) PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH=$(PROJPATH) --no-print-directory $(APPS)
 
@@ -50,11 +66,14 @@ postbuild: mainbuild
 
 -include $(DEPS)
 
+$(OBJPATH)%.h.gch: %.h
+	$(CPPCOMPILER) $(INCPATH) $(CPPFLAGS) -x c++-header -MMD -MP -fPIC -c $< -o $@
+
 $(OBJPATH)%.cpp.o: %.cpp
-	$(CPPCOMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)%.cc.o: %.cc
-	$(CPPCOMPILER) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(INCPATH) $(CPPFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)%.c.o: %.c
 	$(CCOMPILER) $(INCPATH) $(CFLAGS) -MMD -MP -fPIC -c $< -o $@

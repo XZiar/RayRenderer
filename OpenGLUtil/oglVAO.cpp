@@ -7,7 +7,6 @@
 #include "DSAWrapper.h"
 
 
-using common::linq::Linq;
 
 namespace oglu::detail
 {

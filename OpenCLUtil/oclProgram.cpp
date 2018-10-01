@@ -177,12 +177,16 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
     const auto names = str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
-    Kernels.clear();
     const auto self = shared_from_this();
+    Kernels = Linq::FromIterable(KernelNames)
+        .Select([&](const auto& name) { return oclKernel(new _oclKernel(self, name)); })
+        .ToSet<KernelLesser>();
+
+    /*Kernels.clear();
     for (const auto& kername : KernelNames)
     {
         Kernels.insert(oclKernel(new _oclKernel(self, kername)));
-    }
+    }*/
 }
 
 oclKernel _oclProgram::GetKernel(const string& name)
@@ -256,7 +260,7 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
     }
     return infos;
 }
-_oclKernel::_oclKernel(const oclProgram& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)), 
+_oclKernel::_oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)), 
     Name(name), ArgsInfo(GerKernelArgsInfo(Kernel))
 {
 }

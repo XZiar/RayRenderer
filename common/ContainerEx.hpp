@@ -62,36 +62,44 @@ struct SetPtrKeyLess
     }
 };
 
-template<typename Key, typename Val>
 struct PairLess
 {
     using is_transparent = void;
-    constexpr bool operator()(const std::pair<Key, Val>& left, const std::pair<Key, Val>& right) const
+    template<typename K1, typename V1, typename K2, typename V2>
+    constexpr bool operator()(const std::pair<K1, V1>& left, const std::pair<K2, V2>& right) const
     {
-        return (left < right);
+        if (left.first < right.first) return true;
+        if (right.first < left.first) return false;
+        return left.second < right.second;
     }
+    template<typename Key, typename Val>
     constexpr bool operator()(const std::pair<Key, Val>& left, const Key& right) const
     {
         return (left.first < right);
     }
+    template<typename Key, typename Val>
     constexpr bool operator()(const Key& left, const std::pair<Key, Val>& right) const
     {
         return (left < right.first);
     }
 };
 
-template<typename Key, typename Val>
 struct PairGreater
 {
     using is_transparent = void;
-    constexpr bool operator()(const std::pair<Key, Val>& left, const std::pair<Key, Val>& right) const
+    template<typename K1, typename V1, typename K2, typename V2>
+    constexpr bool operator()(const std::pair<K1, V1>& left, const std::pair<K2, V2>& right) const
     {
-        return (left > right);
+        if (left.first > right.first) return true;
+        if (right.first > left.first) return false;
+        return left.second > right.second;
     }
+    template<typename Key, typename Val>
     constexpr bool operator()(const std::pair<Key, Val>& left, const Key& right) const
     {
         return (left.first > right);
     }
+    template<typename Key, typename Val>
     constexpr bool operator()(const Key& left, const std::pair<Key, Val>& right) const
     {
         return (left > right.first);

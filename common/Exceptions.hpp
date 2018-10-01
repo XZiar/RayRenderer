@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CommonRely.hpp"
-#include "Wrapper.hpp"
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 #include <array>
 #include <exception>
+#include <memory>
 #include <any>
 #if defined(__GNUC__)
 #   include <experimental/filesystem>
@@ -71,11 +71,7 @@ public:
 #endif
     size_t Line;
     StackTraceItem() : File(u"Undefined"), Func(u"Undefined"), Line(0) {}
-#if defined(_MSC_VER)
     StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
-#else
-    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
-#endif
 };
 
 
@@ -87,9 +83,9 @@ public:
     std::u16string message;
     std::any data;
 protected:
-    Wrapper<detail::AnyException> InnerException;
+    std::shared_ptr<detail::AnyException> InnerException;
     StackTraceItem StackItem;
-    static Wrapper<detail::AnyException> getCurrentException();
+    static std::shared_ptr<detail::AnyException> getCurrentException();
     BaseException(const char * const type, const std::u16string_view& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
     { }
@@ -98,10 +94,10 @@ private:
     {
         if (InnerException)
         {
-            const auto bewapper = InnerException.cast_dynamic<BaseException>();
-            if (bewapper)
-                bewapper->CollectStack(stks);
-            else
+            const auto baseEx = std::dynamic_pointer_cast<BaseException>(InnerException);
+            if (baseEx)
+                baseEx->CollectStack(stks);
+            else // is std exception
                 stks.push_back(StackTraceItem(u"StdException", u"StdException", 0));
         }
         stks.push_back(StackItem);
@@ -110,12 +106,13 @@ public:
     BaseException(const std::u16string_view& msg, const std::any& data_ = std::any())
         : BaseException(TYPENAME, msg, data_)
     { }
+    BaseException(const BaseException& baseEx) = default;
     ~BaseException() override {}
-    virtual Wrapper<BaseException> clone() const
+    virtual std::shared_ptr<BaseException> clone() const
     {
-        return Wrapper<BaseException>(*this);
+        return std::make_shared<BaseException>(*this);
     }
-    Wrapper<detail::AnyException> NestedException() const { return InnerException; }
+    std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
     StackTraceItem Stacktrace() const
     {
         return StackItem;
@@ -128,26 +125,27 @@ public:
     }
 };
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
-    virtual ::common::Wrapper<::common::BaseException> clone() const override\
-    { return ::common::Wrapper<type>(*this).cast_static<::common::BaseException>(); }
+    type(const type& ex) = default;\
+    virtual ::std::shared_ptr<::common::BaseException> clone() const override\
+    { return ::std::static_pointer_cast<::common::BaseException>(::std::make_shared<type>(*this)); }
 
 
-inline Wrapper<detail::AnyException> BaseException::getCurrentException()
+inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)
-        return Wrapper<detail::AnyException>();
+        return std::shared_ptr<detail::AnyException>{};
     try
     {
         std::rethrow_exception(cex);
     }
     catch (const BaseException& be)
     {
-        return be.clone().cast_static<detail::AnyException>();
+        return std::static_pointer_cast<detail::AnyException>(be.clone());
     }
     catch (...)
     {
-        return Wrapper<detail::OtherException>(new detail::OtherException(cex)).cast_static<detail::AnyException>();
+        return std::shared_ptr<detail::AnyException>(new detail::OtherException(cex));
     }
 }
 
