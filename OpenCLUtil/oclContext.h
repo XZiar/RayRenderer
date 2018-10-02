@@ -23,8 +23,6 @@ private:
     const cl_context context;
     static cl_context CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self);
     _oclContext(vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor);
-    _oclContext(vector<cl_context_properties> props, const oclDevice& device, const u16string name, const Vendor thevendor) 
-        : _oclContext(props, vector<oclDevice>{device}, name, thevendor) {}
     oclDevice GetDevice(const cl_device_id devid) const;
 public:
     const vector<oclDevice> Devices;

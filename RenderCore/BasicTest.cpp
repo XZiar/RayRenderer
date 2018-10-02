@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "BasicTest.h"
 #include "OpenGLUtil/oglWorker.h"
+#include "TextureUtil/TexUtilWorker.h"
 #include <thread>
 #include <future>
 
@@ -90,7 +91,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
         if (!ClQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
     }
-    ThumbMan.reset(glContext, ClSharedContext);
+    TexWorker = std::make_shared<oglu::texutil::TexUtilWorker>(oglu::oglContext::NewContext(glContext, true), ClSharedContext);
+    ThumbMan.reset(TexWorker);
     PostProc.reset(ClSharedContext, ClQue);
     GLWorker.reset(u"Core");
     GLWorker->Start();

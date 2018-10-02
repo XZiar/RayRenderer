@@ -41,6 +41,7 @@ private:
     oglUBO lightUBO;
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
+    std::shared_ptr<oglu::texutil::TexUtilWorker> TexWorker;
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     Wrapper<oglu::oglWorker> GLWorker;

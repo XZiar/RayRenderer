@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclException.h"
+#include "common/Linq.hpp"
 
 
 using namespace common;
@@ -9,6 +10,7 @@ using namespace oclu;
 using namespace oglu;
 using std::string;
 using std::cin;
+using common::linq::Linq;
 
 static MiniLogger<false>& log()
 {
@@ -16,39 +18,22 @@ static MiniLogger<false>& log()
     return logger;
 }
 
-static auto LoadCtx()
-{
-    const auto& plats = oclu::oclUtil::getPlatforms();
-    uint32_t platidx = 0;
-    for (const auto& plat : plats)
-    {
-        log().info(u"option[{}] {}\t{}\n", platidx++, plat->Name, plat->Ver);
-    }
-    std::cin >> platidx;
-    auto ctx = plats[platidx]->CreateContext();
-    ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
-    return ctx;
-}
-
-static void SimpleTest(const oclContext& ctx)
-{
-    oclImg3D img3d(ctx, MemFlag::WriteOnly | MemFlag::HostReadOnly, 64, 64, 64, TextureDataFormat::RGB10A2);
-}
-
 static void OCLStub()
 {
     oclUtil::init(false);
-    auto ctx = LoadCtx();
-    oclCmdQue que;
-    for (const auto& dev : ctx->Devices)
-        if (dev->Type == DeviceType::GPU)
-        {
-            que.reset(ctx, dev);
-            break;
-        }
-    if (!que)
-        que.reset(ctx, ctx->Devices[0]);
-    const auto dev = ctx->Devices[0];
+
+    Linq::FromIterable(oclUtil::getPlatforms())
+        .ForEach([i = 0u](const auto& plat) mutable { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
+    uint32_t platidx = 0;
+    std::cin >> platidx;
+    const auto plat = oclUtil::getPlatforms()[platidx];
+
+    auto thedev = Linq::FromIterable(plat->GetDevices())
+        .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
+        .TryGetFirst().value_or(plat->GetDefaultDevice());
+    const auto ctx = plat->CreateContext(thedev);
+    ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+    oclCmdQue que(ctx, thedev);
     ClearReturn();
     //SimpleTest(ctx);
     while (true)
@@ -59,7 +44,7 @@ static void OCLStub()
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");
-            for(const auto& ext : dev->Extensions)
+            for(const auto& ext : thedev->Extensions)
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
             continue;
@@ -75,39 +60,59 @@ static void OCLStub()
             log().verbose(u"{}{}\n", img2d, img3d);
             continue;
         }
+        bool exConfig = false;
+        if (fpath.size() > 0 && fpath.back() == '#')
+            fpath.pop_back(), exConfig = true;
         common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading cl file [{}]\n", filepath.u16string());
         try
         {
             const auto kertxt = common::file::ReadAllText(filepath);
             oclProgram clProg(ctx, kertxt);
-            try
+            CLProgConfig config;
+            config.Defines["LOC_MEM_SIZE"] = thedev->LocalMemSize;
+            if (exConfig)
             {
-                oclu::CLProgConfig config;
-                config.Defines.insert_or_assign("LOC_MEM_SIZE", ctx->Devices[0]->LocalMemSize);
-                clProg->Build(config);
-                log().success(u"loaded! kernels:\n");
-                for (const auto& ker : clProg->GetKernels())
+                string line;
+                while (cin >> line)
                 {
-                    const auto wgInfo = ker->GetWorkGroupInfo(dev);
-                    log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name, 
-                        wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
-                        wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
-                    for (const auto& arg : ker->ArgsInfo)
+                    ClearReturn();
+                    if (line.size() == 0) break;
+                    const auto parts = common::str::Split(&line[1], line.size() - 1, '=');
+                    switch (line.front())
                     {
-                        log().verbose(u"---[{:8}][{:9}]({:12})[{}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                    case '#':
+                        if (parts.size() > 1)
+                            config.Defines[string(parts[0])] = string(parts[1].cbegin(), parts.back().cend());
+                        else
+                            config.Defines[string(parts[0])] = std::monostate{};
+                        continue;
                     }
+                    break;
                 }
-                log().info(u"\n\n");
             }
-            catch (OCLException& cle)
+            clProg->Build(config);
+            log().success(u"loaded! kernels:\n");
+            for (const auto& ker : clProg->GetKernels())
             {
-                u16string buildLog;
-                if (cle.data.has_value())
-                    buildLog = std::any_cast<u16string>(cle.data);
-                log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
-                COMMON_THROW(BaseException, u"build Program error");
+                const auto wgInfo = ker->GetWorkGroupInfo(thedev);
+                log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
+                    wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
+                    wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+                for (const auto& arg : ker->ArgsInfo)
+                {
+                    log().verbose(u"---[{:8}][{:9}]({:12})[{}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                }
             }
+            log().info(u"\n\n");
+        }
+        catch (OCLException& cle)
+        {
+            u16string buildLog;
+            if (cle.data.has_value())
+                buildLog = std::any_cast<u16string>(cle.data);
+            log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+            COMMON_THROW(BaseException, u"build Program error");
         }
         catch (const BaseException& be)
         {

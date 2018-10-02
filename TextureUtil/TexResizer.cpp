@@ -1,9 +1,10 @@
 #include "TexUtilRely.h"
 #include "TexResizer.h"
-#include "resource.h"
+#include "TexUtilWorker.h"
 #include <future>
 #include <thread>
 #include "common/PromiseTaskSTD.hpp"
+#include "resource.h"
 
 
 namespace oglu::texutil
@@ -11,19 +12,11 @@ namespace oglu::texutil
 using namespace oclu;
 using namespace std::literals;
 
-TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Executor(u"TexResizer"), GLContext(glContext), CLContext(clContext)
+TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) 
+    : Worker(worker), GLContext(Worker->GLContext), CLContext(Worker->CLContext), CmdQue(Worker->CmdQue)
 {
-    Executor.Start([this]
+    Worker->AddTask([this](const auto&)
     {
-        common::SetThreadName(u"TexResizer");
-        texLog().success(u"TexResize thread start running.\n");
-        if (!GLContext->UseContext())
-        {
-            texLog().error(u"TexResizer cannot use GL context\n");
-            return;
-        }
-        texLog().info(u"TexResizer use GL context with version {}\n", oglUtil::GetVersionStr());
-        GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         GLContext->SetSRGBFBO(true);
         GLContext->SetDepthTest(DepthTestType::OFF);
         GLResizer.reset(u"GLResizer");
@@ -71,9 +64,6 @@ TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Ex
 
         if (CLContext)
         {
-            CmdQue.reset(CLContext, CLContext->GetGPUDevice());
-            if (!CmdQue)
-                COMMON_THROW(BaseException, u"clQueue initialized failed!");
             oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
             try
             {
@@ -99,11 +89,14 @@ TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Ex
         {
             texLog().warning(u"OpenCL Kernel is disabled");
         }
-    }, [this]
+    })->wait();
+}
+
+TexResizer::~TexResizer()
+{
+    Worker->AddTask([this](const auto&)
     {
         KerToImg.release(); KerToDat3.release(); KerToDat4.release();
-        CmdQue.release();
-        CLContext.release();
         //exit
         GLResizer.release();
         GLResizer2.release();
@@ -111,17 +104,7 @@ TexResizer::TexResizer(oglContext&& glContext, const oclContext& clContext) : Ex
         NormalVAO.release();
         FlipYVAO.release();
         OutputFrame.release();
-        if (!GLContext->UnloadContext())
-        {
-            texLog().error(u"TexResizer cannot terminate GL context\n");
-        }
-        GLContext.release();
-    });
-}
-
-TexResizer::~TexResizer()
-{
-    Executor.Stop();
+    })->wait();
 }
 
 struct ImageInfo
@@ -170,7 +153,7 @@ PromiseResult<oglTex2D> TexResizer::ConvertToTex(const oclImg2D& img)
     if (glImg)
         return common::GetFinishedResult<oglTex2D>(glImg->GlTex);
     else
-        return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+        return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
             auto rawimg = agent.Await(img->ReadRaw(CmdQue));
             oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
@@ -181,7 +164,7 @@ PromiseResult<oglTex2D> TexResizer::ConvertToTex(const oclImg2D& img)
 }
 PromiseResult<Image> TexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)
 {
-    return Executor.AddTask([pmsTex, format](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([pmsTex, format](const common::asyexe::AsyncAgent& agent)
     {
         const auto outtex = agent.Await(pmsTex);
         return outtex->GetImage(format, true); // flip it to correctly represent GL's texture
@@ -216,7 +199,7 @@ static oglTex2DS ConvertDataToTex(const common::AlignedBuffer<32>& data, const s
 template<>
 TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto vao = flipY ? FlipYVAO : NormalVAO;
         tex->CheckCurrent();
@@ -240,7 +223,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
 template<>
 TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto outformat = REMOVE_MASK(output, TextureInnerFormat::FLAG_SRGB);
         tex->CheckCurrent();
@@ -278,7 +261,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto tex = ConvertCLToTex(img, CmdQue, agent);
         auto pms = ResizeToImg<ResizeMethod::OpenGL>(tex, width, height, output, flipY);
@@ -288,7 +271,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto tex = ConvertCLToTex(img, CmdQue, agent);
         auto pms = ResizeToImg<ResizeMethod::Compute>(tex, width, height, output, flipY);
@@ -298,7 +281,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         if (isSRGB)
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
@@ -327,7 +310,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent) 
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent) 
     {
         if (TexFormatUtil::IsSRGBType(tex->GetInnerFormat()))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
@@ -339,7 +322,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::ConvertFrom(img.GetDataType(), true));
         tex->SetData(img, true);
@@ -352,7 +335,7 @@ template<>
 TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
 {
     auto pms = ResizeToImg<ResizeMethod::OpenCL>(tex, width, height, TexFormatUtil::ConvertToImgType(output, true), flipY);
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto img = agent.Await(pms);
         oglTex2DS tex(width, height, output);
@@ -364,7 +347,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::ConvertFrom(img.GetDataType(), true));
         tex->SetData(img, true);
@@ -382,7 +365,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex = ConvertDataToTex(data, size, innerFormat);
         agent.Await(oglUtil::SyncGL());
@@ -393,7 +376,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex = ConvertDataToTex(data, size, innerFormat);
         agent.Await(oglUtil::SyncGL());
@@ -404,7 +387,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         if (TexFormatUtil::IsSRGBType(innerFormat))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");

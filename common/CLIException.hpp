@@ -20,7 +20,7 @@ private:
     {
         if (const auto& inner = be.NestedException())
         {
-            if (const auto fex = inner.cast_dynamic<FileException>())
+            if (const auto fex = std::dynamic_pointer_cast<FileException>(inner))
             {
                 auto msg = ToStr(fex->message);
                 auto fpath = ToStr(fex->filepath.u16string());
@@ -30,9 +30,9 @@ private:
                 else
                     return gcnew IO::FileLoadException(msg, fpath, innerEx);
             }
-            else if (const auto bex = inner.cast_dynamic<BaseException>())
+            else if (const auto bex = std::dynamic_pointer_cast<BaseException>(inner))
                 return gcnew CPPException(*bex);
-            else if (const auto oex = inner.cast_dynamic<detail::OtherException>())
+            else if (const auto oex = std::dynamic_pointer_cast<detail::OtherException>(inner))
                 return gcnew CPPException(*oex);
         }
         return nullptr;

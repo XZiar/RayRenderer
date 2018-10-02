@@ -122,7 +122,11 @@ ISPCFSRCS	 = $(foreach tar,$(ISPC_TARGETS),$(patsubst %.ispc, %_$(tar).ispc, $(I
 CXXOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS) $(RCSRCS))
 OTHEROBJS	 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS) $(ISPCSRCS))
 DIRS		 = $(dir $(CXXOBJS) $(OTHEROBJS))
+ifeq ($(XZMK_CLANG), 1) # Has problem with pch on GCC
 PCH_PCH		 = $(patsubst %, $(OBJPATH)%.gch, $(PCH_HEADER))
+else
+PCH_PCH		 = 
+endif
 DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 NAME		?= 
 

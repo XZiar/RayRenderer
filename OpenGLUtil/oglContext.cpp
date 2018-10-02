@@ -84,8 +84,8 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
 void CtxResHandler::Release()
 {
     Lock.LockWrite();
-    for (const auto&[key, val] : Resources)
-        delete val;
+    for (auto& res : Resources)
+        delete res.second;
     Resources.clear();
     Lock.UnlockWrite();
 }

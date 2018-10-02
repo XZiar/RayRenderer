@@ -18,7 +18,7 @@ class RAYCOREAPI ThumbnailManager
 private:
     using Image = xziar::img::Image;
     using PmssType = std::vector<std::pair<TexHolder, common::PromiseResult<Image>>>;
-    Wrapper<oglu::texutil::TexResizer> Resizer;
+    std::shared_ptr<oglu::texutil::TexResizer> Resizer;
     map<std::weak_ptr<void>, std::shared_ptr<Image>, std::owner_less<void>> ThumbnailMap;
     common::PromiseResult<Image> InnerPrepareThumbnail(const TexHolder& holder);
     void InnerWaitPmss(const PmssType& pmss);
@@ -33,7 +33,7 @@ public:
         return { true, size.first * thredshold / larger, size.second * thredshold / larger };
     }
 
-    ThumbnailManager(const oglu::oglContext& glCtx, const oclu::oclContext& sharedCLCtx);
+    ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker);
 
     std::shared_ptr<Image> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
 

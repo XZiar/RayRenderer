@@ -36,6 +36,9 @@
     <ClCompile Include="TexResizer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="TexUtilWorker.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -62,6 +65,9 @@
     <ClInclude Include="TexResizer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TexUtilWorker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -76,5 +82,8 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="Makefile" />
+    <None Include="Mipmap.cl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

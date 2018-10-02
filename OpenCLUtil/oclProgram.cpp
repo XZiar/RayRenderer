@@ -177,21 +177,14 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
     const auto names = str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
-    const auto self = shared_from_this();
     Kernels = Linq::FromIterable(KernelNames)
-        .Select([&](const auto& name) { return oclKernel(new _oclKernel(self, name)); })
-        .ToSet<KernelLesser>();
-
-    /*Kernels.clear();
-    for (const auto& kername : KernelNames)
-    {
-        Kernels.insert(oclKernel(new _oclKernel(self, kername)));
-    }*/
+        .ToMap(Kernels, [](const auto& name) { return name; },
+            [self = shared_from_this()](const auto& name) { return oclKernel(new _oclKernel(self, name)); });
 }
 
 oclKernel _oclProgram::GetKernel(const string& name)
 {
-    if (const auto it = FindInSet(Kernels, name); it)
+    if (const auto it = FindInMap(Kernels, name); it)
         return *it;
     return {};
 }

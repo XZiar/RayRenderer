@@ -36,6 +36,7 @@ namespace oglu::texutil
 {
 
 using namespace xziar::img;
+class TexUtilWorker;
 
 }
 

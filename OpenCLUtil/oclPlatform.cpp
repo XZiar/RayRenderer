@@ -116,19 +116,22 @@ bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const
     return (bool)GetGLDevice(GetCLProps(context));
 }
 
+oclContext _oclPlatform::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
+{
+    return oclContext(new _oclContext(props, devs, Name, PlatVendor));
+}
 oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
 {
     const auto props = GetCLProps(context);
     if (context)
     {
         if (const auto dev = GetGLDevice(props); dev)
-            return oclContext(new _oclContext(props, dev, Name, PlatVendor));
+            return CreateContext({ dev }, props);
         return {};
     }
     else
-        return oclContext(new _oclContext(props, Devices, Name, PlatVendor));
+        return CreateContext(Devices, props);
 }
-
 
 
 }

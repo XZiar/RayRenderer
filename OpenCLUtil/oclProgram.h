@@ -108,12 +108,11 @@ class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
     friend class _oclContext;
     friend class _oclKernel;
 private:
-    using KernelLesser = common::container::SetPtrKeyLess<oclKernel, &_oclKernel::Name>;
     const oclContext Context;
     const string src;
     const cl_program progID;
     vector<string> KernelNames;
-    set<oclKernel, KernelLesser> Kernels;
+    map<string, oclKernel, std::less<>> Kernels;
     vector<cl_device_id> getDevs() const;
     u16string GetBuildLog(const cl_device_id dev) const;
 public:
@@ -122,7 +121,7 @@ public:
     void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
     u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
     oclKernel GetKernel(const string& name);
-    auto GetKernels() const { return Kernels; }
+    auto GetKernels() const { return common::container::ValSet(Kernels); }
     const vector<string>& GetKernelNames() const { return KernelNames; }
 };
 

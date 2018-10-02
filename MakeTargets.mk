@@ -52,7 +52,7 @@ prebuild: buildinfo
 	@echo "$(CLR_CYAN)pre build$(CLR_CLEAR)"
 
 buildpch: prebuild
-ifneq ($(PCH_HEADER), )
+ifneq ($(PCH_PCH), )
 	@echo "$(CLR_CYAN)preparing precompiled header$(CLR_CLEAR)"
 	+@$(MAKE) BOOST_PATH=$(BOOST_PATH) PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH=$(PROJPATH) --no-print-directory $(PCH_PCH)
 endif

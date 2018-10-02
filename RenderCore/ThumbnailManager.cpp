@@ -81,8 +81,8 @@ void ThumbnailManager::InnerWaitPmss(const PmssType& pmss)
 }
 
 
-ThumbnailManager::ThumbnailManager(const oglu::oglContext& glCtx, const oclu::oclContext& sharedCLCtx)
-    : Resizer(std::make_shared<oglu::texutil::TexResizer>(oglu::oglContext::NewContext(glCtx, true), sharedCLCtx))
+ThumbnailManager::ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker)
+    : Resizer(std::make_shared<oglu::texutil::TexResizer>(worker))
 { }
 
 }

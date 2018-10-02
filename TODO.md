@@ -16,7 +16,6 @@
   - [ ] Throw proper exception when facing error
 
 * OpenGLUtil
-  - [ ] Add mipmap
   - [x] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
   - [x] Add Intel's ISPC tex-compressor as texture compresser
@@ -24,6 +23,9 @@
   - [x] Move Camera component out of OpenGLUtil (shouldn't handle here)
   - [x] Combine subroutine with macro-based static dispatch
   - [x] Add context-sesative dispatching for version-based functions 
+  * TextureUtil
+    - [ ] Add mipmap
+    - [ ] Migate ISPC tex-compressor to OpenCL
 
 * FontHelper
   - [ ] Implement proper text render
@@ -31,17 +33,19 @@
 
 * RenderCore
   - [x] Implement SpotLight
-  - [ ] Implement IBL
   - [ ] Update blinn-phong shader, or combine them
   - [ ] Move normal mapping into VS stage
   - [ ] Add proper deserialization
   - [x] Seperate color correction pass using 3D LUT
+  - [ ] Add click check(hittest)
   * Architecture
     - [ ] Design plugin system, provide common interface
     - [ ] Redesign shader-drawable's binding strategy
     - [ ] Add pass concept (customizable)
     - [ ] Add render pipeline concept (layers of passes)
-  * Core function
+  * Rendering
+    - [ ] Add Cubemap (environment map) with HDR
+    - [ ] Implement IBL
     - [ ] Add ShadowMapping
     - [ ] Add Raytracing
     - [ ] Add Deffered rendering

@@ -12,20 +12,20 @@ enum class ResizeMethod : uint8_t { OpenGL, Compute, OpenCL, CPU };
 class TEXUTILAPI TexResizer : public NonCopyable, public NonMovable
 {
 private:
-    common::asyexe::AsyncManager Executor;
+    std::shared_ptr<TexUtilWorker> Worker;
     oglContext GLContext;
     oclContext CLContext;
+    oclCmdQue CmdQue;
     oglDrawProgram GLResizer;
     oglComputeProgram GLResizer2;
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oglFBO OutputFrame;
-    oclCmdQue CmdQue;
     oclKernel KerToImg, KerToDat3, KerToDat4;
     common::PromiseResult<Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format);
     PromiseResult<oglTex2D> ConvertToTex(const oclImg2D& img);
 public:
-    TexResizer(oglContext&& glContext, const oclu::oclContext& clContext);
+    TexResizer(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexResizer();
    /* static void CheckOutputFormat(const ImageDataType format);
     static void CheckOutputFormat(const TextureInnerFormat format);
