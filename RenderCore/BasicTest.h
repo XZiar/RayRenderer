@@ -11,6 +11,11 @@
 #include "PostProcessor.h"
 #include "GLShader.h"
 
+namespace oglu::texutil
+{
+class TexMipmap;
+}
+
 namespace rayr
 {
 using namespace common;
@@ -42,6 +47,7 @@ private:
     oglFBO MiddleFrame;
     vector<byte> LightBuf;
     std::shared_ptr<oglu::texutil::TexUtilWorker> TexWorker;
+    std::shared_ptr<oglu::texutil::TexMipmap> MipMapper;
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     Wrapper<oglu::oglWorker> GLWorker;

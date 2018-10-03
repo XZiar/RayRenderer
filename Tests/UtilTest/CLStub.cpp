@@ -101,7 +101,7 @@ static void OCLStub()
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
                 for (const auto& arg : ker->ArgsInfo)
                 {
-                    log().verbose(u"---[{:8}][{:9}]({:12})[{}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                    log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
                 }
             }
             log().info(u"\n\n");
@@ -112,7 +112,6 @@ static void OCLStub()
             if (cle.data.has_value())
                 buildLog = std::any_cast<u16string>(cle.data);
             log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
-            COMMON_THROW(BaseException, u"build Program error");
         }
         catch (const BaseException& be)
         {

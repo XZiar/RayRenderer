@@ -3,6 +3,7 @@
 #include "BasicTest.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
+#include "TextureUtil/TexMipmap.h"
 #include <thread>
 #include <future>
 
@@ -92,6 +93,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
     }
     TexWorker = std::make_shared<oglu::texutil::TexUtilWorker>(oglu::oglContext::NewContext(glContext, true), ClSharedContext);
+    MipMapper = std::make_shared<oglu::texutil::TexMipmap>(TexWorker);
+    MipMapper->Test();
     ThumbMan.reset(TexWorker);
     PostProc.reset(ClSharedContext, ClQue);
     GLWorker.reset(u"Core");

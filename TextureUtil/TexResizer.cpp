@@ -12,11 +12,13 @@ namespace oglu::texutil
 using namespace oclu;
 using namespace std::literals;
 
-TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) 
-    : Worker(worker), GLContext(Worker->GLContext), CLContext(Worker->CLContext), CmdQue(Worker->CmdQue)
+TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(worker)
 {
     Worker->AddTask([this](const auto&)
     {
+        GLContext = Worker->GLContext;
+        CLContext = Worker->CLContext;
+        CmdQue = Worker->CmdQue;
         GLContext->SetSRGBFBO(true);
         GLContext->SetDepthTest(DepthTestType::OFF);
         GLResizer.reset(u"GLResizer");
@@ -73,7 +75,8 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker)
                 KerToDat3 = clProg->GetKernel("ResizeToDat3");
                 KerToDat4 = clProg->GetKernel("ResizeToDat4");
                 const auto wgInfo = KerToImg->GetWorkGroupInfo(CLContext->Devices[0]);
-                texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] private mem\n", wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize);
+                texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
+                    wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);
             }
             catch (OCLException& cle)
             {

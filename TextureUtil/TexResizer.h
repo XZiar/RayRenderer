@@ -1,6 +1,5 @@
 #pragma once
 #include "TexUtilRely.h"
-#include "common/AsyncExecutor/AsyncManager.h"
 
 namespace oglu::texutil
 {

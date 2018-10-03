@@ -24,6 +24,7 @@ static bool CheckF16C()
 void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_t size)
 {
     static const bool INTRIN = CheckF16C();
+#if COMMON_SIMD_LV >= 100
     if (INTRIN)
     {
         while (size > 8)
@@ -32,6 +33,7 @@ void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_
             dst += 8, src += 8, size -= 8;
         }
     }
+#endif
     while (size > 0)
     {
         *dst++ = *src++;
@@ -41,6 +43,7 @@ void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_
 void ConvertFromHalf(const b3d::half* __restrict src, float* __restrict dst, size_t size)
 {
     static const bool INTRIN = CheckF16C();
+#if COMMON_SIMD_LV >= 100
     if (INTRIN)
     {
         while (size > 8)
@@ -49,6 +52,7 @@ void ConvertFromHalf(const b3d::half* __restrict src, float* __restrict dst, siz
             dst += 8, src += 8, size -= 8;
         }
     }
+#endif
     while (size > 0)
     {
         *dst++ = *src++;
