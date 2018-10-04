@@ -199,7 +199,7 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
         tester->AddLight(light);
         tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
-    tester->Serialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
+    //tester->Serialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
 
     FreeGLUTViewRun();
 }

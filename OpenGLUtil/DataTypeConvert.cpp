@@ -3,6 +3,10 @@
 #include "common/SIMD.hpp"
 #include "cpuid/libcpuid.h"
 
+#if defined(__F16C__)
+#   pragma message("Compiling OpenGLUtil with F16C support")
+#endif
+
 namespace oglu
 {
 namespace convert
@@ -24,7 +28,7 @@ static bool CheckF16C()
 void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_t size)
 {
     static const bool INTRIN = CheckF16C();
-#if COMMON_SIMD_LV >= 100
+#if defined(__F16C__) && COMMON_SIMD_LV >= 100
     if (INTRIN)
     {
         while (size > 8)
@@ -43,7 +47,7 @@ void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_
 void ConvertFromHalf(const b3d::half* __restrict src, float* __restrict dst, size_t size)
 {
     static const bool INTRIN = CheckF16C();
-#if COMMON_SIMD_LV >= 100
+#if defined(__F16C__) && COMMON_SIMD_LV >= 100
     if (INTRIN)
     {
         while (size > 8)

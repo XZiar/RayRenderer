@@ -22,6 +22,7 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
             oclu::CLProgConfig config;
             clProg->Build(config);
             Downsample = clProg->GetKernel("Downsample_Src");
+            Downsample2 = clProg->GetKernel("Downsample_Mid");
             const auto wgInfo = Downsample->GetWorkGroupInfo(CLContext->Devices[0]);
             texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                 wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);
@@ -42,36 +43,62 @@ TexMipmap::~TexMipmap()
 
 struct Info
 {
-    uint32_t SrcWidth;
-    uint32_t SrcHeight;
+    uint16_t SrcWidth;
+    uint16_t SrcHeight;
+    uint16_t LimitX;
+    uint16_t LimitY;
+    Info(const uint32_t width, const uint32_t height)
+        : SrcWidth(static_cast<uint16_t>(width)), SrcHeight(static_cast<uint16_t>(height)),
+        LimitX(SrcWidth / 4 - 1), LimitY(SrcHeight / 4 - 1) {}
 };
 
 void TexMipmap::Test()
 {
-    vector<uint32_t> input(256 * 256);
-    for (uint32_t i = 0; i < 256 * 256; ++i)
-        input[i] = i | 0xff000000u;
-    Image src(ImageDataType::RGBA); src.SetSize(256, 256); memcpy_s(src.GetRawPtr(), src.GetSize(), input.data(), input.size() * sizeof(uint32_t));
-    oclBuffer inBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, input.size() * sizeof(uint32_t));
-    inBuf->Write(CmdQue, input);
-    oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, input.size() * sizeof(uint32_t));
-    oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, input.size() / 4 * sizeof(uint32_t));
-    Info info{ 256,256 };
+    Image src(ImageDataType::RGBA);
+    const auto srcPath = fs::temp_directory_path() / u"src.png";
+    if (fs::exists(srcPath))
+        src = ReadImage(srcPath);
+    else
+    {
+        src.SetSize(256, 256);
+        for (uint32_t i = 0; i < 256 * 256; ++i)
+            src.GetRawPtr<uint32_t>()[i] = i | 0xff000000u;
+    }
+    oclBuffer inBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, src.GetSize());
+    inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
+    oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, src.GetSize());
+    oclBuffer mid2Buf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, src.GetSize() / 4);
+    oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
+    oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
+    Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth()/2, src.GetHeight()/2} };
+    infoBuf->Write(CmdQue, &info, sizeof(info));
     Downsample->SetArg(0, inBuf);
-    Downsample->SetSimpleArg(1, 256);
-    Downsample->SetSimpleArg(2, 256);
+    Downsample->SetArg(1, infoBuf);
+    Downsample->SetSimpleArg<uint8_t>(2, 0);
     Downsample->SetArg(3, midBuf);
     Downsample->SetArg(4, outBuf);
-    const auto pms = Downsample->Run<2>(CmdQue, { 64,64 }, { 8,4 }, false);
+    const auto pms = Downsample->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { 8,8 }, false);
     pms->wait();
     const auto time = pms->ElapseNs();
-    uint32_t output[128][128];
-    outBuf->Read(CmdQue, (void*)output, sizeof(output));
-    Image dst(ImageDataType::RGBA); dst.SetSize(128, 128); memcpy_s(dst.GetRawPtr(), dst.GetSize(), output, sizeof(output));
-    WriteImage(src, fs::temp_directory_path() / u"src.png");
-    Image ref(src); ref.Resize(128, 128, true, false);
+    Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
+    outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
+    Image ref(src); ref.Resize(ref.GetWidth() / 2, ref.GetHeight() / 2, true, false);
     WriteImage(ref, fs::temp_directory_path() / u"ref.png");
     WriteImage(dst, fs::temp_directory_path() / u"dst.png");
+    
+    Downsample2->SetArg(0, midBuf);
+    Downsample2->SetArg(1, infoBuf);
+    Downsample2->SetSimpleArg<uint8_t>(2, 1);
+    Downsample2->SetArg(3, mid2Buf);
+    Downsample2->SetArg(4, outBuf);
+    const auto pms2 = Downsample2->Run<2>(CmdQue, { src.GetWidth() / 8,src.GetHeight() / 8 }, { 8,8 }, false);
+    pms2->wait();
+    const auto time2 = pms2->ElapseNs();
+    Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 4, src.GetHeight() / 4);
+    outBuf->Read(CmdQue, dst2.GetRawPtr(), dst2.GetSize());
+    Image ref2(ref); ref2.Resize(ref2.GetWidth() / 2, ref2.GetHeight() / 2, true, false);
+    WriteImage(ref2, fs::temp_directory_path() / u"ref2.png");
+    WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");
     //getchar();
 }
 

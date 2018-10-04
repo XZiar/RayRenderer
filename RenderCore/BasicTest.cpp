@@ -62,6 +62,8 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
     if (!venderClPlat)
         COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");
     const auto glPlat = Linq::FromIterable(oclUtil::getPlatforms())
+        .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
+            .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Where([&](const auto& plat) { return plat->IsGLShared(glContext); })
         .TryGetFirst().value_or(oclPlatform{});
     oclContext defCtx, sharedCtx;

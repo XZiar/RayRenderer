@@ -11,7 +11,7 @@ typedef struct Info
     float HeightStep;
 }Info;
 
-kernel void ResizeToImg(read_only image2d_t input, write_only image2d_t output, const uint isSrgb, Info info)
+kernel void ResizeToImg(read_only image2d_t input, write_only image2d_t output, const uint isSrgb, const Info info)
 {
     private const int coordX = get_global_id(0), coordY = get_global_id(1);
     if (coordX < info.DestWidth && coordY < info.DestHeight)
@@ -22,7 +22,7 @@ kernel void ResizeToImg(read_only image2d_t input, write_only image2d_t output, 
     }
 }
 
-kernel void ResizeToDat4(read_only image2d_t input, global uchar* restrict output, const uint isSrgb, Info info)
+kernel void ResizeToDat4(read_only image2d_t input, global uchar* restrict output, const uint isSrgb, const Info info)
 {
     private const int coordX = get_global_id(0), coordY = get_global_id(1);
     if (coordX < info.DestWidth && coordY < info.DestHeight)
@@ -35,7 +35,7 @@ kernel void ResizeToDat4(read_only image2d_t input, global uchar* restrict outpu
         vstore4(bcolor, offset, output);
     }
 }
-kernel void ResizeToDat3(read_only image2d_t input, global uchar* restrict output, const uint isSrgb, Info info)
+kernel void ResizeToDat3(read_only image2d_t input, global uchar* restrict output, const uint isSrgb, const Info info)
 {
     private const int coordX = get_global_id(0), coordY = get_global_id(1);
     if (coordX < info.DestWidth && coordY < info.DestHeight)

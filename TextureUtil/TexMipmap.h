@@ -14,6 +14,7 @@ private:
     oclContext CLContext;
     oclCmdQue CmdQue;
     oclKernel Downsample;
+    oclKernel Downsample2;
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();
