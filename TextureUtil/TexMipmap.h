@@ -13,11 +13,14 @@ private:
     oglContext GLContext;
     oclContext CLContext;
     oclCmdQue CmdQue;
-    oclKernel Downsample;
-    oclKernel Downsample2;
+    oclKernel DownsampleSrc;
+    oclKernel DownsampleMid;
+    oclKernel DownsampleRaw;
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();
+    PromiseResult<vector<Image>> GenerateMipmaps(Image&& raw, const bool isSRGB = true, const uint8_t levels = 255);
+
 
     void Test();
 };

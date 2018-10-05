@@ -219,10 +219,12 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="BC7Compress.cl" />
     <None Include="CLResizer.cl" />
     <None Include="GLResizer.glsl" />
     <None Include="Makefile" />
     <None Include="Mipmap.cl" />
+    <None Include="mipmap.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

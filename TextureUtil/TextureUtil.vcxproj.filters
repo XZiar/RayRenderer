@@ -91,5 +91,9 @@
     <None Include="Mipmap.cl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="BC7Compress.cl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="mipmap.py" />
   </ItemGroup>
 </Project>
