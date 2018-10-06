@@ -49,11 +49,11 @@ struct PTstubHasher
 
 static map<u16string, ModelMesh> MODEL_CACHE;
 
-ModelMesh _ModelMesh::GetModel(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer)
+ModelMesh _ModelMesh::GetModel(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
-    auto md = new _ModelMesh(fname, asyncer);
+    auto md = new _ModelMesh(fname, texLoader, asyncer);
     ModelMesh m(std::move(md));
     MODEL_CACHE.insert_or_assign(fname, m);
     return m;
@@ -112,11 +112,11 @@ ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
 }
 
 
-void _ModelMesh::loadOBJ(const fs::path& objpath) try
+void _ModelMesh::loadOBJ(const fs::path& objpath, std::shared_ptr<detail::TextureLoader>& texLoader) try
 {
     using miniBLAS::VecI4;
     OBJLoder ldr(objpath);
-    MTLLoader mtlLoader(oglu::TextureInnerFormat::BC7SRGB, oglu::TextureInnerFormat::BC5);
+    MTLLoader mtlLoader(texLoader, oglu::TextureInnerFormat::BC7SRGB, oglu::TextureInnerFormat::BC5);
     vector<Vec3> points{ Vec3(0,0,0) };
     vector<Normal> normals{ Normal(0,0,0) };
     vector<Coord2D> texcs{ Coord2D(0,0) };
@@ -249,9 +249,9 @@ void _ModelMesh::InitDataBuffers()
     }
 }
 
-_ModelMesh::_ModelMesh(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
+_ModelMesh::_ModelMesh(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
 {
-    loadOBJ(mfname);
+    loadOBJ(mfname, texLoader);
     if (asyncer)
     {
         const auto fileName = fs::path(fname).filename().u16string();

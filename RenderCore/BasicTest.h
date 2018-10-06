@@ -26,6 +26,7 @@ namespace img = xziar::img;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
+
 enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
 MAKE_ENUM_BITFIELD(ChangableUBO)
 
@@ -48,6 +49,7 @@ private:
     vector<byte> LightBuf;
     std::shared_ptr<oglu::texutil::TexUtilWorker> TexWorker;
     std::shared_ptr<oglu::texutil::TexMipmap> MipMapper;
+    std::shared_ptr<detail::TextureLoader> TexLoader;
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     Wrapper<oglu::oglWorker> GLWorker;

@@ -542,7 +542,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
     private const uchar lidX = get_local_id(0), lidY = get_local_id(1), lid = lidY * CountX + lidX;
     local half4 sharedImg1[CountX*CountY], sharedImg2[CountX*CountY];
 
-    global const half* restrict ptrSrc = (global const half*)(src + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
+    global const uchar* restrict ptrSrc = (global const uchar*)(src + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
 
     half8 res[4];
     #define LOOP_LINE(line) \
@@ -592,7 +592,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
             }
             else
             {
-                half16 tmp = vload16(0, ptrSrc);
+                half16 tmp = convert_half16(vload16(0, ptrSrc));
                 downPix = tmp.s012389ab * 0.5h + tmp.s4567cdef * 0.5h;
             }
         }
@@ -609,7 +609,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
             }
             else
             {
-                half16 tmp = vload16(0, ptrSrc - info[level].SrcWidth * 20);
+                half16 tmp = convert_half16(vload16(0, ptrSrc - info[level].SrcWidth * 20));
                 upPix = tmp.s012389ab * 0.5h + tmp.s4567cdef * 0.5h;
             }
         }

@@ -66,9 +66,6 @@
     <ClInclude Include="Model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Model\ModelImage.h">
-      <Filter>Model</Filter>
-    </ClInclude>
     <ClInclude Include="Material.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -99,6 +96,9 @@
     <ClInclude Include="GLShader.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TextureLoader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -127,9 +127,6 @@
     <ClCompile Include="RenderCoreRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Model\ModelImage.cpp">
-      <Filter>Model</Filter>
-    </ClCompile>
     <ClCompile Include="Material.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -152,6 +149,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="GLShader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureLoader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

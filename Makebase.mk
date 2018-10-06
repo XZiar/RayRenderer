@@ -45,6 +45,7 @@ INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
 CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes
 CXXOPT		:=
+LINKFLAGS	:= 
 CVERSION	:= -std=c11
 CPPFLAGS	 = $(CXXFLAGS) -std=c++17
 CPPPCH		:= 
@@ -84,7 +85,7 @@ endif
 ifeq ($(TARGET), Release)
 	CXXFLAGS	+= -DNDEBUG -flto
 ifeq ($(XZMK_CLANG), 1)
-	CXXFLAGS	+= -fuse-ld=gold
+	LINKFLAGS	+= -fuse-ld=gold
 endif
 ifeq ($(CXXOPT),)
 	CXXFLAGS	+= -O2

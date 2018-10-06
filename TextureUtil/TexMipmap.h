@@ -21,8 +21,8 @@ public:
     ~TexMipmap();
     PromiseResult<vector<Image>> GenerateMipmaps(Image&& raw, const bool isSRGB = true, const uint8_t levels = 255);
 
-
     void Test();
+    void Test2();
 };
 
 }

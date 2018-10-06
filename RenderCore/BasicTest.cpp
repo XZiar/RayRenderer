@@ -1,6 +1,7 @@
 ﻿#include "RenderCoreRely.h"
 #include "resource.h"
 #include "BasicTest.h"
+#include "TextureLoader.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
@@ -96,7 +97,8 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     }
     TexWorker = std::make_shared<oglu::texutil::TexUtilWorker>(oglu::oglContext::NewContext(glContext, true), ClSharedContext);
     MipMapper = std::make_shared<oglu::texutil::TexMipmap>(TexWorker);
-    MipMapper->Test();
+    TexLoader = std::make_shared<detail::TextureLoader>(MipMapper);
+    MipMapper->Test2();
     ThumbMan.reset(TexWorker);
     PostProc.reset(ClSharedContext, ClQue);
     GLWorker.reset(u"Core");
@@ -453,7 +455,7 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
         common::SetThreadName(u"AsyncLoader for Model");
         try
         {
-            Wrapper<Model> mod(name, GLWorker);
+            Wrapper<Model> mod(name, TexLoader, GLWorker);
             mod->Name = u"model";
             onFinish(mod);
         }

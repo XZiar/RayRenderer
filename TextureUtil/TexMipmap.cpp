@@ -123,11 +123,24 @@ void TexMipmap::Test()
     WriteImage(dst3, fs::temp_directory_path() / u"dst_.png");
     //getchar();
 }
+void TexMipmap::Test2()
+{
+    Image src = xziar::img::ReadImage(fs::temp_directory_path() / u"src.png");
+    const auto pms = GenerateMipmaps(std::move(src), true);
+    const auto mipmaps = pms->wait();
+    uint32_t i = 0;
+    for (const auto& mm : mipmaps)
+    {
+        xziar::img::WriteImage(mm, fs::temp_directory_path() / ("mip_" + std::to_string(i) + ".jpg"));
+        i++;
+    }
+    texLog().debug(u"Mipmap test2 totally cost {} us.\n", pms->ElapseNs() / 1000);
+}
 
 static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t levels)
 {
     vector<Info> infos;
-    while (width >= 64 && height >= 64 && levels > infos.size())
+    while (width >= 64 && height >= 64 && width % 64 == 0 && height % 64 == 0 && levels > infos.size())
     {
         infos.emplace_back(width, height);
         width /= 2; height /= 2;
@@ -142,6 +155,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
     {
         return Worker->AddTask([this, src = std::move(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
+            uint64_t totalTime = 0;
             vector<Image> images;
             oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostWriteOnly, src.GetSize());
             inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
@@ -173,13 +187,14 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
 
                 }
                 agent.Await(pms);
-                const auto time = pms->ElapseNs();
+                totalTime += pms->ElapseNs();
                 Image dstImage(ImageDataType::RGBA);
                 dstImage.SetSize(infos[idx].SrcWidth / 2, infos[idx].SrcHeight / 2);
                 outBuf->Read(CmdQue, dstImage.GetRawPtr(), dstImage.GetSize());
                 images.push_back(std::move(dstImage));
             }
             images.insert(images.begin(), std::move(src));
+            texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
     }
@@ -187,6 +202,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
     {
         return Worker->AddTask([this, src = std::move(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
+            uint64_t totalTime = 0;
             vector<Image> images;
             oclBuffer inBuf(CLContext, MemFlag::ReadWrite, src.GetSize());
             inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
@@ -202,7 +218,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
                 DownsampleRaw->SetArg(3, (idx & 1) == 0 ? outBuf : inBuf);
                 const auto pms = DownsampleRaw->Run<2>(CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY }, false);
                 agent.Await(pms);
-                const auto time = pms->ElapseNs();
+                totalTime += pms->ElapseNs();
                 Image dstImage(ImageDataType::RGBA); 
                 dstImage.SetSize(infos[idx].SrcWidth / 2, infos[idx].SrcHeight / 2);
                 const oclBuffer& output = (idx & 1) == 0 ? outBuf : inBuf;
@@ -210,6 +226,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
                 images.push_back(std::move(dstImage));
             }
             images.insert(images.begin(), std::move(src));
+            texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
     }

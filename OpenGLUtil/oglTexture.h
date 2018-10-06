@@ -188,53 +188,63 @@ protected:
     const TextureType Type;
     TextureInnerFormat InnerFormat;
     GLuint textureID = GL_INVALID_INDEX;
+    uint8_t Mipmap;
     static TextureManager& getTexMan() noexcept;
     explicit _oglTexBase(const TextureType type, const bool shouldBindType) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
+    void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT);
+    void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
+    void CheckMipmapLevel(const uint8_t level) const;
 public:
     u16string Name;
     virtual ~_oglTexBase() noexcept;
-    void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
-    void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter, const TextureWrapVal wrapS, const TextureWrapVal wrapT);
-    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) { SetProperty(filtertype, filtertype, wraptype, wraptype, wraptype); }
+    void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter);
+    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
+    {
+        SetProperty(filtertype, filtertype); 
+        SetProperty(wraptype);
+    }
+    void SetProperty(const TextureFilterVal filtertype) { SetProperty(filtertype, filtertype); }
+    virtual void SetProperty(const TextureWrapVal wraptype) = 0;
     bool IsCompressed() const;
-    TextureInnerFormat GetInnerFormat() const { return InnerFormat; }
+    uint8_t GetMipmapLevel() const noexcept { return Mipmap; }
+    TextureInnerFormat GetInnerFormat() const noexcept { return InnerFormat; }
 };
 
 template<typename Base>
 struct _oglTexCommon
 {
-    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const void *data) noexcept
+    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const void *data, const uint8_t level)
     {
         const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
-        ((Base&)(*this)).SetData(isSub, datatype, comptype, data);
+        ((Base&)(*this)).SetData(isSub, datatype, comptype, data, level);
     }
-    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf) noexcept
+    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level)
     {
         buf->bind();
-        SetData(isSub, dformat, nullptr);
+        SetData(isSub, dformat, nullptr, level);
         buf->unbind();
     }
-    forceinline void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY) noexcept
+    forceinline void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY, const uint8_t level)
     {
         const auto[datatype, comptype] = TexFormatUtil::ParseFormat(img.GetDataType(), normalized);
         if (flipY)
         {
             const auto theimg = img.FlipToVertical();
-            ((Base&)(*this)).SetData(isSub, datatype, comptype, theimg.GetRawPtr());
+            ((Base&)(*this)).SetData(isSub, datatype, comptype, theimg.GetRawPtr(), level);
         }
         else
         {
-            ((Base&)(*this)).SetData(isSub, datatype, comptype, img.GetRawPtr());
+            ((Base&)(*this)).SetData(isSub, datatype, comptype, img.GetRawPtr(), level);
         }
     }
-    forceinline void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size) noexcept
+    forceinline void SetCompressedData(const bool isSub, const oglPBO& buf, const size_t size, const uint8_t level) noexcept
     {
         buf->bind();
-        ((Base&)(*this)).SetCompressedData(isSub, nullptr, size);
+        ((Base&)(*this)).SetCompressedData(isSub, nullptr, size, level);
         buf->unbind();
     }
 };
@@ -248,19 +258,22 @@ class OGLUAPI _oglTexture2D : public _oglTexBase, protected _oglTexCommon<_oglTe
     friend class _oglFrameBuffer;
 protected:
     uint32_t Width, Height;
-    uint8_t Mipmap;
 
-    explicit _oglTexture2D(const bool shouldBindType) noexcept : _oglTexBase(TextureType::Tex2D, shouldBindType), Width(0), Height(0), Mipmap(1) {}
+    explicit _oglTexture2D(const bool shouldBindType) noexcept 
+        : _oglTexBase(TextureType::Tex2D, shouldBindType), Width(0), Height(0) {}
 
-    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
-    void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
+    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
+    void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level) noexcept;
     using _oglTexCommon<_oglTexture2D>::SetData;
     using _oglTexCommon<_oglTexture2D>::SetCompressedData;
 public:
-    std::pair<uint32_t, uint32_t> GetSize() const { return { Width, Height }; }
-    optional<vector<uint8_t>> GetCompressedData();
-    vector<uint8_t> GetData(const TextureDataFormat dformat);
-    Image GetImage(const ImageDataType format, const bool flipY = true);
+    std::pair<uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height }; }
+    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
+    void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
+    using _oglTexBase::SetProperty;
+    optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
+    vector<uint8_t> GetData(const TextureDataFormat dformat, const uint8_t level = 0);
+    Image GetImage(const ImageDataType format, const bool flipY = true, const uint8_t level = 0);
 };
 
 class _oglTexture2DArray;
@@ -283,21 +296,21 @@ private:
 public:
     _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
 
-    void SetData(const TextureDataFormat dformat, const void *data);
-    void SetData(const TextureDataFormat dformat, const oglPBO& buf);
-    void SetData(const Image& img, const bool normalized = true, const bool flipY = true);
+    void SetData(const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetData(const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
+    void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const TextureDataFormat dformat, const vector<T, A>& data) 
+    void SetData(const TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
     { 
-        SetData(dformat, data.data());
+        SetData(dformat, data.data(), level);
     }
     
-    void SetCompressedData(const void *data, const size_t size);
-    void SetCompressedData(const oglPBO& buf, const size_t size);
+    void SetCompressedData(const void *data, const size_t size, const uint8_t level = 0);
+    void SetCompressedData(const oglPBO& buf, const size_t size, const uint8_t level = 0);
     template<class T, class A>
-    void SetCompressedData(const vector<T, A>& data) 
+    void SetCompressedData(const vector<T, A>& data, const uint8_t level = 0)
     { 
-        SetCompressedData(data.data(), data.size() * sizeof(T));
+        SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
     void GenerateMipmap();
@@ -339,18 +352,20 @@ class OGLUAPI _oglTexture2DArray : public _oglTexBase
     friend class _oglTexture2DView;
 private:
     uint32_t Width, Height, Layers;
-    uint8_t Mipmap;
     void CheckLayerRange(const uint32_t layer) const;
 public:
     _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
     _oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd);
     
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
-    
+
+    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
+    void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
+    using _oglTexBase::SetProperty;
     void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
-    void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true);
-    void SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data);
-    void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size);
+    void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true, const uint8_t level = 0);
+    void SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size, const uint8_t level = 0);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
 
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer, const TextureInnerFormat format) const;
@@ -364,18 +379,21 @@ class OGLUAPI _oglTexture3D : public _oglTexBase, protected _oglTexCommon<_oglTe
     friend class ::oclu::detail::_oclGLBuffer;
 protected:
     uint32_t Width, Height, Depth;
-    uint8_t Mipmap;
 
-    explicit _oglTexture3D(const bool shouldBindType) noexcept : _oglTexBase(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0), Mipmap(1) {}
+    explicit _oglTexture3D(const bool shouldBindType) noexcept 
+        : _oglTexBase(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0) {}
 
-    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data) noexcept;
-    void SetCompressedData(const bool isSub, const void *data, const size_t size) noexcept;
+    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
+    void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level);
     using _oglTexCommon<_oglTexture3D>::SetData;
     using _oglTexCommon<_oglTexture3D>::SetCompressedData;
 public:
-    std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
-    optional<vector<uint8_t>> GetCompressedData();
-    vector<uint8_t> GetData(const TextureDataFormat dformat);
+    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype, wraptype); };
+    void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR) { SetWrapProperty(wrapS, wrapT, wrapR); }
+    using _oglTexBase::SetProperty;
+    std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height, Depth }; }
+    optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
+    vector<uint8_t> GetData(const TextureDataFormat dformat, const uint8_t level = 0);
 };
 
 class _oglTexture3DStatic;
@@ -394,21 +412,21 @@ private:
 public:
     _oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
 
-    void SetData(const TextureDataFormat dformat, const void *data);
-    void SetData(const TextureDataFormat dformat, const oglPBO& buf);
-    void SetData(const Image& img, const bool normalized = true, const bool flipY = true);
+    void SetData(const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetData(const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
+    void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const TextureDataFormat dformat, const vector<T, A>& data)
+    void SetData(const TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
     {
-        SetData(dformat, data.data());
+        SetData(dformat, data.data(), level);
     }
 
-    void SetCompressedData(const void *data, const size_t size);
-    void SetCompressedData(const oglPBO& buf, const size_t size);
+    void SetCompressedData(const void *data, const size_t size, const uint8_t level = 0);
+    void SetCompressedData(const oglPBO& buf, const size_t size, const uint8_t level = 0);
     template<class T, class A>
-    void SetCompressedData(const vector<T, A>& data)
+    void SetCompressedData(const vector<T, A>& data, const uint8_t level = 0)
     {
-        SetCompressedData(data.data(), data.size() * sizeof(T));
+        SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
     void GenerateMipmap();
@@ -435,14 +453,14 @@ class OGLUAPI _oglImgBase : public NonMovable, public oglCtxObject<true>
     friend class ProgState;
     friend class ProgDraw;
 protected:
-    Wrapper<detail::_oglTexBase> InnerTex;
+    Wrapper<_oglTexBase> InnerTex;
     TexImgUsage Usage;
     const bool IsLayered;
     static TexImgManager& getImgMan() noexcept;
     GLuint GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
-    _oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered);
+    _oglImgBase(const Wrapper<_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered);
 public:
     TextureType GetType() const { return InnerTex->Type; }
 };
@@ -461,19 +479,19 @@ public:
 
 }
 
-using oglTexBase = Wrapper<detail::_oglTexBase>;
-using oglTex2D = Wrapper<detail::_oglTexture2D>;
-using oglTex2DS = Wrapper<detail::_oglTexture2DStatic>;
-using oglTex2DD = Wrapper<detail::_oglTexture2DDynamic>;
-using oglTex2DV = Wrapper<detail::_oglTexture2DView>;
+using oglTexBase    = Wrapper<detail::_oglTexBase>;
+using oglTex2D      = Wrapper<detail::_oglTexture2D>;
+using oglTex2DS     = Wrapper<detail::_oglTexture2DStatic>;
+using oglTex2DD     = Wrapper<detail::_oglTexture2DDynamic>;
+using oglTex2DV     = Wrapper<detail::_oglTexture2DView>;
 using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
-using oglTex3D = Wrapper<detail::_oglTexture3D>;
-using oglTex3DS = Wrapper<detail::_oglTexture3DStatic>;
-using oglTex3DV = Wrapper<detail::_oglTexture3DView>;
-using oglBufTex = Wrapper<detail::_oglBufferTexture>;
-using oglImgBase = Wrapper<detail::_oglImgBase>;
-using oglImg2D = Wrapper<detail::_oglImg2D>;
-using oglImg3D = Wrapper<detail::_oglImg3D>;
+using oglTex3D      = Wrapper<detail::_oglTexture3D>;
+using oglTex3DS     = Wrapper<detail::_oglTexture3DStatic>;
+using oglTex3DV     = Wrapper<detail::_oglTexture3DView>;
+using oglBufTex     = Wrapper<detail::_oglBufferTexture>;
+using oglImgBase    = Wrapper<detail::_oglImgBase>;
+using oglImg2D      = Wrapper<detail::_oglImg2D>;
+using oglImg3D      = Wrapper<detail::_oglImg3D>;
 
 
 }

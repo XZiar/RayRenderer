@@ -3,8 +3,13 @@
 
 namespace rayr
 {
+
 constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1)) == 0; }
 
+namespace detail
+{
+class TextureLoader;
+}
 
 struct RAYCOREAPI alignas(16) RawMaterialData : public common::AlignBase<16>
 {
@@ -29,16 +34,21 @@ namespace detail
 struct RAYCOREAPI _FakeTex : public NonCopyable
 {
 public:
-    common::AlignedBuffer<32> TexData;
+    //common::AlignedBuffer<32> TexData;
+    vector<common::AlignedBuffer<32>> TexData;
     u16string Name;
     oglu::TextureInnerFormat TexFormat;
     uint32_t Width, Height;
+    uint8_t Mipmap;
     _FakeTex(common::AlignedBuffer<32>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
-        : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height) {}
+        : TexData(vector<common::AlignedBuffer<32>>{std::move(texData)}), TexFormat(format), Width(width), Height(height), Mipmap(1) {}
+    _FakeTex(vector<common::AlignedBuffer<32>>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+        : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height), Mipmap(static_cast<uint8_t>(texData.size())) {}
     ~_FakeTex() {}
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
+
 struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D, FakeTex>
 {
     using std::variant<std::monostate, oglu::oglTex2D, FakeTex>::variant;

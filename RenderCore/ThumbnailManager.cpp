@@ -43,9 +43,9 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
             if (needResize)
             {
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[0], imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
                 else
-                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData, imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[0], imgSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
             }
             else
             {
@@ -53,12 +53,12 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                 {   //promise in GL's thread
                     oglu::oglTex2DS tex(fakeTex->Width, fakeTex->Height, fakeTex->TexFormat);
-                    tex->SetCompressedData(fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
+                    tex->SetCompressedData(fakeTex->TexData[0].GetRawPtr(), fakeTex->TexData[0].GetSize());
                     img = std::make_shared<Image>(tex->GetImage(ImageDataType::RGB));
                 }
                 else
                 {
-                    img = std::make_shared<Image>(fakeTex->TexData, fakeTex->Width, fakeTex->Height, 
+                    img = std::make_shared<Image>(fakeTex->TexData[0], fakeTex->Width, fakeTex->Height,
                         oglu::TexFormatUtil::ConvertToImgType(fakeTex->TexFormat));
                 }
                 ThumbnailMap.emplace(weakref, img);

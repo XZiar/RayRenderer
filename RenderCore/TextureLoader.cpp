@@ -1,6 +1,7 @@
 #include "RenderCoreRely.h"
-#include "ModelImage.h"
+#include "TextureLoader.h"
 #include "TextureUtil/TexCompressor.h"
+#include "TextureUtil/TexMipmap.h"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/AsyncExecutor/AsyncManager.h"
 #include <thread>
@@ -14,31 +15,24 @@ using oglu::TextureInnerFormat;
 using namespace xziar::img;
 
 
-static map<u16string, FakeTex> TEX_CACHE;
 
-
-struct TexCompManExecutor : public NonCopyable, public NonMovable
+TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mipmapper) 
+    : Compressor(u"TexCompMan"), MipMapper(mipmapper)
 {
-    common::asyexe::AsyncManager Executor;
-    TexCompManExecutor() : Executor(u"TexCompMan")
+    Compressor.Start([]
     {
-        Executor.Start([] 
-        { 
-            common::SetThreadName(u"TexCompress");
-            basLog().success(u"TexCompress thread start running.\n");
-        });
-    }
-    ~TexCompManExecutor()
-    {
-        Executor.Stop();
-    }
-};
-
-
-static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, xziar::img::Image&& img, const TextureInnerFormat format)
+        common::SetThreadName(u"TexCompress");
+        basLog().success(u"TexCompress thread start running.\n");
+    });
+}
+TextureLoader::~TextureLoader()
 {
-    static TexCompManExecutor dummy;
-    
+    Compressor.Stop();
+}
+
+
+common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& picPath, xziar::img::Image&& img, const TextureInnerFormat format)
+{
     const auto w = img.GetWidth(), h = img.GetHeight();
     if (w <= 4 || h <= 4)
         COMMON_THROW(BaseException, u"image size to small");
@@ -53,7 +47,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
     }
     img.FlipVertical(); // pre-flip since after compression, OGLU won't care about vertical coordnate system
 
-    return dummy.Executor.AddTask([img = std::move(img), format, picPath](const auto&) mutable
+    return Compressor.AddTask([this, img = std::move(img), format, picPath](const auto& agent) mutable
     {
         FakeTex tex;
         if (oglu::TexFormatUtil::IsCompressType(format))
@@ -85,7 +79,7 @@ static common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, 
 }
 
 
-std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
+std::optional<xziar::img::Image> TextureLoader::ReadImage(const fs::path& picPath)
 {
     try
     {
@@ -105,7 +99,7 @@ std::optional<xziar::img::Image> ModelImage::ReadImage(const fs::path& picPath)
     return {};
 }
 
-ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath, const TextureInnerFormat format)
+TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath, const TextureInnerFormat format)
 {
     if (auto tex = FindInMap(TEX_CACHE, picPath.u16string()))
         return *tex;
@@ -115,7 +109,7 @@ ModelImage::LoadResult ModelImage::GetTexureAsync(const fs::path& picPath, const
 }
 
 #pragma warning(disable:4996)
-void ModelImage::Shrink()
+void TextureLoader::Shrink()
 {
     auto it = TEX_CACHE.cbegin();
     while (it != TEX_CACHE.end())

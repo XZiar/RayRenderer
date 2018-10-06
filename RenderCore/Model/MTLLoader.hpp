@@ -1,6 +1,6 @@
 #pragma once
 #include "../RenderCoreRely.h"
-#include "ModelImage.h"
+#include "../TextureLoader.h"
 #include "../Material.h"
 #include "OBJLoader.hpp"
 
@@ -16,9 +16,10 @@ class MTLLoader : public NonCopyable
 {
 private:
     enum class DelayTexType { Diffuse, Normal };
+    std::shared_ptr<detail::TextureLoader> TexLoader;
     map<string, std::shared_ptr<PBRMaterial>> Materials;
-    vector<std::tuple<std::shared_ptr<PBRMaterial>, ModelImage::LoadResult*, DelayTexType>> DelayJobs;
-    map<fs::path, ModelImage::LoadResult> RealJobs;
+    vector<std::tuple<std::shared_ptr<PBRMaterial>, TextureLoader::LoadResult*, DelayTexType>> DelayJobs;
+    map<fs::path, TextureLoader::LoadResult> RealJobs;
     oglu::TextureInnerFormat FormatDiffuse, FormatNormal;
     fs::path FallbackImgPath(fs::path picPath, const fs::path& fallbackPath)
     {
@@ -30,8 +31,8 @@ private:
         return {};
     }
 public:
-    MTLLoader(const oglu::TextureInnerFormat formatDiffuse, const oglu::TextureInnerFormat formatNormal)
-        : FormatDiffuse(formatDiffuse), FormatNormal(formatNormal) {}
+    MTLLoader(const std::shared_ptr<detail::TextureLoader>& texLoader, const oglu::TextureInnerFormat formatDiffuse, const oglu::TextureInnerFormat formatNormal)
+        : TexLoader(texLoader), FormatDiffuse(formatDiffuse), FormatNormal(formatNormal) {}
     void LoadMTL(const fs::path& mtlpath) try
     {
         using common::container::FindInMap;
@@ -96,7 +97,7 @@ public:
             }
             else
             {
-                const auto loadRes = ModelImage::GetTexureAsync(imgPath, type == DelayTexType::Diffuse ? FormatDiffuse : FormatNormal);
+                const auto loadRes = TexLoader->GetTexureAsync(imgPath, type == DelayTexType::Diffuse ? FormatDiffuse : FormatNormal);
                 const auto ptr = &(RealJobs.insert_or_assign(imgPath, loadRes).first->second);
                 DelayJobs.emplace_back(mat, ptr, type);
             }

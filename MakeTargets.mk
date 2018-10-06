@@ -21,12 +21,12 @@ ifeq ($(BUILD_TYPE), dynamic)
 BUILD_TYPE2	:= dynamic library
 $(APPS): $(CXXOBJS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APPS)$(CLR_CLEAR)"
-	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
+	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 else
 BUILD_TYPE2	:= executable binary
 $(APPS): $(CXXOBJS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APPS)$(CLR_CLEAR)"
-	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(CXXOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
+	$(APPLINKER) $(INCPATH) $(LDPATH) $(CPPFLAGS) $(LINKFLAGS) $(CXXOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(DEPLIBS) -Wl,--no-whole-archive $(LIBRARYS) -o $(APPS)
 endif
 endif
 

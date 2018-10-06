@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../RenderCoreRely.h"
-#include "ModelImage.h"
 #include "../Material.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
@@ -17,7 +16,7 @@ class alignas(b3d::Vec3)_ModelMesh : public NonCopyable, public common::AlignBas
 {
     friend class ::rayr::Model;
 private:
-    static Wrapper<_ModelMesh> GetModel(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer = {});
+    static Wrapper<_ModelMesh> GetModel(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer = {});
     static void ReleaseModel(const u16string& fname);
 public:
     b3d::Vec3 size;
@@ -30,9 +29,9 @@ private:
     oglu::oglEBO ebo;
     oglu::oglIBO ibo;
     const u16string mfname;
-    void loadOBJ(const fs::path& objfname);
+    void loadOBJ(const fs::path& objfname, std::shared_ptr<detail::TextureLoader>& texLoader);
     void InitDataBuffers();
-    _ModelMesh(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer = {});
+    _ModelMesh(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer = {});
 public:
     void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
 

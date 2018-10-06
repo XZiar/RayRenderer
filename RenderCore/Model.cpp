@@ -23,7 +23,8 @@ MultiMaterialHolder Model::PrepareMaterial() const
     return holder;
 }
 
-Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer) : Drawable(this, TYPENAME), Mesh(mesh)
+Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer) 
+    : Drawable(this, TYPENAME), Mesh(mesh)
 {
     const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
     scale = Vec3(resizer, resizer, resizer);
@@ -37,7 +38,8 @@ Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer) : Drawable
     }
 }
 
-Model::Model(const u16string& fname, const Wrapper<oglu::oglWorker>& asyncer) : Model(detail::_ModelMesh::GetModel(fname, asyncer), asyncer) {}
+Model::Model(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
+    : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer), asyncer) {}
 
 Model::~Model()
 {

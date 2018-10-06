@@ -93,7 +93,7 @@ static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context
         jtex.Add("format", (uint32_t)tex->TexFormat);
         jtex.Add("width", tex->Width);
         jtex.Add("height", tex->Height);
-        const auto datahandle = context.PutResource(tex->TexData.GetRawPtr(), tex->TexData.GetSize());
+        const auto datahandle = context.PutResource(tex->TexData[0].GetRawPtr(), tex->TexData[0].GetSize());
         jtex.Add("data", datahandle);
         return std::move(jtex);
     }
@@ -182,9 +182,9 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
         {
             const auto& fakeTex = std::get<FakeTex>(holder);
             if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                texarr->SetCompressedTextureLayer(layer, fakeTex->TexData.GetRawPtr(), fakeTex->TexData.GetSize());
+                texarr->SetCompressedTextureLayer(layer, fakeTex->TexData[0].GetRawPtr(), fakeTex->TexData[0].GetSize());
             else
-                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), fakeTex->TexData.GetRawPtr());
+                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), fakeTex->TexData[0].GetRawPtr());
         } break;
     default:
         break;
