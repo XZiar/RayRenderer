@@ -22,7 +22,6 @@ private:
     oglFBO OutputFrame;
     oclKernel KerToImg, KerToDat3, KerToDat4;
     common::PromiseResult<Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format);
-    PromiseResult<oglTex2D> ConvertToTex(const oclImg2D& img);
 public:
     TexResizer(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexResizer();

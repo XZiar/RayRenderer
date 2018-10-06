@@ -2,7 +2,7 @@
 
 #include "oclRely.h"
 #include "oclCmdQue.h"
-#include "GLInterOP.h"
+#include "oclMem.h"
 
 namespace oclu
 {
@@ -10,20 +10,18 @@ namespace oclu
 namespace detail
 {
 
-class OCLUAPI _oclBuffer : public NonCopyable, public NonMovable
+class OCLUAPI _oclBuffer : public _oclMem
 {
     friend class _oclKernel;
     friend class _oclContext;
-protected:
-    const oclContext Context;
 public:
-    const MemFlag Flags;
     const size_t Size;
 protected:
-    const cl_mem memID;
     _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
+    virtual void* MapObject(const oclCmdQue& que, const MapFlag mapFlag) override;
 public:
     _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size);
+    _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
     virtual ~_oclBuffer();
     PromiseResult<void> Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
     template<class T, class A>
@@ -58,18 +56,26 @@ public:
     }
 };
 
-class OCLUAPI _oclGLBuffer : public _oclBuffer, public GLShared<_oclGLBuffer>
+class OCLUAPI _oclGLBuffer : public _oclBuffer
 {
-    friend class GLShared<_oclGLBuffer>;
+    template<typename> friend class _oclGLObject;
 private:
-    const oglu::oglBuffer GlBuf;
-public:
     _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
-    virtual ~_oclGLBuffer() override;
+public:
+    const oglu::oglBuffer GLBuf;
+    virtual ~_oclGLBuffer() {}
 };
+
+class OCLUAPI _oclGLInterBuf : public _oclGLObject<_oclGLBuffer>
+{
+public:
+    _oclGLInterBuf(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
+};
+
 
 }
 using oclBuffer = Wrapper<detail::_oclBuffer>;
 using oclGLBuffer = Wrapper<detail::_oclGLBuffer>;
+using oclGLInterBuf = Wrapper<detail::_oclGLInterBuf>;
 
 }

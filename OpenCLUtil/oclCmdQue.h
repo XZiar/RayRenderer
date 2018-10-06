@@ -15,6 +15,9 @@ namespace detail
 class OCLUAPI _oclCmdQue : public NonCopyable
 {
     friend class _oclContext;
+    friend class _oclMem;
+    friend class _oclMapPtr;
+    friend class GLResLocker;
     friend class _oclBuffer;
     friend class _oclImage;
     friend class _oclProgram;

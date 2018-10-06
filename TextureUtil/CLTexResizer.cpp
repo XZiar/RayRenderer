@@ -120,10 +120,9 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
     {
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
-            auto glimg = oclGLImg2D(CLContext, MemFlag::ReadOnly, tex);
-            glimg->Lock(ComQue);
-            auto img = agent.Await(ResizeToDat(glimg, width, height, format, flipY));
-            glimg->Unlock(ComQue);
+            auto interimg = oclGLInterImg2D(CLContext, MemFlag::ReadOnly, tex);
+            auto lockimg = interimg->Lock(ComQue);
+            auto img = agent.Await(ResizeToDat(lockimg.Get(), width, height, format, flipY));
             return img;
         });
     }

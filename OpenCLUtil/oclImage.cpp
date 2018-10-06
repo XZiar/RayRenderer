@@ -7,16 +7,6 @@
 namespace oclu::detail
 {
 
-void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
-{
-    const auto& buf = *reinterpret_cast<_oclImage*>(user_data);
-    const auto[w, h, d] = buf.GetSize();
-    oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)memobj, w, h, d);
-    //async callback, should not access cl-func since buffer may be released at any time.
-    //size_t size = 0;
-    //clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
-}
-
 using oglu::TextureDataFormat;
 
 TextureDataFormat ParseImageFormat(const cl_image_format& format)
@@ -127,11 +117,11 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
     desc.buffer = 0;
     return desc;
 }
-static cl_mem CreateMem(const cl_context ctx, const cl_mem_flags flag, const cl_image_desc& desc, const oglu::TextureDataFormat dformat)
+static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const oglu::TextureDataFormat dformat, const void* ptr)
 {
     cl_int errcode;
     const auto format = ParseImageFormat(dformat);
-    const auto id = clCreateImage(ctx, flag, &format, &desc, nullptr, &errcode);
+    const auto id = clCreateImage(ctx, (cl_mem_flags)flag, &format, &desc, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create image", errcode));
     return id;
@@ -162,30 +152,35 @@ bool _oclImage::CheckFormatCompatible(oglu::TextureInnerFormat format)
 }
 
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, const cl_mem id)
-    :Context(ctx), Width(width), Height(height), Depth(depth), Flags(flag), Format(dformat), memID(id)
-{
-    clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
-}
+    :_oclMem(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(dformat)
+{ }
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type)
-    :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, (cl_mem_flags)flag, CreateImageDesc(type, width, height, depth), dformat))
+    :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), dformat, nullptr))
+{ }
+_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type, const void* ptr)
+    :_oclImage(ctx, flag | MemFlag::HostCopy, width, height, depth, dformat, CreateMem(ctx->context, flag | MemFlag::HostCopy, CreateImageDesc(type, width, height, depth), dformat, ptr))
 { }
 
 
 _oclImage::~_oclImage()
+{ 
+    oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)MemID, Width, Height, Depth);
+}
+
+void* _oclImage::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
 {
-#ifdef _DEBUG
-    uint32_t refCount = 0;
-    clGetMemObjectInfo(memID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
-    if (refCount == 1)
-    {
-        oclLog().debug(u"oclImage {:p} with size [{}x{}], has {} reference being release.\n", (void*)memID, Width, Height, refCount);
-        clReleaseMemObject(memID);
-    }
-    else
-        oclLog().warning(u"oclImage {:p} with size [{}x{}], has {} reference and not able to release.\n", (void*)memID, Width, Height, refCount);
-#else
-    clReleaseMemObject(memID);
-#endif
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,Depth };
+    cl_event e;
+    cl_int ret;
+    size_t image_row_pitch = 0, image_slice_pitch = 0;
+    const auto ptr = clEnqueueMapImage(que->cmdque, MemID, CL_TRUE, (cl_map_flags)mapFlag, 
+        origin, region, &image_row_pitch, &image_slice_pitch,
+        0, nullptr, &e, &ret);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot map clImage", ret));
+    oclLog().info(u"Mapped clImage [{}x{}x{}] with row pitch [{}] and slice pitch [{}].\n", Width, Height, Depth, image_row_pitch, image_slice_pitch);
+    return ptr;
 }
 
 
@@ -196,7 +191,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, cons
         COMMON_THROW(BaseException, u"write size not sufficient");
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
+    const auto ret = clEnqueueWriteImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clImage", ret));
     if (shouldBlock)
@@ -218,7 +213,7 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
     if (shouldBlock)
@@ -240,7 +235,7 @@ PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, memID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
     glFlush();
@@ -253,7 +248,7 @@ PromiseResult<common::AlignedBuffer<32>> _oclImage::ReadRaw(const oclCmdQue que)
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, memID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
     glFlush();
@@ -263,27 +258,35 @@ PromiseResult<common::AlignedBuffer<32>> _oclImage::ReadRaw(const oclCmdQue que)
 _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)
     : _oclImage(ctx, flag, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D)
 { }
-_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const oclCmdQue que, const bool isNormalized)
-    : _oclImage2D(ctx, flag, image.GetWidth(), image.GetHeight(), image.GetDataType(), isNormalized)
-{
-    Write(que, image);
-}
+_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const bool isNormalized)
+    : _oclImage(ctx, flag, image.GetWidth(), image.GetHeight(), 1, oglu::TexFormatUtil::ConvertDtypeFrom(image.GetDataType(), isNormalized), CL_MEM_OBJECT_IMAGE2D, image.GetRawPtr())
+{ }
+_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat, const void* ptr)
+    : _oclImage(ctx, flag, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D, ptr)
+{ }
+
 
 _oclImage3D::_oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat)
     : _oclImage(ctx, flag, width, height, depth, dformat, CL_MEM_OBJECT_IMAGE3D)
 { }
 
 
-_oclGLImage2D::_oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : _oclImage2D(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1, 
-        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, flag, tex))
-{ }
 
+_oclGLImage2D::_oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
+    : _oclImage2D(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1,
+        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
+    GLTex(tex) { }
 
 _oclGLImage3D::_oclGLImage3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
     : _oclImage3D(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
-        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), CreateMemFromGLTex(ctx, flag, tex))
-{ }
+        oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
+    GLTex(tex) { }
+
+_oclGLInterImg2D::_oclGLInterImg2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
+    : _oclGLObject<_oclGLImage2D>(ctx, flag, tex) {}
+
+_oclGLInterImg3D::_oclGLInterImg3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
+    : _oclGLObject<_oclGLImage3D>(ctx, flag, tex) {}
 
 
 }

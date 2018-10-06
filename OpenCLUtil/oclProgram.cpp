@@ -284,7 +284,7 @@ void _oclKernel::CheckArgIdx(const uint32_t idx) const
 void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf->memID);
+    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf->MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
 }
@@ -292,7 +292,7 @@ void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
 void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->memID);
+    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
 }

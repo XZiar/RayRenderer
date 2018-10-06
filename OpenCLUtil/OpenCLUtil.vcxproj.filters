@@ -48,10 +48,10 @@
     <ClInclude Include="oclImage.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="GLInterOP.h">
+    <ClInclude Include="oclPromise.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oclPromise.hpp">
+    <ClInclude Include="oclMem.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -83,7 +83,7 @@
     <ClCompile Include="oclImage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="GLInterOP.cpp">
+    <ClCompile Include="oclMem.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

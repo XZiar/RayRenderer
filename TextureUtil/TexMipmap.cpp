@@ -157,12 +157,10 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
         {
             uint64_t totalTime = 0;
             vector<Image> images;
-            oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostWriteOnly, src.GetSize());
-            inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
-            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * infos.size());
-            infoBuf->Write(CmdQue, infos);
+            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, sizeof(Info) * infos.size(), infos.data());
+            oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize(), src.GetRawPtr());
             oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
-            oclBuffer outBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, src.GetSize() / 4);
+            oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
 
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
@@ -184,13 +182,13 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
                     DownsampleMid->SetArg(3, (idx & 1) == 0 ? midBuf : inBuf);
                     DownsampleMid->SetArg(4, outBuf);
                     pms = DownsampleMid->Run<2>(CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY }, false);
-
                 }
                 agent.Await(pms);
                 totalTime += pms->ElapseNs();
                 Image dstImage(ImageDataType::RGBA);
                 dstImage.SetSize(infos[idx].SrcWidth / 2, infos[idx].SrcHeight / 2);
-                outBuf->Read(CmdQue, dstImage.GetRawPtr(), dstImage.GetSize());
+                //outBuf->Read(CmdQue, dstImage.GetRawPtr(), dstImage.GetSize());
+                memcpy_s(dstImage.GetRawPtr(), dstImage.GetSize(), outBuf->Map(CmdQue, MapFlag::Read), dstImage.GetSize());
                 images.push_back(std::move(dstImage));
             }
             images.insert(images.begin(), std::move(src));
@@ -204,12 +202,10 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
         {
             uint64_t totalTime = 0;
             vector<Image> images;
-            oclBuffer inBuf(CLContext, MemFlag::ReadWrite, src.GetSize());
-            inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
-            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * infos.size());
-            infoBuf->Write(CmdQue, infos);
+            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, sizeof(Info) * infos.size(), infos.data());
+            oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, src.GetSize(), src.GetRawPtr());
             oclBuffer outBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly, src.GetSize() / 4);
-            
+
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 DownsampleRaw->SetArg(0, (idx & 1) == 0 ? inBuf : outBuf);
@@ -221,8 +217,8 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(Image&& raw, const bool 
                 totalTime += pms->ElapseNs();
                 Image dstImage(ImageDataType::RGBA); 
                 dstImage.SetSize(infos[idx].SrcWidth / 2, infos[idx].SrcHeight / 2);
-                const oclBuffer& output = (idx & 1) == 0 ? outBuf : inBuf;
-                output->Read(CmdQue, dstImage.GetRawPtr(), dstImage.GetSize());
+                const auto& readBuf = (idx & 1) == 0 ? outBuf : inBuf;
+                memcpy_s(dstImage.GetRawPtr(), dstImage.GetSize(), readBuf->Map(CmdQue, MapFlag::Read), dstImage.GetSize());
                 images.push_back(std::move(dstImage));
             }
             images.insert(images.begin(), std::move(src));

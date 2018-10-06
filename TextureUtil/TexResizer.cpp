@@ -150,21 +150,6 @@ static string_view GetSubroutine(const TextureInnerFormat input, const TextureIn
 }
 
 
-PromiseResult<oglTex2D> TexResizer::ConvertToTex(const oclImg2D& img)
-{
-    const auto glImg = img.cast_dynamic<oclu::detail::_oclGLImage2D>();
-    if (glImg)
-        return common::GetFinishedResult<oglTex2D>(glImg->GlTex);
-    else
-        return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
-        {
-            auto rawimg = agent.Await(img->ReadRaw(CmdQue));
-            oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
-            tex->SetData(img->GetFormat(), rawimg.GetRawPtr());
-            agent.Await(oglUtil::SyncGL());
-            return (oglTex2D)tex;
-        });
-}
 PromiseResult<Image> TexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format)
 {
     return Worker->AddTask([pmsTex, format](const common::asyexe::AsyncAgent& agent)
@@ -178,12 +163,13 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
 {
     const auto glImg = img.cast_dynamic<oclu::detail::_oclGLImage2D>();
     if (glImg)
-        return glImg->GlTex;
+        // TODO: img is being locked and maynot be able to access in GL
+        return glImg->GLTex;
     else
     {
-        auto rawimg = agent.Await(img->ReadRaw(que));
+        auto ptr = img->Map(que, MapFlag::Read);
         oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
-        tex->SetData(img->GetFormat(), rawimg.GetRawPtr());
+        tex->SetData(img->GetFormat(), ptr);
         tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
         return (oglTex2D)tex;
@@ -317,8 +303,9 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     {
         if (TexFormatUtil::IsSRGBType(tex->GetInnerFormat()))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclGLImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, tex);
-        auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
+        oclGLInterImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, tex);
+        auto lockimg = img->Lock(CmdQue);
+        auto pms = ResizeToImg<ResizeMethod::OpenCL>(lockimg.Get(), false, width, height, output, flipY);
         return agent.Await(pms);
     });
 }
@@ -394,8 +381,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     {
         if (TexFormatUtil::IsSRGBType(innerFormat))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(innerFormat));
-        agent.Await(img->Write(CmdQue, data, false));
+        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
         return agent.Await(pms);
     });

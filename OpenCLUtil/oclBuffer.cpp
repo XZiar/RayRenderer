@@ -9,49 +9,42 @@ namespace oclu::detail
 {
 
 
-static void CL_CALLBACK OnMemDestroyed(cl_mem memobj, void *user_data)
-{
-    const auto& buf = *reinterpret_cast<_oclBuffer*>(user_data);
-    oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)memobj, buf.Size);
-    //async callback, should not access cl-func since buffer may be released at any time.
-    //size_t size = 0;
-    //clGetMemObjectInfo(memobj, CL_MEM_SIZE, sizeof(size), &size, nullptr);
-}
-
-cl_mem CreateMem(const cl_context ctx, const cl_mem_flags flag, const size_t size)
+static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t size, const void* ptr)
 {
     cl_int errcode;
-    const auto id = clCreateBuffer(ctx, flag, size, nullptr, &errcode);
+    const auto id = clCreateBuffer(ctx, (cl_mem_flags)flag, size, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create memory", errcode));
     return id;
 }
 
 _oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
-    :Context(ctx), Flags(flag), Size(size), memID(id)
+    :_oclMem(ctx, id, flag), Size(size)
 {
-    clSetMemObjectDestructorCallback(memID, &OnMemDestroyed, this);
 }
 
 _oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size)
-    : _oclBuffer(ctx, flag, size, CreateMem(ctx->context, (cl_mem_flags)flag, size))
+    : _oclBuffer(ctx, flag, size, CreateMem(ctx->context, flag, size, nullptr))
 { }
 
-_oclBuffer::~_oclBuffer()
+_oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
+    : _oclBuffer(ctx, flag | MemFlag::HostCopy, size, CreateMem(ctx->context, flag | MemFlag::HostCopy, size, ptr))
 {
-#ifdef _DEBUG
-    uint32_t refCount = 0;
-    clGetMemObjectInfo(memID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
-    if (refCount == 1)
-    {
-        oclLog().debug(u"oclBuffer {:p} with size {}, has {} reference being release.\n", (void*)memID, Size, refCount);
-        clReleaseMemObject(memID);
-    }
-    else
-        oclLog().warning(u"oclBuffer {:p} with size {}, has {} reference and not able to release.\n", (void*)memID, Size, refCount);
-#else
-    clReleaseMemObject(memID);
-#endif
+}
+
+_oclBuffer::~_oclBuffer()
+{ 
+    oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
+}
+
+void* _oclBuffer::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
+{
+    cl_event e;
+    cl_int ret;
+    const auto ptr = clEnqueueMapBuffer(que->cmdque, MemID, CL_TRUE, (cl_map_flags)mapFlag, 0, Size, 0, nullptr, &e, &ret);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot map clBuffer", ret));
+    return ptr;
 }
 
 PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
@@ -61,7 +54,7 @@ PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size
     else if (offset + size > Size)
         COMMON_THROW(BaseException, u"read size overflow");
     cl_event e;
-    auto ret = clEnqueueReadBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(Size - offset, size), buf, 0, nullptr, &e);
+    auto ret = clEnqueueReadBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clMemory", ret));
     if (shouldBlock)
@@ -77,7 +70,7 @@ PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const b
     else if (offset + size > Size)
         COMMON_THROW(BaseException, u"write size overflow"); 
     cl_event e;
-    const auto ret = clEnqueueWriteBuffer(que->cmdque, memID, shouldBlock ? CL_TRUE : CL_FALSE, offset, min(Size - offset, size), buf, 0, nullptr, &e);
+    const auto ret = clEnqueueWriteBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clMemory", ret));
     if (shouldBlock)
@@ -88,13 +81,11 @@ PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const b
 
 
 _oclGLBuffer::_oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : _oclBuffer(ctx, flag, SIZE_MAX, CreateMemFromGLBuf(ctx, flag, buf)), GlBuf(buf)
-{
-}
+    : _oclBuffer(ctx, flag, SIZE_MAX, GLInterOP::CreateMemFromGLBuf(ctx, flag, buf)), GLBuf(buf) { }
 
-_oclGLBuffer::~_oclGLBuffer()
-{
-}
+_oclGLInterBuf::_oclGLInterBuf(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
+    : _oclGLObject<_oclGLBuffer>(ctx, flag, buf) {}
+
 
 
 }

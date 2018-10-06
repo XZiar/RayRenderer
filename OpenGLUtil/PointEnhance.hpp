@@ -113,7 +113,7 @@ public:
         const auto int9V = v * 512.f;
         const auto x = ((int32_t)int9V.x) & 0x3ff, y = ((int32_t)int9V.y) & 0x3ff, z = ((int32_t)int9V.x) & 0x3ff;
         const bool w = int9V.w >= 0.f;
-        return x + (y << 10) + (x << 10) + w ? 0x00000000u : 0xc0000000u;
+        return x | (y << 10) | (z << 20) | (w ? 0x00000000u : 0xc0000000u);
     }
     PointExCompressed(const PointEx& pt) noexcept
     {
