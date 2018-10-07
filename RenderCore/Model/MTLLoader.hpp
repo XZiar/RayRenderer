@@ -15,12 +15,10 @@ namespace detail
 class MTLLoader : public NonCopyable
 {
 private:
-    enum class DelayTexType { Diffuse, Normal };
     std::shared_ptr<detail::TextureLoader> TexLoader;
     map<string, std::shared_ptr<PBRMaterial>> Materials;
-    vector<std::tuple<std::shared_ptr<PBRMaterial>, TextureLoader::LoadResult*, DelayTexType>> DelayJobs;
+    vector<std::tuple<std::shared_ptr<PBRMaterial>, TextureLoader::LoadResult*, TexLoadType>> DelayJobs;
     map<fs::path, TextureLoader::LoadResult> RealJobs;
-    oglu::TextureInnerFormat FormatDiffuse, FormatNormal;
     fs::path FallbackImgPath(fs::path picPath, const fs::path& fallbackPath)
     {
         if (fs::exists(picPath))
@@ -31,14 +29,14 @@ private:
         return {};
     }
 public:
-    MTLLoader(const std::shared_ptr<detail::TextureLoader>& texLoader, const oglu::TextureInnerFormat formatDiffuse, const oglu::TextureInnerFormat formatNormal)
-        : TexLoader(texLoader), FormatDiffuse(formatDiffuse), FormatNormal(formatNormal) {}
+    MTLLoader(const std::shared_ptr<detail::TextureLoader>& texLoader)
+        : TexLoader(texLoader) {}
     void LoadMTL(const fs::path& mtlpath) try
     {
         using common::container::FindInMap;
         OBJLoder ldr(mtlpath);
         basLog().verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
-        vector<std::tuple<std::shared_ptr<PBRMaterial>, fs::path, DelayTexType>> preJobs;
+        vector<std::tuple<std::shared_ptr<PBRMaterial>, fs::path, TexLoadType>> preJobs;
         const fs::path fallbackPath = mtlpath.parent_path();
         std::shared_ptr<PBRMaterial> curmtl;
         OBJLoder::TextLine line;
@@ -78,13 +76,13 @@ public:
             case "map_Kd"_hash:
                 if (const auto realPath = FallbackImgPath(str::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
                 {
-                    preJobs.emplace_back(curmtl, realPath, DelayTexType::Diffuse);
+                    preJobs.emplace_back(curmtl, realPath, TexLoadType::Color);
                 }
                 break;
             case "map_bump"_hash:
                 if (const auto realPath = FallbackImgPath(str::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
                 {
-                    preJobs.emplace_back(curmtl, realPath, DelayTexType::Normal);
+                    preJobs.emplace_back(curmtl, realPath, TexLoadType::Normal);
                 }
             }
         }
@@ -97,7 +95,7 @@ public:
             }
             else
             {
-                const auto loadRes = TexLoader->GetTexureAsync(imgPath, type == DelayTexType::Diffuse ? FormatDiffuse : FormatNormal);
+                const auto loadRes = TexLoader->GetTexureAsync(imgPath, type);
                 const auto ptr = &(RealJobs.insert_or_assign(imgPath, loadRes).first->second);
                 DelayJobs.emplace_back(mat, ptr, type);
             }
@@ -126,11 +124,11 @@ public:
                 continue;
             switch (type)
             {
-            case DelayTexType::Diffuse:
+            case TexLoadType::Color:
                 mat->DiffuseMap = tex;
                 mat->UseDiffuseMap = true;
                 break;
-            case DelayTexType::Normal:
+            case TexLoadType::Normal:
                 mat->NormalMap = tex;
                 mat->UseNormalMap = true;
                 break;

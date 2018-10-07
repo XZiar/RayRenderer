@@ -11,7 +11,7 @@ private:
     common::asyexe::AsyncManager Executor;
     oglContext GLContext;
     oclu::oclContext CLContext;
-    oclu::oclCmdQue ComQue;
+    oclu::oclCmdQue CmdQue;
     oclu::oclKernel ResizeToImg, ResizeToDat3, ResizeToDat4;
     common::PromiseResult<Image> ResizeToDat(const oclu::oclImg2D& img, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY = false);
 public:

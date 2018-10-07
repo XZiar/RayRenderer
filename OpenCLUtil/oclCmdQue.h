@@ -18,6 +18,7 @@ class OCLUAPI _oclCmdQue : public NonCopyable
     friend class _oclMem;
     friend class _oclMapPtr;
     friend class GLResLocker;
+    friend class GLInterOP;
     friend class _oclBuffer;
     friend class _oclImage;
     friend class _oclProgram;

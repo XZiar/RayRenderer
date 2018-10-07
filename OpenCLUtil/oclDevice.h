@@ -28,6 +28,7 @@ public:
     const u16string Name, Vendor, Version;
     const common::container::FrozenDenseSet<string> Extensions;
     const uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
+    const uint32_t MemBaseAddrAlign;
     const bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     const DeviceType Type;
     static u16string_view GetDeviceTypeName(const DeviceType type);

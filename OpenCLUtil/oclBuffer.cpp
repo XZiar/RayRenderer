@@ -28,7 +28,7 @@ _oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t s
 { }
 
 _oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
-    : _oclBuffer(ctx, flag | MemFlag::HostCopy, size, CreateMem(ctx->context, flag | MemFlag::HostCopy, size, ptr))
+    : _oclBuffer(ctx, flag, size, CreateMem(ctx->context, flag, size, ptr))
 {
 }
 

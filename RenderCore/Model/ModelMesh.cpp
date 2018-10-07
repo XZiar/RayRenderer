@@ -116,7 +116,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, std::shared_ptr<detail::Textur
 {
     using miniBLAS::VecI4;
     OBJLoder ldr(objpath);
-    MTLLoader mtlLoader(texLoader, oglu::TextureInnerFormat::BC7SRGB, oglu::TextureInnerFormat::BC5);
+    MTLLoader mtlLoader(texLoader);
     vector<Vec3> points{ Vec3(0,0,0) };
     vector<Normal> normals{ Normal(0,0,0) };
     vector<Coord2D> texcs{ Coord2D(0,0) };

@@ -60,6 +60,7 @@ _oclDevice::_oclDevice(const cl_device_id dID)
     ConstantBufSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), GlobalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)),
     LocalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_LOCAL_MEM_SIZE)), MaxMemSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_MEM_ALLOC_SIZE)),
     GlobalCacheSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)), GlobalCacheLine(GetNum<uint32_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)),
+    MemBaseAddrAlign(GetNum<uint32_t>(dID, CL_DEVICE_MEM_BASE_ADDR_ALIGN)),
     SupportProfiling((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_PROFILING_ENABLE) != 0),
     SupportOutOfOrder((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0),
     SupportImplicitGLSync(Extensions.Has("cl_khr_gl_event")),

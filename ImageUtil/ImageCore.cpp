@@ -119,7 +119,7 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
     {
         if (HAS_FIELD(src.DataType, ImageDataType::FLOAT_MASK))//not supported yet
             COMMON_THROW(BaseException, u"float source not supported");
-        if (isGray() && !src.isGray())//not supported yet
+        if (IsGray() && !src.IsGray())//not supported yet
             COMMON_THROW(BaseException, u"need explicit conversion between color & gray image");
 
         const auto diff = DataType ^ src.DataType;

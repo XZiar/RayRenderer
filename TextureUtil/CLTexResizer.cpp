@@ -27,8 +27,8 @@ CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) 
             texLog().error(u"CLTexResizer cannot create shared CL context from given OGL context\n");
             return;
         }
-        ComQue.reset(CLContext, CLContext->GetGPUDevice());
-        if (!ComQue)
+        CmdQue.reset(CLContext, CLContext->GetGPUDevice());
+        if (!CmdQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
 
         oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
@@ -53,7 +53,7 @@ CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) 
     }, [this] 
     {
         ResizeToImg.release(); ResizeToDat3.release(); ResizeToDat4.release();
-        ComQue.release();
+        CmdQue.release();
         CLContext.release();
         GLContext->UnloadContext();
         GLContext.release();
@@ -100,14 +100,14 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& inp
         ker->SetSimpleArg(3, info);
 
         const size_t worksize[] = { width, height };
-        auto pms1 = ker->Run<2>(ComQue, worksize, false);
+        auto pms1 = ker->Run<2>(CmdQue, worksize, false);
         agent.Await(common::PromiseResult<void>(pms1));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms1->ElapseNs() / 1000);
 
         Image result(format);
         result.SetSize(width, height);
-        auto pms2 = output->Read(ComQue, result.GetRawPtr(), result.GetSize(), 0, false);
-        //auto pms2 = output->Read(ComQue, result, false);
+        auto pms2 = output->Read(CmdQue, result.GetRawPtr(), result.GetSize(), 0, false);
+        //auto pms2 = output->Read(CmdQue, result, false);
         agent.Await(common::PromiseResult<void>(pms2));
         //if (result.GetDataType() != format)
         //    result = result.ConvertTo(format);
@@ -121,7 +121,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
             auto interimg = oclGLInterImg2D(CLContext, MemFlag::ReadOnly, tex);
-            auto lockimg = interimg->Lock(ComQue);
+            auto lockimg = interimg->Lock(CmdQue);
             auto img = agent.Await(ResizeToDat(lockimg.Get(), width, height, format, flipY));
             return img;
         });
@@ -132,7 +132,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
         {
             const auto img = tex->GetImage(ImageDataType::RGBA);
             oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureDataFormat::RGBA8);
-            auto pms1 = input->Write(ComQue, img, false);
+            auto pms1 = input->Write(CmdQue, img, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
         });
@@ -147,7 +147,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
         else
         {
             oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(dataFormat));
-            auto pms1 = input->Write(ComQue, data, false);
+            auto pms1 = input->Write(CmdQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
         }

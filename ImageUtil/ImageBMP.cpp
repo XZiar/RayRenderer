@@ -184,7 +184,7 @@ Image BmpReader::Read(const ImageDataType dataType)
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
         return Image();
     Image image(dataType);
-    if (image.isGray())
+    if (image.IsGray())
         return image;
     const int32_t h = convert::ParseDWordLE(Info.Height);
     const bool needFlip = h > 0;
@@ -237,7 +237,7 @@ void BmpWriter::Write(const Image& image)
     const size_t frowsize = ((info.BitCount * image.GetWidth() + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
     
-    if (image.isGray())//must be ImageDataType::Gray only
+    if (image.IsGray())//must be ImageDataType::Gray only
     {
         ImgFile.Write(256, convert::GrayToRGBAMAP);
         if (frowsize == irowsize)

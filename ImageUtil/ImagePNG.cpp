@@ -154,7 +154,7 @@ Image PngReader::Read(const ImageDataType dataType)
     switch (colorType)
     {
     case PNG_COLOR_TYPE_PALETTE:
-        if (image.isGray())
+        if (image.IsGray())
             return image;
         /* Expand paletted colors into true RGB triplets */
         png_set_palette_to_rgb(pngStruct);
@@ -168,11 +168,11 @@ Image PngReader::Read(const ImageDataType dataType)
             /* Expand grayscale images to the full 8 bits from 1, 2, or 4 bits/pixel */
             png_set_expand_gray_1_2_4_to_8(pngStruct);
         }
-        if (!image.isGray())
+        if (!image.IsGray())
             png_set_gray_to_rgb(pngStruct);
         break;
     default://color
-        if (image.isGray())
+        if (image.IsGray())
             return image;
     }
     /* Expand paletted or RGB images with transparency to full alpha channels
@@ -191,7 +191,7 @@ Image PngReader::Read(const ImageDataType dataType)
     const uint32_t passes = (interlaceType == PNG_INTERLACE_NONE) ? 1 : png_set_interlace_handling(pngStruct);
     png_start_read_image(pngStruct);
     const bool needAlpha = HAS_FIELD(dataType, ImageDataType::ALPHA_MASK) && (colorType & PNG_COLOR_MASK_ALPHA) == 0;
-    ReadPng(PngStruct, passes, image, needAlpha, !image.isGray());
+    ReadPng(PngStruct, passes, image, needAlpha, !image.IsGray());
     png_read_end(pngStruct, pngInfo);
     return image;
 }
@@ -223,7 +223,7 @@ void PngWriter::Write(const Image& image)
     ImgFile.Rewind();
 
     const auto alphaMask = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
-    const auto colorMask = image.isGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
+    const auto colorMask = image.IsGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
     const auto colorType = alphaMask | colorMask;
     png_set_IHDR(pngStruct, pngInfo, image.GetWidth(), image.GetHeight(), 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
     png_set_compression_level(pngStruct, 3);

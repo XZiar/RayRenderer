@@ -230,7 +230,7 @@ public:
     {
         const uint64_t count = (uint64_t)image.GetWidth() * image.GetHeight();
         const bool needAlpha = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK);
-        if (image.isGray())
+        if (image.IsGray())
         {
             if (needAlpha)
             {
@@ -622,7 +622,7 @@ Image TgaReader::Read(const ImageDataType dataType)
     Image image(dataType);
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))//NotSuported 
         return image;
-    if (image.isGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
+    if (image.IsGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
         return image;
     ImgFile.Rewind(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
     image.SetSize(Width, Height);
@@ -682,7 +682,7 @@ void TgaWriter::Write(const Image& image)
     
     header.IdLength = sizeof(identity);
     header.ColorMapType = 0;
-    header.ImageType = detail::TGAImgType::RLE_MASK | (image.isGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
+    header.ImageType = detail::TGAImgType::RLE_MASK | (image.IsGray() ? detail::TGAImgType::GRAY : detail::TGAImgType::COLOR);
     memset(&header.ColorMapData, 0x0, 5);//5 bytes for color map spec
     convert::WordToLE(header.OriginHorizontal, 0);
     convert::WordToLE(header.OriginVertical, 0);
@@ -696,7 +696,7 @@ void TgaWriter::Write(const Image& image)
     SimpleTimer timer;
     timer.Start();
     //next: true image data
-    if (image.isGray())
+    if (image.IsGray())
         TgaHelper::WriteRLEGray(image, ImgFile);
     else if (HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK))
         TgaHelper::WriteRLEColor4(image, ImgFile);

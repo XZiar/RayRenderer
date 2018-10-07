@@ -92,7 +92,7 @@ struct TaskNode : public AsyncTaskNode
             {
                 auto ret = Func(agent);
                 FinishTask(detail::AsyncTaskStatus::Finished);
-                InnerPms.set_value(ret);
+                InnerPms.set_value(std::move(ret));
             }
         }
         catch (boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying

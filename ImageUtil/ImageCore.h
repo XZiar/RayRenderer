@@ -20,10 +20,12 @@ MAKE_ENUM_BITFIELD(ImageDataType)
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
+class ImageView;
 /*Custom Image Data Holder, with pixel data alignment promise*/
 class IMGUTILAPI Image : protected common::AlignedBuffer
 {
-private:
+    friend class ImageView;
+protected:
     uint32_t Width, Height;
     ImageDataType DataType;
     uint8_t ElementSize;
@@ -67,7 +69,7 @@ public:
     {
         SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
-    bool isGray() const { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
+    bool IsGray() const { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
     template<typename T = byte>
     T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
@@ -104,11 +106,10 @@ public:
     {
         return *static_cast<const common::AlignedBuffer*>(this);
     }
-
     common::AlignedBuffer ExtractData()
     {
         common::AlignedBuffer data = std::move(*this);
-        Width = Height = 0;
+        Width = Height = 0; ElementSize = 0;
         return data;
     }
 
@@ -133,6 +134,71 @@ public:
     Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     Image ConvertToFloat(const float floatRange = 1) const;
+};
+
+class IMGUTILAPI ImageView : protected Image
+{
+    friend class Image;
+public:
+    ImageView(const Image& image) : Image(image.CreateSubBuffer(0, image.Size), image.Width, image.Height, image.DataType) {}
+    ImageView(const ImageView& imgview) : Image(imgview.CreateSubBuffer(0, imgview.Size), imgview.Width, imgview.Height, imgview.DataType) {}
+    ImageView(Image&& image) : Image(static_cast<common::AlignedBuffer&&>(image), image.Width, image.Height, image.DataType) {}
+    ImageView(ImageView&& imgview) : Image(static_cast<common::AlignedBuffer&&>(imgview), imgview.Width, imgview.Height, imgview.DataType) {}
+    ImageView& operator=(const Image& image)
+    {
+        *static_cast<common::AlignedBuffer*>(this) = image.CreateSubBuffer(0, image.Size);
+        Width = image.Width; Height = image.Height; DataType = image.DataType; ElementSize = image.ElementSize;
+        return *this;
+    }
+    ImageView& operator=(const ImageView& imgview)
+    {
+        *static_cast<common::AlignedBuffer*>(this) = imgview.CreateSubBuffer(0, imgview.Size);
+        Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
+        return *this;
+    }
+    ImageView& operator=(Image&& image)
+    {
+        *static_cast<common::AlignedBuffer*>(this) = static_cast<common::AlignedBuffer&&>(image);
+        Width = image.Width; Height = image.Height; DataType = image.DataType; ElementSize = image.ElementSize;
+        return *this;
+    }
+    ImageView& operator=(ImageView&& imgview)
+    {
+        *static_cast<common::AlignedBuffer*>(this) = static_cast<common::AlignedBuffer&&>(imgview);
+        Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
+        return *this;
+    }
+    operator const Image&() const noexcept { return *this; }
+    using Image::GetSize;
+    using Image::GetWidth;
+    using Image::GetHeight;
+    using Image::GetDataType;
+    using Image::GetElementSize;
+    using Image::PixelCount;
+    using Image::GetData;
+    using Image::FlipToVertical;
+    using Image::FlipToHorizontal;
+    using Image::RotateTo180;
+    using Image::Region;
+    using Image::ConvertTo;
+    using Image::ConvertToFloat;
+    using Image::IsGray;
+    using Image::ExtractData;
+    template<typename T = byte>
+    const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
+    {
+        return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
+    }
+    template<typename T = byte>
+    std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
+    {
+        std::vector<const T*> pointers(Height, nullptr);
+        const T *rawPtr = GetRawPtr<T>();
+        const size_t lineStep = RowSize();
+        for (auto& ptr : pointers)
+            ptr = rawPtr + offset, rawPtr += lineStep;
+        return pointers;
+    }
 };
 #if defined(COMPILER_MSVC) && COMPILER_MSVC
 #   pragma warning(pop)

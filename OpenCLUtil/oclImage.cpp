@@ -158,7 +158,7 @@ _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t w
     :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), dformat, nullptr))
 { }
 _oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const oglu::TextureDataFormat dformat, cl_mem_object_type type, const void* ptr)
-    :_oclImage(ctx, flag | MemFlag::HostCopy, width, height, depth, dformat, CreateMem(ctx->context, flag | MemFlag::HostCopy, CreateImageDesc(type, width, height, depth), dformat, ptr))
+    :_oclImage(ctx, flag, width, height, depth, dformat, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), dformat, ptr))
 { }
 
 
@@ -262,7 +262,7 @@ _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const Image&
     : _oclImage(ctx, flag, image.GetWidth(), image.GetHeight(), 1, oglu::TexFormatUtil::ConvertDtypeFrom(image.GetDataType(), isNormalized), CL_MEM_OBJECT_IMAGE2D, image.GetRawPtr())
 { }
 _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat, const void* ptr)
-    : _oclImage(ctx, flag, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D, ptr)
+    : _oclImage(ctx, flag | MemFlag::HostCopy, width, height, 1, dformat, CL_MEM_OBJECT_IMAGE2D, ptr)
 { }
 
 

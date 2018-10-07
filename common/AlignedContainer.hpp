@@ -158,9 +158,9 @@ public:
     const T* GetRawPtr() const noexcept { return reinterpret_cast<const T*>(Data); }
     size_t GetSize() const noexcept { return Size; }
     size_t GetAlignment() const noexcept { return Align; }
-    AlignedBuffer CreateSubBuffer(const size_t offset, const size_t size)
+    AlignedBuffer CreateSubBuffer(const size_t offset, const size_t size) const
     {
-        if (offset + size >= Size)
+        if (offset + size > Size)
             throw std::bad_alloc(); // sub buffer range overflow
         return AlignedBuffer(CoreInfo, Data + offset, size, std::gcd(offset + Align, Align));
     }
