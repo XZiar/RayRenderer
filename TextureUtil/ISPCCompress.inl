@@ -7,7 +7,7 @@
 namespace oglu::texutil::detail
 {
 
-static common::AlignedBuffer<32> CompressBC1(const Image& img)
+static common::AlignedBuffer CompressBC1(const Image& img)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC1");
@@ -19,12 +19,12 @@ static common::AlignedBuffer<32> CompressBC1(const Image& img)
     }
     const rgba_surface surface{ const_cast<uint8_t*>(img.GetRawPtr<uint8_t>()), (int32_t)img.GetWidth(), (int32_t)img.GetHeight(), (int32_t)img.RowSize() };
     const uint32_t blkCount = img.GetWidth() * img.GetHeight() / 4 / 4;
-    common::AlignedBuffer<32> buffer(8 * blkCount);
+    common::AlignedBuffer buffer(8 * blkCount);
     CompressBlocksBC1(&surface, buffer.GetRawPtr<uint8_t>());
     return buffer;
 }
 
-static common::AlignedBuffer<32> CompressBC3(const Image& img)
+static common::AlignedBuffer CompressBC3(const Image& img)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC3");
@@ -36,12 +36,12 @@ static common::AlignedBuffer<32> CompressBC3(const Image& img)
     }
     const rgba_surface surface{ const_cast<uint8_t*>(img.GetRawPtr<uint8_t>()), (int32_t)img.GetWidth(), (int32_t)img.GetHeight(), (int32_t)img.RowSize() };
     const uint32_t blkCount = img.GetWidth() * img.GetHeight() / 4 / 4;
-    common::AlignedBuffer<32> buffer(16 * blkCount);
+    common::AlignedBuffer buffer(16 * blkCount);
     CompressBlocksBC3(&surface, buffer.GetRawPtr<uint8_t>());
     return buffer;
 }
 
-static common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAlpha)
+static common::AlignedBuffer CompressBC7(const Image& img, const bool needAlpha)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC7");
@@ -53,7 +53,7 @@ static common::AlignedBuffer<32> CompressBC7(const Image& img, const bool needAl
     }
     const rgba_surface surface{ const_cast<uint8_t*>(img.GetRawPtr<uint8_t>()), (int32_t)img.GetWidth(), (int32_t)img.GetHeight(), (int32_t)img.RowSize() };
     const uint32_t blkCount = img.GetWidth() * img.GetHeight() / 4 / 4;
-    common::AlignedBuffer<32> buffer(16 * blkCount);
+    common::AlignedBuffer buffer(16 * blkCount);
     bc7_enc_settings settings;
     needAlpha ? GetProfile_alpha_ultrafast(&settings) : GetProfile_ultrafast(&settings);
     CompressBlocksBC7(&surface, buffer.GetRawPtr<uint8_t>(), &settings);

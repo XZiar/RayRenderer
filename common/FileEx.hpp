@@ -326,7 +326,7 @@ public:
 class BufferedFileReader : public Readable<BufferedFileReader>, public NonCopyable
 {
 private:
-    AlignedBuffer<32> Buffer;
+    AlignedBuffer Buffer;
     FileObject File;
     size_t BufBegin, BufPos = 0, BufLen = 0;
     template<bool IsNext = true>
@@ -440,7 +440,7 @@ public:
 class BufferedFileWriter : public Writable<BufferedFileWriter>, public NonCopyable
 {
 private:
-    AlignedBuffer<32> Buffer;
+    AlignedBuffer Buffer;
     FileObject File;
     size_t BufBegin, BufLen = 0;
 public:

@@ -19,7 +19,7 @@ class IMGUTILAPI JpegReader : public ImgReader
     friend JpegHelper;
 private:
     FileObject & ImgFile;
-    common::AlignedBuffer<32> Buffer;
+    common::AlignedBuffer Buffer;
     void *JpegDecompStruct = nullptr;
     void *JpegSource = nullptr;
     void *JpegErrorHandler = nullptr;
@@ -35,7 +35,7 @@ class IMGUTILAPI JpegWriter : public ImgWriter
     friend JpegHelper;
 private:
     FileObject& ImgFile;
-    common::AlignedBuffer<32> Buffer;
+    common::AlignedBuffer Buffer;
     void *JpegCompStruct = nullptr;
     void *JpegDest = nullptr;
     void *JpegErrorHandler = nullptr;

@@ -153,7 +153,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             const auto ratio = std::max(width, height) * 4 / 128.0f;
             width = std::max(1u, uint32_t(width / ratio) * 4), height = std::max(1u, uint32_t(height / ratio) * 4);
             tmpimg.Resize(width, height);
-            img = common::AlignedBuffer<32>(tmpimg.GetSize());
+            img = common::AlignedBuffer(tmpimg.GetSize());
             width = tmpimg.GetWidth(), height = tmpimg.GetHeight();
             memcpy_s(img.GetRawPtr(), img.GetSize(), tmpimg.GetRawPtr(), tmpimg.GetSize());
         }

@@ -19,11 +19,11 @@ static void CheckImgSize(const Image& img)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a non-zero size.");
 }
 
-common::AlignedBuffer<32> CompressToDat(const Image& img, const TextureInnerFormat format, const bool needAlpha)
+common::AlignedBuffer CompressToDat(const Image& img, const TextureInnerFormat format, const bool needAlpha)
 {
     CheckImgSize(img);
     common::SimpleTimer timer;
-    common::AlignedBuffer<32> result;
+    common::AlignedBuffer result;
     timer.Start();
     switch (format)
     {

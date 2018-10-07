@@ -64,7 +64,7 @@ BMPair FreeTyper::getChBitmap(char32_t ch, bool custom) const
         //middle alignment fix and x-px border
         const auto w = ((bmp.width + Border * 2 + 3) / 4) * 4, h = ((bmp.rows + Border * 2 + 3) / 4) * 4;
         const auto offx = (w - bmp.width) / 2, offy = (h - bmp.rows) / 2;
-        AlignedBuffer<32> output(w*h, byte(0));
+        AlignedBuffer output(w*h, byte(0));
         byte* __restrict outPtr = output.GetRawPtr() + offy * w + offx;
         const auto* __restrict inPtr = bmp.buffer;
         for (uint32_t a = bmp.rows; a--; inPtr += bmp.width, outPtr += w)
@@ -77,7 +77,7 @@ BMPair FreeTyper::getChBitmap(char32_t ch, bool custom) const
         auto ret = TryRenderLine(&glyph->outline);
         auto w = ret.second.first, h = ret.second.second;
         w = ((w + 2 + 3) / 4) * 4, h = h + 2;
-        AlignedBuffer<32> output(w*h, byte(0));
+        AlignedBuffer output(w*h, byte(0));
         auto lines = ret.first;
         for(const auto& l : lines)
         {

@@ -34,15 +34,15 @@ namespace detail
 struct RAYCOREAPI _FakeTex : public NonCopyable
 {
 public:
-    //common::AlignedBuffer<32> TexData;
-    vector<common::AlignedBuffer<32>> TexData;
+    //common::AlignedBuffer TexData;
+    vector<common::AlignedBuffer> TexData;
     u16string Name;
     oglu::TextureInnerFormat TexFormat;
     uint32_t Width, Height;
     uint8_t Mipmap;
-    _FakeTex(common::AlignedBuffer<32>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
-        : TexData(vector<common::AlignedBuffer<32>>{std::move(texData)}), TexFormat(format), Width(width), Height(height), Mipmap(1) {}
-    _FakeTex(vector<common::AlignedBuffer<32>>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+    _FakeTex(common::AlignedBuffer&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+        : TexData(vector<common::AlignedBuffer>{std::move(texData)}), TexFormat(format), Width(width), Height(height), Mipmap(1) {}
+    _FakeTex(vector<common::AlignedBuffer>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
         : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height), Mipmap(static_cast<uint8_t>(texData.size())) {}
     ~_FakeTex() {}
 };

@@ -202,7 +202,7 @@ void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const boo
         COMMON_THROW(BaseException, u"image size cannot be all zero!");
     width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
     height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
-    common::AlignedBuffer<32> output(width*height*ElementSize);
+    common::AlignedBuffer output(width*height*ElementSize);
 
     const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;
     const int32_t channel = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? ElementSize / sizeof(float) : ElementSize;
@@ -219,7 +219,7 @@ void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const boo
         STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, 
         isSRGB ? STBIR_COLORSPACE_SRGB : STBIR_COLORSPACE_LINEAR, nullptr);
 
-    *reinterpret_cast<common::AlignedBuffer<32>*>(this) = output;
+    *reinterpret_cast<common::AlignedBuffer*>(this) = output;
     Width = width, Height = height;
 }
 
@@ -258,14 +258,14 @@ Image Image::ConvertToFloat(const float floatRange) const
     {
         Image newimg(DataType | ImageDataType::FLOAT_MASK);
         newimg.SetSize(Width, Height);
-        convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size_, floatRange);
+        convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size, floatRange);
         return newimg;
     }
     else
     {
         Image newimg(REMOVE_MASK(DataType, ImageDataType::FLOAT_MASK));
         newimg.SetSize(Width, Height);
-        const auto floatCount = Size_ / sizeof(float);
+        const auto floatCount = Size / sizeof(float);
         convert::Float1sToU8s(newimg.Data, reinterpret_cast<const float*>(Data), floatCount, floatRange);
         return newimg;
     }

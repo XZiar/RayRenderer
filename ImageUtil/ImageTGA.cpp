@@ -67,7 +67,7 @@ public:
         {
         case 8:
             {
-                AlignedBuffer<32> tmp(count);
+                AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
                 auto * __restrict destPtr = output.GetRawPtr();
                 convert::GraysToRGBAs(destPtr, tmp.GetRawPtr(), count);
@@ -121,7 +121,7 @@ public:
         {
         case 8:
             {
-                AlignedBuffer<32> tmp(count);
+                AlignedBuffer tmp(count);
                 reader.Read(count, tmp.GetRawPtr());
                 auto * __restrict destPtr = output.GetRawPtr();
                 convert::GraysToRGBs(destPtr, tmp.GetRawPtr(), count);
@@ -299,7 +299,7 @@ public:
         }
         else
         {
-            AlignedBuffer<32> buffer(3 * 128);
+            AlignedBuffer buffer(3 * 128);
             while (len)
             {
                 const auto size = std::min(128u, len);
@@ -331,7 +331,7 @@ public:
         }
         else
         {
-            AlignedBuffer<32> buffer(4 * 128);
+            AlignedBuffer buffer(4 * 128);
             while (len)
             {
                 const auto size = std::min(128u, len);

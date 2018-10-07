@@ -241,10 +241,10 @@ PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
     glFlush();
     return pms;
 }
-PromiseResult<common::AlignedBuffer<32>> _oclImage::ReadRaw(const oclCmdQue que) const
+PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) const
 {
     const size_t size = Width * Height * Depth * oglu::TexFormatUtil::ParseFormatSize(Format);
-    auto pms = std::make_shared<detail::oclPromise<common::AlignedBuffer<32>>>(size);
+    auto pms = std::make_shared<detail::oclPromise<common::AlignedBuffer>>(size);
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;

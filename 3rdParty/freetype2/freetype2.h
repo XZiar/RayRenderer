@@ -17,7 +17,7 @@ using std::vector;
 using std::pair;
 using std::tuple;
 using std::byte;
-using BMPair = tuple<common::AlignedBuffer<32>, uint32_t, uint32_t>;
+using BMPair = tuple<common::AlignedBuffer, uint32_t, uint32_t>;
 
 class FreeTyper
 {

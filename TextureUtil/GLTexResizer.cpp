@@ -149,7 +149,7 @@ common::PromiseResult<Image> GLTexResizer::ResizeToDat(const oglTex2D& tex, cons
     return ExtractImage(std::move(pmsTex), format);
 }
 
-common::PromiseResult<Image> GLTexResizer::ResizeToDat(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
+common::PromiseResult<Image> GLTexResizer::ResizeToDat(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
     auto pmsTex = ResizeToTex(data, size, dataFormat, width, height, DecideFormat(format), flipY);
     return ExtractImage(std::move(pmsTex), format);
@@ -226,11 +226,11 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         });
 }
 
-common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer<32>& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
+common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
 {
     FilterFormat(format);
 
-    return Executor.AddTask([this, rawdata = std::make_shared<common::AlignedBuffer<32>>(data), size, dataFormat, width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
+    return Executor.AddTask([this, rawdata = std::make_shared<common::AlignedBuffer>(data), size, dataFormat, width, height, format, flipY](const common::asyexe::AsyncAgent& agent)
     {
         oglTex2DS tex(size.first, size.second, dataFormat);
 

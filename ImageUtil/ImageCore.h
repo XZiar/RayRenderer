@@ -16,8 +16,12 @@ enum class ImageDataType : uint8_t
 };
 MAKE_ENUM_BITFIELD(ImageDataType)
 
+#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
 /*Custom Image Data Holder, with pixel data alignment promise*/
-class IMGUTILAPI Image : protected common::AlignedBuffer<32>
+class IMGUTILAPI Image : protected common::AlignedBuffer
 {
 private:
     uint32_t Width, Height;
@@ -27,20 +31,20 @@ public:
     static constexpr uint8_t GetElementSize(const ImageDataType dataType);
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
-    Image(const common::AlignedBuffer<32>& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
-        : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
+    Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
+        : common::AlignedBuffer(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
-        if (Width*Height*ElementSize != Size_)
+        if (Width*Height*ElementSize != Size)
             COMMON_THROW(BaseException, u"Size not match");
     }
-    Image(common::AlignedBuffer<32>&& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
-        : common::AlignedBuffer<32>(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
+    Image(common::AlignedBuffer&& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
+        : common::AlignedBuffer(std::move(data)), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
-        if (Width*Height*ElementSize != Size_)
+        if (Width*Height*ElementSize != Size)
             COMMON_THROW(BaseException, u"Size not match");
     }
 
-    using common::AlignedBuffer<32>::GetSize;
+    using common::AlignedBuffer::GetSize;
     uint32_t GetWidth() const noexcept { return Width; }
     uint32_t GetHeight() const noexcept { return Height; }
     ImageDataType GetDataType() const noexcept { return DataType; }
@@ -49,14 +53,14 @@ public:
     size_t PixelCount() const noexcept { return Width * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
     {
-        Width = width, Height = height, Size_ = Width * Height * ElementSize;
+        Width = width, Height = height, Size = Width * Height * ElementSize;
         Alloc(zero);
     }
     void SetSize(const uint32_t width, const uint32_t height, const byte fill)
     {
-        Width = width, Height = height, Size_ = Width * Height * ElementSize;
+        Width = width, Height = height, Size = Width * Height * ElementSize;
         Alloc(false);
-        memset(Data, std::to_integer<uint8_t>(fill), Size_);
+        memset(Data, std::to_integer<uint8_t>(fill), Size);
     }
     template<typename T>
     void SetSize(const tuple<T, T>& size, const bool zero = true)
@@ -96,14 +100,14 @@ public:
         return pointers;
     }
 
-    const common::AlignedBuffer<32>& GetData() const
+    const common::AlignedBuffer& GetData() const
     {
-        return *static_cast<const common::AlignedBuffer<32>*>(this);
+        return *static_cast<const common::AlignedBuffer*>(this);
     }
 
-    common::AlignedBuffer<32> ExtractData()
+    common::AlignedBuffer ExtractData()
     {
-        common::AlignedBuffer<32> data = std::move(*this);
+        common::AlignedBuffer data = std::move(*this);
         Width = Height = 0;
         return data;
     }
@@ -130,6 +134,9 @@ public:
     Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     Image ConvertToFloat(const float floatRange = 1) const;
 };
+#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
 {

@@ -13,7 +13,7 @@ static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool nee
     const auto dataType = image.GetDataType();
     const size_t frowsize = ((info.BitCount * width + 31) / 32) * 4;
     const size_t irowsize = image.RowSize();
-    AlignedBuffer<32> buffer(frowsize);
+    AlignedBuffer buffer(frowsize);
     switch (info.BitCount)
     {
     case 32://BGRA
@@ -94,7 +94,7 @@ static void ReadUncompressed(Image& image, BufferedFileReader& imgfile, bool nee
             const auto carraypos = imgfile.CurrentPos();
             imgfile.Rewind(detail::BMP_HEADER_SIZE + info.Size);
             const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1u << info.BitCount);
-            AlignedBuffer<32> palette(paletteCount * 4);
+            AlignedBuffer palette(paletteCount * 4);
             imgfile.Read(paletteCount * 4, palette.GetRawPtr());
             convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
             imgfile.Rewind(carraypos);
@@ -258,7 +258,7 @@ void BmpWriter::Write(const Image& image)
         ImgFile.Write(image.GetSize(), image.GetRawPtr());
     else
     {
-        AlignedBuffer<32> buffer(frowsize);
+        AlignedBuffer buffer(frowsize);
         byte* __restrict const bufptr = buffer.GetRawPtr();
         for (uint32_t i = 0; i < image.GetHeight(); ++i)
         {

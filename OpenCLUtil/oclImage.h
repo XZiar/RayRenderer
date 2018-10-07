@@ -41,14 +41,14 @@ protected:
 public:
     virtual ~_oclImage();
     PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;
-    PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer<32>& data, const bool shouldBlock = true) const
+    PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer& data, const bool shouldBlock = true) const
     { return Write(que, data.GetRawPtr(), data.GetSize(), shouldBlock); }
     PromiseResult<void> Write(const oclCmdQue que, const Image& image, const bool shouldBlock = true) const;
 
     PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
     PromiseResult<void> Read(const oclCmdQue que, Image& image, const bool shouldBlock = true) const;
     PromiseResult<Image> Read(const oclCmdQue que) const;
-    PromiseResult<common::AlignedBuffer<32>> ReadRaw(const oclCmdQue que) const;
+    PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
     oglu::TextureDataFormat GetFormat() const { return Format; }

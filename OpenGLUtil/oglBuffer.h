@@ -202,7 +202,7 @@ public:
                 Write(dat, mode);
             else
             {
-                common::AlignedBuffer<32> newdata(dat.size());
+                common::AlignedBuffer newdata(dat.size());
                 common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), dat.data(), dat.size());
                 Write(newdata.GetRawPtr<uint8_t>(), dat.size(), mode);
             }
@@ -213,7 +213,7 @@ public:
                 Write(dat, mode);
             else
             {
-                common::AlignedBuffer<32> newdata(dat.size()*sizeof(uint16_t));
+                common::AlignedBuffer newdata(dat.size()*sizeof(uint16_t));
                 common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), dat.data(), dat.size());
                 Write(newdata.GetRawPtr<uint16_t>(), dat.size(), mode);
             }
