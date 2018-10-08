@@ -22,7 +22,7 @@ private:
         {
             if (const auto fex = std::dynamic_pointer_cast<FileException>(inner))
             {
-                auto msg = ToStr(fex->message);
+                auto msg = ToStr((const std::u16string_view&)fex->message);
                 auto fpath = ToStr(fex->filepath.u16string());
                 auto innerEx = formInnerException(*fex);
                 if (fex->reason == FileException::Reason::NotExist)
@@ -45,8 +45,11 @@ public:
     }
     CPPException(const BaseException& be) : Exception(ToStr(be.message), formInnerException(be))
     {
-        const auto& stack = be.Stacktrace();
-        stacktrace = String::Format("at [{0}] : line {1} ({2})", ToStr(stack.Func), stack.Line, ToStr(stack.File));
+        using std::u16string_view;
+        stacktrace = "";
+        for(const auto& stack : be.Stack())
+            stacktrace += String::Format("at [{0}] : line {1} ({2})", 
+                ToStr((const u16string_view&)stack.Func), stack.Line, ToStr((const u16string_view&)stack.File));
     }
 };
 

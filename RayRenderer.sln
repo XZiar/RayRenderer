@@ -65,6 +65,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\SharedResource.hpp = common\SharedResource.hpp
 		common\SharedString.hpp = common\SharedString.hpp
+		common\SharedString.natvis = common\SharedString.natvis
 		common\SIMD.hpp = common\SIMD.hpp
 		common\SIMD128.hpp = common\SIMD128.hpp
 		common\SIMD256.hpp = common\SIMD256.hpp
@@ -78,7 +79,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\WinVersionHelper.hpp = common\WinVersionHelper.hpp
 		common\Wrapper.hpp = common\Wrapper.hpp
-		common\Wrapper.natvis = common\Wrapper.natvis
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3DBasic", "3DBasic", "{A74D60C0-9D16-4AA6-BC08-B54BEAF003C0}"
@@ -269,6 +269,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDAMipmap", "Tests\CUDAMipmap\CUDAMipmap.vcxproj", "{C5398988-B3DB-42E0-BCC0-21E4A4C4C881}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDAMipmapExe", "Tests\CUDAMipmapExe\CUDAMipmapExe.vcxproj", "{AEABA18E-1B65-464E-A765-9E6AB1E4E09C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.stacktrace", "3rdParty\boost.stacktrace\boost.stacktrace.vcxproj", "{73E340BF-05DF-4582-B3C8-83F6EF60BD87}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NullTest", "Tests\NullTest\NullTest.vcxproj", "{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -679,6 +683,26 @@ Global
 		{AEABA18E-1B65-464E-A765-9E6AB1E4E09C}.Release|x64.Build.0 = Release|x64
 		{AEABA18E-1B65-464E-A765-9E6AB1E4E09C}.Release|x86.ActiveCfg = Release|Win32
 		{AEABA18E-1B65-464E-A765-9E6AB1E4E09C}.Release|x86.Build.0 = Release|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Debug|x64.ActiveCfg = Debug|x64
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Debug|x64.Build.0 = Debug|x64
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Debug|x86.ActiveCfg = Debug|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Debug|x86.Build.0 = Debug|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Release|Any CPU.ActiveCfg = Release|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Release|x64.ActiveCfg = Release|x64
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Release|x64.Build.0 = Release|x64
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Release|x86.ActiveCfg = Release|Win32
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87}.Release|x86.Build.0 = Release|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Debug|x64.ActiveCfg = Debug|x64
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Debug|x64.Build.0 = Debug|x64
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Debug|x86.ActiveCfg = Debug|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Debug|x86.Build.0 = Debug|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Release|Any CPU.ActiveCfg = Release|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Release|x64.ActiveCfg = Release|x64
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Release|x64.Build.0 = Release|x64
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Release|x86.ActiveCfg = Release|Win32
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -730,6 +754,8 @@ Global
 		{44E6B6BE-CFAA-40EE-8359-F9F393971FB7} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{C5398988-B3DB-42E0-BCC0-21E4A4C4C881} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{AEABA18E-1B65-464E-A765-9E6AB1E4E09C} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
+		{73E340BF-05DF-4582-B3C8-83F6EF60BD87} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{3AE3FE89-96DA-4878-84F4-B0B8648C2C61} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

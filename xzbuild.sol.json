@@ -87,6 +87,13 @@
             "dependency": []
         },
         {
+            "name": "boost.stacktrace",
+            "type": "dynamic",
+            "path": "3rdParty/boost.stacktrace",
+            "description": "A C++ library for storing and printing backtraces.",
+            "dependency": []
+        },
+        {
             "name": "freetype2",
             "type": "static",
             "path": "3rdParty/freetype2",
@@ -193,6 +200,13 @@
             "path": "Tests/SIMDTest",
             "description": "SIMD test",
             "dependency": ["fmt", "cpuid"]
+        },
+        {
+            "name": "NullTest",
+            "type": "executable",
+            "path": "Tests/NullTest",
+            "description": "minimized test",
+            "dependency": ["fmt", "boost.stacktrace"]
         }
     ]
 }

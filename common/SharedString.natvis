@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::SharedString&lt;char&gt;">
+    <DisplayString>{{{StrView,s}}}</DisplayString>
+  </Type>
+  <Type Name="common::SharedString&lt;char16_t&gt;">
+    <DisplayString>{{{StrView,su}}}</DisplayString>
+  </Type>
+  <Type Name="common::SharedString&lt;wchar_t&gt;">
+    <DisplayString>{{{StrView,su}}}</DisplayString>
+  </Type>
+  <Type Name="common::SharedString&lt;char32_t&gt;">
+    <DisplayString>{{{StrView,s32}}}</DisplayString>
+  </Type>
+</AutoVisualizer>

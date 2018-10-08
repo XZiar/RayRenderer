@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="common::StackTraceItem">
-    <DisplayString>{{{file}:[{line}]-{func}}}</DisplayString>
+    <DisplayString>{{{File}:[{Line}]-{Func}}}</DisplayString>
   </Type>
   <Type Name="common::BaseException" Inheritable="false">
     <DisplayString>{{{TypeName,s},{message},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">StackItem</Item>
+      <Item Name="stack" ExcludeView="simple">StackTrace</Item>
       <Item Name="data" ExcludeView="simple">data</Item>
       <Item Name="InnerException" ExcludeView="simple">InnerException</Item>
     </Expand>
@@ -16,7 +16,7 @@
     <DisplayString>{{{TypeName,s},{reason},{filepath},{data}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">StackItem</Item>
+      <Item Name="stack" ExcludeView="simple">StackTrace</Item>
       <Item Name="reason" ExcludeView="simple">reason</Item>
       <Item Name="file" ExcludeView="simple">filepath</Item>
       <Item Name="data" ExcludeView="simple">data</Item>

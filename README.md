@@ -22,7 +22,6 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
 | [common](./common) | Basic but useful things | N/A |
-| [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
 | [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
 | [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
@@ -33,9 +32,11 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
+| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux(bug) |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows |
+| [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
 

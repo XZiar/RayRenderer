@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "SharedString.hpp"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -63,15 +64,16 @@ class ExceptionHelper;
 class StackTraceItem
 {
 public:
-    std::u16string_view File;
-#if defined(_MSC_VER)
-    std::u16string_view Func;
-#else
-    std::u16string Func;
-#endif
+    SharedString<char16_t> File;
+    SharedString<char16_t> Func;
     size_t Line;
-    StackTraceItem() : File(u"Undefined"), Func(u"Undefined"), Line(0) {}
-    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) : File(file), Func(func), Line(pos) {}
+    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) 
+        : File(file), Func(func), Line(pos) {}
+    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos) 
+        : File(file), Func(std::u16string(func, func + std::char_traits<char>::length(func))), Line(pos) {}
+    template<typename T1, typename T2>
+    StackTraceItem(T1&& file, T2&& func, const size_t pos) 
+        : File(std::forward<T1>(file)), Func(std::forward<T2>(func)), Line(pos) {}
 };
 
 
@@ -80,11 +82,11 @@ class BaseException : public detail::AnyException
     friend detail::ExceptionHelper;
 public:
     static constexpr auto TYPENAME = "BaseException";
-    std::u16string message;
+    SharedString<char16_t> message;
     std::any data;
 protected:
     std::shared_ptr<detail::AnyException> InnerException;
-    StackTraceItem StackItem;
+    std::vector<StackTraceItem> StackTrace;
     static std::shared_ptr<detail::AnyException> getCurrentException();
     BaseException(const char * const type, const std::u16string_view& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
@@ -98,30 +100,50 @@ private:
             if (baseEx)
                 baseEx->CollectStack(stks);
             else // is std exception
-                stks.push_back(StackTraceItem(u"StdException", u"StdException", 0));
+                stks.emplace_back(u"StdException", u"StdException", 0);
         }
-        stks.push_back(StackItem);
+        if (StackTrace.size() > 0)
+            stks.push_back(StackTrace[0]);
+        else
+            stks.emplace_back(u"Undefined", u"Undefined", 0);
     }
 public:
     BaseException(const std::u16string_view& msg, const std::any& data_ = std::any())
         : BaseException(TYPENAME, msg, data_)
     { }
     BaseException(const BaseException& baseEx) = default;
+    BaseException(BaseException&& baseEx) = default;
     ~BaseException() override {}
     virtual std::shared_ptr<BaseException> clone() const
     {
         return std::make_shared<BaseException>(*this);
     }
     std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
-    StackTraceItem Stacktrace() const
+    const std::vector<StackTraceItem>& Stack() const
     {
-        return StackItem;
+        return StackTrace;
     }
-    std::vector<StackTraceItem> ExceptionStack() const
+    std::vector<StackTraceItem> ExceptionStacks() const
     {
         std::vector<StackTraceItem> ret;
         CollectStack(ret);
         return ret;
+    }
+    template<typename T, typename... Args>
+    static T CreateWithStack(StackTraceItem&& sti, Args... args)
+    {
+        static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
+        T ex(std::forward<Args>(args)...);
+        static_cast<BaseException*>(&ex)->StackTrace.push_back(std::move(sti));
+        return ex;
+    }
+    template<typename T, typename... Args>
+    static T CreateWithStacks(std::vector<StackTraceItem>&& stacks, Args... args)
+    {
+        static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
+        T ex(std::forward<Args>(args)...);
+        static_cast<BaseException*>(&ex)->StackTrace = std::move(stacks);
+        return ex;
     }
 };
 #define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
@@ -150,32 +172,10 @@ inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException(
 }
 
 
-namespace detail
-{
-class ExceptionHelper
-{
-public:
-    template<class T>
-    static T SetStackItem(T ex, StackTraceItem sti)
-    {
-        static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
-        static_cast<BaseException*>(&ex)->StackItem = sti;
-        return ex;
-    }
-};
-}
 #if defined(_MSC_VER)
-#   define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), { u"" __FILE__, u"" __FUNCSIG__, (size_t)(__LINE__) })
+#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ u"" __FILE__, u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
 #else
-template<size_t N>
-inline constexpr auto MakeGccToU16Str(const char (&str)[N])
-{
-    std::array<char16_t, N> ret{ 0 };
-    for (size_t i = 0; i < N; ++i)
-        ret[i] = str[i];
-    return ret;
-}
-#   define COMMON_THROW(ex, ...) throw ::common::detail::ExceptionHelper::SetStackItem(ex(__VA_ARGS__), { u"" __FILE__, ::common::MakeGccToU16Str(__PRETTY_FUNCTION__).data(), (size_t)(__LINE__) })
+#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ u"" __FILE__, __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
 #endif
 
 #if defined(__GNUC__)

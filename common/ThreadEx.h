@@ -6,6 +6,7 @@
 #include <memory>
 #include <list>
 #include <tuple>
+#include <functional>
 
 #if !defined(_MANAGED) && !defined(_M_CEE)
 #   include <thread>
