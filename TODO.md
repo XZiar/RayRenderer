@@ -2,7 +2,7 @@
 
 * common
   - [ ] Add async file operation (cross-platform)
-  - [ ] Add linq (iterator-based)
+  - [x] Add linq (iterator-based)
 
 * AsyncExecutor
   - [x] Add support for returning value
@@ -24,7 +24,7 @@
   - [x] Combine subroutine with macro-based static dispatch
   - [x] Add context-sesative dispatching for version-based functions 
   * TextureUtil
-    - [ ] Add mipmap
+    - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL
 
 * FontHelper

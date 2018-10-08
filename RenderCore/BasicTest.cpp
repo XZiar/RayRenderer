@@ -236,9 +236,9 @@ void BasicTest::initTex()
         //tmpTex = oglu::texcomp::CompressToTex(outimg, TextureInnerFormat::BC7, false)->wait();
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
-    chkTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
+    chkTex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
     {
-        oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::RGBA8);
+        oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::SRGBA8);
         tex2darr->SetTextureLayer(0, chkTex);
     }
 }
@@ -313,7 +313,7 @@ void BasicTest::fontTest(const char32_t word)
             img::WriteImage(imgShow, Basepath / u"Show.png");
             imgShow.FlipVertical(); // pre-flip
             fonttex->SetData(TextureInnerFormat::R8, imgShow, true, false);
-            fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Clamp);
+            fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
             fontViewer->BindTexture(fonttex);
         }
     }
@@ -413,7 +413,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloat
     oglRBO mainRBO(w, h, isFloatDepth ? oglu::RBOFormat::Depth32Stencil8 : oglu::RBOFormat::Depth24Stencil8);
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
     basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-    progPost->State().SetTexture(fboTex, "tex");
+    progPost->State().SetTexture(fboTex, "scene");
 }
 
 void BasicTest::ReloadFontLoader(const u16string& fname)

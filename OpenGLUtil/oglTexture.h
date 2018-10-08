@@ -114,9 +114,16 @@ public:
     virtual ~OGLWrongFormatException() {}
 };
 
-enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
+//enum class TextureFilterVal : GLint { Linear = GL_LINEAR, Nearest = GL_NEAREST, };
+enum class TextureFilterVal : uint8_t
+{
+    LAYER_MASK = 0x0f, Linear = 0x01, Nearest = 0x02,
+    MIPMAP_MASK = 0xf0, NoneMM = 0x00, LinearMM = 0x10, NearestMM = 0x20,
+    BothLinear = Linear | LinearMM, BothNearest = Nearest | NearestMM,
+};
+MAKE_ENUM_BITFIELD(TextureFilterVal)
 
-enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, Clamp = GL_CLAMP, ClampEdge = GL_CLAMP_TO_EDGE, ClampBorder = GL_CLAMP_TO_BORDER };
+enum class TextureWrapVal : GLint { Repeat = GL_REPEAT, ClampEdge = GL_CLAMP_TO_EDGE, ClampBorder = GL_CLAMP_TO_BORDER };
 
 enum class TexImgUsage : GLenum { ReadOnly = GL_READ_ONLY, WriteOnly = GL_WRITE_ONLY, ReadWrite = GL_READ_WRITE };
 
@@ -201,7 +208,7 @@ protected:
 public:
     u16string Name;
     virtual ~_oglTexBase() noexcept;
-    void SetProperty(const TextureFilterVal magFilter, const TextureFilterVal minFilter);
+    void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
     {
         SetProperty(filtertype, filtertype); 
@@ -210,7 +217,7 @@ public:
     void SetProperty(const TextureFilterVal filtertype) { SetProperty(filtertype, filtertype); }
     virtual void SetProperty(const TextureWrapVal wraptype) = 0;
     bool IsCompressed() const;
-    uint8_t GetMipmapLevel() const noexcept { return Mipmap; }
+    uint8_t GetMipmapCount() const noexcept { return Mipmap; }
     TextureInnerFormat GetInnerFormat() const noexcept { return InnerFormat; }
 };
 

@@ -164,7 +164,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const Image& img, con
         const auto middleFormat = DecideFormat(rawimg->GetDataType(), format);
         oglTex2DS tex(rawimg->GetWidth(), rawimg->GetHeight(), middleFormat);
         tex->SetData(*rawimg, true, false);
-        tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });
 }
@@ -188,7 +188,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         {
             tex->CheckCurrent();
             oglTex2DS outtex(width, height, format);
-            outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+            outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         
             OutputFrame->AttachColorTexture(outtex, 0);
             oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
@@ -208,7 +208,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         {
             tex->CheckCurrent();
             oglTex2DS outtex(width, height, REMOVE_MASK(format, TextureInnerFormat::FLAG_SRGB) | TextureInnerFormat::CHANNEL_ALPHA_MASK);
-            outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+            outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
             oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
             b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
             GLResizer2->SetVec("coordStep", coordStep);
@@ -238,7 +238,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::Aligned
             tex->SetCompressedData(rawdata->GetRawPtr(), rawdata->GetSize());
         else
             tex->SetData(TexFormatUtil::ConvertDtypeFrom(dataFormat), rawdata->GetRawPtr());
-        tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });
 }

@@ -24,14 +24,6 @@ private:
     void InnerWaitPmss(const PmssType& pmss);
     std::shared_ptr<Image> GetThumbnail(const std::weak_ptr<void>& weakref) const;
 public:
-    static constexpr std::tuple<bool, uint32_t, uint32_t> CalcSize(const std::pair<uint32_t, uint32_t>& size)
-    {
-        constexpr uint32_t thredshold = 64;
-        const auto larger = std::max(size.first, size.second);
-        if (larger <= thredshold)
-            return { false, 0,0 };
-        return { true, size.first * thredshold / larger, size.second * thredshold / larger };
-    }
 
     ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker);
 

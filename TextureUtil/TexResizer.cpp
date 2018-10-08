@@ -170,7 +170,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         auto ptr = img->Map(que, MapFlag::Read);
         oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
         tex->SetData(img->GetFormat(), ptr);
-        tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
+        tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
         return (oglTex2D)tex;
     }
@@ -182,7 +182,7 @@ static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::
         tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
     else
         tex->SetData(TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
-    tex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
+    tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
     return tex;
 }
 template<>
@@ -193,7 +193,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
         const auto vao = flipY ? FlipYVAO : NormalVAO;
         tex->CheckCurrent();
         oglTex2DS outtex(width, height, output);
-        outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
 
         OutputFrame->AttachColorTexture(outtex, 0);
         oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
@@ -217,7 +217,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
         const auto outformat = REMOVE_MASK(output, TextureInnerFormat::FLAG_SRGB);
         tex->CheckCurrent();
         oglTex2DS outtex(width, height, outformat);
-        outtex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
         b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
         const auto& localSize = GLResizer2->GetLocalSize();

@@ -65,7 +65,7 @@ void main()
     const vec3 logColor = LinearToLogUE(linColor);
     vec3 color;
     color = texture(lut, logColor * lutOffset.x + lutOffset.y).rgb;
-    FragColor.rgb = color;
+    FragColor.rgb = /*texture(lut, vec3(tpos, 0.5f)).rgb;//*/color;
     FragColor.w = 1.0f;
 }
 

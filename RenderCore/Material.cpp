@@ -46,6 +46,16 @@ std::weak_ptr<void> TexHolder::GetWeakRef() const
     default: return {};
     }
 }
+uint8_t TexHolder::GetMipmapCount() const
+{
+    switch (index())
+    {
+    case 1: return std::get<oglTex2D>(*this)->GetMipmapCount();
+    case 2: return static_cast<uint8_t>(std::get<FakeTex>(*this)->TexData.size());
+    default: return 0;
+    }
+}
+
 
 uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 {
@@ -65,41 +75,42 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 
 static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context)
 {
-    switch (holder.index())
-    {
-    case 1: 
-    {
-        const auto& tex = std::get<oglTex2D>(holder);
-        auto jtex = context.NewObject();
-        jtex.Add("name", str::to_u8string(tex->Name, Charset::UTF16LE));
-        jtex.Add("format", (uint32_t)tex->GetInnerFormat());
-        const auto[w, h] = tex->GetSize();
-        jtex.Add("width", w);
-        jtex.Add("height", h);
-        std::vector<uint8_t> data;
-        if (tex->IsCompressed())
-            data = tex->GetCompressedData().value();
-        else
-            data = tex->GetData(oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()));
-        const auto datahandle = context.PutResource(data.data(), data.size());
-        jtex.Add("data", datahandle);
-        return std::move(jtex);
-    }
-    case 2: 
-    {
-        const auto& tex = std::get<FakeTex>(holder);
-        auto jtex = context.NewObject();
-        jtex.Add("name", str::to_u8string(tex->Name, Charset::UTF16LE));
-        jtex.Add("format", (uint32_t)tex->TexFormat);
-        jtex.Add("width", tex->Width);
-        jtex.Add("height", tex->Height);
-        const auto datahandle = context.PutResource(tex->TexData[0].GetRawPtr(), tex->TexData[0].GetSize());
-        jtex.Add("data", datahandle);
-        return std::move(jtex);
-    }
-    default: 
+    if (holder.index() != 1 && holder.index() != 2)
         return ejson::JNull();
+    auto jtex = context.NewObject();
+    jtex.Add("name", str::to_u8string(holder.GetName(), Charset::UTF16LE));
+    jtex.Add("format", (uint16_t)holder.GetInnerFormat());
+    const auto[w, h] = holder.GetSize();
+    jtex.Add("width", w);
+    jtex.Add("height", h);
+    jtex.Add("mipmap", holder.GetMipmapCount());
+    auto jdataarr = context.NewArray();
+    for (uint8_t i = 0; i < holder.GetMipmapCount(); ++i)
+    {
+        switch (holder.index())
+        {
+        case 1:
+            {
+                const auto& tex = std::get<oglTex2D>(holder);
+                std::vector<uint8_t> data;
+                if (tex->IsCompressed())
+                    data = tex->GetCompressedData(i).value();
+                else
+                    data = tex->GetData(oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), i);
+                const auto datahandle = context.PutResource(data.data(), data.size());
+                jdataarr.Push(datahandle);
+            } break;
+        case 2:
+            {
+                const auto& tex = std::get<FakeTex>(holder);
+                const auto datahandle = context.PutResource(tex->TexData[i].GetRawPtr(), tex->TexData[i].GetSize());
+                jdataarr.Push(datahandle);
+            } break;
+        default: return ejson::JNull();
+        }
     }
+    jtex.Add("data", jdataarr);
+    return std::move(jtex);
 }
 ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
 {
@@ -181,10 +192,14 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
     case 2:
         {
             const auto& fakeTex = std::get<FakeTex>(holder);
-            if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                texarr->SetCompressedTextureLayer(layer, fakeTex->TexData[0].GetRawPtr(), fakeTex->TexData[0].GetSize());
-            else
-                texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), fakeTex->TexData[0].GetRawPtr());
+            uint8_t i = 0;
+            for (const auto& dat : fakeTex->TexData)
+            {
+                if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                    texarr->SetCompressedTextureLayer(layer, dat.GetRawPtr(), dat.GetSize(), i++);
+                else
+                    texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), dat.GetRawPtr(), i++);
+            }
         } break;
     default:
         break;
@@ -240,7 +255,7 @@ void MultiMaterialHolder::Refresh()
             COMMON_THROW(BaseException, u"binded texture size cannot be 0", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
             COMMON_THROW(BaseException, u"binded texture size should be power of 2", material->Name);
-        const detail::TexTag tid(holder.GetInnerFormat(), w, h);
+        const detail::TexTag tid(holder.GetInnerFormat(), w, h, holder.GetMipmapCount());
         if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {
             needAdd[tid].insert(holder);
@@ -280,11 +295,11 @@ void MultiMaterialHolder::Refresh()
         }
         else
         {
-            texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format);
+            texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
             texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h));
         }
-        texarr->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::Repeat);
+        texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)
         {
             InsertLayer(texarr, objLayer, tex);

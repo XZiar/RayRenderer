@@ -25,8 +25,8 @@ TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mi
 {
     ProcessMethod = 
     { 
-        { TexLoadType::Color,  TexProc{TexProcType::CompressBC7, false} },
-        { TexLoadType::Normal, TexProc{TexProcType::CompressBC5, false} } 
+        { TexLoadType::Color,  TexProc{TexProcType::CompressBC7, true} },
+        { TexLoadType::Normal, TexProc{TexProcType::CompressBC5, true} }
     };
     Compressor.Start([]
     {
@@ -63,7 +63,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         vector<Image> layers;
         if (proc.NeedMipmap)
         {
-            const auto pms = MipMapper->GenerateMipmaps((const Image&)imgview);
+            const auto pms = MipMapper->GenerateMipmaps((const Image&)imgview, type == TexLoadType::Color);
             layers = agent.Await(pms);
         }
         layers.insert(layers.begin(), (const Image&)imgview);
@@ -72,7 +72,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         switch (proc.Proc)
         {
         case TexProcType::Plain:
-            format = TextureInnerFormat::RGB8 | srgbMask; break;
+            format = TextureInnerFormat::RGBA8 | srgbMask; break;
         case TexProcType::CompressBC5:
             format = TextureInnerFormat::BC5; break;
         case TexProcType::CompressBC7:
@@ -108,7 +108,6 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         }
         return tex;
     }, picPath.filename().u16string(), StackSize::Big);
-
 }
 
 
