@@ -99,6 +99,12 @@ static void OCLStub()
                 log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
                     wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+                const auto sgInfo = ker->GetSubgroupInfo(thedev, 3, wgInfo.CompiledWorkGroupSize);
+                if (sgInfo.has_value())
+                {
+                    const auto& info = sgInfo.value();
+                    log().info(u"{}:\nSubgroup[{}] x[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount);
+                }
                 for (const auto& arg : ker->ArgsInfo)
                 {
                     log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());

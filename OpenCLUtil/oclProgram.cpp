@@ -274,6 +274,18 @@ WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
     return info;
 }
+std::optional<SubgroupInfo> _oclKernel::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize)
+{
+    if (!dev->Plat->FuncClGetKernelSubGroupInfo)
+        return {};
+    if (!dev->Extensions.Has("cl_khr_subgroups") && !dev->Extensions.Has("cl_intel_subgroups"))
+        return {};
+    const cl_device_id devid = dev->deviceID;
+    SubgroupInfo info;
+    dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
+    dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
+    return info;
+}
 
 void _oclKernel::CheckArgIdx(const uint32_t idx) const
 {

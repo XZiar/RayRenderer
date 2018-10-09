@@ -20,6 +20,12 @@ struct WorkGroupInfo
     size_t PreferredWorkGroupSizeMultiple;
 };
 
+struct SubgroupInfo
+{
+    size_t SubgroupSize;
+    size_t SubgroupCount;
+};
+
 enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
 enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
 enum class KerArgFlag : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
@@ -55,6 +61,13 @@ public:
     ~_oclKernel();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
+    std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize);
+    template<uint8_t N>
+    std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const size_t(&localsize)[N])
+    {
+        static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
+        return GetSubgroupInfo(dev, N, localsize);
+    }
     void SetArg(const uint32_t idx, const oclBuffer& buf);
     void SetArg(const uint32_t idx, const oclImage& img);
     void SetArg(const uint32_t idx, const void *dat, const size_t size);
@@ -97,7 +110,7 @@ struct CLProgConfig
 {
     using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
     map<string, DefineVal> Defines;
-    set<string> Flags { "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
+    set<string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
 };
 
 namespace detail

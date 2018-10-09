@@ -86,6 +86,7 @@ enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
 
 namespace detail
 {
+class _oclPlatform;
 class _oclContext;
 class GLSharedCore;
 class _oclMem;

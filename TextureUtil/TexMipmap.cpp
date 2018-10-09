@@ -34,6 +34,7 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
             DownsampleRaw = clProg->GetKernel("Downsample_RawH");
             if (!DownsampleRaw)
                 DownsampleRaw = clProg->GetKernel("Downsample_Raw");
+            DownsampleTest = clProg->GetKernel("Downsample_Src2");
             /*const auto wgInfo = DownsampleSrc->GetWorkGroupInfo(CLContext->Devices[0]);
             texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                 wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);*/
@@ -93,23 +94,20 @@ void TexMipmap::Test()
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
-    Image ref(src); ref.Resize(ref.GetWidth() / 2, ref.GetHeight() / 2, true, false);
-    WriteImage(ref, fs::temp_directory_path() / u"ref.png");
     WriteImage(dst, fs::temp_directory_path() / u"dst.png");
-    
-    DownsampleMid->SetArg(0, midBuf);
-    DownsampleMid->SetArg(1, infoBuf);
-    DownsampleMid->SetSimpleArg<uint8_t>(2, 1);
-    DownsampleMid->SetArg(3, mid2Buf);
-    DownsampleMid->SetArg(4, outBuf);
-    const auto pms2 = DownsampleMid->Run<2>(CmdQue, { src.GetWidth() / 8,src.GetHeight() / 8 }, { GroupX,GroupY }, false);
+
+    /*DownsampleTest->SetArg(0, inBuf);
+    DownsampleTest->SetArg(1, infoBuf);
+    DownsampleTest->SetSimpleArg<uint8_t>(2, 0);
+    DownsampleTest->SetArg(3, midBuf);
+    DownsampleTest->SetArg(4, outBuf);
+    const auto pms2 = DownsampleTest->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
     pms2->wait();
     const auto time2 = pms2->ElapseNs();
-    Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 4, src.GetHeight() / 4);
+    Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst2.GetRawPtr(), dst2.GetSize());
-    Image ref2(ref); ref2.Resize(ref2.GetWidth() / 2, ref2.GetHeight() / 2, true, false);
-    WriteImage(ref2, fs::temp_directory_path() / u"ref2.png");
-    WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");
+    WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");*/
+    
 
     DownsampleRaw->SetArg(0, inBuf);
     DownsampleRaw->SetArg(1, infoBuf);
@@ -125,6 +123,7 @@ void TexMipmap::Test()
 }
 void TexMipmap::Test2()
 {
+    Test();
     Image src = xziar::img::ReadImage(fs::temp_directory_path() / u"src.png");
     const auto pms = GenerateMipmaps(src, false);
     const auto mipmaps = pms->wait();

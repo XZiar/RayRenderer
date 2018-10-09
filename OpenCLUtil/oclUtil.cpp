@@ -19,6 +19,7 @@ void oclUtil::init(const bool checkGL)
     for (const auto& pID : platformIDs)
     {
         auto plt = oclPlatform(new detail::_oclPlatform(pID));
+        plt->Init();
         platforms.push_back(plt);
         auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::GetBuffer();
         strBuffer.resize(0);

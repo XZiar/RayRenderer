@@ -16,6 +16,7 @@ private:
     oclKernel DownsampleSrc;
     oclKernel DownsampleMid;
     oclKernel DownsampleRaw;
+    oclKernel DownsampleTest;
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();

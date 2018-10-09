@@ -94,14 +94,21 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
 {
     if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
         FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
+    FuncClGetKernelSubGroupInfo = (clGetKernelSubGroupInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetKernelSubGroupInfoKHR");
+    
+}
+
+void _oclPlatform::Init()
+{
     cl_uint numDevices;
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
     // Get all Device Info
     vector<cl_device_id> deviceIDs(numDevices);
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, deviceIDs.data(), nullptr);
 
+    const auto self = shared_from_this();
     Devices = Linq::FromIterable(deviceIDs)
-        .Select([](const auto dID) { return oclDevice(new _oclDevice(dID)); })
+        .Select([&self](const auto dID) { return oclDevice(new _oclDevice(self, dID)); })
         .ToVector();
 
     cl_device_id defDevID;

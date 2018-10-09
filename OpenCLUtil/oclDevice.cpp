@@ -23,7 +23,7 @@ static string GetStr(const cl_device_id deviceID, const cl_device_info type)
 static u16string GetUStr(const cl_device_id deviceID, const cl_device_info type)
 {
     const auto u8str = GetStr(deviceID, type);
-    return u16string(u8str.cbegin(), u8str.cend()); 
+    return u16string(u8str.cbegin(), u8str.cend());
 }
 
 template<typename T>
@@ -54,8 +54,8 @@ static DeviceType GetDevType(const cl_device_id deviceID)
     }
 }
 
-_oclDevice::_oclDevice(const cl_device_id dID) 
-    : deviceID(dID), Name(GetUStr(dID, CL_DEVICE_NAME)), Vendor(GetUStr(dID, CL_DEVICE_VENDOR)), Version(GetUStr(dID, CL_DEVICE_VERSION)), 
+_oclDevice::_oclDevice(const std::shared_ptr<_oclPlatform>& plat, const cl_device_id dID) : Plat(plat), deviceID(dID),
+    Name(GetUStr(dID, CL_DEVICE_NAME)), Vendor(GetUStr(dID, CL_DEVICE_VENDOR)), Version(GetUStr(dID, CL_DEVICE_VERSION)),
     Extensions(common::str::Split(GetStr(dID, CL_DEVICE_EXTENSIONS), ' ', false)),
     ConstantBufSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), GlobalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)),
     LocalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_LOCAL_MEM_SIZE)), MaxMemSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_MEM_ALLOC_SIZE)),
@@ -79,8 +79,6 @@ u16string_view _oclDevice::GetDeviceTypeName(const DeviceType type)
     default:                        return u"Unknown"sv;
     }
 }
-
-
 
 
 
