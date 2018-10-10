@@ -3,6 +3,8 @@
 #include "common/ThreadEx.inl"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
+#else
+#   define BOOST_STACKTRACE_USE_BACKTRACE 1
 #endif
 #include <boost/stacktrace.hpp>
 #include <thread>

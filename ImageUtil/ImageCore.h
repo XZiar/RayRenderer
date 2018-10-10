@@ -168,7 +168,7 @@ public:
         Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
         return *this;
     }
-    operator const Image&() const noexcept { return *this; }
+    operator const Image&() const noexcept { return *static_cast<const Image*>(this); }
     using Image::GetSize;
     using Image::GetWidth;
     using Image::GetHeight;

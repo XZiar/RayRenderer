@@ -12,24 +12,24 @@ namespace RayRender
 private ref class ThumbnailContainer
 {
 private:
-    static std::map<std::weak_ptr<Image>, gcroot<BitmapSource^>, std::owner_less<void>> *ThumbnailMap = nullptr;
+    static std::map<std::weak_ptr<ImageView>, gcroot<BitmapSource^>, std::owner_less<void>> *ThumbnailMap = nullptr;
     
 public:
     static ThumbnailContainer()
     {
-        ThumbnailMap = new std::map<std::weak_ptr<Image>, gcroot<BitmapSource^>, std::owner_less<void>>();
+        ThumbnailMap = new std::map<std::weak_ptr<ImageView>, gcroot<BitmapSource^>, std::owner_less<void>>();
     }
-    static BitmapSource^ GetThumbnail(const std::shared_ptr<Image>& img)
+    static BitmapSource^ GetThumbnail(const std::shared_ptr<ImageView>& img)
     {
         const auto bmp = FindInMap(*ThumbnailMap, img, std::in_place);
         if (bmp)
             return bmp.value();
 
-        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert(*img);
+        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert((const Image&)*img);
         if (!timg)
             return nullptr;
         timg->Freeze();
-        ThumbnailMap->emplace(std::weak_ptr<Image>(img), gcroot<BitmapSource^>(timg));
+        ThumbnailMap->emplace(std::weak_ptr<ImageView>(img), gcroot<BitmapSource^>(timg));
         return timg;
     }
 };

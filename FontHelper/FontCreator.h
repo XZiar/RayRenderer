@@ -14,7 +14,7 @@ private:
     Wrapper<ft::FreeTyper> ft2;
     oglTex2DD testTex;
     oclu::oclKernel kerSdf, kerSdfGray, kerDownSamp, kerSdfGray4;
-    oclu::oclBuffer sq256lut, infoBuf, inputBuf, middleBuf, outputBuf;
+    oclu::oclBuffer sq256lut;
     oclu::oclContext clCtx;
     oclu::oclCmdQue clQue;
     void loadCL(const string& src);
@@ -25,7 +25,7 @@ public:
     void reloadFont(const fs::path& fontpath);
     void reload(const string& src);
     oglTex2DD getTexture() const { return testTex; }
-    void setChar(char32_t ch, bool custom) const;
+    void setChar(char32_t ch) const;
     xziar::img::Image clgraysdfs(char32_t ch, uint32_t count) const;
 };
 

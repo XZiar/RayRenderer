@@ -125,7 +125,7 @@ void TexMipmap::Test()
 }
 void TexMipmap::Test2()
 {
-    Test();
+    //Test();
     Image src = xziar::img::ReadImage(fs::temp_directory_path() / u"src.png");
     const auto pms = GenerateMipmaps(src, false);
     const auto mipmaps = pms->Wait();

@@ -5,6 +5,6 @@ include $(PROJPATH)/Makebase.mk
 NAME	= boost.stacktrace
 
 CXXFLAGS    += -DSTKTRACE_EXPORT
-LIBRARYS	+= -lpthread -ldl
+LIBRARYS	+= -lpthread -ldl -lbacktrace
 
 include $(PROJPATH)/MakeTargets.mk

@@ -17,17 +17,18 @@ class RAYCOREAPI ThumbnailManager
 {
 private:
     using Image = xziar::img::Image;
+    using ImageView = xziar::img::ImageView;
     using PmssType = std::vector<std::pair<TexHolder, common::PromiseResult<Image>>>;
     std::shared_ptr<oglu::texutil::TexResizer> Resizer;
-    map<std::weak_ptr<void>, std::shared_ptr<Image>, std::owner_less<void>> ThumbnailMap;
+    map<std::weak_ptr<void>, std::shared_ptr<ImageView>, std::owner_less<void>> ThumbnailMap;
     common::PromiseResult<Image> InnerPrepareThumbnail(const TexHolder& holder);
     void InnerWaitPmss(const PmssType& pmss);
-    std::shared_ptr<Image> GetThumbnail(const std::weak_ptr<void>& weakref) const;
+    std::shared_ptr<ImageView> GetThumbnail(const std::weak_ptr<void>& weakref) const;
 public:
 
     ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker);
 
-    std::shared_ptr<Image> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
+    std::shared_ptr<ImageView> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
 
     template<typename T>
     void PrepareThumbnails(const T& container)

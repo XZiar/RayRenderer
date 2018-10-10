@@ -51,7 +51,7 @@ public:
     oclMapPtr(const std::shared_ptr<detail::_oclMapPtr>& ptr) : std::shared_ptr<detail::_oclMapPtr>(ptr) {}
     operator void*() const { return (*this)->GetPtr(); }
     template<typename T>
-    T* AsType() const { reinterpret_cast<T*>((*this)->GetPtr()); }
+    T* AsType() const { return reinterpret_cast<T*>((*this)->GetPtr()); }
 };
 
 namespace detail
