@@ -117,7 +117,7 @@ public:
                 tex = *it;
             else
             {
-                tex = (std::get<1>(*pmsPtr))->wait();
+                tex = (std::get<1>(*pmsPtr))->Wait();
                 *pmsPtr = tex; // no need to wait next time
             }
             if (!tex)

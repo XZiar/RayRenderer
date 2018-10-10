@@ -46,7 +46,7 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
                 buildLog = std::any_cast<u16string>(cle.data);
             texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
         }
-    })->wait();
+    })->Wait();
 }
 
 TexMipmap::~TexMipmap()
@@ -55,6 +55,8 @@ TexMipmap::~TexMipmap()
 
 struct Info
 {
+    uint32_t SrcOffset = 0;
+    uint32_t DstOffset = 0;
     uint16_t SrcWidth;
     uint16_t SrcHeight;
     uint16_t LimitX;
@@ -82,7 +84,7 @@ void TexMipmap::Test()
     oclBuffer mid2Buf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 8);
     oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
     oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
-    Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth()/2, src.GetHeight()/2} };
+    Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth() / 2, src.GetHeight() / 2} };
     infoBuf->Write(CmdQue, &info, sizeof(info));
     DownsampleSrc->SetArg(0, inBuf);
     DownsampleSrc->SetArg(1, infoBuf);
@@ -90,7 +92,7 @@ void TexMipmap::Test()
     DownsampleSrc->SetArg(3, midBuf);
     DownsampleSrc->SetArg(4, outBuf);
     const auto pms = DownsampleSrc->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
-    pms->wait();
+    pms->Wait();
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
@@ -102,19 +104,19 @@ void TexMipmap::Test()
     DownsampleTest->SetArg(3, midBuf);
     DownsampleTest->SetArg(4, outBuf);
     const auto pms2 = DownsampleTest->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
-    pms2->wait();
+    pms2->Wait();
     const auto time2 = pms2->ElapseNs();
     Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst2.GetRawPtr(), dst2.GetSize());
     WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");*/
-    
+
 
     DownsampleRaw->SetArg(0, inBuf);
     DownsampleRaw->SetArg(1, infoBuf);
     DownsampleRaw->SetSimpleArg<uint8_t>(2, 0);
     DownsampleRaw->SetArg(3, outBuf);
-    const auto pms3 = DownsampleRaw->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
-    pms3->wait();
+    const auto pms3 = DownsampleRaw->Run<2>(pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
+    pms3->Wait();
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst3.GetRawPtr(), dst3.GetSize());
@@ -126,7 +128,7 @@ void TexMipmap::Test2()
     Test();
     Image src = xziar::img::ReadImage(fs::temp_directory_path() / u"src.png");
     const auto pms = GenerateMipmaps(src, false);
-    const auto mipmaps = pms->wait();
+    const auto mipmaps = pms->Wait();
     uint32_t i = 1;
     xziar::img::WriteImage(src, fs::temp_directory_path() / ("mip_0.jpg"));
     for (const auto& mm : mipmaps)
@@ -140,10 +142,15 @@ void TexMipmap::Test2()
 static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t levels)
 {
     vector<Info> infos;
+    uint32_t offsetSrc = 0, offsetDst = 0;
     while (width >= 64 && height >= 64 && width % 64 == 0 && height % 64 == 0 && levels > infos.size())
     {
         infos.emplace_back(width, height);
+        infos.back().SrcOffset = offsetSrc;
+        infos.back().DstOffset = offsetDst;
         width /= 2; height /= 2;
+        offsetSrc = offsetDst;
+        offsetDst += width * height;
     }
     return infos;
 }
@@ -153,23 +160,23 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const Image& raw, const 
     auto infos = GenerateInfo(raw.GetWidth(), raw.GetHeight(), levels);
     if (isSRGB)
     {
-        return Worker->AddTask([this, src = ImageView(raw), infos = std::move(infos)] (const common::asyexe::AsyncAgent& agent)
+        return Worker->AddTask([this, src = ImageView(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            uint64_t totalTime = 0;
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
             oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
             oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
             oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
+            oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
+            vector<PromiseResult<void>> pmss;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
                 images.emplace_back(mainBuf.CreateSubBuffer(offset, info.SrcWidth * info.SrcHeight), info.SrcWidth / 2, info.SrcHeight / 2, ImageDataType::RGBA);
                 offset += info.SrcWidth * info.SrcHeight;
-                oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, images.back().GetSize(), images.back().GetRawPtr());
                 PromiseResult<void> pms;
                 if (idx == 0)
                 {
@@ -187,12 +194,13 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const Image& raw, const 
                     DownsampleMid->SetSimpleArg(2, idx);
                     DownsampleMid->SetArg(3, (idx & 1) == 0 ? midBuf : inBuf);
                     DownsampleMid->SetArg(4, outBuf);
-                    pms = DownsampleMid->Run<2>(CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY }, false);
+                    pms = DownsampleMid->Run<2>(pmss.back(), CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY }, false);
                 }
-                agent.Await(pms);
-                outBuf->Map(CmdQue, MapFlag::Read);
-                totalTime += pms->ElapseNs();
+                pmss.push_back(pms);
             }
+            agent.Await(pmss.back());
+            const uint64_t totalTime = Linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            outBuf->Map(CmdQue, MapFlag::Read);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
@@ -201,34 +209,36 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const Image& raw, const 
     {
         return Worker->AddTask([this, src = ImageView(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            uint64_t totalTime = 0;
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
             oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
-            oclBuffer inBuf;
-            oclBuffer outBuf;
+            oclBuffer inBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+            oclBuffer outBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
+            vector<PromiseResult<void>> pmss;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
                 images.emplace_back(mainBuf.CreateSubBuffer(offset, info.SrcWidth * info.SrcHeight), info.SrcWidth / 2, info.SrcHeight / 2, ImageDataType::RGBA);
                 offset += info.SrcWidth * info.SrcHeight;
                 if (idx == 0)
-                    inBuf.reset(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+                    DownsampleRaw->SetArg(0, inBuf);
                 else
-                    inBuf = outBuf;
-                outBuf.reset(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost, images.back().GetSize(), images.back().GetRawPtr());
-                DownsampleRaw->SetArg(0, inBuf);
+                    DownsampleRaw->SetArg(0, outBuf);
                 DownsampleRaw->SetArg(1, infoBuf);
                 DownsampleRaw->SetSimpleArg(2, idx);
                 DownsampleRaw->SetArg(3, outBuf);
-                const auto pms = DownsampleRaw->Run<2>(CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY }, false);
-                agent.Await(pms);
-                outBuf->Map(CmdQue, MapFlag::Read);
-                totalTime += pms->ElapseNs();
+                PromiseResult<void> prev;
+                if (!pmss.empty()) 
+                    prev = pmss.back();
+                const auto pms = DownsampleRaw->Run<2>(prev, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY }, false);
+                pmss.push_back(pms);
             }
+            agent.Await(pmss.back());
+            const uint64_t totalTime = Linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            outBuf->Map(CmdQue, MapFlag::Read);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });

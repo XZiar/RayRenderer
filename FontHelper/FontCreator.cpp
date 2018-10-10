@@ -183,7 +183,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 
         auto pms = kerSdfGray4->Run<1>(clQue, worksize, localsize, false);
-        pms->wait();
+        pms->Wait();
         timer.Stop();
         fntLog().verbose(u"OpenCl [sdfGray4] cost {}us ({}us by OCL)\n", timer.ElapseUs(), pms->ElapseNs() / 1000);
 

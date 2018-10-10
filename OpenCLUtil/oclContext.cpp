@@ -4,7 +4,6 @@
 #include "oclDevice.h"
 #include "oclUtil.h"
 #include "oclImage.h"
-#include "CL/cl_ext_intel.h"
 
 
 using common::container::FindInVec;

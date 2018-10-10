@@ -92,7 +92,7 @@ void AsyncManager::MainLoop()
                 break;
             case detail::AsyncTaskStatus::Wait:
                 {
-                    const uint8_t state = (uint8_t)Current->Promise->state();
+                    const uint8_t state = (uint8_t)Current->Promise->GetState();
                     if (state < (uint8_t)PromiseState::Executed) // not ready for execution
                         break;
                     Current->Status = detail::AsyncTaskStatus::Ready;

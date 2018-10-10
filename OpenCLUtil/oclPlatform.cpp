@@ -95,7 +95,6 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
     if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
         FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
     FuncClGetKernelSubGroupInfo = (clGetKernelSubGroupInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetKernelSubGroupInfoKHR");
-    
 }
 
 void _oclPlatform::Init()

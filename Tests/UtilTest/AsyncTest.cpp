@@ -111,7 +111,7 @@ static void AsyncTest()
         {
             try
             {
-                pms->wait();
+                pms->Wait();
             }
             catch (const BaseException &e)
             {

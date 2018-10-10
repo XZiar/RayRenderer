@@ -47,9 +47,11 @@
 #include <optional>
 
 
-#define CL_TARGET_OPENCL_VERSION 120
+#define CL_TARGET_OPENCL_VERSION 220
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include "3rdParty/CL/opencl.h"
+#include "3rdParty/CL/cl_ext_intel.h"
 
 namespace oclu
 {

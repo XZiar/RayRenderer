@@ -229,30 +229,27 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const boo
 }
 PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
 {
-    auto pms = std::make_shared<detail::oclPromise<Image>>();
-    pms->Result = Image(oglu::TexFormatUtil::ConvertToImgType(Format, true));
-    pms->Result.SetSize(Width, Height*Depth);
+    const auto imgType = oglu::TexFormatUtil::ConvertToImgType(Format, true);
+    common::AlignedBuffer buffer(Width * Height * Depth * Image::GetElementSize(imgType));
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
-    glFlush();
-    return pms;
+    return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, Image(std::move(buffer), Width, Height*Depth, imgType));
 }
 PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) const
 {
     const size_t size = Width * Height * Depth * oglu::TexFormatUtil::ParseFormatSize(Format);
-    auto pms = std::make_shared<detail::oclPromise<common::AlignedBuffer>>(size);
+    common::AlignedBuffer buffer(size);
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, pms->Result.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
-    glFlush();
-    return pms;
+    return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que->cmdque, std::move(buffer));
 }
 
 _oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const oglu::TextureDataFormat dformat)

@@ -23,17 +23,11 @@ private:
     };
 protected:
     typename Helper<T, Shared>::FutType fut;
-public:
-    PromiseResultSTD(std::promise<T>& pms) : fut(pms.get_future())
-    { }
-    PromiseResultSTD(std::future<T>&& fut_) : fut(std::move(fut_))
-    { }
-    virtual ~PromiseResultSTD() override { }
-    T virtual wait() override
+    T virtual WaitPms() override
     {
         return fut.get();
     }
-    PromiseState virtual state() override
+    PromiseState virtual State() override
     {
         if (!fut.valid())
             return PromiseState::Invalid;
@@ -49,6 +43,12 @@ public:
             return PromiseState::Invalid;
         }
     }
+public:
+    PromiseResultSTD(std::promise<T>& pms) : fut(pms.get_future())
+    { }
+    PromiseResultSTD(std::future<T>&& fut_) : fut(std::move(fut_))
+    { }
+    virtual ~PromiseResultSTD() override { }
 };
 
 template<typename T, bool Shared = false>
@@ -56,43 +56,43 @@ class PromiseWrappedResultSTD : public detail::PromiseResult_<T>
 {
 private:
     PromiseResultSTD<std::unique_ptr<T>, Shared> Inner;
+    T virtual WaitPms() override
+    {
+        return *Inner.WaitPms().release();
+    }
+    PromiseState virtual State() override
+    {
+        return Inner.State();
+    }
 public:
     PromiseWrappedResultSTD(std::promise<std::unique_ptr<T>>& pms) : Inner(pms)
     { }
     virtual ~PromiseWrappedResultSTD() override { }
-    T virtual wait() override
-    {
-        return *Inner.wait().release();
-    }
-    PromiseState virtual state() override
-    {
-        return Inner.state();
-    }
 };
 
 
-template<class T>
-class PromiseTaskSTD : public PromiseTask<T>
-{
-protected:
-    std::promise<T> pms;
-    PromiseResult<T> ret;
-public:
-    PromiseTaskSTD(std::function<T(void)> task_) : PromiseTask<T>(task_), ret(new PromiseResultSTD<T>(pms.get_future()))
-    { }
-    template<class... Args>
-    PromiseTaskSTD(std::function<T(Args...)> task_, Args&&... args) : PromiseTask<T>(std::bind(task_, std::forward<Args>(args)...)), ret(pms.get_future())
-    { }
-    virtual ~PromiseTaskSTD() override { }
-    void virtual dowork() override
-    {
-        pms.set_value(this->Task());
-    }
-    PromiseResult<T> getResult() override
-    {
-        return ret;
-    }
-};
+//template<class T>
+//class PromiseTaskSTD : public PromiseTask<T>
+//{
+//protected:
+//    std::promise<T> pms;
+//    PromiseResult<T> ret;
+//public:
+//    PromiseTaskSTD(std::function<T(void)> task_) : PromiseTask<T>(task_), ret(new PromiseResultSTD<T>(pms.get_future()))
+//    { }
+//    template<class... Args>
+//    PromiseTaskSTD(std::function<T(Args...)> task_, Args&&... args) : PromiseTask<T>(std::bind(task_, std::forward<Args>(args)...)), ret(pms.get_future())
+//    { }
+//    virtual ~PromiseTaskSTD() override { }
+//    void virtual dowork() override
+//    {
+//        pms.set_value(this->Task());
+//    }
+//    PromiseResult<T> getResult() override
+//    {
+//        return ret;
+//    }
+//};
 
 
 template<typename T, typename U>

@@ -92,7 +92,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         {
             texLog().warning(u"OpenCL Kernel is disabled");
         }
-    })->wait();
+    })->Wait();
 }
 
 TexResizer::~TexResizer()
@@ -107,7 +107,7 @@ TexResizer::~TexResizer()
         NormalVAO.release();
         FlipYVAO.release();
         OutputFrame.release();
-    })->wait();
+    })->Wait();
 }
 
 struct ImageInfo

@@ -289,7 +289,7 @@ void BasicTest::fontTest(const char32_t word)
             {
                 fonttex->SetData(TextureInnerFormat::R8, imgShow);
                 agent.Await(oglu::oglUtil::SyncGL());
-            })->wait();
+            })->Wait();
             img::WriteImage(imgShow, Basepath / (u"Show.png"));
             /*SimpleTimer timer;
             for (uint32_t cnt = 0; cnt < 65536; cnt += 4096)
@@ -486,7 +486,7 @@ void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName
         common::SetThreadName(u"AsyncLoader for Shader");
         try
         {
-            auto shader = pms->wait();
+            auto shader = pms->Wait();
             glProgs.insert(shader);
             onFinish(shader);
         }

@@ -15,6 +15,7 @@ struct WorkGroupInfo
 {
     uint64_t LocalMemorySize;
     uint64_t PrivateMemorySize;
+    uint64_t SpillMemSize;
     size_t WorkGroupSize;
     size_t CompiledWorkGroupSize[3];
     size_t PreferredWorkGroupSizeMultiple;
@@ -24,6 +25,7 @@ struct SubgroupInfo
 {
     size_t SubgroupSize;
     size_t SubgroupCount;
+    size_t CompiledSubgroupSize;
 };
 
 enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
@@ -87,18 +89,34 @@ public:
     {
         return SetArg(idx, dat.data(), dat.size() * sizeof(T));
     }
-    PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
+    PromiseResult<void> Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
     template<uint8_t N>
-    PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    PromiseResult<void> Run(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run(N, que, worksize, isBlock, workoffset, nullptr);
+        return Run(pms, N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint8_t N>
-    PromiseResult<void> Run(const oclCmdQue que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    PromiseResult<void> Run(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run(N, que, worksize, isBlock, workoffset, localsize);
+        return Run(pms, N, que, worksize, isBlock, workoffset, localsize);
+    }
+    PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr)
+    {
+        return Run({}, workdim, que, worksize, isBlock, workoffset, localsize);
+    }
+    template<uint8_t N>
+    PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    {
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
+        return Run({}, N, que, worksize, isBlock, workoffset, nullptr);
+    }
+    template<uint8_t N>
+    PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 })
+    {
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
+        return Run({}, N, que, worksize, isBlock, workoffset, localsize);
     }
 };
 

@@ -527,7 +527,7 @@ void _FreeGLUTView::invoke(std::function<bool(void)> task)
             self->refresh();
         return true;
     });
-    fut->wait();
+    fut->Wait();
     return;
 }
 

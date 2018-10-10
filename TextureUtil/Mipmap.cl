@@ -7,6 +7,8 @@
 
 typedef struct Info
 {
+    uint SrcOffset;
+    uint DstOffset;
     ushort SrcWidth;
     ushort SrcHeight;
     ushort LimitX;
@@ -129,7 +131,7 @@ kernel void Downsample_SrcSG(global const uchar4* restrict src, constant const I
         res[3] = clamp(res[1] * COEF_D3 + res[2] * COEF_D1 + res[3] * COEF_D1 + downPix * COEF_D3, 0.f, 1.f);
     }
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     vstorea_half8(res[0], 0, ptrMid); vstorea_half8(res[3], info[level].SrcWidth / 4, ptrMid);
     res[0].s012 = LinearToSRGB(res[0].s012); res[0].s456 = LinearToSRGB(res[0].s456);
     res[3].s012 = LinearToSRGB(res[3].s012); res[3].s456 = LinearToSRGB(res[3].s456);
@@ -190,7 +192,7 @@ kernel void Downsample_Src(global const uchar4* restrict src, constant const Inf
     LOOP_LINE(3)
     #undef LOOP_LINE
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         float8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -283,7 +285,7 @@ kernel void Downsample_Mid(global const uchar8* restrict src, constant const Inf
     LOOP_LINE(3)
     #undef LOOP_LINE
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         float8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -337,7 +339,7 @@ kernel void Downsample_Raw(global const uchar4* restrict src, constant const Inf
     private const uchar lidX = get_local_id(0), lidY = get_local_id(1), lid = lidY * CountX + lidX;
     local short4 sharedImg1[CountX*CountY], sharedImg2[CountX*CountY];
 
-    global const uchar* restrict ptrSrc = (global const uchar*)(src + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
+    global const uchar* restrict ptrSrc = (global const uchar*)(src + info[level].SrcOffset + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
 
     short8 res[4];
     #define LOOP_LINE(line) \
@@ -374,7 +376,7 @@ kernel void Downsample_Raw(global const uchar4* restrict src, constant const Inf
     LOOP_LINE(2)
     LOOP_LINE(3)
     #undef LOOP_LINE
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         short8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -488,7 +490,7 @@ kernel void Downsample_SrcH(global const uchar4* restrict src, constant const In
     LOOP_LINE(3)
     #undef LOOP_LINE
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         half8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -579,7 +581,7 @@ kernel void Downsample_MidH(global const half4* restrict src, constant const Inf
     LOOP_LINE(3)
     #undef LOOP_LINE
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         half8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -631,7 +633,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
     private const uchar lidX = get_local_id(0), lidY = get_local_id(1), lid = lidY * CountX + lidX;
     local half4 sharedImg1[CountX*CountY], sharedImg2[CountX*CountY];
 
-    global const uchar* restrict ptrSrc = (global const uchar*)(src + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
+    global const uchar* restrict ptrSrc = (global const uchar*)(src + info[level].SrcOffset + (dstY * 4) * info[level].SrcWidth + (dstX * 4));
 
     half8 res[4];
     #define LOOP_LINE(line) \
@@ -668,7 +670,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
     LOOP_LINE(2)
     LOOP_LINE(3)
     #undef LOOP_LINE
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     {
         half8 thePix;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -798,7 +800,7 @@ kernel void Downsample_SrcSM(global const uchar4* restrict src, constant const I
         downPix.hi = clamp(sharedImg[Count*3+lid] * COEF_D3 + sharedImg[Count*5+lid] * COEF_D1 + sharedImg[Count*7+lid] * COEF_D1 + downPix.hi * COEF_D3, 0.f, 1.f);
     }
     global half* restrict ptrMid = (global half*)(mid + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
-    global uchar* restrict ptrDst = (global uchar*)(dst + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
+    global uchar* restrict ptrDst = (global uchar*)(dst + info[level].DstOffset + (dstY * 2) * info[level].SrcWidth / 2 + (dstX * 2));
     vstorea_half8(upPix, 0, ptrMid); vstorea_half8(downPix, info[level].SrcWidth / 4, ptrMid);
     upPix.s012 = LinearToSRGB(upPix.s012); upPix.s456 = LinearToSRGB(upPix.s456);
     downPix.s012 = LinearToSRGB(downPix.s012); downPix.s456 = LinearToSRGB(downPix.s456);

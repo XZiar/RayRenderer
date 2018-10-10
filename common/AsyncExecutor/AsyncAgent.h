@@ -24,14 +24,14 @@ public:
     {
         auto pmscore = std::static_pointer_cast<common::detail::PromiseResultCore>(pms);
         AddPms(pmscore);
-        return pms->wait();
+        return pms->Wait();
     }
     template<typename T>
     T Await(const AsyncResult<T>& pms) const
     {
         auto pmscore = std::static_pointer_cast<common::detail::PromiseResultCore>(pms);
         AddPms(pmscore);
-        return pms->wait();
+        return pms->Wait();
     }
     static const AsyncAgent* GetAsyncAgent();
     ///<summary>Safe wait, in case you are waiting for a task posted into the same thread, which may cause dead-lock</summary>  
@@ -44,7 +44,7 @@ public:
         if (agent)
             return agent->Await(pms);
         else
-            return pms->wait();
+            return pms->Wait();
     }
 };
 

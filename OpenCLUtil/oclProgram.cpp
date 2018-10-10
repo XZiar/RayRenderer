@@ -10,7 +10,7 @@ using namespace std::literals::string_view_literals;
 
 string_view KernelArgInfo::GetSpace() const
 {
-    switch(Space)
+    switch (Space)
     {
     case KerArgSpace::Global:   return "Global"sv;
     case KerArgSpace::Constant: return "Constant"sv;
@@ -20,7 +20,7 @@ string_view KernelArgInfo::GetSpace() const
 }
 string_view KernelArgInfo::GetImgAccess() const
 {
-    switch(Access)
+    switch (Access)
     {
     case ImgAccess::ReadOnly:   return "ReadOnly"sv;
     case ImgAccess::WriteOnly:  return "WriteOnly"sv;
@@ -96,7 +96,7 @@ u16string _oclProgram::GetBuildLog(const cl_device_id dev) const
         {
             size_t logsize;
             clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
-            if(logsize > 0) 
+            if (logsize > 0)
             {
                 string logstr(logsize, '\0');
                 clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
@@ -172,7 +172,7 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot find kernels", ret));
     vector<char> buf(len, '\0');
     clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
-    if(len > 0)
+    if (len > 0)
         buf.pop_back(); //null-terminated
     const auto names = str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
@@ -210,14 +210,14 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
 {
     vector<KernelArgInfo> infos;
     const uint32_t count = GetKernelInfoInt(kernel, CL_KERNEL_NUM_ARGS);
-    for (uint32_t i=0; i<count; ++i)
+    for (uint32_t i = 0; i < count; ++i)
     {
         size_t size = 0;
         KernelArgInfo info;
 
         cl_kernel_arg_address_qualifier space;
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &size);
-        switch(space)
+        switch (space)
         {
         case CL_KERNEL_ARG_ADDRESS_GLOBAL:      info.Space = KerArgSpace::Global; break;
         case CL_KERNEL_ARG_ADDRESS_CONSTANT:    info.Space = KerArgSpace::Constant; break;
@@ -227,14 +227,14 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
 
         cl_kernel_arg_access_qualifier access;
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &size);
-        switch(access)
+        switch (access)
         {
         case CL_KERNEL_ARG_ACCESS_READ_ONLY:    info.Access = ImgAccess::ReadOnly; break;
         case CL_KERNEL_ARG_ACCESS_WRITE_ONLY:   info.Access = ImgAccess::WriteOnly; break;
         case CL_KERNEL_ARG_ACCESS_READ_WRITE:   info.Access = ImgAccess::ReadWrite; break;
         default:                                info.Access = ImgAccess::None; break;
         }
-        
+
         cl_kernel_arg_type_qualifier qualifier;
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &size);
         info.Qualifier = static_cast<KerArgFlag>(qualifier);
@@ -253,8 +253,8 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
     }
     return infos;
 }
-_oclKernel::_oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)), 
-    Name(name), ArgsInfo(GerKernelArgsInfo(Kernel))
+_oclKernel::_oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)),
+Name(name), ArgsInfo(GerKernelArgsInfo(Kernel))
 {
 }
 
@@ -272,6 +272,10 @@ WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &info.WorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &info.CompiledWorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
+    if (dev->Extensions.Has("cl_intel_required_subgroup_size"))
+        clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_SPILL_MEM_SIZE_INTEL, sizeof(uint64_t), &info.SpillMemSize, nullptr);
+    else
+        info.SpillMemSize = 0;
     return info;
 }
 std::optional<SubgroupInfo> _oclKernel::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize)
@@ -284,6 +288,10 @@ std::optional<SubgroupInfo> _oclKernel::GetSubgroupInfo(const oclDevice& dev, co
     SubgroupInfo info;
     dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
     dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
+    if (dev->Extensions.Has("cl_intel_required_subgroup_size"))
+        dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
+    else
+        info.CompiledSubgroupSize = 0;
     return info;
 }
 
@@ -318,11 +326,16 @@ void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
 }
 
 
-PromiseResult<void> _oclKernel::Run(const uint32_t workdim, const oclCmdQue que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
+PromiseResult<void> _oclKernel::Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
 {
     cl_int ret;
     cl_event e;
-    ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, 0, NULL, &e);
+    cl_uint ecount = 0;
+    const cl_event* depend = nullptr;
+    const auto& clpms = std::dynamic_pointer_cast<oclPromiseVoid>(pms);
+    if (clpms)
+        depend = &clpms->GetEvent(), ecount = 1;
+    ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"excute kernel error", ret));
     if (isBlock)
@@ -331,7 +344,7 @@ PromiseResult<void> _oclKernel::Run(const uint32_t workdim, const oclCmdQue que,
         return {};
     }
     else
-        return std::make_shared<oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<oclPromiseVoid>(e, que->cmdque, clpms);
 }
 
 

@@ -44,7 +44,7 @@ static void OCLStub()
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");
-            for(const auto& ext : thedev->Extensions)
+            for (const auto& ext : thedev->Extensions)
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
             continue;
@@ -52,10 +52,10 @@ static void OCLStub()
         else if (fpath == "IMAGE")
         {
             string img2d("2DImage Supports:\n");
-            for(const auto& dformat : ctx->Img2DFormatSupport)
+            for (const auto& dformat : ctx->Img2DFormatSupport)
                 img2d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
             string img3d("3DImage Supports:\n");
-            for(const auto& dformat : ctx->Img3DFormatSupport)
+            for (const auto& dformat : ctx->Img3DFormatSupport)
                 img3d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
             log().verbose(u"{}{}\n", img2d, img3d);
             continue;
@@ -96,14 +96,15 @@ static void OCLStub()
             for (const auto& ker : clProg->GetKernels())
             {
                 const auto wgInfo = ker->GetWorkGroupInfo(thedev);
-                log().info(u"{}:\nPmem[{}], Smem[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
-                    wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
+                log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
+                    wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
+                    wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
                 const auto sgInfo = ker->GetSubgroupInfo(thedev, 3, wgInfo.CompiledWorkGroupSize);
                 if (sgInfo.has_value())
                 {
                     const auto& info = sgInfo.value();
-                    log().info(u"{}:\nSubgroup[{}] x[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount);
+                    log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
                 }
                 for (const auto& arg : ker->ArgsInfo)
                 {
@@ -124,7 +125,7 @@ static void OCLStub()
             log().error(u"Error here:\n{}\n\n", be.message);
         }
     }
-    
+
 }
 
 const static uint32_t ID = RegistTest("OCLStub", &OCLStub);

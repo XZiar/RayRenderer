@@ -72,10 +72,13 @@ class oglPromise : public common::detail::PromiseResult_<T>, public oglPromiseCo
 {
     friend class oglUtil;
 protected:
-    common::PromiseState virtual state() override { return State(); }
-    T virtual wait() override
+    common::PromiseState virtual State() override 
+    { 
+        return oglPromiseCore::State();
+    }
+    T virtual WaitPms() override
     {
-        Wait();
+        oglPromiseCore::Wait();
         return std::move(Result);
     }
 public:
@@ -83,7 +86,10 @@ public:
     template<typename U>
     oglPromise(U&& data) : Result(std::forward<U>(data)) { }
     ~oglPromise() override { }
-    uint64_t ElapseNs() override { return oglPromiseCore::ElapseNs(); }
+    virtual uint64_t ElapseNs() override 
+    { 
+        return oglPromiseCore::ElapseNs();
+    }
 };
 
 
@@ -91,27 +97,38 @@ class oglPromiseVoid : public common::detail::PromiseResult_<void>, public oglPr
 {
     friend class oglUtil;
 protected:
-    common::PromiseState virtual state() override { return State(); }
-    void virtual wait() override { Wait(); }
+    common::PromiseState virtual State() override 
+    { 
+        return oglPromiseCore::State();
+    }
+    void virtual WaitPms() override 
+    { 
+        oglPromiseCore::Wait();
+    }
 public:
     oglPromiseVoid() { }
     ~oglPromiseVoid() override { }
-    uint64_t ElapseNs() override { return oglPromiseCore::ElapseNs(); }
+    virtual uint64_t ElapseNs() override 
+    { 
+        return oglPromiseCore::ElapseNs();
+    }
 };
 
 
 class oglPromiseVoid2 : public common::detail::PromiseResult_<void>
 {
 protected:
-    common::PromiseState virtual state() override
+    common::PromiseState virtual State() override
     {
         return common::PromiseState::Executed; // simply return, make it invoke wait
     }
-public:
-    void virtual wait() override
-    {
+    virtual void PreparePms() override 
+    { 
         glFinish();
     }
+    void virtual WaitPms() override
+    { }
+public:
 };
 
 

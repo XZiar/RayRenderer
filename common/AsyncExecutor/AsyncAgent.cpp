@@ -15,6 +15,10 @@ class AsyncSleeper : public ::common::detail::PromiseResultCore
     friend class common::asyexe::AsyncAgent;
 protected:
     std::chrono::high_resolution_clock::time_point Target;
+    PromiseState virtual State() override
+    {
+        return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
+    }
 public:
     AsyncSleeper(const uint32_t sleepTimeMs)
     {
@@ -22,10 +26,6 @@ public:
     }
     virtual ~AsyncSleeper() {}
     AsyncSleeper(AsyncSleeper&&) = default;
-    PromiseState virtual state() 
-    {
-        return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
-    }
 };
 
 }
@@ -38,6 +38,7 @@ const AsyncAgent*& AsyncAgent::GetRawAsyncAgent()
 
 void AsyncAgent::AddPms(const PmsCore& pmscore) const
 {
+    pmscore->Prepare();
     Manager.Current->TaskTimer.Stop();
     Manager.Current->ElapseTime += Manager.Current->TaskTimer.ElapseNs();
 

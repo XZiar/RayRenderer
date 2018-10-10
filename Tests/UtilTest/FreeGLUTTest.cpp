@@ -69,7 +69,7 @@ static void FGTest()
     }
     {
         lutGenerator->Run(64, 64, 64);
-        oglUtil::ForceSyncGL()->wait();
+        oglUtil::ForceSyncGL()->Wait();
         const auto lutdata = lutTex->GetData(TextureDataFormat::RGBA8);
         Image img(ImageDataType::RGBA);
         img.SetSize(64, 64 * 64);
