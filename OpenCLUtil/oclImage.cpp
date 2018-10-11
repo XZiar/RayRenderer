@@ -199,6 +199,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, cons
     else
         return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
+
 PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
     if (image.GetWidth() != Width || image.GetHeight() != Height * Depth)
@@ -208,6 +209,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, co
         COMMON_THROW(OCLWrongFormatException, u"image datatype mismatch", Format, std::any(image.GetDataType()));
     return Write(que, image.GetRawPtr(), image.GetSize(), shouldBlock);
 }
+
 PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
 {
     constexpr size_t origin[3] = { 0,0,0 };
@@ -221,28 +223,30 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool 
     else
         return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
+
 PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
 {
     image = Image(oglu::TexFormatUtil::ConvertToImgType(Format, true));
     image.SetSize(Width, Height*Depth);
     return _oclImage::Read(que, image.GetRawPtr(), shouldBlock);
 }
+
 PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
 {
-    const auto imgType = oglu::TexFormatUtil::ConvertToImgType(Format, true);
-    common::AlignedBuffer buffer(Width * Height * Depth * Image::GetElementSize(imgType));
+    Image img(oglu::TexFormatUtil::ConvertToImgType(Format, true));
+    img.SetSize(Width, Height*Depth);
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
-    return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, Image(std::move(buffer), Width, Height*Depth, imgType));
+    return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, std::move(img));
 }
+
 PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) const
 {
-    const size_t size = Width * Height * Depth * oglu::TexFormatUtil::ParseFormatSize(Format);
-    common::AlignedBuffer buffer(size);
+    common::AlignedBuffer buffer(Width * Height * Depth * oglu::TexFormatUtil::ParseFormatSize(Format));
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;

@@ -8,14 +8,14 @@ namespace xziar::img::stb
 {
 
 using namespace common;
+enum class ImgType : uint8_t { None = 0, PNM, JPG, PNG, BMP, GIF, PSD, PIC, TGA };
 
 class IMGUTILAPI StbReader : public ImgReader
 {
 private:
     FileObject& ImgFile;
-    void *StbCallback = nullptr;
     void *StbContext = nullptr;
-    void *StbResult = nullptr;
+    ImgType TestedType = ImgType::None;
 public:
     StbReader(FileObject& file);
     virtual ~StbReader() override;
@@ -27,6 +27,7 @@ class IMGUTILAPI StbWriter : public ImgWriter
 {
 private:
     FileObject& ImgFile;
+    ImgType TargetType = ImgType::None;
 public:
     StbWriter(FileObject& file);
     virtual ~StbWriter() override;
@@ -40,8 +41,7 @@ public:
     virtual ~StbSupport() override {}
     virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<StbReader>(file).cast_dynamic<ImgReader>(); }
     virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<StbWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool IsRead) const override
-    { return ((ext == u".PPM" || ext == u".PGM") && IsRead) ? 255 : 0; }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool IsRead) const override;
 };
 
 

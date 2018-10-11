@@ -41,7 +41,7 @@ public:
     virtual ~PngSupport() override {}
     virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<PngReader>(file).cast_dynamic<ImgReader>(); }
     virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<PngWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".PNG" ? 255 : 0; }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".PNG" ? 240 : 0; }
 };
 
 

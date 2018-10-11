@@ -13,15 +13,14 @@ class oclPromiseCore
     friend class _oclImage;
     friend class _oclKernel;
 protected:
-    std::shared_ptr<oclPromiseCore> Prev;
-    cl_event Event;
-    std::exception_ptr Exception;
+    const std::shared_ptr<oclPromiseCore> Prev;
+    const cl_event Event;
+    const std::exception_ptr Exception;
     const cl_command_queue Queue;
     oclPromiseCore(const cl_event e, const cl_command_queue que, const std::shared_ptr<oclPromiseCore>& prev = {})
-        : Prev(prev), Event(e), Queue(que)
-    {
-        //clFlush(que);
-    }
+        : Prev(prev), Event(e), Queue(que) { }
+    oclPromiseCore(const std::exception_ptr ex, const cl_event e, const cl_command_queue que, const std::shared_ptr<oclPromiseCore>& prev = {})
+        : Prev(prev), Event(e), Exception(ex), Queue(que) { }
     ~oclPromiseCore()
     {
         if (Event)
@@ -29,11 +28,15 @@ protected:
     }
     void Flush()
     {
+        if (Exception)
+            std::rethrow_exception(Exception);
         clFlush(Queue);
     }
     common::PromiseState State()
     {
         using common::PromiseState;
+        if (Exception)
+            return PromiseState::Error;
         cl_int status;
         const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
         if (ret != CL_SUCCESS)
@@ -66,8 +69,7 @@ protected:
         clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
         return to - from;
     }
-    cl_event& GetEvent() { return Event; }
-    void SetException(const std::exception_ptr ex) { Exception = ex; }
+    const cl_event& GetEvent() { return Event; }
 };
 
 template<typename T>

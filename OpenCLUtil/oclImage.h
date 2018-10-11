@@ -105,12 +105,14 @@ class OCLUAPI _oclGLInterImg2D : public _oclGLObject<_oclGLImage2D>
 {
 public:
     _oclGLInterImg2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex);
+    oglu::oglTex2D GetGLTex() const { return CLObject->GLTex; }
 };
 
 class OCLUAPI _oclGLInterImg3D : public _oclGLObject<_oclGLImage3D>
 {
 public:
     _oclGLInterImg3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex);
+    oglu::oglTex3D GetGLTex() const { return CLObject->GLTex; }
 };
 
 

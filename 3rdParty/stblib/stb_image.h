@@ -840,8 +840,12 @@ static void    *stbi__pnm_load(stbi__context *s, int *x, int *y, int *comp, int 
 static int      stbi__pnm_info(stbi__context *s, int *x, int *y, int *comp);
 #endif
 
+#ifdef STBI_THREADLOCAL_FAILMSG
+static thread_local const char *stbi__g_failure_reason;
+#else
 // this is not threadsafe
 static const char *stbi__g_failure_reason;
+#endif
 
 STBIDEF const char *stbi_failure_reason(void)
 {
