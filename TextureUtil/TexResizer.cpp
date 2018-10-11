@@ -350,11 +350,11 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const Image& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
+    return Worker->AddTask([=, raw = ImageView(img)](const common::asyexe::AsyncAgent& agent)
     {
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, img, true);
-        auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
+        oclImg2D climg(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, (const Image&)raw, true);
+        auto pms = ResizeToImg<ResizeMethod::OpenCL>(climg, false, width, height, output, flipY);
         return agent.Await(pms);
     });
 }

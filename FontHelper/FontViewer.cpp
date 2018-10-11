@@ -7,8 +7,12 @@
 namespace oglu
 {
 
+static const u16string FontViewControlName = u"文本";
+
 void FontViewer::RegisterControllable()
 {
+    RegistItem<u16string>("Name", "", u"名称", Controllable::ArgType::RawValue)
+        .RegistObject<false>(FontViewControlName);
     if (const auto res = prog->GetResource("fontColor"); res)
     {
         const GLint loc = res->location;
@@ -33,7 +37,7 @@ void FontViewer::RegisterControllable()
     }
 }
 
-FontViewer::FontViewer() : Controllable(u"文本")
+FontViewer::FontViewer()
 {
     prog.reset(u"FontViewer");
     try

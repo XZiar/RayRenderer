@@ -85,7 +85,10 @@ namespace WPFTest
         }
         public override string ToString()
         {
-            return $"[{Control.ControlType}]{Control.Name}";
+            if (Control.DoGetMember("Name", out object name))
+                return $"[{Control.ControlType}]{name}";
+            else
+                return $"[{Control.ControlType}]";
         }
         #region Hide not implemented members
         public AttributeCollection GetAttributes()
@@ -100,7 +103,10 @@ namespace WPFTest
 
         public string GetComponentName()
         {
-            return Control.Name;
+            if (Control.DoGetMember("Name", out object name))
+                return name as string;
+            else
+                return Control.ControlType;
         }
 
         public TypeConverter GetConverter()
@@ -166,7 +172,7 @@ namespace WPFTest
             };
             btn.Click += (o, e) =>
             {
-                new TextDialog(propertyItem.Value as string, $"{(propertyItem.Instance as XCTKControllable).Control.Name} --- {propertyItem.PropertyDescriptor.Name}").Show();
+                new TextDialog(propertyItem.Value as string, $"{(propertyItem.Instance as XCTKControllable).ToString()} --- {propertyItem.PropertyDescriptor.Name}").Show();
                 e.Handled = true;
             };
             return btn;

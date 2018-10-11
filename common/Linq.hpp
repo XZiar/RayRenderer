@@ -21,7 +21,6 @@ namespace linq
 namespace detail
 {
 
-
 template<typename T>
 struct MapElement;
 template<typename K, typename V> struct MapElement<std::pair<K, V>>
@@ -35,7 +34,7 @@ template<typename K, typename V> struct MapElement<std::tuple<K, V>>
     using ValType = V;
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 struct Enumerable;
 
 struct EnumerableHelper
@@ -56,7 +55,7 @@ struct EnumerableHelper
         else if constexpr (common::is_specialization<T, std::tuple>::value)
             return std::get<0>(data);
         else
-            static_assert(common::AlignAllocator<T>());
+            static_assert(common::AlwaysTrue<T>());
     }
     template<typename T>
     static const auto& ValueMapper(const T& data)
@@ -66,22 +65,126 @@ struct EnumerableHelper
         else if constexpr (common::is_specialization<T, std::tuple>::value)
             return std::get<1>(data);
         else
-            static_assert(common::AlignAllocator<T>());
+            static_assert(common::AlwaysTrue<T>());
     }
 };
 
 
-template<typename Child, typename ElementType>
+struct EnumerableEnd
+{};
+template<typename SourceType>
+struct EnumerableIterator
+{
+    SourceType& Source;
+    EnumerableIterator(SourceType& source) : Source(source) {}
+    decltype(auto) operator*() const
+    {
+        return Source.GetCurrent();
+    }
+    bool operator!=(const EnumerableEnd&)
+    {
+        return !Source.IsEnd();
+    }
+    bool operator==(const EnumerableEnd&)
+    {
+        return Source.IsEnd();
+    }
+    EnumerableIterator<SourceType> operator++()
+    {
+        Source.MoveNext();
+        return *this;
+    }
+};
+
+
+template<typename ElementType>
+struct _AnyEnumerable
+{
+    virtual ~_AnyEnumerable() {};
+    virtual ElementType GetCurrent() const = 0;
+    virtual void MoveNext() = 0;
+    virtual bool IsEnd() const = 0;
+};
+
+
+}
+
+template<typename ElementType>
+class AnyEnumerable : public std::unique_ptr<detail::_AnyEnumerable<ElementType>>
+{
+public:
+    using std::unique_ptr<detail::_AnyEnumerable<ElementType>>::unique_ptr;
+    AnyEnumerable(detail::_AnyEnumerable<ElementType>* ptr) : std::unique_ptr<detail::_AnyEnumerable<ElementType>>(ptr) {}
+    detail::EnumerableIterator<detail::_AnyEnumerable<ElementType>> begin()
+    {
+        return this->operator*();
+    }
+    detail::EnumerableIterator<detail::_AnyEnumerable<ElementType>> begin() const
+    {
+        return this->operator*();
+    }
+    detail::EnumerableEnd end()
+    {
+        return {};
+    }
+    detail::EnumerableEnd end() const
+    {
+        return {};
+    }
+};
+
+
+namespace detail
+{
+
+template<typename T, typename EleType>
+struct _AnyEnumerableImpl : public _AnyEnumerable<EleType>
+{
+private:
+    T Source;
+public:
+    _AnyEnumerableImpl(T&& source) : Source(source) {}
+    virtual ~_AnyEnumerableImpl() {}
+    virtual EleType GetCurrent() const override { return Source.GetCurrent(); }
+    virtual void MoveNext() override { return Source.MoveNext(); }
+    virtual bool IsEnd() const override { return Source.IsEnd(); }
+};
+
+template<typename Child, typename EleType>
 struct Enumerable
 {
-    using EleType = ElementType;
-    static constexpr bool IsKVPair = common::is_specialization<ElementType, std::pair>::value;
+public:
+    using RawEleType = std::remove_cv_t<std::remove_reference_t<EleType>>;
+    static constexpr bool IsKVPair = common::is_specialization<RawEleType, std::pair>::value;
     static constexpr bool CheckKVTuple() 
     {
-        if constexpr (common::is_specialization<ElementType, std::tuple>::value) return std::tuple_size_v<ElementType> == 2;
+        if constexpr (common::is_specialization<RawEleType, std::tuple>::value) 
+            return std::tuple_size_v<RawEleType> == 2;
         return false;
     }
     static constexpr bool IsKVTuple = CheckKVTuple();
+
+    AnyEnumerable<EleType> ToAnyEnumerable() 
+    {
+        return new _AnyEnumerableImpl<Child, EleType>(std::move(*static_cast<Child*>(this)));
+    }
+    EnumerableIterator<Child> begin()
+    {
+        return *static_cast<Child*>(this);
+    }
+    EnumerableIterator<Child> begin() const
+    {
+        return *static_cast<const Child*>(this);
+    }
+    EnumerableEnd end()
+    {
+        return {};
+    }
+    EnumerableEnd end() const
+    {
+        return {};
+    }
+
     Child& Skip(size_t size) 
     { 
         Child* self = static_cast<Child*>(this);
@@ -92,10 +195,10 @@ struct Enumerable
         }
         return *self;
     }
-    std::vector<ElementType> ToVector()
+    std::vector<RawEleType> ToVector()
     {
         Child* self = static_cast<Child*>(this);
-        std::vector<ElementType> ret;
+        std::vector<RawEleType> ret;
         while (!self->IsEnd())
         {
             ret.push_back(self->GetCurrent());
@@ -103,10 +206,10 @@ struct Enumerable
         }
         return ret;
     }
-    std::list<ElementType> ToList()
+    std::list<RawEleType> ToList()
     {
         Child* self = static_cast<Child*>(this);
-        std::list<ElementType> ret;
+        std::list<RawEleType> ret;
         while (!self->IsEnd())
         {
             ret.push_back(self->GetCurrent());
@@ -114,11 +217,11 @@ struct Enumerable
         }
         return ret;
     }
-    template<typename Comparator = std::less<ElementType>>
-    std::set<ElementType, Comparator> ToSet()
+    template<typename Comparator = std::less<RawEleType>>
+    std::set<RawEleType, Comparator> ToSet()
     {
         Child* self = static_cast<Child*>(this);
-        std::set<ElementType, Comparator> ret;
+        std::set<RawEleType, Comparator> ret;
         while (!self->IsEnd())
         {
             ret.insert(self->GetCurrent());
@@ -126,11 +229,11 @@ struct Enumerable
         }
         return ret;
     }
-    template<typename Hasher = std::hash<ElementType>>
-    std::unordered_set<ElementType, Hasher> ToHashSet()
+    template<typename Hasher = std::hash<RawEleType>>
+    std::unordered_set<RawEleType, Hasher> ToHashSet()
     {
         Child* self = static_cast<Child*>(this);
-        std::unordered_set<ElementType, Hasher> ret;
+        std::unordered_set<RawEleType, Hasher> ret;
         while (!self->IsEnd())
         {
             ret.insert(self->GetCurrent());
@@ -157,8 +260,8 @@ struct Enumerable
     auto AsMap()
     {
         static_assert(IsKVPair || IsKVTuple, "Element should be pair or tuple of 2");
-        using Comparator = std::conditional_t<std::is_same_v<void, Comp>, std::less<typename MapElement<ElementType>::KeyType>, Comp>;
-        std::map<typename MapElement<ElementType>::KeyType, typename MapElement<ElementType>::ValType, Comparator> ret;
+        using Comparator = std::conditional_t<std::is_same_v<void, Comp>, std::less<typename MapElement<RawEleType>::KeyType>, Comp>;
+        std::map<typename MapElement<RawEleType>::KeyType, typename MapElement<RawEleType>::ValType, Comparator> ret;
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
@@ -185,8 +288,8 @@ struct Enumerable
     auto AsHashMap()
     {
         static_assert(IsKVPair || IsKVTuple, "Element should be pair or tuple of 2");
-        using Hasher = std::conditional_t<std::is_same_v<void, Hash>, std::hash<typename MapElement<ElementType>::KeyType>, Hash>;
-        std::unordered_map<typename MapElement<ElementType>::KeyType, typename MapElement<ElementType>::ValType, Hasher> ret;
+        using Hasher = std::conditional_t<std::is_same_v<void, Hash>, std::hash<typename MapElement<RawEleType>::KeyType>, Hash>;
+        std::unordered_map<typename MapElement<RawEleType>::KeyType, typename MapElement<RawEleType>::ValType, Hasher> ret;
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
@@ -223,10 +326,10 @@ struct Enumerable
     T Reduce(Func&& func, T target = {})
     {
         Child* self = static_cast<Child*>(this);
-        static_assert(std::is_invocable_v<Func, T&, const ElementType&>, "reduce function should accept target and element");
+        static_assert(std::is_invocable_v<Func, T&, const RawEleType&>, "reduce function should accept target and element");
         while (!self->IsEnd())
         {
-            if constexpr (std::is_invocable_r_v<T, Func, const T&, const ElementType&>)
+            if constexpr (std::is_invocable_r_v<T, Func, const T&, const RawEleType&>)
                 target = func(target, self->GetCurrent());
             else
                 func(target, self->GetCurrent());
@@ -260,7 +363,7 @@ struct Enumerable
     template<typename Func>
     bool ContainsIf(Func&& judger)
     {
-        static_assert(std::is_invocable_r_v<bool, Func, ElementType>, "judger should accept element and return bool");
+        static_assert(std::is_invocable_r_v<bool, Func, RawEleType>, "judger should accept element and return bool");
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
@@ -285,7 +388,7 @@ struct Enumerable
     template<typename Func>
     bool AllIf(Func&& judger)
     {
-        static_assert(std::is_invocable_r_v<bool, Func, ElementType>, "judger should accept element and return bool");
+        static_assert(std::is_invocable_r_v<bool, Func, RawEleType>, "judger should accept element and return bool");
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
@@ -309,39 +412,41 @@ struct Enumerable
     auto Pair(Other&& other);
     template<typename Type>
     auto Cast();
-    constexpr bool Empty() const { return static_cast<Child*>(this)->IsEnd(); }
-    constexpr std::optional<ElementType> TryGetFirst() const
+    constexpr bool Empty() const 
+    { 
+        return static_cast<Child*>(this)->IsEnd();
+    }
+    constexpr std::optional<RawEleType> TryGetFirst() const
     {
         const Child* self = static_cast<const Child*>(this);
-        return self->IsEnd() ? std::optional<ElementType>{} : self->GetCurrent();
+        return self->IsEnd() ? std::optional<RawEleType>{} : self->GetCurrent();
     }
 };
 
 
-template<typename Source, typename Func, typename ElementType>
-struct MappedSource : public Enumerable<MappedSource<Source, Func, ElementType>, ElementType>
+template<typename Source, typename Func>
+struct MappedSource : public Enumerable<MappedSource<Source, Func>, std::invoke_result_t<Func, decltype(std::declval<Source&>().GetCurrent())>>
 {
     Source Src;
     Func Mapper;
     MappedSource(Source&& source, Func&& mapper) : Src(source), Mapper(mapper) {}
-    ElementType GetCurrent() const { return Mapper(Src.GetCurrent()); }
+    decltype(auto) GetCurrent() const { return Mapper(Src.GetCurrent()); }
     void MoveNext() { Src.MoveNext(); }
     bool IsEnd() const { return Src.IsEnd(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Func>
-auto Enumerable<Child, ElementType>::Select(Func&& mapper)
+auto Enumerable<Child, EleType>::Select(Func&& mapper)
 {
-    static_assert(std::is_invocable_v<Func, ElementType>, "mapper does not accept target element");
-    using MappedType = decltype(mapper(std::declval<ElementType>()));
+    static_assert(std::is_invocable_v<Func, RawEleType>, "mapper does not accept target element");
     Child* self = static_cast<Child*>(this);
-    return MappedSource<Child, Func, MappedType>(std::move(*self), std::forward<Func>(mapper));
+    return MappedSource<Child, Func>(std::move(*self), std::forward<Func>(mapper));
 }
 
 
-template<typename Src, typename Func, typename MiddleType, typename ElementType>
-struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, MiddleType, ElementType>, ElementType>
+template<typename Src, typename Func, typename MiddleType>
+struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, MiddleType>, decltype(std::declval<MiddleType&>().GetCurrent())>
 {
     Src Source; // Source is at next element of Middle
     Func Mapper;
@@ -359,7 +464,7 @@ struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, Middle
             }
         }
     }
-    ElementType GetCurrent() const { return (*Middle).GetCurrent(); }
+    decltype(auto) GetCurrent() const { return (*Middle).GetCurrent(); }
     void MoveNext() 
     {
         if (!Middle.has_value()) // has end of source
@@ -384,20 +489,19 @@ struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, Middle
     bool IsEnd() const { return Source.IsEnd() && !Middle.has_value(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Func>
-auto Enumerable<Child, ElementType>::SelectMany(Func&& mapper)
+auto Enumerable<Child, EleType>::SelectMany(Func&& mapper)
 {
-    static_assert(std::is_invocable_v<Func, ElementType>, "mapper does not accept target element");
-    using MiddleType = decltype(mapper(std::declval<ElementType>()));
-    using MappedType = decltype(std::declval<MiddleType&>().GetCurrent());
-    static_assert(std::is_base_of_v<Enumerable<MiddleType, MappedType>, MiddleType>, "mapper should return an enumerable");
-    return MultiMappedSource<Child, Func, MiddleType, MappedType>(std::move(*static_cast<Child*>(this)), std::forward<Func>(mapper));
+    static_assert(std::is_invocable_v<Func, RawEleType>, "mapper does not accept target element");
+    using MiddleType = decltype(mapper(std::declval<RawEleType>()));
+    static_assert(std::is_base_of_v<Enumerable<MiddleType>, MiddleType>, "mapper should return an enumerable");
+    return MultiMappedSource<Child, Func, MiddleType>(std::move(*static_cast<Child*>(this)), std::forward<Func>(mapper));
 }
 
 
-template<typename Source, typename Func, typename ElementType>
-struct FilteredSource : public Enumerable<FilteredSource<Source, Func, ElementType>, ElementType>
+template<typename Source, typename Func>
+struct FilteredSource : public Enumerable<FilteredSource<Source, Func>, decltype(std::declval<Source&>().GetCurrent())>
 {
     Source Src;
     Func Filter;
@@ -406,7 +510,7 @@ struct FilteredSource : public Enumerable<FilteredSource<Source, Func, ElementTy
         while (!Src.IsEnd() && !Filter(Src.GetCurrent()))
             Src.MoveNext();
     }
-    ElementType GetCurrent() const { return Src.GetCurrent(); }
+    decltype(auto) GetCurrent() const { return Src.GetCurrent(); }
     void MoveNext() 
     {
         if (Src.IsEnd())
@@ -423,24 +527,24 @@ struct FilteredSource : public Enumerable<FilteredSource<Source, Func, ElementTy
     bool IsEnd() const { return Src.IsEnd(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Func>
-auto Enumerable<Child, ElementType>::Where(Func&& filter)
+auto Enumerable<Child, EleType>::Where(Func&& filter)
 {
-    static_assert(std::is_invocable_r_v<bool, Func, ElementType>, "filter should accept target element and return bool");
+    static_assert(std::is_invocable_r_v<bool, Func, RawEleType>, "filter should accept target element and return bool");
     Child* self = static_cast<Child*>(this);
-    return FilteredSource<Child, Func, ElementType>(std::move(*self), std::forward<Func>(filter));
+    return FilteredSource<Child, Func>(std::move(*self), std::forward<Func>(filter));
 }
 
 
-template<typename Src1, typename Src2, typename ElementType>
-struct ConcatedSource : public Enumerable<ConcatedSource<Src1, Src2, ElementType>, ElementType>
+template<typename Src1, typename Src2>
+struct ConcatedSource : public Enumerable<ConcatedSource<Src1, Src2>, decltype(std::declval<Src1&>().GetCurrent())>
 {
     Src1 Source1;
     Src2 Source2;
     bool IsSrc2;
     ConcatedSource(Src1&& src1, Src2&& src2) : Source1(src1), Source2(src2), IsSrc2(Source1.IsEnd()) { }
-    ElementType GetCurrent() const { return IsSrc2 ? Source2.GetCurrent() : Source1.GetCurrent(); }
+    decltype(auto) GetCurrent() const { return IsSrc2 ? Source2.GetCurrent() : Source1.GetCurrent(); }
     void MoveNext()
     {
         if (!IsSrc2)
@@ -459,22 +563,22 @@ struct ConcatedSource : public Enumerable<ConcatedSource<Src1, Src2, ElementType
     bool IsEnd() const { return Source1.IsEnd() && Source2.IsEnd(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Other>
-auto Enumerable<Child, ElementType>::Concat(Other&& other)
+auto Enumerable<Child, EleType>::Concat(Other&& other)
 {
-    static_assert(std::is_base_of_v<Enumerable<Other, ElementType>, Other>, "enumerable should be joined with an enumerable of the same type");
-    return ConcatedSource<Child, Other, ElementType>(std::move(*static_cast<Child*>(this)), std::move(other));
+    static_assert(std::is_base_of_v<Enumerable<Other>, Other>, "enumerable should be joined with an enumerable of the same type");
+    return ConcatedSource<Child, Other>(std::move(*static_cast<Child*>(this)), std::move(other));
 }
 
 
-template<typename Src1, typename Src2, typename ElementType>
-struct PairedSource : public Enumerable<PairedSource<Src1, Src2, ElementType>, ElementType>
+template<typename Src1, typename Src2>
+struct PairedSource : public Enumerable<PairedSource<Src1, Src2>, std::pair<typename Src1::RawEleType, typename Src2::RawEleType>>
 {
     Src1 Source1;
     Src2 Source2;
     PairedSource(Src1&& src1, Src2&& src2) : Source1(src1), Source2(src2) { }
-    ElementType GetCurrent() const { return std::pair(Source1.GetCurrent(), Source2.GetCurrent()); }
+    decltype(auto) GetCurrent() const { return std::pair<typename Src1::RawEleType, typename Src2::RawEleType>(Source1.GetCurrent(), Source2.GetCurrent()); }
     void MoveNext()
     {
         Source1.MoveNext();
@@ -483,42 +587,42 @@ struct PairedSource : public Enumerable<PairedSource<Src1, Src2, ElementType>, E
     bool IsEnd() const { return Source1.IsEnd() || Source2.IsEnd(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Other>
-auto Enumerable<Child, ElementType>::Pair(Other&& other)
+auto Enumerable<Child, EleType>::Pair(Other&& other)
 {
     static_assert(EnumerableHelper::IsEnumerable<Other>(), "enumerable should be paired with an enumerable");
-    return PairedSource<Child, Other, std::pair<ElementType, typename Other::EleType>>(std::move(*static_cast<Child*>(this)), std::move(other));
+    return PairedSource<Child, Other, std::pair<RawEleType, typename Other::EleType>>(std::move(*static_cast<Child*>(this)), std::move(other));
 }
 
 
-template<typename Src, typename ElementType>
-struct CastedSource : public Enumerable<CastedSource<Src, ElementType>, ElementType>
+template<typename Src, typename DstType>
+struct CastedSource : public Enumerable<CastedSource<Src, DstType>, DstType>
 {
     Src Source;
     CastedSource(Src&& source) : Source(source) {}
-    ElementType GetCurrent() const { return static_cast<ElementType>(Source.GetCurrent()); }
+    DstType GetCurrent() const { return static_cast<DstType>(Source.GetCurrent()); }
     void MoveNext() { Source.MoveNext(); }
     bool IsEnd() const { return Source.IsEnd(); }
 };
 
-template<typename Src, typename ElementType>
-struct CastCtorSource : public Enumerable<CastCtorSource<Src, ElementType>, ElementType>
+template<typename Src, typename DstType>
+struct CastCtorSource : public Enumerable<CastCtorSource<Src, DstType>, DstType>
 {
     Src Source;
     CastCtorSource(Src&& source) : Source(source) {}
-    ElementType GetCurrent() const { return ElementType(Source.GetCurrent()); }
+    DstType GetCurrent() const { return DstType(Source.GetCurrent()); }
     void MoveNext() { Source.MoveNext(); }
     bool IsEnd() const { return Source.IsEnd(); }
 };
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Type>
-auto Enumerable<Child, ElementType>::Cast()
+auto Enumerable<Child, EleType>::Cast()
 {
-    if constexpr (std::is_convertible_v<ElementType, Type>)
+    if constexpr (std::is_convertible_v<EleType, Type>)
         return CastedSource<Child, Type>(std::move(*static_cast<Child*>(this)));
-    else if constexpr (std::is_constructible_v<Type, ElementType>)
+    else if constexpr (std::is_constructible_v<Type, EleType>)
         return CastCtorSource<Child, Type>(std::move(*static_cast<Child*>(this)));
     else
         static_assert(common::AlwaysTrue<Type>(), "cannot convert to or construct to the target type");
@@ -526,7 +630,7 @@ auto Enumerable<Child, ElementType>::Cast()
 
 
 template<typename T>
-struct IteratorSource : public Enumerable<IteratorSource<T>, std::remove_cv_t<std::remove_reference_t<decltype(*std::begin(std::declval<T&>()))>>>
+struct IteratorSource : public Enumerable<IteratorSource<T>, decltype(*std::declval<decltype(std::begin(std::declval<T&>()))>())>
 {
     using TB = decltype(std::begin(std::declval<T&>()));
     using TE = decltype(std::end(std::declval<T&>()));
@@ -567,11 +671,11 @@ struct RepeatSource : public Enumerable<RepeatSource<T>, T>
 };
 
 
-template<typename Child, typename ElementType>
+template<typename Child, typename EleType>
 template<typename Func>
-auto Enumerable<Child, ElementType>::SortBy(Func&& comparator)
+auto Enumerable<Child, EleType>::SortBy(Func&& comparator)
 {
-    static_assert(std::is_invocable_r_v<bool, Func, const ElementType&, const ElementType&>, "sort need a comparator that accept two element and return bool");
+    static_assert(std::is_invocable_r_v<bool, Func, const RawEleType&, const RawEleType&>, "sort need a comparator that accept two element and return bool");
     auto tmp = ToVector();
     std::sort(tmp.begin(), tmp.end(), comparator);
     return IteratorSource(std::move(tmp));

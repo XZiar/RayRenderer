@@ -5,7 +5,7 @@
 namespace rayr
 {
 
-class PostProcessor : public NonCopyable, public common::Controllable
+class PostProcessor : public NonCopyable, public Controllable
 {
 private:
     oclu::oclContext CLContext;

@@ -20,9 +20,11 @@
 #include "common/CommonRely.hpp"
 #include "common/Wrapper.hpp"
 #include "common/AlignedContainer.hpp"
+#include "common/Controllable.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/FileEx.hpp"
+#include "common/Linq.hpp"
 #include "common/ThreadEx.h"
 #include "common/StringEx.hpp"
 #include "common/StrCharset.hpp"
@@ -73,6 +75,7 @@ using std::array;
 using std::variant;
 using common::min;
 using common::max;
+using common::Controllable;
 using common::Wrapper;
 using common::SimpleTimer;
 using common::NonCopyable;
@@ -81,6 +84,7 @@ using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
+using common::linq::Linq;
 using str::Charset;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;

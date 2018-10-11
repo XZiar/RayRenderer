@@ -13,7 +13,7 @@ using common::container::FindInMap;
 using common::linq::Linq;
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
-    : Controllable(u"GLShader"), Source(source), Config(config)
+    : Source(source), Config(config)
 {
     Program.reset(name);
     try

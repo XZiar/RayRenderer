@@ -23,6 +23,8 @@
   - [x] Move Camera component out of OpenGLUtil (shouldn't handle here)
   - [x] Combine subroutine with macro-based static dispatch
   - [x] Add context-sesative dispatching for version-based functions 
+  - [ ] Seperate sampler and texture
+  - [ ] Seperate VAO bindings
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL

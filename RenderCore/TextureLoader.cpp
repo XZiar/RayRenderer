@@ -21,7 +21,7 @@ void TextureLoader::RegistControllable()
 }
 
 TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mipmapper) 
-    : Controllable(u"TexLoader"), Compressor(u"TexCompMan"), MipMapper(mipmapper)
+    : Compressor(u"TexCompMan"), MipMapper(mipmapper)
 {
     ProcessMethod = 
     { 

@@ -10,15 +10,18 @@ using namespace oclu;
 using namespace oglu;
 using namespace std::literals;
 
+static const u16string PostProcessorName = u"后处理";
+
 void PostProcessor::RegistControllable()
 {
+    RegistItem<u16string>("Name", "", u"名称", Controllable::ArgType::RawValue)
+        .RegistObject<false>(PostProcessorName);
     RegistItem<float>("Exposure", "", u"曝光补偿", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)")
         .RegistGetter(&PostProcessor::GetExposure).RegistSetter(&PostProcessor::SetExposure);
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize) 
-    : Controllable(u"后处理"),
-    CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
+    : CLContext(ctx), GLContext(oglu::oglContext::CurrentContext()), CmdQue(que), LutSize(lutSize)
 {
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
     LutTexView = LutTex->GetTextureView();

@@ -37,7 +37,6 @@ private:
     ViewModelStub ViewModel;
     const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
-    initonly String^ name;
     std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
 internal:
     Controllable(const std::shared_ptr<common::Controllable>& control);
@@ -75,7 +74,6 @@ public:
     initonly Dictionary<String^, String^>^ Categories;
     initonly List<ControlItem^>^ Items;
     CLI_READONLY_PROPERTY(String^, ControlType, controlType)
-    CLI_READONLY_PROPERTY(String^, Name, name)
 };
 
 }

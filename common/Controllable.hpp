@@ -37,7 +37,6 @@ public:
 private:
     std::map<std::string, std::u16string, std::less<>> Categories;
     std::map<std::string, ControlItem, std::less<>> ControlItems;
-    const std::u16string Name;
     template<typename T>
     class ItemPrep
     {
@@ -162,7 +161,7 @@ private:
         }
     };
 protected:
-    Controllable(const std::u16string& name) : Name(name) {}
+    Controllable() {}
 
     void AddCategory(const std::string category, const std::u16string name)
     {
@@ -189,7 +188,6 @@ public:
 
 struct ControlHelper
 {
-    static const std::u16string& GetControlName(const Controllable& control) { return control.Name; }
     static std::u16string_view GetControlType(const Controllable& control) { return control.GetControlType(); }
     static const auto& GetControlItems(const Controllable& control) { return control.ControlItems; }
     static const auto& GetCategories(const Controllable& control) { return control.Categories; }

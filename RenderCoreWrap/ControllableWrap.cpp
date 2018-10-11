@@ -78,7 +78,6 @@ Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
 {
     Control = new std::weak_ptr<rayr::Controllable>(control);
     controlType = ToStr(ControlHelper::GetControlType(*control));
-    name = ToStr(ControlHelper::GetControlName(*control));
     Categories = gcnew Dictionary<String^, String^>(0);
     Items = gcnew List<ControlItem^>(0);
     RefreshControl();
