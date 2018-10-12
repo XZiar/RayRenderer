@@ -167,17 +167,18 @@ void BasicTest::init2d(const fs::path& shaderPath)
         prog2D->State().SetTexture(picTex, "tex");
     }
     {
-        ProgPost = Wrapper<GLShader>(u"PostProcess", LoadShaderFallback(shaderPath / u"postprocess.glsl", IDR_SHADER_POSTPROC));
+        //ProgPost = Wrapper<GLShader>(u"PostProcess", LoadShaderFallback(shaderPath / u"postprocess.glsl", IDR_SHADER_POSTPROC));
+        ProgPost = PostProc->GetShader();
         glProgs.insert(ProgPost);
         progPost = ProgPost->Program;
-        ppVAO.reset(VAODrawMode::Triangles);
+        /*ppVAO.reset(VAODrawMode::Triangles);
         ppVAO->Prepare()
             .SetFloat(screenBox, progPost->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(screenBox, progPost->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         progPost->State()
             .SetSubroutine("ToneMap", "ACES")
-            .SetTexture(PostProc->GetLut(), "lut");
+            .SetTexture(PostProc->GetLut(), "lut");*/
     }
 }
 
@@ -232,8 +233,6 @@ void BasicTest::initTex()
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
         picTex->SetData(TextureDataFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
-        //const auto outimg = picTex->GetImage(ImageDataType::RGBA);
-        //tmpTex = oglu::texcomp::CompressToTex(outimg, TextureInnerFormat::BC7, false)->wait();
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
     chkTex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
@@ -338,7 +337,7 @@ void BasicTest::Draw()
         if (HAS_FIELD(changed, ChangableUBO::Light))
             prepareLight();
     }
-    if (PostProc->UpdateLut())
+    /*if (PostProc->UpdateLut())
     {
         const auto lutdata = PostProc->GetLut()->GetData(TextureDataFormat::RGB10A2);
         Image img(ImageDataType::RGBA);
@@ -346,6 +345,10 @@ void BasicTest::Draw()
         img.SetSize(lutSize, lutSize * lutSize);
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
         xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
+    }*/
+    RenderPassContext rpContext;
+    {
+        PostProc->OnPrepare(rpContext);
     }
     if (mode)
     {
@@ -388,7 +391,7 @@ void BasicTest::Draw()
         {
             const auto sw = w * oh / h;
             const auto widthscale = sw * 1.0f / ow;
-            progPost->Draw().SetUniform("widthscale", widthscale).Draw(ppVAO);
+            progPost->Draw().SetUniform("widthscale", widthscale).Draw(PostProc->VAOScreen);
         }
         //fontViewer->Draw();
     }
@@ -414,6 +417,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloat
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
     basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     progPost->State().SetTexture(fboTex, "scene");
+    PostProc->SetMidFrame((uint32_t)w, (uint32_t)h, isFloatDepth);
 }
 
 void BasicTest::ReloadFontLoader(const u16string& fname)

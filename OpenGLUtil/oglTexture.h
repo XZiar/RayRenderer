@@ -320,7 +320,6 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void GenerateMipmap();
     Wrapper<_oglTexture2DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture2DView> GetTextureView() const { return GetTextureView(InnerFormat); }
 };
@@ -333,6 +332,8 @@ protected:
 public:
     _oglTexture2DDynamic() noexcept : _oglTexture2D(true) {}
 
+    void GenerateMipmap();
+    
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
     void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true, const bool flipY = true);
@@ -436,7 +437,6 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void GenerateMipmap();
     Wrapper<_oglTexture3DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture3DView> GetTextureView() const { return GetTextureView(InnerFormat); }
 };

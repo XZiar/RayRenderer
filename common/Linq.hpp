@@ -495,7 +495,7 @@ auto Enumerable<Child, EleType>::SelectMany(Func&& mapper)
 {
     static_assert(std::is_invocable_v<Func, RawEleType>, "mapper does not accept target element");
     using MiddleType = decltype(mapper(std::declval<RawEleType>()));
-    static_assert(std::is_base_of_v<Enumerable<MiddleType>, MiddleType>, "mapper should return an enumerable");
+    static_assert(EnumerableHelper::IsEnumerable<MiddleType>(), "mapper should return an enumerable");
     return MultiMappedSource<Child, Func, MiddleType>(std::move(*static_cast<Child*>(this)), std::forward<Func>(mapper));
 }
 
@@ -567,7 +567,7 @@ template<typename Child, typename EleType>
 template<typename Other>
 auto Enumerable<Child, EleType>::Concat(Other&& other)
 {
-    static_assert(std::is_base_of_v<Enumerable<Other>, Other>, "enumerable should be joined with an enumerable of the same type");
+    static_assert(std::is_base_of_v<Enumerable<Other, EleType>, Other>, "enumerable should be joined with an enumerable of the same type");
     return ConcatedSource<Child, Other>(std::move(*static_cast<Child*>(this)), std::move(other));
 }
 
@@ -592,7 +592,7 @@ template<typename Other>
 auto Enumerable<Child, EleType>::Pair(Other&& other)
 {
     static_assert(EnumerableHelper::IsEnumerable<Other>(), "enumerable should be paired with an enumerable");
-    return PairedSource<Child, Other, std::pair<RawEleType, typename Other::EleType>>(std::move(*static_cast<Child*>(this)), std::move(other));
+    return PairedSource<Child, Other>(std::move(*static_cast<Child*>(this)), std::move(other));
 }
 
 

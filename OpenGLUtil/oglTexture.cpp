@@ -332,12 +332,6 @@ void _oglTexture2DStatic::SetCompressedData(const oglPBO & buf, const size_t siz
     _oglTexture2D::SetCompressedData(true, buf, size, level);
 }
 
-void _oglTexture2DStatic::GenerateMipmap()
-{
-    CheckCurrent();
-    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
-}
-
 oglTex2DV _oglTexture2DStatic::GetTextureView(const TextureInnerFormat format) const
 {
     CheckCurrent();
@@ -354,6 +348,12 @@ void _oglTexture2DDynamic::CheckAndSetMetadata(const TextureInnerFormat iformat,
     if (w % 4)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     InnerFormat = iformat, Width = w, Height = h;
+}
+
+void _oglTexture2DDynamic::GenerateMipmap()
+{
+    CheckCurrent();
+    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_2D);
 }
 
 void _oglTexture2DDynamic::SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data)
@@ -578,12 +578,6 @@ void _oglTexture3DStatic::SetCompressedData(const void *data, const size_t size,
 void _oglTexture3DStatic::SetCompressedData(const oglPBO & buf, const size_t size, const uint8_t level)
 {
     _oglTexture3D::SetCompressedData(true, buf, size, level);
-}
-
-void _oglTexture3DStatic::GenerateMipmap()
-{
-    CheckCurrent();
-    DSA->ogluGenerateTextureMipmap(textureID, GL_TEXTURE_3D);
 }
 
 oglTex3DV _oglTexture3DStatic::GetTextureView(const TextureInnerFormat format) const

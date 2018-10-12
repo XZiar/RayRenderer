@@ -1,4 +1,5 @@
 #include "RenderCore/RenderCore.h"
+#include "RenderCore/BasicTest.h"
 #include <cstdint>
 #include <cstdio>
 #include <memory>
