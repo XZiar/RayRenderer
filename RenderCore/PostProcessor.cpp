@@ -45,13 +45,13 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
     ScreenBox->Write(DatVert, sizeof(DatVert));
-    Shader = std::make_shared<GLShader>(u"PostProcess", getShaderFromDLL(IDR_SHADER_POSTPROC));
+    PostShader.reset(u"PostProcess", getShaderFromDLL(IDR_SHADER_POSTPROC));
     VAOScreen.reset(VAODrawMode::Triangles);
     VAOScreen->Prepare()
-        .SetFloat(ScreenBox, Shader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-        .SetFloat(ScreenBox, Shader->Program->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+        .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
         .SetDrawSize(0, 6);
-    Shader->Program->State()
+    PostShader->Program->State()
         .SetSubroutine("ToneMap", "ACES")
         .SetTexture(LutTex, "lut");
 
@@ -106,6 +106,8 @@ bool PostProcessor::UpdateFBO()
 void PostProcessor::OnPrepare(RenderPassContext& context)
 {
     UpdateFBO();
+    MiddleFrame->Use();
+    GLContext->ClearFBO();
     context.SetTexture("MainFBTex", FBOTex);
     context.SetFrameBuffer("MainFB", MiddleFrame);
     UpdateLUT();
@@ -115,15 +117,15 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 {
     oglu::oglFBO::UseDefault();
 
-    const auto cam = GetScene()->GetCamera();
+    const auto cam = context.GetScene()->GetCamera();
     const auto ow = cam->Width, oh = cam->Height;
 
-    Shader->Program->SetView(cam->GetView());
-    Shader->Program->SetVec("vecCamPos", cam->Position);
+    PostShader->Program->SetView(cam->GetView());
+    PostShader->Program->SetVec("vecCamPos", cam->Position);
 
     const auto sw = MidFrameConfig.Width * oh / MidFrameConfig.Height;
     const auto widthscale = sw * 1.0f / ow;
-    Shader->Program->Draw().SetUniform("widthscale", widthscale).Draw(VAOScreen);
+    PostShader->Program->Draw().SetUniform("widthscale", widthscale).Draw(VAOScreen);
 
 }
 

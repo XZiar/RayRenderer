@@ -185,13 +185,13 @@ public:
         return {};
     }
 
-    Child& Skip(size_t size) 
+    constexpr Child& Skip(size_t count)
     { 
         Child* self = static_cast<Child*>(this);
-        while (size && !self->IsEnd())
+        while (count && !self->IsEnd())
         {
             self->MoveNext();
-            size--;
+            count--;
         }
         return *self;
     }
@@ -315,6 +315,7 @@ public:
     template<typename Func>
     void ForEach(Func&& func)
     {
+        static_assert(std::is_invocable_v<Func, EleType>, "foreach function should accept element");
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
@@ -325,8 +326,8 @@ public:
     template<typename T, typename Func>
     T Reduce(Func&& func, T target = {})
     {
-        Child* self = static_cast<Child*>(this);
         static_assert(std::is_invocable_v<Func, T&, const RawEleType&>, "reduce function should accept target and element");
+        Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
             if constexpr (std::is_invocable_r_v<T, Func, const T&, const RawEleType&>)
@@ -412,6 +413,7 @@ public:
     auto Pair(Other&& other);
     template<typename Type>
     auto Cast();
+    constexpr auto Take(const size_t count);
     constexpr bool Empty() const 
     { 
         return static_cast<Child*>(this)->IsEnd();
@@ -626,6 +628,29 @@ auto Enumerable<Child, EleType>::Cast()
         return CastCtorSource<Child, Type>(std::move(*static_cast<Child*>(this)));
     else
         static_assert(common::AlwaysTrue<Type>(), "cannot convert to or construct to the target type");
+}
+
+
+template<typename Src, typename DstType>
+struct LimitCountSource : public Enumerable<LimitCountSource<Src, DstType>, DstType>
+{
+    Src Source;
+    size_t Count;
+    constexpr LimitCountSource(Src&& source, const size_t count) : Source(source), Count(count) {}
+    constexpr DstType GetCurrent() const { return static_cast<DstType>(Source.GetCurrent()); }
+    constexpr void MoveNext() 
+    { 
+        Source.MoveNext(); 
+        if (Count)
+            Count--;
+    }
+    constexpr bool IsEnd() const { return !Count || Source.IsEnd(); }
+};
+
+template<typename Child, typename EleType>
+constexpr auto Enumerable<Child, EleType>::Take(const size_t count)
+{
+    return LimitCountSource<Child, EleType>(std::move(*static_cast<Child*>(this)), count);
 }
 
 

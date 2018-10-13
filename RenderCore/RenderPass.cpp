@@ -11,8 +11,13 @@ using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
 
-RenderPassContext::RenderPassContext()
+RenderPassContext::RenderPassContext(const std::shared_ptr<Scene>& scene) : TheScene(scene)
 {
+}
+
+const std::shared_ptr<Scene>& RenderPassContext::GetScene() const
+{
+    return TheScene;
 }
 
 oglu::oglFBO RenderPassContext::GetFrameBuffer(const string_view & name) const
@@ -51,29 +56,57 @@ RenderPass::RenderPass() : GLContext(oglu::oglContext::CurrentContext())
 
 }
 
-std::shared_ptr<Scene> rayr::RenderPass::GetScene() const
+void RenderPass::RegistDrawable(const Wrapper<Drawable>& drawable)
 {
-    return TheScene.lock();
+    WaitAddDrawables.push_back(drawable);
 }
 
-void RenderPass::RegisterDrawable(std::weak_ptr<Drawable> drawable)
+void RenderPass::UnregistDrawable(const Wrapper<Drawable>& drawable)
 {
-    Drawables.insert(std::move(drawable));
+    Drawables.erase(drawable);
+    //WaitDelDrawables.push_back(drawable);
+}
+
+void RenderPass::Prepare(RenderPassContext& context)
+{
+    for (const auto& d : WaitAddDrawables)
+    {
+        const auto drw = d.lock();
+        if (drw && OnRegistDrawable(drw))
+            Drawables.insert(d);
+    }
+    WaitAddDrawables.clear();
+    OnPrepare(context);
+}
+
+void RenderPass::Draw(RenderPassContext & context)
+{
+    OnDraw(context);
 }
 
 
-DefaultRenderPass::DefaultRenderPass(std::shared_ptr<GLShader> shader) : Shader(shader)
+DefaultRenderPass::DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config)
+    : GLShader(name, source, config)
 {
     
 }
 
+bool DefaultRenderPass::OnRegistDrawable(const std::shared_ptr<Drawable>& drawable)
+{
+    drawable->PrepareGL(Program);
+    return true;
+}
+
 void DefaultRenderPass::OnPrepare(RenderPassContext& context)
 {
+    const auto& scene = context.GetScene();
+    Program->SetUniform("lightCount", scene->GetLightUBOCount());
+    Program->State().SetUBO(scene->GetLightUBO(), "lightBlock");
 }
 
 void DefaultRenderPass::OnDraw(RenderPassContext& context)
 {
-    const auto cam = GetScene()->GetCamera();
+    const auto cam = context.GetScene()->GetCamera();
     const auto fboTex = context.GetTexture("MainFBTex");
     const auto fbo = context.GetFrameBuffer("MainFB");
     const bool needNewCam = fboTex && fbo;
@@ -90,11 +123,11 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     {
         oglu::oglFBO::UseDefault();
     }
-    Shader->Program->SetProject(cam->GetProjection());
-    Shader->Program->SetView(cam->GetView());
-    Shader->Program->SetVec("vecCamPos", cam->Position);
+    Program->SetProject(cam->GetProjection());
+    Program->SetView(cam->GetView());
+    Program->SetVec("vecCamPos", cam->Position);
     {
-        auto drawcall = Shader->Program->Draw();
+        auto drawcall = Program->Draw();
         for (const auto& d : Drawables)
         {
             const auto drw = d.lock();
@@ -117,16 +150,16 @@ RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext::CurrentContext())
 {
 }
 
-void RenderPipeLine::Render(const oglu::oglContext& glContext)
+void RenderPipeLine::Render(const std::shared_ptr<Scene>& scene)
 {
-    RenderPassContext context;
+    RenderPassContext context(scene);
     for (auto& pass : Passes)
     {
-        pass.OnPrepare(context);
+        pass->Prepare(context);
     }
     for (auto& pass : Passes)
     {
-        pass.OnDraw(context);
+        pass->Draw(context);
     }
 }
 

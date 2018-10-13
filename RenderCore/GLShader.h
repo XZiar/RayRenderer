@@ -1,20 +1,19 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "common/Controllable.hpp"
 
 
 namespace rayr
 {
 
 
-struct GLShader : public common::Controllable, public xziar::respak::Serializable
+struct GLShader : public virtual Controllable, public xziar::respak::Serializable
 {
 private:
     void RegistControllable();
+    string Source;
+    oglu::ShaderConfig Config;
 public:
     oglu::oglDrawProgram Program;
-    oglu::ShaderConfig Config;
-    string Source;
     GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config = {});
     virtual u16string_view GetControlType() const override
     {

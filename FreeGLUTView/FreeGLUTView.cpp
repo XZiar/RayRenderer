@@ -269,8 +269,19 @@ public:
                 while (GetViewMap().size() > 0)
                 {
                     timer.Start();
-                    FilterMessage();
-                    glutMainLoopEvent();
+                    try
+                    {
+                        FilterMessage();
+                        glutMainLoopEvent();
+                    }
+                    catch (BaseException& be)
+                    {
+                        fgvLog().error(u"Occur Error:\t{}\n", be.message);
+                    }
+                    catch (std::runtime_error& err)
+                    {
+                        fgvLog().error(u"Occur Error:\t{}\n", err.what());
+                    }
                     timer.Stop();
                     const auto uiTime = timer.ElapseUs();
                     if (uiTime < stepTime && stepTime - uiTime > 1000)

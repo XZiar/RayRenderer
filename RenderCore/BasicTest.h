@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RenderCoreRely.h"
+#include "RenderCore.h"
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.h"
@@ -16,6 +17,9 @@ namespace oglu::texutil
 class TexMipmap;
 }
 
+enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
+MAKE_ENUM_BITFIELD(ChangableUBO)
+
 namespace rayr
 {
 using namespace common;
@@ -26,9 +30,6 @@ namespace img = xziar::img;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 
-
-enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
-MAKE_ENUM_BITFIELD(ChangableUBO)
 
 class RAYCOREAPI BasicTest final : public NonCopyable, public AlignBase<32>
 {

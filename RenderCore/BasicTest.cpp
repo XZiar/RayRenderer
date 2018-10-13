@@ -20,7 +20,7 @@ struct Init
     {
         basLog().verbose(u"BasicTest Static Init\n");
         oglUtil::Init();
-        oclu::oclUtil::init();
+        oclUtil::Init();
     }
 };
 
@@ -346,7 +346,7 @@ void BasicTest::Draw()
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
         xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
     }*/
-    RenderPassContext rpContext;
+    RenderPassContext rpContext({});
     {
         PostProc->OnPrepare(rpContext);
     }

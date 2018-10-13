@@ -13,7 +13,7 @@ class OCLUAPI oclUtil
 private:
     static vector<oclPlatform> platforms;
 public:
-    static void init(const bool checkGL = true);
+    static void Init(const bool checkGL = true);
     static const vector<oclPlatform>& getPlatforms() { return platforms; }
     static oclContext CreateGLSharedContext(const oglu::oglContext& ctx);
     static u16string_view getErrorString(const cl_int err);

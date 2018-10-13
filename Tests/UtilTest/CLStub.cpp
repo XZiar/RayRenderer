@@ -20,7 +20,7 @@ static MiniLogger<false>& log()
 
 static void OCLStub()
 {
-    oclUtil::init(false);
+    oclUtil::Init(false);
 
     Linq::FromIterable(oclUtil::getPlatforms())
         .ForEach([i = 0u](const auto& plat) mutable { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });

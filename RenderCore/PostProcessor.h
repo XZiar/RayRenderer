@@ -5,7 +5,7 @@
 namespace rayr
 {
 
-class PostProcessor : public NonCopyable, public DefaultRenderPass
+class PostProcessor : public NonCopyable, public RenderPass
 {
 private:
     struct FBOConfig
@@ -19,6 +19,7 @@ private:
     oglu::oglTex3DS LutTex;
     oglu::oglImg3D LutImg;
     oglu::oglComputeProgram LutGenerator;
+    Wrapper<GLShader> PostShader;
     oglu::oglVBO ScreenBox;
     array<uint32_t, 3> GroupCount;
     const uint32_t LutSize;
@@ -40,7 +41,7 @@ public:
         return u"PostProcess"sv;
     }
     constexpr uint32_t GetLutSize() const { return LutSize; }
-    std::shared_ptr<GLShader> GetShader() const { return Shader; }
+    Wrapper<GLShader> GetShader() const { return PostShader; }
     float GetExposure() const { return Exposure; }
     void SetExposure(const float exposure);
     void SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth);

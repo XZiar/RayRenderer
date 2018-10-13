@@ -74,7 +74,7 @@ enum class TextureDataFormat : uint16_t
     TYPE_U8 = 0x0, TYPE_I8 = 0x1, TYPE_U16 = 0x2, TYPE_I16 = 0x3, TYPE_U32 = 0x4, TYPE_I32 = 0x5, TYPE_HALF = 0x6, TYPE_FLOAT = 0x7,
     TYPE_COMP = 0x10, TYPE_REV_MASK = 0x01,
     TYPE_332 = 0x10, TYPE_233R = 0x11, TYPE_565 = 0x12, TYPE_565R = 0x13, TYPE_4444 = 0x14, TYPE_4444R = 0x15, TYPE_5551 = 0x16, TYPE_1555R = 0x17,
-    TYPE_8888 = 0x18, TYPE_8888R = 0x19, TYPE_10_2 = 0x1a, TYPE_10_2R = 0x1b,
+    TYPE_8888 = 0x18, TYPE_8888R = 0x19, TYPE_10_2 = 0x1a, TYPE_10_2R = 0x1b, TYPE_11_10 = 0x1c, TYPE_11_10R = 0x1d,
     //normalized integer[0,1]
     R8 = FORMAT_R | TYPE_U8, RG8 = FORMAT_RG | TYPE_U8, RGB8 = FORMAT_RGB | TYPE_U8, BGR8 = FORMAT_BGR | TYPE_U8, RGBA8 = FORMAT_RGBA | TYPE_U8, BGRA8 = FORMAT_BGRA | TYPE_U8,
     R16 = FORMAT_R | TYPE_U16, RG16 = FORMAT_RG | TYPE_U16, RGB16 = FORMAT_RGB | TYPE_U16, BGR16 = FORMAT_BGR | TYPE_U16, RGBA16 = FORMAT_RGBA | TYPE_U16, BGRA16 = FORMAT_BGRA | TYPE_U16,
@@ -200,11 +200,12 @@ protected:
     explicit _oglTexBase(const TextureType type, const bool shouldBindType) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
+    void CheckMipmapLevel(const uint8_t level) const;
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
-    void CheckMipmapLevel(const uint8_t level) const;
+    void Clear(const TextureDataFormat dformat);
 public:
     u16string Name;
     virtual ~_oglTexBase() noexcept;
@@ -320,6 +321,8 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
+
     Wrapper<_oglTexture2DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture2DView> GetTextureView() const { return GetTextureView(InnerFormat); }
 };
@@ -332,6 +335,7 @@ protected:
 public:
     _oglTexture2DDynamic() noexcept : _oglTexture2D(true) {}
 
+    using _oglTexBase::Clear;
     void GenerateMipmap();
     
     void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
@@ -375,6 +379,8 @@ public:
     void SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size, const uint8_t level = 0);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
+
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
 
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer, const TextureInnerFormat format) const;
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const { return ViewTextureLayer(layer, InnerFormat); }
@@ -436,6 +442,8 @@ public:
     {
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
+
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
 
     Wrapper<_oglTexture3DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture3DView> GetTextureView() const { return GetTextureView(InnerFormat); }

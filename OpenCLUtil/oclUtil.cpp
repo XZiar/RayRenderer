@@ -7,7 +7,7 @@ namespace oclu
 
 vector<oclPlatform> oclUtil::platforms;
 
-void oclUtil::init(const bool checkGL)
+void oclUtil::Init(const bool checkGL)
 {
     platforms.clear();
     cl_uint numPlatforms = 0;

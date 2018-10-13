@@ -116,6 +116,12 @@ void _oglTexBase::unbind() const noexcept
     //glBindTexture((GLenum)Type, 0);
 }
 
+void _oglTexBase::CheckMipmapLevel(const uint8_t level) const
+{
+    if (level >= Mipmap)
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"set data of a level exceeds texture's mipmap range.");
+}
+
 std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
 {
     CheckCurrent();
@@ -187,10 +193,12 @@ void _oglTexBase::SetProperty(const TextureFilterVal magFilter, TextureFilterVal
     DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, ConvertFilterVal(minFilter));
 }
 
-void _oglTexBase::CheckMipmapLevel(const uint8_t level) const
+void _oglTexBase::Clear(const TextureDataFormat dformat)
 {
-    if (level >= Mipmap)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"set data of a level exceeds texture's mipmap range.");
+    CheckCurrent();
+    const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
+    for (int32_t level = 0; level < Mipmap; ++level)
+        glClearTexImage(textureID, level, datatype, comptype, nullptr);
 }
 
 bool _oglTexBase::IsCompressed() const
@@ -833,6 +841,7 @@ void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, const bool isUp
     case TextureDataFormat::TYPE_8888R:     datatype = GL_UNSIGNED_INT_8_8_8_8_REV; break;
     case TextureDataFormat::TYPE_10_2:      datatype = GL_UNSIGNED_INT_10_10_10_2; break;
     case TextureDataFormat::TYPE_10_2R:     datatype = GL_UNSIGNED_INT_2_10_10_10_REV; break;
+    case TextureDataFormat::TYPE_11_10R:    datatype = GL_UNSIGNED_INT_10F_11F_11F_REV; break; // no non-rev
     default:                                break;
     }
     const bool normalized = !HAS_FIELD(dformat, TextureDataFormat::INTEGER_MASK);
@@ -881,6 +890,7 @@ oglu::TextureDataFormat TexFormatUtil::ConvertDtypeFrom(const oglu::TextureInner
         case TextureInnerFormat::RGB565:    return TextureDataFormat::TYPE_565    | TextureDataFormat::FORMAT_RGB;
         case TextureInnerFormat::RGB5A1:    return TextureDataFormat::TYPE_5551   | TextureDataFormat::FORMAT_RGBA;
         case TextureInnerFormat::RGB10A2:   return TextureDataFormat::TYPE_10_2   | TextureDataFormat::FORMAT_RGBA;
+        case TextureInnerFormat::RG11B10:   return TextureDataFormat::TYPE_11_10R | TextureDataFormat::FORMAT_RGB;
         case TextureInnerFormat::RGB10A2U:  return TextureDataFormat::TYPE_10_2   | TextureDataFormat::FORMAT_RGBA | TextureDataFormat::INTEGER_MASK;
         default:                            COMMON_THROW(OGLWrongFormatException, u"unsupported composite glTex format", format);
         }
@@ -1240,6 +1250,7 @@ string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
         case TextureDataFormat::TYPE_5551:      dtype = "UNORM5551"sv; break;
         case TextureDataFormat::TYPE_4444:      dtype = "UNORM4444"sv; break;
         case TextureDataFormat::TYPE_10_2:      dtype = "UNORM10_2"sv; break;
+        case TextureDataFormat::TYPE_11_10:     dtype = "UNORM11_10"sv; break;
         case TextureDataFormat::TYPE_8888:      dtype = "UNORM8888"sv; break;
         default:                                dtype = "UNKNOWN"sv; break;
         }
@@ -1274,7 +1285,7 @@ string TexFormatUtil::GetFormatDetail(const TextureDataFormat format) noexcept
     case TextureDataFormat::FORMAT_BGRA:    channel = "BGRA"sv; break;
     default:                                channel = "UNKNOWN"sv; break;
     }
-    return fmt::format("dtype[{:^7}]({:7})channel[{:^7}]", dtype, dflag, channel);
+    return fmt::format("dtype[{:^10}]({:7})channel[{:^7}]", dtype, dflag, channel);
 }
 
 }
