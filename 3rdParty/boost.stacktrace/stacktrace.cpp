@@ -3,7 +3,7 @@
 #include "common/ThreadEx.inl"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
-#else
+#elif !COMPILER_CLANG // no idea how to cleanly make clang find backtrace
 #   define BOOST_STACKTRACE_USE_BACKTRACE 1
 #endif
 #include <boost/stacktrace.hpp>

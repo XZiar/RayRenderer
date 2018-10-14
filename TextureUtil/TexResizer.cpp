@@ -168,7 +168,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
     }
     else
     {
-        auto ptr = img->Map(que, MapFlag::Read);
+        auto ptr = img->Map(que, oclu::MapFlag::Read);
         oglTex2DS tex(img->Width, img->Height, TexFormatUtil::ConvertFrom(img->GetFormat()));
         tex->SetData(img->GetFormat(), ptr);
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
@@ -289,7 +289,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         auto pms = ker->Run<2>(CmdQue, worksize, false);
         agent.Await(common::PromiseResult<void>(pms));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
-        outBuf->Map(CmdQue, MapFlag::Read);
+        outBuf->Map(CmdQue, oclu::MapFlag::Read);
 
         Image result(std::move(buffer), width, height, HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? ImageDataType::RGBA : ImageDataType::RGB);
         if (result.GetDataType() != output)

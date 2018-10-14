@@ -1,9 +1,14 @@
 #pragma once
 #include "RenderCoreRely.h"
+#include "RenderCoreUtil.hpp"
 #include "RenderPass.h"
+#include "GLShader.h"
 
 namespace rayr
 {
+
+enum class PostProcUpdate : uint32_t { LUT = 0x1, FBO = 0x2 };
+MAKE_ENUM_BITFIELD(PostProcUpdate)
 
 class PostProcessor : public NonCopyable, public RenderPass
 {
@@ -21,11 +26,11 @@ private:
     oglu::oglComputeProgram LutGenerator;
     Wrapper<GLShader> PostShader;
     oglu::oglVBO ScreenBox;
+    AtomicBitfiled<PostProcUpdate> UpdateDemand = PostProcUpdate::LUT | PostProcUpdate::FBO;
     array<uint32_t, 3> GroupCount;
     const uint32_t LutSize;
     FBOConfig MidFrameConfig;
     float Exposure = 0.0f;
-    bool NeedUpdateLUT = true, NeedUpdateFBO = true;
     void RegistControllable();
 protected:
 public:
@@ -48,7 +53,6 @@ public:
 
     bool UpdateLUT();
     bool UpdateFBO();
-    bool CheckNeedUpdate() const { return NeedUpdateLUT; }
 };
 
 }

@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+﻿#include "RenderCoreRely.h"
 #include "RenderPass.h"
 #include "SceneManager.h"
 
@@ -145,6 +145,13 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
 
 }
 
+
+
+void RenderPipeLine::RegistControllable()
+{
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue, {}, u"Shader名称")
+        .RegistMember(&RenderPipeLine::Name);
+}
 
 RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext::CurrentContext())
 {

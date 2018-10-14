@@ -19,8 +19,11 @@ using namespace oclu;
 using xziar::img::Image;
 
 
-
-class RAYCOREAPI RenderCore
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+class RAYCOREAPI RenderCore final : public NonCopyable
 {
 private:
     oglContext GLContext;
@@ -32,7 +35,7 @@ private:
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     Wrapper<oglWorker> GLWorker;
-    set<Wrapper<GLShader>> Shaders;
+    set<Wrapper<DefaultRenderPass>> Shaders;
     Wrapper<Scene> TheScene;
     set<Wrapper<RenderPipeLine>> PipeLines;
     Wrapper<RenderPipeLine> RenderTask;
@@ -47,13 +50,19 @@ public:
     void Resize(const uint32_t w, const uint32_t h);
 
     const Wrapper<Scene>& GetScene() const { return TheScene; }
+    const set<Wrapper<DefaultRenderPass>>& GetShaders() const { return Shaders; }
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
-    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
-    void AddShader(const Wrapper<GLShader>& shader);
+    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    void AddShader(const Wrapper<DefaultRenderPass>& shader);
     void ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline);
-};
 
+    void Serialize(const fs::path& fpath) const;
+    void DeSerialize(const fs::path& fpath);
+};
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 }
 

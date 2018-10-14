@@ -74,6 +74,7 @@ RenderCore::RenderCore()
     //for reverse-z
     GLContext->SetDepthClip(true);
     GLContext->SetDepthTest(DepthTestType::GreaterEqual);
+    GLContext->SetSRGBFBO(true);
     //GLContext->SetFaceCulling(FaceCullingType::CullCW);
     {
         const auto ctxs = CreateOCLContext(Vendor::NVIDIA, GLContext);
@@ -96,7 +97,7 @@ RenderCore::RenderCore()
     PostProc->SetMidFrame(1280, 720, true);
     Wrapper<RenderPipeLine> onePass(std::in_place);
     Wrapper<RenderPipeLine> twoPass(std::in_place);
-    const auto pbrPass = Shaders.begin()->cast_dynamic<DefaultRenderPass>();
+    const auto pbrPass = *Shaders.begin();
     onePass->Passes.push_back(pbrPass);
     twoPass->Passes.push_back(pbrPass);
     twoPass->Passes.push_back(PostProc);
@@ -113,17 +114,15 @@ void RenderCore::RefreshContext() const
 
 void RenderCore::InitShaders()
 {
-    {
-        ShaderConfig config;
-        config.Routines["getNorm"] = "bothNormal";
-        config.Routines["getAlbedo"] = "bothAlbedo";
-        Wrapper<DefaultRenderPass> prog3D(u"3D-pbr", getShaderFromDLL(IDR_SHADER_3DPBR), config);
-        Shaders.insert(prog3D);
-        prog3D->Program->State()
-            .SetSubroutine("lighter", "albedoOnly")
-            .SetSubroutine("getNorm", "bothNormal")
-            .SetSubroutine("getAlbedo", "bothAlbedo");
-    }
+    ShaderConfig config;
+    config.Routines["getNorm"] = "bothNormal";
+    config.Routines["getAlbedo"] = "bothAlbedo";
+    Wrapper<DefaultRenderPass> prog3D(u"3D-pbr", getShaderFromDLL(IDR_SHADER_3DPBR), config);
+    AddShader(prog3D);
+    prog3D->Program->State()
+        .SetSubroutine("lighter", "albedoOnly")
+        .SetSubroutine("getNorm", "bothNormal")
+        .SetSubroutine("getAlbedo", "bothAlbedo");
 }
 
 RenderCore::~RenderCore()
@@ -132,7 +131,7 @@ RenderCore::~RenderCore()
 
 void RenderCore::TestSceneInit()
 {
-    const auto pbrPass = Shaders.begin()->cast_dynamic<DefaultRenderPass>();
+    const auto pbrPass = *Shaders.begin();
     Wrapper<Pyramid> pyramid(1.0f);
     pyramid->Name = u"Pyramid";
     pyramid->position = { 0,0,0 };
@@ -196,18 +195,18 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
     }, fname).detach();
 }
 
-void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError)
+void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError)
 {
     auto pms = GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent& agent)
     {
-        auto shader = Wrapper<GLShader>(shdName, common::file::ReadAllText(fname));
+        auto shader = Wrapper<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
         shader->Program->State()
             .SetSubroutine("lighter", "tex0")
             .SetSubroutine("getNorm", "bothNormal")
             .SetSubroutine("getAlbedo", "bothAlbedo");
         return shader;
     }, u"load shader " + shdName, common::asyexe::StackSize::Big);
-    std::thread([this, onFinish, onError](common::PromiseResult<Wrapper<GLShader>>&& pms)
+    std::thread([this, onFinish, onError](common::PromiseResult<Wrapper<DefaultRenderPass>>&& pms)
     {
         common::SetThreadName(u"AsyncLoader for Shader");
         try
@@ -222,7 +221,7 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
     }, std::move(pms)).detach();
 }
 
-void RenderCore::AddShader(const Wrapper<GLShader>& shader)
+void RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)
 {
     Shaders.insert(shader);
 }
@@ -232,6 +231,48 @@ void RenderCore::ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline)
     if (!FindInSet(PipeLines, pipeline))
         PipeLines.insert(pipeline);
     RenderTask = pipeline;
+}
+
+
+void RenderCore::Serialize(const fs::path & fpath) const
+{
+    SerializeUtil serializer(fpath);
+    serializer.IsPretty = true;
+    serializer.AddFilter([](SerializeUtil&, const xziar::respak::Serializable& object)
+    {
+        return SerializeUtil::IsAnyType<detail::_ModelMesh>(object) ? "/meshes" : "";
+    });
+    {
+        auto jprogs = serializer.NewArray();
+        for (const auto& prog : Shaders)
+        {
+            serializer.AddObject(jprogs, *prog);
+        }
+        serializer.AddObject("shaders", jprogs);
+    }
+    serializer.AddObject(serializer.Root, "scene", *TheScene);
+    serializer.Finish();
+}
+
+void RenderCore::DeSerialize(const fs::path & fpath)
+{
+    DeserializeUtil deserializer(fpath);
+    {
+        vector<Wrapper<DefaultRenderPass>> tmpShaders;
+        const auto jprogs = deserializer.Root.GetArray("shaders");
+        for (const auto ele : jprogs)
+        {
+            const ejson::JObjectRef<true> jdrw(ele);
+            const auto k = deserializer.DeserializeShare<DefaultRenderPass>(jdrw);
+            tmpShaders.push_back(k);
+        }
+    }
+    TheScene = deserializer.DeserializeShare<Scene>(deserializer.Root.GetObject("scene"));
+    for (const auto& shd : Shaders)
+    {
+        for (const auto& drw : TheScene->GetDrawables())
+            shd->RegistDrawable(drw);
+    }
 }
 
 

@@ -8,6 +8,26 @@
 namespace oglu::detail
 {
 
+_oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufId(buf.bufferID), Size(buf.BufSize)
+{
+    GLenum access;
+    if (HAS_FIELD(flags, MapFlag::MapRead) && !HAS_FIELD(flags, MapFlag::MapWrite))
+        access = GL_READ_ONLY;
+    else if (!HAS_FIELD(flags, MapFlag::MapRead) && HAS_FIELD(flags, MapFlag::MapWrite))
+        access = GL_WRITE_ONLY;
+    else
+        access = GL_READ_WRITE;
+
+    Pointer = DSA->ogluMapNamedBuffer(BufId, access);
+}
+
+_oglMapPtr::~_oglMapPtr()
+{
+    if (DSA->ogluUnmapNamedBuffer(BufId) == GL_FALSE)
+        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", BufId, Size);
+}
+
+
 _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 {
     glGenBuffers(1, &bufferID);
@@ -18,12 +38,8 @@ _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 _oglBuffer::~_oglBuffer() noexcept
 {
     if (!EnsureValid()) return;
-    if (MappedPtr != nullptr)
-    {
-        if (DSA->ogluUnmapNamedBuffer(bufferID) == GL_FALSE)
-            oglLog().error(u"unmap buffer [{}] with size[{}] and flag[{}] failed.\n", bufferID, BufSize, (GLenum)BufFlag);
-        MappedPtr = nullptr;
-    }
+    if (MappedPtr)
+        MappedPtr.reset();
     if (bufferID != GL_INVALID_INDEX)
         glDeleteBuffers(1, &bufferID);
     else
@@ -44,35 +60,26 @@ void _oglBuffer::unbind() const noexcept
     glBindBuffer((GLenum)BufType, 0);
 }
 
-void _oglBuffer::PersistentMap(const size_t size, const BufferFlags flags)
+oglMapPtr _oglBuffer::PersistentMap(const size_t size, const MapFlag flags)
 {
     CheckCurrent();
-    BufFlag = flags | BufferFlags::PersistentMap;
     bind();
-    glBufferStorage((GLenum)BufType, size, nullptr, (GLenum)(BufFlag & BufferFlags::PrepareMask));
+    glBufferStorage((GLenum)BufType, size, nullptr, (GLenum)((flags | MapFlag::PersistentMap) & MapFlag::PrepareMask));
     BufSize = size;
-    GLenum access;
-    if (HAS_FIELD(BufFlag, BufferFlags::MapRead) && !HAS_FIELD(BufFlag, BufferFlags::MapWrite))
-        access = GL_READ_ONLY;
-    else if (!HAS_FIELD(BufFlag, BufferFlags::MapRead) && HAS_FIELD(BufFlag, BufferFlags::MapWrite))
-        access = GL_WRITE_ONLY;
-    else
-        access = GL_READ_WRITE;
-
-    MappedPtr = DSA->ogluMapNamedBuffer(bufferID, access);
+    return new _oglMapPtr(*this, flags);
 }
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
     CheckCurrent();
-    if (MappedPtr == nullptr)
+    if (MappedPtr)
     {
-        DSA->ogluNamedBufferData(bufferID, size, dat, (GLenum)mode);
-        BufSize = size;
+        memcpy_s(MappedPtr, BufSize, dat, size);
     }
     else
     {
-        memcpy_s(MappedPtr, BufSize, dat, size);
+        DSA->ogluNamedBufferData(bufferID, size, dat, (GLenum)mode);
+        BufSize = size;
     }
 }
 
@@ -83,7 +90,7 @@ _oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Texture
 
 _oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(BufferType::Uniform)
 {
-    PersistentMap(size, BufferFlags::PersistentMap | BufferFlags::CoherentMap | BufferFlags::MapWrite);
+    MappedPtr = PersistentMap(size, MapFlag::CoherentMap | MapFlag::MapWrite);
     vector<uint8_t> empty(size);
     Write(empty, BufferWriteMode::StreamDraw);
 }

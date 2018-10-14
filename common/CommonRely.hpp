@@ -106,6 +106,16 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #   define COMPILER_MSVC 1
 #endif
 
+#ifndef COMPILER_CLANG
+#   define COMPILER_CLANG 0
+#endif
+#ifndef COMPILER_GCC
+#   define COMPILER_GCC 0
+#endif
+#ifndef COMPILER_MSVC
+#   define COMPILER_MSVC 0
+#endif
+
 /*
 * Concatenate preprocessor tokens A and B without expanding macro definitions
 * (however, if invoked from a macro, macro arguments are expanded).

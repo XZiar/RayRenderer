@@ -105,8 +105,8 @@ private:
     uint8_t isMovingMouse = 0;
     bool isMoved = false;
 
-    FreeGLUTView getSelf();
-    void usethis();
+    FreeGLUTView GetSelf();
+    void Usethis();
     void display();
     void reshape(const int w, const int h);
     void onKeyboard(int key, int x, int y);
@@ -127,10 +127,10 @@ public:
     FuncDropFile funDropFile = nullptr;
     _FreeGLUTView(const int w = 1280, const int h = 720);
     ~_FreeGLUTView();
-    void setTimerCallback(FuncTimer funTime, const uint16_t ms);
-    void setTitle(const string& title);
-    void refresh();
-    void invoke(std::function<bool(void)> task);
+    void SetTimerCallback(FuncTimer funTime, const uint16_t ms);
+    void SetTitle(const string& title);
+    void Refresh();
+    void Invoke(const std::function<void(const FreeGLUTView&)>& task);
 };
 
 

@@ -15,7 +15,7 @@ enum class BufferWriteMode : GLenum
     StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
     DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
 };
-enum class BufferFlags : GLenum
+enum class MapFlag : GLenum
 {
     MapRead = GL_MAP_READ_BIT, MapWrite = GL_MAP_WRITE_BIT, PersistentMap = GL_MAP_PERSISTENT_BIT, CoherentMap = GL_MAP_COHERENT_BIT,
     DynamicStorage = GL_DYNAMIC_STORAGE_BIT, ClientStorage = GL_CLIENT_STORAGE_BIT,
@@ -24,7 +24,38 @@ enum class BufferFlags : GLenum
     PrepareMask = MapRead | MapWrite | PersistentMap | CoherentMap | DynamicStorage | ClientStorage,
     RangeMask = MapRead | MapWrite | PersistentMap | CoherentMap | InvalidateRange | InvalidateAll | ExplicitFlush | UnSynchronize
 };
-MAKE_ENUM_BITFIELD(BufferFlags)
+MAKE_ENUM_BITFIELD(MapFlag)
+
+class oglMapPtr;
+namespace detail
+{
+
+class OGLUAPI _oglMapPtr : public NonCopyable, public NonMovable
+{
+    friend class _oglBuffer;
+    friend class oglMapPtr;
+private:
+    void* Pointer = nullptr;
+    GLuint BufId = GL_INVALID_INDEX;
+    size_t Size;
+    _oglMapPtr(_oglBuffer& buf, const MapFlag flags);
+public:
+    ~_oglMapPtr();
+    void* GetPtr() const { return Pointer; }
+};
+
+}
+
+class oglMapPtr : public std::shared_ptr<detail::_oglMapPtr>
+{
+public:
+    constexpr oglMapPtr() {}
+    oglMapPtr(detail::_oglMapPtr* ptr) : std::shared_ptr<detail::_oglMapPtr>(ptr) {}
+    oglMapPtr(const std::shared_ptr<detail::_oglMapPtr>& ptr) : std::shared_ptr<detail::_oglMapPtr>(ptr) {}
+    operator void*() const { return (*this)->GetPtr(); }
+    template<typename T>
+    T* AsType() const { return reinterpret_cast<T*>((*this)->GetPtr()); }
+};
 
 namespace detail
 {
@@ -32,13 +63,13 @@ namespace detail
 
 class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
 {
+    friend class _oglMapPtr;
     friend class _oglProgram;
     friend class ::oclu::detail::GLInterOP;
 protected:
-    void *MappedPtr = nullptr;
+    oglMapPtr MappedPtr;
     size_t BufSize;
     const BufferType BufType;
-    BufferFlags BufFlag;
     GLuint bufferID = GL_INVALID_INDEX;
     void bind() const noexcept;
     void unbind() const noexcept;
@@ -46,7 +77,8 @@ protected:
 public:
     virtual ~_oglBuffer() noexcept;
 
-    void PersistentMap(const size_t size, const BufferFlags flags);
+    oglMapPtr PersistentMap(const size_t size, const MapFlag flags);
+    oglMapPtr GetMappedPtr() const { return MappedPtr; }
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
     template<class T, class A>
@@ -238,6 +270,8 @@ public:
 };
 
 }
+
+
 
 using oglBuffer = Wrapper<detail::_oglBuffer>;
 using oglPBO = Wrapper<detail::_oglPixelBuffer>;

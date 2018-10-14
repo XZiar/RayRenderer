@@ -65,22 +65,22 @@ PostProcessor::~PostProcessor()
 void PostProcessor::SetExposure(const float exposure)
 {
     Exposure = exposure; 
-    NeedUpdateLUT = true;
+    UpdateDemand.Add(PostProcUpdate::LUT);
 }
 
 void PostProcessor::SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth)
 {
     MidFrameConfig.Width = width, MidFrameConfig.Height = height, MidFrameConfig.NeedFloatDepth = needFloatDepth;
-    NeedUpdateFBO = true;
+    UpdateDemand.Add(PostProcUpdate::FBO);
 }
+
 
 bool PostProcessor::UpdateLUT()
 {
-    if (NeedUpdateLUT)
+    if (UpdateDemand.Extract(PostProcUpdate::LUT))
     {
         LutGenerator->SetUniform("exposure", std::pow(2.0f, Exposure));
         LutGenerator->Run(GroupCount[0], GroupCount[1], GroupCount[2]);
-        NeedUpdateLUT = false;
         return true;
     }
     return false;
@@ -88,7 +88,7 @@ bool PostProcessor::UpdateLUT()
 
 bool PostProcessor::UpdateFBO()
 {
-    if (NeedUpdateFBO)
+    if (UpdateDemand.Extract(PostProcUpdate::FBO))
     {
         FBOTex.reset(MidFrameConfig.Width, MidFrameConfig.Height, TextureInnerFormat::RG11B10);
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
@@ -97,7 +97,6 @@ bool PostProcessor::UpdateFBO()
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
         basLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
             MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
-        NeedUpdateFBO = false;
         return true;
     }
     return false;
@@ -116,6 +115,7 @@ void PostProcessor::OnPrepare(RenderPassContext& context)
 void PostProcessor::OnDraw(RenderPassContext& context)
 {
     oglu::oglFBO::UseDefault();
+    GLContext->SetSRGBFBO(false);
 
     const auto cam = context.GetScene()->GetCamera();
     const auto ow = cam->Width, oh = cam->Height;

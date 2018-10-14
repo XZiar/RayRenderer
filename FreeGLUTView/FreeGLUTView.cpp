@@ -109,7 +109,7 @@ private:
         // }
         // getMap().insert({ view,hwnd,hrc });
         //regist glutCallbacks
-        view->usethis();
+        view->Usethis();
 #if defined(_WIN32)
         const auto hdc = wglGetCurrentDC();
         const FGView::HandleType handle = WindowFromDC(hdc);
@@ -300,12 +300,12 @@ public:
 };
 
 
-FreeGLUTView _FreeGLUTView::getSelf()
+FreeGLUTView _FreeGLUTView::GetSelf()
 {
     return this->shared_from_this();
 }
 
-void _FreeGLUTView::usethis()
+void _FreeGLUTView::Usethis()
 {
     glutSetWindow(wdID);
 }
@@ -315,7 +315,7 @@ void _FreeGLUTView::display()
     //SimpleTimer timer;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if (funDisp != nullptr)
-        funDisp(getSelf());
+        funDisp(GetSelf());
     glutSwapBuffers();
     //timer.Stop();
     //fgvLog().debug(L"Display cost {} us\n", timer.ElapseUs());
@@ -326,8 +326,8 @@ void _FreeGLUTView::reshape(const int w, const int h)
     width = w; height = h;
     //glViewport((w & 0x3f) / 2, (h & 0x3f) / 2, w & 0xffc0, h & 0xffc0);
     if (funReshape != nullptr)
-        funReshape(getSelf(), w, h);
-    refresh();
+        funReshape(GetSelf(), w, h);
+    Refresh();
 }
 
 void _FreeGLUTView::onKeyboard(int key, int x, int y)
@@ -397,7 +397,7 @@ void _FreeGLUTView::onKey(uint8_t key, const int x, const int y)
             else if (key == 127)//delete->backspace
                 key = 8;
         }
-        funKeyEvent(getSelf(), KeyEvent(key, x, y, isCtrl, isShift, isAlt));
+        funKeyEvent(GetSelf(), KeyEvent(key, x, y, isCtrl, isShift, isAlt));
     }
 }
 
@@ -406,7 +406,7 @@ void _FreeGLUTView::onWheel(int, int dir, int x, int y)
     if (funMouseEvent == nullptr)
         return;
     //forward if dir > 0, backward if dir < 0
-    funMouseEvent(getSelf(), MouseEvent(MouseEventType::Wheel, MouseButton::None, x, height - y, dir, 0));
+    funMouseEvent(GetSelf(), MouseEvent(MouseEventType::Wheel, MouseButton::None, x, height - y, dir, 0));
 }
 
 void _FreeGLUTView::onMouse(int x, int y)
@@ -426,7 +426,7 @@ void _FreeGLUTView::onMouse(int x, int y)
         const int dx = x - lx, dy = y - ly;
         lx = x, ly = y;
         //origin in GLUT is at TopLeft, While OpenGL choose BottomLeft as origin, hence dy should be fliped
-        funMouseEvent(getSelf(), MouseEvent(MouseEventType::Moving, static_cast<MouseButton>(isMovingMouse), x, height - y, dx, -dy));
+        funMouseEvent(GetSelf(), MouseEvent(MouseEventType::Moving, static_cast<MouseButton>(isMovingMouse), x, height - y, dx, -dy));
     }
 }
 
@@ -447,12 +447,12 @@ void _FreeGLUTView::onMouse(int button, int state, int x, int y)
     {
         isMovingMouse = (uint8_t)btn;
         lx = sx = x, ly = sy = y; isMoved = !deshake;
-        funMouseEvent(getSelf(), MouseEvent(MouseEventType::Down, btn, x, height - y, 0, 0));
+        funMouseEvent(GetSelf(), MouseEvent(MouseEventType::Down, btn, x, height - y, 0, 0));
     }
     else
     {
         isMovingMouse = (uint8_t)MouseButton::None;
-        funMouseEvent(getSelf(), MouseEvent(MouseEventType::Up, btn, x, height - y, 0, 0));
+        funMouseEvent(GetSelf(), MouseEvent(MouseEventType::Up, btn, x, height - y, 0, 0));
     }
 }
 
@@ -460,14 +460,14 @@ void _FreeGLUTView::onDropFile(const u16string& fname)
 {
     if (funDropFile == nullptr)
         return;
-    funDropFile(getSelf(), fname);
+    funDropFile(GetSelf(), fname);
 }
 
 void _FreeGLUTView::onClose()
 {
     if (funOnClose == nullptr)
         return;
-    funOnClose(getSelf());
+    funOnClose(GetSelf());
 }
 
 static std::pair<int32_t, int32_t> GetScreenSize()
@@ -501,9 +501,9 @@ _FreeGLUTView::~_FreeGLUTView()
         glutDestroyWindow(wdID);
 }
 
-void _FreeGLUTView::setTimerCallback(FuncTimer funTime, const uint16_t ms)
+void _FreeGLUTView::SetTimerCallback(FuncTimer funTime, const uint16_t ms)
 {
-    FreeGLUTManager::Executor().AddTask([self = getSelf(), task = std::move(funTime), timer = SimpleTimer(), ms](const AsyncAgent& agent) mutable
+    FreeGLUTManager::Executor().AddTask([self = GetSelf(), task = std::move(funTime), timer = SimpleTimer(), ms](const AsyncAgent& agent) mutable
     {
         while (true)
         {
@@ -517,28 +517,24 @@ void _FreeGLUTView::setTimerCallback(FuncTimer funTime, const uint16_t ms)
     });
 }
 
-void _FreeGLUTView::setTitle(const string& title)
+void _FreeGLUTView::SetTitle(const string& title)
 {
-    usethis();
+    Usethis();
     glutSetWindowTitle(title.c_str());
 }
 
-void _FreeGLUTView::refresh()
+void _FreeGLUTView::Refresh()
 {
     glutPostWindowRedisplay(wdID);
 }
 
 
-void _FreeGLUTView::invoke(std::function<bool(void)> task)
+void _FreeGLUTView::Invoke(const std::function<void(const FreeGLUTView&)>& task)
 {
-    auto self = getSelf();
-    auto fut = FreeGLUTManager::Executor().AddTask([self=std::move(self), task=std::move(task)](const AsyncAgent&)
+    FreeGLUTManager::Executor().AddTask([self = GetSelf(), task = task](const AsyncAgent&)
     {
-        if (task())
-            self->refresh();
-        return true;
-    });
-    fut->Wait();
+        task(self);
+    })->Wait();
     return;
 }
 

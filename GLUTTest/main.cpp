@@ -31,79 +31,96 @@ constexpr float muler = (float)(PI_float / 180);
 
 void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
 {
-    switch (keyevent.SpecialKey())
+    if (keyevent.hasCtrl())
     {
-    case Key::Up:
-        tester->GetScene()->GetDrawables()[curObj]->Move(0, 0.1f, 0); break;
-    case Key::Down:
-        tester->GetScene()->GetDrawables()[curObj]->Move(0, -0.1f, 0); break;
-    case Key::Left:
-        tester->GetScene()->GetDrawables()[curObj]->Move(-0.1f, 0, 0); break;
-    case Key::Right:
-        tester->GetScene()->GetDrawables()[curObj]->Move(0.1f, 0, 0); break;
-    case Key::PageUp:
-        tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, -0.1f); break;
-    case Key::PageDown:
-        tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, 0.1f); break;
-    case Key::UNDEFINE:
-        switch (keyevent.key)
+        switch (keyevent.SpecialKey())
         {
-        case (uint8_t)Key::ESC:
-            window.release();
-            return;
-        case 'a'://pan to left
-            tester->GetScene()->GetCamera()->Yaw(3 * muler); break;
-        case 'd'://pan to right
-            tester->GetScene()->GetCamera()->Yaw(-3 * muler); break;
-        case 'w'://pan to up
-            tester->GetScene()->GetCamera()->Pitch(3 * muler); break;
-        case 's'://pan to down
-            tester->GetScene()->GetCamera()->Pitch(-3 * muler); break;
-        case 'q'://pan to left
-            tester->GetScene()->GetCamera()->Roll(-3 * muler); break;
-        case 'e'://pan to left
-            tester->GetScene()->GetCamera()->Roll(3 * muler); break;
-        case 'A':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, 3 * muler); break;
-        case 'D':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, -3 * muler); break;
-        case 'W':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(3 * muler, 0, 0); break;
-        case 'S':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(-3 * muler, 0, 0); break;
-        case 'Q':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 3 * muler, 0); break;
-        case 'E':
-            tester->GetScene()->GetDrawables()[curObj]->Rotate(0, -3 * muler, 0); break;
-        case 'x':
-            wd2.reset(800, 600);
-            break;
-        case 'X':
-            wd2.release(); break;
-        case 13:
+        case Key::F1:
             if (keyevent.hasShift())
-                isAnimate = !isAnimate;
+                tester->DeSerialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
             else
-            {
-                //tester->mode = !tester->mode;
-                //window->setTitle(tester->mode ? "3D" : "2D");
-            } break;
-        case '+':
-            curObj++;
-            if (curObj >= (uint16_t)(tester->GetScene()->GetDrawables().size()))
-                curObj = 0;
+                tester->Serialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
             break;
-        case '-':
-            if (curObj == 0)
-                curObj = (uint16_t)(tester->GetScene()->GetDrawables().size());
-            curObj--;
+        default:
             break;
         }
-        //printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->GetScene()->GetCamera()->Right().x, tester->GetScene()->GetCamera()->Right().y, tester->GetScene()->GetCamera()->Right().z,
-        //    tester->GetScene()->GetCamera()->Up().x, tester->GetScene()->GetCamera()->Up().y, tester->GetScene()->GetCamera()->Up().z, tester->GetScene()->GetCamera()->Toward().x, tester->GetScene()->GetCamera()->Toward().y, tester->GetScene()->GetCamera()->Toward().z);
-        break;
     }
-    wd->refresh();
+    else
+    {
+        switch (keyevent.SpecialKey())
+        {
+        case Key::Up:
+            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0.1f, 0); break;
+        case Key::Down:
+            tester->GetScene()->GetDrawables()[curObj]->Move(0, -0.1f, 0); break;
+        case Key::Left:
+            tester->GetScene()->GetDrawables()[curObj]->Move(-0.1f, 0, 0); break;
+        case Key::Right:
+            tester->GetScene()->GetDrawables()[curObj]->Move(0.1f, 0, 0); break;
+        case Key::PageUp:
+            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, -0.1f); break;
+        case Key::PageDown:
+            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, 0.1f); break;
+        case Key::UNDEFINE:
+            switch (keyevent.key)
+            {
+            case (uint8_t)Key::ESC:
+                window.release();
+                return;
+            case 'a'://pan to left
+                tester->GetScene()->GetCamera()->Yaw(3 * muler); break;
+            case 'd'://pan to right
+                tester->GetScene()->GetCamera()->Yaw(-3 * muler); break;
+            case 'w'://pan to up
+                tester->GetScene()->GetCamera()->Pitch(3 * muler); break;
+            case 's'://pan to down
+                tester->GetScene()->GetCamera()->Pitch(-3 * muler); break;
+            case 'q'://pan to left
+                tester->GetScene()->GetCamera()->Roll(-3 * muler); break;
+            case 'e'://pan to left
+                tester->GetScene()->GetCamera()->Roll(3 * muler); break;
+            case 'A':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, 3 * muler); break;
+            case 'D':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, -3 * muler); break;
+            case 'W':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(3 * muler, 0, 0); break;
+            case 'S':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(-3 * muler, 0, 0); break;
+            case 'Q':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 3 * muler, 0); break;
+            case 'E':
+                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, -3 * muler, 0); break;
+            case 'x':
+                wd2.reset(800, 600);
+                break;
+            case 'X':
+                wd2.release(); break;
+            case 13:
+                if (keyevent.hasShift())
+                    isAnimate = !isAnimate;
+                else
+                {
+                    //tester->mode = !tester->mode;
+                    //window->setTitle(tester->mode ? "3D" : "2D");
+                } break;
+            case '+':
+                curObj++;
+                if (curObj >= (uint16_t)(tester->GetScene()->GetDrawables().size()))
+                    curObj = 0;
+                break;
+            case '-':
+                if (curObj == 0)
+                    curObj = (uint16_t)(tester->GetScene()->GetDrawables().size());
+                curObj--;
+                break;
+            }
+            //printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->GetScene()->GetCamera()->Right().x, tester->GetScene()->GetCamera()->Right().y, tester->GetScene()->GetCamera()->Right().z,
+            //    tester->GetScene()->GetCamera()->Up().x, tester->GetScene()->GetCamera()->Up().y, tester->GetScene()->GetCamera()->Up().z, tester->GetScene()->GetCamera()->Toward().x, tester->GetScene()->GetCamera()->Toward().y, tester->GetScene()->GetCamera()->Toward().z);
+            break;
+        }
+    }
+    wd->Refresh();
 }
 
 void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
@@ -122,7 +139,7 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
     default:
         return;
     }
-    wd->refresh();
+    wd->Refresh();
 }
 
 void autoRotate()
@@ -135,7 +152,7 @@ bool onTimer(FreeGLUTView wd, uint32_t)
     if (isAnimate)
     {
         autoRotate();
-        wd->refresh();
+        wd->Refresh();
     }
     return true;
 }
@@ -145,29 +162,30 @@ void onDropFile(FreeGLUTView wd, u16string fname)
     const auto extName = fs::path(fname).extension().u16string();
     if (extName == u".obj")
     {
-        tester->LoadModelAsync(*(u16string*)&fname, [&, wd](auto model)
+        tester->LoadModelAsync(fname, [&, wd](auto model)
         {
-            wd->invoke([&, model]
+            wd->Invoke([&, model](const FreeGLUTView& wd)
             {
                 if (tester->GetScene()->AddObject(model))
                 {
                     curObj = (uint16_t)(tester->GetScene()->GetDrawables().size() - 1);
-                    tester->GetScene()->GetDrawables()[curObj]->Rotate(-90 * muler, 0, 0);
-                    tester->GetScene()->GetDrawables()[curObj]->Move(-1, 0, 0);
-                    return true;
+                    model->Rotate(-90 * muler, 0, 0);
+                    model->Move(-1, 0, 0);
+                    for (const auto& shd : tester->GetShaders())
+                        shd->RegistDrawable(model);
+                    wd->Refresh();
                 }
-                return false;
             });
         });
     }
     else if (extName == u".glsl")
     {
-        tester->LoadShaderAsync(*(u16string*)&fname, u"test0", [&, wd](auto shd) 
+        tester->LoadShaderAsync(fname, u"test0", [&, wd](auto shd) 
         {
-            wd->invoke([&, shd] 
+            wd->Invoke([&, shd](const FreeGLUTView& wd)
             {
-                //return tester->AddShader(shd);
-                return true;
+                tester->AddShader(shd);
+                wd->Refresh();
             });
         });
     }
@@ -188,20 +206,19 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
     tester->TestSceneInit();
     window->funDisp = [&](FreeGLUTView wd) { tester->Draw(); };
     window->funReshape = onResize;
-    window->setTitle("3D");
+    window->SetTitle("3D");
     window->funKeyEvent = onKeyboard;
     window->funMouseEvent = onMouseEvent;
-    window->setTimerCallback(onTimer, 20);
+    window->SetTimerCallback(onTimer, 20);
     window->funDropFile = onDropFile;
     window->funOnClose = [&](FreeGLUTView wd) { isAnimate = false; tester.release(); };
-    if (false)
+    //if (false)
     {
         const auto light = Wrapper<rayr::PointLight>(std::in_place);
         light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         tester->GetScene()->AddLight(light);
         //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
-    //tester->Serialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
 
     FreeGLUTViewRun();
 }

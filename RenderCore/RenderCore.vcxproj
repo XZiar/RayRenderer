@@ -232,6 +232,7 @@
     <ClInclude Include="PostProcessor.h" />
     <ClInclude Include="RenderCore.h" />
     <ClInclude Include="RenderCoreRely.h" />
+    <ClInclude Include="RenderCoreUtil.hpp" />
     <ClInclude Include="RenderElement.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="RenderPass.h" />
