@@ -103,20 +103,15 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         for (const auto ele : jdrawables)
         {
             const ejson::JObjectRef<true> jdrw(ele);
-            const auto k = context.DeserializeShare<Drawable>(jdrw);
-            Drawables.push_back(context.DeserializeShare<Drawable>(jdrw));
+            const auto drw = context.DeserializeShare<Drawable>(jdrw);
+            WaitDrawables.push_back(drw);
+            Drawables.push_back(drw);
         }
         ReportChanged(SceneChange::Object);
     }
     MainCam = context.DeserializeShare<Camera>(object.GetObject("camera"));
 }
 
-RESPAK_DESERIALIZER(Scene)
-{
-    auto ret = new Scene();
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
-}
-RESPAK_REGIST_DESERIALZER(Scene)
+RESPAK_IMPL_SIMP_DESERIALIZE(Scene)
 
 }

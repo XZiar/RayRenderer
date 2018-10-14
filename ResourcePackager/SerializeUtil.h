@@ -8,23 +8,6 @@ namespace xziar::respak
 class SerializeUtil;
 class DeserializeUtil;
 
-namespace detail
-{
-
-struct RESPAKAPI ResourceItem
-{
-    bytearray<32> SHA256;
-    bytearray<8> Size;
-    bytearray<8> Offset;
-    bytearray<4> Index;
-    bytearray<12> Dummy = { byte(0) };
-    ResourceItem(bytearray<32>&& sha256, const uint64_t size, const uint64_t offset, const uint32_t index);
-    string ExtractHandle() const;
-    uint64_t GetSize() const;
-};
-
-}
-
 class RESPAKAPI Serializable
 {
     friend class SerializeUtil;
@@ -37,14 +20,65 @@ protected:
     virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) {}
 };
 
-#define RESPAK_OVERRIDE_TYPE(type) static constexpr auto SERIALIZE_TYPE = type; \
+#define RESPAK_DECL_SIMP_DESERIALIZE(typestr) static constexpr auto SERIALIZE_TYPE = typestr; \
     static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::ejson::JObjectRef<true>& object); \
     virtual ::std::string_view SerializedType() const override { return SERIALIZE_TYPE; }
-#define RESPAK_REGIST_DESERIALZER(type) namespace \
+
+#define RESPAK_IMPL_SIMP_DESERIALIZE(type, ...) namespace \
     { \
         const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::DoDeserialize); \
+    } \
+    ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object) \
+    { \
+        auto obj = new type(); \
+        obj->Deserialize(context, object); \
+        return std::unique_ptr<Serializable>(obj); \
     }
-#define RESPAK_DESERIALIZER(type) ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object)
+
+#define RESPAK_DECL_COMP_DESERIALIZE(typestr) static constexpr auto SERIALIZE_TYPE = typestr; \
+    static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::ejson::JObjectRef<true>& object); \
+    virtual ::std::string_view SerializedType() const override { return SERIALIZE_TYPE; } \
+    static ::std::any DeserializeArg(::xziar::respak::DeserializeUtil&, const ::xziar::ejson::JObjectRef<true>& object);
+
+#define RESPAK_IMPL_COMP_DESERIALIZE(type, ...) namespace \
+    { \
+        const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::DoDeserialize); \
+    } \
+    ::std::unique_ptr<::xziar::respak::Serializable> type::DoDeserialize(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object) \
+    { \
+        auto args = DeserializeArg(context, object); \
+        if (!args.has_value()) return {}; \
+        auto obj = std::apply([](auto&&... args) { return new type(std::forward<decltype(args)>(args)...); }, \
+            std::move(*std::any_cast<std::tuple<__VA_ARGS__>>(&args))); \
+        obj->Deserialize(context, object); \
+        return std::unique_ptr<Serializable>(obj); \
+    } \
+    ::std::any type::DeserializeArg(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object)
+
+
+namespace detail
+{
+
+struct RESPAKAPI ResourceItem
+{
+public:
+    bytearray<32> SHA256;
+    bytearray<8> Size;
+    bytearray<8> Offset;
+    bytearray<4> Index;
+    bytearray<12> Dummy = { byte(0) };
+    ResourceItem() {}
+    ResourceItem(bytearray<32>&& sha256, const uint64_t size, const uint64_t offset, const uint32_t index);
+    string ExtractHandle() const;
+    uint64_t GetSize() const;
+    uint64_t GetOffset() const;
+    uint32_t GetIndex() const;
+    bool CheckSHA(const bytearray<32>& sha256) const;
+    bool operator==(const ResourceItem& other) const;
+    bool operator!=(const ResourceItem& other) const;
+};
+
+}
 
 class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
 {
@@ -114,16 +148,28 @@ class RESPAKAPI DeserializeUtil : public NonCopyable, public NonMovable
 public:
     using DeserializeFunc = std::function<std::unique_ptr<Serializable>(DeserializeUtil&, const ejson::JObjectRef<true>&)>;
 private:
-    static std::unordered_map<std::string_view, DeserializeFunc>& DeserializeMap();
+    template<typename T>
+    class CheckHasDoDeserialize
+    {
+    private:
+        template <typename U>
+        static auto HasDoDes(int) -> decltype (
+            U::DoDeserialize(std::declval<DeserializeUtil&>(), std::declval<const ejson::JObjectRef<true>&>()),
+            std::true_type{});
+        template <typename U>
+        static std::false_type HasDoDes(...);
+    public:
+        static constexpr bool Check() { return decltype(HasDoDes<T>(0))::value; }
+    };
 
+    static std::unordered_map<std::string_view, DeserializeFunc>& DeserializeMap();
     BufferedFileReader ResReader;
     ejson::JObject DocRoot;
 
-    unordered_map<intptr_t, string> ObjectLookup;
+    unordered_map<ejson::JObjectRef<true>, std::shared_ptr<Serializable>, ejson::JNodeHash> ObjectCache;
     vector<detail::ResourceItem> ResourceList;
-    unordered_map<bytearray<32>, uint32_t, detail::SHA256Hash> ResourceSet;
-    unordered_map<string, uint32_t> ResourceLookup;
-    std::unique_ptr<Serializable> InnerDeserialize(const ejson::JObjectRef<true>& object);
+    unordered_map<string, uint32_t> ResourceSet;
+    std::unique_ptr<Serializable> InnerDeserialize(const ejson::JObjectRef<true>& object, std::unique_ptr<Serializable>(*fallback)(DeserializeUtil&, const ejson::JObjectRef<true>&));
 public:
     static uint32_t RegistDeserializer(const std::string_view& type, const DeserializeFunc& func);
 
@@ -131,19 +177,33 @@ public:
     DeserializeUtil(const fs::path& fileName);
     ~DeserializeUtil();
 
+    common::AlignedBuffer GetResource(const string& handle);
+
     template<typename T>
     std::unique_ptr<T> Deserialize(const ejson::JObjectRef<true>& object)
     {
-        auto ret = InnerDeserialize(object);
+        std::unique_ptr<Serializable> ret;
+        if constexpr (CheckHasDoDeserialize<T>::Check())
+            ret = InnerDeserialize(object, &T::DoDeserialize);
+        else
+            ret = InnerDeserialize(object, nullptr);
         if constexpr(std::is_same_v<T, Serializable>)
             return ret;
         else
             return std::unique_ptr<T>(dynamic_cast<T*>(ret.release()));
     }
     template<typename T>
-    std::shared_ptr<T> DeserializeShare(const ejson::JObjectRef<true>& object)
+    std::shared_ptr<T> DeserializeShare(const ejson::JObjectRef<true>& object, const bool cache = true)
     {
-        return std::shared_ptr<T>(Deserialize<T>(object));
+        if (cache)
+        {
+            if (auto ret = common::container::FindInMapOrDefault(ObjectCache, object); ret)
+                return std::dynamic_pointer_cast<T>(ret);
+        }
+        auto obj = std::shared_ptr<T>(Deserialize<T>(object));
+        if (cache)
+            ObjectCache.emplace(object, obj);
+        return obj;
     }
 
 };

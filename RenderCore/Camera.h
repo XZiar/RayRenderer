@@ -17,7 +17,7 @@ public:
     u16string Name;
     Camera() noexcept { }
 
-    RESPAK_OVERRIDE_TYPE("rayr#Camera")
+    RESPAK_DECL_SIMP_DESERIALIZE("rayr#Camera")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 

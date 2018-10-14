@@ -29,7 +29,7 @@ static void FGTest()
     oglUtil::Init(true);
     const auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
-    window->setTitle("FGTest");
+    window->SetTitle("FGTest");
     oglDrawProgram drawer(u"MainDrawer");
     oglVBO screenBox(std::in_place);
     oglVAO basicVAO(VAODrawMode::Triangles);
@@ -103,7 +103,7 @@ static void FGTest()
         default:
             return;
         }
-        wd->refresh();
+        wd->Refresh();
     };
     window->funKeyEvent = [&](FreeGLUTView wd, KeyEvent evt)
     {
@@ -116,7 +116,7 @@ static void FGTest()
         default:
             return;
         }
-        wd->refresh();
+        wd->Refresh();
     };
     // window->setTimerCallback(onTimer, 20);
     // window->funDropFile = onDropFile;

@@ -38,7 +38,7 @@ Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer)
     }
 }
 
-Model::Model(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
+Model::Model(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
     : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer), asyncer) {}
 
 Model::~Model()
@@ -83,13 +83,9 @@ void Model::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_DESERIALIZER(Model)
+RESPAK_IMPL_COMP_DESERIALIZE(Model, u16string, std::shared_ptr<detail::TextureLoader>, Wrapper<oglu::oglWorker>)
 {
-    return nullptr;
-    //auto ret = new Model(object.Get<float>("SideLen"), object.Get<float>("TexRepeat"));
-    //ret->Deserialize(context, object);
-    //return std::unique_ptr<Serializable>(ret);
+    return std::any{};
 }
-RESPAK_REGIST_DESERIALZER(Model)
 
 }

@@ -33,13 +33,7 @@ void Camera::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>
     Resize(w, h);
 }
 
-RESPAK_DESERIALIZER(Camera)
-{
-    auto ret = new Camera();
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
-}
-RESPAK_REGIST_DESERIALZER(Camera)
+RESPAK_IMPL_SIMP_DESERIALIZE(Camera)
 
 
 }

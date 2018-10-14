@@ -49,7 +49,7 @@ struct PTstubHasher
 
 static map<u16string, ModelMesh> MODEL_CACHE;
 
-ModelMesh _ModelMesh::GetModel(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
+ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
@@ -112,7 +112,7 @@ ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
 }
 
 
-void _ModelMesh::loadOBJ(const fs::path& objpath, std::shared_ptr<detail::TextureLoader>& texLoader) try
+void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::TextureLoader>& texLoader) try
 {
     using miniBLAS::VecI4;
     OBJLoder ldr(objpath);
@@ -249,7 +249,7 @@ void _ModelMesh::InitDataBuffers()
     }
 }
 
-_ModelMesh::_ModelMesh(const u16string& fname, std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
+_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
 {
     loadOBJ(mfname, texLoader);
     if (asyncer)

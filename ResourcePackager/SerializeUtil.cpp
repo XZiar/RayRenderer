@@ -1,14 +1,32 @@
 #include "ResourcePackagerRely.h"
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
+#include "common/Linq.hpp"
 #include "3rdParty/rapidjson/pointer.h"
+#include "3rdParty/boost.stacktrace/stacktrace.h"
 
+// ResFile Structure
+// |------------|
+// |ResourceItem|
+// | resource 1 |
+// |------------|
+// |   ......   |
+// |------------|
+// |ResourceItem|
+// | resource N |
+// |------------|
+// |  res list  |
+// |ResourceItem|
+// |------------|
+
+using common::linq::Linq;
 using common::container::FindInMap;
 
 static constexpr std::string_view TypeFieldName = "#Type";
 
 namespace xziar::respak
 {
+static constexpr size_t RESITEM_SIZE = sizeof(detail::ResourceItem);
 
 namespace detail
 {
@@ -24,12 +42,33 @@ string ResourceItem::ExtractHandle() const
 
 uint64_t ResourceItem::GetSize() const
 {
-    uint64_t num = 0;
-    for (uint8_t i = 0; i < 8; ++i)
-        num = num * 256 + std::to_integer<uint32_t>(Size[i]);
-    return num;
+    return FromLEByteArray<uint64_t>(Size);
 }
-
+uint64_t ResourceItem::GetOffset() const
+{
+    return FromLEByteArray<uint64_t>(Offset);
+}
+uint32_t ResourceItem::GetIndex() const
+{
+    return FromLEByteArray<uint32_t>(Index);
+}
+bool ResourceItem::CheckSHA(const bytearray<32>& sha256) const
+{
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        if (SHA256[i] != sha256[i])
+            return false;
+    }
+    return true;
+}
+bool ResourceItem::operator==(const ResourceItem& other) const
+{
+    return memcmp(this, &other, RESITEM_SIZE) == 0;
+}
+bool ResourceItem::operator!=(const ResourceItem& other) const
+{
+    return !operator==(other);
+}
 
 }
 
@@ -150,7 +189,7 @@ string SerializeUtil::PutResource(const void * data, const size_t size, const st
     if (!id.empty())
         ResourceLookup.insert_or_assign(id, ResCount);
     ResCount++;
-    ResOffset += sizeof(detail::ResourceItem) + size;
+    ResOffset += RESITEM_SIZE + size;
     return metadata.ExtractHandle();
 }
 
@@ -163,8 +202,8 @@ string SerializeUtil::LookupResource(const string & id) const
 void SerializeUtil::Finish()
 {
     CheckFinished();
-    ResWriter.Write(ResCount * sizeof(detail::ResourceItem), ResourceList.data());
-    detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * sizeof(detail::ResourceItem)), 0, ResOffset, ResCount);
+    ResWriter.Write(ResCount * RESITEM_SIZE, ResourceList.data());
+    detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * RESITEM_SIZE), 0, ResOffset, ResCount);
     sumdata.Dummy[0] = byte('X');
     sumdata.Dummy[1] = byte('Z');
     sumdata.Dummy[2] = byte('P');
@@ -193,20 +232,65 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
+    const auto size = ResReader.GetSize();
+    if (size < RESITEM_SIZE)
+        COMMON_THROWEX(BaseException, u"wrong respak size");
+    detail::ResourceItem sumdata;
+    ResReader.Rewind(size - RESITEM_SIZE);
+    ResReader.Read(sumdata);
+    if (sumdata.Dummy[0] != byte('X') || sumdata.Dummy[1] != byte('Z') || sumdata.Dummy[2] != byte('P') || sumdata.Dummy[3] != byte('K'))
+        COMMON_THROWEX(BaseException, u"wrong respak signature");
+    const auto itemcount = sumdata.GetIndex();
+    const auto offset = sumdata.GetOffset();
+    const size_t indexsize = itemcount * RESITEM_SIZE;
+    if (offset + indexsize != size - sizeof(sumdata))
+        COMMON_THROWEX(BaseException, u"wrong respak size");
+    ResourceList.resize(itemcount);
+    ResReader.Rewind(offset);
+    ResReader.Read(indexsize, ResourceList.data());
+    if (!sumdata.CheckSHA(ResourceUtil::SHA256(ResourceList.data(), indexsize)))
+        COMMON_THROWEX(BaseException, u"wrong checksum for resource index");
+    if (Linq::FromIterable(ResourceList)
+        .Where([index = 0u](const detail::ResourceItem& item) mutable { return item.GetIndex() != index++; })
+        .TryGetFirst())
+        COMMON_THROWEX(BaseException, u"wrong index list for resource index");
+    ResourceSet = Linq::FromIterable(ResourceList)
+        .ToMap(ResourceSet, [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
+            [index = 0](const auto&) mutable { return index++; });
 }
 
 DeserializeUtil::~DeserializeUtil()
 {
 }
 
-std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(const ejson::JObjectRef<true>& object)
+common::AlignedBuffer DeserializeUtil::GetResource(const string & handle)
 {
-    //const ejson::DocumentHandle& dh = object;
+    if (handle.size() != 64 + 1 || handle[0] != '@')
+        COMMON_THROWEX(BaseException, u"wrong reource handle");
+    const auto findres = FindInMap(ResourceSet, handle, std::in_place);
+    if (!findres)
+        return {};
+    const auto& metadata = ResourceList[findres.value()];
+    ResReader.Rewind(metadata.GetOffset());
+    detail::ResourceItem item;
+    ResReader.Read(item);
+    if (metadata != item)
+        COMMON_THROWEX(BaseException, u"unmatch resource metadata with resource index");
+    common::AlignedBuffer ret((size_t)metadata.GetSize());
+    ResReader.Read((size_t)metadata.GetSize(), ret.GetRawPtr());
+    return ret;
+}
+
+std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(const ejson::JObjectRef<true>& object, 
+    std::unique_ptr<Serializable>(*fallback)(DeserializeUtil&, const ejson::JObjectRef<true>&))
+{
     const auto type = object.Get<string_view>(TypeFieldName);
     const auto it = FindInMap(DeserializeMap(), type);
-    if (!it)
-        return nullptr;
-    return (*it)(*this, object);
+    if (it)
+        return (*it)(*this, object);
+    if (fallback)
+        return (*fallback)(*this, object);
+    return nullptr;
 }
 
 }

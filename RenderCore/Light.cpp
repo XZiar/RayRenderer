@@ -45,14 +45,11 @@ void Light::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
     isOn = object.Get<bool>("isOn");
 }
 
-RESPAK_DESERIALIZER(Light)
+RESPAK_IMPL_COMP_DESERIALIZE(Light, LightType, u16string)
 {
-    auto ret = new Light(static_cast<LightType>(object.Get<int32_t>("lightType")),
+    return std::make_tuple(static_cast<LightType>(object.Get<int32_t>("lightType")),
         str::to_u16string(object.Get<string>("name"), Charset::UTF8));
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
 }
-RESPAK_REGIST_DESERIALZER(Light)
 
 
 }

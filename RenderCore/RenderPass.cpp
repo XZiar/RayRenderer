@@ -145,6 +145,10 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
 
 }
 
+RESPAK_IMPL_COMP_DESERIALIZE(DefaultRenderPass, u16string, string, oglu::ShaderConfig)
+{
+    return GLShader::DeserializeArg(context, object);
+}
 
 
 void RenderPipeLine::RegistControllable()

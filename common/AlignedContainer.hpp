@@ -143,11 +143,14 @@ public:
     }
     AlignedBuffer& operator= (AlignedBuffer&& other) noexcept
     {
-        ReleaseCore();
-        CoreInfo = other.CoreInfo; other.CoreInfo = nullptr;
-        Data = other.Data; other.Data = nullptr;
-        Size = other.Size; other.Size = 0;
-        Align = other.Align;
+        if (this != &other)
+        {
+            ReleaseCore();
+            CoreInfo = other.CoreInfo; other.CoreInfo = nullptr;
+            Data = other.Data; other.Data = nullptr;
+            Size = other.Size; other.Size = 0;
+            Align = other.Align;
+        }
         return *this;
     }
     std::byte& operator[](std::ptrdiff_t idx) noexcept { return Data[idx]; }

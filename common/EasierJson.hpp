@@ -226,6 +226,7 @@ public:
 template<typename Child>
 struct JNode
 {
+    friend struct JNodeHash;
 public:
     rapidjson::Value& ValRef()
     {
@@ -265,7 +266,23 @@ public:
             ValRef().Accept(writer);
         }
     }
-    bool IsNull() const { return ValRef().IsNull(); }
+    bool IsNull() const 
+    {
+        const auto& val = ValRef();
+        return (&val == nullptr) || val.IsNull();
+    }
+    template<typename T>
+    bool operator==(const JNode<T>& other) const { return &ValRef() == &other.ValRef(); }
+};
+
+struct JNodeHash : public std::hash<const rapidjson::Value*>
+{
+public:
+    template<typename Child>
+    constexpr size_t operator()(const JNode<Child>& node) const noexcept
+    {
+        return std::hash<const rapidjson::Value*>::operator()(&node.ValRef());
+    }
 };
 
 class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>

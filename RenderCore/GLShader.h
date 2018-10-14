@@ -24,9 +24,9 @@ public:
         using namespace std::literals;
         return u"GLShader"sv;
     }
-    RESPAK_OVERRIDE_TYPE("rayr#GLShader")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    RESPAK_DECL_COMP_DESERIALIZE("rayr#GLShader")
 };
 #if COMPILER_MSVC
 #   pragma warning(pop)

@@ -45,6 +45,7 @@
     - [ ] Redesign shader-drawable's binding strategy
     - [ ] Add pass concept (customizable)
     - [ ] Add render pipeline concept (layers of passes)
+    - [ ] Add batch of drawables
   * Rendering
     - [ ] Add Cubemap (environment map) with HDR
     - [ ] Implement IBL

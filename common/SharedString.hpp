@@ -74,9 +74,12 @@ public:
     }
     SharedString& operator=(SharedString<Char>&& other) noexcept
     {
-        Decrease();
-        StrView = other.StrView;
-        other.StrView = std::basic_string_view<Char>(nullptr, 0);
+        if (this != &other)
+        {
+            Decrease();
+            StrView = other.StrView;
+            other.StrView = std::basic_string_view<Char>(nullptr, 0);
+        }
         return *this;
     }
     operator const std::basic_string_view<Char>&() const noexcept

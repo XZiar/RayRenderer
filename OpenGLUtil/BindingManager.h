@@ -202,6 +202,8 @@ public:
         if (used.head != UINT16_MAX)
             data[used.head].prev = fixed.tail, data[fixed.tail].next = used.head;
         used.head = fixed.head;
+        if (used.tail == UINT16_MAX)
+            used.tail = fixed.tail;
         fixed.head = fixed.tail = UINT16_MAX;
     }
 };

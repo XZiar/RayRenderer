@@ -74,12 +74,21 @@ constexpr inline void ToLE(T intva, uint8_t* output)
 }
 
 template<typename T>
-constexpr inline bytearray<sizeof(T)> ToLEByteArray(T intva)
+constexpr inline bytearray<sizeof(T)> ToLEByteArray(const T raw)
 {
+    auto intval = static_cast<uint64_t>(raw);
     bytearray<sizeof(T)> output;
-    for (size_t i = 0; i < sizeof(T); ++i, intva /= 256)
-        output[i] = byte(intva);
+    for (size_t i = 0; i < sizeof(T); ++i, intval >>= 8)
+        output[i] = byte(intval);
     return output;
+}
+template<typename T>
+constexpr inline T FromLEByteArray(const bytearray<sizeof(T)>& input)
+{
+    uint64_t tmp = 0;
+    for (size_t i = 0; i < sizeof(T); ++i)
+        tmp += std::to_integer<uint32_t>(input[i]) << (i * 8);
+    return static_cast<T>(tmp);
 }
 
 }

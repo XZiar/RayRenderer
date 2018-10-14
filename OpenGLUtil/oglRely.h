@@ -37,7 +37,7 @@
 #include "glew/glew.h"
 
 
-#if defined(COMPILER_MSVC) && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
+#if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"
 #endif
 

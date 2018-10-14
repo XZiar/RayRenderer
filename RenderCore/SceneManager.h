@@ -31,7 +31,7 @@ private:
     AtomicBitfiled<SceneChange> SceneChanges = SceneChange::Light;
 public:
     Scene();
-    RESPAK_OVERRIDE_TYPE("rayr#Scene")
+    RESPAK_DECL_SIMP_DESERIALIZE("rayr#Scene")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 

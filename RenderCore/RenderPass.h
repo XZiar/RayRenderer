@@ -74,7 +74,7 @@ public:
         using namespace std::literals;
         return u"DefaultRenderPass"sv;
     }
-    RESPAK_OVERRIDE_TYPE("rayr#DefaultRenderPass")
+    RESPAK_DECL_COMP_DESERIALIZE("rayr#DefaultRenderPass")
 };
 
 class RAYCOREAPI RenderPipeLine : public Controllable

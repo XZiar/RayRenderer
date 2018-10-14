@@ -157,7 +157,8 @@ void GLShader::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<tru
 {
 }
 
-RESPAK_DESERIALIZER(GLShader)
+
+RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
 {
     using namespace oglu;
     ShaderConfig config;
@@ -167,29 +168,28 @@ RESPAK_DESERIALIZER(GLShader)
             .ToMap(config.Defines,
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) -> ShaderConfig::DefineVal
-                {
-                    if (kvpair.second.IsNull()) return {};
-                    xziar::ejson::JArrayRef<true> valarray(kvpair.second);
-                    switch (valarray.Get<size_t>(0))
-                    {
-                    case DefineInt32:   return valarray.Get<int32_t>(1);
-                    case DefineUInt32:  return valarray.Get<uint32_t>(1);
-                    case DefineFloat:   return valarray.Get<float>(1);
-                    case DefineDouble:  return valarray.Get<double>(1);
-                    default:            return {};
-                    }
-                });
+        {
+            if (kvpair.second.IsNull()) return {};
+            xziar::ejson::JArrayRef<true> valarray(kvpair.second);
+            switch (valarray.Get<size_t>(0))
+            {
+            case DefineInt32:   return valarray.Get<int32_t>(1);
+            case DefineUInt32:  return valarray.Get<uint32_t>(1);
+            case DefineFloat:   return valarray.Get<float>(1);
+            case DefineDouble:  return valarray.Get<double>(1);
+            default:            return {};
+            }
+        });
         config.Routines = Linq::FromIterable(jconfig.GetObject("routines"))
             .ToMap(std::map<string, string>{},
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) { return kvpair.second.AsValue<string>(); });
     }
-    const u16string name = str::to_u16string(object.Get<string>("config"), Charset::UTF8);
-    auto ret = new GLShader(name, object.Get<string>("source"), config);
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
+    u16string name = str::to_u16string(object.Get<string>("config"), Charset::UTF8);
+    const auto srchandle = object.Get<string>("source");
+    const auto source = context.GetResource(srchandle);
+    return std::any(std::make_tuple(name, string(source.GetRawPtr<const char>(), source.GetSize()), config));
 }
-RESPAK_REGIST_DESERIALZER(GLShader)
 
 
 }

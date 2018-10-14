@@ -54,13 +54,10 @@ void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_DESERIALIZER(Pyramid)
+RESPAK_IMPL_COMP_DESERIALIZE(Pyramid, float)
 {
-    auto ret = new Pyramid(object.Get<float>("sidelen"));
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
+    return std::tuple(object.Get<float>("sidelen"));
 }
-RESPAK_REGIST_DESERIALZER(Pyramid)
 
 
 static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
@@ -133,13 +130,10 @@ void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_DESERIALIZER(Sphere)
+RESPAK_IMPL_COMP_DESERIALIZE(Sphere, float)
 {
-    auto ret = new Sphere(object.Get<float>("radius"));
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
+    return std::tuple(object.Get<float>("radius"));
 }
-RESPAK_REGIST_DESERIALZER(Sphere)
 
 
 /*
@@ -228,15 +222,12 @@ void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& o
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_DESERIALIZER(Box)
+RESPAK_IMPL_COMP_DESERIALIZE(Box, float, float, float)
 {
     b3d::Vec3 size;
     detail::FromJArray(object.GetArray("size"), size);
-    auto ret = new Box(size.x, size.y, size.z);
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
+    return std::tuple(size.x, size.y, size.z);
 }
-RESPAK_REGIST_DESERIALZER(Box)
 
 
 Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME), SideLen(len), TexRepeat(texRepeat)
@@ -273,12 +264,9 @@ void Plane::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_DESERIALIZER(Plane)
+RESPAK_IMPL_COMP_DESERIALIZE(Plane, float, float)
 {
-    auto ret = new Plane(object.Get<float>("SideLen"), object.Get<float>("TexRepeat"));
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
+    return std::tuple(object.Get<float>("SideLen"), object.Get<float>("TexRepeat"));
 }
-RESPAK_REGIST_DESERIALZER(Plane)
 
 }

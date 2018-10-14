@@ -10,6 +10,35 @@ using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using oglu::TextureInnerFormat;
 
+namespace detail
+{
+RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, oglu::TextureInnerFormat, uint32_t, uint32_t)
+{
+    const auto format = (oglu::TextureInnerFormat)object.Get<uint16_t>("format");
+    const auto width = object.Get<uint32_t>("width");
+    const auto height = object.Get<uint32_t>("height");
+    const auto mipmap = object.Get<uint8_t>("mipmap");
+    vector<common::AlignedBuffer> data;
+    
+    const auto jdata = object.GetArray("data");
+    for (const auto ele : jdata)
+    {
+        const auto srchandle = ele.AsValue<string>();
+        data.push_back(context.GetResource(srchandle));
+    }
+
+    return std::tuple(std::move(data), format, width, height);
+}
+ejson::JObject _FakeTex::Serialize(SerializeUtil & context) const
+{
+    return context.NewObject();
+}
+void _FakeTex::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+}
+}
+
 oglu::TextureInnerFormat TexHolder::GetInnerFormat() const
 {
     switch (index())
@@ -112,6 +141,12 @@ static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context
     jtex.Add("data", jdataarr);
     return std::move(jtex);
 }
+static TexHolder DeserializeTex(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    if (object.IsNull())
+        return {};
+    return context.DeserializeShare<detail::_FakeTex>(object);
+}
 ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
 {
     auto jself = context.NewObject();
@@ -127,14 +162,15 @@ ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
         .EJOBJECT_ADD(UseRoughMap)
         .EJOBJECT_ADD(UseAOMap);
     jself.Add("DiffuseMap", SerializeTex(DiffuseMap, context));
-    jself.Add("NormalMap", SerializeTex(NormalMap, context));
-    jself.Add("MetalMap", SerializeTex(MetalMap, context));
-    jself.Add("RoughMap", SerializeTex(RoughMap, context));
-    jself.Add("AOMap", SerializeTex(AOMap, context));
+    jself.Add("NormalMap",  SerializeTex(NormalMap,  context));
+    jself.Add("MetalMap",   SerializeTex(MetalMap,   context));
+    jself.Add("RoughMap",   SerializeTex(RoughMap,   context));
+    jself.Add("AOMap",      SerializeTex(AOMap,      context));
     return jself;
 }
 void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
+    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
     EJSON_GET_MEMBER(object, Metalness);
     EJSON_GET_MEMBER(object, Roughness);
@@ -145,14 +181,13 @@ void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<
     EJSON_GET_MEMBER(object, UseMetalMap);
     EJSON_GET_MEMBER(object, UseRoughMap);
     EJSON_GET_MEMBER(object, UseAOMap);
+    DiffuseMap = DeserializeTex(context, object.GetObject("DiffuseMap"));
+    NormalMap  = DeserializeTex(context, object.GetObject("NormalMap"));
+    MetalMap   = DeserializeTex(context, object.GetObject("MetalMap"));
+    RoughMap   = DeserializeTex(context, object.GetObject("RoughMap"));
+    AOMap      = DeserializeTex(context, object.GetObject("AOMap"));
 }
-RESPAK_DESERIALIZER(PBRMaterial)
-{
-    auto ret = new PBRMaterial(str::to_u16string(object.Get<string>("name"), Charset::UTF8));
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
-}
-RESPAK_REGIST_DESERIALZER(PBRMaterial)
+RESPAK_IMPL_SIMP_DESERIALIZE(PBRMaterial)
 
 struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
 {
@@ -376,13 +411,7 @@ void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const ejson::JOb
     for (const auto& material : object.GetArray("pbr"))
         Materials.push_back(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(material)));
 }
-RESPAK_DESERIALIZER(MultiMaterialHolder)
-{
-    auto ret = new MultiMaterialHolder();
-    ret->Deserialize(context, object);
-    return std::unique_ptr<Serializable>(ret);
-}
-RESPAK_REGIST_DESERIALZER(MultiMaterialHolder)
+RESPAK_IMPL_SIMP_DESERIALIZE(MultiMaterialHolder)
 
 
 }
