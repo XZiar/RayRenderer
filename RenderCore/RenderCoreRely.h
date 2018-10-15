@@ -35,6 +35,7 @@
 #include "ResourcePackager/ResourceUtil.h"
 #include "ResourcePackager/SerializeUtil.h"
 #include "TextureUtil/TexUtilRely.h"
+#include "3rdParty/boost.stacktrace/stacktrace.h"
 #include <cstdint>
 #include <cstring>
 #include <string>

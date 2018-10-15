@@ -23,23 +23,14 @@ MultiMaterialHolder Model::PrepareMaterial() const
     return holder;
 }
 
-Model::Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer) 
-    : Drawable(this, TYPENAME), Mesh(mesh)
+Model::Model(ModelMesh mesh) : Drawable(this, TYPENAME), Mesh(mesh)
 {
     const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
     scale = Vec3(resizer, resizer, resizer);
-    if (asyncer)
-    {
-        const auto task = asyncer->InvokeShare([&](const common::asyexe::AsyncAgent& agent)
-        {
-            agent.Await(oglu::oglUtil::SyncGL());
-        });
-        AsyncAgent::SafeWait(task);
-    }
 }
 
 Model::Model(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
-    : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer), asyncer) {}
+    : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer)) {}
 
 Model::~Model()
 {
@@ -83,9 +74,9 @@ void Model::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
     Drawable::Deserialize(context, object);
 }
 
-RESPAK_IMPL_COMP_DESERIALIZE(Model, u16string, std::shared_ptr<detail::TextureLoader>, Wrapper<oglu::oglWorker>)
+RESPAK_IMPL_COMP_DESERIALIZE(Model, ModelMesh)
 {
-    return std::any{};
+    return std::any(std::tuple(detail::_ModelMesh::GetModel(context, object.Get<string>("mesh"))));
 }
 
 }

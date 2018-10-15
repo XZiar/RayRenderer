@@ -151,11 +151,11 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
     jtex.Add("#Type", detail::_FakeTex::SERIALIZE_TYPE);
     return context.AddObject(std::move(jtex), std::to_string(holder.GetRawPtr()));
 }
-static TexHolder DeserializeTex(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& value)
 {
-    if (object.IsNull())
+    if (value.empty())
         return {};
-    return context.DeserializeShare<detail::_FakeTex>(object);
+    return context.DeserializeShare<detail::_FakeTex>(value);
 }
 ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
 {
@@ -191,11 +191,11 @@ void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<
     EJSON_GET_MEMBER(object, UseMetalMap);
     EJSON_GET_MEMBER(object, UseRoughMap);
     EJSON_GET_MEMBER(object, UseAOMap);
-    DiffuseMap = DeserializeTex(context, object.GetObject("DiffuseMap"));
-    NormalMap  = DeserializeTex(context, object.GetObject("NormalMap"));
-    MetalMap   = DeserializeTex(context, object.GetObject("MetalMap"));
-    RoughMap   = DeserializeTex(context, object.GetObject("RoughMap"));
-    AOMap      = DeserializeTex(context, object.GetObject("AOMap"));
+    DiffuseMap = DeserializeTex(context, object.Get<string_view>("DiffuseMap"));
+    NormalMap  = DeserializeTex(context, object.Get<string_view>("NormalMap"));
+    MetalMap   = DeserializeTex(context, object.Get<string_view>("MetalMap"));
+    RoughMap   = DeserializeTex(context, object.Get<string_view>("RoughMap"));
+    AOMap      = DeserializeTex(context, object.Get<string_view>("AOMap"));
 }
 RESPAK_IMPL_SIMP_DESERIALIZE(PBRMaterial)
 
@@ -297,9 +297,9 @@ void MultiMaterialHolder::Refresh()
     {
         const auto[w, h] = holder.GetSize();
         if (w == 0 || h == 0)
-            COMMON_THROW(BaseException, u"binded texture size cannot be 0", material->Name);
+            COMMON_THROWEX(BaseException, u"binded texture size cannot be 0", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
-            COMMON_THROW(BaseException, u"binded texture size should be power of 2", material->Name);
+            COMMON_THROWEX(BaseException, u"binded texture size should be power of 2", material->Name);
         const detail::TexTag tid(holder.GetInnerFormat(), w, h, holder.GetMipmapCount());
         if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {

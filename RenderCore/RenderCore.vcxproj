@@ -177,6 +177,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\boost.stacktrace\boost.stacktrace.vcxproj">
+      <Project>{73e340bf-05df-4582-b3c8-83f6ef60bd87}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>

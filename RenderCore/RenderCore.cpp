@@ -44,7 +44,7 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
         .SortBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
-        COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");
+        COMMON_THROWEX(BaseException, u"No avaliable OpenCL Platform found");
     const auto glPlat = Linq::FromIterable(oclUtil::getPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
@@ -81,7 +81,7 @@ RenderCore::RenderCore()
         CLContext = ctxs.first; CLSharedContext = ctxs.second;
         CLQue.reset(CLSharedContext, CLSharedContext->GetGPUDevice());
         if (!CLQue)
-            COMMON_THROW(BaseException, u"clQueue initialized failed!");
+            COMMON_THROWEX(BaseException, u"clQueue initialized failed!");
     }
     TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext::NewContext(GLContext, true), CLSharedContext);
     MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
@@ -278,6 +278,7 @@ void RenderCore::DeSerialize(const fs::path & fpath)
     {
         for (const auto& drw : TheScene->GetDrawables())
             shd->RegistDrawable(drw);
+        shd->CleanDrawable();
     }
 }
 

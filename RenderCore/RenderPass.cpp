@@ -67,6 +67,13 @@ void RenderPass::UnregistDrawable(const Wrapper<Drawable>& drawable)
     //WaitDelDrawables.push_back(drawable);
 }
 
+void RenderPass::CleanDrawable()
+{
+    Drawables = Linq::FromIterable(Drawables)
+        .Where([](const auto& d) { return !d.expired(); })
+        .ToSet<std::owner_less<>>();
+}
+
 void RenderPass::Prepare(RenderPassContext& context)
 {
     for (const auto& d : WaitAddDrawables)

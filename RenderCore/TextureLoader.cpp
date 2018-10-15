@@ -45,7 +45,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
 {
     const auto w = img.GetWidth(), h = img.GetHeight();
     if (w <= 4 || h <= 4)
-        COMMON_THROW(BaseException, u"image size to small");
+        COMMON_THROWEX(BaseException, u"image size to small");
     if (!IsPower2(w) || !IsPower2(h))
     {
         const auto newW = 1 << uint32_t(std::round(std::log2(w)));

@@ -12,7 +12,7 @@ class alignas(16) Model : public Drawable
 {
 protected:
     virtual MultiMaterialHolder PrepareMaterial() const override;
-    Model(ModelMesh mesh, const Wrapper<oglu::oglWorker>& asyncer = {});
+    Model(ModelMesh mesh);
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelMesh Mesh;

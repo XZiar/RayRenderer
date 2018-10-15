@@ -197,11 +197,11 @@ public:
         Cookies.insert_or_assign(string(name), std::any(cookie));
     }
     template<typename T>
-    T* GetCookie(const string_view& name) const
+    const T* GetCookie(const string_view& name) const
     {
         const auto it = common::container::FindInMap(Cookies, name);
         if (it)
-            return std::any_cast<T>(it);
+            return std::any_cast<const T>(it);
         else 
             return nullptr;
     }

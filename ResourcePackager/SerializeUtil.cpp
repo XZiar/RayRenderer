@@ -296,19 +296,10 @@ std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(c
 
 ejson::JObjectRef<true> DeserializeUtil::InnerFindShare(const string_view & id)
 {
-    /*if (const auto& path = FindInMap(SharedObjectLookup, id); path)
-    {
-        bool isExist = false;
-        auto& target = rapidjson::Pointer(path->data(), path->size()).Create(DocRoot.ValRef(), DocRoot.GetMemPool(), &isExist);
-        if (!isExist)
-            return {};
-        return JObjectRef
-        const auto strptr = std::to_string(objptr);
-        target.AddMember(ejson::SharedUtil::ToJString(strptr, mempool), static_cast<rapidjson::Value>(Serialize(object)), mempool);
-        return ejson::JObjectRef<true>();
-    }
-    else*/
-    return DocRoot.GetObject(id);
+    if (const auto& path = FindInMap(SharedObjectLookup, id); path)
+        return ejson::JObjectRef<true>(DocRoot.GetFromPath(*path)).GetObject(id.substr(1));
+    else
+        return ejson::JNull();
 }
 
 }

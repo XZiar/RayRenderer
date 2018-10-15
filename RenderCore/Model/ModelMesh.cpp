@@ -50,12 +50,18 @@ struct PTstubHasher
 
 static map<u16string, ModelMesh> MODEL_CACHE;
 
+ModelMesh _ModelMesh::GetModel(DeserializeUtil& context, const string& id)
+{
+    ModelMesh m = context.DeserializeShare<_ModelMesh>(id);
+    MODEL_CACHE.insert_or_assign(m->mfname, m);
+    return m;
+}
+
 ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
-    auto md = new _ModelMesh(fname, texLoader, asyncer);
-    ModelMesh m(std::move(md));
+    ModelMesh m(new _ModelMesh(fname, texLoader, asyncer));
     MODEL_CACHE.insert_or_assign(fname, m);
     return m;
 }
@@ -202,11 +208,24 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
 catch (const FileException&)
 {
     basLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
-    COMMON_THROW(BaseException, u"fail to load model data");
+    COMMON_THROWEX(BaseException, u"fail to load model data");
 }
 
-void _ModelMesh::InitDataBuffers()
+void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
 {
+    if (asyncer)
+    {
+        const auto fileName = fs::path(mfname).filename().u16string();
+        auto task = asyncer->InvokeShare([&](const auto& agent)
+        {
+            InitDataBuffers();
+            auto sync = oglu::oglUtil::SyncGL();
+            agent.Await(sync);
+            basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+        }, fileName);
+        AsyncAgent::SafeWait(task);
+        return;
+    }
     vbo.reset();
     vbo->Write(pts);
     ebo.reset();
@@ -230,22 +249,7 @@ _ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::Tex
     : mfname(fname)
 {
     loadOBJ(mfname, texLoader);
-    if (asyncer)
-    {
-        const auto fileName = fs::path(fname).filename().u16string();
-        auto task = asyncer->InvokeShare([&](const auto& agent)
-        { 
-            InitDataBuffers();
-            auto sync = oglu::oglUtil::SyncGL();
-            agent.Await(sync);
-            basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
-        }, fileName);
-        AsyncAgent::SafeWait(task);
-    }
-    else
-    {
-        InitDataBuffers();
-    }
+    InitDataBuffers(asyncer);
 }
 
 RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
@@ -296,6 +300,9 @@ void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<t
     MaterialMap = Linq::FromIterable(object.GetObject("materials"))
         .ToMap(MaterialMap, [](const auto& kvpair) { return (string)kvpair.first; },
             [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
+
+    const auto asyncer = context.GetCookie<Wrapper<oglu::oglWorker>>("oglWorker");
+    InitDataBuffers(asyncer ? *asyncer : Wrapper<oglu::oglWorker>());
 }
 
 

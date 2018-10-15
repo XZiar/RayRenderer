@@ -24,7 +24,7 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     catch (const OGLException& gle)
     {
         basLog().error(u"OpenGL shader [{}] fail:\n{}\n", name, gle.message);
-        COMMON_THROW(BaseException, u"OpenGL shader fail");
+        COMMON_THROWEX(BaseException, u"OpenGL shader fail");
     }
     RegistControllable();
 }

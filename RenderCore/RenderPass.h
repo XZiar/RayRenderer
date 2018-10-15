@@ -54,6 +54,7 @@ public:
     }
     void RegistDrawable(const Wrapper<Drawable>& drawable);
     void UnregistDrawable(const Wrapper<Drawable>& drawable);
+    void CleanDrawable();
     void Prepare(RenderPassContext& context);
     void Draw(RenderPassContext& context);
 };

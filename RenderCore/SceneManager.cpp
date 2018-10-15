@@ -103,6 +103,8 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         for (const auto ele : jdrawables)
         {
             const ejson::JObjectRef<true> jdrw(ele);
+            basLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("name"), str::Charset::UTF8),
+                str::to_u16string(jdrw.Get<string>("#Type"), str::Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             WaitDrawables.push_back(drw);
             Drawables.push_back(drw);

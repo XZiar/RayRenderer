@@ -332,6 +332,7 @@ public:
 template<bool IsConst>
 class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>, public JPointerSupport<JDocRef<IsConst>, false>
 {
+    template<bool> friend class JDocRef;
     template<typename> friend struct JNode;
     template<typename, bool> friend struct JPointerSupport;
     template<typename, bool> friend class JObjectLike;
@@ -344,7 +345,7 @@ protected:
     const rapidjson::Value& GetValRef() const { return *Val; }
 public:
     template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
-    explicit JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    explicit JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(doc.Val) {}
     template<typename = std::enable_if_t<!IsConst>>
     explicit JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<IsConst>>
@@ -658,11 +659,18 @@ protected:
 public:
     template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
     JObjectRef(const JObjectRef<OtherConst>& doc) : JDocRef<IsConst>(doc.MemPool, doc.Val) {}
-    explicit JObjectRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
+    template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
+    explicit JObjectRef(const JDocRef<OtherConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsObject())
             COMMON_THROW(BaseException, u"value is not an object");
     }
+    explicit JObjectRef(const JDoc& doc) : JDocRef<IsConst>(doc)
+    {
+        if (!doc.ValRef().IsObject())
+            COMMON_THROW(BaseException, u"value is not an object");
+    }
+    JObjectRef(const JNull& doc) : JDocRef<IsConst>(doc) {}
     template<typename = std::enable_if_t<!IsConst>>
     JObjectRef(JObject& jobject) : JDocRef<IsConst>(jobject) {}
     template<typename = std::enable_if_t<IsConst>>
@@ -754,6 +762,6 @@ forceinline JArray DocumentHandle::NewArray()
 }
 #define EJSON_ADD_MEMBER(jobject, field) jobject.Add(u8"" #field, field)
 #define EJOBJECT_ADD(field) Add(u8"" #field, field)
-#define EJSON_GET_MEMBER(jobject, field) jobject.Get(u8"" #field, field)
+#define EJSON_GET_MEMBER(jobject, field) jobject.TryGet(u8"" #field, field)
 
 
