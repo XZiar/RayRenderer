@@ -2,7 +2,6 @@
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
 #include "common/Linq.hpp"
-#include "3rdParty/rapidjson/pointer.h"
 #include "3rdParty/boost.stacktrace/stacktrace.h"
 
 // ResFile Structure
@@ -75,7 +74,7 @@ bool ResourceItem::operator!=(const ResourceItem& other) const
 SerializeUtil::SerializeUtil(const fs::path& fileName)
     : DocWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
     ResWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
-    Root(DocRoot)
+    SharedMap(DocRoot.Add("#global_map", DocRoot.NewObject()).GetObject("#global_map")), Root(DocRoot)
 {
     auto config = DocRoot.NewObject();
     config.Add("identity", "xziar-respak");
@@ -114,40 +113,30 @@ void SerializeUtil::AddObject(const string& name, ejson::JDoc& node)
     DocRoot.Add(name, node);
 }
 
-string SerializeUtil::AddObject(const Serializable& object)
+string SerializeUtil::AddObject(const Serializable& object, string id)
 {
     CheckFinished();
-    const auto objptr = reinterpret_cast<intptr_t>(&object);
-    if (const auto it = FindInMap(ObjectLookup, objptr); it != nullptr)
+    if (id.empty())
+        id = std::to_string(reinterpret_cast<intptr_t>(&object));
+    return AddObject(Serialize(object), id);
+}
+string SerializeUtil::AddObject(ejson::JObject&& jobj, string id)
+{
+    CheckFinished();
+    if (const auto it = FindInMap(ObjectLookup, id); it != nullptr)
         return *it;
 
-    auto& mempool = DocRoot.GetMemPool();
+    const auto serType = jobj.Get<string_view>(TypeFieldName);
+    const auto ptPath = Linq::FromIterable(Filters)
+        .Select([&](const auto& filter) { return filter(serType); })
+        .Where([](const string& path) { return !path.empty(); })
+        .TryGetFirst().value_or("/#globals");
 
-    string path;
-    for (const auto& filter : Filters)
-    {
-        path = filter(*this, object);
-        if (!path.empty()) break;
-    }
-    if (path.empty())
-        path = "/#globals";
-    bool isExist = false;
-    auto& target = rapidjson::Pointer(path.data(), path.size()).Create(DocRoot.ValRef(), mempool, &isExist);
-    if (!isExist)
-        target.SetObject();
-
-    const auto strptr = std::to_string(objptr);
-    target.AddMember(ejson::SharedUtil::ToJString(strptr, mempool), static_cast<rapidjson::Value>(Serialize(object)), mempool);
-    string id = '$' + strptr;
-    ObjectLookup.emplace(objptr, id);
-    return id;
-}
-
-string SerializeUtil::LookupObject(const Serializable & object) const
-{
-    const auto objptr = reinterpret_cast<intptr_t>(&object);
-    const auto it = FindInMap(ObjectLookup, objptr);
-    return it ? *it : "";
+    Root.GetOrCreateObjectFromPath(ptPath).Add(id, jobj);
+    const auto handle = '$' + id;
+    ObjectLookup.emplace(id, handle);
+    SharedMap.Add(handle, ptPath);
+    return handle;
 }
 
 void SerializeUtil::AddObject(ejson::JObject& target, const string & name, const Serializable & object)
@@ -216,6 +205,7 @@ void SerializeUtil::Finish()
 }
 
 
+
 std::unordered_map<std::string_view, DeserializeUtil::DeserializeFunc>& DeserializeUtil::DeserializeMap()
 {
     static std::unordered_map<std::string_view, DeserializeFunc> desMap;
@@ -232,6 +222,10 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
+    SharedObjectLookup = Linq::FromIterable(Root.GetObject("#global_map"))
+        .ToMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
+            [](const auto& kvpair) { return kvpair.second.AsValue<string_view>(); });
+
     const auto size = ResReader.GetSize();
     if (size < RESITEM_SIZE)
         COMMON_THROWEX(BaseException, u"wrong respak size");
@@ -263,10 +257,15 @@ DeserializeUtil::~DeserializeUtil()
 {
 }
 
-common::AlignedBuffer DeserializeUtil::GetResource(const string & handle)
+common::AlignedBuffer DeserializeUtil::GetResource(const string& handle, const bool cache)
 {
     if (handle.size() != 64 + 1 || handle[0] != '@')
         COMMON_THROWEX(BaseException, u"wrong reource handle");
+    if (cache)
+    {
+        if (auto ret = common::container::FindInMap(ResourceCache, handle); ret)
+            return ret->CreateSubBuffer();
+    }
     const auto findres = FindInMap(ResourceSet, handle, std::in_place);
     if (!findres)
         return {};
@@ -278,6 +277,8 @@ common::AlignedBuffer DeserializeUtil::GetResource(const string & handle)
         COMMON_THROWEX(BaseException, u"unmatch resource metadata with resource index");
     common::AlignedBuffer ret((size_t)metadata.GetSize());
     ResReader.Read((size_t)metadata.GetSize(), ret.GetRawPtr());
+    if (cache)
+        ResourceCache.emplace(handle, ret.CreateSubBuffer());
     return ret;
 }
 
@@ -291,6 +292,23 @@ std::unique_ptr<xziar::respak::Serializable> DeserializeUtil::InnerDeserialize(c
     if (fallback)
         return (*fallback)(*this, object);
     return nullptr;
+}
+
+ejson::JObjectRef<true> DeserializeUtil::InnerFindShare(const string_view & id)
+{
+    /*if (const auto& path = FindInMap(SharedObjectLookup, id); path)
+    {
+        bool isExist = false;
+        auto& target = rapidjson::Pointer(path->data(), path->size()).Create(DocRoot.ValRef(), DocRoot.GetMemPool(), &isExist);
+        if (!isExist)
+            return {};
+        return JObjectRef
+        const auto strptr = std::to_string(objptr);
+        target.AddMember(ejson::SharedUtil::ToJString(strptr, mempool), static_cast<rapidjson::Value>(Serialize(object)), mempool);
+        return ejson::JObjectRef<true>();
+    }
+    else*/
+    return DocRoot.GetObject(id);
 }
 
 }

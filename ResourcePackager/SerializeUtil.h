@@ -24,7 +24,7 @@ protected:
     static ::std::unique_ptr<::xziar::respak::Serializable> DoDeserialize(::xziar::respak::DeserializeUtil&, const ::xziar::ejson::JObjectRef<true>& object); \
     virtual ::std::string_view SerializedType() const override { return SERIALIZE_TYPE; }
 
-#define RESPAK_IMPL_SIMP_DESERIALIZE(type, ...) namespace \
+#define RESPAK_IMPL_SIMP_DESERIALIZE(type) namespace \
     { \
         const static auto RESPAK_DESERIALIZER_##type = ::xziar::respak::DeserializeUtil::RegistDeserializer(type::SERIALIZE_TYPE, type::DoDeserialize); \
     } \
@@ -83,14 +83,16 @@ public:
 class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
 {
 public:
-    using FilterFunc = std::function<string(SerializeUtil&, const Serializable&)>;
+    using FilterFunc = std::function<string(const string_view&)>;
 private:
     BufferedFileWriter DocWriter;
     BufferedFileWriter ResWriter;
     ejson::JObject DocRoot;
+    ejson::JObjectRef<false> SharedMap;
     vector<FilterFunc> Filters;
 
-    unordered_map<intptr_t, string> ObjectLookup;
+    // lookup table for global object
+    unordered_map<string, string> ObjectLookup;
     vector<detail::ResourceItem> ResourceList;
     unordered_map<bytearray<32>, uint32_t, detail::SHA256Hash> ResourceSet;
     unordered_map<string, uint32_t> ResourceLookup;
@@ -105,16 +107,16 @@ public:
     SerializeUtil(const fs::path& fileName);
     ~SerializeUtil();
 
-    template<typename... Ts>
-    static bool IsAnyType(const Serializable& object)
-    {
-        return (... || (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
-    }
-    template<typename... Ts>
-    static bool IsAllType(const Serializable& object)
-    {
-        return (... && (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
-    }
+    //template<typename... Ts>
+    //static bool IsAnyType(const Serializable& object)
+    //{
+    //    return (... || (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
+    //}
+    //template<typename... Ts>
+    //static bool IsAllType(const Serializable& object)
+    //{
+    //    return (... && (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
+    //}
     void AddFilter(const FilterFunc& filter) { Filters.push_back(filter); }
 
     template<typename T>
@@ -126,9 +128,11 @@ public:
 
     //simply add node to docroot, bypassing filter
     void AddObject(const string& name, ejson::JDoc& node);
-    //simply add object, will be filtered to get proper path
-    string AddObject(const Serializable& object);
-    string LookupObject(const Serializable& object) const;
+    //simply add a global object, will be filtered to get proper path
+    string AddObject(const Serializable& object, string id = "");
+    //simply add a global object (already parssed), will be filtered to get proper path
+    string AddObject(ejson::JObject&& object, string id);
+    //string LookupObject(const Serializable& object) const;
     //add object to an object, bypassing filter
     void AddObject(ejson::JObject& target, const string& name, const Serializable& object);
     void AddObject(ejson::JObjectRef<false>& target, const string& name, const Serializable& object);
@@ -148,28 +152,38 @@ class RESPAKAPI DeserializeUtil : public NonCopyable, public NonMovable
 public:
     using DeserializeFunc = std::function<std::unique_ptr<Serializable>(DeserializeUtil&, const ejson::JObjectRef<true>&)>;
 private:
-    template<typename T>
     class CheckHasDoDeserialize
     {
     private:
-        template <typename U>
+        template <typename T>
         static auto HasDoDes(int) -> decltype (
-            U::DoDeserialize(std::declval<DeserializeUtil&>(), std::declval<const ejson::JObjectRef<true>&>()),
+            T::DoDeserialize(std::declval<DeserializeUtil&>(), std::declval<const ejson::JObjectRef<true>&>()),
             std::true_type{});
-        template <typename U>
+        template <typename T>
         static std::false_type HasDoDes(...);
     public:
+        template<typename T>
         static constexpr bool Check() { return decltype(HasDoDes<T>(0))::value; }
     };
 
     static std::unordered_map<std::string_view, DeserializeFunc>& DeserializeMap();
     BufferedFileReader ResReader;
     ejson::JObject DocRoot;
-
+    
+    // store cookies injected by deserialize host
+    map<string, std::any, std::less<>> Cookies;
+    // store deserialized shared object acoording to json-node
     unordered_map<ejson::JObjectRef<true>, std::shared_ptr<Serializable>, ejson::JNodeHash> ObjectCache;
+    // store share object lookup
+    map<string_view, string_view, std::less<>> SharedObjectLookup;
+    // store deserialized shared resource acoording to res-handle
+    unordered_map<string, common::AlignedBuffer> ResourceCache;
+    // resource index
     vector<detail::ResourceItem> ResourceList;
+    // resource lookup [handle->residx]
     unordered_map<string, uint32_t> ResourceSet;
     std::unique_ptr<Serializable> InnerDeserialize(const ejson::JObjectRef<true>& object, std::unique_ptr<Serializable>(*fallback)(DeserializeUtil&, const ejson::JObjectRef<true>&));
+    ejson::JObjectRef<true> InnerFindShare(const string_view& id);
 public:
     static uint32_t RegistDeserializer(const std::string_view& type, const DeserializeFunc& func);
 
@@ -177,13 +191,27 @@ public:
     DeserializeUtil(const fs::path& fileName);
     ~DeserializeUtil();
 
-    common::AlignedBuffer GetResource(const string& handle);
-
     template<typename T>
+    void SetCookie(const string_view& name, T&& cookie)
+    {
+        Cookies.insert_or_assign(string(name), std::any(cookie));
+    }
+    template<typename T>
+    T* GetCookie(const string_view& name) const
+    {
+        const auto it = common::container::FindInMap(Cookies, name);
+        if (it)
+            return std::any_cast<T>(it);
+        else 
+            return nullptr;
+    }
+    common::AlignedBuffer GetResource(const string& handle, const bool cache = true);
+
+    template<typename T = Serializable>
     std::unique_ptr<T> Deserialize(const ejson::JObjectRef<true>& object)
     {
         std::unique_ptr<Serializable> ret;
-        if constexpr (CheckHasDoDeserialize<T>::Check())
+        if constexpr (CheckHasDoDeserialize::Check<T>())
             ret = InnerDeserialize(object, &T::DoDeserialize);
         else
             ret = InnerDeserialize(object, nullptr);
@@ -205,7 +233,18 @@ public:
             ObjectCache.emplace(object, obj);
         return obj;
     }
-
+    template<typename T = Serializable>
+    std::unique_ptr<T> Deserialize(const string_view& id)
+    {
+        const auto& node = InnerFindShare(id);
+        return node.IsNull() ? std::unique_ptr<T>{} : Deserialize<T>(node);
+    }
+    template<typename T>
+    std::shared_ptr<T> DeserializeShare(const string_view& id, const bool cache = true)
+    {
+        const auto& node = InnerFindShare(id);
+        return node.IsNull() ? std::shared_ptr<T>{} : DeserializeShare<T>(node, cache);
+    }
 };
 
 

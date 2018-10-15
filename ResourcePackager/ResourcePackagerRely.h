@@ -41,6 +41,7 @@ using std::u16string;
 using std::string_view;
 using std::array;
 using std::vector;
+using std::map;
 using std::unordered_map;
 using std::variant;
 template<size_t N>

@@ -70,3 +70,4 @@
   - [ ] Real custom build system similar to Scons, get rid of makefiles
   - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Add Pch for Linux build
+  - [ ] Add GLFW

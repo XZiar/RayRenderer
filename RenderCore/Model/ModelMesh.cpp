@@ -9,6 +9,7 @@ namespace rayr::detail
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
+using common::linq::Linq;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Normal;
@@ -87,30 +88,6 @@ void _ModelMesh::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
         vaoPrep.SetDrawSize(ibo);
     }
 }
-
-ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
-{
-    auto jself = context.NewObject();
-    jself.Add("mfname", str::to_u8string(mfname, Charset::UTF16LE));
-    jself.Add("size", ToJArray(context, size));
-    jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
-    jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));
-    auto groupArray = context.NewArray();
-    for (const auto&[name, count] : groups)
-    {
-        auto grp = context.NewObject();
-        grp.Add("Name", name);
-        grp.Add("Offset", count);
-        groupArray.Push(grp);
-    }
-    jself.Add("groups", groupArray);
-    auto jmaterials = context.NewObject();
-    for (const auto&[name, mat] : MaterialMap)
-        context.AddObject(jmaterials, name, mat);
-    jself.Add("materials", jmaterials);
-    return jself;
-}
-
 
 void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::TextureLoader>& texLoader) try
 {
@@ -248,8 +225,9 @@ void _ModelMesh::InitDataBuffers()
         ibo->WriteCommands(offs, sizes, true);
     }
 }
-
-_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) :mfname(fname)
+_ModelMesh::_ModelMesh(const u16string& fname) : mfname(fname) {}
+_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
+    : mfname(fname)
 {
     loadOBJ(mfname, texLoader);
     if (asyncer)
@@ -268,6 +246,56 @@ _ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::Tex
     {
         InitDataBuffers();
     }
+}
+
+RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
+{
+    u16string name = str::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
+    return std::any(std::make_tuple(name));
+}
+ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
+{
+    auto jself = context.NewObject();
+    jself.Add("mfname", str::to_u8string(mfname, Charset::UTF16LE));
+    jself.Add("size", ToJArray(context, size));
+    jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
+    jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));
+    auto groupArray = context.NewArray();
+    for (const auto&[name, count] : groups)
+    {
+        auto grp = context.NewObject();
+        grp.Add("Name", name);
+        grp.Add("Offset", count);
+        groupArray.Push(grp);
+    }
+    jself.Add("groups", groupArray);
+    auto jmaterials = context.NewObject();
+    for (const auto&[name, mat] : MaterialMap)
+        context.AddObject(jmaterials, name, mat);
+    jself.Add("materials", jmaterials);
+    return jself;
+}
+void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+    FromJArray(object.GetArray("size"), size);
+    {
+        const auto ptsData = context.GetResource(object.Get<string>("pts"));
+        pts.resize(ptsData.GetSize() / sizeof(oglu::PointEx));
+        memcpy_s(pts.data(), pts.size() * sizeof(oglu::PointEx), ptsData.GetRawPtr(), ptsData.GetSize());
+    }
+    {
+        const auto idxData = context.GetResource(object.Get<string>("indexs"));
+        indexs.resize(idxData.GetSize() / sizeof(uint32_t));
+        memcpy_s(indexs.data(), indexs.size() * sizeof(uint32_t), idxData.GetRawPtr(), idxData.GetSize());
+    }
+    groups = Linq::FromIterable(object.GetArray("groups"))
+        .Cast<ejson::JObjectRef<true>>()
+        .Select([](const ejson::JObjectRef<true>& obj) { return std::pair{ obj.Get<string>("Name"), obj.Get<uint32_t>("Offset") }; })
+        .ToVector();
+    MaterialMap.clear();
+    MaterialMap = Linq::FromIterable(object.GetObject("materials"))
+        .ToMap(MaterialMap, [](const auto& kvpair) { return (string)kvpair.first; },
+            [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
 }
 
 

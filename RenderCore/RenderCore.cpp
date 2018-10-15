@@ -238,9 +238,13 @@ void RenderCore::Serialize(const fs::path & fpath) const
 {
     SerializeUtil serializer(fpath);
     serializer.IsPretty = true;
-    serializer.AddFilter([](SerializeUtil&, const xziar::respak::Serializable& object)
+    serializer.AddFilter([](const string_view& serType)
     {
-        return SerializeUtil::IsAnyType<detail::_ModelMesh>(object) ? "/meshes" : "";
+        if (serType == detail::_ModelMesh::SERIALIZE_TYPE)
+            return "/meshes";
+        else if (serType == detail::_FakeTex::SERIALIZE_TYPE)
+            return "/textures";
+        return "";
     });
     {
         auto jprogs = serializer.NewArray();
@@ -257,6 +261,8 @@ void RenderCore::Serialize(const fs::path & fpath) const
 void RenderCore::DeSerialize(const fs::path & fpath)
 {
     DeserializeUtil deserializer(fpath);
+    deserializer.SetCookie("oglWorker", GLWorker);
+    deserializer.SetCookie("texLoader", TexLoader);
     {
         vector<Wrapper<DefaultRenderPass>> tmpShaders;
         const auto jprogs = deserializer.Root.GetArray("shaders");

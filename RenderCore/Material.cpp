@@ -84,6 +84,15 @@ uint8_t TexHolder::GetMipmapCount() const
     default: return 0;
     }
 }
+uintptr_t TexHolder::GetRawPtr() const
+{
+    switch (index())
+    {
+    case 1: return reinterpret_cast<uintptr_t>(std::get<oglTex2D>(*this).get());
+    case 2: return reinterpret_cast<uintptr_t>(std::get<FakeTex>(*this).get());
+    default: return 0;
+    }
+}
 
 
 uint32_t PBRMaterial::WriteData(std::byte *ptr) const
@@ -102,10 +111,10 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 }
 
 
-static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context)
+static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil & context)
 {
     if (holder.index() != 1 && holder.index() != 2)
-        return ejson::JNull();
+        return {};
     auto jtex = context.NewObject();
     jtex.Add("name", str::to_u8string(holder.GetName(), Charset::UTF16LE));
     jtex.Add("format", (uint16_t)holder.GetInnerFormat());
@@ -135,11 +144,12 @@ static ejson::JDoc SerializeTex(const TexHolder& holder, SerializeUtil & context
                 const auto datahandle = context.PutResource(tex->TexData[i].GetRawPtr(), tex->TexData[i].GetSize());
                 jdataarr.Push(datahandle);
             } break;
-        default: return ejson::JNull();
+        default: break; // should not enter
         }
     }
     jtex.Add("data", jdataarr);
-    return std::move(jtex);
+    jtex.Add("#Type", detail::_FakeTex::SERIALIZE_TYPE);
+    return context.AddObject(std::move(jtex), std::to_string(holder.GetRawPtr()));
 }
 static TexHolder DeserializeTex(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

@@ -62,6 +62,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
     std::pair<uint32_t, uint32_t> GetSize() const;
     std::weak_ptr<void> GetWeakRef() const;
     uint8_t GetMipmapCount() const;
+    uintptr_t GetRawPtr() const;
 };
 
 struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable

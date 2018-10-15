@@ -580,9 +580,9 @@ void BasicTest::Serialize(const fs::path & fpath) const
 {
     SerializeUtil serializer(fpath);
     serializer.IsPretty = true;
-    serializer.AddFilter([](SerializeUtil&, const xziar::respak::Serializable& object)
+    serializer.AddFilter([](const string_view& serType)
     {
-        return SerializeUtil::IsAnyType<detail::_ModelMesh>(object) ? "/meshes" : "";
+        return serType == detail::_ModelMesh::SERIALIZE_TYPE ? "/meshes" : "";
     });
     {
         auto jlights = serializer.NewArray();

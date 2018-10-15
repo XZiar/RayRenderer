@@ -12,6 +12,7 @@
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include "3rdParty/rapidjson/writer.h"
 #include "3rdParty/rapidjson/prettywriter.h"
+#include "3rdParty/rapidjson/pointer.h"
 
 namespace xziar::ejson
 {
@@ -26,6 +27,8 @@ class JDoc;
 class JNull;
 class JObject;
 class JArray;
+template<bool IsConst>
+class JDocRef;
 template<bool IsConst>
 class JObjectRef;
 template<bool IsConst>
@@ -51,8 +54,6 @@ public:
 
 struct SharedUtil
 {
-    template<typename T>
-    constexpr static bool ReturnTrue() { return true; }
     template<typename T>
     constexpr static bool IsString()
     {
@@ -82,7 +83,7 @@ struct SharedUtil
         }
         else
         {
-            static_assert(!ReturnTrue<T>, "unsupported type");
+            static_assert(!common::AlwaysTrue<T>, "unsupported type");
         }
         return jstr;
     }
@@ -90,7 +91,14 @@ struct SharedUtil
     static rapidjson::Value ToVal(T&& val, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
-        if constexpr(IsString<PlainType>())
+        if constexpr (common::is_specialization<PlainType, std::optional>::value)
+        {
+            if (val.has_value())
+                return ToVal(val.value(), mempool);
+            else
+                return rapidjson::Value(rapidjson::kNullType);
+        }
+        else if constexpr(IsString<PlainType>())
             return ToJString(std::forward<T>(val), mempool);
         else if constexpr(std::is_convertible_v<T, rapidjson::Value>)
             return static_cast<rapidjson::Value>(val);
@@ -98,7 +106,7 @@ struct SharedUtil
             return rapidjson::Value(std::forward<T>(val));
         else
         {
-            static_assert(!ReturnTrue<T>, "unsupported type");
+            static_assert(!common::AlwaysTrue<T>, "unsupported type");
             //return {};
         }
     }
@@ -162,7 +170,7 @@ struct SharedUtil
         }
         else
         {
-            static_assert(!ReturnTrue<T>, "unsupported type");
+            static_assert(!common::AlwaysTrue<T>, "unsupported type");
             return false;
         }
         return true;
@@ -285,12 +293,24 @@ public:
     }
 };
 
-class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>
+template<typename Child, bool IsConst>
+struct JPointerSupport
+{
+    JDocRef<IsConst> GetFromPath(const string_view& path);
+    JDocRef<true> GetFromPath(const string_view& path) const;
+    template<typename = std::enable_if_t<!IsConst>>
+    JObjectRef<false> GetOrCreateObjectFromPath(const string_view& path);
+    template<typename = std::enable_if_t<!IsConst>>
+    JArrayRef<false> GetOrCreateArrayFromPath(const string_view& path);
+};
+
+class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>, public JPointerSupport<JDoc, false>
 {
     friend struct JNode<JDoc>;
+    friend struct JPointerSupport<JDoc, false>;
     friend class JArray;
     friend class JObject;
-    template<bool C> friend class JDocRef;
+    template<bool> friend class JDocRef;
 protected:
     rapidjson::Value Val;
     JDoc(const rapidjson::Type type) : DocumentHandle(), Val(type) {}
@@ -310,24 +330,25 @@ public:
 };
 
 template<bool IsConst>
-class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>
+class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>, public JPointerSupport<JDocRef<IsConst>, false>
 {
     template<typename> friend struct JNode;
+    template<typename, bool> friend struct JPointerSupport;
     template<typename, bool> friend class JObjectLike;
 protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
     JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
-    template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
-    JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
-    template<typename = std::enable_if_t<!IsConst>>
-    JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
-    template<typename = std::enable_if_t<IsConst>>
-    JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<!IsConst>>
     rapidjson::Value& GetValRef() { return *Val; }
     const rapidjson::Value& GetValRef() const { return *Val; }
 public:
+    template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
+    explicit JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    template<typename = std::enable_if_t<!IsConst>>
+    explicit JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
+    template<typename = std::enable_if_t<IsConst>>
+    explicit JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<typename = std::enable_if_t<!IsConst>>
     explicit operator rapidjson::Value() { return std::move(Val); }
     template<typename T>
@@ -337,6 +358,22 @@ public:
         return val;
     }
 };
+template<typename Child, bool IsConst>
+forceinline JDocRef<IsConst> JPointerSupport<Child, IsConst>::GetFromPath(const string_view& path)
+{
+    using ChildType = std::conditional_t<IsConst, const Child*, Child*>;
+    const auto self = static_cast<ChildType>(this);
+    size_t dummy = 0;
+    const auto valptr = rapidjson::Pointer(path.data(), path.size()).Get(self->GetValRef(), &dummy);
+    return JDocRef<IsConst>(self->MemPool, valptr);
+}
+template<typename Child, bool IsConst>
+forceinline JDocRef<true> JPointerSupport<Child, IsConst>::GetFromPath(const string_view& path) const
+{
+    const auto self = static_cast<const Child*>(this);
+    const auto valptr = rapidjson::Pointer(path.data(), path.size()).Get(self->GetValRef());
+    return JDocRef<true>(self->MemPool, valptr);
+}
 
 class JNull : public JDoc
 {
@@ -556,9 +593,12 @@ class JArrayRef : public JDocRef<IsConst>, public JArrayLike<JArrayRef<IsConst>,
 {
     friend struct SharedUtil;
     template<typename, typename, typename, bool>friend class JComplexType;
+    template<typename, bool> friend struct JPointerSupport;
 protected:
-    JArrayRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDocRef<IsConst>(mempool, nullptr) {}
+    JArrayRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, JDocRef<IsConst>::InnerValType val = nullptr) 
+        : JDocRef<IsConst>(mempool, val) {}
 public:
+    JArrayRef() : JDocRef<IsConst>() {}
     explicit JArrayRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsArray())
@@ -609,10 +649,15 @@ template<bool IsConst>
 class JObjectRef : public JDocRef<IsConst>, public JObjectLike<JObjectRef<IsConst>, IsConst>
 {
     friend struct SharedUtil;
-    template<typename, typename, typename, bool>friend class JComplexType;
+    template<typename, typename, typename, bool> friend class JComplexType;
+    template<typename, bool> friend struct JPointerSupport;
+    template<bool> friend class JObjectRef;
 protected:
-    JObjectRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool) : JDocRef<IsConst>(mempool, nullptr) {}
+    JObjectRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, JDocRef<IsConst>::InnerValType val = nullptr) 
+        : JDocRef<IsConst>(mempool, val) {}
 public:
+    template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
+    JObjectRef(const JObjectRef<OtherConst>& doc) : JDocRef<IsConst>(doc.MemPool, doc.Val) {}
     explicit JObjectRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsObject())
@@ -630,6 +675,29 @@ public:
     }
 };
 
+
+template<typename Child, bool IsConst>
+template<typename>
+forceinline JObjectRef<false> JPointerSupport<Child, IsConst>::GetOrCreateObjectFromPath(const string_view& path)
+{
+    const auto self = static_cast<Child*>(this);
+    bool isExist;
+    const auto valptr = &rapidjson::Pointer(path.data(), path.size())
+        .Create(self->GetValRef(), self->GetMemPool(), &isExist);
+    if (!isExist) valptr->SetObject();
+    return JObjectRef<false>(self->MemPool, valptr);
+}
+template<typename Child, bool IsConst>
+template<typename>
+forceinline JArrayRef<false> JPointerSupport<Child, IsConst>::GetOrCreateArrayFromPath(const string_view& path)
+{
+    const auto self = static_cast<Child*>(this);
+    bool isExist;
+    const auto valptr = &rapidjson::Pointer(path.data(), path.size())
+        .Create(self->GetValRef(), self->GetMemPool(), &isExist);
+    if (!isExist) valptr->SetArray();
+    return JArrayRef<false>(self->MemPool, valptr);
+}
 
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 forceinline JObjectRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key) const

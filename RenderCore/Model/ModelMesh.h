@@ -31,12 +31,14 @@ private:
     const u16string mfname;
     void loadOBJ(const fs::path& objfname, const std::shared_ptr<detail::TextureLoader>& texLoader);
     void InitDataBuffers();
+    _ModelMesh(const u16string& fname);
     _ModelMesh(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer = {});
 public:
     void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
 
-    virtual std::string_view SerializedType() const override { return "rayr#ModelMesh"; }
+    RESPAK_DECL_COMP_DESERIALIZE("rayr#ModelMesh")
     virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 }
