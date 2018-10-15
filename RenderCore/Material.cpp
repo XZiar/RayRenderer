@@ -29,9 +29,8 @@ RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, oglu::Text
 
     return std::tuple(std::move(data), format, width, height);
 }
-ejson::JObject _FakeTex::Serialize(SerializeUtil & context) const
+void _FakeTex::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    return context.NewObject();
 }
 void _FakeTex::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -157,9 +156,8 @@ static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& val
         return {};
     return context.DeserializeShare<detail::_FakeTex>(value);
 }
-ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
+void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
     jself.EJOBJECT_ADD(Metalness)
@@ -176,7 +174,6 @@ ejson::JObject PBRMaterial::Serialize(SerializeUtil & context) const
     jself.Add("MetalMap",   SerializeTex(MetalMap,   context));
     jself.Add("RoughMap",   SerializeTex(RoughMap,   context));
     jself.Add("AOMap",      SerializeTex(AOMap,      context));
-    return jself;
 }
 void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -215,7 +212,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
         chkTex->SetData(oglu::TextureDataFormat::RGBA8, pixs.data());
         const auto texv = chkTex->GetTextureView();
         texv->Name = u"Check Image";
-        basLog().verbose(u"new CheckTex generated.\n");
+        dizzLog().verbose(u"new CheckTex generated.\n");
         return texv;
     }
 };
@@ -406,14 +403,12 @@ uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
     return pos;
 }
 
-ejson::JObject MultiMaterialHolder::Serialize(SerializeUtil & context) const
+void MultiMaterialHolder::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     auto jmaterials = context.NewArray();
     for (const auto& material : Materials)
         context.AddObject(jmaterials, material);
     jself.Add("pbr", jmaterials);
-    return jself;
 }
 void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

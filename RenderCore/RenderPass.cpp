@@ -91,6 +91,24 @@ void RenderPass::Draw(RenderPassContext & context)
     OnDraw(context);
 }
 
+void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+{
+    jself.Add("Name", str::to_u8string(GetName(), Charset::UTF16LE));
+    auto jdrawables = context.NewArray();
+    for (const auto& d : Drawables)
+    {
+        const auto drw = d.lock();
+        if (drw)
+            jdrawables.Push(boost::uuids::to_string(drw->GetUid()));
+    }
+    jself.Add("drawables", jdrawables);
+}
+
+void RenderPass::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+{
+    SetName(str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+}
+
 
 DefaultRenderPass::DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config)
     : GLShader(name, source, config)
@@ -150,6 +168,18 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
         GLContext->SetViewPort(0, 0, oldWidth, oldHeight);
     }
 
+}
+
+void DefaultRenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+{
+    RenderPass::Serialize(context, jself);
+    GLShader::Serialize(context, jself);
+}
+
+void DefaultRenderPass::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+{
+    RenderPass::Deserialize(context, object);
+    GLShader::Deserialize(context, object);
 }
 
 RESPAK_IMPL_COMP_DESERIALIZE(DefaultRenderPass, u16string, string, oglu::ShaderConfig)

@@ -48,7 +48,7 @@ public:
         return static_cast<uint8_t>(TexData.size());
     }
     RESPAK_DECL_COMP_DESERIALIZE("rayr#FakeTex")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 }
@@ -80,7 +80,7 @@ public:
     uint32_t WriteData(std::byte *ptr) const;
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#PBRMaterial")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
@@ -133,9 +133,9 @@ public:
     void BindTexture(oglu::detail::ProgDraw& drawcall) const;
     uint32_t WriteData(std::byte *ptr) const; 
     
-    RESPAK_DECL_SIMP_DESERIALIZE("rayr#MultiMaterialHolder")
-    virtual ejson::JObject Serialize(SerializeUtil & context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    RESPAK_DECL_SIMP_DESERIALIZE("rayr#MultiMaterialHolder")
 };
 
 

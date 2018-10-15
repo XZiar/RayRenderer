@@ -18,7 +18,7 @@ struct Init
 {
     Init()
     {
-        basLog().verbose(u"RenderCore Static Init\n");
+        dizzLog().verbose(u"RenderCore Static Init\n");
         oglUtil::Init();
         oclUtil::Init();
     }
@@ -54,12 +54,12 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
     if (glPlat)
     {
         sharedCtx = glPlat->CreateContext(glContext);
-        basLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
-        sharedCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
+        dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
+        sharedCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
     }
     defCtx = glPlat == venderClPlat ? sharedCtx : venderClPlat->CreateContext();
-    basLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
-    defCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from CLContext:\t{}\n", errtxt); };
+    dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
+    defCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from CLContext:\t{}\n", errtxt); };
     return { defCtx, sharedCtx };
 }
 
@@ -186,7 +186,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
         }
         catch (BaseException& be)
         {
-            basLog().error(u"failed to load model by file {}\n", name);
+            dizzLog().error(u"failed to load model by file {}\n", name);
             if (onError)
                 onError(be);
             else

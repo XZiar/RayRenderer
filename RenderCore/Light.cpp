@@ -22,9 +22,8 @@ uint32_t LightData::WriteData(std::byte *ptr) const
 }
 
 
-ejson::JObject Light::Serialize(SerializeUtil& context) const
+void Light::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     jself.Add("name", str::to_u8string(name, Charset::UTF16LE));
     jself.Add("position", detail::ToJArray(context, position));
     jself.Add("direction", detail::ToJArray(context, direction));
@@ -33,7 +32,6 @@ ejson::JObject Light::Serialize(SerializeUtil& context) const
     jself.Add("cutoff", context.NewArray().Push(cutoffOuter, cutoffInner));
     jself.Add("lightType", static_cast<int32_t>(type));
     jself.Add("isOn", isOn);
-    return jself;
 }
 void Light::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) 
 {

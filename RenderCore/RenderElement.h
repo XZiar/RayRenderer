@@ -30,6 +30,8 @@ public:
     virtual void Draw(Drawcall& drawcall) const;
 
     u16string GetType() const;
+    const boost::uuids::uuid& GetUid() const { return Uid; };
+
     void Move(const float x, const float y, const float z)
     {
         position += Vec3(x, y, z);
@@ -50,9 +52,10 @@ public:
     void PrepareMaterial(const std::weak_ptr<detail::ThumbnailManager>& thumbman);
     void AssignMaterial();
 
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 private:
+    boost::uuids::uuid Uid;
     Drawable(const std::type_index type, const u16string& typeName);
 protected:
     const std::type_index DrawableType;

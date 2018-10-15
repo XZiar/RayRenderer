@@ -103,7 +103,7 @@ public:
         Length = Content.size() - 1;
         CurPos = 0;
         chset = uchdet::detectEncoding(Content);
-        basLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetWName(chset));
+        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetWName(chset));
     }
 
     TextLine ReadLine()

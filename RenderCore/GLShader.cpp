@@ -23,7 +23,7 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     }
     catch (const OGLException& gle)
     {
-        basLog().error(u"OpenGL shader [{}] fail:\n{}\n", name, gle.message);
+        dizzLog().error(u"OpenGL shader [{}] fail:\n{}\n", name, gle.message);
         COMMON_THROWEX(BaseException, u"OpenGL shader fail");
     }
     RegistControllable();
@@ -123,11 +123,8 @@ constexpr size_t DefineInt32  = common::get_variant_index_v<int32_t,        oglu
 constexpr size_t DefineUInt32 = common::get_variant_index_v<uint32_t,       oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineFloat  = common::get_variant_index_v<float,          oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineDouble = common::get_variant_index_v<double,         oglu::ShaderConfig::DefineVal>();
-ejson::JObject GLShader::Serialize(SerializeUtil& context) const
+void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    using namespace xziar::ejson;
-
-    auto jself = context.NewObject();
     jself.Add("Name", str::to_u8string(Program->Name, Charset::UTF16LE));
     jself.Add("source", context.PutResource(Source.data(), Source.size()));
     auto config = context.NewObject();
@@ -139,7 +136,7 @@ ejson::JObject GLShader::Serialize(SerializeUtil& context) const
             {
                 using T = std::decay_t<decltype(rval)>;
                 if constexpr (std::is_same_v<T, std::monostate>)
-                    defines.Add(name, JNull{});
+                    defines.Add(name, ejson::JNull{});
                 else
                     defines.Add(name, context.NewArray().Push(val.index(), rval));
             }, val);
@@ -151,7 +148,6 @@ ejson::JObject GLShader::Serialize(SerializeUtil& context) const
         config.Add("routines", routines);
     }
     jself.Add("config", config);
-    return jself;
 }
 void GLShader::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

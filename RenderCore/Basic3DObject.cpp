@@ -43,11 +43,10 @@ void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, stri
     SetVAO(prog, vao);
 }
 
-ejson::JObject Pyramid::Serialize(SerializeUtil& context) const
+void Pyramid::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = Drawable::Serialize(context);
+    Drawable::Serialize(context, jself);
     jself.EJOBJECT_ADD(sidelen);
-    return jself;
 }
 void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -119,11 +118,10 @@ void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, strin
     SetVAO(prog, vao);
 }
 
-ejson::JObject Sphere::Serialize(SerializeUtil& context) const
+void Sphere::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = Drawable::Serialize(context);
+    Drawable::Serialize(context, jself);
     jself.EJOBJECT_ADD(radius);
-    return jself;
 }
 void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -211,11 +209,10 @@ void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&
     SetVAO(prog, vao);
 }
 
-ejson::JObject Box::Serialize(SerializeUtil& context) const
+void Box::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = Drawable::Serialize(context);
+    Drawable::Serialize(context, jself);
     jself.Add("size", detail::ToJArray(context, size));
-    return jself;
 }
 void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -253,11 +250,10 @@ void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
     SetVAO(prog, vao);
 }
 
-ejson::JObject Plane::Serialize(SerializeUtil& context) const
+void Plane::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = Drawable::Serialize(context);
+    Drawable::Serialize(context, jself);
     jself.EJOBJECT_ADD(SideLen).EJOBJECT_ADD(TexRepeat);
-    return jself;
 }
 void Plane::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

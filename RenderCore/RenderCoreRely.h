@@ -56,6 +56,9 @@
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/composite_key.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/uuid_generators.hpp>
 
 namespace rayr
 {
@@ -130,7 +133,7 @@ forceinline void FromJArray(const T& jarray, miniBLAS::Vec4& vec)
 #include "common/miniLogger/miniLogger.h"
 namespace rayr
 {
-common::mlog::MiniLogger<false>& basLog();
+common::mlog::MiniLogger<false>& dizzLog();
 string getShaderFromDLL(int32_t id);
 }
 #endif

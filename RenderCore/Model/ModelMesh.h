@@ -38,7 +38,7 @@ public:
     void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
 
     RESPAK_DECL_COMP_DESERIALIZE("rayr#ModelMesh")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 

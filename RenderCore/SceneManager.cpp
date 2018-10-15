@@ -49,7 +49,7 @@ bool Scene::AddObject(const Wrapper<Drawable>& drawable)
     WaitDrawables.push_back(drawable);
     Drawables.push_back(drawable);
     SceneChanges.Add(SceneChange::Object);
-    basLog().success(u"Add an Drawable [{}][{}]:  {}\n", Drawables.size() - 1, drawable->GetType(), drawable->Name);
+    dizzLog().success(u"Add an Drawable [{}][{}]:  {}\n", Drawables.size() - 1, drawable->GetType(), drawable->Name);
     return true;
 }
 
@@ -57,7 +57,7 @@ bool Scene::AddLight(const Wrapper<Light>& light)
 {
     Lights.push_back(light);
     SceneChanges.Add(SceneChange::Light);
-    basLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->type, light->name);
+    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->type, light->name);
     return true;
 }
 
@@ -66,9 +66,8 @@ void Scene::ReportChanged(const SceneChange target)
     SceneChanges.Add(target);
 }
 
-ejson::JObject Scene::Serialize(SerializeUtil& context) const
+void Scene::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     {
         auto jlights = context.NewArray();
         for (const auto& lgt : Lights)
@@ -82,7 +81,6 @@ ejson::JObject Scene::Serialize(SerializeUtil& context) const
         jself.Add("drawables", jdrawables);
     }
     context.AddObject(jself, "camera", *MainCam);
-    return jself;
 }
 
 void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
@@ -103,7 +101,7 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         for (const auto ele : jdrawables)
         {
             const ejson::JObjectRef<true> jdrw(ele);
-            basLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("name"), str::Charset::UTF8),
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("name"), str::Charset::UTF8),
                 str::to_u16string(jdrw.Get<string>("#Type"), str::Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             WaitDrawables.push_back(drw);

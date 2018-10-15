@@ -31,7 +31,7 @@ TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mi
     Compressor.Start([]
     {
         common::SetThreadName(u"TexCompress");
-        basLog().success(u"TexCompress thread start running.\n");
+        dizzLog().success(u"TexCompress thread start running.\n");
     });
     RegistControllable();
 }
@@ -50,7 +50,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
     {
         const auto newW = 1 << uint32_t(std::round(std::log2(w)));
         const auto newH = 1 << uint32_t(std::round(std::log2(h)));
-        basLog().debug(u"decide to resize image[{}*{}] to [{}*{}].\n", w, h, newW, newH);
+        dizzLog().debug(u"decide to resize image[{}*{}] to [{}*{}].\n", w, h, newW, newH);
         auto newImg = Image(img);
         newImg.Resize(newW, newH, true, false);
         return LoadImgToFakeTex(picPath, std::move(img), type, proc);
@@ -103,7 +103,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         }
         catch (const BaseException& be)
         {
-            basLog().error(u"Error when compress texture file [{}] into [{}]: {}\n",
+            dizzLog().error(u"Error when compress texture file [{}] into [{}]: {}\n",
                 picPath.filename().u16string(), oglu::TexFormatUtil::GetFormatName(format), be.message);
         }
         return tex;
@@ -120,13 +120,13 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
     catch (const FileException& fe)
     {
         if (fe.reason == FileException::Reason::ReadFail)
-            basLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
+            dizzLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
         else
-            basLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
+            dizzLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
     }
     catch (const BaseException&)
     {
-        basLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
+        dizzLog().error(u"Fail to decode image file\t[{}]\n", picPath.u16string());
     }
     return {};
 }

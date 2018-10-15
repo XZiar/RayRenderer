@@ -6,6 +6,10 @@
 #pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 #pragma message("Compiling RenderCore with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
+#if defined(__AVX__)
+#pragma message("Compiling RenderCore with [AVX]" )
+#endif
+
 template struct RAYCOREAPI common::AlignBase<16>;
 template struct RAYCOREAPI common::AlignBase<32>;
 
@@ -14,10 +18,10 @@ namespace rayr
 using common::ResourceHelper;
 
 using namespace common::mlog;
-MiniLogger<false>& basLog()
+MiniLogger<false>& dizzLog()
 {
-    static MiniLogger<false> baslog(u"BasicTest", { GetConsoleBackend() });
-    return baslog;
+    static MiniLogger<false> dizzlog(u"RenderCore", { GetConsoleBackend() });
+    return dizzlog;
 }
 
 string getShaderFromDLL(int32_t id)

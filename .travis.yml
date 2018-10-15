@@ -12,6 +12,7 @@ matrix:
         - CPPCOMPILER=g++-8
         - DYNAMICLINKER=g++-8
         - APPLINKER=g++-8
+        - BUILDMODULES="all,-ResourcePackager"
       addons:
         apt:
           sources:
@@ -35,6 +36,7 @@ matrix:
         - CPPCOMPILER=clang++-6.0
         - DYNAMICLINKER=clang++-6.0
         - APPLINKER=clang++-6.0
+        - BUILDMODULES="all"
       addons:
         apt:
           sources:
@@ -78,6 +80,6 @@ before_script:
   - nasm -v
 
 script:
-  - python3 build.py rebuildall "all,-ResourcePackager"
+  - python3 build.py rebuildall $BUILDMODULES
   - python3 build.py rebuildall "SIMDTest" Release
   - ./x64/Release/SIMDTest

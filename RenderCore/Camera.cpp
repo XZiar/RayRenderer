@@ -4,9 +4,8 @@
 namespace rayr
 {
 
-ejson::JObject Camera::Serialize(SerializeUtil& context) const
+void Camera::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     jself.Add("Name", str::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Rotation", detail::ToJArray(context, Rotation));
@@ -15,7 +14,6 @@ ejson::JObject Camera::Serialize(SerializeUtil& context) const
     jself.Add("Toward", detail::ToJArray(context, CamMat.z));
     jself.EJOBJECT_ADD(Fovy).EJOBJECT_ADD(Aspect).EJOBJECT_ADD(zNear).EJOBJECT_ADD(zFar);
     jself.Add("Size", context.NewArray().Push(Width, Height));
-    return jself;
 }
 void Camera::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

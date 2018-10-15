@@ -95,7 +95,7 @@ bool PostProcessor::UpdateFBO()
         MiddleFrame->AttachColorTexture(FBOTex, 0);
         oglRBO mainRBO(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
-        basLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
+        dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
             MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
         return true;
     }
@@ -130,5 +130,15 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 }
 
 
+void PostProcessor::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+{
+}
+void PostProcessor::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+{
+}
+RESPAK_IMPL_COMP_DESERIALIZE(PostProcessor, oclu::oclContext, oclu::oclCmdQue, uint32_t)
+{
+    return std::any{};
+}
 
 }

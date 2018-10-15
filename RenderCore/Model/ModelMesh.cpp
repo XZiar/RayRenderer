@@ -119,7 +119,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
         case "EMPTY"_hash:
             break;
         case "#"_hash:
-            basLog().verbose(u"--obj-note [{}]\n", line.ToUString());
+            dizzLog().verbose(u"--obj-note [{}]\n", line.ToUString());
             break;
         case "v"_hash://vertex
             {
@@ -145,7 +145,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
                 const auto lim = min((size_t)4, line.Params.size() - 1);
                 if (lim < 3)
                 {
-                    basLog().warning(u"too few params for face, ignored : {}\n", line.Line);
+                    dizzLog().warning(u"too few params for face, ignored : {}\n", line.Line);
                     break;
                 }
                 for (uint32_t a = 0; a < lim; ++a)
@@ -162,7 +162,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
                 {
                     if (tmpidx.x == tmpidx.y || tmpidx.y == tmpidx.z || tmpidx.x == tmpidx.z)
                     {
-                        basLog().warning(u"repeat index for face, ignored : {}\n", line.Line);
+                        dizzLog().warning(u"repeat index for face, ignored : {}\n", line.Line);
                         break;
                     }
                     indexs.push_back(tmpidx.x);
@@ -198,16 +198,16 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
         oglu::GenerateTanPoint(pts[indexs[i]], pts[indexs[i + 1]], pts[indexs[i + 2]]);
     }
     tstTimer.Stop();
-    basLog().debug(u"tangent-generate cost {} us\n", tstTimer.ElapseUs());
+    dizzLog().debug(u"tangent-generate cost {} us\n", tstTimer.ElapseUs());
     size = maxv - minv;
-    basLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
-    basLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-    basLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
+    dizzLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
+    dizzLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
+    dizzLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
     MaterialMap = mtlLoader.GetMaterialMap();
 }
 catch (const FileException&)
 {
-    basLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
+    dizzLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
     COMMON_THROWEX(BaseException, u"fail to load model data");
 }
 
@@ -221,7 +221,7 @@ void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
             InitDataBuffers();
             auto sync = oglu::oglUtil::SyncGL();
             agent.Await(sync);
-            basLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
+            dizzLog().info(u"ModelData initialized, reported cost {}us\n", sync->ElapseNs() / 1000);
         }, fileName);
         AsyncAgent::SafeWait(task);
         return;
@@ -257,9 +257,8 @@ RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
     u16string name = str::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
     return std::any(std::make_tuple(name));
 }
-ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
+void _ModelMesh::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     jself.Add("mfname", str::to_u8string(mfname, Charset::UTF16LE));
     jself.Add("size", ToJArray(context, size));
     jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
@@ -277,7 +276,6 @@ ejson::JObject _ModelMesh::Serialize(SerializeUtil & context) const
     for (const auto&[name, mat] : MaterialMap)
         context.AddObject(jmaterials, name, mat);
     jself.Add("materials", jmaterials);
-    return jself;
 }
 void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

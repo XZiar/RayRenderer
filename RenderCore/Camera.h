@@ -18,7 +18,7 @@ public:
     Camera() noexcept { }
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#Camera")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 
     b3d::Normal& Right() noexcept { return *reinterpret_cast<b3d::Normal*>(&CamMat.x); }

@@ -29,7 +29,7 @@ public:
     void SetTexture(const string_view& name, const oglu::oglTex2D& tex);
 };
 
-class RAYCOREAPI RenderPass : public virtual Controllable
+class RAYCOREAPI RenderPass : public virtual Controllable, public virtual xziar::respak::Serializable
 {
 private:
     vector<std::weak_ptr<Drawable>> WaitAddDrawables;
@@ -43,7 +43,7 @@ protected:
     // do actual rendering
     virtual void OnDraw(RenderPassContext&) {}
 public:
-    virtual u16string GetName() { return u""; }
+    virtual u16string GetName() const { return u""; }
     virtual void SetName(const u16string&) { }
     RenderPass();
     virtual ~RenderPass() {}
@@ -57,6 +57,9 @@ public:
     void CleanDrawable();
     void Prepare(RenderPassContext& context);
     void Draw(RenderPassContext& context);
+
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
 class RAYCOREAPI DefaultRenderPass : public RenderPass, public GLShader
@@ -65,8 +68,8 @@ protected:
     virtual bool OnRegistDrawable(const std::shared_ptr<Drawable>& drawable) override;
     virtual void OnPrepare(RenderPassContext& context) override;
     virtual void OnDraw(RenderPassContext& context) override;
-    virtual u16string GetName() { return Program->Name; }
-    virtual void SetName(const u16string& name) { Program->Name = name; }
+    virtual u16string GetName() const override { return Program->Name; }
+    virtual void SetName(const u16string& name) override { Program->Name = name; }
 public:
     DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config = {});
     ~DefaultRenderPass() {}
@@ -75,6 +78,8 @@ public:
         using namespace std::literals;
         return u"DefaultRenderPass"sv;
     }
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#DefaultRenderPass")
 };
 

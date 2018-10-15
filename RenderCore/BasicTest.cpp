@@ -18,7 +18,7 @@ struct Init
 {
     Init()
     {
-        basLog().verbose(u"BasicTest Static Init\n");
+        dizzLog().verbose(u"BasicTest Static Init\n");
         oglUtil::Init();
         oclUtil::Init();
     }
@@ -35,7 +35,7 @@ static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
         }
         catch (const FileException& fe)
         {
-            basLog().error(u"unable to load shader from [{}] : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), fe.message);
+            dizzLog().error(u"unable to load shader from [{}] : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), fe.message);
         }
     }
     return getShaderFromDLL(id);
@@ -71,12 +71,12 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
     if (glPlat)
     {
         sharedCtx = glPlat->CreateContext(glContext);
-        basLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
-        sharedCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
+        dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
+        sharedCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
     }
     defCtx = glPlat == venderClPlat ? sharedCtx : venderClPlat->CreateContext();
-    basLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
-    defCtx->onMessage = [](const u16string& errtxt) { basLog().error(u"Error from CLContext:\t{}\n", errtxt); };
+    dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
+    defCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from CLContext:\t{}\n", errtxt); };
     return { defCtx, sharedCtx };
 }
 
@@ -295,10 +295,10 @@ void BasicTest::fontTest(const char32_t word)
             {
                 const auto imgShow = fontCreator->clgraysdfs((char32_t)cnt, 4096);
                 img::WriteImage(imgShow, basepath / (u"Show-" + std::to_u16string(cnt) + u".png"));
-                basLog().success(u"successfully processed words begin from {}\n", cnt);
+                dizzLog().success(u"successfully processed words begin from {}\n", cnt);
             }
             timer.Stop();
-            basLog().success(u"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());*/
+            dizzLog().success(u"successfully processed 65536 words, cost {}ms\n", timer.ElapseMs());*/
         }
         else
         {
@@ -318,7 +318,7 @@ void BasicTest::fontTest(const char32_t word)
     }
     catch (BaseException& be)
     {
-        basLog().error(u"Font Construct failure:\n{}\n", be.message);
+        dizzLog().error(u"Font Construct failure:\n{}\n", be.message);
     }
 }
 
@@ -415,7 +415,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloat
     MiddleFrame->AttachColorTexture(fboTex, 0);
     oglRBO mainRBO(w, h, isFloatDepth ? oglu::RBOFormat::Depth32Stencil8 : oglu::RBOFormat::Depth24Stencil8);
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
-    basLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     progPost->State().SetTexture(fboTex, "scene");
     PostProc->SetMidFrame((uint32_t)w, (uint32_t)h, isFloatDepth);
 }
@@ -442,7 +442,7 @@ void BasicTest::ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<boo
         }
         catch (BaseException& be)
         {
-            basLog().error(u"failed to reload font test\n");
+            dizzLog().error(u"failed to reload font test\n");
             if (onError)
                 onError(be);
             else
@@ -465,7 +465,7 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
         }
         catch (BaseException& be)
         {
-            basLog().error(u"failed to load model by file {}\n", name);
+            dizzLog().error(u"failed to load model by file {}\n", name);
             if (onError)
                 onError(be);
             else
@@ -509,7 +509,7 @@ bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
     for(const auto& prog : Prog3Ds)
         drawable->PrepareGL(prog);
     drawables.push_back(drawable);
-    basLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->GetType(), drawable->Name);
+    dizzLog().success(u"Add an Drawable [{}][{}]:  {}\n", drawables.size() - 1, drawable->GetType(), drawable->Name);
     return true;
 }
 
@@ -533,7 +533,7 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
     RefreshContext();
     lights.push_back(light);
     prepareLight();
-    basLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
+    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
     return true;
 }
 
@@ -548,7 +548,7 @@ void BasicTest::ChangeShader(const oglDrawProgram& prog)
         prepareLight();
     }
     else
-        basLog().warning(u"change to an unknown shader [{}], ignored.\n", prog ? prog->Name : u"null");
+        dizzLog().warning(u"change to an unknown shader [{}], ignored.\n", prog ? prog->Name : u"null");
 }
 
 void BasicTest::DelAllLight()
@@ -571,7 +571,7 @@ xziar::img::Image BasicTest::Screenshot()
     oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
-    basLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }

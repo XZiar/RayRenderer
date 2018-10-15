@@ -18,7 +18,7 @@ private:
         Locker.LockWrite();
         const auto isAdd = TypeMap.try_emplace(id, name).second;
         if(isAdd)
-            basLog().debug(u"Regist Drawable [{}]\n", name);
+            dizzLog().debug(u"Regist Drawable [{}]\n", name);
         Locker.UnlockWrite();
     }
     static u16string GetType(const std::type_index& obj)
@@ -29,6 +29,18 @@ private:
         return name;
     }
     static std::type_index Get(const Drawable* const obj) { return std::type_index(typeid(obj)); }
+    static boost::uuids::uuid GenerateUUID()
+    {
+        static boost::uuids::random_generator_mt19937 Generator;
+        static std::atomic_flag LockFlag = ATOMIC_FLAG_INIT;
+        common::SpinLocker locker(LockFlag);
+        return Generator();
+    }
+    static boost::uuids::uuid GenerateUUID(const string_view& str)
+    {
+        static const boost::uuids::string_generator Generator;
+        return Generator(str.cbegin(), str.cend());
+    }
 };
 
 
@@ -77,7 +89,7 @@ struct VAOKeyX
     }
 };
 
-Drawable::Drawable(const std::type_index type, const u16string& typeName) : DrawableType(type)
+Drawable::Drawable(const std::type_index type, const u16string& typeName) : DrawableType(type), Uid(DrawableHelper::GenerateUUID())
 {
     DrawableHelper::Regist(DrawableType, typeName);
 }
@@ -166,25 +178,25 @@ const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weak
     const auto& it = vaomap.find(std::make_tuple(this, weakProg));
     if (it != vaomap.cend())
         return it->vao;
-    basLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
+    dizzLog().error(u"No matching VAO found for [{}]({}), maybe prepareGL not executed.\n", Name, GetType());
     return EmptyVAO;
 }
 
 
-ejson::JObject Drawable::Serialize(SerializeUtil & context) const
+void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = context.NewObject();
     jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Uid", boost::uuids::to_string(Uid));
     jself.Add("position", detail::ToJArray(context, position));
     jself.Add("rotation", detail::ToJArray(context, rotation));
     jself.Add("scale", detail::ToJArray(context, scale));
     context.AddObject(jself, "material", MaterialHolder);
-    return jself;
 }
 
 void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
 {
     Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
     detail::FromJArray(object.GetArray("position"), position);
     detail::FromJArray(object.GetArray("rotation"), rotation);
     detail::FromJArray(object.GetArray("scale"), scale);

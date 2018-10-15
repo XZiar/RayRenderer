@@ -53,6 +53,10 @@ public:
 
     bool UpdateLUT();
     bool UpdateFBO();
+
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
+    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    RESPAK_DECL_COMP_DESERIALIZE("rayr#PostProcessor")
 };
 
 }

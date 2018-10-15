@@ -35,7 +35,7 @@ public:
     {
         using common::container::FindInMap;
         OBJLoder ldr(mtlpath);
-        basLog().verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
+        dizzLog().verbose(u"Parsing mtl file [{}]\n", mtlpath.u16string());
         vector<std::tuple<std::shared_ptr<PBRMaterial>, fs::path, TexLoadType>> preJobs;
         const fs::path fallbackPath = mtlpath.parent_path();
         std::shared_ptr<PBRMaterial> curmtl;
@@ -47,7 +47,7 @@ public:
             case "EMPTY"_hash:
                 break;
             case "#"_hash:
-                basLog().verbose(u"--mtl-note [{}]\n", line.ToUString());
+                dizzLog().verbose(u"--mtl-note [{}]\n", line.ToUString());
                 break;
             case "newmtl"_hash:
                 {
@@ -103,7 +103,7 @@ public:
     }
     catch (const FileException&)
     {
-        basLog().error(u"Fail to open mtl file\t[{}]\n", mtlpath.u16string());
+        dizzLog().error(u"Fail to open mtl file\t[{}]\n", mtlpath.u16string());
     }
 
     map<string, PBRMaterial> GetMaterialMap()

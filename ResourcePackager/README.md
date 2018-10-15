@@ -129,6 +129,8 @@ Some deserializer may need extra environment data to complete. So cookie can be 
 
 `DeserializeShare<T>(JObjectRef object, bool cache)` is similar to previous one, but convert `unique_ptr` to `shared_ptr`. Dur to its shareness, it allows to cache the generated object so an object won't be deserialized twice.
 
+`Deserialize<T>(string_view id)` and `DeserializeShare<T>(string_view id, bool cache)` are used to deserialize shared object, which has similar effect with above.
+
 ### Get resource
 
 `AlignedBuffer GetResource(string_view& handle, bool cache)` is used to get resource. Since it returns an `AlignedBuffer`, it naturally support cache mechanism. **Remember that AlignedBuffer is not COW, so any in-place-writes to it will influence the cached data too.**
@@ -139,13 +141,13 @@ Serializable provide serialize and deserialize support for the object.
 
 `string_view SerializedType()` is needed to be overrided so object's actual type can be returned. It is used to lookup deserializer.
 
-`JObject Serialize(SerializeUtil& context)` is also needed to be overrided so an object can be correctly serialized.
+`void Serialize(SerializeUtil&, JObject&)` is optional to be overrided so an object can be correctly serialized.
 
-`void Deserialize(DeserializeUtil&, JObjectRef& object)` is currently optional since it only deserialized data to an existing object.
+`void Deserialize(DeserializeUtil&, JObjectRef&)` is also optional and it only deserialized data to an existing object.
 
-`static unique_ptr<Serializable> DoDeserialize(DeserializeUtil&, JObjectRef& object)` is used to perform actual deserialization so it's a public static function.
+`static unique_ptr<Serializable> DoDeserialize(DeserializeUtil&, JObjectRef&)` is used to perform actual deserialization so it's a public static function.
 
-`static std::any DeserializeArg(DeserializeUtil&, JObjectRef& object)` is used to provide constructor arguments when construct an object. Arguments are parsed and packed into `tuple`, then stored in `std::any`.
+`static std::any DeserializeArg(DeserializeUtil&, JObjectRef&)` is used to provide constructor arguments when construct an object. Arguments are parsed and packed into `tuple`, then stored in `std::any`.
 
 `RESPAK_DECL_SIMP_DESERIALIZE(typestr)` and `RESPAK_IMPL_SIMP_DESERIALIZE(type)` is used to quick declare & implement deserialize support. It requires a default-constructor.
 

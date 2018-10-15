@@ -32,7 +32,7 @@ private:
 public:
     Scene();
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#Scene")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 
     const vector<Wrapper<Drawable>>& GetDrawables() const { return Drawables; }

@@ -21,7 +21,7 @@ public:
     virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#Drawable#Model")
-    virtual ejson::JObject Serialize(SerializeUtil& context) const override;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 

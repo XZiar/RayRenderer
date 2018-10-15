@@ -90,7 +90,8 @@ SerializeUtil::~SerializeUtil()
 
 ejson::JObject SerializeUtil::Serialize(const Serializable & object)
 {
-    auto result = object.Serialize(*this);
+    auto result = NewObject();
+    object.Serialize(*this, result);
     result.Add(TypeFieldName, object.SerializedType());
     return result;
 }

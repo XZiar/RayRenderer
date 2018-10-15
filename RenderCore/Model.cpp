@@ -63,11 +63,10 @@ void Model::Draw(Drawcall& drawcall) const
         .Draw(GetVAO(drawcall.GetProg()));
 }
 
-ejson::JObject Model::Serialize(SerializeUtil& context) const
+void Model::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    auto jself = Drawable::Serialize(context);
+    Drawable::Serialize(context, jself);
     jself.Add("mesh", context.AddObject(*Mesh));
-    return jself;
 }
 void Model::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

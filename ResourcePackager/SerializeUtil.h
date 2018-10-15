@@ -16,7 +16,7 @@ public:
     virtual ~Serializable() {}
 protected:
     virtual string_view SerializedType() const = 0;
-    virtual ejson::JObject Serialize(SerializeUtil& context) const = 0;
+    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const {}
     virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) {}
 };
 
