@@ -6,10 +6,6 @@
 #pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 #pragma message("Compiling RenderCore with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
-#if defined(__AVX__)
-#pragma message("Compiling RenderCore with [AVX]" )
-#endif
-
 template struct RAYCOREAPI common::AlignBase<16>;
 template struct RAYCOREAPI common::AlignBase<32>;
 

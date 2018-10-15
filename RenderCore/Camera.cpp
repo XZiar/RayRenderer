@@ -15,7 +15,7 @@ void Camera::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     jself.EJOBJECT_ADD(Fovy).EJOBJECT_ADD(Aspect).EJOBJECT_ADD(zNear).EJOBJECT_ADD(zFar);
     jself.Add("Size", context.NewArray().Push(Width, Height));
 }
-void Camera::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Camera::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
     Name = str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("Position"), Position);

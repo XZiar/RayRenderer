@@ -123,6 +123,7 @@ constexpr size_t DefineInt32  = common::get_variant_index_v<int32_t,        oglu
 constexpr size_t DefineUInt32 = common::get_variant_index_v<uint32_t,       oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineFloat  = common::get_variant_index_v<float,          oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineDouble = common::get_variant_index_v<double,         oglu::ShaderConfig::DefineVal>();
+constexpr size_t DefineString = common::get_variant_index_v<string,         oglu::ShaderConfig::DefineVal>();
 void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     jself.Add("Name", str::to_u8string(Program->Name, Charset::UTF16LE));
@@ -148,9 +149,51 @@ void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
         config.Add("routines", routines);
     }
     jself.Add("config", config);
+    {
+        auto subroutines = context.NewObject();
+        for (const auto& sru : Program->getSubroutineResources())
+        {
+            const auto sr = Program->GetSubroutine(sru);
+            if (sr)
+                subroutines.Add(sru.Name, sr->Name);
+        }
+        jself.Add("Subroutines", subroutines);
+    }
+    {
+        auto uniforms = context.NewObject();
+
+        const auto& unis = Program->getCurUniforms();
+        const auto& props = Program->getResourceProperties();
+        for (const auto& res : Program->getResources())
+        {
+            auto prop = common::container::FindInSet(props, res.Name);
+            if (!prop) continue;
+            auto uni = common::container::FindInMap(unis, res.location);
+            if (!uni) continue;
+            const auto key = res.Name + ',' + std::to_string(uni->index());
+            std::visit([&](auto&& rval)
+            {
+                //<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
+                using T = std::decay_t<decltype(rval)>;
+                if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Coord2D>)
+                    uniforms.Add(key, detail::ToJArray(context, rval));
+                else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3> || std::is_same_v<T, miniBLAS::Mat4x4>)
+                    return;
+                else
+                    uniforms.Add(key, rval);
+            }, *uni);
+        }
+        jself.Add("Uniforms", uniforms);
+    }
 }
-void GLShader::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void GLShader::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
+    auto state = Program->State();
+    for (const auto&[k,v] : object.GetObject("Subroutines"))
+    {
+        state.SetSubroutine(k, v.AsValue<string_view>());
+    }
+
 }
 
 
@@ -173,6 +216,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
             case DefineUInt32:  return valarray.Get<uint32_t>(1);
             case DefineFloat:   return valarray.Get<float>(1);
             case DefineDouble:  return valarray.Get<double>(1);
+            case DefineString:  return valarray.Get<string>(1);
             default:            return {};
             }
         });

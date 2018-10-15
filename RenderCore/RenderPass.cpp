@@ -104,7 +104,7 @@ void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     jself.Add("drawables", jdrawables);
 }
 
-void RenderPass::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+void RenderPass::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
     SetName(str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
 }
@@ -205,6 +205,7 @@ void RenderPipeLine::Render(const std::shared_ptr<Scene>& scene)
     {
         pass->Prepare(context);
     }
+    GLContext->SetSRGBFBO(true);
     for (auto& pass : Passes)
     {
         pass->Draw(context);

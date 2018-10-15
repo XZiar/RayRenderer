@@ -20,6 +20,7 @@ std::unique_ptr<rayr::RenderCore> tester;
 uint16_t curObj = 0;
 FreeGLUTView window, wd2;
 bool isAnimate = false;
+bool isPostproc = true;
 
 void onResize(FreeGLUTView wd, int w, int h)
 {
@@ -101,8 +102,9 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
                     isAnimate = !isAnimate;
                 else
                 {
-                    //tester->mode = !tester->mode;
-                    //window->setTitle(tester->mode ? "3D" : "2D");
+                    isPostproc = !isPostproc;
+                    tester->GetPostProc()->SetEnable(isPostproc);
+                    window->SetTitle(isPostproc ? "3D-PostProc" : "3D-Direct");
                 } break;
             case '+':
                 curObj++;
@@ -171,7 +173,7 @@ void onDropFile(FreeGLUTView wd, u16string fname)
                     curObj = (uint16_t)(tester->GetScene()->GetDrawables().size() - 1);
                     model->Rotate(-90 * muler, 0, 0);
                     model->Move(-1, 0, 0);
-                    for (const auto& shd : tester->GetShaders())
+                    for (const auto& shd : tester->GetRenderPasses())
                         shd->RegistDrawable(model);
                     wd->Refresh();
                 }

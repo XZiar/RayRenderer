@@ -1,6 +1,6 @@
 #include "common/ResourceHelper.inl"
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 {
 	switch (fdwReason)
 	{

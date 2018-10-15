@@ -16,7 +16,7 @@ public:
     virtual ~Serializable() {}
 protected:
     virtual string_view SerializedType() const = 0;
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const {}
+    virtual void Serialize(SerializeUtil&, ejson::JObject&) const {}
     virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) {}
 };
 
@@ -53,7 +53,7 @@ protected:
         obj->Deserialize(context, object); \
         return std::unique_ptr<Serializable>(obj); \
     } \
-    ::std::any type::DeserializeArg(::xziar::respak::DeserializeUtil& context, const ::xziar::ejson::JObjectRef<true>& object)
+    ::std::any type::DeserializeArg([[maybe_unused]] ::xziar::respak::DeserializeUtil& context, [[maybe_unused]] const ::xziar::ejson::JObjectRef<true>& object)
 
 
 namespace detail

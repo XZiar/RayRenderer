@@ -14,9 +14,9 @@ using xziar::img::ImageDataType;
 using oglu::texutil::ResizeMethod;
 
 
-static std::variant<uint8_t, std::pair<uint32_t, uint32_t>> CalcSize(const TexHolder& holder)
+static std::variant<uint8_t, std::pair<uint16_t, uint16_t>> CalcSize(const TexHolder& holder)
 {
-    constexpr uint32_t thredshold = 128;
+    constexpr uint16_t thredshold = 128;
     auto size = holder.GetSize();
     const auto mipmap = holder.GetMipmapCount();
     for (uint8_t i = 0; i < mipmap;)
@@ -28,7 +28,7 @@ static std::variant<uint8_t, std::pair<uint32_t, uint32_t>> CalcSize(const TexHo
             size.first /= 2, size.second /= 2;
     }
     const auto larger = std::max(size.first, size.second);
-    return std::pair<uint32_t, uint32_t>{ size.first * thredshold / larger, size.second * thredshold / larger };
+    return std::pair(static_cast<uint16_t>(size.first * thredshold / larger), static_cast<uint16_t>(size.second * thredshold / larger));
 }
 
 std::shared_ptr<ImageView> ThumbnailManager::GetThumbnail(const std::weak_ptr<void>& weakref) const
@@ -74,7 +74,7 @@ common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHo
     }
     else
     {
-        const auto&[neww, newh] = std::get<1>(ret);
+        const auto[neww, newh] = std::get<1>(ret);
         switch (holder.index())
         {
         case 1:

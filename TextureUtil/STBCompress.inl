@@ -9,7 +9,14 @@
 #endif
 #include "common/SIMD.hpp"
 #define STB_DXT_IMPLEMENTATION
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4244)
+#endif
 #include "3rdParty/stblib/stb_dxt.h"
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 #include "OpenGLUtil/oglException.h"
 
 

@@ -241,7 +241,7 @@ public:
         }
         else if (maxval <= UINT16_MAX)
         {
-            if (sizeof(T) == 2)
+            if constexpr(sizeof(T) == 2)
                 Write(dat, mode);
             else
             {
@@ -252,7 +252,7 @@ public:
         }
         else if (maxval <= UINT32_MAX)
         {
-            if (sizeof(T) == 4)
+            if constexpr(sizeof(T) == 4)
                 Write(dat, mode);
             else
             {

@@ -35,7 +35,7 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
     vbo->Write(pts);
 }
 
-void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
+void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
@@ -87,12 +87,12 @@ static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, c
         for (uint16_t s = 0; s < sectors - 1; s++)
         {
             const auto idx0 = r * sectors + s;
-            indexs.push_back(idx0);
-            indexs.push_back(idx0 + sectors);
-            indexs.push_back(idx0 + 1);
-            indexs.push_back(idx0 + 1);
-            indexs.push_back(idx0 + sectors);
-            indexs.push_back(idx0 + sectors + 1);
+            indexs.push_back(static_cast<uint16_t>(idx0));
+            indexs.push_back(static_cast<uint16_t>(idx0 + sectors));
+            indexs.push_back(static_cast<uint16_t>(idx0 + 1));
+            indexs.push_back(static_cast<uint16_t>(idx0 + 1));
+            indexs.push_back(static_cast<uint16_t>(idx0 + sectors));
+            indexs.push_back(static_cast<uint16_t>(idx0 + sectors + 1));
         }
     }
     return indexs;
@@ -109,7 +109,7 @@ Sphere::Sphere(const float r) : Drawable(this, TYPENAME), radius(r), radius_sqr(
     ptcount = static_cast<uint32_t>(indexs.size());
 }
 
-void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
+void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)//bind vertex attribute
@@ -147,47 +147,47 @@ RESPAK_IMPL_COMP_DESERIALIZE(Sphere, float)
  **/
 const Point BoxBasePts[] = 
 { 
-    { { +0.5f,+0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
-    { { +0.5f,-0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 0.0f } },//v2
-    { { +0.5f,-0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
-    { { +0.5f,+0.5f,+0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
-    { { +0.5f,-0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
-    { { +0.5f,+0.5f,-0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 0.0f } },//v7
+    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
+    { { +0.5f, -0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 0.0f } },//v2
+    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
+    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
+    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
+    { { +0.5f, +0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 0.0f } },//v7
 
-    { { -0.5f,+0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
-    { { -0.5f,-0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } },//v5
-    { { -0.5f,-0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
-    { { -0.5f,+0.5f,-0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
-    { { -0.5f,-0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
-    { { -0.5f,+0.5f,+0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f } },//v0
+    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
+    { { -0.5f, -0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } },//v5
+    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
+    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
+    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
+    { { -0.5f, +0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f } },//v0
 
-    { { -0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
-    { { -0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f, 2.0f } },//v0
-    { { +0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
-    { { -0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
-    { { +0.5f,+0.5f,+0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
-    { { +0.5f,+0.5f,-0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 1.0f, 2.0f } },//v7
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f, 2.0f } },//v0
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 1.0f, 2.0f } },//v7
 
-    { { -0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
-    { { -0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 3.0f } },//v5
-    { { +0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
-    { { -0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
-    { { +0.5f,-0.5f,-0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
-    { { +0.5f,-0.5f,+0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 1.0f, 3.0f } },//v2
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 3.0f } },//v5
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 1.0f, 3.0f } },//v2
 
-    { { -0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
-    { { -0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 0.0f, 4.0f } },//v1
-    { { +0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
-    { { -0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
-    { { +0.5f,-0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
-    { { +0.5f,+0.5f,+0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 1.0f, 4.0f } },//v3
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 0.0f, 4.0f } },//v1
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 1.0f, 4.0f } },//v3
 
-    { { +0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
-    { { +0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 0.0f, 5.0f } },//v6
-    { { -0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
-    { { +0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
-    { { -0.5f,-0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
-    { { -0.5f,+0.5f,-0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 0.0f, 5.0f } },//v6
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
 };
 
 Box::Box(const float length, const float height, const float width) : Drawable(this, TYPENAME)
@@ -201,7 +201,7 @@ Box::Box(const float length, const float height, const float width) : Drawable(t
     vbo->Write(pts);
 }
 
-void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
+void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
@@ -242,7 +242,7 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME),
     vbo->Write(pts, sizeof(pts));
 }
 
-void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
+void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)

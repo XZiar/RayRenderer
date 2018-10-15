@@ -29,10 +29,10 @@ RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, oglu::Text
 
     return std::tuple(std::move(data), format, width, height);
 }
-void _FakeTex::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void _FakeTex::Serialize(SerializeUtil&, ejson::JObject&) const
 {
 }
-void _FakeTex::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void _FakeTex::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
     Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
 }

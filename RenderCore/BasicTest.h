@@ -1,7 +1,6 @@
 #pragma once
 
 #include "RenderCoreRely.h"
-#include "RenderCore.h"
 #include "Basic3DObject.h"
 #include "Model.h"
 #include "Light.h"

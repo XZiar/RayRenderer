@@ -22,6 +22,8 @@ void PostProcessor::RegistControllable()
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize)
+    : PostProcessor(ctx, que, lutSize, getShaderFromDLL(IDR_SHADER_CLRLUTGL), getShaderFromDLL(IDR_SHADER_POSTPROC)) {}
+PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
     : CLContext(ctx), CmdQue(que), LutSize(lutSize)
 {
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
@@ -30,7 +32,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     ShaderConfig config;
     config.Routines["ToneMap"] = "ACES";
     LutGenerator.reset(u"ColorLut");
-    LutGenerator->AddExtShaders(getShaderFromDLL(IDR_SHADER_CLRLUTGL), config);
+    LutGenerator->AddExtShaders(lutSrc, config);
     LutGenerator->Link();
     const auto& localSize = LutGenerator->GetLocalSize();
     GroupCount = { LutSize / localSize[0], LutSize / localSize[1], LutSize / localSize[2] };
@@ -45,7 +47,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
     ScreenBox->Write(DatVert, sizeof(DatVert));
-    PostShader.reset(u"PostProcess", getShaderFromDLL(IDR_SHADER_POSTPROC));
+    PostShader.reset(u"PostProcess", postSrc);
     VAOScreen.reset(VAODrawMode::Triangles);
     VAOScreen->Prepare()
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
@@ -72,6 +74,11 @@ void PostProcessor::SetMidFrame(const uint16_t width, const uint16_t height, con
 {
     MidFrameConfig.Width = width, MidFrameConfig.Height = height, MidFrameConfig.NeedFloatDepth = needFloatDepth;
     UpdateDemand.Add(PostProcUpdate::FBO);
+}
+
+void PostProcessor::SetEnable(const bool isEnable)
+{
+    EnablePostProcess = isEnable;
 }
 
 
@@ -104,41 +111,52 @@ bool PostProcessor::UpdateFBO()
 
 void PostProcessor::OnPrepare(RenderPassContext& context)
 {
-    UpdateFBO();
-    MiddleFrame->Use();
-    GLContext->ClearFBO();
-    context.SetTexture("MainFBTex", FBOTex);
-    context.SetFrameBuffer("MainFB", MiddleFrame);
-    UpdateLUT();
+    if (EnablePostProcess)
+    {
+        UpdateFBO();
+        MiddleFrame->Use();
+        GLContext->ClearFBO();
+        context.SetTexture("MainFBTex", FBOTex);
+        context.SetFrameBuffer("MainFB", MiddleFrame);
+        UpdateLUT();
+    }
 }
 
 void PostProcessor::OnDraw(RenderPassContext& context)
 {
-    oglu::oglFBO::UseDefault();
-    GLContext->SetSRGBFBO(false);
+    if (EnablePostProcess)
+    {
+        oglu::oglFBO::UseDefault();
+        GLContext->SetSRGBFBO(false);
 
-    const auto cam = context.GetScene()->GetCamera();
-    const auto ow = cam->Width, oh = cam->Height;
+        const auto cam = context.GetScene()->GetCamera();
+        const auto ow = cam->Width, oh = cam->Height;
 
-    PostShader->Program->SetView(cam->GetView());
-    PostShader->Program->SetVec("vecCamPos", cam->Position);
+        PostShader->Program->SetView(cam->GetView());
+        PostShader->Program->SetVec("vecCamPos", cam->Position);
 
-    const auto sw = MidFrameConfig.Width * oh / MidFrameConfig.Height;
-    const auto widthscale = sw * 1.0f / ow;
-    PostShader->Program->Draw().SetUniform("widthscale", widthscale).Draw(VAOScreen);
-
+        const auto sw = MidFrameConfig.Width * oh / MidFrameConfig.Height;
+        const auto widthscale = sw * 1.0f / ow;
+        PostShader->Program->Draw().SetUniform("widthscale", widthscale).Draw(VAOScreen);
+    }
 }
 
 
-void PostProcessor::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void PostProcessor::Serialize(SerializeUtil&, ejson::JObject& jself) const
 {
+    jself.EJOBJECT_ADD(LutSize)
+        .EJOBJECT_ADD(Exposure);
 }
-void PostProcessor::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void PostProcessor::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
+    EJSON_GET_MEMBER(object, Exposure);
 }
 RESPAK_IMPL_COMP_DESERIALIZE(PostProcessor, oclu::oclContext, oclu::oclCmdQue, uint32_t)
 {
-    return std::any{};
+    const auto lutSize = object.Get<uint32_t>("LutSize");
+    const auto clCtx = context.GetCookie<oclu::oclContext>("CLSharedContext");
+    const auto clQue = context.GetCookie<oclu::oclCmdQue>("CLQueue");
+    return std::any(std::tuple(*clCtx, *clQue, lutSize));
 }
 
 }

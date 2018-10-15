@@ -417,7 +417,7 @@ void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloat
     MiddleFrame->AttachDepthStencilBuffer(mainRBO);
     dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", w, h, MiddleFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     progPost->State().SetTexture(fboTex, "scene");
-    PostProc->SetMidFrame((uint32_t)w, (uint32_t)h, isFloatDepth);
+    PostProc->SetMidFrame((uint16_t)w, (uint16_t)h, isFloatDepth);
 }
 
 void BasicTest::ReloadFontLoader(const u16string& fname)
@@ -476,7 +476,7 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
 
 void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
-    auto pms = GLWorker->InvokeShare([fpath, shdName](const common::asyexe::AsyncAgent& agent)
+    auto pms = GLWorker->InvokeShare([fpath, shdName](const common::asyexe::AsyncAgent&)
     {
         auto shader = Wrapper<GLShader>(shdName, common::file::ReadAllText(fpath));
         shader->Program->State()

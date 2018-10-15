@@ -78,12 +78,15 @@ void main()
 layout(local_size_x = 8, local_size_y = 8) in;
 uniform vec2 coordStep;
 uniform bool isSrgbDst = true;
+uniform bool isFlipY = false;
 writeonly uniform image2D result;
 
 void main() 
 {
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
     vec2 tpos = coord * coordStep;
+    if (isFlipY)
+        tpos.y = 1.0f - tpos.y;
     vec4 color = ColorConv(texture(tex, tpos));
     if (isSrgbDst)
         color.rgb = LinearToSRGB(color.rgb);

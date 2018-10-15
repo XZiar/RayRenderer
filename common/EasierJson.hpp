@@ -1,6 +1,5 @@
 #pragma once
 #include "common/CommonRely.hpp"
-#include "common/Exceptions.hpp"
 #include "common/FileEx.hpp"
 #include <cstdint>
 #include <cstdio>
@@ -340,17 +339,17 @@ protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
     JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
-    template<typename = std::enable_if_t<!IsConst>>
-    rapidjson::Value& GetValRef() { return *Val; }
+    template<bool R = !IsConst>
+    std::enable_if_t<R, rapidjson::Value&> GetValRef() { return *Val; }
     const rapidjson::Value& GetValRef() const { return *Val; }
 public:
     template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
     explicit JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(doc.Val) {}
-    template<typename = std::enable_if_t<!IsConst>>
+    //template<bool R = !IsConst, typename = std::enable_if_t<R>>
     explicit JDocRef(JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
-    template<typename = std::enable_if_t<IsConst>>
+    template<bool R = IsConst, typename = std::enable_if_t<R>>
     explicit JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
-    template<typename = std::enable_if_t<!IsConst>>
+    template<bool R = !IsConst, typename = std::enable_if_t<R>>
     explicit operator rapidjson::Value() { return std::move(Val); }
     template<typename T>
     T AsValue(T val = {}) const
@@ -409,21 +408,21 @@ public:
     JObjectRef<true> GetObject(KeyType key) const;
     JArrayRef<true> GetArray(KeyType key) const;
 
-    template<typename T, typename = std::enable_if_t<!IsConst>>
+    template<typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
     bool TryGet(KeyType key, T& val)
     {
         return KeyChecker::GetIf(static_cast<ValHolder*>(this)->ValRef(), key, val);
     }
-    template<typename T, typename = std::enable_if_t<!IsConst>>
+    template<typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
     T Get(KeyType key, T val = {})
     {
         TryGet<T>(key, val);
         return val;
     }
-    template<typename = std::enable_if_t<!IsConst>>
-    JObjectRef<false> GetObject(KeyType key);
-    template<typename = std::enable_if_t<!IsConst>>
-    JArrayRef<false> GetArray(KeyType key);
+    template<bool R = !IsConst>
+    std::enable_if_t<R, JObjectRef<false>> GetObject(KeyType key);
+    template<bool R = !IsConst>
+    std::enable_if_t<R, JArrayRef<false>> GetArray(KeyType key);
 };
 
 template<typename Child, bool IsConst>
@@ -459,7 +458,7 @@ private:
         return false;
     }
     template<typename... Ts, size_t... Indexes>
-    size_t InnerTryGetMany(const rapidjson::SizeType offset, std::index_sequence<Indexes...> indexes, Ts&... val) const
+    size_t InnerTryGetMany(const rapidjson::SizeType offset, std::index_sequence<Indexes...>, Ts&... val) const
     {
         const auto& valref = static_cast<const Child*>(this)->ValRef();
         return (0 + ... + GetIf(valref, static_cast<rapidjson::SizeType>(Indexes + offset), val));
@@ -575,9 +574,8 @@ public:
     JArray() : JDoc(rapidjson::kArrayType) {}
     explicit JArray(JDoc&& doc) : JArray(doc.MemPool)
     {
-        if (!doc.Val.IsArray())
-            COMMON_THROW(BaseException, u"value is not an array");
-        Val = doc.Val;
+        if (doc.Val.IsArray())
+            Val = std::move(doc.Val);
     }
     template<typename T>
     explicit JArray(JDoc&& doc, const T& data) : JArray(doc.MemPool, data) {}
@@ -596,18 +594,23 @@ class JArrayRef : public JDocRef<IsConst>, public JArrayLike<JArrayRef<IsConst>,
     template<typename, typename, typename, bool>friend class JComplexType;
     template<typename, bool> friend struct JPointerSupport;
 protected:
-    JArrayRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, JDocRef<IsConst>::InnerValType val = nullptr) 
+    JArrayRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, typename JDocRef<IsConst>::InnerValType val = nullptr) 
         : JDocRef<IsConst>(mempool, val) {}
 public:
     JArrayRef() : JDocRef<IsConst>() {}
     explicit JArrayRef(const JDocRef<IsConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsArray())
-            COMMON_THROW(BaseException, u"value is not an array");
+            this->Val = nullptr;
     }
-    template<typename = std::enable_if_t<IsConst>>
+    explicit JArrayRef(const JDoc& doc) : JDocRef<IsConst>(doc)
+    {
+        if (!doc.ValRef().IsArray())
+            this->Val = nullptr;
+    }
+    template<bool R = IsConst, typename = std::enable_if_t<R>>
     JArrayRef(const JArray& jarray) : JDocRef<IsConst>(jarray) {}
-    template<typename = std::enable_if_t<!IsConst>>
+    //template<bool R = !IsConst, typename = std::enable_if_t<R>>
     JArrayRef(JArray& jarray) : JDocRef<IsConst>(jarray) {}
     template<typename... T>
     JArrayRef<IsConst>& Push(T&&... val)
@@ -632,9 +635,8 @@ public:
     JObject() : JDoc(rapidjson::kObjectType) {}
     explicit JObject(JDoc&& doc) : JObject(doc.MemPool)
     {
-        if (!doc.Val.IsObject())
-            COMMON_THROW(BaseException, u"value is not an object");
-        Val = doc.Val;
+        if (doc.Val.IsObject())
+            Val = std::move(doc.Val);
     }
     template<typename T>
     explicit JObject(JDoc&& doc, const T& datamap) : JObject(doc.MemPool, datamap) {}
@@ -654,7 +656,7 @@ class JObjectRef : public JDocRef<IsConst>, public JObjectLike<JObjectRef<IsCons
     template<typename, bool> friend struct JPointerSupport;
     template<bool> friend class JObjectRef;
 protected:
-    JObjectRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, JDocRef<IsConst>::InnerValType val = nullptr) 
+    JObjectRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, typename JDocRef<IsConst>::InnerValType val = nullptr) 
         : JDocRef<IsConst>(mempool, val) {}
 public:
     template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
@@ -663,18 +665,18 @@ public:
     explicit JObjectRef(const JDocRef<OtherConst>& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsObject())
-            COMMON_THROW(BaseException, u"value is not an object");
+            this->Val = nullptr;
     }
     explicit JObjectRef(const JDoc& doc) : JDocRef<IsConst>(doc)
     {
         if (!doc.ValRef().IsObject())
-            COMMON_THROW(BaseException, u"value is not an object");
+            this->Val = nullptr;
     }
     JObjectRef(const JNull& doc) : JDocRef<IsConst>(doc) {}
-    template<typename = std::enable_if_t<!IsConst>>
-    JObjectRef(JObject& jobject) : JDocRef<IsConst>(jobject) {}
-    template<typename = std::enable_if_t<IsConst>>
+    template<bool R = IsConst, typename = std::enable_if_t<R>>
     JObjectRef(const JObject& jobject) : JDocRef<IsConst>(jobject) {}
+    //template<bool R = !IsConst, typename = std::enable_if_t<R>>
+    JObjectRef(JObject& jobject) : JDocRef<IsConst>(jobject) {}
     template<typename T, typename U>
     JObjectRef<IsConst>& Add(T&& name, U&& val)
     {
@@ -721,17 +723,18 @@ forceinline JArrayRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst
     TryGet<JArrayRef<true>>(key, val);
     return val;
 }
+
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
-template<typename>
-forceinline JObjectRef<false> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key)
+template<bool R>
+forceinline std::enable_if_t<R, JObjectRef<false>> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key)
 {
     JObjectRef<false> val(InnerMemPool());
     TryGet<JObjectRef<false>>(key, val);
     return val;
 }
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
-template<typename>
-forceinline JArrayRef<false> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key)
+template<bool R>
+forceinline std::enable_if_t<R, JArrayRef<false>> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key)
 {
     JArrayRef<false> val(InnerMemPool());
     TryGet<JArrayRef<false>>(key, val);

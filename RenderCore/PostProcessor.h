@@ -10,7 +10,11 @@ namespace rayr
 enum class PostProcUpdate : uint32_t { LUT = 0x1, FBO = 0x2 };
 MAKE_ENUM_BITFIELD(PostProcUpdate)
 
-class PostProcessor : public NonCopyable, public RenderPass
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+class RAYCOREAPI PostProcessor : public NonCopyable, public RenderPass
 {
 private:
     struct FBOConfig
@@ -31,8 +35,10 @@ private:
     const uint32_t LutSize;
     FBOConfig MidFrameConfig;
     float Exposure = 0.0f;
+    bool EnablePostProcess = true;
     void RegistControllable();
 protected:
+    PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc);
 public:
     oglu::oglFBO MiddleFrame;
     oglu::oglVAO VAOScreen;
@@ -50,6 +56,7 @@ public:
     float GetExposure() const { return Exposure; }
     void SetExposure(const float exposure);
     void SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth);
+    void SetEnable(const bool isEnable);
 
     bool UpdateLUT();
     bool UpdateFBO();
@@ -58,5 +65,9 @@ public:
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#PostProcessor")
 };
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 
 }

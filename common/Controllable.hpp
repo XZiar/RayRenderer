@@ -12,6 +12,12 @@
 #include <functional>
 #include <type_traits>
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4324)
+#endif
+
 namespace common
 {
 
@@ -219,3 +225,7 @@ struct ControlHelper
 };
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

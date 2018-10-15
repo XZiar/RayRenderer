@@ -35,7 +35,7 @@ private:
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     Wrapper<oglWorker> GLWorker;
-    set<Wrapper<DefaultRenderPass>> Shaders;
+    set<Wrapper<RenderPass>> RenderPasses;
     Wrapper<Scene> TheScene;
     set<Wrapper<RenderPipeLine>> PipeLines;
     Wrapper<RenderPipeLine> RenderTask;
@@ -50,7 +50,10 @@ public:
     void Resize(const uint32_t w, const uint32_t h);
 
     const Wrapper<Scene>& GetScene() const { return TheScene; }
-    const set<Wrapper<DefaultRenderPass>>& GetShaders() const { return Shaders; }
+    const Wrapper<RenderPipeLine>& GetCurPipeLine() const { return RenderTask; }
+    const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; }
+    const Wrapper<detail::ThumbnailManager>& GetThumbMan() const { return ThumbMan; }
+    const set<Wrapper<RenderPass>>& GetRenderPasses() const { return RenderPasses; }
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);

@@ -95,15 +95,12 @@ RenderCore::RenderCore()
 
     InitShaders();
     PostProc->SetMidFrame(1280, 720, true);
-    Wrapper<RenderPipeLine> onePass(std::in_place);
-    Wrapper<RenderPipeLine> twoPass(std::in_place);
-    const auto pbrPass = *Shaders.begin();
-    onePass->Passes.push_back(pbrPass);
-    twoPass->Passes.push_back(pbrPass);
-    twoPass->Passes.push_back(PostProc);
-    RenderTask = twoPass;
-    PipeLines.insert(onePass);
-    PipeLines.insert(twoPass);
+    Wrapper<RenderPipeLine> basicPipeLine(std::in_place);
+    const auto pbrPass = *RenderPasses.begin();
+    basicPipeLine->Passes.push_back(pbrPass);
+    basicPipeLine->Passes.push_back(PostProc);
+    RenderTask = basicPipeLine;
+    PipeLines.insert(basicPipeLine);
 }
 
 void RenderCore::RefreshContext() const
@@ -131,7 +128,7 @@ RenderCore::~RenderCore()
 
 void RenderCore::TestSceneInit()
 {
-    const auto pbrPass = *Shaders.begin();
+    const auto pbrPass = *RenderPasses.begin();
     Wrapper<Pyramid> pyramid(1.0f);
     pyramid->Name = u"Pyramid";
     pyramid->position = { 0,0,0 };
@@ -197,7 +194,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
 
 void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError)
 {
-    auto pms = GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent& agent)
+    auto pms = GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
     {
         auto shader = Wrapper<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
         shader->Program->State()
@@ -223,7 +220,7 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
 
 void RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)
 {
-    Shaders.insert(shader);
+    RenderPasses.insert(shader);
 }
 
 void RenderCore::ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline)
@@ -248,11 +245,11 @@ void RenderCore::Serialize(const fs::path & fpath) const
     });
     {
         auto jprogs = serializer.NewArray();
-        for (const auto& prog : Shaders)
+        for (const auto& pass : RenderPasses)
         {
-            serializer.AddObject(jprogs, *prog);
+            serializer.AddObject(jprogs, *pass);
         }
-        serializer.AddObject("shaders", jprogs);
+        serializer.AddObject("passes", jprogs);
     }
     serializer.AddObject(serializer.Root, "scene", *TheScene);
     serializer.Finish();
@@ -260,21 +257,22 @@ void RenderCore::Serialize(const fs::path & fpath) const
 
 void RenderCore::DeSerialize(const fs::path & fpath)
 {
+    RefreshContext();
     DeserializeUtil deserializer(fpath);
     deserializer.SetCookie("oglWorker", GLWorker);
     deserializer.SetCookie("texLoader", TexLoader);
+    TheScene = deserializer.DeserializeShare<Scene>(deserializer.Root.GetObject("scene"));
     {
-        vector<Wrapper<DefaultRenderPass>> tmpShaders;
-        const auto jprogs = deserializer.Root.GetArray("shaders");
-        for (const auto ele : jprogs)
+        vector<Wrapper<RenderPass>> tmpShaders;
+        const auto jpasses = deserializer.Root.GetArray("passes");
+        for (const auto ele : jpasses)
         {
-            const ejson::JObjectRef<true> jdrw(ele);
-            const auto k = deserializer.DeserializeShare<DefaultRenderPass>(jdrw);
+            const ejson::JObjectRef<true> jpass(ele);
+            const auto k = deserializer.DeserializeShare<RenderPass>(jpass);
             tmpShaders.push_back(k);
         }
     }
-    TheScene = deserializer.DeserializeShare<Scene>(deserializer.Root.GetObject("scene"));
-    for (const auto& shd : Shaders)
+    for (const auto& shd : RenderPasses)
     {
         for (const auto& drw : TheScene->GetDrawables())
             shd->RegistDrawable(drw);

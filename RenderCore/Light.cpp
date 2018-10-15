@@ -33,7 +33,7 @@ void Light::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     jself.Add("lightType", static_cast<int32_t>(type));
     jself.Add("isOn", isOn);
 }
-void Light::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) 
+void Light::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object) 
 {
     detail::FromJArray(object.GetArray("position"), position);
     detail::FromJArray(object.GetArray("direction"), direction);

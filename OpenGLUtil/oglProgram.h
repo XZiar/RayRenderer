@@ -7,6 +7,12 @@
 #include "oglUtil.h"
 #include "3DElement.hpp"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4324)
+#endif
+
 namespace oglu
 {
 using b3d::Vec3;
@@ -355,3 +361,8 @@ using oglDrawProgram = Wrapper<detail::_oglDrawProgram>;
 using oglComputeProgram = Wrapper<detail::_oglComputeProgram>;
 
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

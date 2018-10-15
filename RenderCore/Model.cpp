@@ -39,7 +39,7 @@ Model::~Model()
     detail::_ModelMesh::ReleaseModel(mfname);
 }
 
-void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator)
+void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     using oglu::PointEx;
     oglu::oglVAO vao(oglu::VAODrawMode::Triangles);

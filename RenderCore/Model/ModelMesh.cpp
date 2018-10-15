@@ -16,6 +16,18 @@ using b3d::Normal;
 using oglu::PointEx;
 using b3d::Coord2D;
 
+
+#if COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#elif COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wnested-anon-types"
+#   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#elif COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4201)
+#endif
 union alignas(uint64_t)PTstub
 {
     uint64_t num;
@@ -39,6 +51,13 @@ union alignas(uint64_t)PTstub
         return num < other.num;
     }
 };
+#if COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif COMPILER_CLANG
+#   pragma clang diagnostic pop
+#elif COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 struct PTstubHasher
 {
@@ -109,7 +128,6 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
     indexs.clear();
     groups.clear();
     Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
-    VecI4 tmpi, tmpidx;
     OBJLoder::TextLine line;
     SimpleTimer tstTimer;
     while (line = ldr.ReadLine())
@@ -150,7 +168,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::
                 }
                 for (uint32_t a = 0; a < lim; ++a)
                 {
-                    line.ParseInts(a + 1, tmpi.data);//vert,texc,norm
+                    line.ParseInts(static_cast<uint8_t>(a + 1), tmpi.data);//vert,texc,norm
                     PTstub stub(tmpi.x, tmpi.z, tmpi.y);
                     auto[it, isAdd] = idxmap.try_emplace(stub, static_cast<uint32_t>(pts.size()));
                     if (isAdd)

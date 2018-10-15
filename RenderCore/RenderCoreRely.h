@@ -101,6 +101,13 @@ namespace detail
 class ThumbnailManager;
 
 template<typename T>
+forceinline ejson::JArray ToJArray(T& handle, const b3d::Coord2D& vec)
+{
+    auto ret = handle.NewArray();
+    ret.Push(vec.u, vec.v);
+    return ret;
+}
+template<typename T>
 forceinline ejson::JArray ToJArray(T& handle, const miniBLAS::Vec3& vec)
 {
     auto ret = handle.NewArray();
@@ -113,6 +120,11 @@ forceinline ejson::JArray ToJArray(T& handle, const miniBLAS::Vec4& vec)
     auto ret = handle.NewArray();
     ret.Push(vec.x, vec.y, vec.z, vec.w);
     return ret;
+}
+template<typename T>
+forceinline void FromJArray(const T& jarray, b3d::Coord2D& vec)
+{
+    jarray.TryGetMany(0, vec.u, vec.v);
 }
 template<typename T>
 forceinline void FromJArray(const T& jarray, miniBLAS::Vec3& vec)
