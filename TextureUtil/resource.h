@@ -1,11 +1,11 @@
-//{{NO_DEPENDENCIES}}
+ï»¿//{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
 // Used by TextureCompressor.rc
 #define IDR_SHADER_GLRESIZER                    108
 #define IDR_SHADER_CLRESIZER                    109
 #define IDR_SHADER_MIPMAP                       110
 
-// ÐÂ¶ÔÏóµÄÏÂÒ»×éÄ¬ÈÏÖµ
+// æ–°å¯¹è±¡çš„ä¸‹ä¸€ç»„é»˜è®¤å€¼
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

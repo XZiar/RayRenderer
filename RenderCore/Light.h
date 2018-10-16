@@ -39,7 +39,7 @@ public:
     uint32_t WriteData(std::byte *ptr) const;
 };
 
-class RAYCOREAPI alignas(LightData) Light : public LightData, public xziar::respak::Serializable
+class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable
 {
 protected:
     Light(const LightType type_, const std::u16string& name_) : LightData(type_), name(name_) {}
@@ -51,19 +51,19 @@ public:
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
 
-class alignas(16) ParallelLight : public Light
+class ParallelLight : public Light
 {
 public:
     ParallelLight() : Light(LightType::Parallel, u"ParallelLight") { attenuation.w = 1.0f; }
 };
 
-class alignas(16) PointLight : public Light
+class PointLight : public Light
 {
 public:
     PointLight() : Light(LightType::Point, u"PointLight") {}
 };
 
-class alignas(16) SpotLight : public Light
+class SpotLight : public Light
 {
 public:
     SpotLight() : Light(LightType::Spot, u"SpotLight") 

@@ -31,15 +31,17 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [TextureUtil](./TextureUtil) | Texture Utility | Windows & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
-| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
-| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux(bug) |
-| [RenderCore](./RenderCore) | Core of RayRenderer | Windows |
+| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux* |
+| [RenderCore](./RenderCore) | Core of RayRenderer | Windows & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
+| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
 
+
+* `ResoucePackager` cannot be compiled by GCC7/8 due to compiler bug with rapidjson, see [Tencent/rapidjson#1338](https://github.com/Tencent/rapidjson/issues/1338)
 ## Platform Requirements
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
@@ -47,8 +49,6 @@ Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-
 VS2017(`15.8`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
 
 Some Utilities have `Makefile` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`build.sh`](build.sh) or use more powerful build utility via [`build.py`](build.py) (python3).
-
-`ResoucePackager` cannot be compiled by GCC7/8 due to compiler bug with rapidjson, see [Tencent/rapidjson#1338](https://github.com/Tencent/rapidjson/issues/1338)
 
 Several C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
 

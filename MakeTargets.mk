@@ -93,7 +93,7 @@ ifeq ($(PLATFORM), x64)
 else
 	$(ISPCCOMPILER) -g -O2 $< -o $(patsubst %.ispc.o, %.o, $@) -h $(patsubst %.ispc, %_ispc.h, $<) --arch=x86 --target=sse4,avx2 --opt=fast-math --pic
 endif
-	ld -r $(patsubst %.ispc.o, %_sse4.o, $@) $(patsubst %.ispc.o, %_avx2.o, $@) -o $@
+	ld -r $(patsubst %.ispc.o, %_sse4.o, $@) $(patsubst %.ispc.o, %_avx2.o, $@) $(patsubst %.ispc.o, %.o, $@) -o $@
 
 .PHONY: clean
 

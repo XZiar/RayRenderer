@@ -177,7 +177,7 @@ protected:
         const std::any& cookie = {}, const std::u16string& description = u"")
     {
         Categories.try_emplace(category, category.cbegin(), category.cend());
-        auto[it, res] = ControlItems.insert_or_assign(id, ControlItem{ id, category, name, description, cookie, {}, {}, std::variant_npos, argType, true });
+        auto it = ControlItems.insert_or_assign(id, ControlItem{ id, category, name, description, cookie, {}, {}, std::variant_npos, argType, true }).first;
         return it->second;
     }
     template<typename T>

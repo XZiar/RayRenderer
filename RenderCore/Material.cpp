@@ -17,7 +17,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, oglu::Text
     const auto format = (oglu::TextureInnerFormat)object.Get<uint16_t>("format");
     const auto width = object.Get<uint32_t>("width");
     const auto height = object.Get<uint32_t>("height");
-    const auto mipmap = object.Get<uint8_t>("mipmap");
+    //const auto mipmap = object.Get<uint8_t>("mipmap");
     vector<common::AlignedBuffer> data;
     
     const auto jdata = object.GetArray("data");
@@ -339,7 +339,7 @@ void MultiMaterialHolder::Refresh()
         {
             texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h));
+            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
         }
         texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)

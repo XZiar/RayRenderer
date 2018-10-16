@@ -1,5 +1,4 @@
-﻿#pragma once
-#include "RenderCoreRely.h"
+﻿#include "RenderCoreRely.h"
 #include "GLShader.h"
 
 
@@ -223,7 +222,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
         config.Routines = Linq::FromIterable(jconfig.GetObject("routines"))
             .ToMap(std::map<string, string>{},
                 [](const auto& kvpair) { return string(kvpair.first); },
-                [](const auto& kvpair) { return kvpair.second.AsValue<string>(); });
+                [](const auto& kvpair) { return kvpair.second.template AsValue<string>(); });
     }
     u16string name = str::to_u16string(object.Get<string>("config"), Charset::UTF8);
     const auto srchandle = object.Get<string>("source");

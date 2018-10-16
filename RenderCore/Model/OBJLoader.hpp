@@ -24,12 +24,12 @@ public:
 
         TextLine() {}
 
-        TextLine(const Charset chset, const string& prefix) : charset(chset), Type(hash_(prefix)) {}
+        TextLine(const Charset chset, const string& prefix) : Type(hash_(prefix)), charset(chset) {}
 
         template<size_t N>
-        TextLine(const Charset chset, const char(&prefix)[N] = "EMPTY") : charset(chset), Type(hash_(prefix)) {}
+        TextLine(const Charset chset, const char(&prefix)[N] = "EMPTY") : Type(hash_(prefix)), charset(chset) {}
 
-        TextLine(const Charset chset, const std::string_view& line) : charset(chset), Line(line) { Params.reserve(8); }
+        TextLine(const Charset chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
 
         TextLine(const TextLine& other) = default;
         TextLine(TextLine&& other) = default;
@@ -58,9 +58,9 @@ public:
         u16string ToUString() { return common::str::to_u16string(Line, charset); }
 
         template<size_t N>
-        int8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
+        uint8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
         {
-            int8_t cnt = 0;
+            uint8_t cnt = 0;
             str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
             {
                 if (cnt < N)
@@ -75,9 +75,9 @@ public:
         }
 
         template<size_t N>
-        int8_t ParseFloats(const uint8_t idx, float(&output)[N])
+        uint8_t ParseFloats(const uint8_t idx, float(&output)[N])
         {
-            int8_t cnt = 0;
+            uint8_t cnt = 0;
             str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
             {
                 if (cnt < N)
@@ -85,9 +85,10 @@ public:
                     if (len == 0)
                         output[cnt++] = 0;
                     else
-                        output[cnt++] = atof(Params[idx].data());
+                        output[cnt++] = atof(substr);
                 }
             });
+            return cnt;
         }
 
         operator const bool() const

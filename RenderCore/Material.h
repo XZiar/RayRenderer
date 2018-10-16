@@ -11,7 +11,7 @@ namespace detail
 class TextureLoader;
 }
 
-struct RAYCOREAPI alignas(16) RawMaterialData : public common::AlignBase<16>
+struct RAYCOREAPI RawMaterialData : public common::AlignBase<16>
 {
 public:
     b3d::Vec4 ambient, diffuse, specular, emission;
@@ -65,7 +65,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
     uintptr_t GetRawPtr() const;
 };
 
-struct RAYCOREAPI alignas(16) PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
+struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
 {
 public:
     b3d::Vec3 Albedo;

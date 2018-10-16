@@ -1,5 +1,5 @@
 #include "RenderCoreRely.h"
-#include "common/ResourceHelper.h"
+#include "common/ResourceHelper.inl"
 #include "common/ThreadEx.inl"
 
 #include <boost/version.hpp>

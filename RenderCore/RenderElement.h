@@ -9,7 +9,7 @@ using namespace common;
 using namespace b3d;
 
 
-class RAYCOREAPI alignas(16) Drawable : public AlignBase<16>, public NonCopyable, public xziar::respak::Serializable
+class RAYCOREAPI Drawable : public AlignBase<16>, public NonCopyable, public xziar::respak::Serializable
 {
 public:
     using Drawcall = oglu::detail::ProgDraw;

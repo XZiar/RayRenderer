@@ -1,5 +1,5 @@
 #include "TexUtilRely.h"
-#include "common/ResourceHelper.h"
+#include "common/ResourceHelper.inl"
 #include "common/ThreadEx.inl"
 
 #pragma message("Compiling TextureUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )

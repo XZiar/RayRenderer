@@ -43,6 +43,7 @@
     <None Include="ColorLUT.glsl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">

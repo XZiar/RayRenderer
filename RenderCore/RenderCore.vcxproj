@@ -217,6 +217,7 @@
     <None Include="3d_pbr.glsl" />
     <None Include="ColorLUT.cl" />
     <None Include="ColorLUT.glsl" />
+    <None Include="Makefile" />
     <None Include="postprocess.glsl" />
     <None Include="shadow.glsl" />
     <None Include="test.cl" />
