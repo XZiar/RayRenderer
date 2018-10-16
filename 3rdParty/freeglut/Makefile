@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@A GLUT replacement
+#@XZBUILD@version@3.0.0
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

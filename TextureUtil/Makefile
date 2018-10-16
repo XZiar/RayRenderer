@@ -1,3 +1,8 @@
+#@XZBUILD
+#@XZBUILD@description@Texture Utility
+#@XZBUILD@version@1.6.35
+#@XZBUILD@dependency@fmt, miniLogger, ImageUtil, ispc_texcomp, OpenGLUtil, OpenCLUtil
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@A small C library for x86 CPU detection and feature extraction
+#@XZBUILD@version@0.4.0
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

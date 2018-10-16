@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Font Utility
+#@XZBUILD@dependency@fmt, miniLogger, ImageUtil, freetype2, OpenGLUtil, OpenCLUtil
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

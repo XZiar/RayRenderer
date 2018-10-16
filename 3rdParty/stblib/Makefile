@@ -1,3 +1,6 @@
+#@XZBUILD
+#@XZBUILD@description@Single-file public domain libraries for C/C++
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

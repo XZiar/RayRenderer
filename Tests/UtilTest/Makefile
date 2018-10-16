@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Utility test
+#@XZBUILD@dependency@fmt, stb, uchardet, miniLogger, AsyncExecutor, ImageUtil, OpenGLUtil, OpenCLUtil, FreeGLUTView
+
 BUILD_TYPE	:= executable
 
 include $(PROJPATH)/Makebase.mk

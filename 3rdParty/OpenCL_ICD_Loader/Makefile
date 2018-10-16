@@ -1,3 +1,6 @@
+#@XZBUILD
+#@XZBUILD@description@The OpenCL ICD Loader
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

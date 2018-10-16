@@ -1,3 +1,8 @@
+#@XZBUILD
+#@XZBUILD@description@The official PNG reference library
+#@XZBUILD@version@1.6.35
+#@XZBUILD@dependency@zlib-ng
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

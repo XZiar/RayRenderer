@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Resource package and management library
+#@XZBUILD@dependency@fmt, miniLogger, cryptopp
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

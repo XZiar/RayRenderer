@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@zlib replacement with optimizations for "next generation" systems
+#@XZBUILD@version@1.9.9
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

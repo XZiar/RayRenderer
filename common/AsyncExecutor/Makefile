@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@An async task execution library
+#@XZBUILD@dependency@fmt, miniLogger, boost.context
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

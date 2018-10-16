@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Wrapper of OpenCL Utility
+#@XZBUILD@dependency@fmt, OpenGLUtil, miniLogger, glew, ImageUtil, OpenCLICDLoader
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

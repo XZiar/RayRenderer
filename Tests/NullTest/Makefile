@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@minimized test
+#@XZBUILD@dependency@fmt, boost.stacktrace
+
 BUILD_TYPE	:= executable
 
 include $(PROJPATH)/Makebase.mk

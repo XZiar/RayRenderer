@@ -104,7 +104,18 @@ int main(int argc, char *argv[])
         log().info(u"Simple logging cost {} ns.\n", timer.ElapseNs());
         auto it = testMap.cbegin();
         std::advance(it, idx);
-        it->second();
+        try
+        {
+            it->second();
+        }
+        catch (const common::BaseException& be)
+        {
+            log().error(u"Error when performing test:\n{}\n", (const std::u16string_view&)be.message);
+            fmt::basic_memory_buffer<char16_t> buf;
+            for (const auto& stack : be.Stack())
+                fmt::format_to(buf, u"{}:[{}]\t{}\n", (const std::u16string_view&)stack.File, stack.Line, (const std::u16string_view&)stack.Func);
+            log().error(u"stack trace:\n{}\n", std::u16string_view(buf.data(), buf.size()));
+        }
     }
     else
     {

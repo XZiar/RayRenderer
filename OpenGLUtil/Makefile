@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Wrapper of OpenGL Utility
+#@XZBUILD@dependency@fmt, cpuid, miniLogger, glew, ImageUtil
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

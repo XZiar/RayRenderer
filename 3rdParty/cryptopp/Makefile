@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@Crypto++ Library is a free C++ Class Library of Cryptographic Schemes
+#@XZBUILD@version@7.0.0
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

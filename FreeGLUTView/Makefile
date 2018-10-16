@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@FreeGLUT wrapper
+#@XZBUILD@dependency@fmt, miniLogger, freeglut, AsyncExecutor
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

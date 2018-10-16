@@ -1,3 +1,6 @@
+#@XZBUILD
+#@XZBUILD@description@A foundational library provides multitasking on a single thread
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

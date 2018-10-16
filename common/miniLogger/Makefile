@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@A mini logger library
+#@XZBUILD@dependency@fmt
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk

@@ -1,3 +1,8 @@
+#@XZBUILD
+#@XZBUILD@description@A freely available software library to render fonts
+#@XZBUILD@version@2.9.1
+#@XZBUILD@dependency@zlib-ng, png
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

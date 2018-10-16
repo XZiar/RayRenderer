@@ -1,3 +1,6 @@
+#@XZBUILD
+#@XZBUILD@description@ISPC Texture Compressor
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

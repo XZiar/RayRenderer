@@ -25,7 +25,7 @@ class Project:
         self.name = data["name"]
         self.type = data["type"]
         self.path = data["path"]
-        self.deps = data["dependency"]
+        self.deps = data.get("dependency", [])
         self.version = data.get("version", "")
         self.desc = data.get("description", "")
         self.dependency = []
@@ -164,6 +164,33 @@ def parseProj(proj:str, projs:dict):
         else: print("{clr.red}Unknwon project{clr.cyan}[{}]{clr.clear}".format(x, clr=COLOR))
     return wanted
 
+def gatherProj():
+    def readMakefile(d:str):
+        with open(os.path.join(d, "Makefile"), 'r') as f:
+            return list([line.strip() for line in f])
+    target = [(r, readMakefile(r)) for r,d,f in os.walk(".") if "Makefile" in f]
+    target = [(d[2:] if d.startswith("./") else d, txt) for d,txt in target if "#@XZBUILD" in txt]
+    ret = []
+
+    for d, txt in target:
+        dat = {"path": d}
+        for line in txt:
+            if line.startswith("#@XZBUILD@"):
+                tokens = line.split('@')
+                key = tokens[2].lower()
+                if key == "dependency":
+                    dat[key] = list(x.strip() for x in tokens[3].split(','))
+                else:
+                    dat[key] = tokens[3]
+            else:
+                tokens = line.split()
+                if len(tokens)==3 and tokens[0] == "NAME": 
+                    dat["name"] = tokens[2]
+                elif len(tokens)==3 and tokens[0] == "BUILD_TYPE":
+                    dat["type"] = tokens[2]
+        ret.append(dat)
+    return ret
+
 def main(argv=None):
     try:
         action = argv[1]
@@ -171,19 +198,23 @@ def main(argv=None):
             help()
             return 0
         
-        try:
-            with open('xzbuild.sol.json', 'r') as f:
-                data = json.load(f)
-            projects = {p.name:p for p in [Project(proj) for proj in data["projects"]]}
-            for proj in projects.values():
-                proj.solve(projects)
-        except IOError as e:
-            print("{clr.red}unavaliabe project data [xzbuild.proj.json]\n{}".format(e.strerror, clr=COLOR))
-            return -1
-        except Exception as e:
-            print(e)
-            return -1
-        
+        # try:
+        #     with open('xzbuild.sol.json', 'r') as f:
+        #         data = json.load(f)
+        #     projects = {p.name:p for p in [Project(proj) for proj in data["projects"]]}
+        #     for proj in projects.values():
+        #         proj.solve(projects)
+        # except IOError as e:
+        #     print("{clr.red}unavaliabe project data [xzbuild.proj.json]\n{}".format(e.strerror, clr=COLOR))
+        #     return -1
+        # except Exception as e:
+        #     print(e)
+        #     return -1
+
+        projects = {p.name:p for p in [Project(proj) for proj in gatherProj()]}
+        for proj in projects.values():
+            proj.solve(projects)
+
         objproj = argv[2] if len(argv) > 2 else None
 
         if action == "list":
@@ -219,4 +250,7 @@ if __name__ == "__main__":
     elif osname != "Linux":
         print("{0.yellow}unknown OS!{0.clear}".format(COLOR))
         sys.exit(-1)
+    # pjs = gatherProj()
+    # projects = {p.name:p for p in [Project(proj) for proj in gatherProj()]}
+    # listproj(projects, None)
     sys.exit(main(sys.argv))

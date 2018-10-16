@@ -225,7 +225,7 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
 {
     SharedObjectLookup = Linq::FromIterable(Root.GetObject("#global_map"))
         .ToMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
-            [](const auto& kvpair) { return kvpair.second.AsValue<string_view>(); });
+            [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
     const auto size = ResReader.GetSize();
     if (size < RESITEM_SIZE)

@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@An encoding detector library
+#@XZBUILD@version@0.6.0
+
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk

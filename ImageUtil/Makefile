@@ -1,3 +1,7 @@
+#@XZBUILD
+#@XZBUILD@description@A basic image operation library
+#@XZBUILD@dependency@fmt, miniLogger, zlib-ng, png, jpeg-turbo
+
 BUILD_TYPE	:= dynamic
 
 include $(PROJPATH)/Makebase.mk
