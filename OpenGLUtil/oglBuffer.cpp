@@ -31,15 +31,15 @@ _oglMapPtr::~_oglMapPtr()
 _oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
 {
     glGenBuffers(1, &bufferID);
-    bind();
-    unbind();
+    glBindBuffer((GLenum)BufType, bufferID);
+    glBindBuffer((GLenum)BufType, 0);
 }
 
 _oglBuffer::~_oglBuffer() noexcept
 {
     if (!EnsureValid()) return;
-    if (MappedPtr)
-        MappedPtr.reset();
+    if (PersistentPtr)
+        PersistentPtr.reset();
     if (bufferID != GL_INVALID_INDEX)
         glDeleteBuffers(1, &bufferID);
     else
@@ -60,21 +60,25 @@ void _oglBuffer::unbind() const noexcept
     glBindBuffer((GLenum)BufType, 0);
 }
 
-oglMapPtr _oglBuffer::PersistentMap(const size_t size, const MapFlag flags)
+oglMapPtr _oglBuffer::Map(const MapFlag flags)
 {
     CheckCurrent();
     bind();
-    glBufferStorage((GLenum)BufType, size, nullptr, (GLenum)((flags | MapFlag::PersistentMap) & MapFlag::PrepareMask));
-    BufSize = size;
-    return new _oglMapPtr(*this, flags);
+    const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
+    if (newPersist)
+        glBufferStorage((GLenum)BufType, BufSize, nullptr, (GLenum)(flags & MapFlag::PrepareMask));
+    oglMapPtr ptr(new _oglMapPtr(*this, flags));
+    if (newPersist)
+        PersistentPtr = ptr;
+    return ptr;
 }
 
 void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
 {
     CheckCurrent();
-    if (MappedPtr)
+    if (PersistentPtr)
     {
-        memcpy_s(MappedPtr, BufSize, dat, size);
+        memcpy_s(PersistentPtr, BufSize, dat, size);
     }
     else
     {
@@ -90,7 +94,8 @@ _oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Texture
 
 _oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(BufferType::Uniform)
 {
-    MappedPtr = PersistentMap(size, MapFlag::CoherentMap | MapFlag::MapWrite);
+    BufSize = size;
+    Map(MapFlag::CoherentMap | MapFlag::PersistentMap | MapFlag::MapWrite);
     vector<uint8_t> empty(size);
     Write(empty, BufferWriteMode::StreamDraw);
 }

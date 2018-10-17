@@ -108,14 +108,13 @@ void Drawable::PrepareMaterial(const std::weak_ptr<detail::ThumbnailManager>& th
     MaterialHolder = PrepareMaterial();
     MaterialHolder.ThumbMan = thumbman;
     MaterialUBO.reset(26 * MultiMaterialHolder::UnitSize);
-    MaterialBuf.resize(MaterialUBO->Size());
 }
 
 void Drawable::AssignMaterial()
 {
     MaterialHolder.Refresh();
-    const size_t size = MaterialHolder.WriteData(MaterialBuf.data());
-    MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
+    const size_t size = MaterialHolder.WriteData(MaterialUBO->GetPersistentPtr().AsType<std::byte>());
+    //MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
 }
 
 void Drawable::Draw(Drawcall& drawcall) const

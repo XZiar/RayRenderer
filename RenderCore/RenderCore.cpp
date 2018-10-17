@@ -260,6 +260,7 @@ void RenderCore::ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline)
 
 void RenderCore::Serialize(const fs::path & fpath) const
 {
+    RefreshContext();
     SerializeUtil serializer(fpath);
     serializer.IsPretty = true;
     serializer.AddFilter([](const string_view& serType)
@@ -305,6 +306,21 @@ void RenderCore::DeSerialize(const fs::path & fpath)
             shd->RegistDrawable(drw);
         shd->CleanDrawable();
     }
+}
+
+xziar::img::Image RenderCore::Screenshot()
+{
+    RefreshContext();
+    const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
+    oglu::oglFBO ssFBO(std::in_place);
+    //oglu::BindingState bs1;
+    oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
+    //oglu::BindingState bs2;
+    ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+    ssFBO->AttachColorTexture(ssTex, 0);
+    dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+    ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
+    return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 
 

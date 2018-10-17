@@ -233,7 +233,7 @@ void _oglVAO::Test() const noexcept
     bind();
     BindingState state;
     unbind();
-    oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.vaoId, state.vboId, state.iboId, state.eboId);
+    oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.VAO, state.VBO, state.IBO, state.EBO);
 }
 
 }

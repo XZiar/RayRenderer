@@ -29,15 +29,20 @@ BindingState::BindingState()
     HRC = glXGetCurrentContext();
 #endif
     const oglContext ctx = oglContext::CurrentContext();
-    glGetIntegerv(GL_CURRENT_PROGRAM, &progId);
-    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vaoId);
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fboId);
-    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &vboId);
+    glGetIntegerv(GL_CURRENT_PROGRAM, &Prog);
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &VAO);
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &FBO);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &DFB);
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &RFB);
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &VBO);
     if (ctx->Version >= 40)
-        glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &iboId);
+        glGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &IBO);
     else
-        iboId = 0;
-    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &eboId);
+        IBO = 0;
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &EBO);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &Tex2D);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &Tex2DArray);
+    glGetIntegerv(GL_TEXTURE_BINDING_3D, &Tex3D);
 }
 
 thread_local oglContext InnerCurCtx{ };
@@ -71,7 +76,8 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
         {
             oglLog().error(u"OpenGL ERROR\n{}\n", msg.Msg);
             BindingState state;
-            oglLog().debug(u"Current Prog[{}], VAO[{}], FBO[{}] binding-state: VBO[{}], IBO[{}], EBO[{}]\n", state.progId, state.vaoId, state.fboId, state.vboId, state.iboId, state.eboId);
+            oglLog().debug(u"State: Prog[{}], VAO[{}], FBO[{}](D[{}]R[{}]) binding: VBO[{}], IBO[{}], EBO[{}]\n",
+                state.Prog, state.VAO, state.FBO, state.DFB, state.RFB, state.VBO, state.IBO, state.EBO);
         }
         else
         {

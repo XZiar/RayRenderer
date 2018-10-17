@@ -85,11 +85,17 @@ TextureManager& _oglTexBase::getTexMan() noexcept
 
 _oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type), Mipmap(1)
 {
-    glGenTextures(1, &textureID);
+    if (shouldBindType)
+        DSA->ogluCreateTextures((GLenum)Type, 1, &textureID);
+    else
+        glGenTextures(1, &textureID);
     if (const auto e = oglUtil::GetError(); e.has_value())
         oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
-    if (shouldBindType)
+    /*if (shouldBindType)
+    {
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture((GLenum)Type, textureID);
+    }*/
     RegistTexture(*this);
 }
 

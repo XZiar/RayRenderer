@@ -66,7 +66,7 @@ public:
     void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void Use() const;
-
+    std::pair<uint32_t, uint32_t> DebugBinding() const;
 };
 }
 
@@ -75,6 +75,7 @@ class OGLUAPI oglFBO : public common::Wrapper<detail::_oglFrameBuffer>
 public:
     using common::Wrapper<detail::_oglFrameBuffer>::Wrapper;
     static void UseDefault();
+    static std::pair<uint32_t, uint32_t> DebugBinding(uint32_t id);
 };
 
 }

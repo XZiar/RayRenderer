@@ -145,6 +145,9 @@
     <ProjectReference Include="..\FreeGLUTView\FreeGLUTView.vcxproj">
       <Project>{944b3981-336e-4807-b5be-55b8f05920d4}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
+      <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>

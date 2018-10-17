@@ -61,7 +61,6 @@ protected:
     const std::type_index DrawableType;
     oglu::oglVAO EmptyVAO;
     oglu::oglUBO MaterialUBO;
-    vector<byte> MaterialBuf;
 
     template<typename T>
     Drawable(const T * const childThis, const u16string& typeName) : Drawable(std::type_index(typeid(childThis)), typeName) { }

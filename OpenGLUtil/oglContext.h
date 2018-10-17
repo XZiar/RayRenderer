@@ -243,7 +243,8 @@ public:
 struct OGLUAPI BindingState
 {
     void *HRC = nullptr;
-    GLint progId = 0, vaoId = 0, fboId = 0, vboId = 0, iboId = 0, eboId = 0;
+    GLint Prog = 0, VAO = 0, FBO = 0, DFB = 0, RFB = 0, VBO = 0, IBO = 0, EBO = 0;
+    GLint Tex2D = 0, Tex2DArray = 0, Tex3D = 0;
     BindingState();
 };
 

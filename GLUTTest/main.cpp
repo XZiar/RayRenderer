@@ -55,6 +55,12 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
                     .Skip(CurPipe).TryGetFirst().value();
                 tester->ChangePipeLine(pipe);
             }
+        case Key::F3:
+            {
+                const auto sceen = tester->Screenshot();
+                WriteImage(sceen, fs::temp_directory_path() / L"RayRenderer" / "sceen.png");
+                return;
+            }
         default:
             break;
         }

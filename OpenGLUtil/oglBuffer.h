@@ -67,7 +67,7 @@ class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
     friend class _oglProgram;
     friend class ::oclu::detail::GLInterOP;
 protected:
-    oglMapPtr MappedPtr;
+    oglMapPtr PersistentPtr;
     size_t BufSize;
     const BufferType BufType;
     GLuint bufferID = GL_INVALID_INDEX;
@@ -77,8 +77,8 @@ protected:
 public:
     virtual ~_oglBuffer() noexcept;
 
-    oglMapPtr PersistentMap(const size_t size, const MapFlag flags);
-    oglMapPtr GetMappedPtr() const { return MappedPtr; }
+    oglMapPtr Map(const MapFlag flags);
+    oglMapPtr GetPersistentPtr() const { return PersistentPtr; }
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
     template<class T, class A>

@@ -177,13 +177,15 @@ static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32
 void _oglFrameBuffer::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     CheckCurrent();
-    to->CheckCurrent();
+    if (to)
+        to->CheckCurrent();
     BlitColor(FBOId, to ? to->FBOId : 0, rect);
 }
 void _oglFrameBuffer::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     CheckCurrent();
-    from->CheckCurrent();
+    if (from)
+        from->CheckCurrent();
     BlitColor(from ? from->FBOId : 0, FBOId, rect);
 }
 
@@ -204,12 +206,25 @@ void _oglFrameBuffer::Use() const
         glBindFramebuffer(GL_FRAMEBUFFER, fbo = FBOId);
 }
 
+std::pair<uint32_t, uint32_t> _oglFrameBuffer::DebugBinding() const
+{
+    return oglFBO::DebugBinding(FBOId);
+}
+
 }
 
 void oglFBO::UseDefault()
 {
     auto& fbo = oglContext::CurrentContext()->GetOrCreate<false>(detail::FBO_CTXCFG);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo = 0);
+}
+
+std::pair<uint32_t, uint32_t> oglFBO::DebugBinding(uint32_t id)
+{
+    GLint clrId = 0, depId = 0;
+    glGetNamedFramebufferAttachmentParameterivEXT(id, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &clrId);
+    glGetNamedFramebufferAttachmentParameterivEXT(id, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depId);
+    return std::pair<uint32_t, uint32_t>(clrId, depId);
 }
 
 }

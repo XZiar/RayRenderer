@@ -63,6 +63,7 @@ public:
 
     void Serialize(const fs::path& fpath) const;
     void DeSerialize(const fs::path& fpath);
+    xziar::img::Image Screenshot();
 };
 #if COMPILER_MSVC
 #   pragma warning(pop)

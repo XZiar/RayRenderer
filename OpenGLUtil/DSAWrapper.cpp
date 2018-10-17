@@ -42,9 +42,13 @@ static void GLAPIENTRY ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index)
     glBindVertexArray(0);
 }
 
-static void GLAPIENTRY ogluCreateTextures(GLenum, GLsizei n, GLuint* textures)
+static void GLAPIENTRY ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures)
 {
-    glGenTextures(n, textures); // leave type initialize to later steps
+    glGenTextures(n, textures);
+    glActiveTexture(GL_TEXTURE0);
+    for (int32_t i = 0; i < n; ++i)
+        glBindTexture(target, textures[i]);
+    glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluGetTextureLevelParameterivARB(GLuint texture, GLenum, GLint level, GLenum pname, GLint* params)
 {
@@ -56,18 +60,21 @@ static void GLAPIENTRY ogluTextureParameteriARB(GLuint texture, GLenum, GLenum p
 }
 static void GLAPIENTRY ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, pixels);
     glBindTexture(target, 0);
@@ -86,18 +93,21 @@ static void GLAPIENTRY ogluTextureSubImage3DARB(GLuint texture, GLenum, GLint le
 }
 static void GLAPIENTRY ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
     glBindTexture(target, 0);
@@ -112,18 +122,21 @@ static void GLAPIENTRY ogluGetTextureImageEXT(GLuint texture, GLenum target, GLi
 }
 static void GLAPIENTRY ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexImage1D(target, level, internalformat, width, border, imageSize, data);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize, data);
     glBindTexture(target, 0);
@@ -142,18 +155,21 @@ static void GLAPIENTRY ogluCompressedTextureSubImage3DARB(GLuint texture, GLenum
 }
 static void GLAPIENTRY ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexSubImage1D(target, level, xoffset, width, format, imageSize, data);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
     glBindTexture(target, 0);
@@ -180,18 +196,21 @@ static void GLAPIENTRY ogluTextureStorage3DARB(GLuint texture, GLenum, GLsizei l
 }
 static void GLAPIENTRY ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexStorage1D(target, levels, internalformat, width);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexStorage2D(target, levels, internalformat, width, height);
     glBindTexture(target, 0);
 }
 static void GLAPIENTRY ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexStorage3D(target, levels, internalformat, width, height, depth);
     glBindTexture(target, 0);
@@ -215,6 +234,7 @@ static void GLAPIENTRY ogluGenerateTextureMipmapARB(GLuint texture, GLenum)
 }
 static void GLAPIENTRY ogluGenerateTextureMipmap(GLuint texture, GLenum target)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glGenerateMipmap(target);
     glBindTexture(target, 0);
@@ -225,6 +245,7 @@ static void GLAPIENTRY ogluTextureBufferARB(GLuint texture, GLenum, GLenum inter
 }
 static void GLAPIENTRY ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer)
 {
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(target, texture);
     glTexBuffer(target, internalformat, buffer);
     glBindTexture(target, 0);

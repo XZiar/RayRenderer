@@ -99,6 +99,7 @@ bool PostProcessor::UpdateFBO()
     {
         FBOTex.reset(MidFrameConfig.Width, MidFrameConfig.Height, TextureInnerFormat::RG11B10);
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        PostShader->Program->State().SetTexture(FBOTex, "scene");
         MiddleFrame->AttachColorTexture(FBOTex, 0);
         oglRBO mainRBO(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);

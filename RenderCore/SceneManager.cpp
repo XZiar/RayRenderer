@@ -29,7 +29,7 @@ void Scene::PrepareLight()
 {
     if (!SceneChanges.Extract(SceneChange::Light))
         return;
-    const auto ptr = LightUBO->GetMappedPtr();
+    const auto ptr = LightUBO->GetPersistentPtr();
     size_t pos = 0;
     uint32_t onCnt = 0;
     for (const auto& lgt : Lights)
