@@ -34,7 +34,7 @@ private:
     std::shared_ptr<detail::TextureLoader> TexLoader;
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
-    Wrapper<oglWorker> GLWorker;
+    std::shared_ptr<oglWorker> GLWorker;
     set<Wrapper<RenderPass>> RenderPasses;
     Wrapper<Scene> TheScene;
     set<Wrapper<RenderPipeLine>> PipeLines;
@@ -54,6 +54,7 @@ public:
     const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; }
     const Wrapper<detail::ThumbnailManager>& GetThumbMan() const { return ThumbMan; }
     const set<Wrapper<RenderPass>>& GetRenderPasses() const { return RenderPasses; }
+    const set<Wrapper<RenderPipeLine>>& GetPipeLines() const { return PipeLines; }
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);

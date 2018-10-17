@@ -109,6 +109,9 @@
     <ClInclude Include="RenderCoreUtil.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FontTest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

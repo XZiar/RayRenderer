@@ -155,4 +155,4 @@ Serializable provide serialize and deserialize support for the object.
 
 ## License
 
-miniLogger (including its component) is licensed under the [MIT license](../../License.txt).
+ResourcePackager (including its component) is licensed under the [MIT license](../../License.txt).

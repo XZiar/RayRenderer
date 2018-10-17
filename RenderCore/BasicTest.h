@@ -52,7 +52,7 @@ private:
     std::shared_ptr<detail::TextureLoader> TexLoader;
     Wrapper<detail::ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
-    Wrapper<oglu::oglWorker> GLWorker;
+    std::shared_ptr<oglu::oglWorker> GLWorker;
     Wrapper<FontViewer> fontViewer;
     Wrapper<FontCreator> fontCreator;
     vector<Wrapper<Drawable>> drawables;

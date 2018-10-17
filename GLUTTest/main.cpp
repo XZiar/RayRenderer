@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <memory>
 #include "FreeGLUTView/FreeGLUTView.h"
+#include "common/Linq.hpp"
+#include "RenderCore/FontTest.h"
 
 
 using namespace glutview;
@@ -13,10 +15,12 @@ using std::wstring;
 using std::u16string;
 using std::vector;
 using namespace common;
+using common::linq::Linq;
 
 //OGLU_OPTIMUS_ENABLE_NV
 
 std::unique_ptr<rayr::RenderCore> tester;
+uint16_t CurPipe = 0;
 uint16_t curObj = 0;
 FreeGLUTView window, wd2;
 bool isAnimate = false;
@@ -42,6 +46,15 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             else
                 tester->Serialize(fs::temp_directory_path() / L"RayRenderer" / "testxzrp.dat");
             break;
+        case Key::F2:
+            {
+                CurPipe++;
+                const auto& pps = tester->GetPipeLines();
+                CurPipe = static_cast<uint16_t>(CurPipe % pps.size());
+                const auto pipe = Linq::FromIterable(pps)
+                    .Skip(CurPipe).TryGetFirst().value();
+                tester->ChangePipeLine(pipe);
+            }
         default:
             break;
         }
@@ -221,6 +234,15 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
         tester->GetScene()->AddLight(light);
         //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
+
+    const auto ftest = Linq::FromIterable(tester->GetRenderPasses())
+        .Select([](const auto& pipe) { return pipe.cast_dynamic<rayr::FontTester>(); })
+        .Where([](const auto& pipe) { return (bool)pipe; })
+        .TryGetFirst().value();
+    fs::path basePath = u"C:\\Programs Temps\\RayRenderer";
+    if (!fs::exists(basePath))
+        basePath = u"D:\\ProgramsTemps\\RayRenderer";
+    ftest->SetFont(basePath / u"test.ttf");
 
     FreeGLUTViewRun();
     return 0;

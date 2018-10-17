@@ -51,7 +51,7 @@ public:
         using namespace std::literals;
         return u"PostProcess"sv;
     }
-    constexpr uint32_t GetLutSize() const { return LutSize; }
+    uint32_t GetLutSize() const { return LutSize; }
     Wrapper<GLShader> GetShader() const { return PostShader; }
     float GetExposure() const { return Exposure; }
     void SetExposure(const float exposure);

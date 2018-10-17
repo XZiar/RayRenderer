@@ -33,8 +33,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux* |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows & Linux |
+| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
-| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |

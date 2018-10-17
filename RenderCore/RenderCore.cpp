@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "RenderCore.h"
 #include "TextureLoader.h"
+#include "FontTest.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
@@ -13,6 +14,13 @@ using common::container::FindInMap;
 
 namespace rayr
 {
+
+
+RESPAK_IMPL_COMP_DESERIALIZE(FontTester, oclu::oclContext)
+{
+    return std::any();
+}
+
 
 struct Init
 {
@@ -89,18 +97,28 @@ RenderCore::RenderCore()
     //MipMapper->Test2();
     ThumbMan.reset(TexWorker);
     PostProc.reset(CLSharedContext, CLQue);
-    GLWorker.reset(u"Core");
+    GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
     TheScene.reset();
 
     InitShaders();
     PostProc->SetMidFrame(1280, 720, true);
-    Wrapper<RenderPipeLine> basicPipeLine(std::in_place);
-    const auto pbrPass = *RenderPasses.begin();
-    basicPipeLine->Passes.push_back(pbrPass);
-    basicPipeLine->Passes.push_back(PostProc);
-    RenderTask = basicPipeLine;
-    PipeLines.insert(basicPipeLine);
+    
+    {
+        Wrapper<RenderPipeLine> basicPipeLine(std::in_place);
+        const auto pbrPass = *RenderPasses.begin();
+        basicPipeLine->Passes.push_back(pbrPass);
+        basicPipeLine->Passes.push_back(PostProc);
+        RenderTask = basicPipeLine;
+        PipeLines.insert(basicPipeLine);
+    }
+    {
+        Wrapper<RenderPipeLine> fontPipeLine(std::in_place);
+        Wrapper<FontTester> fontTest(CLContext);
+        RenderPasses.insert(fontTest);
+        fontPipeLine->Passes.push_back(fontTest);
+        PipeLines.insert(fontPipeLine);
+    }
 }
 
 void RenderCore::RefreshContext() const
@@ -133,22 +151,25 @@ void RenderCore::TestSceneInit()
     pyramid->Name = u"Pyramid";
     pyramid->position = { 0,0,0 };
     TheScene->AddObject(pyramid);
-    pbrPass->RegistDrawable(pyramid);
     Wrapper<Sphere> ball(0.75f);
     ball->Name = u"Ball";
     ball->position = { 1,0,0 };
     TheScene->AddObject(ball);
-    pbrPass->RegistDrawable(ball);
     Wrapper<Box> box(0.5f, 1.0f, 2.0f);
     box->Name = u"Box";
     box->position = { 0,1,0 };
     TheScene->AddObject(box);
-    pbrPass->RegistDrawable(box);
     Wrapper<Plane> ground(500.0f, 50.0f);
     ground->Name = u"Ground";
     ground->position = { 0,-2,0 };
     TheScene->AddObject(ground);
-    pbrPass->RegistDrawable(ground);
+    for (const auto& pass : RenderPasses)
+    {
+        pass->RegistDrawable(pyramid);
+        pass->RegistDrawable(ball);
+        pass->RegistDrawable(box);
+        pass->RegistDrawable(ground);
+    }
 }
 
 void RenderCore::Draw()

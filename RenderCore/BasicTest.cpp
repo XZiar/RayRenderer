@@ -101,7 +101,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     MipMapper->Test2();
     ThumbMan.reset(TexWorker);
     PostProc.reset(ClSharedContext, ClQue);
-    GLWorker.reset(u"Core");
+    GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
     //for reverse-z
     glContext->SetDepthClip(true);

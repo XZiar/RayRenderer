@@ -64,7 +64,7 @@ void GLShader::RegistControllable()
         const auto stage = oglu::oglShader::GetStageName(shader->shaderType);
         const auto u16stage = str::to_u16string(stage);
         RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
-            .RegistGetter([type](const Controllable& self, const string&)
+            .RegistGetter([type=type](const Controllable& self, const string&)
             { return (*FindInMap(dynamic_cast<const GLShader&>(self).Program->getShaders(), type))->SourceText(); });
     }
     for (const auto& res : Program->getSubroutineResources())
@@ -132,13 +132,15 @@ void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
         auto defines = context.NewObject();
         for (const auto&[name, val] : Config.Defines)
         {
+            const auto valtype = val.index();
+            const string_view defName(name);
             std::visit([&](auto&& rval)
             {
                 using T = std::decay_t<decltype(rval)>;
                 if constexpr (std::is_same_v<T, std::monostate>)
-                    defines.Add(name, ejson::JNull{});
+                    defines.Add(defName, ejson::JNull{});
                 else
-                    defines.Add(name, context.NewArray().Push(val.index(), rval));
+                    defines.Add(defName, context.NewArray().Push(valtype, rval));
             }, val);
         }
         config.Add("defines", defines);

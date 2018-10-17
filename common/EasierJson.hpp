@@ -444,7 +444,7 @@ template<bool IsConst>
 class JArrayIterator : protected JDocRef<IsConst>
 {
     template<typename, bool> friend class JArrayLike;
-protected:
+private:
     using JDocRef<IsConst>::JDocRef;
 public:
     JArrayIterator<IsConst>& operator++()
@@ -463,7 +463,7 @@ template<bool IsConst>
 class JObjectIterator : protected DocumentHandle
 {
     template<typename, bool> friend class JObjectLike;
-protected:
+private:
     using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
     InnerValType InnerIterator;
     JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), InnerIterator(val) {}

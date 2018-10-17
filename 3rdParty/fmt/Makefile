@@ -1,6 +1,6 @@
 #@XZBUILD
 #@XZBUILD@description@A modern formatting library
-#@XZBUILD@version@5.1.0
+#@XZBUILD@version@5.2.1
 
 BUILD_TYPE	:= static
 

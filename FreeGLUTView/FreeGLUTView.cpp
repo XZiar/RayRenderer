@@ -68,10 +68,9 @@ private:
         using HandleType = Window;
 #endif
         const HandleType Handle;
-        int32_t ID;
     };
     using FGViewMap = boost::multi_index_container<FGView, boost::multi_index::indexed_by<
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, int32_t, &FGView::ID>>,
+        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, _FreeGLUTView*, &FGView::View>>,
         boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const FGView::HandleType, &FGView::Handle>>
         >>;
     static FGViewMap& GetViewMap()
@@ -117,7 +116,7 @@ private:
 #else
         const FGView::HandleType handle = glXGetCurrentDrawable();
 #endif
-        GetViewMap().insert({ view, handle, view->wdID });
+        GetViewMap().insert({ view, handle });
         fgvLog().info(u"New Window [{}]: handle[{}]\n", view->wdID, reinterpret_cast<uintptr_t>(handle));
 
         glutCloseFuncUcall(FreeGLUTManager::onClose, view);
@@ -156,7 +155,7 @@ private:
     }
     static bool unregist(_FreeGLUTView* view)
     {
-        auto it = GetViewMap().find(view->wdID);
+        auto it = GetViewMap().find(view);
         if (it == GetViewMap().end())
             return false;
         GetViewMap().erase(it);
@@ -165,8 +164,11 @@ private:
     static void onClose(void* ptr)
     {
         const auto view = reinterpret_cast<_FreeGLUTView*>(ptr);
-        view->onClose();
-        unregist(view);
+        if (GetViewMap().find(view) != GetViewMap().end())
+        {
+            view->onClose();
+            unregist(view);
+        }
     }
     static void onDisplay(void* ptr)
     {
