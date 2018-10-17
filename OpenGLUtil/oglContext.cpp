@@ -65,18 +65,17 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
         && ((limit.type & msg.Type) != MsgType::Empty)
         && (uint8_t)limit.minLV <= (uint8_t)msg.Level)
     {
-        auto theMsg = std::make_shared<DebugMessage>(msg);
-        theMsg->Msg.assign(message, message + length);
+        msg.Msg.assign(message, message + length);
 
-        if (theMsg->Type == MsgType::Error)
+        if (msg.Type == MsgType::Error)
         {
-            oglLog().error(u"OpenGL ERROR\n{}\n", theMsg->Msg);
+            oglLog().error(u"OpenGL ERROR\n{}\n", msg.Msg);
             BindingState state;
             oglLog().debug(u"Current Prog[{}], VAO[{}], FBO[{}] binding-state: VBO[{}], IBO[{}], EBO[{}]\n", state.progId, state.vaoId, state.fboId, state.vboId, state.iboId, state.eboId);
         }
         else
         {
-            oglLog().verbose(u"OpenGL message\n{}\n", theMsg->Msg);
+            oglLog().verbose(u"OpenGL message\n{}\n", msg.Msg);
         }
     }
 }

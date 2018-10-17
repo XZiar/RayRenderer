@@ -215,7 +215,7 @@ inline JpegWriter::~JpegWriter()
         delete (jpeg_error_mgr*)JpegErrorHandler;
 }
 
-void JpegWriter::Write(const Image& image)
+void JpegWriter::Write(const Image& image, const uint8_t quality)
 {
     if (image.GetWidth() > JPEG_MAX_DIMENSION || image.GetHeight() > JPEG_MAX_DIMENSION)
         return;
@@ -240,7 +240,7 @@ void JpegWriter::Write(const Image& image)
     compStruct->image_height = image.GetHeight();
     compStruct->input_components = image.GetElementSize();
     jpeg_set_defaults(compStruct);
-    jpeg_set_quality(compStruct, 90, TRUE);
+    jpeg_set_quality(compStruct, quality, TRUE);
 
     jpeg_start_compress(compStruct, TRUE);
     auto ptrs = image.GetRowPtrs();

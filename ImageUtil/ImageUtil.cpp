@@ -61,7 +61,7 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
     COMMON_THROW(BaseException, u"cannot read image", path);
 }
 
-void WriteImage(const Image& image, const fs::path & path)
+void WriteImage(const Image& image, const fs::path & path, const uint8_t quality)
 {
     auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary);
     ImgLog().debug(u"Write Image {}\n", path.u16string());
@@ -73,7 +73,7 @@ void WriteImage(const Image& image, const fs::path & path)
         {
             auto writer = support->GetWriter(imgFile);
             ImgLog().debug(u"Using [{}]\n", support->Name);
-            return writer->Write(image);
+            return writer->Write(image, quality);
         }
         catch (BaseException& be)
         {

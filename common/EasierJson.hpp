@@ -445,8 +445,8 @@ class JArrayIterator : protected JDocRef<IsConst>
 {
     template<typename, bool> friend class JArrayLike;
 private:
+public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
     using JDocRef<IsConst>::JDocRef;
-public:
     JArrayIterator<IsConst>& operator++()
     {
         this->Val++; return *this;
@@ -466,8 +466,8 @@ class JObjectIterator : protected DocumentHandle
 private:
     using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
     InnerValType InnerIterator;
+public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
     JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), InnerIterator(val) {}
-public:
     JObjectIterator<IsConst>& operator++()
     {
         InnerIterator++; return *this;

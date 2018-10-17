@@ -669,7 +669,7 @@ TgaWriter::TgaWriter(FileObject& file) : ImgFile(file)
 {
 }
 
-void TgaWriter::Write(const Image& image)
+void TgaWriter::Write(const Image& image, const uint8_t)
 {
     constexpr char identity[] = "Truevision TGA file created by zexTGA";
     if (image.GetWidth() > INT16_MAX || image.GetHeight() > INT16_MAX)

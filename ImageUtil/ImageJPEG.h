@@ -42,7 +42,7 @@ private:
 public:
     JpegWriter(FileObject& file);
     virtual ~JpegWriter() override;
-    virtual void Write(const Image& image) override;
+    virtual void Write(const Image& image, const uint8_t quality) override;
 };
 
 class IMGUTILAPI JpegSupport : public ImgSupport

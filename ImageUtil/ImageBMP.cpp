@@ -207,7 +207,7 @@ BmpWriter::BmpWriter(FileObject& file) : ImgFile(file)
 {
 }
 
-void BmpWriter::Write(const Image& image)
+void BmpWriter::Write(const Image& image, const uint8_t)
 {
     if (image.GetWidth() > INT32_MAX || image.GetHeight() > INT32_MAX)
         return;

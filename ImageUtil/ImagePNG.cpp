@@ -6,6 +6,7 @@
 #include "zlib-ng/zlib.h"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
+#include <cmath>
 
 
 #pragma message("Compiling ImagePNG with libpng[" STRINGIZE(PNG_LIBPNG_VER_STRING) "] AND zlib-ng[" STRINGIZE(ZLIBNG_VERSION) "](zlib[" STRINGIZE(ZLIB_VERSION) "])")
@@ -213,8 +214,10 @@ PngWriter::~PngWriter()
     }
 }
 
-void PngWriter::Write(const Image& image)
+void PngWriter::Write(const Image& image, const uint8_t quality)
 {
+    // [0,75]=0, [76,82]=1, [83,87]=2, [88,90]=3, [91,92]=4, [93,94]=5, [95,96]=6, [97,98]=7, [99]=8, [100]=9
+    const auto compLevel = static_cast<uint16_t>(std::pow((quality - 1)*0.01, 8) * 10);
     auto pngStruct = (png_structp)PngStruct;
     auto pngInfo = (png_infop)PngInfo;
     if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
@@ -226,7 +229,7 @@ void PngWriter::Write(const Image& image)
     const auto colorMask = image.IsGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;
     const auto colorType = alphaMask | colorMask;
     png_set_IHDR(pngStruct, pngInfo, image.GetWidth(), image.GetHeight(), 8, colorType, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-    png_set_compression_level(pngStruct, 3);
+    png_set_compression_level(pngStruct, compLevel);
     png_write_info(pngStruct, pngInfo);
 
     if (REMOVE_MASK(image.GetDataType(), ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::BGR)

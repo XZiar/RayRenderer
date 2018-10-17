@@ -66,7 +66,7 @@ private:
 public:
     BmpWriter(FileObject& file);
     virtual ~BmpWriter() override {};
-    virtual void Write(const Image& image) override;
+    virtual void Write(const Image& image, const uint8_t quality) override;
 };
 
 

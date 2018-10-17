@@ -179,7 +179,7 @@ static void WriteToFile(void *context, void *data, int size)
     file.Write(size, data);
 }
 
-void StbWriter::Write(const Image& image)
+void StbWriter::Write(const Image& image, const uint8_t quality)
 {
     const auto width = static_cast<int32_t>(image.GetWidth()), height = static_cast<int32_t>(image.GetHeight());
     const int32_t reqComp = Image::GetElementSize(image.GetDataType());
@@ -190,7 +190,7 @@ void StbWriter::Write(const Image& image)
     case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr()); break;
     case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr(), 0); break;
     case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr(), 90); break;
+    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr(), quality); break;
     default:            COMMON_THROW(BaseException, u"unsupported image type");
     }
     if (ret == 0)
