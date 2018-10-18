@@ -11,7 +11,8 @@ using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
 
-RenderPassContext::RenderPassContext(const std::shared_ptr<Scene>& scene) : TheScene(scene)
+RenderPassContext::RenderPassContext(const std::shared_ptr<Scene>& scene, const uint16_t ScreenWidth, const uint16_t ScreenHeight) 
+    : TheScene(scene), ScreenSize(ScreenWidth, ScreenHeight)
 {
 }
 
@@ -135,20 +136,18 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     const auto fboTex = context.GetTexture("MainFBTex");
     const auto fbo = context.GetFrameBuffer("MainFB");
     const bool needNewCam = fboTex && fbo;
-    uint16_t oldWidth = 0, oldHeight = 0;
+    const auto[scw, sch] = context.GetScreenSize();
     if (needNewCam)
     {
         const auto[w, h] = fboTex->GetSize();
         fbo->Use();
         GLContext->SetViewPort(0, 0, w, h);
-        oldWidth = cam->Width, oldHeight = cam->Height;
-        cam->Resize(w, h);
     }
     else
     {
         oglu::oglFBO::UseDefault();
     }
-    Program->SetProject(cam->GetProjection());
+    Program->SetProject(cam->GetProjection(float(scw) / sch));
     Program->SetView(cam->GetView());
     Program->SetVec("vecCamPos", cam->Position);
     {
@@ -164,8 +163,7 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     }
     if (needNewCam)
     {
-        cam->Resize(oldWidth, oldHeight);
-        GLContext->SetViewPort(0, 0, oldWidth, oldHeight);
+        GLContext->SetViewPort(0, 0, scw, sch);
     }
 
 }
@@ -198,9 +196,8 @@ RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext::CurrentContext())
 {
 }
 
-void RenderPipeLine::Render(const std::shared_ptr<Scene>& scene)
+void RenderPipeLine::Render(RenderPassContext context)
 {
-    RenderPassContext context(scene);
     for (auto& pass : Passes)
     {
         pass->Prepare(context);

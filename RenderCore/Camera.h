@@ -5,17 +5,28 @@
 namespace rayr
 {
 
-class RAYCOREAPI Camera : public common::AlignBase<32>, public xziar::respak::Serializable
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+class RAYCOREAPI Camera : public common::AlignBase<32>, public xziar::respak::Serializable, public Controllable
 {
+protected:
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"Light"sv;
+    }
+    void RegistControllable();
 public:
     //fit for reverse-z
     b3d::Mat3x3 CamMat = b3d::Mat3x3::identity();
     b3d::Vec3 Position = b3d::Vec3(0, 0, 10);
     b3d::Vec3 Rotation = b3d::Vec3::zero();
-    float Fovy = 60.0f, Aspect = 1.0f, zNear = 1.0f, zFar = 100.0f;
-    uint16_t Width = 8, Height = 8;
+    float Fovy = 60.0f, zNear = 1.0f, zFar = 100.0f;
     u16string Name;
-    Camera() noexcept { }
+    Camera() noexcept;
+    ~Camera() {}
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#Camera")
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
@@ -27,13 +38,6 @@ public:
     const b3d::Normal& Right() const noexcept { return *reinterpret_cast<const b3d::Normal*>(&CamMat.x); }
     const b3d::Normal& Up() const noexcept { return *reinterpret_cast<const b3d::Normal*>(&CamMat.y); }
     const b3d::Normal& Toward() const noexcept { return *reinterpret_cast<const b3d::Normal*>(&CamMat.z); }
-    template<typename T>
-    void Resize(const T w, const T h) noexcept
-    {
-        static_assert(std::is_integral_v<T>, "only support integer type");
-        Width = static_cast<uint16_t>(std::clamp<T>(w, 8, UINT16_MAX)), Height = static_cast<uint16_t>(std::clamp<T>(h, 8, UINT16_MAX));
-        Aspect = (float)w / h;
-    }
     void Move(const float &x, const float &y, const float &z) noexcept
     {
         Position += CamMat * b3d::Vec3(x, y, z);
@@ -71,14 +75,14 @@ public:
         Rotate(angles.x, angles.y, angles.z);
     }
 
-    b3d::Mat4x4 GetProjection(const bool reverseZ = true) const noexcept
+    b3d::Mat4x4 GetProjection(const float aspect, const bool reverseZ = true) const noexcept
     {
         const float cotHalfFovy = 1 / std::tan(b3d::ang2rad(Fovy / 2));
         if(reverseZ)
             //reverse-z with infinite far
             return b3d::Mat4x4
             {
-                { cotHalfFovy / Aspect, 0.f, 0.f, 0.f },
+                { cotHalfFovy / aspect, 0.f, 0.f, 0.f },
                 { 0.f, cotHalfFovy, 0.f, 0.f },
                 { 0.f, 0.f, 0.f, zNear },
                 { 0.f, 0.f, -1.0f, 0.f }
@@ -101,7 +105,7 @@ public:
         //*/
         return b3d::Mat4x4
         {
-            { cotHalfFovy / Aspect, 0.f, 0.f, 0.f },
+            { cotHalfFovy / aspect, 0.f, 0.f, 0.f },
             { 0.f, cotHalfFovy, 0.f, 0.f },
             { 0.f, 0.f, (zFar + zNear) * viewDepthR, (-2 * zFar * zNear) * viewDepthR },
             { 0.f, 0.f, 1.f, 0.f }
@@ -116,5 +120,8 @@ public:
         return b3d::Mat4x4::TranslateMat(Position * -1, rMat);
     }
 };
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 }

@@ -23,7 +23,7 @@ uniform float widthscale = 1.0f;
 void main() 
 {
     pos = vertPos.xy;
-    pos.x = pos.x * widthscale;
+    //pos.x = pos.x * widthscale;
     tpos = vertTexc;
     gl_Position = vec4(pos, 1.0f, 1.0f);
 }

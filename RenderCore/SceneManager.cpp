@@ -34,7 +34,7 @@ void Scene::PrepareLight()
     uint32_t onCnt = 0;
     for (const auto& lgt : Lights)
     {
-        if (!lgt->isOn)
+        if (!lgt->IsOn)
             continue;
         onCnt++;
         pos += lgt->WriteData(ptr.AsType<std::byte>() + pos);
@@ -57,7 +57,7 @@ bool Scene::AddLight(const Wrapper<Light>& light)
 {
     Lights.push_back(light);
     SceneChanges.Add(SceneChange::Light);
-    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->type, light->name);
+    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->Type, light->Name);
     return true;
 }
 

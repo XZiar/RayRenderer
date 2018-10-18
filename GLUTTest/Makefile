@@ -9,6 +9,9 @@ include $(PROJPATH)/Makebase.mk
 NAME	= GLUTTest
 
 LIBRARYS	+= -lpthread -lstdc++fs -lFreeGLUTView -lResourcePackager -lRenderCore -lImageUtil
+ifeq ($(XZMK_CLANG), 1)
+LIBRARYS	+= -lminiLogger -lOpenGLUtil -lOpenCLUtil -lFontHelper -lTextureUtil -lAsyncExecutor
+endif
 DEPLIBS		+= -lfmt
 CXXFLAGS	+= -Wno-unused-function -Wno-switch
 

@@ -107,7 +107,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     glContext->SetDepthClip(true);
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
     //glContext->SetFaceCulling(FaceCullingType::CullCW);
-    cam.Resize(1280, 720);
+    WindowWidth = 1280, WindowHeight = 720;
     cam.zNear = 0.01f;
     fontViewer.reset();
     fontCreator.reset(ClContext);
@@ -265,7 +265,7 @@ void BasicTest::prepareLight()
     uint32_t onCnt = 0;
     for (const auto& lgt : lights)
     {
-        if (!lgt->isOn)
+        if (!lgt->IsOn)
             continue;
         onCnt++;
         pos += lgt->WriteData(&LightBuf[pos]);
@@ -346,7 +346,7 @@ void BasicTest::Draw()
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
         xziar::img::WriteImage(img, fs::temp_directory_path() / u"lut.png");
     }*/
-    RenderPassContext rpContext({});
+    RenderPassContext rpContext({}, WindowWidth, WindowHeight);
     {
         PostProc->OnPrepare(rpContext);
     }
@@ -367,7 +367,6 @@ void BasicTest::Draw()
     }
     else
     {
-        const auto ow = cam.Width, oh = cam.Height;
         const auto[w, h] = fboTex->GetSize();
         MiddleFrame->Use();
         glContext->SetSRGBFBO(false);
@@ -387,11 +386,9 @@ void BasicTest::Draw()
         }
         oglu::oglFBO::UseDefault();
         //glContext->SetSRGBFBO(true);
-        Resize(ow, oh, false);
+        Resize(WindowWidth, WindowHeight, false);
         {
-            const auto sw = w * oh / h;
-            const auto widthscale = sw * 1.0f / ow;
-            progPost->Draw().SetUniform("widthscale", widthscale).Draw(PostProc->VAOScreen);
+            progPost->Draw().Draw(PostProc->VAOScreen);
         }
         //fontViewer->Draw();
     }
@@ -401,8 +398,7 @@ void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWind
 {
     RefreshContext();
     glContext->SetViewPort(0, 0, w, h);
-    cam.Resize(w, h);
-    prog3D->SetProject(cam.GetProjection());
+    prog3D->SetProject(cam.GetProjection((float)w / h));
     if (changeWindow)
         WindowWidth = w, WindowHeight = h;
 }
@@ -533,7 +529,7 @@ bool BasicTest::AddLight(const Wrapper<Light>& light)
     RefreshContext();
     lights.push_back(light);
     prepareLight();
-    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->type, light->name);
+    dizzLog().success(u"Add a Light [{}][{}]:  {}\n", lights.size() - 1, (int32_t)light->Type, light->Name);
     return true;
 }
 
@@ -543,7 +539,7 @@ void BasicTest::ChangeShader(const oglDrawProgram& prog)
     if (Prog3Ds.count(prog))
     {
         prog3D = prog;
-        prog3D->SetProject(cam.GetProjection());
+        prog3D->SetProject(cam.GetProjection((float)WindowWidth / WindowHeight));
         prog3D->SetView(cam.GetView());
         prepareLight();
     }

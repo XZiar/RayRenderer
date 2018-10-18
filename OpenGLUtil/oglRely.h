@@ -59,7 +59,14 @@
 #include <variant>
 #include <algorithm>
 #include <atomic>
+#if COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wmismatched-tags"
+#endif
 #include "half/half.hpp"
+#if COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
 
 namespace oclu
 {

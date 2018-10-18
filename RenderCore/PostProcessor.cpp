@@ -131,14 +131,12 @@ void PostProcessor::OnDraw(RenderPassContext& context)
         GLContext->SetSRGBFBO(false);
 
         const auto cam = context.GetScene()->GetCamera();
-        const auto ow = cam->Width, oh = cam->Height;
+        //const auto ow = cam->Width, oh = cam->Height;
 
         PostShader->Program->SetView(cam->GetView());
         PostShader->Program->SetVec("vecCamPos", cam->Position);
 
-        const auto sw = MidFrameConfig.Width * oh / MidFrameConfig.Height;
-        const auto widthscale = sw * 1.0f / ow;
-        PostShader->Program->Draw().SetUniform("widthscale", widthscale).Draw(VAOScreen);
+        PostShader->Program->Draw().Draw(VAOScreen);
     }
 }
 

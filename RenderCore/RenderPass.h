@@ -19,9 +19,11 @@ private:
     std::shared_ptr<Scene> TheScene;
     map<string, oglu::oglTex2D, std::less<>> Textures;
     map<string, oglu::oglFBO, std::less<>> FrameBufs;
+    std::pair<uint16_t, uint16_t> ScreenSize;
 public:
-    RenderPassContext(const std::shared_ptr<Scene>& scene);
+    RenderPassContext(const std::shared_ptr<Scene>& scene, const uint16_t ScreenWidth, const uint16_t ScreenHeight);
     const std::shared_ptr<Scene>& GetScene() const;
+    std::pair<uint16_t, uint16_t> GetScreenSize() const { return ScreenSize; };
     oglu::oglFBO GetFrameBuffer(const string_view& name) const;
     void SetFrameBuffer(const string_view& name, const oglu::oglFBO& fbo);
     oglu::oglFBO GetOrCreateFrameBuffer(const string_view& name, const std::function<oglu::oglFBO(void)>& creator);
@@ -37,6 +39,11 @@ private:
 protected:
     const oglu::oglContext GLContext;
     std::set<std::weak_ptr<Drawable>, std::owner_less<>> Drawables;
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"RenderPass"sv;
+    }
     virtual bool OnRegistDrawable(const std::shared_ptr<Drawable>&) { return false; }
     // perform non-render preparation
     virtual void OnPrepare(RenderPassContext&) {}
@@ -47,11 +54,6 @@ public:
     virtual void SetName(const u16string&) { }
     RenderPass();
     virtual ~RenderPass() {}
-    virtual u16string_view GetControlType() const override
-    {
-        using namespace std::literals;
-        return u"RenderPass"sv;
-    }
     void RegistDrawable(const Wrapper<Drawable>& drawable);
     void UnregistDrawable(const Wrapper<Drawable>& drawable);
     void CleanDrawable();
@@ -68,16 +70,16 @@ protected:
     virtual bool OnRegistDrawable(const std::shared_ptr<Drawable>& drawable) override;
     virtual void OnPrepare(RenderPassContext& context) override;
     virtual void OnDraw(RenderPassContext& context) override;
-    virtual u16string GetName() const override { return Program->Name; }
-    virtual void SetName(const u16string& name) override { Program->Name = name; }
-public:
-    DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config = {});
-    ~DefaultRenderPass() {}
     virtual u16string_view GetControlType() const override
     {
         using namespace std::literals;
         return u"DefaultRenderPass"sv;
     }
+    virtual u16string GetName() const override { return Program->Name; }
+    virtual void SetName(const u16string& name) override { Program->Name = name; }
+public:
+    DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config = {});
+    ~DefaultRenderPass() {}
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#DefaultRenderPass")
@@ -89,17 +91,17 @@ protected:
     const oglu::oglContext GLContext;
     u16string Name;
     void RegistControllable();
-public:
-    vector<std::shared_ptr<RenderPass>> Passes;
-    RenderPipeLine();
-    virtual ~RenderPipeLine() {}
     virtual u16string_view GetControlType() const override
     {
         using namespace std::literals;
         return u"RenderPipeLine"sv;
     }
+public:
+    vector<std::shared_ptr<RenderPass>> Passes;
+    RenderPipeLine();
+    virtual ~RenderPipeLine() {}
     virtual void Prepare() {}
-    void Render(const std::shared_ptr<Scene>& scene);
+    void Render(RenderPassContext context);
 };
 
 }

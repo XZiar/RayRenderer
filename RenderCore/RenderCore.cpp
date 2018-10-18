@@ -186,15 +186,17 @@ void RenderCore::Draw()
         TheScene->PrepareDrawable();
     }
     if (RenderTask)
-        RenderTask->Render(TheScene);
+    {
+        RenderPassContext context(TheScene, WindowWidth, WindowHeight);
+        RenderTask->Render(std::move(context));
+    }
 }
 
 void RenderCore::Resize(const uint32_t w, const uint32_t h)
 {
     RefreshContext();
-    GLContext->SetViewPort(0, 0, w, h);
-    TheScene->GetCamera()->Resize(w, h);
-    WindowWidth = w, WindowHeight = h;
+    WindowWidth = static_cast<uint16_t>(std::clamp<uint32_t>(w, 8, UINT16_MAX)), WindowHeight = static_cast<uint16_t>(std::clamp<uint32_t>(h, 8, UINT16_MAX));
+    GLContext->SetViewPort(0, 0, WindowWidth, WindowHeight);
 }
 
 void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError)

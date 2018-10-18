@@ -10,22 +10,22 @@ enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
 struct RAYCOREAPI LightData : public common::AlignBase<alignof(b3d::Vec4)>
 {
-    b3d::Vec4 color = b3d::Vec4::one();
-    b3d::Vec3 position = b3d::Vec3::zero();
-    b3d::Vec3 direction = b3d::Vec3(0, -1, 0);
-    b3d::Vec4 attenuation = b3d::Vec4(0.5, 0.3, 0.0, 10.0);
-    float cutoffOuter, cutoffInner;
-    const LightType type;
+    b3d::Vec4 Color = b3d::Vec4::one();
+    b3d::Vec3 Position = b3d::Vec3::zero();
+    b3d::Vec3 Direction = b3d::Vec3(0, -1, 0);
+    b3d::Vec4 Attenuation = b3d::Vec4(0.5, 0.3, 0.0, 10.0);
+    float CutoffOuter, CutoffInner;
+    const LightType Type;
 protected:
-    LightData(const LightType type_) : type(type_) {}
+    LightData(const LightType type) : Type(type) {}
 public:
     void Move(const float x, const float y, const float z)
     {
-        position += b3d::Vec3(x, y, z);
+        Position += b3d::Vec3(x, y, z);
     }
     void Move(const b3d::Vec3& offset)
     {
-        position += offset;
+        Position += offset;
     }
     void Rotate(const float x, const float y, const float z)
     {
@@ -34,27 +34,41 @@ public:
     void Rotate(const b3d::Vec3& radius)
     {
         const auto rMat = b3d::Mat3x3::RotateMatXYZ(radius);
-        direction = rMat * direction;
+        Direction = rMat * Direction;
     }
     uint32_t WriteData(std::byte *ptr) const;
 };
 
-class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable, public Controllable
 {
 protected:
-    Light(const LightType type_, const std::u16string& name_) : LightData(type_), name(name_) {}
+    Light(const LightType type, const std::u16string& name);
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"Light"sv;
+    }
+    void RegistControllable();
 public:
-    bool isOn = true;
-    std::u16string name;
+    bool IsOn = true;
+    std::u16string Name;
+    ~Light() {}
     RESPAK_DECL_COMP_DESERIALIZE("rayr#Light")
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 class ParallelLight : public Light
 {
 public:
-    ParallelLight() : Light(LightType::Parallel, u"ParallelLight") { attenuation.w = 1.0f; }
+    ParallelLight() : Light(LightType::Parallel, u"ParallelLight") { Attenuation.w = 1.0f; }
 };
 
 class PointLight : public Light
@@ -68,8 +82,8 @@ class SpotLight : public Light
 public:
     SpotLight() : Light(LightType::Spot, u"SpotLight") 
     {
-        cutoffInner = 30.0f;
-        cutoffOuter = 90.0f;
+        CutoffInner = 30.0f;
+        CutoffOuter = 90.0f;
     }
 };
 

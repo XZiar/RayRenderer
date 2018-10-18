@@ -119,9 +119,13 @@ private:
             {
                 static_assert(std::is_convertible_v<M, T>, "object cannot be converted to T");
                 if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Getter = [member](const Controllable& obj, const std::string&) { return dynamic_cast<const D&>(obj).*member; };
+                {
+                    Item.Getter = [member](const Controllable& obj, const std::string&) { return static_cast<const T&>(dynamic_cast<const D&>(obj).*member); };
+                }
                 else
+                {
                     Item.Getter = [member](const Controllable& obj, const std::string&) { return std::any(dynamic_cast<const D&>(obj).*member); };
+                }
             }
             return *this;
         }

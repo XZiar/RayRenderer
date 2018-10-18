@@ -137,38 +137,6 @@ std::string HashSelf()
         dllsData.insert(dllsData.end(), dlldata.cbegin(), dlldata.cend());
     }
   
-    //HCRYPTPROV hProv = NULL;
-    //// Get handle to the crypto provider
-    //if (!CryptAcquireContext(&hProv,NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
-    //{
-    //    DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
-    //    throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
-    //}
-    //HCRYPTHASH hHash = NULL;
-    //if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
-    //{
-    //    DebugOutput(L"CryptAcquireContext failed, {}\n", GetLastError());
-    //    CryptReleaseContext(hProv, 0);
-    //    throw std::runtime_error("cannot CryptAcquireContext, errorno:" + std::to_string(GetLastError()));
-    //}
-    //if (!CryptHashData(hHash, dllsData.data(), (DWORD)dllsData.size(), 0))
-    //{
-    //    DebugOutput(L"CryptHashData failed, {}\n", GetLastError());
-    //    CryptReleaseContext(hProv, 0);
-    //    CryptDestroyHash(hHash);
-    //    throw std::runtime_error("cannot CryptHashData, errorno:" + std::to_string(GetLastError()));
-    //}
-    //uint8_t MD5[16];
-    //DWORD dwHashLen = sizeof(MD5);
-    //const auto ret = CryptGetHashParam(hHash, HP_HASHVAL, MD5, &dwHashLen, 0);
-    //CryptDestroyHash(hHash);
-    //CryptReleaseContext(hProv, 0);
-    //if (!ret)
-    //{
-    //    DebugOutput(L"CryptGetHashParam failed, {}\n", GetLastError());
-    //    throw std::runtime_error("cannot CryptGetHashParam, errorno:" + std::to_string(GetLastError()));
-    //}
-
     static_assert(CryptoPP::Weak::MD5::DIGESTSIZE == 16, "MD5 should generate 16 bytes digest");
     std::array<uint8_t, 16> MD5;
     CryptoPP::Weak::MD5 md5er;
@@ -193,7 +161,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         DebugOutput(L"DLL_PROCESS_ATTACH");
         common::ResourceHelper::init(hinstDLL);
         DebugOutput(L"Res Inited");
-        RRPath = fs::temp_directory_path() / L"RayRenderer";
+        RRPath = fs::temp_directory_path() / L"RayRenderer" / L"DLLs";
         DLLSPath = RRPath / HashSelf();
         DelayLoader::onLoadDLL = delayloaddll;
         if (!fs::exists(DLLSPath))

@@ -151,8 +151,10 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
     switch (msevent.type)
     {
     case MouseEventType::Moving:
-        tester->GetScene()->GetCamera()->Move((msevent.dx * 10.f / tester->GetScene()->GetCamera()->Width), (msevent.dy * 10.f / tester->GetScene()->GetCamera()->Height), 0);
-        break;
+        {
+            const auto[w, h] = tester->GetWindowSize();
+            tester->GetScene()->GetCamera()->Move((msevent.dx * 10.f / w), (msevent.dy * 10.f / h), 0);
+        } break;
     case MouseEventType::Wheel:
         tester->GetScene()->GetCamera()->Move(0, 0, (float)msevent.dx);
         printf("camera at %5f,%5f,%5f\n", tester->GetScene()->GetCamera()->Position.x, tester->GetScene()->GetCamera()->Position.y, tester->GetScene()->GetCamera()->Position.z);
@@ -236,7 +238,7 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
     //if (false)
     {
         const auto light = Wrapper<rayr::PointLight>(std::in_place);
-        light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+        light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         tester->GetScene()->AddLight(light);
         //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }

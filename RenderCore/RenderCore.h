@@ -39,7 +39,7 @@ private:
     Wrapper<Scene> TheScene;
     set<Wrapper<RenderPipeLine>> PipeLines;
     Wrapper<RenderPipeLine> RenderTask;
-    uint32_t WindowWidth, WindowHeight;
+    uint16_t WindowWidth, WindowHeight;
     void RefreshContext() const;
     void InitShaders();
 public:
@@ -48,13 +48,14 @@ public:
     void TestSceneInit();
     void Draw();
     void Resize(const uint32_t w, const uint32_t h);
+    std::pair<uint16_t, uint16_t> GetWindowSize() const noexcept { return { WindowWidth,WindowHeight }; }
 
-    const Wrapper<Scene>& GetScene() const { return TheScene; }
-    const Wrapper<RenderPipeLine>& GetCurPipeLine() const { return RenderTask; }
-    const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; }
-    const Wrapper<ThumbnailManager>& GetThumbMan() const { return ThumbMan; }
-    const set<Wrapper<RenderPass>>& GetRenderPasses() const { return RenderPasses; }
-    const set<Wrapper<RenderPipeLine>>& GetPipeLines() const { return PipeLines; }
+    const Wrapper<Scene>& GetScene() const noexcept { return TheScene; }
+    const Wrapper<RenderPipeLine>& GetCurPipeLine() const noexcept { return RenderTask; }
+    const Wrapper<PostProcessor>& GetPostProc() const noexcept { return PostProc; }
+    const Wrapper<ThumbnailManager>& GetThumbMan() const noexcept { return ThumbMan; }
+    const set<Wrapper<RenderPass>>& GetRenderPasses() const noexcept { return RenderPasses; }
+    const set<Wrapper<RenderPipeLine>>& GetPipeLines() const noexcept { return PipeLines; }
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
