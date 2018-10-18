@@ -3,13 +3,10 @@
 
 namespace rayr
 {
+class TextureLoader;
+class ThumbnailManager;
 
 constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1)) == 0; }
-
-namespace detail
-{
-class TextureLoader;
-}
 
 struct RAYCOREAPI RawMaterialData : public common::AlignBase<16>
 {
@@ -119,8 +116,6 @@ private:
 public:
     static constexpr size_t UnitSize = 12 * sizeof(float);
     static oglu::oglTex2DV GetCheckTex();
-
-    std::weak_ptr<detail::ThumbnailManager> ThumbMan;
 
     MultiMaterialHolder() { }
     MultiMaterialHolder(const uint8_t count) : Materials(count, PBRMaterial(u"unnamed")) { }

@@ -1,9 +1,11 @@
 #include "RenderCoreRely.h"
 #include "ThumbnailManager.h"
+#include "common/PromiseTaskSTD.hpp"
+#include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexResizer.h"
 
 
-namespace rayr::detail
+namespace rayr
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
@@ -31,87 +33,96 @@ static std::variant<uint8_t, std::pair<uint16_t, uint16_t>> CalcSize(const TexHo
     return std::pair(static_cast<uint16_t>(size.first * thredshold / larger), static_cast<uint16_t>(size.second * thredshold / larger));
 }
 
-std::shared_ptr<ImageView> ThumbnailManager::GetThumbnail(const std::weak_ptr<void>& weakref) const
+common::PromiseResult<std::optional<ImageView>> ThumbnailManager::GetThumbnail(const TexHolder& holder)
 {
-    return FindInMap(ThumbnailMap, weakref, std::in_place).value_or(nullptr);
+    if(holder.index() == 0)
+        return common::GetFinishedResult<std::optional<ImageView>>(std::optional<ImageView>{});
+    CacheLock.LockRead();
+    auto ret = FindInMap(ThumbnailMap, holder.GetWeakRef(), std::in_place);
+    CacheLock.UnlockRead();
+    if (ret.has_value())
+        return common::GetFinishedResult<std::optional<ImageView>>(std::move(ret));
+    return InnerPrepareThumbnail(holder);
 }
 
-common::PromiseResult<Image> ThumbnailManager::InnerPrepareThumbnail(const TexHolder& holder)
+common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareThumbnail(const TexHolder& holder)
 {
-    auto weakref = holder.GetWeakRef();
-    if (GetThumbnail(weakref))
-        return {};
-    const auto ret = CalcSize(holder);
-    if (ret.index() == 0) // no need
+    return GLWorker->InvokeShare([holder, this](const auto& agent) -> std::optional<ImageView>
     {
-        switch (holder.index())
+        auto weakref = holder.GetWeakRef();
+        const auto sizeRet = CalcSize(holder);
+        if (sizeRet.index() == 0) // no need
         {
-        case 1:
+            switch (holder.index())
             {
-                const auto& tex = std::get<oglTex2D>(holder);
-                ThumbnailMap.emplace(weakref, std::make_shared<ImageView>(tex->GetImage(ImageDataType::RGB)));
-            } break;
-        case 2:
-            {
-                const auto& fakeTex = std::get<FakeTex>(holder);
-                const auto mipmap = std::get<0>(ret);
-                std::shared_ptr<ImageView> img;
-                if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                {   //promise in GL's thread
-                    oglu::oglTex2DS tex(fakeTex->Width >> mipmap, fakeTex->Height >> mipmap, fakeTex->TexFormat);
-                    tex->SetCompressedData(fakeTex->TexData[mipmap].GetRawPtr(), fakeTex->TexData[mipmap].GetSize());
-                    img = std::make_shared<ImageView>(tex->GetImage(ImageDataType::RGB));
-                }
-                else
+            case 1:
                 {
-                    img = std::make_shared<ImageView>(Image(fakeTex->TexData[mipmap].CreateSubBuffer(), fakeTex->Width >> mipmap, fakeTex->Height >> mipmap,
-                        oglu::TexFormatUtil::ConvertToImgType(fakeTex->TexFormat)));
+                    const auto& tex = std::get<oglTex2D>(holder);
+                    ImageView img(tex->GetImage(ImageDataType::RGB));
+                    CacheLock.LockWrite();
+                    ThumbnailMap.emplace(weakref, img);
+                    CacheLock.UnlockWrite();
+                    return img;
                 }
-                ThumbnailMap.emplace(weakref, img);
-            } break;
-        default: break;
+            case 2:
+                {
+                    const auto& fakeTex = std::get<FakeTex>(holder);
+                    const auto mipmap = std::get<0>(sizeRet);
+                    std::optional<ImageView> ret;
+                    if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                    {   //promise in GL's thread
+                        oglu::oglTex2DS tex(fakeTex->Width >> mipmap, fakeTex->Height >> mipmap, fakeTex->TexFormat);
+                        tex->SetCompressedData(fakeTex->TexData[mipmap].GetRawPtr(), fakeTex->TexData[mipmap].GetSize());
+                        ret = ImageView(tex->GetImage(ImageDataType::RGB));
+                    }
+                    else
+                    {
+                        ret = ImageView(Image(fakeTex->TexData[mipmap].CreateSubBuffer(), fakeTex->Width >> mipmap, fakeTex->Height >> mipmap,
+                            oglu::TexFormatUtil::ConvertToImgType(fakeTex->TexFormat)));
+                    }
+                    CacheLock.LockWrite();
+                    ThumbnailMap.emplace(weakref, ret.value());
+                    CacheLock.UnlockWrite();
+                    return ret;
+                }
+            default: return {};
+            }
         }
-    }
-    else
-    {
-        const auto[neww, newh] = std::get<1>(ret);
-        switch (holder.index())
+        else
         {
-        case 1:
+            common::PromiseResult<Image> pms;
+            const auto[neww, newh] = std::get<1>(sizeRet);
+            switch (holder.index())
             {
-                const auto& tex = std::get<oglTex2D>(holder);
-                return Resizer->ResizeToImg<ResizeMethod::Compute>(tex, neww, newh, ImageDataType::RGBA);
+            case 1:
+                {
+                    const auto& tex = std::get<oglTex2D>(holder);
+                    pms = Resizer->ResizeToImg<ResizeMethod::Compute>(tex, neww, newh, ImageDataType::RGBA);
+                } break;
+            case 2:
+                {
+                    const auto& fakeTex = std::get<FakeTex>(holder);
+                    const uint8_t mipmap = fakeTex->GetMipmapCount() - 1;
+                    const auto srcSize = std::pair<uint32_t, uint32_t>{ fakeTex->Width >> mipmap, fakeTex->Height >> mipmap };
+                    if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                        pms = Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                    else
+                        pms = Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
+                } break;
+            default: return {};
             }
-        case 2:
-            {
-                const auto& fakeTex = std::get<FakeTex>(holder);
-                const uint8_t mipmap = fakeTex->GetMipmapCount() - 1;
-                const auto srcSize = std::pair<uint32_t, uint32_t>{ fakeTex->Width >> mipmap, fakeTex->Height >> mipmap };
-                if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
-                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
-                else
-                    return Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
-            }
-        default: break;
+            auto img = ImageView(agent.Await(pms));
+            CacheLock.LockWrite();
+            ThumbnailMap.emplace(weakref, img);
+            CacheLock.UnlockWrite();
+            return img;
         }
-    }
-    return {};
-}
-
-void ThumbnailManager::InnerWaitPmss(const PmssType& pmss)
-{
-    for (const auto&[holder, result] : pmss)
-    {
-        auto img = AsyncAgent::SafeWait(result);
-        if (img.GetDataType() != xziar::img::ImageDataType::RGB)
-            img = img.ConvertTo(xziar::img::ImageDataType::RGB);
-        ThumbnailMap.emplace(holder.GetWeakRef(), std::make_shared<ImageView>(std::move(img)));
-    }
+    });
 }
 
 
-ThumbnailManager::ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker)
-    : Resizer(std::make_shared<oglu::texutil::TexResizer>(worker))
+ThumbnailManager::ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& texWorker, const std::shared_ptr<oglu::oglWorker>& glWorker)
+    : Resizer(std::make_shared<oglu::texutil::TexResizer>(texWorker)), GLWorker(glWorker)
 { }
 
 }

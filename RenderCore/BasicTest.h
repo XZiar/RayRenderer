@@ -49,8 +49,8 @@ private:
     vector<byte> LightBuf;
     std::shared_ptr<oglu::texutil::TexUtilWorker> TexWorker;
     std::shared_ptr<oglu::texutil::TexMipmap> MipMapper;
-    std::shared_ptr<detail::TextureLoader> TexLoader;
-    Wrapper<detail::ThumbnailManager> ThumbMan;
+    std::shared_ptr<TextureLoader> TexLoader;
+    Wrapper<ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     std::shared_ptr<oglu::oglWorker> GLWorker;
     Wrapper<FontViewer> fontViewer;
@@ -95,7 +95,7 @@ public:
     const set<oglDrawProgram>& Shaders() const { return glProgs2; }
     const oglDrawProgram& Cur3DProg() const { return prog3D; }
     const oglContext& GetContext() const { return glContext; }
-    const detail::ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
+    const ThumbnailManager& GetThumbMan() const { return *ThumbMan; }
     const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; };
     const Wrapper<FontViewer>& GetFontViewer() const { return fontViewer; };
 

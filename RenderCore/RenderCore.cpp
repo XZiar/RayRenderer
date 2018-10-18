@@ -97,14 +97,14 @@ RenderCore::RenderCore()
         if (!CLQue)
             COMMON_THROWEX(BaseException, u"clQueue initialized failed!");
     }
-    TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext::NewContext(GLContext, true), CLSharedContext);
-    MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
-    TexLoader = std::make_shared<detail::TextureLoader>(MipMapper);
-    //MipMapper->Test2();
-    ThumbMan.reset(TexWorker);
-    PostProc.reset(CLSharedContext, CLQue);
     GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
+    TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext::NewContext(GLContext, true), CLSharedContext);
+    MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
+    TexLoader = std::make_shared<TextureLoader>(MipMapper);
+    //MipMapper->Test2();
+    ThumbMan.reset(TexWorker, GLWorker);
+    PostProc.reset(CLSharedContext, CLQue);
     TheScene.reset();
 
     InitShaders();

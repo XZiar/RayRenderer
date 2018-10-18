@@ -10,8 +10,6 @@
 namespace rayr
 {
 
-namespace detail
-{
 
 enum class TexLoadType : uint8_t { Color, Normal };
 enum class TexProcType : uint8_t { CompressBC7, CompressBC5, Plain };
@@ -46,8 +44,6 @@ public:
         ProcessMethod[type] = TexProc{ proc, mipmap };
     }
 };
-
-}
 
 }
 

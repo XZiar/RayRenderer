@@ -446,7 +446,7 @@ class JArrayIterator : protected JDocRef<IsConst>
     template<typename, bool> friend class JArrayLike;
 private:
 public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
-    JArrayIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, JDocRef<IsConst>::InnerValType val) : JDocRef<IsConst>(mempool, val) {}
+    JArrayIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, typename JDocRef<IsConst>::InnerValType val) : JDocRef<IsConst>(mempool, val) {}
     JArrayIterator<IsConst>& operator++()
     {
         this->Val++; return *this;

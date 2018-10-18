@@ -98,7 +98,6 @@ using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
 
 namespace detail
 {
-class ThumbnailManager;
 
 template<typename T>
 forceinline ejson::JArray ToJArray(T& handle, const b3d::Coord2D& vec)

@@ -76,7 +76,7 @@ ModelMesh _ModelMesh::GetModel(DeserializeUtil& context, const string& id)
     return m;
 }
 
-ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
+ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
@@ -114,7 +114,7 @@ void _ModelMesh::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
     }
 }
 
-void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<detail::TextureLoader>& texLoader) try
+void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureLoader>& texLoader) try
 {
     using miniBLAS::VecI4;
     OBJLoder ldr(objpath);
@@ -263,7 +263,7 @@ void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
     }
 }
 _ModelMesh::_ModelMesh(const u16string& fname) : mfname(fname) {}
-_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
+_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
     : mfname(fname)
 {
     loadOBJ(mfname, texLoader);

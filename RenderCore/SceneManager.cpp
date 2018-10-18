@@ -19,7 +19,7 @@ void Scene::PrepareDrawable()
         return;
     for (const auto& drawable : WaitDrawables)
     {
-        drawable->PrepareMaterial({});
+        drawable->PrepareMaterial();
         drawable->AssignMaterial();
     }
     WaitDrawables.clear();

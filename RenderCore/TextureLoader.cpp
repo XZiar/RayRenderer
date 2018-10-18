@@ -6,7 +6,7 @@
 #include "common/AsyncExecutor/AsyncManager.h"
 #include <thread>
 
-namespace rayr::detail
+namespace rayr
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;

@@ -1,7 +1,6 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 #include "common/PromiseTaskSTD.hpp"
-#include "ThumbnailManager.h"
 
 namespace rayr
 {
@@ -272,11 +271,6 @@ void MultiMaterialHolder::Refresh()
     {
         Arrangement.swap(newArrange);
         return;
-    }
-    {
-        const auto thumbman = ThumbMan.lock();
-        if (thumbman)
-            thumbman->PrepareThumbnails(common::container::KeySet(added));
     }
     //generate avaliable map
     set<Mapping, common::container::PairLess> avaliableMap;

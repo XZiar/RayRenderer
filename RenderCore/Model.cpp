@@ -9,7 +9,7 @@ using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 
 
-MultiMaterialHolder Model::PrepareMaterial() const
+MultiMaterialHolder Model::OnPrepareMaterial() const
 {
     MultiMaterialHolder holder((uint8_t)Mesh->groups.size());
     uint8_t i = 0;
@@ -29,7 +29,7 @@ Model::Model(ModelMesh mesh) : Drawable(this, TYPENAME), Mesh(mesh)
     scale = Vec3(resizer, resizer, resizer);
 }
 
-Model::Model(const u16string& fname, const std::shared_ptr<detail::TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
+Model::Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
     : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer)) {}
 
 Model::~Model()

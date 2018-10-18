@@ -95,14 +95,14 @@ BasicTest::BasicTest(const fs::path& shaderPath)
         if (!ClQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
     }
-    TexWorker = std::make_shared<oglu::texutil::TexUtilWorker>(oglu::oglContext::NewContext(glContext, true), ClSharedContext);
-    MipMapper = std::make_shared<oglu::texutil::TexMipmap>(TexWorker);
-    TexLoader = std::make_shared<detail::TextureLoader>(MipMapper);
-    MipMapper->Test2();
-    ThumbMan.reset(TexWorker);
-    PostProc.reset(ClSharedContext, ClQue);
     GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
+    TexWorker = std::make_shared<oglu::texutil::TexUtilWorker>(oglu::oglContext::NewContext(glContext, true), ClSharedContext);
+    MipMapper = std::make_shared<oglu::texutil::TexMipmap>(TexWorker);
+    TexLoader = std::make_shared<TextureLoader>(MipMapper);
+    MipMapper->Test2();
+    ThumbMan.reset(TexWorker, GLWorker);
+    PostProc.reset(ClSharedContext, ClQue);
     //for reverse-z
     glContext->SetDepthClip(true);
     glContext->SetDepthTest(DepthTestType::GreaterEqual);
@@ -504,7 +504,7 @@ void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {
     RefreshContext();
-    drawable->PrepareMaterial(ThumbMan.weakRef());
+    drawable->PrepareMaterial();
     drawable->AssignMaterial();
     for(const auto& prog : Prog3Ds)
         drawable->PrepareGL(prog);

@@ -1,6 +1,6 @@
 #@XZBUILD
 #@XZBUILD@description@Test Program based on FreeGLUT
-#@XZBUILD@dependency@fmt, FreeGLUTView, RenderCore, miniLogger
+#@XZBUILD@dependency@fmt, FreeGLUTView, RenderCore, ResourcePackager, ImageUtil
 
 BUILD_TYPE	:= executable
 
@@ -8,8 +8,7 @@ include $(PROJPATH)/Makebase.mk
 
 NAME	= GLUTTest
 
-#CPPSRCS		 = UtilTest.cpp AsyncTest.cpp ImageUtilTest.cpp CharsetTest.cpp GLStub.cpp #$(wildcard *.cpp)
-LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lFreeGLUTView -lTextureUtil -lResourcePackager -lRenderCore
+LIBRARYS	+= -lpthread -lstdc++fs -lFreeGLUTView -lResourcePackager -lRenderCore -lImageUtil
 DEPLIBS		+= -lfmt
 CXXFLAGS	+= -Wno-unused-function -Wno-switch
 

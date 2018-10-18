@@ -20,7 +20,7 @@ private:
     String^ name;
     String^ description;
 public:
-    TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::detail::ThumbnailManager>& thumbman);
+    TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailManager>& thumbman);
     property String^ Name
     {
         String^ get() { return name; }

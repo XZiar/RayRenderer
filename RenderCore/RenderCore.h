@@ -31,8 +31,8 @@ private:
     oclCmdQue CLQue;
     std::shared_ptr<texutil::TexUtilWorker> TexWorker;
     std::shared_ptr<texutil::TexMipmap> MipMapper;
-    std::shared_ptr<detail::TextureLoader> TexLoader;
-    Wrapper<detail::ThumbnailManager> ThumbMan;
+    std::shared_ptr<TextureLoader> TexLoader;
+    Wrapper<ThumbnailManager> ThumbMan;
     Wrapper<PostProcessor> PostProc;
     std::shared_ptr<oglWorker> GLWorker;
     set<Wrapper<RenderPass>> RenderPasses;
@@ -52,7 +52,7 @@ public:
     const Wrapper<Scene>& GetScene() const { return TheScene; }
     const Wrapper<RenderPipeLine>& GetCurPipeLine() const { return RenderTask; }
     const Wrapper<PostProcessor>& GetPostProc() const { return PostProc; }
-    const Wrapper<detail::ThumbnailManager>& GetThumbMan() const { return ThumbMan; }
+    const Wrapper<ThumbnailManager>& GetThumbMan() const { return ThumbMan; }
     const set<Wrapper<RenderPass>>& GetRenderPasses() const { return RenderPasses; }
     const set<Wrapper<RenderPipeLine>>& GetPipeLines() const { return PipeLines; }
 

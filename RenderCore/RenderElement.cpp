@@ -103,10 +103,9 @@ Drawable::~Drawable()
     vaomap.erase(its.first, its.second);
 }
 
-void Drawable::PrepareMaterial(const std::weak_ptr<detail::ThumbnailManager>& thumbman)
+void Drawable::PrepareMaterial()
 {
-    MaterialHolder = PrepareMaterial();
-    MaterialHolder.ThumbMan = thumbman;
+    MaterialHolder = OnPrepareMaterial();
     MaterialUBO.reset(26 * MultiMaterialHolder::UnitSize);
 }
 
@@ -137,7 +136,7 @@ void Drawable::ReleaseAll(const oglu::oglDrawProgram& prog)
     keyPart.erase(its.first, its.second);
 }
 
-MultiMaterialHolder Drawable::PrepareMaterial() const
+MultiMaterialHolder Drawable::OnPrepareMaterial() const
 {
     MultiMaterialHolder holder(1);
     holder[0].DiffuseMap = MultiMaterialHolder::GetCheckTex();

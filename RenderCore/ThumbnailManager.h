@@ -10,8 +10,6 @@ class TexResizer;
 
 namespace rayr
 {
-namespace detail
-{
 
 class RAYCOREAPI ThumbnailManager
 {
@@ -20,29 +18,16 @@ private:
     using ImageView = xziar::img::ImageView;
     using PmssType = std::vector<std::pair<TexHolder, common::PromiseResult<Image>>>;
     std::shared_ptr<oglu::texutil::TexResizer> Resizer;
-    map<std::weak_ptr<void>, std::shared_ptr<ImageView>, std::owner_less<void>> ThumbnailMap;
-    common::PromiseResult<Image> InnerPrepareThumbnail(const TexHolder& holder);
-    void InnerWaitPmss(const PmssType& pmss);
-    std::shared_ptr<ImageView> GetThumbnail(const std::weak_ptr<void>& weakref) const;
+    std::shared_ptr<oglu::oglWorker> GLWorker;
+    common::RWSpinLock CacheLock;
+    map<std::weak_ptr<void>, ImageView, std::owner_less<void>> ThumbnailMap;
+    common::PromiseResult<std::optional<ImageView>> InnerPrepareThumbnail(const TexHolder& holder);
 public:
 
-    ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& worker);
+    ThumbnailManager(const std::shared_ptr<oglu::texutil::TexUtilWorker>& texWorker, const std::shared_ptr<oglu::oglWorker>& glWorker);
 
-    std::shared_ptr<ImageView> GetThumbnail(const TexHolder& holder) const { return GetThumbnail(holder.GetWeakRef()); }
+    common::PromiseResult<std::optional<ImageView>> GetThumbnail(const TexHolder& holder);
 
-    template<typename T>
-    void PrepareThumbnails(const T& container)
-    {
-        PmssType pmss;
-        for (const TexHolder& holder : container)
-        {
-            auto pms = InnerPrepareThumbnail(holder);
-            if(pms)
-                pmss.emplace_back(holder, pms);
-        }
-        InnerWaitPmss(pmss);
-    }
 };
 
-}
 }

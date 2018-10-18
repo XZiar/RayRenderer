@@ -15,7 +15,7 @@ namespace detail
 class MTLLoader : public NonCopyable
 {
 private:
-    std::shared_ptr<detail::TextureLoader> TexLoader;
+    std::shared_ptr<TextureLoader> TexLoader;
     map<string, std::shared_ptr<PBRMaterial>> Materials;
     vector<std::tuple<std::shared_ptr<PBRMaterial>, TextureLoader::LoadResult*, TexLoadType>> DelayJobs;
     map<fs::path, TextureLoader::LoadResult> RealJobs;
@@ -29,7 +29,7 @@ private:
         return {};
     }
 public:
-    MTLLoader(const std::shared_ptr<detail::TextureLoader>& texLoader)
+    MTLLoader(const std::shared_ptr<TextureLoader>& texLoader)
         : TexLoader(texLoader) {}
     void LoadMTL(const fs::path& mtlpath) try
     {

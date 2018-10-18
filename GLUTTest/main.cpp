@@ -242,7 +242,7 @@ int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
     }
 
     const auto ftest = Linq::FromIterable(tester->GetRenderPasses())
-        .Select([](const auto& pipe) { return pipe.cast_dynamic<rayr::FontTester>(); })
+        .Select([](const auto& pipe) { return pipe.template cast_dynamic<rayr::FontTester>(); })
         .Where([](const auto& pipe) { return (bool)pipe; })
         .TryGetFirst().value();
     fs::path basePath = u"C:\\Programs Temps\\RayRenderer";

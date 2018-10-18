@@ -34,7 +34,7 @@ public:
     }
 };
 
-TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::detail::ThumbnailManager>& thumbman) : Holder(holder)
+TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailManager>& thumbman) : Holder(holder)
 {
     const auto matName = Holder.GetName();
     name = matName.empty() ? "(None)" : ToStr(matName);
