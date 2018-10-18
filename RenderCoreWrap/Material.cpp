@@ -25,7 +25,7 @@ public:
         if (bmp)
             return bmp.value();
 
-        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert((const Image&)*img);
+        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert(img->AsRawImage());
         if (!timg)
             return nullptr;
         timg->Freeze();

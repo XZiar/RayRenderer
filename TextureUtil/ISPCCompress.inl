@@ -7,7 +7,7 @@
 namespace oglu::texutil::detail
 {
 
-static common::AlignedBuffer CompressBC1(const Image& img)
+static common::AlignedBuffer CompressBC1(const ImageView& img)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC1");
@@ -24,7 +24,7 @@ static common::AlignedBuffer CompressBC1(const Image& img)
     return buffer;
 }
 
-static common::AlignedBuffer CompressBC3(const Image& img)
+static common::AlignedBuffer CompressBC3(const ImageView& img)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC3");
@@ -41,7 +41,7 @@ static common::AlignedBuffer CompressBC3(const Image& img)
     return buffer;
 }
 
-static common::AlignedBuffer CompressBC7(const Image& img, const bool needAlpha)
+static common::AlignedBuffer CompressBC7(const ImageView& img, const bool needAlpha)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC7");

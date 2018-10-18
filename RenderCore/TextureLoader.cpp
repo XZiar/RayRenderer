@@ -60,13 +60,13 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
     return Compressor.AddTask([this, imgview = ImageView(std::move(img)), type, proc, picPath](const auto& agent) mutable
     {
         FakeTex tex;
-        vector<Image> layers;
+        vector<ImageView> layers;
         if (proc.NeedMipmap)
         {
-            const auto pms = MipMapper->GenerateMipmaps((const Image&)imgview, type == TexLoadType::Color);
-            layers = agent.Await(pms);
+            const auto pms = MipMapper->GenerateMipmaps(imgview, type == TexLoadType::Color);
+            layers = Linq::FromIterable(agent.Await(pms)).template Cast<ImageView>().ToVector();
         }
-        layers.insert(layers.begin(), (const Image&)imgview);
+        layers.insert(layers.begin(), imgview);
         TextureInnerFormat format = TextureInnerFormat::EMPTY_MASK,
             srgbMask = (type == TexLoadType::Color ? TextureInnerFormat::FLAG_SRGB : TextureInnerFormat::EMPTY_MASK);
         switch (proc.Proc)
@@ -99,7 +99,9 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
             }
             tex = std::make_shared<detail::_FakeTex>(std::move(buffers), format, imgview.GetWidth(), imgview.GetHeight());
             tex->Name = picPath.filename().u16string();
+            CacheLock.LockWrite();
             TexCache.try_emplace(picPath.u16string(), tex);
+            CacheLock.UnlockWrite();
         }
         catch (const BaseException& be)
         {
@@ -133,7 +135,10 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
 
 TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath, const TexLoadType type)
 {
-    if (auto tex = FindInMap(TexCache, picPath.u16string()))
+    CacheLock.LockRead();
+    auto tex = FindInMap(TexCache, picPath.u16string());
+    CacheLock.UnlockRead();
+    if (tex)
         return *tex;
     if (auto img = TryReadImage(picPath))
         return LoadImgToFakeTex(picPath, std::move(img.value()), type, ProcessMethod[type]);

@@ -11,7 +11,7 @@ namespace oglu::texutil
 {
 
 
-static void CheckImgSize(const Image& img)
+static void CheckImgSize(const ImageView& img)
 {
     if (img.GetWidth() % 4 != 0 || img.GetHeight() % 4 != 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a size of multiple of 4.");
@@ -19,7 +19,7 @@ static void CheckImgSize(const Image& img)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a non-zero size.");
 }
 
-common::AlignedBuffer CompressToDat(const Image& img, const TextureInnerFormat format, const bool needAlpha)
+common::AlignedBuffer CompressToDat(const ImageView& img, const TextureInnerFormat format, const bool needAlpha)
 {
     CheckImgSize(img);
     common::SimpleTimer timer;

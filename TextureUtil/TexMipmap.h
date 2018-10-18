@@ -20,7 +20,7 @@ private:
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();
-    PromiseResult<vector<Image>> GenerateMipmaps(const Image& raw, const bool isSRGB = true, const uint8_t levels = 255);
+    PromiseResult<vector<Image>> GenerateMipmaps(const ImageView& src, const bool isSRGB = true, const uint8_t levels = 255);
 
     void Test();
     void Test2();

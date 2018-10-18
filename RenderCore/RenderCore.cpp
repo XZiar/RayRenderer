@@ -232,7 +232,7 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
             .SetSubroutine("getAlbedo", "bothAlbedo");
         return shader;
     }, u"load shader " + shdName, common::asyexe::StackSize::Big);
-    std::thread([this, onFinish, onError](common::PromiseResult<Wrapper<DefaultRenderPass>>&& pms)
+    std::thread([onFinish, onError](common::PromiseResult<Wrapper<DefaultRenderPass>>&& pms)
     {
         common::SetThreadName(u"AsyncLoader for Shader");
         try

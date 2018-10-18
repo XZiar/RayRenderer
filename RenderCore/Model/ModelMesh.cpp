@@ -130,7 +130,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
     Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
     OBJLoder::TextLine line;
     SimpleTimer tstTimer;
-    while (line = ldr.ReadLine())
+    while ((line = ldr.ReadLine()))
     {
         switch (line.Type)
         {

@@ -15,5 +15,6 @@ INCPATH		+= -I.
 LIBRARYS	+= -lpthread -lstdc++fs -lminiLogger -lImageUtil -lOpenGLUtil -lOpenCLUtil -lAsyncExecutor -lFontHelper -lTextureUtil -lboost.stacktrace
 DEPLIBS		+= -lfmt -luchardet
 CPPFLAGS	+= -DRAYCORE_EXPORT
+PCH_HEADER  := RenderCoreRely.h
 
 include $(PROJPATH)/MakeTargets.mk

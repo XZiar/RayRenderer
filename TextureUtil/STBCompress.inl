@@ -299,7 +299,7 @@ public:
     }
 
     template<typename Prepare, typename Process>
-    common::AlignedBuffer EachBlock(const Image& img, const size_t bytePerBlock, Prepare&& prepare, Process&& process)
+    common::AlignedBuffer EachBlock(const ImageView& img, const size_t bytePerBlock, Prepare&& prepare, Process&& process)
     {
         common::AlignedBuffer buffer(bytePerBlock * (img.GetWidth() * img.GetHeight() / 4 / 4));
         const auto blockStride = img.GetElementSize() * 4;
@@ -323,7 +323,7 @@ public:
 };
 
 
-static common::AlignedBuffer CompressBC5(const Image& img)
+static common::AlignedBuffer CompressBC5(const ImageView& img)
 {
     if (HAS_FIELD(img.GetDataType(), ImageDataType::FLOAT_MASK))
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"float data type not supported in BC5");

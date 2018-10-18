@@ -174,6 +174,7 @@ public:
     using Image::GetHeight;
     using Image::GetDataType;
     using Image::GetElementSize;
+    using Image::RowSize;
     using Image::PixelCount;
     using Image::GetData;
     using Image::FlipToVertical;

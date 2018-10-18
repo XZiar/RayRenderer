@@ -155,12 +155,12 @@ static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t 
     return infos;
 }
 
-PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const Image& raw, const bool isSRGB, const uint8_t levels)
+PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, const bool isSRGB, const uint8_t levels)
 {
-    auto infos = GenerateInfo(raw.GetWidth(), raw.GetHeight(), levels);
+    auto infos = GenerateInfo(src.GetWidth(), src.GetHeight(), levels);
     if (isSRGB)
     {
-        return Worker->AddTask([this, src = ImageView(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
+        return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
@@ -207,7 +207,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const Image& raw, const 
     }
     else
     {
-        return Worker->AddTask([this, src = ImageView(raw), infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
+        return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);

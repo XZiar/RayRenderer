@@ -25,6 +25,7 @@ private:
     common::asyexe::AsyncManager Compressor;
     std::shared_ptr<oglu::texutil::TexMipmap> MipMapper;
     map<u16string, FakeTex> TexCache;
+    common::RWSpinLock CacheLock;
     map<TexLoadType, TexProc> ProcessMethod;
     common::PromiseResult<FakeTex> LoadImgToFakeTex(const fs::path& picPath, xziar::img::Image&& img, const TexLoadType type, const TexProc proc);
     void RegistControllable();

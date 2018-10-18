@@ -40,7 +40,7 @@ public:
         const fs::path fallbackPath = mtlpath.parent_path();
         std::shared_ptr<PBRMaterial> curmtl;
         OBJLoder::TextLine line;
-        while (line = ldr.ReadLine())
+        while ((line = ldr.ReadLine()))
         {
             switch (line.Type)
             {
@@ -95,7 +95,7 @@ public:
             }
             else
             {
-                const auto loadRes = TexLoader->GetTexureAsync(imgPath, type);
+                auto loadRes = TexLoader->GetTexureAsync(imgPath, type);
                 const auto ptr = &(RealJobs.insert_or_assign(imgPath, loadRes).first->second);
                 DelayJobs.emplace_back(mat, ptr, type);
             }
