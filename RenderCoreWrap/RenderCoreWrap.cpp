@@ -14,7 +14,7 @@ Drawable::Drawable(const Wrapper<rayr::Drawable>& obj) : drawable(new std::weak_
     materials = gcnew List<PBRMaterial^>();
     for (auto& mat : obj->MaterialHolder)
     {
-        materials->Add(gcnew PBRMaterial(drawable, mat));
+        materials->Add(gcnew PBRMaterial(drawable, mat, {}));
     }
 }
 
@@ -26,18 +26,18 @@ static Wrapper<rayr::Light> CreateLight(rayr::LightType type)
     {
     case rayr::LightType::Parallel:
         light = Wrapper<rayr::ParallelLight>(std::in_place);
-        light->color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
+        light->Color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
         break;
     case rayr::LightType::Point:
         light = Wrapper<rayr::PointLight>(std::in_place);
-        light->color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+        light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         break;
     case rayr::LightType::Spot:
         light = Wrapper<rayr::SpotLight>(std::in_place);
-        light->color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
+        light->Color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
         break;
     }
-    light->direction = b3d::Vec4(0, 0, 1, 0);
+    light->Direction = b3d::Vec4(0, 0, 1, 0);
     return light;
 }
 #pragma managed(pop)

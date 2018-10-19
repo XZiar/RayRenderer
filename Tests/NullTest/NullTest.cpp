@@ -41,7 +41,7 @@ int main()
             for (const auto kk : be2.Stack())
             {
                 out.clear();
-                fmt::format_to(out, u"[{}]:[{}]\t{}\n", (std::u16string_view)kk.File, kk.Line, (std::u16string_view)kk.Func);
+                fmt::format_to(out, u"[{}]:[{}]\t{}\n", kk.File, kk.Line, kk.Func);
                 console.Print(std::u16string_view(out.data(), out.size()));
             }
             getchar();

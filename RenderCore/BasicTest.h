@@ -16,9 +16,6 @@ namespace oglu::texutil
 class TexMipmap;
 }
 
-enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
-MAKE_ENUM_BITFIELD(ChangableUBO)
-
 namespace rayr
 {
 using namespace common;
@@ -28,6 +25,9 @@ using namespace oclu;
 namespace img = xziar::img;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
+
+enum class ChangableUBO : uint32_t { Light = 0x1, Material = 0x2 };
+MAKE_ENUM_BITFIELD(ChangableUBO)
 
 
 class RAYCOREAPI BasicTest final : public NonCopyable, public AlignBase<32>

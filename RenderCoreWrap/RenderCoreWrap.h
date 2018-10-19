@@ -228,16 +228,6 @@ public:
             delete cam;
     }
 
-    property int Width
-    {
-        int get() { return cam->Width; }
-        void set(int value) { cam->Width = value; }
-    }
-    property int Height
-    {
-        int get() { return cam->Height; }
-        void set(int value) { cam->Height = value; }
-    }
     property Vector3 Position
     {
         Vector3 get() { return ToVector3(cam->Position); }

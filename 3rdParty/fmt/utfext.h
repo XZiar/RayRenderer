@@ -37,36 +37,12 @@ struct char_traits<char32_t>
 };
 
 
-constexpr inline size_t SizeTag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t CharTag = size_t(0b00) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t SizeTag   = size_t(0b11) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t CharTag   = size_t(0b00) << (sizeof(size_t) * 8 - 2);
 constexpr inline size_t Char16Tag = size_t(0b01) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t WCharTag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t Char32Tag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t SizeMask = ~SizeTag;
-
-template<typename Char>
-struct StrConv
-{
-    union
-    {
-        const Char* const Ptr;
-        const char* const PtrChar;
-        const char16_t* const PtrChar16;
-        const wchar_t* const PtrWChar;
-        const char32_t* const PtrChar32;
-    };
-    const size_t Size;
-    constexpr StrConv(const char* ptr) : StrConv(ptr, std::char_traits<char>::length(ptr)) {}
-    constexpr StrConv(const char16_t* ptr) : StrConv(ptr, std::char_traits<char16_t>::length(ptr)) {}
-    constexpr StrConv(const wchar_t* ptr) : StrConv(ptr, std::char_traits<wchar_t>::length(ptr)) {}
-    constexpr StrConv(const char32_t* ptr) : StrConv(ptr, std::char_traits<char32_t>::length(ptr)) {}
-    constexpr StrConv(const char* ptr, const size_t size) : PtrChar(ptr), Size((size & SizeMask) | CharTag) {}
-    constexpr StrConv(const char16_t* ptr, const size_t size) : PtrChar16(ptr), Size((size & SizeMask) | Char16Tag) {}
-    constexpr StrConv(const wchar_t* ptr, const size_t size) : PtrWChar(ptr), Size((size & SizeMask) | WCharTag) {}
-    constexpr StrConv(const char32_t* ptr, const size_t size) : PtrChar32(ptr), Size((size & SizeMask) | Char32Tag) {}
-    constexpr basic_string_view<Char> Result() const { return basic_string_view<Char>(Ptr, Size); }
-    constexpr init<typename buffer_context<Char>::type, basic_string_view<Char>, string_type> Value() const { return basic_string_view<Char>(Ptr, Size); }
-};
+constexpr inline size_t Char32Tag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t WCharTag  = sizeof(wchar_t) == sizeof(char16_t) ? Char16Tag : Char32Tag;
+constexpr inline size_t SizeMask  = ~SizeTag;
 
 
 template <typename Char>
@@ -85,45 +61,61 @@ struct UTFMakeValueProxy
     }
 
     template<typename T>
-    static FMT_CONSTEXPR auto make(const T& val)
-    {
-        if constexpr(IsChar<T>())
-            return StrConv<Char>(&val, 1).Value();
+    static constexpr init<typename buffer_context<Char>::type, basic_string_view<Char>, string_type> ToStringValue(const T* ptr, const size_t size)
+    { 
+        if constexpr (std::is_same_v<T, char>)
+            return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | CharTag);
+        else if constexpr (std::is_same_v<T, char16_t>)
+            return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | Char16Tag);
+        else if constexpr (std::is_same_v<T, char32_t>)
+            return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | Char32Tag);
+        else if constexpr (std::is_same_v<T, wchar_t>)
+            return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | WCharTag);
         else
-            return make_value<Context>(val);
+            static_assert(!common::AlwaysTrue<T>(), "Non-char type enter here");
     }
-
     template<typename T>
-    static FMT_CONSTEXPR auto make(const T* val)
-    {
-        if constexpr(IsTransChar<T>())
-            return StrConv<Char>(val).Value();
-        else
-            return make_value<Context>(val);
-    }
+    static constexpr auto ToStringValue(const T* ptr) { return ToStringValue(ptr, std::char_traits<T>::length(ptr)); }
+
     template<typename T>
     static FMT_CONSTEXPR auto make(T* val)
     {
-        if constexpr(IsTransChar<T>())
-            return StrConv<Char>(val).Value();
+        using RawT = std::remove_cv_t<T>;
+        //static_assert(IsChar<RawT>(), "non-ch pointer enter here");
+        if constexpr (IsTransChar<RawT>())
+            return ToStringValue(val);
         else
             return make_value<Context>(val);
     }
 
     template<typename T>
-    static FMT_CONSTEXPR auto make(const basic_string_view<T>& val)
+    static FMT_CONSTEXPR auto make(const T& val)
     {
-        return StrConv<Char>(val.data(), val.size()).Value();
-    }
-    template<typename T>
-    static FMT_CONSTEXPR auto make(const std::basic_string_view<T>& val)
-    {
-        return StrConv<Char>(val.data(), val.size()).Value();
-    }
-    template<typename T>
-    static FMT_CONSTEXPR auto make(const std::basic_string<T>& val)
-    {
-        return StrConv<Char>(val.data(), val.size()).Value();
+        using common::is_specialization;
+        if constexpr (is_specialization<T, basic_string_view>::value
+            || is_specialization<T, std::basic_string_view>::value
+            || is_specialization<T, std::basic_string>::value)
+            return ToStringValue(val.data(), val.size());
+        else if constexpr (IsChar<T>())
+            return ToStringValue(&val, 1);
+        else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
+            return make(static_cast<const std::string_view&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::u16string_view&>)
+            return make(static_cast<const std::u16string_view&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::u32string_view&>)
+            return make(static_cast<const std::u32string_view&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::wstring_view&>)
+            return make(static_cast<const std::wstring_view&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::string&>)
+            return make(static_cast<const std::string&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::u16string&>)
+            return make(static_cast<const std::u16string&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::u32string&>)
+            return make(static_cast<const std::u32string&>(val));
+        else if constexpr (std::is_convertible_v<const T&, const std::wstring&>)
+            return make(static_cast<const std::wstring&>(val));
+        else
+            return make_value<Context>(val);
     }
 
 };
@@ -178,31 +170,24 @@ public:
 
     iterator operator()(basic_string_view<char_type> value)
     {
-        uint8_t charSize = 0;
+        const auto realSize = value.size() & internal::SizeMask;
         switch (value.size() & internal::SizeTag)
         {
-        case internal::CharTag: charSize = 1; break;
-        case internal::Char16Tag: charSize = 2; break;
-        case internal::Char32Tag: charSize = 4; break;
-        case internal::WCharTag: charSize = sizeof(wchar_t); break;
-        }
-        const auto realSize = value.size() & internal::SizeMask;
-        switch (charSize)
-        {
-        case 1:
+        case internal::CharTag: 
             return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char*>(value.data()), realSize));
-        case 2:
+        case internal::Char16Tag:
             if constexpr (sizeof(char_type) == 2)
                 return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
             else // UTF16 -> UTF32
                 return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char16_t*>(value.data()), realSize));
-        case 4:
+        case internal::Char32Tag:
             if constexpr (sizeof(char_type) == 4)
                 return internal::arg_formatter_base<Range>::operator()(basic_string_view<char_type>(value.data(), realSize));
             else // UTF32 -> UTF16
                 return internal::arg_formatter_base<Range>::operator()(ConvertStr(reinterpret_cast<const char32_t*>(value.data()), realSize));
+        default: // simple passthrough
+            return this->out();
         }
-        return this->out();
     }
 };
 

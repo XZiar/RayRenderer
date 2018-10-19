@@ -139,6 +139,7 @@ public:
 class IMGUTILAPI ImageView : protected Image
 {
     friend class Image;
+    friend struct ::common::AlignBufLessor;
 public:
     ImageView(const Image& image) : Image(image.CreateSubBuffer(0, image.Size), image.Width, image.Height, image.DataType) {}
     ImageView(const ImageView& imgview) : Image(imgview.CreateSubBuffer(0, imgview.Size), imgview.Width, imgview.Height, imgview.DataType) {}

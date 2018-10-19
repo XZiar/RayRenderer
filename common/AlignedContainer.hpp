@@ -53,6 +53,7 @@ struct AlignAllocator
 
 struct AlignedBuffer
 {
+    friend struct AlignBufLessor;
 private:
     struct BufInfo
     {
@@ -172,6 +173,20 @@ public:
         else if (offset + size > Size)
             throw std::bad_alloc(); // sub buffer range overflow
         return AlignedBuffer(CoreInfo, Data + offset, size, std::gcd(offset + Align, Align));
+    }
+    constexpr bool operator==(const AlignedBuffer& other) const noexcept
+    {
+        return Data == other.Data && Size == other.Size;
+    }
+};
+
+
+struct AlignBufLessor
+{
+    template<typename T>
+    constexpr bool operator()(const T& left, const T& right) const noexcept
+    {
+        return left.Data == right.Data ? left.Size < right.Size : left.Data < right.Data;
     }
 };
 

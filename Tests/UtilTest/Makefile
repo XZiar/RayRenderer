@@ -9,7 +9,7 @@ include $(PROJPATH)/Makebase.mk
 NAME	= UtilTest
 
 #CPPSRCS		 = UtilTest.cpp AsyncTest.cpp ImageUtilTest.cpp CharsetTest.cpp GLStub.cpp #$(wildcard *.cpp)
-LIBRARYS	+= -lpthread -lstdc++fs -lGL -lX11 -lminiLogger -lAsyncExecutor -lImageUtil -lOpenGLUtil -lOpenCLUtil -lFreeGLUTView
+LIBRARYS	+= -lpthread -lstdc++fs -lGL -lX11 -lminiLogger -lAsyncExecutor -lImageUtil -lOpenGLUtil -lOpenCLICDLoader -lOpenCLUtil -lFreeGLUTView
 DEPLIBS		+= -lfmt -lstb -luchardet
 CXXFLAGS	+= -Wno-unused-function
 

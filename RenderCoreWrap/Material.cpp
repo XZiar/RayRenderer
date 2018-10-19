@@ -12,24 +12,24 @@ namespace RayRender
 private ref class ThumbnailContainer
 {
 private:
-    static std::map<std::weak_ptr<ImageView>, gcroot<BitmapSource^>, std::owner_less<void>> *ThumbnailMap = nullptr;
+    static std::map<ImageView, gcroot<BitmapSource^>, common::AlignBufLessor> *ThumbnailMap = nullptr;
     
 public:
     static ThumbnailContainer()
     {
-        ThumbnailMap = new std::map<std::weak_ptr<ImageView>, gcroot<BitmapSource^>, std::owner_less<void>>();
+        ThumbnailMap = new std::map<ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>();
     }
-    static BitmapSource^ GetThumbnail(const std::shared_ptr<ImageView>& img)
+    static BitmapSource^ GetThumbnail(const ImageView& img, const rayr::TexHolder& holder)
     {
         const auto bmp = FindInMap(*ThumbnailMap, img, std::in_place);
         if (bmp)
             return bmp.value();
 
-        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert(img->AsRawImage());
+        BitmapSource^ timg = XZiar::Img::ImageUtil::Convert(img.AsRawImage());
         if (!timg)
             return nullptr;
         timg->Freeze();
-        ThumbnailMap->emplace(std::weak_ptr<ImageView>(img), gcroot<BitmapSource^>(timg));
+        ThumbnailMap->emplace(img, gcroot<BitmapSource^>(timg));
         return timg;
     }
 };
@@ -46,9 +46,9 @@ TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailMan
         description = ToStr(strBuffer);
         if (thumbman)
         {
-            const auto timg = thumbman->GetThumbnail(holder);
-            if (timg)
-                thumbnail = ThumbnailContainer::GetThumbnail(timg);
+            const auto timg = thumbman->GetThumbnail(holder)->Wait();
+            if (timg.has_value())
+                thumbnail = ThumbnailContainer::GetThumbnail(timg.value(), holder);
         }
     }
     else
@@ -64,10 +64,9 @@ void PBRMaterial::RefreshMaterial()
     d->AssignMaterial();
 }
 
-PBRMaterial::PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material) 
+PBRMaterial::PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material, const std::shared_ptr<rayr::ThumbnailManager>& thumbman)
     : Drawable(*drawable), Material(material)
 {
-    const auto thumbman = Drawable.lock()->MaterialHolder.ThumbMan.lock();
     albedoMap = gcnew TexMap(material.DiffuseMap, thumbman);
     normalMap = gcnew TexMap(material.NormalMap, thumbman);
 }

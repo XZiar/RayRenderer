@@ -34,7 +34,7 @@ void Light::RegistControllable()
         .RegistMember(&Light::Name);
     RegistItem<bool>("IsOn", "", u"开启", ArgType::RawValue, {}, u"是否开启灯光")
         .RegistMember(&Light::IsOn);
-    RegistItem<float>("Brightness", "", u"亮度", ArgType::RawValue, {}, u"灯光亮度")
+    RegistItem<float>("Luminance", "", u"亮度", ArgType::RawValue, {}, u"灯光强度")
         .RegistGetter([](const Controllable& self, const string&)
     { const auto& lgt = dynamic_cast<const Light&>(self); return lgt.Attenuation.w; })
         .RegistSetter([](Controllable& self, const string&, const ControlArg& arg)

@@ -43,7 +43,7 @@ private:
     TexMap ^albedoMap, ^normalMap;
     void RefreshMaterial();
 internal:
-    PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material);
+    PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material, const std::shared_ptr<rayr::ThumbnailManager>& thumbman);
 public:
     property String^ Name
     {

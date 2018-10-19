@@ -3,6 +3,7 @@
 #pragma unmanaged
 
 #include "RenderCore/RenderCore.h"
+#include "RenderCore/BasicTest.h"
 #include "common/Exceptions.hpp"
 #include "common/miniLogger/miniLogger.h"
 

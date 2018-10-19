@@ -21,66 +21,66 @@ public ref class Light : public BaseViewModel
 internal:
     std::shared_ptr<rayr::Light> *light;
     initonly LightType type;
-    Light(const Wrapper<rayr::Light>& obj) : light(new std::shared_ptr<rayr::Light>(obj)), type(LightType(obj->type)) { }
+    Light(const Wrapper<rayr::Light>& obj) : light(new std::shared_ptr<rayr::Light>(obj)), type(LightType(obj->Type)) { }
 public:
     ~Light() { this->!Light(); }
     !Light() { delete light; }
     property String^ Name
     {
-        String^ get() { return ToStr((*light)->name); }
-        void set(String^ value) { (*light)->name = ToU16Str(value); OnPropertyChanged("Name"); }
+        String^ get() { return ToStr((*light)->Name); }
+        void set(String^ value) { (*light)->Name = ToU16Str(value); OnPropertyChanged("Name"); }
     }
     property Vector3 Position
     {
-        Vector3 get() { return ToVector3((*light)->position); }
-        void set(Vector3 value) { StoreVector3(value, (*light)->position); OnPropertyChanged("Position"); }
+        Vector3 get() { return ToVector3((*light)->Position); }
+        void set(Vector3 value) { StoreVector3(value, (*light)->Position); OnPropertyChanged("Position"); }
     }
     property Vector3 Direction
     {
-        Vector3 get() { return ToVector3((*light)->direction); }
-        void set(Vector3 value) { StoreVector3(value, (*light)->direction); OnPropertyChanged("Direction"); }
+        Vector3 get() { return ToVector3((*light)->Direction); }
+        void set(Vector3 value) { StoreVector3(value, (*light)->Direction); OnPropertyChanged("Direction"); }
     }
     property bool IsOn
     {
-        bool get() { return (*light)->isOn; }
-        void set(bool value) { (*light)->isOn = value; OnPropertyChanged("IsOn"); }
+        bool get() { return (*light)->IsOn; }
+        void set(bool value) { (*light)->IsOn = value; OnPropertyChanged("IsOn"); }
     }
     property float AttenuationC
     {
-        float get() { return (*light)->attenuation.x; }
-        void set(float value) { (*light)->attenuation.x = value; OnPropertyChanged("AttenuationC"); }
+        float get() { return (*light)->Attenuation.x; }
+        void set(float value) { (*light)->Attenuation.x = value; OnPropertyChanged("AttenuationC"); }
     }
     property float Attenuation1
     {
-        float get() { return (*light)->attenuation.y; }
-        void set(float value) { (*light)->attenuation.y = value; OnPropertyChanged("Attenuation1"); }
+        float get() { return (*light)->Attenuation.y; }
+        void set(float value) { (*light)->Attenuation.y = value; OnPropertyChanged("Attenuation1"); }
     }
     property float Attenuation2
     {
-        float get() { return (*light)->attenuation.z; }
-        void set(float value) { (*light)->attenuation.z = value; OnPropertyChanged("Attenuation2"); }
+        float get() { return (*light)->Attenuation.z; }
+        void set(float value) { (*light)->Attenuation.z = value; OnPropertyChanged("Attenuation2"); }
     }
     property float Luminance
     {
-        float get() { return (*light)->attenuation.w; }
-        void set(float value) { (*light)->attenuation.w = value; OnPropertyChanged("Luminance"); }
+        float get() { return (*light)->Attenuation.w; }
+        void set(float value) { (*light)->Attenuation.w = value; OnPropertyChanged("Luminance"); }
     }
     property float CutoffInner
     {
-        float get() { return (*light)->cutoffInner; }
-        void set(float value) { (*light)->cutoffInner = value; OnPropertyChanged("CutoffInner"); }
+        float get() { return (*light)->CutoffInner; }
+        void set(float value) { (*light)->CutoffInner = value; OnPropertyChanged("CutoffInner"); }
     }
     property float CutoffOuter
     {
-        float get() { return (*light)->cutoffOuter; }
-        void set(float value) { (*light)->cutoffOuter = value; OnPropertyChanged("CutoffOuter"); }
+        float get() { return (*light)->CutoffOuter; }
+        void set(float value) { (*light)->CutoffOuter = value; OnPropertyChanged("CutoffOuter"); }
     }
     property System::Windows::Media::Color Color
     {
-        System::Windows::Media::Color get() { return ToColor((*light)->color); }
+        System::Windows::Media::Color get() { return ToColor((*light)->Color); }
         void set(System::Windows::Media::Color value)
         {
-            FromColor(value, (*light)->color);
+            FromColor(value, (*light)->Color);
             OnPropertyChanged("Color");
         }
     }

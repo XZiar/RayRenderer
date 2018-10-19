@@ -19,7 +19,7 @@ void Camera::RegistControllable()
     { const auto& cam = dynamic_cast<const Camera&>(self); return std::pair(std::log2(cam.zNear), std::log2(cam.zFar)); })
         .RegistSetter([](Controllable& self, const string&, const ControlArg& arg)
     { auto& cam = dynamic_cast<Camera&>(self); const auto[near, far]= std::get<std::pair<float, float>>(arg); 
-        cam.zNear = std::pow(2, near), cam.zFar = std::pow(2, far);  });
+        cam.zNear = std::pow(2.0f, near), cam.zFar = std::pow(2.0f, far);  });
 }
 
 Camera::Camera() noexcept
