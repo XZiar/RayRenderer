@@ -8,8 +8,13 @@ namespace rayr
 class alignas(16) Pyramid : public Drawable
 {
 protected:
-    float sidelen;
+    float Sidelen;
     oglu::oglVBO vbo;
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"rayr#Drawable#Pyramid"sv;
+    }
 public:
     static constexpr auto TYPENAME = u"Pyramid";
     Pyramid(const float len);
@@ -23,10 +28,15 @@ public:
 class alignas(16) Sphere : public Drawable
 {
 protected:
-    float radius, radius_sqr;
+    float Radius;
     oglu::oglVBO vbo;
     oglu::oglEBO ebo;
     uint32_t ptcount;
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"rayr#Drawable#Sphere"sv;
+    }
 public:
     static constexpr auto TYPENAME = u"Sphere";
     Sphere(const float r);
@@ -41,8 +51,13 @@ public:
 class alignas(16) Box : public Drawable
 {
 protected:
-    Vec3 size;
+    Vec3 Size;
     oglu::oglVBO vbo;
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"rayr#Drawable#Box"sv;
+    }
 public:
     static constexpr auto TYPENAME = u"Box";
     Box(const float len) : Box(len, len, len) { };
@@ -60,6 +75,11 @@ class alignas(16) Plane : public Drawable
 protected:
     oglu::oglVBO vbo;
     float SideLen, TexRepeat;
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"rayr#Drawable#Plane"sv;
+    }
 public:
     static constexpr auto TYPENAME = u"Plane";
     Plane(const float len = 500.0f, const float texRepeat = 1.0f);

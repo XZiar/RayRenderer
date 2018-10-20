@@ -9,7 +9,7 @@ using namespace System;
 
 namespace RayRender
 {
-
+using namespace common;
 
 public enum class LightType : int32_t
 {

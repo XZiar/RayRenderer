@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="RenderCoreWrap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -42,11 +39,20 @@
     <ClInclude Include="ControllableWrap.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="SceneManagerWrap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BasicTestWrap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderCoreWrap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ThumbManWrap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="RenderCoreWrap.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="AssemblyInfo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -69,6 +75,18 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ControllableWrap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManagerWrap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicTestWrap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderCoreWrap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ThumbManWrap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

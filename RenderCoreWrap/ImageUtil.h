@@ -23,13 +23,13 @@ public:
     static xziar::img::Image Convert(BitmapSource^ image);
 };
 
-private ref class ImageSaver
+private ref class ImageHolder
 {
 private:
-    CLIWrapper<xziar::img::Image> Img;
+    CLIWrapper<xziar::img::ImageView> Img;
 public:
-    ImageSaver(xziar::img::Image&& img) : Img(img) {}
-    ImageSaver(const xziar::img::Image& img) : Img(img) {}
+    ImageHolder(xziar::img::Image&& img) : Img(img) {}
+    ImageHolder(const xziar::img::Image& img) : Img(img) {}
     void Save(String^ filePath);
 };
 

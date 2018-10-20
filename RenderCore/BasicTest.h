@@ -62,7 +62,6 @@ private:
     set<oglDrawProgram> glProgs2;
     fs::path Basepath;
     std::atomic_uint32_t IsUBOChanged{ 0 };
-    uint32_t WindowWidth, WindowHeight;
     void init2d(const fs::path& shaderPath);
     void init3d(const fs::path& shaderPath);
     void initTex();
@@ -71,6 +70,7 @@ private:
     void prepareLight();
     void RefreshContext() const;
 public:
+    uint32_t WindowWidth, WindowHeight;
     bool mode = true;
     Camera cam;
     BasicTest(const fs::path& shaderPath = u"");

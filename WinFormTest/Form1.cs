@@ -114,7 +114,7 @@ namespace WinFormTest
             switch (e.Type)
             {
             case MouseEventType.Moving:
-                test.Camera.Move((e.dx * 10.0f / test.Camera.Width), (e.dy * 10.0f / test.Camera.Height), 0);
+                test.Camera.Move((e.dx * 10.0f / test.Width), (e.dy * 10.0f / test.Height), 0);
                 break;
             case MouseEventType.Wheel:
                 test.Camera.Move(0, 0, (float)e.dx);

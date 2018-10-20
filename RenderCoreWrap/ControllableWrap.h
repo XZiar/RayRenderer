@@ -1,7 +1,8 @@
+#pragma once
 #include "RenderCoreWrapRely.h"
 
 
-namespace RayRender
+namespace Common
 {
 
 

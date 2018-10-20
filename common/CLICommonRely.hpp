@@ -30,7 +30,7 @@
         Type get() { return name; } \
     }
 
-namespace common
+namespace Common
 {
 
 

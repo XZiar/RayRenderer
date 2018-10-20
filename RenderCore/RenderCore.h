@@ -57,8 +57,8 @@ public:
     const set<Wrapper<RenderPass>>& GetRenderPasses() const noexcept { return RenderPasses; }
     const set<Wrapper<RenderPipeLine>>& GetPipeLines() const noexcept { return PipeLines; }
 
-    void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
-    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;
+    void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;
     void AddShader(const Wrapper<DefaultRenderPass>& shader);
     void ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline);
 

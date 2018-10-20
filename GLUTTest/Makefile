@@ -10,7 +10,7 @@ NAME	= GLUTTest
 
 LIBRARYS	+= -lpthread -lstdc++fs -lFreeGLUTView -lResourcePackager -lRenderCore -lImageUtil
 ifeq ($(XZMK_CLANG), 1)
-LIBRARYS	+= -lminiLogger -lOpenGLUtil -lOpenCLICDLoader -lOpenCLUtil -lFontHelper -lTextureUtil -lAsyncExecutor
+LIBRARYS	+= -lminiLogger -lOpenGLUtil -lOpenCLICDLoader -lOpenCLUtil -lFontHelper -lTextureUtil -lAsyncExecutor -lboost.stacktrace
 endif
 DEPLIBS		+= -lfmt
 CXXFLAGS	+= -Wno-unused-function -Wno-switch

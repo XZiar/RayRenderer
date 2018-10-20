@@ -205,9 +205,12 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="OpenGLTypes.h" />
     <ClInclude Include="ProgInputResource.hpp" />
-    <ClInclude Include="RenderCoreWrapRely.h" />
     <ClInclude Include="RenderCoreWrap.h" />
+    <ClInclude Include="RenderCoreWrapRely.h" />
+    <ClInclude Include="BasicTestWrap.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="SceneManagerWrap.h" />
+    <ClInclude Include="ThumbManWrap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp">
@@ -231,6 +234,7 @@
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="OpenGLTypes.cpp" />
+    <ClCompile Include="BasicTestWrap.cpp" />
     <ClCompile Include="RenderCoreWrap.cpp" />
     <ClCompile Include="RenderCoreWrapRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -238,6 +242,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="SceneManagerWrap.cpp" />
+    <ClCompile Include="ThumbManWrap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

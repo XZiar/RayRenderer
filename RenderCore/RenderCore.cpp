@@ -155,19 +155,19 @@ void RenderCore::TestSceneInit()
     const auto pbrPass = *RenderPasses.begin();
     Wrapper<Pyramid> pyramid(1.0f);
     pyramid->Name = u"Pyramid";
-    pyramid->position = { 0,0,0 };
+    pyramid->Position = { 0,0,0 };
     TheScene->AddObject(pyramid);
     Wrapper<Sphere> ball(0.75f);
     ball->Name = u"Ball";
-    ball->position = { 1,0,0 };
+    ball->Position = { 1,0,0 };
     TheScene->AddObject(ball);
     Wrapper<Box> box(0.5f, 1.0f, 2.0f);
     box->Name = u"Box";
-    box->position = { 0,1,0 };
+    box->Position = { 0,1,0 };
     TheScene->AddObject(box);
     Wrapper<Plane> ground(500.0f, 50.0f);
     ground->Name = u"Ground";
-    ground->position = { 0,-2,0 };
+    ground->Position = { 0,-2,0 };
     TheScene->AddObject(ground);
     for (const auto& pass : RenderPasses)
     {
@@ -199,7 +199,7 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
     GLContext->SetViewPort(0, 0, WindowWidth, WindowHeight);
 }
 
-void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError)
+void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError) const
 {
     std::thread([onFinish, onError, this](const u16string name)
     {
@@ -221,7 +221,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
     }, fname).detach();
 }
 
-void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError)
+void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError) const
 {
     auto pms = GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
     {

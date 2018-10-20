@@ -8,7 +8,7 @@ using b3d::PI_float;
 using oglu::Point;
 
 
-Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
+Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), Sidelen(len)
 {
     constexpr double sqrt3 = 1.73205080757;
     constexpr float sqrt3_2 = float(sqrt3 / 2);
@@ -30,7 +30,7 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), sidelen(len)
         { {  0.5f, 0.0f, -sqrt3_6 },{  0.0f, -1.0f, 0.0f },{ 2.0f, 2.0f } }
     };
     for (auto& pt : pts)
-        pt.pos *= sidelen;
+        pt.pos *= Sidelen;
     vbo.reset();
     vbo->Write(pts);
 }
@@ -46,7 +46,7 @@ void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, stri
 void Pyramid::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.EJOBJECT_ADD(sidelen);
+    jself.EJOBJECT_ADD(Sidelen);
 }
 void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -55,7 +55,7 @@ void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true
 
 RESPAK_IMPL_COMP_DESERIALIZE(Pyramid, float)
 {
-    return std::tuple(object.Get<float>("sidelen"));
+    return std::tuple(object.Get<float>("Sidelen"));
 }
 
 
@@ -98,10 +98,10 @@ static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, c
     return indexs;
 }
 
-Sphere::Sphere(const float r) : Drawable(this, TYPENAME), radius(r), radius_sqr(r*r)
+Sphere::Sphere(const float r) : Drawable(this, TYPENAME), Radius(r)
 {
     vectorEx<Point> pts;
-    auto indexs = CreateSphere(pts, radius);
+    auto indexs = CreateSphere(pts, Radius);
     vbo.reset();
     vbo->Write(pts);
     ebo.reset();
@@ -121,7 +121,7 @@ void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, strin
 void Sphere::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.EJOBJECT_ADD(radius);
+    jself.EJOBJECT_ADD(Radius);
 }
 void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -130,7 +130,7 @@ void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>
 
 RESPAK_IMPL_COMP_DESERIALIZE(Sphere, float)
 {
-    return std::tuple(object.Get<float>("radius"));
+    return std::tuple(object.Get<float>("Radius"));
 }
 
 
@@ -192,11 +192,11 @@ const Point BoxBasePts[] =
 
 Box::Box(const float length, const float height, const float width) : Drawable(this, TYPENAME)
 {
-    size = Vec3(length, height, width);
+    Size = Vec3(length, height, width);
     vector<Point> pts;
     pts.assign(BoxBasePts, BoxBasePts + 36);
     for (auto& pt : pts)
-        pt.pos *= size;
+        pt.pos *= Size;
     vbo.reset();
     vbo->Write(pts);
 }
@@ -212,7 +212,7 @@ void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&
 void Box::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.Add("size", detail::ToJArray(context, size));
+    jself.Add("Size", detail::ToJArray(context, Size));
 }
 void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -221,9 +221,9 @@ void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& o
 
 RESPAK_IMPL_COMP_DESERIALIZE(Box, float, float, float)
 {
-    b3d::Vec3 size;
-    detail::FromJArray(object.GetArray("size"), size);
-    return std::tuple(size.x, size.y, size.z);
+    b3d::Vec3 Size;
+    detail::FromJArray(object.GetArray("Size"), Size);
+    return std::tuple(Size.x, Size.y, Size.z);
 }
 
 

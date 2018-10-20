@@ -9,41 +9,41 @@
 
 using namespace System;
 
-namespace common
+namespace Common
 {
 
 public ref class CPPException : public Exception
 {
 private:
     initonly String^ stacktrace;
-    static Exception^ formInnerException(const BaseException& be)
+    static Exception^ formInnerException(const common::BaseException& be)
     {
         if (const auto& inner = be.NestedException())
         {
-            if (const auto fex = std::dynamic_pointer_cast<FileException>(inner))
+            if (const auto fex = std::dynamic_pointer_cast<common::FileException>(inner))
             {
                 auto msg = ToStr((const std::u16string_view&)fex->message);
                 auto fpath = ToStr(fex->filepath.u16string());
                 auto innerEx = formInnerException(*fex);
-                if (fex->reason == FileException::Reason::NotExist)
+                if (fex->reason == common::FileException::Reason::NotExist)
                     return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
                 else
                     return gcnew IO::FileLoadException(msg, fpath, innerEx);
             }
-            else if (const auto bex = std::dynamic_pointer_cast<BaseException>(inner))
+            else if (const auto bex = std::dynamic_pointer_cast<common::BaseException>(inner))
                 return gcnew CPPException(*bex);
-            else if (const auto oex = std::dynamic_pointer_cast<detail::OtherException>(inner))
+            else if (const auto oex = std::dynamic_pointer_cast<common::detail::OtherException>(inner))
                 return gcnew CPPException(*oex);
         }
         return nullptr;
     }
-    CPPException(const detail::OtherException& oe) : Exception(ToStr(std::string_view(oe.What()))) {}
+    CPPException(const common::detail::OtherException& oe) : Exception(ToStr(std::string_view(oe.What()))) {}
 public:
     property String^ StackTrace
     {
         String^ get() override { return stacktrace; }
     }
-    CPPException(const BaseException& be) : Exception(ToStr(be.message), formInnerException(be))
+    CPPException(const common::BaseException& be) : Exception(ToStr(be.message), formInnerException(be))
     {
         using std::u16string_view;
         stacktrace = "";

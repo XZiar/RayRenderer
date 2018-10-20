@@ -118,9 +118,9 @@ Image ImageUtil::Convert(BitmapSource^ image)
 }
 
 
-void ImageSaver::Save(String^ filePath)
+void ImageHolder::Save(String^ filePath)
 {
-    ImageUtil::WriteImage(Img.Extract(), filePath);
+    ImageUtil::WriteImage(Img.Extract().AsRawImage(), filePath);
 }
 
 }

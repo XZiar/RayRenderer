@@ -13,6 +13,11 @@ class alignas(16) Model : public Drawable
 protected:
     virtual MultiMaterialHolder OnPrepareMaterial() const override;
     Model(ModelMesh mesh);
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"rayr#Drawable#Model"sv;
+    }
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelMesh Mesh;

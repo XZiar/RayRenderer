@@ -14,7 +14,7 @@ using namespace System;
 using namespace System::Threading::Tasks;
 
 
-namespace common
+namespace Common
 {
 
 template<class RetType>
@@ -32,7 +32,7 @@ private:
         {
             return WrapperedFunc->Extract()();
         }
-        catch (BaseException& be)
+        catch (common::BaseException& be)
         {
             throw gcnew CPPException(be);
         }
@@ -70,7 +70,7 @@ private:
                 OuterTask->SetResult(ret);
             }
         }
-        catch (BaseException& be)
+        catch (common::BaseException& be)
         {
             OuterTask->SetException(gcnew CPPException(be));
         }
@@ -107,7 +107,7 @@ private:
                 OuterTask->SetResult(callback());
             }
         }
-        catch (BaseException& be)
+        catch (common::BaseException& be)
         {
             OuterTask->SetException(gcnew CPPException(be));
         }
@@ -127,7 +127,7 @@ private:
             else if (InnerUnmanagedTask->IsCompleted)
                 OuterTask->SetResult(InnerUnmanagedTask->Result->Extract()());
         }
-        catch (BaseException& be)
+        catch (common::BaseException& be)
         {
             OuterTask->SetException(gcnew CPPException(be));
         }
@@ -159,7 +159,7 @@ inline void __cdecl SetTaskResult(const gcroot<TaskCompletionSource<CLIWrapper<R
     tsk->SetResult(gcnew CLIWrapper<RetType>(ret));
 }
 template<class TaskType>
-inline void __cdecl SetTaskException(const TaskType& tsk, const BaseException& be)
+inline void __cdecl SetTaskException(const TaskType& tsk, const common::BaseException& be)
 {
     tsk->SetException(gcnew CPPException(be));
 }
@@ -177,7 +177,7 @@ inline void doInside(gcroot<TaskCompletionSource<Func<RetType>^>^> tsk, AsyncFun
     std::invoke(asyfunc, asyobj, args..., [tsk](const StdRetFuncType<RetType>& cb)
     {
         SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
-    }, [tsk](const BaseException& be)
+    }, [tsk](const common::BaseException& be)
     {
         SetTaskException(tsk, be);
     });
@@ -190,7 +190,7 @@ inline void doInside(gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetTy
     std::invoke(asyfunc, asyobj, args..., [tsk](const StdRetFuncType<RetType>& cb)
     {
         SetTaskResult<StdRetFuncType<RetType>>(tsk, cb);
-    }, [tsk](const BaseException& be)
+    }, [tsk](const common::BaseException& be)
     {
         SetTaskException(tsk, be);
     });
@@ -203,7 +203,7 @@ inline void doInside3(gcroot<TaskCompletionSource<CLIWrapper<RetType>^>^> tsk, A
     std::invoke(asyfunc, asyobj, args..., [tsk](auto&& obj)
     {
         SetTaskResult<RetType>(tsk, std::move(obj));
-    }, [tsk](const BaseException& be)
+    }, [tsk](const common::BaseException& be)
     {
         SetTaskException(tsk, be);
     });
@@ -225,7 +225,7 @@ inline void doInside4(gcroot<TaskCompletionSource<CLIWrapper<StdRetFuncType<RetT
         {
             return MixInvoke<RetType>(finfunc, finarg, *mid, std::make_index_sequence<std::tuple_size_v<std::decay_t<FinishArgs>>>{});
         });
-    }, [tsk](const BaseException& be)
+    }, [tsk](const common::BaseException& be)
     {
         SetTaskException(tsk, be);
     });

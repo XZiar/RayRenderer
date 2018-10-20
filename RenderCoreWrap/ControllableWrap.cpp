@@ -1,7 +1,7 @@
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
 
-namespace RayRender
+namespace Common
 {
 using namespace System::Linq;
 
@@ -84,7 +84,7 @@ Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
 }
 Controllable::!Controllable()
 {
-    if (const auto ptr = common::ExchangeNullptr(Control); ptr)
+    if (const auto ptr = ExchangeNullptr(Control); ptr)
         delete ptr;
 }
 

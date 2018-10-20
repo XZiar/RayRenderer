@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+﻿#include "RenderCoreRely.h"
 #include "RenderElement.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
@@ -156,8 +156,8 @@ auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, 
 
 Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
 {
-    Mat3x3 matNormal = Mat3x3::RotateMatXYZ(rotation);
-    return drawcall.SetPosition(Mat4x4::TranslateMat(position) * Mat4x4(matNormal * Mat3x3::ScaleMat(scale)), matNormal);
+    Mat3x3 matNormal = Mat3x3::RotateMatXYZ(Rotation);
+    return drawcall.SetPosition(Mat4x4::TranslateMat(Position) * Mat4x4(matNormal * Mat3x3::ScaleMat(Scale)), matNormal);
 }
 
 void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const
@@ -181,23 +181,37 @@ const oglu::oglVAO& Drawable::GetVAO(const oglu::oglDrawProgram::weak_type& weak
 }
 
 
+void Drawable::RegistControllable()
+{
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue, {}, u"物体名称")
+        .RegistMember(&Drawable::Name);
+    RegistItem<bool>("ShouldRender", "", u"启用", ArgType::RawValue, {}, u"是否渲染该物体")
+        .RegistMember(&Drawable::ShouldRender);
+    RegistItem<miniBLAS::Vec3>("Position", "", u"位置", ArgType::RawValue, {}, u"物体位置")
+        .RegistMember<false>(&Drawable::Position);
+    RegistItem<miniBLAS::Vec3>("Rotation", "", u"旋转", ArgType::RawValue, {}, u"物体旋转方向")
+        .RegistMember<false>(&Drawable::Rotation);
+    RegistItem<miniBLAS::Vec3>("Scale", "", u"缩放", ArgType::RawValue, {}, u"物体缩放")
+        .RegistMember<false>(&Drawable::Scale);
+}
+
 void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", str::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Uid", boost::uuids::to_string(Uid));
-    jself.Add("position", detail::ToJArray(context, position));
-    jself.Add("rotation", detail::ToJArray(context, rotation));
-    jself.Add("scale", detail::ToJArray(context, scale));
+    jself.Add("Position", detail::ToJArray(context, Position));
+    jself.Add("Rotation", detail::ToJArray(context, Rotation));
+    jself.Add("Scale", detail::ToJArray(context, Scale));
     context.AddObject(jself, "material", MaterialHolder);
 }
 
 void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
 {
-    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
-    detail::FromJArray(object.GetArray("position"), position);
-    detail::FromJArray(object.GetArray("rotation"), rotation);
-    detail::FromJArray(object.GetArray("scale"), scale);
+    detail::FromJArray(object.GetArray("Position"), Position);
+    detail::FromJArray(object.GetArray("Rotation"), Rotation);
+    detail::FromJArray(object.GetArray("Scale"), Scale);
     MaterialHolder.Deserialize(context, object.GetObject("material"));
 }
 

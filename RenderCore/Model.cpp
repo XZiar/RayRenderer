@@ -26,7 +26,7 @@ MultiMaterialHolder Model::OnPrepareMaterial() const
 Model::Model(ModelMesh mesh) : Drawable(this, TYPENAME), Mesh(mesh)
 {
     const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
-    scale = Vec3(resizer, resizer, resizer);
+    Scale = Vec3(resizer, resizer, resizer);
 }
 
 Model::Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)

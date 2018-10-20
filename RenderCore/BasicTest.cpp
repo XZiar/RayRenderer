@@ -123,19 +123,19 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     {
         Wrapper<Pyramid> pyramid(1.0f);
         pyramid->Name = u"Pyramid";
-        pyramid->position = { 0,0,0 };
+        pyramid->Position = { 0,0,0 };
         AddObject(pyramid);
         Wrapper<Sphere> ball(0.75f);
         ball->Name = u"Ball";
-        ball->position = { 1,0,0 };
+        ball->Position = { 1,0,0 };
         AddObject(ball);
         Wrapper<Box> box(0.5f, 1.0f, 2.0f);
         box->Name = u"Box";
-        box->position = { 0,1,0 };
+        box->Position = { 0,1,0 };
         AddObject(box);
         Wrapper<Plane> ground(500.0f, 50.0f);
         ground->Name = u"Ground";
-        ground->position = { 0,-2,0 };
+        ground->Position = { 0,-2,0 };
         AddObject(ground);
     }
     MiddleFrame.reset();

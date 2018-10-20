@@ -7,7 +7,6 @@
 #include "common/Exceptions.hpp"
 #include "common/miniLogger/miniLogger.h"
 
-using namespace common;
 using std::vector;
 
 #pragma managed
@@ -16,6 +15,8 @@ using std::vector;
 #include "common/CLICommonRely.hpp"
 #include "common/CLIViewModel.hpp"
 using namespace System;
+using namespace Common;
+
 
 inline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
 {

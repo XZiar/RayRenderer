@@ -7,7 +7,7 @@
 #include "atomic"
 #include "CLICommonRely.hpp"
 
-namespace common
+namespace Common
 {
 using System::ComponentModel::INotifyPropertyChanged;
 using System::ComponentModel::PropertyChangedEventHandler;
