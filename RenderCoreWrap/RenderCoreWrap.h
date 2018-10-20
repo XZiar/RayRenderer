@@ -34,6 +34,8 @@ public:
     void DeSerialize(String^ path);
     Action<String^>^ Screenshot();
 
+    CLI_READONLY_PROPERTY(uint32_t, Width, Core->GetWindowSize().first)
+    CLI_READONLY_PROPERTY(uint32_t, Height, Core->GetWindowSize().second)
     CLI_READONLY_PROPERTY(Scene^, TheScene, theScene)
 };
 

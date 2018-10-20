@@ -10,6 +10,7 @@ namespace Dizz
 
 RenderCore::RenderCore() : Core(new rayr::RenderCore())
 {
+    Core->TestSceneInit();
     theScene = gcnew Scene(Core);
     PostProc = gcnew Common::Controllable(Core->GetPostProc());
 }

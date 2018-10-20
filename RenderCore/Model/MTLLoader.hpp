@@ -59,7 +59,8 @@ public:
                 //curmtl->mtl.ambient = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);
                 break;
             case "Kd"_hash:
-                curmtl->Albedo = b3d::Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+                curmtl->Albedo = line.ParamsToFloat3(1);
+                //curmtl->Albedo = b3d::Vec3(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
                 break;
             case "Ks"_hash:
                 //curmtl->mtl.specular = Vec4(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()), 1.0);

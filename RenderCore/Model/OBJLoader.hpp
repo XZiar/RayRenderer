@@ -1,7 +1,9 @@
 #pragma once
 #include "RenderCoreRely.h"
 #include "uchardetlib/uchardetlib.h"
-
+#if COMPILER_MSVC // 15.8 has implemented it both fp&int
+#   include <charconv>
+#endif
 
 namespace rayr::detail
 {
@@ -48,17 +50,62 @@ public:
             return std::string_view(beginRest, lenTotal - (beginRest - beginLine));
         }
 
-        u16string GetUString(const size_t index)
+        u16string GetUString(const size_t index) const
         {
             if (Params.size() <= index)
                 return u"";
             return common::str::to_u16string(Params[index], charset);
         }
 
-        u16string ToUString() { return common::str::to_u16string(Line, charset); }
+        u16string ToUString() const { return common::str::to_u16string(Line, charset); }
+
+        b3d::Coord2D ParamsToFloat2(size_t offset) const
+        {
+            b3d::Coord2D ret;
+            for (uint8_t i = 0; offset < Params.size() && i < 2; ++offset, ++i)
+#if COMPILER_MSVC
+                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
+#else
+                ret[i] = std::strtof(Params[offset].data(), nullptr);
+#endif
+            return ret;
+        }
+        miniBLAS::Vec3 ParamsToFloat3(size_t offset) const
+        {
+            miniBLAS::Vec3 ret;
+            for (uint8_t i = 0; offset < Params.size() && i < 3; ++offset, ++i)
+#if COMPILER_MSVC
+                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
+#else
+                ret[i] = std::strtof(Params[offset].data(), nullptr);
+#endif
+            return ret;
+        }
+        miniBLAS::Vec4 ParamsToFloat4(size_t offset) const
+        {
+            miniBLAS::Vec4 ret;
+            for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
+#if COMPILER_MSVC
+                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
+#else
+                ret[i] = std::strtof(Params[offset].data(), nullptr);
+#endif
+            return ret;
+        }
+        miniBLAS::VecI4 ParamsToInt4(size_t offset) const
+        {
+            miniBLAS::VecI4 ret;
+            for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
+#if COMPILER_MSVC
+                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
+#else
+                ret[i] = (int32_t)std::strtol(Params[offset].data(), nullptr, 10);
+#endif
+            return ret;
+        }
 
         template<size_t N>
-        uint8_t ParseInts(const uint8_t idx, int32_t(&output)[N])
+        uint8_t ParseInts(const uint8_t idx, int32_t(&output)[N]) const
         {
             uint8_t cnt = 0;
             str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
@@ -75,7 +122,7 @@ public:
         }
 
         template<size_t N>
-        uint8_t ParseFloats(const uint8_t idx, float(&output)[N])
+        uint8_t ParseFloats(const uint8_t idx, float(&output)[N]) const
         {
             uint8_t cnt = 0;
             str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)

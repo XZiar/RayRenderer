@@ -220,7 +220,7 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
-int wmain([[maybe_unused]]int argc, [[maybe_unused]]wchar_t *argv[])
+int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();

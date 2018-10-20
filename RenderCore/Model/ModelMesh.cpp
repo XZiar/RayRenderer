@@ -141,19 +141,22 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
             break;
         case "v"_hash://vertex
             {
-                Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+                auto tmp = line.ParamsToFloat3(1);
+                //Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
                 maxv = miniBLAS::max(maxv, tmp);
                 minv = miniBLAS::min(minv, tmp);
                 points.push_back(tmp);
             }break;
         case "vn"_hash://normal
             {
-                Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
+                Vec3 tmp = line.ParamsToFloat3(1);
+                //Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
                 normals.push_back(tmp);
             }break;
         case "vt"_hash://texcoord
             {
-                Coord2D tmpc(atof(line.Params[1].data()), atof(line.Params[2].data()));
+                auto tmpc = line.ParamsToFloat2(1);
+                //Coord2D tmpc(atof(line.Params[1].data()), atof(line.Params[2].data()));
                 tmpc.regulized_mirror();
                 texcs.push_back(tmpc);
             }break;

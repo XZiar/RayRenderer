@@ -35,9 +35,10 @@ internal:
 public ref class Controllable : public DynamicObject, public INotifyPropertyChanged
 {
 private:
-    ViewModelStub ViewModel;
     const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
+protected:
+    ViewModelStub ViewModel;
     std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
 internal:
     Controllable(const std::shared_ptr<common::Controllable>& control);

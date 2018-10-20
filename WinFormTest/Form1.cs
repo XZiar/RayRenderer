@@ -1,38 +1,38 @@
 ﻿using System;
 using OpenGLView;
-using RayRender;
+using Dizz;
 using System.Windows.Forms;
 
 namespace WinFormTest
 {
     public partial class Form1 : Form
     {
-        private OGLView oglv;
-        private BasicTest test;
-        private bool isAnimate = false;
+        private OGLView GLView;
+        private RenderCore Core;
+        private bool IsAnimate = false;
         private ushort curObj = 0;
         public Form1()
         {
             InitializeComponent();
-            oglv = new OGLView()
+            GLView = new OGLView()
             {
                 Location = new System.Drawing.Point(0, 0),
                 Name = "oglv",
                 Size = ClientSize,
                 ResizeBGDraw = false
             };
-            test = new BasicTest();
-            test.Resize((uint)ClientSize.Width & 0xffc0, (uint)ClientSize.Height & 0xffc0);
+            Core = new RenderCore();
+            Core.Resize((uint)ClientSize.Width, (uint)ClientSize.Height);
 
-            Controls.Add(oglv);
-            Resize += (o, e) => { oglv.Size = ClientSize; };
-            FormClosing += (o, e) => { test.Dispose(); test = null; };
+            Controls.Add(GLView);
+            Resize += (o, e) => { GLView.Size = ClientSize; };
+            FormClosing += (o, e) => { Core.Dispose(); Core = null; };
 
-            oglv.Draw += test.Draw;
-            oglv.Resize += (o, e) => { test.Resize((uint)e.Width & 0xffc0, (uint)e.Height & 0xffc0); };
-            oglv.KeyDown += OnKeyDown;
+            GLView.Draw += Core.Draw;
+            GLView.Resize += (o, e) => { Core.Resize((uint)e.Width, (uint)e.Height); };
+            GLView.KeyDown += OnKeyDown;
             //oglv.KeyAction += OnKeyAction;
-            oglv.MouseAction += OnMouse;
+            GLView.MouseAction += OnMouse;
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
@@ -41,25 +41,25 @@ namespace WinFormTest
             switch (e.KeyCode)
             {
                 case Keys.Up:
-                    test.Drawables[curObj].Move(0, 0.1f, 0); break;
+                    Core.TheScene.Drawables[curObj].Move(0, 0.1f, 0); break;
                 case Keys.Down:
-                    test.Drawables[curObj].Move(0, -0.1f, 0); break;
+                    Core.TheScene.Drawables[curObj].Move(0, -0.1f, 0); break;
                 case Keys.Left:
-                    test.Drawables[curObj].Move(-0.1f, 0, 0); break;
+                    Core.TheScene.Drawables[curObj].Move(-0.1f, 0, 0); break;
                 case Keys.Right:
-                    test.Drawables[curObj].Move(0.1f, 0, 0); break;
+                    Core.TheScene.Drawables[curObj].Move(0.1f, 0, 0); break;
                 case Keys.PageUp:
-                    test.Drawables[curObj].Move(0, 0, -0.1f); break;
+                    Core.TheScene.Drawables[curObj].Move(0, 0, -0.1f); break;
                 case Keys.PageDown:
-                    test.Drawables[curObj].Move(0, 0, 0.1f); break;
+                    Core.TheScene.Drawables[curObj].Move(0, 0, 0.1f); break;
                 case Keys.Add:
                     curObj++;
-                    if (curObj >= test.Drawables.Size)
+                    if (curObj >= Core.TheScene.Drawables.Count)
                         curObj = 0;
                     break;
                 case Keys.Subtract:
                     if (curObj == 0)
-                        curObj = (ushort)test.Drawables.Size;
+                        curObj = (ushort)Core.TheScene.Drawables.Count;
                     curObj--;
                     break;
                 default:
@@ -68,19 +68,19 @@ namespace WinFormTest
                         switch (e.KeyValue)
                         {
                             case 'A':
-                                test.Drawables[curObj].Rotate(0, 3, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 3, 0); break;
                             case 'D':
-                                test.Drawables[curObj].Rotate(0, -3, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, -3, 0); break;
                             case 'W':
-                                test.Drawables[curObj].Rotate(3, 0, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(3, 0, 0); break;
                             case 'S':
-                                test.Drawables[curObj].Rotate(-3, 0, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(-3, 0, 0); break;
                             case 'Q':
-                                test.Drawables[curObj].Rotate(0, 0, 3); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 0, 3); break;
                             case 'E':
-                                test.Drawables[curObj].Rotate(0, 0, -3); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 0, -3); break;
                             case '\r':
-                                isAnimate = !isAnimate; break;
+                                IsAnimate = !IsAnimate; break;
                         }
                     }
                     else
@@ -89,19 +89,19 @@ namespace WinFormTest
                         {
 
                             case 'A'://pan to left
-                                test.Camera.Yaw(3); break;
+                                Core.TheScene.MainCamera.Yaw(3); break;
                             case 'D'://pan to right
-                                test.Camera.Yaw(-3); break;
+                                Core.TheScene.MainCamera.Yaw(-3); break;
                             case 'W'://pan to up
-                                test.Camera.Pitch(3); break;
+                                Core.TheScene.MainCamera.Pitch(3); break;
                             case 'S'://pan to down
-                                test.Camera.Pitch(-3); break;
+                                Core.TheScene.MainCamera.Pitch(-3); break;
                             case 'Q'://pan to left
-                                test.Camera.Roll(-3); break;
+                                Core.TheScene.MainCamera.Roll(-3); break;
                             case 'E'://pan to left
-                                test.Camera.Roll(3); break;
+                                Core.TheScene.MainCamera.Roll(3); break;
                             case '\r':
-                                test.Mode = !test.Mode; break;
+                                /*Core.Mode = !Core.Mode;*/ break;
                         }
                     }
                     break;
@@ -114,15 +114,15 @@ namespace WinFormTest
             switch (e.Type)
             {
             case MouseEventType.Moving:
-                test.Camera.Move((e.dx * 10.0f / test.Width), (e.dy * 10.0f / test.Height), 0);
+                Core.TheScene.MainCamera.Move((e.dx * 10.0f / Core.Width), (e.dy * 10.0f / Core.Height), 0);
                 break;
             case MouseEventType.Wheel:
-                test.Camera.Move(0, 0, (float)e.dx);
+                Core.TheScene.MainCamera.Move(0, 0, (float)e.dx);
                 break;
             default:
                 return;
             }
-            oglv.Invalidate();
+            GLView.Invalidate();
         }
     }
 }

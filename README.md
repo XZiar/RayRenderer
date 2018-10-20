@@ -20,8 +20,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | Component | Description | Platform |
 |:-------|:-------:|:-------:|
 | [3rdParty](./3rdParty) | 3rd party library | N/A |
-| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
 | [common](./common) | Basic but useful things | N/A |
+| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
 | [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
 | [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
@@ -29,28 +29,28 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows & Linux |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | Windows & Linux |
-| [ResourcePackager](./ResourcePackager) | Resource package and management library | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux* |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows & Linux |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows & Linux |
+| [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | Windows & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
 
-
 * `ResoucePackager` cannot be compiled by GCC7/8 due to compiler bug with rapidjson, see [Tencent/rapidjson#1338](https://github.com/Tencent/rapidjson/issues/1338)
+
 ## Platform Requirements
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-VS2017(`15.8`) needed. Windows SDK Target is `10.0.17134.0`. .Net Framework 4.7.1 needed for C# components.
-
 Some Utilities have `Makefile` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`build.sh`](build.sh) or use more powerful build utility via [`build.py`](build.py) (python3).
 
-Several C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables.
+To build C++ parts, VS2017(`15.8`) or GCC7.1 needed since many C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables. 
+
+For Windows-only parts, Windows SDK Target is `10.0.17134.0` and .Net Framework 4.7.2 needed for C# components.
 
 ## Additional Requirements
 

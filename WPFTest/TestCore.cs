@@ -189,7 +189,7 @@ namespace WPFTest
             Lights.Refresh();
         }
 
-        public async Task<Controllable> AddShaderAsync(string fileName)
+        public async Task<Common.Controllable> AddShaderAsync(string fileName)
         {
             var shaderName = DateTime.Now.ToString("HH:mm:ss");
             var ret = await Test.AddShaderAsync(fileName, shaderName);

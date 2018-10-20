@@ -92,6 +92,7 @@ struct VAOKeyX
 Drawable::Drawable(const std::type_index type, const u16string& typeName) : Uid(DrawableHelper::GenerateUUID()), DrawableType(type)
 {
     DrawableHelper::Regist(DrawableType, typeName);
+    RegistControllable();
 }
 
 Drawable::~Drawable()

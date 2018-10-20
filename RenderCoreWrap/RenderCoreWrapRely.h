@@ -8,6 +8,7 @@
 #include "common/miniLogger/miniLogger.h"
 
 using std::vector;
+using common::Wrapper;
 
 #pragma managed
 

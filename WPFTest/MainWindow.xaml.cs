@@ -56,7 +56,7 @@ namespace WPFTest
         {
             InitializeComponent();
             XZiar.Util.BaseViewModel.Init();
-            common.BaseViewModel.Init();
+            Common.BaseViewModel.Init();
             MemMonitor = new MemoryMonitor();
             imgCamera = (ImageSource)this.FindResource("imgCamera");
             imgCube = (ImageSource)this.FindResource("imgCube");
@@ -450,9 +450,9 @@ namespace WPFTest
             {
                 case MouseEventType.Moving:
                     if (e.Button.HasFlag(OpenGLView.MouseButton.Left))
-                        Core.Move((e.dx * 10.0f / Core.Test.Camera.Width), (e.dy * 10.0f / Core.Test.Camera.Height), 0, OperateTarget);
+                        Core.Move((e.dx * 10.0f / Core.Test.Width), (e.dy * 10.0f / Core.Test.Height), 0, OperateTarget);
                     else if (e.Button.HasFlag(OpenGLView.MouseButton.Right))
-                        Core.Rotate((e.dy * MouseSensative / Core.Test.Camera.Height), (e.dx * -MouseSensative / Core.Test.Camera.Width), 0, OperateTarget); //need to reverse dx
+                        Core.Rotate((e.dy * MouseSensative / Core.Test.Height), (e.dx * -MouseSensative / Core.Test.Width), 0, OperateTarget); //need to reverse dx
                     break;
                 case MouseEventType.Wheel:
                     Core.Move(0, 0, (float)e.dx * ScrollSensative, OperateTarget);
