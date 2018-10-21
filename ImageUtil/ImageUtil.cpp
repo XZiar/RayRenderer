@@ -26,7 +26,7 @@ static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, con
     return common::linq::Linq::FromIterable(SUPPORT_MAP())
         .Select([&](const auto& support) { return std::pair(support, support->MatchExtension(ext, dataType, isRead)); })
         .Where([=](const auto& spPair) { return allowDisMatch || spPair.second > 0; })
-        .SortBy([](const auto& l, const auto& r) { return l.second > r.second; })
+        .OrderBy([](const auto& l, const auto& r) { return l.second > r.second; })
         .Select([](const auto& spPair) { return spPair.first; })
         .ToVector();
 }

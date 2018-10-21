@@ -31,6 +31,17 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
     Core->Resize(w, h);
 }
 
+
+Drawable^ ConstructDrawable(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
+{
+    return gcnew Drawable(theModel->Extract());
+}
+Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
+{
+    return doAsync3<Drawable^>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, Drawable^>(&ConstructDrawable),
+        &rayr::RenderCore::LoadModelAsync, *Core, ToU16Str(fname));
+}
+
 void RenderCore::Serialize(String^ path)
 {
     Core->Serialize(ToU16Str(path));

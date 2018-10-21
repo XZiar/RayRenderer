@@ -2,23 +2,37 @@
 
 A collection of useful utilities
 
-## Componoent
+## Component
 
 * **AlignedContainer**
 
-  A custom allocator that support aligned memory managment
+  A custom allocator that support aligned memory management
+
+* **ColorConsole**
+
+  A library providing color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
 
 * **ContainerEx**
 
   A simple library providing some shortcuts for container operations
 
+* **Controllable**
+
+  A base class using type erasure to support dynamic property access. object's property need to be registered explicitly.
+
+  **Controllable stores data inside the instance, so multi-inherited class may consider using virtual inheritance.**
+
 * **DelayLoader**
 
-  A wrapper to manage win32's delay-laod DLL
+  A wrapper to manage win32's delay-load DLL
+
+* **EasierJSON**
+
+  A wrapper for `rapidjson`, providing strong-type json component and easier set/get conversion and operations.
 
 * **Exception**
 
-  Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, unicode message, arbitray extra data...
+  Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
 
 * **FileEx**
 
@@ -28,21 +42,19 @@ A collection of useful utilities
 
   A wrapper to manage win32's file mapper
 
-* **Linq** `buggy`
+* **Linq**
 
-  A try of implementing linq on C++. It's unfinished and buggy
+  A try of implementing LINQ on C++.
 
 * **PromiseTask**
 
-  A wrapper for C++11's future&promise for C++/CLI project. 
+  A wrapper for C++11's future&promise, provides universal API with preparation and time-query support. 
   
-  It uses virtual method to hide STL's `thread`, which is not supported in C++/CLI.
-
-  It also provides universial API for [AsyncExecutor](./AsyncExecutor)
+  It uses virtual method to hide STL's `thread` (which is not supported in C++/CLI).
 
 * **ResourceHelper**
 
-  A wrapper to manage win32 DLL's embeded resource
+  A wrapper to manage embedded resource. It uses DLL's embedded resource on Win32 and binary object on *nix.
 
 * **SharedResource**
 
@@ -52,13 +64,21 @@ A collection of useful utilities
 
   SharedResource is based on `Wrapper`, using weak_ptr and shared_ptr to managed resource. It is thread-safe and resource will get released once it's no longer held by anyone.
 
+* **SharedString**
+
+  An shared immutable string.
+  
+  Some string is used across threads but not being modified, so they can be shared with proper lifetime management.
+
+  ShareString provides access using string_view and uses embedded reference-block to save pointer's dereference overhead.
+
 * **SpinLocker**
 
-  Spin-lock implemented using std::stomic. It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.
+  Spin-lock implemented using std::atomic. It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.
 
 * **StringEx**
 
-  Some useful utils for string operations like split, concat...
+  Some useful utilities for string operations like split, concat...
 
 * **StrCharset**
   
@@ -69,11 +89,11 @@ A collection of useful utilities
 
 * **TimeUtil**
 
-  A util to manage time. It's mainly used to be a timer.
+  A utility to provide time query support, mainly used as a timer.
 
 * **ThreadEx**
 
-  A wrapper to support some operation in C++/CLI. It's designed to be cross-platform but only windows-platform are implemented using Win32 API.
+  A wrapper to support setting or getting thread's information. It's designed to be cross-platform but not fully tested.
 
 * **Wrapper**
 
@@ -89,7 +109,7 @@ A collection of useful utilities
 
   A async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
 
-  It simply uses a polling scheduler, waiting events are queried every xxms(default 20ms).
+  It simply uses a polling scheduler, waiting events are queried every xx ms(default 20ms).
 
 ## Dependency
 
@@ -115,19 +135,19 @@ Some resources need to be shared among classes or instances, hence they are ofte
 Shared_ptr can be used to automatically manage resource since the inner resource will be automatically destroyed when the last one release it. This provide the missing part of "static".
 
 SharedResource is designed to provide a determined lifespan for a shared resource.
-The resource will be gennerated only someone ask for it, and will be destroyed when it is no longer held by anyone.
+The resource will be generated only someone ask for it, and will be destroyed when it is no longer held by anyone.
 If there's another ask for resource after it destroy it, it will generate the resource again.
 However, since itself should be defined as static, its' lifespan can not be promised.
 
-Though shared_ptr itself has provided thread-safety promise, SharedResource itself should also manually provide it, since serveral thread may ask for resource at the same time, while only one resource should be generated.
-I brutely use a spin-lock, which may lead to a disaster when multiple threads trying to acquire the resource that hasn't been generated --- they will be blocked and spin, causing high CPU usage.
+Though shared_ptr itself has provided thread-safety promise, SharedResource itself should also manually provide it, since several thread may ask for resource at the same time, while only one resource should be generated.
+I brutally use a spin-lock, which may lead to a disaster when multiple threads trying to acquire the resource that hasn't been generated --- they will be blocked and spin, causing high CPU usage.
 Also, it uses weak_ptr to keep track of resource, whose lock method will cause some overhead.
 
 The best practise should be acquiring the resource only once, and keep a copy of it until finish using it.
 
 ### Wrapper
 
-Wrapper can be simply regarded as a combination of shared_ptr and make_shared. It is mostly my own taste and may not be recommanded.
+Wrapper can be simply regarded as a combination of shared_ptr and make_shared. It is mostly my own taste and may not be recommended.
 
 Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper of self in self's declaration.
 
@@ -143,7 +163,7 @@ StrCharset provide encoding defines and charset transform with self-made convers
 
 `codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
 
-Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should inlude [uchardet](../3rdParty/uchardetlib).
+Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
 
 
 ## License

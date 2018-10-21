@@ -21,7 +21,7 @@ internal:
     rayr::RenderCore * const Core;
     Scene^ theScene;
 public:
-    initonly Common::Controllable^ PostProc;
+    initonly Controllable^ PostProc;
 
     RenderCore();
     ~RenderCore() { this->!RenderCore(); }
@@ -29,6 +29,8 @@ public:
 
     void Draw();
     void Resize(const uint32_t w, const uint32_t h);
+
+    Task<Drawable^>^ LoadModelAsync(String^ fname);
 
     void Serialize(String^ path);
     void DeSerialize(String^ path);

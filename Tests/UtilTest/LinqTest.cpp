@@ -115,7 +115,7 @@ static void TestLinq()
     constexpr auto ret6 = Linq::FromRange(5, 1, 1).Empty();
     log().info(u"====ret6====\n{}\n", ToString(ret6));
     const auto ret7 = Linq::FromRange(5, 1, -1)
-        .SortBy<std::less<>>()
+        .OrderBy<std::less<>>()
         .ToMap<false>(std::multimap<int32_t, int32_t>{}, [](const int32_t i) { return i; }, [](const int32_t i) { return i; });
     //for (const auto& p : common::container::ValSet(ret7))
     //{

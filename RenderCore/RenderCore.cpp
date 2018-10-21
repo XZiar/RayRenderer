@@ -49,7 +49,7 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
-        .SortBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
+        .OrderBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
         COMMON_THROWEX(BaseException, u"No avaliable OpenCL Platform found");
@@ -315,9 +315,7 @@ xziar::img::Image RenderCore::Screenshot()
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
     oglu::oglFBO ssFBO(std::in_place);
-    //oglu::BindingState bs1;
     oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
-    //oglu::BindingState bs2;
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");

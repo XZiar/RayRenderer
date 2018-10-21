@@ -406,7 +406,7 @@ public:
     template<typename Func>
     auto Where(Func&& filter);
     template<typename Func>
-    auto SortBy(Func&& comparator = {});
+    auto OrderBy(Func&& comparator = {});
     template<typename Other>
     auto Concat(Other&& other);
     template<typename Other>
@@ -664,7 +664,7 @@ struct IteratorSource : public Enumerable<IteratorSource<T>, decltype(*std::decl
     TE End;
     constexpr IteratorSource(T&& source) : Source(std::move(source)), Current(std::begin(*Source)), End(std::end(*Source)) {}
     constexpr IteratorSource(T& source) : Source(), Current(std::begin(source)), End(std::end(source)) {}
-    constexpr decltype(*std::declval<TB>()) GetCurrent() const { return *Current; }
+    constexpr decltype(auto) GetCurrent() const { return *Current; }
     constexpr void MoveNext() { ++Current; }
     constexpr bool IsEnd() const { return !(Current != End); }
     constexpr bool Empty() const { return IsEnd(); }
@@ -698,7 +698,7 @@ struct RepeatSource : public Enumerable<RepeatSource<T>, T>
 
 template<typename Child, typename EleType>
 template<typename Func>
-auto Enumerable<Child, EleType>::SortBy(Func&& comparator)
+auto Enumerable<Child, EleType>::OrderBy(Func&& comparator)
 {
     static_assert(std::is_invocable_r_v<bool, Func, const RawEleType&, const RawEleType&>, "sort need a comparator that accept two element and return bool");
     auto tmp = ToVector();

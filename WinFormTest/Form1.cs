@@ -14,6 +14,16 @@ namespace WinFormTest
         public Form1()
         {
             InitializeComponent();
+            AllowDrop = true;
+            DragEnter += (o, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                    e.Effect = DragDropEffects.Link;
+                else
+                    e.Effect = DragDropEffects.None;
+            };
+            DragDrop += OnDropFileAsync;
+
             GLView = new OGLView()
             {
                 Location = new System.Drawing.Point(0, 0),
@@ -33,6 +43,22 @@ namespace WinFormTest
             GLView.KeyDown += OnKeyDown;
             //oglv.KeyAction += OnKeyAction;
             GLView.MouseAction += OnMouse;
+        }
+
+        private async void OnDropFileAsync(object sender, DragEventArgs e)
+        {
+            string fname = (e.Data.GetData(DataFormats.FileDrop) as Array).GetValue(0).ToString();
+            var extName = System.IO.Path.GetExtension(fname).ToLower();
+            switch (extName)
+            {
+            case ".obj":
+                {
+                    var drawable = await Core.LoadModelAsync(fname);
+                    Core.TheScene.Drawables.Add(drawable);
+                    curObj = (ushort)(Core.TheScene.Drawables.Count - 1);
+                } break;
+            }
+            GLView.Invalidate();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)

@@ -1,6 +1,6 @@
 # OpenCLUtil
 
-A C++ wrapper of OpenCL(1.2).
+A C++ wrapper of OpenCL.
 
 It aims at providing a OOP wrapper which makes OpenCL's various object and functions.
 
@@ -18,27 +18,35 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
   Used to dispatch commands
 
+* **oclMem**  OpenCL Memory-Like Object base
+  
+  Provide basic function for OpenCL's Memory-Like Object and inter-operation with OpenGL.
+
 * **oclBuffer**  OpenCL Memory Object
   
-  With GL inter-op
+  OpenCL memory
 
-* **oglProgram**  OpenCL Program
+* **oclImage**  OpenCL Image Object
+  
+  OpenCL Image uses OpenGL's Texture data format
 
-  Provide argument setting and multi-dimension execution.
+* **oclProgram**  OpenCL Program
 
-  No chained operation supported yet.
+  Provide argument setting and multi-dimension execution. Kernel's infomation can also be retrieved.
 
-* **oglPromise**  OpenCL Promise
+  Chained operation is partially supported (only single-link chain).
+
+* **oclPromise**  OpenCL Promise
 
   With OpenCL's timer support.
 
-* **oglUtil**  OpenCL Utility
+* **oclUtil**  OpenCL Utility
 
 ## Dependency
 
 * [common](../common)
-  * Wrapper -- an extended version of stl's shared_ptr
-  * Exception -- an exception model with support for nested-exception, strong-type, unicode message, arbitray extra data 
+  * Wrapper -- an extended version of STL's shared_ptr
+  * Exception -- an exception model with support for nested-exception, strong-type, Unicode message, arbitrary extra data 
   * StringEx -- some useful operation for string, including encoding-conversion
 
 * [OpenCL_ICD_Loader](../3rdParty/OpenCL_ICD_Loader)
@@ -47,7 +55,7 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 * [OpenGLUtil](../OpenGLUtil)
 
-  OpenGL Utility, used for inter-op but currently a required dependency.
+  OpenGL Utility, used for optional inter-op but currently a required dependency.
 
 * [miniLogger](../common/miniLogger)
   

@@ -58,7 +58,7 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
-        .SortBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
+        .OrderBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
         COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");

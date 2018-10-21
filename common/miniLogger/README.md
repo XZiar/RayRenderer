@@ -4,13 +4,13 @@ Mini Logger
 
 ## Concept
 
-Logger is seperated as frontend and backend. Both sync/async backend are supported, but async backends are prefered.
+Logger is separated as frontend and backend. Both sync/async backend are supported, but async backends are preferred.
 
 Log content formation and message dispatcher are handled by frontend, which is almost "stateless" and runs at caller's thread.
 
 Logging operations are handled by backend, which could be on another thread if LoggerQBackend(Queue based async backend) are used.
 
-Backend are binded with logger instance, but they are "shared". Also, logger has a static backend, running on an isolated thread, accepting global callback bindings.
+Backend are bound with logger instance, but they are "shared". Also, logger has a static backend, running on an isolated thread, accepting global callback bindings.
 
 ## Support Backend
 
@@ -18,7 +18,7 @@ Backend are binded with logger instance, but they are "shared". Also, logger has
   
   Windows only, support colorful output.
 
-* **Debuger Backend** `shared`
+* **Debugger Backend** `shared`
   
   Send debug message to debugger, such as VisualStudio's debug window, or stderr in Linux
 
