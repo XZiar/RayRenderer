@@ -20,11 +20,28 @@ using common::linq::Linq;
 //OGLU_OPTIMUS_ENABLE_NV
 
 std::unique_ptr<rayr::RenderCore> tester;
+Wrapper<rayr::Drawable> CurObj;
 uint16_t CurPipe = 0;
-uint16_t curObj = 0;
 FreeGLUTView window, wd2;
 bool isAnimate = false;
 bool isPostproc = true;
+
+static Wrapper<rayr::Drawable> LocateDrawable(const bool isPrev)
+{
+    const auto& drws = tester->GetScene()->GetDrawables();
+    auto cur = drws.begin();
+    while (cur != drws.end() && cur->second != CurObj)
+        ++cur;
+    if (cur != drws.end())
+    {
+        if (isPrev)
+            return cur == drws.begin() ? (--drws.end())->second : (--cur)->second;
+        ++cur;
+        return cur == drws.end() ? drws.begin()->second : cur->second;
+    }
+    else
+        return {};
+}
 
 void onResize(FreeGLUTView wd, int w, int h)
 {
@@ -70,17 +87,17 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
         switch (keyevent.SpecialKey())
         {
         case Key::Up:
-            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0.1f, 0); break;
+            CurObj->Move(0, 0.1f, 0); break;
         case Key::Down:
-            tester->GetScene()->GetDrawables()[curObj]->Move(0, -0.1f, 0); break;
+            CurObj->Move(0, -0.1f, 0); break;
         case Key::Left:
-            tester->GetScene()->GetDrawables()[curObj]->Move(-0.1f, 0, 0); break;
+            CurObj->Move(-0.1f, 0, 0); break;
         case Key::Right:
-            tester->GetScene()->GetDrawables()[curObj]->Move(0.1f, 0, 0); break;
+            CurObj->Move(0.1f, 0, 0); break;
         case Key::PageUp:
-            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, -0.1f); break;
+            CurObj->Move(0, 0, -0.1f); break;
         case Key::PageDown:
-            tester->GetScene()->GetDrawables()[curObj]->Move(0, 0, 0.1f); break;
+            CurObj->Move(0, 0, 0.1f); break;
         case Key::UNDEFINE:
             switch (keyevent.key)
             {
@@ -100,17 +117,17 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             case 'e'://pan to left
                 tester->GetScene()->GetCamera()->Roll(3 * muler); break;
             case 'A':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, 3 * muler); break;
+                CurObj->Rotate(0, 0, 3 * muler); break;
             case 'D':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 0, -3 * muler); break;
+                CurObj->Rotate(0, 0, -3 * muler); break;
             case 'W':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(3 * muler, 0, 0); break;
+                CurObj->Rotate(3 * muler, 0, 0); break;
             case 'S':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(-3 * muler, 0, 0); break;
+                CurObj->Rotate(-3 * muler, 0, 0); break;
             case 'Q':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 3 * muler, 0); break;
+                CurObj->Rotate(0, 3 * muler, 0); break;
             case 'E':
-                tester->GetScene()->GetDrawables()[curObj]->Rotate(0, -3 * muler, 0); break;
+                CurObj->Rotate(0, -3 * muler, 0); break;
             case 'x':
                 wd2.reset(800, 600);
                 break;
@@ -126,14 +143,10 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
                     window->SetTitle(isPostproc ? "3D-PostProc" : "3D-Direct");
                 } break;
             case '+':
-                curObj++;
-                if (curObj >= (uint16_t)(tester->GetScene()->GetDrawables().size()))
-                    curObj = 0;
+                CurObj = LocateDrawable(false);
                 break;
             case '-':
-                if (curObj == 0)
-                    curObj = (uint16_t)(tester->GetScene()->GetDrawables().size());
-                curObj--;
+                CurObj = LocateDrawable(true);
                 break;
             }
             //printf("U %.4f,%.4f,%.4f\nV %.4f,%.4f,%.4f\nN %.4f,%.4f,%.4f\n", tester->GetScene()->GetCamera()->Right().x, tester->GetScene()->GetCamera()->Right().y, tester->GetScene()->GetCamera()->Right().z,
@@ -167,7 +180,7 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
 
 void autoRotate()
 {
-    tester->GetScene()->GetDrawables()[curObj]->Rotate(0, 3 * muler, 0);
+    CurObj->Rotate(0, 3 * muler, 0);
 }
 
 bool onTimer(FreeGLUTView wd, uint32_t)
@@ -191,7 +204,7 @@ void onDropFile(FreeGLUTView wd, u16string fname)
             {
                 if (tester->GetScene()->AddObject(model))
                 {
-                    curObj = (uint16_t)(tester->GetScene()->GetDrawables().size() - 1);
+                    CurObj = model;
                     model->Rotate(-90 * muler, 0, 0);
                     model->Move(-1, 0, 0);
                     for (const auto& shd : tester->GetRenderPasses())
@@ -227,6 +240,7 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
     window.reset();
     tester.reset(new rayr::RenderCore());
     tester->TestSceneInit();
+    CurObj = tester->GetScene()->GetDrawables().begin()->second;
     window->funDisp = [&](FreeGLUTView wd) { tester->Draw(); };
     window->funReshape = onResize;
     window->SetTitle("3D");

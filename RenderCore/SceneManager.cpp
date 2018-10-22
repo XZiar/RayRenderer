@@ -2,6 +2,7 @@
 #include "SceneManager.h"
 
 using namespace oglu;
+using common::container::ValSet;
 
 namespace rayr
 {
@@ -46,8 +47,10 @@ void Scene::PrepareLight()
 
 bool Scene::AddObject(const Wrapper<Drawable>& drawable)
 {
-    WaitDrawables.push_back(drawable);
-    Drawables.push_back(drawable);
+    const auto uid = drawable->GetUid();
+    if (!Drawables.try_emplace(uid, drawable).second)
+        return false;
+    WaitDrawables.insert(drawable);
     SceneChanges.Add(SceneChange::Object);
     dizzLog().success(u"Add an Drawable [{}][{}]:  {}\n", Drawables.size() - 1, drawable->GetType(), drawable->Name);
     return true;
@@ -76,7 +79,7 @@ void Scene::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     }
     {
         auto jdrawables = context.NewArray();
-        for (const auto& drw : Drawables)
+        for (const auto& drw : ValSet(Drawables))
             context.AddObject(jdrawables, *drw);
         jself.Add("drawables", jdrawables);
     }
@@ -104,8 +107,8 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
             dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("name"), str::Charset::UTF8),
                 str::to_u16string(jdrw.Get<string>("#Type"), str::Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
-            WaitDrawables.push_back(drw);
-            Drawables.push_back(drw);
+            if (Drawables.try_emplace(drw->GetUid(), drw).second)
+                WaitDrawables.insert(drw);
         }
         ReportChanged(SceneChange::Object);
     }

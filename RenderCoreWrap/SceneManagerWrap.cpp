@@ -31,6 +31,18 @@ Drawable::!Drawable()
     ReleaseTempHandle();
 }
 
+void Drawable::Move(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Move(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Position");
+}
+
+void Drawable::Rotate(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Rotate(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Rotation");
+}
+
 std::shared_ptr<rayr::Light> Light::GetSelf()
 {
     return std::static_pointer_cast<rayr::Light>(GetControl()); // type promised
@@ -38,6 +50,55 @@ std::shared_ptr<rayr::Light> Light::GetSelf()
 
 Light::Light(const Wrapper<rayr::Light>& light) : Controllable(light)
 {
+}
+Light::Light(Wrapper<rayr::Light>&& light) : Controllable(light), TempHandle(new Wrapper<rayr::Light>(light))
+{
+}
+
+void Light::ReleaseTempHandle()
+{
+    if (const auto ptr = ExchangeNullptr(TempHandle); ptr)
+        delete ptr;
+}
+
+void Light::Move(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Move(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Position");
+}
+
+void Light::Rotate(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Rotate(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Direction");
+}
+
+#pragma managed(push, off)
+static Wrapper<rayr::Light> CreateLight(rayr::LightType type)
+{
+    Wrapper<rayr::Light> light;
+    switch (type)
+    {
+    case rayr::LightType::Parallel:
+        light = Wrapper<rayr::ParallelLight>(std::in_place);
+        light->Color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
+        break;
+    case rayr::LightType::Point:
+        light = Wrapper<rayr::PointLight>(std::in_place);
+        light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+        break;
+    case rayr::LightType::Spot:
+        light = Wrapper<rayr::SpotLight>(std::in_place);
+        light->Color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
+        break;
+    }
+    light->Direction = b3d::Vec4(0, 0, 1, 0);
+    return light;
+}
+#pragma managed(pop)
+Light^ Light::NewLight(LightType type)
+{
+    return gcnew Light(CreateLight((rayr::LightType)type));
 }
 
 
@@ -50,16 +111,52 @@ Camera::Camera(const Wrapper<rayr::Camera>& camera) : Controllable(camera)
 {
 }
 
+void Camera::Move(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Move(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Position");
+}
+
+void Camera::Rotate(const float dx, const float dy, const float dz)
+{
+    GetSelf()->Rotate(dx, dy, dz);
+    ViewModel.OnPropertyChanged(this, "Direction");
+}
+
+//rotate along x-axis, radius
+void Camera::Pitch(const float radx)
+{
+    GetSelf()->Pitch(radx);
+    ViewModel.OnPropertyChanged(this, "Direction");
+}
+
+//rotate along y-axis, radius
+void Camera::Yaw(const float rady)
+{
+    GetSelf()->Yaw(rady);
+    ViewModel.OnPropertyChanged(this, "Direction");
+}
+
+//rotate along z-axis, radius
+void Camera::Roll(const float radz)
+{
+    GetSelf()->Roll(radz);
+    ViewModel.OnPropertyChanged(this, "Direction");
+}
+
 
 Scene::Scene(const rayr::RenderCore * core) : Core(core)
 {
-    OnAddModelHandler = gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnAddModel);
-    OnAddLightHandler = gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnAddLight);
     const auto& scene = Core->GetScene();
     TheScene = new std::weak_ptr<rayr::Scene>(scene);
     MainCamera = gcnew Camera(scene->GetCamera());
-    Drawables = gcnew ObservableCollection<Drawable^>();
-    Lights = gcnew ObservableCollection<Light^>();
+    Drawables = gcnew ObservablePrivateContainer<Drawable^>();
+    Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::OnAddModel);
+    //Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnDrawablesChanged);
+    Lights = gcnew ObservablePrivateContainer<Light^>();
+    Lights->BeforeAddObject += gcnew AddObjectEventHandler<Light^>(this, &Scene::OnAddLight);
+    Lights->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<Light^>(this, &Scene::OnLightPropertyChanged);
+    //Lights->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnLightsChanged);
     RefreshScene();
 }
 
@@ -67,53 +164,58 @@ void Scene::RefreshScene()
 {
     const auto scene = TheScene->lock();
 
-    Drawables->CollectionChanged -= OnAddModelHandler;
-    Drawables->Clear();
-    for (const auto& drw : scene->GetDrawables())
+    for (const auto& drw : common::container::ValSet(scene->GetDrawables()))
     {
-        Drawables->Add(gcnew Drawable(drw));
+        Drawables->InnerAdd(gcnew Drawable(drw));
     }
-    Drawables->CollectionChanged += OnAddModelHandler;
 
-    Lights->CollectionChanged -= OnAddLightHandler;
-    Lights->Clear();
     for (const auto& lgt : scene->GetLights())
     {
-        Lights->Add(gcnew Light(lgt));
-    }
-    Lights->CollectionChanged += OnAddLightHandler;
-}
-
-void Scene::OnAddModel(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)
-{
-    const auto scene = TheScene->lock();
-    switch (e->Action)
-    {
-    case NotifyCollectionChangedAction::Add:
-        for each (Object^ item in e->NewItems)
-        {
-            const auto drw = safe_cast<Drawable^>(item);
-            scene->AddObject(drw->GetSelf());
-            drw->ReleaseTempHandle();
-        }
-        break;
-    default: break;
+        Lights->InnerAdd(gcnew Light(lgt));
     }
 }
 
-void Scene::OnAddLight(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)
+void Scene::OnAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
 {
-    const auto scene = TheScene->lock();
-    switch (e->Action)
+    if (TheScene->lock()->AddObject(object->GetSelf()))
     {
-    case NotifyCollectionChangedAction::Add:
-        for each (Object^ drw in e->NewItems)
-        {
-            scene->AddLight(safe_cast<Light^>(drw)->GetSelf());
-        }
-        break;
-    default: break;
+        object->ReleaseTempHandle();
+        shouldAdd = true;
     }
+}
+
+void Scene::OnAddLight(Object^ sender, Light^ object, bool% shouldAdd)
+{
+    if (TheScene->lock()->AddLight(object->GetSelf()))
+    {
+        object->ReleaseTempHandle();
+        shouldAdd = true;
+    }
+}
+//
+//void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)
+//{
+//    switch (e->Action)
+//    {
+//    case NotifyCollectionChangedAction::Add:
+//        break;
+//    default: break;
+//    }
+//}
+//
+//void Scene::OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e)
+//{
+//    switch (e->Action)
+//    {
+//    case NotifyCollectionChangedAction::Add:
+//        break;
+//    default: break;
+//    }
+//}
+
+void Scene::OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e)
+{
+    TheScene->lock()->ReportChanged(rayr::SceneChange::Light);
 }
 
 Scene::!Scene()

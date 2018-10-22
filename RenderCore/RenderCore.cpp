@@ -11,6 +11,7 @@
 
 using common::container::FindInSet;
 using common::container::FindInMap;
+using common::container::ValSet;
 
 namespace rayr
 {
@@ -304,7 +305,7 @@ void RenderCore::DeSerialize(const fs::path & fpath)
     }
     for (const auto& shd : RenderPasses)
     {
-        for (const auto& drw : TheScene->GetDrawables())
+        for (const auto& drw : ValSet(TheScene->GetDrawables()))
             shd->RegistDrawable(drw);
         shd->CleanDrawable();
     }

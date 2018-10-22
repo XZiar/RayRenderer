@@ -12,6 +12,7 @@ RenderCore::RenderCore() : Core(new rayr::RenderCore())
 {
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);
+    theScene->Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &RenderCore::OnDrawablesChanged);
     PostProc = gcnew Common::Controllable(Core->GetPostProc());
 }
 
@@ -19,6 +20,22 @@ RenderCore::!RenderCore()
 {
     if (const auto ptr = ExchangeNullptr(Core); ptr)
         delete ptr;
+}
+
+void RenderCore::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs^ e)
+{
+    switch (e->Action)
+    {
+    case NotifyCollectionChangedAction::Add:
+        for each (Object^ item in e->NewItems)
+        {
+            const auto drawable = safe_cast<Drawable^>(item)->GetSelf();
+            for (const auto& shd : Core->GetRenderPasses())
+                shd->RegistDrawable(drawable);
+        }
+        break;
+    default: break;
+    }
 }
 
 void RenderCore::Draw()

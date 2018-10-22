@@ -2,6 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
+#include "ObservableContainer.hpp"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -32,6 +33,7 @@ public:
 
 public ref class Drawable : public Controllable, public IMovable
 {
+private:
     const Wrapper<rayr::Drawable>* TempHandle;
 internal:
     std::shared_ptr<rayr::Drawable> GetSelf();
@@ -41,35 +43,28 @@ internal:
 public:
     ~Drawable() { this->!Drawable(); }
     !Drawable();
-    virtual void Move(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Move(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Position");
-    }
-    virtual void Rotate(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Rotate(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Rotation");
-    }
+    virtual void Move(const float dx, const float dy, const float dz);
+    virtual void Rotate(const float dx, const float dy, const float dz);
 };
 
 
+public enum class LightType : int32_t
+{
+    Parallel = (int32_t)rayr::LightType::Parallel, Point = (int32_t)rayr::LightType::Point, Spot = (int32_t)rayr::LightType::Spot
+};
 public ref class Light : public Controllable, public IMovable
 {
+private:
+    const Wrapper<rayr::Light>* TempHandle;
 internal:
     std::shared_ptr<rayr::Light> GetSelf();
     Light(const Wrapper<rayr::Light>& light);
+    Light(Wrapper<rayr::Light>&& light);
+    void ReleaseTempHandle();
 public:
-    virtual void Move(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Move(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Position");
-    }
-    virtual void Rotate(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Rotate(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Direction");
-    }
+    virtual void Move(const float dx, const float dy, const float dz);
+    virtual void Rotate(const float dx, const float dy, const float dz);
+    static Light^ NewLight(LightType type);
 };
 
 
@@ -79,55 +74,37 @@ internal:
     std::shared_ptr<rayr::Camera> GetSelf();
     Camera(const Wrapper<rayr::Camera>& camera);
 public:
-    virtual void Move(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Move(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Position");
-    }
-    virtual void Rotate(const float dx, const float dy, const float dz)
-    {
-        GetSelf()->Rotate(dx, dy, dz);
-        ViewModel.OnPropertyChanged("Direction");
-    }
+    virtual void Move(const float dx, const float dy, const float dz);
+    virtual void Rotate(const float dx, const float dy, const float dz);
     //rotate along x-axis, radius
-    void Pitch(const float radx)
-    {
-        GetSelf()->Pitch(radx);
-        ViewModel.OnPropertyChanged("Direction");
-    }
+    void Pitch(const float radx);
     //rotate along y-axis, radius
-    void Yaw(const float rady)
-    {
-        GetSelf()->Yaw(rady);
-        ViewModel.OnPropertyChanged("Direction");
-    }
+    void Yaw(const float rady);
     //rotate along z-axis, radius
-    void Roll(const float radz)
-    {
-        GetSelf()->Roll(radz);
-        ViewModel.OnPropertyChanged("Direction");
-    }
+    void Roll(const float radz);
 };
 
 
 public ref class Scene : public BaseViewModel
 {
+private:
+    void OnAddModel(Object^ sender, Drawable^ object, bool% shouldAdd);
+    void OnAddLight(Object^ sender, Light^ object, bool% shouldAdd);
+    /*void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
+    void OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);*/
+    void OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e);
 internal:
     const rayr::RenderCore * const Core;
     const std::weak_ptr<rayr::Scene> *TheScene;
     Scene(const rayr::RenderCore * core);
     void RefreshScene();
-    void OnAddModel(Object^ sender, NotifyCollectionChangedEventArgs^ e);
-    initonly NotifyCollectionChangedEventHandler^ OnAddModelHandler;
-    void OnAddLight(Object^ sender, NotifyCollectionChangedEventArgs^ e);
-    initonly NotifyCollectionChangedEventHandler^ OnAddLightHandler;
 public:
     ~Scene() { this->!Scene(); }
     !Scene();
 
     initonly Camera^ MainCamera;
-    initonly ObservableCollection<Drawable^>^ Drawables;
-    initonly ObservableCollection<Light^>^ Lights;
+    initonly ObservableProxyContainer<Drawable^>^ Drawables;
+    initonly ObservableProxyContainer<Light^>^ Lights;
 };
 
 

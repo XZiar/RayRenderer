@@ -7,6 +7,8 @@ namespace WinFormTest
 {
     public partial class Form1 : Form
     {
+        //conver to radius
+        const float MULER = (float)(Math.PI / 180);
         private OGLView GLView;
         private RenderCore Core;
         private bool IsAnimate = false;
@@ -54,6 +56,8 @@ namespace WinFormTest
             case ".obj":
                 {
                     var drawable = await Core.LoadModelAsync(fname);
+                    drawable.Rotate(-90 * MULER, 0, 0);
+                    drawable.Move(-1, 0, 0);
                     Core.TheScene.Drawables.Add(drawable);
                     curObj = (ushort)(Core.TheScene.Drawables.Count - 1);
                 } break;
@@ -94,17 +98,17 @@ namespace WinFormTest
                         switch (e.KeyValue)
                         {
                             case 'A':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 3, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 3 * MULER, 0); break;
                             case 'D':
-                                Core.TheScene.Drawables[curObj].Rotate(0, -3, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, -3 * MULER, 0); break;
                             case 'W':
-                                Core.TheScene.Drawables[curObj].Rotate(3, 0, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(3 * MULER, 0, 0); break;
                             case 'S':
-                                Core.TheScene.Drawables[curObj].Rotate(-3, 0, 0); break;
+                                Core.TheScene.Drawables[curObj].Rotate(-3 * MULER, 0, 0); break;
                             case 'Q':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 0, 3); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 0, 3 * MULER); break;
                             case 'E':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 0, -3); break;
+                                Core.TheScene.Drawables[curObj].Rotate(0, 0, -3 * MULER); break;
                             case '\r':
                                 IsAnimate = !IsAnimate; break;
                         }
@@ -115,17 +119,17 @@ namespace WinFormTest
                         {
 
                             case 'A'://pan to left
-                                Core.TheScene.MainCamera.Yaw(3); break;
+                                Core.TheScene.MainCamera.Yaw(3 * MULER); break;
                             case 'D'://pan to right
-                                Core.TheScene.MainCamera.Yaw(-3); break;
+                                Core.TheScene.MainCamera.Yaw(-3 * MULER); break;
                             case 'W'://pan to up
-                                Core.TheScene.MainCamera.Pitch(3); break;
+                                Core.TheScene.MainCamera.Pitch(3 * MULER); break;
                             case 'S'://pan to down
-                                Core.TheScene.MainCamera.Pitch(-3); break;
+                                Core.TheScene.MainCamera.Pitch(-3 * MULER); break;
                             case 'Q'://pan to left
-                                Core.TheScene.MainCamera.Roll(-3); break;
+                                Core.TheScene.MainCamera.Roll(-3 * MULER); break;
                             case 'E'://pan to left
-                                Core.TheScene.MainCamera.Roll(3); break;
+                                Core.TheScene.MainCamera.Roll(3 * MULER); break;
                             case '\r':
                                 /*Core.Mode = !Core.Mode;*/ break;
                         }

@@ -20,16 +20,22 @@ private:
     PropertyChangedEventHandler ^ propertyChanged;
     void OnPropertyChangedFunc(Object^ state)
     {
-        PropertyChanged(this, safe_cast<PropertyChangedEventArgs^>(state));
+        auto cookie = safe_cast<System::ValueTuple<Object^, PropertyChangedEventArgs^>>(state);
+        PropertyChanged(cookie.Item1, cookie.Item2);
     }
 protected:
     void OnPropertyChanged(System::String^ propertyName)
     {
+        OnPropertyChanged(this, propertyName);
+    }
+    void OnPropertyChanged(System::Object^ object, System::String^ propertyName)
+    {
         auto arg = gcnew PropertyChangedEventArgs(propertyName);
         if (SynchronizationContext::Current == SyncContext)
-            PropertyChanged(this, arg);
+            PropertyChanged(object, arg);
         else
-            SyncContext->Post(gcnew System::Threading::SendOrPostCallback(this, &BaseViewModel::OnPropertyChangedFunc), arg);
+            SyncContext->Post(gcnew System::Threading::SendOrPostCallback(this, &BaseViewModel::OnPropertyChangedFunc), 
+                System::ValueTuple<Object^, PropertyChangedEventArgs^>(object, arg));
     }
 public:
     static void Init() { }
@@ -56,9 +62,9 @@ public:
 public ref class ViewModelStub : public BaseViewModel
 {
 public:
-    void OnPropertyChanged(System::String^ propertyName)
+    void OnPropertyChanged(Object^ object, System::String^ propertyName)
     {
-        BaseViewModel::OnPropertyChanged(propertyName);
+        BaseViewModel::OnPropertyChanged(object, propertyName);
     }
 };
 

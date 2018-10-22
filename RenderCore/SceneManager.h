@@ -22,8 +22,8 @@ class RAYCOREAPI Scene : public xziar::respak::Serializable
     // TODO: make AddLight/AddObject able to be called by other thread?
     //       currently only changes are reported atomicly
 private:
-    vector<Wrapper<Drawable>> Drawables;
-    vector<Wrapper<Drawable>> WaitDrawables;
+    map<boost::uuids::uuid, Wrapper<Drawable>> Drawables;
+    set<Wrapper<Drawable>> WaitDrawables;
     vector<Wrapper<Light>> Lights;
     Wrapper<Camera> MainCam;
     oglu::oglUBO LightUBO;
@@ -35,7 +35,7 @@ public:
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 
-    const vector<Wrapper<Drawable>>& GetDrawables() const { return Drawables; }
+    const map<boost::uuids::uuid, Wrapper<Drawable>>& GetDrawables() const { return Drawables; }
     const vector<Wrapper<Light>>& GetLights() const { return Lights; }
     const Wrapper<Camera>& GetCamera() const { return MainCam; }
     const oglu::oglUBO& GetLightUBO() const { return LightUBO; }

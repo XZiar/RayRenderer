@@ -203,6 +203,7 @@
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="Light.hpp" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="ObservableContainer.hpp" />
     <ClInclude Include="OpenGLTypes.h" />
     <ClInclude Include="ProgInputResource.hpp" />
     <ClInclude Include="RenderCoreWrap.h" />

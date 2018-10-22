@@ -17,6 +17,8 @@ namespace Dizz
 
 public ref class RenderCore : public BaseViewModel
 {
+private:
+    void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
 internal:
     rayr::RenderCore * const Core;
     Scene^ theScene;
