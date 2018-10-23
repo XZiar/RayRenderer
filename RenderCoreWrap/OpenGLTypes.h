@@ -67,7 +67,7 @@ public:
             auto prog = Prog.lock();
             prog->State().SetSubroutine(cppname, newval);
             current = ToStr(prog->GetSubroutine(cppname)->Name);
-            OnPropertyChanged("Current");
+            RaisePropertyChanged("Current");
         }
     }
 };
@@ -104,7 +104,7 @@ public:
         void set(String^ value) 
         { 
             prog->lock()->Name = ToU16Str(value); 
-            OnPropertyChanged("Name"); 
+            RaisePropertyChanged("Name");
         }
     }
     virtual String^ ToString() override

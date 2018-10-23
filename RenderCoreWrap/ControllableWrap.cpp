@@ -291,7 +291,7 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         break;
     default:                return false;
     }
-    ViewModel.OnPropertyChanged(this, id_);
+    RaisePropertyChanged(id_);
     return true;
 }
 

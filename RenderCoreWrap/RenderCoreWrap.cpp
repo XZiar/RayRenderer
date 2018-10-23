@@ -69,7 +69,7 @@ void RenderCore::DeSerialize(String^ path)
     Core->DeSerialize(ToU16Str(path));
     delete theScene;
     theScene = gcnew Scene(Core);
-    OnPropertyChanged("TheScene");
+    RaisePropertyChanged("TheScene");
 }
 
 Action<String^>^ RenderCore::Screenshot()

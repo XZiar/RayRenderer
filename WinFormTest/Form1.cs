@@ -15,6 +15,7 @@ namespace WinFormTest
         private ushort curObj = 0;
         public Form1()
         {
+            Common.ViewModelSyncRoot.Init();
             InitializeComponent();
             AllowDrop = true;
             DragEnter += (o, e) =>

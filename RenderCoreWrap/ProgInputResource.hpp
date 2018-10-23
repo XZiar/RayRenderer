@@ -48,7 +48,7 @@ public:
     property T Value
     {
         T get() { auto ptr = GetValue(); return ptr ? Convert(ptr) : defValue; }
-        void set(T value) { SetValue(value); OnPropertyChanged("Value"); }
+        void set(T value) { SetValue(value); RaisePropertyChanged("Value"); }
     }
 };
 
@@ -72,12 +72,12 @@ public:
     property T LowValue
     {
         T get() { auto ptr = GetValue(); return ptr ? Convert(ptr, true) : defValue; }
-        void set(T value) { SetValue(value, true); OnPropertyChanged("LowValue"); }
+        void set(T value) { SetValue(value, true); RaisePropertyChanged("LowValue"); }
     }
     property T HighValue
     {
         T get() { auto ptr = GetValue(); return ptr ? Convert(ptr, false) : defValue; }
-        void set(T value) { SetValue(value, false); OnPropertyChanged("HighValue"); }
+        void set(T value) { SetValue(value, false); RaisePropertyChanged("HighValue"); }
     }
 };
 
@@ -145,7 +145,7 @@ public:
         void set(System::Windows::Media::Color value)
         {
             Prog.lock()->SetVec(ptrRes, value.ScR, value.ScG, value.ScB, value.ScA);
-            OnPropertyChanged("Value");
+            RaisePropertyChanged("Value");
         }
     }
 };
@@ -168,7 +168,7 @@ public:
         void set(bool value)
         {
             Prog.lock()->SetUniform(ptrRes, value);
-            OnPropertyChanged("Value");
+            RaisePropertyChanged("Value");
         }
     }
 };

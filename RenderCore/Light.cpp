@@ -4,7 +4,7 @@
 namespace rayr
 {
 
-uint32_t LightData::WriteData(std::byte *ptr) const
+void LightData::WriteData(std::byte *ptr) const
 {
     float *ptrFloat = reinterpret_cast<float*>(ptr);
     uint32_t *ptrI32 = reinterpret_cast<uint32_t*>(ptr);
@@ -18,7 +18,6 @@ uint32_t LightData::WriteData(std::byte *ptr) const
     Direction.save(ptrFloat + 8);
     ptrFloat[11] = cosDiff_1;
     Attenuation.save(ptrFloat + 12);
-    return 4 * 4 * sizeof(float);
 }
 
 

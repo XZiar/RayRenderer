@@ -19,6 +19,7 @@ struct RAYCOREAPI LightData : public common::AlignBase<alignof(b3d::Vec4)>
 protected:
     LightData(const LightType type) : Type(type) {}
 public:
+    static constexpr size_t WriteSize = 4 * 4 * sizeof(float);
     void Move(const float x, const float y, const float z)
     {
         Position += b3d::Vec3(x, y, z);
@@ -36,7 +37,7 @@ public:
         const auto rMat = b3d::Mat3x3::RotateMatXYZ(radius);
         Direction = rMat * Direction;
     }
-    uint32_t WriteData(std::byte *ptr) const;
+    void WriteData(std::byte *ptr) const;
 };
 
 #if COMPILER_MSVC

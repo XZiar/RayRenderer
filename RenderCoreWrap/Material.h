@@ -48,7 +48,7 @@ public:
     property String^ Name
     {
         String^ get() { return ToStr(Material.Name); }
-        void set(String^ value) { Material.Name = ToU16Str(value); OnPropertyChanged("Name"); }
+        void set(String^ value) { Material.Name = ToU16Str(value); RaisePropertyChanged("Name"); }
     }
     property System::Windows::Media::Color Albedo
     {
@@ -56,7 +56,7 @@ public:
         void set(System::Windows::Media::Color value)
         {
             FromColor(value, Material.Albedo);
-            OnPropertyChanged("Albedo"); RefreshMaterial();
+            RaisePropertyChanged("Albedo"); RefreshMaterial();
         }
     }
     property TexMap^ AlbedoMap
@@ -69,7 +69,7 @@ public:
         void set(bool value)
         {
             Material.UseDiffuseMap = value;
-            OnPropertyChanged("IsMappedAlbedo"); RefreshMaterial();
+            RaisePropertyChanged("IsMappedAlbedo"); RefreshMaterial();
         }
     }
     property TexMap^ NormalMap
@@ -82,23 +82,23 @@ public:
         void set(bool value)
         {
             Material.UseNormalMap = value;
-            OnPropertyChanged("IsMappedNormal"); RefreshMaterial();
+            RaisePropertyChanged("IsMappedNormal"); RefreshMaterial();
         }
     }
     property float Metallic
     {
         float get() { return Material.Metalness; }
-        void set(float value) { Material.Metalness = value; OnPropertyChanged("Metallic"); RefreshMaterial(); }
+        void set(float value) { Material.Metalness = value; RaisePropertyChanged("Metallic"); RefreshMaterial(); }
     }
     property float Roughness
     {
         float get() { return Material.Roughness; }
-        void set(float value) { Material.Roughness = value; OnPropertyChanged("Roughness"); RefreshMaterial(); }
+        void set(float value) { Material.Roughness = value; RaisePropertyChanged("Roughness"); RefreshMaterial(); }
     }
     property float AO
     {
         float get() { return Material.AO; }
-        void set(float value) { Material.AO = value; OnPropertyChanged("AO"); RefreshMaterial(); }
+        void set(float value) { Material.AO = value; RaisePropertyChanged("AO"); RefreshMaterial(); }
     }
     virtual String^ ToString() override
     {

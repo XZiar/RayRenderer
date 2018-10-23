@@ -28,22 +28,22 @@ public:
     property String^ Name
     {
         String^ get() { return ToStr(drawable->lock()->Name); }
-        void set(String^ value) { drawable->lock()->Name = ToU16Str(value); OnPropertyChanged("Name"); }
+        void set(String^ value) { drawable->lock()->Name = ToU16Str(value); RaisePropertyChanged("Name"); }
     }
     property Vector3 Position
     {
         Vector3 get() { return ToVector3(drawable->lock()->Position); }
-        void set(Vector3 value) { StoreVector3(value, drawable->lock()->Position); OnPropertyChanged("Position"); }
+        void set(Vector3 value) { StoreVector3(value, drawable->lock()->Position); RaisePropertyChanged("Position"); }
     }
     property Vector3 Rotation
     {
         Vector3 get() { return ToVector3(drawable->lock()->Rotation); }
-        void set(Vector3 value) { StoreVector3(value, drawable->lock()->Rotation); OnPropertyChanged("Rotation"); }
+        void set(Vector3 value) { StoreVector3(value, drawable->lock()->Rotation); RaisePropertyChanged("Rotation"); }
     }
     property bool ShouldRender
     {
         bool get() { return drawable->lock()->ShouldRender; }
-        void set(bool value) { drawable->lock()->ShouldRender = value; OnPropertyChanged("ShouldRender"); }
+        void set(bool value) { drawable->lock()->ShouldRender = value; RaisePropertyChanged("ShouldRender"); }
     }
     CLI_READONLY_PROPERTY(String^, Type, type);
     CLI_READONLY_PROPERTY(List<PBRMaterial^>^, Materials, materials);
@@ -55,12 +55,12 @@ public:
     void Move(const float dx, const float dy, const float dz)
     {
         drawable->lock()->Move(dx, dy, dz);
-        OnPropertyChanged("Position");
+        RaisePropertyChanged("Position");
     }
     void Rotate(const float dx, const float dy, const float dz)
     {
         drawable->lock()->Rotate(dx, dy, dz);
-        OnPropertyChanged("Rotation");
+        RaisePropertyChanged("Rotation");
     }
 };
 
@@ -231,41 +231,41 @@ public:
     property Vector3 Position
     {
         Vector3 get() { return ToVector3(cam->Position); }
-        void set(Vector3 value) { StoreVector3(value, cam->Position); OnPropertyChanged("Position"); }
+        void set(Vector3 value) { StoreVector3(value, cam->Position); RaisePropertyChanged("Position"); }
     }
     property Vector3 Direction
     {
         Vector3 get() { return ToVector3(cam->Rotation); }
-        void set(Vector3 value) { StoreVector3(value, cam->Rotation); OnPropertyChanged("Direction"); }
+        void set(Vector3 value) { StoreVector3(value, cam->Rotation); RaisePropertyChanged("Direction"); }
     }
 
     void Move(const float dx, const float dy, const float dz)
     {
         cam->Move(dx, dy, dz);
-        OnPropertyChanged("Position");
+        RaisePropertyChanged("Position");
     }
     //rotate along x-axis, radius
     void Pitch(const float radx)
     {
         cam->Pitch(radx);
-        OnPropertyChanged("Direction");
+        RaisePropertyChanged("Direction");
     }
     //rotate along y-axis, radius
     void Yaw(const float rady)
     {
         cam->Yaw(rady);
-        OnPropertyChanged("Direction");
+        RaisePropertyChanged("Direction");
     }
     //rotate along z-axis, radius
     void Roll(const float radz)
     {
         cam->Roll(radz);
-        OnPropertyChanged("Direction");
+        RaisePropertyChanged("Direction");
     }
     void Rotate(const float dx, const float dy, const float dz)
     {
         cam->Rotate(dx, dy, dz);
-        OnPropertyChanged("Direction");
+        RaisePropertyChanged("Direction");
     }
 };
 
@@ -307,12 +307,12 @@ public:
     property OpenGLUtil::FaceCullingType FaceCulling
     {
         OpenGLUtil::FaceCullingType get() { return (OpenGLUtil::FaceCullingType)core->GetContext()->GetFaceCulling(); }
-        void set(OpenGLUtil::FaceCullingType value) { core->GetContext()->SetFaceCulling((oglu::FaceCullingType)value); OnPropertyChanged("FaceCulling"); }
+        void set(OpenGLUtil::FaceCullingType value) { core->GetContext()->SetFaceCulling((oglu::FaceCullingType)value); RaisePropertyChanged("FaceCulling"); }
     }
     property OpenGLUtil::DepthTestType DepthTesting
     {
         OpenGLUtil::DepthTestType get() { return (OpenGLUtil::DepthTestType)core->GetContext()->GetDepthTest(); }
-        void set(OpenGLUtil::DepthTestType value) { core->GetContext()->SetDepthTest((oglu::DepthTestType)value); OnPropertyChanged("DepthTesting"); }
+        void set(OpenGLUtil::DepthTestType value) { core->GetContext()->SetDepthTest((oglu::DepthTestType)value); RaisePropertyChanged("DepthTesting"); }
     }
 
     void Draw();

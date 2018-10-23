@@ -37,29 +37,26 @@ public ref class Controllable : public DynamicObject, public INotifyPropertyChan
 private:
     const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
+    void RaisePropertyChangedFunc(Object^ state)
+    {
+        PropertyChanged(this, safe_cast<PropertyChangedEventArgs^>(state));
+    }
 protected:
-    ViewModelStub ViewModel;
     std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
+    void RaisePropertyChanged(System::String^ propertyName)
+    {
+        auto arg = gcnew PropertyChangedEventArgs(propertyName);
+        if (ViewModelSyncRoot::CheckMainThread())
+            PropertyChanged(this, arg);
+        else
+            ViewModelSyncRoot::SyncCall(gcnew System::Threading::SendOrPostCallback(this, &Controllable::RaisePropertyChangedFunc), arg);
+    }
 internal:
     Controllable(const std::shared_ptr<common::Controllable>& control);
 public:
     ~Controllable() { this->!Controllable(); }
     !Controllable();
-    virtual event PropertyChangedEventHandler^ PropertyChanged
-    {
-        void add(PropertyChangedEventHandler^ handler)
-        {
-            ViewModel.PropertyChanged += handler;
-        }
-        void remove(PropertyChangedEventHandler^ handler)
-        {
-            ViewModel.PropertyChanged -= handler;
-        }
-        void raise(Object^ sender, PropertyChangedEventArgs^ args)
-        {
-            ViewModel.PropertyChanged(sender, args);
-        }
-    }
+    virtual event PropertyChangedEventHandler^ PropertyChanged;
     virtual IEnumerable<String^>^ GetDynamicMemberNames() override;
     bool DoGetMember(String^ id, [Out] Object^% arg);
     bool DoSetMember(String^ id, Object^ arg);

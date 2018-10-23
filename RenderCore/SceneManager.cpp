@@ -7,11 +7,12 @@ using common::container::ValSet;
 namespace rayr
 {
 
+static constexpr uint32_t LightLimit = 16;
+
 Scene::Scene()
 {
     MainCam.reset(std::in_place);
-    constexpr uint16_t size = 16 * 64;
-    LightUBO.reset(size);
+    LightUBO.reset(LightLimit * Light::WriteSize);
 }
 
 void Scene::PrepareDrawable()
@@ -38,7 +39,8 @@ void Scene::PrepareLight()
         if (!lgt->IsOn)
             continue;
         onCnt++;
-        pos += lgt->WriteData(ptr.AsType<std::byte>() + pos);
+        lgt->WriteData(ptr.AsType<std::byte>() + pos);
+        pos += Light::WriteSize;
         if (pos >= LightUBO->Size())
             break;
     }
@@ -75,22 +77,22 @@ void Scene::Serialize(SerializeUtil & context, ejson::JObject& jself) const
         auto jlights = context.NewArray();
         for (const auto& lgt : Lights)
             context.AddObject(jlights, *lgt);
-        jself.Add("lights", jlights);
+        jself.Add("Lights", jlights);
     }
     {
         auto jdrawables = context.NewArray();
         for (const auto& drw : ValSet(Drawables))
             context.AddObject(jdrawables, *drw);
-        jself.Add("drawables", jdrawables);
+        jself.Add("Drawables", jdrawables);
     }
-    context.AddObject(jself, "camera", *MainCam);
+    context.AddObject(jself, "Camera", *MainCam);
 }
 
 void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
     {
         Lights.clear();
-        const auto jlights = object.GetArray("lights");
+        const auto jlights = object.GetArray("Lights");
         for (const auto ele : jlights)
         {
             const ejson::JObjectRef<true> jlgt(ele);
@@ -100,11 +102,11 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
     }
     {
         Drawables.clear();
-        const auto jdrawables = object.GetArray("drawables");
+        const auto jdrawables = object.GetArray("Drawables");
         for (const auto ele : jdrawables)
         {
             const ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("name"), str::Charset::UTF8),
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("Name"), str::Charset::UTF8),
                 str::to_u16string(jdrw.Get<string>("#Type"), str::Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)
@@ -112,7 +114,7 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         }
         ReportChanged(SceneChange::Object);
     }
-    MainCam = context.DeserializeShare<Camera>(object.GetObject("camera"));
+    MainCam = context.DeserializeShare<Camera>(object.GetObject("Camera"));
 }
 
 RESPAK_IMPL_SIMP_DESERIALIZE(Scene)

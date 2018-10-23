@@ -13,60 +13,55 @@ using System::ComponentModel::INotifyPropertyChanged;
 using System::ComponentModel::PropertyChangedEventHandler;
 using System::ComponentModel::PropertyChangedEventArgs;
 using System::Threading::SynchronizationContext;
-public ref class BaseViewModel : public INotifyPropertyChanged
+
+public ref class ViewModelSyncRoot
 {
 private:
     static SynchronizationContext^ SyncContext = SynchronizationContext::Current;
-    PropertyChangedEventHandler ^ propertyChanged;
-    void OnPropertyChangedFunc(Object^ state)
+internal:
+    static bool CheckMainThread()
     {
-        auto cookie = safe_cast<System::ValueTuple<Object^, PropertyChangedEventArgs^>>(state);
-        PropertyChanged(cookie.Item1, cookie.Item2);
+        return SynchronizationContext::Current == SyncContext;
     }
-protected:
-    void OnPropertyChanged(System::String^ propertyName)
+    static void SyncCall(System::Threading::SendOrPostCallback^ callback, ... array<Object^>^ args)
     {
-        OnPropertyChanged(this, propertyName);
-    }
-    void OnPropertyChanged(System::Object^ object, System::String^ propertyName)
-    {
-        auto arg = gcnew PropertyChangedEventArgs(propertyName);
-        if (SynchronizationContext::Current == SyncContext)
-            PropertyChanged(object, arg);
-        else
-            SyncContext->Post(gcnew System::Threading::SendOrPostCallback(this, &BaseViewModel::OnPropertyChangedFunc), 
-                System::ValueTuple<Object^, PropertyChangedEventArgs^>(object, arg));
+        SyncContext->Post(callback, args);
     }
 public:
     static void Init() { }
-    virtual event PropertyChangedEventHandler^ PropertyChanged
-    {
-        void add(PropertyChangedEventHandler^ handler)
-        {
-            propertyChanged += handler;
-        }
-        void remove(PropertyChangedEventHandler^ handler)
-        {
-            propertyChanged -= handler;
-        }
-        void raise(Object^ sender, PropertyChangedEventArgs^ args)
-        {
-            auto handler = propertyChanged;
-            if (handler == nullptr)
-                return;
-            handler->Invoke(sender, args);
-        }
-    }
 };
 
-public ref class ViewModelStub : public BaseViewModel
+public ref class BaseViewModel : public INotifyPropertyChanged
 {
-public:
-    void OnPropertyChanged(Object^ object, System::String^ propertyName)
+private:
+    void RaisePropertyChangedFunc(Object^ state)
     {
-        BaseViewModel::OnPropertyChanged(object, propertyName);
+        if (auto cookie = dynamic_cast<array<Object^>^>(state); cookie)
+            PropertyChanged(cookie[0], dynamic_cast<PropertyChangedEventArgs^>(cookie[1]));
+        else
+            PropertyChanged(this, dynamic_cast<PropertyChangedEventArgs^>(state));
     }
+protected:
+    void RaisePropertyChanged(System::String^ propertyName)
+    {
+        auto arg = gcnew PropertyChangedEventArgs(propertyName);
+        if (ViewModelSyncRoot::CheckMainThread())
+            PropertyChanged(this, arg);
+        else
+            ViewModelSyncRoot::SyncCall(gcnew System::Threading::SendOrPostCallback(this, &BaseViewModel::RaisePropertyChangedFunc), arg);
+    }
+    void RaisePropertyChanged(System::Object^ object, System::String^ propertyName)
+    {
+        auto arg = gcnew PropertyChangedEventArgs(propertyName);
+        if (ViewModelSyncRoot::CheckMainThread())
+            PropertyChanged(object, arg);
+        else
+            ViewModelSyncRoot::SyncCall(gcnew System::Threading::SendOrPostCallback(this, &BaseViewModel::RaisePropertyChangedFunc), object, arg);
+    }
+public:
+    virtual event PropertyChangedEventHandler^ PropertyChanged;
 };
+
 
 
 }

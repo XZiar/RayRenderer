@@ -56,7 +56,7 @@ namespace WPFTest
         {
             InitializeComponent();
             XZiar.Util.BaseViewModel.Init();
-            Common.BaseViewModel.Init();
+            Common.ViewModelSyncRoot.Init();
             MemMonitor = new MemoryMonitor();
             imgCamera = (ImageSource)this.FindResource("imgCamera");
             imgCube = (ImageSource)this.FindResource("imgCube");

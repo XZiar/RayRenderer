@@ -34,13 +34,13 @@ Drawable::!Drawable()
 void Drawable::Move(const float dx, const float dy, const float dz)
 {
     GetSelf()->Move(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Position");
+    RaisePropertyChanged("Position");
 }
 
 void Drawable::Rotate(const float dx, const float dy, const float dz)
 {
     GetSelf()->Rotate(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Rotation");
+    RaisePropertyChanged("Rotation");
 }
 
 std::shared_ptr<rayr::Light> Light::GetSelf()
@@ -64,13 +64,13 @@ void Light::ReleaseTempHandle()
 void Light::Move(const float dx, const float dy, const float dz)
 {
     GetSelf()->Move(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Position");
+    RaisePropertyChanged("Position");
 }
 
 void Light::Rotate(const float dx, const float dy, const float dz)
 {
     GetSelf()->Rotate(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Direction");
+    RaisePropertyChanged("Direction");
 }
 
 #pragma managed(push, off)
@@ -114,34 +114,34 @@ Camera::Camera(const Wrapper<rayr::Camera>& camera) : Controllable(camera)
 void Camera::Move(const float dx, const float dy, const float dz)
 {
     GetSelf()->Move(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Position");
+    RaisePropertyChanged("Position");
 }
 
 void Camera::Rotate(const float dx, const float dy, const float dz)
 {
     GetSelf()->Rotate(dx, dy, dz);
-    ViewModel.OnPropertyChanged(this, "Direction");
+    RaisePropertyChanged("Direction");
 }
 
 //rotate along x-axis, radius
 void Camera::Pitch(const float radx)
 {
     GetSelf()->Pitch(radx);
-    ViewModel.OnPropertyChanged(this, "Direction");
+    RaisePropertyChanged("Direction");
 }
 
 //rotate along y-axis, radius
 void Camera::Yaw(const float rady)
 {
     GetSelf()->Yaw(rady);
-    ViewModel.OnPropertyChanged(this, "Direction");
+    RaisePropertyChanged("Direction");
 }
 
 //rotate along z-axis, radius
 void Camera::Roll(const float radz)
 {
     GetSelf()->Roll(radz);
-    ViewModel.OnPropertyChanged(this, "Direction");
+    RaisePropertyChanged("Direction");
 }
 
 
@@ -150,10 +150,10 @@ Scene::Scene(const rayr::RenderCore * core) : Core(core)
     const auto& scene = Core->GetScene();
     TheScene = new std::weak_ptr<rayr::Scene>(scene);
     MainCamera = gcnew Camera(scene->GetCamera());
-    Drawables = gcnew ObservablePrivateContainer<Drawable^>();
+    Drawables = gcnew ObservableProxyContainer<Drawable^>();
     Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::OnAddModel);
     //Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnDrawablesChanged);
-    Lights = gcnew ObservablePrivateContainer<Light^>();
+    Lights = gcnew ObservableProxyContainer<Light^>();
     Lights->BeforeAddObject += gcnew AddObjectEventHandler<Light^>(this, &Scene::OnAddLight);
     Lights->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<Light^>(this, &Scene::OnLightPropertyChanged);
     //Lights->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnLightsChanged);
