@@ -62,8 +62,19 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
     uintptr_t GetRawPtr() const;
 };
 
-struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable, public Controllable
 {
+protected:
+    virtual u16string_view GetControlType() const override
+    {
+        using namespace std::literals;
+        return u"Material"sv;
+    }
+    void RegistControllable();
 public:
     b3d::Vec3 Albedo;
     TexHolder DiffuseMap, NormalMap, MetalMap, RoughMap, AOMap;
@@ -73,13 +84,17 @@ public:
     float AO;
     bool UseDiffuseMap = false, UseNormalMap = false, UseMetalMap = false, UseRoughMap = false, UseAOMap = false;
     std::u16string Name;
-    PBRMaterial(const std::u16string& name = u"") : Albedo(b3d::Vec3(0.58, 0.58, 0.58)), Metalness(0.0f), Roughness(0.8f), Specular(0.0f), AO(1.0f), Name(name) { }
+    PBRMaterial(const std::u16string& name = u"");
+    virtual ~PBRMaterial() override {}
     uint32_t WriteData(std::byte *ptr) const;
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#PBRMaterial")
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
 };
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 namespace detail
@@ -108,21 +123,22 @@ public:
     using Mapping = std::pair<detail::TexTag, uint16_t>;
     using ArrangeMap = map<TexHolder, Mapping>;
 private:
-    vector<PBRMaterial> Materials;
+    vector<std::shared_ptr<PBRMaterial>> Materials;
     // tex -> (size, layer)
     ArrangeMap Arrangement;
     map<detail::TexTag, oglu::oglTex2DArray> Textures;
     map<detail::TexTag, uint8_t> TextureLookup;
 public:
-    static constexpr size_t UnitSize = 12 * sizeof(float);
+    static constexpr size_t WriteSize = 12 * sizeof(float);
     static oglu::oglTex2DV GetCheckTex();
 
     MultiMaterialHolder() { }
-    MultiMaterialHolder(const uint8_t count) : Materials(count, PBRMaterial(u"unnamed")) { }
+    MultiMaterialHolder(const uint8_t count);
 
-    vector<PBRMaterial>::iterator begin() { return Materials.begin(); }
-    vector<PBRMaterial>::iterator end() { return Materials.end(); }
-    PBRMaterial& operator[](const size_t index) { return Materials[index]; }
+    vector<std::shared_ptr<PBRMaterial>>::iterator begin() { return Materials.begin(); }
+    vector<std::shared_ptr<PBRMaterial>>::iterator end() { return Materials.end(); }
+    std::shared_ptr<PBRMaterial>& operator[](const size_t index) noexcept { return Materials[index]; }
+    const std::shared_ptr<PBRMaterial>& operator[](const size_t index) const noexcept { return Materials[index]; }
 
     void Refresh();
     void BindTexture(oglu::detail::ProgDraw& drawcall) const;

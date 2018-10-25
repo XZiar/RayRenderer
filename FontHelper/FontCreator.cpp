@@ -158,7 +158,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     fntLog().verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)
     {
-        fntLog().verbose(u"OpenCL start at {:%H:%H:%S}\n", SimpleTimer::getCurLocalTime());
+        fntLog().verbose(u"OpenCL start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 

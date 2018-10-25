@@ -93,6 +93,12 @@ uintptr_t TexHolder::GetRawPtr() const
 }
 
 
+PBRMaterial::PBRMaterial(const std::u16string& name) 
+    : Albedo(0.58, 0.58, 0.58), Metalness(0.0f), Roughness(0.8f), Specular(0.0f), AO(1.0f), Name(name)
+{
+    RegistControllable();
+}
+
 uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 {
     float *ptrFloat = reinterpret_cast<float*>(ptr);
@@ -108,6 +114,30 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
     return 8 * sizeof(float);
 }
 
+
+void PBRMaterial::RegistControllable()
+{
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue, {}, u"材质名称")
+        .RegistMember(&PBRMaterial::Name);
+    RegistItem<bool>("UseDiffuseMap", "", u"Albedo贴图", ArgType::RawValue, {}, u"是否启用Albedo贴图")
+        .RegistMember(&PBRMaterial::UseDiffuseMap);
+    RegistItem<bool>("UseNormalMap", "", u"法线贴图", ArgType::RawValue, {}, u"是否启用法线贴图")
+        .RegistMember(&PBRMaterial::UseNormalMap);
+    RegistItem<bool>("UseMetalMap", "", u"金属度贴图", ArgType::RawValue, {}, u"是否启用金属度贴图")
+        .RegistMember(&PBRMaterial::UseMetalMap);
+    RegistItem<bool>("UseRoughMap", "", u"粗糙度贴图", ArgType::RawValue, {}, u"是否启用粗糙度贴图")
+        .RegistMember(&PBRMaterial::UseRoughMap);
+    RegistItem<bool>("UseAOMap", "", u"AO贴图", ArgType::RawValue, {}, u"是否启用AO贴图")
+        .RegistMember(&PBRMaterial::UseAOMap);
+    RegistItem<miniBLAS::Vec3>("Color", "", u"颜色", ArgType::Color, {}, u"Albedo颜色")
+        .RegistMember(&PBRMaterial::Albedo);
+    RegistItem<float>("Metalness", "", u"金属度", ArgType::RawValue, std::pair(0.f, 1.f), u"全局金属度")
+        .RegistMember(&PBRMaterial::Metalness);
+    RegistItem<float>("Roughness", "", u"粗糙度", ArgType::RawValue, std::pair(0.f, 1.f), u"全局粗糙度")
+        .RegistMember(&PBRMaterial::Roughness);
+    RegistItem<float>("AO", "", u"环境遮蔽", ArgType::RawValue, std::pair(0.f, 1.f), u"全局环境遮蔽")
+        .RegistMember(&PBRMaterial::AO);
+}
 
 static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil & context)
 {
@@ -223,6 +253,12 @@ oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
 }
 
 
+MultiMaterialHolder::MultiMaterialHolder(const uint8_t count) : Materials(count)
+{
+    for (uint8_t i = 0; i < count; ++i)
+        Materials[i] = std::make_shared<PBRMaterial>(u"unamed");
+}
+
 static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const TexHolder& holder)
 {
     switch (holder.index())
@@ -253,7 +289,7 @@ void MultiMaterialHolder::Refresh()
     map<TexHolder, const PBRMaterial*> added;
     for (const auto& material : Materials)
     {
-        for (const auto texmap : { &material.DiffuseMap, &material.NormalMap, &material.MetalMap, &material.RoughMap, &material.AOMap })
+        for (const auto texmap : { &material->DiffuseMap, &material->NormalMap, &material->MetalMap, &material->RoughMap, &material->AOMap })
         {
             if (texmap->index() == 0) // empty
                 continue;
@@ -263,7 +299,7 @@ void MultiMaterialHolder::Refresh()
                 newArrange.insert(Arrangement.extract(it));
             // need new arrangement
             else 
-                added[*texmap] = &material;
+                added[*texmap] = material.get();
         }
     }
     //quick return
@@ -382,17 +418,17 @@ uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
     {
         float *ptrFloat = reinterpret_cast<float*>(ptr + pos);
         uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(ptr + pos);
-        Vec4 basic(mat.Albedo, mat.Metalness);
+        Vec4 basic(mat->Albedo, mat->Metalness);
         basic.save(ptrFloat);
-        ptrFloat[4] = mat.Roughness;
-        ptrFloat[5] = mat.Specular;
-        ptrFloat[6] = mat.AO;
-        ptrU32[7] = PackMapPos(Arrangement, TextureLookup, mat.AOMap, mat.UseAOMap);
-        ptrU32[8] = PackMapPos(Arrangement, TextureLookup, mat.DiffuseMap, mat.UseDiffuseMap);
-        ptrU32[9] = PackMapPos(Arrangement, TextureLookup, mat.NormalMap, mat.UseNormalMap);
-        ptrU32[10] = PackMapPos(Arrangement, TextureLookup, mat.MetalMap, mat.UseMetalMap);
-        ptrU32[11] = PackMapPos(Arrangement, TextureLookup, mat.RoughMap, mat.UseRoughMap);
-        pos += UnitSize;
+        ptrFloat[4] = mat->Roughness;
+        ptrFloat[5] = mat->Specular;
+        ptrFloat[6] = mat->AO;
+        ptrU32[7] = PackMapPos(Arrangement, TextureLookup, mat->AOMap, mat->UseAOMap);
+        ptrU32[8] = PackMapPos(Arrangement, TextureLookup, mat->DiffuseMap, mat->UseDiffuseMap);
+        ptrU32[9] = PackMapPos(Arrangement, TextureLookup, mat->NormalMap, mat->UseNormalMap);
+        ptrU32[10] = PackMapPos(Arrangement, TextureLookup, mat->MetalMap, mat->UseMetalMap);
+        ptrU32[11] = PackMapPos(Arrangement, TextureLookup, mat->RoughMap, mat->UseRoughMap);
+        pos += WriteSize;
     }
     return pos;
 }
@@ -401,14 +437,14 @@ void MultiMaterialHolder::Serialize(SerializeUtil & context, ejson::JObject& jse
 {
     auto jmaterials = context.NewArray();
     for (const auto& material : Materials)
-        context.AddObject(jmaterials, material);
+        context.AddObject(jmaterials, *material);
     jself.Add("pbr", jmaterials);
 }
 void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
     Materials.clear();
     for (const auto& material : object.GetArray("pbr"))
-        Materials.push_back(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(material)));
+        Materials.push_back(context.DeserializeShare<PBRMaterial>(ejson::JObjectRef<true>(material)));
 }
 RESPAK_IMPL_SIMP_DESERIALIZE(MultiMaterialHolder)
 

@@ -234,6 +234,7 @@
     <ClInclude Include="Model\ModelMesh.h" />
     <ClInclude Include="Model\MTLLoader.hpp" />
     <ClInclude Include="Model\OBJLoader.hpp" />
+    <ClInclude Include="Model\OBJSaver.hpp" />
     <ClInclude Include="PostProcessor.h" />
     <ClInclude Include="RenderCore.h" />
     <ClInclude Include="RenderCoreRely.h" />

@@ -8,6 +8,16 @@ namespace Dizz
 {
 
 
+std::shared_ptr<rayr::PBRMaterial> PBRMaterial::GetSelf()
+{
+    return std::static_pointer_cast<rayr::PBRMaterial>(GetControl()); // type promised
+}
+
+PBRMaterial::PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material) : Controllable(material)
+{
+}
+
+
 std::shared_ptr<rayr::Drawable> Drawable::GetSelf()
 {
     return std::static_pointer_cast<rayr::Drawable>(GetControl()); // type promised

@@ -1254,7 +1254,7 @@ namespace internal {
 template <typename S>
 struct format_string_traits<
   S, typename std::enable_if<std::is_base_of<compile_string, S>::value>::type>:
-    format_string_traits_base<char> {};
+    format_string_traits_base<typename S::Char> {};
 
 template <typename Char, typename Handler>
 FMT_CONSTEXPR void handle_int_type_spec(Char spec, Handler &&handler) {
@@ -2270,8 +2270,8 @@ template <typename... Args, typename String>
 typename std::enable_if<is_compile_string<String>::value>::type
     check_format_string(String format_str) {
   FMT_CONSTEXPR_DECL bool invalid_format =
-      internal::check_format_string<char, internal::error_handler, Args...>(
-        string_view(format_str.data(), format_str.size()));
+      internal::check_format_string<typename String::Char, internal::error_handler, Args...>(
+        basic_string_view<typename String::Char>(format_str.data(), format_str.size()));
   (void)invalid_format;
 }
 
@@ -3680,9 +3680,10 @@ FMT_END_NAMESPACE
 #define FMT_STRING(s) [] { \
     typedef typename std::decay<decltype(s)>::type pointer; \
     struct S : fmt::compile_string { \
+      using Char = std::remove_cv_t<std::remove_pointer_t<pointer>>; \
       static FMT_CONSTEXPR pointer data() { return s; } \
-      static FMT_CONSTEXPR size_t size() { return sizeof(s); } \
-      explicit operator fmt::string_view() const { return s; } \
+      static FMT_CONSTEXPR size_t size() { return sizeof(s) / sizeof(Char); } \
+      explicit operator fmt::basic_string_view<Char>() const { return s; } \
     }; \
     return S{}; \
   }()

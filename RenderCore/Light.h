@@ -57,7 +57,7 @@ protected:
 public:
     bool IsOn = true;
     std::u16string Name;
-    ~Light() {}
+    virtual ~Light() override {}
     RESPAK_DECL_COMP_DESERIALIZE("rayr#Light")
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
     virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;

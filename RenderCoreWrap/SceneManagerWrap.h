@@ -31,6 +31,15 @@ public:
 };
 
 
+public ref class PBRMaterial : public Controllable
+{
+internal:
+    std::shared_ptr<rayr::PBRMaterial> GetSelf();
+    PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material);
+public:
+};
+
+
 public ref class Drawable : public Controllable, public IMovable
 {
 private:

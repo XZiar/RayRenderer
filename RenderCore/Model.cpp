@@ -16,10 +16,9 @@ MultiMaterialHolder Model::OnPrepareMaterial() const
     for (const auto& group : Mesh->groups)
     {
         if (const auto mat = FindInMap(Mesh->MaterialMap, group.first))
-            holder[i] = *mat;
+            holder[i] = std::make_shared<PBRMaterial>(*mat);
         ++i;
     }
-
     return holder;
 }
 

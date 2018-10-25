@@ -2,6 +2,7 @@
 #include "ModelMesh.h"
 #include "OBJLoader.hpp"
 #include "MTLLoader.hpp"
+#include "OBJSaver.hpp"
 #include "OpenGLUtil/oglWorker.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 

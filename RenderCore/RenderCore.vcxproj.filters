@@ -112,6 +112,9 @@
     <ClInclude Include="FontTest.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Model\OBJSaver.hpp">
+      <Filter>Model</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

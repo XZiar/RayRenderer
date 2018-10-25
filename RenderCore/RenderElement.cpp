@@ -107,7 +107,7 @@ Drawable::~Drawable()
 void Drawable::PrepareMaterial()
 {
     MaterialHolder = OnPrepareMaterial();
-    MaterialUBO.reset(26 * MultiMaterialHolder::UnitSize);
+    MaterialUBO.reset(32 * MultiMaterialHolder::WriteSize);
 }
 
 void Drawable::AssignMaterial()
@@ -140,10 +140,10 @@ void Drawable::ReleaseAll(const oglu::oglDrawProgram& prog)
 MultiMaterialHolder Drawable::OnPrepareMaterial() const
 {
     MultiMaterialHolder holder(1);
-    holder[0].DiffuseMap = MultiMaterialHolder::GetCheckTex();
-    holder[0].UseDiffuseMap = true;
-    holder[0].Albedo = Vec3(0.58, 0.58, 0.58);
-    holder[0].Metalness = 0.1f;
+    holder[0]->DiffuseMap = MultiMaterialHolder::GetCheckTex();
+    holder[0]->UseDiffuseMap = true;
+    holder[0]->Albedo = Vec3(0.58, 0.58, 0.58);
+    holder[0]->Metalness = 0.1f;
     return holder;
 }
 

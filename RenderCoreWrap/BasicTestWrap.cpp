@@ -14,7 +14,7 @@ Drawable::Drawable(const Wrapper<rayr::Drawable>& obj) : drawable(new std::weak_
     materials = gcnew List<PBRMaterial^>();
     for (auto& mat : obj->MaterialHolder)
     {
-        materials->Add(gcnew PBRMaterial(drawable, mat, {}));
+        materials->Add(gcnew PBRMaterial(drawable, *mat, {}));
     }
 }
 

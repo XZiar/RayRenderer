@@ -1,6 +1,7 @@
 #include "common/CommonRely.hpp"
 #include "common/ColorConsole.inl"
 #include "common/Linq.hpp"
+#define FMT_STRING_ALIAS 1
 #include "fmt/utfext.h"
 #include "boost.stacktrace/stacktrace.h"
 #include <vector>
@@ -41,7 +42,7 @@ int main()
             for (const auto kk : be2.Stack())
             {
                 out.clear();
-                fmt::format_to(out, u"[{}]:[{}]\t{}\n", kk.File, kk.Line, kk.Func);
+                fmt::format_to(out, FMT_STRING(u"[{}]:[{:d}]\t{}\n"), kk.File, kk.Line, kk.Func);
                 console.Print(std::u16string_view(out.data(), out.size()));
             }
             getchar();

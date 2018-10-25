@@ -268,7 +268,8 @@ void BasicTest::prepareLight()
         if (!lgt->IsOn)
             continue;
         onCnt++;
-        pos += lgt->WriteData(&LightBuf[pos]);
+        lgt->WriteData(&LightBuf[pos]);
+        pos += Light::WriteSize;
         if (pos >= lightUBO->Size())
             break;
     }
