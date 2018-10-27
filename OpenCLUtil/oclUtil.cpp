@@ -21,7 +21,7 @@ void oclUtil::Init(const bool checkGL)
         auto plt = oclPlatform(new detail::_oclPlatform(pID));
         plt->Init();
         platforms.push_back(plt);
-        auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::GetBuffer();
+        auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
         strBuffer.resize(0);
         fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plt->Name, plt->Ver, plt->IsGLShared(curGLCtx) ? 'Y' : 'N');
         for (const auto dev : plt->GetDevices())

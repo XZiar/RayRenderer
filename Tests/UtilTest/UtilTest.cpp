@@ -79,13 +79,13 @@ int main(int argc, char *argv[])
 
     if (argc > 1)
         BasePathHolder() = fs::absolute(argv[1]);
-    log().debug(u"Locate BasePath to [{}]\n", BasePathHolder().u16string());
+    log().debug(FMT_STRING(u"Locate BasePath to [{}]\n"), BasePathHolder().u16string());
 
     uint32_t idx = 0;
     const auto& testMap = GetTestMap();
     for (const auto& pair : testMap)
     {
-        log().info(u"[{}] {:<20} {}\n", idx++, pair.first, (void*)pair.second);
+        log().info(FMT_STRING(u"[{}] {:<20} {}\n"), idx++, pair.first, (void*)pair.second);
     }
     common::SimpleTimer timer;
     timer.Start();
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     }
     if (idx < testMap.size())
     {
-        log().info(u"Simple logging cost {} ns.\n", timer.ElapseNs());
+        log().info(FMT_STRING(u"Simple logging cost {} ns.\n"), timer.ElapseNs());
         auto it = testMap.cbegin();
         std::advance(it, idx);
         try
@@ -110,11 +110,11 @@ int main(int argc, char *argv[])
         }
         catch (const common::BaseException& be)
         {
-            log().error(u"Error when performing test:\n{}\n", (const std::u16string_view&)be.message);
+            log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
             fmt::basic_memory_buffer<char16_t> buf;
             for (const auto& stack : be.Stack())
-                fmt::format_to(buf, u"{}:[{}]\t{}\n", (const std::u16string_view&)stack.File, stack.Line, (const std::u16string_view&)stack.Func);
-            log().error(u"stack trace:\n{}\n", std::u16string_view(buf.data(), buf.size()));
+                fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+            log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
         }
     }
     else

@@ -1,5 +1,6 @@
 #include "SIMDRely.h"
 #include "common/TimeUtil.hpp"
+#include "common/miniLogger/miniLogger.h"
 #include "common/ColorConsole.inl"
 #include "3rdParty/cpuid/libcpuid.h"
 #include <vector>
@@ -61,6 +62,7 @@ static uint32_t GetSIMDLevel()
 
 int main()
 {
+    const auto& ttt = common::mlog::detail::StrFormater::ToU16Str(std::string_view("xxxx"));
     const auto& tests = GetTestMap();
     Log(LogType::Success, u"[{}] Test found.", tests.size());
     {

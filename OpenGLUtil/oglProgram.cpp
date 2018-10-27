@@ -231,7 +231,7 @@ void _oglProgram::InitSubroutines()
     subrLookup.clear();
     SubroutineBindings.clear();
     SubroutineSettings.clear();
-    auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::GetBuffer();
+    auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
     strBuffer.resize(0);
     {
         constexpr std::u16string_view tmp = u"SubRoutine Resource: \n";
@@ -275,7 +275,7 @@ void _oglProgram::InitSubroutines()
                     glGetActiveSubroutineName(programID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
                     subrName.assign(nameBuf, 0, nameLen);
                 }
-                fmt::format_to(strBuffer, u"--[{}]: {}\n", subridx, subrName);
+                fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
                 routines.push_back(SubroutineResource::Routine(subrName, subridx));
             }
             const auto it = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines)).first;

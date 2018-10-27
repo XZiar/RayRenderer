@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+ï»¿#include "RenderCoreRely.h"
 #include "Material.h"
 #include "common/PromiseTaskSTD.hpp"
 
@@ -117,25 +117,25 @@ uint32_t PBRMaterial::WriteData(std::byte *ptr) const
 
 void PBRMaterial::RegistControllable()
 {
-    RegistItem<u16string>("Name", "", u"Ãû³Æ", ArgType::RawValue, {}, u"²ÄÖÊÃû³Æ")
+    RegistItem<u16string>("Name", "", u"åç§°", ArgType::RawValue, {}, u"æè´¨åç§°")
         .RegistMember(&PBRMaterial::Name);
-    RegistItem<bool>("UseDiffuseMap", "", u"AlbedoÌùÍ¼", ArgType::RawValue, {}, u"ÊÇ·ñÆôÓÃAlbedoÌùÍ¼")
+    RegistItem<bool>("UseDiffuseMap", "", u"Albedoè´´å›¾", ArgType::RawValue, {}, u"æ˜¯å¦å¯ç”¨Albedoè´´å›¾")
         .RegistMember(&PBRMaterial::UseDiffuseMap);
-    RegistItem<bool>("UseNormalMap", "", u"·¨ÏßÌùÍ¼", ArgType::RawValue, {}, u"ÊÇ·ñÆôÓÃ·¨ÏßÌùÍ¼")
+    RegistItem<bool>("UseNormalMap", "", u"æ³•çº¿è´´å›¾", ArgType::RawValue, {}, u"æ˜¯å¦å¯ç”¨æ³•çº¿è´´å›¾")
         .RegistMember(&PBRMaterial::UseNormalMap);
-    RegistItem<bool>("UseMetalMap", "", u"½ğÊô¶ÈÌùÍ¼", ArgType::RawValue, {}, u"ÊÇ·ñÆôÓÃ½ğÊô¶ÈÌùÍ¼")
+    RegistItem<bool>("UseMetalMap", "", u"é‡‘å±åº¦è´´å›¾", ArgType::RawValue, {}, u"æ˜¯å¦å¯ç”¨é‡‘å±åº¦è´´å›¾")
         .RegistMember(&PBRMaterial::UseMetalMap);
-    RegistItem<bool>("UseRoughMap", "", u"´Ö²Ú¶ÈÌùÍ¼", ArgType::RawValue, {}, u"ÊÇ·ñÆôÓÃ´Ö²Ú¶ÈÌùÍ¼")
+    RegistItem<bool>("UseRoughMap", "", u"ç²—ç³™åº¦è´´å›¾", ArgType::RawValue, {}, u"æ˜¯å¦å¯ç”¨ç²—ç³™åº¦è´´å›¾")
         .RegistMember(&PBRMaterial::UseRoughMap);
-    RegistItem<bool>("UseAOMap", "", u"AOÌùÍ¼", ArgType::RawValue, {}, u"ÊÇ·ñÆôÓÃAOÌùÍ¼")
+    RegistItem<bool>("UseAOMap", "", u"AOè´´å›¾", ArgType::RawValue, {}, u"æ˜¯å¦å¯ç”¨AOè´´å›¾")
         .RegistMember(&PBRMaterial::UseAOMap);
-    RegistItem<miniBLAS::Vec3>("Color", "", u"ÑÕÉ«", ArgType::Color, {}, u"AlbedoÑÕÉ«")
+    RegistItem<miniBLAS::Vec3>("Color", "", u"é¢œè‰²", ArgType::Color, {}, u"Albedoé¢œè‰²")
         .RegistMember(&PBRMaterial::Albedo);
-    RegistItem<float>("Metalness", "", u"½ğÊô¶È", ArgType::RawValue, std::pair(0.f, 1.f), u"È«¾Ö½ğÊô¶È")
+    RegistItem<float>("Metalness", "", u"é‡‘å±åº¦", ArgType::RawValue, std::pair(0.f, 1.f), u"å…¨å±€é‡‘å±åº¦")
         .RegistMember(&PBRMaterial::Metalness);
-    RegistItem<float>("Roughness", "", u"´Ö²Ú¶È", ArgType::RawValue, std::pair(0.f, 1.f), u"È«¾Ö´Ö²Ú¶È")
+    RegistItem<float>("Roughness", "", u"ç²—ç³™åº¦", ArgType::RawValue, std::pair(0.f, 1.f), u"å…¨å±€ç²—ç³™åº¦")
         .RegistMember(&PBRMaterial::Roughness);
-    RegistItem<float>("AO", "", u"»·¾³ÕÚ±Î", ArgType::RawValue, std::pair(0.f, 1.f), u"È«¾Ö»·¾³ÕÚ±Î")
+    RegistItem<float>("AO", "", u"ç¯å¢ƒé®è”½", ArgType::RawValue, std::pair(0.f, 1.f), u"å…¨å±€ç¯å¢ƒé®è”½")
         .RegistMember(&PBRMaterial::AO);
 }
 
@@ -369,7 +369,7 @@ void MultiMaterialHolder::Refresh()
         {
             texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"MatTexArr {}@{}x{}x{}", oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
+            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(FMT_STRING(u"MatTexArr {}@{}x{}x{}"), oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
         }
         texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)

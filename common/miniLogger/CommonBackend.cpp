@@ -32,9 +32,9 @@ public:
     }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"<{:6}>[{}]{}", GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        writer.push_back(u'\0');
-        PrintText(std::u16string_view(writer.data(), writer.size()));
+        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
+        buffer.push_back(u'\0');
+        PrintText(std::u16string_view(buffer.data(), buffer.size()));
     }
 };
 
@@ -80,8 +80,9 @@ public:
         if (!Helper)
             return;
         const auto& color = console::ConsoleHelper::GetColorStr(ToColor(msg.Level));
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"{}[{}]{}\x1b[39m", color, msg.GetSource(), msg.GetContent());
-        Helper->Print(std::u16string_view(writer.data(), writer.size()));
+
+        const auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"{}[{}]{}\x1b[39m"), color, msg.GetSource(), msg.GetContent());
+        Helper->Print(std::u16string_view(buffer.data(), buffer.size()));
     }
 };
 
@@ -104,8 +105,8 @@ public:
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        auto& writer = detail::StrFormater<char16_t>::ToU16Str(u"<{:6}>[{}]{}", GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        File.Write(writer.size() * sizeof(char16_t), writer.data());
+        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
+        File.Write(buffer.size() * sizeof(char16_t), buffer.data());
     }
 };
 

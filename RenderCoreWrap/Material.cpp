@@ -41,7 +41,7 @@ TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailMan
     if (Holder.index() != 0)
     {
         const auto texsize = Holder.GetSize();
-        const auto& strBuffer = common::mlog::detail::StrFormater<char16_t>::ToU16Str(u"{}x{}[{}]",
+        const auto& strBuffer = common::mlog::detail::StrFormater::ToU16Str(u"{}x{}[{}]",
             texsize.first, texsize.second, oglu::TexFormatUtil::GetFormatName(Holder.GetInnerFormat()));
         description = ToStr(strBuffer);
         if (thumbman)

@@ -14,29 +14,31 @@ namespace common::mlog
 namespace detail
 {
 
-
-fmt::basic_memory_buffer<char>& StrFormater<char>::GetBuffer()
+template<>
+MINILOGAPI fmt::basic_memory_buffer<char>& StrFormater::GetBuffer<char>()
 {
     static thread_local fmt::basic_memory_buffer<char> out;
     return out;
 }
-fmt::basic_memory_buffer<char16_t>& StrFormater<char16_t>::GetBuffer()
+template<>
+MINILOGAPI fmt::basic_memory_buffer<char16_t>& StrFormater::GetBuffer<char16_t>()
 {
     static thread_local fmt::basic_memory_buffer<char16_t> out;
     return out;
 }
-
-fmt::basic_memory_buffer<char32_t>& StrFormater<char32_t>::GetBuffer()
+template<>
+MINILOGAPI fmt::basic_memory_buffer<char32_t>& StrFormater::GetBuffer<char32_t>()
 {
     static thread_local fmt::basic_memory_buffer<char32_t> out;
     return out;
 }
-
-fmt::basic_memory_buffer<wchar_t>& StrFormater<wchar_t>::GetBuffer()
+template<>
+MINILOGAPI fmt::basic_memory_buffer<wchar_t>& StrFormater::GetBuffer<wchar_t>()
 {
     static thread_local fmt::basic_memory_buffer<wchar_t> out;
     return out;
 }
+
 
 }
 
