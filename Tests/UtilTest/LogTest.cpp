@@ -21,10 +21,10 @@ static void TestLog()
     std::string name = "tst";
     timer.Start();
     for (uint32_t i = 0; i < 5000; ++i)
-        log().verbose(u"Dummy Data Here {}.\n", name);
+        log().verbose(FMT_STRING(u"Dummy Data Here {}.\n"), name);
     timer.Stop();
     //GetConsoleBackend()->SetLeastLevel(oldLv);
-    log().success(u"Total {} us, each taks [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
+    log().success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
     getchar();
 }
 

@@ -116,7 +116,7 @@ void AsyncManager::MainLoop()
             }
             else //has returned
             {
-                Logger.debug(u"Task [{}] finished, reported executed {}us\n", Current->Name, Current->ElapseTime / 1000);
+                Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
                 Current = DelNode(Current);
             }
             //quick exit when terminate

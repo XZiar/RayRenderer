@@ -18,8 +18,10 @@ MAKE_ENUM_BITFIELD(ConsoleColor)
 class ConsoleHelper : public NonCopyable
 {
 private:
-    intptr_t Handle;
+    uintptr_t Handle;
+#if defined(_WIN32)
     uint16_t Dummy;
+#endif
     bool IsVTMode;
 public:
     ConsoleHelper();

@@ -44,7 +44,7 @@ class MiniLoggerBase;
 }
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
-MINILOGAPI const char16_t* GetLogLevelStr(const LogLevel level);
+MINILOGAPI std::u16string_view GetLogLevelStr(const LogLevel level);
 
 struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 {
@@ -129,54 +129,71 @@ private:
     template<typename Char>
     static decltype(auto) BufToU16(fmt::basic_memory_buffer<Char>& buffer)
     {
+        using namespace common::str::detail;
         if constexpr (std::is_same_v<Char, char16_t>)
             return buffer;
         else if constexpr (std::is_same_v<Char, char>)
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF8, common::str::detail::UTF16, char, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
+            return CharsetConvertor<UTF8, UTF16, char, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
         else if constexpr (std::is_same_v<Char, char32_t>)
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, char32_t, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
+            return CharsetConvertor<UTF32, UTF16, char32_t, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
         else
             static_assert(!common::AlwaysTrue<Char>(), "unexpected Char type");
     }
 public:
     template<typename Char>
-    static fmt::basic_memory_buffer<Char>& GetBuffer();
+    static fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear = true);
     template<typename T, typename... Args>
-    static decltype(auto) ToU16Str(const T& formater, Args&&... args)
+    static decltype(auto) ToU16Str(const T& formatter, Args&&... args)
     {
+        using namespace common::str::detail;
+        [[maybe_unused]] constexpr bool hasArgs = sizeof...(Args) > 0;
         if constexpr (std::is_base_of_v<fmt::compile_string, T>)
         {
             using Char = typename T::Char;
             static_assert(!std::is_same_v<Char, wchar_t>, "no plan to support wchar_t at compile time");
             auto& buffer = GetBuffer<Char>();
-            buffer.resize(0);
-            fmt::format_to(buffer, formater, std::forward<Args>(args)...);
+            fmt::format_to(buffer, formatter, std::forward<Args>(args)...);
             return BufToU16(buffer);
         }
         else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
         {
-            auto& buffer = GetBuffer<char>();
-            buffer.resize(0);
-            fmt::format_to(buffer, static_cast<const std::string_view&>(formater), std::forward<Args>(args)...);
-            return BufToU16(buffer);
+            const auto& u8str = static_cast<const std::string_view&>(formatter);
+            if constexpr (!hasArgs)
+                return CharsetConvertor<UTF8, UTF16, char, char16_t>::Convert(u8str.data(), u8str.size(), true, true);
+            else
+            {
+                auto& buffer = GetBuffer<char>();
+                fmt::format_to(buffer, u8str, std::forward<Args>(args)...);
+                return BufToU16(buffer);
+            }
         }
         else if constexpr (std::is_convertible_v<const T&, const std::u16string_view&>)
         {
-            auto& buffer = GetBuffer<char16_t>();
-            buffer.resize(0);
-            fmt::format_to(buffer, static_cast<const std::u16string_view&>(formater), std::forward<Args>(args)...);
-            return BufToU16(buffer);
+            const auto& u16str = static_cast<const std::u16string_view&>(formatter);
+            if constexpr (!hasArgs)
+                return u16str;
+            else
+            {
+                auto& buffer = GetBuffer<char16_t>();
+                fmt::format_to(buffer, u16str, std::forward<Args>(args)...);
+                return BufToU16(buffer);
+            }
         }
         else if constexpr (std::is_convertible_v<const T&, const std::u32string_view&>)
         {
-            auto& buffer = GetBuffer<char32_t>();
-            buffer.resize(0);
-            fmt::format_to(buffer, static_cast<const std::u32string_view&>(formater), std::forward<Args>(args)...);
-            return BufToU16(buffer);
+            const auto& u32str = static_cast<const std::u32string_view&>(formatter);
+            if constexpr (!hasArgs)
+                return CharsetConvertor<UTF32, UTF16, char32_t, char16_t>::Convert(u32str.data(), u32str.size(), true, true);
+            else
+            {
+                auto& buffer = GetBuffer<char32_t>();
+                fmt::format_to(buffer, u32str, std::forward<Args>(args)...);
+                return BufToU16(buffer);
+            }
         }
         else if constexpr (std::is_convertible_v<const T&, const std::wstring_view&>)
         {
-            const auto& wstr = static_cast<const std::wstring_view&>(formater);
+            const auto& wstr = static_cast<const std::wstring_view&>(formatter);
             if constexpr (sizeof(wchar_t) == sizeof(char16_t))
                 return ToU16Str(std::u16string_view(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size()), std::forward<Args>(args)...);
             else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
@@ -186,29 +203,8 @@ public:
         }
         else
         {
-            static_assert(!common::AlwaysTrue<T>(), "unknown formater type");
+            static_assert(!common::AlwaysTrue<T>(), "unknown formatter type");
         }
-    }
-    template<typename Char>
-    static decltype(auto) ToU16Str(const std::basic_string_view<Char>& content)
-    {
-        if constexpr (std::is_same_v<Char, char16_t>)
-            return content;
-        else if constexpr (std::is_same_v<Char, char>)
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF8, common::str::detail::UTF16, char, char16_t>::Convert(content.data(), content.size(), true, true);
-        else if constexpr (std::is_same_v<Char, char32_t>)
-            return common::str::detail::CharsetConvertor<common::str::detail::UTF32, common::str::detail::UTF16, char32_t, char16_t>::Convert(content.data(), content.size(), true, true);
-        else if constexpr (std::is_same_v<Char, wchar_t>)
-        {
-            if constexpr (sizeof(wchar_t) == sizeof(char16_t))
-                return ToU16Str(std::u16string_view(reinterpret_cast<const char16_t*>(content.data()), content.size()));
-            else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
-                return ToU16Str(std::u32string_view(reinterpret_cast<const char32_t*>(content.data()), content.size()));
-            else
-                static_assert(!common::AlwaysTrue<Char>(), "unexpected wchar_t size");
-        }
-        else
-            static_assert(!common::AlwaysTrue<Char>(), "unexpected Char type");
     }
 };
 

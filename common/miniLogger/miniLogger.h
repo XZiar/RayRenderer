@@ -43,47 +43,47 @@ public:
     using detail::MiniLoggerBase::MiniLoggerBase;
    
     template<typename T, typename... Args>
-    void error(T&& formater, Args&&... args)
+    void error(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Error, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Error, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
     template<typename T, typename... Args>
-    void warning(T&& formater, Args&&... args)
+    void warning(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Warning, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Warning, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
     template<typename T, typename... Args>
-    void success(T&& formater, Args&&... args)
+    void success(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Success, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Success, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
     template<typename T, typename... Args>
-    void verbose(T&& formater, Args&&... args)
+    void verbose(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Verbose, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Verbose, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
     template<typename T, typename... Args>
-    void info(T&& formater, Args&&... args)
+    void info(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Info, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Info, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
     template<typename T, typename... Args>
-    void debug(T&& formater, Args&&... args)
+    void debug(T&& formatter, Args&&... args)
     {
-        log2(LogLevel::Debug, std::forward<T>(formater), std::forward<Args>(args)...);
+        log(LogLevel::Debug, std::forward<T>(formatter), std::forward<Args>(args)...);
     }
 
     template<typename T, typename... Args>
-    void log2(const LogLevel level, T&& formater, Args&&... args)
+    void log(const LogLevel level, T&& formatter, Args&&... args)
     {
         if ((uint8_t)level < (uint8_t)LeastLevel.load(std::memory_order_relaxed))
             return;
 
         LogMessage* msg = nullptr;
         if constexpr (sizeof...(args) == 0)
-            msg = LogMessage::MakeMessage(Prefix, std::forward<T>(formater), level);
+            msg = LogMessage::MakeMessage(Prefix, std::forward<T>(formatter), level);
         else
-            msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(std::forward<T>(formater), std::forward<Args>(args)...), level);
+            msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(std::forward<T>(formatter), std::forward<Args>(args)...), level);
 
         AddRefCount(*msg, 1);
         MiniLoggerBase::GlobalOutputer->Print(msg);

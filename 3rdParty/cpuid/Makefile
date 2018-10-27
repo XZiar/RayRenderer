@@ -7,7 +7,7 @@ BUILD_TYPE	:= static
 include $(PROJPATH)/Makebase.mk
 
 
-CXXFLAGS	+= -D_LIB -DHAVE_CONFIG_H -Wno-format
+CXXFLAGS	+= -D_LIB -DHAVE_CONFIG_H -Wno-format -Wno-overlength-strings
 CFLAGS      := $(filter-out -std=c11, $(CFLAGS))
 NASMSRCS	 = 
 NAME	= cpuid

@@ -19,7 +19,7 @@ ConsoleHelper::ConsoleHelper()
     const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
     if (handle == INVALID_HANDLE_VALUE)
         throw std::runtime_error("no console handle avaliable");
-    Handle = reinterpret_cast<intptr_t>(handle);
+    Handle = reinterpret_cast<uintptr_t>(handle);
     DWORD mode;
     if (::GetConsoleMode(handle, &mode) == 0)
         throw std::runtime_error("can't get console mode");
@@ -35,6 +35,7 @@ ConsoleHelper::ConsoleHelper()
     ::GetConsoleScreenBufferInfo(handle, &csbInfo);
     Dummy = csbInfo.wAttributes;
 #else
+    Handle = reinterpret_cast<uintptr_t>(stdout);
     IsVTMode = true;
 #endif
 }
@@ -104,14 +105,14 @@ forceinline static void WriteToConsole(const HANDLE hConsole, const char16_t* st
 }
 void ConsoleHelper::Print(const ConsoleColor color, const std::u16string_view& str) const
 {
-    const auto hConsole = (HANDLE)Handle;
+    const auto hConsole = reinterpret_cast<HANDLE>(Handle);
     SetConsoleTextAttribute(hConsole, GetColorVal(color));
     WriteToConsole(hConsole, str.data(), str.size());
     SetConsoleTextAttribute(hConsole, Dummy);
 }
 void ConsoleHelper::Print(const std::u16string_view& str) const
 {
-    const auto hConsole = (HANDLE)Handle;
+    const auto hConsole = reinterpret_cast<HANDLE>(Handle);
     if (IsVTMode)
     {
         WriteToConsole(hConsole, str.data(), str.size());
@@ -188,15 +189,17 @@ static constexpr const char(&GetColorCharStr(const ConsoleColor color))[13]
 }
 void ConsoleHelper::Print(const ConsoleColor color, const std::u16string_view& str) const
 {
+    const auto hStdout = reinterpret_cast<FILE*>(Handle);
     const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
-    fprintf(stdout, GetColorCharStr(color), u8str.c_str());
-    fflush(stdout);
+    fprintf(hStdout, GetColorCharStr(color), u8str.c_str());
+    fflush(hStdout);
 }
 void ConsoleHelper::Print(const std::u16string_view& str) const
 {
+    const auto hStdout = reinterpret_cast<FILE*>(Handle);
     const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
-    fprintf(stdout, "%s", u8str.c_str());
-    fflush(stdout);
+    fprintf(hStdout, "%s", u8str.c_str());
+    fflush(hStdout);
 }
 #endif
 

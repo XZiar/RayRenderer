@@ -62,7 +62,6 @@ static uint32_t GetSIMDLevel()
 
 int main()
 {
-    const auto& ttt = common::mlog::detail::StrFormater::ToU16Str(std::string_view("xxxx"));
     const auto& tests = GetTestMap();
     Log(LogType::Success, u"[{}] Test found.", tests.size());
     {

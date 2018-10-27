@@ -231,8 +231,7 @@ void _oglProgram::InitSubroutines()
     subrLookup.clear();
     SubroutineBindings.clear();
     SubroutineSettings.clear();
-    auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
-    strBuffer.resize(0);
+    fmt::basic_memory_buffer<char16_t> strBuffer;
     {
         constexpr std::u16string_view tmp = u"SubRoutine Resource: \n";
         strBuffer.append(tmp.data(), tmp.data() + tmp.size());

@@ -155,7 +155,7 @@ public:
         const auto ret = std::static_pointer_cast<common::detail::PromiseResult_<Ret>>(node->OutterPms);
         if (AddNode(node))
         {
-            Logger.debug(u"Add new task [{}] [{}]\n", tuid, node->Name);
+            Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), tuid, node->Name);
             return ret;
         }
         else //has stopped
