@@ -13,6 +13,21 @@ using System::Windows::Media::Imaging::BitmapSource;
 namespace Dizz
 {
 
+public ref class TexHolder
+{
+private:
+    Common::NativeWrapper<std::weak_ptr<void>> WeakRef;
+    const uint8_t TypeId;
+    TexHolder(const oglu::oglTex2D& tex);
+    TexHolder(const rayr::FakeTex& tex);
+internal:
+    static TexHolder^ CreateTexHolder(const rayr::TexHolder& holder);
+    rayr::TexHolder ExtractHolder();
+public:
+    ~TexHolder() { this->!TexHolder(); }
+    !TexHolder();
+};
+
 public ref class ThumbnailMan
 {
 internal:
@@ -20,12 +35,13 @@ internal:
     const std::weak_ptr<rayr::ThumbnailManager> *ThumbMan;
 
     ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan);
-    ~ThumbnailMan() { this->!ThumbnailMan(); }
-    !ThumbnailMan();
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
-
     BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
+public:
+    ~ThumbnailMan() { this->!ThumbnailMan(); }
+    !ThumbnailMan();
+    BitmapSource^ GetThumbnail(TexHolder^ holder) { return GetThumbnail(holder->ExtractHolder()); }
 };
 
 

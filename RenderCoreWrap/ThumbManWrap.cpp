@@ -9,6 +9,47 @@ namespace Dizz
 {
 
 
+TexHolder::TexHolder(const oglu::oglTex2D& tex) : TypeId(1)
+{
+    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
+    new ((uint8_t*)ptr) std::weak_ptr<void>(tex);
+}
+TexHolder::TexHolder(const rayr::FakeTex& tex) : TypeId(2)
+{
+    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
+    new ((uint8_t*)ptr) std::weak_ptr<void>(tex);
+}
+
+TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
+{
+    switch (holder.index())
+    {
+    case 1: return gcnew TexHolder(std::get<1>(holder));
+    case 2: return gcnew TexHolder(std::get<2>(holder));
+    default: return nullptr;
+    }
+}
+
+rayr::TexHolder TexHolder::ExtractHolder()
+{
+    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
+    auto holder = reinterpret_cast<std::weak_ptr<void>*>(ptr)->lock();
+    if (!holder) return {};
+    switch (TypeId)
+    {
+    case 1: return oglu::oglTex2D(std::reinterpret_pointer_cast<oglu::detail::_oglTexture2D>(holder));
+    case 2: return std::reinterpret_pointer_cast<rayr::detail::_FakeTex>(holder);
+    default: return {};
+    }
+}
+
+TexHolder::!TexHolder()
+{
+    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
+    reinterpret_cast<std::weak_ptr<void>*>(ptr)->~weak_ptr();
+}
+
+
 ThumbnailMan::ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan) 
     : ThumbnailMap(new std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>())
 {

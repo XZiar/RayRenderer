@@ -71,3 +71,4 @@
   - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Add Pch for Linux build
   - [ ] Add GLFW
+  - [ ] Add static control-item for Controllable

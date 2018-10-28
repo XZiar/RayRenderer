@@ -17,17 +17,53 @@ PBRMaterial::PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material) : C
 {
 }
 
+TexHolder^ PBRMaterial::DiffuseMap::get()
+{
+    return TexHolder::CreateTexHolder(GetSelf()->DiffuseMap);
+}
+TexHolder^ PBRMaterial::NormalMap::get()
+{
+    return TexHolder::CreateTexHolder(GetSelf()->NormalMap);
+}
+TexHolder^ PBRMaterial::MetalMap::get()
+{
+    return TexHolder::CreateTexHolder(GetSelf()->MetalMap);
+}
+TexHolder^ PBRMaterial::RoughMap::get()
+{
+    return TexHolder::CreateTexHolder(GetSelf()->RoughMap);
+}
+TexHolder^ PBRMaterial::AOMap::get()
+{
+    return TexHolder::CreateTexHolder(GetSelf()->AOMap);
+}
 
 std::shared_ptr<rayr::Drawable> Drawable::GetSelf()
 {
     return std::static_pointer_cast<rayr::Drawable>(GetControl()); // type promised
 }
-
+bool Drawable::CreateMaterials()
+{
+    const std::shared_ptr<rayr::Drawable>& drawable = GetSelf();
+    const auto matCount = drawable->MaterialHolder.GetSize();
+    if (matCount == 0)
+        return false;
+    
+    array<PBRMaterial^>^ matArray = gcnew array<PBRMaterial^>(matCount);
+    uint8_t idx = 0;
+    for (const auto& mat : drawable->MaterialHolder)
+        matArray[idx++] = gcnew PBRMaterial(mat);
+    materials = Array::AsReadOnly(matArray);
+    RaisePropertyChanged("Materials");
+    return true;
+}
 Drawable::Drawable(const Wrapper<rayr::Drawable>& drawable) : Controllable(drawable)
 {
+    CreateMaterials();
 }
 Drawable::Drawable(Wrapper<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new Wrapper<rayr::Drawable>(drawable))
 {
+    CreateMaterials();
 }
 
 void Drawable::ReleaseTempHandle()
@@ -155,19 +191,33 @@ void Camera::Roll(const float radz)
 }
 
 
+static bool PrepareDrawableMaterial(Drawable^ drawable)
+{
+    return !drawable->CreateMaterials();
+}
+static Scene::Scene()
+{
+    DrawablePrepareFunc = gcnew Func<Drawable^, bool>(PrepareDrawableMaterial);
+}
 Scene::Scene(const rayr::RenderCore * core) : Core(core)
 {
     const auto& scene = Core->GetScene();
     TheScene = new std::weak_ptr<rayr::Scene>(scene);
     MainCamera = gcnew Camera(scene->GetCamera());
     Drawables = gcnew ObservableProxyContainer<Drawable^>();
-    Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::OnAddModel);
-    //Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnDrawablesChanged);
+    Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::BeforeAddModel);
+    Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnDrawablesChanged);
     Lights = gcnew ObservableProxyContainer<Light^>();
-    Lights->BeforeAddObject += gcnew AddObjectEventHandler<Light^>(this, &Scene::OnAddLight);
+    Lights->BeforeAddObject += gcnew AddObjectEventHandler<Light^>(this, &Scene::BeforeAddLight);
     Lights->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<Light^>(this, &Scene::OnLightPropertyChanged);
     //Lights->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnLightsChanged);
+    WaitDrawables = gcnew List<Drawable^>();
     RefreshScene();
+}
+
+void Scene::PrepareScene()
+{
+    WaitDrawables = Linq::Enumerable::ToList(Linq::Enumerable::Where(WaitDrawables, DrawablePrepareFunc));
 }
 
 void Scene::RefreshScene()
@@ -185,7 +235,7 @@ void Scene::RefreshScene()
     }
 }
 
-void Scene::OnAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
+void Scene::BeforeAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
 {
     if (TheScene->lock()->AddObject(object->GetSelf()))
     {
@@ -194,7 +244,7 @@ void Scene::OnAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
     }
 }
 
-void Scene::OnAddLight(Object^ sender, Light^ object, bool% shouldAdd)
+void Scene::BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd)
 {
     if (TheScene->lock()->AddLight(object->GetSelf()))
     {
@@ -202,17 +252,22 @@ void Scene::OnAddLight(Object^ sender, Light^ object, bool% shouldAdd)
         shouldAdd = true;
     }
 }
-//
-//void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)
-//{
-//    switch (e->Action)
-//    {
-//    case NotifyCollectionChangedAction::Add:
-//        break;
-//    default: break;
-//    }
-//}
-//
+
+void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)
+{
+    switch (e->Action)
+    {
+    case NotifyCollectionChangedAction::Add:
+        for each (Drawable^ drw in Linq::Enumerable::Cast<Drawable^>(e->NewItems))
+        {
+            if (drw->Materials == nullptr)
+                WaitDrawables->Add(drw);
+        }
+        break;
+    default: break;
+    }
+}
+
 //void Scene::OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e)
 //{
 //    switch (e->Action)

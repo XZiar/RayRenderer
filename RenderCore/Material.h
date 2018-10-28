@@ -139,6 +139,7 @@ public:
     vector<std::shared_ptr<PBRMaterial>>::iterator end() { return Materials.end(); }
     std::shared_ptr<PBRMaterial>& operator[](const size_t index) noexcept { return Materials[index]; }
     const std::shared_ptr<PBRMaterial>& operator[](const size_t index) const noexcept { return Materials[index]; }
+    uint8_t GetSize()const { return static_cast<uint8_t>(Materials.size()); }
 
     void Refresh();
     void BindTexture(oglu::detail::ProgDraw& drawcall) const;

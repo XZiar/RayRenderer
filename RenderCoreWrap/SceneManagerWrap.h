@@ -3,6 +3,7 @@
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
 #include "ObservableContainer.hpp"
+#include "ThumbManWrap.h"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -37,6 +38,11 @@ internal:
     std::shared_ptr<rayr::PBRMaterial> GetSelf();
     PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material);
 public:
+    property TexHolder^ DiffuseMap { TexHolder^ get(); }
+    property TexHolder^ NormalMap  { TexHolder^ get(); }
+    property TexHolder^ MetalMap   { TexHolder^ get(); }
+    property TexHolder^ RoughMap   { TexHolder^ get(); }
+    property TexHolder^ AOMap      { TexHolder^ get(); }
 };
 
 
@@ -44,16 +50,19 @@ public ref class Drawable : public Controllable, public IMovable
 {
 private:
     const Wrapper<rayr::Drawable>* TempHandle;
+    ReadOnlyCollection<PBRMaterial^>^ materials;
 internal:
     std::shared_ptr<rayr::Drawable> GetSelf();
     Drawable(const Wrapper<rayr::Drawable>& drawable);
     Drawable(Wrapper<rayr::Drawable>&& drawable);
     void ReleaseTempHandle();
+    bool CreateMaterials();
 public:
     ~Drawable() { this->!Drawable(); }
     !Drawable();
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
+    CLI_READONLY_PROPERTY(ReadOnlyCollection<PBRMaterial^>^, Materials, materials)
 };
 
 
@@ -97,17 +106,22 @@ public:
 public ref class Scene : public BaseViewModel
 {
 private:
-    void OnAddModel(Object^ sender, Drawable^ object, bool% shouldAdd);
-    void OnAddLight(Object^ sender, Light^ object, bool% shouldAdd);
-    /*void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
-    void OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);*/
+    static Func<Drawable^, bool>^ DrawablePrepareFunc;
+private:
+    List<Drawable^>^ WaitDrawables;
+    void BeforeAddModel(Object^ sender, Drawable^ object, bool% shouldAdd);
+    void BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd);
+    void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
+    //void OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
     void OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e);
 internal:
     const rayr::RenderCore * const Core;
     const std::weak_ptr<rayr::Scene> *TheScene;
     Scene(const rayr::RenderCore * core);
+    void PrepareScene();
     void RefreshScene();
 public:
+    static Scene();
     ~Scene() { this->!Scene(); }
     !Scene();
 

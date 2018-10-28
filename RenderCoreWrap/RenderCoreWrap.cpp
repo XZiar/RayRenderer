@@ -29,7 +29,7 @@ void RenderCore::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEven
     case NotifyCollectionChangedAction::Add:
         for each (Object^ item in e->NewItems)
         {
-            const auto drawable = safe_cast<Drawable^>(item)->GetSelf();
+            const auto drawable = static_cast<Drawable^>(item)->GetSelf(); // type promised
             for (const auto& shd : Core->GetRenderPasses())
                 shd->RegistDrawable(drawable);
         }
@@ -41,6 +41,7 @@ void RenderCore::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEven
 void RenderCore::Draw()
 {
     Core->Draw();
+    theScene->PrepareScene();
 }
 
 void RenderCore::Resize(const uint32_t w, const uint32_t h)

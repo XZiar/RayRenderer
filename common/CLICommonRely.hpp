@@ -112,4 +112,24 @@ public:
     }
 };
 
+
+//see https://blogs.msdn.microsoft.com/branbray/2005/07/20/some-notes-about-mixed-types/
+template<typename T>
+[System::Runtime::CompilerServices::UnsafeValueType]
+[System::Runtime::InteropServices::StructLayout
+(
+    System::Runtime::InteropServices::LayoutKind::Explicit,
+    Pack = alignof(T),
+    Size = sizeof(T)
+)
+]
+public value struct NativeWrapper 
+{
+public:
+    [System::Runtime::InteropServices::FieldOffset(0)]
+    uint8_t Dummy;
+};
+
+
+
 }
