@@ -39,7 +39,7 @@ private:
     initonly String^ controlType;
     void RaisePropertyChangedFunc(Object^ state)
     {
-        PropertyChanged(this, safe_cast<PropertyChangedEventArgs^>(state));
+        PropertyChanged(this, static_cast<PropertyChangedEventArgs^>(static_cast<array<Object^>^>(state)[0]));
     }
 protected:
     std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }

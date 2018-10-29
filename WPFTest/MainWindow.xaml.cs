@@ -93,28 +93,7 @@ namespace WPFTest
             glMain.Draw += Core.Test.Draw;
             glMain.Resize += (o, e) => { Core.Test.Resize((uint)e.Width, (uint)e.Height); };
 
-            txtMemInfo.SetBinding(TextBlock.TextProperty, new Binding
-            {
-                Source = MemMonitor,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.OneWay,
-                Converter = new OneWayValueConvertor(o => 
-                {
-                    var monitor = (MemoryMonitor)o;
-                    string ParseSize(ulong size)
-                    {
-                        if (size > 1024 * 1024 * 1024)
-                            return string.Format("{0:F2}G", size * 1.0 / (1024 * 1024 * 1024));
-                        else if (size > 1024 * 1024)
-                            return string.Format("{0:F2}M", size * 1.0 / (1024 * 1024));
-                        else if (size > 1024)
-                            return string.Format("{0:F2}K", size * 1.0 / (1024));
-                        else
-                            return string.Format("{0:D}B", size);
-                    }
-                    return ParseSize(monitor.ManagedSize) + " / " + ParseSize(monitor.PrivateSize) + " / " + ParseSize(monitor.WorkingSet);
-                })
-            });
+            txtMemInfo.SetBinding(TextBlock.TextProperty, MemMonitor.GetTextBinding());
             MemMonitor.UpdateInterval(1000, true);
 
             txtCurCamera.SetBinding(TextBlock.TextProperty, new Binding

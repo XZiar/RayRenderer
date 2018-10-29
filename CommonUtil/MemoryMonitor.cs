@@ -4,6 +4,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
+using System.Windows;
+using System.Windows.Data;
+using static XZiar.Util.BindingHelper;
 
 namespace XZiar.Util
 {
@@ -42,6 +45,32 @@ namespace XZiar.Util
             else
                 UpdateTimer.Change(Timeout.Infinite, 1000);
             CombineNotify = combine;
+        }
+
+        public Binding GetTextBinding()
+        {
+            return new Binding
+            {
+                Source = this,
+                Path = new PropertyPath("Current"),
+                Mode = BindingMode.OneWay,
+                Converter = new OneWayValueConvertor(o =>
+                {
+                    var monitor = (MemoryMonitor)o;
+                    string ParseSize(ulong size)
+                    {
+                        if (size > 1024 * 1024 * 1024)
+                            return string.Format("{0:F2}G", size * 1.0 / (1024 * 1024 * 1024));
+                        else if (size > 1024 * 1024)
+                            return string.Format("{0:F2}M", size * 1.0 / (1024 * 1024));
+                        else if (size > 1024)
+                            return string.Format("{0:F2}K", size * 1.0 / (1024));
+                        else
+                            return string.Format("{0:D}B", size);
+                    }
+                    return ParseSize(monitor.ManagedSize) + " / " + ParseSize(monitor.PrivateSize) + " / " + ParseSize(monitor.WorkingSet);
+                })
+            };
         }
     }
 }

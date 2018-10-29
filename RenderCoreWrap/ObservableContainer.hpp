@@ -86,6 +86,10 @@ public:
         if (shouldAdd)
             InnerAdd(object);
     }
+    int32_t IndexOf(T object)
+    {
+        return InnerContainer->IndexOf(object);
+    }
 };
 //
 //public abstract class ObservableContainer<T> : BaseViewModel, IEnumerable<T>, INotifyCollectionChanged
