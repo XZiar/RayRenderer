@@ -9,7 +9,7 @@
         xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
         xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
         mc:Ignorable="d"
-        Title="Window" Height="800" Width="800" Background="{StaticResource brshDarkBackground}">
+        Title="Window" Height="800" Width="1000" Background="{StaticResource brshDarkBackground}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34"/>
@@ -128,7 +128,7 @@
             </xcad:DockingManager.Theme>
             <xcad:LayoutRoot x:Name="rootLayout">
                 <xcad:LayoutPanel Orientation="Horizontal">
-                    <xcad:LayoutDocumentPane DockWidth="200">
+                    <xcad:LayoutDocumentPane>
                         <xcad:LayoutDocument ContentId="mainView" Title="MainView" CanClose="False">
                             <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
                                 <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True">
@@ -136,22 +136,31 @@
                             </WindowsFormsHost>
                         </xcad:LayoutDocument> 
                     </xcad:LayoutDocumentPane>
-                </xcad:LayoutPanel>
-                <xcad:LayoutRoot.RightSide>
-                    <xcad:LayoutAnchorSide>
-                        <xcad:LayoutAnchorGroup x:Name="RightGroup">
+                    <xcad:LayoutAnchorablePaneGroup DockWidth="250">
+                        <xcad:LayoutAnchorablePane>
                             <xcad:LayoutAnchorable ContentId="drawables" Title="物件" CanClose="False">
+                                <local:DrawablePage x:Name="pgDrawables">
+                                </local:DrawablePage>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="lights" Title="灯光" CanClose="False">
+                                <local:LightPage x:Name="pgLights">
+                                </local:LightPage>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="shaders" Title="Shader" CanClose="False">
                             </xcad:LayoutAnchorable>
+                        </xcad:LayoutAnchorablePane>
+                    </xcad:LayoutAnchorablePaneGroup>
+                </xcad:LayoutPanel>
+                <xcad:LayoutRoot.RightSide>
+                    <xcad:LayoutAnchorSide>
+                        <xcad:LayoutAnchorGroup>
+                            
                         </xcad:LayoutAnchorGroup>
                     </xcad:LayoutAnchorSide>
                 </xcad:LayoutRoot.RightSide>
                 <xcad:LayoutRoot.BottomSide>
                     <xcad:LayoutAnchorSide>
-                        <xcad:LayoutAnchorGroup x:Name="BottomGroup">
+                        <xcad:LayoutAnchorGroup>
                             <xcad:LayoutAnchorable ContentId="log" Title="日志" CanClose="False">
                                 <DockPanel Background="Black">
                                     <Grid DockPanel.Dock="Top">

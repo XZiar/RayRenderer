@@ -46,6 +46,9 @@ public:
 
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
+    bool DelObject(const boost::uuids::uuid& uid);
+    bool DelObject(const Wrapper<Drawable>& drawable) { return DelObject(drawable->GetUid()); }
+    bool DelLight(const Wrapper<Light>& light);
     void ReportChanged(const SceneChange target);
 };
 #if COMPILER_MSVC

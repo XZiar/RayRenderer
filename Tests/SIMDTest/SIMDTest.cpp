@@ -1,6 +1,5 @@
 #include "SIMDRely.h"
 #include "common/TimeUtil.hpp"
-#include "common/miniLogger/miniLogger.h"
 #include "common/ColorConsole.inl"
 #include "3rdParty/cpuid/libcpuid.h"
 #include <vector>

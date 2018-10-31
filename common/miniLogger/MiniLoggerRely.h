@@ -52,7 +52,7 @@ struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 public:
     const uint64_t Timestamp;
 private:
-    const SharedString<char16_t>& Source;
+    const SharedString<char16_t> Source;
     std::atomic_uint32_t RefCount;
     const uint32_t Length;
 public:

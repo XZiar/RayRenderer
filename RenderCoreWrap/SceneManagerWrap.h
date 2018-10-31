@@ -62,6 +62,7 @@ public:
     !Drawable();
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
+    initonly Guid^ Uid;
     CLI_READONLY_PROPERTY(ReadOnlyCollection<PBRMaterial^>^, Materials, materials)
 };
 
@@ -110,7 +111,9 @@ private:
 private:
     List<Drawable^>^ WaitDrawables;
     void BeforeAddModel(Object^ sender, Drawable^ object, bool% shouldAdd);
+    void BeforeDelModel(Object^ sender, Drawable^ object, bool% shouldDel);
     void BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd);
+    void BeforeDelLight(Object^ sender, Light^ object, bool% shouldDel);
     void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
     //void OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
     void OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e);

@@ -100,6 +100,12 @@ namespace WPFTest
             var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
             fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS@{timeUs / 1000}ms" : ""; };
             fpsTimer.Start();
+
+            pgDrawables.DataContext = Core.TheScene.Drawables;
+            //pgLights.DataContext = Core.TheScene.Lights;
+            Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
+            Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
+            Core.TheScene.MainCamera.PropertyChanged += (o, e) => glMain.Invalidate();
         }
 
 
@@ -308,7 +314,7 @@ namespace WPFTest
                 }
                 break;
             }
-            glMain.Invalidate();
+            //glMain.Invalidate();
         }
 
         private void OnMouse(object sender, OpenGLView.MouseEventExArgs e)
@@ -329,7 +335,7 @@ namespace WPFTest
             default:
                 return;
             }
-            glMain.Invalidate();
+            //glMain.Invalidate();
         }
 
 

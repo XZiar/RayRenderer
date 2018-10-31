@@ -36,6 +36,25 @@ inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
 }
 
+forceinline System::Guid^ ToGuid(const boost::uuids::uuid& uid)
+{
+    array<byte>^ raw = gcnew array<byte>(16);
+    {
+        cli::pin_ptr<byte> ptr = &raw[0];
+        memcpy_s(ptr, 16, &uid, 16);
+    }
+    return gcnew System::Guid(raw);
+}
+forceinline boost::uuids::uuid FromGuid(System::Guid^ uid)
+{
+    boost::uuids::uuid ret;
+    {
+        cli::pin_ptr<byte> ptr = &uid->ToByteArray()[0];
+        memcpy_s(&ret, 16, ptr, 16);
+    }
+    return ret;
+}
+
 forceinline String^ ToStr(const fmt::internal::basic_buffer<char16_t>& strBuffer)
 {
     return gcnew String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());

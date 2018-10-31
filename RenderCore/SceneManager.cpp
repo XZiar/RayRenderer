@@ -3,6 +3,7 @@
 
 using namespace oglu;
 using common::container::ValSet;
+using common::container::FindInMap;
 
 namespace rayr
 {
@@ -64,6 +65,21 @@ bool Scene::AddLight(const Wrapper<Light>& light)
     SceneChanges.Add(SceneChange::Light);
     dizzLog().success(u"Add a Light [{}][{}]:  {}\n", Lights.size() - 1, (int32_t)light->Type, light->Name);
     return true;
+}
+
+bool Scene::DelObject(const boost::uuids::uuid& uid)
+{
+    auto it = Drawables.find(uid);
+    if (it == Drawables.end())
+        return false;
+    WaitDrawables.erase(it->second);
+    Drawables.erase(it);
+    return true;
+}
+
+bool Scene::DelLight(const Wrapper<Light>& light)
+{
+    return false;
 }
 
 void Scene::ReportChanged(const SceneChange target)

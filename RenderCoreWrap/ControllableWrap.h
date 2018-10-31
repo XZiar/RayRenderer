@@ -12,8 +12,11 @@ using namespace System::Collections::Generic;
 using namespace System::Dynamic;
 using namespace System::Runtime::InteropServices;
 
-public ref struct ControlItem
+public ref class ControlItem
 {
+internal:
+    ControlItem(const common::Controllable::ControlItem& item);
+public:
     enum struct PropAccess : uint8_t { Empty = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     enum struct PropType : uint8_t 
     {   RawValue = (uint8_t)common::Controllable::ArgType::RawValue, Color = (uint8_t)common::Controllable::ArgType::Color,
@@ -24,11 +27,9 @@ public ref struct ControlItem
     initonly String^ Category;
     initonly String^ Description;
     initonly Object^ Cookie;
+    initonly System::Type^ ValType;
     initonly PropAccess Access;
     initonly PropType Type;
-    initonly System::Type^ ValType;
-internal:
-    ControlItem(const common::Controllable::ControlItem& item);
 };
 
 

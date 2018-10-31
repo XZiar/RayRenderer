@@ -60,10 +60,12 @@ bool Drawable::CreateMaterials()
 Drawable::Drawable(const Wrapper<rayr::Drawable>& drawable) : Controllable(drawable)
 {
     CreateMaterials();
+    Uid = ToGuid(drawable->GetUid());
 }
 Drawable::Drawable(Wrapper<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new Wrapper<rayr::Drawable>(drawable))
 {
     CreateMaterials();
+    Uid = ToGuid((*TempHandle)->GetUid());
 }
 
 void Drawable::ReleaseTempHandle()
@@ -206,9 +208,11 @@ Scene::Scene(const rayr::RenderCore * core) : Core(core)
     MainCamera = gcnew Camera(scene->GetCamera());
     Drawables = gcnew ObservableProxyContainer<Drawable^>();
     Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::BeforeAddModel);
+    Drawables->BeforeDelObject += gcnew DelObjectEventHandler<Drawable^>(this, &Scene::BeforeDelModel);
     Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnDrawablesChanged);
     Lights = gcnew ObservableProxyContainer<Light^>();
     Lights->BeforeAddObject += gcnew AddObjectEventHandler<Light^>(this, &Scene::BeforeAddLight);
+    Lights->BeforeDelObject += gcnew DelObjectEventHandler<Light^>(this, &Scene::BeforeDelLight);
     Lights->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<Light^>(this, &Scene::OnLightPropertyChanged);
     //Lights->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &Scene::OnLightsChanged);
     WaitDrawables = gcnew List<Drawable^>();
@@ -244,6 +248,12 @@ void Scene::BeforeAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
     }
 }
 
+void Scene::BeforeDelModel(Object^ sender, Drawable^ object, bool% shouldDel)
+{
+    TheScene->lock()->DelObject(FromGuid(object->Uid));
+    shouldDel = true;
+}
+
 void Scene::BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd)
 {
     if (TheScene->lock()->AddLight(object->GetSelf()))
@@ -251,6 +261,12 @@ void Scene::BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd)
         object->ReleaseTempHandle();
         shouldAdd = true;
     }
+}
+
+void Scene::BeforeDelLight(Object^ sender, Light^ object, bool% shouldDel)
+{
+    TheScene->lock()->DelLight(object->GetSelf());
+    shouldDel = true;
 }
 
 void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)

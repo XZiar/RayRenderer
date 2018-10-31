@@ -14,10 +14,12 @@ namespace Dizz
 generic<typename T>
 private delegate void AddObjectEventHandler(Object^ sender, T obj, bool% shouldAdd);
 generic<typename T>
-private delegate void ObjectPropertyChangedEventHandler(Object^ sender, T obj, PropertyChangedEventArgs^ e);
+private delegate void DelObjectEventHandler(Object^ sender, T obj, bool% shouldDel);
+generic<typename T>
+public delegate void ObjectPropertyChangedEventHandler(Object^ sender, T obj, PropertyChangedEventArgs^ e);
 
 generic<typename T> where T : INotifyPropertyChanged
-public ref class ObservableProxyContainer : public INotifyCollectionChanged, public IEnumerable<T>
+public ref class ObservableProxyContainer : public INotifyCollectionChanged, public IList<T>
 {
 private:
     initonly List<T>^ InnerContainer;
@@ -37,22 +39,31 @@ internal:
         ObjectPropertyChangedCallback = gcnew PropertyChangedEventHandler(this, &ObservableProxyContainer::OnObjectPropertyChanged);
     }
     event AddObjectEventHandler<T>^ BeforeAddObject;
-    event ObjectPropertyChangedEventHandler<T>^ ObjectPropertyChanged;
-    void InnerAdd(T object)
+    event DelObjectEventHandler<T>^ BeforeDelObject;
+    void InnerAdd(T item)
     {
-        object->PropertyChanged += ObjectPropertyChangedCallback;
-        InnerContainer->Add(object);
-        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Add, object, InnerContainer->Count - 1));
+        item->PropertyChanged += ObjectPropertyChangedCallback;
+        InnerContainer->Add(item);
+        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Add, item, InnerContainer->Count - 1));
     }
-    void InnerDel(T object)
+    void InnerInsert(int index, T item)
+    {
+        item->PropertyChanged += ObjectPropertyChangedCallback;
+        InnerContainer->Insert(index, item);
+        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Add, item, index));
+    }
+    bool InnerDel(T object)
     {
         object->PropertyChanged -= ObjectPropertyChangedCallback;
         const auto idx = InnerContainer->IndexOf(object);
-        if (idx == -1) return;
+        if (idx == -1) 
+            return false;
         InnerContainer->RemoveAt(idx);
         CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Remove, object, idx));
+        return true;
     }
 public:
+    event ObjectPropertyChangedEventHandler<T>^ ObjectPropertyChanged;
     virtual event NotifyCollectionChangedEventHandler^ CollectionChanged;
     virtual IEnumerator<T>^ GetEnumerator()
     { 
@@ -62,7 +73,7 @@ public:
     {
         return InnerContainer->GetEnumerator();
     }
-    property T default[int32_t]
+    virtual property T default[int32_t]
     {
         T get(int32_t i)
         {
@@ -71,46 +82,67 @@ public:
             else
                 return InnerContainer[i];
         }
-    }
-    property int32_t Count
-    {
-        int32_t get()
+        void set(int32_t i, T item)
         {
-            return InnerContainer->Count;
+            throw gcnew System::NotImplementedException();
         }
     }
-    void Add(T object)
-    {
-        bool shouldAdd = false;
-        BeforeAddObject(this, object, shouldAdd);
-        if (shouldAdd)
-            InnerAdd(object);
-    }
-    int32_t IndexOf(T object)
+
+    virtual property int Count { int get() { return InnerContainer->Count; } }
+    virtual property bool IsReadOnly { bool get() { return false; } }
+    
+    virtual int32_t IndexOf(T object)
     {
         return InnerContainer->IndexOf(object);
     }
+    virtual void Add(T item)
+    {
+        bool shouldAdd = false;
+        BeforeAddObject(this, item, shouldAdd);
+        if (shouldAdd)
+            InnerAdd(item);
+    }
+    virtual void Clear()
+    {
+        for each (T item in InnerContainer)
+        {
+            item->PropertyChanged -= ObjectPropertyChangedCallback;
+        }
+        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Remove, gcnew List<T>(InnerContainer)));
+        InnerContainer->Clear();
+    }
+    virtual bool Contains(T item)
+    {
+        return InnerContainer->Contains(item);
+    }
+    virtual void CopyTo(array<T, 1> ^array, int arrayIndex)
+    {
+        InnerContainer->CopyTo(array, arrayIndex);
+    }
+    virtual bool Remove(T item)
+    {
+        bool shouldDel = false;
+        BeforeDelObject(this, item, shouldDel);
+        if (shouldDel)
+            return InnerDel(item);
+        return false;
+    }
+    virtual void Insert(int index, T item)
+    {
+        bool shouldAdd = false;
+        BeforeAddObject(this, item, shouldAdd);
+        if (shouldAdd)
+            InnerInsert(index, item);
+    }
+    virtual void RemoveAt(int index)
+    {
+        bool shouldDel = false;
+        auto item = InnerContainer[index];
+        BeforeDelObject(this, item, shouldDel);
+        if (shouldDel)
+            InnerDel(item);
+    }
 };
-//
-//public abstract class ObservableContainer<T> : BaseViewModel, IEnumerable<T>, INotifyCollectionChanged
-//{
-//    protected static NotifyCollectionChangedEventArgs RefeshEventArgs = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
-//    public event NotifyCollectionChangedEventHandler CollectionChanged;
-//    protected void OnCollectionChanged()
-//    {
-//        CollectionChanged ? .Invoke(this, RefeshEventArgs);
-//    }
-//    protected void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
-//    {
-//        CollectionChanged ? .Invoke(this, e);
-//    }
-//
-//    protected abstract IEnumerator<T> InnerGetEnumerator();
-//
-//    public IEnumerator<T> GetEnumerator() = > InnerGetEnumerator();
-//
-//    IEnumerator IEnumerable.GetEnumerator() = > InnerGetEnumerator();
-//}
 
 
 }

@@ -220,7 +220,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         else
         {
 #if COMMON_SIMD_LV >= 200
-            static const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+            const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
             return _mm256_permutevar8x32_ps(Data, mask);
 #else
             constexpr uint8_t lane0 = Lo0 & 0b100, lane1 = Lo1 & 0b100, lane2 = Lo2 & 0b100, lane3 = Lo3 & 0b100,
@@ -414,7 +414,7 @@ struct alignas(__m256i) I32Common8
     forceinline T VECCALL Shuffle() const
     {
         static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-        static const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+        const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
         return _mm256_permutevar8x32_epi32(Data, mask);
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
@@ -498,7 +498,7 @@ struct alignas(__m256i) I16Common16
     {
         static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
             && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
-        static const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1),
+        const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1),
             static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1), static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1),
             static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1), static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1),
             static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1), static_cast<int8_t>(Lo7 * 2), static_cast<int8_t>(Lo7 * 2 + 1),
@@ -599,7 +599,7 @@ struct alignas(__m256i) I8Common32
             && Lo8 < 32 && Lo9 < 32 && Lo10 < 32 && Lo11 < 32 && Lo12 < 32 && Lo13 < 32 && Lo14 < 32 && Lo15 < 32
             && Lo16 < 32 && Lo17 < 32 && Lo18 < 32 && Lo19 < 32 && Lo20 < 32 && Lo21 < 32 && Lo22 < 32 && Lo23 < 32
             && Lo24 < 32 && Lo25 < 32 && Lo26 < 32 && Lo27 < 32 && Lo28 < 32 && Lo29 < 32 && Lo30 < 32 && Hi31 < 32, "shuffle index should be in [0,31]");
-        static const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
+        const auto mask = _mm256_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
             static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
             static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
             static_cast<int8_t>(Lo14), static_cast<int8_t>(Lo15), static_cast<int8_t>(Lo16), static_cast<int8_t>(Lo17), static_cast<int8_t>(Lo18),
@@ -682,7 +682,7 @@ struct alignas(__m256i) U8x32 : public I8Common32<U8x32, uint8_t>, public detail
         const U16x16 u16self = Data, u16other = other.Data;
         const auto even = u16self * u16other;
         const auto odd = u16self.ShiftRightLogic<8>() * u16other.ShiftRightLogic<8>();
-        static const U16x16 mask((uint16_t)0x00ff);
+        const U16x16 mask((uint16_t)0x00ff);
         return U8x32(odd.ShiftLeftLogic<8>() | (even & mask));
     }
     Pack<U16x16, 2> VECCALL MulX(const U8x32& other) const;
