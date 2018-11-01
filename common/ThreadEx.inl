@@ -55,70 +55,84 @@ static void SetThreadNameImpl(const detail::THREADNAME_INFO* info)
 #endif
 }
 
-bool SetThreadName(const std::string& threadName)
+bool SetThreadName(const std::string_view threadName)
 {
 #if defined(_WIN32)
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
     {
         const std::u16string u16ThrName(threadName.cbegin(), threadName.cend());
-        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)u16ThrName.c_str());
+        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)u16ThrName.data());
     }
     else
     {
         detail::THREADNAME_INFO info;
-        info.szName = threadName.c_str();
+        info.szName = threadName.data();
         info.dwThreadID = GetCurrentThreadId();
         info.dwFlags = 0;
         detail::SetThreadNameImpl(&info);
     }
 #else
+    if (threadName.length() >= 16) // pthread limit name to 16 bytes(including null)
+        return SetThreadName(std::string(threadName.substr(0, 15)));
 # if defined(__APPLE__)
-    pthread_setname_np(threadName.c_str());
+    pthread_setname_np(threadName.data());
 # else
-    pthread_setname_np(pthread_self(), threadName.c_str());
+    pthread_setname_np(pthread_self(), threadName.data());
 # endif
 #endif
     return true;
 }
 
 
-bool SetThreadName(const std::u16string& threadName)
+bool SetThreadName(const std::u16string_view threadName)
 {
 #if defined(_WIN32)
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
-        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.c_str()); 
+        ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
     else
     {
         detail::THREADNAME_INFO info;
         const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
-        info.szName = asciiThreadName.c_str();
+        info.szName = asciiThreadName.data();
         info.dwThreadID = GetCurrentThreadId();
         info.dwFlags = 0;
         detail::SetThreadNameImpl(&info);
     }
 #else
     const auto u8TName = str::to_u8string(threadName, str::Charset::UTF8);
+    if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
+        return SetThreadName(u8TName.substr(0, 15));
 # if defined(__APPLE__)
-    pthread_setname_np(u8TName.c_str());
+    pthread_setname_np(u8TName.data());
 # else
-    pthread_setname_np(pthread_self(), u8TName.c_str());
+    pthread_setname_np(pthread_self(), u8TName.data());
 # endif
 #endif
     return true;
 }
 
-ThreadExitor& ThreadExitor::GetThreadExitor()
+std::u16string GetThreadName()
 {
-    thread_local static ThreadExitor exitor;
-    return exitor;
-}
-
-ThreadExitor::~ThreadExitor()
-{
-    for (const auto& funcPair : Funcs)
+#if defined(_WIN32)
+    if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
     {
-        std::get<1>(funcPair)();
+        PWSTR ret;
+        ::GetThreadDescription(::GetCurrentThread(), &ret);
+        return std::u16string(reinterpret_cast<const char16_t*>(ret));
     }
+    else
+    {
+        return u"";
+    }
+#else
+    char tmp[16];
+# if defined(__APPLE__)
+    pthread_getname_np(tmp, sizeof(tmp));
+# else
+    pthread_getname_np(pthread_self(), tmp, sizeof(tmp));
+# endif
+    return str::to_u16string(&tmp[0], str::Charset::UTF8);
+#endif
 }
 
 

@@ -203,8 +203,8 @@ private:
         ::std::setvbuf(fp, NULL, _IOFBF, 16384);
     }
 public:
-    FileObject(FileObject&& rhs) : FilePath(std::move(rhs.FilePath)), fp(rhs.fp) { rhs.fp = nullptr; }
-    FileObject& operator= (FileObject&& rhs) 
+    FileObject(FileObject&& rhs) noexcept : FilePath(std::move(rhs.FilePath)), fp(rhs.fp) { rhs.fp = nullptr; }
+    FileObject& operator= (FileObject&& rhs) noexcept
     {
         if (fp != nullptr)
             fclose(fp);
@@ -449,12 +449,12 @@ public:
     {
         BufBegin = File.CurrentPos();
     }
-    BufferedFileWriter(BufferedFileWriter&& other)
+    BufferedFileWriter(BufferedFileWriter&& other) noexcept
         : Buffer(std::move(other.Buffer)), File(std::move(other.File)), BufBegin(other.BufBegin), BufLen(other.BufLen) 
     {
         other.BufLen = 0;
     }
-    BufferedFileWriter& operator=(BufferedFileWriter&& other)
+    BufferedFileWriter& operator=(BufferedFileWriter&& other) noexcept
     {
         Flush();
         Buffer = std::move(other.Buffer), File = std::move(other.File), BufBegin = other.BufBegin, BufLen = other.BufLen;

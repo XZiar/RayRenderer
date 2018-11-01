@@ -3,6 +3,7 @@
 #include "CommonRely.hpp"
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <memory>
 #include <list>
 #include <tuple>
@@ -15,35 +16,9 @@
 namespace common
 {
 
-bool SetThreadName(const std::string& threadName);
-bool SetThreadName(const std::u16string& threadName);
-
-struct COMMONAPI ThreadExitor : public NonCopyable
-{
-private:
-    std::list<std::tuple<const void*, std::function<void(void)>>> Funcs;
-public:
-    static ThreadExitor& GetThreadExitor();
-    forcenoinline ~ThreadExitor();
-    static void Add(const void * const uid, const std::function<void(void)>& callback)
-    {
-        ThreadExitor& exitor = GetThreadExitor();
-        for (auto& funcPair : exitor.Funcs)
-        {
-            if (std::get<0>(funcPair) == uid)
-            {
-                std::get<1>(funcPair) = callback;
-                return;
-            }
-        }
-        exitor.Funcs.push_front(std::make_tuple(uid, callback));
-    }
-    static void Remove(const void * const uid)
-    {
-        ThreadExitor& exitor = GetThreadExitor();
-        exitor.Funcs.remove_if([=](const auto& pair) { return std::get<0>(pair) == uid; });
-    }
-};
+bool SetThreadName(const std::string_view threadName);
+bool SetThreadName(const std::u16string_view threadName);
+std::u16string GetThreadName();
 
 
 class COMMONAPI ThreadObject : public NonCopyable

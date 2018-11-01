@@ -118,12 +118,14 @@ public:
     AlignedBuffer(const size_t size, const std::byte fill, const size_t align = 64) noexcept : Size(size), Align(align)
     {
         Alloc();
-        memset(Data, std::to_integer<uint8_t>(fill), Size);
+        if (Data)
+            memset(Data, std::to_integer<uint8_t>(fill), Size);
     }
     AlignedBuffer(const AlignedBuffer& other) noexcept : Size(other.Size), Align(other.Align)
     {
         Alloc();
-        memcpy_s(Data, Size, other.Data, Size);
+        if (Data)
+            memcpy_s(Data, Size, other.Data, Size);
     }
     AlignedBuffer(AlignedBuffer&& other) noexcept : CoreInfo(other.CoreInfo), Data(other.Data), Size(other.Size), Align(other.Align)
     {

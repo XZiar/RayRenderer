@@ -29,21 +29,25 @@ protected:
     uint32_t Width, Height;
     ImageDataType DataType;
     uint8_t ElementSize;
+    forceinline size_t CalcSize() const noexcept { return static_cast<size_t>(Width) * Height * ElementSize; }
+    void CheckSizeLegal() const
+    {
+        if (CalcSize() != Size)
+            COMMON_THROW(BaseException, u"Size not match");
+    }
 public:
-    static constexpr uint8_t GetElementSize(const ImageDataType dataType);
+    static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
     Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer(data), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
-        if (Width*Height*ElementSize != Size)
-            COMMON_THROW(BaseException, u"Size not match");
+        CheckSizeLegal();
     }
     Image(common::AlignedBuffer&& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
         : common::AlignedBuffer(std::move(data)), Width(width), Height(height), DataType(dataType), ElementSize(GetElementSize(DataType))
     {
-        if (Width*Height*ElementSize != Size)
-            COMMON_THROW(BaseException, u"Size not match");
+        CheckSizeLegal();
     }
 
     using common::AlignedBuffer::GetSize;
@@ -51,16 +55,16 @@ public:
     uint32_t GetHeight() const noexcept { return Height; }
     ImageDataType GetDataType() const noexcept { return DataType; }
     uint8_t GetElementSize() const noexcept { return ElementSize; }
-    size_t RowSize() const noexcept { return Width * ElementSize; }
-    size_t PixelCount() const noexcept { return Width * Height; }
+    size_t RowSize() const noexcept { return static_cast<size_t>(Width) * ElementSize; }
+    size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
     {
-        Width = width, Height = height, Size = Width * Height * ElementSize;
+        Width = width, Height = height, Size = CalcSize();
         Alloc(zero);
     }
     void SetSize(const uint32_t width, const uint32_t height, const byte fill)
     {
-        Width = width, Height = height, Size = Width * Height * ElementSize;
+        Width = width, Height = height, Size = CalcSize();
         Alloc(false);
         memset(Data, std::to_integer<uint8_t>(fill), Size);
     }
@@ -69,17 +73,17 @@ public:
     {
         SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
-    bool IsGray() const { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
+    bool IsGray() const noexcept { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
     template<typename T = byte>
     T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
     {
-        return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
+        return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
     template<typename T = byte>
     const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {
-        return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
+        return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
     template<typename T = byte>
     std::vector<T*> GetRowPtrs(const size_t offset = 0)
@@ -102,11 +106,11 @@ public:
         return pointers;
     }
 
-    const common::AlignedBuffer& GetData() const
+    const common::AlignedBuffer& GetData() const noexcept
     {
         return *static_cast<const common::AlignedBuffer*>(this);
     }
-    common::AlignedBuffer ExtractData()
+    common::AlignedBuffer ExtractData() noexcept
     {
         common::AlignedBuffer data = std::move(*this);
         Width = Height = 0; ElementSize = 0;
@@ -143,8 +147,8 @@ class IMGUTILAPI ImageView : protected Image
 public:
     ImageView(const Image& image) : Image(image.CreateSubBuffer(0, image.Size), image.Width, image.Height, image.DataType) {}
     ImageView(const ImageView& imgview) : Image(imgview.CreateSubBuffer(0, imgview.Size), imgview.Width, imgview.Height, imgview.DataType) {}
-    ImageView(Image&& image) : Image(static_cast<common::AlignedBuffer&&>(image), image.Width, image.Height, image.DataType) {}
-    ImageView(ImageView&& imgview) : Image(static_cast<common::AlignedBuffer&&>(imgview), imgview.Width, imgview.Height, imgview.DataType) {}
+    ImageView(Image&& image) noexcept : Image(std::move(image)) {}
+    ImageView(ImageView&& imgview) noexcept : Image(std::move(static_cast<Image&&>(imgview))) {}
     ImageView& operator=(const Image& image)
     {
         *static_cast<common::AlignedBuffer*>(this) = image.CreateSubBuffer(0, image.Size);
@@ -157,13 +161,13 @@ public:
         Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
         return *this;
     }
-    ImageView& operator=(Image&& image)
+    ImageView& operator=(Image&& image) noexcept
     {
         *static_cast<common::AlignedBuffer*>(this) = static_cast<common::AlignedBuffer&&>(image);
         Width = image.Width; Height = image.Height; DataType = image.DataType; ElementSize = image.ElementSize;
         return *this;
     }
-    ImageView& operator=(ImageView&& imgview)
+    ImageView& operator=(ImageView&& imgview) noexcept
     {
         *static_cast<common::AlignedBuffer*>(this) = static_cast<common::AlignedBuffer&&>(imgview);
         Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
@@ -206,7 +210,7 @@ public:
 #   pragma warning(pop)
 #endif
 
-constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType)
+constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noexcept
 {
     const uint8_t baseSize = HAS_FIELD(dataType, ImageDataType::FLOAT_MASK) ? 4 : 1;
     switch (REMOVE_MASK(dataType, ImageDataType::FLOAT_MASK))

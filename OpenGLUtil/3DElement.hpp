@@ -248,14 +248,6 @@ public:
 };
 
 
-inline float mod(const float &l, const float &r)
-{
-    float t, e;
-    std::modf(l / r, &t);
-    e = t*r;
-    return l - e;
-}
-
 
 
 }

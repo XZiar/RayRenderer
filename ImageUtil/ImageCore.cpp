@@ -202,7 +202,7 @@ void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const boo
         COMMON_THROW(BaseException, u"image size cannot be all zero!");
     width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
     height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
-    common::AlignedBuffer output(width*height*ElementSize);
+    common::AlignedBuffer output(static_cast<size_t>(width)*height*ElementSize);
 
     const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;
     const int32_t channel = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? ElementSize / sizeof(float) : ElementSize;

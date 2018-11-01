@@ -19,8 +19,13 @@ void LoggerQBackend::LoggerWorker()
     LogMessage* msg;
     while (ShouldRun)
     {
-        if (!MsgQueue.pop(msg))
+        for (uint32_t i = 0; !MsgQueue.pop(msg); ++i)
         {
+            if (i < 16)
+            {
+                std::this_thread::yield();
+                continue;
+            }
             IsWaiting = true;
             CondWait.wait(lock, [&]()
             {
@@ -28,6 +33,7 @@ void LoggerQBackend::LoggerWorker()
                 return poped || !ShouldRun;
             });
             IsWaiting = false;
+            i = 0;
         }
         if (msg)
         {

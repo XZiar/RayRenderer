@@ -409,7 +409,7 @@ struct GB18030
         {
             if (size < 4)
                 return 0;
-            auto tmp = src - 0x10000 + LUT_GB18030_4B_SIZE;
+            auto tmp = LUT_GB18030_4B_SIZE + src - 0x10000;
             dest[0] = char(tmp / ((0xff - 0x81) * 10 * 10) + 0x81);
             tmp = tmp % ((0xff - 0x81) * 10 * 10);
             dest[1] = char(tmp / ((0xff - 0x81) * 10) + 0x30);
