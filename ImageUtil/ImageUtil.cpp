@@ -1,7 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageUtil.h"
 #include "common/Linq.hpp"
-#include "common/StrCharset.hpp"
 
 
 namespace xziar::img
@@ -36,13 +35,13 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
     auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY);
     ImgLog().debug(u"Read Image {}\n", path.u16string());
-    const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
+    const auto ext = common::strchset::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
     auto testList = GenerateSupportList(ext, dataType, true, true);
     for (auto& support : testList)
     {
         try
         {
-            auto reader = support->GetReader(imgFile);
+            auto reader = support->GetReader(imgFile, ext);
             if (!reader->Validate())
             {
                 reader->Release();
@@ -66,13 +65,13 @@ void WriteImage(const Image& image, const fs::path & path, const uint8_t quality
 {
     auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary);
     ImgLog().debug(u"Write Image {}\n", path.u16string());
-    const auto ext = str::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
+    const auto ext = common::strchset::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
     auto testList = GenerateSupportList(ext, image.GetDataType(), false, false);
     for (auto& support : testList)
     {
         try
         {
-            auto writer = support->GetWriter(imgFile);
+            auto writer = support->GetWriter(imgFile, ext);
             ImgLog().debug(u"Using [{}]\n", support->Name);
             return writer->Write(image, quality);
         }

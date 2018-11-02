@@ -35,8 +35,8 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const u16string Name;
-    virtual Wrapper<ImgReader> GetReader(FileObject& file) const = 0;
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const = 0;
+    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string& ext) const = 0;
+    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string& ext) const = 0;
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 

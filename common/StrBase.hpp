@@ -12,6 +12,16 @@ namespace common::str
 namespace detail
 {
 
+
+template<typename T>
+inline constexpr bool IsDirectString()
+{
+    return common::is_specialization<T, std::basic_string>::value
+        || common::is_specialization<T, std::basic_string_view>::value
+        || common::is_specialization<T, std::vector>::value;
+}
+
+
 template <typename Char, class T>
 inline constexpr bool is_str_vector_v()
 {
@@ -53,7 +63,7 @@ inline constexpr std::basic_string_view<Char> ToStringView(const std::vector<Cha
 
 }
 
-enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32 };
+enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32LE, UTF32BE };
 
 inline constexpr Charset toCharset(const std::string_view chset)
 {
@@ -67,6 +77,10 @@ inline constexpr Charset toCharset(const std::string_view chset)
         return Charset::UTF16LE;
     case "UTF-16BE"_hash:
         return Charset::UTF16BE;
+    case "UTF-32LE"_hash:
+        return Charset::UTF32LE;
+    case "UTF-32BE"_hash:
+        return Charset::UTF32BE;
     case "error"_hash:
         return Charset::ASCII;
     default:
@@ -89,8 +103,10 @@ inline constexpr std::string_view getCharsetName(const Charset chset)
         return "UTF-16BE"sv;
     case Charset::UTF16LE:
         return "UTF-16LE"sv;
-    case Charset::UTF32:
-        return "UTF-32"sv;
+    case Charset::UTF32LE:
+        return "UTF-32LE"sv;
+    case Charset::UTF32BE:
+        return "UTF-32BE"sv;
     default:
         return "error"sv;
     }

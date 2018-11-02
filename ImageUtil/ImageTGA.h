@@ -83,8 +83,8 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<TgaReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<TgaWriter>(file).cast_dynamic<ImgWriter>(); }
+    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<TgaReader>(file).cast_dynamic<ImgReader>(); }
+    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<TgaWriter>(file).cast_dynamic<ImgWriter>(); }
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".TGA" ? 240 : 0; }
 };
 

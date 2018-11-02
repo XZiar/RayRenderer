@@ -152,6 +152,11 @@
   <ItemGroup>
     <None Include="Makefile" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\StringCharset\StringCharset.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

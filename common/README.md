@@ -103,11 +103,11 @@ A collection of useful utilities
 
   A simple logger that provide thread-safe(maybe) logging and global logging management.
 
-  It uses [fmt](../3rdParty/fmt) as format support, with utf-support from [StrCharset](./StrCharset.hpp) (onyl new version).
+  It uses [fmt](../3rdParty/fmt) as format support.
 
 * [**AsyncExecutor**](./AsyncExecutor)
 
-  A async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
+  An async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
 
   It simply uses a polling scheduler, waiting events are queried every xx ms(default 20ms).
 

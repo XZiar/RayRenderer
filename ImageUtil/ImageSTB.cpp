@@ -1,7 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageSTB.h"
 #include "DataConvertor.hpp"
-#include "common/StrCharset.hpp"
 
 
 #define STBI_NO_HDR
@@ -154,9 +153,8 @@ Image StbReader::Read(const ImageDataType dataType)
 }
 
 
-StbWriter::StbWriter(FileObject& file) : ImgFile(file)
+StbWriter::StbWriter(FileObject& file, const u16string& ext) : ImgFile(file)
 {
-    const auto ext = str::ToUpperEng(ImgFile.extName(), common::str::Charset::UTF16LE);
     if (ext == u".PNG")      
         TargetType = ImgType::PNG;
     else if (ext == u".BMP") 

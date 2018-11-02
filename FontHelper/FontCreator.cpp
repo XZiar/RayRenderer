@@ -128,12 +128,11 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         Image tmpimg(std::move(img), width, height, ImageDataType::GRAY);
         if (width > fontsizelim || height > fontsizelim)
         {
-            const auto chstr = common::strchset::to_u16string(std::u32string(1, ch + a), common::str::Charset::UTF32);
-            fntLog().warning(u"ch {} has invalid size {} x {}\n", chstr, width, height);
+            //const auto chstr = common::strchset::to_u16string(, common::str::Charset::UTF32LE);
+            fntLog().warning(u"ch {} has invalid size {} x {}\n", std::u32string(1, ch + a), width, height);
             const auto ratio = std::max(width, height) * 4 / 128.0f;
             width = std::max(1u, uint32_t(width / ratio) * 4), height = std::max(1u, uint32_t(height / ratio) * 4);
             tmpimg.Resize(width, height);
-            memcpy_s(img.GetRawPtr(), img.GetSize(), tmpimg.GetRawPtr(), tmpimg.GetSize());
         }
         if (offset % 16)
             COMMON_THROW(BaseException, u"offset wrong");

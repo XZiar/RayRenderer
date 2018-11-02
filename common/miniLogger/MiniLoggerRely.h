@@ -133,7 +133,7 @@ private:
         else if constexpr (std::is_same_v<Char, char>)
             return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF8);
         else if constexpr (std::is_same_v<Char, char32_t>)
-            return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF32);
+            return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF32LE);
         else
             static_assert(!common::AlwaysTrue<Char>(), "unexpected Char type");
     }
@@ -180,7 +180,7 @@ public:
         {
             const auto& u32str = static_cast<const std::u32string_view&>(formatter);
             if constexpr (!hasArgs)
-                return common::strchset::to_u16string(u32str.data(), u32str.size(), common::str::Charset::UTF32);
+                return common::strchset::to_u16string(u32str.data(), u32str.size(), common::str::Charset::UTF32LE);
             else
             {
                 auto& buffer = GetBuffer<char32_t>();

@@ -74,8 +74,8 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file) const override { return Wrapper<BmpReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file) const override { return Wrapper<BmpWriter>(file).cast_dynamic<ImgWriter>(); }
+    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<BmpReader>(file).cast_dynamic<ImgReader>(); }
+    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<BmpWriter>(file).cast_dynamic<ImgWriter>(); }
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".BMP" ? 240 : 0; }
 };
 

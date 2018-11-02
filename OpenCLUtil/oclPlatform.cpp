@@ -1,7 +1,6 @@
 #include "oclRely.h"
 #include "oclPlatform.h"
 #include "oclUtil.h"
-#include "common/StrCharset.hpp"
 
 using common::container::FindInVec;
 using common::linq::Linq;
@@ -61,7 +60,7 @@ oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) 
 
 static Vendor JudgeBand(const u16string& name)
 {
-    const auto capName = str::ToUpperEng(name, str::Charset::UTF16LE);
+    const auto capName = common::strchset::ToUpperEng(name, str::Charset::UTF16LE);
     if (capName.find(u"NVIDIA") != u16string::npos)
         return Vendor::NVIDIA;
     else if (capName.find(u"AMD") != u16string::npos)
