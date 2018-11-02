@@ -29,7 +29,7 @@ Camera::Camera() noexcept
 
 void Camera::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    jself.Add("Name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Rotation", detail::ToJArray(context, Rotation));
     jself.Add("Right", detail::ToJArray(context, CamMat.x));
@@ -39,7 +39,7 @@ void Camera::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 }
 void Camera::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
-    Name = str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("Position"), Position);
     detail::FromJArray(object.GetArray("Rotation"), Rotation);
     detail::FromJArray(object.GetArray("Right"), CamMat.x);

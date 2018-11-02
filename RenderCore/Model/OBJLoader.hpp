@@ -1,6 +1,6 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "uchardetlib/uchardetlib.h"
+#include "StringCharset/Detect.h"
 #if COMPILER_MSVC // 15.8 has implemented it both fp&int
 #   include <charconv>
 #endif
@@ -54,10 +54,10 @@ public:
         {
             if (Params.size() <= index)
                 return u"";
-            return common::str::to_u16string(Params[index], charset);
+            return strchset::to_u16string(Params[index], charset);
         }
 
-        u16string ToUString() const { return common::str::to_u16string(Line, charset); }
+        u16string ToUString() const { return strchset::to_u16string(Line, charset); }
 
         b3d::Coord2D ParamsToFloat2(size_t offset) const
         {
@@ -150,8 +150,8 @@ public:
         common::file::ReadAll(FilePath, Content);
         Length = Content.size() - 1;
         CurPos = 0;
-        chset = uchdet::detectEncoding(Content);
-        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetWName(chset));
+        chset = strchset::DetectEncoding(Content);
+        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetName(chset));
     }
 
     TextLine ReadLine()

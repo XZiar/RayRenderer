@@ -122,8 +122,8 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         for (const auto ele : jdrawables)
         {
             const ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", str::to_u16string(jdrw.Get<string>("Name"), str::Charset::UTF8),
-                str::to_u16string(jdrw.Get<string>("#Type"), str::Charset::UTF8));
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", strchset::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
+                strchset::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)
                 WaitDrawables.insert(drw);

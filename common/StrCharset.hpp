@@ -11,67 +11,28 @@ namespace common::str
 {
 
 
-enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32 };
-
-inline Charset toCharset(const std::string& chset)
-{
-    switch (hash_(chset))
-    {
-    case "GB18030"_hash:
-        return Charset::GB18030;
-    case "UTF-8"_hash:
-        return Charset::UTF8;
-    case "UTF-16LE"_hash:
-        return Charset::UTF16LE;
-    case "UTF-16BE"_hash:
-        return Charset::UTF16BE;
-    case "error"_hash:
-        return Charset::ASCII;
-    default:
-        return Charset::ASCII;
-    }
-}
-
-inline std::wstring getCharsetWName(const Charset chset)
-{
-    switch (chset)
-    {
-    case Charset::ASCII:
-        return L"ASCII";
-    case Charset::GB18030:
-        return L"GB18030";
-    case Charset::UTF8:
-        return L"UTF-8";
-    case Charset::UTF16BE:
-        return L"UTF-16BE";
-    case Charset::UTF16LE:
-        return L"UTF-16LE";
-    case Charset::UTF32:
-        return L"UTF-32";
-    default:
-        return L"error";
-    }
-}
-
 
 namespace detail
 {
 
+inline constexpr auto InvalidChar = static_cast<char32_t>(-1);
+inline constexpr auto InvalidCharPair = std::pair<char32_t, uint32_t>{ InvalidChar, 0 };
+
 struct ConvertBase//just for template
 {
-    static char32_t From(const char* __restrict const, const size_t, uint8_t&)
+    static constexpr std::pair<char32_t, uint32_t> From(const char* __restrict const, const size_t)
     {
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE)
     {
-        return From(src, size, len);
+        return From(src, size);
     }
-    static uint8_t To(const char32_t, const size_t, char* __restrict const)
+    static constexpr uint8_t To(const char32_t, const size_t, char* __restrict const)
     {
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -79,20 +40,19 @@ struct ConvertBase//just for template
 
 struct UTF7
 {
-    static char32_t From(const char* __restrict const src, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> From(const char* __restrict const src, const size_t size)
     {
         if (size >= 1 && src[0] > 0)
         {
-            len = 1;
-            return src[0];
+            return { src[0], 1 };
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE)
     {
-        return From(src, size, len);
+        return From(src, size);
     }
-    static uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
+    static constexpr uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
     {
         if (size >= 1 && src < 128)
         {
@@ -101,7 +61,7 @@ struct UTF7
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -109,24 +69,20 @@ struct UTF7
 
 struct UTF32
 {
-    static char32_t From(const char32_t* __restrict const src, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> From(const char32_t* __restrict const src, const size_t size)
     {
         if (size >= 1 && src[0] < 0x200000)
         {
-            len = 1;
-            return src[0];
+            return { src[0], 1 };
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE)
     {
-        uint8_t len4;
-        const auto ret = From(reinterpret_cast<const char32_t*>(src), size / 4, len4);
-        if (ret != (char32_t)-1)
-            len = len4 * 4;
-        return ret;
+        const auto [ch, len] = From(reinterpret_cast<const char32_t*>(src), size / 4);
+        return { ch, len * 4 };
     }
-    static uint8_t To(const char32_t src, const size_t size, char32_t* __restrict const dest)
+    static constexpr uint8_t To(const char32_t src, const size_t size, char32_t* __restrict const dest)
     {
         if (size >= 1 && src < 0x200000)
         {
@@ -135,7 +91,7 @@ struct UTF32
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return 4 * To(src, size / 4, reinterpret_cast<char32_t*>(dest));
     }
@@ -143,51 +99,47 @@ struct UTF32
 
 struct UTF8
 {
-    static char32_t From(const char* __restrict const src0, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> From(const char* __restrict const src0, const size_t size)
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return (char32_t)-1;
+            return InvalidCharPair;
         if (src[0] < 0x80)//1 byte
         {
-            len = 1;
-            return src[0];
+            return { src[0], 1 };
         }
         if ((src[0] & 0xe0) == 0xc0)//2 byte
         {
             if (size >= 2 && (src[1] & 0xc0) == 0x80)
             {
-                len = 2;
-                return ((src[0] & 0x1f) << 6) | (src[1] & 0x3f);
+                return { ((src[0] & 0x1f) << 6) | (src[1] & 0x3f), 2 };
             }
-            return (char32_t)-1;
+            return InvalidCharPair;
         }
         if ((src[0] & 0xf0) == 0xe0)//3 byte
         {
             if (size >= 3 && ((src[1] & 0xc0) == 0x80) && ((src[2] & 0xc0) == 0x80))
             {
-                len = 3;
-                return ((src[0] & 0x0f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
+                return { ((src[0] & 0x0f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f), 3 };
             }
-            return (char32_t)-1;
+            return InvalidCharPair;
         }
         if ((src[0] & 0xf8) == 0xf0)//4 byte
         {
             if (size >= 4 && ((src[1] & 0xc0) == 0x80) && ((src[2] & 0xc0) == 0x80) && ((src[3] & 0xc0) == 0x80))
             {
-                len = 4;
-                return ((src[0] & 0x0f) << 18) | ((src[1] & 0x3f) << 12) | ((src[2] & 0x3f) << 6) | (src[3] & 0x3f);
+                return { ((src[0] & 0x0f) << 18) | ((src[1] & 0x3f) << 12) | ((src[2] & 0x3f) << 6) | (src[3] & 0x3f), 4 };
             }
-            return (char32_t)-1;
+            return InvalidCharPair;
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE)
     {
-        return From(src, size, len);
+        return From(src, size);
     }
 
-    static uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
+    static constexpr uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
     {
         if (src < 0x80)//1 byte
         {
@@ -219,7 +171,7 @@ struct UTF8
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -228,28 +180,26 @@ struct UTF8
 struct UTF16
 {
 private:
-    static char32_t FromBE(const char16_t* __restrict const src0, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBE(const char16_t* __restrict const src0, const size_t size)
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return (char32_t)-1;
+            return InvalidCharPair;
         if (src[0] < 0xd8 || src[0] >= 0xe0)//1 unit
         {
-            len = 1;
-            return (src[0] << 8) | src[1];
+            return { (src[0] << 8) | src[1], 1 };
         }
         if (src[0] < 0xdc)//2 unit
         {
             if (size >= 2 && src[2] >= 0xdc)
             {
-                len = 2;
-                return (((src[0] & 0x3) << 18) | (src[1] << 10) | ((src[2] & 0x3) << 8) | src[3]) + 0x10000;
+                return { (((src[0] & 0x3) << 18) | (src[1] << 10) | ((src[2] & 0x3) << 8) | src[3]) + 0x10000, 2 };
             }
-            return (char32_t)-1;
+            return InvalidCharPair;
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static uint8_t ToBE(const char32_t src, const size_t size, char16_t* __restrict const dest0)
+    static constexpr uint8_t ToBE(const char32_t src, const size_t size, char16_t* __restrict const dest0)
     {
         uint8_t* __restrict const dest = reinterpret_cast<uint8_t*>(dest0);
         if (size < 1)
@@ -278,36 +228,31 @@ private:
         return 0;
     }
 public:
-    static char32_t From(const char16_t* __restrict const src, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> From(const char16_t* __restrict const src, const size_t size)
     {
         if (size == 0)
-            return (char32_t)-1;
+            return InvalidCharPair;
         if (src[0] < 0xd800 || src[0] >= 0xe000)//1 unit
         {
-            len = 1;
-            return src[0];
+            return { src[0], 1 };
         }
         if (src[0] <= 0xdbff)//2 unit
         {
             if (size >= 2 && src[1] >= 0xdc00 && src[1] <= 0xdfff)
             {
-                len = 2;
-                return (((src[0] & 0x3ff) << 10) | (src[1] & 0x3ff)) + 0x10000;
+                return { (((src[0] & 0x3ff) << 10) | (src[1] & 0x3ff)) + 0x10000, 1 };
             }
-            return (char32_t)-1;
+            return InvalidCharPair;
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, const bool isLE)
     {
-        uint8_t len2 = 0;
-        const auto ch = isLE ? From(reinterpret_cast<const char16_t*>(src), size / 2, len2)
-            : FromBE(reinterpret_cast<const char16_t*>(src), size / 2, len2);
-        if (ch != (char32_t)-1)
-            len = len2 * 2;
-        return ch;
+        const auto[ch, len] = isLE ? From(reinterpret_cast<const char16_t*>(src), size / 2)
+            : FromBE(reinterpret_cast<const char16_t*>(src), size / 2);
+        return { ch, len * 2 };
     }
-    static uint8_t To(const char32_t src, const size_t size, char16_t* __restrict const dest)
+    static constexpr uint8_t To(const char32_t src, const size_t size, char16_t* __restrict const dest)
     {
         if (src < 0xd800)
         {
@@ -329,7 +274,7 @@ public:
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, const bool isLE, char* __restrict const dest)
     {
         const auto len = isLE ? To(src, size / 2, reinterpret_cast<char16_t*>(dest))
             : ToBE(src, size / 2, reinterpret_cast<char16_t*>(dest));
@@ -340,15 +285,14 @@ public:
 #include "LUT_gb18030.tab"
 struct GB18030
 {
-    static char32_t From(const char* __restrict const src0, const size_t size, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> From(const char* __restrict const src0, const size_t size)
     {
         const uint8_t* __restrict const src = reinterpret_cast<const uint8_t*>(src0);
         if (size == 0)
-            return (char32_t)-1;
+            return InvalidCharPair;
         if (src[0] < 0x80)//1 byte
         {
-            len = 1;
-            return src[0];
+            return { src[0], 1 };
         }
         if (src[0] >= 0x81 && src[0] <= 0xfe && size >= 2)
         {
@@ -356,26 +300,22 @@ struct GB18030
             {
                 const uint32_t tmp = (src[0] << 8) | src[1];
                 const auto ch = LUT_GB18030_2B[tmp - LUT_GB18030_2B_BEGIN];
-                if (ch != 0)
-                    len = 2;
-                return (char32_t)ch;
+                return { ch, 2 };
             }
             if (size >= 4 && src[1] >= 0x30 && src[1] <= 0x39 && src[2] >= 0x81 && src[2] <= 0xfe && src[3] >= 0x30 && src[3] <= 0x39)//4 byte
             {
                 const uint32_t tmp = ((src[3] - 0x30) + (src[2] - 0x81) * 10 + (src[1] - 0x30)* (0xff - 0x81) * 10 + (src[0] - 0x81) * (0xff - 0x81) * 10 * 10);
                 const auto ch = tmp < LUT_GB18030_4B_SIZE ? LUT_GB18030_4B[tmp] : 0x10000 + (tmp - LUT_GB18030_4B_SIZE);
-                if (ch != 0)
-                    len = 4;
-                return (char32_t)ch;
+                return { ch, 4 };
             }
         }
-        return (char32_t)-1;
+        return InvalidCharPair;
     }
-    static char32_t FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE, uint8_t& len)
+    static constexpr std::pair<char32_t, uint32_t> FromBytes(const char* __restrict const src, const size_t size, [[maybe_unused]] const bool isLE)
     {
-        return From(src, size, len);
+        return From(src, size);
     }
-    static uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
+    static constexpr uint8_t To(const char32_t src, const size_t size, char* __restrict const dest)
     {
         if (src < 0x80)//1 byte
         {
@@ -420,7 +360,7 @@ struct GB18030
         }
         return 0;
     }
-    static uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
+    static constexpr uint8_t ToBytes(const char32_t src, const size_t size, [[maybe_unused]] const bool isLE, char* __restrict const dest)
     {
         return To(src, size, dest);
     }
@@ -433,9 +373,8 @@ inline void ForEachChar(const CharT* __restrict const str, const size_t size, co
     const char* __restrict src = reinterpret_cast<const char*>(str);
     for (size_t srcBytes = size * sizeof(CharT); srcBytes > 0;)
     {
-        uint8_t len = 0;
-        const char32_t codepoint = From::FromBytes(src, srcBytes, fromLE, len);
-        if (codepoint == (char32_t)-1)//fail
+        const auto[codepoint, len] = From::FromBytes(src, srcBytes, fromLE);
+        if (codepoint == InvalidChar)//fail
         {
             //move to next element
             srcBytes -= sizeof(CharT);
@@ -459,16 +398,15 @@ inline void ForEachCharPair(const CharT1* __restrict const str1, const size_t si
     const char* __restrict src2 = reinterpret_cast<const char*>(str2);
     for (size_t srcBytes1 = size1 * sizeof(CharT1), srcBytes2 = size2 * sizeof(CharT2); srcBytes1 > 0 && srcBytes2 > 0;)
     {
-        uint8_t len1 = 0, len2 = 0;
-        const char32_t cp1 = From1::FromBytes(src1, srcBytes1, fromLE1, len1);
-        const char32_t cp2 = From2::FromBytes(src2, srcBytes2, fromLE2, len2);
-        if (cp1 == (char32_t)-1)//fail
+        const auto[cp1, len1] = From1::FromBytes(src1, srcBytes1, fromLE1);
+        const auto[cp2, len2] = From2::FromBytes(src2, srcBytes2, fromLE2);
+        if (cp1 == InvalidChar)//fail
         {
             //move to next element
             srcBytes1 -= sizeof(CharT1);
             src1 += sizeof(CharT1);
         }
-        if (cp2 == (char32_t)-1)
+        if (cp2 == InvalidChar)
         {
             //move to next element
             srcBytes2 -= sizeof(CharT2);
@@ -498,9 +436,9 @@ public:
         size_t cacheidx = 0;
         for (size_t srcBytes = size * sizeof(SrcType); srcBytes > 0;)
         {
-            uint8_t len = 0;
-            const char32_t codepoint = transFunc(From::FromBytes(src, srcBytes, fromLE, len));
-            if (codepoint == (char32_t)-1)//fail
+            auto[codepoint, len] = From::FromBytes(src, srcBytes, fromLE);
+            codepoint = transFunc(codepoint);
+            if (codepoint == InvalidChar)//fail
             {
                 //move to next element
                 srcBytes -= sizeof(SrcType);
@@ -513,14 +451,14 @@ public:
                 src += len;
             }
             char* __restrict dest = &((char*)ret.data())[cacheidx];
-            len = To::ToBytes(codepoint, sizeof(char32_t), toLE, dest);
-            if (len == 0)//fail
+            const auto len2 = To::ToBytes(codepoint, sizeof(char32_t), toLE, dest);
+            if (len2 == 0)//fail
             {
                 ;//do nothing, skip
             }
             else
             {
-                cacheidx += len;
+                cacheidx += len2;
             }
         }
         const auto destSize = (cacheidx + sizeof(DestType) - 1) / sizeof(DestType);
@@ -546,9 +484,9 @@ public:
         size_t cacheidx = 0;
         for (size_t srcBytes = size * sizeof(SrcType); srcBytes > 0;)
         {
-            uint8_t len = 0;
-            const char32_t codepoint = transFunc(UTF16::FromBytes(src, srcBytes, fromLE, len));
-            if (codepoint == (char32_t)-1)//fail
+            auto[codepoint, len] = UTF16::FromBytes(src, srcBytes, fromLE);
+            codepoint = transFunc(codepoint);
+            if (codepoint == InvalidChar)//fail
             {
                 //move to next element
                 srcBytes -= sizeof(SrcType);
@@ -561,14 +499,14 @@ public:
                 src += len;
             }
             char* __restrict dest = &((char*)ret.data())[cacheidx];
-            len = UTF16::ToBytes(codepoint, sizeof(char32_t), toLE, dest);
-            if (len == 0)//fail
+            const auto len2 = UTF16::ToBytes(codepoint, sizeof(char32_t), toLE, dest);
+            if (len2 == 0)//fail
             {
                 ;//do nothing, skip
             }
             else
             {
-                cacheidx += len;
+                cacheidx += len2;
             }
         }
         const auto destSize = (cacheidx + sizeof(DestType) - 1) / sizeof(DestType);
@@ -749,11 +687,6 @@ forceinline std::string to_string(const std::vector<Char, Alloc>& str, const Cha
 {
     return to_string(str.data(), str.size(), outchset, inchset);
 }
-template<typename Char, size_t N>
-forceinline std::string to_string(const Char(&str)[N], const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
-{
-    return to_string(str, N - 1, outchset, inchset);
-}
 template<typename Char>
 forceinline std::string to_string(const Char* str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
 {
@@ -780,11 +713,6 @@ template<typename Char, typename Alloc>
 forceinline std::string to_u8string(const std::vector<Char, Alloc>& str, const Charset inchset = Charset::ASCII)
 {
     return to_string(str.data(), str.size(), Charset::UTF8, inchset);
-}
-template<typename Char, size_t N>
-forceinline std::string to_u8string(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    return to_string(str, N - 1, Charset::UTF8, inchset);
 }
 template<typename Char>
 forceinline std::string to_u8string(const Char* str, const Charset inchset = Charset::ASCII)
@@ -841,11 +769,6 @@ forceinline std::u16string to_u16string(const std::vector<Char, Alloc>& str, con
 {
     return to_u16string(str.data(), str.size(), inchset);
 }
-template<typename Char, size_t N>
-forceinline std::u16string to_u16string(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    return to_u16string(str, N - 1, inchset);
-}
 template<typename Char>
 forceinline std::u16string to_u16string(const Char* str, const Charset inchset = Charset::ASCII)
 {
@@ -901,11 +824,6 @@ forceinline std::u32string to_u32string(const std::vector<Char, Alloc>& str, con
 {
     return to_u32string(str.data(), str.size(), inchset);
 }
-template<typename Char, size_t N>
-forceinline std::u32string to_u32string(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    return to_u32string(str, N - 1, inchset);
-}
 template<typename Char>
 forceinline std::u32string to_u32string(const Char* str, const Charset inchset = Charset::ASCII)
 {
@@ -925,9 +843,9 @@ forceinline std::wstring to_wstring(const Char *str, const size_t size, const Ch
     {
         const auto wstr = to_u32string(str, size, inchset);
         return *(const std::wstring*)&wstr;
-    }  
+    }
     else
-        return std::wstring();
+        static_assert(AlwaysTrue<Char>(), "unrecognized wchar_t size");
 }
 template<typename Char, typename Traits, typename Alloc>
 forceinline std::wstring to_wstring(const std::basic_string<Char, Traits, Alloc>& str, const Charset inchset = Charset::ASCII)
@@ -941,9 +859,9 @@ forceinline std::wstring to_wstring(const std::basic_string<Char, Traits, Alloc>
     {
         const auto wstr = to_u32string(str.data(), str.size(), inchset);
         return *(const std::wstring*)&wstr;
-    }  
+    }
     else
-        return std::wstring();
+        static_assert(AlwaysTrue<Char>(), "unrecognized wchar_t size");
 }
 template<typename Char, typename Traits>
 forceinline std::wstring to_wstring(const std::basic_string_view<Char, Traits>& str, const Charset inchset = Charset::ASCII)
@@ -957,35 +875,25 @@ forceinline std::wstring to_wstring(const std::basic_string_view<Char, Traits>& 
     {
         const auto wstr = to_u32string(str.data(), str.size(), inchset);
         return *(const std::wstring*)&wstr;
-    }  
+    }
     else
-        return std::wstring();
+        static_assert(AlwaysTrue<Char>(), "unrecognized wchar_t size");
 }
 template<typename Char, typename Alloc>
 forceinline std::wstring to_wstring(const std::vector<Char, Alloc>& str, const Charset inchset = Charset::ASCII)
 {
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
+    if constexpr (sizeof(wchar_t) == sizeof(char16_t))
     {
         const auto wstr = to_u16string(str.data(), str.size(), inchset);
         return *(const std::wstring*)&wstr;
-    }    
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
+    }
+    else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
     {
         const auto wstr = to_u32string(str.data(), str.size(), inchset);
         return *(const std::wstring*)&wstr;
-    }    
+    }
     else
-        return std::wstring();
-}
-template<typename Char, size_t N>
-forceinline std::wstring to_wstring(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    if constexpr(sizeof(wchar_t) == sizeof(char16_t))
-        return *(std::wstring*)&to_u16string(str, N - 1, inchset);
-    else if constexpr(sizeof(wchar_t) == sizeof(char32_t))
-        return *(std::wstring*)&to_u32string(str, N - 1, inchset);
-    else
-        return std::wstring();
+        static_assert(AlwaysTrue<Char>(), "unrecognized wchar_t size");
 }
 template<typename Char>
 forceinline std::wstring to_wstring(const Char* str, const Charset inchset = Charset::ASCII)
@@ -1001,7 +909,7 @@ forceinline std::wstring to_wstring(const Char* str, const Charset inchset = Cha
         return *(const std::wstring*)&wstr;
     }
     else
-        return std::wstring();
+        static_assert(AlwaysTrue<Char>(), "unrecognized wchar_t size");
 }
 
 
@@ -1065,11 +973,6 @@ template<typename Char, typename Alloc, typename Consumer>
 forceinline void ForEachChar(const std::vector<Char, Alloc>& str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
 {
     return ForEachChar(str.data(), str.size(), consumer, inchset);
-}
-template<typename Char, size_t N, typename Consumer>
-forceinline void ForEachChar(const Char(&str)[N], const Consumer& consumer, const Charset inchset = Charset::ASCII)
-{
-    return ForEachChar(str, N - 1, consumer, inchset);
 }
 template<typename Char, typename Consumer>
 forceinline void ForEachChar(const Char* str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
@@ -1148,11 +1051,6 @@ forceinline std::basic_string<Char> ToUpperEng(const std::vector<Char, Alloc>& s
 {
     return ToUpperEng(str.data(), str.size(), inchset);
 }
-template<typename Char, size_t N>
-forceinline std::basic_string<Char> ToUpperEng(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    return ToUpperEng(str, N - 1, inchset);
-}
 template<typename Char>
 forceinline std::basic_string<Char> ToUpperEng(const Char* str, const Charset inchset = Charset::ASCII)
 {
@@ -1213,11 +1111,6 @@ template<typename Char, typename Alloc>
 forceinline std::basic_string<Char> ToLowerEng(const std::vector<Char, Alloc>& str, const Charset inchset = Charset::ASCII)
 {
     return ToLowerEng(str.data(), str.size(), inchset);
-}
-template<typename Char, size_t N>
-forceinline std::basic_string<Char> ToLowerEng(const Char(&str)[N], const Charset inchset = Charset::ASCII)
-{
-    return ToLowerEng(str, N - 1, inchset);
 }
 template<typename Char>
 forceinline std::basic_string<Char> ToLowerEng(const Char* str, const Charset inchset = Charset::ASCII)

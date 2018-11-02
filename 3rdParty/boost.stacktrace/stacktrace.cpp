@@ -1,5 +1,6 @@
 #include "stacktrace.h"
 #include "common/StrCharset.hpp"
+#define THREADEX_USEHEADER 1
 #include "common/ThreadEx.inl"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1

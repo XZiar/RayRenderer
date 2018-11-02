@@ -15,7 +15,6 @@
 #endif
 
 #include "CommonRely.hpp"
-#include "StrCharset.hpp"
 #include "Exceptions.hpp"
 #include "AlignedContainer.hpp"
 
@@ -28,14 +27,6 @@
 #include <optional>
 
 
-#if defined(USING_CHARDET) && !defined(UCHARDETLIB_H_)
-namespace uchdet
-{
-template<typename T>
-common::str::Charset detectEncoding(const std::basic_string<T>& str);
-}
-#endif
-
 namespace common::file
 {
 
@@ -43,13 +34,6 @@ namespace common::file
 using std::string;
 using std::u16string;
 using std::byte;
-using common::str::Charset;
-
-#if defined(USING_CHARDET) || defined(UCHARDETLIB_H_)
-#   define GET_ENCODING(str, chset) chset = uchdet::detectEncoding(str)
-#else
-#   define GET_ENCODING(str, chset) COMMON_THROW(BaseException, u"UnSuppoted, lacks uchardet");
-#endif
 
 
 enum class OpenFlag : uint8_t 
@@ -121,23 +105,6 @@ public:
         std::string text;
         ReadAll(text);
         return text;
-    }
-
-    std::string ReadAllText(Charset& chset)
-    {
-        auto text = ReadAllText();
-        GET_ENCODING(text, chset);
-        return text;
-    }
-
-    std::string ReadAllTextUTF8(const Charset chset)
-    {
-        Charset rawChar;
-        auto text = ReadAllText(rawChar);
-        if (rawChar == Charset::UTF8)
-            return text;
-        else
-            return str::to_u8string(text, rawChar);
     }
 };
 

@@ -17,7 +17,7 @@ namespace detail
 static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const void * private_info, size_t, void *user_data)
 {
     const _oclContext& ctx = *(_oclContext*)user_data;
-    const auto u16Info = str::to_u16string(errinfo);
+    const auto u16Info = common::strchset::to_u16string(errinfo, common::strchset::Charset::UTF8);
     oclLog().verbose(u"{}\n", u16Info);
     if (ctx.onMessage)
         ctx.onMessage(u16Info);

@@ -78,6 +78,9 @@
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />

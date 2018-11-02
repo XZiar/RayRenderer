@@ -22,12 +22,12 @@
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StringEx.hpp"
-#include "common/StrCharset.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/PromiseTask.hpp"
 #include "common/Linq.hpp"
 
 #include "ImageUtil/ImageCore.h"
+#include "StringCharset/Convert.h"
 #include "OpenGLUtil/oglBuffer.h"
 #include "OpenGLUtil/oglTexture.h"
 #include "OpenGLUtil/oglContext.h"

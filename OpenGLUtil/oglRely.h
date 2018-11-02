@@ -23,8 +23,6 @@
 #include "common/ContainerEx.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StringEx.hpp"
-#include "common/StrCharset.hpp"
-#define USING_CHARDET
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"

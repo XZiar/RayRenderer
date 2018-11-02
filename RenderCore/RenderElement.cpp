@@ -198,7 +198,7 @@ void Drawable::RegistControllable()
 
 void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    jself.Add("Name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Uid", boost::uuids::to_string(Uid));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Rotation", detail::ToJArray(context, Rotation));
@@ -208,7 +208,7 @@ void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 
 void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
 {
-    Name = str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
     detail::FromJArray(object.GetArray("Position"), Position);
     detail::FromJArray(object.GetArray("Rotation"), Rotation);

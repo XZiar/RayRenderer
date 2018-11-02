@@ -1,6 +1,7 @@
 #include "ImageUtilRely.h"
 #include "ImageUtil.h"
 #include "common/Linq.hpp"
+#include "common/StrCharset.hpp"
 
 
 namespace xziar::img

@@ -183,9 +183,6 @@
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\uchardetlib\uchardetlib.vcxproj">
-      <Project>{7be97d3d-f242-4ab9-8eee-05b974e0e15e}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\common\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
@@ -206,6 +203,9 @@
     </ProjectReference>
     <ProjectReference Include="..\ResourcePackager\ResourcePackager.vcxproj">
       <Project>{a9f8df7e-4636-4c92-8d78-9d8214414986}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\TextureUtil\TextureUtil.vcxproj">
       <Project>{2546bbda-0ad8-409a-8fcf-bb89ac8a9635}</Project>

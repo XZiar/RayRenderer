@@ -28,7 +28,6 @@
 
 namespace xziar::respak
 {
-namespace str = common::str;
 namespace fs = common::fs;
 using common::file::FileObject;
 using common::file::OpenFlag;

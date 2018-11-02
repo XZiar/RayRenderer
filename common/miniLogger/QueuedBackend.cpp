@@ -16,7 +16,7 @@ void LoggerQBackend::LoggerWorker()
 {
     std::unique_lock<std::mutex> lock(RunningMtx);
     OnStart();
-    LogMessage* msg;
+    LogMessage* msg = nullptr;
     while (ShouldRun)
     {
         for (uint32_t i = 0; !MsgQueue.pop(msg); ++i)
@@ -33,7 +33,7 @@ void LoggerQBackend::LoggerWorker()
                 return poped || !ShouldRun;
             });
             IsWaiting = false;
-            i = 0;
+            break;
         }
         if (msg)
         {

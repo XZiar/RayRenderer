@@ -94,7 +94,7 @@ void RenderPass::Draw(RenderPassContext & context)
 
 void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    jself.Add("Name", str::to_u8string(GetName(), Charset::UTF16LE));
+    jself.Add("Name", strchset::to_u8string(GetName(), Charset::UTF16LE));
     auto jdrawables = context.NewArray();
     for (const auto& d : Drawables)
     {
@@ -107,7 +107,7 @@ void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 
 void RenderPass::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
-    SetName(str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+    SetName(strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
 }
 
 

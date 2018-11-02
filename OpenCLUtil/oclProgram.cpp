@@ -101,7 +101,7 @@ u16string _oclProgram::GetBuildLog(const cl_device_id dev) const
                 string logstr(logsize, '\0');
                 clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
                 logstr.pop_back();
-                return str::to_u16string(logstr);
+                return common::strchset::to_u16string(logstr, common::strchset::Charset::UTF8);
             }
             return u"";
         }

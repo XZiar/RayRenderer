@@ -1,6 +1,7 @@
 #include "oclRely.h"
 #include "oclPlatform.h"
 #include "oclUtil.h"
+#include "common/StrCharset.hpp"
 
 using common::container::FindInVec;
 using common::linq::Linq;

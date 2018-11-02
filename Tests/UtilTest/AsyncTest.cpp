@@ -4,7 +4,7 @@
 #include "common/miniLogger/QueuedBackend.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
-#include "common/StrCharset.hpp"
+#include "StringCharset/Convert.h"
 #include "fmt/format.h"
 #include <thread>
 #include <sstream>
@@ -74,7 +74,7 @@ static std::u16string fmtContext(const boost::context::continuation& ctx)
 {
     std::ostringstream strstream;
     strstream << ctx;
-    return str::to_u16string(strstream.str());
+    return strchset::to_u16string(strstream.str());
 }
 
 static void AsyncTest()
@@ -105,7 +105,7 @@ static void AsyncTest()
             uint32_t sec = 0;
             std::string msg;
             std::cin >> sec >> msg;
-            pms = manager.AddTask((getException(sec, str::to_u16string(msg))));
+            pms = manager.AddTask((getException(sec, strchset::to_u16string(msg))));
         }
         else if (act == "wait" && pms)
         {

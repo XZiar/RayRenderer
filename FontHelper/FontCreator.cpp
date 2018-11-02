@@ -128,7 +128,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         Image tmpimg(std::move(img), width, height, ImageDataType::GRAY);
         if (width > fontsizelim || height > fontsizelim)
         {
-            const auto chstr = str::to_u16string(std::u32string(1, ch + a), str::Charset::UTF32);
+            const auto chstr = common::strchset::to_u16string(std::u32string(1, ch + a), common::str::Charset::UTF32);
             fntLog().warning(u"ch {} has invalid size {} x {}\n", chstr, width, height);
             const auto ratio = std::max(width, height) * 4 / 128.0f;
             width = std::max(1u, uint32_t(width / ratio) * 4), height = std::max(1u, uint32_t(height / ratio) * 4);

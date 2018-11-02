@@ -3,7 +3,7 @@
 #include "common/ContainerEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/StrCharset.hpp"
-#include "uchardetlib/uchardetlib.h"
+#include "StringCharset/Detect.h"
 
 using namespace common::mlog;
 using namespace common;
@@ -48,7 +48,7 @@ static void TestStrConv()
 
     std::string u8raw;
     file::ReadAll(basePath / u"utf8-sample.html", u8raw);
-    const auto chtype = uchdet::detectEncoding(u8raw);
+    const auto chtype = common::strchset::DetectEncoding(u8raw);
     utf16 = str::to_u16string(u8raw, chtype);
     //log().debug(u"csv-u16 txt:\n{}\n", utf16);
     vector<std::byte> csvdest(utf16.size() * 2 + 2, std::byte(0));

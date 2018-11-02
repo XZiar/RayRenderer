@@ -27,7 +27,6 @@
 #include "common/Linq.hpp"
 #include "common/ThreadEx.h"
 #include "common/StringEx.hpp"
-#include "common/StrCharset.hpp"
 #include "common/PromiseTask.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
@@ -36,6 +35,7 @@
 #include "ResourcePackager/SerializeUtil.h"
 #include "TextureUtil/TexUtilRely.h"
 #include "3rdParty/boost.stacktrace/stacktrace.h"
+#include "StringCharset/Convert.h"
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -65,6 +65,7 @@ namespace rayr
 namespace str = common::str;
 namespace fs = common::fs;
 namespace ejson = xziar::ejson;
+namespace strchset = common::strchset;
 using std::byte;
 using std::wstring;
 using std::string;

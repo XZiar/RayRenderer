@@ -1,5 +1,12 @@
 #include "ThreadEx.h"
-#include "StrCharset.hpp"
+#include "StrBase.hpp"
+#if defined(THREADEX_USEHEADER)
+# include "StrCharset.hpp"
+namespace strconv = common::str;
+#else
+# include "../StringCharset/Convert.h"
+namespace strconv = common::strchset;
+#endif
 #if defined(_WIN32)
 # define WIN32_LEAN_AND_MEAN 1
 # define NOMINMAX 1
@@ -92,14 +99,14 @@ bool SetThreadName(const std::u16string_view threadName)
     else
     {
         detail::THREADNAME_INFO info;
-        const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
+        const auto asciiThreadName = strconv::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
         info.szName = asciiThreadName.data();
         info.dwThreadID = GetCurrentThreadId();
         info.dwFlags = 0;
         detail::SetThreadNameImpl(&info);
     }
 #else
-    const auto u8TName = str::to_u8string(threadName, str::Charset::UTF8);
+    const auto u8TName = strconv::to_u8string(threadName, str::Charset::UTF8);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
 # if defined(__APPLE__)
@@ -131,7 +138,7 @@ std::u16string GetThreadName()
 # else
     pthread_getname_np(pthread_self(), tmp, sizeof(tmp));
 # endif
-    return str::to_u16string(&tmp[0], str::Charset::UTF8);
+    return strconv::to_u16string(&tmp[0], str::Charset::UTF8);
 #endif
 }
 

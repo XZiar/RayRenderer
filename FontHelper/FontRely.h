@@ -25,6 +25,7 @@
 #include "common/Exceptions.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/FileEx.hpp"
+#include "common/StrBase.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "ImageUtil/ImageUtil.h"

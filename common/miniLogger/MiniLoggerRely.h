@@ -19,10 +19,10 @@
 
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
-#include "common/StrCharset.hpp"
 #include "common/SharedString.hpp"
 #include "3rdParty/fmt/format.h"
 #include "3rdParty/fmt/utfext.h"
+#include "StringCharset/Convert.h"
 #include <cstdint>
 #include <chrono>
 #include <string>
@@ -128,13 +128,12 @@ private:
     template<typename Char>
     static decltype(auto) BufToU16(fmt::basic_memory_buffer<Char>& buffer)
     {
-        using namespace common::str::detail;
         if constexpr (std::is_same_v<Char, char16_t>)
             return buffer;
         else if constexpr (std::is_same_v<Char, char>)
-            return CharsetConvertor<UTF8, UTF16, char, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
+            return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF8);
         else if constexpr (std::is_same_v<Char, char32_t>)
-            return CharsetConvertor<UTF32, UTF16, char32_t, char16_t>::Convert(buffer.data(), buffer.size(), true, true);
+            return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF32);
         else
             static_assert(!common::AlwaysTrue<Char>(), "unexpected Char type");
     }
@@ -144,7 +143,6 @@ public:
     template<typename T, typename... Args>
     static decltype(auto) ToU16Str(const T& formatter, Args&&... args)
     {
-        using namespace common::str::detail;
         [[maybe_unused]] constexpr bool hasArgs = sizeof...(Args) > 0;
         if constexpr (std::is_base_of_v<fmt::compile_string, T>)
         {
@@ -158,7 +156,7 @@ public:
         {
             const auto& u8str = static_cast<const std::string_view&>(formatter);
             if constexpr (!hasArgs)
-                return CharsetConvertor<UTF8, UTF16, char, char16_t>::Convert(u8str.data(), u8str.size(), true, true);
+                return common::strchset::to_u16string(u8str.data(), u8str.size(), common::str::Charset::UTF8);
             else
             {
                 auto& buffer = GetBuffer<char>();
@@ -182,7 +180,7 @@ public:
         {
             const auto& u32str = static_cast<const std::u32string_view&>(formatter);
             if constexpr (!hasArgs)
-                return CharsetConvertor<UTF32, UTF16, char32_t, char16_t>::Convert(u32str.data(), u32str.size(), true, true);
+                return common::strchset::to_u16string(u32str.data(), u32str.size(), common::str::Charset::UTF32);
             else
             {
                 auto& buffer = GetBuffer<char32_t>();

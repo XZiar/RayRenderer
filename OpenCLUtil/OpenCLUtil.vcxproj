@@ -230,6 +230,9 @@
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />

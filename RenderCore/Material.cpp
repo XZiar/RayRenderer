@@ -33,7 +33,7 @@ void _FakeTex::Serialize(SerializeUtil&, ejson::JObject&) const
 }
 void _FakeTex::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
-    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
 }
 }
 
@@ -144,7 +144,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
     if (holder.index() != 1 && holder.index() != 2)
         return {};
     auto jtex = context.NewObject();
-    jtex.Add("name", str::to_u8string(holder.GetName(), Charset::UTF16LE));
+    jtex.Add("name", strchset::to_u8string(holder.GetName(), Charset::UTF16LE));
     jtex.Add("format", (uint16_t)holder.GetInnerFormat());
     const auto[w, h] = holder.GetSize();
     jtex.Add("width", w);
@@ -187,7 +187,7 @@ static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& val
 }
 void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
-    jself.Add("name", str::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("name", strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
     jself.EJOBJECT_ADD(Metalness)
         .EJOBJECT_ADD(Roughness)
@@ -206,7 +206,7 @@ void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) cons
 }
 void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
-    Name = str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
     EJSON_GET_MEMBER(object, Metalness);
     EJSON_GET_MEMBER(object, Roughness);

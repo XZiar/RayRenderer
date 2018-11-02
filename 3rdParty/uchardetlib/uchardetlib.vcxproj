@@ -176,7 +176,6 @@
     <ClInclude Include="nsUniversalDetector.h" />
     <ClInclude Include="nsUTF8Prober.h" />
     <ClInclude Include="prmem.h" />
-    <ClInclude Include="uchardetlib.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CharDistribution.cpp" />
@@ -227,7 +226,6 @@
     <ClCompile Include="nsSJISProber.cpp" />
     <ClCompile Include="nsUniversalDetector.cpp" />
     <ClCompile Include="nsUTF8Prober.cpp" />
-    <ClCompile Include="uchardetlib.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Big5Freq.tab" />

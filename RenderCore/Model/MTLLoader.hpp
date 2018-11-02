@@ -52,7 +52,7 @@ public:
             case "newmtl"_hash:
                 {
                     const string name(line.Params[1]);
-                    curmtl = std::make_shared<PBRMaterial>(str::to_u16string(name, ldr.chset));
+                    curmtl = std::make_shared<PBRMaterial>(strchset::to_u16string(name, ldr.chset));
                     Materials.insert_or_assign(name, curmtl);
                 } break;
             case "Ka"_hash:
@@ -75,13 +75,13 @@ public:
                 //curmtl.=loadTex(ldr.param[0], mtlpath.parent_path());
                 //break;
             case "map_Kd"_hash:
-                if (const auto realPath = FallbackImgPath(str::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
+                if (const auto realPath = FallbackImgPath(strchset::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
                 {
                     preJobs.emplace_back(curmtl, realPath, TexLoadType::Color);
                 }
                 break;
             case "map_bump"_hash:
-                if (const auto realPath = FallbackImgPath(str::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
+                if (const auto realPath = FallbackImgPath(strchset::to_u16string(line.Rest(1), ldr.chset), fallbackPath); !realPath.empty())
                 {
                     preJobs.emplace_back(curmtl, realPath, TexLoadType::Normal);
                 }

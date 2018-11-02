@@ -188,7 +188,7 @@ inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return 
 ** @return uint64_t the hash
 **/
 template<typename T>
-inline uint64_t hash_(const T& str)
+inline constexpr uint64_t hash_(const T& str)
 {
     uint64_t hash = 0;
     for (size_t a = 0, len = str.length(); a < len; ++a)
@@ -200,7 +200,7 @@ inline uint64_t hash_(const T& str)
 ** @param str c-string for the text
 ** @return uint64_t the hash
 **/
-constexpr inline uint64_t hash_(const char *str)
+inline constexpr uint64_t hash_(const char *str)
 {
     uint64_t hash = 0;
     for (; *str != '\0'; ++str)
@@ -211,7 +211,7 @@ constexpr inline uint64_t hash_(const char *str)
 ** @brief calculate simple hash for string, used for switch-string
 ** @return uint64_t the hash
 **/
-constexpr inline uint64_t operator "" _hash(const char *str, size_t)
+inline constexpr uint64_t operator "" _hash(const char *str, size_t)
 {
     return hash_(str);
 }
