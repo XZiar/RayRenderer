@@ -30,7 +30,7 @@ static void TestStrConv()
 {
     const fs::path basePath = FindPath() / u"Tests" / u"Data";
 
-    const auto ret = str::to_u16string(std::u32string(U"hh"), str::Charset::UTF32);
+    const auto ret = str::to_u16string(std::u32string(U"hh"), str::Charset::UTF32LE);
     std::u16string utf16(u"𤭢");
     std::string utf8 = str::to_string(utf16, Charset::UTF8, Charset::UTF16LE);
     vector<uint8_t> tmp(utf8.cbegin(), utf8.cend());

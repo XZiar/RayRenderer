@@ -307,7 +307,7 @@ struct UTF16BE : public UTF16, public ConvertByteBase
         {
             const auto tmp = src - 0x10000;
             dest[0] = uint8_t(0xd8 | (tmp >> 18)), dest[1] = ((tmp >> 10) & 0xff);
-            dest[2] = 0xdc | ((tmp >> 8) & 0xff), dest[3] = tmp & 0xff;
+            dest[2] = 0xdc | ((tmp >> 8) & 0x3), dest[3] = tmp & 0xff;
             return 4;
         }
         return 0;
@@ -350,7 +350,7 @@ struct UTF16LE : public UTF16, public ConvertByteBase
         {
             const auto tmp = src - 0x10000;
             dest[1] = uint8_t(0xd8 | (tmp >> 18)), dest[0] = ((tmp >> 10) & 0xff);
-            dest[3] = 0xdc | ((tmp >> 8) & 0xff), dest[2] = tmp & 0xff;
+            dest[3] = 0xdc | ((tmp >> 8) & 0x3), dest[2] = tmp & 0xff;
             return 4;
         }
         return 0;

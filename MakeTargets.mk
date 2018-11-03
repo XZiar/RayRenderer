@@ -54,12 +54,12 @@ prebuild: buildinfo
 buildpch: prebuild
 ifneq ($(PCH_PCH), )
 	@echo "$(CLR_CYAN)preparing precompiled header$(CLR_CLEAR)"
-	+@$(MAKE) BOOST_PATH=$(BOOST_PATH) PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH=$(PROJPATH) --no-print-directory $(PCH_PCH)
+	+@$(MAKE) BOOST_PATH="$(BOOST_PATH)" PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH="$(PROJPATH)" --no-print-directory $(PCH_PCH)
 endif
 
 mainbuild: buildpch
 	@echo "$(CLR_CYAN)main build$(CLR_CLEAR)"
-	+@$(MAKE) BOOST_PATH=$(BOOST_PATH) PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH=$(PROJPATH) --no-print-directory $(APPS)
+	+@$(MAKE) BOOST_PATH="$(BOOST_PATH)" PLATFORM=$(PLATFORM) TARGET=$(TARGET) PROJPATH="$(PROJPATH)" --no-print-directory $(APPS)
 
 postbuild: mainbuild
 	@echo "$(CLR_CYAN)post build$(CLR_CLEAR)"

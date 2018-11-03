@@ -11,6 +11,11 @@
 namespace common::mlog
 {
 
+const LogMessage::TimeConv LogMessage::TimeBase = []() -> LogMessage::TimeConv
+{
+    return { std::chrono::system_clock::now(), static_cast<uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
+}();
+
 namespace detail
 {
 

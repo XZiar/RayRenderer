@@ -13,6 +13,7 @@
 #define IDR_DLL_RESPACKER                115
 #define IDR_DLL_RENDERCORE               116
 #define IDR_DLL_BOOSTSTACK               117
+#define IDR_DLL_STRCHARSET               118
 
 // 新对象的下一组默认值
 // 

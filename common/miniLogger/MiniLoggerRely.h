@@ -49,6 +49,9 @@ MINILOGAPI std::u16string_view GetLogLevelStr(const LogLevel level);
 struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 {
     friend class detail::MiniLoggerBase;
+private:
+    struct TimeConv { std::chrono::system_clock::time_point SysClock; uint64_t Base; };
+    static const TimeConv TimeBase;
 public:
     const uint64_t Timestamp;
 private:
@@ -95,6 +98,11 @@ public:
     }
     std::u16string_view GetContent() const { return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length); }
     const std::u16string_view& GetSource() const { return Source; }
+    std::chrono::system_clock::time_point GetSysTime() const 
+    {
+        using namespace std::chrono;
+        return TimeBase.SysClock + duration_cast<system_clock::duration>(nanoseconds(Timestamp - TimeBase.Base));
+    }
 };
 
 class MINILOGAPI LoggerBackend : public NonCopyable

@@ -67,17 +67,18 @@ static void createDLL(const wstring& dllname, const int32_t dllid)
 
 static const std::map<int32_t, wstring> DLL_MAP = 
 {
-    { IDR_DLL_MLOG, L"miniLogger.dll" },
-    { IDR_DLL_BOOSTSTACK, L"boost.stacktrace.dll" },
-    { IDR_DLL_ASYEXE, L"AsyncExecutor.dll" },
-    { IDR_DLL_OGLU, L"OpenGLUtil.dll" },
-    { IDR_DLL_OCL_LODER, L"OpenCL_ICD_Loader.dll" },
-    { IDR_DLL_OCLU, L"OpenCLUtil.dll" },
-    { IDR_DLL_FONTHELP, L"FontHelper.dll" },
-    { IDR_DLL_IMGUTIL, L"ImageUtil.dll" },
-    { IDR_DLL_TEXUTIL, L"TextureUtil.dll" },
-    { IDR_DLL_RESPACKER, L"ResourcePackager.dll" },
-    { IDR_DLL_RENDERCORE, L"RenderCore.dll" },
+    { IDR_DLL_STRCHARSET,   L"StringCharset.dll"        },
+    { IDR_DLL_MLOG,         L"miniLogger.dll"           },
+    { IDR_DLL_BOOSTSTACK,   L"boost.stacktrace.dll"     },
+    { IDR_DLL_ASYEXE,       L"AsyncExecutor.dll"        },
+    { IDR_DLL_OGLU,         L"OpenGLUtil.dll"           },
+    { IDR_DLL_OCL_LODER,    L"OpenCL_ICD_Loader.dll"    },
+    { IDR_DLL_OCLU,         L"OpenCLUtil.dll"           },
+    { IDR_DLL_FONTHELP,     L"FontHelper.dll"           },
+    { IDR_DLL_IMGUTIL,      L"ImageUtil.dll"            },
+    { IDR_DLL_TEXUTIL,      L"TextureUtil.dll"          },
+    { IDR_DLL_RESPACKER,    L"ResourcePackager.dll"     },
+    { IDR_DLL_RENDERCORE,   L"RenderCore.dll"           },
 };
 
 static void extractDLL()

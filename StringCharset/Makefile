@@ -8,5 +8,7 @@ include $(PROJPATH)/Makebase.mk
 
 NAME	= StringCharset
 
+DEPLIBS		+= -luchardet
+
 
 include $(PROJPATH)/MakeTargets.mk
