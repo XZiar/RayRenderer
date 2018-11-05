@@ -132,13 +132,15 @@ static u16string GetU16Str(const rayr::Controllable::ControlItem* item, const st
 {
     return std::get<u16string>(item->Getter(*control, id));
 }
-static const miniBLAS::Vec3& GetVec3(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
+static std::tuple<float, float, float> GetVec3(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
 {
-    return std::get<miniBLAS::Vec3>(item->Getter(*control, id));
+    const auto& val = std::get<miniBLAS::Vec3>(item->Getter(*control, id));
+    return { val.x,val.y,val.z };
 }
-static const miniBLAS::Vec4& GetVec4(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
+static std::tuple<float, float, float, float> GetVec4(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
 {
-    return std::get<miniBLAS::Vec4>(item->Getter(*control, id));
+    const auto& val = std::get<miniBLAS::Vec4>(item->Getter(*control, id));
+    return { val.x,val.y,val.z,val.w };
 }
 
 static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, bool arg)

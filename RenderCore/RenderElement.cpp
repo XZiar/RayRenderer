@@ -113,8 +113,7 @@ void Drawable::PrepareMaterial()
 void Drawable::AssignMaterial()
 {
     MaterialHolder.Refresh();
-    const size_t size = MaterialHolder.WriteData(MaterialUBO->GetPersistentPtr().AsType<std::byte>());
-    //MaterialUBO->Write(MaterialBuf.data(), size, oglu::BufferWriteMode::StreamDraw);
+    MaterialHolder.WriteData(MaterialUBO->GetPersistentPtr().AsType<std::byte>());
 }
 
 void Drawable::Draw(Drawcall& drawcall) const

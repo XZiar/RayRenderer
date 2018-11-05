@@ -126,6 +126,12 @@
             <xcad:DockingManager.Theme>
                 <xcad:GenericTheme/>
             </xcad:DockingManager.Theme>
+            <xcad:DockingManager.AnchorableTitleTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Title}" Foreground="White" TextTrimming="CharacterEllipsis">
+                    </TextBlock>
+                </DataTemplate>
+            </xcad:DockingManager.AnchorableTitleTemplate>
             <xcad:LayoutRoot x:Name="rootLayout">
                 <xcad:LayoutPanel Orientation="Horizontal">
                     <xcad:LayoutDocumentPane>
@@ -139,12 +145,16 @@
                     <xcad:LayoutAnchorablePaneGroup DockWidth="250">
                         <xcad:LayoutAnchorablePane>
                             <xcad:LayoutAnchorable ContentId="drawables" Title="物件" CanClose="False">
-                                <local:DrawablePage x:Name="pgDrawables">
-                                </local:DrawablePage>
+                                <DockPanel>
+                                    <ComboBox x:Name="cboxDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
+                                    <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}" />
+                                </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="lights" Title="灯光" CanClose="False">
-                                <local:LightPage x:Name="pgLights">
-                                </local:LightPage>
+                                <DockPanel>
+                                    <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
+                                    <local:ControllableGrid x:Name="ctlLight" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}" />
+                                </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="shaders" Title="Shader" CanClose="False">
                             </xcad:LayoutAnchorable>

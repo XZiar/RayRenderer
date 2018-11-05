@@ -90,12 +90,19 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ControllableGrid.xaml.cs">
+      <DependentUpon>ControllableGrid.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DrawablePage.xaml.cs">
       <DependentUpon>DrawablePage.xaml</DependentUpon>
     </Compile>
     <Compile Include="TheWindow.xaml.cs">
       <DependentUpon>TheWindow.xaml</DependentUpon>
     </Compile>
+    <Page Include="ControllableGrid.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="DrawablePage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

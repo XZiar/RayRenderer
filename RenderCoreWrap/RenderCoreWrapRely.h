@@ -19,19 +19,27 @@ using namespace System;
 using namespace Common;
 
 
-inline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
-{
-    return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
-}
-inline System::Windows::Media::Color ToColor(const miniBLAS::Vec3& color)
+forceinline System::Windows::Media::Color ToColor(const miniBLAS::Vec3& color)
 {
     return System::Windows::Media::Color::FromScRgb(1.0f, color.x, color.y, color.z);
 }
-inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color)
+forceinline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
+{
+    return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
+}
+forceinline System::Windows::Media::Color ToColor(const std::tuple<float, float, float>& vec)
+{
+    return System::Windows::Media::Color::FromScRgb(1.0f, std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
+}
+forceinline System::Windows::Media::Color ToColor(const std::tuple<float, float, float, float>& vec)
+{
+    return System::Windows::Media::Color::FromScRgb(std::get<3>(vec), std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
+}
+forceinline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color)
 {
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
 }
-inline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color)
+forceinline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color)
 {
     color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
 }
@@ -74,6 +82,10 @@ forceinline Vector3 ToVector3(const miniBLAS::Vec3& vec)
 {
     return Vector3(vec.x, vec.y, vec.z);
 }
+forceinline Vector3 ToVector3(const std::tuple<float, float, float>& vec)
+{
+    return Vector3(std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
+}
 forceinline void StoreVector3(Vector3% val, miniBLAS::Vec3& vec)
 {
     vec.x = val.X, vec.y = val.Y, vec.z = val.Z;
@@ -81,6 +93,10 @@ forceinline void StoreVector3(Vector3% val, miniBLAS::Vec3& vec)
 forceinline Vector4 ToVector4(const miniBLAS::Vec4& vec)
 {
     return Vector4(vec.x, vec.y, vec.z, vec.w);
+}
+forceinline Vector4 ToVector4(const std::tuple<float, float, float, float>& vec)
+{
+    return Vector4(std::get<0>(vec), std::get<1>(vec), std::get<2>(vec), std::get<3>(vec));
 }
 forceinline void StoreVector4(Vector4% val, miniBLAS::Vec4& vec)
 {

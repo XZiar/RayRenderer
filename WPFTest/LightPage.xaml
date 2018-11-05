@@ -11,7 +11,8 @@
              Background="{Binding Background, RelativeSource={RelativeSource FindAncestor, AncestorType=TabControl}}">
     <DockPanel>
         <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding DataContext, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Mode=OneWay}"/>
-        <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
+        <local:ControllableGrid x:Name="ctlLight" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}" />
+        <!--<ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
             <StackPanel x:Name="stkLight" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}">
                 <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="启用">
                     <CheckBox IsChecked="{Binding IsOn, Mode=TwoWay}" />
@@ -62,6 +63,6 @@
                     <xctk:RangeSlider LowerValue="{Binding CutoffInner, Mode=TwoWay}" HigherValue="{Binding CutoffOuter, Mode=TwoWay}" Minimum="0" Maximum="180" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
                 </ext:LabelControl>
             </StackPanel>
-        </ScrollViewer>
+        </ScrollViewer>-->
     </DockPanel>
 </UserControl>

@@ -101,8 +101,8 @@ namespace WPFTest
             fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS@{timeUs / 1000}ms" : ""; };
             fpsTimer.Start();
 
-            pgDrawables.DataContext = Core.TheScene.Drawables;
-            //pgLights.DataContext = Core.TheScene.Lights;
+            cboxDrawable.ItemsSource = Core.TheScene.Drawables;
+            cboxLight.ItemsSource = Core.TheScene.Lights;
             Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
             Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
             Core.TheScene.MainCamera.PropertyChanged += (o, e) => glMain.Invalidate();
