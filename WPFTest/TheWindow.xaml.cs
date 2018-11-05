@@ -90,7 +90,7 @@ namespace WPFTest
             {
                 if (!ShouldRefresh)
                     return;
-                OperateTargets[1].Rotate(0, 3 * MULER, 0);
+                OperateTargets[1]?.Rotate(0, 3 * MULER, 0);
                 this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
             }, null, 0, 15);
             this.Closing += (o, e) => AutoRefresher.Change(Timeout.Infinite, 20);
@@ -103,8 +103,10 @@ namespace WPFTest
 
             cboxDrawable.ItemsSource = Core.TheScene.Drawables;
             cboxLight.ItemsSource = Core.TheScene.Lights;
+            cboxShader.ItemsSource = Core.Passes;
             Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
             Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
+            Core.Passes.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
             Core.TheScene.MainCamera.PropertyChanged += (o, e) => glMain.Invalidate();
         }
 
@@ -178,7 +180,7 @@ namespace WPFTest
                 model.Rotate(-90 * MULER, 0, 0);
                 model.Move(-1, 0, 0);
                 Core.TheScene.Drawables.Add(model);
-                //curObj = (ushort)(Core.TheScene.Drawables.Count - 1);
+                OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
                 glMain.Invalidate();
             }
             catch (Exception ex)
@@ -240,6 +242,7 @@ namespace WPFTest
                 Core.TheScene.Lights.Add(Light.NewLight(LightType.Spot));
                 break;
             }
+            OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
             glMain.Invalidate();
             e.Handled = true;
         }
@@ -251,17 +254,17 @@ namespace WPFTest
             switch (e.KeyCode)
             {
             case System.Windows.Forms.Keys.Up:
-                OperateTargets[CurTarget].Move(0, 0.1f, 0); break;
+                OperateTargets[CurTarget]?.Move(0, 0.1f, 0); break;
             case System.Windows.Forms.Keys.Down:
-                OperateTargets[CurTarget].Move(0, -0.1f, 0); break;
+                OperateTargets[CurTarget]?.Move(0, -0.1f, 0); break;
             case System.Windows.Forms.Keys.Left:
-                OperateTargets[CurTarget].Move(-0.1f, 0, 0); break;
+                OperateTargets[CurTarget]?.Move(-0.1f, 0, 0); break;
             case System.Windows.Forms.Keys.Right:
-                OperateTargets[CurTarget].Move(0.1f, 0, 0); break;
+                OperateTargets[CurTarget]?.Move(0.1f, 0, 0); break;
             case System.Windows.Forms.Keys.PageUp:
-                OperateTargets[CurTarget].Move(0, 0, -0.1f); break;
+                OperateTargets[CurTarget]?.Move(0, 0, -0.1f); break;
             case System.Windows.Forms.Keys.PageDown:
-                OperateTargets[CurTarget].Move(0, 0, 0.1f); break;
+                OperateTargets[CurTarget]?.Move(0, 0, 0.1f); break;
             case System.Windows.Forms.Keys.Add:
                 {
                     var idx = Core.TheScene.Drawables.IndexOf(OperateTargets[1] as Drawable) + 1;
@@ -279,17 +282,17 @@ namespace WPFTest
                     switch (e.KeyValue)
                     {
                     case 'A'://pan to left
-                        OperateTargets[CurTarget].Rotate(0, 3 * MULER, 0); break;
+                        OperateTargets[CurTarget]?.Rotate(0, 3 * MULER, 0); break;
                     case 'D'://pan to right
-                        OperateTargets[CurTarget].Rotate(0, -3 * MULER, 0); break;
+                        OperateTargets[CurTarget]?.Rotate(0, -3 * MULER, 0); break;
                     case 'W'://pan to up
-                        OperateTargets[CurTarget].Rotate(3 * MULER, 0, 0); break;
+                        OperateTargets[CurTarget]?.Rotate(3 * MULER, 0, 0); break;
                     case 'S'://pan to down
-                        OperateTargets[CurTarget].Rotate(-3 * MULER, 0, 0); break;
+                        OperateTargets[CurTarget]?.Rotate(-3 * MULER, 0, 0); break;
                     case 'Q'://pan to left
-                        OperateTargets[CurTarget].Rotate(0, 0, -3 * MULER); break;
+                        OperateTargets[CurTarget]?.Rotate(0, 0, -3 * MULER); break;
                     case 'E'://pan to left
-                        OperateTargets[CurTarget].Rotate(0, 0, 3 * MULER); break;
+                        OperateTargets[CurTarget]?.Rotate(0, 0, 3 * MULER); break;
                     case '\r':
                         ShouldRefresh = !ShouldRefresh; break;
                     }
@@ -319,18 +322,16 @@ namespace WPFTest
 
         private void OnMouse(object sender, OpenGLView.MouseEventExArgs e)
         {
-            if (OperateTargets[CurTarget] == null)
-                return;
             switch (e.Type)
             {
             case OpenGLView.MouseEventType.Moving:
                 if (e.Button.HasFlag(OpenGLView.MouseButton.Left))
-                    OperateTargets[CurTarget].Move((e.dx * 10.0f / Core.Width), (e.dy * 10.0f / Core.Height), 0);
+                    OperateTargets[CurTarget]?.Move((e.dx * 10.0f / Core.Width), (e.dy * 10.0f / Core.Height), 0);
                 else if (e.Button.HasFlag(OpenGLView.MouseButton.Right))
-                    OperateTargets[CurTarget].Rotate((e.dy * MULER * MouseSensative / Core.Height), (e.dx * MULER * -MouseSensative / Core.Width), 0); //need to reverse dx
+                    OperateTargets[CurTarget]?.Rotate((e.dy * MULER * MouseSensative / Core.Height), (e.dx * MULER * -MouseSensative / Core.Width), 0); //need to reverse dx
                 break;
             case OpenGLView.MouseEventType.Wheel:
-                OperateTargets[CurTarget].Move(0, 0, (float)e.dx * ScrollSensative);
+                OperateTargets[CurTarget]?.Move(0, 0, (float)e.dx * ScrollSensative);
                 break;
             default:
                 return;
@@ -435,8 +436,27 @@ namespace WPFTest
             glMain.Invalidate();
         }
 
+        private async void AddShaderAsync(string fileName)
+        {
+            try
+            {
+                WaitingCount++;
+                var shaderName = DateTime.Now.ToString("HH:mm:ss");
+                var shader = await Core.LoadShaderAsync(fileName, shaderName);
+                Core.Passes.Add(shader);
+                glMain.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
+            }
+        }
 
-        private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
+        private void OnDropFile(object sender, System.Windows.Forms.DragEventArgs e)
         {
             string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
             var extName = System.IO.Path.GetExtension(fname).ToLower();
@@ -444,6 +464,9 @@ namespace WPFTest
             {
             case ".obj":
                 AddModelAsync(fname);
+                break;
+            case ".glsl":
+                AddShaderAsync(fname);
                 break;
             }
         }

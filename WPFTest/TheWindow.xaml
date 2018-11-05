@@ -137,7 +137,7 @@
                     <xcad:LayoutDocumentPane>
                         <xcad:LayoutDocument ContentId="mainView" Title="MainView" CanClose="False">
                             <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
-                                <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True">
+                                <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFile" AllowDrop="True">
                                 </oglv:OGLViewSRGB>
                             </WindowsFormsHost>
                         </xcad:LayoutDocument> 
@@ -157,6 +157,10 @@
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="shaders" Title="Shader" CanClose="False">
+                                <DockPanel>
+                                    <ComboBox x:Name="cboxShader" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
+                                    <local:ControllableGrid x:Name="ctlShader" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}" />
+                                </DockPanel>
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
                     </xcad:LayoutAnchorablePaneGroup>

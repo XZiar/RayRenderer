@@ -14,6 +14,20 @@ using namespace msclr::interop;
 namespace Dizz
 {
 
+public ref class RenderPass : public Controllable
+{
+private:
+    const Wrapper<rayr::RenderPass>* TempHandle;
+internal:
+    std::shared_ptr<rayr::RenderPass> GetSelf();
+    RenderPass(const Wrapper<rayr::RenderPass>& shader);
+    RenderPass(Wrapper<rayr::RenderPass>&& shader);
+    void ReleaseTempHandle();
+public:
+    ~RenderPass() { this->!RenderPass(); }
+    !RenderPass();
+};
+
 
 public ref class RenderCore : public BaseViewModel
 {
@@ -22,6 +36,9 @@ private:
 internal:
     rayr::RenderCore * const Core;
     Scene^ theScene;
+    void BeforeAddPass(Object^ sender, RenderPass^ object, bool% shouldAdd);
+    void BeforeDelPass(Object^ sender, RenderPass^ object, bool% shouldDel);
+    void OnPassesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
 public:
     initonly Controllable^ PostProc;
 
@@ -33,11 +50,13 @@ public:
     void Resize(const uint32_t w, const uint32_t h);
 
     Task<Drawable^>^ LoadModelAsync(String^ fname);
+    Task<RenderPass^>^ LoadShaderAsync(String^ fname, String^ shaderName);
 
     void Serialize(String^ path);
     void DeSerialize(String^ path);
     Action<String^>^ Screenshot();
 
+    initonly ObservableProxyContainer<RenderPass^>^ Passes;
     CLI_READONLY_PROPERTY(uint32_t, Width, Core->GetWindowSize().first)
     CLI_READONLY_PROPERTY(uint32_t, Height, Core->GetWindowSize().second)
     CLI_READONLY_PROPERTY(Scene^, TheScene, theScene)

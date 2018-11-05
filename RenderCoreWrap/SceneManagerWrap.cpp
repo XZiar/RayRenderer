@@ -250,8 +250,7 @@ void Scene::BeforeAddModel(Object^ sender, Drawable^ object, bool% shouldAdd)
 
 void Scene::BeforeDelModel(Object^ sender, Drawable^ object, bool% shouldDel)
 {
-    TheScene->lock()->DelObject(FromGuid(object->Uid));
-    shouldDel = true;
+    shouldDel = TheScene->lock()->DelObject(FromGuid(object->Uid));
 }
 
 void Scene::BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd)
@@ -265,8 +264,7 @@ void Scene::BeforeAddLight(Object^ sender, Light^ object, bool% shouldAdd)
 
 void Scene::BeforeDelLight(Object^ sender, Light^ object, bool% shouldDel)
 {
-    TheScene->lock()->DelLight(object->GetSelf());
-    shouldDel = true;
+    shouldDel = TheScene->lock()->DelLight(object->GetSelf());
 }
 
 void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs ^ e)

@@ -3,9 +3,32 @@
 #include "ImageUtil.h"
 #include "common/CLIAsync.hpp"
 
+using common::container::ValSet;
 
 namespace Dizz
 {
+
+
+std::shared_ptr<rayr::RenderPass> RenderPass::GetSelf()
+{
+    return std::dynamic_pointer_cast<rayr::RenderPass>(GetControl()); // virtual base require dynamic_cast
+}
+
+RenderPass::RenderPass(const Wrapper<rayr::RenderPass>& shader) : Controllable(shader)
+{
+}
+RenderPass::RenderPass(Wrapper<rayr::RenderPass>&& shader) : Controllable(shader), TempHandle(new Wrapper<rayr::RenderPass>(shader))
+{
+}
+void RenderPass::ReleaseTempHandle()
+{
+    if (const auto ptr = ExchangeNullptr(TempHandle); ptr)
+        delete ptr;
+}
+RenderPass::!RenderPass()
+{
+    ReleaseTempHandle();
+}
 
 
 RenderCore::RenderCore() : Core(new rayr::RenderCore())
@@ -14,6 +37,12 @@ RenderCore::RenderCore() : Core(new rayr::RenderCore())
     theScene = gcnew Scene(Core);
     theScene->Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &RenderCore::OnDrawablesChanged);
     PostProc = gcnew Common::Controllable(Core->GetPostProc());
+    Passes = gcnew ObservableProxyContainer<RenderPass^>();
+    Passes->BeforeAddObject += gcnew AddObjectEventHandler<RenderPass^>(this, &RenderCore::BeforeAddPass);
+    Passes->BeforeDelObject += gcnew DelObjectEventHandler<RenderPass^>(this, &RenderCore::BeforeDelPass);
+    Passes->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &RenderCore::OnPassesChanged);
+    for (const auto& pass : Core->GetRenderPasses())
+        Passes->InnerAdd(gcnew RenderPass(pass));
 }
 
 RenderCore::!RenderCore()
@@ -50,7 +79,7 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
 }
 
 
-Drawable^ ConstructDrawable(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
+static Drawable^ ConstructDrawable(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
 {
     return gcnew Drawable(theModel->Extract());
 }
@@ -58,6 +87,49 @@ Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
 {
     return doAsync3<Drawable^>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, Drawable^>(&ConstructDrawable),
         &rayr::RenderCore::LoadModelAsync, *Core, ToU16Str(fname));
+}
+
+static RenderPass^ ConstructRenderPass(CLIWrapper<Wrapper<rayr::DefaultRenderPass>>^ pass)
+{
+    return gcnew RenderPass(pass->Extract());
+}
+Task<RenderPass^>^ RenderCore::LoadShaderAsync(String^ fname, String^ shaderName)
+{
+    return doAsync3<RenderPass^>(gcnew Func<CLIWrapper<Wrapper<rayr::DefaultRenderPass>>^, RenderPass^>(&ConstructRenderPass),
+        &rayr::RenderCore::LoadShaderAsync, *Core, ToU16Str(fname), ToU16Str(shaderName));
+}
+
+void RenderCore::BeforeAddPass(Object^ sender, RenderPass^ object, bool% shouldAdd)
+{
+    const auto self = std::dynamic_pointer_cast<rayr::DefaultRenderPass>(object->GetSelf());
+    if (self && Core->AddShader(self))
+    {
+        object->ReleaseTempHandle();
+        shouldAdd = true;
+    }
+}
+void RenderCore::BeforeDelPass(Object^ sender, RenderPass^ object, bool% shouldDel)
+{
+    const auto self = std::dynamic_pointer_cast<rayr::DefaultRenderPass>(object->GetSelf());
+    if (Core->DelShader(self))
+    {
+        shouldDel = true;
+    }
+}
+void RenderCore::OnPassesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e)
+{
+    switch (e->Action)
+    {
+    case NotifyCollectionChangedAction::Add:
+        for each (Object^ item in e->NewItems)
+        {
+            const auto shd = static_cast<RenderPass^>(item)->GetSelf(); // type promised
+            for (const auto& drawable : ValSet(Core->GetScene()->GetDrawables()))
+                shd->RegistDrawable(drawable);
+        }
+        break;
+    default: break;
+    }
 }
 
 void RenderCore::Serialize(String^ path)

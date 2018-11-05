@@ -248,9 +248,15 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
     }, std::move(pms)).detach();
 }
 
-void RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)
+bool RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)
 {
-    RenderPasses.insert(shader);
+    if (!shader) return false;
+    return RenderPasses.insert(shader).second;
+}
+
+bool RenderCore::DelShader(const Wrapper<DefaultRenderPass>& shader)
+{
+    return RenderPasses.erase(shader) > 0;
 }
 
 void RenderCore::ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline)

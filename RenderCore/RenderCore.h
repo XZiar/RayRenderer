@@ -59,7 +59,8 @@ public:
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;
-    void AddShader(const Wrapper<DefaultRenderPass>& shader);
+    bool AddShader(const Wrapper<DefaultRenderPass>& shader);
+    bool DelShader(const Wrapper<DefaultRenderPass>& shader);
     void ChangePipeLine(const std::shared_ptr<RenderPipeLine>& pipeline);
 
     void Serialize(const fs::path& fpath) const;
