@@ -40,7 +40,7 @@ internal:
     void BeforeDelPass(Object^ sender, RenderPass^ object, bool% shouldDel);
     void OnPassesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
 public:
-    initonly Controllable^ PostProc;
+    initonly List<Controllable^>^ Controls;
 
     RenderCore();
     ~RenderCore() { this->!RenderCore(); }

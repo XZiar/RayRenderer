@@ -87,16 +87,11 @@ std::size_t strftime(char32_t *str, std::size_t count, const char32_t *format, c
 
 }
 
-#if defined(_WIN32)
-using CharCharSet = common::str::detail::GB18030;
-#else
-using CharCharSet = common::str::detail::UTF8;
-#endif
 
 template<> template<>
 std::basic_string<char16_t> utf_formatter<back_insert_range<internal::u16buffer>>::ConvertStr(const char* str, const size_t size)
 {
-    return CharsetConvertor<CharCharSet, UTF16LE, char, char16_t>::Convert(str, size);
+    return CharsetConvertor<UTF8, UTF16LE, char, char16_t>::Convert(str, size);
 }
 template<> template<>
 std::basic_string<char16_t> utf_formatter<back_insert_range<internal::u16buffer>>::ConvertStr(const char32_t* str, const size_t size)
@@ -107,7 +102,7 @@ std::basic_string<char16_t> utf_formatter<back_insert_range<internal::u16buffer>
 template<> template<>
 std::basic_string<char32_t> utf_formatter<back_insert_range<internal::u32buffer>>::ConvertStr(const char* str, const size_t size)
 {
-    return CharsetConvertor<CharCharSet, UTF32LE, char, char32_t>::Convert(str, size);
+    return CharsetConvertor<UTF8, UTF32LE, char, char32_t>::Convert(str, size);
 }
 template<> template<>
 std::basic_string<char32_t> utf_formatter<back_insert_range<internal::u32buffer>>::ConvertStr(const char16_t* str, const size_t size)

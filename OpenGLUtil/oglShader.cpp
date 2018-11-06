@@ -1,7 +1,6 @@
 #include "oglRely.h"
 #include "oglException.h"
 #include "oglShader.h"
-#include "StringCharset/Convert.h"
 #include <regex>
 
 using namespace std::literals;
@@ -43,7 +42,7 @@ void _oglShader::compile()
         glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
         glGetShaderInfoLog(shaderID, len, &len, logstr.data());
-        const auto logdat = common::strchset::to_u16string(logstr.c_str(), common::strchset::Charset::UTF8);
+        const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
     }

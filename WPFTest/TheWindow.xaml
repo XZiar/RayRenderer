@@ -162,6 +162,12 @@
                                     <local:ControllableGrid x:Name="ctlShader" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}" />
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
+                            <xcad:LayoutAnchorable ContentId="control" Title="Control" CanClose="False">
+                                <DockPanel>
+                                    <ComboBox x:Name="cboxControl" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
+                                    <local:ControllableGrid x:Name="ctlControl" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxControl, Mode=OneWay}" />
+                                </DockPanel>
+                            </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>
                     </xcad:LayoutAnchorablePaneGroup>
                 </xcad:LayoutPanel>

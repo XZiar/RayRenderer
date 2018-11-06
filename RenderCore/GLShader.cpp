@@ -72,7 +72,7 @@ void GLShader::RegistControllable()
         const auto u16name = strchset::to_u16string(res.Name, Charset::UTF8);
         auto rtNames = Linq::FromIterable(res.Routines)
             .Select([](const auto& rt) {return rt.Name; }).ToVector();
-        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::RawValue, std::move(rtNames), u16name)
+        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
             .RegistGetter([&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; })
             .RegistSetter([&res](Controllable& self, const string&, const ControlArg& val) 
             { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); });

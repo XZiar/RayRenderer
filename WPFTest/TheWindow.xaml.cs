@@ -73,6 +73,12 @@ namespace WPFTest
             InitializeCore();
         }
 
+        private void InvalidateOnPropChanged(string name)
+        {
+            if (name != "Name")
+                glMain.Invalidate();
+        }
+
         private void InitializeCore()
         {
             Core = new RenderCore();
@@ -101,13 +107,15 @@ namespace WPFTest
             fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS@{timeUs / 1000}ms" : ""; };
             fpsTimer.Start();
 
+            Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
             cboxDrawable.ItemsSource = Core.TheScene.Drawables;
+            Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
             cboxLight.ItemsSource = Core.TheScene.Lights;
+            Core.Passes.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
             cboxShader.ItemsSource = Core.Passes;
-            Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
-            Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
-            Core.Passes.ObjectPropertyChanged += (s, t, e) => glMain.Invalidate();
-            Core.TheScene.MainCamera.PropertyChanged += (o, e) => glMain.Invalidate();
+            Core.Controls.ForEach(x => x.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName));
+            cboxControl.ItemsSource = Core.Controls;
+            Core.TheScene.MainCamera.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName);
         }
 
 

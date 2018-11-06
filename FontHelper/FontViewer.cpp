@@ -11,6 +11,11 @@ static const u16string FontViewControlName = u"文本";
 
 void FontViewer::RegisterControllable()
 {
+    Controllable::EnumSet<uint64_t> kk({ {0UL, u"A"}, {1UL, u"B"}, {2UL, u"C"} });
+    kk.GetEnumNames();
+    kk.ConvertTo(2);
+    kk.ConvertFrom(u"");
+
     RegistItem<u16string>("Name", "", u"名称", Controllable::ArgType::RawValue)
         .RegistObject<false>(FontViewControlName);
     if (const auto res = prog->GetResource("fontColor"); res)

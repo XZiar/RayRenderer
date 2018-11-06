@@ -20,7 +20,7 @@ public:
     enum struct PropAccess : uint8_t { Empty = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     enum struct PropType : uint8_t 
     {   RawValue = (uint8_t)common::Controllable::ArgType::RawValue, Color = (uint8_t)common::Controllable::ArgType::Color,
-        LongText = (uint8_t)common::Controllable::ArgType::LongText
+        LongText = (uint8_t)common::Controllable::ArgType::LongText, Enum  = (uint8_t)common::Controllable::ArgType::Enum,
     };
     initonly String^ Id;
     initonly String^ Name;

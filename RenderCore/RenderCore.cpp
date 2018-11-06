@@ -200,6 +200,14 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
     GLContext->SetViewPort(0, 0, WindowWidth, WindowHeight);
 }
 
+vector<std::shared_ptr<common::Controllable>> RenderCore::GetControllables() const noexcept
+{
+    vector<std::shared_ptr<common::Controllable>> controls;
+    controls.emplace_back(TexLoader);
+    controls.emplace_back(PostProc);
+    return controls;
+}
+
 void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError) const
 {
     std::thread([onFinish, onError, this](const u16string name)

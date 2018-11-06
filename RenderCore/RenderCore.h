@@ -53,9 +53,11 @@ public:
     const Wrapper<Scene>& GetScene() const noexcept { return TheScene; }
     const Wrapper<RenderPipeLine>& GetCurPipeLine() const noexcept { return RenderTask; }
     const Wrapper<PostProcessor>& GetPostProc() const noexcept { return PostProc; }
+    const std::shared_ptr<TextureLoader>& GetTexLoader() const noexcept { return TexLoader; }
     const Wrapper<ThumbnailManager>& GetThumbMan() const noexcept { return ThumbMan; }
     const set<Wrapper<RenderPass>>& GetRenderPasses() const noexcept { return RenderPasses; }
     const set<Wrapper<RenderPipeLine>>& GetPipeLines() const noexcept { return PipeLines; }
+    vector<std::shared_ptr<Controllable>> GetControllables() const noexcept;
 
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError = nullptr) const;

@@ -85,7 +85,19 @@ namespace WPFTest
             FrameworkElement result = null;
             sender.GeneratingControl?.Invoke(sender, item, ref result);
             if (result != null) return result;
+            if(item.Type == ControlItem.PropType.Enum)
+            {
+                //if (item.ValType == typeof(string))
+                {
+                    var cbox = new ComboBox
+                    {
+                        ItemsSource = item.Cookie as string[]
+                    };
+                    cbox.SetBinding(ComboBox.SelectedItemProperty, sender.CreateBinding(item));
+                    return cbox;
+                }
 
+            }
             if (item.ValType == typeof(string))
             {
                 if (item.Type == ControlItem.PropType.LongText)
@@ -99,15 +111,6 @@ namespace WPFTest
                         e.Handled = true;
                     };
                     return btn;
-                }
-                if (item.Cookie is string[] choices)
-                {
-                    var cbox = new ComboBox
-                    {
-                        ItemsSource = choices
-                    };
-                    cbox.SetBinding(ComboBox.SelectedItemProperty, sender.CreateBinding(item));
-                    return cbox;
                 }
                 {
                     var tbox = new TextBox

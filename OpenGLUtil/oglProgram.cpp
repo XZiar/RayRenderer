@@ -398,13 +398,14 @@ void _oglProgram::Link()
     glGetProgramInfoLog(programID, len, &len, logstr.data());
     if (len > 0 && logstr.back() == '\0')
         logstr.pop_back(); //null-terminated so pop back
+    const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
     if (!result)
     {
-        oglLog().warning(u"Link program failed.\n{}\n", logstr);
+        oglLog().warning(u"Link program failed.\n{}\n", logdat);
         glDeleteProgram(programID);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logstr);
+        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
     }
-    oglLog().success(u"Link program success.\n{}\n", logstr);
+    oglLog().success(u"Link program success.\n{}\n", logdat);
     InitLocs();
     InitSubroutines();
     FilterProperties();

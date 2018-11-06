@@ -36,7 +36,9 @@ RenderCore::RenderCore() : Core(new rayr::RenderCore())
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);
     theScene->Drawables->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &RenderCore::OnDrawablesChanged);
-    PostProc = gcnew Common::Controllable(Core->GetPostProc());
+    Controls = gcnew List<Controllable^>();
+    for (const auto ctl : Core->GetControllables())
+        Controls->Add(gcnew Controllable(ctl));
     Passes = gcnew ObservableProxyContainer<RenderPass^>();
     Passes->BeforeAddObject += gcnew AddObjectEventHandler<RenderPass^>(this, &RenderCore::BeforeAddPass);
     Passes->BeforeDelObject += gcnew DelObjectEventHandler<RenderPass^>(this, &RenderCore::BeforeDelPass);

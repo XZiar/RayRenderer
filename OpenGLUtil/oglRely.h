@@ -29,6 +29,7 @@
 #include "common/PromiseTask.hpp"
 #include "common/ThreadEx.h"
 #include "common/Linq.hpp"
+#include "StringCharset/Convert.h"
 #include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC
@@ -105,6 +106,7 @@ using common::PromiseResult;
 using common::BaseException;
 using common::FileException;
 using common::linq::Linq;
+using common::str::Charset;
 
 class oglWorker;
 struct DSAFuncs;

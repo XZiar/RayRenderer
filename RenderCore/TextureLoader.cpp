@@ -15,9 +15,28 @@ using oglu::TextureInnerFormat;
 using namespace xziar::img;
 
 
+static std::vector<std::pair<int32_t, std::u16string>> ProcPairs = 
+{ 
+    {(int32_t)TexProcType::Plain,       u"Plain"},
+    {(int32_t)TexProcType::CompressBC5, u"BC5"},
+    {(int32_t)TexProcType::CompressBC7, u"BC7"}
+};
 void TextureLoader::RegistControllable()
 {
+    Controllable::EnumSet<int32_t> EnumProcType(ProcPairs);
+    RegistItem<bool>("color_mipmap", "Color", u"Mipmap")
+        .RegistMemberProxy<TextureLoader>([](auto& control) -> auto&
+    { return control.ProcessMethod.find(TexLoadType::Color)->second.NeedMipmap; });
+    RegistItem<int32_t>("color_type", "Color", u"Type", ArgType::Enum, EnumProcType)
+        .RegistMemberProxy<TextureLoader>([](auto& control) -> auto&
+    { return control.ProcessMethod.find(TexLoadType::Color)->second.Proc; });
 
+    RegistItem<bool>("normal_mipmap", "Normal", u"Mipmap")
+        .RegistMemberProxy<TextureLoader>([](auto& control) -> auto&
+    { return control.ProcessMethod.find(TexLoadType::Normal)->second.NeedMipmap; });
+    RegistItem<int32_t>("normal_type", "Normal", u"Type", ArgType::Enum, EnumProcType)
+        .RegistMemberProxy<TextureLoader>([](auto& control) -> auto&
+    { return control.ProcessMethod.find(TexLoadType::Normal)->second.Proc; });
 }
 
 TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mipmapper) 

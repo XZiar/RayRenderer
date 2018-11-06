@@ -2,6 +2,7 @@
 #include "CommonRely.hpp"
 #include "ContainerEx.hpp"
 #include "Exceptions.hpp"
+#include "Linq.hpp"
 #include "3DBasic/miniBLAS.hpp"
 #include <string>
 #include <string_view>
@@ -10,6 +11,7 @@
 #include <variant>
 #include <any>
 #include <functional>
+#include <algorithm>
 #include <type_traits>
 
 
@@ -26,7 +28,7 @@ class Controllable
     friend struct ControlHelper;
 public:
     using ControlArg = std::variant<bool, int32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
-    enum class ArgType : uint8_t { RawValue, Color, LongText };
+    enum class ArgType : uint8_t { RawValue, Color, LongText, Enum };
     struct ControlItem
     {
         std::string Id;
@@ -39,6 +41,53 @@ public:
         size_t TypeIdx;
         ArgType Type;
         mutable bool IsEnable;
+    };
+    template<typename T>
+    struct EnumSet
+    {
+        static_assert(std::is_integral_v<T>, "Currently only intergal supported");
+    private:
+        std::vector<std::pair<T, std::u16string>> Mapping;
+        std::vector<std::pair<std::u16string, T>> Lookup;
+        void Prepare()
+        {
+            std::sort(Mapping.begin(), Mapping.end(), [](const auto& left, const auto& right) { return left.first < right.first; });
+            Lookup.clear();
+            Lookup.reserve(Mapping.size());
+            for (const auto&[key, val] : Mapping)
+                Lookup.emplace_back(val, key);
+            std::sort(Lookup.begin(), Lookup.end(), [](const auto& left, const auto& right) { return left.first < right.first; });
+        }
+    public:
+        EnumSet() noexcept {}
+        EnumSet(std::vector<std::pair<T, std::u16string>>&& enums) : Mapping(std::move(enums))
+        {
+            Prepare();
+        }
+        EnumSet(const std::vector<std::pair<T, std::u16string>>& enums) : Mapping(enums)
+        {
+            Prepare();
+        }
+        std::vector<std::u16string_view> GetEnumNames() const
+        {
+            return common::linq::Linq::FromIterable(Lookup).Select([](const auto& p) { return std::u16string_view(p.first); }).ToVector();
+        }
+        std::u16string_view ConvertTo(const T key) const
+        {
+            const auto it = std::lower_bound(Mapping.cbegin(), Mapping.cend(), key,
+                [](const auto& left, const auto right) { return left.first < right; });
+            if (it != Mapping.cend() && it->first == key)
+                return std::u16string_view(it->second);
+            return {};
+        }
+        T ConvertFrom(const std::u16string_view& val) const
+        {
+            const auto it = std::lower_bound(Lookup.cbegin(), Lookup.cend(), val, 
+                [](const auto& left, const auto right) { return left.first < right; });
+            if (it != Lookup.cend() && it->first == val)
+                return it->second;
+            return 0;
+        }
     };
 private:
     std::map<std::string, std::u16string, std::less<>> Categories;
@@ -144,20 +193,41 @@ private:
             {
                 using SetType = std::invoke_result_t<P, D&>;
                 static_assert(std::is_lvalue_reference_v<SetType>, "object is not a lvalue reference when being set");
-                static_assert(std::is_assignable_v<SetType, T>, "object cannot be assigned from value of T when being set");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::get<T>(arg); };
+                using RawType = std::remove_reference_t<SetType>;
+                if constexpr (std::is_enum_v<RawType>)
+                {
+                    Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::get<T>(arg)); };
+                }
+                else if constexpr (!std::is_assignable_v<SetType, T>)
+                {
+                    static_assert(!AlwaysTrue<SetType>(), "object cannot be assigned from value of T when being set");
+                }
                 else
-                    Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::any_cast<T>(std::get<std::any>(arg)); };
+                {
+                    if constexpr (std::is_constructible_v<ControlArg, T>)
+                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::get<T>(arg); };
+                    else
+                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::any_cast<T>(std::get<std::any>(arg)); };
+                }
             }
             if constexpr (CanRead)
             {
                 using GetType = std::invoke_result_t<P, const D&>;
-                static_assert(std::is_convertible_v<GetType, T>, "object cannot be convert to T");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Getter = [proxy](const Controllable& obj, const std::string&) { return proxy(dynamic_cast<const D&>(obj)); };
+                if constexpr (std::is_enum_v<std::remove_reference_t<GetType>>)
+                {
+                    Item.Getter = [proxy](const Controllable& obj, const std::string&) { return static_cast<T>(proxy(dynamic_cast<const D&>(obj))); };
+                }
+                else if constexpr (!std::is_convertible_v<GetType, T>)
+                {
+                    static_assert(!AlwaysTrue<GetType>(), "object cannot be convert to T");
+                }
                 else
-                    Item.Getter = [proxy](const Controllable& obj, const std::string&) { return std::any(proxy(dynamic_cast<const D&>(obj))); };
+                {
+                    if constexpr (std::is_constructible_v<ControlArg, T>)
+                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return proxy(dynamic_cast<const D&>(obj)); };
+                    else
+                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return std::any(proxy(dynamic_cast<const D&>(obj))); };
+                }
             }
             return *this;
         }
@@ -185,16 +255,16 @@ protected:
     {
         Categories[category] = name;
     }
-    ItemPrepNonType RegistItem(const std::string& id, const std::string& category, const std::u16string& name, const ArgType argType,
-        const std::any& cookie = {}, const std::u16string& description = u"")
+    ItemPrepNonType RegistItem(const std::string& id, const std::string& category, const std::u16string& name, 
+        const ArgType argType = ArgType::RawValue, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         Categories.try_emplace(category, category.cbegin(), category.cend());
         auto it = ControlItems.insert_or_assign(id, ControlItem{ id, category, name, description, cookie, {}, {}, std::variant_npos, argType, true }).first;
         return it->second;
     }
     template<typename T>
-    decltype(auto) RegistItem(const std::string& id, const std::string& category, const std::u16string& name, const ArgType argType,
-        const std::any& cookie = {}, const std::u16string& description = u"")
+    decltype(auto) RegistItem(const std::string& id, const std::string& category, const std::u16string& name, 
+        const ArgType argType = ArgType::RawValue, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         return RegistItem(id, category, name, argType, cookie, description).AsType<T>();
     }

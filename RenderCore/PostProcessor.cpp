@@ -19,6 +19,8 @@ void PostProcessor::RegistControllable()
         .RegistObject<false>(PostProcessorName);
     RegistItem<float>("Exposure", "", u"曝光补偿", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)")
         .RegistGetter(&PostProcessor::GetExposure).RegistSetter(&PostProcessor::SetExposure);
+    RegistItem<bool>("IsEnable", "", u"启用")
+        .RegistMember(&PostProcessor::EnablePostProcess);
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize)

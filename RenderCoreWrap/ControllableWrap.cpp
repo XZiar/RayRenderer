@@ -21,8 +21,8 @@ static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,   
 static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                rayr::Controllable::ControlArg>();
 
 
-template<typename Char>
-static array<String^>^ ToStrArray(const vector<std::basic_string<Char>>& src)
+template<typename T>
+static array<String^>^ ToStrArray(const vector<T>& src)
 {
     auto arr = gcnew array<String^>((int32_t)src.size());
     int32_t i = 0;
@@ -38,6 +38,10 @@ static Object^ ParseCookie(const std::any& cookie)
         return ToStrArray(*ck);
     else if (const auto ck = std::any_cast<vector<u16string>>(&cookie); ck)
         return ToStrArray(*ck);
+    else if (const auto ck = std::any_cast<common::Controllable::EnumSet<uint64_t>>(&cookie); ck)
+        return ToStrArray(ck->GetEnumNames());
+    else if (const auto ck = std::any_cast<common::Controllable::EnumSet<int32_t>>(&cookie); ck)
+        return ToStrArray(ck->GetEnumNames());
     else if (const auto ck = std::any_cast<std::pair<int32_t, int32_t>>(&cookie); ck)
         return gcnew Tuple<int32_t, int32_t>(ck->first, ck->second);
     else if (const auto ck = std::any_cast<std::pair<uint32_t, uint32_t>>(&cookie); ck)
@@ -55,6 +59,8 @@ ControlItem::ControlItem(const common::Controllable::ControlItem& item)
     Type = (PropType)item.Type;
     if (Type == PropType::Color) 
         ValType = System::Windows::Media::Color::typeid;
+    else if (Type == PropType::Color)
+        ValType = String::typeid;
     else
     {
         switch (item.TypeIdx)
@@ -142,20 +148,26 @@ static std::tuple<float, float, float, float> GetVec4(const rayr::Controllable::
     const auto& val = std::get<miniBLAS::Vec4>(item->Getter(*control, id));
     return { val.x,val.y,val.z,val.w };
 }
+template<typename T>
+static std::u16string_view GetEnum(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
+{
+    const auto enums = std::any_cast<common::Controllable::EnumSet<T>>(&(item->Cookie));
+    return enums ? enums->ConvertTo(std::get<T>(item->Getter(*control, id))) : std::u16string_view{};
+}
 
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, bool arg)
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const bool arg)
 {
     item->Setter(*control, id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, int32_t arg)
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const int32_t arg)
 {
     item->Setter(*control, id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, uint64_t arg)
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const uint64_t arg)
 {
     item->Setter(*control, id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, float arg)
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const float arg)
 {
     item->Setter(*control, id, arg);
 }
@@ -178,6 +190,13 @@ static void SetArg(const rayr::Controllable::ControlItem* item, const std::share
 static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const float x, const float y, const float z, const float w)
 {
     item->Setter(*control, id, miniBLAS::Vec4(x, y, z, w));
+}
+template<typename T>
+static void SetEnum(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const u16string& arg)
+{
+    const auto enums = std::any_cast<common::Controllable::EnumSet<T>>(&(item->Cookie));
+    if (enums)
+        item->Setter(*control, id, enums->ConvertFrom(arg));
 }
 #pragma managed(pop)
 
@@ -226,6 +245,15 @@ bool Controllable::DoGetMember(String^ id_, [Out] Object^% arg)
         {
         case ValIndexStr:       arg = ToStr(GetStr(item, control, id)); break;
         case ValIndexU16Str:    arg = ToStr(GetU16Str(item, control, id)); break;
+        default:                return false;
+        } break;
+    case rayr::Controllable::ArgType::Enum:
+        switch (item->TypeIdx)
+        {
+        case ValIndexStr:       arg = ToStr(GetStr(item, control, id)); break;
+        case ValIndexU16Str:    arg = ToStr(GetU16Str(item, control, id)); break;
+        case ValIndexInt32:     arg = ToStr(GetEnum<int32_t>(item, control, id)); break;
+        case ValIndexUInt64:    arg = ToStr(GetEnum<uint64_t>(item, control, id)); break;
         default:                return false;
         } break;
     default:                return false;
@@ -291,6 +319,15 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         default:                return false;
         }
         break;
+    case rayr::Controllable::ArgType::Enum:
+        switch (item->TypeIdx)
+        {
+        case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
+        case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        case ValIndexInt32:     SetEnum<int32_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        case ValIndexUInt64:    SetEnum<uint64_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        default:                return false;
+        } break;
     default:                return false;
     }
     RaisePropertyChanged(id_);
