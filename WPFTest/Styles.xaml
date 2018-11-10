@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
                     xmlns:Themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero2"
-                    xmlns:local="clr-namespace:WPFTest">
+                    xmlns:local="clr-namespace:WPFTest;assembly=WPFTest">
     <SolidColorBrush x:Key="brshDarkBackground" Color="#FF252526"/>
     <SolidColorBrush x:Key="brshBlue" Color="#FF007ACC"/>
     <SolidColorBrush x:Key="brshOrange" Color="#FFDC5E07"/>
@@ -216,6 +216,13 @@
         <Setter Property="LayoutTransform" Value="{StaticResource rotate90}"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="local:ControllableGrid">
+        <Style.Resources>
+            <Style TargetType="ComboBox">
+                <Setter Property="Template" Value="{StaticResource darkCombobox}" />
+            </Style>
+        </Style.Resources>
     </Style>
     <BitmapImage x:Key="imgDizz" UriSource="icon/dizz.png"/>
     <BitmapImage x:Key="imgCamera" UriSource="icon/camera.png"/>

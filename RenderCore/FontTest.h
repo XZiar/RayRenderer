@@ -16,6 +16,7 @@ MAKE_ENUM_BITFIELD(FontUpdate)
 class RAYCOREAPI FontTester : public NonCopyable, public RenderPass
 {
 private:
+    static inline std::u16string TestName = u"FontTest";
     Wrapper<oglu::FontCreator> FontCreator;
     Wrapper<oglu::FontViewer> FontViewer;
     oglu::oglTex2DD FontTex;
@@ -23,7 +24,11 @@ private:
     char32_t CharBegin = U'我';
     uint32_t CharCount = 16;
     AtomicBitfiled<FontUpdate> UpdateDemand = FontUpdate::FONT | FontUpdate::TARGET;
-    void RegistControllable() {}
+    void RegistControllable()
+    {
+        RegistItem<std::u16string>("Name", "", u"名称")
+            .RegistObject<false>(TestName);
+    }
 protected:
     virtual void OnPrepare(RenderPassContext&) override
     {
@@ -59,6 +64,7 @@ public:
     FontTester(const oclu::oclContext ctx) : FontCreator(ctx), FontViewer(std::in_place)
     {
         FontTex.reset();
+        RegistControllable();
     }
     ~FontTester() {}
     virtual u16string_view GetControlType() const override

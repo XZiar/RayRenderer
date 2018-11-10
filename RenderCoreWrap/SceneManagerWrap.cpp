@@ -61,11 +61,13 @@ Drawable::Drawable(const Wrapper<rayr::Drawable>& drawable) : Controllable(drawa
 {
     CreateMaterials();
     Uid = ToGuid(drawable->GetUid());
+    DrawableType = ToStr(drawable->GetType());
 }
 Drawable::Drawable(Wrapper<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new Wrapper<rayr::Drawable>(drawable))
 {
     CreateMaterials();
     Uid = ToGuid((*TempHandle)->GetUid());
+    DrawableType = ToStr((*TempHandle)->GetType());
 }
 
 void Drawable::ReleaseTempHandle()
@@ -91,6 +93,12 @@ void Drawable::Rotate(const float dx, const float dy, const float dz)
     RaisePropertyChanged("Rotation");
 }
 
+String^ Drawable::ToString()
+{
+    return "[" + DrawableType + "]" + ToStr(GetSelf()->Name);
+}
+
+
 std::shared_ptr<rayr::Light> Light::GetSelf()
 {
     return std::static_pointer_cast<rayr::Light>(GetControl()); // type promised
@@ -98,9 +106,11 @@ std::shared_ptr<rayr::Light> Light::GetSelf()
 
 Light::Light(const Wrapper<rayr::Light>& light) : Controllable(light)
 {
+    LgtType = static_cast<LightType>(light->Type);
 }
 Light::Light(Wrapper<rayr::Light>&& light) : Controllable(light), TempHandle(new Wrapper<rayr::Light>(light))
 {
+    LgtType = static_cast<LightType>((*TempHandle)->Type);
 }
 
 void Light::ReleaseTempHandle()
@@ -119,6 +129,11 @@ void Light::Rotate(const float dx, const float dy, const float dz)
 {
     GetSelf()->Rotate(dx, dy, dz);
     RaisePropertyChanged("Direction");
+}
+
+String^ Light::ToString()
+{
+    return "[" + LgtType.ToString() + "]" + ToStr(GetSelf()->Name);
 }
 
 #pragma managed(push, off)

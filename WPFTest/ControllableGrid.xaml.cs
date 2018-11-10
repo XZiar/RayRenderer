@@ -24,13 +24,27 @@ namespace WPFTest
     /// <summary>
     /// ControllableGrid.xaml 的交互逻辑
     /// </summary>
+    [ContentProperty(nameof(Children))]
     public partial class ControllableGrid : UserControl
     {
+        public static readonly DependencyPropertyKey ChildrenProperty = DependencyProperty.RegisterReadOnly(
+            nameof(Children),
+            typeof(UIElementCollection),
+            typeof(ControllableGrid),
+            new PropertyMetadata());
+
+        public UIElementCollection Children
+        {
+            get { return (UIElementCollection)GetValue(ChildrenProperty.DependencyProperty); }
+            private set { SetValue(ChildrenProperty, value); }
+        }
+
         public delegate void GenerateControlEventHandler(ControllableGrid sender, ControlItem item, ref FrameworkElement element);
         public event GenerateControlEventHandler GeneratingControl;
         public ControllableGrid()
         {
             InitializeComponent();
+            Children = new UIElementCollection(stkMain, this);
             DataContextChanged += OnDataContextChanged;
             BindingForeground = new Binding
             {
@@ -85,9 +99,8 @@ namespace WPFTest
             FrameworkElement result = null;
             sender.GeneratingControl?.Invoke(sender, item, ref result);
             if (result != null) return result;
-            if(item.Type == ControlItem.PropType.Enum)
+            if (item.Type == ControlItem.PropType.Enum)
             {
-                //if (item.ValType == typeof(string))
                 {
                     var cbox = new ComboBox
                     {

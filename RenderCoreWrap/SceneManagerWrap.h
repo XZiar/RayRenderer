@@ -51,6 +51,7 @@ public ref class Drawable : public Controllable, public IMovable
 private:
     const Wrapper<rayr::Drawable>* TempHandle;
     ReadOnlyCollection<PBRMaterial^>^ materials;
+    initonly String^ DrawableType;
 internal:
     std::shared_ptr<rayr::Drawable> GetSelf();
     Drawable(const Wrapper<rayr::Drawable>& drawable);
@@ -58,11 +59,12 @@ internal:
     void ReleaseTempHandle();
     bool CreateMaterials();
 public:
+    initonly Guid^ Uid;
     ~Drawable() { this->!Drawable(); }
     !Drawable();
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
-    initonly Guid^ Uid;
+    virtual String^ ToString() override;
     CLI_READONLY_PROPERTY(ReadOnlyCollection<PBRMaterial^>^, Materials, materials)
 };
 
@@ -81,8 +83,10 @@ internal:
     Light(Wrapper<rayr::Light>&& light);
     void ReleaseTempHandle();
 public:
+    initonly LightType LgtType;
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
+    virtual String^ ToString() override;
     static Light^ NewLight(LightType type);
 };
 

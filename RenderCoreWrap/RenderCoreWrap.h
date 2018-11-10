@@ -26,6 +26,7 @@ internal:
 public:
     ~RenderPass() { this->!RenderPass(); }
     !RenderPass();
+    virtual String^ ToString() override;
 };
 
 

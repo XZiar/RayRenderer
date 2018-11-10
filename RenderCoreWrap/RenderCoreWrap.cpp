@@ -30,6 +30,15 @@ RenderPass::!RenderPass()
     ReleaseTempHandle();
 }
 
+String^ RenderPass::ToString()
+{
+    Object^ name = nullptr;
+    if (DoGetMember("Name", name))
+        return "[Pass]" + name;
+    else
+        return "[Pass]";
+}
+
 
 RenderCore::RenderCore() : Core(new rayr::RenderCore())
 {
