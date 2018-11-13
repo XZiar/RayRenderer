@@ -19,9 +19,9 @@ generic<typename T>
 public delegate void ObjectPropertyChangedEventHandler(Object^ sender, T obj, PropertyChangedEventArgs^ e);
 
 generic<typename T> where T : INotifyPropertyChanged
-public ref class ObservableProxyContainer : public INotifyCollectionChanged, public IList<T>
+public ref class ObservableProxyReadonlyContainer : public INotifyCollectionChanged, public IReadOnlyList<T>
 {
-private:
+protected:
     initonly List<T>^ InnerContainer;
     initonly PropertyChangedEventHandler^ ObjectPropertyChangedCallback;
     void OnObjectPropertyChanged(Object^ sender, PropertyChangedEventArgs^ e)
@@ -33,13 +33,11 @@ private:
                 NotifyCollectionChangedAction::Replace, object, object, InnerContainer->IndexOf(object)));
     }
 internal:
-    ObservableProxyContainer() 
-    { 
+    ObservableProxyReadonlyContainer()
+    {
         InnerContainer = gcnew List<T>(0);
-        ObjectPropertyChangedCallback = gcnew PropertyChangedEventHandler(this, &ObservableProxyContainer::OnObjectPropertyChanged);
+        ObjectPropertyChangedCallback = gcnew PropertyChangedEventHandler(this, &ObservableProxyReadonlyContainer::OnObjectPropertyChanged);
     }
-    event AddObjectEventHandler<T>^ BeforeAddObject;
-    event DelObjectEventHandler<T>^ BeforeDelObject;
     void InnerAdd(T item)
     {
         item->PropertyChanged += ObjectPropertyChangedCallback;
@@ -56,17 +54,26 @@ internal:
     {
         object->PropertyChanged -= ObjectPropertyChangedCallback;
         const auto idx = InnerContainer->IndexOf(object);
-        if (idx == -1) 
+        if (idx == -1)
             return false;
         InnerContainer->RemoveAt(idx);
         CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Remove, object, idx));
         return true;
     }
+    void InnerClear()
+    {
+        for each (T item in InnerContainer)
+        {
+            item->PropertyChanged -= ObjectPropertyChangedCallback;
+        }
+        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Remove, gcnew List<T>(InnerContainer)));
+        InnerContainer->Clear();
+    }
 public:
     event ObjectPropertyChangedEventHandler<T>^ ObjectPropertyChanged;
     virtual event NotifyCollectionChangedEventHandler^ CollectionChanged;
     virtual IEnumerator<T>^ GetEnumerator()
-    { 
+    {
         return InnerContainer->GetEnumerator();
     }
     virtual System::Collections::IEnumerator^ GetEnumerator2() = System::Collections::IEnumerable::GetEnumerator
@@ -82,19 +89,45 @@ public:
             else
                 return InnerContainer[i];
         }
+    }
+
+    virtual property int Count { int get() { return InnerContainer->Count; } }
+    virtual property bool IsReadOnly { bool get() { return true; } }
+
+    virtual int32_t IndexOf(T object)
+    {
+        return InnerContainer->IndexOf(object);
+    }
+    virtual bool Contains(T item)
+    {
+        return InnerContainer->Contains(item);
+    }
+    virtual void CopyTo(array<T, 1> ^array, int arrayIndex)
+    {
+        InnerContainer->CopyTo(array, arrayIndex);
+    }
+};
+
+generic<typename T> where T : INotifyPropertyChanged
+public ref class ObservableProxyContainer : public ObservableProxyReadonlyContainer<T>, public IList<T>
+{
+protected:
+internal:
+    event AddObjectEventHandler<T>^ BeforeAddObject;
+    event DelObjectEventHandler<T>^ BeforeDelObject;
+    ObservableProxyContainer() 
+    { }
+public:
+    virtual property T default[int32_t]
+    {
         void set(int32_t i, T item)
         {
             throw gcnew System::NotImplementedException();
         }
     }
 
-    virtual property int Count { int get() { return InnerContainer->Count; } }
-    virtual property bool IsReadOnly { bool get() { return false; } }
+    virtual property bool IsReadOnly { bool get() override { return false; } }
     
-    virtual int32_t IndexOf(T object)
-    {
-        return InnerContainer->IndexOf(object);
-    }
     virtual void Add(T item)
     {
         bool shouldAdd = false;
@@ -104,20 +137,7 @@ public:
     }
     virtual void Clear()
     {
-        for each (T item in InnerContainer)
-        {
-            item->PropertyChanged -= ObjectPropertyChangedCallback;
-        }
-        CollectionChanged(this, gcnew NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction::Remove, gcnew List<T>(InnerContainer)));
-        InnerContainer->Clear();
-    }
-    virtual bool Contains(T item)
-    {
-        return InnerContainer->Contains(item);
-    }
-    virtual void CopyTo(array<T, 1> ^array, int arrayIndex)
-    {
-        InnerContainer->CopyTo(array, arrayIndex);
+        ObservableProxyReadonlyContainer<T>::InnerClear();
     }
     virtual bool Remove(T item)
     {

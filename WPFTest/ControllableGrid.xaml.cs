@@ -25,26 +25,79 @@ namespace WPFTest
     /// ControllableGrid.xaml 的交互逻辑
     /// </summary>
     [ContentProperty(nameof(Children))]
-    public partial class ControllableGrid : UserControl
+    public partial class ControllableGrid : ContentControl
     {
+        public static readonly DependencyProperty ItemCategoryProperty = DependencyProperty.RegisterAttached(
+            "ItemCategory",
+            typeof(string),
+            typeof(ControllableGrid),
+            new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+        public static void SetItemCategory(UIElement element, string value)
+        {
+            element.SetValue(ItemCategoryProperty, value);
+        }
+        public static string GetItemCategory(UIElement element)
+        {
+            return element.GetValue(ItemCategoryProperty) as string;
+        }
+
+        public static readonly DependencyProperty ItemNameProperty = DependencyProperty.RegisterAttached(
+            "ItemName",
+            typeof(string),
+            typeof(ControllableGrid),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        public static void SetItemName(UIElement element, string value)
+        {
+            element.SetValue(ItemNameProperty, value);
+        }
+        public static string GetItemName(UIElement element)
+        {
+            return element.GetValue(ItemNameProperty) as string;
+        }
+
+        public static readonly DependencyProperty ItemDescriptionProperty = DependencyProperty.RegisterAttached(
+            "ItemDescription",
+            typeof(string),
+            typeof(ControllableGrid),
+            new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+        public static void SetItemDescription(UIElement element, string value)
+        {
+            element.SetValue(ItemDescriptionProperty, value);
+        }
+        public static string GetItemDescription(UIElement element)
+        {
+            return element.GetValue(ItemDescriptionProperty) as string;
+        }
+
         public static readonly DependencyPropertyKey ChildrenProperty = DependencyProperty.RegisterReadOnly(
             nameof(Children),
-            typeof(UIElementCollection),
+            typeof(List<FrameworkElement>),
             typeof(ControllableGrid),
             new PropertyMetadata());
-
-        public UIElementCollection Children
+        public List<FrameworkElement> Children
         {
-            get { return (UIElementCollection)GetValue(ChildrenProperty.DependencyProperty); }
+            get { return (List<FrameworkElement>)GetValue(ChildrenProperty.DependencyProperty); }
             private set { SetValue(ChildrenProperty, value); }
+        }
+
+        public static readonly DependencyProperty CategoriesProperty = DependencyProperty.RegisterAttached(
+            nameof(Categories),
+            typeof(Dictionary<string, string>),
+            typeof(ControllableGrid),
+            new PropertyMetadata());
+        public Dictionary<string, string> Categories
+        {
+            get { return (Dictionary<string, string>)GetValue(CategoriesProperty); }
+            set { SetValue(CategoriesProperty, value); }
         }
 
         public delegate void GenerateControlEventHandler(ControllableGrid sender, ControlItem item, ref FrameworkElement element);
         public event GenerateControlEventHandler GeneratingControl;
         public ControllableGrid()
         {
+            Children = new List<FrameworkElement>();
+            Categories = new Dictionary<string, string>();
             InitializeComponent();
-            Children = new UIElementCollection(stkMain, this);
             DataContextChanged += OnDataContextChanged;
             BindingForeground = new Binding
             {
@@ -64,6 +117,18 @@ namespace WPFTest
                 Path = new PropertyPath("BorderBrush"),
                 Mode = BindingMode.OneWay
             };
+            //stkMain.ItemContainerGenerator.ItemsChanged += (s, e) =>
+            //{
+            //    switch (e.Action)
+            //    {
+            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Reset:
+            //        break;
+            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Remove:
+            //        break;
+            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Replace:
+            //        break;
+            //    }
+            //};
         }
         private readonly Binding BindingForeground;
         private readonly Binding BindingBackground;
@@ -84,6 +149,12 @@ namespace WPFTest
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            var old = Enumerable.Range(0, stkMain.Items.Count)
+                .Select(x => stkMain.ItemContainerGenerator.ContainerFromIndex(x) as ContentPresenter)
+                .Select(cp => cp.ContentTemplate.FindName("gridMain", cp) as Grid);
+            foreach (var grid in old)
+                grid.Children.Clear();
+
             if (!(e.NewValue is Controllable control))
             {
                 stkMain.DataContext = null;
@@ -91,7 +162,16 @@ namespace WPFTest
                 return;
             }
             stkMain.DataContext = control;
-            stkMain.ItemsSource = control.Categories;
+            foreach (var element in Children)
+                element.DataContext = control;
+
+            var newcat = Children.Select(x => GetItemCategory(x))
+                .Where(x => !control.Categories.ContainsKey(x))
+                .Select(x => new KeyValuePair<string, string>(x, x));
+            var allcat = control.Categories.Concat(newcat)
+                .Where(x => !Categories.ContainsKey(x.Key));
+            
+            stkMain.ItemsSource = Categories.Concat(allcat);
         }
 
         private static FrameworkElement OnGeneratingControl(ControllableGrid sender, ControlItem item)
@@ -101,15 +181,12 @@ namespace WPFTest
             if (result != null) return result;
             if (item.Type == ControlItem.PropType.Enum)
             {
+                var cbox = new ComboBox
                 {
-                    var cbox = new ComboBox
-                    {
-                        ItemsSource = item.Cookie as string[]
-                    };
-                    cbox.SetBinding(ComboBox.SelectedItemProperty, sender.CreateBinding(item));
-                    return cbox;
-                }
-
+                    ItemsSource = item.Cookie as string[]
+                };
+                cbox.SetBinding(ComboBox.SelectedItemProperty, sender.CreateBinding(item));
+                return cbox;
             }
             if (item.ValType == typeof(string))
             {
@@ -211,7 +288,6 @@ namespace WPFTest
 
         private void SetBasicBinding(FrameworkElement element)
         {
-            element.Margin = new Thickness(6, 4, 6, 4);
             switch (element)
             {
             case Panel panel:
@@ -231,35 +307,89 @@ namespace WPFTest
                 break;
             }
         }
+        private class ControlPack
+        {
+            public string Name;
+            public string Description;
+            public FrameworkElement Control;
+            public ControlPack(ControlItem item, FrameworkElement control)
+            {
+                Name = item.Name; Description = item.Description; Control = control;
+            }
+            public ControlPack(FrameworkElement control)
+            {
+                Name = GetItemName(control); Description = GetItemDescription(control); Control = control;
+            }
+        }
         private void gridMain_Initialized(object sender, EventArgs e)
         {
             var control = GetControllable();
             if (control == null)
                 return;
             var grid = sender as Grid;
+            var splitter = grid.FindName("gridSplit") as GridSplitter;
             var cat = grid.Tag as string;
-            var items = control.Items.Where(x => x.Category == cat).ToArray();
-            grid.RowDefinitions.Clear();
-            for (var i = 0; i < items.Length; ++i)
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            int idx = 0;
-            foreach (var item in items)
-            {
-                var label = new TextBlock()
+
+            var itemControls = control.Items.Where(x => x.Category == cat)
+                .Select(item =>
                 {
-                    Text = item.Name, ToolTip = item.Description,
-                    Padding = new Thickness(0, 0, 6, 0),
-                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center
-                };
-                SetBasicBinding(label);
-                Grid.SetRow(label, idx); Grid.SetColumn(label, 0);
-                grid.Children.Add(label);
-                var realControl = OnGeneratingControl(this, item);
-                SetBasicBinding(realControl);
-                Grid.SetRow(realControl, idx); Grid.SetColumn(realControl, 2);
-                grid.Children.Add(realControl);
-                idx++;
+                    var realControl = OnGeneratingControl(this, item);
+                    SetBasicBinding(realControl);
+                    SetItemCategory(realControl, cat);
+                    return new ControlPack(item, realControl);
+                });
+
+            var manualControls = Children.Where(x => GetItemCategory(x) == cat)
+                .Select(element => new ControlPack(element));
+
+            var controls = itemControls.Concat(manualControls);
+
+            grid.RowDefinitions.Clear();
+            for (var i = 0; i < controls.Count(); ++i)
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            int idx = 0, idxEnd = controls.Count() - 1;
+            foreach (var pack in controls)
+            {
+                var realControl = pack.Control;
+                realControl.Margin = new Thickness(6, 4, 6, 4);
+                if (string.IsNullOrWhiteSpace(pack.Name))
+                {
+                    realControl.ToolTip = pack.Description;
+                    Grid.SetRow(realControl, idxEnd); Grid.SetColumn(realControl, 0); Grid.SetColumnSpan(realControl, 3);
+                    grid.Children.Add(realControl);
+                    idxEnd--;
+                }
+                else
+                {
+                    var label = new TextBlock()
+                    {
+                        Text = pack.Name,
+                        ToolTip = pack.Description,
+                        Padding = new Thickness(0, 0, 6, 0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    SetBasicBinding(label);
+
+                    Grid.SetRow(label, idx); Grid.SetColumn(label, 0);
+                    grid.Children.Add(label);
+                    Grid.SetRow(realControl, idx); Grid.SetColumn(realControl, 2);
+                    grid.Children.Add(realControl);
+                    idx++;
+                }
             }
+            if (idx > 0)
+            {
+                Grid.SetRowSpan(splitter, idx);
+                splitter.Visibility = Visibility.Visible;
+            }
+            else
+                splitter.Visibility = Visibility.Collapsed;
+        }
+
+        private void CleanGridMain()
+        {
+            
         }
     }
 }

@@ -12,7 +12,7 @@
   - [ ] Add memory input/output
   - [x] Make Image mutable
   - [x] Add stb as fallback handler
-  - [ ] Add more format suppprt
+  - [x] Add more format suppprt
   - [ ] Throw proper exception when facing error
 
 * OpenGLUtil
@@ -43,8 +43,8 @@
   * Architecture
     - [ ] Design plugin system, provide common interface
     - [ ] Redesign shader-drawable's binding strategy
-    - [ ] Add pass concept (customizable)
-    - [ ] Add render pipeline concept (layers of passes)
+    - [x] Add pass concept (customizable)
+    - [x] Add render pipeline concept (layers of passes)
     - [ ] Add batch of drawables
   * Rendering
     - [ ] Add Cubemap (environment map) with HDR
@@ -60,7 +60,7 @@
 * WPFTest
   - [ ] Change to move convinient mouse+keyboard operation
   - [ ] More buttons and proper icon
-  - [ ] Use xctk's PropertyGrid as editor layout, with Controllable
+  - [ ] Develop AvalonDock
 
 * Global
   - [ ] Add GacUI

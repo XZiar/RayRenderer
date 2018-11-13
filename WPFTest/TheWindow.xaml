@@ -148,7 +148,10 @@
                                 <DockPanel>
                                     <ComboBox x:Name="cboxDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
                                     <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}">
-                                        <Button Content="Hello" />
+                                        <DockPanel local:ControllableGrid.ItemCategory="Material">
+                                            <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
+                                            <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}" />
+                                        </DockPanel>
                                     </local:ControllableGrid>
                                 </DockPanel>
                             </xcad:LayoutAnchorable>

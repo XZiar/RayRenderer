@@ -38,34 +38,46 @@ TexHolder^ PBRMaterial::AOMap::get()
     return TexHolder::CreateTexHolder(GetSelf()->AOMap);
 }
 
+String^ PBRMaterial::ToString()
+{
+    return "[PBRMat]" + ToStr(GetSelf()->Name);
+}
+
+void Drawable::OnMaterialChanged(Object^ sender, PBRMaterial^ material, PropertyChangedEventArgs^ e)
+{
+    if (e->PropertyName != "Name")
+        GetSelf()->AssignMaterial();
+    RaisePropertyChanged("Material");
+}
+
 std::shared_ptr<rayr::Drawable> Drawable::GetSelf()
 {
     return std::static_pointer_cast<rayr::Drawable>(GetControl()); // type promised
 }
 bool Drawable::CreateMaterials()
 {
+    materials->InnerClear();
     const std::shared_ptr<rayr::Drawable>& drawable = GetSelf();
     const auto matCount = drawable->MaterialHolder.GetSize();
     if (matCount == 0)
         return false;
-    
-    array<PBRMaterial^>^ matArray = gcnew array<PBRMaterial^>(matCount);
-    uint8_t idx = 0;
     for (const auto& mat : drawable->MaterialHolder)
-        matArray[idx++] = gcnew PBRMaterial(mat);
-    materials = Array::AsReadOnly(matArray);
-    RaisePropertyChanged("Materials");
+    {
+        materials->InnerAdd(gcnew PBRMaterial(mat));
+    }
     return true;
 }
 Drawable::Drawable(const Wrapper<rayr::Drawable>& drawable) : Controllable(drawable)
 {
-    CreateMaterials();
+    materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
+    materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
     Uid = ToGuid(drawable->GetUid());
     DrawableType = ToStr(drawable->GetType());
 }
 Drawable::Drawable(Wrapper<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new Wrapper<rayr::Drawable>(drawable))
 {
-    CreateMaterials();
+    materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
+    materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
     Uid = ToGuid((*TempHandle)->GetUid());
     DrawableType = ToStr((*TempHandle)->GetType());
 }
@@ -289,8 +301,7 @@ void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs
     case NotifyCollectionChangedAction::Add:
         for each (Drawable^ drw in Linq::Enumerable::Cast<Drawable^>(e->NewItems))
         {
-            if (drw->Materials == nullptr)
-                WaitDrawables->Add(drw);
+            WaitDrawables->Add(drw);
         }
         break;
     default: break;

@@ -43,6 +43,7 @@ public:
     property TexHolder^ MetalMap   { TexHolder^ get(); }
     property TexHolder^ RoughMap   { TexHolder^ get(); }
     property TexHolder^ AOMap      { TexHolder^ get(); }
+    virtual String^ ToString() override;
 };
 
 
@@ -50,8 +51,10 @@ public ref class Drawable : public Controllable, public IMovable
 {
 private:
     const Wrapper<rayr::Drawable>* TempHandle;
-    ReadOnlyCollection<PBRMaterial^>^ materials;
     initonly String^ DrawableType;
+    initonly ObjectPropertyChangedEventHandler<PBRMaterial^>^ MaterialPropertyChangedCallback;
+    void OnMaterialChanged(Object^ sender, PBRMaterial^ material, PropertyChangedEventArgs^ e);
+    initonly ObservableProxyReadonlyContainer<PBRMaterial^>^ materials;
 internal:
     std::shared_ptr<rayr::Drawable> GetSelf();
     Drawable(const Wrapper<rayr::Drawable>& drawable);
@@ -65,7 +68,7 @@ public:
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
     virtual String^ ToString() override;
-    CLI_READONLY_PROPERTY(ReadOnlyCollection<PBRMaterial^>^, Materials, materials)
+    CLI_READONLY_PROPERTY(ObservableProxyReadonlyContainer<PBRMaterial^>^, Materials, materials)
 };
 
 
