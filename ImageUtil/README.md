@@ -12,10 +12,11 @@ Since This component is binded with X86 optimization, internal data layout is as
 
 | Type | Support Format | Provider |
 |:-------|:-------:|:------:|
-| PNG | RGB/RGBA/Gray | libpng |
-| TGA | RGB/RGBA/Gray | zextga(self) |
-| JPEG | RGB/Gray | libjpeg-turbo |
-| BMP | RGB/RGBA | zexbmp(self) |
+| PNG | RGB/RGBA/Gray | libpng / stb |
+| TGA | RGB/RGBA/Gray | zextga(self) / stb |
+| JPEG | RGB/Gray | libjpeg-turbo / stb |
+| BMP | RGB/RGBA | zexbmp(self) / stb |
+| PNM | RGB | stb |
 
 
 ## Dependency
@@ -24,7 +25,7 @@ Since This component is binded with X86 optimization, internal data layout is as
 
   [zlib License](../3rdParty/zlib/license.txt)
 
-* [zlib-ng](https://github.com/Dead2/zlib-ng)  1.9.9 develop@2018-09-19
+* [zlib-ng](https://github.com/Dead2/zlib-ng)  1.9.9 develop@2018-11-07
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
@@ -32,7 +33,7 @@ Since This component is binded with X86 optimization, internal data layout is as
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  2.0.0
+* [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  2.0.1
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
 

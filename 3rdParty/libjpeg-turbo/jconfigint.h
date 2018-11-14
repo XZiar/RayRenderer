@@ -1,21 +1,16 @@
 
 
 /* libjpeg-turbo build number */
-#define BUILD  "20180718"
+#define BUILD  "20181113"
 
 /* Compiler's inline keyword */
 #undef inline
-
-/* How to obtain function inlining. */
-#if defined(_MSC_VER)
-#else
-#endif
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME  "libjpeg-turbo"
 
 /* Version number of package */
-#define VERSION  "1.5.90"
+#define VERSION  "2.0.1"
 
 #if defined(_MSC_VER)
 #   define INLINE  __forceinline
@@ -26,6 +21,7 @@
 /* Define to 1 if you have the <intrin.h> header file. */
 #define HAVE_INTRIN_H
 #else
+/* How to obtain function inlining. */
 #   define INLINE  __inline__ __attribute__((always_inline))
 
 #   define HAVE_BUILTIN_CTZL

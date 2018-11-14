@@ -1,6 +1,6 @@
 #@XZBUILD
 #@XZBUILD@description@A SIMD accelerated JPEG image codec library
-#@XZBUILD@version@2.0.0
+#@XZBUILD@version@2.0.1
 
 BUILD_TYPE	:= static
 
