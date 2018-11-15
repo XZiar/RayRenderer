@@ -42,6 +42,8 @@ internal:
     void OnPassesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
 public:
     initonly List<Controllable^>^ Controls;
+    initonly ObservableProxyContainer<RenderPass^>^ Passes;
+    initonly ThumbnailMan^ ThumbMan;
 
     RenderCore();
     ~RenderCore() { this->!RenderCore(); }
@@ -57,7 +59,6 @@ public:
     void DeSerialize(String^ path);
     Action<String^>^ Screenshot();
 
-    initonly ObservableProxyContainer<RenderPass^>^ Passes;
     CLI_READONLY_PROPERTY(uint32_t, Width, Core->GetWindowSize().first)
     CLI_READONLY_PROPERTY(uint32_t, Height, Core->GetWindowSize().second)
     CLI_READONLY_PROPERTY(Scene^, TheScene, theScene)

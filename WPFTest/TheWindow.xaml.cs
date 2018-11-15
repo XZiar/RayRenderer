@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -19,6 +20,31 @@ using XZiar.Util;
 
 namespace WPFTest
 {
+    internal class ThumbnailConvertor : IMultiValueConverter
+    {
+        private readonly ThumbnailMan Manager;
+        public ThumbnailConvertor(ThumbnailMan manager)
+        {
+            Manager = manager;
+        }
+        public ThumbnailConvertor() : this(null) { }
+
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (Manager != null)
+            {
+                var control = values[0] as Image;
+                var task = Manager.GetThumbnailAsync(values[1] as TexHolder);
+                task.GetAwaiter().OnCompleted(async () => control.Source = await task);
+            }
+            return null;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
     /// <summary>
     /// TheWindow.xaml 的交互逻辑
     /// </summary>
@@ -82,6 +108,7 @@ namespace WPFTest
         private void InitializeCore()
         {
             Core = new RenderCore();
+            Resources["thumbConv"] = new ThumbnailConvertor(Core.ThumbMan);
             OperateTargets[0] = Core.TheScene.MainCamera;
             OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
             OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
@@ -442,6 +469,13 @@ namespace WPFTest
                 }
             }
             glMain.Invalidate();
+        }
+
+        private async void btnTest_Click(object sender, RoutedEventArgs e)
+        {
+            var tex = ((sender as Button).DataContext as PBRMaterial).DiffuseMap;
+            var img = await Core.ThumbMan.GetThumbnailAsync(tex);
+            ((sender as Button).Content as Image).Source = img;
         }
 
         private async void AddShaderAsync(string fileName)

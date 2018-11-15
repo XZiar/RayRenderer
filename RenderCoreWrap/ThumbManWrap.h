@@ -2,6 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
+#include "Async.h"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -28,6 +29,7 @@ public:
     !TexHolder();
 };
 
+
 public ref class ThumbnailMan
 {
 internal:
@@ -37,11 +39,13 @@ internal:
     ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan);
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
+    BitmapSource^ GetThumbnail2(Common::CLIWrapper<std::optional<xziar::img::ImageView>>^ img);
     BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
 public:
     ~ThumbnailMan() { this->!ThumbnailMan(); }
     !ThumbnailMan();
-    BitmapSource^ GetThumbnail(TexHolder^ holder) { return GetThumbnail(holder->ExtractHolder()); }
+    //BitmapSource^ GetThumbnail(TexHolder^ holder) { return GetThumbnail(holder->ExtractHolder()); }
+    Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>^ GetThumbnailAsync(TexHolder^ holder);
 };
 
 

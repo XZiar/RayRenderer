@@ -126,10 +126,16 @@ template<typename T>
 public value struct NativeWrapper 
 {
 public:
+    using RawType = T;
     [System::Runtime::InteropServices::FieldOffset(0)]
     uint8_t Dummy;
 };
 
-
+#define WRAPPER_NATIVE_PTR(wrapper, ptrname) \
+    cli::pin_ptr<uint8_t> pin_##ptrname = &wrapper.Dummy; \
+    auto ptrname = reinterpret_cast<std::add_pointer_t<typename decltype(wrapper)::RawType>>(pin_##ptrname)
+#define WRAPPER_NATIVE_PTR_DO(wrapper, ptrname, DO) \
+    cli::pin_ptr<uint8_t> pin_##ptrname = &wrapper.Dummy; \
+    auto ptrname = reinterpret_cast<std::add_pointer_t<typename decltype(wrapper)::RawType>>(pin_##ptrname)->DO
 
 }

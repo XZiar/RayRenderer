@@ -199,6 +199,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Async.h" />
     <ClInclude Include="ControllableWrap.h" />
     <ClInclude Include="ImageUtil.h" />
     <ClInclude Include="Light.hpp" />
@@ -220,6 +221,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Async.cpp" />
     <ClCompile Include="ControllableWrap.cpp" />
     <ClCompile Include="dllManager.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>

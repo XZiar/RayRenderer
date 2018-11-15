@@ -54,6 +54,7 @@ RenderCore::RenderCore() : Core(new rayr::RenderCore())
     Passes->CollectionChanged += gcnew NotifyCollectionChangedEventHandler(this, &RenderCore::OnPassesChanged);
     for (const auto& pass : Core->GetRenderPasses())
         Passes->InnerAdd(gcnew RenderPass(pass));
+    ThumbMan = gcnew ThumbnailMan(Core->GetThumbMan());
 }
 
 RenderCore::!RenderCore()

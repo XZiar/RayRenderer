@@ -11,13 +11,19 @@ namespace Dizz
 
 TexHolder::TexHolder(const oglu::oglTex2D& tex) : TypeId(1)
 {
-    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
-    new ((uint8_t*)ptr) std::weak_ptr<void>(tex);
+    WRAPPER_NATIVE_PTR(WeakRef, ptr);
+    new (ptr) std::weak_ptr<void>(tex);
 }
 TexHolder::TexHolder(const rayr::FakeTex& tex) : TypeId(2)
 {
-    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
-    new ((uint8_t*)ptr) std::weak_ptr<void>(tex);
+    WRAPPER_NATIVE_PTR(WeakRef, ptr);
+    new (ptr) std::weak_ptr<void>(tex);
+}
+
+TexHolder::!TexHolder()
+{
+    WRAPPER_NATIVE_PTR(WeakRef, ptr);
+    ptr->~weak_ptr();
 }
 
 TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
@@ -30,10 +36,10 @@ TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
     }
 }
 
+
 rayr::TexHolder TexHolder::ExtractHolder()
 {
-    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
-    auto holder = reinterpret_cast<std::weak_ptr<void>*>(ptr)->lock();
+    WRAPPER_NATIVE_PTR_DO(WeakRef, holder, lock());
     if (!holder) return {};
     switch (TypeId)
     {
@@ -41,12 +47,6 @@ rayr::TexHolder TexHolder::ExtractHolder()
     case 2: return std::reinterpret_pointer_cast<rayr::detail::_FakeTex>(holder);
     default: return {};
     }
-}
-
-TexHolder::!TexHolder()
-{
-    cli::pin_ptr<uint8_t> ptr = &WeakRef.Dummy;
-    reinterpret_cast<std::weak_ptr<void>*>(ptr)->~weak_ptr();
 }
 
 
@@ -76,6 +76,15 @@ BitmapSource^ ThumbnailMan::GetThumbnail(const xziar::img::ImageView& img)
     return timg;
 }
 
+BitmapSource^ ThumbnailMan::GetThumbnail2(Common::CLIWrapper<std::optional<xziar::img::ImageView>>^ img)
+{
+    auto opt = img->Extract();
+    if (opt.has_value())
+        return GetThumbnail(opt.value());
+    else
+        return nullptr;
+}
+
 BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 {
     auto img = ThumbMan->lock()->GetThumbnail(holder)->Wait();
@@ -85,4 +94,17 @@ BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 }
 
 
+Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>^ ThumbnailMan::GetThumbnailAsync(TexHolder^ holder)
+{
+    auto kk = gcnew Func<Common::CLIWrapper<std::optional<xziar::img::ImageView>>^, BitmapSource^>(this, &ThumbnailMan::GetThumbnail2);
+    return gcnew Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>
+        (
+            ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()),
+            kk
+            );
 }
+
+
+}
+
+template ref class Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>;

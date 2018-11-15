@@ -23,7 +23,8 @@ public:
     void Rotate(const float dx, const float dy, const float dz);
 };
 [ExtensionAttribute]
-public ref class IMovableExtensions abstract sealed {
+public ref class IMovableExtensions abstract sealed 
+{
 public:
     [ExtensionAttribute]
     static void Move(IMovable ^obj, Vector3 vec) { obj->Move(vec.X, vec.Y, vec.Z); }

@@ -10,6 +10,9 @@
         xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
         mc:Ignorable="d"
         Title="Window" Height="800" Width="1000" Background="{StaticResource brshDarkBackground}">
+    <Window.Resources>
+        <local:ThumbnailConvertor x:Key="thumbConv"/>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="34"/>
@@ -150,7 +153,38 @@
                                     <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}">
                                         <DockPanel local:ControllableGrid.ItemCategory="Material">
                                             <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
-                                            <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}" />
+                                            <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
+                                                <xctk:ColorPicker local:ControllableGrid.ItemName="Color" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
+                                                    <xctk:ColorPicker.Style>
+                                                        <Style TargetType="xctk:ColorPicker">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </xctk:ColorPicker.Style>
+                                                </xctk:ColorPicker>
+                                                <Border BorderBrush="#FFABABAB" BorderThickness="1">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Image MaxWidth="256" Stretch="Fill">
+                                                        <Image.Source>
+                                                            <MultiBinding Converter="{StaticResource thumbConv}">
+                                                                <Binding RelativeSource="{RelativeSource Self}" Mode="OneTime" />
+                                                                <Binding Path="DiffuseMap" Mode="OneWay" />
+                                                            </MultiBinding>
+                                                        </Image.Source>
+                                                    </Image>
+                                                </Border>
+                                            </local:ControllableGrid>
                                         </DockPanel>
                                     </local:ControllableGrid>
                                 </DockPanel>

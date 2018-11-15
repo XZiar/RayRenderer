@@ -352,9 +352,11 @@ namespace WPFTest
             {
                 var realControl = pack.Control;
                 realControl.Margin = new Thickness(6, 4, 6, 4);
+                bool setTooltip = !string.IsNullOrWhiteSpace(pack.Description);
                 if (string.IsNullOrWhiteSpace(pack.Name))
                 {
-                    realControl.ToolTip = pack.Description;
+                    if (setTooltip) 
+                        realControl.ToolTip = pack.Description;
                     Grid.SetRow(realControl, idxEnd); Grid.SetColumn(realControl, 0); Grid.SetColumnSpan(realControl, 3);
                     grid.Children.Add(realControl);
                     idxEnd--;
@@ -364,11 +366,18 @@ namespace WPFTest
                     var label = new TextBlock()
                     {
                         Text = pack.Name,
-                        ToolTip = pack.Description,
                         Padding = new Thickness(0, 0, 6, 0),
                         VerticalAlignment = VerticalAlignment.Center,
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
+                    if (setTooltip)
+                        label.ToolTip = pack.Description;
+                    label.SetBinding(VisibilityProperty, new Binding
+                    {
+                        Source = realControl,
+                        Path = new PropertyPath(VisibilityProperty),
+                        Mode = BindingMode.OneWay
+                    });
                     SetBasicBinding(label);
 
                     Grid.SetRow(label, idx); Grid.SetColumn(label, 0);
