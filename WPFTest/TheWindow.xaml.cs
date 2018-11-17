@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -10,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
@@ -20,31 +22,79 @@ using XZiar.Util;
 
 namespace WPFTest
 {
-    internal class ThumbnailConvertor : IMultiValueConverter
+    [MarkupExtensionReturnType(typeof(BindingExpression))]
+    internal class ThumbnailBinding : MarkupExtension
     {
-        private readonly ThumbnailMan Manager;
-        public ThumbnailConvertor(ThumbnailMan manager)
-        {
-            Manager = manager;
-        }
-        public ThumbnailConvertor() : this(null) { }
+        private static readonly DependencyProperty TargetProperty = DependencyProperty.RegisterAttached(
+            "Target",
+            typeof(DependencyProperty),
+            typeof(ThumbnailBinding),
+            new PropertyMetadata(null));
+        private static readonly DependencyProperty TexHolderProperty = DependencyProperty.RegisterAttached(
+            "TexHolder",
+            typeof(TexHolder),
+            typeof(ThumbnailBinding),
+            new PropertyMetadata(null, TexHolderChanged));
+        internal static readonly WeakReference<ThumbnailMan> Manager = new WeakReference<ThumbnailMan>(null);
 
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        public PropertyPath Path { get; set; }
+
+        static void TexHolderChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (Manager != null)
+            if (!(d is FrameworkElement target) || !(e.NewValue is TexHolder newVal))
+                return;
+            if (!(target.GetValue(TargetProperty) is DependencyProperty property) || property == null)
+                return;
+            if (newVal != null && Manager.TryGetTarget(out ThumbnailMan thumbMan))
             {
-                var control = values[0] as Image;
-                var task = Manager.GetThumbnailAsync(values[1] as TexHolder);
-                task.GetAwaiter().OnCompleted(async () => control.Source = await task);
+                var task = thumbMan.GetThumbnailAsync(newVal as TexHolder);
+                task.GetAwaiter().OnCompleted(async () =>
+                    {
+                        if (target.GetValue(TexHolderProperty) == newVal)
+                            target.SetValue(property, await task);
+                    });
             }
+            else
+            {
+                target.SetValue(property, property.GetMetadata(target).DefaultValue);
+            }
+        }
+
+        public ThumbnailBinding()
+        { }
+
+        public ThumbnailBinding(string path)
+        {
+            Path = new PropertyPath(path);
+        }
+
+        public override object ProvideValue(IServiceProvider serviceProvider)
+        {
+            var provideValueTargetService = (IProvideValueTarget)serviceProvider.GetService(typeof(IProvideValueTarget));
+            if (provideValueTargetService == null)
+                return null;
+            if (provideValueTargetService.TargetObject != null &&
+                provideValueTargetService.TargetObject.GetType().FullName == "System.Windows.SharedDp")
+                return this;
+
+            if (!(provideValueTargetService.TargetObject is FrameworkElement targetObject) ||
+                !(provideValueTargetService.TargetProperty is DependencyProperty targetProperty))
+                return null;
+
+            targetObject.SetValue(TargetProperty, targetProperty);
+
+            var texHolderBinding = new Binding
+            {
+                Path = Path,
+                Mode = BindingMode.OneWay,
+            };
+            //if (Source != null)
+            //    binding.Source = Source;
+            targetObject.SetBinding(TexHolderProperty, texHolderBinding);
             return null;
         }
-
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
     }
+
     /// <summary>
     /// TheWindow.xaml 的交互逻辑
     /// </summary>
@@ -108,7 +158,7 @@ namespace WPFTest
         private void InitializeCore()
         {
             Core = new RenderCore();
-            Resources["thumbConv"] = new ThumbnailConvertor(Core.ThumbMan);
+            ThumbnailBinding.Manager.SetTarget(Core.ThumbMan);
             OperateTargets[0] = Core.TheScene.MainCamera;
             OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
             OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();

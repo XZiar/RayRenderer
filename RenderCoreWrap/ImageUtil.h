@@ -26,10 +26,13 @@ public:
 private ref class ImageHolder
 {
 private:
-    CLIWrapper<xziar::img::ImageView> Img;
+    Common::NativeWrapper<xziar::img::ImageView> Img;
+    //CLIWrapper<xziar::img::ImageView> Img;
 public:
-    ImageHolder(xziar::img::Image&& img) : Img(img) {}
-    ImageHolder(const xziar::img::Image& img) : Img(img) {}
+    ImageHolder(xziar::img::Image&& img);
+    ImageHolder(const xziar::img::Image& img);
+    ~ImageHolder() { this->!ImageHolder(); }
+    !ImageHolder();
     void Save(String^ filePath);
 };
 

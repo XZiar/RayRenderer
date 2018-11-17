@@ -8,16 +8,14 @@ namespace Common
 
 AsyncWaiter::AsyncItem::AsyncItem(std::shared_ptr<common::detail::PromiseResultCore>&& pmsCore, SynchronizationContext^ syncContext, Action^ afterComplete)
 {
-    WRAPPER_NATIVE_PTR(PmsCore, ptr);
-    new (ptr) std::shared_ptr<common::detail::PromiseResultCore>(pmsCore);
+    PmsCore.Construct(std::move(pmsCore));
     SyncContext = syncContext;
     AfterComplete = afterComplete;
 }
 
 AsyncWaiter::AsyncItem::!AsyncItem()
 {
-    WRAPPER_NATIVE_PTR(PmsCore, ptr);
-    ptr->~shared_ptr();
+    PmsCore.Destruct();
 }
 
 bool AsyncWaiter::AsyncItem::IsComplete()
@@ -33,15 +31,32 @@ static void PerformAction(Object^ action)
 
 static AsyncWaiter::AsyncWaiter()
 {
+    ShouldRun = true;
     TaskList = gcnew LinkedList<AsyncItem^>();
     AsyncCallback = gcnew SendOrPostCallback(&PerformAction);
     TaskThread = gcnew Thread(gcnew ThreadStart(&AsyncWaiter::PerformTask));
     TaskThread->Start();
+    AppDomain::CurrentDomain->DomainUnload += gcnew EventHandler(&AsyncWaiter::Destroy);
+}
+
+void AsyncWaiter::Destroy(Object^ sender, EventArgs^ e)
+{
+    Monitor::Enter(TaskList);
+    try
+    {
+        ShouldRun = false;
+        Monitor::Pulse(TaskList);
+    }
+    finally
+    {
+        Monitor::Exit(TaskList);
+        TaskThread->Join();
+    }
 }
 
 void AsyncWaiter::PerformTask()
 {
-    while (true)
+    while (ShouldRun)
     {
         bool hasChecked = false, hasComplete = false;
         Monitor::Enter(TaskList);
@@ -65,7 +80,7 @@ void AsyncWaiter::PerformTask()
             if (del != nullptr)
                 TaskList->Remove(del);
         }
-        if (!hasChecked)
+        if (!hasChecked && ShouldRun)
             Monitor::Wait(TaskList);
         else
         {

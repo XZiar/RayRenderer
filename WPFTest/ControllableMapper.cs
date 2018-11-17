@@ -234,38 +234,5 @@ namespace WPFTest
             return slider;
         }
     }
-    public static class ControllableMapper
-    {
-        private static readonly BrushConverter BrushConv = new BrushConverter();
-        private static readonly SolidColorBrush bgBrush = new SolidColorBrush(Colors.White);
-        private static readonly SolidColorBrush borderBrush = BrushConv.ConvertFromString("#FFABABAB") as SolidColorBrush;
-        static StackPanel GetControlPanel(Controllable control)
-        {
-            var panel = new StackPanel();
-            foreach (var cat in control.Categories)
-            {
-                IAddChild parent = panel;
-                if (!string.IsNullOrEmpty(cat.Key))
-                {
-                    var group = new GroupBox()
-                    {
-                        Header = cat.Value,
-                        Foreground = bgBrush,
-                        BorderBrush = borderBrush,
-                        BorderThickness = new System.Windows.Thickness(0.5),
-                        Margin = new System.Windows.Thickness(3, 4, 3, 4)
-                    };
-                    panel.Children.Add(group);
-                    parent = group;
-                }
-                foreach (var item in control.Items.Where(x => x.Category == cat.Key))
-                {
-
-                }
-            }
-            return null;
-        }
-
-    }
 
 }

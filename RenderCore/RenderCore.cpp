@@ -128,6 +128,10 @@ RenderCore::RenderCore()
     }
 }
 
+RenderCore::~RenderCore()
+{
+}
+
 void RenderCore::RefreshContext() const
 {
     oglContext::Refresh();
@@ -145,10 +149,6 @@ void RenderCore::InitShaders()
         .SetSubroutine("lighter", "albedoOnly")
         .SetSubroutine("getNorm", "bothNormal")
         .SetSubroutine("getAlbedo", "bothAlbedo");
-}
-
-RenderCore::~RenderCore()
-{
 }
 
 void RenderCore::TestSceneInit()

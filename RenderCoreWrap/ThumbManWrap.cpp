@@ -1,7 +1,6 @@
 #include "RenderCoreWrapRely.h"
 #include "ThumbManWrap.h"
 #include "ImageUtil.h"
-#include "common/CLIAsync.hpp"
 
 
 using common::container::FindInMap;
@@ -11,19 +10,16 @@ namespace Dizz
 
 TexHolder::TexHolder(const oglu::oglTex2D& tex) : TypeId(1)
 {
-    WRAPPER_NATIVE_PTR(WeakRef, ptr);
-    new (ptr) std::weak_ptr<void>(tex);
+    WeakRef.Construct(tex);
 }
 TexHolder::TexHolder(const rayr::FakeTex& tex) : TypeId(2)
 {
-    WRAPPER_NATIVE_PTR(WeakRef, ptr);
-    new (ptr) std::weak_ptr<void>(tex);
+    WeakRef.Construct(tex);
 }
 
 TexHolder::!TexHolder()
 {
-    WRAPPER_NATIVE_PTR(WeakRef, ptr);
-    ptr->~weak_ptr();
+    WeakRef.Destruct();
 }
 
 TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
@@ -96,12 +92,12 @@ BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 
 Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>^ ThumbnailMan::GetThumbnailAsync(TexHolder^ holder)
 {
-    auto kk = gcnew Func<Common::CLIWrapper<std::optional<xziar::img::ImageView>>^, BitmapSource^>(this, &ThumbnailMan::GetThumbnail2);
+    auto convertor = gcnew Func<Common::CLIWrapper<std::optional<xziar::img::ImageView>>^, BitmapSource^>(this, &ThumbnailMan::GetThumbnail2);
     return gcnew Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>
         (
             ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()),
-            kk
-            );
+            convertor
+        );
 }
 
 

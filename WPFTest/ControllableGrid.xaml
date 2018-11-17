@@ -9,27 +9,25 @@
              d:DesignHeight="600" d:DesignWidth="400">
     <ContentControl.Resources>
     </ContentControl.Resources>
-    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-        <ItemsControl x:Name="stkMain">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Orientation="Vertical" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type System:String}">
-                    <GroupBox x:Name="groupBox" Header="{Binding Value, Mode=OneTime}" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
-                        <Grid x:Name="gridMain" Initialized="gridMain_Initialized" Tag="{Binding Key, Mode=OneTime}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="2" />
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <GridSplitter x:Name="gridSplit" Grid.Row="0" Grid.Column="1" Width="3" HorizontalAlignment="Stretch" Background="#FF686868" />
-                        </Grid>
-                    </GroupBox>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </ScrollViewer>
+    <ItemsControl x:Name="stkMain">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Vertical" />
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type System:String}">
+                <GroupBox x:Name="groupBox" Header="{Binding Value, Mode=OneTime}" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                    <Grid x:Name="gridMain" Initialized="gridMain_Initialized" Tag="{Binding Key, Mode=OneTime}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="2" />
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <GridSplitter x:Name="gridSplit" Grid.Row="0" Grid.Column="1" Width="3" HorizontalAlignment="Stretch" Background="#FF686868" />
+                    </Grid>
+                </GroupBox>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
 </ContentControl>

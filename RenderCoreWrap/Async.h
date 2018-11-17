@@ -2,6 +2,7 @@
 
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
+#include "common/CLIException.hpp"
 
 using namespace System;
 using namespace System::Collections::Generic;
@@ -32,6 +33,8 @@ private:
     static initonly LinkedList<AsyncItem^>^ TaskList;
     static initonly Thread^ TaskThread;
     static initonly SendOrPostCallback^ AsyncCallback;
+    static bool ShouldRun;
+    static void Destroy(Object^ sender, EventArgs^ e);
     static void PerformTask();
 public:
     static AsyncWaiter();
@@ -47,6 +50,7 @@ public:
     ref class WaitObjAwaiter : System::Runtime::CompilerServices::INotifyCompletion
     {
     private:
+        //Common::NativeWrapper<common::PromiseResult<CPPType>> Dummy;
         common::PromiseResult<CPPType>* const Promise;
         initonly Func<CLIWrapper<CPPType>^, CLIType>^ Convertor;
     internal:

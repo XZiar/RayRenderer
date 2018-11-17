@@ -118,9 +118,25 @@ Image ImageUtil::Convert(BitmapSource^ image)
 }
 
 
+ImageHolder::ImageHolder(xziar::img::Image&& img)
+{
+    Img.Construct(std::move(img));
+}
+
+ImageHolder::ImageHolder(const xziar::img::Image& img)
+{
+    Img.Construct(img);
+}
+
+ImageHolder::!ImageHolder()
+{
+    Img.Destruct();
+}
+
 void ImageHolder::Save(String^ filePath)
 {
-    ImageUtil::WriteImage(Img.Extract().AsRawImage(), filePath);
+    WRAPPER_NATIVE_PTR_DO(Img, rawimg, AsRawImage());
+    ImageUtil::WriteImage(rawimg, filePath);
 }
 
 }

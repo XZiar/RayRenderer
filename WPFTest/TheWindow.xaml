@@ -11,7 +11,6 @@
         mc:Ignorable="d"
         Title="Window" Height="800" Width="1000" Background="{StaticResource brshDarkBackground}">
     <Window.Resources>
-        <local:ThumbnailConvertor x:Key="thumbConv"/>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -150,61 +149,63 @@
                             <xcad:LayoutAnchorable ContentId="drawables" Title="物件" CanClose="False">
                                 <DockPanel>
                                     <ComboBox x:Name="cboxDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                                    <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}">
-                                        <DockPanel local:ControllableGrid.ItemCategory="Material">
-                                            <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
-                                            <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
-                                                <xctk:ColorPicker local:ControllableGrid.ItemName="Color" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
-                                                    <xctk:ColorPicker.Style>
-                                                        <Style TargetType="xctk:ColorPicker">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </xctk:ColorPicker.Style>
-                                                </xctk:ColorPicker>
-                                                <Border BorderBrush="#FFABABAB" BorderThickness="1">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Image MaxWidth="256" Stretch="Fill">
-                                                        <Image.Source>
-                                                            <MultiBinding Converter="{StaticResource thumbConv}">
-                                                                <Binding RelativeSource="{RelativeSource Self}" Mode="OneTime" />
-                                                                <Binding Path="DiffuseMap" Mode="OneWay" />
-                                                            </MultiBinding>
-                                                        </Image.Source>
-                                                    </Image>
-                                                </Border>
-                                            </local:ControllableGrid>
-                                        </DockPanel>
-                                    </local:ControllableGrid>
+                                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+                                        <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}">
+                                            <DockPanel local:ControllableGrid.ItemCategory="Material">
+                                                <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
+                                                <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
+                                                    <xctk:ColorPicker local:ControllableGrid.ItemName="Color" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
+                                                        <xctk:ColorPicker.Style>
+                                                            <Style TargetType="xctk:ColorPicker">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </xctk:ColorPicker.Style>
+                                                    </xctk:ColorPicker>
+                                                    <Border BorderBrush="#FFABABAB" BorderThickness="1">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap}">
+                                                        </Image>
+                                                    </Border>
+                                                </local:ControllableGrid>
+                                            </DockPanel>
+                                        </local:ControllableGrid>
+                                    </ScrollViewer>
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="lights" Title="灯光" CanClose="False">
                                 <DockPanel>
                                     <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                                    <local:ControllableGrid x:Name="ctlLight" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}" />
+                                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+                                        <local:ControllableGrid x:Name="ctlLight" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}" />
+                                    </ScrollViewer>
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="shaders" Title="Shader" CanClose="False">
                                 <DockPanel>
                                     <ComboBox x:Name="cboxShader" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                                    <local:ControllableGrid x:Name="ctlShader" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}" />
+                                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+                                        <local:ControllableGrid x:Name="ctlShader" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}" />
+                                    </ScrollViewer>
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
                             <xcad:LayoutAnchorable ContentId="control" Title="Control" CanClose="False">
                                 <DockPanel>
                                     <ComboBox x:Name="cboxControl" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                                    <local:ControllableGrid x:Name="ctlControl" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxControl, Mode=OneWay}" />
+                                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+                                        <local:ControllableGrid x:Name="ctlControl" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxControl, Mode=OneWay}" />
+                                    </ScrollViewer>
                                 </DockPanel>
                             </xcad:LayoutAnchorable>
                         </xcad:LayoutAnchorablePane>

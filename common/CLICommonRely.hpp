@@ -129,6 +129,18 @@ public:
     using RawType = T;
     [System::Runtime::InteropServices::FieldOffset(0)]
     uint8_t Dummy;
+internal:
+    template<typename... Args>
+    void Construct(Args&&... args)
+    {
+        cli::pin_ptr<uint8_t> ptr = &Dummy;
+        new (reinterpret_cast<uint8_t*>(ptr)) T(std::forward<Args>(args)...);
+    }
+    void Destruct()
+    {
+        cli::pin_ptr<uint8_t> ptr = &Dummy; 
+        reinterpret_cast<T*>(ptr)->~T();
+    }
 };
 
 #define WRAPPER_NATIVE_PTR(wrapper, ptrname) \
