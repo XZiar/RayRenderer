@@ -40,12 +40,12 @@ internal:
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
     BitmapSource^ GetThumbnail2(Common::CLIWrapper<std::optional<xziar::img::ImageView>>^ img);
+    BitmapSource^ GetThumbnail3(IntPtr imgptr);
     BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
 public:
     ~ThumbnailMan() { this->!ThumbnailMan(); }
     !ThumbnailMan();
-    //BitmapSource^ GetThumbnail(TexHolder^ holder) { return GetThumbnail(holder->ExtractHolder()); }
-    Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>^ GetThumbnailAsync(TexHolder^ holder);
+    Task<BitmapSource^>^ GetThumbnailAsync(TexHolder^ holder);
 };
 
 

@@ -16,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using CommonUtil;
 using Dizz;
 using Microsoft.Win32;
 using XZiar.Util;
@@ -25,44 +26,12 @@ namespace WPFTest
     [MarkupExtensionReturnType(typeof(BindingExpression))]
     internal class ThumbnailBinding : MarkupExtension
     {
-        private static readonly DependencyProperty TargetProperty = DependencyProperty.RegisterAttached(
-            "Target",
-            typeof(DependencyProperty),
-            typeof(ThumbnailBinding),
-            new PropertyMetadata(null));
-        private static readonly DependencyProperty TexHolderProperty = DependencyProperty.RegisterAttached(
-            "TexHolder",
-            typeof(TexHolder),
-            typeof(ThumbnailBinding),
-            new PropertyMetadata(null, TexHolderChanged));
-        internal static readonly WeakReference<ThumbnailMan> Manager = new WeakReference<ThumbnailMan>(null);
+        internal static WeakReference<ThumbnailMan> Manager = new WeakReference<ThumbnailMan>(null);
 
         public PropertyPath Path { get; set; }
+        public object Source { get; set; }
 
-        static void TexHolderChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (!(d is FrameworkElement target) || !(e.NewValue is TexHolder newVal))
-                return;
-            if (!(target.GetValue(TargetProperty) is DependencyProperty property) || property == null)
-                return;
-            if (newVal != null && Manager.TryGetTarget(out ThumbnailMan thumbMan))
-            {
-                var task = thumbMan.GetThumbnailAsync(newVal as TexHolder);
-                task.GetAwaiter().OnCompleted(async () =>
-                    {
-                        if (target.GetValue(TexHolderProperty) == newVal)
-                            target.SetValue(property, await task);
-                    });
-            }
-            else
-            {
-                target.SetValue(property, property.GetMetadata(target).DefaultValue);
-            }
-        }
-
-        public ThumbnailBinding()
-        { }
-
+        public ThumbnailBinding() { }
         public ThumbnailBinding(string path)
         {
             Path = new PropertyPath(path);
@@ -76,24 +45,45 @@ namespace WPFTest
             if (provideValueTargetService.TargetObject != null &&
                 provideValueTargetService.TargetObject.GetType().FullName == "System.Windows.SharedDp")
                 return this;
-
             if (!(provideValueTargetService.TargetObject is FrameworkElement targetObject) ||
                 !(provideValueTargetService.TargetProperty is DependencyProperty targetProperty))
                 return null;
 
-            targetObject.SetValue(TargetProperty, targetProperty);
-
-            var texHolderBinding = new Binding
+            object loader(object x)
             {
-                Path = Path,
-                Mode = BindingMode.OneWay,
-            };
-            //if (Source != null)
-            //    binding.Source = Source;
-            targetObject.SetBinding(TexHolderProperty, texHolderBinding);
-            return null;
+                if ((x is TexHolder holder) && Manager.TryGetTarget(out ThumbnailMan thumbMan))
+                    return thumbMan.GetThumbnailAsync(holder);
+                else
+                    return null;
+            }
+            ProxyBinder binder;
+            if (Source == null)
+            {
+                binder = new ProxyBinder(Path, loader);
+                BindingOperations.SetBinding(binder, ProxyBinder.DataSourceProperty, new Binding
+                {
+                    Path = new PropertyPath(FrameworkElement.DataContextProperty),
+                    Source = targetObject,
+                    Mode = BindingMode.OneWay
+                });
+            }
+            else
+            {
+                binder = new ProxyBinder(new Binding
+                {
+                    Path = Path,
+                    Source = Source,
+                    Mode = BindingMode.OneWay
+                }, loader);
+            }
+
+            var retBinding = binder.GetDestBinding();
+            retBinding.ConverterParameter = binder;
+            return retBinding.ProvideValue(serviceProvider);
         }
     }
+
+
 
     /// <summary>
     /// TheWindow.xaml 的交互逻辑

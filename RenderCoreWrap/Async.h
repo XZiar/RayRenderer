@@ -17,80 +17,65 @@ constexpr auto CompleteState = static_cast<uint8_t>(common::PromiseState::Execut
 
 ref class AsyncWaiter
 {
-public:
-    ref class AsyncItem
-    {
-    internal:
-        Common::NativeWrapper<std::shared_ptr<common::detail::PromiseResultCore>> PmsCore;
-        initonly SynchronizationContext^ SyncContext;
-        initonly Action^ AfterComplete;
-        AsyncItem(std::shared_ptr<common::detail::PromiseResultCore>&& pmsCore, SynchronizationContext^ syncContext, Action^ afterComplete);
-        ~AsyncItem() { this->!AsyncItem(); }
-        !AsyncItem();
-        bool IsComplete();
-    };
 private:
-    static initonly LinkedList<AsyncItem^>^ TaskList;
+    ref class AsyncTaskBase abstract
+    {
+    protected:
+        Common::NativeWrapper<std::shared_ptr<common::detail::PromiseResultCore>> PmsCore;
+    public:
+        ~AsyncTaskBase() { this->!AsyncTaskBase(); }
+        !AsyncTaskBase();
+        bool IsComplete();
+        void virtual SetResult() abstract;
+    };
+    template<typename CPPType, typename CLRType>
+    ref class AsyncTaskItem : public AsyncTaskBase
+    {
+    private:
+        initonly Func<IntPtr, CLRType>^ Converter;
+        initonly TaskCompletionSource<CLRType>^ TaskProxy;
+    public:
+        void virtual SetResult() override
+        {
+            WRAPPER_NATIVE_PTR(PmsCore, ptr);
+            auto pms = std::static_pointer_cast<common::detail::PromiseResult_<CPPType>>(*ptr);
+            try
+            {
+                Common::NativeWrapper<CPPType> temp;
+                temp.Construct(pms->Wait());
+                WRAPPER_NATIVE_PTR(temp, objptr);
+                TaskProxy->SetResult(Converter->Invoke(IntPtr(objptr)));
+                temp.Destruct();
+            }
+            catch (const common::BaseException& be)
+            {
+                TaskProxy->SetException(gcnew CPPException(be));
+            }
+        }
+        AsyncTaskItem(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter, TaskCompletionSource<CLRType>^ tcs)
+        {
+            PmsCore.Construct(std::move(pms));
+            Converter = converter;
+            TaskProxy = tcs;
+        }
+    };
+    static initonly LinkedList<AsyncTaskBase^>^ TaskList;
     static initonly Thread^ TaskThread;
     static initonly SendOrPostCallback^ AsyncCallback;
     static bool ShouldRun;
     static void Destroy(Object^ sender, EventArgs^ e);
     static void PerformTask();
+    static void Put(AsyncTaskBase^ item);
 public:
     static AsyncWaiter();
-    static void Put(AsyncItem^ item);
-};
-
-
-template<typename CPPType, typename CLIType>
-public ref class WaitObj
-{
-public:
-    template<typename CPPType, typename CLIType>
-    ref class WaitObjAwaiter : System::Runtime::CompilerServices::INotifyCompletion
-    {
-    private:
-        //Common::NativeWrapper<common::PromiseResult<CPPType>> Dummy;
-        common::PromiseResult<CPPType>* const Promise;
-        initonly Func<CLIWrapper<CPPType>^, CLIType>^ Convertor;
-    internal:
-        WaitObjAwaiter(common::PromiseResult<CPPType>&& pms, Func<CLIWrapper<CPPType>^, CLIType>^ conv)
-            : Promise(new common::PromiseResult<CPPType>(std::move(pms)))
-        {
-            Convertor = conv;
-        }
-    public:
-        ~WaitObjAwaiter() { this->!WaitObjAwaiter(); }
-        !WaitObjAwaiter()
-        {
-            delete Promise;
-        }
-        virtual void OnCompleted(Action^ continuation)
-        {
-            auto item = gcnew AsyncWaiter::AsyncItem(*Promise, SynchronizationContext::Current, continuation);
-            AsyncWaiter::Put(item);
-        }
-        property bool IsCompleted { bool get() { return static_cast<uint8_t>((*Promise)->GetState()) >= CompleteState; } }
-        CLIType GetResult()
-        {
-            try
-            {
-                return Convertor->Invoke(gcnew CLIWrapper<CPPType>((*Promise)->Wait()));
-            }
-            catch (const common::BaseException& be)
-            {
-                throw gcnew CPPException(be);
-            }
-        }
-    };
 internal:
-    initonly WaitObjAwaiter<CPPType, CLIType>^ TheAwaiter;
-    WaitObj(common::PromiseResult<CPPType>&& pms, Func<CLIWrapper<CPPType>^, CLIType>^ conv)
+    template<typename CPPType, typename CLRType>
+    static Task<CLRType>^ ReturnTask(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter)
     {
-        TheAwaiter = gcnew WaitObjAwaiter<CPPType, CLIType>(std::move(pms), conv);
+        auto tcs = gcnew TaskCompletionSource<CLRType>();
+        Put(gcnew AsyncTaskItem<CPPType, CLRType>(std::move(pms), converter, tcs));
+        return tcs->Task;
     }
-public:
-    WaitObjAwaiter<CPPType, CLIType>^ GetAwaiter() { return TheAwaiter; }
 };
 
 

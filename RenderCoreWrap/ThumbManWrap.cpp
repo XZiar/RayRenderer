@@ -81,6 +81,15 @@ BitmapSource^ ThumbnailMan::GetThumbnail2(Common::CLIWrapper<std::optional<xziar
         return nullptr;
 }
 
+BitmapSource^ ThumbnailMan::GetThumbnail3(IntPtr imgptr)
+{
+    auto& img = *reinterpret_cast<std::optional<xziar::img::ImageView>*>(imgptr.ToPointer());
+    if (img.has_value())
+        return GetThumbnail(img.value());
+    else
+        return nullptr;
+}
+
 BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 {
     auto img = ThumbMan->lock()->GetThumbnail(holder)->Wait();
@@ -90,17 +99,19 @@ BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 }
 
 
-Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>^ ThumbnailMan::GetThumbnailAsync(TexHolder^ holder)
+Task<BitmapSource^>^ ThumbnailMan::GetThumbnailAsync(TexHolder^ holder)
 {
-    auto convertor = gcnew Func<Common::CLIWrapper<std::optional<xziar::img::ImageView>>^, BitmapSource^>(this, &ThumbnailMan::GetThumbnail2);
+    return AsyncWaiter::ReturnTask(ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()), 
+        gcnew Func<IntPtr, BitmapSource^>(this, &ThumbnailMan::GetThumbnail3));
+
+    /*auto convertor = gcnew Func<Common::CLIWrapper<std::optional<xziar::img::ImageView>>^, BitmapSource^>(this, &ThumbnailMan::GetThumbnail2);
     return gcnew Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>
         (
             ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()),
             convertor
-        );
+        );*/
 }
 
 
 }
 
-template ref class Common::WaitObj<std::optional<xziar::img::ImageView>, BitmapSource^>;

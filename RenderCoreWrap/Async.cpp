@@ -6,19 +6,12 @@ namespace Common
 {
 
 
-AsyncWaiter::AsyncItem::AsyncItem(std::shared_ptr<common::detail::PromiseResultCore>&& pmsCore, SynchronizationContext^ syncContext, Action^ afterComplete)
-{
-    PmsCore.Construct(std::move(pmsCore));
-    SyncContext = syncContext;
-    AfterComplete = afterComplete;
-}
-
-AsyncWaiter::AsyncItem::!AsyncItem()
+AsyncWaiter::AsyncTaskBase::!AsyncTaskBase()
 {
     PmsCore.Destruct();
 }
 
-bool AsyncWaiter::AsyncItem::IsComplete()
+bool AsyncWaiter::AsyncTaskBase::IsComplete()
 {
     WRAPPER_NATIVE_PTR(PmsCore, ptr);
     return static_cast<uint8_t>((*ptr)->GetState()) >= CompleteState;
@@ -32,7 +25,7 @@ static void PerformAction(Object^ action)
 static AsyncWaiter::AsyncWaiter()
 {
     ShouldRun = true;
-    TaskList = gcnew LinkedList<AsyncItem^>();
+    TaskList = gcnew LinkedList<AsyncTaskBase^>();
     AsyncCallback = gcnew SendOrPostCallback(&PerformAction);
     TaskThread = gcnew Thread(gcnew ThreadStart(&AsyncWaiter::PerformTask));
     TaskThread->Start();
@@ -65,14 +58,11 @@ void AsyncWaiter::PerformTask()
         {
             Monitor::Exit(TaskList);
             hasChecked = true; 
-            LinkedListNode<AsyncItem^>^ del = nullptr;
+            LinkedListNode<AsyncTaskBase^>^ del = nullptr;
             if (node->Value->IsComplete())
             {
                 hasComplete = true;
-                if (SynchronizationContext::Current == node->Value->SyncContext)
-                    node->Value->AfterComplete->Invoke();
-                else
-                    node->Value->SyncContext->Post(AsyncCallback, node->Value->AfterComplete);
+                node->Value->SetResult();
                 del = node;
             }
             Monitor::Enter(TaskList);
@@ -91,7 +81,7 @@ void AsyncWaiter::PerformTask()
     }
 }
 
-void AsyncWaiter::Put(AsyncItem^ item)
+void AsyncWaiter::Put(AsyncTaskBase^ item)
 {
     Monitor::Enter(TaskList);
     try

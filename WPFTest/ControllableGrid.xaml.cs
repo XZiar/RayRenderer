@@ -91,6 +91,7 @@ namespace WPFTest
             set { SetValue(CategoriesProperty, value); }
         }
 
+        private readonly List<Grid> CategoryGrids = new List<Grid>();
         public delegate void GenerateControlEventHandler(ControllableGrid sender, ControlItem item, ref FrameworkElement element);
         public event GenerateControlEventHandler GeneratingControl;
         public ControllableGrid()
@@ -149,11 +150,14 @@ namespace WPFTest
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            var old = Enumerable.Range(0, stkMain.Items.Count)
-                .Select(x => stkMain.ItemContainerGenerator.ContainerFromIndex(x) as ContentPresenter)
-                .Select(cp => cp.ContentTemplate.FindName("gridMain", cp) as Grid);
-            foreach (var grid in old)
+            foreach (var grid in CategoryGrids)
                 grid.Children.Clear();
+            CategoryGrids.Clear();
+            //var old = Enumerable.Range(0, stkMain.Items.Count)
+            //    .Select(x => stkMain.ItemContainerGenerator.ContainerFromIndex(x) as ContentPresenter)
+            //    .Select(cp => cp.ContentTemplate.FindName("gridMain", cp) as Grid);
+            //foreach (var grid in old)
+            //    grid.Children.Clear();
 
             if (!(e.NewValue is Controllable control))
             {
@@ -327,6 +331,7 @@ namespace WPFTest
             if (control == null)
                 return;
             var grid = sender as Grid;
+            CategoryGrids.Add(grid);
             var splitter = grid.FindName("gridSplit") as GridSplitter;
             var cat = grid.Tag as string;
 
