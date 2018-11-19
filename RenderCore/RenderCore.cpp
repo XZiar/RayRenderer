@@ -1,7 +1,6 @@
 #include "RenderCoreRely.h"
 #include "resource.h"
 #include "RenderCore.h"
-#include "TextureLoader.h"
 #include "FontTest.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"

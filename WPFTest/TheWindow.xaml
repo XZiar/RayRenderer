@@ -154,7 +154,7 @@
                                             <DockPanel local:ControllableGrid.ItemCategory="Material">
                                                 <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
                                                 <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
-                                                    <xctk:ColorPicker local:ControllableGrid.ItemName="Color" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
+                                                    <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
                                                         <xctk:ColorPicker.Style>
                                                             <Style TargetType="xctk:ColorPicker">
                                                                 <Style.Triggers>
@@ -175,8 +175,10 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap}">
-                                                        </Image>
+                                                        <StackPanel Orientation="Vertical">
+                                                            <ext:LabelTextBox IsReadOnly="True" Label="Albedo" Content="{Binding DiffuseMap.Name}" />
+                                                            <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap}" ToolTip="{Binding DiffuseMap.Format}" />
+                                                        </StackPanel>
                                                     </Border>
                                                 </local:ControllableGrid>
                                             </DockPanel>

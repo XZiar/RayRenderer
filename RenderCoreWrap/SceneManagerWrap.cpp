@@ -15,12 +15,9 @@ std::shared_ptr<rayr::PBRMaterial> PBRMaterial::GetSelf()
 
 PBRMaterial::PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material) : Controllable(material)
 {
+    diffuseMap = TexHolder::CreateTexHolder(material->DiffuseMap);
 }
 
-TexHolder^ PBRMaterial::DiffuseMap::get()
-{
-    return TexHolder::CreateTexHolder(GetSelf()->DiffuseMap);
-}
 TexHolder^ PBRMaterial::NormalMap::get()
 {
     return TexHolder::CreateTexHolder(GetSelf()->NormalMap);

@@ -40,14 +40,14 @@ void TextureLoader::RegistControllable()
 }
 
 TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mipmapper) 
-    : Compressor(u"TexCompMan"), MipMapper(mipmapper)
+    : Compressor(std::make_unique<common::asyexe::AsyncManager>(u"TexCompMan")), MipMapper(mipmapper)
 {
     ProcessMethod = 
     { 
         { TexLoadType::Color,  TexProc{TexProcType::CompressBC7, true} },
         { TexLoadType::Normal, TexProc{TexProcType::CompressBC5, true} }
     };
-    Compressor.Start([]
+    Compressor->Start([]
     {
         common::SetThreadName(u"TexCompress");
         dizzLog().success(u"TexCompress thread start running.\n");
@@ -56,7 +56,7 @@ TextureLoader::TextureLoader(const std::shared_ptr<oglu::texutil::TexMipmap>& mi
 }
 TextureLoader::~TextureLoader()
 {
-    Compressor.Stop();
+    Compressor->Stop();
 }
 
 
@@ -76,7 +76,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
     }
     img.FlipVertical(); // pre-flip since after compression, OGLU won't care about vertical coordnate system
 
-    return Compressor.AddTask([this, imgview = ImageView(std::move(img)), type, proc, picPath](const auto& agent) mutable
+    return Compressor->AddTask([this, imgview = ImageView(std::move(img)), type, proc, picPath](const auto& agent) mutable
     {
         FakeTex tex;
         vector<ImageView> layers;

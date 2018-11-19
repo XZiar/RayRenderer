@@ -51,6 +51,10 @@ private:
             {
                 TaskProxy->SetException(gcnew CPPException(be));
             }
+            catch (Exception^ ex)
+            {
+                TaskProxy->SetException(ex);
+            }
         }
         AsyncTaskItem(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter, TaskCompletionSource<CLRType>^ tcs)
         {
@@ -70,11 +74,36 @@ public:
     static AsyncWaiter();
 internal:
     template<typename CPPType, typename CLRType>
-    static Task<CLRType>^ ReturnTask(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter)
+    static Task<CLRType>^ ReturnTask(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter, bool fastCheck)
     {
-        auto tcs = gcnew TaskCompletionSource<CLRType>();
-        Put(gcnew AsyncTaskItem<CPPType, CLRType>(std::move(pms), converter, tcs));
-        return tcs->Task;
+        if (fastCheck && static_cast<uint8_t>(pms->GetState()) >= CompleteState)
+        {
+            try
+            {
+                auto temp = std::make_unique<CPPType>(pms->Wait());
+                auto obj = converter->Invoke(IntPtr(temp.get()));
+                return Task::FromResult(obj);
+            }
+            catch (const common::BaseException& be)
+            {
+                return Task::FromException<CLRType>(gcnew CPPException(be));
+            }
+            catch (Exception^ ex)
+            {
+                return Task::FromException<CLRType>(ex);
+            }
+        }
+        else
+        {
+            auto tcs = gcnew TaskCompletionSource<CLRType>();
+            Put(gcnew AsyncTaskItem<CPPType, CLRType>(std::move(pms), converter, tcs));
+            return tcs->Task;
+        }
+    }
+    template<typename CPPType, typename CLRType>
+    forceinline static Task<CLRType>^ ReturnTask(common::PromiseResult<CPPType>&& pms, Func<IntPtr, CLRType>^ converter)
+    {
+        return ReturnTask(std::move(pms), converter, true);
     }
 };
 

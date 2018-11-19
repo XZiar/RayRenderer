@@ -3,7 +3,6 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 #include "TextureUtil/TexMipmap.h"
-#include "common/AsyncExecutor/AsyncManager.h"
 #include "common/Controllable.hpp"
 
 
@@ -14,7 +13,11 @@ namespace rayr
 enum class TexLoadType : uint8_t { Color, Normal };
 enum class TexProcType : uint8_t { CompressBC7, CompressBC5, Plain };
 
-class TextureLoader : public NonCopyable, public NonMovable, public common::Controllable
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+class RAYCOREAPI TextureLoader : public NonCopyable, public NonMovable, public common::Controllable
 {
 private:
     struct TexProc
@@ -22,7 +25,7 @@ private:
         TexProcType Proc;
         bool NeedMipmap;
     };
-    common::asyexe::AsyncManager Compressor;
+    std::unique_ptr<common::asyexe::AsyncManager> Compressor;
     std::shared_ptr<oglu::texutil::TexMipmap> MipMapper;
     map<u16string, FakeTex> TexCache;
     common::RWSpinLock CacheLock;
@@ -45,6 +48,10 @@ public:
         ProcessMethod[type] = TexProc{ proc, mipmap };
     }
 };
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 
 }
 

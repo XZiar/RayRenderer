@@ -33,18 +33,32 @@ public:
 };
 
 
+#define DECLARE_TEX_PROPERTY(Name, name, target) \
+    property TexHolder^ Name \
+    { \
+        TexHolder^ get() { return name; } \
+        void set(TexHolder^ value) \
+        { \
+            auto holder = value->ExtractHolder(); \
+            GetSelf()->target = holder; name = TexHolder::CreateTexHolder(holder); \
+            RaisePropertyChanged(#Name); \
+        } \
+    }
 public ref class PBRMaterial : public Controllable
 {
+private:
+    TexHolder^ diffuseMap;
 internal:
     std::shared_ptr<rayr::PBRMaterial> GetSelf();
     PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material);
 public:
-    property TexHolder^ DiffuseMap { TexHolder^ get(); }
+    virtual String^ ToString() override;
+    DECLARE_TEX_PROPERTY(DiffuseMap, diffuseMap, DiffuseMap);
+    //property TexHolder^ DiffuseMap { TexHolder^ get(); }
     property TexHolder^ NormalMap  { TexHolder^ get(); }
     property TexHolder^ MetalMap   { TexHolder^ get(); }
     property TexHolder^ RoughMap   { TexHolder^ get(); }
     property TexHolder^ AOMap      { TexHolder^ get(); }
-    virtual String^ ToString() override;
 };
 
 

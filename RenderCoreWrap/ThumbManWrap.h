@@ -16,30 +16,48 @@ namespace Dizz
 
 public ref class TexHolder
 {
-private:
+internal:
     Common::NativeWrapper<std::weak_ptr<void>> WeakRef;
+private:
     const uint8_t TypeId;
-    TexHolder(const oglu::oglTex2D& tex);
-    TexHolder(const rayr::FakeTex& tex);
+    initonly String^ name;
+    initonly String^ format;
+    TexHolder(const rayr::TexHolder& holder);
 internal:
     static TexHolder^ CreateTexHolder(const rayr::TexHolder& holder);
     rayr::TexHolder ExtractHolder();
 public:
     ~TexHolder() { this->!TexHolder(); }
     !TexHolder();
+    CLI_READONLY_PROPERTY(String^, Name, name)
+    CLI_READONLY_PROPERTY(String^, Format, format)
 };
 
 
-public ref class ThumbnailMan
+public enum class TexLoadType : uint8_t { Color = (uint8_t)rayr::TexLoadType::Color, Normal = (uint8_t)rayr::TexLoadType::Normal };
+public ref class TexLoader
 {
 internal:
+    const std::weak_ptr<rayr::TextureLoader> *Loader;
+    TexLoader(const std::shared_ptr<rayr::TextureLoader>& loader);
+public:
+    ~TexLoader() { this->!TexLoader(); }
+    !TexLoader();
+    Task<TexHolder^>^ LoadTextureAsync(String^ fname, TexLoadType type);
+};
+
+public ref class ThumbnailMan
+{
+private:
+    initonly ReaderWriterLockSlim^ Lock;
+internal:
+    //Common::NativeWrapper<std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>> ThumbnailMap;
     std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor> * const ThumbnailMap = nullptr;
     const std::weak_ptr<rayr::ThumbnailManager> *ThumbMan;
 
     ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan);
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
-    BitmapSource^ GetThumbnail2(Common::CLIWrapper<std::optional<xziar::img::ImageView>>^ img);
     BitmapSource^ GetThumbnail3(IntPtr imgptr);
     BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
 public:

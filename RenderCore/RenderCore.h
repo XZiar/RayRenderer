@@ -4,6 +4,7 @@
 #include "SceneManager.h"
 #include "RenderPass.h"
 #include "ThumbnailManager.h"
+#include "TextureLoader.h"
 #include "PostProcessor.h"
 #include "GLShader.h"
 
