@@ -35,14 +35,14 @@ public:
 
 
 public enum class TexLoadType : uint8_t { Color = (uint8_t)rayr::TexLoadType::Color, Normal = (uint8_t)rayr::TexLoadType::Normal };
-public ref class TexLoader
+public ref class TextureLoader
 {
 internal:
     const std::weak_ptr<rayr::TextureLoader> *Loader;
-    TexLoader(const std::shared_ptr<rayr::TextureLoader>& loader);
+    TextureLoader(const std::shared_ptr<rayr::TextureLoader>& loader);
 public:
-    ~TexLoader() { this->!TexLoader(); }
-    !TexLoader();
+    ~TextureLoader() { this->!TextureLoader(); }
+    !TextureLoader();
     Task<TexHolder^>^ LoadTextureAsync(String^ fname, TexLoadType type);
 };
 

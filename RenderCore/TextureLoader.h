@@ -41,7 +41,7 @@ public:
         using namespace std::literals;
         return u"TextureLoader"sv;
     }
-    LoadResult GetTexureAsync(const fs::path& picPath, const TexLoadType type);
+    LoadResult GetTexureAsync(const fs::path& picPath, const TexLoadType type, const bool async = false);
     void Shrink();
     void SetLoadPreference(const TexLoadType type, const TexProcType proc, const bool mipmap)
     {

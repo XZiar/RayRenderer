@@ -518,6 +518,33 @@ namespace WPFTest
             ((sender as Button).Content as Image).Source = img;
         }
 
+        private async void texture_Drop(object sender, DragEventArgs e)
+        {
+            string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
+            try
+            {
+                WaitingCount++;
+                var tex = await Core.TexLoader.LoadTextureAsync(fname, TexLoadType.Color);
+                var mat = (sender as Border).DataContext as PBRMaterial;
+                mat.DiffuseMap = tex;
+            }
+            catch(Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
+            }
+        }
+
+        private void texture_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effects = DragDropEffects.Link;
+            else e.Effects = DragDropEffects.None;
+        }
+
         private async void AddShaderAsync(string fileName)
         {
             try

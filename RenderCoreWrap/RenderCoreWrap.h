@@ -44,6 +44,7 @@ public:
     initonly List<Controllable^>^ Controls;
     initonly ObservableProxyContainer<RenderPass^>^ Passes;
     initonly ThumbnailMan^ ThumbMan;
+    initonly TextureLoader^ TexLoader;
 
     RenderCore();
     ~RenderCore() { this->!RenderCore(); }

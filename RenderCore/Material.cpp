@@ -310,14 +310,19 @@ void MultiMaterialHolder::Refresh()
     }
     //generate avaliable map
     set<Mapping, common::container::PairLess> avaliableMap;
+    set<detail::TexTag> pendingDelTexs;
     for (const auto&[tid, texarr] : Textures)
     {
+        pendingDelTexs.insert(tid);
         const uint16_t layers = (uint16_t)std::get<2>(texarr->GetSize());
         for (uint16_t j = 0; j < layers; ++j)
             avaliableMap.insert(avaliableMap.cend(), std::pair(tid, j));
     }
     for (const auto&[tex, mapping] : newArrange)
+    {
         avaliableMap.erase(mapping);
+        pendingDelTexs.erase(mapping.first);
+    }
     //process mapping
     map<detail::TexTag, set<TexHolder>> needAdd;
     for (const auto&[holder, material] : added)
@@ -335,8 +340,10 @@ void MultiMaterialHolder::Refresh()
         else
         {
             const uint16_t objLayer = avaSlot->second;
+            pendingDelTexs.erase(avaSlot->first);
             avaliableMap.erase(avaSlot);
             InsertLayer(Textures[tid], objLayer, holder);
+            newArrange.try_emplace(holder, tid, objLayer);
         }
     }
     // workaround for intel gen7.5
@@ -357,6 +364,7 @@ void MultiMaterialHolder::Refresh()
     for (const auto& [tid, texs] : needAdd)
     {
         auto& texarr = Textures[tid];
+        pendingDelTexs.erase(tid);
         uint16_t objLayer = 0;
         if (texarr)
         {
@@ -379,6 +387,8 @@ void MultiMaterialHolder::Refresh()
         }
     }
     Arrangement.swap(newArrange);
+    for (const auto& textag : pendingDelTexs)
+        Textures.erase(textag);
     //prepare lookup
     TextureLookup.clear();
     uint8_t i = 0;

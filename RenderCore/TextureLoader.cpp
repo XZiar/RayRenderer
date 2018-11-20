@@ -70,8 +70,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         const auto newW = 1 << uint32_t(std::round(std::log2(w)));
         const auto newH = 1 << uint32_t(std::round(std::log2(h)));
         dizzLog().debug(u"decide to resize image[{}*{}] to [{}*{}].\n", w, h, newW, newH);
-        auto newImg = Image(img);
-        newImg.Resize(newW, newH, true, false);
+        img.Resize(newW, newH, true, false);
         return LoadImgToFakeTex(picPath, std::move(img), type, proc);
     }
     img.FlipVertical(); // pre-flip since after compression, OGLU won't care about vertical coordnate system
@@ -152,14 +151,24 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
     return {};
 }
 
-TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath, const TexLoadType type)
+TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath, const TexLoadType type, const bool async)
 {
     CacheLock.LockRead();
     auto tex = FindInMap(TexCache, picPath.u16string());
     CacheLock.UnlockRead();
     if (tex)
         return *tex;
-    if (auto img = TryReadImage(picPath))
+    if (async)
+    {
+        return Compressor->AddTask([this, picPath, type](const auto& agent)
+        {
+            if (auto img = TryReadImage(picPath); img)
+                return agent.Await(LoadImgToFakeTex(picPath, std::move(img.value()), type, ProcessMethod[type]));
+            else
+                return FakeTex();
+        });
+    }
+    if (auto img = TryReadImage(picPath); img)
         return LoadImgToFakeTex(picPath, std::move(img.value()), type, ProcessMethod[type]);
     return FakeTex();
 }

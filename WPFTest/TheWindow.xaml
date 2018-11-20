@@ -165,7 +165,7 @@
                                                             </Style>
                                                         </xctk:ColorPicker.Style>
                                                     </xctk:ColorPicker>
-                                                    <Border BorderBrush="#FFABABAB" BorderThickness="1">
+                                                    <Border BorderBrush="#FFABABAB" BorderThickness="1" DragEnter="texture_DragEnter"  Drop="texture_Drop" AllowDrop="True">
                                                         <Border.Style>
                                                             <Style TargetType="Border">
                                                                 <Style.Triggers>

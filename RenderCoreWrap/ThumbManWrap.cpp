@@ -57,12 +57,12 @@ rayr::TexHolder TexHolder::ExtractHolder()
 }
 
 
-TexLoader::TexLoader(const std::shared_ptr<rayr::TextureLoader>& loader)
+TextureLoader::TextureLoader(const std::shared_ptr<rayr::TextureLoader>& loader)
 {
     Loader = new std::weak_ptr<rayr::TextureLoader>(loader);
 }
 
-TexLoader::!TexLoader()
+TextureLoader::!TextureLoader()
 {
     if (const auto ptr = ExchangeNullptr(Loader); ptr)
         delete ptr;
@@ -73,9 +73,9 @@ static TexHolder^ ToTexHolder(IntPtr ptr)
     return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
 }
 
-Task<TexHolder^>^ TexLoader::LoadTextureAsync(String^ fname, TexLoadType type)
+Task<TexHolder^>^ TextureLoader::LoadTextureAsync(String^ fname, TexLoadType type)
 {
-    auto ret = Loader->lock()->GetTexureAsync(ToU16Str(fname), static_cast<rayr::TexLoadType>(type));
+    auto ret = Loader->lock()->GetTexureAsync(ToU16Str(fname), static_cast<rayr::TexLoadType>(type), true);
     if (const auto it = std::get_if<rayr::FakeTex>(&ret); it)
     {
         return Task::FromResult(TexHolder::CreateTexHolder(*it));

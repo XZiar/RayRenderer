@@ -55,6 +55,7 @@ RenderCore::RenderCore() : Core(new rayr::RenderCore())
     for (const auto& pass : Core->GetRenderPasses())
         Passes->InnerAdd(gcnew RenderPass(pass));
     ThumbMan = gcnew ThumbnailMan(Core->GetThumbMan());
+    TexLoader = gcnew TextureLoader(Core->GetTexLoader());
 }
 
 RenderCore::!RenderCore()
