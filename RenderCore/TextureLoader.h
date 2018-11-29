@@ -42,6 +42,7 @@ public:
         return u"TextureLoader"sv;
     }
     LoadResult GetTexureAsync(const fs::path& picPath, const TexLoadType type, const bool async = false);
+    LoadResult GetTexureAsync(const fs::path& picPath, xziar::img::Image&& img, const TexLoadType type, const bool async = false);
     void Shrink();
     void SetLoadPreference(const TexLoadType type, const TexProcType proc, const bool mipmap)
     {

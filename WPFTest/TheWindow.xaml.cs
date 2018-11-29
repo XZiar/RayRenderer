@@ -26,10 +26,12 @@ namespace WPFTest
     [MarkupExtensionReturnType(typeof(BindingExpression))]
     internal class ThumbnailBinding : MarkupExtension
     {
-        internal static WeakReference<ThumbnailMan> Manager = new WeakReference<ThumbnailMan>(null);
+        internal static WeakReference<ThumbnailMan> ThumbMan = new WeakReference<ThumbnailMan>(null);
+        internal static WeakReference<TextureLoader> TexLoad = new WeakReference<TextureLoader>(null);
 
         public PropertyPath Path { get; set; }
         public object Source { get; set; }
+        public BindingMode Mode { get; set; } = BindingMode.TwoWay;
 
         public ThumbnailBinding() { }
         public ThumbnailBinding(string path)
@@ -49,22 +51,36 @@ namespace WPFTest
                 !(provideValueTargetService.TargetProperty is DependencyProperty targetProperty))
                 return null;
 
-            object loader(object x)
+            object tex2img(object x)
             {
-                if ((x is TexHolder holder) && Manager.TryGetTarget(out ThumbnailMan thumbMan))
+                if ((x is TexHolder holder) && ThumbMan.TryGetTarget(out ThumbnailMan thumbMan))
                     return thumbMan.GetThumbnailAsync(holder);
                 else
                     return null;
             }
+            object img2tex(object x)
+            {
+                if (TexLoad.TryGetTarget(out TextureLoader texLoader))
+                {
+                    switch(x)
+                    {
+                    case string fname:
+                        return texLoader.LoadTextureAsync(fname, TexLoadType.Color);
+                    case BitmapSource bmp:
+                        return texLoader.LoadTextureAsync(bmp, TexLoadType.Color);
+                    }
+                }
+                return null;
+            }
             ProxyBinder binder;
             if (Source == null)
             {
-                binder = new ProxyBinder(Path, loader);
+                binder = new ProxyBinder(Path, Mode, tex2img, img2tex);
                 BindingOperations.SetBinding(binder, ProxyBinder.DataSourceProperty, new Binding
                 {
                     Path = new PropertyPath(FrameworkElement.DataContextProperty),
                     Source = targetObject,
-                    Mode = BindingMode.OneWay
+                    Mode = Mode
                 });
             }
             else
@@ -73,8 +89,8 @@ namespace WPFTest
                 {
                     Path = Path,
                     Source = Source,
-                    Mode = BindingMode.OneWay
-                }, loader);
+                    Mode = Mode
+                }, tex2img, img2tex);
             }
 
             var retBinding = binder.GetDestBinding();
@@ -148,7 +164,8 @@ namespace WPFTest
         private void InitializeCore()
         {
             Core = new RenderCore();
-            ThumbnailBinding.Manager.SetTarget(Core.ThumbMan);
+            ThumbnailBinding.ThumbMan.SetTarget(Core.ThumbMan);
+            ThumbnailBinding.TexLoad.SetTarget(Core.TexLoader);
             OperateTargets[0] = Core.TheScene.MainCamera;
             OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
             OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
@@ -524,9 +541,12 @@ namespace WPFTest
             try
             {
                 WaitingCount++;
-                var tex = await Core.TexLoader.LoadTextureAsync(fname, TexLoadType.Color);
-                var mat = (sender as Border).DataContext as PBRMaterial;
-                mat.DiffuseMap = tex;
+                var img = new BitmapImage(new Uri(fname, UriKind.Absolute));
+                var imgCtrl = ((sender as Border).Child as StackPanel).Children.OfType<Image>().First();
+                imgCtrl.Source = img;
+                //var tex = await Core.TexLoader.LoadTextureAsync(fname, TexLoadType.Color);
+                //var mat = (sender as Border).DataContext as PBRMaterial;
+                //mat.DiffuseMap = tex;
             }
             catch(Exception ex)
             {

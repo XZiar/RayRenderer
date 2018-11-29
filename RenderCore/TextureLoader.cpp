@@ -173,6 +173,23 @@ TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath,
     return FakeTex();
 }
 
+TextureLoader::LoadResult TextureLoader::GetTexureAsync(const fs::path& picPath, Image&& img, const TexLoadType type, const bool async)
+{
+    CacheLock.LockRead();
+    auto tex = FindInMap(TexCache, picPath.u16string());
+    CacheLock.UnlockRead();
+    if (tex)
+        return *tex;
+    if (async)
+    {
+        return Compressor->AddTask([this, picPath, img = std::move(img), type](const auto& agent) mutable
+        {
+            return agent.Await(LoadImgToFakeTex(picPath, std::move(img), type, ProcessMethod[type]));
+        });
+    }
+    return LoadImgToFakeTex(picPath, std::move(img), type, ProcessMethod[type]);
+}
+
 #pragma warning(disable:4996)
 void TextureLoader::Shrink()
 {

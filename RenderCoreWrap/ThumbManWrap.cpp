@@ -3,6 +3,7 @@
 #include "ImageUtil.h"
 
 using common::container::FindInMap;
+using System::Windows::Media::Imaging::BitmapImage;
 namespace Dizz
 {
 
@@ -71,6 +72,23 @@ TextureLoader::!TextureLoader()
 static TexHolder^ ToTexHolder(IntPtr ptr)
 {
     return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
+}
+
+Task<TexHolder^>^ TextureLoader::LoadTextureAsync(BitmapSource^ image, TexLoadType type)
+{
+    auto bmp = static_cast<BitmapImage^>(image);
+    auto fpath = ToU16Str(bmp->UriSource->AbsolutePath);
+    auto img = XZiar::Img::ImageUtil::Convert(image);
+    auto ret = Loader->lock()->GetTexureAsync(fpath, std::move(img), static_cast<rayr::TexLoadType>(type), true);
+    if (const auto it = std::get_if<rayr::FakeTex>(&ret); it)
+    {
+        return Task::FromResult(TexHolder::CreateTexHolder(*it));
+    }
+    else
+    {
+        return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
+            gcnew Func<IntPtr, TexHolder^>(ToTexHolder));
+    }
 }
 
 Task<TexHolder^>^ TextureLoader::LoadTextureAsync(String^ fname, TexLoadType type)

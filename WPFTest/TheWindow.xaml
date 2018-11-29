@@ -177,7 +177,7 @@
                                                         </Border.Style>
                                                         <StackPanel Orientation="Vertical">
                                                             <ext:LabelTextBox IsReadOnly="True" Label="Albedo" Content="{Binding DiffuseMap.Name}" />
-                                                            <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap}" ToolTip="{Binding DiffuseMap.Format}" />
+                                                            <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap, Mode=TwoWay}" ToolTip="{Binding DiffuseMap.Format}" />
                                                         </StackPanel>
                                                     </Border>
                                                 </local:ControllableGrid>

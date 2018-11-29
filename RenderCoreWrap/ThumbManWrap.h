@@ -44,6 +44,7 @@ public:
     ~TextureLoader() { this->!TextureLoader(); }
     !TextureLoader();
     Task<TexHolder^>^ LoadTextureAsync(String^ fname, TexLoadType type);
+    Task<TexHolder^>^ LoadTextureAsync(BitmapSource^ image, TexLoadType type);
 };
 
 public ref class ThumbnailMan

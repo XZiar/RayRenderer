@@ -90,7 +90,7 @@ Image ImageUtil::Convert(BitmapSource^ image)
     if (const auto dt = ConvertFormat(pf); dt != ImageDataType::UNKNOWN_RESERVE)
     {
         Image ret(dt);
-        ret.Resize(image->PixelWidth, image->PixelHeight);
+        ret.SetSize(image->PixelWidth, image->PixelHeight);
         image->CopyPixels(Windows::Int32Rect::Empty, IntPtr(ret.GetRawPtr()), (int)ret.GetSize(), (int)ret.RowSize());
         return ret;
     }
