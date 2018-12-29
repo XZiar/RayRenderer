@@ -12,7 +12,7 @@ matrix:
         - CPPCOMPILER=g++-8
         - DYNAMICLINKER=g++-8
         - APPLINKER=g++-8
-        - BUILDMODULES="all,-ResourcePackager,-GLUTTest"
+        - BUILDMODULES="all"
       addons:
         apt:
           sources:

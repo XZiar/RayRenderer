@@ -6,9 +6,6 @@
 #pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 #pragma message("Compiling RenderCore with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
-template struct RAYCOREAPI common::AlignBase<16>;
-template struct RAYCOREAPI common::AlignBase<32>;
-
 namespace rayr
 {
 using common::ResourceHelper;

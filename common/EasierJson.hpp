@@ -260,12 +260,12 @@ public:
         rapidjson::StringBuffer strBuf;
         if (pretty)
         {
-            rapidjson::PrettyWriter writer(strBuf);
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(strBuf);
             ValRef().Accept(writer);
         }
         else
         {
-            rapidjson::Writer writer(strBuf);
+            rapidjson::Writer<rapidjson::StringBuffer> writer(strBuf);
             ValRef().Accept(writer);
         }
         return strBuf.GetString();
@@ -276,12 +276,12 @@ public:
         detail::WriteStreamWrapper<T> streamer(writeBackend);
         if (pretty)
         {
-            rapidjson::PrettyWriter writer(streamer);
+            rapidjson::PrettyWriter<detail::WriteStreamWrapper<T>> writer(streamer);
             ValRef().Accept(writer);
         }
         else
         {
-            rapidjson::Writer writer(streamer);
+            rapidjson::Writer<detail::WriteStreamWrapper<T>> writer(streamer);
             ValRef().Accept(writer);
         }
     }

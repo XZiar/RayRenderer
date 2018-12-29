@@ -30,7 +30,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
-| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux* |
+| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux |
 | [RenderCore](./RenderCore) | Core of RayRenderer | Windows & Linux |
 | [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows & Linux |
 | [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | Windows & Linux |
@@ -40,8 +40,6 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
 
-* `ResoucePackager` cannot be compiled by GCC7/8 due to compiler bug with rapidjson, see [Tencent/rapidjson#1338](https://github.com/Tencent/rapidjson/issues/1338)
-
 ## Platform Requirements
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
@@ -50,7 +48,7 @@ Some Utilities have `Makefile` inside are capable to be compiled on Linux, teste
 
 To build C++ parts, VS2017(`15.8`) or GCC7.3 needed since many C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables. 
 
-For Windows-only parts, Windows SDK Target is `10.0.17134.0` and .Net Framework 4.7.2 needed for C# components.
+For Windows-only parts, Windows SDK Target is `10.0.17763.0` and .Net Framework 4.7.2 needed for C# components.
 
 ## Additional Requirements
 
