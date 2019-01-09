@@ -88,11 +88,11 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-09-18
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-12-19
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
-* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6
+* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6 @2018-09-26
 
   [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
 
@@ -122,7 +122,7 @@ Some VC++ default props should be set --- `include path` and `libpath`.
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.0 master@2018-08-09
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.0 master@2018-11-04
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

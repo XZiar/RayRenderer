@@ -319,7 +319,7 @@ int ZEXPORT PREFIX(gzputc)(gzFile file, int c) {
 }
 
 /* -- see zlib.h -- */
-int ZEXPORT PREFIX(gzputs)(gzFile file, const char *str) {
+int ZEXPORT PREFIX(gzputs)(gzFile file, const char *s) {
     int ret;
     size_t len;
     gz_state *state;
@@ -334,8 +334,8 @@ int ZEXPORT PREFIX(gzputs)(gzFile file, const char *str) {
         return -1;
 
     /* write string */
-    len = strlen(str);
-    ret = (int)gz_write(state, str, len);
+    len = strlen(s);
+    ret = (int)gz_write(state, s, len);
     return ret == 0 && len != 0 ? -1 : ret;
 }
 
@@ -389,7 +389,7 @@ int ZEXPORTVA PREFIX(gzvprintf)(gzFile file, const char *format, va_list va) {
         strm->avail_in = state->size;
         if (gz_comp(state, Z_NO_FLUSH) == -1)
             return state->err;
-        memcpy(state->in, state->in + state->size, left);
+        memmove(state->in, state->in + state->size, left);
         strm->next_in = state->in;
         strm->avail_in = left;
     }
