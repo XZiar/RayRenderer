@@ -144,6 +144,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\3rdParty\curl\libcurl.vcxproj">
+      <Project>{6401702a-1d7d-4879-b3b5-b28f95215d00}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
@@ -191,6 +194,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="CURLTest.cpp" />
     <ClCompile Include="FreeGLUTTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
