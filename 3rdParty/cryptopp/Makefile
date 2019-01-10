@@ -1,12 +1,12 @@
 #@XZBUILD
 #@XZBUILD@description@A free C++ Class Library of Cryptographic Schemes
-#@XZBUILD@version@7.0.0
+#@XZBUILD@version@8.0.0
 
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk
 
-EXCEPT_CPP	 = eccrypto.cpp eprecomp.cpp
+EXCEPT_CPP	 = eccrypto.cpp eprecomp.cpp simple.cpp algebra.cpp polynomi.cpp
 EXCEPT_NASM  = $(wildcard *.asm)
 
 ifneq ($(TARGET), Release)
@@ -14,7 +14,7 @@ ifneq ($(TARGET), Release)
 endif
 
 ifneq ($(XZMK_HAS_SHA),1)
-	CXXFLAGS	+= -DCRYPTOPP_DISABLE_SHA
+	CXXFLAGS	+= -DCRYPTOPP_DISABLE_SHANI
 endif
 
 NAME	= cryptopp

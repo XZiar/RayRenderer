@@ -87,18 +87,8 @@ ifeq ($(TARGET), Release)
 ifeq ($(XZMK_CLANG), 1)
 	LINKFLAGS	+= -fuse-ld=gold
 endif
-ifeq ($(CXXOPT),)
-	CXXFLAGS	+= -O2
-endif
-else
-ifeq ($(CXXOPT),)
-	CXXFLAGS	+= -O0
-endif
 endif
 
-ifneq ($(CXXOPT),)
-	CXXFLAGS	+= $(CXXOPT)
-endif
 
 ifneq ($(BOOST_PATH), )
 	INCPATH += -I"$(BOOST_PATH)"

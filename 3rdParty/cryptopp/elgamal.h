@@ -106,7 +106,7 @@ public:
 	const DL_GroupParameters_GFP & GetGroupParameters() const {return this->GetKey().GetGroupParameters();}
 
 	DecodingResult FixedLengthDecrypt(RandomNumberGenerator &rng, const byte *cipherText, byte *plainText) const
-		{return this->Decrypt(rng, cipherText, FixedCiphertextLength(), plainText);}
+		{return Decrypt(rng, cipherText, FixedCiphertextLength(), plainText);}
 
 protected:
 	const DL_KeyAgreementAlgorithm<Integer> & GetKeyAgreementAlgorithm() const {return *this;}

@@ -1,4 +1,15 @@
 
+
+ifeq ($(CXXOPT),)
+ifeq ($(TARGET), Release)
+	CXXFLAGS	+= -O2
+else
+	CXXFLAGS	+= -O0
+endif
+else
+	CXXFLAGS	+= $(CXXOPT)
+endif
+
 $(shell mkdir -p $(OBJPATH) $(DIRS))
 ifneq ($(PCH_HEADER), )
     $(shell touch -a $(OBJPATH)/$(PCH_HEADER))

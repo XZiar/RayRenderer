@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="asm">
+      <UniqueIdentifier>{4a3f85c7-2f91-4775-99cb-0c14ddebfb01}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cryptlib.cpp">
@@ -30,9 +33,6 @@
     <ClCompile Include="adler32.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="algebra.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="algparam.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -40,9 +40,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="aria.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="aria-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ariatab.cpp">
@@ -67,9 +64,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="blake2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blake2-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="blowfish.cpp">
@@ -103,9 +97,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="crc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="crc-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="default.cpp">
@@ -157,9 +148,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="gcm.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gcm-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="gf256.cpp">
@@ -237,9 +225,6 @@
     <ClCompile Include="nbtheory.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="network.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="oaep.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -259,9 +244,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="poly1305.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="polynomi.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pssr.cpp">
@@ -297,9 +279,6 @@
     <ClCompile Include="rijndael.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="rijndael-simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ripemd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -333,16 +312,10 @@
     <ClCompile Include="sha.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="sha-simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="sha3.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="shacal2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="shacal2-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="shark.cpp">
@@ -354,12 +327,6 @@
     <ClCompile Include="simon.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="simon-simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="simple.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="skipjack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -369,25 +336,16 @@
     <ClCompile Include="sm4.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="socketft.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="sosemanuk.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="speck.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="speck-simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="square.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="squaretb.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sse-simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="strciphr.cpp">
@@ -408,9 +366,6 @@
     <ClCompile Include="tigertab.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="trdlocal.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ttmac.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -423,16 +378,10 @@
     <ClCompile Include="vmac.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="wait.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="wake.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="whrlpool.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="winpipes.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="xtr.cpp">
@@ -441,15 +390,66 @@
     <ClCompile Include="xtrcrypt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="aria_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="blake2s_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="blake2b_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chacha_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="cham.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="cham_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chacha_avx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="crc_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="gcm_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rijndael_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sha_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="shacal2_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simon128_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simon64_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="speck64_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="speck128_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sse_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="darn.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3way.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="adler32.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="adv-simd.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="aes.h">
@@ -680,9 +680,6 @@
     <ClInclude Include="nbtheory.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="network.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="nr.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -815,9 +812,6 @@
     <ClInclude Include="smartptr.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="socketft.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="sosemanuk.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -845,9 +839,6 @@
     <ClInclude Include="trap.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="trdlocal.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="trunhash.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -863,16 +854,10 @@
     <ClInclude Include="vmac.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="wait.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="wake.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="whrlpool.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="winpipes.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="words.h">
@@ -884,17 +869,9 @@
     <ClInclude Include="xtrcrypt.h">
       <Filter>头文件</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="rdrand.asm">
-      <Filter>源文件</Filter>
-    </CustomBuild>
-    <CustomBuild Include="x64dll.asm">
-      <Filter>源文件</Filter>
-    </CustomBuild>
-    <CustomBuild Include="x64masm.asm">
-      <Filter>源文件</Filter>
-    </CustomBuild>
+    <ClInclude Include="adv_simd.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Readme.txt" />
@@ -902,5 +879,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="rdrand.asm">
+      <Filter>asm</Filter>
+    </MASM>
+    <MASM Include="x64masm.asm">
+      <Filter>asm</Filter>
+    </MASM>
+    <MASM Include="x64dll.asm">
+      <Filter>asm</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
