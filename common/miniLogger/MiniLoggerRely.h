@@ -154,7 +154,7 @@ public:
         [[maybe_unused]] constexpr bool hasArgs = sizeof...(Args) > 0;
         if constexpr (std::is_base_of_v<fmt::compile_string, T>)
         {
-            using Char = typename T::Char;
+            using Char = typename T::char_type;
             static_assert(!std::is_same_v<Char, wchar_t>, "no plan to support wchar_t at compile time");
             auto& buffer = GetBuffer<Char>();
             fmt::format_to(buffer, formatter, std::forward<Args>(args)...);

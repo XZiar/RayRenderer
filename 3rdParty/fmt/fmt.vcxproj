@@ -171,10 +171,12 @@
     <None Include="README.rst" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="chrono.h" />
     <ClInclude Include="color.h" />
     <ClInclude Include="core.h" />
     <ClInclude Include="format-inl.h" />
     <ClInclude Include="format.h" />
+    <ClInclude Include="locale.h" />
     <ClInclude Include="ostream.h" />
     <ClInclude Include="posix.h" />
     <ClInclude Include="printf.h" />

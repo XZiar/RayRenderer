@@ -17,6 +17,10 @@ ifneq ($(XZMK_HAS_SHA),1)
 	CXXFLAGS	+= -DCRYPTOPP_DISABLE_SHANI
 endif
 
+ifeq ($(XZMK_CLANG),1)
+	CXXFLAGS	+= -DCRYPTOPP_DISABLE_MIXED_ASM=1
+endif
+
 NAME	= cryptopp
 
 include $(PROJPATH)/MakeTargets.mk

@@ -20,13 +20,7 @@
     <None Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="format.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="format-inl.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ostream.h">
+    <ClInclude Include="utfext.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="posix.h">
@@ -41,13 +35,25 @@
     <ClInclude Include="time.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="core.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="utfext.h">
+    <ClInclude Include="chrono.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="color.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="core.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="format.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="format-inl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="locale.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ostream.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
