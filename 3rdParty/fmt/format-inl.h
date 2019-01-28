@@ -944,8 +944,7 @@ FMT_FUNC void report_windows_error(
 
 FMT_FUNC void vprint(std::FILE *f, string_view format_str, format_args args) {
   memory_buffer buffer;
-  internal::vformat_to(buffer, format_str,
-                       basic_format_args<buffer_context<char>::type>(args));
+  internal::vformat_to(buffer, format_str, args);
   std::fwrite(buffer.data(), 1, buffer.size(), f);
 }
 
@@ -957,17 +956,15 @@ FMT_FUNC void vprint(std::FILE *f, wstring_view format_str, wformat_args args) {
 
 // ++UTF++
 FMT_FUNC void vprint(std::FILE *f, u16string_view format_str, u16format_args args) {
-	u16memory_buffer buffer;
-	internal::vformat_to(buffer, format_str,
-		basic_format_args<buffer_context<char16_t>::type>(args));
-	std::fwrite(buffer.data(), sizeof(char16_t), buffer.size(), f);
+  u16memory_buffer buffer;
+  internal::vformat_to(buffer, format_str, args);
+  std::fwrite(buffer.data(), sizeof(char16_t), buffer.size(), f);
 }
 
 FMT_FUNC void vprint(std::FILE *f, u32string_view format_str, u32format_args args) {
-	u32memory_buffer buffer;
-	internal::vformat_to(buffer, format_str,
-		basic_format_args<buffer_context<char32_t>::type>(args));
-	std::fwrite(buffer.data(), sizeof(char32_t), buffer.size(), f);
+  u32memory_buffer buffer;
+  internal::vformat_to(buffer, format_str, args);
+  std::fwrite(buffer.data(), sizeof(char32_t), buffer.size(), f);
 }
 
 FMT_FUNC void vprint(string_view format_str, format_args args) {
@@ -979,11 +976,11 @@ FMT_FUNC void vprint(wstring_view format_str, wformat_args args) {
 }
 
 FMT_FUNC void vprint(u16string_view format_str, u16format_args args) {
-	vprint(stdout, format_str, args);
+    vprint(stdout, format_str, args);
 }
 
 FMT_FUNC void vprint(u32string_view format_str, u32format_args args) {
-	vprint(stdout, format_str, args);
+    vprint(stdout, format_str, args);
 }
 
 FMT_END_NAMESPACE

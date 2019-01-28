@@ -59,43 +59,43 @@ template FMT_API std::wstring internal::vformat<wchar_t>(
     wstring_view, basic_format_args<wformat_context>);
 
 template FMT_API wformat_context::iterator internal::vformat_to(
-	internal::wbuffer &, wstring_view, basic_format_args<wformat_context>);
+    internal::wbuffer &, wstring_view, basic_format_args<wformat_context>);
 
 // ++UTF++
 // Explicit instantiations for char16_t.
 
 template<> FMT_API char16_t internal::thousands_sep_impl(locale_ref loc)
 {
-	return (char16_t)internal::thousands_sep<char>(loc);
+    return (char16_t)internal::thousands_sep<char>(loc);
 }
 
 template FMT_API void internal::basic_buffer<char16_t>::append(const char16_t *, const char16_t *);
 
 template FMT_API void internal::arg_map<u16format_context>::init(
-	const basic_format_args<u16format_context> &args);
+    const basic_format_args<u16format_context> &args);
 
 template FMT_API std::u16string internal::vformat<char16_t>(
-	u16string_view, basic_format_args<u16format_context>);
+    u16string_view, basic_format_args<u16format_context>);
 
 template FMT_API u16format_context::iterator internal::vformat_to(
-	internal::u16buffer &, u16string_view, basic_format_args<u16format_context>);
+    internal::u16buffer &, u16string_view, basic_format_args<u16format_context>);
 
 // Explicit instantiations for char32_t.
 
 template<> FMT_API char32_t internal::thousands_sep_impl(locale_ref loc)
 {
-	return (char32_t)internal::thousands_sep<char>(loc);
+    return (char32_t)internal::thousands_sep<char>(loc);
 }
 
 template FMT_API void internal::basic_buffer<char32_t>::append(const char32_t *, const char32_t *);
 
 template FMT_API void internal::arg_map<u32format_context>::init(
-	const basic_format_args<u32format_context> &args);
+    const basic_format_args<u32format_context> &args);
 
 template FMT_API std::u32string internal::vformat<char32_t>(
-	u32string_view, basic_format_args<u32format_context>);
+    u32string_view, basic_format_args<u32format_context>);
 
 template FMT_API u32format_context::iterator internal::vformat_to(
-	internal::u32buffer &, u32string_view, basic_format_args<u32format_context>);
+    internal::u32buffer &, u32string_view, basic_format_args<u32format_context>);
 
 FMT_END_NAMESPACE

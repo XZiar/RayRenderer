@@ -29,14 +29,6 @@ struct char_traits<char32_t>
     FMT_API static int format_float(char32_t *buffer, std::size_t size, const char32_t *format, int precision, T value);
 };
 
-//
-//constexpr inline size_t SizeTag   = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-//constexpr inline size_t CharTag   = size_t(0b00) << (sizeof(size_t) * 8 - 2);
-//constexpr inline size_t Char16Tag = size_t(0b01) << (sizeof(size_t) * 8 - 2);
-//constexpr inline size_t Char32Tag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
-//constexpr inline size_t WCharTag  = sizeof(wchar_t) == sizeof(char16_t) ? Char16Tag : Char32Tag;
-//constexpr inline size_t SizeMask  = ~SizeTag;
-//
 
 template <typename Char>
 struct UTFMakeValueProxy

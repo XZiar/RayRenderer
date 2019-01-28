@@ -2168,8 +2168,8 @@ constexpr inline size_t SizeMask  = ~SizeTag;
 struct UTFFormatterSupport
 {
 protected:
-	template<typename DstChar, typename SrcChar>
-	static std::basic_string<DstChar> ConvertStr(const SrcChar* str, const size_t size);
+    template<typename DstChar, typename SrcChar>
+    static std::basic_string<DstChar> ConvertStr(const SrcChar* str, const size_t size);
 };
 
 }  // namespace internal
@@ -2218,29 +2218,29 @@ class arg_formatter:
   // ++UTF++
   iterator operator()(basic_string_view<char_type> value)
   {
-	  if constexpr (std::is_same_v<char_type, char16_t> || std::is_same_v<char_type, char32_t>)
-	  {
-		  const auto realSize = value.size() & internal::SizeMask;
-		  switch (value.size() & internal::SizeTag)
-		  {
-		  case internal::CharTag:
-			  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char*>(value.data()), realSize));
-		  case internal::Char16Tag:
-			  if constexpr (sizeof(char_type) == 2)
-				  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
-			  else // UTF16 -> UTF32
-				  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char16_t*>(value.data()), realSize));
-		  case internal::Char32Tag:
-			  if constexpr (sizeof(char_type) == 4)
-				  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
-			  else // UTF32 -> UTF16
-				  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char32_t*>(value.data()), realSize));
-		  default: // simple passthrough
-			  return this->out();
-		  }
-	  }
-	  else
-		  return base::operator()(value);
+      if constexpr (std::is_same_v<char_type, char16_t> || std::is_same_v<char_type, char32_t>)
+      {
+          const auto realSize = value.size() & internal::SizeMask;
+          switch (value.size() & internal::SizeTag)
+          {
+          case internal::CharTag:
+              return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char*>(value.data()), realSize));
+          case internal::Char16Tag:
+              if constexpr (sizeof(char_type) == 2)
+                  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
+              else // UTF16 -> UTF32
+                  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char16_t*>(value.data()), realSize));
+          case internal::Char32Tag:
+              if constexpr (sizeof(char_type) == 4)
+                  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
+              else // UTF32 -> UTF16
+                  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char32_t*>(value.data()), realSize));
+          default: // simple passthrough
+              return this->out();
+          }
+      }
+      else
+          return base::operator()(value);
   }
 };
 

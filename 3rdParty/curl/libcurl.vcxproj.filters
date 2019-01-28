@@ -387,6 +387,9 @@
     <ClInclude Include="lib\vauth\vauth.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\curl_config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="lib\urlapi.c">

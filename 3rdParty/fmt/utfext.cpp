@@ -87,50 +87,27 @@ std::size_t strftime(char32_t *str, std::size_t count, const char32_t *format, c
 
 }
 
-//
-//template<> template<>
-//std::basic_string<char16_t> utf_formatter<back_insert_range<internal::u16buffer>>::ConvertStr(const char* str, const size_t size)
-//{
-//    return CharsetConvertor<UTF8, UTF16LE, char, char16_t>::Convert(str, size);
-//}
-//template<> template<>
-//std::basic_string<char16_t> utf_formatter<back_insert_range<internal::u16buffer>>::ConvertStr(const char32_t* str, const size_t size)
-//{
-//    return CharsetConvertor<UTF32LE, UTF16LE, char32_t, char16_t>::Convert(str, size);
-//}
-//
-//template<> template<>
-//std::basic_string<char32_t> utf_formatter<back_insert_range<internal::u32buffer>>::ConvertStr(const char* str, const size_t size)
-//{
-//    return CharsetConvertor<UTF8, UTF32LE, char, char32_t>::Convert(str, size);
-//}
-//template<> template<>
-//std::basic_string<char32_t> utf_formatter<back_insert_range<internal::u32buffer>>::ConvertStr(const char16_t* str, const size_t size)
-//{
-//    return CharsetConvertor<UTF16LE, UTF32LE, char16_t, char32_t>::Convert(str, size);
-//}
-
 
 template<>
 std::basic_string<char16_t> internal::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
 {
-	return CharsetConvertor<UTF8, UTF16LE, char, char16_t>::Convert(str, size);
+    return CharsetConvertor<UTF8, UTF16LE, char, char16_t>::Convert(str, size);
 }
 template<>
 std::basic_string<char16_t> internal::UTFFormatterSupport::ConvertStr(const char32_t* str, const size_t size)
 {
-	return CharsetConvertor<UTF32LE, UTF16LE, char32_t, char16_t>::Convert(str, size);
+    return CharsetConvertor<UTF32LE, UTF16LE, char32_t, char16_t>::Convert(str, size);
 }
 
 template<>
 std::basic_string<char32_t> internal::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
 {
-	return CharsetConvertor<UTF8, UTF32LE, char, char32_t>::Convert(str, size);
+    return CharsetConvertor<UTF8, UTF32LE, char, char32_t>::Convert(str, size);
 }
 template<>
 std::basic_string<char32_t> internal::UTFFormatterSupport::ConvertStr(const char16_t* str, const size_t size)
 {
-	return CharsetConvertor<UTF16LE, UTF32LE, char16_t, char32_t>::Convert(str, size);
+    return CharsetConvertor<UTF16LE, UTF32LE, char16_t, char32_t>::Convert(str, size);
 }
 
 
