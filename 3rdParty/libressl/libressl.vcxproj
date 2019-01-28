@@ -771,6 +771,11 @@
     <ClCompile Include="tls\tls_util.c" />
     <ClCompile Include="tls\tls_verify.c" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="COPYING" />
+    <None Include="Makefile" />
+    <None Include="README.md" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -126,6 +126,10 @@ Some VC++ default props should be set --- `include path` and `libpath`.
 
   [BSD License](./3rdParty/cpuid/COPYING)
 
+* [libressl](http://www.libressl.org/) 2.9.0
+  
+  [Apache License](./3rdParty/libressl/COPYING)
+
 * [curl](https://curl.haxx.se/libcurl/) 7.63.0
   
   [Modified MIT License](./3rdParty/curl/LICENSE-MIXING.md)
