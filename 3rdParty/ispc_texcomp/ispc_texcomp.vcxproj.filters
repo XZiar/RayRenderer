@@ -29,8 +29,12 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="*.ispc" />
+    <CustomBuild Include="*.ispc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="license.txt" />
   </ItemGroup>
 </Project>
