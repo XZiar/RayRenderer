@@ -2,6 +2,12 @@
 #include "RenderElement.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/key.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/composite_key.hpp>
+
 namespace rayr
 {
 using oglu::oglTex2D;
@@ -51,17 +57,12 @@ struct VAOPack
     oglu::oglVAO vao;
 };
 
-using VAOKey = boost::multi_index::composite_key<VAOPack,
-    boost::multi_index::member<VAOPack, const Drawable*, &VAOPack::drawable>,
-    boost::multi_index::member<VAOPack, const oglu::oglDrawProgram::weak_type, &VAOPack::prog>
->;
-using ProgKey = boost::multi_index::member<VAOPack, const oglu::oglDrawProgram::weak_type, &VAOPack::prog>;
-using VAOKeyComp = boost::multi_index::composite_key_compare<
-    std::less<const Drawable*>, std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>
->;
+using VAOKey = boost::multi_index::key<&VAOPack::drawable, &VAOPack::prog>;
+using ProgWeakComp = std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>;
+using VAOKeyComp = boost::multi_index::composite_key_compare<std::less<const Drawable*>, ProgWeakComp>;
 using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<VAOKey, VAOKeyComp>,
-    boost::multi_index::ordered_non_unique<ProgKey, std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>>
+    boost::multi_index::ordered_non_unique<boost::multi_index::key<&VAOPack::prog>, ProgWeakComp>
 >>;
 
 struct VAOMAPCtxConfig : public oglu::CtxResConfig<true, VAOMap>
