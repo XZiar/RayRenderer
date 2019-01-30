@@ -43,7 +43,7 @@ OBJPATH 	 = ./$(OBJPREFEX)$(TARGET)/
 APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
-CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes
+CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes -Wno-unused-local-typedefs
 CXXOPT		:=
 LINKFLAGS	:= 
 CVERSION	:= -std=c11

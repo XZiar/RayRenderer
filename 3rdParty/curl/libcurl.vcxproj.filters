@@ -449,9 +449,6 @@
     <ClCompile Include="lib\curl_gethostname.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\curl_gssapi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\curl_memrchr.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -474,9 +471,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\curl_sasl.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\curl_sspi.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\curl_threads.c">
@@ -563,12 +557,6 @@
     <ClCompile Include="lib\http_proxy.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\http2.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\idn_win32.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\if2ip.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -579,12 +567,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\inet_pton.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\krb5.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\ldap.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\llist.c">
@@ -617,9 +599,6 @@
     <ClCompile Include="lib\nonblock.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\openldap.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\parsedate.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -642,9 +621,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\rtsp.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\security.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\select.c">
@@ -674,22 +650,10 @@
     <ClCompile Include="lib\socks.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\socks_gssapi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\socks_sspi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\speedcheck.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\splay.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\ssh.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\ssh-libssh.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\strcase.c">
@@ -728,37 +692,13 @@
     <ClCompile Include="lib\vtls\cyassl.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\vtls\darwinssl.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\vtls\gskit.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\gtls.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\mbedtls.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\vtls\mesalink.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\vtls\nss.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\vtls\openssl.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\polarssl.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\polarssl_threadlock.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\schannel.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vtls\schannel_verify.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\vtls\vtls.c">
@@ -773,25 +713,10 @@
     <ClCompile Include="lib\vauth\digest_sspi.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\vauth\krb5_gssapi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vauth\krb5_sspi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\vauth\ntlm.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lib\vauth\ntlm_sspi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="lib\vauth\oauth2.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vauth\spnego_gssapi.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="lib\vauth\spnego_sspi.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="lib\vauth\vauth.c">
@@ -809,5 +734,6 @@
   <ItemGroup>
     <None Include="README.md" />
     <None Include="LICENSE-MIXING.md" />
+    <None Include="Makefile" />
   </ItemGroup>
 </Project>

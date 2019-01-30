@@ -49,11 +49,16 @@ public:
     forceinline Vec3 VECCALL cross(const Vec3& v) const
     {
     #if COMMON_SIMD_LV >= 20
-        const auto t1 = Permute128PS(float_dat, _MM_SHUFFLE(3, 0, 2, 1))/*y,z,x,w*/;
-        const auto t2 = Permute128PS(v.float_dat, _MM_SHUFFLE(3, 1, 0, 2))/*v.z,v.x,v.y,v.w*/;
-        const auto t3 = Permute128PS(float_dat, _MM_SHUFFLE(3, 1, 0, 2))/*z,x,y,w*/;
-        const auto t4 = Permute128PS(v.float_dat, _MM_SHUFFLE(3, 0, 2, 1))/*v.y,v.z,v.x,v.w*/;
-        return _mm_sub_ps(_mm_mul_ps(t1, t2), _mm_mul_ps(t3, t4));
+        //const auto t1 = Permute128PS(float_dat, _MM_SHUFFLE(3, 0, 2, 1))/*y,z,x,w*/;
+        //const auto t2 = Permute128PS(v.float_dat, _MM_SHUFFLE(3, 1, 0, 2))/*v.z,v.x,v.y,v.w*/;
+        //const auto t3 = Permute128PS(float_dat, _MM_SHUFFLE(3, 1, 0, 2))/*z,x,y,w*/;
+        //const auto t4 = Permute128PS(v.float_dat, _MM_SHUFFLE(3, 0, 2, 1))/*v.y,v.z,v.x,v.w*/;
+        //return _mm_sub_ps(_mm_mul_ps(t1, t2), _mm_mul_ps(t3, t4));
+        //cross(a, b) = a.yzx * b.zxy - a.zxy * b.yzx
+        //cross(a, b) = (a * b.yzx - a.yzx * b).yzx
+        const auto t1 = _mm_mul_ps(float_dat, Permute128PS(v.float_dat, _MM_SHUFFLE(3, 0, 2, 1)));
+        const auto t2 = _mm_mul_ps(Permute128PS(float_dat, _MM_SHUFFLE(3, 0, 2, 1)), v.float_dat);
+        return Permute128PS(_mm_sub_ps(t1, t2), _MM_SHUFFLE(3, 0, 2, 1));
     #else
         const float a = y*v.z - z*v.y;
         const float b = z*v.x - x*v.z;
@@ -346,7 +351,7 @@ public:
     #if COMMON_SIMD_LV >= 20
         return _mm_setzero_ps();
     #else
-        return Vec3(0, 0, 0, 0);
+        return Vec3(0, 0, 0);
     #endif
     }
 
@@ -355,7 +360,7 @@ public:
     #if COMMON_SIMD_LV >= 20
         return _mm_set1_ps(1);
     #else
-        return Vec3(1, 1, 1, 1);
+        return Vec3(1, 1, 1);
     #endif
     }
 };

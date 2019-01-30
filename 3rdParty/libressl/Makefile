@@ -14,7 +14,15 @@ DEL_NETROPY	 = $(patsubst %, crypto/compat/getentropy_%.c, aix freebsd hpux netb
 DEL_WINSRYPTO = crypto/compat/posix_win.c crypto/compat/explicit_bzero_win.c crypto/ui/ui_openssl_win.c crypto/bio/b_win.c
 CSRCS		+= $(filter-out $(DEL_NETROPY) $(DEL_WINSRYPTO) crypto/poly1305/poly1305-donna.c crypto/chacha/chacha-merged.c, $(wildcard crypto/*/*.c))
 
-ASMSRCS		+= $(wildcard crypto/*/*-elf-x86_64.S) crypto/cpuid-elf-x86_64.S
+ifeq ($(PLATFORM), x64)
+	ASMSRCS		+= $(wildcard crypto/*/*-elf-x86_64.S) crypto/cpuid-elf-x86_64.S
+	DEL_ASMC	 = $(patsubst %, crypto/%.c, camellia/camellia camellia/cmll_cbc aes/aes_core des/ncbc_enc rc4/rc4_enc rc4/rc4_skey aes/aes_cbc whrlpool/wp_block)
+	CSRCS		:= $(filter-out $(DEL_ASMC), $(CSRCS))
+endif
+
+ifneq ($(TARGET), Release)
+	CXXOPT	+= -O1 
+endif
 
 CVERSION	 =
 CXXFLAGS	:= $(filter-out -pedantic, $(CXXFLAGS))
