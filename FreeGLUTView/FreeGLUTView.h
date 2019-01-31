@@ -25,6 +25,8 @@
 namespace glutview
 {
 
+class GLUTHacker;
+
 using namespace common;
 using std::string;
 using std::wstring;
@@ -96,6 +98,7 @@ class FreeGLUTManager;
 class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public std::enable_shared_from_this<_FreeGLUTView>
 {
     friend class FreeGLUTManager;
+    friend class ::glutview::GLUTHacker;
 public:
 
 private:

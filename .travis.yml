@@ -62,12 +62,12 @@ before_install:
   - mkdir tmp
   - cd tmp
   - mkdir include
-  - wget -O boost_1_69_0.tar.bz2 https://dl.bintray.com/boostorg/release/1.69.0/source/boost_1_69_0.tar.bz2
-  - tar xjf boost_1_69_0.tar.bz2
+  - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.69.0/source/boost_1_69_0.tar.bz2
+  - tar xjf boost.tar.bz2
   - mv ./boost_1_69_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
-  - wget -O ispc-v1.10.0-linux.tar.gz http://sourceforge.net/projects/ispcmirror/files/v1.10.0/ispc-v1.10.0-linux.tar.gz/download
-  - tar xzf ispc-1.10.0-linux.tar.gz
+  - wget -O ispc.tar.gz http://sourceforge.net/projects/ispcmirror/files/v1.10.0/ispc-v1.10.0-linux.tar.gz/download
+  - tar xzf ispc.tar.gz
   - export ISPCCOMPILER=$(pwd)/ispc-1.10.0-Linux/bin/ispc
   - cd ..
 

@@ -8,10 +8,9 @@
 #include "curl/include/curl/curl.h"
 #include <vector>
 
-#pragma comment(lib, "wldap32.lib")
-#pragma comment(lib, "crypt32.lib")
-#pragma comment(lib, "Ws2_32.lib")
-#pragma comment(lib, "normaliz.lib")
+#if defined(_WIN32)
+#   pragma comment(lib, "Ws2_32.lib")
+#endif
 
 using std::string;
 using std::vector;

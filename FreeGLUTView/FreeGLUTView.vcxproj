@@ -154,7 +154,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="FreeGLUTView.h" />
-    <ClInclude Include="freeglutRely.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FreeGLUTView.cpp" />

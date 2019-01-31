@@ -2,6 +2,8 @@
 #include "RenderElement.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
+#include <boost/uuid/uuid_generators.hpp>
+
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/key.hpp>

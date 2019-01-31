@@ -23,6 +23,7 @@
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/key.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
 #if defined(_WIN32)
@@ -70,8 +71,8 @@ private:
         const HandleType Handle;
     };
     using FGViewMap = boost::multi_index_container<FGView, boost::multi_index::indexed_by<
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, _FreeGLUTView*, &FGView::View>>,
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const FGView::HandleType, &FGView::Handle>>
+        boost::multi_index::ordered_unique<boost::multi_index::key<&FGView::View>>,
+        boost::multi_index::ordered_unique<boost::multi_index::key<&FGView::Handle>>
         >>;
     static FGViewMap& GetViewMap()
     {

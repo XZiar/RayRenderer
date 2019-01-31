@@ -27,6 +27,7 @@
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/key.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
 
@@ -52,9 +53,9 @@ private:
         const HGLRC hrc;
     };
     using FGViewMap = boost::multi_index_container<FGView, boost::multi_index::indexed_by<
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, detail::_FreeGLUTView*, &FGView::view>>,
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const HWND, &FGView::hwnd>>,
-        boost::multi_index::ordered_unique<boost::multi_index::member<FGView, const HGLRC, &FGView::hrc>>
+        boost::multi_index::ordered_unique<boost::multi_index::key<&FGView::view>>,
+        boost::multi_index::ordered_unique<boost::multi_index::key<&FGView::hwnd>>,
+        boost::multi_index::ordered_unique<boost::multi_index::key<&FGView::hrc>>
         >>;
     static FGViewMap& getMap()
     {
@@ -98,7 +99,7 @@ private:
         }
         getMap().insert({ view,hwnd,hrc });
         //regist glutCallbacks
-        view->usethis();
+        view->Usethis();
         glutCloseFunc(GLUTHacker::onClose);
         glutDisplayFunc(GLUTHacker::onDisplay);
         glutReshapeFunc(GLUTHacker::onReshape);

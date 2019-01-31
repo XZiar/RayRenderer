@@ -1,8 +1,8 @@
 #pragma once
 
 #include "TexUtilRely.h"
-#include <boost/detail/endian.hpp>
-#if BOOST_BYTE_ORDER != 1234
+#include <boost/predef/other/endian.h>
+#if !BOOST_ENDIAN_LITTLE_BYTE
 #   pragma message("unsupported byte order (non little endian), fallback to SIMD_LV = 0")
 #   undef COMMON_SIMD_LV
 #   define COMMON_SIMD_LV 0

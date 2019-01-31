@@ -70,12 +70,16 @@ def listproj(projs:dict, projname: str):
         for proj in projs.values():
             print("{clr.green}[{}] {clr.magenta}({}) {clr.clear}{}\n{}".format(proj.name, proj.type, proj.version, proj.desc, clr=COLOR))
     else:
-        def printDep(proj: Project, level: int):
-            prefix = "|  "*(level-1) + ("" if level==0 else "|->")
-            print("{}{clr.green}[{}]{clr.magenta}({}){}".format(prefix, proj.name, proj.type, proj.desc, clr=COLOR))
-            for dep in proj.dependency:
-                printDep(dep, level+1)
-        printDep(projs[projname], 0)
+        def printDep(proj: Project, ends: tuple):
+            prev = "".join(["   " if l else "│  " for l in ends[:-1]])
+            cur = "" if len(ends)==1 else ("└──" if ends[-1] else "├──")
+            print("{}{}{clr.green}[{}]{clr.magenta}({}){clr.clear}{}".format(prev, cur, proj.name, proj.type, proj.desc, clr=COLOR))
+            newends = ends + (False,)
+            for dep in proj.dependency[:-1]:
+                printDep(dep, newends)
+            for dep in proj.dependency[-1:]:
+                printDep(dep, ends + (True,))
+        printDep(projs[projname], (True,))
     pass
 
 def genDependency(projs:set):
