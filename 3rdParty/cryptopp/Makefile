@@ -5,6 +5,7 @@
 BUILD_TYPE	:= static
 
 include $(PROJPATH)/Makebase.mk
+DEBUGLEVEL	= -g
 
 EXCEPT_CPP	 = eccrypto.cpp eprecomp.cpp simple.cpp algebra.cpp polynomi.cpp
 EXCEPT_NASM  = $(wildcard *.asm)

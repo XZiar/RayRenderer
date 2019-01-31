@@ -43,13 +43,14 @@ OBJPATH 	 = ./$(OBJPREFEX)$(TARGET)/
 APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
-CXXFLAGS	:= -g3 -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes -Wno-unused-local-typedefs
+CXXFLAGS	:= -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes -Wno-unused-local-typedefs
 CXXOPT		:=
 LINKFLAGS	:= 
+DEBUGLEVEL	:= -g3
 CVERSION	:= -std=c11
-CPPFLAGS	 = $(CXXFLAGS) -std=c++17
+CPPFLAGS	 = $(CXXFLAGS) -std=c++17 $(DEBUGLEVEL)
 CPPPCH		:= 
-CFLAGS		 = $(CXXFLAGS) $(CVERSION)
+CFLAGS		 = $(CXXFLAGS) $(CVERSION) $(DEBUGLEVEL)
 NASMFLAGS	:= -g 
 LIBRARYS	:= 
 DEPLIBS		:= 

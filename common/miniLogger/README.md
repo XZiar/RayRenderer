@@ -28,7 +28,7 @@ Backend are bound with logger instance, but they are "shared". Also, logger has 
 
 * **Global Backend** `shared`
   
-  Global hooker. Used to capture logging in other runtime (.Net).
+  Global hook. Expose ability to capture logs in other runtime (.Net).
 
 ## License
 

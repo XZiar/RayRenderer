@@ -7,6 +7,7 @@ BUILD_TYPE	:= static
 include $(PROJPATH)/Makebase.mk
 
 INCPATH		+= -I./include/ -I./ -I./include/compat/ -I./crypto/asn1/ -I./crypto/bn/ -I./crypto/dsa/ -I./crypto/evp/ -I./crypto/modes/ -I./crypto/
+DEBUGLEVEL	= -g
 
 CSRCS		+= $(wildcard ssl/*.c) $(wildcard tls/*.c)
 CSRCS		+= $(filter-out crypto/armcap.c crypto/crypto_lock_win.c, $(wildcard crypto/*.c))

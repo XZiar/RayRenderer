@@ -67,8 +67,8 @@ before_install:
   - mv ./boost_1_69_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
   - wget -O ispc-v1.10.0-linux.tar.gz http://sourceforge.net/projects/ispcmirror/files/v1.10.0/ispc-v1.10.0-linux.tar.gz/download
-  - tar xzf ispc-v1.10.0-linux.tar.gz
-  - export ISPCCOMPILER=$(pwd)/ispc-v1.10.0-Linux/bin/ispc
+  - tar xzf ispc-1.10.0-linux.tar.gz
+  - export ISPCCOMPILER=$(pwd)/ispc-1.10.0-Linux/bin/ispc
   - cd ..
 
 before_script:
