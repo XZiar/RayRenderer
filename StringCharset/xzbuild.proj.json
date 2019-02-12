@@ -1,0 +1,19 @@
+{
+    "name": "StringCharset",
+    "type": "dynamic",
+    "description": "charset operation utillities",
+    "dependency": ["uchardet"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "sources":
+    {
+        "cpp": ["*.cpp"]
+    },
+    "defines":
+    {
+        "cxx": ["STRCHSET_EXPORT"]
+    }
+}

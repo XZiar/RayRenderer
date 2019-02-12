@@ -1,0 +1,24 @@
+{
+    "name": "uchardet",
+    "type": "static",
+    "version": "0.6.0",
+    "description": "An encoding detector library",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "sources":
+    {
+        "cpp": ["LangModels/*.cpp", "*.cpp"]
+    },
+    "defines":
+    {
+        "cpp": ["VERSION=\"0.0.6\""]
+    },
+    "flags":
+    {
+        "cpp": ["mfpmath=sse"]
+    }
+}

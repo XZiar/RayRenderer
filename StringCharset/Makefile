@@ -10,5 +10,7 @@ NAME	= StringCharset
 
 DEPLIBS		+= -luchardet
 
+CXXFLAGS	+= -DSTRCHSET_EXPORT
+
 
 include $(PROJPATH)/MakeTargets.mk

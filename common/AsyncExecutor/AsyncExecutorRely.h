@@ -52,7 +52,7 @@ namespace detail
 {
 
 template<class T>
-class COMMONTPL AsyncResult_ : public common::detail::PromiseResult_<void>
+class AsyncResult_ : public common::detail::PromiseResult_<void>
 {
     friend class common::asyexe::AsyncAgent;
 protected:

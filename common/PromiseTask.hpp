@@ -16,7 +16,7 @@ enum class PromiseState : uint8_t
 namespace detail
 {
 
-struct COMMONAPI PromiseResultCore : public NonCopyable
+struct PromiseResultCore : public NonCopyable
 {
 private:
     std::atomic_flag HasPrepared = ATOMIC_FLAG_INIT;
@@ -39,7 +39,7 @@ public:
 };
 
 template<class T>
-class COMMONTPL PromiseResult_ : public PromiseResultCore, public std::enable_shared_from_this<PromiseResult_<T>>
+class PromiseResult_ : public PromiseResultCore, public std::enable_shared_from_this<PromiseResult_<T>>
 {
 protected:
     PromiseResult_()

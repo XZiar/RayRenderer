@@ -11,9 +11,8 @@ DEBUGLEVEL	= -g
 
 CSRCS		+= $(wildcard ssl/*.c) $(wildcard tls/*.c)
 CSRCS		+= $(filter-out crypto/armcap.c crypto/crypto_lock_win.c, $(wildcard crypto/*.c))
-DEL_NETROPY	 = $(patsubst %, crypto/compat/getentropy_%.c, aix freebsd hpux netbsd osx solaris win) 
-DEL_WINSRYPTO = crypto/compat/posix_win.c crypto/compat/explicit_bzero_win.c crypto/ui/ui_openssl_win.c crypto/bio/b_win.c
-CSRCS		+= $(filter-out $(DEL_NETROPY) $(DEL_WINSRYPTO) crypto/poly1305/poly1305-donna.c crypto/chacha/chacha-merged.c, $(wildcard crypto/*/*.c))
+CSRCS		+= $(filter-out $(wildcard crypto/compat/*.c) $(wildcard crypto/*/*_win.c) crypto/poly1305/poly1305-donna.c crypto/chacha/chacha-merged.c, $(wildcard crypto/*/*.c))
+CSRCS		+= $(patsubst %, crypto/compat/%.c, arc4random arc4random_uniform freezero recallocarray strlcat strlcpy timingsafe_bcmp timingsafe_memcmp)
 
 ifeq ($(PLATFORM), x64)
 	ASMSRCS		+= $(wildcard crypto/*/*-elf-x86_64.S) crypto/cpuid-elf-x86_64.S

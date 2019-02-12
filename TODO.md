@@ -63,13 +63,17 @@
   - [ ] More buttons and proper icon
   - [ ] Develop AvalonDock
 
+* Build
+  - [x] Custom build procedure for Linux
+  - [ ] Generate build Makefile from python script and project-info json
+  - [ ] Add Pch for GCC build
+
 * Global
   - [ ] Add GacUI
   - [x] Port some utilities to Linux 
-  - [ ] Port core components to Linux 
-  - [x] Custom build procedure for Linux
-  - [ ] Real custom build system similar to Scons, get rid of makefiles
+  - [x] Port core components to Linux 
+  - [ ] Move to .net core 3.0 with WPF/Winform
+  - [ ] Add Vulkan backend
   - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
-  - [ ] Add Pch for Linux build
   - [ ] Add GLFW
   - [ ] Add static control-item for Controllable

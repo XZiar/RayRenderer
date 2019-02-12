@@ -1,0 +1,19 @@
+{
+    "name": "miniLogger",
+    "type": "dynamic",
+    "description": "A mini logger library",
+    "dependency": ["fmt", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "sources":
+    {
+        "cpp": ["*.cpp"]
+    },
+    "defines":
+    {
+        "cxx": ["MINILOG_EXPORT"]
+    }
+}
