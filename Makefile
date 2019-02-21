@@ -21,31 +21,19 @@ define CLR_TEXT
 $(1)$(2)$(CLR_CLEAR)
 endef
 
-include ./$(OBJPREFEX)$(TARGET)/xzbuild.mk
+include ./$(OBJPATH)/xzbuild.mk
 
 
 TARGET		?= Debug
 PLATFORM	?= x64
 PROJPATH	?= ./
-OBJPATH 	 = ./$(OBJPREFEX)$(TARGET)/
-APPPATH		 = $(PROJPATH)$(OBJPREFEX)$(TARGET)/
+APPPATH		 = $(PROJPATH)$(OBJPATH)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
-CXXFLAGS	:= -Wall -pedantic -pthread -Wno-unknown-pragmas -Wno-ignored-attributes -Wno-unused-local-typedefs
-CXXOPT		:=
 LINKFLAGS	:= 
-DEBUGLEVEL	:= -g3
-CVERSION	:= -std=c11
-CPPFLAGS	 = $(CXXFLAGS) -std=c++17 $(DEBUGLEVEL)
 CPPPCH		:= 
-CFLAGS		 = $(CXXFLAGS) $(CVERSION) $(DEBUGLEVEL)
-NASMFLAGS	:= -g 
 LIBRARYS	:= 
 DEPLIBS		:= 
-
-ifeq ($(XZMK_CLANG), 1)
-CXXFLAGS	+= -Wno-newline-eof
-endif
 
 ifneq ($(TARGET), Debug)
 ifneq ($(TARGET), Release)
@@ -59,28 +47,6 @@ ifneq ($(PLATFORM), x64)
 @echo "$(CLR_RED)Unknown Platform [$(PLATFORM)], Should be [x86|x64]$(CLR_CLEAR)"
 $(error Unknown Platform [$(PLATFORM)], Should be [x86|x64])
 endif
-endif
-
-ifeq ($(PLATFORM), x64)
-	OBJPREFEX	 = x64/
-	CXXFLAGS	+= -march=native -m64
-	NASMFLAGS	+= -f elf64 -D__x86_64__ -DELF
-else
-	OBJPREFEX	 = 
-	CXXFLAGS	+= -march=native -m32
-	NASMFLAGS	+= -f elf32 -DELF
-endif
-
-ifeq ($(TARGET), Release)
-	CXXFLAGS	+= -DNDEBUG -flto
-ifeq ($(XZMK_CLANG), 1)
-	LINKFLAGS	+= -fuse-ld=gold
-endif
-endif
-
-
-ifneq ($(BOOST_PATH), )
-	INCPATH += -I"$(BOOST_PATH)"
 endif
 
 
@@ -112,16 +78,6 @@ all: postbuild
 
 
 
-
-ifeq ($(CXXOPT),)
-ifeq ($(TARGET), Release)
-	CXXFLAGS	+= -O2
-else
-	CXXFLAGS	+= -O0
-endif
-else
-	CXXFLAGS	+= $(CXXOPT)
-endif
 
 $(shell mkdir -p $(OBJPATH) $(DIRS))
 ifneq ($(PCH_HEADER), )

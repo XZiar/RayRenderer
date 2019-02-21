@@ -1,4 +1,6 @@
+import abc
 import glob
+import inspect
 import json
 import os
 import platform
@@ -39,17 +41,26 @@ def collectEnv() -> dict:
     }
     env = {"target": "Debug", "platform": "x64"}
     compiler = os.environ.get("CPPCOMPILER", "g++")
-    rawdefs = subprocess.check_output("{} -dM -E - < /dev/null".format(compiler), shell=True)
-    defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
+    defs = []
+    osname = platform.system()
+    if not osname == "Windows":
+        rawdefs = subprocess.check_output("{} -dM -E - < /dev/null".format(compiler), shell=True)
+        defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
     env["intrin"] = set(i[1] for i in intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
     return env
 
-def solveElement(element, env:dict) -> tuple:
-    if element is list:
-        return (element, [])
-    if element is not dict:
-        return ([element], [])
+
+def solveElementList(target, field:str, env:dict) -> tuple:
+    tests = \
+    {
+        "ifhas": lambda x: x in env,
+        "ifno" : lambda x: x not in env,
+        "ifeq" : lambda x: env.get(x[0]) == x[1],
+        "ifneq": lambda x: env.get(x[0]) != x[1],
+        "ifin" : lambda x: x[1] in env.get(x[0], []),
+        "ifnin": lambda x: x[1] not in env.get(x[0], []),
+    }
     def checkMatch(obj:dict, name:str, test) -> bool:
         target = obj.get(name)
         if target is None:
@@ -60,38 +71,150 @@ def solveElement(element, env:dict) -> tuple:
             return all([test(t) for t in target.items()])
         else:
             return test(target)
-    tests = \
-    {
-        "ifhas": lambda x: x in env,
-        "ifno" : lambda x: x not in env,
-        "ifeq" : lambda x: env.get(x[0]) == x[1],
-        "ifneq": lambda x: env.get(x[0]) != x[1],
-        "ifin" : lambda x: x[1] in env.get(x[0], []),
-        "ifnin": lambda x: x[1] not in env.get(x[0], []),
-    }
-    if all(checkMatch(element, n, t) for n,t in tests):
-        return (element.get("+", []), element.get("-", []))
-    return ([], [])
+    def solveElement(element, env:dict) -> tuple:
+        if element is list:
+            return (element, [])
+        if element is not dict:
+            return ([element], [])
+        if all(checkMatch(element, n, t) for n,t in tests):
+            return (element.get("+", []), element.get("-", []))
+        return ([], [])
+    middle = list(solveElement(ele, env) for ele in target.get(field, []))
+    adds = list(i for a,_ in middle for i in a)
+    dels = list(i for _,d in middle for i in d)
+    return (adds, dels)
+
+def getSubclasses(clz):
+    for c in clz.__subclasses__():
+        if inspect.isabstract(c):
+            for subc in getSubclasses(c):
+                yield subc
+        else:
+            yield c
 
 class Project:
+    class BuildTarget(metaclass=abc.ABCMeta):
+        @abc.abstractstaticmethod
+        def prefix() -> str:
+            pass
+        # @abc.abstractmethod
+        # def write(self, file):
+        #     pass
+
+        def __init__(self, targets, env:dict):
+            self.sources = []
+            self.flags = []
+            self.solveTarget(targets, env)
+        def solveTarget(self, targets, env:dict):
+            target = targets[self.prefix()]
+            a,d = solveElementList(target, "sources", env)
+            adds = set(f for i in a for f in glob.glob(i))
+            dels = set(f for i in d for f in glob.glob(i))
+            self.sources = list(adds - dels)
+            a,d = solveElementList(target, "flags", env)
+            self.flags = list(set(a + self.flags) - set(d))
+        def __repr__(self):
+            return str(vars(self))
+
+    class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
+        @abc.abstractstaticmethod
+        def langVersion() -> str:
+            pass
+        def __init__(self, targets, env:dict):
+            self.linkflags = []
+            self.defines = []
+            self.debugLevel = "-g3"
+            self.optimize = "-O2" if env["target"] == "Release" else "-O0"
+            self.version = ""
+            super().__init__(targets, env)
+        def solveTarget(self, targets, env:dict):
+            self.flags += ["-Wall", "-pedantic", "-march=native", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs"]
+            self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
+            if env["compiler"] == "clang":
+                self.flags += ["-Wno-newline-eof"]
+            if env["target"] == "Release":
+                self.defines += ["NDEBUG"]
+                self.flags += ["-flto"]
+                if env["compiler"] == "clang":
+                    self.linkflags += ["-fuse-ld=gold"]
+            cxx = targets.get("cxx")
+            if cxx is not None:
+                self.debugLevel = cxx.get("debug", self.debugLevel)
+                self.optimize = cxx.get("optimize", self.optimize)
+                a,d = solveElementList(cxx, "flags", env)
+                self.flags = list(set(a + self.flags) - set(d))
+                a,d = solveElementList(cxx, "defines", env)
+                self.defines = list(set(a + self.defines) - set(d))
+            super().solveTarget(targets, env)
+            target = targets[self.prefix()]
+            self.debugLevel = target.get("debug", self.debugLevel)
+            self.optimize = target.get("optimize", self.optimize)
+            self.version = target.get("version", self.langVersion())
+            a,d = solveElementList(target, "defines", env)
+            self.defines = list(set(a + self.defines) - set(d))
+    class CPPTarget(CXXTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "cpp"
+        @staticmethod
+        def langVersion() -> str:
+            return "-std=c++17"
+    class CTarget(CXXTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "c"
+        @staticmethod
+        def langVersion() -> str:
+            return "-std=c11"
+    class ASMTarget(CXXTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "asm"
+    class NASMTarget(BuildTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "nasm"
+        def solveTarget(self, targets, env:dict):
+            self.flags = ["-f", "-g", "-DELF"]
+            if env["platform"] == "x64":
+                self.flags += ["elf64", "-D__x86_64__"]
+            else:
+                self.flags += ["elf32"]
+            super().solveTarget(targets, env)
+    class RCTarget(BuildTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "rc"
+    class ISPCTarget(BuildTarget):
+        @staticmethod
+        def prefix() -> str:
+            return "ispc"
+
     def __init__(self, data:dict, path:str):
+        self.raw = data
         self.name = data["name"]
         self.type = data["type"]
         self.path = path[2:] if path.startswith("./") or path.startswith(".\\") else path
-        self.deps = data.get("dependency", [])
         self.dependency = []
         self.version = data.get("version", "")
         self.desc = data.get("description", "")
         libs = data.get("library", {})
         self.libStatic = libs.get("static", [])
         self.libDynamic = libs.get("dynamic", [])
-        self.srcs = data.get("sources", {})
-        self.sources = {"cpp": ["*.cpp"], "asm": ["*.S"], "nasm": ["*.asm"], "ispc": ["*.ispc"], "rc": ["*.rc"]}
+        self.targets = []
         pass
+
+    BTargets = list(getSubclasses(BuildTarget))
+    def solveTarget(self, env:dict):
+        curdir = os.getcwd()
+        os.chdir(self.path)
+        targets = self.raw.get("targets", {})
+        self.targets = [t(targets, env) for t in Project.BTargets if t.prefix() in targets]
+        os.chdir(curdir)
 
     def solveDependency(self, projs:dict):
         self.dependency.clear()
-        for dep in self.deps:
+        for dep in self.raw.get("dependency", []):
             proj = projs.get(dep)
             if proj == None:
                 raise Exception("missing dependency for {}".format(dep))
@@ -100,18 +223,10 @@ class Project:
         self.libDynamic += [proj.name for proj in self.dependency if proj.type == "dynamic"]
         pass
 
-    def solveSources(self, env:dict):
-        curdir = os.getcwd()
-        os.chdir(self.path)
-        for target in ["cpp", "asm", "nasm", "ispc", "rc"]:
-            if target not in self.srcs:
-                self.sources[target] = []
-            else:
-                middle = list(solveElement(ele, env) for ele in self.srcs[target])
-                adds = set(f for a,_ in middle for i in a for f in glob.glob(i))
-                dels = set(f for _,d in middle for i in d for f in glob.glob(i))
-                self.sources[target] = list(adds - dels)
-        os.chdir(curdir)
+    def __repr__(self):
+        d = {k:v for k,v in vars(self).items() if not (k == "raw" or k == "dependency")}
+        return str(d)
+
 
 def gatherProj():
     def readMetaFile(d:str):
@@ -289,9 +404,10 @@ if __name__ == "__main__":
     osname = platform.system()
     projects = gatherProj()
     env = collectEnv()
+    objpath = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
     for proj in projects.values():
-        proj.solveSources(env)
-        print("{}\n{}\n\n", proj.name, vars(proj))
+        proj.solveTarget(env)
+        print("{}\n{}\n\n".format(proj.name, str(proj)))
     if osname == "Windows":
         # listproj(projects, None)
         print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))

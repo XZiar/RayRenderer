@@ -246,6 +246,7 @@
     <None Include="JISFreq.tab">
       <Filter>table</Filter>
     </None>
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="license.txt" />

@@ -18,6 +18,7 @@
     <None Include="LICENSE.rst" />
     <None Include="README.rst" />
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utfext.h">

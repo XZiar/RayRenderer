@@ -251,3 +251,4 @@ kernel*_ispc*.h
 /Tests/Data/
 /Tests/Temp/
 /.vscode
+/__pycache__

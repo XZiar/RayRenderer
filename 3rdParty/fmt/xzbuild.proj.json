@@ -9,8 +9,13 @@
         "static": [],
         "dynamic": []
     },
-    "sources":
+    "targets":
     {
-        "cpp": ["*.cc", "*.cpp"]
+        "cpp":
+        {
+            "sources": ["*.cc", "*.cpp"],
+            "flags":  []
+        }
+        
     }
 }

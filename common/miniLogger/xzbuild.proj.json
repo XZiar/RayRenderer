@@ -8,12 +8,13 @@
         "static": [],
         "dynamic": ["pthread", "stdc++fs"]
     },
-    "sources":
+    "targets":
     {
-        "cpp": ["*.cpp"]
-    },
-    "defines":
-    {
-        "cxx": ["MINILOG_EXPORT"]
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines":  ["MINILOG_EXPORT"]
+        }
+        
     }
 }

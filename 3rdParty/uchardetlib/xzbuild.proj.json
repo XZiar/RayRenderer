@@ -9,16 +9,14 @@
         "static": [],
         "dynamic": []
     },
-    "sources":
+    "targets":
     {
-        "cpp": ["LangModels/*.cpp", "*.cpp"]
-    },
-    "defines":
-    {
-        "cpp": ["VERSION=\"0.0.6\""]
-    },
-    "flags":
-    {
-        "cpp": ["mfpmath=sse"]
+        "cpp":
+        {
+            "sources": ["LangModels/*.cpp", "*.cpp"],
+            "flags":  ["mfpmath=sse"],
+            "defines":  ["VERSION=\"0.0.6\""]
+        }
+        
     }
 }

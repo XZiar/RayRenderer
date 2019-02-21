@@ -8,12 +8,13 @@
         "static": [],
         "dynamic": []
     },
-    "sources":
+    "targets":
     {
-        "cpp": ["*.cpp"]
-    },
-    "defines":
-    {
-        "cxx": ["STRCHSET_EXPORT"]
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines":  ["STRCHSET_EXPORT"]
+        }
+        
     }
 }

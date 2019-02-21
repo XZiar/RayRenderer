@@ -169,6 +169,7 @@
     <None Include="LICENSE.rst" />
     <None Include="Makefile" />
     <None Include="README.rst" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chrono.h" />

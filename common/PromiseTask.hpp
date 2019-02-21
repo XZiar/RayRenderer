@@ -60,21 +60,6 @@ public:
 template<class T>
 using PromiseResult = std::shared_ptr<detail::PromiseResult_<T>>;
 
-//template<class T>
-//class COMMONTPL PromiseTask : public NonCopyable
-//{
-//protected:
-//    std::function<T(void)> Task;
-//public:
-//    PromiseTask(std::function<T(void)> task) : Task(task)
-//    { }
-//    template<class... Args>
-//    PromiseTask(const std::function<T(Args&&...)>& task, Args&&... args) : Task(std::bind(task, std::forward<Args>(args)...))
-//    { }
-//    virtual ~PromiseTask() {}
-//    void virtual dowork() = 0;
-//    PromiseResult<T> virtual getResult() = 0;
-//};
 
 
 }
