@@ -68,10 +68,6 @@
 
 #else /* not BSD, assume ANSI/SysV string lib */
 
-#if !defined(_MSC_VER)
-#   include <strings.h>
-#endif
-
 #include <string.h>
 #define MEMZERO(target, size) \
   memset((void *)(target), 0, (size_t)(size))

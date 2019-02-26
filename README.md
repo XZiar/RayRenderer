@@ -92,7 +92,7 @@ boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2018-12-19
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2019-02-10
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
@@ -126,7 +126,7 @@ boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.0 master@2018-11-04
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2019-02-17
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

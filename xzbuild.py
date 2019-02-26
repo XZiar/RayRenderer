@@ -51,7 +51,7 @@ def collectEnv() -> dict:
     return env
 
 
-def solveElementList(target, field:str, env:dict) -> tuple:
+def solveElementList(target, field:str, env:dict, postproc=None) -> tuple:
     tests = \
     {
         "ifhas": lambda x: x in env,
@@ -71,15 +71,18 @@ def solveElementList(target, field:str, env:dict) -> tuple:
             return all([test(t) for t in target.items()])
         else:
             return test(target)
-    def solveElement(element, env:dict) -> tuple:
+    def solveElement(element, env:dict, postproc) -> tuple:
         if element is list:
             return (element, [])
         if element is not dict:
             return ([element], [])
-        if all(checkMatch(element, n, t) for n,t in tests):
-            return (element.get("+", []), element.get("-", []))
-        return ([], [])
-    middle = list(solveElement(ele, env) for ele in target.get(field, []))
+        if not all(checkMatch(element, n, t) for n,t in tests):
+            return ([], [])
+        ret = (element.get("+", []), element.get("-", []))
+        if not postproc == None:
+            ret = postproc(ret, element, env)
+        return ret
+    middle = list(solveElement(ele, env, postproc) for ele in target.get(field, []))
     adds = list(i for a,_ in middle for i in a)
     dels = list(i for _,d in middle for i in d)
     return (adds, dels)
@@ -105,6 +108,17 @@ class Project:
             self.sources = []
             self.flags = []
             self.solveTarget(targets, env)
+        def solveSource(self, targets, env:dict):
+            target = targets[self.prefix()]
+            def adddir(ret:tuple, ele:dict, env:dict):
+                if "dir" in ele:
+                    dir = ele["dir"]
+                    return tuple(list(os.path.join(dir, i) for i in x) for x in ret)
+                return ret
+            a,d = solveElementList(target, "sources", env)
+            adds = set(f for i in a for f in glob.glob(i))
+            dels = set(f for i in d for f in glob.glob(i))
+            self.sources = list(adds - dels)
         def solveTarget(self, targets, env:dict):
             target = targets[self.prefix()]
             a,d = solveElementList(target, "sources", env)

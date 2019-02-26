@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClInclude Include="amd_code_t.h" />
     <ClInclude Include="asm-bits.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="intel_code_t.h" />
     <ClInclude Include="libcpuid.h" />
     <ClInclude Include="libcpuid_constants.h" />
