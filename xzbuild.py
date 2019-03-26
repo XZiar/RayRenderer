@@ -7,6 +7,7 @@ import platform
 import re
 import subprocess
 import sys
+import time
 from collections import deque
 
 class COLOR:
@@ -40,11 +41,11 @@ def collectEnv() -> dict:
         "__PCLMUL__": "pclmul",
     }
     env = {"target": "Debug", "platform": "x64"}
-    compiler = os.environ.get("CPPCOMPILER", "g++")
+    cppcompiler = os.environ.get("CPPCOMPILER", "g++")
     defs = []
     osname = platform.system()
     if not osname == "Windows":
-        rawdefs = subprocess.check_output("{} -dM -E - < /dev/null".format(compiler), shell=True)
+        rawdefs = subprocess.check_output("{} -dM -E - < /dev/null".format(cppcompiler), shell=True)
         defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
     env["intrin"] = set(i[1] for i in intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
@@ -96,26 +97,34 @@ def getSubclasses(clz):
             yield c
 
 class Project:
+    @staticmethod
+    def _writeItems(file, name:str, val:list, state = ":"):
+        file.write("{}\t{}= {}\n".format(name, state, " ".join(val)))
     class BuildTarget(metaclass=abc.ABCMeta):
         @abc.abstractstaticmethod
         def prefix() -> str:
             pass
-        # @abc.abstractmethod
-        # def write(self, file):
-        #     pass
+        
+        def write(self, file):
+            file.write("\n\n# For target [{}]\n".format(self.prefix()))
+            Project._writeItems(file, self.prefix()+"_srcs", self.sources)
+            Project._writeItems(file, self.prefix()+"_flags", self.flags)
+
+        def printSources(self):
+            print("{clr.magenta}[{}] Sources:\n{clr.white}{}{clr.clear}".format(self.prefix(), " ".join(self.sources), clr=COLOR))
 
         def __init__(self, targets, env:dict):
             self.sources = []
             self.flags = []
             self.solveTarget(targets, env)
         def solveSource(self, targets, env:dict):
-            target = targets[self.prefix()]
             def adddir(ret:tuple, ele:dict, env:dict):
                 if "dir" in ele:
                     dir = ele["dir"]
                     return tuple(list(os.path.join(dir, i) for i in x) for x in ret)
                 return ret
-            a,d = solveElementList(target, "sources", env)
+            target = targets[self.prefix()]
+            a,d = solveElementList(target, "sources", env, adddir)
             adds = set(f for i in a for f in glob.glob(i))
             dels = set(f for i in d for f in glob.glob(i))
             self.sources = list(adds - dels)
@@ -135,7 +144,6 @@ class Project:
         def langVersion() -> str:
             pass
         def __init__(self, targets, env:dict):
-            self.linkflags = []
             self.defines = []
             self.debugLevel = "-g3"
             self.optimize = "-O2" if env["target"] == "Release" else "-O0"
@@ -149,8 +157,6 @@ class Project:
             if env["target"] == "Release":
                 self.defines += ["NDEBUG"]
                 self.flags += ["-flto"]
-                if env["compiler"] == "clang":
-                    self.linkflags += ["-fuse-ld=gold"]
             cxx = targets.get("cxx")
             if cxx is not None:
                 self.debugLevel = cxx.get("debug", self.debugLevel)
@@ -166,6 +172,11 @@ class Project:
             self.version = target.get("version", self.langVersion())
             a,d = solveElementList(target, "defines", env)
             self.defines = list(set(a + self.defines) - set(d))
+        def write(self, file):
+            super().write(file)
+            Project._writeItems(file, self.prefix()+"_defs", self.defines)
+            Project._writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
+
     class CPPTarget(CXXTarget):
         @staticmethod
         def prefix() -> str:
@@ -216,13 +227,16 @@ class Project:
         self.libStatic = libs.get("static", [])
         self.libDynamic = libs.get("dynamic", [])
         self.targets = []
+        self.linkflags = []
         pass
 
     BTargets = list(getSubclasses(BuildTarget))
     def solveTarget(self, env:dict):
+        if env["compiler"] == "clang":
+            self.linkflags += ["-fuse-ld=gold"]
         curdir = os.getcwd()
         os.chdir(self.path)
-        targets = self.raw.get("targets", {})
+        targets = self.raw.get("targets", [])
         self.targets = [t(targets, env) for t in Project.BTargets if t.prefix() in targets]
         os.chdir(curdir)
 
@@ -236,6 +250,19 @@ class Project:
         self.libStatic  += [proj.name for proj in self.dependency if proj.type == "static"]
         self.libDynamic += [proj.name for proj in self.dependency if proj.type == "dynamic"]
         pass
+
+    def writeMakefile(self, env:dict):
+        with open(os.path.join(self.path, env["objpath"], "xzbuild.mk"), 'w') as file:
+            file.write("# xzbuild per project file\n")
+            file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
+            file.write("\n\n# Project [{}]\n\n".format(self.name))
+            self._writeItems(file, "NAME", [self.name])
+            self._writeItems(file, "BUILD_TYPE", [self.type])
+            self._writeItems(file, "LINKFLAGS", self.linkflags)
+            self._writeItems(file, "libDynamic", self.libDynamic)
+            self._writeItems(file, "libStatic", self.libStatic)
+            for t in self.targets:
+                t.write(file)
 
     def __repr__(self):
         d = {k:v for k,v in vars(self).items() if not (k == "raw" or k == "dependency")}
@@ -256,6 +283,15 @@ def help():
     print("{0.white}build.py {0.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project> {0.magenta}[<Debug|Release>] [<x64|x86>]{0.clear}".format(COLOR))
     print("{0.white}build.py {0.cyan}<list|help>{0.clear}".format(COLOR))
     pass
+
+def makeit(rootDir:str, proj:Project, env:dict, action:str):
+    buildtype = "static library" if proj.type == "static" else ("dynamic library" if proj.type == "dynamic" else "executable binary")
+    print("{clr.green}building {clr.magenta}{}{clr.clear} [{clr.cyan}{}{clr.clear}] [{clr.magenta}{}{clr.clear} version on {clr.magenta}{}{clr.clear}] to {clr.green}{}{clr.clear}"\
+        .format(buildtype, proj.name, env["target"], env["platform"], os.path.join(rootDir, env["objpath"]), clr=COLOR))
+    if action.find("build") != -1:
+        for t in proj.targets:
+            t.printSources()
+    
 
 def build(rootDir:str, proj:Project, args:dict):
     targetPath = os.path.join(rootDir, proj.path)
@@ -418,10 +454,11 @@ if __name__ == "__main__":
     osname = platform.system()
     projects = gatherProj()
     env = collectEnv()
-    objpath = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
+    env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
     for proj in projects.values():
         proj.solveTarget(env)
         print("{}\n{}\n\n".format(proj.name, str(proj)))
+        proj.writeMakefile(env)
     if osname == "Windows":
         # listproj(projects, None)
         print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))

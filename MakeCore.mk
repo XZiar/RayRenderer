@@ -22,37 +22,25 @@ $(1)$(2)$(CLR_CLEAR)
 endef
 
 include ./$(OBJPATH)/xzbuild.mk
+LINKFLAGS	?= 
+cpp_srcs	?=
+c_srcs		?=
+asm_srcs	?=
+nasm_rcs	?=
+rc_srcs		?=
+ispc_srcs	?=
 
-
-TARGET		?= Debug
-PLATFORM	?= x64
-PROJPATH	?= ./
 APPPATH		 = $(PROJPATH)$(OBJPATH)/
 INCPATH		 = -I"$(PROJPATH)" -I"$(PROJPATH)3rdParty"
 LDPATH		 = -L"$(APPPATH)" -L.
-LINKFLAGS	:= 
 CPPPCH		:= 
-LIBRARYS	:= 
-DEPLIBS		:= 
-
-ifneq ($(TARGET), Debug)
-ifneq ($(TARGET), Release)
-@echo "$(CLR_RED)Unknown Target [$(TARGET)], Should be [Debug|Release]$(CLR_CLEAR)"
-$(error Unknown Target [$(TARGET)], Should be [Debug|Release])
-endif
-endif
-
-ifneq ($(PLATFORM), x86)
-ifneq ($(PLATFORM), x64)
-@echo "$(CLR_RED)Unknown Platform [$(PLATFORM)], Should be [x86|x64]$(CLR_CLEAR)"
-$(error Unknown Platform [$(PLATFORM)], Should be [x86|x64])
-endif
-endif
+LIBRARYS	:= $(patsubst %, -l%, $(libDynamic))
+DEPLIBS		:= $(patsubst %, -l%, $(libStatic))
 
 
 ISPCFSRCS	 = $(foreach tar,$(ISPC_TARGETS),$(patsubst %.ispc, %_$(tar).ispc, $(ISPCSRCS)))
-CXXOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(CSRCS) $(CPPSRCS) $(RCSRCS))
-OTHEROBJS	 = $(patsubst %, $(OBJPATH)%.o, $(ASMSRCS) $(NASMSRCS) $(ISPCSRCS))
+CXXOBJS		 = $(patsubst %, $(OBJPATH)%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs))
+OTHEROBJS	 = $(patsubst %, $(OBJPATH)%.o, $(asm_srcs) $(nasm_srcs) $(ispc_srcs))
 DIRS		 = $(dir $(CXXOBJS) $(OTHEROBJS))
 ifeq ($(XZMK_CLANG), 1) # Has problem with pch on GCC
 PCH_PCH		 = $(patsubst %, $(OBJPATH)%.gch, $(PCH_HEADER))
@@ -60,7 +48,6 @@ else
 PCH_PCH		 = 
 endif
 DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
-NAME		?= 
 
 
 
@@ -113,19 +100,19 @@ endif
 buildinfo:
 	@echo "$(CLR_GREEN)building $(CLR_MAGENTA)$(BUILD_TYPE2)$(CLR_CLEAR) [$(CLR_CYAN)${NAME}$(CLR_CLEAR)] [$(CLR_MAGENTA)${TARGET}$(CLR_CLEAR) version on $(CLR_MAGENTA)${PLATFORM}$(CLR_CLEAR)] to $(CLR_WHITE)${APPPATH}$(CLR_CLEAR)"
 ifneq ($(CPPSRCS), )
-	@echo "$(CLR_MAGENTA)C++ Sources:\n$(CLR_WHITE)${CPPSRCS}$(CLR_CLEAR)"
+	@echo "$(CLR_MAGENTA)C++ Sources:\n$(CLR_WHITE)${cpp_srcs}$(CLR_CLEAR)"
 endif
 ifneq ($(CSRCS), )
-	@echo "$(CLR_MAGENTA)C Sources:\n$(CLR_WHITE)${CSRCS}$(CLR_CLEAR)"
+	@echo "$(CLR_MAGENTA)C Sources:\n$(CLR_WHITE)${c_srcs}$(CLR_CLEAR)"
 endif
 ifneq ($(ASMSRCS), )
-	@echo "$(CLR_MAGENTA)ASM Sources:\n$(CLR_WHITE)${ASMSRCS}$(CLR_CLEAR)"
+	@echo "$(CLR_MAGENTA)ASM Sources:\n$(CLR_WHITE)${asm_srcs}$(CLR_CLEAR)"
 endif
 ifneq ($(NASMSRCS), )
-	@echo "$(CLR_MAGENTA)NASM Sources:\n$(CLR_WHITE)${NASMSRCS}$(CLR_CLEAR)"
+	@echo "$(CLR_MAGENTA)NASM Sources:\n$(CLR_WHITE)${nasm_srcs}$(CLR_CLEAR)"
 endif
 ifneq ($(ISPCSRCS), )
-	@echo "$(CLR_MAGENTA)ISPC Sources:\n$(CLR_WHITE)${ISPCSRCS}$(CLR_CLEAR)"
+	@echo "$(CLR_MAGENTA)ISPC Sources:\n$(CLR_WHITE)${ispc_srcs}$(CLR_CLEAR)"
 endif
 
 prebuild: buildinfo
