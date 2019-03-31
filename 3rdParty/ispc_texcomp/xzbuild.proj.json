@@ -1,0 +1,23 @@
+{
+    "name": "ispc_texcomp",
+    "type": "static",
+    "description": "ISPC Texture Compressor",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        },
+        "ispc":
+        {
+            "sources": ["*.ispc"],
+            "targets": ["sse4", "avx2"]
+        }
+    }
+}

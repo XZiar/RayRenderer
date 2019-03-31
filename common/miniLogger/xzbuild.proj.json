@@ -13,8 +13,8 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines":  ["MINILOG_EXPORT"]
+            "defines":  ["MINILOG_EXPORT"],
+            "pch": ["MiniLoggerRely.h"]
         }
-        
     }
 }

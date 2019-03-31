@@ -21,8 +21,7 @@ class COLOR:
     white	= "\033[97m"
     clear	= "\033[39m"
 
-projDir = os.getcwd()
-depDir  = os.environ.get("CPP_DEPENDENCY_PATH", "./")
+solDir = os.getcwd()
 
 def collectEnv() -> dict:
     intrinMap = \
@@ -40,7 +39,11 @@ def collectEnv() -> dict:
         "__SHA__":    "sha",
         "__PCLMUL__": "pclmul",
     }
-    env = {"target": "Debug", "platform": "x64"}
+    env = {"rootDir": solDir, "target": "Debug"}
+    is64Bits = sys.maxsize > 2**32
+    env["platform"] = "x64" if is64Bits else "x86"
+    env["incDirs"] = []
+    env["incDirs"] += [x+"/include" for x in [os.environ.get("CPP_DEPENDENCY_PATH")] if x is not None]
     cppcompiler = os.environ.get("CPPCOMPILER", "g++")
     defs = []
     osname = platform.system()
@@ -50,6 +53,15 @@ def collectEnv() -> dict:
     env["intrin"] = set(i[1] for i in intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
     return env
+def writeEnv(env:dict):
+    os.makedirs("./" + env["objpath"], exist_ok=True)
+    with open(os.path.join(env["objpath"], "xzbuild.sol.mk"), 'w') as file:
+        file.write("# xzbuild per solution file\n")
+        file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
+        for k,v in env.items():
+            if isinstance(v, str):
+                file.write("xz_{}\t = {}\n".format(k, v))
+        file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
 
 
 def solveElementList(target, field:str, env:dict, postproc=None) -> tuple:
@@ -100,6 +112,9 @@ class Project:
     @staticmethod
     def _writeItems(file, name:str, val:list, state = ":"):
         file.write("{}\t{}= {}\n".format(name, state, " ".join(val)))
+    @staticmethod
+    def _writeItem(file, name:str, val:str, state = ":"):
+        file.write("{}\t{}= {}\n".format(name, state, val))
     class BuildTarget(metaclass=abc.ABCMeta):
         @abc.abstractstaticmethod
         def prefix() -> str:
@@ -145,6 +160,7 @@ class Project:
             pass
         def __init__(self, targets, env:dict):
             self.defines = []
+            self.pch = []
             self.debugLevel = "-g3"
             self.optimize = "-O2" if env["target"] == "Release" else "-O0"
             self.version = ""
@@ -167,6 +183,7 @@ class Project:
                 self.defines = list(set(a + self.defines) - set(d))
             super().solveTarget(targets, env)
             target = targets[self.prefix()]
+            self.pch = target.get("pch", [])
             self.debugLevel = target.get("debug", self.debugLevel)
             self.optimize = target.get("optimize", self.optimize)
             self.version = target.get("version", self.langVersion())
@@ -176,6 +193,7 @@ class Project:
             super().write(file)
             Project._writeItems(file, self.prefix()+"_defs", self.defines)
             Project._writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
+            Project._writeItems(file, self.prefix()+"_pch", self.pch)
 
     class CPPTarget(CXXTarget):
         @staticmethod
@@ -214,6 +232,20 @@ class Project:
         @staticmethod
         def prefix() -> str:
             return "ispc"
+        def __init__(self, targets, env:dict):
+            self.targets = ["sse4", "avx2"]
+            super().__init__(targets, env)
+        def solveTarget(self, targets, env:dict):
+            self.flags = ["-g", "-O2", "--opt=fast-math", "--pic"]
+            if env["platform"] == "x64":
+                self.flags += ["--arch=x86-64"]
+            else:
+                self.flags += ["--arch=x86"]
+            super().solveTarget(targets, env)
+        def write(self, file):
+            super().write(file)
+            Project._writeItems(file, self.prefix()+"_targets", self.targets)
+            Project._writeItem(file, self.prefix()+"_flags", "--target="+(",".join(self.targets)), state="+")
 
     def __init__(self, data:dict, path:str):
         self.raw = data
@@ -234,11 +266,10 @@ class Project:
     def solveTarget(self, env:dict):
         if env["compiler"] == "clang":
             self.linkflags += ["-fuse-ld=gold"]
-        curdir = os.getcwd()
-        os.chdir(self.path)
+        os.chdir(os.path.join(env["rootDir"], self.path))
         targets = self.raw.get("targets", [])
         self.targets = [t(targets, env) for t in Project.BTargets if t.prefix() in targets]
-        os.chdir(curdir)
+        os.chdir(env["rootDir"])
 
     def solveDependency(self, projs:dict):
         self.dependency.clear()
@@ -252,12 +283,14 @@ class Project:
         pass
 
     def writeMakefile(self, env:dict):
-        with open(os.path.join(self.path, env["objpath"], "xzbuild.mk"), 'w') as file:
+        objdir = os.path.join(env["rootDir"], self.path, env["objpath"])
+        os.makedirs(objdir, exist_ok=True)
+        with open(os.path.join(objdir, "xzbuild.proj.mk"), 'w') as file:
             file.write("# xzbuild per project file\n")
             file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
             file.write("\n\n# Project [{}]\n\n".format(self.name))
-            self._writeItems(file, "NAME", [self.name])
-            self._writeItems(file, "BUILD_TYPE", [self.type])
+            self._writeItem(file, "NAME", self.name)
+            self._writeItem(file, "BUILD_TYPE", self.type)
             self._writeItems(file, "LINKFLAGS", self.linkflags)
             self._writeItems(file, "libDynamic", self.libDynamic)
             self._writeItems(file, "libStatic", self.libStatic)
@@ -284,14 +317,28 @@ def help():
     print("{0.white}build.py {0.cyan}<list|help>{0.clear}".format(COLOR))
     pass
 
-def makeit(rootDir:str, proj:Project, env:dict, action:str):
+def makeit(proj:Project, env:dict, action:str):
+    # action = [build|clean|rebuild]
+    rootDir = env["rootDir"]
     buildtype = "static library" if proj.type == "static" else ("dynamic library" if proj.type == "dynamic" else "executable binary")
-    print("{clr.green}building {clr.magenta}{}{clr.clear} [{clr.cyan}{}{clr.clear}] [{clr.magenta}{}{clr.clear} version on {clr.magenta}{}{clr.clear}] to {clr.green}{}{clr.clear}"\
-        .format(buildtype, proj.name, env["target"], env["platform"], os.path.join(rootDir, env["objpath"]), clr=COLOR))
-    if action.find("build") != -1:
+    print("{clr.green}{} {clr.magenta}{}{clr.clear} [{clr.cyan}{}{clr.clear}] [{clr.magenta}{}{clr.clear} version on {clr.magenta}{}{clr.clear}] to {clr.green}{}{clr.clear}"\
+        .format(action, buildtype, proj.name, env["target"], env["platform"], os.path.join(rootDir, env["objpath"]), clr=COLOR))
+    proj.solveTarget(env)
+    proj.writeMakefile(env)
+    os.chdir(os.path.join(rootDir, proj.path))
+    ret = True
+    if action == "clean" or action == "rebuild":
+        cmd = "make clean OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
+        #print(cmd)
+        ret = ret and subprocess.call(cmd, shell=True) == 0
+    if action == "build" or action == "rebuild":
         for t in proj.targets:
             t.printSources()
-    
+        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
+        #print(cmd)
+        ret = ret and subprocess.call(cmd, shell=True) == 0
+    os.chdir(rootDir)
+    return ret
 
 def build(rootDir:str, proj:Project, args:dict):
     targetPath = os.path.join(rootDir, proj.path)
@@ -330,76 +377,60 @@ def listproj(projs:dict, projname: str):
         printDep(projs[projname], (True,))
     pass
 
-def genDependency(projs:set):
-    solved = set()
-    waiting = deque(projs)
-    while len(waiting) > 0:
-        target = waiting.popleft()
-        for p in target.dependency:
-            if p not in solved:
-                waiting.append(p)
-        solved.add(target)
-    builded = set()
-    while len(solved) > 0:
-        hasObj = False
-        for p in solved:
-            if set(p.dependency).issubset(builded):
-                yield p
-                builded.add(p)
-                solved.remove(p)
-                hasObj = True
-                break
-        if not hasObj:
-            raise Exception("some dependency can not be fullfilled")
-    pass
-
-def sortDependency(projs:set):
-    wanted = set(projs)
-    while len(wanted) > 0:
-        hasObj = False
-        for p in wanted:
-            if len(set(p.dependency).intersection(wanted)) == 0:
-                yield p
-                wanted.remove(p)
-                hasObj = True
-                break
-        if not hasObj:
-            raise Exception("some dependency can not be fullfilled")
-    pass
-
-def makeone(action:str, proj:Project, args:dict):
-    if action == "build":
-        return build(projDir, proj, args)
-    elif action == "clean":
-        return clean(projDir, proj, args)
-    elif action == "rebuild":
-        b1 = clean(projDir, proj, args)
-        b2 = build(projDir, proj, args)
-        return b1 and b2
-    return False
-
-def mainmake(action:str, projs:set, args:dict):
+def mainmake(action:str, projs:set, env:dict):
+    def genDependency(projs:set):
+        solved = set()
+        waiting = deque(projs)
+        while len(waiting) > 0:
+            target = waiting.popleft()
+            for p in target.dependency:
+                if p not in solved:
+                    waiting.append(p)
+            solved.add(target)
+        builded = set()
+        while len(solved) > 0:
+            hasObj = False
+            for p in solved:
+                if set(p.dependency).issubset(builded):
+                    yield p
+                    builded.add(p)
+                    solved.remove(p)
+                    hasObj = True
+                    break
+            if not hasObj:
+                raise Exception("some dependency can not be fullfilled")
+        pass
+    def sortDependency(projs:set):
+        wanted = set(projs)
+        while len(wanted) > 0:
+            hasObj = False
+            for p in wanted:
+                if len(set(p.dependency).intersection(wanted)) == 0:
+                    yield p
+                    wanted.remove(p)
+                    hasObj = True
+                    break
+            if not hasObj:
+                raise Exception("some dependency can not be fullfilled")
+        pass
     if action.endswith("all"):
         projs = [x for x in genDependency(projs)]
         action = action[:-3]
     else:
         projs = [x for x in sortDependency(projs)]
     print("build dependency:\t" + "->".join(["{clr.green}[{}]{clr.clear}".format(p.name, clr=COLOR) for p in projs]))
-    os.makedirs("./Debug", exist_ok=True)
-    os.makedirs("./Release", exist_ok=True)
-    os.makedirs("./x64/Debug", exist_ok=True)
-    os.makedirs("./x64/Release", exist_ok=True)
+    writeEnv(env)
     suc = 0
     all = 0
     for proj in projs:
-        b = makeone(action, proj, args)
+        b = makeit(proj, env, action)
         all += 1
         suc += 1 if b else 0
     return (suc, all)
 
 def parseProj(proj:str, projs:dict):
     wanted = set()
-    names = set(re.findall(r"[-.\w']+", proj))
+    names = set(re.findall(r"[-.\w']+", proj)) # not keep removed items
     if "all" in names:
         names.update(projs.keys())
     if "all-dynamic" in names:
@@ -408,8 +439,8 @@ def parseProj(proj:str, projs:dict):
         names.update([pn for pn,p in projs.items() if p.type == "static"])
     if "all-executable" in names:
         names.update([pn for pn,p in projs.items() if p.type == "executable"])
-    names.difference_update(["all", "all-dynamic", "all-static", "all-executable"])
-    wantRemove = set([y for x in names if x.startswith("-") for y in (x,x[1:]) ])
+    names.difference_update(["all", "all-dynamic", "all-static", "all-executable"]) # exclude special reserved items
+    wantRemove = set([y for x in proj if x.startswith("-") for y in (x,x[1:])]) # exclude removed items
     names.difference_update(wantRemove)
     for x in names:
         if x in projs: wanted.add(projs[x])
@@ -424,18 +455,24 @@ def main(argv=None):
             return 0
 
         projects = gatherProj()
+        env = collectEnv()
+        if len(argv) > 4: env["platform"] = argv[4]             
+        if len(argv) > 3: env["target"] = argv[3]             
+        env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
 
         objproj = argv[2] if len(argv) > 2 else None
 
-        if action == "list":
+        if action == "test":
+            for proj in projects.values():
+                proj.solveTarget(env)
+                print("{}\n{}\n\n".format(proj.name, str(proj)))
+                proj.writeMakefile(env)
+        elif action == "list":
             listproj(projects, objproj)
             return 0
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
-            proj = parseProj(objproj, projects)
-            args = { "platform": "x64", "target": "Debug" }
-            if len(argv) > 4: args["platform"] = argv[4]             
-            if len(argv) > 3: args["target"] = argv[3]             
-            suc, all = mainmake(action, proj, args)
+            projs = parseProj(objproj, projects)
+            suc, all = mainmake(action, projs, env)
             preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < all else COLOR.green
             print("{}build [{}/{}] successed.{clr.clear}".format(preclr, suc, all, clr=COLOR))
             return 0 if suc == all else -2
@@ -452,17 +489,10 @@ def main(argv=None):
 
 if __name__ == "__main__":
     osname = platform.system()
-    projects = gatherProj()
-    env = collectEnv()
-    env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
-    for proj in projects.values():
-        proj.solveTarget(env)
-        print("{}\n{}\n\n".format(proj.name, str(proj)))
-        proj.writeMakefile(env)
     if osname == "Windows":
-        # listproj(projects, None)
-        print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))
-        sys.exit(0)
+        # print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))
+        # sys.exit(0)
+        pass
     elif osname == "Darwin":
         print("{0.yellow}maxOS support is not tested!{0.clear}".format(COLOR))
     elif osname != "Linux":

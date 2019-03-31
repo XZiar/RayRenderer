@@ -51,7 +51,15 @@ if __name__ == "__main__":
                 incs.append(mth2.group(1))
     incs = set(incs)
     incs.difference_update(["winres.h", "windows.h", "Windows.h"])
-    cpp = "#include<cstdint>\r\nnamespace common{namespace detail{uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd);}}\r\n"
+    cpp = """
+    #include<cstdint>
+    namespace common
+    {
+        namespace detail
+        {
+            uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd);
+        }
+    }"""
     dep = "{}:".format(os.path.join(objdir, rcfile+".o"))
     for inc in incs: 
         cpp += '#include "{}"\r\n'.format(inc)
@@ -61,7 +69,10 @@ if __name__ == "__main__":
         cmd = "objcopy -I binary -O {} -B {} {} {}".format(elfType, binType, r.fpath, r.objpath)
         print(cmd)
         retcode = call(cmd, shell=True)
-        cpp += "extern char _binary_{1}_start, _binary_{1}_end;\r\nstatic uint32_t DUMMY_{0} = common::detail::RegistResource({0}, &_binary_{1}_start, &_binary_{1}_end);\r\n".format(r.define, r.symbol)
+        cpp += """
+        extern char _binary_{1}_start, _binary_{1}_end;
+        static uint32_t DUMMY_{0} = common::detail::RegistResource({0}, &_binary_{1}_start, &_binary_{1}_end);
+        """.format(r.define, r.symbol)
         dep += ' {}'.format(r.fpath)
     #compile rc-cpp
     cppfpath = os.path.join(objdir, rcfile+".cpp")
