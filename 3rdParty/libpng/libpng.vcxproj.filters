@@ -90,5 +90,6 @@
   <ItemGroup>
     <None Include="LICENSE" />
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

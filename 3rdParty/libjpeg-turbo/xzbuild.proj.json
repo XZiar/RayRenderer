@@ -1,0 +1,54 @@
+{
+    "name": "jpeg-turbo",
+    "type": "static",
+    "version": "2.0.1",
+    "description": "A SIMD accelerated JPEG image codec library",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": ["_LARGEFILE64_SOURCE=1", "NO_PUTENV", "BMP_SUPPORTED", "PPM_SUPPORTED"],
+            "incpath": ["."]
+        },
+        "c":
+        {
+            "sources": 
+            [
+                "*.c",
+                {"-": ["jccolext.c", "jdcol565.c", "jdcolext.c", "jdmrg565.c", "jdmrgext.c", "jstdhuff.c"]},
+                {"ifeq": {"platform": "x64"}, "+": "simd/x86-64/jsimd-x86-64.c"},
+                {"ifeq": {"platform": "x86"}, "+": "simd/i386/jsimd-i386.c"}
+            ]
+        },
+        "nasm":
+        {
+            "sources": 
+            [
+                {
+                    "ifeq": {"platform": "x64"}, 
+                    "dir": "simd/x86-64",
+                    "+": "*.asm", 
+                    "-": ["jccolext-avx2.asm", "jccolext-sse2.asm", "jcgryext-avx2.asm", "jcgryext-sse2.asm", "jdcolext-avx2.asm", "jdcolext-sse2.asm", "jdmrgext-avx2.asm", "jdmrgext-sse2.asm"]
+                },
+                {
+                    "ifeq": {"platform": "x86"}, 
+                    "dir": "simd/i386",
+                    "+": "*.asm",
+                    "-": ["jccolext-avx2.asm", "jccolext-sse2.asm", "jccolext-mmx.asm", "jcgryext-avx2.asm", "jcgryext-sse2.asm", "jcgryext-mmx.asm", "jdcolext-avx2.asm", "jdcolext-sse2.asm", "jdmrgext-avx2.asm", "jdmrgext-sse2.asm", "jdmrgext-mmx.asm"]
+                }
+            ],
+            "incpath":
+            [
+                "./simd/",
+                {"ifeq": {"platform": "x64"}, "+": "./simd/x86-64/"},
+                {"ifeq": {"platform": "x86"}, "+": "./simd/i386/"}
+            ]
+        }
+    }
+}

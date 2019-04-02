@@ -18,6 +18,7 @@
     <None Include="Makefile" />
     <None Include="LICENSE.md" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inflate.h">

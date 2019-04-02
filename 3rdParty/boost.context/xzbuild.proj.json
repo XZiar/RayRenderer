@@ -1,0 +1,26 @@
+{
+    "name": "boost.context",
+    "type": "static",
+    "description": "A foundational library provides multitasking on a single thread",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp", "posix/stack_traits.cpp"]
+        },
+        "asm":
+        {
+            "sources": 
+            [
+                {"ifeq":{"platform": "x64"}, "+":["asm/*x86_64_*_elf_gas.S"]},
+                {"ifeq":{"platform": "x86"}, "+":["asm/*i386_*_elf_gas.S"]}
+            ]
+        }
+    }
+}

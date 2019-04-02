@@ -1,0 +1,23 @@
+{
+    "name": "freeglut",
+    "type": "static",
+    "description": "A GLUT replacement",
+    "version": "3.0.0",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "c":
+        {
+            "defines": ["HAVE_CONFIG_H", "freeglut_EXPORTS", "FREEGLUT_STATIC"],
+            "flags": ["-Wno-unused-const-variable", "-Wno-unused-function"],
+            "sources": ["*.c", "x11/*.c"],
+            "incpath": ["."],
+            "version": ""
+        }
+    }
+}

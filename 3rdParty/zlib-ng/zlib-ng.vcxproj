@@ -186,6 +186,7 @@
     <None Include="LICENSE.md" />
     <None Include="Makefile" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc32.h" />

@@ -271,6 +271,7 @@
     <None Include="Makefile" />
     <None Include="README.ijg" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <NASM Include="simd\i386\jccolor-avx2.asm">

@@ -179,5 +179,6 @@
   <ItemGroup>
     <None Include="Makefile" />
     <None Include="README" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

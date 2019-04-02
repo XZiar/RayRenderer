@@ -1,0 +1,19 @@
+{
+    "name": "boost.stacktrace",
+    "type": "dynamic",
+    "description": "A C++ library for storing and printing backtraces",
+    "dependency": ["StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "dl", "backtrace"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["STKTRACE_EXPORT"]
+        }
+    }
+}

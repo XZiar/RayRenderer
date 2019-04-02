@@ -1,0 +1,36 @@
+{
+    "name": "freetype2",
+    "type": "static",
+    "description": "A freely available software library to render fonts",
+    "version": "2.9.1",
+    "dependency": ["zlib-ng", "png"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": 
+            [
+                "FT2_BUILD_LIBRARY", 
+                {"ifeq":{"target":"debug"}, "+": ["FT_DEBUG_LEVEL_ERROR", "FT_DEBUG_LEVEL_TRACE"]}
+            ],
+            "incpath": [".", "../zlib-ng", "../libpng"]
+        },
+        "c":
+        {
+            "sources": 
+            [
+                "*.c",
+                "autofit/autofit.c","base/ftbase.c","base/ftbbox.c","base/ftbdf.c","base/ftbitmap.c","base/ftcid.c","base/ftdebug.c","base/ftfstype.c","base/ftgasp.c","base/ftglyph.c","base/ftgxval.c","base/ftinit.c","base/ftmm.c","base/ftotval.c","base/ftpatent.c","base/ftpfr.c","base/ftstroke.c","base/ftsynth.c","base/ftsystem.c","base/fttype1.c","base/ftwinfnt.c","bdf/bdf.c","cache/ftcache.c","cff/cff.c","cid/type1cid.c","gzip/ftgzip.c","lzw/ftlzw.c","pcf/pcf.c","pfr/pfr.c","psaux/psaux.c","pshinter/pshinter.c","psnames/psnames.c","raster/raster.c","sfnt/sfnt.c","smooth/smooth.c","truetype/truetype.c","type1/type1.c","type42/type42.c","winfonts/winfnt.c"
+            ]
+        },
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        }
+    }
+}

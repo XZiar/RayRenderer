@@ -39,6 +39,12 @@ INCPATH		 = -I"$(SOLPATH)" -I"$(SOLPATH)/3rdParty" $(patsubst %, -I"%", $(xz_inc
 LDPATH		 = -L"$(APPPATH)" -L.
 DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
 STALIBS		:= $(patsubst %, -l%, $(libStatic))
+CDEFFLAGS	:= $(patsubst %, -D%, $(c_defs))
+CPPDEFFLAGS	:= $(patsubst %, -D%, $(cpp_defs))
+CINCPATHS	:= $(patsubst %, -I"%", $(c_incpaths)) $(INCPATH)
+CPPINCPATHS	:= $(patsubst %, -I"%", $(cpp_incpaths)) $(INCPATH)
+ASMINCPATHS	:= $(patsubst %, -I"%", $(asm_incpaths)) $(INCPATH)
+NASMINCPATHS	:= $(patsubst %, -I"%", $(nasm_incpaths)) $(INCPATH)
 
 
 ### section OBJs
@@ -149,22 +155,22 @@ endif
 ###============================================================================
 ### cxx targets
 $(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJECTS)
-	$(CPPCOMPILER) $(CPPPCH) $(INCPATH) $(cpp_flags) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJECTS)
-	$(CPPCOMPILER) $(CPPPCH) $(INCPATH) $(cpp_flags) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJECTS)
-	$(CCOMPILER) $(CPCH) $(INCPATH) $(c_flags) -MMD -MP -fPIC -c $< -o $@
+	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 
 ###============================================================================
 ### asm targets
 $(OBJPATH)/%.asm.o: %.asm
-	$(NASMCOMPILER) $(INCPATH) $(NASMFLAGS) $< -o $@
+	$(NASMCOMPILER) $(NASMINCPATHS) $(nasm_flags) $< -o $@
 
 $(OBJPATH)/%.S.o: %.S
-	$(ASMCOMPILER) $(INCPATH) $(CXXFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(ASMCOMPILER) $(ASMINCPATHS) $(asm_flags) -MMD -MP -fPIC -c $< -o $@
 
 
 ###============================================================================

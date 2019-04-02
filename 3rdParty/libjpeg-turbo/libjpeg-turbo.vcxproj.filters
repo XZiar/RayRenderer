@@ -204,6 +204,7 @@
     <None Include="LICENSE.md" />
     <None Include="README.ijg" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <NASM Include="simd\x86-64\jfdctint-sse2.asm">

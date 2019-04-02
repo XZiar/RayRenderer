@@ -78,20 +78,24 @@ def solveElementList(target, field:str, env:dict, postproc=None) -> tuple:
         target = obj.get(name)
         if target is None:
             return True
-        if target is list:
+        if isinstance(target, list):
             return all([test(t) for t in target])
-        if target is dict:
+        if isinstance(target, dict):
             return all([test(t) for t in target.items()])
         else:
             return test(target)
     def solveElement(element, env:dict, postproc) -> tuple:
-        if element is list:
+        if isinstance(element, list):
             return (element, [])
-        if element is not dict:
+        if not isinstance(element, dict):
             return ([element], [])
-        if not all(checkMatch(element, n, t) for n,t in tests):
+        if not all(checkMatch(element, n, t) for n,t in tests.items()):
             return ([], [])
-        ret = (element.get("+", []), element.get("-", []))
+        adds = element.get("+", [])
+        adds = adds if isinstance(adds, list) else [adds]
+        dels = element.get("-", [])
+        dels = dels if isinstance(dels, list) else [dels]
+        ret = (adds, dels)
         if not postproc == None:
             ret = postproc(ret, element, env)
         return ret
@@ -144,11 +148,8 @@ class Project:
             dels = set(f for i in d for f in glob.glob(i))
             self.sources = list(adds - dels)
         def solveTarget(self, targets, env:dict):
+            self.solveSource(targets, env)
             target = targets[self.prefix()]
-            a,d = solveElementList(target, "sources", env)
-            adds = set(f for i in a for f in glob.glob(i))
-            dels = set(f for i in d for f in glob.glob(i))
-            self.sources = list(adds - dels)
             a,d = solveElementList(target, "flags", env)
             self.flags = list(set(a + self.flags) - set(d))
         def __repr__(self):
@@ -160,6 +161,7 @@ class Project:
             pass
         def __init__(self, targets, env:dict):
             self.defines = []
+            self.incpath = []
             self.pch = []
             self.debugLevel = "-g3"
             self.optimize = "-O2" if env["target"] == "Release" else "-O0"
@@ -181,6 +183,8 @@ class Project:
                 self.flags = list(set(a + self.flags) - set(d))
                 a,d = solveElementList(cxx, "defines", env)
                 self.defines = list(set(a + self.defines) - set(d))
+                a,d = solveElementList(cxx, "incpath", env)
+                self.incpath = list(set(a + self.incpath) - set(d))
             super().solveTarget(targets, env)
             target = targets[self.prefix()]
             self.pch = target.get("pch", [])
@@ -189,9 +193,12 @@ class Project:
             self.version = target.get("version", self.langVersion())
             a,d = solveElementList(target, "defines", env)
             self.defines = list(set(a + self.defines) - set(d))
+            a,d = solveElementList(target, "incpath", env)
+            self.incpath = list(set(a + self.incpath) - set(d))
         def write(self, file):
             super().write(file)
             Project._writeItems(file, self.prefix()+"_defs", self.defines)
+            Project._writeItems(file, self.prefix()+"_incpaths", self.incpath)
             Project._writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
             Project._writeItems(file, self.prefix()+"_pch", self.pch)
 
@@ -213,17 +220,29 @@ class Project:
         @staticmethod
         def prefix() -> str:
             return "asm"
+        @staticmethod
+        def langVersion() -> str:
+            return ""
     class NASMTarget(BuildTarget):
         @staticmethod
         def prefix() -> str:
             return "nasm"
+        def __init__(self, targets, env:dict):
+            self.incpath = []
+            super().__init__(targets, env)
         def solveTarget(self, targets, env:dict):
-            self.flags = ["-f", "-g", "-DELF"]
+            self.flags = ["-g", "-DELF"]
             if env["platform"] == "x64":
-                self.flags += ["elf64", "-D__x86_64__"]
+                self.flags += ["-f elf64", "-D__x86_64__"]
             else:
-                self.flags += ["elf32"]
+                self.flags += ["-f elf32"]
             super().solveTarget(targets, env)
+            target = targets["nasm"]
+            a,d = solveElementList(target, "incpath", env)
+            self.incpath = list(set(a) - set(d))
+        def write(self, file):
+            super().write(file)
+            Project._writeItems(file, self.prefix()+"_incpaths", self.incpath)
     class RCTarget(BuildTarget):
         @staticmethod
         def prefix() -> str:
@@ -334,31 +353,11 @@ def makeit(proj:Project, env:dict, action:str):
     if action == "build" or action == "rebuild":
         for t in proj.targets:
             t.printSources()
-        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
+        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk".format(env["objpath"], rootDir)
         #print(cmd)
         ret = ret and subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)
     return ret
-
-def build(rootDir:str, proj:Project, args:dict):
-    targetPath = os.path.join(rootDir, proj.path)
-    print("build {clr.green}[{}]{clr.clear} at [{}]".format(proj.name, targetPath, clr=COLOR))
-    os.chdir(targetPath)
-    projPath = os.path.relpath(rootDir, targetPath) + "/"
-    cmd = "make BOOST_PATH=\"{}/include\" PLATFORM={} TARGET={} PROJPATH=\"{}\" -j4".format(depDir, args["platform"], args["target"], projPath)
-    retcode = subprocess.call(cmd, shell=True)
-    os.chdir(rootDir)
-    return retcode == 0
-
-def clean(rootDir:str, proj:Project, args:dict):
-    targetPath = os.path.join(rootDir, proj.path)
-    print("clean {clr.green}[{}]{clr.clear} at [{}]".format(proj.name, targetPath, clr=COLOR))
-    os.chdir(targetPath)
-    projPath = os.path.relpath(rootDir, targetPath) + "/"
-    cmd = "make clean PLATFORM={} TARGET={} PROJPATH=\"{}\"".format(args["platform"], args["target"], projPath)
-    retcode = subprocess.call(cmd, shell=True)
-    os.chdir(rootDir)
-    return retcode == 0
 
 def listproj(projs:dict, projname: str):
     if projname == None:
