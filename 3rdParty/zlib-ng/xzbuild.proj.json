@@ -23,7 +23,7 @@
                 "ZLIB_COMPAT", "MEDIUM_STRATEGY", "UNROLL_LESS", "UNALIGNED_OK",
                 "X86_NOCHECK_SSE2", "X86_CPUID", "X86_SSE2_FILL_WINDOW", "X86_QUICK_STRATEGY"
             ],
-            "sources": ["*.c", "arch/i386/*.c", {"-": ["arch/i386/crc_folding.c"]}],
+            "sources": ["*.c", "arch/i386/*.c"],
             "incpath": ["."]
         }
     }

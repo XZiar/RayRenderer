@@ -15,7 +15,7 @@
             "sources": ["*.cpp"],
             "defines": ["IMGUTIL_EXPORT"],
             "pch": "ImageUtilRely.h",
-            "flags": ["-Wno-unused-but-set-variable"]
+            "flags": [{"ifeq": {"compiler": "gcc"}, "+": "-Wno-unused-but-set-variable"}]
         }
     }
 }

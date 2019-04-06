@@ -128,7 +128,7 @@ endif
 ### dependent includes
 DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 -include $(DEPS)
-DEP_MK	:= $(SOLPATH)/xzbuild.sol.json xzbuild.proj.json
+DEP_MK	:= xzbuild.proj.json
 
 # define ISPCHeaderFun
 # $(1)_ispc.h : $(OBJPATH)/$(1).ispc.o
@@ -141,8 +141,7 @@ DEP_MK	:= $(SOLPATH)/xzbuild.sol.json xzbuild.proj.json
 ### pch targets
 $(OBJPATH)/%.gch: % $(DEP_MK)
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	#@echo "#error \"Phony header for GCC's PCH\"" > $(basename $@)
-	@echo "" > $(basename $@)
+	@echo "#pragma once" > $(basename $@)
 endif
 ifneq (($(filter $<,$(cpp_pch))), ) # cpp pch
 	$(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@

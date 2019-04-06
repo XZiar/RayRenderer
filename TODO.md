@@ -65,8 +65,9 @@
 
 * Build
   - [x] Custom build procedure for Linux
-  - [ ] Generate build Makefile from python script and project-info json
-  - [ ] Add Pch for GCC build
+  - [x] Generate build Makefile from python script and project-info json
+  - [x] Add Pch for GCC build
+  - [ ] Move to fully self-controlled build system
 
 * Global
   - [ ] Add GacUI

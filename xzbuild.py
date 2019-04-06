@@ -292,7 +292,7 @@ class Project:
 
     BTargets = list(getSubclasses(BuildTarget))
     def solveTarget(self, env:dict):
-        if env["compiler"] == "clang":
+        if env["compiler"] == "clang" and env["target"] == "Release":
             self.linkflags += ["-fuse-ld=gold"]
         os.chdir(os.path.join(env["rootDir"], self.path))
         targets = self.raw.get("targets", [])

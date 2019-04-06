@@ -44,11 +44,11 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-Some Utilities have `Makefile` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`build.sh`](build.sh) or use more powerful build utility via [`build.py`](build.py) (python3).
-
 To build C++ parts, VS2017(`15.8`) or GCC7.3 needed since many C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables. 
 
 For Windows-only parts, Windows SDK Target is `10.0.17763.0` and .Net Framework 4.7.2 needed for C# components.
+
+Project uses xzbuild with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`xzbuild.py`](xzbuild.py) (python3).
 
 ## Additional Requirements
 
