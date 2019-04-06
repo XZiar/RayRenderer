@@ -1,0 +1,20 @@
+{
+    "name": "OpenCLUtil",
+    "type": "dynamic",
+    "description": "Wrapper of OpenCL Utility",
+    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "glew", "ImageUtil", "OpenCLICDLoader", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["OCLU_EXPORT"],
+            "pch": "oclRely.h"
+        }
+    }
+}

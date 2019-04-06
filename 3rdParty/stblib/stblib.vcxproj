@@ -30,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{67325DFE-3CBA-49AD-B9D8-E04CBCA6C7F8}</ProjectGuid>

@@ -15,8 +15,8 @@
         {
             "defines": 
             [
-                {"ifhas": "pclmul", "+": ["X86_PCLMULQDQ_CRC"]},
-                {"ifhas": "sse42", "+": ["X86_SSE4_2_CRC_HASH", "X86_SSE4_2_CRC_INTRIN"]},
+                {"ifin": {"intrin": "pclmul"}, "+": ["X86_PCLMULQDQ_CRC"]},
+                {"ifin": {"intrin": "sse42"}, "+": ["X86_SSE4_2_CRC_HASH", "X86_SSE4_2_CRC_INTRIN"]},
                 "_LARGEFILE64_SOURCE=1", "WITH_GZFILEOP",
                 "HAVE_HIDDEN", "HAVE_INTERNAL", "HAVE_BUILTIN_CTZL",
                 "HAVE_UNISTD_H", "HAVE_STDARG_H",

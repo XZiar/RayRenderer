@@ -20,6 +20,7 @@
   <ItemGroup>
     <None Include="README.md" />
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="License.txt" />

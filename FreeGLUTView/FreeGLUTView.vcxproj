@@ -175,6 +175,9 @@
   <ItemGroup>
     <Text Include="Makefile" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="xzbuild.proj.json" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -1,0 +1,29 @@
+{
+    "name": "RenderCore",
+    "type": "dynamic",
+    "description": "Renderer core",
+    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "boost.stacktrace", "ImageUtil", "OpenGLUtil", "StringCharset", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": 
+            [
+                "*.cpp", "Model/*.cpp",
+                {"-": ["dllmain.cpp", "ShadowMapping.cpp"]}
+            ],
+            "defines": ["RAYCORE_EXPORT"],
+            "incpath": ["."],
+            "pch": "RenderCoreRely.h"
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
+        }
+    }
+}

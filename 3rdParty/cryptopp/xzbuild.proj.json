@@ -1,0 +1,34 @@
+{
+    "name": "cryptopp",
+    "type": "static",
+    "version": "8.0.0",
+    "description": "A free C++ Class Library of Cryptographic Schemes",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": 
+            [
+                "*.cpp",
+                {"-": ["eccrypto.cpp", "eprecomp.cpp", "simple.cpp", "algebra.cpp", "polynomi.cpp"]}
+            ],
+            "optimize": {"ifneq": {"target": "Release"}, "+": "-O1"},
+            "debug": "-g",
+            "defines": 
+            [
+                "USE_PRECOMPILED_HEADERS",
+                {"ifnin": {"intrin": "sha"},  "+": "CRYPTOPP_DISABLE_SHANI"},
+                {"ifnin": {"intrin": "avx"},  "+": "CRYPTOPP_DISABLE_AVX"},
+                {"ifnin": {"intrin": "avx2"}, "+": "CRYPTOPP_DISABLE_AVX2"},
+                {"ifeq": {"compiler": "clang"},  "+": "CRYPTOPP_DISABLE_MIXED_ASM=1"}
+            ],
+            "pch": "pch.h"
+        }
+    }
+}

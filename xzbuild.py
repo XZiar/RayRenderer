@@ -48,7 +48,7 @@ def collectEnv() -> dict:
     defs = []
     osname = platform.system()
     if not osname == "Windows":
-        rawdefs = subprocess.check_output("{} -dM -E - < /dev/null".format(cppcompiler), shell=True)
+        rawdefs = subprocess.check_output("{} -march=native -dM -E - < /dev/null".format(cppcompiler), shell=True)
         defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
     env["intrin"] = set(i[1] for i in intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
@@ -99,7 +99,10 @@ def solveElementList(target, field:str, env:dict, postproc=None) -> tuple:
         if not postproc == None:
             ret = postproc(ret, element, env)
         return ret
-    middle = list(solveElement(ele, env, postproc) for ele in target.get(field, []))
+    eles = target.get(field, [])
+    if not isinstance(eles, list):
+        return solveElement(eles, env, postproc)
+    middle = list(solveElement(ele, env, postproc) for ele in eles)
     adds = list(i for a,_ in middle for i in a)
     dels = list(i for _,d in middle for i in d)
     return (adds, dels)
@@ -146,7 +149,9 @@ class Project:
             a,d = solveElementList(target, "sources", env, adddir)
             adds = set(f for i in a for f in glob.glob(i))
             dels = set(f for i in d for f in glob.glob(i))
-            self.sources = list(adds - dels)
+            forceadd = adds & set(a)
+            forcedel = dels & set(d)
+            self.sources = list(((adds - dels) | forceadd) - forcedel)
         def solveTarget(self, targets, env:dict):
             self.solveSource(targets, env)
             target = targets[self.prefix()]
@@ -162,7 +167,7 @@ class Project:
         def __init__(self, targets, env:dict):
             self.defines = []
             self.incpath = []
-            self.pch = []
+            self.pch = ""
             self.debugLevel = "-g3"
             self.optimize = "-O2" if env["target"] == "Release" else "-O0"
             self.version = ""
@@ -177,8 +182,10 @@ class Project:
                 self.flags += ["-flto"]
             cxx = targets.get("cxx")
             if cxx is not None:
-                self.debugLevel = cxx.get("debug", self.debugLevel)
-                self.optimize = cxx.get("optimize", self.optimize)
+                a,_ = solveElementList(cxx, "debug", env)
+                self.debugLevel = a[0] if len(a)>0 else self.debugLevel
+                a,_ = solveElementList(cxx, "optimize", env)
+                self.optimize = a[0] if len(a)>0 else self.optimize
                 a,d = solveElementList(cxx, "flags", env)
                 self.flags = list(set(a + self.flags) - set(d))
                 a,d = solveElementList(cxx, "defines", env)
@@ -187,9 +194,11 @@ class Project:
                 self.incpath = list(set(a + self.incpath) - set(d))
             super().solveTarget(targets, env)
             target = targets[self.prefix()]
-            self.pch = target.get("pch", [])
-            self.debugLevel = target.get("debug", self.debugLevel)
-            self.optimize = target.get("optimize", self.optimize)
+            self.pch = target.get("pch", "")
+            a,_ = solveElementList(target, "debug", env)
+            self.debugLevel = a[0] if len(a)>0 else self.debugLevel
+            a,_ = solveElementList(target, "optimize", env)
+            self.optimize = a[0] if len(a)>0 else self.optimize
             self.version = target.get("version", self.langVersion())
             a,d = solveElementList(target, "defines", env)
             self.defines = list(set(a + self.defines) - set(d))
@@ -200,7 +209,7 @@ class Project:
             Project._writeItems(file, self.prefix()+"_defs", self.defines)
             Project._writeItems(file, self.prefix()+"_incpaths", self.incpath)
             Project._writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
-            Project._writeItems(file, self.prefix()+"_pch", self.pch)
+            Project._writeItem(file, self.prefix()+"_pch", self.pch)
 
     class CPPTarget(CXXTarget):
         @staticmethod
@@ -353,7 +362,7 @@ def makeit(proj:Project, env:dict, action:str):
     if action == "build" or action == "rebuild":
         for t in proj.targets:
             t.printSources()
-        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk".format(env["objpath"], rootDir)
+        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
         #print(cmd)
         ret = ret and subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)

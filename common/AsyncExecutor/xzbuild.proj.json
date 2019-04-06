@@ -1,0 +1,19 @@
+{
+    "name": "AsyncExecutor",
+    "type": "dynamic",
+    "description": "An async task execution library",
+    "dependency": ["fmt", "miniLogger", "boost.context", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["ASYEXE_EXPORT"]
+        }
+    }
+}

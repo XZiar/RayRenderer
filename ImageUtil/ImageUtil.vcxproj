@@ -155,6 +155,7 @@
   <ItemGroup>
     <None Include="Makefile" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="License.txt" />

@@ -55,5 +55,6 @@
     <None Include="sdf.cl" />
     <None Include="downsample.cl" />
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

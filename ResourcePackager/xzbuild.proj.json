@@ -1,8 +1,8 @@
 {
-    "name": "miniLogger",
+    "name": "ResourcePackager",
     "type": "dynamic",
-    "description": "A mini logger library",
-    "dependency": ["fmt", "StringCharset"],
+    "description": "Resource package and management library",
+    "dependency": ["fmt", "miniLogger", "cryptopp", "boost.stacktrace"],
     "library": 
     {
         "static": [],
@@ -13,8 +13,7 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines":  ["MINILOG_EXPORT"],
-            "pch": "MiniLoggerRely.h"
+            "defines": ["RESPAK_EXPORT"]
         }
     }
 }

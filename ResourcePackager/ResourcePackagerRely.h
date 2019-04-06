@@ -77,7 +77,7 @@ template<typename T>
 constexpr inline bytearray<sizeof(T)> ToLEByteArray(const T raw)
 {
     auto intval = static_cast<uint64_t>(raw);
-    bytearray<sizeof(T)> output;
+    bytearray<sizeof(T)> output{};
     for (size_t i = 0; i < sizeof(T); ++i, intval >>= 8)
         output[i] = byte(intval);
     return output;

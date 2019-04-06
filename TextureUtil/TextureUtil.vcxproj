@@ -228,6 +228,7 @@
     <None Include="Makefile" />
     <None Include="Mipmap.cl" />
     <None Include="mipmap.py" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

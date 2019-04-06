@@ -679,5 +679,6 @@
     <None Include="README.md" />
     <None Include="LICENSE-MIXING.md" />
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

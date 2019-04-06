@@ -44,6 +44,7 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">

@@ -1,0 +1,32 @@
+{
+    "name": "OpenCLICDLoader",
+    "type": "dynamic",
+    "description": "The OpenCL ICD Loader",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["dl"]
+    },
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": ["OpenCL_EXPORTS", "CL_TARGET_OPENCL_VERSION=220"],
+            "flags": ["-Wno-format", "-Wno-overlength-strings"]
+        },
+        "c":
+        {
+            "sources": 
+            [
+                "*.c", 
+                {"-": ["icd_windows.c", "icd_windows_hkr.c"]}
+            ],
+            "version": ""
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
+        }
+    }
+}

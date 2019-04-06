@@ -169,6 +169,7 @@
   <ItemGroup>
     <None Include="Makefile" />
     <None Include="OpenCL.def" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenCL.rc" />

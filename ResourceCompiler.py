@@ -52,14 +52,15 @@ if __name__ == "__main__":
     incs = set(incs)
     incs.difference_update(["winres.h", "windows.h", "Windows.h"])
     cpp = """
-    #include<cstdint>
-    namespace common
+#include<cstdint>
+namespace common
+{
+    namespace detail
     {
-        namespace detail
-        {
-            uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd);
-        }
-    }"""
+        uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrEnd);
+    }
+}
+    """
     dep = "{}:".format(os.path.join(objdir, rcfile+".o"))
     for inc in incs: 
         cpp += '#include "{}"\r\n'.format(inc)
@@ -70,8 +71,8 @@ if __name__ == "__main__":
         print(cmd)
         retcode = call(cmd, shell=True)
         cpp += """
-        extern char _binary_{1}_start, _binary_{1}_end;
-        static uint32_t DUMMY_{0} = common::detail::RegistResource({0}, &_binary_{1}_start, &_binary_{1}_end);
+extern char _binary_{1}_start, _binary_{1}_end;
+static uint32_t DUMMY_{0} = common::detail::RegistResource({0}, &_binary_{1}_start, &_binary_{1}_end);
         """.format(r.define, r.symbol)
         dep += ' {}'.format(r.fpath)
     #compile rc-cpp

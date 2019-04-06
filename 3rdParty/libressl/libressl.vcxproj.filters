@@ -1874,5 +1874,6 @@
     <None Include="Makefile" />
     <None Include="README.md" />
     <None Include="COPYING" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

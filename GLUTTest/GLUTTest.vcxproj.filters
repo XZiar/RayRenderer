@@ -24,5 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,19 @@
+{
+    "name": "GLUTTest",
+    "type": "executable",
+    "description": "Test Program based on FreeGLUT",
+    "dependency": ["fmt", "FreeGLUTView", "miniLogger", "RenderCore", "ResourcePackager", "ImageUtil", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "flags": ["-Wno-unused-function", "-Wno-switch"]
+        }
+    }
+}

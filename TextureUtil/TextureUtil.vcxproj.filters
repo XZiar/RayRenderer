@@ -95,5 +95,6 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="mipmap.py" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

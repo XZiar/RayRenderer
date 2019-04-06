@@ -1,0 +1,23 @@
+{
+    "name": "TextureUtil",
+    "type": "dynamic",
+    "description": "Texture Utility",
+    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "ispc_texcomp", "ImageUtil", "OpenGLUtil", "StringCharset", "AsyncExecutor"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp", {"-": "dllmain.cpp"}],
+            "defines": ["TEXUTIL_EXPORT"]
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
+        }
+    }
+}

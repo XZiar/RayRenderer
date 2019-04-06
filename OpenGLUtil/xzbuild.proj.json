@@ -1,0 +1,20 @@
+{
+    "name": "OpenGLUtil",
+    "type": "dynamic",
+    "description": "Wrapper of OpenGL Utility",
+    "dependency": ["fmt", "cpuid", "miniLogger", "glew", "ImageUtil", "AsyncExecutor", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs", "GL"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["OGLU_EXPORT"],
+            "pch": "oglRely.h"
+        }
+    }
+}

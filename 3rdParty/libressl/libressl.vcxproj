@@ -775,6 +775,7 @@
     <None Include="COPYING" />
     <None Include="Makefile" />
     <None Include="README.md" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

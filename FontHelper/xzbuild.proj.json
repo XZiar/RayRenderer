@@ -1,0 +1,23 @@
+{
+    "name": "FontHelper",
+    "type": "dynamic",
+    "description": "Font Utility",
+    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "freetype2", "ImageUtil", "OpenGLUtil", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp", {"-": "dllmain.cpp"}],
+            "defines": ["FONTHELPER_EXPORT"]
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
+        }
+    }
+}

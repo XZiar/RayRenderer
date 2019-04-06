@@ -21,6 +21,7 @@ define CLR_TEXT
 $(1)$(2)$(CLR_CLEAR)
 endef
 
+
 include $(SOLPATH)/$(OBJPATH)/xzbuild.sol.mk # per solution xzbuild settings
 include ./$(OBJPATH)/xzbuild.proj.mk # per project xzbuild settings
 
@@ -62,14 +63,14 @@ ifeq ($(xz_compiler), clang)
 endif
 ifneq ($(PCH_CPP), )
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	CPPPCH 	:= -I"$(OBJPATH)" -include $(cpp_pch)
+	CPPPCH 	:= -I"$(OBJPATH)"
 else ifeq ($(xz_compiler), clang)
 	CPPPCH	:= -include $(cpp_pch) -include-pch $(patsubst %, $(OBJPATH)/%.gch, $(cpp_pch))
 endif
 endif
 ifneq ($(PCH_C), )
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	CPCH 	:= -I"$(OBJPATH)" -include $(c_pch)
+	CPCH 	:= -I"$(OBJPATH)"
 else ifeq ($(xz_compiler), clang)
 	CPCH	:= -include $(c_pch) -include-pch $(patsubst %, $(OBJPATH)/%.gch, $(c_pch))
 endif
@@ -129,6 +130,7 @@ endif
 ### dependent includes
 DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 -include $(DEPS)
+DEP_MK	:= $(SOLPATH)/xzbuild.sol.json xzbuild.proj.json
 
 # define ISPCHeaderFun
 # $(1)_ispc.h : $(OBJPATH)/$(1).ispc.o
@@ -139,7 +141,7 @@ DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 
 ###============================================================================
 ### pch targets
-$(OBJPATH)/%.gch: %
+$(OBJPATH)/%.gch: % $(DEP_MK)
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
 	@echo "#error \"Phony header for GCC's PCH\"" > $(basename $@)
 endif
@@ -154,34 +156,34 @@ endif
 
 ###============================================================================
 ### cxx targets
-$(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJECTS)
+$(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
 	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
-$(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJECTS)
+$(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
 	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
-$(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJECTS)
+$(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJECTS) $(DEP_MK)
 	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
 
 
 ###============================================================================
 ### asm targets
-$(OBJPATH)/%.asm.o: %.asm
+$(OBJPATH)/%.asm.o: %.asm $(DEP_MK)
 	$(NASMCOMPILER) $(NASMINCPATHS) $(nasm_flags) $< -o $@
 
-$(OBJPATH)/%.S.o: %.S
+$(OBJPATH)/%.S.o: %.S $(DEP_MK)
 	$(ASMCOMPILER) $(ASMINCPATHS) $(asm_flags) -MMD -MP -fPIC -c $< -o $@
 
 
 ###============================================================================
 ### rc targets
-$(OBJPATH)/%.rc.o: %.rc
+$(OBJPATH)/%.rc.o: %.rc $(DEP_MK)
 	python3 $(SOLPATH)/ResourceCompiler.py $< $(xz_platform) $(OBJPATH)
 
 
 ###============================================================================
 ### ispc targets
-$(OBJPATH)/%.ispc.o: %.ispc
+$(OBJPATH)/%.ispc.o: %.ispc $(DEP_MK)
 	$(ISPCCOMPILER) $< -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) 
 	ld -r $(patsubst %, $(OBJPATH)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@
 
