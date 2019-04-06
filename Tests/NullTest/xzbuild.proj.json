@@ -1,0 +1,19 @@
+{
+    "name": "NullTest",
+    "type": "executable",
+    "description": "minimized test",
+    "dependency": ["fmt", "boost.stacktrace", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "flags": ["-Wno-unused-function"]
+        }
+    }
+}

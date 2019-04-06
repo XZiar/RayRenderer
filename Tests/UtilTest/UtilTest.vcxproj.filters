@@ -57,6 +57,7 @@
   <ItemGroup>
     <None Include="Makefile" />
     <None Include="test.cl" />
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

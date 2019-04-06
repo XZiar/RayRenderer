@@ -186,7 +186,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build Tools", "Build Tools"
 		Makebase.mk = Makebase.mk
 		MakeTargets.mk = MakeTargets.mk
 		ResourceCompiler.py = ResourceCompiler.py
+		xzbuild.py = xzbuild.py
 		xzbuild.sol.json = xzbuild.sol.json
+		XZBuildMakeCore.mk = XZBuildMakeCore.mk
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib-ng", "3rdParty\zlib-ng\zlib-ng.vcxproj", "{FB9D7258-B61E-4D77-BA53-C10FDF9DB1F9}"

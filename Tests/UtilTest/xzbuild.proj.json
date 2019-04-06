@@ -1,0 +1,19 @@
+{
+    "name": "UtilTest",
+    "type": "executable",
+    "description": "SIMD test",
+    "dependency": ["fmt", "stb", "miniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil", "FreeGLUTView", "curl", "libressl", "StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs", "GL", "X11"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "flags": ["-Wno-unused-function"]
+        }
+    }
+}

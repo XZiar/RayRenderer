@@ -94,21 +94,19 @@ APP		:= $(APPPATH)$(NAME)
 else
 $(error unknown build type)
 endif
+
+### clean
+ifeq ($(CLEAN), 1)
+$(info docleaning......)
+$(shell rm -f $(CXXOBJS) $(OTHEROBJS) $(DEPS) $(APPS))
+endif
+
+### exposed targets
 all: $(APP)
 	@echo "$(CLR_WHITE)make of $(CLR_CYAN)[$(NAME)]$(CLR_WHITE) finished$(CLR_CLEAR)"
 
-buildispc: $(ISPCOBJECTS)
-ifneq ($(ispc_srcs), )
-	@echo "$(CLR_CYAN)ispc target compiled$(CLR_CLEAR)"
-endif
-
-buildpch: buildispc $(PCH_PCH)
-ifneq ($(PCH_PCH), )
-	@echo "$(CLR_CYAN)precompiled header generated$(CLR_CLEAR)"
-endif
-
-buildcxx: $(CXXOBJS) 
-
+clean: 
+	@echo "$(CLR_WHITE)clean finished$(CLR_CLEAR)"
 
 ### main targets
 ifeq ($(BUILD_TYPE), static)
@@ -143,12 +141,13 @@ DEP_MK	:= $(SOLPATH)/xzbuild.sol.json xzbuild.proj.json
 ### pch targets
 $(OBJPATH)/%.gch: % $(DEP_MK)
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	@echo "#error \"Phony header for GCC's PCH\"" > $(basename $@)
+	#@echo "#error \"Phony header for GCC's PCH\"" > $(basename $@)
+	@echo "" > $(basename $@)
 endif
 ifneq (($(filter $<,$(cpp_pch))), ) # cpp pch
-	$(CPPCOMPILER) $(INCPATH) $(cpp_flags) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
+	$(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
 else ifneq (($(filter $<,$(c_pch))), ) # c pch
-	$(CPPCOMPILER) $(INCPATH) $(c_flags) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
+	$(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
 else
 $(error unknown pch file target)
 endif
@@ -157,13 +156,13 @@ endif
 ###============================================================================
 ### cxx targets
 $(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
-	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
-	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
 $(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJECTS) $(DEP_MK)
-	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -MMD -MP -fPIC -c $< -o $@
+	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
 
 ###============================================================================

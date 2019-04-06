@@ -306,11 +306,26 @@ class Project:
             if proj == None:
                 raise Exception("missing dependency for {}".format(dep))
             self.dependency.append(proj)
-        self.libStatic  += [proj.name for proj in self.dependency if proj.type == "static"]
-        self.libDynamic += [proj.name for proj in self.dependency if proj.type == "dynamic"]
         pass
 
     def writeMakefile(self, env:dict):
+        deps = set(self.dependency)
+        if self.type == "executable":
+            checked = deps.copy()
+            wanted = [proj for proj in self.dependency if proj.type == "dynamic"]
+            nestedDeps = set()
+            while len(wanted) > 0:
+                p = wanted[0]
+                dyndep = set(proj for proj in p.dependency if proj.type == "dynamic")
+                nestedDeps |= dyndep
+                newdep = dyndep - checked
+                wanted.extend(newdep)
+                checked |= newdep
+                del wanted[0]
+            deps = list(nestedDeps | deps)
+        self.libStatic  += [proj.name for proj in deps if proj.type == "static"]
+        self.libDynamic += [proj.name for proj in deps if proj.type == "dynamic"]
+
         objdir = os.path.join(env["rootDir"], self.path, env["objpath"])
         os.makedirs(objdir, exist_ok=True)
         with open(os.path.join(objdir, "xzbuild.proj.mk"), 'w') as file:
@@ -353,18 +368,21 @@ def makeit(proj:Project, env:dict, action:str):
         .format(action, buildtype, proj.name, env["target"], env["platform"], os.path.join(rootDir, env["objpath"]), clr=COLOR))
     proj.solveTarget(env)
     proj.writeMakefile(env)
-    os.chdir(os.path.join(rootDir, proj.path))
-    ret = True
-    if action == "clean" or action == "rebuild":
-        cmd = "make clean OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
-        #print(cmd)
-        ret = ret and subprocess.call(cmd, shell=True) == 0
+    projDir = os.path.join(rootDir, proj.path)
+    os.chdir(projDir)
+    doClean = 0
+    buildObj = ""
     if action == "build" or action == "rebuild":
         for t in proj.targets:
             t.printSources()
-        cmd = "make OBJPATH=\"{0}\" SOLPATH=\"{1}\" -f {1}/XZBuildMakeCore.mk -j4".format(env["objpath"], rootDir)
-        #print(cmd)
-        ret = ret and subprocess.call(cmd, shell=True) == 0
+    if action == "clean" or action == "rebuild":
+        doClean = 1
+    if action == "clean":
+        buildObj = "clean"
+    cmd = "make {0} OBJPATH=\"{1}\" SOLPATH=\"{2}\" CLEAN={3} -f {2}/XZBuildMakeCore.mk -j4"
+    cmd = cmd.format(buildObj, env["objpath"], rootDir, doClean)
+    #print(cmd)
+    ret = subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)
     return ret
 

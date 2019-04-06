@@ -1,0 +1,19 @@
+{
+    "name": "SIMDTest",
+    "type": "executable",
+    "description": "SIMD test",
+    "dependency": ["fmt", "cpuid"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "flags": ["-Wno-unused-function"]
+        }
+    }
+}
