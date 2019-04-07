@@ -3,6 +3,12 @@
 #include "oglBuffer.h"
 #include "3DElement.hpp"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu
 {
 
@@ -178,3 +184,7 @@ using oglVAO = Wrapper<detail::_oglVAO>;
 
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

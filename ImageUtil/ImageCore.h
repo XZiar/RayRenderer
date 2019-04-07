@@ -2,6 +2,12 @@
 
 #include "ImageUtilRely.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace xziar::img
 {
 
@@ -16,10 +22,6 @@ enum class ImageDataType : uint8_t
 };
 MAKE_ENUM_BITFIELD(ImageDataType)
 
-#if defined(COMPILER_MSVC) && COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275)
-#endif
 class ImageView;
 /*Custom Image Data Holder, with pixel data alignment promise*/
 class IMGUTILAPI Image : protected common::AlignedBuffer
@@ -206,9 +208,6 @@ public:
         return pointers;
     }
 };
-#if defined(COMPILER_MSVC) && COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noexcept
 {
@@ -232,3 +231,7 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noe
 
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

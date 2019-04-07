@@ -48,7 +48,7 @@ public:
     b3d::Vec3 points[3];
     b3d::Normal norms[3];
     b3d::Coord2D tcoords[3];
-    float dummy[2];
+    float dummy[2] = { 0.f,0.f };
 
     Triangle() noexcept { };
     Triangle(const b3d::Vec3& va, const b3d::Vec3& vb, const b3d::Vec3& vc) noexcept : points{ va, vb, vc } { }

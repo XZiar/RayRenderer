@@ -249,7 +249,7 @@ void _oglContext::Release()
 void _oglContext::SetRetain(const bool isRetain)
 {
     static std::set<oglContext> retainMap;
-    static std::atomic_flag mapLock = {0};
+    static std::atomic_flag mapLock = { };
     if(isRetain != IsRetain)
     {
         common::SpinLocker lock(mapLock);

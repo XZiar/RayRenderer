@@ -11,6 +11,12 @@
 #include "PostProcessor.h"
 #include "GLShader.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu::texutil
 {
 class TexMipmap;
@@ -104,3 +110,7 @@ public:
 };
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

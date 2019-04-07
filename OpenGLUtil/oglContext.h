@@ -2,6 +2,12 @@
 #include "oglRely.h"
 #include "3DElement.hpp"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu
 {
 class oglUtil;
@@ -137,10 +143,10 @@ private:
     std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
     common::container::FrozenDenseSet<string_view> Extensions;
     const std::shared_ptr<SharedContextCore> SharedCore;
-    DBGLimit DbgLimit;
+    DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
-    uint32_t Version;
+    uint32_t Version = 0;
     bool IsRetain = false;
 #if defined(_WIN32)
     _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc);
@@ -250,3 +256,7 @@ struct OGLUAPI BindingState
 
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

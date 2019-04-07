@@ -170,7 +170,7 @@ private:
         ::std::setvbuf(fp, NULL, _IOFBF, 16384);
     }
 public:
-    FileObject(FileObject&& rhs) noexcept : FilePath(std::move(rhs.FilePath)), fp(rhs.fp) { rhs.fp = nullptr; }
+    FileObject(FileObject&& rhs) noexcept : FilePath(std::move(rhs.FilePath)), fp(rhs.fp), Flag(rhs.Flag) { rhs.fp = nullptr; }
     FileObject& operator= (FileObject&& rhs) noexcept
     {
         if (fp != nullptr)

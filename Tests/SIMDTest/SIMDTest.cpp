@@ -94,7 +94,7 @@ int main()
 
     Log(pass == total ? LogType::Success : LogType::Error, u"[{}/{}] Test pases.\n", pass, total);
 
-#if defined(COMPILER_MSVC) && COMPILER_MSVC
+#if COMPILER_MSVC
     getchar();
 #endif
 }

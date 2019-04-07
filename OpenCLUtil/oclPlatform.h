@@ -5,6 +5,11 @@
 #include "oclContext.h"
 
 
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oclu
 {
 
@@ -45,3 +50,7 @@ public:
 using oclPlatform = Wrapper<detail::_oclPlatform>;
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

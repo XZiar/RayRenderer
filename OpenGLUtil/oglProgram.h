@@ -10,7 +10,7 @@
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4324)
+#   pragma warning(disable:4324 4275)
 #endif
 
 namespace oglu
@@ -271,7 +271,7 @@ private:
         return loc;
     }
 public:
-    ProgDraw(ProgDraw&& other) = default;
+    ProgDraw(ProgDraw&& other) noexcept = default;
     ~ProgDraw();
     ///<summary>restore current drawing state</summary>  
     ///<param name="quick">whether perform quick restore</param>

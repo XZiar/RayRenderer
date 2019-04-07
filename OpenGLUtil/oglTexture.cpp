@@ -27,9 +27,9 @@ struct TexLogItem
 struct TexLogMap
 {
     std::map<GLuint, TexLogItem> TexMap;
-    std::atomic_flag MapLock = { 0 };
+    std::atomic_flag MapLock = { }; 
     TexLogMap() {}
-    TexLogMap(TexLogMap&& other)
+    TexLogMap(TexLogMap&& other) noexcept
     {
         common::SpinLocker locker(MapLock);
         common::SpinLocker locker2(other.MapLock);

@@ -11,7 +11,7 @@ namespace oglu::detail
 
 struct LinkBlock
 {
-    uint16_t head, tail;
+    uint16_t head = UINT16_MAX, tail = UINT16_MAX;
 };
 
 template<class Key>
@@ -95,7 +95,7 @@ private:
 public:
     using CacheCallBack = std::function<void(const Key& obj, const uint16_t pos)>;
     CacheCallBack onRemove;
-    LRUPos() { }
+    //LRUPos() { }
     LRUPos(const uint16_t size)
     {
         data.resize(size);

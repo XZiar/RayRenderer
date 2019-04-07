@@ -1,6 +1,12 @@
 #pragma once
 #include "oglRely.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu
 {
 
@@ -180,8 +186,8 @@ class OGLUAPI _oglElementBuffer : public _oglBuffer
 {
     friend class _oglVAO;
 protected:
-    GLenum IndexType;
-    uint8_t IndexSize;
+    GLenum IndexType = GL_INVALID_ENUM;
+    uint8_t IndexSize = 0;
     void SetSize(const uint8_t elesize)
     {
         switch (IndexSize = elesize)
@@ -283,3 +289,8 @@ using oglIBO = Wrapper<detail::_oglIndirectBuffer>;
 
 
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

@@ -45,7 +45,6 @@ public:
     static PromiseResult<void> SyncGL();
     static PromiseResult<void> ForceSyncGL();
     static void MemBarrier(const GLMemBarrier mbar);
-    static void TryTask();
 };
 
 }

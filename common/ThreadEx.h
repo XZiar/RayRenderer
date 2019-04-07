@@ -21,6 +21,10 @@ bool SetThreadName(const std::u16string_view threadName);
 std::u16string GetThreadName();
 
 
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
 class COMMONAPI ThreadObject : public NonCopyable
 {
 protected:
@@ -51,5 +55,9 @@ public:
     bool IsCurrent() const;
     uint64_t GetId() const;
 };
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 }

@@ -3,6 +3,12 @@
 #include "FontRely.h"
 #include "common/SharedResource.hpp"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu
 {
 using common::SharedResource;
@@ -30,3 +36,7 @@ public:
 };
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

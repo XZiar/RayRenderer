@@ -3,6 +3,12 @@
 #include "oglBuffer.h"
 #include "oglException.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace oglu
 {
 
@@ -510,3 +516,7 @@ using oglImg3D      = Wrapper<detail::_oglImg3D>;
 
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

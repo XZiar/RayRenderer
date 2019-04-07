@@ -31,7 +31,10 @@
 #include <memory>
 #include <set>
 
-
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
 
 namespace common
 {
@@ -218,3 +221,8 @@ public:
 
 }
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

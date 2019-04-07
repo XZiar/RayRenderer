@@ -138,16 +138,5 @@ void oglUtil::MemBarrier(const GLMemBarrier mbar)
     glMemoryBarrier((GLenum)mbar);
 }
 
-void oglUtil::TryTask()
-{
-    std::array<uint32_t, 128 * 128> empty{};
-    oglTex2DS tex(128, 128, TextureInnerFormat::BC7);
-    tex->SetData(TextureDataFormat::BGRA8, empty.data());
-    oglTex2DArray texarr(128, 128, 1, TextureInnerFormat::BC7);
-    texarr->SetTextureLayer(0, tex);
-    glFlush();
-    glFinish();
-}
-
 
 }

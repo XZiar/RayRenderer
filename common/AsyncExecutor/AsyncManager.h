@@ -13,6 +13,11 @@
 #define BOOST_CONTEXT_NO_LIB 1
 #include <boost/context/continuation.hpp>
 
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275)
+#endif
+
 namespace common
 {
 namespace asyexe
@@ -170,3 +175,8 @@ public:
 
 }
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
