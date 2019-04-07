@@ -238,7 +238,7 @@
                                         </ext:LabelControl>
                                     </Grid>
                                     <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
-                                        <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Inziu Iosevka SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
+                                        <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Sarasa Term SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
                                             <FlowDocument>
                                                 <Paragraph x:Name="para"/>
                                             </FlowDocument>

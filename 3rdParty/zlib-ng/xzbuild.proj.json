@@ -20,8 +20,8 @@
                 "_LARGEFILE64_SOURCE=1", "WITH_GZFILEOP",
                 "HAVE_HIDDEN", "HAVE_INTERNAL", "HAVE_BUILTIN_CTZL",
                 "HAVE_UNISTD_H", "HAVE_STDARG_H",
-                "ZLIB_COMPAT", "MEDIUM_STRATEGY", "UNROLL_LESS", "UNALIGNED_OK",
-                "X86_NOCHECK_SSE2", "X86_CPUID", "X86_SSE2_FILL_WINDOW", "X86_QUICK_STRATEGY"
+                "ZLIB_COMPAT", "UNALIGNED_OK",
+                "X86_NOCHECK_SSE2", "X86_CPUID", "X86_SSE2", "X86_QUICK_STRATEGY"
             ],
             "sources": ["*.c", "arch/i386/*.c"],
             "incpath": ["."]

@@ -89,7 +89,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;MEDIUM_STRATEGY;X86_NOCHECK_SSE2;X86_SSE2_FILL_WINDOW;X86_QUICK_STRATEGY;UNALIGNED_OK;UNROLL_LESS;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;_DEBUG</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
@@ -112,7 +112,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;MEDIUM_STRATEGY;X86_NOCHECK_SSE2;X86_SSE2_FILL_WINDOW;X86_QUICK_STRATEGY;UNALIGNED_OK;UNROLL_LESS;X86_CPUID;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;_DEBUG</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
@@ -136,7 +136,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;MEDIUM_STRATEGY;X86_NOCHECK_SSE2;X86_SSE2_FILL_WINDOW;X86_QUICK_STRATEGY;UNALIGNED_OK;UNROLL_LESS;X86_CPUID;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;NDEBUG</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
@@ -163,7 +163,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;MEDIUM_STRATEGY;X86_NOCHECK_SSE2;X86_SSE2_FILL_WINDOW;X86_QUICK_STRATEGY;UNALIGNED_OK;UNROLL_LESS;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;NDEBUG</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
