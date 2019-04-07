@@ -22,7 +22,6 @@
             "debug": "-g",
             "defines": 
             [
-                "USE_PRECOMPILED_HEADERS",
                 {"ifnin": {"intrin": "sha"},  "+": "CRYPTOPP_DISABLE_SHANI"},
                 {"ifnin": {"intrin": "avx"},  "+": "CRYPTOPP_DISABLE_AVX"},
                 {"ifnin": {"intrin": "avx2"}, "+": "CRYPTOPP_DISABLE_AVX2"},

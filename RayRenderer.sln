@@ -184,6 +184,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build Tools", "Build Tools"
 		Makebase.mk = Makebase.mk
 		MakeTargets.mk = MakeTargets.mk
 		ResourceCompiler.py = ResourceCompiler.py
+		xzbuild-old.py = xzbuild-old.py
 		xzbuild.py = xzbuild.py
 		xzbuild.sol.json = xzbuild.sol.json
 		XZBuildMakeCore.mk = XZBuildMakeCore.mk
@@ -277,6 +278,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcurl", "3rdParty\curl\libcurl.vcxproj", "{6401702A-1D7D-4879-B3B5-B28F95215D00}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libressl", "3rdParty\libressl\libressl.vcxproj", "{336CC8AA-FE6A-4F02-9175-96FF19E06410}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "xzbuild", "xzbuild\xzbuild.pyproj", "{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -561,6 +564,10 @@ Global
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410}.Release|Any CPU.ActiveCfg = Release|Win32
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410}.Release|x64.ActiveCfg = Release|x64
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410}.Release|x64.Build.0 = Release|x64
+		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Release|x64.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -616,6 +623,7 @@ Global
 		{82F6B626-FC93-4089-8C78-5E5ED82A68EF} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{6401702A-1D7D-4879-B3B5-B28F95215D00} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F} = {E609F9C6-E6E5-4884-A790-434D043AB4F2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}
