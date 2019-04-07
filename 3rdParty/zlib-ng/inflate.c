@@ -189,6 +189,12 @@ int ZEXPORT PREFIX(inflateInit2_)(PREFIX3(stream) *strm, int windowBits, const c
     int ret;
     struct inflate_state *state;
 
+#ifdef X86_CPUID
+    x86_check_features();
+#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM)
+    arm_check_features();
+#endif
+
     if (version == NULL || version[0] != PREFIX2(VERSION)[0] || stream_size != (int)(sizeof(PREFIX3(stream))))
         return Z_VERSION_ERROR;
     if (strm == NULL)
@@ -1158,25 +1164,29 @@ int ZEXPORT PREFIX(inflate)(PREFIX3(stream) *strm, int flush) {
                     copy = state->length;
                 if (copy > left)
                     copy = left;
-                left -= copy;
-                state->length -= copy;
+#if defined(INFFAST_CHUNKSIZE)
+                put = chunkcopysafe(put, from, copy, put + left);
+#else
                 if (copy >= sizeof(uint64_t))
                     put = chunk_memcpy(put, from, copy);
                 else
                     put = copy_bytes(put, from, copy);
+#endif
             } else {                             /* copy from output */
-                unsigned offset = state->offset;
-                from = put - offset;
                 copy = state->length;
                 if (copy > left)
                     copy = left;
-                left -= copy;
-                state->length -= copy;
+#if defined(INFFAST_CHUNKSIZE)
+                put = chunkmemsetsafe(put, state->offset, copy, left);
+#else
                 if (copy >= sizeof(uint64_t))
-                    put = chunk_memset(put, from, offset, copy);
+                    put = chunk_memset(put, put - state->offset, state->offset, copy);
                 else
-                    put = set_bytes(put, from, offset, copy);
+                    put = set_bytes(put, put - state->offset, state->offset, copy);
+#endif
             }
+            left -= copy;
+            state->length -= copy;
             if (state->length == 0)
                 state->mode = LEN;
             break;
@@ -1503,7 +1513,7 @@ int ZEXPORT PREFIX(inflateValidate)(PREFIX3(stream) *strm, int check) {
     if (inflateStateCheck(strm))
         return Z_STREAM_ERROR;
     state = (struct inflate_state *)strm->state;
-    if (check)
+    if (check && state->wrap)
         state->wrap |= 4;
     else
         state->wrap &= ~4;

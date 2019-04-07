@@ -98,7 +98,7 @@ endif
 ### clean
 ifeq ($(CLEAN), 1)
 $(info docleaning......)
-CLEAN_RET	:=$(shell rm -f $(PCH_PCH) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) $(DEPS) $(APPS))
+CLEAN_RET	:=$(shell rm -f $(PCH_PCH) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) $(DEPS) $(APP))
 endif
 
 ### exposed targets

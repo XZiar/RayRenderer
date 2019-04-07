@@ -6,11 +6,11 @@
  *
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
-#ifdef MEDIUM_STRATEGY
+#ifndef NO_MEDIUM_STRATEGY
 #include "zbuild.h"
 #include "deflate.h"
 #include "deflate_p.h"
-#include "match.h"
+#include "match_p.h"
 #include "functable.h"
 
 struct match {

@@ -52,7 +52,7 @@
 #include "zbuild.h"
 #include "deflate.h"
 #include "deflate_p.h"
-#include "match.h"
+#include "match_p.h"
 #include "functable.h"
 
 const char deflate_copyright[] = " deflate 1.2.11.f Copyright 1995-2016 Jean-loup Gailly and Mark Adler ";
@@ -75,7 +75,7 @@ static void slide_hash            (deflate_state *s);
 static block_state deflate_stored (deflate_state *s, int flush);
 ZLIB_INTERNAL block_state deflate_fast         (deflate_state *s, int flush);
 ZLIB_INTERNAL block_state deflate_quick        (deflate_state *s, int flush);
-#ifdef MEDIUM_STRATEGY
+#ifndef NO_MEDIUM_STRATEGY
 ZLIB_INTERNAL block_state deflate_medium       (deflate_state *s, int flush);
 #endif
 ZLIB_INTERNAL block_state deflate_slow         (deflate_state *s, int flush);
@@ -126,14 +126,14 @@ static const config configuration_table[10] = {
 
 /* 3 */ {4,    6, 32,   32, deflate_fast},
 
-#ifdef MEDIUM_STRATEGY
-/* 4 */ {4,    4, 16,   16, deflate_medium},  /* lazy matches */
-/* 5 */ {8,   16, 32,   32, deflate_medium},
-/* 6 */ {8,   16, 128, 128, deflate_medium},
-#else
+#ifdef NO_MEDIUM_STRATEGY
 /* 4 */ {4,    4, 16,   16, deflate_slow},  /* lazy matches */
 /* 5 */ {8,   16, 32,   32, deflate_slow},
 /* 6 */ {8,   16, 128, 128, deflate_slow},
+#else
+/* 4 */ {4,    4, 16,   16, deflate_medium},  /* lazy matches */
+/* 5 */ {8,   16, 32,   32, deflate_medium},
+/* 6 */ {8,   16, 128, 128, deflate_medium},
 #endif
 
 /* 7 */ {8,   32, 128,  256, deflate_slow},
@@ -153,9 +153,10 @@ static const config configuration_table[10] = {
  * Initialize the hash table (avoiding 64K overflow for 16 bit systems).
  * prev[] will be initialized on the fly.
  */
-#define CLEAR_HASH(s) \
-    s->head[s->hash_size-1] = NIL; \
-    memset((unsigned char *)s->head, 0, (unsigned)(s->hash_size-1)*sizeof(*s->head));
+#define CLEAR_HASH(s) do {                                                                \
+    s->head[s->hash_size - 1] = NIL;                                                      \
+    memset((unsigned char *)s->head, 0, (unsigned)(s->hash_size - 1) * sizeof(*s->head)); \
+  } while (0)
 
 /* ===========================================================================
  * Slide the hash table when sliding the window down (could be avoided with 32
@@ -235,6 +236,8 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
 
 #ifdef X86_CPUID
     x86_check_features();
+#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM)
+    arm_check_features();
 #endif
 
     if (version == NULL || version[0] != my_version[0] || stream_size != sizeof(PREFIX3(stream))) {
@@ -298,7 +301,7 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
 
     s->hash_size = 1 << s->hash_bits;
     s->hash_mask = s->hash_size - 1;
-#if !defined(__x86_64) && !defined(__i386_)
+#if !defined(__x86_64__) && !defined(_M_X64) && !defined(__i386) && !defined(_M_IX86)
     s->hash_shift =  ((s->hash_bits+MIN_MATCH-1)/MIN_MATCH);
 #endif
 
@@ -509,7 +512,7 @@ int ZEXPORT PREFIX(deflateResetKeep)(PREFIX3(stream) *strm) {
     else
 #endif
         strm->adler = functable.adler32(0L, NULL, 0);
-    s->last_flush = Z_NO_FLUSH;
+    s->last_flush = -2;
 
     _tr_init(s);
 
@@ -585,12 +588,13 @@ int ZEXPORT PREFIX(deflateParams)(PREFIX3(stream) *strm, int level, int strategy
     }
     func = configuration_table[s->level].func;
 
-    if ((strategy != s->strategy || func != configuration_table[level].func) && s->high_water) {
+    if ((strategy != s->strategy || func != configuration_table[level].func) &&
+        s->last_flush != -2) {
         /* Flush the last buffer: */
         int err = PREFIX(deflate)(strm, Z_BLOCK);
         if (err == Z_STREAM_ERROR)
             return err;
-        if (strm->avail_out == 0)
+        if (strm->avail_in || (s->strstart - s->block_start) + s->lookahead)
             return Z_BUF_ERROR;
     }
     if (s->level != level) {
@@ -1246,7 +1250,8 @@ void ZLIB_INTERNAL fill_window_c(deflate_state *s) {
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
             s->block_start -= (long) wsize;
-
+            if (s->insert > s->strstart)
+                s->insert = s->strstart;
             slide_hash(s);
             more += wsize;
         }
@@ -1449,6 +1454,7 @@ static block_state deflate_stored(deflate_state *s, int flush) {
             s->matches = 2;         /* clear hash */
             memcpy(s->window, s->strm->next_in - s->w_size, s->w_size);
             s->strstart = s->w_size;
+            s->insert = s->strstart;
         }
         else {
             if (s->window_size - s->strstart <= used) {
@@ -1457,12 +1463,14 @@ static block_state deflate_stored(deflate_state *s, int flush) {
                 memcpy(s->window, s->window + s->w_size, s->strstart);
                 if (s->matches < 2)
                     s->matches++;   /* add a pending slide_hash() */
+                if (s->insert > s->strstart)
+                    s->insert = s->strstart;
             }
             memcpy(s->window + s->strstart, s->strm->next_in - used, used);
             s->strstart += used;
+            s->insert += MIN(used, s->w_size - s->insert);
         }
         s->block_start = s->strstart;
-        s->insert += MIN(used, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;
@@ -1477,7 +1485,7 @@ static block_state deflate_stored(deflate_state *s, int flush) {
         return block_done;
 
     /* Fill the window with any remaining input. */
-    have = s->window_size - s->strstart - 1;
+    have = s->window_size - s->strstart;
     if (s->strm->avail_in > have && s->block_start >= (long)s->w_size) {
         /* Slide the window down. */
         s->block_start -= s->w_size;
@@ -1486,12 +1494,15 @@ static block_state deflate_stored(deflate_state *s, int flush) {
         if (s->matches < 2)
             s->matches++;           /* add a pending slide_hash() */
         have += s->w_size;          /* more space now */
+        if (s->insert > s->strstart)
+            s->insert = s->strstart;
     }
     if (have > s->strm->avail_in)
         have = s->strm->avail_in;
     if (have) {
         read_buf(s->strm, s->window + s->strstart, have);
         s->strstart += have;
+        s->insert += MIN(have, s->w_size - s->insert);
     }
     if (s->high_water < s->strstart)
         s->high_water = s->strstart;

@@ -1,4 +1,4 @@
-                    The FreeType Project LICENSE
+﻿                    The FreeType Project LICENSE
                     ----------------------------
 
                             2006-Jan-27
@@ -163,7 +163,7 @@ Legal Terms
 
   Our home page can be found at
 
-    http://www.freetype.org
+    https://www.freetype.org
 
 
 --- end of FTL.TXT ---

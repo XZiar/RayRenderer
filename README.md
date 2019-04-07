@@ -88,7 +88,7 @@ boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits
 
   [BSD-2 License](./3rdParty/fmt/license.rst)
 
-* [crypto++](https://www.cryptopp.com) 8.0
+* [crypto++](https://www.cryptopp.com) 8.1.0
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 
@@ -100,7 +100,7 @@ boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits
 
   [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
 
-* [FreeType2](https://www.freetype.org/) 2.9.1
+* [FreeType2](https://www.freetype.org/) 2.10.0
 
   [The FreeType License](./3rdParty/freetype2/license.txt)
 

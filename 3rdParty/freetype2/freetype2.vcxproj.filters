@@ -39,25 +39,10 @@
     <ClCompile Include="base\ftbase.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
-    <ClCompile Include="base\ftbitmap.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
     <ClCompile Include="base\ftdebug.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
-    <ClCompile Include="base\ftfstype.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="base\ftgasp.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="base\ftglyph.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
     <ClCompile Include="base\ftinit.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="base\ftstroke.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
     <ClCompile Include="cache\ftcache.c">
@@ -99,41 +84,8 @@
     <ClCompile Include="base\ftbbox.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
-    <ClCompile Include="pcf\pcf.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="pfr\pfr.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="psaux\psaux.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="pshinter\pshinter.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="raster\raster.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="sfnt\sfnt.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="truetype\truetype.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="type1\type1.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="type42\type42.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
-    <ClCompile Include="winfonts\winfnt.c">
-      <Filter>源文件\FT_MODULES</Filter>
-    </ClCompile>
     <ClCompile Include="lzw\ftlzw.c">
       <Filter>源文件\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="cid\type1cid.c">
-      <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
     <ClCompile Include="base\ftbdf.c">
       <Filter>源文件\FT_MODULES</Filter>
@@ -141,8 +93,56 @@
     <ClCompile Include="base\ftcid.c">
       <Filter>源文件\FT_MODULES</Filter>
     </ClCompile>
-    <ClCompile Include="psnames\psnames.c">
+    <ClCompile Include="pcf\pcf.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="psaux\psaux.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="pfr\pfr.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="pshinter\pshinter.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="raster\raster.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="sfnt\sfnt.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="truetype\truetype.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="type1\type1.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="cid\type1cid.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="winfonts\winfnt.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="psnames\psmodule.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftbitmap.c">
       <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftfstype.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftgasp.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftglyph.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="base\ftstroke.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="type42\type42.c">
+      <Filter>源文件\freetype</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

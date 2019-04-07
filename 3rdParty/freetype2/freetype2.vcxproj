@@ -214,7 +214,7 @@
     <ClCompile Include="pfr\pfr.c" />
     <ClCompile Include="psaux\psaux.c" />
     <ClCompile Include="pshinter\pshinter.c" />
-    <ClCompile Include="psnames\psnames.c" />
+    <ClCompile Include="psnames\psmodule.c" />
     <ClCompile Include="raster\raster.c" />
     <ClCompile Include="sfnt\sfnt.c" />
     <ClCompile Include="smooth\smooth.c" />

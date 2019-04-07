@@ -444,6 +444,60 @@
     <ClCompile Include="darn.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="chachapoly.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="shake.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="donna_sse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="donna_32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="donna_64.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="gf2n_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="hc256.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="hc128.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="hight.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="keccak_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="keccak_core.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lea_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="lea.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rabbit.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simeck_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="simeck.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sm4_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="xed25519.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3way.h">

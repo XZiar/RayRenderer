@@ -66,6 +66,12 @@
     <ClInclude Include="zbuild.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="adler32_p.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="deflate_p.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="infback.c">
@@ -78,9 +84,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="inftrees.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="match.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="trees.c">
@@ -129,9 +132,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="arch\i386\x86.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\crc_pclmulqdq.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="arch\i386\deflate_quick.c">

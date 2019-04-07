@@ -176,6 +176,7 @@
     <ClCompile Include="aria_simd.cpp" />
     <ClCompile Include="blake2b_simd.cpp" />
     <ClCompile Include="blake2s_simd.cpp" />
+    <ClCompile Include="chachapoly.cpp" />
     <ClCompile Include="chacha_avx.cpp" />
     <ClCompile Include="chacha_simd.cpp" />
     <ClCompile Include="cham.cpp" />
@@ -184,7 +185,14 @@
     <ClCompile Include="cryptlib.cpp" />
     <ClCompile Include="cpu.cpp" />
     <ClCompile Include="darn.cpp" />
+    <ClCompile Include="donna_32.cpp" />
+    <ClCompile Include="donna_64.cpp" />
+    <ClCompile Include="donna_sse.cpp" />
     <ClCompile Include="gcm_simd.cpp" />
+    <ClCompile Include="gf2n_simd.cpp" />
+    <ClCompile Include="hc128.cpp" />
+    <ClCompile Include="hc256.cpp" />
+    <ClCompile Include="hight.cpp" />
     <ClCompile Include="integer.cpp" />
     <ClCompile Include="3way.cpp" />
     <ClCompile Include="adler32.cpp" />
@@ -245,6 +253,10 @@
     <ClCompile Include="kalyna.cpp" />
     <ClCompile Include="kalynatab.cpp" />
     <ClCompile Include="keccak.cpp" />
+    <ClCompile Include="keccak_core.cpp" />
+    <ClCompile Include="keccak_simd.cpp" />
+    <ClCompile Include="lea.cpp" />
+    <ClCompile Include="lea_simd.cpp" />
     <ClCompile Include="luc.cpp" />
     <ClCompile Include="mars.cpp" />
     <ClCompile Include="marss.cpp" />
@@ -268,6 +280,7 @@
     <ClCompile Include="pssr.cpp" />
     <ClCompile Include="pubkey.cpp" />
     <ClCompile Include="queue.cpp" />
+    <ClCompile Include="rabbit.cpp" />
     <ClCompile Include="rabin.cpp" />
     <ClCompile Include="randpool.cpp" />
     <ClCompile Include="rc2.cpp" />
@@ -291,15 +304,19 @@
     <ClCompile Include="sha3.cpp" />
     <ClCompile Include="shacal2.cpp" />
     <ClCompile Include="shacal2_simd.cpp" />
+    <ClCompile Include="shake.cpp" />
     <ClCompile Include="shark.cpp" />
     <ClCompile Include="sharkbox.cpp" />
     <ClCompile Include="sha_simd.cpp" />
+    <ClCompile Include="simeck.cpp" />
+    <ClCompile Include="simeck_simd.cpp" />
     <ClCompile Include="simon.cpp" />
     <ClCompile Include="simon128_simd.cpp" />
     <ClCompile Include="simon64_simd.cpp" />
     <ClCompile Include="skipjack.cpp" />
     <ClCompile Include="sm3.cpp" />
     <ClCompile Include="sm4.cpp" />
+    <ClCompile Include="sm4_simd.cpp" />
     <ClCompile Include="sosemanuk.cpp" />
     <ClCompile Include="speck.cpp" />
     <ClCompile Include="speck128_simd.cpp" />
@@ -319,6 +336,7 @@
     <ClCompile Include="vmac.cpp" />
     <ClCompile Include="wake.cpp" />
     <ClCompile Include="whrlpool.cpp" />
+    <ClCompile Include="xed25519.cpp" />
     <ClCompile Include="xtr.cpp" />
     <ClCompile Include="xtrcrypt.cpp" />
   </ItemGroup>

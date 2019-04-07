@@ -255,15 +255,15 @@ ZLIB_INTERNAL uint32_t crc32_generic(uint32_t crc, const unsigned char *buf, uin
 {
     crc = crc ^ 0xffffffff;
 
-#ifdef UNROLL_LESS
-    while (len >= 4) {
-        DO4;
-        len -= 4;
-    }
-#else
+#ifdef UNROLL_MORE
     while (len >= 8) {
         DO8;
         len -= 8;
+    }
+#else
+    while (len >= 4) {
+        DO4;
+        len -= 4;
     }
 #endif
 
@@ -310,7 +310,7 @@ ZLIB_INTERNAL uint32_t crc32_little(uint32_t crc, const unsigned char *buf, uint
 
     buf4 = (const uint32_t *)(const void *)buf;
 
-#ifndef UNROLL_LESS
+#ifdef UNROLL_MORE
     while (len >= 32) {
         DOLIT32;
         len -= 32;
@@ -352,7 +352,7 @@ ZLIB_INTERNAL uint32_t crc32_big(uint32_t crc, const unsigned char *buf, uint64_
 
     buf4 = (const uint32_t *)(const void *)buf;
 
-#ifndef UNROLL_LESS
+#ifdef UNROLL_MORE
     while (len >= 32) {
         DOBIG32;
         len -= 32;
@@ -400,16 +400,36 @@ uint32_t ZEXPORT PREFIX(crc32_combine64)(uint32_t crc1, uint32_t crc2, z_off64_t
     return crc32_combine_(crc1, crc2, len2);
 }
 
-#ifndef X86_PCLMULQDQ_CRC
+#ifdef X86_PCLMULQDQ_CRC
+#include "arch/i386/x86.h"
+#include "arch/i386/crc_folding.h"
+
+ZLIB_INTERNAL void crc_finalize(deflate_state *const s) {
+    if (x86_cpu_has_pclmulqdq)
+        s->strm->adler = crc_fold_512to32(s);
+}
+#endif
+
 ZLIB_INTERNAL void crc_reset(deflate_state *const s) {
+#ifdef X86_PCLMULQDQ_CRC
+    if (x86_cpu_has_pclmulqdq) {
+        crc_fold_init(s);
+        return;
+    }
+#endif
     s->strm->adler = PREFIX(crc32)(0L, NULL, 0);
 }
 
 ZLIB_INTERNAL void copy_with_crc(PREFIX3(stream) *strm, unsigned char *dst, unsigned long size) {
+#ifdef X86_PCLMULQDQ_CRC
+    if (x86_cpu_has_pclmulqdq) {
+        crc_fold_copy(strm->state, dst, strm->next_in, size);
+        return;
+    }
+#endif
     memcpy(dst, strm->next_in, size);
     strm->adler = PREFIX(crc32)(strm->adler, dst, size);
 }
-#endif
 
 /* ========================================================================= */
 static void crc32_combine_gen_(uint32_t *op, z_off64_t len2)

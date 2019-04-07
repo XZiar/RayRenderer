@@ -20,6 +20,9 @@
 #   define STBI_MSC_SECURE_CRT
 #endif
 #include "3rdParty/stblib/stb_image.h"
+#if !defined(_MSC_VER)
+#   undef __STDC_WANT_SECURE_LIB__
+#endif
 #include "3rdParty/stblib/stb_image_write.h"
 #if COMPILER_GCC
 #   pragma GCC diagnostic pop

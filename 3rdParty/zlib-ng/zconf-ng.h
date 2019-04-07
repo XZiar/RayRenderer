@@ -7,6 +7,7 @@
 
 #ifndef ZCONFNG_H
 #define ZCONFNG_H
+/* #undef Z_HAVE_UNISTD_H */
 
 #if defined(_WINDOWS) && !defined(WINDOWS)
 #  define WINDOWS
@@ -109,6 +110,10 @@ typedef void       *voidp;
 
 #ifdef HAVE_UNISTD_H    /* may be set to #if 1 by ./configure */
 #  define Z_HAVE_UNISTD_H
+#endif
+
+#ifdef NEED_PTRDIFF_T    /* may be set to #if 1 by ./configure */
+typedef PTRDIFF_TYPE ptrdiff_t;
 #endif
 
 #include <sys/types.h>      /* for off_t */

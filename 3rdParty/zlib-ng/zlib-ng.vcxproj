@@ -189,8 +189,10 @@
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="adler32_p.h" />
     <ClInclude Include="crc32.h" />
     <ClInclude Include="deflate.h" />
+    <ClInclude Include="deflate_p.h" />
     <ClInclude Include="functable.h" />
     <ClInclude Include="gzguts.h" />
     <ClInclude Include="inffast.h" />
@@ -208,7 +210,6 @@
   <ItemGroup>
     <ClCompile Include="adler32.c" />
     <ClCompile Include="arch\i386\crc_folding.c" />
-    <ClCompile Include="arch\i386\crc_pclmulqdq.c" />
     <ClCompile Include="arch\i386\deflate_quick.c" />
     <ClCompile Include="arch\i386\fill_window_sse.c" />
     <ClCompile Include="arch\i386\insert_string_sse.c" />
@@ -228,7 +229,6 @@
     <ClCompile Include="inffast.c" />
     <ClCompile Include="inflate.c" />
     <ClCompile Include="inftrees.c" />
-    <ClCompile Include="match.c" />
     <ClCompile Include="trees.c" />
     <ClCompile Include="uncompr.c" />
     <ClCompile Include="zutil.c" />

@@ -154,7 +154,7 @@ typedef struct internal_state {
     unsigned int  hash_bits;         /* log2(hash_size) */
     unsigned int  hash_mask;         /* hash_size-1 */
 
-    #if !defined(__x86_64) && !defined(__i386_)
+    #if !defined(__x86_64__) && !defined(_M_X64) && !defined(__i386) && !defined(_M_IX86)
     unsigned int  hash_shift;
     #endif
     /* Number of bits by which ins_h must be shifted at each input
@@ -307,7 +307,7 @@ static inline void put_short(deflate_state *s, uint16_t w) {
 #if BYTE_ORDER == BIG_ENDIAN
   w = ZSWAP16(w);
 #endif
-  MEMCPY(&(s->pending_buf[s->pending]), &w, sizeof(uint16_t));
+  memcpy(&(s->pending_buf[s->pending]), &w, sizeof(uint16_t));
   s->pending += 2;
 }
 
@@ -392,7 +392,7 @@ void ZLIB_INTERNAL bi_windup(deflate_state *s);
 #define TRIGGER_LEVEL 5
 #endif
 
-#if defined(__x86_64) || defined(__i386_)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define UPDATE_HASH(s, h, i) \
     do {\
         if (s->level < TRIGGER_LEVEL) \
