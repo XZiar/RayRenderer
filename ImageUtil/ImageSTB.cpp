@@ -16,13 +16,9 @@
 #   pragma clang diagnostic ignored "-Wunused-function"
 #elif COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4505 4100)
-#   define STBI_MSC_SECURE_CRT
+//#   pragma warning(disable:4505 4100)
 #endif
 #include "3rdParty/stblib/stb_image.h"
-#if !defined(_MSC_VER)
-#   undef __STDC_WANT_SECURE_LIB__
-#endif
 #include "3rdParty/stblib/stb_image_write.h"
 #if COMPILER_GCC
 #   pragma GCC diagnostic pop

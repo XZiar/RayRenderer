@@ -28,6 +28,7 @@ private:
         bool IsComplete();
         void virtual SetResult() abstract;
     };
+
     template<typename CPPType, typename CLRType>
     ref class AsyncTaskItem : public AsyncTaskBase
     {
@@ -63,11 +64,10 @@ private:
             TaskProxy = tcs;
         }
     };
+
     static initonly LinkedList<AsyncTaskBase^>^ TaskList;
     static initonly Thread^ TaskThread;
     static initonly SendOrPostCallback^ AsyncCallback;
-    static bool ShouldRun;
-    static void Destroy(Object^ sender, EventArgs^ e);
     static void PerformTask();
     static void Put(AsyncTaskBase^ item);
 public:

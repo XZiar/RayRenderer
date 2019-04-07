@@ -22,34 +22,20 @@ static void PerformAction(Object^ action)
     static_cast<Action^>(action)->Invoke();
 }
 
+
 static AsyncWaiter::AsyncWaiter()
 {
-    ShouldRun = true;
     TaskList = gcnew LinkedList<AsyncTaskBase^>();
     AsyncCallback = gcnew SendOrPostCallback(&PerformAction);
     TaskThread = gcnew Thread(gcnew ThreadStart(&AsyncWaiter::PerformTask));
+    TaskThread->IsBackground = true;
     TaskThread->Start();
-    AppDomain::CurrentDomain->DomainUnload += gcnew EventHandler(&AsyncWaiter::Destroy);
 }
 
-void AsyncWaiter::Destroy(Object^ sender, EventArgs^ e)
-{
-    Monitor::Enter(TaskList);
-    try
-    {
-        ShouldRun = false;
-        Monitor::Pulse(TaskList);
-    }
-    finally
-    {
-        Monitor::Exit(TaskList);
-        TaskThread->Join();
-    }
-}
 
 void AsyncWaiter::PerformTask()
 {
-    while (ShouldRun)
+    while (true)
     {
         bool hasChecked = false, hasComplete = false;
         Monitor::Enter(TaskList);
@@ -70,13 +56,13 @@ void AsyncWaiter::PerformTask()
             if (del != nullptr)
                 TaskList->Remove(del);
         }
-        if (!hasChecked && ShouldRun)
+        if (!hasChecked)
             Monitor::Wait(TaskList);
         else
         {
             Monitor::Exit(TaskList);
             if (!hasComplete)
-                Thread::Sleep(10);
+                Thread::Sleep(40);
         }
     }
 }
@@ -95,7 +81,6 @@ void AsyncWaiter::Put(AsyncTaskBase^ item)
         Monitor::Exit(TaskList);
     }
 }
-
 
 
 

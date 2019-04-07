@@ -58,10 +58,13 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #if defined(_MSC_VER)
 #   define forceinline      __forceinline
 #   define forcenoinline    __declspec(noinline)
+#if defined(__STDC_LIB_EXT1__)
+#  define KKK 1
+# endif
 #elif defined(__GNUC__)
 #   define forceinline      __inline__ __attribute__((always_inline))
 #   define forcenoinline    __attribute__((noinline))
-#   if !defined(STDC_LIB_EXT1)
+#   if !defined(__STDC_LIB_EXT1__)
 #       include <errno.h>
 forceinline std::remove_reference<decltype(errno)>::type memcpy_s(void * dest, size_t destsz, const void * src, size_t count)
 {
