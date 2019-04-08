@@ -167,7 +167,6 @@
     <ClInclude Include="icd_windows_hkr.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Makefile" />
     <None Include="OpenCL.def" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>

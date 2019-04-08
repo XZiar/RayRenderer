@@ -29,7 +29,6 @@
     <ClCompile Include="stblib.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Makefile" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

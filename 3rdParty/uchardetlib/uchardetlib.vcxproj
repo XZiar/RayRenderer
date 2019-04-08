@@ -233,7 +233,6 @@
     <None Include="EUCTWFreq.tab" />
     <None Include="GB2312Freq.tab" />
     <None Include="JISFreq.tab" />
-    <None Include="Makefile" />
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>

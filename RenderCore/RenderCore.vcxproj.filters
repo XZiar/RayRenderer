@@ -43,7 +43,6 @@
     <None Include="ColorLUT.glsl">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Makefile" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>

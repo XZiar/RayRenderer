@@ -151,7 +151,6 @@
     <ClInclude Include="ispc_texcomp.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Makefile" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>

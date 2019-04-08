@@ -87,7 +87,6 @@
     <None Include="CLResizer.cl">
       <Filter>Shader</Filter>
     </None>
-    <None Include="Makefile" />
     <None Include="Mipmap.cl">
       <Filter>Shader</Filter>
     </None>

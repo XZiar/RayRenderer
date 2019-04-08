@@ -181,7 +181,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
-    <None Include="Makefile" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

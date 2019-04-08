@@ -15,7 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Makefile" />
     <None Include="LICENSE.md" />
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />

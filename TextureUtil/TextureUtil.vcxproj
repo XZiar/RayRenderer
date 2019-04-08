@@ -225,7 +225,6 @@
     <None Include="BC7Compress.cl" />
     <None Include="CLResizer.cl" />
     <None Include="GLResizer.glsl" />
-    <None Include="Makefile" />
     <None Include="Mipmap.cl" />
     <None Include="mipmap.py" />
     <None Include="xzbuild.proj.json" />

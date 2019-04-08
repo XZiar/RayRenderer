@@ -46,7 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="OpenCL.def" />
-    <None Include="Makefile" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

@@ -195,7 +195,6 @@
     <Natvis Include="miniLogger.natvis" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Makefile" />
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
