@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+﻿#include "RenderCoreRely.h"
 #include "TextureLoader.h"
 #include "TextureUtil/TexCompressor.h"
 #include "TextureUtil/TexMipmap.h"
@@ -21,8 +21,11 @@ static std::vector<std::pair<int32_t, std::u16string>> ProcPairs =
     {(int32_t)TexProcType::CompressBC5, u"BC5"},
     {(int32_t)TexProcType::CompressBC7, u"BC7"}
 };
+static const u16string TextureLoaderName = u"纹理加载";
 void TextureLoader::RegistControllable()
 {
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue)
+        .RegistObject<false>(TextureLoaderName);
     Controllable::EnumSet<int32_t> EnumProcType(ProcPairs);
     RegistItem<bool>("color_mipmap", "Color", u"Mipmap")
         .RegistMemberProxy<TextureLoader>([](auto& control) -> auto&

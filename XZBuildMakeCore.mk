@@ -84,6 +84,12 @@ $(shell mkdir -p $(OBJPATH) $(DIRS))
 
 
 ###============================================================================
+### dependent includes
+DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
+DEP_MK	:= xzbuild.proj.json
+
+
+###============================================================================
 ### stage targets
 ifeq ($(BUILD_TYPE), static)
 APP		:= $(APPPATH)lib$(NAME).a
@@ -123,18 +129,8 @@ $(APP): $(CXXOBJS) $(OTHEROBJS)
 	$(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
 endif
 
-
-###============================================================================
 ### dependent includes
-DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 -include $(DEPS)
-DEP_MK	:= xzbuild.proj.json
-
-# define ISPCHeaderFun
-# $(1)_ispc.h : $(OBJPATH)/$(1).ispc.o
-
-# endef
-# $(foreach src,$(ispc_srcs), $(eval $(call ISPCHeaderFun,$(basename $@))))
 
 
 ###============================================================================

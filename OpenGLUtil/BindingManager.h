@@ -11,86 +11,75 @@ namespace oglu::detail
 
 struct LinkBlock
 {
-    uint16_t head = UINT16_MAX, tail = UINT16_MAX;
+    uint16_t Head = UINT16_MAX, Tail = UINT16_MAX;
 };
 
 template<class Key>
 struct NodeBlock
 {
-    Key obj;
-    uint16_t prev, next;
-    uint8_t link;
+    Key Data;
+    uint16_t Prev, Next;
+    uint8_t LinkId;
 };
-#if COMPILER_GCC
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wpedantic"
-#elif COMPILER_CLANG
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wnested-anon-types"
-#   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#elif COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4201)
-#endif
 
 template<class Key>
 class LRUPos : public NonCopyable
 {
 private:
-    vector<NodeBlock<Key>> data;
+    vector<NodeBlock<Key>> Nodes;
     std::map<Key, uint16_t> lookup;
-    union
-    {
-        struct { LinkBlock unused, used, fixed; };
-        LinkBlock links[3];
-    };
+    LinkBlock Links[3];
+    constexpr LinkBlock& Unused() { return Links[0]; }
+    constexpr LinkBlock& Used()   { return Links[1]; }
+    constexpr LinkBlock& Fixed()  { return Links[2]; }
+    constexpr uint8_t GetLinkId(const LinkBlock& link) const { return static_cast<uint8_t>(&link - Links); }
     
     uint16_t usedCnt, unuseCnt;
     ///<summary>move a node at [pos] from itslink to [link]'s head</summary>  
     ///<param name="pos">node index in data</param>
-    ///<param name="link">desire link, used for head/tail check</param>
+    ///<param name="destLink">desire link, used for head/tail check</param>
     void moveNode(const uint16_t pos, LinkBlock& destLink)
     {
-        auto& node = data[pos];
-        auto& srcLink = links[node.link];
+        auto& node = Nodes[pos];
+        auto& srcLink = Links[node.LinkId];
 
-        if (pos == srcLink.head)//is head
-            srcLink.head = node.next;//next become head
+        if (pos == srcLink.Head)//is head
+            srcLink.Head = node.Next;//next become head
         else//not head
-            data[node.prev].next = node.next;
+            Nodes[node.Prev].Next = node.Next;
 
-        if (pos == srcLink.tail)//is tail
-            srcLink.tail = node.prev;//prev become tail
+        if (pos == srcLink.Tail)//is tail
+            srcLink.Tail = node.Prev;//prev become tail
         else//not tail
-            data[node.next].prev = node.prev;
+            Nodes[node.Next].Prev = node.Prev;
 
-        node.prev = UINT16_MAX;
-        node.next = destLink.head;
-        if (destLink.head != UINT16_MAX)//has element before
-            data[destLink.head].prev = pos;
+        node.Prev = UINT16_MAX;
+        node.Next = destLink.Head;
+        if (destLink.Head != UINT16_MAX)//has element before
+            Nodes[destLink.Head].Prev = pos;
         else//only element, change tail
-            destLink.tail = pos;
-        destLink.head = pos;
-        node.link = static_cast<uint8_t>(&destLink - links);
+            destLink.Tail = pos;
+        destLink.Head = pos;
+        node.LinkId = GetLinkId(destLink);
     }
     ///<summary>move a node at [pos] to its link's head</summary>  
     ///<param name="pos">node index in data</param>
     void upNode(uint16_t pos)
     {
-        auto& node = data[pos];
-        auto& link = links[node.link];
-        if (pos == link.head)//is head
+        auto& node = Nodes[pos];
+        auto& link = Links[node.LinkId];
+        if (pos == link.Head)//is head
             return;
         //not head
-        data[node.prev].next = node.next;
-        if (pos == link.tail)//is tail
-            link.tail = node.prev;//prev become tail
+        Nodes[node.Prev].Next = node.Next;
+        if (pos == link.Tail)//is tail
+            link.Tail = node.Prev;//prev become tail
         else//not tail
-            data[node.next].prev = node.prev;
-        node.prev = UINT16_MAX;
-        node.next = link.head;
-        data[link.head].prev = pos;
-        link.head = pos;
+            Nodes[node.Next].Prev = node.Prev;
+        node.Prev = UINT16_MAX;
+        node.Next = link.Head;
+        Nodes[link.Head].Prev = pos;
+        link.Head = pos;
     }
 public:
     using CacheCallBack = std::function<void(const Key& obj, const uint16_t pos)>;
@@ -98,18 +87,18 @@ public:
     //LRUPos() { }
     LRUPos(const uint16_t size)
     {
-        data.resize(size);
+        Nodes.resize(size);
         for (uint16_t a = 0; a < size; ++a)
         {
-            auto& node = data[a];
-            node.prev = static_cast<uint16_t>(a - 1);
-            node.next = static_cast<uint16_t>(a + 1);
-            node.link = static_cast<uint8_t>(&unused - links);
+            auto& node = Nodes[a];
+            node.Prev = static_cast<uint16_t>(a - 1);
+            node.Next = static_cast<uint16_t>(a + 1);
+            node.LinkId = GetLinkId(Unused());
         }
-        data[size - 1].next = UINT16_MAX;
-        used.head = used.tail = UINT16_MAX;
-        unused.head = 0, unused.tail = static_cast<uint16_t>(size - 1);
-        fixed.head = fixed.tail = UINT16_MAX;
+        Nodes[size - 1].Next = UINT16_MAX;
+        Used().Head = Used().Tail = UINT16_MAX;
+        Unused().Head = 0, Unused().Tail = static_cast<uint16_t>(size - 1);
+        Fixed().Head = Fixed().Tail = UINT16_MAX;
         usedCnt = 0, unuseCnt = static_cast<uint16_t>(size);
     }
     //touch(move to head) a obj, return if it is in cache
@@ -130,19 +119,19 @@ public:
         if (it == lookup.end())
         {//need to push obj
             uint16_t pos;
-            if (unused.head != UINT16_MAX)
+            if (Unused().Head != UINT16_MAX)
             {//has empty node
-                pos = unused.head;
-                data[pos].obj = obj;
-                moveNode(pos, used);
+                pos = Unused().Head;
+                Nodes[pos].Data = obj;
+                moveNode(pos, Used());
                 usedCnt++, unuseCnt--;
             }
             else
             {//no empty node
-                pos = used.tail;
+                pos = Used().Tail;
                 if (onRemove != nullptr)
-                    onRemove(data[pos].obj, pos);
-                data[pos].obj = obj;
+                    onRemove(Nodes[pos].Data, pos);
+                Nodes[pos].Data = obj;
                 upNode(pos);
             }
             if (isNewAdded != nullptr)
@@ -166,55 +155,48 @@ public:
             return;
         if (onRemove != nullptr)
             onRemove(it->first, it->second);
-        moveNode(it->second, unused);
+        moveNode(it->second, Unused());
         lookup.erase(it);
         usedCnt--, unuseCnt++;
     }
     void pin(const uint16_t count)
     {
-        if (fixed.head != UINT16_MAX)
+        if (Fixed().Head != UINT16_MAX)
             return;
-        fixed.head = used.head;
-        uint16_t tail = fixed.head;
+        Fixed().Head = Used().Head;
+        uint16_t tail = Fixed().Head;
         for (uint16_t i = 1; i < count && tail != UINT16_MAX; ++i)
         {
-            auto& node = data[tail];
-            tail = node.next;
-            node.link = static_cast<uint8_t>(&fixed - links);
+            auto& node = Nodes[tail];
+            tail = node.Next;
+            node.LinkId = GetLinkId(Fixed()); 
         }
-        data[tail].link = static_cast<uint8_t>(&fixed - links);
-        fixed.tail = tail;
-        used.head = data[tail].next;
-        data[tail].next = UINT16_MAX;
-        if(used.head != UINT16_MAX)
-            data[used.head].prev = UINT16_MAX;
+        Nodes[tail].LinkId = GetLinkId(Fixed());
+        Fixed().Tail = tail;
+        Used().Head = Nodes[tail].Next;
+        Nodes[tail].Next = UINT16_MAX;
+        if(Used().Head != UINT16_MAX)
+            Nodes[Used().Head].Prev = UINT16_MAX;
     }
     void unpin()
     {
-        if (fixed.head == UINT16_MAX)
+        if (Fixed().Head == UINT16_MAX)
             return;
-        for (uint16_t cur = fixed.head; cur != UINT16_MAX;)
+        for (uint16_t cur = Fixed().Head; cur != UINT16_MAX;)
         {
-            auto& node = data[cur];
-            node.link = static_cast<uint8_t>(&used - links);
-            cur = node.next;
+            auto& node = Nodes[cur];
+            node.LinkId = GetLinkId(Used());
+            cur = node.Next;
         }
-        if (used.head != UINT16_MAX)
-            data[used.head].prev = fixed.tail, data[fixed.tail].next = used.head;
-        used.head = fixed.head;
-        if (used.tail == UINT16_MAX)
-            used.tail = fixed.tail;
-        fixed.head = fixed.tail = UINT16_MAX;
+        if (Used().Head != UINT16_MAX)
+            Nodes[Used().Head].Prev = Fixed().Tail, Nodes[Fixed().Tail].Next = Used().Head;
+        Used().Head = Fixed().Head;
+        if (Used().Tail == UINT16_MAX)
+            Used().Tail = Fixed().Tail;
+        Fixed().Head = Fixed().Tail = UINT16_MAX;
     }
 };
 
-#if COMPILER_GCC
-#   pragma GCC diagnostic pop
-#elif COMPILER_CLANG
-#   pragma clang diagnostic pop
-#elif COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 class _oglProgram;
 

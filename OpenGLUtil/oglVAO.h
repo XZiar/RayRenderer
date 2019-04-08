@@ -98,7 +98,7 @@ public:
             (SetAttrib<std::tuple_element_t<Indexes, Tuple>>(eleSize, offset, attridx[Indexes]), ...);
         }
     public:
-        VAOPrep(VAOPrep&& other) : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
+        VAOPrep(VAOPrep&& other) noexcept : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
         ~VAOPrep() noexcept { End(); }
         void End() noexcept;
         ///<summary>Set single Vertex Attribute(integer)</summary>  

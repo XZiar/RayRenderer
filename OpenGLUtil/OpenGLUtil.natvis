@@ -1,66 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
   <Type Name="oglu::detail::NodeBlock&lt;*&gt;">
-    <DisplayString Condition="link == 0">{{[{obj}, unused]}}</DisplayString>
-    <DisplayString Condition="link == 1">{{[{obj}, used]}}</DisplayString>
-    <DisplayString Condition="link == 2">{{[{obj}, pinned]}}</DisplayString>
+    <DisplayString Condition="LinkId == 0">{{[{Data}, unused]}}</DisplayString>
+    <DisplayString Condition="LinkId == 1">{{[{Data}, used]}}</DisplayString>
+    <DisplayString Condition="LinkId == 2">{{[{Data}, pinned]}}</DisplayString>
   </Type>
   <Type Name="oglu::detail::LRUPos&lt;*&gt;">
     <DisplayString>{{{usedCnt} used, {unuseCnt} unused}}</DisplayString>
     <Expand>
-      <Item Name="size">data.size()</Item>
+      <Item Name="size">Nodes.size()</Item>
       <Item Name="lookup">lookup</Item>
-      <Item Name="data">data</Item>
-      <Synthetic Name="Unused" Condition="unused.head == 0xffffui16">
+      <Item Name="Nodes">Nodes</Item>
+      <Synthetic Name="Unused" Condition="Unused().Head == 0xffffui16">
         <DisplayString>Empty</DisplayString>
       </Synthetic>
-      <Synthetic Name="Unused" Condition="unused.head != 0xffffui16">
+      <Synthetic Name="Unused" Condition="Unused().Head != 0xffffui16">
         <Expand>
           <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="unused.head" />
-            <Exec>ptrNode = unused.head</Exec>
+            <Variable Name="ptrNode" InitialValue="Unused().Head" />
+            <Exec>ptrNode = Unused().Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
               </If>
-              <Item>data[ptrNode]</Item>
-              <Exec>ptrNode = data[ptrNode].next</Exec>
+              <Item>Nodes[ptrNode]</Item>
+              <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
             </Loop>
           </CustomListItems>
         </Expand>
       </Synthetic>
-      <Synthetic Name="Used" Condition="used.head == 0xffffui16">
+      <Synthetic Name="Used" Condition="Used().Head == 0xffffui16">
         <DisplayString>Empty</DisplayString>
       </Synthetic>
-      <Synthetic Name="Used" Condition="used.head != 0xffffui16">
+      <Synthetic Name="Used" Condition="Used().Head != 0xffffui16">
         <Expand>
           <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="used.head" />
-            <Exec>ptrNode = used.head</Exec>
+            <Variable Name="ptrNode" InitialValue="Used().Head" />
+            <Exec>ptrNode = Used().Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
               </If>
-              <Item>data[ptrNode]</Item>
-              <Exec>ptrNode = data[ptrNode].next</Exec>
+              <Item>Nodes[ptrNode]</Item>
+              <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
             </Loop>
           </CustomListItems>
         </Expand>
       </Synthetic>
-      <Synthetic Name="Pinned" Condition="fixed.head == 0xffffui16">
+      <Synthetic Name="Pinned" Condition="Fixed().Head == 0xffffui16">
         <DisplayString>Empty</DisplayString>
       </Synthetic>
-      <Synthetic Name="Pinned" Condition="fixed.head != 0xffffui16">
+      <Synthetic Name="Pinned" Condition="Fixed().Head != 0xffffui16">
         <Expand>
           <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="fixed.head" />
-            <Exec>ptrNode = fixed.head</Exec>
+            <Variable Name="ptrNode" InitialValue="Fixed().Head" />
+            <Exec>ptrNode = Fixed().Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
               </If>
-              <Item>data[ptrNode]</Item>
-              <Exec>ptrNode = data[ptrNode].next</Exec>
+              <Item>Nodes[ptrNode]</Item>
+              <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
             </Loop>
           </CustomListItems>
         </Expand>

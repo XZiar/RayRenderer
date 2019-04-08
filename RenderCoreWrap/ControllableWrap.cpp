@@ -11,7 +11,9 @@ using common::ControlHelper;
 using System::Globalization::CultureInfo;
 
 static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,                     rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt16  = common::get_variant_index_v<uint16_t,                 rayr::Controllable::ControlArg>();
 static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,                  rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt32  = common::get_variant_index_v<uint32_t,                 rayr::Controllable::ControlArg>();
 static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 rayr::Controllable::ControlArg>();
 static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    rayr::Controllable::ControlArg>();
 static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  rayr::Controllable::ControlArg>();
@@ -38,14 +40,22 @@ static Object^ ParseCookie(const std::any& cookie)
         return ToStrArray(*ck);
     else if (const auto ck = std::any_cast<vector<u16string>>(&cookie); ck)
         return ToStrArray(*ck);
+    else if (const auto ck = std::any_cast<common::Controllable::EnumSet<uint16_t>>(&cookie); ck)
+        return ToStrArray(ck->GetEnumNames());
+    else if (const auto ck = std::any_cast<common::Controllable::EnumSet< int32_t>>(&cookie); ck)
+        return ToStrArray(ck->GetEnumNames());
+    else if (const auto ck = std::any_cast<common::Controllable::EnumSet<uint32_t>>(&cookie); ck)
+        return ToStrArray(ck->GetEnumNames());
     else if (const auto ck = std::any_cast<common::Controllable::EnumSet<uint64_t>>(&cookie); ck)
         return ToStrArray(ck->GetEnumNames());
-    else if (const auto ck = std::any_cast<common::Controllable::EnumSet<int32_t>>(&cookie); ck)
-        return ToStrArray(ck->GetEnumNames());
-    else if (const auto ck = std::any_cast<std::pair<int32_t, int32_t>>(&cookie); ck)
-        return gcnew Tuple<int32_t, int32_t>(ck->first, ck->second);
+    else if (const auto ck = std::any_cast<std::pair<uint16_t, uint16_t>>(&cookie); ck)
+        return gcnew Tuple<uint16_t, uint16_t>(ck->first, ck->second);
+    else if (const auto ck = std::any_cast<std::pair< int32_t,  int32_t>>(&cookie); ck)
+        return gcnew Tuple< int32_t,  int32_t>(ck->first, ck->second);
     else if (const auto ck = std::any_cast<std::pair<uint32_t, uint32_t>>(&cookie); ck)
         return gcnew Tuple<uint32_t, uint32_t>(ck->first, ck->second);
+    else if (const auto ck = std::any_cast<std::pair<uint64_t, uint64_t>>(&cookie); ck)
+        return gcnew Tuple<uint64_t, uint64_t>(ck->first, ck->second);
     return nullptr;
 }
 ControlItem::ControlItem(const common::Controllable::ControlItem& item)
@@ -66,7 +76,9 @@ ControlItem::ControlItem(const common::Controllable::ControlItem& item)
         switch (item.TypeIdx)
         {
         case ValIndexBool:          ValType = bool::typeid; break;
+        case ValIndexUInt16:        ValType = uint16_t::typeid; break;
         case ValIndexInt32:         ValType = int32_t::typeid; break;
+        case ValIndexUInt32:        ValType = uint32_t::typeid; break;
         case ValIndexUInt64:        ValType = uint64_t::typeid; break;
         case ValIndexFloat:         ValType = float::typeid; break;
         case ValIndexFPair:         ValType = Vector2::typeid; break;
@@ -114,9 +126,17 @@ static bool GetBool(const rayr::Controllable::ControlItem* item, const std::shar
 {
     return std::get<bool>(item->Getter(*control, id));
 }
+static uint16_t GetUInt16(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
+{
+    return std::get<uint16_t>(item->Getter(*control, id));
+}
 static int32_t GetInt32(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
 {
     return std::get<int32_t>(item->Getter(*control, id));
+}
+static uint32_t GetUInt32(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
+{
+    return std::get<uint32_t>(item->Getter(*control, id));
 }
 static uint64_t GetUInt64(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id)
 {
@@ -159,7 +179,15 @@ static void SetArg(const rayr::Controllable::ControlItem* item, const std::share
 {
     item->Setter(*control, id, arg);
 }
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const uint16_t arg)
+{
+    item->Setter(*control, id, arg);
+}
 static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const int32_t arg)
+{
+    item->Setter(*control, id, arg);
+}
+static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const string& id, const uint32_t arg)
 {
     item->Setter(*control, id, arg);
 }
@@ -223,7 +251,9 @@ bool Controllable::DoGetMember(String^ id_, [Out] Object^% arg)
         switch (item->TypeIdx)
         {
         case ValIndexBool:      arg = GetBool(item, control, id); break;
+        case ValIndexUInt16:    arg = GetUInt16(item, control, id); break;
         case ValIndexInt32:     arg = GetInt32(item, control, id); break;
+        case ValIndexUInt32:    arg = GetUInt32(item, control, id); break;
         case ValIndexUInt64:    arg = GetUInt64(item, control, id); break;
         case ValIndexFloat:     arg = GetFloat(item, control, id); break;
         case ValIndexFPair:     arg = ToVector2(GetFloatPair(item, control, id)); break;
@@ -252,7 +282,9 @@ bool Controllable::DoGetMember(String^ id_, [Out] Object^% arg)
         {
         case ValIndexStr:       arg = ToStr(GetStr(item, control, id)); break;
         case ValIndexU16Str:    arg = ToStr(GetU16Str(item, control, id)); break;
-        case ValIndexInt32:     arg = ToStr(GetEnum<int32_t>(item, control, id)); break;
+        case ValIndexUInt16:    arg = ToStr(GetEnum<uint16_t>(item, control, id)); break;
+        case ValIndexInt32:     arg = ToStr(GetEnum< int32_t>(item, control, id)); break;
+        case ValIndexUInt32:    arg = ToStr(GetEnum<uint32_t>(item, control, id)); break;
         case ValIndexUInt64:    arg = ToStr(GetEnum<uint64_t>(item, control, id)); break;
         default:                return false;
         } break;
@@ -279,7 +311,9 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         switch (item->TypeIdx)
         {
         case ValIndexBool:      SetArg(item, control, id, safe_cast<bool>(arg)); break;
-        case ValIndexInt32:     SetArg(item, control, id, Convert::ToInt32(arg)); break;
+        case ValIndexUInt16:    SetArg(item, control, id, Convert::ToUInt16(arg)); break;
+        case ValIndexInt32:     SetArg(item, control, id, Convert::ToInt32 (arg)); break;
+        case ValIndexUInt32:    SetArg(item, control, id, Convert::ToUInt32(arg)); break;
         case ValIndexUInt64:    SetArg(item, control, id, Convert::ToUInt64(arg)); break;
         case ValIndexFloat:     SetArg(item, control, id, Convert::ToSingle(arg)); break;
         case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
@@ -324,7 +358,9 @@ bool Controllable::DoSetMember(String^ id_, Object^ arg)
         {
         case ValIndexStr:       SetArg(item, control, id, ToCharStr(safe_cast<String^>(arg))); break;
         case ValIndexU16Str:    SetArg(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
-        case ValIndexInt32:     SetEnum<int32_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        case ValIndexUInt16:    SetEnum<uint16_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        case ValIndexInt32:     SetEnum< int32_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
+        case ValIndexUInt32:    SetEnum<uint32_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
         case ValIndexUInt64:    SetEnum<uint64_t>(item, control, id, ToU16Str(safe_cast<String^>(arg))); break;
         default:                return false;
         } break;

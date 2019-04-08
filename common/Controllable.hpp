@@ -27,7 +27,7 @@ class Controllable
 {
     friend struct ControlHelper;
 public:
-    using ControlArg = std::variant<bool, int32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
+    using ControlArg = std::variant<bool, uint16_t, int32_t, uint32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
     enum class ArgType : uint8_t { RawValue, Color, LongText, Enum };
     struct ControlItem
     {
@@ -109,7 +109,12 @@ private:
             return *this;
         }
         template<typename Setter>
-        ItemPrep<T>& RegistSetter(Setter setter) { Item.Setter = setter; return *this; }
+        ItemPrep<T>& RegistSetter(Setter setter) 
+        {
+            static_assert(std::is_invocable_v<Setter, Controllable&, const std::string&, ControlArg>, "setter doesnot match item type");
+            Item.Setter = setter; 
+            return *this;
+        }
         template<typename D, typename G>
         ItemPrep<T>& RegistGetter(G(D::*getter)(void) const)
         { 
@@ -205,9 +210,9 @@ private:
                 else
                 {
                     if constexpr (std::is_constructible_v<ControlArg, T>)
-                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::get<T>(arg); };
+                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::get<T>(arg)); };
                     else
-                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = std::any_cast<T>(std::get<std::any>(arg)); };
+                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::any_cast<T>(std::get<std::any>(arg))); };
                 }
             }
             if constexpr (CanRead)
@@ -224,7 +229,7 @@ private:
                 else
                 {
                     if constexpr (std::is_constructible_v<ControlArg, T>)
-                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return proxy(dynamic_cast<const D&>(obj)); };
+                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return static_cast<T>(proxy(dynamic_cast<const D&>(obj))); };
                     else
                         Item.Getter = [proxy](const Controllable& obj, const std::string&) { return std::any(proxy(dynamic_cast<const D&>(obj))); };
                 }

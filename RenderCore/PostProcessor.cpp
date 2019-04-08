@@ -15,18 +15,25 @@ static const u16string PostProcessorName = u"后处理";
 
 void PostProcessor::RegistControllable()
 {
-    RegistItem<u16string>("Name", "", u"名称", Controllable::ArgType::RawValue)
+    RegistItem<u16string>("Name", "", u"名称", ArgType::RawValue)
         .RegistObject<false>(PostProcessorName);
     RegistItem<float>("Exposure", "", u"曝光补偿", ArgType::RawValue, std::pair(-4.0f, 4.0f), u"曝光补偿(ev)")
         .RegistGetter(&PostProcessor::GetExposure).RegistSetter(&PostProcessor::SetExposure);
     RegistItem<bool>("IsEnable", "", u"启用")
         .RegistMember(&PostProcessor::EnablePostProcess);
+    RegistItem<uint16_t>("MidWidth", "MidFrame", u"宽", ArgType::RawValue, std::pair(64, 4096))
+        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.Width; });
+    RegistItem<uint16_t>("MidHeight", "MidFrame", u"高", ArgType::RawValue, std::pair(64, 4096))
+        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.Height; });
+    RegistItem<bool>("IsFloatDepth", "MidFrame", u"浮点深度", ArgType::RawValue, {}, u"使用浮点深度缓冲")
+        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.NeedFloatDepth; });
+    AddCategory("MidFrame", u"渲染纹理");
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize)
     : PostProcessor(ctx, que, lutSize, getShaderFromDLL(IDR_SHADER_CLRLUTGL), getShaderFromDLL(IDR_SHADER_POSTPROC)) {}
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
-    : CLContext(ctx), CmdQue(que), LutSize(lutSize)
+    : CLContext(ctx), CmdQue(que), LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {
     LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
@@ -74,7 +81,7 @@ void PostProcessor::SetExposure(const float exposure)
 
 void PostProcessor::SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth)
 {
-    MidFrameConfig.Width = width, MidFrameConfig.Height = height, MidFrameConfig.NeedFloatDepth = needFloatDepth;
+    MidFrameConfig = { width,height,needFloatDepth };
     UpdateDemand.Add(PostProcUpdate::FBO);
 }
 

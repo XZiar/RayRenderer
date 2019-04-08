@@ -134,6 +134,8 @@ namespace WPFTest
         private readonly Binding BindingForeground;
         private readonly Binding BindingBackground;
         private readonly Binding BindingBorderBrush;
+        private static readonly TwoWayValueConvertor ConvertorForceUShort = TwoWayValueConvertor.From(Convert.ToUInt16);
+        private static readonly TwoWayValueConvertor ConvertorForceInt    = TwoWayValueConvertor.From(Convert.ToInt32);
         private static readonly TwoWayValueConvertor ConvertorForceSingle = TwoWayValueConvertor.From(Convert.ToSingle);
         private static readonly BrushConverter BrushConv = new BrushConverter();
         private static readonly SolidColorBrush BrushBorder = BrushConv.ConvertFromString("#FFABABAB") as SolidColorBrush;
@@ -266,6 +268,48 @@ namespace WPFTest
                         Maximum = limit.Y
                     };
                     slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceSingle));
+                    return slider;
+                }
+            }
+            if (item.ValType == typeof(ushort))
+            {
+                if (item.Cookie == null)
+                {
+                    var spiner = new IntegerUpDown { Increment = 1 };
+                    spiner.SetBinding(IntegerUpDown.ValueProperty, sender.CreateBinding(item, ConvertorForceUShort));
+                    return spiner;
+                }
+                else
+                {
+                    dynamic limit = item.Cookie;
+                    var slider = new Slider
+                    {
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                        Minimum = limit.Item1,
+                        Maximum = limit.Item2
+                    };
+                    slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceUShort));
+                    return slider;
+                }
+            }
+            if (item.ValType == typeof(int))
+            {
+                if (item.Cookie == null)
+                {
+                    var spiner = new IntegerUpDown { Increment = 1 };
+                    spiner.SetBinding(IntegerUpDown.ValueProperty, sender.CreateBinding(item));
+                    return spiner;
+                }
+                else
+                {
+                    dynamic limit = item.Cookie;
+                    var slider = new Slider
+                    {
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                        Minimum = limit.Item1,
+                        Maximum = limit.Item2
+                    };
+                    slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceInt));
                     return slider;
                 }
             }

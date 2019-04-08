@@ -22,8 +22,7 @@
                 {"ifnin": {"intrin": "avx"},  "+": "CRYPTOPP_DISABLE_AVX"},
                 {"ifnin": {"intrin": "avx2"}, "+": "CRYPTOPP_DISABLE_AVX2"},
                 {"ifeq": {"compiler": "clang"},  "+": "CRYPTOPP_DISABLE_MIXED_ASM"}
-            ],
-            "pch": "pch.h"
+            ]
         }
     }
 }
