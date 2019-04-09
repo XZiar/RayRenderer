@@ -15,11 +15,14 @@ void Camera::RegistControllable()
     RegistItem<float>("Fovy", "", u"视野", ArgType::RawValue, {}, u"y轴视野角度")
         .RegistMember(&Camera::Fovy);
     RegistItem<std::pair<float, float>>("Zclip", "", u"视野范围", ArgType::RawValue, std::pair(0.f, 10.f), u"相机y轴视野裁剪范围(对数范围2^x)")
-        .RegistGetter([](const Controllable& self, const string&)
-    { const auto& cam = dynamic_cast<const Camera&>(self); return std::pair(std::log2(cam.zNear), std::log2(cam.zFar)); })
-        .RegistSetter([](Controllable& self, const string&, const ControlArg& arg)
-    { auto& cam = dynamic_cast<Camera&>(self); const auto[near, far]= std::get<std::pair<float, float>>(arg); 
-        cam.zNear = std::pow(2.0f, near), cam.zFar = std::pow(2.0f, far);  });
+        .RegistGetterProxy<Camera>([](const Camera & cam)
+        { 
+            return std::pair(std::log2(cam.zNear), std::log2(cam.zFar));
+        })
+        .RegistSetterProxy<Camera>([](Camera & cam, const std::pair<float, float>& arg)
+        { 
+            cam.zNear = std::pow(2.0f, arg.first), cam.zFar = std::pow(2.0f, arg.second);
+        });
 }
 
 Camera::Camera() noexcept

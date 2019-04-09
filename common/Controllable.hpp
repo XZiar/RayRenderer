@@ -38,6 +38,7 @@ public:
         std::any Cookie;
         std::function<ControlArg(const Controllable&, const std::string&)> Getter;
         std::function<void(Controllable&, const std::string&, const ControlArg&)> Setter;
+        std::function<void(Controllable&, const std::string&)> Notifier;
         size_t TypeIdx;
         ArgType Type;
         mutable bool IsEnable;
@@ -99,9 +100,43 @@ private:
         friend class ItemPrepNonType;
         ControlItem& Item;
         ItemPrep(ControlItem& item) : Item(item) {}
+        template<typename G>
+        static ControlArg PackGetValue(G&& value)
+        {
+            using GetType = std::remove_cv_t<std::remove_reference_t<G>>;
+            static_assert(std::is_convertible_v<GetType, T> || std::is_enum_v<std::remove_reference_t<GetType>>, "getter's return cannot be convert to T");
+            if constexpr (std::is_constructible_v<ControlArg, T>)
+            {
+                if constexpr (std::is_enum_v<std::remove_reference_t<GetType>>)
+                    return static_cast<T>(value);
+                else
+                    return static_cast<const T&>(value);
+            }
+            else
+            {
+                if constexpr (std::is_enum_v<std::remove_reference_t<GetType>>)
+                    return std::any(static_cast<T>(value));
+                else
+                    return std::any(static_cast<const T&>(value));
+            }
+        }
+        template<typename SetType>
+        static SetType UnPackSetValue(const ControlArg& arg)
+        {
+            static_assert(std::is_convertible_v<T, SetType> || std::is_enum_v<SetType>, "T cannot be convert to setter's arg");
+            if constexpr (std::is_constructible_v<ControlArg, T>)
+                return static_cast<SetType>(std::get<T>(arg));
+            else
+                return static_cast<SetType>(std::any_cast<T>(std::get<std::any>(arg)));
+        }
+        template<typename D>
+        constexpr static void CheckSubClass()
+        {
+            static_assert(std::is_base_of_v<Controllable, std::remove_cv_t<std::remove_reference_t<D>>>, "type D should be subclass of Controllable");
+        }
     public:
         template<typename Getter>
-        ItemPrep<T>& RegistGetter(Getter getter) 
+        ItemPrep<T>& RegistGetter(Getter&& getter) 
         { 
             using GetType = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<Getter, const Controllable&, const std::string&>>>;
             static_assert(std::is_same_v<GetType, T> || std::is_same_v<GetType, ControlArg>, "getter doesnot match item type");
@@ -109,32 +144,76 @@ private:
             return *this;
         }
         template<typename Setter>
-        ItemPrep<T>& RegistSetter(Setter setter) 
+        ItemPrep<T>& RegistSetter(Setter&& setter) 
         {
-            static_assert(std::is_invocable_v<Setter, Controllable&, const std::string&, ControlArg>, "setter doesnot match item type");
+            static_assert(std::is_invocable_v<Setter, Controllable&, const std::string&, ControlArg>, "setter should be void(Controllable&, const std::string&, ControlArg)");
             Item.Setter = setter; 
             return *this;
         }
         template<typename D, typename G>
         ItemPrep<T>& RegistGetter(G(D::*getter)(void) const)
         { 
+            CheckSubClass<D>();
             using GetType = std::remove_cv_t<std::remove_reference_t<G>>;
-            static_assert(std::is_convertible_v<GetType, T>, "getter's return cannot be convert to T");
-            if constexpr (std::is_constructible_v<ControlArg, T>)
-                Item.Getter = [getter](const Controllable& obj, const std::string&) { return (dynamic_cast<const D&>(obj).*getter)(); };
-            else
-                Item.Getter = [getter](const Controllable& obj, const std::string&) { return std::any((dynamic_cast<const D&>(obj).*getter)()); };
+            Item.Getter = [getter](const Controllable& obj, const std::string&) 
+            { 
+                return PackGetValue((dynamic_cast<const D&>(obj).*getter)());
+            };
             return *this;
         }
         template<typename D, typename S>
         ItemPrep<T>& RegistSetter(void(D::*setter)(S))
         { 
+            CheckSubClass<D>();
             using SetType = std::remove_cv_t<std::remove_reference_t<S>>;
-            static_assert(std::is_convertible_v<T, SetType>, "setter does not accept value of T");
-            if constexpr (std::is_constructible_v<ControlArg, T>)
-                Item.Setter = [setter](Controllable& obj, const std::string&, const ControlArg& arg) { (dynamic_cast<D&>(obj).*setter)(std::get<T>(arg)); };
+            Item.Setter = [setter](Controllable& obj, const std::string&, const ControlArg& arg) 
+            { 
+                (dynamic_cast<D&>(obj).*setter)(UnPackSetValue<SetType>(arg));
+            };
+            return *this;
+        }
+        template<typename D, typename Getter>
+        ItemPrep<T>& RegistGetterProxy(Getter&& getter)
+        {
+            CheckSubClass<D>();
+            if constexpr (std::is_invocable_v<Getter, const D&, const std::string&>)
+            {
+                Item.Getter = [getter](const Controllable& obj, const std::string& id) 
+                { 
+                    return PackGetValue(getter(dynamic_cast<const D&>(obj), id));
+                };
+            }
+            else if constexpr (std::is_invocable_v<Getter, const D&>)
+            {
+                Item.Getter = [getter](const Controllable& obj, const std::string&) 
+                { 
+                    return PackGetValue(getter(dynamic_cast<const D&>(obj)));
+                };
+            }
             else
-                Item.Setter = [setter](Controllable& obj, const std::string&, const ControlArg& arg) { (dynamic_cast<D&>(obj).*setter)(std::any_cast<T>(std::get<std::any>(arg))); };
+                static_assert(!AlwaysTrue<D>(), "getter should accept (const D&, const std::string&) or (const D&)");
+            return *this;
+        }
+        template<typename D, typename Setter>
+        ItemPrep<T>& RegistSetterProxy(Setter&& setter)
+        {
+            CheckSubClass<D>();
+            if constexpr (std::is_invocable_v<Setter, D&, const std::string&, const T&>)
+            {
+                Item.Setter = [setter](Controllable& obj, const std::string& id, const ControlArg& arg)
+                {
+                    setter(dynamic_cast<D&>(obj), id, UnPackSetValue<T>(arg));
+                };
+            }
+            else if constexpr (std::is_invocable_v<Setter, D&, const T&>)
+            {
+                Item.Setter = [setter](Controllable& obj, const std::string&, const ControlArg& arg)
+                {
+                    setter(dynamic_cast<D&>(obj), UnPackSetValue<T>(arg));
+                };
+            }
+            else
+                static_assert(!AlwaysTrue<D>(), "setter should accept (D&, const std::string&, const T&) or (D&, const T&)");
             return *this;
         }
         template<bool CanWrite = true, bool CanRead = true, typename V = T>
@@ -143,97 +222,91 @@ private:
             if constexpr (CanWrite)
             {
                 static_assert(std::is_convertible_v<T, V>, "object cannot be converted from value of T");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Setter = [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::get<T>(arg); };
-                else
-                    Item.Setter = [&object](Controllable&, const std::string&, const ControlArg& arg) { object = std::any_cast<V>(std::get<std::any>(arg)); };
+                Item.Setter = [&object](Controllable&, const std::string&, const ControlArg & arg) 
+                { 
+                    object = UnPackSetValue<V>(arg);
+                };
             }
             if constexpr (CanRead)
             {
                 static_assert(std::is_convertible_v<V, T>, "object cannot be converted to T");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Getter = [&object](const Controllable&, const std::string&) { return ControlArg(static_cast<T>(object)); };
-                else
-                    Item.Getter = [&object](const Controllable&, const std::string&) { return ControlArg(std::any(object)); };
+                Item.Getter = [&object](const Controllable&, const std::string&) { return PackGetValue(object); };
             }
             return *this;
         }
         template<bool CanWrite = true, bool CanRead = true, typename D = Controllable, typename M = T>
         ItemPrep<T>& RegistMember(M D::*member)
         {
+            //CheckSubClass<D>(); // disable for Multiple inheritance
             if constexpr (CanWrite)
             {
                 static_assert(std::is_convertible_v<T, M>, "object cannot be converted from value of T");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                    Item.Setter = [member](Controllable& obj, const std::string&, const ControlArg& arg) 
-                { 
-                    auto& dst = dynamic_cast<D&>(obj).*member;
-                    dst = std::get<T>(arg);
+                Item.Setter = [member](Controllable& obj, const std::string&, const ControlArg& arg)
+                {
+                    dynamic_cast<D&>(obj).*member = UnPackSetValue<M>(arg);
                 };
-                else
-                    Item.Setter = [member](Controllable& obj, const std::string&, const ControlArg& arg) { dynamic_cast<D&>(obj).*member = std::any_cast<T>(std::get<std::any>(arg)); };
             }
             if constexpr (CanRead)
             {
                 static_assert(std::is_convertible_v<M, T>, "object cannot be converted to T");
-                if constexpr (std::is_constructible_v<ControlArg, T>)
-                {
-                    Item.Getter = [member](const Controllable& obj, const std::string&) 
-                    { 
-                        const auto& dst = dynamic_cast<const D&>(obj).*member;
-                        return static_cast<const T&>(dst);
-                    };
-                }
-                else
-                {
-                    Item.Getter = [member](const Controllable& obj, const std::string&) { return std::any(dynamic_cast<const D&>(obj).*member); };
-                }
+                Item.Getter = [member](const Controllable& obj, const std::string&) 
+                { 
+                    return PackGetValue(dynamic_cast<const D&>(obj).*member);
+                };
             }
             return *this;
         }
         template<typename D, bool CanWrite = true, bool CanRead = true, typename P = T&(D&)>
         ItemPrep<T>& RegistMemberProxy(P&& proxy)
         {
+            CheckSubClass<D>();
             if constexpr (CanWrite)
             {
                 using SetType = std::invoke_result_t<P, D&>;
                 static_assert(std::is_lvalue_reference_v<SetType>, "object is not a lvalue reference when being set");
                 using RawType = std::remove_reference_t<SetType>;
-                if constexpr (std::is_enum_v<RawType>)
-                {
-                    Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::get<T>(arg)); };
-                }
-                else if constexpr (!std::is_assignable_v<SetType, T>)
-                {
-                    static_assert(!AlwaysTrue<SetType>(), "object cannot be assigned from value of T when being set");
-                }
-                else
-                {
-                    if constexpr (std::is_constructible_v<ControlArg, T>)
-                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::get<T>(arg)); };
-                    else
-                        Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) { proxy(dynamic_cast<D&>(obj)) = static_cast<RawType>(std::any_cast<T>(std::get<std::any>(arg))); };
-                }
+                Item.Setter = [proxy](Controllable& obj, const std::string&, const ControlArg& arg) 
+                { 
+                    proxy(dynamic_cast<D&>(obj)) = UnPackSetValue<RawType>(arg);
+                };
             }
             if constexpr (CanRead)
             {
-                using GetType = std::invoke_result_t<P, const D&>;
-                if constexpr (std::is_enum_v<std::remove_reference_t<GetType>>)
-                {
-                    Item.Getter = [proxy](const Controllable& obj, const std::string&) { return static_cast<T>(proxy(dynamic_cast<const D&>(obj))); };
-                }
-                else if constexpr (!std::is_convertible_v<GetType, T>)
-                {
-                    static_assert(!AlwaysTrue<GetType>(), "object cannot be convert to T");
-                }
-                else
-                {
-                    if constexpr (std::is_constructible_v<ControlArg, T>)
-                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return static_cast<T>(proxy(dynamic_cast<const D&>(obj))); };
-                    else
-                        Item.Getter = [proxy](const Controllable& obj, const std::string&) { return std::any(proxy(dynamic_cast<const D&>(obj))); };
-                }
+                Item.Getter = [proxy](const Controllable& obj, const std::string&) 
+                { 
+                    return PackGetValue(proxy(dynamic_cast<const D&>(obj)));
+                };
             }
+            return *this;
+        }
+        template<typename Notifier>
+        ItemPrep<T>& RegistNotifier(Notifier notifier)
+        {
+            static_assert(std::is_invocable_v<Notifier, Controllable&, const std::string&>, "notifier should be void(Controllable&, const std::string&)");
+            Item.Notifier = notifier;
+            return *this;
+        }
+        template<typename D, typename Notifier>
+        ItemPrep<T>& RegistNotifierProxy(Notifier notifier)
+        {
+            CheckSubClass<D>();
+            if constexpr (std::is_invocable_v<Notifier, D&, const std::string&>)
+            {
+                Item.Notifier = [notifier](Controllable& obj, const std::string& id) { notifier(dynamic_cast<D&>(obj), id); };
+            }
+            else if constexpr (std::is_invocable_v<Notifier, D&>)
+            {
+                Item.Notifier = [notifier](Controllable& obj, const std::string&) { notifier(dynamic_cast<D&>(obj)); };
+            }
+            else
+                static_assert(!AlwaysTrue<D>(), "notifier should accept (D&, const std::string&) or (D&)");
+            return *this;
+        }
+        template<typename D, bool CanWrite = true, bool CanRead = true, typename P = T & (D&), typename Notify = void(D&)>
+        ItemPrep<T> & RegistMemberProxy(P && proxy, Notify && notifier)
+        {
+            RegistMemberProxy<D>(std::forward<P>(proxy));
+            RegistNotifierProxy<D>(std::forward<Notify>(notifier));
             return *this;
         }
         ItemPrep<T>& SetCookie(const std::any& cookie) { Item.Cookie = cookie; return *this; }
@@ -264,7 +337,7 @@ protected:
         const ArgType argType = ArgType::RawValue, const std::any& cookie = {}, const std::u16string& description = u"")
     {
         Categories.try_emplace(category, category.cbegin(), category.cend());
-        auto it = ControlItems.insert_or_assign(id, ControlItem{ id, category, name, description, cookie, {}, {}, std::variant_npos, argType, true }).first;
+        auto it = ControlItems.insert_or_assign(id, ControlItem{ id, category, name, description, cookie, {}, {}, {}, std::variant_npos, argType, true }).first;
         return it->second;
     }
     template<typename T>

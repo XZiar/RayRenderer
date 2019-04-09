@@ -58,7 +58,7 @@
 
 
 * WPFTest
-  - [ ] Add async-loader of Image for thumbnail
+  - [x] Add async-loader of Image for thumbnail
   - [ ] Change to move convinient mouse+keyboard operation
   - [ ] More buttons and proper icon
   - [ ] Develop AvalonDock

@@ -21,12 +21,13 @@ void PostProcessor::RegistControllable()
         .RegistGetter(&PostProcessor::GetExposure).RegistSetter(&PostProcessor::SetExposure);
     RegistItem<bool>("IsEnable", "", u"启用")
         .RegistMember(&PostProcessor::EnablePostProcess);
+    constexpr auto NotifyMidFrame = [](PostProcessor& control) { control.FixMidFrame(); };
     RegistItem<uint16_t>("MidWidth", "MidFrame", u"宽", ArgType::RawValue, std::pair(64, 4096))
-        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.Width; });
+        .RegistMemberProxy<PostProcessor>([](auto & control) -> auto & { return control.MidFrameConfig.Width; }, NotifyMidFrame);
     RegistItem<uint16_t>("MidHeight", "MidFrame", u"高", ArgType::RawValue, std::pair(64, 4096))
-        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.Height; });
+        .RegistMemberProxy<PostProcessor>([](auto & control) -> auto & { return control.MidFrameConfig.Height; }, NotifyMidFrame);
     RegistItem<bool>("IsFloatDepth", "MidFrame", u"浮点深度", ArgType::RawValue, {}, u"使用浮点深度缓冲")
-        .RegistMemberProxy<PostProcessor>([](auto& control) -> auto& { return control.MidFrameConfig.NeedFloatDepth; });
+        .RegistMemberProxy<PostProcessor>([](auto & control) -> auto & { return control.MidFrameConfig.NeedFloatDepth; }, NotifyMidFrame);
     AddCategory("MidFrame", u"渲染纹理");
 }
 
@@ -82,6 +83,12 @@ void PostProcessor::SetExposure(const float exposure)
 void PostProcessor::SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth)
 {
     MidFrameConfig = { width,height,needFloatDepth };
+    FixMidFrame();
+}
+
+void PostProcessor::FixMidFrame()
+{
+    MidFrameConfig.Width &= uint16_t(0xffc0); MidFrameConfig.Height &= uint16_t(0xffc0);
     UpdateDemand.Add(PostProcUpdate::FBO);
 }
 

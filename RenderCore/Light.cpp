@@ -34,10 +34,7 @@ void Light::RegistControllable()
     RegistItem<bool>("IsOn", "", u"开启", ArgType::RawValue, {}, u"是否开启灯光")
         .RegistMember(&Light::IsOn);
     RegistItem<float>("Luminance", "", u"亮度", ArgType::RawValue, {}, u"灯光强度")
-        .RegistGetter([](const Controllable& self, const string&)
-    { const auto& lgt = dynamic_cast<const Light&>(self); return lgt.Attenuation.w; })
-        .RegistSetter([](Controllable& self, const string&, const ControlArg& arg)
-    { auto& lgt = dynamic_cast<Light&>(self); lgt.Attenuation.w = std::get<float>(arg); });
+        .RegistMemberProxy<Light>([](auto & light) -> auto & { return light.Attenuation.w; });
     RegistItem<miniBLAS::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"灯光颜色")
         .RegistMember(&Light::Color);
     if (Type != LightType::Parallel)
@@ -53,10 +50,8 @@ void Light::RegistControllable()
     if (Type == LightType::Spot)
     {
         RegistItem<std::pair<float, float>>("Cutoff", "", u"切光角", ArgType::RawValue, std::pair(0.f, 180.f), u"聚光灯切光角")
-            .RegistGetter([](const Controllable& self, const string&)
-        { const auto& lgt = dynamic_cast<const Light&>(self); return std::pair(lgt.CutoffInner, lgt.CutoffOuter); })
-            .RegistSetter([](Controllable& self, const string&, const ControlArg& arg)
-        { auto& lgt = dynamic_cast<Light&>(self); std::tie(lgt.CutoffInner, lgt.CutoffOuter) = std::get<std::pair<float, float>>(arg); });
+            .RegistGetterProxy<Light>([](const Light& light) { return std::pair(light.CutoffInner, light.CutoffOuter); })
+            .RegistSetterProxy<Light>([](Light & light, const std::pair<float, float>& arg) { std::tie(light.CutoffInner, light.CutoffOuter) = arg; });
     }
 }
 

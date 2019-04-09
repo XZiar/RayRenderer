@@ -64,8 +64,8 @@ void GLShader::RegistControllable()
         const auto stage = oglu::oglShader::GetStageName(shader->shaderType);
         const auto u16stage = strchset::to_u16string(stage);
         RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
-            .RegistGetter([type=type](const Controllable& self, const string&)
-            { return (*FindInMap(dynamic_cast<const GLShader&>(self).Program->getShaders(), type))->SourceText(); });
+            .RegistGetterProxy<GLShader>([type=type](const GLShader& self)
+            { return (*FindInMap(self.Program->getShaders(), type))->SourceText(); });
     }
     for (const auto& res : Program->getSubroutineResources())
     {
@@ -73,9 +73,8 @@ void GLShader::RegistControllable()
         auto rtNames = Linq::FromIterable(res.Routines)
             .Select([](const auto& rt) {return rt.Name; }).ToVector();
         RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
-            .RegistGetter([&res](const Controllable& self, const string&) { return dynamic_cast<const GLShader&>(self).Program->GetSubroutine(res)->Name; })
-            .RegistSetter([&res](Controllable& self, const string&, const ControlArg& val) 
-            { dynamic_cast<GLShader&>(self).Program->State().SetSubroutine(res.Name, std::get<string>(val)); });
+            .RegistGetterProxy<GLShader>([&res](const GLShader& self) { return self.Program->GetSubroutine(res)->Name; })
+            .RegistSetterProxy<GLShader>([&res](GLShader& self, const string& val) { self.Program->State().SetSubroutine(res.Name, val); });
     }
     const auto& props = Program->getResourceProperties();
     for (const auto& res : Program->getResources())

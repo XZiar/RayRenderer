@@ -12,10 +12,21 @@ using namespace System::Collections::Generic;
 using namespace System::Dynamic;
 using namespace System::Runtime::InteropServices;
 
+ref class Controllable;
+
+private delegate void ControlItemChangedEventHandler(PropertyChangedEventArgs^ arg);
+
 public ref class ControlItem
 {
+private:
+    initonly Controllable^ Control;
+    initonly PropertyChangedEventArgs^ ChangedEvent;
+    const common::Controllable::ControlItem* PtrItem;
+    event ControlItemChangedEventHandler^ ValueChanged;
 internal:
-    ControlItem(const common::Controllable::ControlItem& item);
+    ControlItem(Controllable^ control, String^ id, const common::Controllable::ControlItem& item);
+    bool GetValue(const std::shared_ptr<common::Controllable>& control, [Out] Object^% arg);
+    bool SetValue(const std::shared_ptr<common::Controllable>& control, Object^ arg);
 public:
     enum struct PropAccess : uint8_t { Empty = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     enum struct PropType : uint8_t 
@@ -38,22 +49,27 @@ public ref class Controllable : public DynamicObject, public INotifyPropertyChan
 private:
     const std::weak_ptr<common::Controllable>* Control;
     initonly String^ controlType;
+    initonly Dictionary<String^, ControlItem^>^ ControlItems;
     void RaisePropertyChangedFunc(Object^ state)
     {
         PropertyChanged(this, static_cast<PropertyChangedEventArgs^>(static_cast<array<Object^>^>(state)[0]));
     }
 protected:
-    std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
     void RaisePropertyChanged(System::String^ propertyName)
     {
         auto arg = gcnew PropertyChangedEventArgs(propertyName);
+        WhenPropertyChanged(arg);
+    }
+internal:
+    Controllable(const std::shared_ptr<common::Controllable>& control);
+    std::shared_ptr<common::Controllable> GetControl() { return Control->lock(); }
+    void WhenPropertyChanged(PropertyChangedEventArgs^ arg)
+    {
         if (ViewModelSyncRoot::CheckMainThread())
             PropertyChanged(this, arg);
         else
             ViewModelSyncRoot::SyncCall(gcnew System::Threading::SendOrPostCallback(this, &Controllable::RaisePropertyChangedFunc), arg);
     }
-internal:
-    Controllable(const std::shared_ptr<common::Controllable>& control);
 public:
     ~Controllable() { this->!Controllable(); }
     !Controllable();
@@ -72,7 +88,10 @@ public:
     void RefreshControl();
 
     initonly Dictionary<String^, String^>^ Categories;
-    initonly List<ControlItem^>^ Items;
+    property Dictionary<String^, ControlItem^>::ValueCollection^ Items 
+    {
+        Dictionary<String^, ControlItem^>::ValueCollection^ get() { return ControlItems->Values; }
+    }
     CLI_READONLY_PROPERTY(String^, ControlType, controlType)
 };
 

@@ -22,22 +22,27 @@ void FontViewer::RegisterControllable()
     {
         const GLint loc = res->location;
         RegistItem<miniBLAS::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"文字颜色")
-            .RegistGetter([loc](const Controllable& self, const string&)
-            { return std::get<miniBLAS::Vec4>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc)); })
-            .RegistSetter([res](Controllable& self, const string&, const ControlArg& val)
-            { dynamic_cast<FontViewer&>(self).prog->SetVec(res, std::get<miniBLAS::Vec4>(val)); });
+            .RegistGetterProxy<FontViewer>([loc](const FontViewer& self)
+            { 
+                return std::get<miniBLAS::Vec4>(*common::container::FindInMap(self.prog->getCurUniforms(), loc));
+            })
+            .RegistSetterProxy<FontViewer>([res](FontViewer & self, const ControlArg& val)
+            { 
+                self.prog->SetVec(res, std::get<miniBLAS::Vec4>(val));
+            });
     }
     if (const auto res = prog->GetResource("distRange"); res)
     {
         const GLint loc = res->location;
         RegistItem<std::pair<float, float>>("Dist", "", u"边缘阈值", ArgType::RawValue, std::pair<float, float>(0.f, 1.f), u"sdf边缘阈值")
-            .RegistGetter([loc](const Controllable& self, const string&)
+            .RegistGetterProxy<FontViewer>([loc](const FontViewer & self)
             {
-                const auto& c2d = std::get<b3d::Coord2D>(*common::container::FindInMap(dynamic_cast<const FontViewer&>(self).prog->getCurUniforms(), loc));
+                const auto& c2d = std::get<b3d::Coord2D>(*common::container::FindInMap(self.prog->getCurUniforms(), loc));
                 return std::pair{ c2d.u, c2d.v };
-            }).RegistSetter([res](Controllable& self, const string&, const ControlArg& val)
+            })
+            .RegistSetterProxy<FontViewer>([res](FontViewer & self, const ControlArg& val)
             {
-                dynamic_cast<FontViewer&>(self).prog->SetVec(res, b3d::Coord2D(std::get<std::pair<float, float>>(val)));
+                self.prog->SetVec(res, b3d::Coord2D(std::get<std::pair<float, float>>(val)));
             });
     }
 }

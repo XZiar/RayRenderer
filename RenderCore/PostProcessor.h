@@ -37,6 +37,7 @@ private:
     float Exposure = 0.0f;
     bool EnablePostProcess = true;
     void RegistControllable();
+    void FixMidFrame();
 protected:
     PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc);
 public:
