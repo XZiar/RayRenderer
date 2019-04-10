@@ -278,6 +278,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libressl", "3rdParty\libres
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "xzbuild", "xzbuild\xzbuild.pyproj", "{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyDock", "AnyDock\AnyDock.csproj", "{C04C4904-299E-4297-9990-8E1816767520}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
@@ -565,6 +567,14 @@ Global
 		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F}.Release|x64.ActiveCfg = Release|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Debug|x64.Build.0 = Debug|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Release|x64.ActiveCfg = Release|Any CPU
+		{C04C4904-299E-4297-9990-8E1816767520}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -621,6 +631,7 @@ Global
 		{6401702A-1D7D-4879-B3B5-B28F95215D00} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F} = {E609F9C6-E6E5-4884-A790-434D043AB4F2}
+		{C04C4904-299E-4297-9990-8E1816767520} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}
