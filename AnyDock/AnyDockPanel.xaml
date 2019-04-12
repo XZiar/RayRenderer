@@ -3,9 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
              xmlns:local="clr-namespace:AnyDock"
              mc:Ignorable="d" 
+             x:Name="self"
              d:DesignHeight="400" d:DesignWidth="400">
+    <ContentControl.Resources>
+        <!--, diag:PresentationTraceSources.TraceLevel=High-->
+    </ContentControl.Resources>
     <Border BorderThickness="4" BorderBrush="White" Background="{Binding Background, RelativeSource={RelativeSource AncestorType={x:Type local:AnyDockPanel}}}">
         <Grid x:Name="grid">
             <Grid.RowDefinitions>
@@ -18,6 +23,36 @@
                 <ColumnDefinition Width="2"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
+            <Viewbox x:Name="DragOverLay" Panel.ZIndex="100" VerticalAlignment="Bottom" Grid.ColumnSpan="3" Grid.RowSpan="3" Stretch="Fill" Visibility="Collapsed" 
+                     IsHitTestVisible="False" >
+                <Canvas Width="100" Height="100" >
+                    <Polygon Fill="#40FF0000" Points="0,0 100,0 70,30 30,30"     Tag="Up"     />
+                    <Polygon Fill="#4000FF00" Points="100,0 100,100 70,70 70,30" Tag="Right"  />
+                    <Polygon Fill="#400000FF" Points="100,100 0,100 30,70 70,70" Tag="Down"   />
+                    <Polygon Fill="#40FFFF00" Points="0,100 0,0 30,30 30,70"     Tag="Left"   />
+                    <Polygon Fill="#40000000" Points="30,30 70,30 70,70 30,70"   Tag="Middle" />
+                </Canvas>
+            </Viewbox>
+            <TabControl x:Name="MainTab" Grid.ColumnSpan="3" Grid.RowSpan="3" ItemsSource="{Binding Children, ElementName=self, Mode=OneWay}">
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Header" Value="{Binding (local:AnyDockPanel.PageName)}"/>
+                        <Setter Property="AllowDrop" Value="True"/>
+                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItemMouseLeftButtonDown"/>
+                        <EventSetter Event="MouseLeave" Handler="TabItemMouseLeave"/>
+                        <EventSetter Event="MouseMove" Handler="TabItemMouseMove"/>
+                        <EventSetter Event="DragEnter" Handler="TabItemDragEnter"/>
+                        <EventSetter Event="Drop" Handler="TabItemDrop"/>
+                    </Style>
+                </TabControl.ItemContainerStyle>
+                <TabControl.ContentTemplate>
+                    <DataTemplate>
+                        <ContentControl Content="{Binding}" AllowDrop="True" 
+                                        DragEnter="TabCoreDragEnter" DragLeave="TabCoreDragLeave" Drop="TabCoreDrop" />
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
+            <GridSplitter x:Name="Splitter"/>
         </Grid>
     </Border>
 </ContentControl>

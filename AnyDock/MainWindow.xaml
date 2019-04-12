@@ -12,21 +12,21 @@
             <ColumnDefinition Width="100"/>
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
-        <Rectangle Grid.Column="1" Fill="Yellow" MouseLeftButtonDown="Rectangle_MouseLeftButtonDown"/>
+        <Rectangle Grid.Column="1" Fill="LightCyan" MouseLeftButtonDown="Rectangle_MouseLeftButtonDown"/>
         <local:AnyDockPanel x:Name="adpLeft" Grid.Column="0" Background="Gray">
-            <Label Content="Hello 1" FontSize="25" local:AnyDockPage.PageName="Hello1"/>
+            <Label Content="Hello 1" FontSize="25" local:AnyDockPanel.PageName="Hello1"/>
         </local:AnyDockPanel>
         <local:AnyDockPanel x:Name="adpRight" Grid.Column="2">
             <local:AnyDockPanel.Group1>
                 <local:AnyDockPanel Background="Red">
-                    <Label Content="Hello 2" FontSize="25" local:AnyDockPage.PageName="Hello2"/>
+                    <Label Content="Hello 2" FontSize="25" local:AnyDockPanel.PageName="Hello2"/>
                 </local:AnyDockPanel>
             </local:AnyDockPanel.Group1>
             <local:AnyDockPanel.Group2>
                 <local:AnyDockPanel Background="Green">
-                    <Label Content="Hello 3" FontSize="25" local:AnyDockPage.PageName="Hello3"/>
-                    <Label Content="Hello 4" FontSize="25" local:AnyDockPage.PageName="Hello4"/>
-                    <Label Content="Hello 5" FontSize="25" local:AnyDockPage.PageName="Hello5"/>
+                    <Label Content="Hello 3" FontSize="25" local:AnyDockPanel.PageName="Hello3"/>
+                    <Label Content="Hello 4" FontSize="25" local:AnyDockPanel.PageName="Hello4"/>
+                    <Label Content="Hello 5" FontSize="25" local:AnyDockPanel.PageName="Hello5"/>
                 </local:AnyDockPanel>
             </local:AnyDockPanel.Group2>
         </local:AnyDockPanel>

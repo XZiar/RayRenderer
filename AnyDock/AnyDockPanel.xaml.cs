@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -15,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using XZiar.Util;
 
 namespace AnyDock
 {
@@ -24,6 +26,35 @@ namespace AnyDock
     [ContentProperty(nameof(Children))]
     public partial class AnyDockPanel : ContentControl
     {
+        public static IValueConverter EnableHitConvertor = new BindingHelper.OneWayValueConvertor(o => (Visibility)o == Visibility.Collapsed);
+
+        public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
+            "PageName",
+            typeof(string),
+            typeof(AnyDockPanel),
+            new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
+        public static string GetPageName(UIElement element)
+        {
+            return element.GetValue(PageNameProperty) as string;
+        }
+        public static void SetPageName(UIElement element, string value)
+        {
+            element.SetValue(PageNameProperty, value);
+        }
+        private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
+            "ParentDock",
+            typeof(AnyDockPanel),
+            typeof(AnyDockPanel),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        private static void SetParentDock(UIElement element, AnyDockPanel value)
+        {
+            element.SetValue(ParentDockProperty, value);
+        }
+        private static AnyDockPanel GetParentDock(UIElement element)
+        {
+            return element.GetValue(ParentDockProperty) as AnyDockPanel;
+        }
+
         public ObservableCollection<FrameworkElement> Children
         {
             get;
@@ -53,30 +84,38 @@ namespace AnyDock
         }
         private AnyDockPanel ParentPanel = null;
 
-        private enum DockStates { Empty, Single, Tab, Group, Abandon };
-        private DockStates State = DockStates.Single;
+        private enum DockStates { Tab, Group, Abandon };
+        private DockStates State = DockStates.Tab;
         private Orientation PanelOrientation = Orientation.Horizontal;
-        private GridSplitter Splitter = new GridSplitter();
 
         public AnyDockPanel()
         {
-            InitializeComponent();
+            Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
             Loaded += OnLoaded;
+            InitializeComponent();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
+            ShouldRefresh = true;
             RefreshState();
             RefreshRealLayout();
         }
 
-        private bool ShouldRefresh = true;
+        private bool ShouldRefresh = false;
         private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            var kids = (ObservableCollection<FrameworkElement>)sender;
-            if(e.NewItems != null && e.NewItems.Cast<object>().Any(x => x is AnyDockPanel || x is AnyDockPage))
-                throw new InvalidOperationException("DockPanel and DockPage should not be children!");
+            if (e.NewItems != null)
+            {
+                foreach (var x in e.NewItems.Cast<object>())
+                {
+                    if (!(x is UIElement ele))
+                        throw new InvalidOperationException("Only UIElement can be added");
+                    if (ele is AnyDockPanel)
+                        throw new InvalidOperationException("DockPanel should not be children!");
+                    SetParentDock(ele, this);
+                }
+            }
             if (ShouldRefresh)
             {
                 RefreshState();
@@ -95,38 +134,53 @@ namespace AnyDock
             panel.ShouldRefresh = true;
         }
 
+        public void SetGroups(AnyDockPanel panel1, AnyDockPanel panel2, Orientation orientation = Orientation.Horizontal)
+        {
+            ShouldRefresh = false;
+            if (group1 != null)
+                group1.State = DockStates.Abandon;
+            if (group2 != null)
+                group2.State = DockStates.Abandon;
+            Group1 = panel1;
+            Group2 = panel2;
+            ShouldRefresh = true;
+            PanelOrientation = orientation;
+            RefreshState();
+            RefreshRealLayout();
+        }
+
         private void RefreshState()
         {
             if (Group1 != null && Group2 != null)
             {
                 State = DockStates.Group;
                 if (Children.Count > 0)
-                    throw new InvalidOperationException("DockPanel should not has children when group occupied!");
-                AllowDrop = false;
+                    throw new InvalidOperationException("AnyDockPanel should not has children when group occupied!");
             }
             else if (State != DockStates.Abandon)
             {
                 if (Group1 != null || Group2 != null)
-                    ;// throw new InvalidOperationException("Both group need to have element!");
-                if (Children.Count == 0 && ParentPanel != null)
+                    throw new InvalidOperationException("Both group need to have element!");
+                if (Children.Count == 0 && ParentPanel != null) // Children just get removed
                 {
                     ParentPanel.RequestRemove(this);
                     State = DockStates.Abandon;
                 }
                 else
                 {
-                    State = Children.Count > 1 ? DockStates.Tab : DockStates.Single;
-                    AllowDrop = true;
+                    State = DockStates.Tab;
                 }
             }
         }
         private void RefreshRealLayout()
         {
-            grid.Children.Clear();
-            var dockPages = Children.Select(child => new AnyDockPage(this) { Content = child });
+            grid.Children.Remove(Group1);
+            grid.Children.Remove(Group2);
             switch (State)
             {
             case DockStates.Group:
+                MainTab.Visibility = Visibility.Collapsed;
+                Splitter.Visibility = Visibility.Visible;
                 if (PanelOrientation == Orientation.Horizontal)
                 {
                     Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 3); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 1);
@@ -143,43 +197,109 @@ namespace AnyDock
                 }
                 grid.Children.Add(Group1);
                 grid.Children.Add(Group2);
-                grid.Children.Add(Splitter);
-                break;
-            case DockStates.Single:
-                if (dockPages.Count() > 0) 
-                {
-                    var page = dockPages.First();
-                    Grid.SetRow(page, 0); Grid.SetRowSpan(page, 3);
-                    Grid.SetColumn(page, 0); Grid.SetColumnSpan(page, 3);
-                    grid.Children.Add(page);
-                }
                 break;
             case DockStates.Tab:
-                var tabs = new TabControl();
-                foreach (var page in dockPages)
-                {
-                    var item = new TabItem() { Content = page };
-                    item.SetBinding(TabItem.HeaderProperty, 
-                        new Binding { Source = page, Path = new PropertyPath(AnyDockPage.HeaderProperty), Mode = BindingMode.OneWay });
-                    tabs.Items.Add(item);
-                }
-                Grid.SetRow(tabs, 0); Grid.SetRowSpan(tabs, 3);
-                Grid.SetColumn(tabs, 0); Grid.SetColumnSpan(tabs, 3);
-                grid.Children.Add(tabs);
+                Splitter.Visibility = Visibility.Collapsed;
+                MainTab.Visibility = Visibility.Visible;
                 break;
             }
-            
+
         }
 
-        private void RequestRemove(AnyDockPage page)
+        private class DragInfo { public Point StarPoint; public bool IsPending = false; }
+        private static readonly ConditionalWeakTable<TabItem, DragInfo> DragStartPoints = new ConditionalWeakTable<TabItem, DragInfo>();
+        private class DragData
         {
-            if (State == DockStates.Group)
-                throw new InvalidOperationException("Won't hold a page when in GROUP mode");
-            if (!Children.Remove(page.Content as FrameworkElement))
-                throw new InvalidOperationException("Doesn't hold the page");
-            RefreshState();
-            RefreshRealLayout();
+            internal readonly ModifierKeys Keys;
+            internal readonly TabItem Item;
+            internal readonly FrameworkElement Element;
+            internal readonly AnyDockPanel Panel;
+            internal DragData(TabItem item)
+            {
+                Keys = Keyboard.Modifiers;
+                Item = item;
+                Element = item.Content as FrameworkElement;
+                Panel = GetParentDock(Element);
+            }
         }
+        private void TabItemMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var info = DragStartPoints.GetOrCreateValue((TabItem)sender);
+            info.StarPoint = e.GetPosition(null); info.IsPending = true;
+        }
+        private void TabItemMouseLeave(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+                return;
+            var item = (TabItem)sender;
+            if (!DragStartPoints.TryGetValue(item, out DragInfo info) || !info.IsPending)
+                return;
+            BeginTabItemDrag(item);
+            e.Handled = true;
+        }
+        private void TabItemMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+                return;
+            var item = (TabItem)sender;
+            if (!DragStartPoints.TryGetValue(item, out DragInfo info) || !info.IsPending)
+                return;
+            var diff = e.GetPosition(null) - info.StarPoint;
+            if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance ||
+                Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance)
+                return;
+            BeginTabItemDrag(item);
+            e.Handled = true;
+        }
+        private static void BeginTabItemDrag(TabItem item)
+        {
+            if (!DragStartPoints.TryGetValue(item, out DragInfo info))
+                throw new InvalidOperationException("DragInfo should be already created.");
+            info.IsPending = false;
+            DragDrop.DoDragDrop(item, new DragData(item), DragDropEffects.Move);
+        }
+
+        private void TabItemDragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(typeof(DragData)) && sender == e.Source)
+            {
+                e.Effects = DragDropEffects.Move;
+                e.Handled = true;
+            }
+            else
+                e.Effects = DragDropEffects.None;
+        }
+        private void TabItemDrop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(typeof(DragData)))
+                return;
+            var src = (DragData)e.Data.GetData(typeof(DragData));
+            var dst = new DragData((TabItem)sender);
+            if (src.Panel == null || dst.Panel == null)
+                throw new InvalidOperationException("Drag objects should belong to AnyDock");
+            if (src.Panel == dst.Panel)
+            {
+                if (src.Item == dst.Item)
+                    return;
+                // exchange order only
+                int srcIdx = src.Panel.Children.IndexOf(src.Element);
+                int dstIdx = dst.Panel.Children.IndexOf(dst.Element);
+                src.Panel.Children.Move(srcIdx, dstIdx);
+            }
+            else
+            {
+                if (src.Item == dst.Item)
+                    throw new InvalidOperationException("Should not be the same TabItem");
+                // move item
+                src.Panel.Children.Remove(src.Element);
+                var dstPanel = dst.Panel.State == DockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed
+                int dstIdx = dstPanel.Children.IndexOf(dst.Element);
+                dstPanel.Children.Insert(dstIdx, src.Element);
+                dstPanel.MainTab.SelectedIndex = dstIdx;
+            }
+            e.Handled = true;
+        }
+
         private void RequestRemove(AnyDockPanel panel)
         {
             if (State != DockStates.Group)
@@ -204,51 +324,38 @@ namespace AnyDock
             RefreshState();
             RefreshRealLayout();
         }
-        private void AddPage(AnyDockPage page, ModifierKeys keys)
+
+        private void TabCoreDragEnter(object sender, DragEventArgs e)
         {
-            if (keys.HasFlag(ModifierKeys.Control)) // To Right
+            if (!e.Data.GetDataPresent(typeof(DragData)))
             {
-                Group1 = new AnyDockPanel();
-                Group1.MoveChildrenFrom(this);
-                Group2 = new AnyDockPanel();
-                Group2.Children.Add(page.Content as FrameworkElement);
-                PanelOrientation = Orientation.Horizontal;
-                Group1.RefreshState(); Group1.RefreshRealLayout();
-                Group2.RefreshState(); Group2.RefreshRealLayout();
+                e.Effects = DragDropEffects.None;
+                return;
             }
-            else if (keys.HasFlag(ModifierKeys.Shift)) // To Down
-            {
-                Group1 = new AnyDockPanel();
-                Group1.MoveChildrenFrom(this);
-                Group2 = new AnyDockPanel();
-                Group2.Children.Add(page.Content as FrameworkElement);
-                PanelOrientation = Orientation.Vertical;
-                Group1.RefreshState(); Group1.RefreshRealLayout();
-                Group2.RefreshState(); Group2.RefreshRealLayout();
-            }
-            else
-            {
-                ShouldRefresh = false;
-                Children.Add(page.Content as FrameworkElement);
-                ShouldRefresh = true;
-            }
-            RefreshState();
-            RefreshRealLayout();
+            Console.WriteLine($"Enter {sender.GetType()}");
+            e.Effects = DragDropEffects.Move;
+            DragOverLay.Height = (sender as ContentControl).ActualHeight;
+            DragOverLay.Visibility = Visibility.Visible;
+            e.Handled = true;
         }
-        protected override void OnDrop(DragEventArgs e)
+
+        private void TabCoreDragLeave(object sender, DragEventArgs e)
         {
-            base.OnDrop(e);
-            if (State == DockStates.Group)
+            if (e.Data.GetDataPresent(typeof(DragData)))
+            {
+                Console.WriteLine($"Leave {sender.GetType()}");
+                DragOverLay.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+            }
+        }
+
+        private void TabCoreDrop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(typeof(DragData)))
                 return;
-            if (!(e.Data.GetData("DockPage") is AnyDockPage page))
-                return;
-            if (!(e.Data.GetData("Keys") is ModifierKeys keys))
-                return;
-            page.ParentPanel.RequestRemove(page);
-            if (State == DockStates.Abandon)
-                ParentPanel.AddPage(page, keys);
-            else
-                AddPage(page, keys);
+            Console.WriteLine($"Drop  {sender.GetType()}");
+            var e2 = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
+            DragOverLay.Visibility = Visibility.Collapsed;
             e.Handled = true;
         }
 

@@ -283,6 +283,7 @@ EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		CommonUtil\CommonUtil.projitems*{369ead30-fd7e-465b-bcd3-c5aad8898a12}*SharedItemsImports = 13
+		CommonUtil\CommonUtil.projitems*{c04c4904-299e-4297-9990-8e1816767520}*SharedItemsImports = 4
 		CommonUtil\CommonUtil.projitems*{e05720db-a5fb-4a0c-9552-f3777e66fe29}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -631,7 +632,7 @@ Global
 		{6401702A-1D7D-4879-B3B5-B28F95215D00} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{336CC8AA-FE6A-4F02-9175-96FF19E06410} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{F35F7FFE-F897-4B8B-BF18-DEF7EBA9E60F} = {E609F9C6-E6E5-4884-A790-434D043AB4F2}
-		{C04C4904-299E-4297-9990-8E1816767520} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{C04C4904-299E-4297-9990-8E1816767520} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

@@ -561,8 +561,9 @@ namespace WPFTest
         private void texture_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
-                e.Effects = DragDropEffects.Link;
-            else e.Effects = DragDropEffects.None;
+            {
+                e.Effects = DragDropEffects.Link; e.Handled = true;
+            }
         }
 
         private async void AddShaderAsync(string fileName)
