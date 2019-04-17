@@ -65,44 +65,27 @@ namespace AnyDock
         public AnyDockPanel Group1
         {
             get { return group1; }
-            set { group1 = value; OnSetGroup(Group1); }
+            set { OnSetGroup(ref group1, value); }
         }
         public AnyDockPanel Group2
         {
             get { return group2; }
-            set { group2 = value; OnSetGroup(Group2); }
+            set { OnSetGroup(ref group2, value); }
         }
-        private void OnSetGroup(AnyDockPanel group)
+        private void OnSetGroup(ref AnyDockPanel dst, AnyDockPanel group)
         {
+            if (dst != null)
+                grid.Children.Remove(dst);
             if (group != null)
-                group.ParentPanel = this;
-            if (ShouldRefresh)
             {
-                RefreshState();
-                RefreshRealLayout();
+                group.ParentPanel = this;
+                group.Visibility = Visibility.Collapsed;
+                grid.Children.Add(group);
             }
+            dst = group;
+            if (ShouldRefresh)
+                RefreshState();
         }
-        private AnyDockPanel ParentPanel = null;
-
-        private enum DockStates { Tab, Group, Abandon };
-        private DockStates State = DockStates.Tab;
-        private Orientation PanelOrientation = Orientation.Horizontal;
-
-        public AnyDockPanel()
-        {
-            Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
-            Loaded += OnLoaded;
-            InitializeComponent();
-        }
-
-        private void OnLoaded(object sender, RoutedEventArgs e)
-        {
-            ShouldRefresh = true;
-            RefreshState();
-            RefreshRealLayout();
-        }
-
-        private bool ShouldRefresh = false;
         private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.NewItems != null)
@@ -116,54 +99,93 @@ namespace AnyDock
                     SetParentDock(ele, this);
                 }
             }
-            if (ShouldRefresh)
+            if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
             {
-                RefreshState();
-                RefreshRealLayout();
+                if (e.OldItems != null)
+                    foreach (var x in e.OldItems.Cast<UIElement>())
+                        SetParentDock(x, null);
+                if (Children.Count == 0 && ShouldRefresh)
+                    RefreshState();
             }
         }
-        private void MoveChildrenFrom(AnyDockPanel panel)
+        private AnyDockPanel ParentPanel = null;
+
+        private enum DockStates { Tab, Group, Abandon };
+        private DockStates State_ = DockStates.Tab;
+        private DockStates State
         {
-            ShouldRefresh = false;
-            Children.Clear();
-            foreach (var ele in panel.Children)
-                Children.Add(ele);
-            ShouldRefresh = true;
-            panel.ShouldRefresh = false;
-            panel.Children.Clear();
-            panel.ShouldRefresh = true;
+            get { return State_; }
+            set
+            {
+                if (State_ == DockStates.Abandon)
+                    throw new InvalidOperationException("Should not access an abandoned panel.");
+                if (value == DockStates.Group)
+                {
+                    Group1.Visibility = Visibility.Visible;
+                    Group2.Visibility = Visibility.Visible;
+                    MainTab.Visibility = Visibility.Collapsed;
+                    Splitter.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    Splitter.Visibility = Visibility.Collapsed;
+                    MainTab.Visibility = Visibility.Visible;
+                }
+                State_ = value;
+            }
+        }
+        private Orientation PanelOrientation = Orientation.Horizontal;
+
+        public AnyDockPanel()
+        {
+            Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
+            Loaded += OnLoaded;
+            InitializeComponent();
         }
 
-        public void SetGroups(AnyDockPanel panel1, AnyDockPanel panel2, Orientation orientation = Orientation.Horizontal)
+        private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            ShouldRefresh = false;
-            if (group1 != null)
-                group1.State = DockStates.Abandon;
-            if (group2 != null)
-                group2.State = DockStates.Abandon;
-            Group1 = panel1;
-            Group2 = panel2;
             ShouldRefresh = true;
-            PanelOrientation = orientation;
             RefreshState();
-            RefreshRealLayout();
         }
-
         private void RefreshState()
         {
+            if (State == DockStates.Abandon)
+                return;
             if (Group1 != null && Group2 != null)
             {
-                State = DockStates.Group;
                 if (Children.Count > 0)
                     throw new InvalidOperationException("AnyDockPanel should not has children when group occupied!");
+                if (PanelOrientation == Orientation.Horizontal)
+                {
+                    Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 3); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 1);
+                    Grid.SetRow(Group2, 0); Grid.SetRowSpan(Group2, 3); Grid.SetColumn(Group2, 2); Grid.SetColumnSpan(Group2, 1);
+                    Grid.SetRow(Splitter, 0); Grid.SetRowSpan(Splitter, 3); Grid.SetColumn(Splitter, 1); Grid.SetColumnSpan(Splitter, 1);
+                }
+                else
+                {
+                    Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 1); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 3);
+                    Grid.SetRow(Group2, 2); Grid.SetRowSpan(Group2, 1); Grid.SetColumn(Group2, 0); Grid.SetColumnSpan(Group2, 3);
+                    Grid.SetRow(Splitter, 1); Grid.SetRowSpan(Splitter, 1); Grid.SetColumn(Splitter, 0); Grid.SetColumnSpan(Splitter, 3);
+                }
+                State = DockStates.Group;
             }
-            else if (State != DockStates.Abandon)
+            else
             {
                 if (Group1 != null || Group2 != null)
                     throw new InvalidOperationException("Both group need to have element!");
                 if (Children.Count == 0 && ParentPanel != null) // Children just get removed
                 {
-                    ParentPanel.RequestRemove(this);
+                    if (ParentPanel.State != DockStates.Group)
+                        throw new InvalidOperationException("Won't hold a panel when not in GROUP mode");
+                    AnyDockPanel remain;
+                    if (ParentPanel.Group1 == this)
+                        remain = ParentPanel.Group2;
+                    else if (ParentPanel.Group2 == this)
+                        remain = ParentPanel.Group1;
+                    else
+                        throw new InvalidOperationException("Parent doesn't hold the panel");
+                    remain.HandoverToParent();
                     State = DockStates.Abandon;
                 }
                 else
@@ -172,67 +194,85 @@ namespace AnyDock
                 }
             }
         }
-        private void RefreshRealLayout()
+        private void MoveChildrenTo(AnyDockPanel dst)
         {
-            grid.Children.Remove(Group1);
-            grid.Children.Remove(Group2);
-            switch (State)
+            if (dst.Children.Count != 0)
+                throw new InvalidOperationException("Should not has children when being moved.");
+            var sel = MainTab.SelectedIndex;
+            var kids = Children.ToArray();
+            ShouldRefresh = false;
+            Children.Clear();
+            ShouldRefresh = true;
+            foreach (var ele in kids)
+                dst.Children.Add(ele);
+            dst.MainTab.SelectedIndex = sel;
+        }
+        private void HandoverToParent()
+        {
+            if (ParentPanel == null)
+                return;
+            if (ParentPanel.State != DockStates.Group)
+                throw new InvalidOperationException("Won't hold a panel when not in GROUP mode");
+            if (State == DockStates.Tab)
             {
-            case DockStates.Group:
-                MainTab.Visibility = Visibility.Collapsed;
-                Splitter.Visibility = Visibility.Visible;
-                if (PanelOrientation == Orientation.Horizontal)
-                {
-                    Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 3); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 1);
-                    Grid.SetRow(Group2, 0); Grid.SetRowSpan(Group2, 3); Grid.SetColumn(Group2, 2); Grid.SetColumnSpan(Group2, 1);
-                    Grid.SetRow(Splitter, 0); Grid.SetRowSpan(Splitter, 3); Grid.SetColumn(Splitter, 1); Grid.SetColumnSpan(Splitter, 1);
-                    Splitter.HorizontalAlignment = HorizontalAlignment.Stretch;
-                }
-                else
-                {
-                    Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 1); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 3);
-                    Grid.SetRow(Group2, 2); Grid.SetRowSpan(Group2, 1); Grid.SetColumn(Group2, 0); Grid.SetColumnSpan(Group2, 3);
-                    Grid.SetRow(Splitter, 1); Grid.SetRowSpan(Splitter, 1); Grid.SetColumn(Splitter, 0); Grid.SetColumnSpan(Splitter, 3);
-                    Splitter.VerticalAlignment = VerticalAlignment.Stretch;
-                }
-                grid.Children.Add(Group1);
-                grid.Children.Add(Group2);
-                break;
-            case DockStates.Tab:
-                Splitter.Visibility = Visibility.Collapsed;
-                MainTab.Visibility = Visibility.Visible;
-                break;
+                ParentPanel.ShouldRefresh = false;
+                ParentPanel.Group1 = ParentPanel.Group2 = null;
+                ParentPanel.ShouldRefresh = true;
+                MoveChildrenTo(ParentPanel);
             }
-
+            else
+            {
+                ParentPanel.ShouldRefresh = ShouldRefresh = false;
+                AnyDockPanel gp1 = Group1, gp2 = Group2;
+                Group1 = Group2 = null;
+                ParentPanel.PanelOrientation = PanelOrientation;
+                ParentPanel.Group1 = gp1; ParentPanel.Group2 = gp2;
+                ParentPanel.ShouldRefresh = ShouldRefresh = true;
+            }
+            ParentPanel.RefreshState();
+            State = DockStates.Abandon;
         }
 
-        private class DragInfo { public Point StarPoint; public bool IsPending = false; }
-        private static readonly ConditionalWeakTable<TabItem, DragInfo> DragStartPoints = new ConditionalWeakTable<TabItem, DragInfo>();
+        private bool ShouldRefresh = false;
+        
+
+        public void SetGroups(AnyDockPanel panel1, AnyDockPanel panel2, Orientation orientation = Orientation.Horizontal)
+        {
+            ShouldRefresh = false;
+            Group1 = panel1; Group2 = panel2;
+            PanelOrientation = orientation;
+            ShouldRefresh = true;
+            RefreshState();
+        }
+
+        private class DragInfo { public TabItem Source = null; public Point StarPoint; }
+        private static readonly DragInfo PendingDrag = new DragInfo();
         private class DragData
         {
             internal readonly ModifierKeys Keys;
-            internal readonly TabItem Item;
             internal readonly FrameworkElement Element;
             internal readonly AnyDockPanel Panel;
-            internal DragData(TabItem item)
+            internal DragData(object source)
             {
                 Keys = Keyboard.Modifiers;
-                Item = item;
-                Element = item.Content as FrameworkElement;
+                if (source is TabItem item && GetParentDock(item) == null)
+                    Element = (FrameworkElement)item.Content;
+                else
+                    Element = (FrameworkElement)source;
                 Panel = GetParentDock(Element);
             }
         }
         private void TabItemMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var info = DragStartPoints.GetOrCreateValue((TabItem)sender);
-            info.StarPoint = e.GetPosition(null); info.IsPending = true;
+            PendingDrag.Source = (TabItem)sender;
+            PendingDrag.StarPoint = e.GetPosition(null);
         }
         private void TabItemMouseLeave(object sender, MouseEventArgs e)
         {
             if (e.LeftButton != MouseButtonState.Pressed)
                 return;
             var item = (TabItem)sender;
-            if (!DragStartPoints.TryGetValue(item, out DragInfo info) || !info.IsPending)
+            if (PendingDrag.Source != item)
                 return;
             BeginTabItemDrag(item);
             e.Handled = true;
@@ -242,9 +282,9 @@ namespace AnyDock
             if (e.LeftButton != MouseButtonState.Pressed)
                 return;
             var item = (TabItem)sender;
-            if (!DragStartPoints.TryGetValue(item, out DragInfo info) || !info.IsPending)
+            if (PendingDrag.Source != item)
                 return;
-            var diff = e.GetPosition(null) - info.StarPoint;
+            var diff = e.GetPosition(null) - PendingDrag.StarPoint;
             if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance ||
                 Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance)
                 return;
@@ -253,9 +293,7 @@ namespace AnyDock
         }
         private static void BeginTabItemDrag(TabItem item)
         {
-            if (!DragStartPoints.TryGetValue(item, out DragInfo info))
-                throw new InvalidOperationException("DragInfo should be already created.");
-            info.IsPending = false;
+            PendingDrag.Source = null;
             DragDrop.DoDragDrop(item, new DragData(item), DragDropEffects.Move);
         }
 
@@ -274,12 +312,12 @@ namespace AnyDock
             if (!e.Data.GetDataPresent(typeof(DragData)))
                 return;
             var src = (DragData)e.Data.GetData(typeof(DragData));
-            var dst = new DragData((TabItem)sender);
+            var dst = new DragData(sender);
             if (src.Panel == null || dst.Panel == null)
                 throw new InvalidOperationException("Drag objects should belong to AnyDock");
             if (src.Panel == dst.Panel)
             {
-                if (src.Item == dst.Item)
+                if (src.Element == dst.Element)
                     return;
                 // exchange order only
                 int srcIdx = src.Panel.Children.IndexOf(src.Element);
@@ -288,7 +326,7 @@ namespace AnyDock
             }
             else
             {
-                if (src.Item == dst.Item)
+                if (src.Element == dst.Element)
                     throw new InvalidOperationException("Should not be the same TabItem");
                 // move item
                 src.Panel.Children.Remove(src.Element);
@@ -298,31 +336,6 @@ namespace AnyDock
                 dstPanel.MainTab.SelectedIndex = dstIdx;
             }
             e.Handled = true;
-        }
-
-        private void RequestRemove(AnyDockPanel panel)
-        {
-            if (State != DockStates.Group)
-                throw new InvalidOperationException("Won't hold a panel when not in GROUP mode");
-            AnyDockPanel remain;
-            if (Group1 == panel)
-                remain = Group2;
-            else if (Group2 == panel)
-                remain = Group1;
-            else
-                throw new InvalidOperationException("Doesn't hold the panel");
-            if (remain.State == DockStates.Group)
-                remain.grid.Children.Clear();
-            else
-                MoveChildrenFrom(remain);
-            ShouldRefresh = false;
-            Group1 = remain.Group1;
-            Group2 = remain.Group2;
-            PanelOrientation = remain.PanelOrientation;
-            ShouldRefresh = true;
-            remain.State = DockStates.Abandon;
-            RefreshState();
-            RefreshRealLayout();
         }
 
         private void TabCoreDragEnter(object sender, DragEventArgs e)
@@ -354,9 +367,69 @@ namespace AnyDock
             if (!e.Data.GetDataPresent(typeof(DragData)))
                 return;
             Console.WriteLine($"Drop  {sender.GetType()}");
-            var e2 = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
             DragOverLay.Visibility = Visibility.Collapsed;
+            var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
+            if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
+                return;
+            var src = (DragData)e.Data.GetData(typeof(DragData));
+            if (hitPart == "Middle")
+            {
+                if (Children.Count == 0)
+                {
+                    src.Panel.Children.Remove(src.Element);
+                    Children.Add(src.Element);
+                }
+                else
+                    TabItemDrop(MainTab.SelectedItem, e);
+            }
+            else
+            {
+                if (Group1 != null || Group2 != null)
+                    throw new InvalidOperationException("Panel should not has groups when accept drop");
+                AnyDockPanel panel1 = new AnyDockPanel(), panel2 = new AnyDockPanel();
+                src.Panel.Children.Remove(src.Element);
+                var dstPanel = State == DockStates.Abandon ? ParentPanel : this; // in case collapsed
+                switch (hitPart)
+                {
+                case "Up":
+                case "Left":
+                    panel1.Children.Add(src.Element);
+                    dstPanel.MoveChildrenTo(panel2);
+                    break;
+                case "Down":
+                case "Right":
+                    dstPanel.MoveChildrenTo(panel1);
+                    panel2.Children.Add(src.Element);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Unknown Tag [{hitPart}]");
+                }
+                dstPanel.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
+            }
             e.Handled = true;
+        }
+
+
+        public string SelfCheck(int level)
+        {
+            var prefix = new string('\t', level);
+            string ret = "";
+            ret += $"{prefix}AnyDock[{State}][{Children.Count} kids]\n";
+            if (State == DockStates.Tab)
+            {
+                foreach (var kid in Children)
+                    ret += $"{prefix}- {(kid as Label).Content} \t [{(MainTab.SelectedContent == kid ? 'X': ' ')}]\n";
+            }
+            else
+            {
+                var label1 = PanelOrientation == Orientation.Horizontal ? "Left " : "Up   ";
+                var label2 = PanelOrientation == Orientation.Horizontal ? "Right" : "Down ";
+                ret += $"{prefix}- [{label1}]\n";
+                ret += Group1.SelfCheck(level + 1);
+                ret += $"{prefix}- [{label2}]\n";
+                ret += Group2.SelfCheck(level + 1);
+            }
+            return ret;
         }
 
     }

@@ -25,9 +25,13 @@ namespace AnyDock
             InitializeComponent();
         }
 
-        private void Rectangle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            //tmp1.Children.Add(new Label { FontSize = 25, Content = DateTime.Now.ToLongTimeString() });
+            var left = adpLeft.SelfCheck(0);
+            var right = adpRight.SelfCheck(0);
+            var msg = new TextBlock { Text = left+right };
+            var box = new Window { Content = msg };
+            box.ShowDialog();
         }
     }
 }

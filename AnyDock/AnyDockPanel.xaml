@@ -52,7 +52,7 @@
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>
-            <GridSplitter x:Name="Splitter"/>
+            <GridSplitter x:Name="Splitter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
         </Grid>
     </Border>
 </ContentControl>
