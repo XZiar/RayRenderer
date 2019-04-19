@@ -13,7 +13,7 @@
             <ColumnDefinition Width="1*"/>
         </Grid.ColumnDefinitions>
         <Button Grid.Column="1" Click="Button_Click" />
-        <local:AnyDockPanel x:Name="adpLeft" Grid.Column="0" Background="Gray">
+        <local:AnyDockPanel x:Name="adpLeft" Grid.Column="0" Background="Gray" TabStripPlacement="Left" >
             <Label Content="Hello 1" FontSize="25" local:AnyDockPanel.PageName="Hello1"/>
         </local:AnyDockPanel>
         <local:AnyDockPanel x:Name="adpRight" Grid.Column="2">
@@ -24,7 +24,7 @@
             </local:AnyDockPanel.Group1>
             <local:AnyDockPanel.Group2>
                 <local:AnyDockPanel Background="Green">
-                    <Label Content="Hello 3" FontSize="25" local:AnyDockPanel.PageName="Hello3"/>
+                    <Label Content="Hello 3" FontSize="25" local:AnyDockPanel.PageName="Hello3" local:AnyDockPanel.AllowDrag="False"/>
                     <Label Content="Hello 4" FontSize="25" local:AnyDockPanel.PageName="Hello4"/>
                     <Label Content="Hello 5" FontSize="25" local:AnyDockPanel.PageName="Hello5"/>
                 </local:AnyDockPanel>

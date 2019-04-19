@@ -27,6 +27,7 @@ namespace AnyDock
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            adpLeft.TabStripPlacement = (Dock)(((int)adpLeft.TabStripPlacement + 1) % 4);
             var left = adpLeft.SelfCheck(0);
             var right = adpRight.SelfCheck(0);
             var msg = new TextBlock { Text = left+right };

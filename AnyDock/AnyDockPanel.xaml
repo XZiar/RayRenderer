@@ -10,32 +10,62 @@
              d:DesignHeight="400" d:DesignWidth="400">
     <ContentControl.Resources>
         <!--, diag:PresentationTraceSources.TraceLevel=High-->
+        <Viewbox x:Key="DragOverLay" x:Shared="True"
+                 Grid.ColumnSpan="3" Grid.RowSpan="3" Panel.ZIndex="100" Stretch="Fill"
+                 Visibility="Visible" IsHitTestVisible="False" >
+            <Canvas Width="100" Height="100" >
+                <Polygon Fill="#40FF0000" Points="0,0 100,0 70,30 30,30"     Tag="Up"     />
+                <Polygon Fill="#4000FF00" Points="100,0 100,100 70,70 70,30" Tag="Right"  />
+                <Polygon Fill="#400000FF" Points="100,100 0,100 30,70 70,70" Tag="Down"   />
+                <Polygon Fill="#40FFFF00" Points="0,100 0,0 30,30 30,70"     Tag="Left"   />
+                <Polygon Fill="#40000000" Points="30,30 70,30 70,70 30,70"   Tag="Middle" />
+            </Canvas>
+        </Viewbox>
     </ContentControl.Resources>
-    <Border BorderThickness="4" BorderBrush="White" Background="{Binding Background, RelativeSource={RelativeSource AncestorType={x:Type local:AnyDockPanel}}}">
+    <Border BorderThickness="4" BorderBrush="White" Background="{Binding Background, ElementName=self, Mode=TwoWay}">
         <Grid x:Name="grid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="1*"/>
-                <RowDefinition Height="2"/>
+                <RowDefinition Height="1.5"/>
                 <RowDefinition Height="1*"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="2"/>
+                <ColumnDefinition Width="1.5"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
-            <Viewbox x:Name="DragOverLay" Panel.ZIndex="100" VerticalAlignment="Bottom" Grid.ColumnSpan="3" Grid.RowSpan="3" Stretch="Fill" Visibility="Collapsed" 
-                     IsHitTestVisible="False" >
-                <Canvas Width="100" Height="100" >
-                    <Polygon Fill="#40FF0000" Points="0,0 100,0 70,30 30,30"     Tag="Up"     />
-                    <Polygon Fill="#4000FF00" Points="100,0 100,100 70,70 70,30" Tag="Right"  />
-                    <Polygon Fill="#400000FF" Points="100,100 0,100 30,70 70,70" Tag="Down"   />
-                    <Polygon Fill="#40FFFF00" Points="0,100 0,0 30,30 30,70"     Tag="Left"   />
-                    <Polygon Fill="#40000000" Points="30,30 70,30 70,70 30,70"   Tag="Middle" />
-                </Canvas>
-            </Viewbox>
             <TabControl x:Name="MainTab" Grid.ColumnSpan="3" Grid.RowSpan="3" ItemsSource="{Binding Children, ElementName=self, Mode=OneWay}">
                 <TabControl.ItemContainerStyle>
                     <Style TargetType="TabItem">
+                        <Setter Property="HeaderTemplate">
+                            <Setter.Value>
+                                <DataTemplate>
+                                    <ContentPresenter x:Name="Header" Content="{Binding}">
+                                        <ContentPresenter.Style>
+                                            <Style TargetType="{x:Type ContentPresenter}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding TabStripPlacement, ElementName=MainTab}" Value="Left">
+                                                        <Setter Property="LayoutTransform">
+                                                            <Setter.Value>
+                                                                <RotateTransform Angle="270" />
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding TabStripPlacement, ElementName=MainTab}" Value="Right">
+                                                        <Setter Property="LayoutTransform">
+                                                            <Setter.Value>
+                                                                <RotateTransform Angle="90" />
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ContentPresenter.Style>
+                                    </ContentPresenter>
+
+                                </DataTemplate>
+                            </Setter.Value>
+                        </Setter>
                         <Setter Property="Header" Value="{Binding (local:AnyDockPanel.PageName)}"/>
                         <Setter Property="AllowDrop" Value="True"/>
                         <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItemMouseLeftButtonDown"/>

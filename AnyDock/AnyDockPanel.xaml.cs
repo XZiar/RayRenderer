@@ -26,40 +26,42 @@ namespace AnyDock
     [ContentProperty(nameof(Children))]
     public partial class AnyDockPanel : ContentControl
     {
-        public static IValueConverter EnableHitConvertor = new BindingHelper.OneWayValueConvertor(o => (Visibility)o == Visibility.Collapsed);
-
         public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
             "PageName",
             typeof(string),
             typeof(AnyDockPanel),
             new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
-        public static string GetPageName(UIElement element)
-        {
-            return element.GetValue(PageNameProperty) as string;
-        }
-        public static void SetPageName(UIElement element, string value)
-        {
-            element.SetValue(PageNameProperty, value);
-        }
+        public static string GetPageName(UIElement element) => element.GetValue(PageNameProperty) as string;
+        public static void SetPageName(UIElement element, string value) => element.SetValue(PageNameProperty, value);
+
+        public static readonly DependencyProperty AllowDragProperty = DependencyProperty.RegisterAttached(
+            "AllowDrag",
+            typeof(bool),
+            typeof(AnyDockPanel),
+            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.None));
+        public static bool GetAllowDrag(UIElement element) => (bool)element.GetValue(AllowDragProperty);
+        public static void SetAllowDrag(UIElement element, bool value) => element.SetValue(AllowDragProperty, value);
+
         private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
             "ParentDock",
             typeof(AnyDockPanel),
             typeof(AnyDockPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
-        private static void SetParentDock(UIElement element, AnyDockPanel value)
+        private static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
+        private static AnyDockPanel GetParentDock(UIElement element) => element.GetValue(ParentDockProperty) as AnyDockPanel;
+
+        //public static readonly DependencyProperty TabStripPlacementProperty = DependencyProperty.Register(
+        //    "TabStripPlacement",
+        //    typeof(Dock),
+        //    typeof(AnyDockPanel),
+        //    new FrameworkPropertyMetadata(Dock.Top, FrameworkPropertyMetadataOptions.AffectsRender));
+        public Dock TabStripPlacement
         {
-            element.SetValue(ParentDockProperty, value);
-        }
-        private static AnyDockPanel GetParentDock(UIElement element)
-        {
-            return element.GetValue(ParentDockProperty) as AnyDockPanel;
+            get { return MainTab.TabStripPlacement; }
+            set { MainTab.TabStripPlacement = value; }
         }
 
-        public ObservableCollection<FrameworkElement> Children
-        {
-            get;
-            private set;
-        } = new ObservableCollection<FrameworkElement>();
+        public ObservableCollection<FrameworkElement> Children { get; } = new ObservableCollection<FrameworkElement>();
 
         private AnyDockPanel group1, group2;
         public AnyDockPanel Group1
@@ -108,6 +110,9 @@ namespace AnyDock
                     RefreshState();
             }
         }
+
+
+        private readonly Viewbox DragOverLay = null;
         private AnyDockPanel ParentPanel = null;
 
         private enum DockStates { Tab, Group, Abandon };
@@ -134,20 +139,24 @@ namespace AnyDock
                 State_ = value;
             }
         }
-        private Orientation PanelOrientation = Orientation.Horizontal;
+        private bool ShouldRefresh = false;
+
+        public Orientation PanelOrientation { get; set; } = Orientation.Horizontal;
+        public bool AllowDropTab { get; set; } = true;
+
 
         public AnyDockPanel()
         {
             Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
-            Loaded += OnLoaded;
+            Loaded += (o, e) => 
+            {
+                ShouldRefresh = true;
+                RefreshState();
+            };
             InitializeComponent();
+            DragOverLay = TryFindResource("DragOverLay") as Viewbox;
         }
 
-        private void OnLoaded(object sender, RoutedEventArgs e)
-        {
-            ShouldRefresh = true;
-            RefreshState();
-        }
         private void RefreshState()
         {
             if (State == DockStates.Abandon)
@@ -232,8 +241,6 @@ namespace AnyDock
             ParentPanel.RefreshState();
             State = DockStates.Abandon;
         }
-
-        private bool ShouldRefresh = false;
         
 
         public void SetGroups(AnyDockPanel panel1, AnyDockPanel panel2, Orientation orientation = Orientation.Horizontal)
@@ -252,6 +259,7 @@ namespace AnyDock
             internal readonly ModifierKeys Keys;
             internal readonly FrameworkElement Element;
             internal readonly AnyDockPanel Panel;
+            internal readonly bool AllowDrag;
             internal DragData(object source)
             {
                 Keys = Keyboard.Modifiers;
@@ -260,6 +268,7 @@ namespace AnyDock
                 else
                     Element = (FrameworkElement)source;
                 Panel = GetParentDock(Element);
+                AllowDrag = GetAllowDrag(Element);
             }
         }
         private void TabItemMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -299,19 +308,23 @@ namespace AnyDock
 
         private void TabItemDragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(typeof(DragData)) && sender == e.Source)
+            var src = (DragData)e.Data.GetData(typeof(DragData));
+            if (src != null)
             {
-                e.Effects = DragDropEffects.Move;
-                e.Handled = true;
+                if (src.Panel == this || (src.AllowDrag && AllowDropTab)) // self-reorder OR can dragdrop
+                {
+                    e.Effects = DragDropEffects.Move;
+                    e.Handled = true;
+                    return;
+                }
             }
-            else
-                e.Effects = DragDropEffects.None;
+            e.Effects = DragDropEffects.None;
         }
         private void TabItemDrop(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(typeof(DragData)))
-                return;
             var src = (DragData)e.Data.GetData(typeof(DragData));
+            if (src == null)
+                return;
             var dst = new DragData(sender);
             if (src.Panel == null || dst.Panel == null)
                 throw new InvalidOperationException("Drag objects should belong to AnyDock");
@@ -326,6 +339,8 @@ namespace AnyDock
             }
             else
             {
+                if (!src.AllowDrag || !AllowDropTab) // only if can dragdrop
+                    return;
                 if (src.Element == dst.Element)
                     throw new InvalidOperationException("Should not be the same TabItem");
                 // move item
@@ -337,41 +352,44 @@ namespace AnyDock
             }
             e.Handled = true;
         }
-
         private void TabCoreDragEnter(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(typeof(DragData)))
+            var src = (DragData)e.Data.GetData(typeof(DragData));
+            if (src != null && src.AllowDrag && AllowDropTab) // only if can dragdrop
             {
-                e.Effects = DragDropEffects.None;
+                DragOverLay.Height = (sender as ContentControl).ActualHeight;
+                DragOverLay.Width = (sender as ContentControl).ActualWidth;
+                switch(TabStripPlacement)
+                {
+                case Dock.Top:    DragOverLay.VerticalAlignment = VerticalAlignment.Bottom; DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
+                case Dock.Bottom: DragOverLay.VerticalAlignment = VerticalAlignment.Top;    DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
+                case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
+                case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
+                }
+                grid.Children.Add(DragOverLay);
+                e.Effects = DragDropEffects.Move;
+                e.Handled = true;
                 return;
             }
-            Console.WriteLine($"Enter {sender.GetType()}");
-            e.Effects = DragDropEffects.Move;
-            DragOverLay.Height = (sender as ContentControl).ActualHeight;
-            DragOverLay.Visibility = Visibility.Visible;
-            e.Handled = true;
+            e.Effects = DragDropEffects.None;
         }
-
         private void TabCoreDragLeave(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(typeof(DragData)))
             {
-                Console.WriteLine($"Leave {sender.GetType()}");
-                DragOverLay.Visibility = Visibility.Collapsed;
+                grid.Children.Remove(DragOverLay);
                 e.Handled = true;
             }
         }
-
         private void TabCoreDrop(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(typeof(DragData)))
+            var src = (DragData)e.Data.GetData(typeof(DragData));
+            if (src == null || !src.AllowDrag || !AllowDropTab) // only if can dragdrop
                 return;
-            Console.WriteLine($"Drop  {sender.GetType()}");
-            DragOverLay.Visibility = Visibility.Collapsed;
             var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
+            grid.Children.Remove(DragOverLay);
             if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
                 return;
-            var src = (DragData)e.Data.GetData(typeof(DragData));
             if (hitPart == "Middle")
             {
                 if (Children.Count == 0)
