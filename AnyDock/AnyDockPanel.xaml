@@ -40,39 +40,11 @@
                         <Setter Property="HeaderTemplate">
                             <Setter.Value>
                                 <DataTemplate>
-                                    <ContentPresenter x:Name="Header" Content="{Binding}">
-                                        <ContentPresenter.Style>
-                                            <Style TargetType="{x:Type ContentPresenter}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding TabStripPlacement, ElementName=MainTab}" Value="Left">
-                                                        <Setter Property="LayoutTransform">
-                                                            <Setter.Value>
-                                                                <RotateTransform Angle="270" />
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding TabStripPlacement, ElementName=MainTab}" Value="Right">
-                                                        <Setter Property="LayoutTransform">
-                                                            <Setter.Value>
-                                                                <RotateTransform Angle="90" />
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </ContentPresenter.Style>
-                                    </ContentPresenter>
-
+                                    <local:AnyDockTabLabel ParentTab="{Binding ElementName=MainTab}"/>
                                 </DataTemplate>
                             </Setter.Value>
                         </Setter>
-                        <Setter Property="Header" Value="{Binding (local:AnyDockPanel.PageName)}"/>
-                        <Setter Property="AllowDrop" Value="True"/>
-                        <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TabItemMouseLeftButtonDown"/>
-                        <EventSetter Event="MouseLeave" Handler="TabItemMouseLeave"/>
-                        <EventSetter Event="MouseMove" Handler="TabItemMouseMove"/>
-                        <EventSetter Event="DragEnter" Handler="TabItemDragEnter"/>
-                        <EventSetter Event="Drop" Handler="TabItemDrop"/>
+                        <Setter Property="Header" Value="{Binding}"/>
                     </Style>
                 </TabControl.ItemContainerStyle>
                 <TabControl.ContentTemplate>

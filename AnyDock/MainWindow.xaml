@@ -14,19 +14,37 @@
         </Grid.ColumnDefinitions>
         <Button Grid.Column="1" Click="Button_Click" />
         <local:AnyDockPanel x:Name="adpLeft" Grid.Column="0" Background="Gray" TabStripPlacement="Left" >
-            <Label Content="Hello 1" FontSize="25" local:AnyDockPanel.PageName="Hello1"/>
+            <Label Content="Hello 1" FontSize="25" local:AnyDockManager.PageName="Hello1" local:AnyDockManager.Closable="False"/>
         </local:AnyDockPanel>
         <local:AnyDockPanel x:Name="adpRight" Grid.Column="2">
             <local:AnyDockPanel.Group1>
                 <local:AnyDockPanel Background="Red">
-                    <Label Content="Hello 2" FontSize="25" local:AnyDockPanel.PageName="Hello2"/>
+                    <Label Content="Hello 2" FontSize="25" local:AnyDockManager.PageName="Hello2">
+                        <local:AnyDockManager.PageIcon>
+                            <DrawingImage>
+                                <DrawingImage.Drawing>
+                                    <GeometryDrawing>
+                                        <GeometryDrawing.Geometry>
+                                            <GeometryGroup>
+                                                <EllipseGeometry Center="50,50" RadiusX="45" RadiusY="20" />
+                                                <EllipseGeometry Center="50,50" RadiusX="20" RadiusY="45" />
+                                            </GeometryGroup>
+                                        </GeometryDrawing.Geometry>
+                                        <GeometryDrawing.Pen>
+                                            <Pen Thickness="10" Brush="Black" />
+                                        </GeometryDrawing.Pen>
+                                    </GeometryDrawing>
+                                </DrawingImage.Drawing>
+                            </DrawingImage>
+                        </local:AnyDockManager.PageIcon>
+                    </Label>
                 </local:AnyDockPanel>
             </local:AnyDockPanel.Group1>
             <local:AnyDockPanel.Group2>
                 <local:AnyDockPanel Background="Green">
-                    <Label Content="Hello 3" FontSize="25" local:AnyDockPanel.PageName="Hello3" local:AnyDockPanel.AllowDrag="False"/>
-                    <Label Content="Hello 4" FontSize="25" local:AnyDockPanel.PageName="Hello4"/>
-                    <Label Content="Hello 5" FontSize="25" local:AnyDockPanel.PageName="Hello5"/>
+                    <Label Content="Hello 3" FontSize="25" local:AnyDockManager.PageName="Hello3" local:AnyDockManager.AllowDrag="False"/>
+                    <Label Content="Hello 4" FontSize="25" local:AnyDockManager.PageName="Hello4" local:AnyDockManager.Closing="Label_Closing"/>
+                    <Label Content="Hello 5" FontSize="25" local:AnyDockManager.PageName="Hello5"/>
                 </local:AnyDockPanel>
             </local:AnyDockPanel.Group2>
         </local:AnyDockPanel>

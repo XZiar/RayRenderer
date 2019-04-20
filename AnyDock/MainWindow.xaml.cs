@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using static AnyDock.AnyDockManager;
 
 namespace AnyDock
 {
@@ -33,6 +34,12 @@ namespace AnyDock
             var msg = new TextBlock { Text = left+right };
             var box = new Window { Content = msg };
             box.ShowDialog();
+        }
+
+        private void Label_Closing(UIElement sender, TabClosingEventArgs e)
+        {
+            e.ShouldClose = true;
+            e.Handled = true;
         }
     }
 }

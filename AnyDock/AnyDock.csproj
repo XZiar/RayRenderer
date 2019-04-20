@@ -37,6 +37,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -57,18 +58,26 @@
     </ApplicationDefinition>
     <Page Include="AnyDockPanel.xaml">
       <SubType>Designer</SubType>
+      <Generator>XamlIntelliSenseFileGenerator</Generator>
+    </Page>
+    <Page Include="AnyDockTabLabel.xaml">
+      <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="AnyDockPanel.xaml.cs">
+      <DependentUpon>AnyDockPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AnyDockTabLabel.xaml.cs">
+      <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="AnyDockUtil.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="AnyDockPanel.xaml.cs">
-      <DependentUpon>AnyDockPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

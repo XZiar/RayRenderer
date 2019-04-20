@@ -26,21 +26,6 @@ namespace AnyDock
     [ContentProperty(nameof(Children))]
     public partial class AnyDockPanel : ContentControl
     {
-        public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
-            "PageName",
-            typeof(string),
-            typeof(AnyDockPanel),
-            new FrameworkPropertyMetadata("", FrameworkPropertyMetadataOptions.AffectsRender));
-        public static string GetPageName(UIElement element) => element.GetValue(PageNameProperty) as string;
-        public static void SetPageName(UIElement element, string value) => element.SetValue(PageNameProperty, value);
-
-        public static readonly DependencyProperty AllowDragProperty = DependencyProperty.RegisterAttached(
-            "AllowDrag",
-            typeof(bool),
-            typeof(AnyDockPanel),
-            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.None));
-        public static bool GetAllowDrag(UIElement element) => (bool)element.GetValue(AllowDragProperty);
-        public static void SetAllowDrag(UIElement element, bool value) => element.SetValue(AllowDragProperty, value);
 
         private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
             "ParentDock",
@@ -48,7 +33,7 @@ namespace AnyDock
             typeof(AnyDockPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
         private static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
-        private static AnyDockPanel GetParentDock(UIElement element) => element.GetValue(ParentDockProperty) as AnyDockPanel;
+        internal static AnyDockPanel GetParentDock(UIElement element) => element.GetValue(ParentDockProperty) as AnyDockPanel;
 
         //public static readonly DependencyProperty TabStripPlacementProperty = DependencyProperty.Register(
         //    "TabStripPlacement",
@@ -61,7 +46,7 @@ namespace AnyDock
             set { MainTab.TabStripPlacement = value; }
         }
 
-        public ObservableCollection<FrameworkElement> Children { get; } = new ObservableCollection<FrameworkElement>();
+        public ObservableCollection<UIElement> Children { get; } = new ObservableCollection<UIElement>();
 
         private AnyDockPanel group1, group2;
         public AnyDockPanel Group1
@@ -144,6 +129,10 @@ namespace AnyDock
         public Orientation PanelOrientation { get; set; } = Orientation.Horizontal;
         public bool AllowDropTab { get; set; } = true;
 
+        static AnyDockPanel()
+        {
+            AnyDockTabLabel.DropTab += DoDropTab;
+        }
 
         public AnyDockPanel()
         {
@@ -235,6 +224,7 @@ namespace AnyDock
                 AnyDockPanel gp1 = Group1, gp2 = Group2;
                 Group1 = Group2 = null;
                 ParentPanel.PanelOrientation = PanelOrientation;
+                ParentPanel.TabStripPlacement = TabStripPlacement;
                 ParentPanel.Group1 = gp1; ParentPanel.Group2 = gp2;
                 ParentPanel.ShouldRefresh = ShouldRefresh = true;
             }
@@ -252,106 +242,6 @@ namespace AnyDock
             RefreshState();
         }
 
-        private class DragInfo { public TabItem Source = null; public Point StarPoint; }
-        private static readonly DragInfo PendingDrag = new DragInfo();
-        private class DragData
-        {
-            internal readonly ModifierKeys Keys;
-            internal readonly FrameworkElement Element;
-            internal readonly AnyDockPanel Panel;
-            internal readonly bool AllowDrag;
-            internal DragData(object source)
-            {
-                Keys = Keyboard.Modifiers;
-                if (source is TabItem item && GetParentDock(item) == null)
-                    Element = (FrameworkElement)item.Content;
-                else
-                    Element = (FrameworkElement)source;
-                Panel = GetParentDock(Element);
-                AllowDrag = GetAllowDrag(Element);
-            }
-        }
-        private void TabItemMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            PendingDrag.Source = (TabItem)sender;
-            PendingDrag.StarPoint = e.GetPosition(null);
-        }
-        private void TabItemMouseLeave(object sender, MouseEventArgs e)
-        {
-            if (e.LeftButton != MouseButtonState.Pressed)
-                return;
-            var item = (TabItem)sender;
-            if (PendingDrag.Source != item)
-                return;
-            BeginTabItemDrag(item);
-            e.Handled = true;
-        }
-        private void TabItemMouseMove(object sender, MouseEventArgs e)
-        {
-            if (e.LeftButton != MouseButtonState.Pressed)
-                return;
-            var item = (TabItem)sender;
-            if (PendingDrag.Source != item)
-                return;
-            var diff = e.GetPosition(null) - PendingDrag.StarPoint;
-            if (Math.Abs(diff.X) <= SystemParameters.MinimumHorizontalDragDistance ||
-                Math.Abs(diff.Y) <= SystemParameters.MinimumVerticalDragDistance)
-                return;
-            BeginTabItemDrag(item);
-            e.Handled = true;
-        }
-        private static void BeginTabItemDrag(TabItem item)
-        {
-            PendingDrag.Source = null;
-            DragDrop.DoDragDrop(item, new DragData(item), DragDropEffects.Move);
-        }
-
-        private void TabItemDragEnter(object sender, DragEventArgs e)
-        {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null)
-            {
-                if (src.Panel == this || (src.AllowDrag && AllowDropTab)) // self-reorder OR can dragdrop
-                {
-                    e.Effects = DragDropEffects.Move;
-                    e.Handled = true;
-                    return;
-                }
-            }
-            e.Effects = DragDropEffects.None;
-        }
-        private void TabItemDrop(object sender, DragEventArgs e)
-        {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src == null)
-                return;
-            var dst = new DragData(sender);
-            if (src.Panel == null || dst.Panel == null)
-                throw new InvalidOperationException("Drag objects should belong to AnyDock");
-            if (src.Panel == dst.Panel)
-            {
-                if (src.Element == dst.Element)
-                    return;
-                // exchange order only
-                int srcIdx = src.Panel.Children.IndexOf(src.Element);
-                int dstIdx = dst.Panel.Children.IndexOf(dst.Element);
-                src.Panel.Children.Move(srcIdx, dstIdx);
-            }
-            else
-            {
-                if (!src.AllowDrag || !AllowDropTab) // only if can dragdrop
-                    return;
-                if (src.Element == dst.Element)
-                    throw new InvalidOperationException("Should not be the same TabItem");
-                // move item
-                src.Panel.Children.Remove(src.Element);
-                var dstPanel = dst.Panel.State == DockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed
-                int dstIdx = dstPanel.Children.IndexOf(dst.Element);
-                dstPanel.Children.Insert(dstIdx, src.Element);
-                dstPanel.MainTab.SelectedIndex = dstIdx;
-            }
-            e.Handled = true;
-        }
         private void TabCoreDragEnter(object sender, DragEventArgs e)
         {
             var src = (DragData)e.Data.GetData(typeof(DragData));
@@ -398,7 +288,10 @@ namespace AnyDock
                     Children.Add(src.Element);
                 }
                 else
-                    TabItemDrop(MainTab.SelectedItem, e);
+                {
+                    var dst = new DragData((UIElement)MainTab.SelectedItem);
+                    DoDropTab(src, dst);
+                }
             }
             else
             {
@@ -425,6 +318,15 @@ namespace AnyDock
                 dstPanel.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
             }
             e.Handled = true;
+        }
+
+        private static void DoDropTab(DragData src, DragData dst)
+        {
+            src.Panel.Children.Remove(src.Element);
+            var dstPanel = dst.Panel.State == DockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed
+            int dstIdx = dstPanel.Children.IndexOf(dst.Element);
+            dstPanel.Children.Insert(dstIdx, src.Element);
+            dstPanel.MainTab.SelectedIndex = dstIdx;
         }
 
 
