@@ -26,15 +26,6 @@ namespace AnyDock
     [ContentProperty(nameof(Children))]
     public partial class AnyDockPanel : ContentControl
     {
-
-        private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
-            "ParentDock",
-            typeof(AnyDockPanel),
-            typeof(AnyDockPanel),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
-        private static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
-        internal static AnyDockPanel GetParentDock(UIElement element) => element.GetValue(ParentDockProperty) as AnyDockPanel;
-
         //public static readonly DependencyProperty TabStripPlacementProperty = DependencyProperty.Register(
         //    "TabStripPlacement",
         //    typeof(Dock),
@@ -83,14 +74,14 @@ namespace AnyDock
                         throw new InvalidOperationException("Only UIElement can be added");
                     if (ele is AnyDockPanel)
                         throw new InvalidOperationException("DockPanel should not be children!");
-                    SetParentDock(ele, this);
+                    AnyDockManager.SetParentDock(ele, this);
                 }
             }
             if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
             {
                 if (e.OldItems != null)
                     foreach (var x in e.OldItems.Cast<UIElement>())
-                        SetParentDock(x, null);
+                        AnyDockManager.SetParentDock(x, null);
                 if (Children.Count == 0 && ShouldRefresh)
                     RefreshState();
             }
@@ -128,11 +119,6 @@ namespace AnyDock
 
         public Orientation PanelOrientation { get; set; } = Orientation.Horizontal;
         public bool AllowDropTab { get; set; } = true;
-
-        static AnyDockPanel()
-        {
-            AnyDockTabLabel.DropTab += DoDropTab;
-        }
 
         public AnyDockPanel()
         {
@@ -242,42 +228,28 @@ namespace AnyDock
             RefreshState();
         }
 
-        private void TabCoreDragEnter(object sender, DragEventArgs e)
+        internal void OnContentDragEnter(AnyDockContent content)
         {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null && src.AllowDrag && AllowDropTab) // only if can dragdrop
+            Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
+            DragOverLay.Height = content.ActualHeight;
+            DragOverLay.Width = content.ActualWidth;
+            switch(TabStripPlacement)
             {
-                DragOverLay.Height = (sender as ContentControl).ActualHeight;
-                DragOverLay.Width = (sender as ContentControl).ActualWidth;
-                switch(TabStripPlacement)
-                {
-                case Dock.Top:    DragOverLay.VerticalAlignment = VerticalAlignment.Bottom; DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-                case Dock.Bottom: DragOverLay.VerticalAlignment = VerticalAlignment.Top;    DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-                case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
-                case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
-                }
-                grid.Children.Add(DragOverLay);
-                e.Effects = DragDropEffects.Move;
-                e.Handled = true;
-                return;
+            case Dock.Top:    DragOverLay.VerticalAlignment = VerticalAlignment.Bottom; DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
+            case Dock.Bottom: DragOverLay.VerticalAlignment = VerticalAlignment.Top;    DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
+            case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
+            case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
             }
-            e.Effects = DragDropEffects.None;
+            grid.Children.Add(DragOverLay);
         }
-        private void TabCoreDragLeave(object sender, DragEventArgs e)
+        internal void OnContentDragLeave(AnyDockContent content)
         {
-            if (e.Data.GetDataPresent(typeof(DragData)))
-            {
-                grid.Children.Remove(DragOverLay);
-                e.Handled = true;
-            }
-        }
-        private void TabCoreDrop(object sender, DragEventArgs e)
-        {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src == null || !src.AllowDrag || !AllowDropTab) // only if can dragdrop
-                return;
-            var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
             grid.Children.Remove(DragOverLay);
+        }
+        internal void OnContentDrop(AnyDockContent content, DragData src, DragEventArgs e)
+        {
+            var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
+            OnContentDragLeave(content);
             if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
                 return;
             if (hitPart == "Middle")
@@ -289,7 +261,7 @@ namespace AnyDock
                 }
                 else
                 {
-                    var dst = new DragData((UIElement)MainTab.SelectedItem);
+                    var dst = new DragData((UIElement)content.Content);
                     DoDropTab(src, dst);
                 }
             }
@@ -317,10 +289,9 @@ namespace AnyDock
                 }
                 dstPanel.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
             }
-            e.Handled = true;
         }
 
-        private static void DoDropTab(DragData src, DragData dst)
+        internal static void DoDropTab(DragData src, DragData dst)
         {
             src.Panel.Children.Remove(src.Element);
             var dstPanel = dst.Panel.State == DockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed

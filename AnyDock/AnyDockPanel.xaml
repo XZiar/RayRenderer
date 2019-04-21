@@ -49,8 +49,7 @@
                 </TabControl.ItemContainerStyle>
                 <TabControl.ContentTemplate>
                     <DataTemplate>
-                        <ContentControl Content="{Binding}" AllowDrop="True" 
-                                        DragEnter="TabCoreDragEnter" DragLeave="TabCoreDragLeave" Drop="TabCoreDrop" />
+                        <local:AnyDockContent Content="{Binding}" />
                     </DataTemplate>
                 </TabControl.ContentTemplate>
             </TabControl>

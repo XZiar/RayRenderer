@@ -38,7 +38,6 @@ namespace AnyDock
 
     internal class DragData
     {
-        internal readonly ModifierKeys Keys;
         internal readonly UIElement Element;
         internal readonly AnyDockPanel Panel;
         internal readonly bool AllowDrag;
@@ -46,15 +45,22 @@ namespace AnyDock
         { }
         internal DragData(UIElement source)
         {
-            Keys = Keyboard.Modifiers;
             Element = source;
-            Panel = AnyDockPanel.GetParentDock(Element);
+            Panel = AnyDockManager.GetParentDock(Element);
             AllowDrag = AnyDockManager.GetAllowDrag(Element);
         }
     }
 
     public class AnyDockManager
     {
+        private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
+            "ParentDock",
+            typeof(AnyDockPanel),
+            typeof(AnyDockManager),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+        internal static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
+        internal static AnyDockPanel GetParentDock(UIElement element) => element == null ? null : element.GetValue(ParentDockProperty) as AnyDockPanel;
+
         public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
             "PageName",
             typeof(string),

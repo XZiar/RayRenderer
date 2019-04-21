@@ -68,6 +68,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="AnyDockContent.cs" />
     <Compile Include="AnyDockPanel.xaml.cs">
       <DependentUpon>AnyDockPanel.xaml</DependentUpon>
     </Compile>

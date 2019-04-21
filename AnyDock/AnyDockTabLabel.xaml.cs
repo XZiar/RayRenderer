@@ -18,9 +18,6 @@ using static AnyDock.AnyDockManager;
 
 namespace AnyDock
 {
-    internal delegate void DropTabEventHandler(DragData src, DragData dst);
-    
-
     /// <summary>
     /// AnyDockTabLabel.xaml 的交互逻辑
     /// </summary>
@@ -52,15 +49,13 @@ namespace AnyDock
         private class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
         private static readonly DragInfo PendingDrag = new DragInfo();
 
-        internal static event DropTabEventHandler DropTab;
-
         public TabControl ParentTab { get => (TabControl)GetValue(ParentTabProperty); set => SetValue(ParentTabProperty, value); }
         public AnyDockTabLabel()
         {
             LayoutTransform = new RotateTransform();
             DataContextChanged += (o, e) =>
                 {
-                    ParentPanel = AnyDockPanel.GetParentDock((UIElement)e.NewValue);
+                    ParentPanel = AnyDockManager.GetParentDock((UIElement)e.NewValue);
                 };
             InitializeComponent();
         }
@@ -140,7 +135,7 @@ namespace AnyDock
                 if (src.Element == dst.Element)
                     throw new InvalidOperationException("Should not be the same TabItem");
                 // move item
-                DropTab(src, dst);
+                AnyDockPanel.DoDropTab(src, dst);
             }
             e.Handled = true;
         }
