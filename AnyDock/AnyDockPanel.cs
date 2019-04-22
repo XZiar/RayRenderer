@@ -20,26 +20,30 @@ using XZiar.Util;
 
 namespace AnyDock
 {
-    /// <summary>
-    /// DockPane.xaml 的交互逻辑
-    /// </summary>
     [ContentProperty(nameof(Children))]
-    public partial class AnyDockPanel : ContentControl
+    public class AnyDockPanel : ContentControl
     {
-        //public static readonly DependencyProperty TabStripPlacementProperty = DependencyProperty.Register(
-        //    "TabStripPlacement",
-        //    typeof(Dock),
-        //    typeof(AnyDockPanel),
-        //    new FrameworkPropertyMetadata(Dock.Top, FrameworkPropertyMetadataOptions.AffectsRender));
+        private static readonly ResourceDictionary ResDict;
+        private static readonly ControlTemplate AnyDockPanelTemplate;
+        private static readonly Viewbox DragOverLay;
+
+        private readonly Grid MainGrid;
+        private readonly TabControl MainTab;
+        private readonly GridSplitter Splitter;
+        private AnyDockPanel ParentPanel = null;
+        private AnyDockPanel group1, group2;
+
+        public static readonly DependencyProperty TabStripPlacementProperty = 
+            TabControl.TabStripPlacementProperty.AddOwner(typeof(AnyDockPanel),
+                new FrameworkPropertyMetadata(Dock.Top, FrameworkPropertyMetadataOptions.AffectsRender));
         public Dock TabStripPlacement
         {
-            get { return MainTab.TabStripPlacement; }
-            set { MainTab.TabStripPlacement = value; }
+            get => (Dock)GetValue(TabStripPlacementProperty);
+            set => SetValue(TabStripPlacementProperty, value);
         }
 
         public ObservableCollection<UIElement> Children { get; } = new ObservableCollection<UIElement>();
 
-        private AnyDockPanel group1, group2;
         public AnyDockPanel Group1
         {
             get { return group1; }
@@ -53,12 +57,12 @@ namespace AnyDock
         private void OnSetGroup(ref AnyDockPanel dst, AnyDockPanel group)
         {
             if (dst != null)
-                grid.Children.Remove(dst);
+                MainGrid.Children.Remove(dst);
             if (group != null)
             {
                 group.ParentPanel = this;
                 group.Visibility = Visibility.Collapsed;
-                grid.Children.Add(group);
+                MainGrid.Children.Add(group);
             }
             dst = group;
             if (ShouldRefresh)
@@ -86,10 +90,6 @@ namespace AnyDock
                     RefreshState();
             }
         }
-
-
-        private readonly Viewbox DragOverLay = null;
-        private AnyDockPanel ParentPanel = null;
 
         private enum DockStates { Tab, Group, Abandon };
         private DockStates State_ = DockStates.Tab;
@@ -120,17 +120,30 @@ namespace AnyDock
         public Orientation PanelOrientation { get; set; } = Orientation.Horizontal;
         public bool AllowDropTab { get; set; } = true;
 
+        static AnyDockPanel()
+        {
+            DefaultStyleKeyProperty.OverrideMetadata(typeof(AnyDockPanel), new FrameworkPropertyMetadata(typeof(AnyDockPanel)));
+            ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/AnyDockPanel.res.xaml", UriKind.RelativeOrAbsolute) };
+            AnyDockPanelTemplate = (ControlTemplate)ResDict["AnyDockPanelTemplate"];
+            DragOverLay = (Viewbox)ResDict["DragOverLay"];
+        }
+
         public AnyDockPanel()
         {
+            Template = AnyDockPanelTemplate;
+            ApplyTemplate();
+            MainGrid = (Grid)Template.FindName("MainGrid", this);
+            MainTab = (TabControl)Template.FindName("MainTab", this);
+            Splitter = (GridSplitter)Template.FindName("Splitter", this);
+
             Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
             Loaded += (o, e) => 
             {
                 ShouldRefresh = true;
                 RefreshState();
             };
-            InitializeComponent();
-            DragOverLay = TryFindResource("DragOverLay") as Viewbox;
         }
+
 
         private void RefreshState()
         {
@@ -240,11 +253,11 @@ namespace AnyDock
             case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
             case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
             }
-            grid.Children.Add(DragOverLay);
+            MainGrid.Children.Add(DragOverLay);
         }
         internal void OnContentDragLeave(AnyDockContent content)
         {
-            grid.Children.Remove(DragOverLay);
+            MainGrid.Children.Remove(DragOverLay);
         }
         internal void OnContentDrop(AnyDockContent content, DragData src, DragEventArgs e)
         {

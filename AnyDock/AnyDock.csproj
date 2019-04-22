@@ -56,9 +56,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Page Include="AnyDockPanel.xaml">
+    <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>
-      <Generator>XamlIntelliSenseFileGenerator</Generator>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="AnyDockTabLabel.xaml">
       <SubType>Designer</SubType>
@@ -69,9 +69,7 @@
       <SubType>Designer</SubType>
     </Page>
     <Compile Include="AnyDockContent.cs" />
-    <Compile Include="AnyDockPanel.xaml.cs">
-      <DependentUpon>AnyDockPanel.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="AnyDockPanel.cs" />
     <Compile Include="AnyDockTabLabel.xaml.cs">
       <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
     </Compile>

@@ -18,7 +18,7 @@
         </local:AnyDockPanel>
         <local:AnyDockPanel x:Name="adpRight" Grid.Column="2">
             <local:AnyDockPanel.Group1>
-                <local:AnyDockPanel Background="Red">
+                <local:AnyDockPanel Background="Red" x:Name="Sub">
                     <Label Content="Hello 2" FontSize="25" local:AnyDockManager.PageName="Hello2">
                         <local:AnyDockManager.PageIcon>
                             <DrawingImage>
