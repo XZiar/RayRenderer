@@ -14,7 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using static AnyDock.AnyDockManager;
 
-namespace AnyDock
+namespace AnyDockTest
 {
     /// <summary>
     /// MainWindow.xaml 的交互逻辑
@@ -38,7 +38,8 @@ namespace AnyDock
 
         private void Label_Closing(UIElement sender, TabClosingEventArgs e)
         {
-            e.ShouldClose = true;
+            grid1.Visibility = Visibility.Collapsed;
+            e.ParentPanel.IsHidden = !e.ParentPanel.IsHidden;
             e.Handled = true;
         }
     }

@@ -61,7 +61,10 @@
   - [x] Add async-loader of Image for thumbnail
   - [ ] Change to move convinient mouse+keyboard operation
   - [ ] More buttons and proper icon
-  - [ ] Develop AvalonDock
+  - [x] Develop AnyDock
+
+* AnyDock
+  - [ ] Repalce with DockPanel to provide better Dock State
 
 * Build
   - [x] Custom build procedure for Linux

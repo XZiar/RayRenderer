@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="AnyDock.AnyDockTabLabel"
+﻿<ContentControl x:Class="AnyDock.AnyDockTabLabel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -6,12 +6,14 @@
              xmlns:local="clr-namespace:AnyDock"
              mc:Ignorable="d" 
              d:DesignHeight="20" d:DesignWidth="100"
+             x:Name="self"
              AllowDrop="True">
-    <UserControl.Resources>
+    <ContentControl.Resources>
         <local:CollapseIfNullConverter x:Key="CollapseIfNull"/>
         <local:CollapseIfFalseConverter x:Key="CollapseIfFalse"/>
-    </UserControl.Resources>
-    <DockPanel>
+        <local:TabStripAngleConverter x:Key="TabStripToAngle"/>
+    </ContentControl.Resources>
+    <DockPanel Background="Transparent">
         <Image x:Name="imgIcon" DockPanel.Dock="Left" Margin="2 0 2 0" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
                Source="{Binding (local:AnyDockManager.PageIcon)}" 
                Visibility="{Binding (local:AnyDockManager.PageIcon), Converter={StaticResource CollapseIfNull}}"
@@ -21,8 +23,14 @@
                 Visibility="{Binding (local:AnyDockManager.Closable), Converter={StaticResource CollapseIfFalse}}"
                 Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"
                 Click="HandleClose">
-            <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="UniformToFill" Fill="Black" Stroke="Black" StrokeThickness="1.5" />
+            <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="UniformToFill" StrokeThickness="1.5" 
+                  Fill="{Binding ParentTab.Foreground, ElementName=self}" Stroke="{Binding ParentTab.Foreground, ElementName=self}"/>
         </Button>
-        <TextBlock x:Name="Header" Margin="2 0 2 0" Text="{Binding (local:AnyDockManager.PageName)}" Foreground="Black" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="Header" Margin="2 0 2 0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+                   Foreground="{Binding ParentTab.Foreground, ElementName=self}" Background="Transparent"
+                   Text="{Binding (local:AnyDockManager.PageName)}" />
     </DockPanel>
-</UserControl>
+    <ContentControl.LayoutTransform>
+        <RotateTransform x:Name="StripAngle" Angle="{Binding ParentTab.TabStripPlacement, ElementName=self, Converter={StaticResource TabStripToAngle}}"/>
+    </ContentControl.LayoutTransform>
+</ContentControl>

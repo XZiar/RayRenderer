@@ -14,52 +14,34 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using XZiar.Util;
-using static AnyDock.AnyDockManager;
 
 namespace AnyDock
 {
     /// <summary>
     /// AnyDockTabLabel.xaml 的交互逻辑
     /// </summary>
-    public partial class AnyDockTabLabel : UserControl
+    public partial class AnyDockTabLabel : ContentControl
     {
+        private class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
+        private static readonly DragInfo PendingDrag = new DragInfo();
 
         private AnyDockPanel ParentPanel = null;
-        private static readonly PropertyPath TabStripPath = new PropertyPath(TabControl.TabStripPlacementProperty);
-        private static readonly IValueConverter TabStripConvertor = new BindingHelper.OneWayValueConvertor(o => 
-        {
-            switch ((Dock)o)
-            {
-            case Dock.Left:  return 270.0;
-            case Dock.Right: return 90.0;
-            default:         return 0.0;
-            }
-        });
-        private static readonly FrameworkPropertyMetadata ParentTabMeta = new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender,
-            new PropertyChangedCallback((o,e) =>
-            {
-                BindingOperations.SetBinding(((AnyDockTabLabel)o).LayoutTransform, RotateTransform.AngleProperty, 
-                    new Binding { Source=(TabControl)e.NewValue, Path=TabStripPath, Converter=TabStripConvertor });
-            }));
+
         public static readonly DependencyProperty ParentTabProperty = DependencyProperty.Register(
             "ParentTab",
             typeof(TabControl),
             typeof(AnyDockTabLabel),
-            ParentTabMeta);
-        private class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
-        private static readonly DragInfo PendingDrag = new DragInfo();
-
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
         public TabControl ParentTab { get => (TabControl)GetValue(ParentTabProperty); set => SetValue(ParentTabProperty, value); }
+
         public AnyDockTabLabel()
         {
-            LayoutTransform = new RotateTransform();
             DataContextChanged += (o, e) =>
                 {
                     ParentPanel = AnyDockManager.GetParentDock((UIElement)e.NewValue);
                 };
             InitializeComponent();
         }
-
         
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
@@ -143,7 +125,7 @@ namespace AnyDock
         private void HandleClose(object sender, RoutedEventArgs e)
         {
             var element = (UIElement)DataContext;
-            var earg = new TabClosingEventArgs(element, ParentPanel);
+            var earg = new AnyDockManager.TabClosingEventArgs(element, ParentPanel);
             element.RaiseEvent(earg);
             if (earg.ShouldClose)
                 ParentPanel.Children.Remove(element);

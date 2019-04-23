@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 
 namespace AnyDock
@@ -19,6 +20,7 @@ namespace AnyDock
         {
             base.OnContentChanged(oldContent, newContent);
             ParentPanel = AnyDockManager.GetParentDock((UIElement)newContent);
+            SetBinding(VisibilityProperty, new Binding { Path = new PropertyPath(AnyDockPanel.IsHiddenProperty), Source = ParentPanel, Converter = new CollapseIfTrueConverter() });
         }
 
         protected override void OnDragEnter(DragEventArgs e)
