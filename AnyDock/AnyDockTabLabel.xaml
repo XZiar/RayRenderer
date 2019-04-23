@@ -20,7 +20,7 @@
                Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"/>
         <Button x:Name="btnClose" DockPanel.Dock="Right" VerticalAlignment="Center" HorizontalAlignment="Center" 
                 Margin="2 0 2 0" BorderThickness="0" Background="Transparent"
-                Visibility="{Binding (local:AnyDockManager.Closable), Converter={StaticResource CollapseIfFalse}}"
+                Visibility="{Binding (local:AnyDockManager.CanClose), Converter={StaticResource CollapseIfFalse}}"
                 Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"
                 Click="HandleClose">
             <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="UniformToFill" StrokeThickness="1.5" 

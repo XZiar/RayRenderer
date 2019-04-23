@@ -71,6 +71,7 @@
     <Compile Include="AnyDockUtil.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DragHostWindow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

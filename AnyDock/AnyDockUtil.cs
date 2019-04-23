@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace AnyDock
 {
@@ -128,13 +129,13 @@ namespace AnyDock
         public static bool GetAllowDrag(UIElement element) => (bool)element.GetValue(AllowDragProperty);
         public static void SetAllowDrag(UIElement element, bool value) => element.SetValue(AllowDragProperty, value);
 
-        public static readonly DependencyProperty ClosableProperty = DependencyProperty.RegisterAttached(
-            "Closable",
+        public static readonly DependencyProperty CanCloseProperty = DependencyProperty.RegisterAttached(
+            "CanClose",
             typeof(bool),
             typeof(AnyDockManager),
             new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.None));
-        public static bool GetClosable(UIElement element) => (bool)element.GetValue(ClosableProperty);
-        public static void SetClosable(UIElement element, bool value) => element.SetValue(ClosableProperty, value);
+        public static bool GetCanClose(UIElement element) => (bool)element.GetValue(CanCloseProperty);
+        public static void SetCanClose(UIElement element, bool value) => element.SetValue(CanCloseProperty, value);
 
         public class TabClosingEventArgs : RoutedEventArgs
         {
@@ -153,5 +154,46 @@ namespace AnyDock
             element.AddHandler(ClosingEvent, handler);
         public static void RemoveClosingHandler(UIElement element, TabClosingEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
+
+
+
+        internal class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
+        internal static readonly DragInfo PendingDrag = new DragInfo();
+        internal static void PerformDrag(AnyDockTabLabel source)
+        {
+            PendingDrag.Source = null;
+            /*    @TopLeft _ _ _ __
+             *    |  * StartPoint  |
+             *    |_ _ _ _ _ _ _ __|
+             *       @ WinPos
+             *          *CurPoint
+             */
+            source.CaptureMouse();
+            var curPoint = Mouse.GetPosition(source);
+            source.ReleaseMouseCapture();
+            var deltaPos = curPoint - PendingDrag.StarPoint;
+            var winPos = source.PointToScreen((Point)deltaPos);
+
+            var content = new Rectangle{ Width=100, Height=100, Fill=new SolidColorBrush(Color.FromRgb(32,192,192)) };
+            var dragWindow = new DragHostWindow(winPos, PendingDrag.StarPoint, content, new DragData(source));
+            dragWindow.Draging += OnDraging;
+            dragWindow.Draged += OnDraged;
+            dragWindow.Show();
+        }
+        private static void OnDraging(DragHostWindow window, Point screenPos, DragData data)
+        {
+            var srcWindow = Window.GetWindow(data.Element);
+            var hitted = VisualTreeHelper.HitTest(srcWindow, Mouse.GetPosition(srcWindow));
+            if (hitted == null || !(hitted.VisualHit is UIElement hitPart))
+                return;
+            //Console.WriteLine($"{screenPos}");
+            var ev = new RoutedEventArgs();
+            //hitPart.RaiseEvent(ev);
+        }
+        private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
+        {
+            var content = (UIElement)window.Content;
+            window.Content = null;
+        }
     }
 }

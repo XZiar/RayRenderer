@@ -26,15 +26,23 @@ namespace AnyDock
         protected override void OnDragEnter(DragEventArgs e)
         {
             var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null && src.AllowDrag && ParentPanel.AllowDropTab) // only if can dragdrop
+            if (src != null)
             {
-                e.Effects = DragDropEffects.Move;
+                if (!src.AllowDrag || !ParentPanel.AllowDropTab)
+                {
+                    e.Effects = DragDropEffects.None;
+                }
+                else // only if can dragdrop
+                {
+                    e.Effects = DragDropEffects.Move;
+                    ParentPanel.OnContentDragEnter(this);
+                }
                 e.Handled = true;
-                ParentPanel.OnContentDragEnter(this);
             }
             else
-                e.Effects = DragDropEffects.None;
-            base.OnDragEnter(e);
+            {
+                base.OnDragEnter(e);
+            }
         }
 
         protected override void OnDragLeave(DragEventArgs e)
@@ -44,16 +52,21 @@ namespace AnyDock
                 e.Handled = true;
                 ParentPanel.OnContentDragLeave(this);
             }
-            base.OnDragLeave(e);
+            else
+            {
+                base.OnDragLeave(e);
+            }
         }
 
         protected override void OnDrop(DragEventArgs e)
         {
             var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null && src.AllowDrag && ParentPanel.AllowDropTab) // only if can dragdrop
+            if (src != null)
             {
+                if (src.AllowDrag && ParentPanel.AllowDropTab) // only if can dragdrop
+                    ParentPanel.OnContentDrop(this, src, e);
                 e.Handled = true;
-                ParentPanel.OnContentDrop(this, src, e);
+                return;
             }
             base.OnDrop(e);
         }

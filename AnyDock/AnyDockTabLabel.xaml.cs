@@ -22,9 +22,6 @@ namespace AnyDock
     /// </summary>
     public partial class AnyDockTabLabel : ContentControl
     {
-        private class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
-        private static readonly DragInfo PendingDrag = new DragInfo();
-
         private AnyDockPanel ParentPanel = null;
 
         public static readonly DependencyProperty ParentTabProperty = DependencyProperty.Register(
@@ -45,37 +42,52 @@ namespace AnyDock
         
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
+            AnyDockManager.PendingDrag.Source = this;
+            AnyDockManager.PendingDrag.StarPoint = e.GetPosition(this);
             base.OnMouseLeftButtonDown(e);
-            PendingDrag.Source = this;
-            PendingDrag.StarPoint = e.GetPosition(null);
         }
         protected override void OnMouseLeave(MouseEventArgs e)
         {
             base.OnMouseLeave(e);
-            if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
+            if (e.LeftButton == MouseButtonState.Pressed && AnyDockManager.PendingDrag.Source == this)
             {
-                BeginTabItemDrag();
+                BeginTabItemDrag(e);
                 e.Handled = true;
             }
         }
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            base.OnMouseMove(e);
-            if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
+            if (e.LeftButton == MouseButtonState.Pressed && AnyDockManager.PendingDrag.Source == this)
             {
-                var diff = e.GetPosition(null) - PendingDrag.StarPoint;
+                var diff = e.GetPosition(this) - AnyDockManager.PendingDrag.StarPoint;
                 if (Math.Abs(diff.X) >= SystemParameters.MinimumHorizontalDragDistance &&
                     Math.Abs(diff.Y) >= SystemParameters.MinimumVerticalDragDistance)
                 {
-                    BeginTabItemDrag();
+                    BeginTabItemDrag(e);
                     e.Handled = true;
+                    return;
                 }
             }
+            base.OnMouseMove(e);
         }
-        private void BeginTabItemDrag()
+        private void BeginTabItemDrag(MouseEventArgs e)
         {
-            PendingDrag.Source = null;
+            AnyDockManager.PendingDrag.Source = null;
             DragDrop.DoDragDrop(this, new DragData(this), DragDropEffects.Move);
+            if (AnyDockManager.PendingDrag.Source == this) // drag cancelled
+            {
+                AnyDockManager.PerformDrag(this);
+            }
+        }
+        protected override void OnQueryContinueDrag(QueryContinueDragEventArgs e)
+        {
+            base.OnQueryContinueDrag(e);
+            if (e.KeyStates.HasFlag(DragDropKeyStates.ShiftKey))
+            {
+                e.Action = DragAction.Cancel;
+                e.Handled = true;
+                AnyDockManager.PendingDrag.Source = this;
+            }
         }
         protected override void OnDragEnter(DragEventArgs e)
         {

@@ -29,7 +29,7 @@
             <Button Click="Button_Click" />
         </DockPanel>
         <anydock:AnyDockPanel x:Name="adpLeft" Grid.Column="0" Background="Gray" Foreground="Gray" TabStripPlacement="Left" >
-            <Label Content="Hello 1" FontSize="25" anydock:AnyDockManager.PageName="Hello1" anydock:AnyDockManager.Closable="False"/>
+            <Label Content="Hello 1" FontSize="25" anydock:AnyDockManager.PageName="Hello1" anydock:AnyDockManager.CanClose="False"/>
         </anydock:AnyDockPanel>
         <anydock:AnyDockPanel x:Name="adpRight" Grid.Column="2">
             <anydock:AnyDockPanel.Group1>
