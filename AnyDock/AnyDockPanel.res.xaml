@@ -13,29 +13,63 @@
         </Canvas>
     </Viewbox>
     <local:GridLengthOnOriConverter x:Key="GridLenOnOri"/>
+    <local:CollapseIfTrueConverter x:Key="CollapseIfTrue"/>
     <ControlTemplate x:Key="AnyDockPanelTemplate" TargetType="{x:Type local:AnyDockPanel}">
         <!--, diag:PresentationTraceSources.TraceLevel=High-->
         <Grid x:Name="MainPanel" Margin="4">
             <Grid x:Name="MainGrid" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="{TemplateBinding Orientation, Converter={StaticResource GridLenOnOri}, 
-                        ConverterParameter={x:Static wpf:Orientation.Vertical}}"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="1.5"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="{TemplateBinding Orientation, Converter={StaticResource GridLenOnOri}, 
-                        ConverterParameter={x:Static wpf:Orientation.Horizontal}}"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="1.5"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <GridSplitter x:Name="Splitter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <GridSplitter x:Name="Splitter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <GridSplitter.Style>
+                        <Style>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource TemplatedParent}}" Value="Horizontal">
+                                    <Setter Property="Grid.Column" Value="1"/>
+                                    <Setter Property="Grid.Row" Value="0"/>
+                                    <Setter Property="Grid.ColumnSpan" Value="1"/>
+                                    <Setter Property="Grid.RowSpan" Value="3"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource TemplatedParent}}" Value="Vertical">
+                                    <Setter Property="Grid.Column" Value="0"/>
+                                    <Setter Property="Grid.Row" Value="1"/>
+                                    <Setter Property="Grid.ColumnSpan" Value="3"/>
+                                    <Setter Property="Grid.RowSpan" Value="1"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </GridSplitter.Style>
+                </GridSplitter>
             </Grid>
-            <TabControl x:Name="MainTab" Grid.ColumnSpan="3" Grid.RowSpan="3" Visibility="Collapsed"
+            <TabControl x:Name="MainTab" Visibility="Collapsed"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                             TabStripPlacement="{TemplateBinding TabStripPlacement}" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
                             ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <DockPanel ClipToBounds="True" KeyboardNavigation.TabNavigation="Local">
+                            <local:AnyDockTabPanel x:Name="headerPanel" Background="Transparent" Margin="2,2,2,0"
+                                                   IsItemsHost="True" KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"
+                                                   DockPanel.Dock="{TemplateBinding TabStripPlacement}"/>
+                            <Border x:Name="contentPanel" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                    KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local"
+                                    Background="{TemplateBinding Background}"
+                                    Visibility="{Binding TemplatedParent.IsHidden, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CollapseIfTrue}}">
+                                <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" 
+                                                  Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </Border>
+                        </DockPanel>
+                    </ControlTemplate>
+                </TabControl.Template>
                 <TabControl.ItemContainerStyle>
                     <Style TargetType="TabItem">
                         <Setter Property="Background" Value="Transparent"/>

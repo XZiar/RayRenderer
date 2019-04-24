@@ -24,6 +24,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -33,6 +34,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -68,6 +70,7 @@
     <Compile Include="AnyDockTabLabel.xaml.cs">
       <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
     </Compile>
+    <Compile Include="AnyDockTabPanel.cs" />
     <Compile Include="AnyDockUtil.cs" />
   </ItemGroup>
   <ItemGroup>

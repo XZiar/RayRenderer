@@ -31,6 +31,7 @@ namespace AnyDock
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
         public TabControl ParentTab { get => (TabControl)GetValue(ParentTabProperty); set => SetValue(ParentTabProperty, value); }
 
+
         public AnyDockTabLabel()
         {
             DataContextChanged += (o, e) =>

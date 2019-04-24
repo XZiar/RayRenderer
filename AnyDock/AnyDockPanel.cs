@@ -157,7 +157,7 @@ namespace AnyDock
 
         static AnyDockPanel()
         {
-            DefaultStyleKeyProperty.OverrideMetadata(typeof(AnyDockPanel), new FrameworkPropertyMetadata(typeof(AnyDockPanel)));
+            //DefaultStyleKeyProperty.OverrideMetadata(typeof(AnyDockPanel), new FrameworkPropertyMetadata(typeof(AnyDockPanel)));
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/AnyDockPanel.res.xaml", UriKind.RelativeOrAbsolute) };
             AnyDockPanelTemplate = (ControlTemplate)ResDict["AnyDockPanelTemplate"];
             DragOverLay = (Viewbox)ResDict["DragOverLay"];
@@ -193,13 +193,13 @@ namespace AnyDock
                 {
                     Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 3); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 1);
                     Grid.SetRow(Group2, 0); Grid.SetRowSpan(Group2, 3); Grid.SetColumn(Group2, 2); Grid.SetColumnSpan(Group2, 1);
-                    Grid.SetRow(Splitter, 0); Grid.SetRowSpan(Splitter, 3); Grid.SetColumn(Splitter, 1); Grid.SetColumnSpan(Splitter, 1);
+                    //Grid.SetRow(Splitter, 0); Grid.SetRowSpan(Splitter, 3); Grid.SetColumn(Splitter, 1); Grid.SetColumnSpan(Splitter, 1);
                 }
                 else
                 {
                     Grid.SetRow(Group1, 0); Grid.SetRowSpan(Group1, 1); Grid.SetColumn(Group1, 0); Grid.SetColumnSpan(Group1, 3);
                     Grid.SetRow(Group2, 2); Grid.SetRowSpan(Group2, 1); Grid.SetColumn(Group2, 0); Grid.SetColumnSpan(Group2, 3);
-                    Grid.SetRow(Splitter, 1); Grid.SetRowSpan(Splitter, 1); Grid.SetColumn(Splitter, 0); Grid.SetColumnSpan(Splitter, 3);
+                    //Grid.SetRow(Splitter, 1); Grid.SetRowSpan(Splitter, 1); Grid.SetColumn(Splitter, 0); Grid.SetColumnSpan(Splitter, 3);
                 }
                 State = AnyDockStates.Group;
             }

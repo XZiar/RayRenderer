@@ -14,13 +14,15 @@ namespace AnyDock
     {
         private AnyDockPanel ParentPanel = null;
 
-        public AnyDockContent() : base() { AllowDrop = true; }
+        public AnyDockContent()
+        {
+            AllowDrop = true;
+        }
 
         protected override void OnContentChanged(object oldContent, object newContent)
         {
             base.OnContentChanged(oldContent, newContent);
             ParentPanel = AnyDockManager.GetParentDock((UIElement)newContent);
-            SetBinding(VisibilityProperty, new Binding { Path = new PropertyPath(AnyDockPanel.IsHiddenProperty), Source = ParentPanel, Converter = new CollapseIfTrueConverter() });
         }
 
         protected override void OnDragEnter(DragEventArgs e)
