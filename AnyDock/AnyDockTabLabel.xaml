@@ -6,8 +6,7 @@
              xmlns:local="clr-namespace:AnyDock"
              mc:Ignorable="d" 
              d:DesignHeight="20" d:DesignWidth="100"
-             x:Name="self"
-             AllowDrop="True">
+             x:Name="self">
     <ContentControl.Resources>
         <local:CollapseIfNullConverter x:Key="CollapseIfNull"/>
         <local:CollapseIfFalseConverter x:Key="CollapseIfFalse"/>

@@ -23,7 +23,7 @@ namespace AnyDockTest
     {
         public MainWindow()
         {
-            new RealDockWindow().ShowDialog();
+            //new RealDockWindow().ShowDialog();
             InitializeComponent();
         }
 

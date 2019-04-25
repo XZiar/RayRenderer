@@ -49,7 +49,10 @@ namespace AnyDock
             WindowHandle.AddHook(HookWindowProc);
             LocationChanged += OnDragWindow;
             if (Mouse.LeftButton == MouseButtonState.Pressed)
-                DragMove();
+            {
+                Draging(this, GetMouseScreenPos(), Data);
+                DragMove(); // blocking call
+            }
             else
                 FinishDrag();
         }

@@ -153,31 +153,24 @@ namespace AnyDock
         public static void RemoveClosingHandler(UIElement element, TabClosingEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
 
-        internal static void PerformDrag(Point windowPos, Point deltaPoint, DragData data)
+        internal static void MoveItem(UIElement src, UIElement dst)
         {
-            if (!data.AllowDrag)
-                return;
-            data.Panel.Children.Remove(data.Element);
-            //var content = new Rectangle{ Width=100, Height=100, Fill=new SolidColorBrush(Color.FromRgb(32,192,192)) };
-            var dragWindow = new DragHostWindow(windowPos, deltaPoint, data.Element, data);
-            dragWindow.Draging += OnDraging;
-            dragWindow.Draged += OnDraged;
-            dragWindow.Show();
+            var srcPanel = GetParentDock(src);
+            var dstPanel = GetParentDock(dst);
+            int dstIdx = dstPanel.Children.IndexOf(dst);
+            if (srcPanel == dstPanel)
+            {
+                // exchange order only
+                int srcIdx = srcPanel.Children.IndexOf(src);
+                if (srcIdx != dstIdx)
+                    dstPanel.Children.Move(srcIdx, dstIdx);
+            }
+            else
+            {
+                srcPanel?.Children.Remove(src);
+                dstPanel.Children.Insert(dstIdx, src);
+            }
         }
-        private static void OnDraging(DragHostWindow window, Point screenPos, DragData data)
-        {
-            var srcWindow = Window.GetWindow(data.Element);
-            var hitted = VisualTreeHelper.HitTest(srcWindow, Mouse.GetPosition(srcWindow));
-            if (hitted == null || !(hitted.VisualHit is UIElement hitPart))
-                return;
-            //Console.WriteLine($"{screenPos}");
-            var ev = new RoutedEventArgs();
-            //hitPart.RaiseEvent(ev);
-        }
-        private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
-        {
-            window.Content = null;
-            data.Panel.Children.Add(data.Element);
-        }
+
     }
 }

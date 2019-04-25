@@ -11,7 +11,7 @@ using System.Windows.Media;
 
 namespace AnyDock
 {
-    class AnyDockTabPanel : TabPanel
+    class AnyDockTabPanel : TabPanel, IDragRecievePoint
     {
         public static readonly DependencyProperty ParentDockProperty = DependencyProperty.Register(
             "ParentDock",
@@ -19,7 +19,6 @@ namespace AnyDock
             typeof(AnyDockTabPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
         internal DependencyObject ParentDock { set => SetValue(ParentDockProperty, value); }
-        private AnyDockPanel GetParentDock() => (AnyDockPanel)GetValue(ParentDockProperty);
         private Size GetDesiredSizeWithoutMargin(UIElement element)
         {
             var margin = (Thickness)element.GetValue(MarginProperty);
@@ -35,7 +34,13 @@ namespace AnyDock
         {
             get => (TemplatedParent as TabControl)?.SelectedIndex ?? -1;
         }
-        
+
+        public AnyDockPanel ParentDockPoint { get => (AnyDockPanel)GetValue(ParentDockProperty); }
+
+        static AnyDockTabPanel()
+        {
+        }
+
         protected override Size MeasureOverride(Size constraint)
         {
             var old = base.MeasureOverride(constraint);
@@ -137,8 +142,7 @@ namespace AnyDock
 
         private AnyDockTabLabel GetHittedLabel(Point pos)
         {
-            var hitted = VisualTreeHelper.HitTest(this, pos);
-            var label = hitted?.VisualHit;
+            var label = InputHitTest(pos) as DependencyObject;
             while (label != null && !(label is AnyDockTabLabel) && label != this)
                 label = VisualTreeHelper.GetParent(label);
             return label as AnyDockTabLabel;
@@ -176,11 +180,10 @@ namespace AnyDock
             if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
             {
                 var curPos = e.GetPosition(this);
-                var item = GetHittedLabel(curPos)?.DataContext as UIElement;
-                if (item != null && item != PendingDrag.Item)
+                if (GetHittedLabel(curPos)?.DataContext is UIElement item && item != PendingDrag.Item)
                 {
                     Console.WriteLine($"Drag onto  [{PendingDrag.Source}][{PendingDrag.Item}][{item}]");
-                    GetParentDock().ReorderItem(PendingDrag.Item, item);
+                    ParentDockPoint.ReorderItem(PendingDrag.Item, item);
                     e.Handled = true;
                 }
             }
@@ -203,9 +206,23 @@ namespace AnyDock
             Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
 
             var data = new DragData(PendingDrag.Item);
-            AnyDockManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
+            DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
         }
 
+        public virtual void OnDragIn(DragData data, Point pos)
+        {
+        }
 
+        public virtual void OnDragOut(DragData data, Point pos)
+        {
+        }
+        public virtual void OnDragDrop(DragData data, Point pos)
+        {
+            var label = GetHittedLabel(pos);
+            if (label?.DataContext is UIElement dst)
+                ParentDockPoint.Children.Insert(ParentDockPoint.Children.IndexOf(dst), data.Element);
+            else
+                ParentDockPoint.Children.Add(data.Element);
+        }
     }
 }

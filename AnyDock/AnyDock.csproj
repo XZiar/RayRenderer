@@ -58,6 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnyDockTabItem.cs" />
+    <Compile Include="DragManager.cs" />
     <Compile Include="SquareButton.cs" />
     <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>

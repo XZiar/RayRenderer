@@ -10,69 +10,34 @@ using System.Windows.Media;
 
 namespace AnyDock
 {
-    class AnyDockContent : ContentControl
+    class AnyDockContent : ContentControl, IDragRecievePoint
     {
-        private AnyDockPanel ParentPanel = null;
-
         public AnyDockContent()
         {
-            AllowDrop = true;
         }
+
+        public AnyDockPanel ParentDockPoint { get; private set; }
 
         protected override void OnContentChanged(object oldContent, object newContent)
         {
             base.OnContentChanged(oldContent, newContent);
-            ParentPanel = AnyDockManager.GetParentDock((UIElement)newContent);
+            ParentDockPoint = AnyDockManager.GetParentDock((UIElement)newContent);
         }
 
-        protected override void OnDragEnter(DragEventArgs e)
+        public virtual void OnDragIn(DragData data, Point pos)
         {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null)
-            {
-                if (!src.AllowDrag || !ParentPanel.AllowDropTab)
-                {
-                    e.Effects = DragDropEffects.None;
-                }
-                else // only if can dragdrop
-                {
-                    e.Effects = DragDropEffects.Move;
-                    ParentPanel.OnContentDragEnter(this);
-                }
-                e.Handled = true;
-            }
-            else
-            {
-                base.OnDragEnter(e);
-            }
+            ParentDockPoint.OnContentDragEnter(this);
         }
 
-        protected override void OnDragLeave(DragEventArgs e)
+        public virtual void OnDragOut(DragData data, Point pos)
         {
-            if (e.Data.GetDataPresent(typeof(DragData)))
-            {
-                e.Handled = true;
-                ParentPanel.OnContentDragLeave(this);
-            }
-            else
-            {
-                base.OnDragLeave(e);
-            }
+            ParentDockPoint.OnContentDragLeave(this);
         }
 
-        protected override void OnDrop(DragEventArgs e)
+        public virtual void OnDragDrop(DragData data, Point pos)
         {
-            var src = (DragData)e.Data.GetData(typeof(DragData));
-            if (src != null)
-            {
-                if (src.AllowDrag && ParentPanel.AllowDropTab) // only if can dragdrop
-                    ParentPanel.OnContentDrop(this, src, e);
-                e.Handled = true;
-                return;
-            }
-            base.OnDrop(e);
+            ParentDockPoint.OnContentDrop(this, data, PointToScreen(pos));
         }
-
 
     }
 }

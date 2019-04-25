@@ -289,7 +289,7 @@ namespace AnyDock
 
         internal void OnContentDragEnter(AnyDockContent content)
         {
-            Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
+            //Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
             DragOverLay.Height = content.ActualHeight;
             DragOverLay.Width = content.ActualWidth;
             switch(TabStripPlacement)
@@ -303,60 +303,41 @@ namespace AnyDock
         }
         internal void OnContentDragLeave(AnyDockContent content)
         {
+            //Console.WriteLine($"Drag leave [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
             MainPanel.Children.Remove(DragOverLay);
         }
-        internal void OnContentDrop(AnyDockContent content, DragData src, DragEventArgs e)
+        internal void OnContentDrop(AnyDockContent content, DragData src, Point screenPos)
         {
-            var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
+            var hitted = VisualTreeHelper.HitTest(DragOverLay, DragOverLay.PointFromScreen(screenPos));
             OnContentDragLeave(content);
             if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
                 return;
             if (hitPart == "Middle")
             {
-                if (Children.Count == 0)
-                {
-                    src.Panel.Children.Remove(src.Element);
-                    Children.Add(src.Element);
-                }
-                else
-                {
-                    var dst = new DragData((UIElement)content.Content);
-                    DoDropTab(src, dst);
-                }
+                Children.Add(src.Element);
             }
             else
             {
                 if (Group1 != null || Group2 != null)
                     throw new InvalidOperationException("Panel should not has groups when accept drop");
                 AnyDockPanel panel1 = new AnyDockPanel(), panel2 = new AnyDockPanel();
-                src.Panel.Children.Remove(src.Element);
-                var dstPanel = State == AnyDockStates.Abandon ? ParentPanel : this; // in case collapsed
                 switch (hitPart)
                 {
                 case "Up":
                 case "Left":
                     panel1.Children.Add(src.Element);
-                    dstPanel.MoveChildrenTo(panel2);
+                    this.MoveChildrenTo(panel2);
                     break;
                 case "Down":
                 case "Right":
-                    dstPanel.MoveChildrenTo(panel1);
+                    this.MoveChildrenTo(panel1);
                     panel2.Children.Add(src.Element);
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown Tag [{hitPart}]");
                 }
-                dstPanel.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
+                this.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
             }
-        }
-
-        internal static void DoDropTab(DragData src, DragData dst)
-        {
-            src.Panel.Children.Remove(src.Element);
-            var dstPanel = dst.Panel.State == AnyDockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed
-            int dstIdx = dstPanel.Children.IndexOf(dst.Element);
-            dstPanel.Children.Insert(dstIdx, src.Element);
-            dstPanel.MainTab.SelectedIndex = dstIdx;
         }
 
 
