@@ -85,8 +85,6 @@ namespace AnyDock
         internal readonly UIElement Element;
         internal readonly AnyDockPanel Panel;
         internal readonly bool AllowDrag;
-        internal DragData(AnyDockTabLabel source) : this((UIElement)source.DataContext)
-        { }
         internal DragData(UIElement source)
         {
             Element = source;
@@ -155,27 +153,13 @@ namespace AnyDock
         public static void RemoveClosingHandler(UIElement element, TabClosingEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
 
-
-
-        internal class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
-        internal static readonly DragInfo PendingDrag = new DragInfo();
-        internal static void PerformDrag(AnyDockTabLabel source)
+        internal static void PerformDrag(Point windowPos, Point deltaPoint, DragData data)
         {
-            PendingDrag.Source = null;
-            /*    @TopLeft _ _ _ __
-             *    |  * StartPoint  |
-             *    |_ _ _ _ _ _ _ __|
-             *       @ WinPos
-             *          *CurPoint
-             */
-            source.CaptureMouse();
-            var curPoint = Mouse.GetPosition(source);
-            source.ReleaseMouseCapture();
-            var deltaPos = curPoint - PendingDrag.StarPoint;
-            var winPos = source.PointToScreen((Point)deltaPos);
-
-            var content = new Rectangle{ Width=100, Height=100, Fill=new SolidColorBrush(Color.FromRgb(32,192,192)) };
-            var dragWindow = new DragHostWindow(winPos, PendingDrag.StarPoint, content, new DragData(source));
+            if (!data.AllowDrag)
+                return;
+            data.Panel.Children.Remove(data.Element);
+            //var content = new Rectangle{ Width=100, Height=100, Fill=new SolidColorBrush(Color.FromRgb(32,192,192)) };
+            var dragWindow = new DragHostWindow(windowPos, deltaPoint, data.Element, data);
             dragWindow.Draging += OnDraging;
             dragWindow.Draged += OnDraged;
             dragWindow.Show();
@@ -192,8 +176,8 @@ namespace AnyDock
         }
         private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
         {
-            var content = (UIElement)window.Content;
             window.Content = null;
+            data.Panel.Children.Add(data.Element);
         }
     }
 }

@@ -41,7 +41,9 @@ namespace AnyDock
         private void ContentFirstRendered(object sender, EventArgs e)
         {
             ContentRendered -= ContentFirstRendered;
+            CaptureMouse();
             var deltaPos = Mouse.GetPosition(this) - MouseDeltaPoint;
+            ReleaseMouseCapture();
             Left += deltaPos.X; Top += deltaPos.Y;
             WindowHandle = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             WindowHandle.AddHook(HookWindowProc);

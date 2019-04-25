@@ -57,9 +57,9 @@
                 <TabControl.Template>
                     <ControlTemplate TargetType="{x:Type TabControl}">
                         <DockPanel ClipToBounds="True" KeyboardNavigation.TabNavigation="Local">
-                            <local:AnyDockTabPanel x:Name="headerPanel" Background="Transparent" Margin="2,2,2,0"
-                                                   IsItemsHost="True" KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"
-                                                   DockPanel.Dock="{TemplateBinding TabStripPlacement}"/>
+                            <local:AnyDockTabPanel x:Name="headerPanel" Background="Transparent" Margin="2,2,2,0" IsItemsHost="True"
+                                                   KeyboardNavigation.TabIndex="1" Panel.ZIndex="1" DockPanel.Dock="{TemplateBinding TabStripPlacement}"
+                                                   ParentDock="{Binding TemplatedParent, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <Border x:Name="contentPanel" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                     KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local"
                                     Background="{TemplateBinding Background}"

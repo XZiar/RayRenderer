@@ -139,6 +139,7 @@ namespace AnyDock
                     if (ele is AnyDockPanel)
                         throw new InvalidOperationException("DockPanel should not be children!");
                     AnyDockManager.SetParentDock(ele, this);
+                    MainTab.SelectedItem = ele;
                 }
             }
             if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
@@ -275,6 +276,15 @@ namespace AnyDock
             Orientation = orientation;
             ShouldRefresh = true;
             RefreshState();
+        }
+
+        internal void ReorderItem(UIElement obj, UIElement dst)
+        {
+            // exchange order only
+            int srcIdx = Children.IndexOf(obj);
+            int dstIdx = Children.IndexOf(dst);
+            if (srcIdx != dstIdx)
+                Children.Move(srcIdx, dstIdx);
         }
 
         internal void OnContentDragEnter(AnyDockContent content)

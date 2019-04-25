@@ -17,7 +17,10 @@
             <TabControl DockPanel.Dock="Top">
                 <TabItem Header="TestTab">
                     <Grid x:Name="grid1">
-                        <Rectangle Height="100" Fill="AliceBlue"/>
+                        <Button>
+                            <Path Stroke="Black" Fill="Black" Stretch="Uniform" Data="M 0,2 6,2 3,5 Z"/>
+                        </Button>
+                        <!--<Rectangle Height="100" Fill="AliceBlue"/>-->
                     </Grid>
                 </TabItem>
                 <TabItem Header="TestTab">

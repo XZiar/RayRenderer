@@ -57,6 +57,8 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnyDockTabItem.cs" />
+    <Compile Include="SquareButton.cs" />
     <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -72,6 +74,10 @@
     </Compile>
     <Compile Include="AnyDockTabPanel.cs" />
     <Compile Include="AnyDockUtil.cs" />
+    <Page Include="AnyDockTabPanel.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DragHostWindow.cs" />

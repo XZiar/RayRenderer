@@ -6,11 +6,20 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace AnyDock
 {
     class AnyDockTabPanel : TabPanel
     {
+        public static readonly DependencyProperty ParentDockProperty = DependencyProperty.Register(
+            "ParentDock",
+            typeof(DependencyObject),
+            typeof(AnyDockTabPanel),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None));
+        internal DependencyObject ParentDock { set => SetValue(ParentDockProperty, value); }
+        private AnyDockPanel GetParentDock() => (AnyDockPanel)GetValue(ParentDockProperty);
         private Size GetDesiredSizeWithoutMargin(UIElement element)
         {
             var margin = (Thickness)element.GetValue(MarginProperty);
@@ -116,5 +125,87 @@ namespace AnyDock
             }
             return arrangeSize;
         }
+
+        private class DragInfo
+        {
+            public AnyDockTabPanel Source = null;
+            public AnyDockTabLabel Label = null;
+            public UIElement Item = null;
+            public Point StartPoint;
+        }
+        private static readonly DragInfo PendingDrag = new DragInfo();
+
+        private AnyDockTabLabel GetHittedLabel(Point pos)
+        {
+            var hitted = VisualTreeHelper.HitTest(this, pos);
+            var label = hitted?.VisualHit;
+            while (label != null && !(label is AnyDockTabLabel) && label != this)
+                label = VisualTreeHelper.GetParent(label);
+            return label as AnyDockTabLabel;
+        }
+
+        protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+        {
+            PendingDrag.Label = GetHittedLabel(e.GetPosition(this));
+            if (PendingDrag.Label != null)
+            {
+                PendingDrag.StartPoint = e.GetPosition(PendingDrag.Label);
+                PendingDrag.Item = PendingDrag.Label.DataContext as UIElement;
+                PendingDrag.Source = this;
+            }
+            base.OnPreviewMouseLeftButtonDown(e);
+        }
+        protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
+        {
+            PendingDrag.Source = null;
+            base.OnPreviewMouseLeftButtonUp(e);
+        }
+        protected override void OnMouseLeave(MouseEventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
+            {
+                Console.WriteLine($"Drag Leave [{PendingDrag.Source}][{PendingDrag.Item}][{PendingDrag.StartPoint}]");
+                PendingDrag.Source = null;
+                BeginTabItemDrag(e);
+                e.Handled = true;
+            }
+        }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
+            {
+                var curPos = e.GetPosition(this);
+                var item = GetHittedLabel(curPos)?.DataContext as UIElement;
+                if (item != null && item != PendingDrag.Item)
+                {
+                    Console.WriteLine($"Drag onto  [{PendingDrag.Source}][{PendingDrag.Item}][{item}]");
+                    GetParentDock().ReorderItem(PendingDrag.Item, item);
+                    e.Handled = true;
+                }
+            }
+            base.OnMouseMove(e);
+        }
+
+        private void BeginTabItemDrag(MouseEventArgs e)
+        {
+            PendingDrag.Source = null;
+
+            /*    @TopLeft _ _ _ __
+             *    |  * StartPoint  |
+             *    |_ _ _ _ _ _ _ __|
+             *       @ WinPos
+             *          *CurPoint
+             */
+            var curPoint = Mouse.GetPosition(null);
+            var deltaPos = curPoint - PendingDrag.StartPoint;
+            var winPos = Window.GetWindow(this).PointToScreen((Point)deltaPos);
+            Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
+
+            var data = new DragData(PendingDrag.Item);
+            AnyDockManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
+        }
+
+
     }
 }
