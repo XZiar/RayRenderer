@@ -80,18 +80,6 @@ namespace AnyDock
             throw new NotImplementedException();
         }
     }
-    internal class DragData
-    {
-        internal readonly UIElement Element;
-        internal readonly AnyDockPanel Panel;
-        internal readonly bool AllowDrag;
-        internal DragData(UIElement source)
-        {
-            Element = source;
-            Panel = AnyDockManager.GetParentDock(Element);
-            AllowDrag = AnyDockManager.GetAllowDrag(Element);
-        }
-    }
 
     public class AnyDockManager
     {

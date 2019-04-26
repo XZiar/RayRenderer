@@ -203,10 +203,12 @@ namespace AnyDock
             var curPoint = Mouse.GetPosition(null);
             var deltaPos = curPoint - PendingDrag.StartPoint;
             var winPos = Window.GetWindow(this).PointToScreen((Point)deltaPos);
-            Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
-
-            var data = new DragData(PendingDrag.Item);
-            DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
+            //Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
+            if (AnyDockManager.GetAllowDrag(PendingDrag.Item))
+            {
+                var data = new DragData(PendingDrag.Item);
+                DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
+            }
         }
 
         public virtual void OnDragIn(DragData data, Point pos)

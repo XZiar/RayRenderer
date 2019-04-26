@@ -58,30 +58,7 @@ namespace AnyDock
             "Orientation",
             typeof(Orientation),
             typeof(AnyDockPanel),
-            new FrameworkPropertyMetadata(Orientation.Horizontal, FrameworkPropertyMetadataOptions.AffectsRender, OnOrientationChanged));
-        private static void OnOrientationChanged(DependencyObject obj, DependencyPropertyChangedEventArgs e)
-        {
-            if (e.NewValue != e.OldValue) 
-            {
-                var self = (AnyDockPanel)obj;
-                var newOri = (Orientation)e.NewValue;
-                //self.MainGrid.RowDefinitions.Clear();
-                //self.MainGrid.ColumnDefinitions.Clear();
-                //if (newOri == Orientation.Horizontal)
-                //{
-                //    self.MainGrid.RowDefinitions.Add(new RowDefinition());
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //}
-                //else
-                //{
-
-                //}
-                //if (self.Group1 != null)
-
-            }
-        }
+            new FrameworkPropertyMetadata(Orientation.Horizontal, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public Orientation Orientation
         {
@@ -176,11 +153,15 @@ namespace AnyDock
             Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
             Loaded += (o, e) => 
             {
+                DragManager.RegistDragHost(this);
                 ShouldRefresh = true;
                 RefreshState();
             };
+            Unloaded += (o, e) =>
+            {
+                DragManager.UnregistDragHost(this);
+            };
         }
-
 
         private void RefreshState()
         {

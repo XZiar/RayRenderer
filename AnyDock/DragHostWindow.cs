@@ -20,7 +20,7 @@ namespace AnyDock
         internal event WindowDragEventHandler Draging;
         internal event WindowDragEventHandler Draged;
 
-        private HwndSource WindowHandle;
+        //private HwndSource WindowHandle;
         private readonly Point MouseDeltaPoint;
         internal readonly DragData Data;
         public DragHostWindow(Point startPoint, Point deltaPoint, UIElement content, DragData data)
@@ -29,6 +29,10 @@ namespace AnyDock
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
             IsHitTestVisible = false;
+            ShowInTaskbar = false;
+            ShowActivated = false;
+            Focusable = false;
+            FocusManager.SetIsFocusScope(this, false);
             ResizeMode = ResizeMode.NoResize;
             SizeToContent = SizeToContent.WidthAndHeight;
             WindowStartupLocation = WindowStartupLocation.Manual;
@@ -45,16 +49,15 @@ namespace AnyDock
             var deltaPos = Mouse.GetPosition(this) - MouseDeltaPoint;
             ReleaseMouseCapture();
             Left += deltaPos.X; Top += deltaPos.Y;
-            WindowHandle = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
-            WindowHandle.AddHook(HookWindowProc);
+            //WindowHandle = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            //WindowHandle.AddHook(HookWindowProc);
             LocationChanged += OnDragWindow;
             if (Mouse.LeftButton == MouseButtonState.Pressed)
             {
                 Draging(this, GetMouseScreenPos(), Data);
                 DragMove(); // blocking call
             }
-            else
-                FinishDrag();
+            FinishDrag();
         }
 
         private Point GetMouseScreenPos()
@@ -84,9 +87,10 @@ namespace AnyDock
         private void FinishDrag()
         {
             LocationChanged -= OnDragWindow;
-            WindowHandle.RemoveHook(HookWindowProc);
-            Draged(this, GetMouseScreenPos(), Data);
+            //WindowHandle.RemoveHook(HookWindowProc);
+            var pos = GetMouseScreenPos();
             Close();
+            Draged(this, pos, Data);
         }
 
     }

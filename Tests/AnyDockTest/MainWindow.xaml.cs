@@ -24,6 +24,7 @@ namespace AnyDockTest
         public MainWindow()
         {
             //new RealDockWindow().ShowDialog();
+            //new DPITestWindow().Show();
             InitializeComponent();
         }
 
