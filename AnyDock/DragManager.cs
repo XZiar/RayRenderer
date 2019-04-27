@@ -36,8 +36,11 @@ namespace AnyDock
         internal static void RegistDragHost(AnyDockPanel panel)
         {
             var window = Window.GetWindow(panel);
-            WindowTable.Add(panel, window);
-            ReferenceTable[window] = ReferenceTable.TryGetValue(window, out uint count) ? count + 1 : 1;
+            if (window != null)
+            {
+                WindowTable.Add(panel, window);
+                ReferenceTable[window] = ReferenceTable.TryGetValue(window, out uint count) ? count + 1 : 1;
+            }
         }
         internal static void UnregistDragHost(AnyDockPanel panel)
         {
@@ -75,7 +78,7 @@ namespace AnyDock
         {
             data.Panel.Children.Remove(data.Element);
             ZOrderWindows = GetZOrderWindows().ToArray();
-            var dragWindow = new DragHostWindow(windowPos, deltaPoint, data.Element, data);
+            var dragWindow = new DragHostWindow(windowPos, deltaPoint, data);
             dragWindow.Draging += OnDraging;
             dragWindow.Draged += OnDraged;
             dragWindow.Show();
@@ -130,7 +133,6 @@ namespace AnyDock
         }
         private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
         {
-            window.Content = null;
             ZOrderWindows = null;
             //ProbeDrag(screenPos, data);
             //LoacationChanged(Draging) must happen before DragMove finished(Drop)
@@ -141,8 +143,28 @@ namespace AnyDock
             }
             else
             {
-                data.Panel.Children.Add(data.Element);
+                var panel = new AnyDockPanel()
+                {
+                    TabStripPlacement = data.Panel.TabStripPlacement,
+                    AllowDropTab = data.Panel.AllowDropTab
+                };
+                panel.Children.Add(data.Element);
+
+                var extraWidth = SystemParameters.ResizeFrameVerticalBorderWidth;
+                var extraHeight = SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight;
+                var newWindow = new Window
+                {
+                    SizeToContent = SizeToContent.Manual,
+                    Width = window.Width + extraWidth, 
+                    Height = window.Height + extraHeight,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = window.Left - extraWidth, Top = window.Top - extraHeight,
+                    Content = panel
+                };
+                newWindow.Show();
+                //data.Panel.Children.Add(data.Element);
             }
         }
+
     }
 }

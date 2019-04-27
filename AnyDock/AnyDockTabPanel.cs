@@ -190,6 +190,7 @@ namespace AnyDock
             base.OnMouseMove(e);
         }
 
+        private static Point OriginPoint = new Point(0, 0);
         private void BeginTabItemDrag(MouseEventArgs e)
         {
             PendingDrag.Source = null;
@@ -206,6 +207,8 @@ namespace AnyDock
             //Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
             if (AnyDockManager.GetAllowDrag(PendingDrag.Item))
             {
+                if (TemplatedParent is TabControl tabControl)
+                    PendingDrag.StartPoint += (Vector)TranslatePoint(OriginPoint, tabControl);
                 var data = new DragData(PendingDrag.Item);
                 DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
             }

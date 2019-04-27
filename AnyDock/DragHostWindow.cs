@@ -23,7 +23,7 @@ namespace AnyDock
         //private HwndSource WindowHandle;
         private readonly Point MouseDeltaPoint;
         internal readonly DragData Data;
-        public DragHostWindow(Point startPoint, Point deltaPoint, UIElement content, DragData data)
+        public DragHostWindow(Point startPoint, Point deltaPoint, DragData data)
         {
             Data = data;
             WindowStyle = WindowStyle.None;
@@ -34,12 +34,21 @@ namespace AnyDock
             Focusable = false;
             FocusManager.SetIsFocusScope(this, false);
             ResizeMode = ResizeMode.NoResize;
-            SizeToContent = SizeToContent.WidthAndHeight;
+            SizeToContent = SizeToContent.Manual;
+            Width = Data.Panel.ActualWidth;
+            Height = Data.Panel.ActualHeight;
+            //SizeToContent = SizeToContent.WidthAndHeight;
             WindowStartupLocation = WindowStartupLocation.Manual;
             Left = startPoint.X; Top = startPoint.Y;
             MouseDeltaPoint = deltaPoint;
             ContentRendered += ContentFirstRendered;
-            Content = content;
+
+            var panel = new AnyDockPanel(false)
+            {
+                TabStripPlacement = Data.Panel.TabStripPlacement
+            };
+            panel.Children.Add(Data.Element);
+            Content = panel;
         }
 
         private void ContentFirstRendered(object sender, EventArgs e)
@@ -89,6 +98,7 @@ namespace AnyDock
             LocationChanged -= OnDragWindow;
             //WindowHandle.RemoveHook(HookWindowProc);
             var pos = GetMouseScreenPos();
+            ((AnyDockPanel)Content).Children.Clear();
             Close();
             Draged(this, pos, Data);
         }

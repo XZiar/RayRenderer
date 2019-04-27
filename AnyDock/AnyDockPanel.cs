@@ -141,7 +141,8 @@ namespace AnyDock
             DragOverLay = (Viewbox)ResDict["DragOverLay"];
         }
 
-        public AnyDockPanel()
+        public AnyDockPanel() : this(true) { }
+        public AnyDockPanel(bool needRegister)
         {
             Template = AnyDockPanelTemplate;
             ApplyTemplate();
@@ -151,17 +152,19 @@ namespace AnyDock
             Splitter = (GridSplitter)Template.FindName("Splitter", this);
 
             Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
+            if (needRegister)
+            {
+                Loaded += (o, e) => DragManager.RegistDragHost(this);
+                Unloaded += (o, e) => DragManager.UnregistDragHost(this);
+            }
             Loaded += (o, e) => 
             {
-                DragManager.RegistDragHost(this);
                 ShouldRefresh = true;
                 RefreshState();
             };
-            Unloaded += (o, e) =>
-            {
-                DragManager.UnregistDragHost(this);
-            };
         }
+
+        
 
         private void RefreshState()
         {
