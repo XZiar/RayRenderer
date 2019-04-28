@@ -1,0 +1,52 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:wpf="clr-namespace:System.Windows.Controls;assembly=PresentationFramework" 
+                    xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+                    xmlns:local="clr-namespace:AnyDock">
+    <local:TabStripAngleConverter x:Key="TabStripAngleConv"/>
+    <local:CollapseIfEmptyConverter x:Key="CollapseIfEmpty"/>
+    <ControlTemplate x:Key="AnyDockSidePanelTemplate" TargetType="{x:Type local:AnyDockSidePanel}">
+        <!--, diag:PresentationTraceSources.TraceLevel=High-->
+        <DockPanel x:Name="RealContent">
+            <ItemsControl x:Name="HiddenBar" DockPanel.Dock="{TemplateBinding TabStripPlacement}" Margin="1 2 1 2">
+                <ItemsControl.Style>
+                    <Style TargetType="ItemsControl">
+                        <Style.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </Style.Triggers>
+                        <Setter Property="ItemTemplate">
+                            <Setter.Value>
+                                <DataTemplate>
+                                    <TextBlock x:Name="Header" Margin="2 0 2 0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis" Background="Transparent"
+                                   Foreground="{Binding TemplatedParent.Foreground, RelativeSource={RelativeSource TemplatedParent}}" 
+                                   Text="{Binding (local:AnyDockManager.PageName)}" />
+                                </DataTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ItemsControl.Style>
+                <ItemsControl.LayoutTransform>
+                    <RotateTransform Angle="{TemplateBinding TabStripPlacement, Converter={StaticResource TabStripAngleConv}}"/>
+                </ItemsControl.LayoutTransform>
+            </ItemsControl>
+            <TabControl x:Name="MainContent">
+                <TabControl.Style>
+                    <Style TargetType="TabControl">
+                        <Style.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabControl.Style>
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Header" Value="{Binding (local:AnyDockManager.PageName)}"/>
+                    </Style>
+                </TabControl.ItemContainerStyle>
+            </TabControl>
+        </DockPanel>
+    </ControlTemplate>
+</ResourceDictionary>

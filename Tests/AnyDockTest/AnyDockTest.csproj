@@ -58,6 +58,9 @@
     <Compile Include="DPITestWindow.xaml.cs">
       <DependentUpon>DPITestWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="NewDockPanel.xaml.cs">
+      <DependentUpon>NewDockPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="RealDockPanel.cs" />
     <Compile Include="RealDockWindow.xaml.cs">
       <DependentUpon>RealDockWindow.xaml</DependentUpon>
@@ -78,6 +81,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="NewDockPanel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="RealDockWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

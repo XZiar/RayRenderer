@@ -57,12 +57,19 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnyDockHost.cs" />
+    <Compile Include="AnyDockSidePanel.cs" />
     <Compile Include="AnyDockTabItem.cs" />
     <Compile Include="DragManager.cs" />
+    <Compile Include="ObservableCollectionEx.cs" />
     <Compile Include="SquareButton.cs" />
     <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AnyDockSidePanel.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="AnyDockTabLabel.xaml">
       <SubType>Designer</SubType>

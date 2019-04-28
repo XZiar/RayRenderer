@@ -79,7 +79,7 @@ namespace AnyDock
             protected set { SetValue(StatePropertyKey, value); }
         }
 
-        public ObservableCollection<UIElement> Children { get; } = new ObservableCollection<UIElement>();
+        public ObservableCollectionEx<UIElement> Children { get; } = new ObservableCollectionEx<UIElement>();
 
         public AnyDockPanel Group1
         {
