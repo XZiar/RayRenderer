@@ -2,9 +2,11 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:wpf="clr-namespace:System.Windows.Controls;assembly=PresentationFramework" 
                     xmlns:local="clr-namespace:AnyDock">
-    <ControlTemplate x:Key="MoreTabDrop" TargetType="{x:Type Button}">
-        <Path Stroke="{TemplateBinding Foreground}" Fill="{TemplateBinding Foreground}" Stretch="Uniform" Data="M 0,2 6,2 3,5 Z"/>
-    </ControlTemplate>
+    <local:SquareButton x:Key="MoreTabDrop" x:Shared="False" x:Name="btnMoreTabDrop" 
+                        VerticalAlignment="Center" HorizontalAlignment="Center" 
+                        Margin="2 0 2 0" BorderThickness="0" Background="Transparent">
+        <Path Stroke="{Binding Foreground, ElementName=btnMoreTabDrop}" Fill="{Binding Foreground, ElementName=btnMoreTabDrop}" Stretch="Uniform" Data="M 0,2 6,2 3,5 Z"/>
+    </local:SquareButton>
     <ControlTemplate x:Key="TabsPin" TargetType="{x:Type Button}">
         <Path Stroke="{TemplateBinding Foreground}" Fill="{TemplateBinding Foreground}" Stretch="Uniform" Data="M 0,2 6,2 3,5 Z"/>
     </ControlTemplate>

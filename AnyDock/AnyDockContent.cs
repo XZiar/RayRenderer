@@ -23,6 +23,10 @@ namespace AnyDock
             base.OnContentChanged(oldContent, newContent);
             ParentDockPoint = AnyDockManager.GetParentDock((UIElement)newContent);
         }
+        public virtual bool RecieveDrag()
+        {
+            return ParentDockPoint?.AllowDropTab ?? true;
+        }
 
         public virtual void OnDragIn(DragData data, Point pos)
         {

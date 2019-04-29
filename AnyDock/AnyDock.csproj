@@ -59,7 +59,8 @@
   <ItemGroup>
     <Compile Include="AnyDockHost.cs" />
     <Compile Include="AnyDockSidePanel.cs" />
-    <Compile Include="AnyDockTabItem.cs" />
+    <Compile Include="DraggableTabControl.cs" />
+    <Compile Include="DraggableTabPanel.cs" />
     <Compile Include="DragManager.cs" />
     <Compile Include="ObservableCollectionEx.cs" />
     <Compile Include="SquareButton.cs" />
@@ -80,9 +81,12 @@
     <Compile Include="AnyDockTabLabel.xaml.cs">
       <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AnyDockTabPanel.cs" />
     <Compile Include="AnyDockUtil.cs" />
-    <Page Include="AnyDockTabPanel.res.xaml">
+    <Page Include="DraggableTabPanel.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DraggableTabControl.res.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

@@ -24,7 +24,7 @@ namespace AnyDock
     }
     internal interface IDragRecievePoint
     {
-        AnyDockPanel ParentDockPoint { get; }
+        bool RecieveDrag();
         void OnDragIn(DragData data, Point pos);
         void OnDragOut(DragData data, Point pos);
         void OnDragDrop(DragData data, Point pos);
@@ -89,7 +89,7 @@ namespace AnyDock
         {
             while (element != null)
             {
-                if (element is IDragRecievePoint target && (target.ParentDockPoint?.AllowDropTab ?? false))
+                if (element is IDragRecievePoint target && target.RecieveDrag())
                     return target;
                 element = VisualTreeHelper.GetParent(element);
             }

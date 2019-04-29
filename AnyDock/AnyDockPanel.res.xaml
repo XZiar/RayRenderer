@@ -49,12 +49,13 @@
                     </GridSplitter.Style>
                 </GridSplitter>
             </Grid>
-            <TabControl x:Name="MainTab" Visibility="Collapsed"
+            <local:DraggableTabControl x:Name="MainTab" Visibility="Collapsed"
                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                             TabStripPlacement="{TemplateBinding TabStripPlacement}" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
+                                       AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
                             ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
-                <TabControl.Template>
+                <!--<TabControl.Template>
                     <ControlTemplate TargetType="{x:Type TabControl}">
                         <DockPanel ClipToBounds="True" KeyboardNavigation.TabNavigation="Local">
                             <local:AnyDockTabPanel x:Name="headerPanel" Background="Transparent" Margin="2,2,2,0" IsItemsHost="True"
@@ -69,8 +70,8 @@
                             </Border>
                         </DockPanel>
                     </ControlTemplate>
-                </TabControl.Template>
-                <TabControl.ItemContainerStyle>
+                </TabControl.Template>-->
+                <local:DraggableTabControl.ItemContainerStyle>
                     <Style TargetType="TabItem">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="HeaderTemplate">
@@ -80,15 +81,15 @@
                                 </DataTemplate>
                             </Setter.Value>
                         </Setter>
-                        <Setter Property="Header" Value="{Binding}"/>
+                        <!--<Setter Property="Header" Value="{Binding}"/>-->
                     </Style>
-                </TabControl.ItemContainerStyle>
-                <TabControl.ContentTemplate>
+                </local:DraggableTabControl.ItemContainerStyle>
+                <local:DraggableTabControl.ContentTemplate>
                     <DataTemplate>
                         <local:AnyDockContent Content="{Binding}"/>
                     </DataTemplate>
-                </TabControl.ContentTemplate>
-            </TabControl>
+                </local:DraggableTabControl.ContentTemplate>
+            </local:DraggableTabControl>
         </Grid>
         <ControlTemplate.Triggers>
             <Trigger Property="State" Value="Group">
