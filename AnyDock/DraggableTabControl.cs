@@ -19,21 +19,23 @@ namespace AnyDock
     
     internal class SimpleTabItem : TabItem
     {
+        private static readonly ControlTemplate SimpleTabItemTemplate;
+        static SimpleTabItem()
+        {
+            SimpleTabItemTemplate = (ControlTemplate)DraggableTabControl.ResDict["SimpleTabItemTemplate"];
+        }
         public SimpleTabItem()
         {
-            DataContextChanged += OnDataContextChanged;
+            Template = SimpleTabItemTemplate;
         }
         public DraggableTabControl TabControlParent => ItemsControl.ItemsControlFromItemContainer(this) as DraggableTabControl;
-        private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            Header = e.NewValue;
-        }
+
     }
 
     [ContentProperty(nameof(RealChildren))]
     public class DraggableTabControl : TabControl
     {
-        private static readonly ResourceDictionary ResDict;
+        internal static readonly ResourceDictionary ResDict;
         private static readonly ControlTemplate DraggableTabControlTemplate;
         public static readonly DependencyProperty AllowDropTabProperty = DependencyProperty.Register(
             "AllowDropTab",
@@ -60,7 +62,7 @@ namespace AnyDock
         public override void OnApplyTemplate()
         {
             base.OnApplyTemplate();
-            TabPanel = (DraggableTabPanel)Template.FindName("TabPanel", this);
+            //TabPanel = (DraggableTabPanel)Template.FindName("TabPanel", this);
         }
         protected override DependencyObject GetContainerForItemOverride()
         {

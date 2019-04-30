@@ -13,19 +13,30 @@
         <local:TabStripAngleConverter x:Key="TabStripToAngle"/>
     </ContentControl.Resources>
     <DockPanel Background="Transparent">
-        <Image x:Name="imgIcon" DockPanel.Dock="Left" Margin="2 0 2 0" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
-               Source="{Binding (local:AnyDockManager.PageIcon)}" 
+        <Image x:Name="imgIcon" DockPanel.Dock="Left" Margin="2 0 2 0" Stretch="Fill"
+               Source="{Binding (local:AnyDockManager.PageIcon)}" RenderOptions.BitmapScalingMode="HighQuality"
                Visibility="{Binding (local:AnyDockManager.PageIcon), Converter={StaticResource CollapseIfNull}}"
-               Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"/>
-        <local:SquareButton x:Name="btnClose" DockPanel.Dock="Right" VerticalAlignment="Center" HorizontalAlignment="Center" 
-                Margin="2 0 2 0" BorderThickness="0" Background="Transparent"
-                Visibility="{Binding (local:AnyDockManager.CanClose), Converter={StaticResource CollapseIfFalse}}"
-                TargetSize="{Binding ActualHeight, ElementName=Header}"
+               Width="16" Height="16"/>
+        <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                Width="16" Height="16"
+                VerticalAlignment="Center" HorizontalAlignment="Center" 
+                BorderThickness="0" Background="Transparent"
                 Click="HandleClose">
             <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="Uniform" StrokeThickness="1.5" 
                   Stroke="{Binding ParentTab.Foreground, ElementName=self}"/>
-        </local:SquareButton>
-        <TextBlock x:Name="Header" Margin="2 0 2 0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding (local:AnyDockManager.CanClose)}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+        <TextBlock x:Name="Header" Margin="2 0 2 0" Height="16"
+                   VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
                    Foreground="{Binding ParentTab.Foreground, ElementName=self}" Background="Transparent"
                    Text="{Binding (local:AnyDockManager.PageName)}" />
     </DockPanel>

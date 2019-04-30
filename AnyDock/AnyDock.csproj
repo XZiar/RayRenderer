@@ -59,6 +59,7 @@
   <ItemGroup>
     <Compile Include="AnyDockHost.cs" />
     <Compile Include="AnyDockSidePanel.cs" />
+    <Compile Include="DominantBidirectionalPanel.cs" />
     <Compile Include="DraggableTabControl.cs" />
     <Compile Include="DraggableTabPanel.cs" />
     <Compile Include="DragManager.cs" />

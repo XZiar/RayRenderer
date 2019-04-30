@@ -55,25 +55,8 @@
                             TabStripPlacement="{TemplateBinding TabStripPlacement}" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
                                        AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
                             ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
-                <!--<TabControl.Template>
-                    <ControlTemplate TargetType="{x:Type TabControl}">
-                        <DockPanel ClipToBounds="True" KeyboardNavigation.TabNavigation="Local">
-                            <local:AnyDockTabPanel x:Name="headerPanel" Background="Transparent" Margin="2,2,2,0" IsItemsHost="True"
-                                                   KeyboardNavigation.TabIndex="1" Panel.ZIndex="1" DockPanel.Dock="{TemplateBinding TabStripPlacement}"
-                                                   ParentDock="{Binding TemplatedParent, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            <Border x:Name="contentPanel" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                    KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local"
-                                    Background="{TemplateBinding Background}"
-                                    Visibility="{Binding TemplatedParent.IsHidden, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CollapseIfTrue}}">
-                                <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" 
-                                                  Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                            </Border>
-                        </DockPanel>
-                    </ControlTemplate>
-                </TabControl.Template>-->
                 <local:DraggableTabControl.ItemContainerStyle>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Background" Value="Transparent"/>
+                    <Style TargetType="{x:Type local:SimpleTabItem}">
                         <Setter Property="HeaderTemplate">
                             <Setter.Value>
                                 <DataTemplate>

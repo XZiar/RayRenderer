@@ -49,5 +49,11 @@ namespace AnyDock
             if (earg.ShouldClose)
                 ParentPanel.Children.Remove(element);
         }
+
+        protected override Size MeasureOverride(Size constraint)
+        {
+            var ret = base.MeasureOverride(constraint);
+            return ret;
+        }
     }
 }

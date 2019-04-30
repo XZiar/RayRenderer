@@ -31,12 +31,12 @@ namespace AnyDockTest
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            Sub.TabStripPlacement = (Dock)(((int)Sub.TabStripPlacement + 1) % 4);
-            var left = adpLeft.SelfCheck(0);
-            var right = adpRight.SelfCheck(0);
-            var msg = new TextBlock { Text = left+right };
-            var box = new Window { Content = msg };
-            box.ShowDialog();
+            //Sub.TabStripPlacement = (Dock)(((int)Sub.TabStripPlacement + 1) % 4);
+            //var left = adpLeft.SelfCheck(0);
+            //var right = adpRight.SelfCheck(0);
+            //var msg = new TextBlock { Text = left+right };
+            //var box = new Window { Content = msg };
+            //box.ShowDialog();
         }
 
         private void Label_Closing(UIElement sender, TabClosingEventArgs e)

@@ -13,22 +13,41 @@ namespace AnyDock
 {
     internal class DraggableTabPanel : Panel, IDragRecievePoint
     {
-
         private static readonly ResourceDictionary ResDict;
+
+        public static readonly DependencyProperty ShowAllTabsProperty = DependencyProperty.Register(
+            "ShowAllTabs",
+            typeof(bool),
+            typeof(DraggableTabPanel),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
+        public bool ShowAllTabs
+        {
+            get => (bool)GetValue(ShowAllTabsProperty);
+            set => SetValue(ShowAllTabsProperty, value);
+        }
+
+        private static readonly DependencyPropertyKey IsTabsOverflowPropertyKey = DependencyProperty.RegisterReadOnly(
+            "IsTabsOverflow",
+            typeof(bool),
+            typeof(DraggableTabPanel),
+            new FrameworkPropertyMetadata(false));
+        public bool IsTabsOverflow
+        {
+            get => (bool)GetValue(IsTabsOverflowPropertyKey.DependencyProperty);
+            private set => SetValue(IsTabsOverflowPropertyKey, value);
+        }
 
         static DraggableTabPanel()
         {
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/DraggableTabPanel.res.xaml", UriKind.RelativeOrAbsolute) };
         }
 
-        private readonly SquareButton MoreTabsButton;
         public DraggableTabPanel()
         {
-            MoreTabsButton = ResDict["MoreTabDrop"] as SquareButton;
         }
 
         private Dock TabStripPlacement => (TemplatedParent as TabControl)?.TabStripPlacement ?? Dock.Top;
-        private int SelectedIndex => (TemplatedParent as TabControl)?.SelectedIndex ?? -1;
+        private int? SelectedIndex => (TemplatedParent as TabControl)?.SelectedIndex;
 
         #region Layout Helper Functions
         private static Size GetDesiredSizeWithoutMargin(UIElement element)
@@ -74,33 +93,37 @@ namespace AnyDock
         #region Layout Functions
         protected override Size MeasureOverride(Size constraint)
         {
-            //var old = base.MeasureOverride(constraint);
             var totalSize = new Vector(0, 0);
             var desireSize = new Size(0, 0);
-            var kids = InternalChildren.Cast<FrameworkElement>().Where(e => e.Visibility != Visibility.Collapsed);
-            foreach (UIElement child in kids)
+            var kids = InternalChildren.Cast<UIElement>().Where(x => x.Visibility != Visibility.Collapsed).ToArray();
+            if (ShowAllTabs)
             {
-                if (child == MoreTabsButton || child.Visibility == Visibility.Collapsed)
-                    continue;
-                child.Measure(constraint);
-                var size = (Vector)GetDesiredSizeWithoutMargin(child);
+                if (TabStripPlacement == Dock.Top || TabStripPlacement == Dock.Bottom)
+                    constraint.Width /= kids.Length;
+                else
+                    constraint.Height /= kids.Length;
+            }
+            foreach (var kid in kids)
+            {
+                kid.Measure(constraint);
+                var size = (Vector)GetDesiredSizeWithoutMargin(kid);
                 totalSize += size;
                 desireSize.Width = Math.Max(desireSize.Width, size.X); desireSize.Height = Math.Max(desireSize.Height, size.Y);
             }
             bool IsAutoSize(double val) => double.IsNaN(val) || double.IsInfinity(val);
             if (TabStripPlacement == Dock.Top || TabStripPlacement == Dock.Bottom)
+            {
                 desireSize.Width = IsAutoSize(constraint.Width) ? totalSize.X : constraint.Width;
+                IsTabsOverflow = !ShowAllTabs && totalSize.X > constraint.Width;
+            }
             else
+            {
                 desireSize.Height = IsAutoSize(constraint.Height) ? totalSize.Y : constraint.Height;
-            MoreTabsButton.Measure(desireSize);
+                IsTabsOverflow = !ShowAllTabs && totalSize.Y > constraint.Height;
+            }
             return desireSize;
         }
-        //protected override void OnRender(DrawingContext dc)
-        //{
-        //    base.OnRender(dc);
-        //    dc.
-        //    MoreTabsButton.Render
-        //}
+
         private struct LabelZone
         {
             public Rect BoundingBox;
@@ -110,51 +133,56 @@ namespace AnyDock
         protected override Size ArrangeOverride(Size arrangeSize)
         {
             DisplayedLabels.Clear();
-            var kids = InternalChildren.Cast<FrameworkElement>().Where(e => e.Visibility != Visibility.Collapsed && e != MoreTabsButton).ToArray();
+            var kids = InternalChildren.Cast<FrameworkElement>()
+                .Where(x => 
+                {
+                    if (x.Visibility != Visibility.Collapsed)
+                        return true;
+                    x.Arrange(ZeroRect); return false;
+                })
+                .ToArray();
             if (kids.Length == 0)
                 return arrangeSize;
             var isHorizontal = TabStripPlacement == Dock.Top || TabStripPlacement == Dock.Bottom;
             var lens = (isHorizontal ? kids.Select(e => GetDesiredSizeWithoutMargin(e).Width) : kids.Select(e => GetDesiredSizeWithoutMargin(e).Height))
                 .ToArray();
-            var selIdx = kids.Select((e, i) => (bool)e.GetValue(Selector.IsSelectedProperty) ? i : -1)
-                .FirstOrDefault(idx => idx >= 0);
 
-            var finRect = new Rect(arrangeSize);
-            var (idxPrev, idxNext) = GetDisplayRange(lens, isHorizontal ? arrangeSize.Width : arrangeSize.Height, selIdx);
-            //if (idxPrev >= 0 || idxNext <= kids.Length)
-            //{
-            //    var tlPoint = (Point)arrangeSize - (Point)MoreTabsButton.DesiredSize;
-            //    var btnRect = new Rect((Point)tlPoint, (Point)arrangeSize);
-            //    if (isHorizontal)
-            //        finRect.Width  -= MoreTabsButton.DesiredSize.Width;
-            //    else
-            //        finRect.Height -= MoreTabsButton.DesiredSize.Height;
-            //    MoreTabsButton.Arrange(btnRect);
-            //    (idxPrev, idxNext) = GetDisplayRange(lens, isHorizontal ? finRect.Width : finRect.Height, selIdx);
-            //}
-
-            foreach (var (i, kid, len) in kids.Select((k, i) => (i, k, lens[i])))
+            int idxPrev = -1, idxNext = kids.Length;
+            double scale = 1;
+            if (ShowAllTabs)
             {
+                var totalLen = lens.Sum();
+                scale = totalLen / (isHorizontal ? arrangeSize.Width : arrangeSize.Height);
+                if (scale > 1) scale = 1;
+            }
+            else
+            {
+                var selIdx = SelectedIndex ?? 0;
+                (idxPrev, idxNext) = GetDisplayRange(lens, isHorizontal ? arrangeSize.Width : arrangeSize.Height, selIdx);
+            }
+
+            var rect = new Rect(arrangeSize);
+            for (var i = 0; i < kids.Length; ++i)
+            {
+                var kid = kids[i];
                 if (i <= idxPrev || i >= idxNext)
                 {
                     kid.Arrange(ZeroRect);
                     continue;
                 }
+                var len = lens[i] * scale;
                 if (isHorizontal)
-                {
-                    finRect.Width = len;
-                    DisplayedLabels.Add(new LabelZone { BoundingBox = finRect, Label = kid });
-                    kid.Arrange(finRect);
-                    finRect.X += len;
-                }
+                    rect.Width = len;
                 else
-                {
-                    finRect.Height = len;
-                    DisplayedLabels.Add(new LabelZone { BoundingBox = finRect, Label = kid });
-                    kid.Arrange(finRect);
-                    finRect.Y += len;
-                }
+                    rect.Height = len;
+                DisplayedLabels.Add(new LabelZone { BoundingBox = rect, Label = kid });
+                kid.Arrange(rect);
+                if (isHorizontal)
+                    rect.X += len;
+                else
+                    rect.Y += len;
             }
+            
             return arrangeSize;
         }
         #endregion Layout Functions
