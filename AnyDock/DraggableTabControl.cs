@@ -37,6 +37,19 @@ namespace AnyDock
     {
         internal static readonly ResourceDictionary ResDict;
         private static readonly ControlTemplate DraggableTabControlTemplate;
+        private static readonly MoreTabsPopup MoreTabsPopup;
+
+        public static readonly DependencyProperty ShowAllTabsProperty = DependencyProperty.Register(
+            "ShowAllTabs",
+            typeof(bool),
+            typeof(DraggableTabControl),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
+        public bool ShowAllTabs
+        {
+            get => (bool)GetValue(ShowAllTabsProperty);
+            set => SetValue(ShowAllTabsProperty, value);
+        }
+
         public static readonly DependencyProperty AllowDropTabProperty = DependencyProperty.Register(
             "AllowDropTab",
             typeof(bool),
@@ -47,11 +60,13 @@ namespace AnyDock
             get => (bool)GetValue(AllowDropTabProperty);
             set => SetValue(AllowDropTabProperty, value);
         }
+
         static DraggableTabControl()
         {
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/DraggableTabControl.res.xaml", UriKind.RelativeOrAbsolute) };
-            DraggableTabControlTemplate = (ControlTemplate)ResDict["DraggableTabControlTemplate"];
-        }
+            DraggableTabControlTemplate = (ControlTemplate)     ResDict["DraggableTabControlTemplate"];
+            MoreTabsPopup = new MoreTabsPopup();
+    }
         
         public DraggableTabControl()
         {
@@ -61,13 +76,19 @@ namespace AnyDock
         }
         public override void OnApplyTemplate()
         {
+            if (MoreTabDropButton != null)
+                MoreTabDropButton.Click -= MoreTabDropButtonClickAsync;
             base.OnApplyTemplate();
-            //TabPanel = (DraggableTabPanel)Template.FindName("TabPanel", this);
+            MoreTabDropButton = (Button)Template.FindName("btnMoreTabDrop", this);
+            MoreTabDropButton.Click += MoreTabDropButtonClickAsync;
+            TabPanel = (DraggableTabPanel)Template.FindName("headerPanel", this);
         }
+
         protected override DependencyObject GetContainerForItemOverride()
         {
             return new SimpleTabItem();
         }
+
         internal void ReorderItem(UIElement obj, UIElement dst)
         {
             var target = (Items.SourceCollection as ObservableCollection<UIElement>);
@@ -78,8 +99,16 @@ namespace AnyDock
                 target.Move(srcIdx, dstIdx);
         }
 
+        private async void MoreTabDropButtonClickAsync(object sender, RoutedEventArgs e)
+        {
+            var newItem = await MoreTabsPopup.ShowTabs(sender as Button, Items.SourceCollection);
+            if (newItem != null)
+                SelectedItem = newItem;
+        }
+
         internal ObservableCollectionEx<UIElement> RealChildren { get; } = new ObservableCollectionEx<UIElement>();
         private DraggableTabPanel TabPanel;
+        private Button MoreTabDropButton;
         private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (ItemsSource != sender)

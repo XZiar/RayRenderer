@@ -50,10 +50,5 @@ namespace AnyDock
                 ParentPanel.Children.Remove(element);
         }
 
-        protected override Size MeasureOverride(Size constraint)
-        {
-            var ret = base.MeasureOverride(constraint);
-            return ret;
-        }
     }
 }

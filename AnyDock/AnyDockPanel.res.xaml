@@ -50,11 +50,12 @@
                 </GridSplitter>
             </Grid>
             <local:DraggableTabControl x:Name="MainTab" Visibility="Collapsed"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
-                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                            TabStripPlacement="{TemplateBinding TabStripPlacement}" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                       TabStripPlacement="{TemplateBinding TabStripPlacement}" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
                                        AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
-                            ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
+                                       ShowAllTabs="False"
+                                       ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
                 <local:DraggableTabControl.ItemContainerStyle>
                     <Style TargetType="{x:Type local:SimpleTabItem}">
                         <Setter Property="HeaderTemplate">

@@ -15,16 +15,7 @@ namespace AnyDock
     {
         private static readonly ResourceDictionary ResDict;
 
-        public static readonly DependencyProperty ShowAllTabsProperty = DependencyProperty.Register(
-            "ShowAllTabs",
-            typeof(bool),
-            typeof(DraggableTabPanel),
-            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsMeasure));
-        public bool ShowAllTabs
-        {
-            get => (bool)GetValue(ShowAllTabsProperty);
-            set => SetValue(ShowAllTabsProperty, value);
-        }
+        public bool ShowAllTabs => (TemplatedParent as DraggableTabControl)?.ShowAllTabs ?? false;
 
         private static readonly DependencyPropertyKey IsTabsOverflowPropertyKey = DependencyProperty.RegisterReadOnly(
             "IsTabsOverflow",
@@ -95,17 +86,18 @@ namespace AnyDock
         {
             var totalSize = new Vector(0, 0);
             var desireSize = new Size(0, 0);
+            var childConstraint = constraint;
             var kids = InternalChildren.Cast<UIElement>().Where(x => x.Visibility != Visibility.Collapsed).ToArray();
             if (ShowAllTabs)
             {
                 if (TabStripPlacement == Dock.Top || TabStripPlacement == Dock.Bottom)
-                    constraint.Width /= kids.Length;
+                    childConstraint.Width /= kids.Length;
                 else
-                    constraint.Height /= kids.Length;
+                    childConstraint.Height /= kids.Length;
             }
             foreach (var kid in kids)
             {
-                kid.Measure(constraint);
+                kid.Measure(childConstraint);
                 var size = (Vector)GetDesiredSizeWithoutMargin(kid);
                 totalSize += size;
                 desireSize.Width = Math.Max(desireSize.Width, size.X); desireSize.Height = Math.Max(desireSize.Height, size.Y);
@@ -152,7 +144,7 @@ namespace AnyDock
             if (ShowAllTabs)
             {
                 var totalLen = lens.Sum();
-                scale = totalLen / (isHorizontal ? arrangeSize.Width : arrangeSize.Height);
+                scale = (isHorizontal ? arrangeSize.Width : arrangeSize.Height) / totalLen;
                 if (scale > 1) scale = 1;
             }
             else

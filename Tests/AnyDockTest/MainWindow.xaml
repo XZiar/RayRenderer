@@ -7,6 +7,53 @@
         xmlns:anydock="clr-namespace:AnyDock;assembly=AnyDock"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+    <Window.Resources>
+        <ControlTemplate x:Key="MenuItemControlTemplate1" TargetType="{x:Type MenuItem}">
+            <Border x:Name="templateRoot" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                <Grid Margin="-1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition MinWidth="22" SharedSizeGroup="MenuItemIconColumnGroup" Width="Auto"/>
+                        <ColumnDefinition Width="13"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="30"/>
+                        <ColumnDefinition SharedSizeGroup="MenuItemIGTColumnGroup" Width="Auto"/>
+                        <ColumnDefinition Width="20"/>
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter x:Name="Icon" Content="{TemplateBinding Icon}" ContentSource="Icon" HorizontalAlignment="Center" Height="16" Margin="3" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center" Width="16"/>
+                    <Border x:Name="GlyphPanel" BorderBrush="#FF26A0DA" BorderThickness="1" Background="#3D26A0DA" ClipToBounds="False" HorizontalAlignment="Center" Height="22" Margin="-1,0,0,0" Visibility="Hidden" VerticalAlignment="Center" Width="22">
+                        <Path x:Name="Glyph" Data="F1M10,1.2L4.7,9.1 4.5,9.1 0,5.2 1.3,3.5 4.3,6.1 8.3,0 10,1.2z" Fill="#FF212121" FlowDirection="LeftToRight" Height="11" Width="10"/>
+                    </Border>
+                    <ContentPresenter x:Name="menuHeaderContainer" ContentTemplate="{TemplateBinding HeaderTemplate}" Content="{TemplateBinding Header}" Grid.Column="2" ContentStringFormat="{TemplateBinding HeaderStringFormat}" ContentSource="Header" HorizontalAlignment="Left" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="menuGestureText" Grid.Column="4" Margin="{TemplateBinding Padding}" Opacity="0.7" Text="{TemplateBinding InputGestureText}" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="Icon" Value="{x:Null}">
+                    <Setter Property="Visibility" TargetName="Icon" Value="Collapsed"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Visibility" TargetName="GlyphPanel" Value="Visible"/>
+                    <Setter Property="Visibility" TargetName="Icon" Value="Collapsed"/>
+                </Trigger>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" TargetName="templateRoot" Value="#3D26A0DA"/>
+                    <Setter Property="BorderBrush" TargetName="templateRoot" Value="#FF26A0DA"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="TextElement.Foreground" TargetName="templateRoot" Value="#FF707070"/>
+                    <Setter Property="Fill" TargetName="Glyph" Value="#FF707070"/>
+                </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsHighlighted" Value="True"/>
+                        <Condition Property="IsEnabled" Value="False"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" TargetName="templateRoot" Value="#0A000000"/>
+                    <Setter Property="BorderBrush" TargetName="templateRoot" Value="#21000000"/>
+                </MultiTrigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+    </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*"/>
@@ -16,12 +63,12 @@
         <DockPanel Grid.Column="1">
             <TabControl DockPanel.Dock="Top">
                 <TabItem Header="TestTab">
-                    <Grid x:Name="grid1">
+                    <StackPanel x:Name="grid1">
                         <Button>
                             <Path Stroke="Black" Fill="Black" Stretch="Uniform" Data="M 0,2 6,2 3,5 Z"/>
                         </Button>
-                        <!--<Rectangle Height="100" Fill="AliceBlue"/>-->
-                    </Grid>
+                        <MenuItem Template="{DynamicResource MenuItemControlTemplate1}"/>
+                    </StackPanel>
                 </TabItem>
                 <TabItem Header="TestTab">
                     <Grid x:Name="grid2">
@@ -61,7 +108,7 @@
             <anydock:AnyDockPanel.Group2>
                 <anydock:AnyDockPanel Foreground="Green" Background="Gray">
                     <Label Content="Hello 3" FontSize="25" anydock:AnyDockManager.PageName="Hello3" anydock:AnyDockManager.AllowDrag="False"/>
-                    <Label Content="Hello 4" FontSize="25" anydock:AnyDockManager.PageName="Hello4" anydock:AnyDockManager.Closing="Label_Closing"/>
+                    <Label Content="Hello 4" FontSize="25" anydock:AnyDockManager.PageName="HelloHere4" anydock:AnyDockManager.Closing="Label_Closing"/>
                     <Label Content="Hello 5" FontSize="25" anydock:AnyDockManager.PageName="Hello5"/>
                 </anydock:AnyDockPanel>
             </anydock:AnyDockPanel.Group2>
