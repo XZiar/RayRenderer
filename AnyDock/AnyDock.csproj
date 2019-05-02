@@ -59,10 +59,14 @@
   <ItemGroup>
     <Compile Include="AnyDockHost.cs" />
     <Compile Include="AnyDockSidePanel.cs" />
+    <Compile Include="AnyGrid.cs" />
     <Compile Include="DominantBidirectionalPanel.cs" />
     <Compile Include="DraggableTabControl.cs" />
     <Compile Include="DraggableTabPanel.cs" />
     <Compile Include="DragManager.cs" />
+    <Compile Include="DroppableContentControl.xaml.cs">
+      <DependentUpon>DroppableContentControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="HiddenBar.xaml.cs">
       <DependentUpon>HiddenBar.xaml</DependentUpon>
     </Compile>
@@ -83,7 +87,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="AnyDockContent.cs" />
     <Compile Include="AnyDockPanel.cs" />
     <Compile Include="AnyDockTabLabel.xaml.cs">
       <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
@@ -96,6 +99,10 @@
     <Page Include="DraggableTabControl.res.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DroppableContentControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="HiddenBar.xaml">
       <SubType>Designer</SubType>

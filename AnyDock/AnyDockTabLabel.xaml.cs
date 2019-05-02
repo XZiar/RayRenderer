@@ -24,12 +24,16 @@ namespace AnyDock
     {
         private AnyDockPanel ParentPanel = null;
 
-        public static readonly DependencyProperty ParentTabProperty = DependencyProperty.Register(
+        internal static readonly DependencyProperty ParentTabProperty = DependencyProperty.Register(
             "ParentTab",
-            typeof(TabControl),
+            typeof(DraggableTabControl),
             typeof(AnyDockTabLabel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
-        public TabControl ParentTab { get => (TabControl)GetValue(ParentTabProperty); set => SetValue(ParentTabProperty, value); }
+        internal DraggableTabControl ParentTab
+        {
+            get => (DraggableTabControl)GetValue(ParentTabProperty);
+            set => SetValue(ParentTabProperty, value);
+        }
 
 
         public AnyDockTabLabel()
@@ -44,10 +48,14 @@ namespace AnyDock
         private void HandleClose(object sender, RoutedEventArgs e)
         {
             var element = (UIElement)DataContext;
-            var earg = new AnyDockManager.TabClosingEventArgs(element, ParentPanel);
+            var earg = new AnyDockManager.TabCloseEventArgs(element);
             element.RaiseEvent(earg);
             if (earg.ShouldClose)
+            {
+                earg.ChangeToClosed();
+                element.RaiseEvent(earg);
                 ParentPanel.Children.Remove(element);
+            }
         }
 
     }

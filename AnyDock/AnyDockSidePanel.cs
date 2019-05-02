@@ -63,26 +63,7 @@ namespace AnyDock
             }
             return;
         }
-        private void ChildChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
-            {
-                if (e.OldItems != null)
-                    foreach (var x in e.OldItems.Cast<UIElement>())
-                    {
-                        CollapseToSidePropertyDescriptor.RemoveValueChanged(x, OnCollapseToSideChanged);
-                        ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Remove(x);
-                    }
-            }
-            if (e.NewItems != null)
-            {
-                foreach (var x in e.NewItems.Cast<UIElement>())
-                {
-                    CollapseToSidePropertyDescriptor.AddValueChanged(x, OnCollapseToSideChanged);
-                    ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Add(x);
-                }
-            }
-        }
+
         static AnyDockSidePanel()
         {
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/AnyDockSidePanel.res.xaml", UriKind.RelativeOrAbsolute) };
@@ -96,12 +77,32 @@ namespace AnyDock
         }
         public override void OnApplyTemplate()
         {
-            RealContent = (DockPanel)               Template.FindName("RealContent", this);
-            HiddenBar   = (HiddenBar)               Template.FindName("HiddenBar",   this);
-            MainContent = (DraggableTabControl)     Template.FindName("MainContent", this);
+            RealContent = (DockPanel)Template.FindName("RealContent", this);
+            HiddenBar = (HiddenBar)Template.FindName("HiddenBar", this);
+            MainContent = (DraggableTabControl)Template.FindName("MainContent", this);
             HiddenBar.ItemsSource = HiddenChildren;
             MainContent.ItemsSource = ShownChildren;
             base.OnApplyTemplate();
+        }
+
+        private void ChildChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var x in e.DeledItems<UIElement>())
+            {
+                CollapseToSidePropertyDescriptor.RemoveValueChanged(x, OnCollapseToSideChanged);
+                ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Remove(x);
+                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
+            }
+            foreach (var x in e.AddedItems<UIElement>())
+            {
+                CollapseToSidePropertyDescriptor.AddValueChanged(x, OnCollapseToSideChanged);
+                ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Add(x);
+                AnyDockManager.AddClosedHandler(x, OnTabClosed);
+            }
+        }
+        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        {
+            Children.Remove(args.TargetElement);
         }
 
     }

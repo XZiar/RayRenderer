@@ -49,6 +49,26 @@ namespace AnyDock
             get => (bool)GetValue(ShowAllTabsProperty);
             set => SetValue(ShowAllTabsProperty, value);
         }
+        public static readonly DependencyProperty ShowCloseButtonProperty = DependencyProperty.Register(
+            "ShowCloseButton",
+            typeof(bool),
+            typeof(DraggableTabControl),
+            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsMeasure));
+        public bool ShowCloseButton
+        {
+            get => (bool)GetValue(ShowCloseButtonProperty);
+            set => SetValue(ShowCloseButtonProperty, value);
+        }
+        public static readonly DependencyProperty ShowIconProperty = DependencyProperty.Register(
+            "ShowIcon",
+            typeof(bool),
+            typeof(DraggableTabControl),
+            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsMeasure));
+        public bool ShowIcon
+        {
+            get => (bool)GetValue(ShowIconProperty);
+            set => SetValue(ShowIconProperty, value);
+        }
 
         public static readonly DependencyProperty AllowDropTabProperty = DependencyProperty.Register(
             "AllowDropTab",
@@ -72,8 +92,10 @@ namespace AnyDock
         {
             Template = DraggableTabControlTemplate;
             ApplyTemplate();
-            RealChildren.CollectionChanged += OnChildrenChanged;
+            //CollectionViewSource.GetDefaultView(Items).CollectionChanged += OnChildrenChanged;
+            RealChildren.CollectionChanged += OnRealChildrenChanged;
         }
+
         public override void OnApplyTemplate()
         {
             if (MoreTabDropButton != null)
@@ -109,10 +131,19 @@ namespace AnyDock
         internal ObservableCollectionEx<UIElement> RealChildren { get; } = new ObservableCollectionEx<UIElement>();
         private DraggableTabPanel TabPanel;
         private Button MoreTabDropButton;
-        private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void OnRealChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (ItemsSource != sender)
                 ItemsSource = sender as ObservableCollectionEx<UIElement>;
+            foreach (var x in e.DeledItems<UIElement>())
+                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
+            foreach (var x in e.AddedItems<UIElement>())
+                AnyDockManager.AddClosedHandler(x, OnTabClosed);
+        }
+
+        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        {
+            RealChildren.Remove(args.TargetElement);
         }
 
     }

@@ -39,10 +39,10 @@ namespace AnyDockTest
             //box.ShowDialog();
         }
 
-        private void Label_Closing(UIElement sender, TabClosingEventArgs e)
+        private void Label_Closing(UIElement sender, TabCloseEventArgs e)
         {
             grid1.Visibility = Visibility.Collapsed;
-            e.ParentPanel.IsHidden = !e.ParentPanel.IsHidden;
+            e.ShouldClose = false;
             e.Handled = true;
         }
     }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -90,6 +91,27 @@ namespace AnyDock
         }
     }
 
+    static class Helper
+    {
+        internal static IEnumerable<T> DeledItems<T>(this NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Reset ||
+                e.Action == NotifyCollectionChangedAction.Remove ||
+                e.Action == NotifyCollectionChangedAction.Replace)
+                if (e.OldItems != null)
+                    return e.OldItems.Cast<T>();
+            return Enumerable.Empty<T>();
+        }
+        internal static IEnumerable<T> AddedItems<T>(this NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add ||
+                e.Action == NotifyCollectionChangedAction.Replace)
+                if (e.NewItems != null)
+                    return e.NewItems.Cast<T>();
+            return Enumerable.Empty<T>();
+        }
+    }
+
     public class AnyDockManager
     {
         private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
@@ -132,23 +154,34 @@ namespace AnyDock
         public static bool GetCanClose(UIElement element) => (bool)element.GetValue(CanCloseProperty);
         public static void SetCanClose(UIElement element, bool value) => element.SetValue(CanCloseProperty, value);
 
-        public class TabClosingEventArgs : RoutedEventArgs
+        public class TabCloseEventArgs : RoutedEventArgs
         {
-            public readonly AnyDockPanel ParentPanel;
-            public bool ShouldClose = false;
-            internal TabClosingEventArgs(UIElement element, AnyDockPanel panel) : base(ClosingEvent, element) { ParentPanel = panel; }
+            public readonly UIElement TargetElement;
+            public bool ShouldClose = true;
+            internal TabCloseEventArgs(UIElement element) : base(ClosingEvent) { TargetElement = element; }
+            internal void ChangeToClosed() { RoutedEvent = ClosedEvent; }
         }
-        public delegate void TabClosingEventHandler(UIElement sender, TabClosingEventArgs args);
+        public delegate void TabCloseEventHandler(UIElement sender, TabCloseEventArgs args);
 
         public static readonly RoutedEvent ClosingEvent = EventManager.RegisterRoutedEvent(
             "Closing",
             RoutingStrategy.Direct,
-            typeof(TabClosingEventHandler),
+            typeof(TabCloseEventHandler),
             typeof(AnyDockManager));
-        public static void AddClosingHandler(UIElement element, TabClosingEventHandler handler) =>
+        public static void AddClosingHandler(UIElement element, TabCloseEventHandler handler) =>
             element.AddHandler(ClosingEvent, handler);
-        public static void RemoveClosingHandler(UIElement element, TabClosingEventHandler handler) =>
+        public static void RemoveClosingHandler(UIElement element, TabCloseEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
+
+        internal static readonly RoutedEvent ClosedEvent = EventManager.RegisterRoutedEvent(
+            "Closed",
+            RoutingStrategy.Direct,
+            typeof(TabCloseEventHandler),
+            typeof(AnyDockManager));
+        internal static void AddClosedHandler(UIElement element, TabCloseEventHandler handler) =>
+            element.AddHandler(ClosedEvent, handler);
+        internal static void RemoveClosedHandler(UIElement element, TabCloseEventHandler handler) =>
+            element.RemoveHandler(ClosedEvent, handler);
 
         internal static void MoveItem(UIElement src, UIElement dst)
         {

@@ -107,26 +107,25 @@ namespace AnyDock
         }
         private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.NewItems != null)
+            foreach (var x in e.DeledItems<UIElement>())
             {
-                foreach (var x in e.NewItems.Cast<object>())
-                {
-                    if (!(x is UIElement ele))
-                        throw new InvalidOperationException("Only UIElement can be added");
-                    if (ele is AnyDockPanel)
-                        throw new InvalidOperationException("DockPanel should not be children!");
-                    AnyDockManager.SetParentDock(ele, this);
-                    MainTab.SelectedItem = ele;
-                }
+                AnyDockManager.SetParentDock(x, null);
+                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
             }
-            if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
+            foreach (var x in e.AddedItems<UIElement>())
             {
-                if (e.OldItems != null)
-                    foreach (var x in e.OldItems.Cast<UIElement>())
-                        AnyDockManager.SetParentDock(x, null);
-                if (Children.Count == 0 && ShouldRefresh)
-                    RefreshState();
+                if (x is AnyDockPanel)
+                    throw new InvalidOperationException("DockPanel should not be children!");
+                AnyDockManager.SetParentDock(x, this);
+                MainTab.SelectedItem = x;
+                AnyDockManager.AddClosedHandler(x, OnTabClosed);
             }
+            if (Children.Count == 0 && ShouldRefresh)
+                RefreshState();
+        }
+        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        {
+            Children.Remove(args.TargetElement);
         }
 
         private bool ShouldRefresh = false;
@@ -271,7 +270,7 @@ namespace AnyDock
                 Children.Move(srcIdx, dstIdx);
         }
 
-        internal void OnContentDragEnter(AnyDockContent content)
+        internal void OnContentDragEnter(DroppableContentControl content)
         {
             //Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
             DragOverLay.Height = content.ActualHeight;
@@ -285,12 +284,12 @@ namespace AnyDock
             }
             MainPanel.Children.Add(DragOverLay);
         }
-        internal void OnContentDragLeave(AnyDockContent content)
+        internal void OnContentDragLeave(DroppableContentControl content)
         {
             //Console.WriteLine($"Drag leave [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
             MainPanel.Children.Remove(DragOverLay);
         }
-        internal void OnContentDrop(AnyDockContent content, DragData src, Point screenPos)
+        internal void OnContentDrop(DroppableContentControl content, DragData src, Point screenPos)
         {
             var hitted = VisualTreeHelper.HitTest(DragOverLay, DragOverLay.PointFromScreen(screenPos));
             OnContentDragLeave(content);
