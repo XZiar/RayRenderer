@@ -63,6 +63,9 @@
     <Compile Include="DraggableTabControl.cs" />
     <Compile Include="DraggableTabPanel.cs" />
     <Compile Include="DragManager.cs" />
+    <Compile Include="HiddenBar.xaml.cs">
+      <DependentUpon>HiddenBar.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MoreTabsPopup.xaml.cs">
       <DependentUpon>MoreTabsPopup.xaml</DependentUpon>
     </Compile>
@@ -93,6 +96,10 @@
     <Page Include="DraggableTabControl.res.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="HiddenBar.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="MoreTabsPopup.xaml">
       <SubType>Designer</SubType>

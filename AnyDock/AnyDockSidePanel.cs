@@ -31,7 +31,7 @@ namespace AnyDock
 
         internal static readonly DependencyProperty TabStripPlacementProperty =
             TabControl.TabStripPlacementProperty.AddOwner(typeof(AnyDockSidePanel),
-                new FrameworkPropertyMetadata(Dock.Right, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
+                new FrameworkPropertyMetadata(Dock.Left, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
         internal Dock TabStripPlacement
         {
             get => (Dock)GetValue(TabStripPlacementProperty);
@@ -42,8 +42,8 @@ namespace AnyDock
 
 
         private DockPanel RealContent;
-        private ItemsControl HiddenBar;
-        private TabControl MainContent;
+        private HiddenBar HiddenBar;
+        private DraggableTabControl MainContent;
 
         public ObservableCollectionEx<UIElement> Children { get; } = new ObservableCollectionEx<UIElement>();
         private void OnCollapseToSideChanged(object sender, EventArgs e)
@@ -96,9 +96,9 @@ namespace AnyDock
         }
         public override void OnApplyTemplate()
         {
-            RealContent = (DockPanel)   Template.FindName("RealContent", this);
-            HiddenBar   = (ItemsControl)Template.FindName("HiddenBar",   this);
-            MainContent = (TabControl)  Template.FindName("MainContent", this);
+            RealContent = (DockPanel)               Template.FindName("RealContent", this);
+            HiddenBar   = (HiddenBar)               Template.FindName("HiddenBar",   this);
+            MainContent = (DraggableTabControl)     Template.FindName("MainContent", this);
             HiddenBar.ItemsSource = HiddenChildren;
             MainContent.ItemsSource = ShownChildren;
             base.OnApplyTemplate();

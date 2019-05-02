@@ -8,45 +8,77 @@
     <ControlTemplate x:Key="AnyDockSidePanelTemplate" TargetType="{x:Type local:AnyDockSidePanel}">
         <!--, diag:PresentationTraceSources.TraceLevel=High-->
         <DockPanel x:Name="RealContent">
-            <ItemsControl x:Name="HiddenBar" DockPanel.Dock="{TemplateBinding TabStripPlacement}" Margin="1 2 1 2">
-                <ItemsControl.Style>
-                    <Style TargetType="ItemsControl">
-                        <Style.Triggers>
-                            <Trigger Property="HasItems" Value="False">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </Trigger>
-                        </Style.Triggers>
-                        <Setter Property="ItemTemplate">
+            <local:HiddenBar x:Name="HiddenBar" Margin="1 2 1 2" DockPanel.Dock="{TemplateBinding TabStripPlacement}"/>
+            <local:DraggableTabControl x:Name="MainContent"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                       TabStripPlacement="Bottom" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
+                                       AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
+                                       ShowAllTabs="True"
+                                       ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
+                <local:DraggableTabControl.ItemContainerStyle>
+                    <Style TargetType="{x:Type local:SimpleTabItem}">
+                        <Setter Property="HeaderTemplate">
                             <Setter.Value>
                                 <DataTemplate>
-                                    <TextBlock x:Name="Header" Margin="2 0 2 0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis" Background="Transparent"
-                                   Foreground="{Binding TemplatedParent.Foreground, RelativeSource={RelativeSource TemplatedParent}}" 
-                                   Text="{Binding (local:AnyDockManager.PageName)}" />
+                                    <local:AnyDockTabLabel ParentTab="{Binding ElementName=MainContent}"/>
                                 </DataTemplate>
                             </Setter.Value>
                         </Setter>
+                        <!--<Setter Property="Header" Value="{Binding}"/>-->
                     </Style>
-                </ItemsControl.Style>
-                <ItemsControl.LayoutTransform>
-                    <RotateTransform Angle="{TemplateBinding TabStripPlacement, Converter={StaticResource TabStripAngleConv}}"/>
-                </ItemsControl.LayoutTransform>
-            </ItemsControl>
-            <TabControl x:Name="MainContent">
-                <TabControl.Style>
-                    <Style TargetType="TabControl">
+                </local:DraggableTabControl.ItemContainerStyle>
+                <local:DraggableTabControl.ContentTemplate>
+                    <DataTemplate>
+                        <Border BorderThickness="0 0 0 2" BorderBrush="Black">
+                            <DockPanel>
+                                <DockPanel DockPanel.Dock="Top">
+                                    <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                                            Width="16" Height="16"
+                                            VerticalAlignment="Center" HorizontalAlignment="Center" 
+                                            BorderThickness="0" Background="Transparent" >
+                                        <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="Uniform" StrokeThickness="1.5" 
+                                              Stroke="{Binding TemplatedParent.Foreground, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding (local:AnyDockManager.CanClose)}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button x:Name="btnPin" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                                            Width="16" Height="16" 
+                                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                            BorderThickness="0" Background="Transparent" >
+                                        <Path Margin="1.5" Stretch="Uniform" StrokeThickness="1" 
+                                              Stroke="{Binding TemplatedParent.Foreground, RelativeSource={RelativeSource TemplatedParent}}"
+                                              Data="M2.5,0 L7.5,0 L7.5,6 M6.5,6 L6.5,0 M2.5,0 L3,6 M0,7 L10,7 M5,8 L5,13"/>
+                                    </Button>
+                                    <TextBlock x:Name="Header" Margin="2 0 2 0" Height="16"
+                                               VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+                                               Foreground="{Binding TemplatedParent.Foreground, RelativeSource={RelativeSource TemplatedParent}}" Background="Transparent"
+                                               Text="{Binding (local:AnyDockManager.PageName)}" />
+                                </DockPanel>
+                                <local:AnyDockContent Content="{Binding}"/>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </local:DraggableTabControl.ContentTemplate>
+                <local:DraggableTabControl.Style>
+                    <Style TargetType="{x:Type local:DraggableTabControl}">
                         <Style.Triggers>
                             <Trigger Property="HasItems" Value="False">
                                 <Setter Property="Visibility" Value="Collapsed"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
-                </TabControl.Style>
-                <TabControl.ItemContainerStyle>
-                    <Style TargetType="TabItem">
-                        <Setter Property="Header" Value="{Binding (local:AnyDockManager.PageName)}"/>
-                    </Style>
-                </TabControl.ItemContainerStyle>
-            </TabControl>
+                </local:DraggableTabControl.Style>
+            </local:DraggableTabControl>
         </DockPanel>
     </ControlTemplate>
 </ResourceDictionary>

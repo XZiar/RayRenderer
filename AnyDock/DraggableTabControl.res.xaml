@@ -15,8 +15,8 @@
             </Grid.ColumnDefinitions>
 
             <local:DraggableTabPanel x:Name="headerPanel" Grid.Row="0" Grid.Column="0" 
-                                     Background="Transparent" Margin="2,2,2,0" IsItemsHost="True"
-                                        KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"/>
+                                     Background="Transparent" Margin="2 2 2 0" IsItemsHost="True"
+                                     KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"/>
 
             <Button x:Name="btnMoreTabDrop" Grid.Row="0" Grid.Column="1" 
                     Width="16" Height="16"
