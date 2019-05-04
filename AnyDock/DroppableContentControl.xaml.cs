@@ -62,8 +62,6 @@ namespace AnyDock
         {
             var element = (UIElement)DataContext;
             var isCollapsed = AnyDockSidePanel.GetCollapseToSide(element);
-            if (isCollapsed)
-                ;
             element.SetValue(AnyDockSidePanel.CollapseToSideProperty, !isCollapsed);
         }
     }

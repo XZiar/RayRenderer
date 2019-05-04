@@ -11,7 +11,6 @@
             <local:HiddenBar x:Name="HiddenBar" Margin="1 2 1 2" DockPanel.Dock="{TemplateBinding TabStripPlacement}"/>
             <local:DraggableTabControl x:Name="MainContent"
                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
-                                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                        TabStripPlacement="Bottom" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
                                        AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
                                        ShowAllTabs="True" ShowCloseButton="False" ShowIcon="False"
@@ -42,6 +41,31 @@
                     </Style>
                 </local:DraggableTabControl.Style>
             </local:DraggableTabControl>
+            <Popup x:Name="PopupPage" AllowsTransparency="True" StaysOpen="False"
+                   PlacementTarget="{Binding ElementName=MainContent}" Placement="Relative">
+                <Border Margin="1 1 4 4" BorderThickness="1" BorderBrush="{TemplateBinding Foreground}"
+                        Background="{TemplateBinding Background}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="4" Opacity="0.2"/>
+                    </Border.Effect>
+                    <local:DroppableContentControl x:Name="PopupContent" ShowHeader="True" Content="{Binding DataContext}"
+                                                   Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"/>
+                </Border>
+            </Popup>
         </DockPanel>
+        <ControlTemplate.Triggers>
+            <Trigger Property="TabStripPlacement" Value="Top">
+                <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=MainContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Bottom">
+                <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=MainContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Left">
+                <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=MainContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Right">
+                <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=MainContent}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
     </ControlTemplate>
 </ResourceDictionary>

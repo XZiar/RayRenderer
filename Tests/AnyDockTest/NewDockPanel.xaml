@@ -8,7 +8,7 @@
         xmlns:anydock="clr-namespace:AnyDock;assembly=AnyDock"
         Title="NewDockPanel" Height="500" Width="200">
     <Grid>
-        <anydock:AnyDockSidePanel>
+        <anydock:AnyDockSidePanel Background="White">
             <Label Content="Hello 3" FontSize="25" anydock:AnyDockManager.PageName="Hello3" anydock:AnyDockSidePanel.CollapseToSide="False"/>
             <Label Content="Hello 4" FontSize="25" anydock:AnyDockManager.PageName="Hello4" anydock:AnyDockSidePanel.CollapseToSide="True"/>
             <Label Content="Hello 5" FontSize="25" anydock:AnyDockManager.PageName="Hello5"/>

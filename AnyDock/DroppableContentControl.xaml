@@ -42,7 +42,7 @@
                         <Path.Style>
                             <Style TargetType="Path">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding (local:AnyDockSidePanel.CollapseToSide)}" Value="False">
+                                    <DataTrigger Binding="{Binding (local:AnyDockSidePanel.CollapseToSide)}" Value="True">
                                         <Setter Property="LayoutTransform">
                                             <Setter.Value>
                                                 <RotateTransform Angle="90"/>
@@ -60,6 +60,6 @@
                            Text="{Binding (local:AnyDockManager.PageName)}" />
             </DockPanel>
         </Border>
-        <ContentPresenter x:Name="RealContent" Content="{Binding}"/>
+        <ContentPresenter x:Name="RealContent" Content="{Binding DataContext, ElementName=Self}"/>
     </DockPanel>
 </ContentControl>

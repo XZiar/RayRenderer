@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -44,6 +45,7 @@ namespace AnyDock
         private DockPanel RealContent;
         private HiddenBar HiddenBar;
         private DraggableTabControl MainContent;
+        private Popup TemporalPage;
 
         public ObservableCollectionEx<UIElement> Children { get; } = new ObservableCollectionEx<UIElement>();
         private void OnCollapseToSideChanged(object sender, EventArgs e)
@@ -57,9 +59,13 @@ namespace AnyDock
             }
             else
             {
+                TemporalPage.IsOpen = false;
                 HiddenChildren.Remove(ele);
                 if (!ShownChildren.Contains(ele))
+                {
                     ShownChildren.Add(ele);
+                    MainContent.SelectedItem = ele;
+                }
             }
             return;
         }
@@ -75,14 +81,19 @@ namespace AnyDock
             Template = AnyDockSidePanelTemplate;
             ApplyTemplate();
         }
+
         public override void OnApplyTemplate()
         {
+            base.OnApplyTemplate();
             RealContent = (DockPanel)Template.FindName("RealContent", this);
             HiddenBar = (HiddenBar)Template.FindName("HiddenBar", this);
             MainContent = (DraggableTabControl)Template.FindName("MainContent", this);
+            TemporalPage = (Popup)Template.FindName("PopupPage", this);
+            var ct = (DroppableContentControl)Template.FindName("PopupContent", this);
             HiddenBar.ItemsSource = HiddenChildren;
+            HiddenBar.ItemClicked += CollapsedItemClicked;
             MainContent.ItemsSource = ShownChildren;
-            base.OnApplyTemplate();
+            TemporalPage.Closed += OnTemporalPageClosed;
         }
 
         private void ChildChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -100,10 +111,24 @@ namespace AnyDock
                 AnyDockManager.AddClosedHandler(x, OnTabClosed);
             }
         }
+
         private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
         {
+            TemporalPage.IsOpen = false;
             Children.Remove(args.TargetElement);
         }
 
+
+        private void CollapsedItemClicked(HiddenBar bar, UIElement element)
+        {
+            TemporalPage.DataContext = element;
+            TemporalPage.IsOpen = true;
+            //TemporalPage.Focus();
+        }
+
+        private void OnTemporalPageClosed(object sender, EventArgs e)
+        {
+            ((Popup)sender).DataContext = null;
+        }
     }
 }

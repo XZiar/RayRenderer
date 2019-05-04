@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -20,14 +21,9 @@ namespace AnyDock
     /// </summary>
     public partial class HiddenBar : ItemsControl
     {
-        internal static readonly DependencyProperty TabStripPlacementProperty =
-            TabControl.TabStripPlacementProperty.AddOwner(typeof(HiddenBar),
-                new FrameworkPropertyMetadata(Dock.Right, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.AffectsMeasure));
-        internal Dock TabStripPlacement
-        {
-            get => (Dock)GetValue(TabStripPlacementProperty);
-            set => SetValue(TabStripPlacementProperty, value);
-        }
+        internal delegate void ItemClickEventHandler(HiddenBar bar, UIElement element);
+        internal event ItemClickEventHandler ItemClicked;
+        private Border ClickedItem = null;
 
         public HiddenBar()
         {
@@ -39,10 +35,29 @@ namespace AnyDock
             return false;
         }
 
-        private void ItemMouseDown(object sender, MouseButtonEventArgs e)
+        private void ItemMouseLBDown(object sender, MouseButtonEventArgs e)
         {
-            var element = (UIElement)((Border)sender).DataContext;
-            Console.WriteLine($"Click Item [{element}]");
+            var target = (Border)sender;
+            ClickedItem = target;
+            e.Handled = true;
+        }
+
+        private void ItemMouseLeave(object sender, MouseEventArgs e)
+        {
+            ClickedItem = null;
+        }
+
+        private void ItemMouseLBUp(object sender, MouseButtonEventArgs e)
+        {
+            var target = (Border)sender;
+            if (ClickedItem == target)
+            {
+                ClickedItem = null;
+                var element = (UIElement)target.DataContext;
+                //Console.WriteLine($"Click Item [{element}]");
+                ItemClicked(this, element);
+                e.Handled = true;
+            }
         }
     }
 }

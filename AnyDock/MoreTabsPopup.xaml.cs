@@ -27,35 +27,37 @@ namespace AnyDock
     /// <summary>
     /// MoreTabsPopup.xaml 的交互逻辑
     /// </summary>
-    public partial class MoreTabsPopup : ContextMenu
+    public partial class MoreTabsPopup : Popup
     {
         private UIElement ClickedElement = null;
-        private TaskCompletionSource<UIElement> CurrentTask;
-
-        internal MoreTabsPopup()
+        private TaskCompletionSource<UIElement> CurrentTask = new TaskCompletionSource<UIElement>();
+        
+        private MoreTabsPopup(Control source, UIElement position, IEnumerable tabs)
         {
             InitializeComponent();
+            PlacementTarget = position;
+            MainItems.Background = source.Background; MainItems.Foreground = source.Foreground;
+            MainItems.ItemsSource = tabs;
+            IsOpen = true;
         }
 
-        private void ItemClick(object sender, RoutedEventArgs e)
+        internal static Task<UIElement> ShowTabs(Control source, UIElement position, IEnumerable tabs)
+        {
+            var popup = new MoreTabsPopup(source, position, tabs);
+            return popup.CurrentTask.Task;
+        }
+
+        private void ItemMouseDown(object sender, MouseButtonEventArgs e)
         {
             ClickedElement = (sender as FrameworkElement).DataContext as UIElement;
+            IsOpen = false;
         }
 
-        internal Task<UIElement> ShowTabs(UIElement position, IEnumerable tabs)
-        {
-            CurrentTask = new TaskCompletionSource<UIElement>();
-            PlacementTarget = position;
-            ItemsSource = tabs;
-            IsOpen = true;
-            return CurrentTask.Task;
-        }
-
-        protected override void OnClosed(RoutedEventArgs e)
+        protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
             CurrentTask.SetResult(ClickedElement);
-            ItemsSource = null;
+            MainItems.ItemsSource = null;
             ClickedElement = null;
             CurrentTask = null;
         }

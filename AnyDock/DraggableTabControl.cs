@@ -37,7 +37,6 @@ namespace AnyDock
     {
         internal static readonly ResourceDictionary ResDict;
         private static readonly ControlTemplate DraggableTabControlTemplate;
-        private static readonly MoreTabsPopup MoreTabsPopup;
 
         public static readonly DependencyProperty ShowAllTabsProperty = DependencyProperty.Register(
             "ShowAllTabs",
@@ -85,8 +84,7 @@ namespace AnyDock
         {
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/DraggableTabControl.res.xaml", UriKind.RelativeOrAbsolute) };
             DraggableTabControlTemplate = (ControlTemplate)     ResDict["DraggableTabControlTemplate"];
-            MoreTabsPopup = new MoreTabsPopup();
-    }
+        }
         
         public DraggableTabControl()
         {
@@ -123,7 +121,7 @@ namespace AnyDock
 
         private async void MoreTabDropButtonClickAsync(object sender, RoutedEventArgs e)
         {
-            var newItem = await MoreTabsPopup.ShowTabs(sender as Button, Items.SourceCollection);
+            var newItem = await MoreTabsPopup.ShowTabs(this, sender as Button, Items.SourceCollection);
             if (newItem != null)
                 SelectedItem = newItem;
         }
