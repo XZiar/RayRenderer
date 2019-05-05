@@ -15,22 +15,39 @@ namespace AnyDock
     internal class DragData
     {
         internal readonly UIElement Element;
-        internal readonly AnyDockPanel Panel;
-        internal DragData(UIElement source)
+        internal readonly DraggableTabControl TabRoot;
+        internal DragData(UIElement source, DraggableTabControl root)
         {
             Element = source;
-            Panel = AnyDockManager.GetParentDock(Element);
+            TabRoot = root;
         }
     }
     internal interface IDragRecievePoint
     {
-        bool RecieveDrag();
+        //bool RecieveDrag();
         void OnDragIn(DragData data, Point pos);
         void OnDragOut(DragData data, Point pos);
         void OnDragDrop(DragData data, Point pos);
     }
     static class DragManager
     {
+        internal class RecieveDragEventArgs : RoutedEventArgs
+        {
+            public readonly Point ScreenPos;
+            public IDragRecievePoint RecievePoint;
+            internal RecieveDragEventArgs(Point screenPos) : base(RecieveDragEvent) { ScreenPos = screenPos; }
+        }
+        internal delegate void RecieveDragEventHandler(UIElement sender, RecieveDragEventArgs args);
+        internal static readonly RoutedEvent RecieveDragEvent = EventManager.RegisterRoutedEvent(
+            "RecieveDrag",
+            RoutingStrategy.Bubble,
+            typeof(RecieveDragEventHandler),
+            typeof(DragManager));
+        internal static void AddRecieveDragHandler(UIElement element, RecieveDragEventHandler handler) =>
+            element.AddHandler(RecieveDragEvent, handler);
+        internal static void RemoveRecieveDragHandler(UIElement element, RecieveDragEventHandler handler) =>
+            element.RemoveHandler(RecieveDragEvent, handler);
+
         private static readonly ConditionalWeakTable<AnyDockPanel, Window> WindowTable = new ConditionalWeakTable<AnyDockPanel, Window>();
         private static readonly Dictionary<Window, uint> ReferenceTable = new Dictionary<Window, uint>();
         internal static void RegistDragHost(AnyDockPanel panel)
@@ -61,7 +78,9 @@ namespace AnyDock
         [DllImport("User32")] static extern IntPtr GetWindow(IntPtr hWnd, uint wCmd);
         private static IEnumerable<Window> GetZOrderWindows()
         {
-            var winMap = ReferenceTable.Keys.ToDictionary(win => new WindowInteropHelper(win).Handle);
+            //var winMap = ReferenceTable.Keys.ToDictionary(win => new WindowInteropHelper(win).Handle);
+            var winMap = Application.Current.Windows.Cast<Window>()
+                .ToDictionary(win => new WindowInteropHelper(win).Handle);
             for (var hWnd = GetWindow(winMap.Keys.First(), GW_HWNDFIRST);
                 hWnd != IntPtr.Zero && winMap.Count > 0;
                 hWnd = GetWindow(hWnd, GW_HWNDNEXT))
@@ -76,47 +95,31 @@ namespace AnyDock
 
         internal static void PerformDrag(Point windowPos, Point deltaPoint, DragData data)
         {
-            data.Panel.Children.Remove(data.Element);
+            AnyDockManager.RaiseRemovedEvent(data.Element);
             ZOrderWindows = GetZOrderWindows().ToArray();
-            var dragWindow = new DragHostWindow(windowPos, deltaPoint, data);
+            var dragWindow = new DraggingWindow(windowPos, deltaPoint, data);
             dragWindow.Draging += OnDraging;
             dragWindow.Draged += OnDraged;
             dragWindow.Show();
         }
 
         private static Window[] ZOrderWindows;
-        private static IDragRecievePoint FindDropPoint(DependencyObject element)
-        {
-            while (element != null)
-            {
-                if (element is IDragRecievePoint target && target.RecieveDrag())
-                    return target;
-                element = VisualTreeHelper.GetParent(element);
-            }
-            return null;
-        }
         private static IDragRecievePoint LastDragPoint = null;
 
         private static void ProbeDrag(Point screenPos, DragData data)
         {
             IDragRecievePoint target = null;
-            //Console.WriteLine($"Drag Over [{screenPos}] [{Mouse.DirectlyOver}]");
-            //if (Mouse.DirectlyOver is DependencyObject ele)
-            //{
-            //    var targetWindow = Window.GetWindow(ele);
-            //    if (ReferenceTable.ContainsKey(targetWindow))
-            //    {
-            //        var relPos = targetWindow.PointFromScreen(screenPos);
-            //        var hitPart = targetWindow.InputHitTest(relPos) as UIElement;
-            //        target = FindDropPoint(hitPart);
-            //    }
-            //}
+            var earg = new RecieveDragEventArgs(screenPos);
             foreach (var window in ZOrderWindows)
             {
                 var relPos = window.PointFromScreen(screenPos);
-                var hitPart = window.InputHitTest(relPos) as UIElement;
-                target = FindDropPoint(hitPart);
-                if (target != null) break;
+                if (window.InputHitTest(relPos) is UIElement hitPart)
+                    hitPart.RaiseEvent(earg);
+                if (earg.Handled)
+                {
+                    target = earg.RecievePoint;
+                    break;
+                }
             }
             //Console.WriteLine($"Diff Pos [{screenPos}]:[{relPos}]");
             if (LastDragPoint != target)
@@ -127,14 +130,13 @@ namespace AnyDock
             }
             LastDragPoint = target;
         }
-        private static void OnDraging(DragHostWindow window, Point screenPos, DragData data)
+        private static void OnDraging(DraggingWindow window, Point screenPos, DragData data)
         {
             ProbeDrag(screenPos, data);
         }
-        private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
+        private static void OnDraged(DraggingWindow window, Point screenPos, DragData data)
         {
             ZOrderWindows = null;
-            //ProbeDrag(screenPos, data);
             //LoacationChanged(Draging) must happen before DragMove finished(Drop)
             if (LastDragPoint != null)
             {
@@ -143,12 +145,12 @@ namespace AnyDock
             }
             else
             {
-                var panel = new AnyDockPanel()
+                var panel = new DraggableTabControl()
                 {
-                    TabStripPlacement = data.Panel.TabStripPlacement,
-                    AllowDropTab = data.Panel.AllowDropTab
+                    TabStripPlacement = data.TabRoot.TabStripPlacement,
+                    AllowDropTab = data.TabRoot.AllowDropTab
                 };
-                panel.Children.Add(data.Element);
+                panel.RealChildren.Add(data.Element);
 
                 var extraWidth = SystemParameters.ResizeFrameVerticalBorderWidth;
                 var extraHeight = SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight;

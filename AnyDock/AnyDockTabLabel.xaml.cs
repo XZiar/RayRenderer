@@ -22,8 +22,6 @@ namespace AnyDock
     /// </summary>
     public partial class AnyDockTabLabel : ContentControl
     {
-        private AnyDockPanel ParentPanel = null;
-
         internal static readonly DependencyProperty ParentTabProperty = DependencyProperty.Register(
             "ParentTab",
             typeof(DraggableTabControl),
@@ -35,13 +33,8 @@ namespace AnyDock
             set => SetValue(ParentTabProperty, value);
         }
 
-
         public AnyDockTabLabel()
         {
-            DataContextChanged += (o, e) =>
-                {
-                    ParentPanel = AnyDockManager.GetParentDock((UIElement)e.NewValue);
-                };
             InitializeComponent();
         }
 
@@ -52,9 +45,7 @@ namespace AnyDock
             element.RaiseEvent(earg);
             if (earg.ShouldClose)
             {
-                earg.ChangeToClosed();
-                element.RaiseEvent(earg);
-                ParentPanel.Children.Remove(element);
+                AnyDockManager.RaiseRemovedEvent(element);
             }
         }
 

@@ -159,7 +159,6 @@ namespace AnyDock
             public readonly UIElement TargetElement;
             public bool ShouldClose = true;
             internal TabCloseEventArgs(UIElement element) : base(ClosingEvent) { TargetElement = element; }
-            internal void ChangeToClosed() { RoutedEvent = ClosedEvent; }
         }
         public delegate void TabCloseEventHandler(UIElement sender, TabCloseEventArgs args);
 
@@ -173,15 +172,19 @@ namespace AnyDock
         public static void RemoveClosingHandler(UIElement element, TabCloseEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
 
-        internal static readonly RoutedEvent ClosedEvent = EventManager.RegisterRoutedEvent(
-            "Closed",
+        internal static readonly RoutedEvent RemovedEvent = EventManager.RegisterRoutedEvent(
+            "Removed",
             RoutingStrategy.Direct,
-            typeof(TabCloseEventHandler),
+            typeof(RoutedEventHandler),
             typeof(AnyDockManager));
-        internal static void AddClosedHandler(UIElement element, TabCloseEventHandler handler) =>
-            element.AddHandler(ClosedEvent, handler);
-        internal static void RemoveClosedHandler(UIElement element, TabCloseEventHandler handler) =>
-            element.RemoveHandler(ClosedEvent, handler);
+        internal static void AddRemovedHandler(UIElement element, RoutedEventHandler handler) =>
+            element.AddHandler(RemovedEvent, handler);
+        internal static void RemoveRemovedHandler(UIElement element, RoutedEventHandler handler) =>
+            element.RemoveHandler(RemovedEvent, handler);
+        internal static void RaiseRemovedEvent(UIElement element)
+        {
+            element.RaiseEvent(new RoutedEventArgs(RemovedEvent));
+        }
 
         internal static void MoveItem(UIElement src, UIElement dst)
         {

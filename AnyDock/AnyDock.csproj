@@ -63,6 +63,9 @@
     <Compile Include="DominantBidirectionalPanel.cs" />
     <Compile Include="DraggableTabControl.cs" />
     <Compile Include="DraggableTabPanel.cs" />
+    <Compile Include="DraggingWindow.xaml.cs">
+      <DependentUpon>DraggingWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="DragManager.cs" />
     <Compile Include="DroppableContentControl.xaml.cs">
       <DependentUpon>DroppableContentControl.xaml</DependentUpon>
@@ -100,6 +103,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="DraggingWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="DroppableContentControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -114,7 +121,6 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DragHostWindow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

@@ -9,8 +9,24 @@
                 x:ClassModifier="internal"
                 x:Name="Self"
                 d:DesignHeight="500" d:DesignWidth="250">
-    <DockPanel>
-        <Border x:Name="Header" DockPanel.Dock="Top" BorderThickness="0 0 0 2" BorderBrush="Black">
+    <ContentControl.Resources>
+        <Viewbox x:Key="DragOverLay" x:Shared="True" Grid.Row="1"
+                 Panel.ZIndex="100" Stretch="Fill" Visibility="Visible" IsHitTestVisible="False" >
+            <Canvas Width="100" Height="100" >
+                <Polygon Fill="#40FF0000" Points="0,0 100,0 70,30 30,30"     Tag="Up"     />
+                <Polygon Fill="#4000FF00" Points="100,0 100,100 70,70 70,30" Tag="Right"  />
+                <Polygon Fill="#400000FF" Points="100,100 0,100 30,70 70,70" Tag="Down"   />
+                <Polygon Fill="#40FFFF00" Points="0,100 0,0 30,30 30,70"     Tag="Left"   />
+                <Polygon Fill="#40000000" Points="30,30 70,30 70,70 30,70"   Tag="Middle" />
+            </Canvas>
+        </Viewbox>
+    </ContentControl.Resources>
+    <Grid x:Name="MainGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border x:Name="Header" Grid.Row="0" BorderThickness="0 0 0 2" BorderBrush="Black">
             <DockPanel>
                 <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
                         Width="16" Height="16"
@@ -60,6 +76,6 @@
                            Text="{Binding (local:AnyDockManager.PageName)}" />
             </DockPanel>
         </Border>
-        <ContentPresenter x:Name="RealContent" Content="{Binding DataContext, ElementName=Self}"/>
-    </DockPanel>
+        <ContentPresenter x:Name="RealContent" Grid.Row="1" Content="{Binding DataContext, ElementName=Self}"/>
+    </Grid>
 </ContentControl>

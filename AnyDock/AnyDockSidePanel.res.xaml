@@ -28,7 +28,7 @@
                 </local:DraggableTabControl.ItemContainerStyle>
                 <local:DraggableTabControl.ContentTemplate>
                     <DataTemplate>
-                        <local:DroppableContentControl ShowHeader="True"/>
+                        <local:DroppableContentControl ShowHeader="True" ParentTab="{Binding ElementName=MainContent}"/>
                     </DataTemplate>
                 </local:DraggableTabControl.ContentTemplate>
                 <local:DraggableTabControl.Style>

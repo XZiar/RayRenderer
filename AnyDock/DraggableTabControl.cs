@@ -68,7 +68,6 @@ namespace AnyDock
             get => (bool)GetValue(ShowIconProperty);
             set => SetValue(ShowIconProperty, value);
         }
-
         public static readonly DependencyProperty AllowDropTabProperty = DependencyProperty.Register(
             "AllowDropTab",
             typeof(bool),
@@ -134,14 +133,14 @@ namespace AnyDock
             if (ItemsSource != sender)
                 ItemsSource = sender as ObservableCollectionEx<UIElement>;
             foreach (var x in e.DeledItems<UIElement>())
-                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
+                AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             foreach (var x in e.AddedItems<UIElement>())
-                AnyDockManager.AddClosedHandler(x, OnTabClosed);
+                AnyDockManager.AddRemovedHandler(x, OnTabClosed);
         }
 
-        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        private void OnTabClosed(object sender, RoutedEventArgs args)
         {
-            RealChildren.Remove(args.TargetElement);
+            RealChildren.Remove((UIElement)sender);
         }
 
     }

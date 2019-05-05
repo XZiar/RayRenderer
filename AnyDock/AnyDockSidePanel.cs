@@ -102,20 +102,20 @@ namespace AnyDock
             {
                 CollapseToSidePropertyDescriptor.RemoveValueChanged(x, OnCollapseToSideChanged);
                 ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Remove(x);
-                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
+                AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             }
             foreach (var x in e.AddedItems<UIElement>())
             {
                 CollapseToSidePropertyDescriptor.AddValueChanged(x, OnCollapseToSideChanged);
                 ((bool)x.GetValue(CollapseToSideProperty) ? HiddenChildren : ShownChildren).Add(x);
-                AnyDockManager.AddClosedHandler(x, OnTabClosed);
+                AnyDockManager.AddRemovedHandler(x, OnTabClosed);
             }
         }
 
-        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        private void OnTabClosed(object sender, RoutedEventArgs args)
         {
             TemporalPage.IsOpen = false;
-            Children.Remove(args.TargetElement);
+            Children.Remove((UIElement)sender);
         }
 
 

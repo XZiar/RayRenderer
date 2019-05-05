@@ -15,8 +15,6 @@ namespace AnyDock
     {
         private static readonly ResourceDictionary ResDict;
 
-        public bool ShowAllTabs => (TemplatedParent as DraggableTabControl)?.ShowAllTabs ?? false;
-
         private static readonly DependencyPropertyKey IsTabsOverflowPropertyKey = DependencyProperty.RegisterReadOnly(
             "IsTabsOverflow",
             typeof(bool),
@@ -30,6 +28,7 @@ namespace AnyDock
 
         static DraggableTabPanel()
         {
+            EventManager.RegisterClassHandler(typeof(DraggableTabPanel), DragManager.RecieveDragEvent, new DragManager.RecieveDragEventHandler(OnRecieveDrag));
             ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/DraggableTabPanel.res.xaml", UriKind.RelativeOrAbsolute) };
         }
 
@@ -39,6 +38,9 @@ namespace AnyDock
 
         private Dock TabStripPlacement => (TemplatedParent as TabControl)?.TabStripPlacement ?? Dock.Top;
         private int? SelectedIndex => (TemplatedParent as TabControl)?.SelectedIndex;
+
+        public bool ShowAllTabs => (TemplatedParent as DraggableTabControl)?.ShowAllTabs ?? false;
+
 
         #region Layout Helper Functions
         private static Size GetDesiredSizeWithoutMargin(UIElement element)
@@ -257,14 +259,19 @@ namespace AnyDock
             {
                 if (TemplatedParent is TabControl tabControl)
                     PendingDrag.StartPoint += (Vector)TranslatePoint(OriginPoint, tabControl);
-                var data = new DragData(PendingDrag.Item);
+                var data = new DragData(PendingDrag.Item, TemplatedParent as DraggableTabControl);
                 DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
             }
         }
 
-        public virtual bool RecieveDrag()
+        private static void OnRecieveDrag(UIElement sender, DragManager.RecieveDragEventArgs e)
         {
-            return (TemplatedParent as DraggableTabControl)?.AllowDropTab ?? true;
+            var self = (DraggableTabPanel)sender;
+            if ((self.TemplatedParent as DraggableTabControl)?.AllowDropTab ?? false)
+            {
+                e.RecievePoint = self;
+                e.Handled = true;
+            }
         }
         public virtual void OnDragIn(DragData data, Point pos)
         {

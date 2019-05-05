@@ -110,7 +110,7 @@ namespace AnyDock
             foreach (var x in e.DeledItems<UIElement>())
             {
                 AnyDockManager.SetParentDock(x, null);
-                AnyDockManager.RemoveClosedHandler(x, OnTabClosed);
+                AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             }
             foreach (var x in e.AddedItems<UIElement>())
             {
@@ -118,14 +118,14 @@ namespace AnyDock
                     throw new InvalidOperationException("DockPanel should not be children!");
                 AnyDockManager.SetParentDock(x, this);
                 MainTab.SelectedItem = x;
-                AnyDockManager.AddClosedHandler(x, OnTabClosed);
+                AnyDockManager.AddRemovedHandler(x, OnTabClosed);
             }
             if (Children.Count == 0 && ShouldRefresh)
                 RefreshState();
         }
-        private void OnTabClosed(UIElement sender, AnyDockManager.TabCloseEventArgs args)
+        private void OnTabClosed(object sender, RoutedEventArgs args)
         {
-            Children.Remove(args.TargetElement);
+            Children.Remove((UIElement)sender);
         }
 
         private bool ShouldRefresh = false;
