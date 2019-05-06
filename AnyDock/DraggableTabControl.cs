@@ -108,9 +108,18 @@ namespace AnyDock
             return new SimpleTabItem();
         }
 
+        internal void AddItem(UIElement item, int index = -1)
+        {
+            var target = Items.SourceCollection as IList<UIElement>;
+            if (index == -1)
+                target.Add(item);
+            else
+                target.Insert(index, item);
+        }
+
         internal void ReorderItem(UIElement obj, UIElement dst)
         {
-            var target = (Items.SourceCollection as ObservableCollection<UIElement>);
+            var target = Items.SourceCollection as ObservableCollection<UIElement>;
             // exchange order only
             int srcIdx = target.IndexOf(obj);
             int dstIdx = target.IndexOf(dst);
@@ -125,7 +134,7 @@ namespace AnyDock
                 SelectedItem = newItem;
         }
 
-        internal ObservableCollectionEx<UIElement> RealChildren { get; } = new ObservableCollectionEx<UIElement>();
+        public ObservableCollectionEx<UIElement> RealChildren { get; } = new ObservableCollectionEx<UIElement>();
         private DraggableTabPanel TabPanel;
         private Button MoreTabDropButton;
         private void OnRealChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)

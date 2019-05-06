@@ -78,6 +78,10 @@
     </Compile>
     <Compile Include="ObservableCollectionEx.cs" />
     <Compile Include="SquareButton.cs" />
+    <Page Include="AnyDockHost.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

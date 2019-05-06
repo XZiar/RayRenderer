@@ -6,7 +6,7 @@
               xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
               xmlns:local="clr-namespace:AnyDock"
               mc:Ignorable="d" 
-              x:Name="Self"
+              x:Name="Self" x:ClassModifier="internal"
               d:DesignHeight="450" d:DesignWidth="100">
     <ItemsControl.Resources>
         <local:TabStripAngleConverter x:Key="TabStripAngleConv"/>
@@ -22,7 +22,7 @@
     </ItemsControl.Style>
     <ItemsControl.ItemTemplate>
         <DataTemplate>
-            <Border BorderThickness="0 4 0 0" Background="Transparent" 
+            <Border Background="Transparent" 
                     MouseLeftButtonDown="ItemMouseLBDown" MouseLeave="ItemMouseLeave" MouseLeftButtonUp="ItemMouseLBUp">
                 <TextBlock Margin="3 2 3 2" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
                            Background="Transparent" Foreground="{Binding Foreground, ElementName=Self}"
@@ -33,16 +33,23 @@
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="BorderBrush" Value="DarkGray"/>
+                        <Setter Property="BorderThickness" Value="0 4 0 0"/>
                         <Setter Property="Margin" Value="4 0 4 0"/>
+                        <Setter Property="HorizontalAlignment" Value="Left"/>
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="BorderBrush" Value="Blue"/>
                             </Trigger>
                             <DataTrigger Binding="{Binding (DockPanel.Dock), ElementName=Self}" Value="Left">
                                 <Setter Property="Margin" Value="0 4 0 4"/>
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding (DockPanel.Dock), ElementName=Self}" Value="Right">
                                 <Setter Property="Margin" Value="0 4 0 4"/>
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding (DockPanel.Dock), ElementName=Self}" Value="Bottom">
+                                <Setter Property="BorderThickness" Value="0 0 0 4"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

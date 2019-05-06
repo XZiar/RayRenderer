@@ -57,7 +57,7 @@ namespace AnyDock
 
         public virtual void OnDragDrop(DragData data, Point pos)
         {
-            throw new NotImplementedException();
+            ParentTab?.AddItem(data.Element);
         }
 
         public virtual void OnDragIn(DragData data, Point pos)

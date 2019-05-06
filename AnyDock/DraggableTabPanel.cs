@@ -147,7 +147,7 @@ namespace AnyDock
             {
                 var totalLen = lens.Sum();
                 scale = (isHorizontal ? arrangeSize.Width : arrangeSize.Height) / totalLen;
-                if (scale > 1) scale = 1;
+                if (scale > 1 || double.IsNaN(scale)) scale = 1;
             }
             else
             {
@@ -285,9 +285,9 @@ namespace AnyDock
             var parent = TemplatedParent as DraggableTabControl;
             var label = GetHittedLabel(pos);
             if (label?.DataContext is UIElement dst)
-                parent.RealChildren.Insert(parent.RealChildren.IndexOf(dst), data.Element);
+                parent.AddItem(data.Element, parent.Items.IndexOf(dst));
             else
-                parent.RealChildren.Add(data.Element);
+                parent.AddItem(data.Element);
         }
         #endregion Drag&Drop Functions
 

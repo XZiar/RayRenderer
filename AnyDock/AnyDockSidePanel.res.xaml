@@ -8,12 +8,11 @@
     <ControlTemplate x:Key="AnyDockSidePanelTemplate" TargetType="{x:Type local:AnyDockSidePanel}">
         <!--, diag:PresentationTraceSources.TraceLevel=High-->
         <DockPanel x:Name="RealContent">
-            <local:HiddenBar x:Name="HiddenBar" Margin="1 2 1 2" DockPanel.Dock="{TemplateBinding TabStripPlacement}"/>
-            <local:DraggableTabControl x:Name="MainContent"
-                                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
-                                       TabStripPlacement="Bottom" Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
-                                       AllowDropTab="{Binding AllowDropTab, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}"
-                                       ShowAllTabs="True" ShowCloseButton="False" ShowIcon="False"
+            <local:HiddenBar x:Name="HiddenBar" Margin="1 2 1 2" DockPanel.Dock="{TemplateBinding TabStripPlacement}"
+                             Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"/>
+            <local:DraggableTabControl x:Name="MainContent" TabStripPlacement="Bottom" 
+                                       Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
+                                       AllowDropTab="True" ShowAllTabs="True" ShowCloseButton="False" ShowIcon="False"
                                        ItemsSource="{Binding Children, RelativeSource={RelativeSource TemplatedParent}, Mode=OneWay}">
                 <local:DraggableTabControl.ItemContainerStyle>
                     <Style TargetType="{x:Type local:SimpleTabItem}">
@@ -42,7 +41,7 @@
                 </local:DraggableTabControl.Style>
             </local:DraggableTabControl>
             <Popup x:Name="PopupPage" AllowsTransparency="True" StaysOpen="False"
-                   PlacementTarget="{Binding ElementName=MainContent}" Placement="Relative">
+                   PlacementTarget="{Binding ElementName=HiddenBar}">
                 <Border Margin="1 1 4 4" BorderThickness="1" BorderBrush="{TemplateBinding Foreground}"
                         Background="{TemplateBinding Background}">
                     <Border.Effect>
@@ -55,15 +54,19 @@
         </DockPanel>
         <ControlTemplate.Triggers>
             <Trigger Property="TabStripPlacement" Value="Top">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Bottom"/>
                 <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=MainContent}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Bottom">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Top"/>
                 <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=MainContent}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Left">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Right"/>
                 <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=MainContent}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Right">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Left"/>
                 <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=MainContent}"/>
             </Trigger>
         </ControlTemplate.Triggers>

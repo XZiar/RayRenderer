@@ -19,7 +19,7 @@ namespace AnyDock
     /// <summary>
     /// HiddenBar.xaml 的交互逻辑
     /// </summary>
-    public partial class HiddenBar : ItemsControl
+    internal partial class HiddenBar : ItemsControl
     {
         internal delegate void ItemClickEventHandler(HiddenBar bar, UIElement element);
         internal event ItemClickEventHandler ItemClicked;

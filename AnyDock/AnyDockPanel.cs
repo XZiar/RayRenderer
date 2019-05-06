@@ -109,14 +109,12 @@ namespace AnyDock
         {
             foreach (var x in e.DeledItems<UIElement>())
             {
-                AnyDockManager.SetParentDock(x, null);
                 AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             }
             foreach (var x in e.AddedItems<UIElement>())
             {
                 if (x is AnyDockPanel)
                     throw new InvalidOperationException("DockPanel should not be children!");
-                AnyDockManager.SetParentDock(x, this);
                 MainTab.SelectedItem = x;
                 AnyDockManager.AddRemovedHandler(x, OnTabClosed);
             }
@@ -270,29 +268,10 @@ namespace AnyDock
                 Children.Move(srcIdx, dstIdx);
         }
 
-        internal void OnContentDragEnter(DroppableContentControl content)
-        {
-            //Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
-            DragOverLay.Height = content.ActualHeight;
-            DragOverLay.Width = content.ActualWidth;
-            switch(TabStripPlacement)
-            {
-            case Dock.Top:    DragOverLay.VerticalAlignment = VerticalAlignment.Bottom; DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-            case Dock.Bottom: DragOverLay.VerticalAlignment = VerticalAlignment.Top;    DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-            case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
-            case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
-            }
-            MainPanel.Children.Add(DragOverLay);
-        }
-        internal void OnContentDragLeave(DroppableContentControl content)
-        {
-            //Console.WriteLine($"Drag leave [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
-            MainPanel.Children.Remove(DragOverLay);
-        }
+        
         internal void OnContentDrop(DroppableContentControl content, DragData src, Point screenPos)
         {
             var hitted = VisualTreeHelper.HitTest(DragOverLay, DragOverLay.PointFromScreen(screenPos));
-            OnContentDragLeave(content);
             if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
                 return;
             if (hitPart == "Middle")

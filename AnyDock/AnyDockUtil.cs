@@ -112,16 +112,8 @@ namespace AnyDock
         }
     }
 
-    public class AnyDockManager
+    public static class AnyDockManager
     {
-        private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
-            "ParentDock",
-            typeof(AnyDockPanel),
-            typeof(AnyDockManager),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
-        internal static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
-        internal static AnyDockPanel GetParentDock(UIElement element) => element == null ? null : element.GetValue(ParentDockProperty) as AnyDockPanel;
-
         public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
             "PageName",
             typeof(string),
@@ -184,25 +176,6 @@ namespace AnyDock
         internal static void RaiseRemovedEvent(UIElement element)
         {
             element.RaiseEvent(new RoutedEventArgs(RemovedEvent));
-        }
-
-        internal static void MoveItem(UIElement src, UIElement dst)
-        {
-            var srcPanel = GetParentDock(src);
-            var dstPanel = GetParentDock(dst);
-            int dstIdx = dstPanel.Children.IndexOf(dst);
-            if (srcPanel == dstPanel)
-            {
-                // exchange order only
-                int srcIdx = srcPanel.Children.IndexOf(src);
-                if (srcIdx != dstIdx)
-                    dstPanel.Children.Move(srcIdx, dstIdx);
-            }
-            else
-            {
-                srcPanel?.Children.Remove(src);
-                dstPanel.Children.Insert(dstIdx, src);
-            }
         }
 
     }
