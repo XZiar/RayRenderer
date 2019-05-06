@@ -35,6 +35,7 @@ namespace AnyDock
     [ContentProperty(nameof(RealChildren))]
     public class DraggableTabControl : TabControl
     {
+        internal delegate bool AddItemEventHandler(UIElement item, int index);
         internal static readonly ResourceDictionary ResDict;
         private static readonly ControlTemplate DraggableTabControlTemplate;
 
@@ -110,11 +111,14 @@ namespace AnyDock
 
         internal void AddItem(UIElement item, int index = -1)
         {
-            var target = Items.SourceCollection as IList<UIElement>;
-            if (index == -1)
-                target.Add(item);
-            else
-                target.Insert(index, item);
+            if (AddingItem?.Invoke(item, index) != true)
+            {
+                var target = Items.SourceCollection as IList<UIElement>;
+                if (index == -1)
+                    target.Add(item);
+                else
+                    target.Insert(index, item);
+            }
         }
 
         internal void ReorderItem(UIElement obj, UIElement dst)
@@ -134,6 +138,7 @@ namespace AnyDock
                 SelectedItem = newItem;
         }
 
+        internal event AddItemEventHandler AddingItem;
         public ObservableCollectionEx<UIElement> RealChildren { get; } = new ObservableCollectionEx<UIElement>();
         private DraggableTabPanel TabPanel;
         private Button MoreTabDropButton;

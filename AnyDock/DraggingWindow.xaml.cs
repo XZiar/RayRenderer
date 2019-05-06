@@ -28,22 +28,31 @@ namespace AnyDock
         internal event WindowDragEventHandler Draging;
         internal event WindowDragEventHandler Draged;
 
-        private readonly Point MouseDeltaPoint;
+        private Point MouseDeltaPoint;
         internal readonly DragData Data;
         private bool HasInitialized = false;
-        private bool BeginDragging = false;
+        private bool IsInDrag = false;
 
         public DraggingWindow(Point startPoint, Point deltaPoint, DragData data)
         {
             Data = data;
-            Width = Data.TabRoot.ActualWidth;
-            Height = Data.TabRoot.ActualHeight;
+            Width = Data.InitialSize.Width;
+            Height = Data.InitialSize.Height;
             Left = startPoint.X; Top = startPoint.Y;
             MouseDeltaPoint = deltaPoint;
             InitializeComponent();
+            RootTabs.Background = Data.TabRoot.Background;
+            RootTabs.Foreground = Data.TabRoot.Foreground;
             RootTabs.TabStripPlacement = Data.TabRoot.TabStripPlacement;
             RootTabs.ShowIcon = Data.TabRoot.ShowIcon;
             RootTabs.RealChildren.Add(Data.Element);
+            RootTabs.RealChildren.CollectionChanged += RealChildrenCollectionChanged;
+        }
+
+        private void RealChildrenCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (RootTabs.RealChildren.Count == 0)
+                Close();
         }
 
         protected override void OnContentRendered(EventArgs e)
@@ -56,7 +65,7 @@ namespace AnyDock
                 var deltaPos = Mouse.GetPosition(this) - MouseDeltaPoint;
                 ReleaseMouseCapture();
                 Left += deltaPos.X; Top += deltaPos.Y;
-                BeginDragging = true;
+                IsInDrag = true;
                 if (Mouse.LeftButton == MouseButtonState.Pressed)
                 {
                     Draging?.Invoke(this, GetMouseScreenPos(), Data);
@@ -69,7 +78,7 @@ namespace AnyDock
         protected override void OnLocationChanged(EventArgs e)
         {
             base.OnLocationChanged(e);
-            if (BeginDragging)
+            if (IsInDrag)
             {
                 Draging?.Invoke(this, GetMouseScreenPos(), Data);
             }
@@ -82,11 +91,30 @@ namespace AnyDock
 
         private void FinishDrag()
         {
-            BeginDragging = false;
+            IsInDrag = false;
             var pos = GetMouseScreenPos();
-            ((DraggableTabControl)Content).RealChildren.Clear();
-            Close();
             Draged?.Invoke(this, pos, Data);
+        }
+
+        internal void ToNormalWindow()
+        {
+            RootTabs.AllowDropTab = true;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+            IsHitTestVisible = true;
+        }
+
+        private void HeaderLBDown(DroppableContentControl control, MouseButtonEventArgs e)
+        {
+            MouseDeltaPoint = e.GetPosition(this);
+            RootTabs.AllowDropTab = false;
+            ResizeMode = ResizeMode.NoResize;
+            IsHitTestVisible = false;
+            DragManager.PerformDrag(this);
+            Draging?.Invoke(this, GetMouseScreenPos(), Data);
+            IsInDrag = true;
+            DragMove();
+            FinishDrag();
+            e.Handled = true;
         }
     }
 }

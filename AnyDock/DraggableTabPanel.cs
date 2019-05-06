@@ -220,10 +220,11 @@ namespace AnyDock
             if (e.LeftButton == MouseButtonState.Pressed && PendingDrag.Source == this)
             {
                 Console.WriteLine($"Drag Leave [{PendingDrag.Source}][{PendingDrag.Item}][{PendingDrag.StartPoint}]");
-                PendingDrag.Source = null;
-                BeginTabItemDrag(e);
+                if (AnyDockManager.GetAllowDrag(PendingDrag.Item))
+                    BeginTabItemDrag(e);
                 e.Handled = true;
             }
+            PendingDrag.Source = null;
         }
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -243,8 +244,6 @@ namespace AnyDock
         private static Point OriginPoint = new Point(0, 0);
         private void BeginTabItemDrag(MouseEventArgs e)
         {
-            PendingDrag.Source = null;
-
             /*    @TopLeft _ _ _ __
              *    |  * StartPoint  |
              *    |_ _ _ _ _ _ _ __|
@@ -255,13 +254,10 @@ namespace AnyDock
             var deltaPos = curPoint - PendingDrag.StartPoint;
             var winPos = Window.GetWindow(this).PointToScreen((Point)deltaPos);
             //Console.WriteLine($"offset[{PendingDrag.StartPoint}], cur[{curPoint}], curOff[{Mouse.GetPosition(this)}]");
-            if (AnyDockManager.GetAllowDrag(PendingDrag.Item))
-            {
-                if (TemplatedParent is TabControl tabControl)
-                    PendingDrag.StartPoint += (Vector)TranslatePoint(OriginPoint, tabControl);
-                var data = new DragData(PendingDrag.Item, TemplatedParent as DraggableTabControl);
-                DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
-            }
+            if (TemplatedParent is TabControl tabControl)
+                PendingDrag.StartPoint += (Vector)TranslatePoint(OriginPoint, tabControl);
+            var data = new DragData(PendingDrag.Item, TemplatedParent as DraggableTabControl);
+            DragManager.PerformDrag(winPos, PendingDrag.StartPoint, data);
         }
 
         private static void OnRecieveDrag(UIElement sender, DragManager.RecieveDragEventArgs e)

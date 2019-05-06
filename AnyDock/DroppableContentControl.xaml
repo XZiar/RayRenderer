@@ -26,7 +26,10 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border x:Name="Header" Grid.Row="0" BorderThickness="0 0 0 2" BorderBrush="{Binding Foreground, ElementName=Self}">
+        <Border x:Name="Header" Grid.Row="0" 
+                BorderThickness="0 0 0 2" BorderBrush="{Binding Foreground, ElementName=Self}"
+                MouseLeftButtonDown="HeaderMouseLeftButtonDown" MouseLeftButtonUp="HeaderMouseLeftButtonUp"
+                MouseLeave="HeaderMouseLeave">
             <DockPanel>
                 <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
                         Width="16" Height="16"

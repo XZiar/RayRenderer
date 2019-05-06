@@ -23,7 +23,7 @@
         </local:DraggableTabControl.ItemContainerStyle>
         <local:DraggableTabControl.ContentTemplate>
             <DataTemplate>
-                <local:DroppableContentControl ShowHeader="True" ParentTab="{Binding ElementName=RootTabs}"/>
+                <local:DroppableContentControl ShowHeader="True" ParentTab="{Binding ElementName=RootTabs}" HeaderLBDown="HeaderLBDown"/>
             </DataTemplate>
         </local:DraggableTabControl.ContentTemplate>
     </local:DraggableTabControl>

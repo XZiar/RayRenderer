@@ -84,6 +84,19 @@ namespace AnyDock
 
         public override void OnApplyTemplate()
         {
+            if (HiddenBar != null)
+            {
+                HiddenBar.ItemsSource = null;
+                HiddenBar.ItemClicked -= CollapsedItemClicked;
+            }
+            if (MainContent != null)
+            {
+                MainContent.ItemsSource = null;
+                MainContent.AddingItem -= OnAddingItem;
+            }
+            if (TemporalPage != null)
+                TemporalPage.Closed -= OnTemporalPageClosed;
+
             base.OnApplyTemplate();
             RealContent = (DockPanel)Template.FindName("RealContent", this);
             HiddenBar = (HiddenBar)Template.FindName("HiddenBar", this);
@@ -93,7 +106,18 @@ namespace AnyDock
             HiddenBar.ItemsSource = HiddenChildren;
             HiddenBar.ItemClicked += CollapsedItemClicked;
             MainContent.ItemsSource = ShownChildren;
+            MainContent.AddingItem += OnAddingItem;
             TemporalPage.Closed += OnTemporalPageClosed;
+        }
+
+        private bool OnAddingItem(UIElement item, int index)
+        {
+            SetCollapseToSide(item, false);
+            if (index == -1)
+                Children.Add(item);
+            else
+                Children.Insert(Children.IndexOf(ShownChildren[index]), item);
+            return true;
         }
 
         private void ChildChanged(object sender, NotifyCollectionChangedEventArgs e)

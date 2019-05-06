@@ -16,10 +16,12 @@ namespace AnyDock
     {
         internal readonly UIElement Element;
         internal readonly DraggableTabControl TabRoot;
+        internal readonly Size InitialSize;
         internal DragData(UIElement source, DraggableTabControl root)
         {
             Element = source;
             TabRoot = root;
+            InitialSize = new Size(TabRoot.ActualWidth, TabRoot.ActualHeight);
         }
     }
     internal interface IDragRecievePoint
@@ -81,15 +83,19 @@ namespace AnyDock
             //var winMap = ReferenceTable.Keys.ToDictionary(win => new WindowInteropHelper(win).Handle);
             var winMap = Application.Current.Windows.Cast<Window>()
                 .ToDictionary(win => new WindowInteropHelper(win).Handle);
-            for (var hWnd = GetWindow(winMap.Keys.First(), GW_HWNDFIRST);
-                hWnd != IntPtr.Zero && winMap.Count > 0;
-                hWnd = GetWindow(hWnd, GW_HWNDNEXT))
+            while (winMap.Count > 0)
             {
-                if (winMap.TryGetValue(hWnd, out Window window))
+                var hWnd = GetWindow(winMap.Keys.First(), GW_HWNDFIRST);
+                while (hWnd != IntPtr.Zero)
                 {
-                    winMap.Remove(hWnd);
-                    yield return window;
+                    if (winMap.TryGetValue(hWnd, out Window window))
+                    {
+                        winMap.Remove(hWnd);
+                        yield return window;
+                    }
+                    hWnd = GetWindow(hWnd, GW_HWNDNEXT);
                 }
+                winMap.Remove(hWnd);
             }
         }
 
@@ -101,6 +107,10 @@ namespace AnyDock
             dragWindow.Draging += OnDraging;
             dragWindow.Draged += OnDraged;
             dragWindow.Show();
+        }
+        internal static void PerformDrag(DraggingWindow window)
+        {
+            ZOrderWindows = GetZOrderWindows().Where(x => x != window).ToArray();
         }
 
         private static Window[] ZOrderWindows;
@@ -140,31 +150,14 @@ namespace AnyDock
             //LoacationChanged(Draging) must happen before DragMove finished(Drop)
             if (LastDragPoint != null)
             {
+                ((DraggableTabControl)window.Content).RealChildren.Clear();
+                window.Close();
                 LastDragPoint.OnDragDrop(data, ((FrameworkElement)LastDragPoint).PointFromScreen(screenPos));
                 LastDragPoint = null;
             }
             else
             {
-                var panel = new DraggableTabControl()
-                {
-                    TabStripPlacement = data.TabRoot.TabStripPlacement,
-                    AllowDropTab = data.TabRoot.AllowDropTab
-                };
-                panel.RealChildren.Add(data.Element);
-
-                var extraWidth = SystemParameters.ResizeFrameVerticalBorderWidth;
-                var extraHeight = SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight;
-                var newWindow = new Window
-                {
-                    SizeToContent = SizeToContent.Manual,
-                    Width = window.Width + extraWidth, 
-                    Height = window.Height + extraHeight,
-                    WindowStartupLocation = WindowStartupLocation.Manual,
-                    Left = window.Left - extraWidth, Top = window.Top - extraHeight,
-                    Content = panel
-                };
-                newWindow.Show();
-                //data.Panel.Children.Add(data.Element);
+                window.ToNormalWindow();
             }
         }
 
