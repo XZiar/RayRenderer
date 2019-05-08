@@ -10,7 +10,10 @@
     <Window.Resources>
         <SolidColorBrush x:Key="brshDarkBackground" Color="#FF252526"/>
     </Window.Resources>
-    <anydock:AnyDockHost Background="{StaticResource brshDarkBackground}" Foreground="White">
+    <anydock:AnyDockHost Background="{StaticResource brshDarkBackground}" Foreground="White"
+                         LeftMaxSize="400" RightMaxSize="400" TopMaxSize="200" BottomMaxSize="200"
+                         CenterMinWidth="50" CenterMinHeight="50"
+                         Padding="3">
         <anydock:AnyDockHost.Left>
             <Label Content="Hello 3" FontSize="25" anydock:AnyDockManager.PageName="Hello3" anydock:AnyDockSidePanel.CollapseToSide="False"/>
             <Label Content="Hello 4" FontSize="25" anydock:AnyDockManager.PageName="Hello4" anydock:AnyDockSidePanel.CollapseToSide="True"/>
@@ -29,8 +32,8 @@
         <anydock:AnyDockHost.Bottom>
             <Label Content="Hello 6" FontSize="25" anydock:AnyDockManager.PageName="Hello6" anydock:AnyDockSidePanel.CollapseToSide="False"/>
         </anydock:AnyDockHost.Bottom>
-        <anydock:DraggableTabControl>
+        <TabControl>
             <Label Content="Hello 7" FontSize="25" anydock:AnyDockManager.PageName="Hello7" anydock:AnyDockSidePanel.CollapseToSide="False"/>
-        </anydock:DraggableTabControl>
+        </TabControl>
     </anydock:AnyDockHost>
 </Window>

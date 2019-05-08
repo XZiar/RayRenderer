@@ -109,14 +109,17 @@ namespace AnyDock
         }
         protected void HeaderMouseLeave(object sender, MouseEventArgs e)
         {
-            if (IsPendingDrag && e.LeftButton == MouseButtonState.Pressed)
+            if (IsPendingDrag)
             {
-                Console.WriteLine($"Drag Leave [{(UIElement)DataContext}][{StartPoint}]");
-                if (AnyDockManager.GetAllowDrag((UIElement)DataContext))
-                    BeginTabItemDrag(e);
-                e.Handled = true;
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    Console.WriteLine($"Drag Leave [{(UIElement)DataContext}][{StartPoint}]");
+                    if (AnyDockManager.GetAllowDrag((UIElement)DataContext))
+                        BeginTabItemDrag(e);
+                    e.Handled = true;
+                }
+                IsPendingDrag = false;
             }
-            IsPendingDrag = false;
         }
 
         private void BeginTabItemDrag(MouseEventArgs e)
