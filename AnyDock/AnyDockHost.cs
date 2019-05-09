@@ -6,6 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
 
@@ -15,7 +18,6 @@ namespace AnyDock
     public class AnyDockHost : Panel
     {
         private static readonly ResourceDictionary ResDict;
-        private static readonly ControlTemplate AnyDockHostTemplate;
 
         //public static readonly DependencyProperty CenterProperty = DependencyProperty.Register(
         //    "Center",
@@ -43,16 +45,23 @@ namespace AnyDock
         private static void OnForegroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var self = (AnyDockHost)d;
-            self.LeftPanel.Foreground = self.RightPanel.Foreground = self.TopPanel.Foreground = self.BottomPanel.Foreground = (Brush)e.NewValue;
+            self.LeftPanel.Foreground = self.RightPanel.Foreground = self.TopPanel.Foreground = self.BottomPanel.Foreground = 
+                //self.LeftThumb.Foreground = self.RightThumb.Foreground = self.TopThumb.Foreground = self.BottomThumb.Foreground =
+                (Brush)e.NewValue;
         }
         private static void OnBackgroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var self = (AnyDockHost)d;
-            self.LeftPanel.Background = self.RightPanel.Background = self.TopPanel.Background = self.BottomPanel.Background = (Brush)e.NewValue;
+            self.LeftPanel.Background = self.RightPanel.Background = self.TopPanel.Background = self.BottomPanel.Background =
+                //self.LeftThumb.Foreground = self.RightThumb.Foreground = self.TopThumb.Foreground = self.BottomThumb.Foreground =
+                self.LeftThumb.Background = self.RightThumb.Background = self.TopThumb.Background = self.BottomThumb.Background =
+                (Brush)e.NewValue;
         }
 
-        private AnyDockSidePanel LeftPanel, RightPanel, TopPanel, BottomPanel;
-        private ContentPresenter CenterPanel;
+        private readonly AnyDockSidePanel LeftPanel, RightPanel, TopPanel, BottomPanel;
+        private readonly ResizeThumb LeftThumb, RightThumb, TopThumb, BottomThumb;
+        private readonly ContentPresenter CenterPanel;
+        private readonly PreviewResizeAdorner ResizePreview;
         private FrameworkElement Center_;
 
         public ObservableCollectionEx<UIElement> Left   => LeftPanel.Children;
@@ -68,21 +77,36 @@ namespace AnyDock
         }
 
 
-        public double LeftSize        { set => LeftPanel.  Width     = value; }
-        public double RightSize       { set => RightPanel. Width     = value; }
-        public double TopSize         { set => TopPanel.   Height    = value; }
-        public double BottomSize      { set => BottomPanel.Height    = value; }
-        public double LeftMaxSize     { set => LeftPanel.  MaxWidth  = value; }
-        public double RightMaxSize    { set => RightPanel. MaxWidth  = value; }
-        public double TopMaxSize      { set => TopPanel.   MaxHeight = value; }
-        public double BottomMaxSize   { set => BottomPanel.MaxHeight = value; }
-        public double CenterMinWidth  { set => CenterPanel.MinWidth  = value; }
-        public double CenterMinHeight { set => CenterPanel.MinHeight = value; }
+        public double LeftSize        { get => LeftPanel.  Width;       set => LeftPanel.  Width     = value; }
+        public double RightSize       { get => RightPanel. Width;       set => RightPanel. Width     = value; }
+        public double TopSize         { get => TopPanel.   Height;      set => TopPanel.   Height    = value; }
+        public double BottomSize      { get => BottomPanel.Height;      set => BottomPanel.Height    = value; }
+        public double LeftMaxSize     { get => LeftPanel.  MaxWidth;    set => LeftPanel.  MaxWidth  = value; }
+        public double RightMaxSize    { get => RightPanel. MaxWidth;    set => RightPanel. MaxWidth  = value; }
+        public double TopMaxSize      { get => TopPanel.   MaxHeight;   set => TopPanel.   MaxHeight = value; }
+        public double BottomMaxSize   { get => BottomPanel.MaxHeight;   set => BottomPanel.MaxHeight = value; }
+        public double CenterMinWidth  { get => CenterPanel.MinWidth;    set => CenterPanel.MinWidth  = value; }
+        public double CenterMinHeight { get => CenterPanel.MinHeight;   set => CenterPanel.MinHeight = value; }
+
+        private class PreviewResizeAdorner : Adorner
+        {
+            private readonly AnyDockHost Host;
+            internal Rect GuideRect;
+            public PreviewResizeAdorner(AnyDockHost host) : base(host)
+            {
+                Host = host;
+            }
+            protected override void OnRender(DrawingContext dc)
+            {
+                base.OnRender(dc);
+                Console.WriteLine($"Now Reize Rect : {GuideRect}");
+                dc.DrawRectangle(Host.Foreground, null, GuideRect);
+            }
+        }
 
         static AnyDockHost()
         {
             //ResDict = new ResourceDictionary { Source = new Uri("AnyDock;component/AnyDockHost.res.xaml", UriKind.RelativeOrAbsolute) };
-            //AnyDockHostTemplate = (ControlTemplate)ResDict["AnyDockHostTemplate"];
             BackgroundProperty.OverrideMetadata(typeof(AnyDockHost), 
                 new FrameworkPropertyMetadata(new SolidColorBrush(SystemColors.WindowColor), FrameworkPropertyMetadataOptions.AffectsRender,
                 OnBackgroundChanged));
@@ -90,33 +114,128 @@ namespace AnyDock
 
         public AnyDockHost()
         {
-            //Template = AnyDockHostTemplate;
-            //ApplyTemplate();
-            LeftPanel = new AnyDockSidePanel { TabStripPlacement = Dock.Left };
-            RightPanel = new AnyDockSidePanel { TabStripPlacement = Dock.Right };
-            TopPanel = new AnyDockSidePanel { TabStripPlacement = Dock.Top };
+            LeftPanel   = new AnyDockSidePanel { TabStripPlacement = Dock.Left };
+            RightPanel  = new AnyDockSidePanel { TabStripPlacement = Dock.Right };
+            TopPanel    = new AnyDockSidePanel { TabStripPlacement = Dock.Top };
             BottomPanel = new AnyDockSidePanel { TabStripPlacement = Dock.Bottom };
+            LeftThumb   = new ResizeThumb      { Cursor = Cursors.SizeWE };
+            RightThumb  = new ResizeThumb      { Cursor = Cursors.SizeWE };
+            TopThumb    = new ResizeThumb      { Cursor = Cursors.SizeNS };
+            BottomThumb = new ResizeThumb      { Cursor = Cursors.SizeNS };
             CenterPanel = new ContentPresenter();
+            ResizePreview = new PreviewResizeAdorner(this);
+
             InternalChildren.Add(LeftPanel);
             InternalChildren.Add(RightPanel);
             InternalChildren.Add(TopPanel);
             InternalChildren.Add(BottomPanel);
+            InternalChildren.Add(LeftThumb);
+            InternalChildren.Add(RightThumb);
+            InternalChildren.Add(TopThumb);
+            InternalChildren.Add(BottomThumb);
             InternalChildren.Add(CenterPanel);
+
+            void AddDragHandler(ResizeThumb thumb)
+            {
+                thumb.DragStarted += ResizeThumbStarted;
+                thumb.DragDelta += ResizeThumbDelta;
+                thumb.DragCompleted += ResizeThumbCompleted;
+            }
+            AddDragHandler(LeftThumb);
+            AddDragHandler(RightThumb);
+            AddDragHandler(TopThumb);
+            AddDragHandler(BottomThumb);
         }
 
-        //public override void OnApplyTemplate()
-        //{
-        //    base.OnApplyTemplate();
-        //    LeftPanel   = (AnyDockSidePanel)Template.FindName("LeftPanel"  , this);
-        //    RightPanel  = (AnyDockSidePanel)Template.FindName("RightPanel" , this);
-        //    TopPanel    = (AnyDockSidePanel)Template.FindName("TopPanel"   , this);
-        //    BottomPanel = (AnyDockSidePanel)Template.FindName("BottomPanel", this);
-        //    CenterPanel = (ContentPresenter)Template.FindName("CenterPanel", this);
-        //}
+
+        private Thickness SizeOffsets;
+        private bool IsInReSize = false;
+        private void ResizeThumbStarted(object sender, DragStartedEventArgs e)
+        {
+            if (sender == LeftThumb)
+            {
+                if (LeftPanel.Children.Count > 0)
+                    ResizePreview.GuideRect = new Rect(SizeOffsets.Left, 0, Padding.Left, ActualHeight);
+                else return;
+            }
+            else if (sender == RightThumb)
+            {
+                if (RightPanel.Children.Count > 0)
+                    ResizePreview.GuideRect = new Rect(SizeOffsets.Right, 0, Padding.Right, ActualHeight);
+                else return;
+            }
+            else if (sender == TopThumb)
+            {
+                if (TopPanel.Children.Count > 0)
+                    ResizePreview.GuideRect = new Rect(0, SizeOffsets.Top, ActualWidth, Padding.Top);
+                else return;
+            }
+            else if (sender == BottomThumb)
+            {
+                if (BottomPanel.Children.Count > 0)
+                    ResizePreview.GuideRect = new Rect(0, SizeOffsets.Bottom, ActualWidth, Padding.Bottom);
+                else return;
+            }
+            else
+                return;
+            IsInReSize = true;
+            AdornerLayer.GetAdornerLayer(this).Add(ResizePreview);
+        }
+        private void ResizeThumbDelta(object sender, DragDeltaEventArgs e)
+        {
+            double Clamp(double input, double min, double max, double padding)
+            {
+                min += padding; max -= padding;
+                if (input < min) return min;
+                if (input > max) return max;
+                return input;
+            }
+            if (!IsInReSize) return;
+            if (sender == LeftThumb)
+                ResizePreview.GuideRect.X = Clamp(SizeOffsets.Left + e.HorizontalChange,  0, ActualWidth - RightPanel.ActualWidth, 30);
+            else if (sender == RightThumb)
+                ResizePreview.GuideRect.X = Clamp(SizeOffsets.Right + e.HorizontalChange, LeftPanel.ActualWidth, ActualWidth, 30);
+            else if (sender == TopThumb)
+                ResizePreview.GuideRect.Y = Clamp(SizeOffsets.Top + e.VerticalChange,     0, ActualHeight - BottomPanel.ActualHeight, 30);
+            else if (sender == BottomThumb)
+                ResizePreview.GuideRect.Y = Clamp(SizeOffsets.Bottom + e.VerticalChange,  TopPanel.ActualHeight, ActualHeight, 30);
+            else
+                return;
+            ResizePreview.InvalidateVisual();
+        }
+        private void ResizeThumbCompleted(object sender, DragCompletedEventArgs e)
+        {
+            if (IsInReSize)
+            {
+                IsInReSize = false;
+                AdornerLayer.GetAdornerLayer(this).Remove(ResizePreview);
+                if (sender == LeftThumb)
+                {
+                    LeftMaxSize = ResizePreview.GuideRect.X;
+                    RightMaxSize = Math.Min(RightMaxSize, RightPanel.ActualWidth);
+                }
+                else if (sender == RightThumb)
+                {
+                    RightMaxSize = ActualWidth - ResizePreview.GuideRect.X;
+                    LeftMaxSize = Math.Min(LeftMaxSize, LeftPanel.ActualWidth);
+                }
+                else if (sender == TopThumb)
+                {
+                    TopMaxSize = ResizePreview.GuideRect.Y;
+                    BottomMaxSize = Math.Min(BottomMaxSize, BottomPanel.ActualHeight);
+                }
+                else if (sender == BottomThumb)
+                {
+                    BottomMaxSize = ActualHeight - ResizePreview.GuideRect.Y;
+                    TopMaxSize = Math.Min(TopMaxSize, TopPanel.ActualHeight);
+                }
+                else
+                    return;
+                InvalidateMeasure();
+            }
+        }
 
         private static bool IsAutoSize(double val) => double.IsNaN(val) || double.IsInfinity(val);
-
-
         protected override Size MeasureOverride(Size availableSize)
         {
             var shouldCheckCenter = Center != null && Center.Visibility != Visibility.Collapsed;
@@ -143,6 +262,8 @@ namespace AnyDock
             }
             else
                 constraint.Width -= lrWidth - minSize.X;
+            LeftThumb.Measure(new Size(pad.Left, constraint.Height));
+            RightThumb.Measure(new Size(pad.Right, constraint.Height));
 
             constraint.Height -= Math.Min(padSize.Height + minSize.Y, constraint.Height);
             TopPanel.Measure(constraint);
@@ -157,6 +278,8 @@ namespace AnyDock
             }
             else
                 constraint.Height -= tbHeight - minSize.Y;
+            TopThumb.Measure(new Size(constraint.Width, pad.Top));
+            BottomThumb.Measure(new Size(constraint.Width, pad.Bottom));
 
             var cSize = new Size(0, 0);
             if (shouldCheckCenter)
@@ -182,6 +305,10 @@ namespace AnyDock
             var rWidth = RightPanel.DesiredSize.Width;
             LeftPanel.Arrange(new Rect(0, 0, lWidth, finalSize.Height));
             RightPanel.Arrange(new Rect(finalSize.Width - rWidth, 0, rWidth, finalSize.Height));
+            SizeOffsets.Left = lWidth;
+            LeftThumb.Arrange(new Rect(SizeOffsets.Left, 0, pad.Left, finalSize.Height));
+            SizeOffsets.Right = finalSize.Width - rWidth - pad.Right;
+            RightThumb.Arrange(new Rect(SizeOffsets.Right, 0, pad.Right, finalSize.Height));
 
             var xOffset = lWidth + pad.Left;
             var availableWidth = Math.Max(finalSize.Width - (lWidth + rWidth + pad.Left + pad.Right), 0);
@@ -189,6 +316,10 @@ namespace AnyDock
             var bHeight = BottomPanel.DesiredSize.Height;
             TopPanel.Arrange(new Rect(xOffset, 0, availableWidth, tHeight));
             BottomPanel.Arrange(new Rect(xOffset, finalSize.Height - bHeight, availableWidth, bHeight));
+            SizeOffsets.Top = tHeight;
+            TopThumb.Arrange(new Rect(xOffset, SizeOffsets.Top, availableWidth, pad.Top));
+            SizeOffsets.Bottom = finalSize.Height - bHeight - pad.Bottom;
+            BottomThumb.Arrange(new Rect(xOffset, SizeOffsets.Bottom, availableWidth, pad.Bottom));
 
             if (!shouldCheckCenter)
                 CenterPanel.Arrange(new Rect(0, 0, 0, 0));
@@ -200,5 +331,7 @@ namespace AnyDock
             }
             return finalSize;
         }
+
+
     }
 }

@@ -77,6 +77,9 @@
       <DependentUpon>MoreTabsPopup.xaml</DependentUpon>
     </Compile>
     <Compile Include="ObservableCollectionEx.cs" />
+    <Compile Include="ResizeThumb.xaml.cs">
+      <DependentUpon>ResizeThumb.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SquareButton.cs" />
     <Page Include="AnyDockHost.res.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -120,6 +123,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="MoreTabsPopup.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ResizeThumb.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
