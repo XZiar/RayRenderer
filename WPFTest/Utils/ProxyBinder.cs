@@ -8,9 +8,9 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Markup;
 
-namespace CommonUtil
+namespace WPFTest
 {
-    public class ProxyBinder : DependencyObject, INotifyPropertyChanged
+    internal class ProxyBinder : DependencyObject, INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
         protected object output;

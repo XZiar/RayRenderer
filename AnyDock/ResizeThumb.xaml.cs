@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -13,14 +14,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace WPFTest
+namespace AnyDock
 {
     /// <summary>
-    /// LightPage.xaml 的交互逻辑
+    /// ResizeThumb.xaml 的交互逻辑
     /// </summary>
-    public partial class LightPage : UserControl
+    internal partial class ResizeThumb : Thumb
     {
-        public LightPage()
+        public ResizeThumb()
         {
             InitializeComponent();
         }

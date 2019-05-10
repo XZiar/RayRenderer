@@ -1,0 +1,74 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:wpf="clr-namespace:System.Windows.Controls;assembly=PresentationFramework" 
+                    xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+                    xmlns:local="clr-namespace:AnyDock">
+    <local:TabStripAngleConverter x:Key="TabStripAngleConv"/>
+    <local:CollapseIfFalseConverter x:Key="CollapseIfFalse"/>
+    <ControlTemplate x:Key="AnyDockSidePanelTemplate" TargetType="{x:Type local:AnyDockSidePanel}">
+        <!--, diag:PresentationTraceSources.TraceLevel=High-->
+        <DockPanel x:Name="RealContent">
+            <local:HiddenBar x:Name="HiddenBar" Margin="1 2 1 2" DockPanel.Dock="{TemplateBinding TabStripPlacement}"
+                             Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"/>
+            <local:DraggableTabControl x:Name="MainContent" TabStripPlacement="Bottom" 
+                                       Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"
+                                       AllowDropTab="True" ShowAllTabs="True" ShowCloseButton="False" ShowIcon="False">
+                <local:DraggableTabControl.ItemContainerStyle>
+                    <Style TargetType="{x:Type local:SimpleTabItem}">
+                        <Setter Property="HeaderTemplate">
+                            <Setter.Value>
+                                <DataTemplate>
+                                    <local:AnyDockTabLabel ParentTab="{Binding ElementName=MainContent}"/>
+                                </DataTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </local:DraggableTabControl.ItemContainerStyle>
+                <local:DraggableTabControl.ContentTemplate>
+                    <DataTemplate>
+                        <local:DroppableContentControl ShowHeader="True" ParentTab="{Binding ElementName=MainContent}"/>
+                    </DataTemplate>
+                </local:DraggableTabControl.ContentTemplate>
+                <local:DraggableTabControl.Style>
+                    <Style TargetType="{x:Type local:DraggableTabControl}">
+                        <Style.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </local:DraggableTabControl.Style>
+            </local:DraggableTabControl>
+            <Popup x:Name="PopupPage" AllowsTransparency="True" StaysOpen="False"
+                   PlacementTarget="{Binding ElementName=HiddenBar}">
+                   <!--MaxWidth="{TemplateBinding MaxWidth}" MaxHeight="{TemplateBinding MaxHeight}">-->
+                <Border Margin="1 1 4 4" BorderThickness="1" BorderBrush="{TemplateBinding Foreground}"
+                        Background="{TemplateBinding Background}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="4" Opacity="0.2"/>
+                    </Border.Effect>
+                    <local:DroppableContentControl x:Name="PopupContent" ShowHeader="True" Content="{Binding DataContext}"
+                                                   Foreground="{TemplateBinding Foreground}" Background="{TemplateBinding Background}"/>
+                </Border>
+            </Popup>
+        </DockPanel>
+        <ControlTemplate.Triggers>
+            <Trigger Property="TabStripPlacement" Value="Top">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Bottom"/>
+                <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=RealContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Bottom">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Top"/>
+                <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=RealContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Left">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Right"/>
+                <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=RealContent}"/>
+            </Trigger>
+            <Trigger Property="TabStripPlacement" Value="Right">
+                <Setter TargetName="PopupPage" Property="Placement" Value="Left"/>
+                <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=RealContent}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+</ResourceDictionary>

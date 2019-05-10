@@ -1,0 +1,39 @@
+﻿<Window x:Class="AnyDockTest.NewDockPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AnyDockTest"
+        mc:Ignorable="d"
+        xmlns:anydock="clr-namespace:AnyDock;assembly=AnyDock"
+        Title="NewDockPanel" Height="500" Width="500">
+    <Window.Resources>
+        <SolidColorBrush x:Key="brshDarkBackground" Color="#FF252526"/>
+    </Window.Resources>
+    <anydock:AnyDockHost Background="{StaticResource brshDarkBackground}" Foreground="White"
+                         LeftMaxSize="400" RightMaxSize="400" TopMaxSize="200" BottomMaxSize="200"
+                         CenterMinWidth="50" CenterMinHeight="50"
+                         Padding="3">
+        <anydock:AnyDockHost.Left>
+            <Label Content="Hello 3" FontSize="25" anydock:AnyDockManager.PageName="Hello3" anydock:AnyDockSidePanel.CollapseToSide="False"/>
+            <Label Content="Hello 4" FontSize="25" anydock:AnyDockManager.PageName="Hello4" anydock:AnyDockSidePanel.CollapseToSide="True"/>
+        </anydock:AnyDockHost.Left>
+        <anydock:AnyDockHost.Right>
+            <Label Content="Hello 5" FontSize="25" anydock:AnyDockManager.PageName="Hello5"/>
+            <Canvas Width="160" Height="160" anydock:AnyDockManager.PageName="Hellp">
+                <Path Margin="1.5" Stretch="Uniform" StrokeThickness="1" 
+                    Stroke="White"
+                    Data="M2.5,0 L7.5,0 L7.5,6 M6.5,6 L6.5,0 M2.5,0 L3,6 M0,7 L10,7 M5,8 L5,13"/>
+            </Canvas>
+        </anydock:AnyDockHost.Right>
+        <anydock:AnyDockHost.Top>
+            <Label Content="Hello 5" FontSize="25" anydock:AnyDockManager.PageName="Hello5" anydock:AnyDockSidePanel.CollapseToSide="False"/>
+        </anydock:AnyDockHost.Top>
+        <anydock:AnyDockHost.Bottom>
+            <Label Content="Hello 6" FontSize="25" anydock:AnyDockManager.PageName="Hello6" anydock:AnyDockSidePanel.CollapseToSide="False"/>
+        </anydock:AnyDockHost.Bottom>
+        <TabControl>
+            <Label Content="Hello 7" FontSize="25" anydock:AnyDockManager.PageName="Hello7" anydock:AnyDockSidePanel.CollapseToSide="False"/>
+        </TabControl>
+    </anydock:AnyDockHost>
+</Window>

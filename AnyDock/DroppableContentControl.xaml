@@ -1,0 +1,84 @@
+﻿<ContentControl x:Class="AnyDock.DroppableContentControl"
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+                xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                xmlns:local="clr-namespace:AnyDock"
+                mc:Ignorable="d" 
+                x:ClassModifier="internal"
+                x:Name="Self"
+                d:DesignHeight="500" d:DesignWidth="250">
+    <ContentControl.Resources>
+        <Viewbox x:Key="DragOverLay" x:Shared="True" Grid.Row="1"
+                 Panel.ZIndex="100" Stretch="Fill" Visibility="Visible" IsHitTestVisible="False" >
+            <Canvas Width="100" Height="100" >
+                <Polygon Fill="#40FF0000" Points="0,0 100,0 70,30 30,30"     Tag="Up"     />
+                <Polygon Fill="#4000FF00" Points="100,0 100,100 70,70 70,30" Tag="Right"  />
+                <Polygon Fill="#400000FF" Points="100,100 0,100 30,70 70,70" Tag="Down"   />
+                <Polygon Fill="#40FFFF00" Points="0,100 0,0 30,30 30,70"     Tag="Left"   />
+                <Polygon Fill="#40000000" Points="30,30 70,30 70,70 30,70"   Tag="Middle" />
+            </Canvas>
+        </Viewbox>
+    </ContentControl.Resources>
+    <Grid x:Name="MainGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Border x:Name="Header" Grid.Row="0" 
+                BorderThickness="0 0 0 2" BorderBrush="{Binding Foreground, ElementName=Self}"
+                MouseLeftButtonDown="HeaderMouseLeftButtonDown" MouseLeftButtonUp="HeaderMouseLeftButtonUp"
+                MouseLeave="HeaderMouseLeave">
+            <DockPanel>
+                <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                        Width="16" Height="16"
+                        VerticalAlignment="Center" HorizontalAlignment="Center" 
+                        BorderThickness="0" Background="Transparent"
+                        Click="BtnCloseClick">
+                    <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="Uniform" StrokeThickness="1.5" 
+                          Stroke="{Binding Foreground, ElementName=Self}"/>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding (local:AnyDockManager.CanClose)}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button x:Name="btnPin" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                        Width="16" Height="16" 
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" 
+                        BorderThickness="0" Background="Transparent"
+                        Click="BtnPinClick">
+                    <Path Margin="1.5" Stretch="Uniform" StrokeThickness="1" 
+                          Stroke="{Binding Foreground, ElementName=Self}"
+                          Data="M2.5,0 L7.5,0 L7.5,6 M6.5,6 L6.5,0 M2.5,0 L3,6 M0,7 L10,7 M5,8 L5,13">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding (local:AnyDockSidePanel.CollapseToSide)}" Value="True">
+                                        <Setter Property="LayoutTransform">
+                                            <Setter.Value>
+                                                <RotateTransform Angle="90"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                </Button>
+                <TextBlock x:Name="PageLabel" Margin="2 0 2 0" Height="16"
+                           VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+                           Foreground="{Binding Foreground, ElementName=Self}" Background="Transparent"
+                           Text="{Binding (local:AnyDockManager.PageName)}" />
+            </DockPanel>
+        </Border>
+        <ContentPresenter x:Name="RealContent" Grid.Row="1" Content="{Binding DataContext, ElementName=Self}"/>
+    </Grid>
+</ContentControl>

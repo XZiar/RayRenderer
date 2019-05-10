@@ -16,11 +16,11 @@ using System.Windows.Shapes;
 namespace WPFTest
 {
     /// <summary>
-    /// DrawablePage.xaml 的交互逻辑
+    /// BasicPage.xaml 的交互逻辑
     /// </summary>
-    public partial class DrawablePage : UserControl
+    public partial class BasicPage : ContentControl
     {
-        public DrawablePage()
+        public BasicPage()
         {
             InitializeComponent();
         }

@@ -1,0 +1,490 @@
+﻿<Window x:Class="WPFTest.MainWindow2"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:System="clr-namespace:System;assembly=mscorlib"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+        xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
+        xmlns:oglv="clr-namespace:OpenGLView;assembly=OpenGLView.x64"
+        xmlns:oglu="clr-namespace:OpenGLUtil;assembly=RenderCoreWrap.x64"
+        xmlns:local="clr-namespace:WPFTest"
+        xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
+        xmlns:util="clr-namespace:XZiar.Util"
+        mc:Ignorable="d"
+        x:Name="mainWindow"
+        Title="WPFTest" Height="600" Width="900" Background="{StaticResource brshDarkBackground}">
+    <Window.Resources>
+        <util:ArrayIndexConverter x:Key="arrIdxConverter"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="70*"/>
+            <ColumnDefinition Width="4" />
+            <ColumnDefinition Width="30*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel x:Name="menuBar" Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+            <Button x:Name="btnDragMode" ToolTip="Camera" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnDragMode_Click">
+                <ImageBrush ImageSource="{StaticResource imgCamera}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmDragMode" MenuItem.Click="btncmDragMode_Click">
+                        <MenuItem Header="Camera" Tag="camera">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgCamera}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Object" Tag="object">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgCube}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Light" Tag="light">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgPointLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
+            <Button x:Name="btnAddModel" ToolTip="Add Model" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnAddModel_Click">
+                <ImageBrush ImageSource="{StaticResource imgCube}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmAddModel" MenuItem.Click="btncmAddModel_Click">
+                        <MenuItem Header="Cube" Tag="cube" />
+                        <MenuItem Header="Sphere" Tag="sphere" />
+                        <MenuItem Header="Plane" Tag="plane" />
+                        <MenuItem Header="3D Model" Tag="model" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Button x:Name="btnAddLight" ToolTip="Add Light" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnAddLight_Click">
+                <ImageBrush ImageSource="{StaticResource imgPointLight}"/>
+                <Button.ContextMenu>
+                    <ContextMenu x:Name="btncmAddLight" MenuItem.Click="btncmAddLight_Click">
+                        <MenuItem Header="Parallel Light" Tag="parallel">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgParLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Point Light" Tag="point">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgPointLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Spot Light" Tag="spot">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource imgSpotLight}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Button.ContextMenu>
+            </Button>
+            <Separator Margin="1" IsEnabled="True" Height="4" Width="30" Style="{StaticResource verticleSeparator}"/>
+            <Button x:Name="btnScreenshot" ToolTip="Screenshot" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnScreenshot_Click">
+                <ImageBrush ImageSource="{StaticResource imgScreenshot}"/>
+            </Button>
+            <Button x:Name="btnSave" ToolTip="Save Scene" Width="32" Height="32" Margin="2,0" Template="{StaticResource tintButton}" Click="btnSave_Click">
+                <ImageBrush ImageSource="{StaticResource imgSave}"/>
+            </Button>
+        </StackPanel>
+        <StatusBar x:Name="barStatus" Grid.Row="2" Grid.ColumnSpan="3" Background="Black" >
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurCamera" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurLight" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurObj" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtCurShd" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtMemInfo" Foreground="White"/>
+                </StatusBarItem>
+                <Separator IsEnabled="True" Height="4" Style="{StaticResource verticleSeparator}"/>
+                <StatusBarItem>
+                    <TextBlock x:Name="txtFPS" Foreground="White"/>
+                </StatusBarItem>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                
+            </StackPanel>
+        </StatusBar>
+        <TabControl Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" TabStripPlacement="Right">
+            <TabControl.Resources>
+                <Style TargetType="{x:Type TabItem}">
+                    <Setter Property="HeaderTemplate">
+                        <Setter.Value>
+                            <DataTemplate>
+                                <ContentPresenter Content="{TemplateBinding Content}">
+                                    <ContentPresenter.LayoutTransform>
+                                        <RotateTransform Angle="90" />
+                                    </ContentPresenter.LayoutTransform>
+                                </ContentPresenter>
+                            </DataTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Padding" Value="1,4" />
+                    <Setter Property="Background" Value="#FF694F47"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="Black"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+            <TabItem Header="日志" IsTabStop="False">
+                <DockPanel>
+                    <StackPanel Orientation="Vertical" DockPanel.Dock="Top">
+                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="日志等级">
+                            <xctk:CheckComboBox x:Name="cboxDbgLv" Foreground="White" Text="日志等级"/>
+                        </ext:LabelControl>
+                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="日志来源">
+                            <xctk:CheckComboBox x:Name="cboxDbgSrc" Foreground="White" Text="日志来源"/>
+                        </ext:LabelControl>
+                    </StackPanel>
+                    <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
+                        <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Inziu Iosevka SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
+                            <FlowDocument>
+                                <Paragraph x:Name="para"/>
+                            </FlowDocument>
+                        </RichTextBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="设置" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <StackPanel Orientation="Vertical">
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="鼠标灵敏度">
+                        <Slider x:Name="slMouseSen" Value="60" Minimum="10" Maximum="130" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                    </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="滚轮灵敏度">
+                        <Slider x:Name="slScrollSen" Value="1" Minimum="0.1" Maximum="2" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                    </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="面剔除模式">
+                        <ComboBox x:Name="cboxFCull" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
+                    </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="深度测试">
+                        <ComboBox x:Name="cboxDTest" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
+                    </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="离屏尺寸">
+                        <ComboBox x:Name="cboxOSize" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}"/>
+                    </ext:LabelControl>
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="浮点深度">
+                        <CheckBox x:Name="ckboxFDepth" IsChecked="true"/>
+                    </ext:LabelControl>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="后处理" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <StackPanel Orientation="Vertical">
+                    <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="72" Label="曝光补偿">
+                        <Slider x:Name="slExposure" Value="0" Minimum="-4" Maximum="4" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                    </ext:LabelControl>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="物体" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <DockPanel>
+                    <ComboBox x:Name="cboxObj" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top" SelectionChanged="cboxObj_SelectionChanged"/>
+                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
+                        <StackPanel x:Name="stkObject" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxObj, Mode=OneWay}">
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="渲染物体">
+                                <CheckBox IsChecked="{Binding ShouldRender, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Rotation, Mode=OneWay}" LabelWidth="64" Label="旋转" IsReadOnly="True"/>
+                            <GroupBox Header="材质" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                                <DockPanel>
+                                    <ComboBox x:Name="cboxMat" ItemsSource="{Binding Materials, Mode=OneWay}" SelectedIndex="0" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                                    <StackPanel Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxMat, Mode=OneWay}">
+                                        <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Albedo">
+                                            <CheckBox IsChecked="{Binding IsMappedAlbedo, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                                        </ext:LabelControl>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo">
+                                            <ext:LabelControl.Style>
+                                                <Style TargetType="ext:LabelControl">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="true">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ext:LabelControl.Style>
+                                            <xctk:ColorPicker SelectedColor="{Binding Albedo, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                                        </ext:LabelControl>
+                                        <ext:LabelTextBox Content="{Binding AlbedoMap.Name, Mode=OneWay}" ContentToolTip="{Binding AlbedoMap.Description, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Albedo" IsReadOnly="True">
+                                            <ext:LabelTextBox.Style>
+                                                <Style TargetType="ext:LabelTextBox">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ext:LabelTextBox.Style>
+                                        </ext:LabelTextBox>
+                                        <Border BorderBrush="#FFABABAB" BorderThickness="1">
+                                            <Image Source="{Binding AlbedoMap.Thumbnail, Mode=OneWay}" MaxWidth="256" Stretch="Fill">
+                                                <Image.Style>
+                                                    <Style TargetType="Image">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMappedAlbedo, Mode=OneWay}" Value="false">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Image.Style>
+                                            </Image>
+                                        </Border>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="96" Label="贴图Normal">
+                                            <CheckBox IsChecked="{Binding IsMappedNormal, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                                        </ext:LabelControl>
+                                        <ext:LabelTextBox Content="{Binding NormalMap.Name, Mode=OneWay}" ContentToolTip="{Binding NormalMap.Description, Mode=OneWay}" Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="Normal" IsReadOnly="True">
+                                            <ext:LabelTextBox.Style>
+                                                <Style TargetType="ext:LabelTextBox">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMappedNormal, Mode=OneWay}" Value="false">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ext:LabelTextBox.Style>
+                                        </ext:LabelTextBox>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="金属率">
+                                            <Slider Value="{Binding Metallic, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                                        </ext:LabelControl>
+                                        <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="粗糙">
+                                            <Slider Value="{Binding Roughness, Mode=TwoWay}" Minimum="0" Maximum="1" ValueChanged="GLMainInvalidator" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center"/>
+                                        </ext:LabelControl>
+                                    </StackPanel>
+                                </DockPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="灯光" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <DockPanel>
+                    <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
+                        <StackPanel x:Name="stkLight" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}">
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="启用">
+                                <CheckBox IsChecked="{Binding IsOn, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Type, Mode=OneTime}" LabelWidth="64" Label="类型" IsReadOnly="True"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Name, Mode=TwoWay}" LabelWidth="64" Label="名称" IsReadOnly="False"/>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Position, Mode=OneWay}" LabelWidth="64" Label="位置" IsReadOnly="True">
+                                <ext:LabelTextBox.Style>
+                                    <Style TargetType="ext:LabelTextBox">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Parallel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelTextBox.Style>
+                            </ext:LabelTextBox>
+                            <ext:LabelTextBox Foreground="White" Background="{StaticResource brshDarkBackground}" Content="{Binding Direction, Mode=OneWay}" LabelWidth="64" Label="方向" IsReadOnly="True">
+                                <ext:LabelTextBox.Style>
+                                    <Style TargetType="ext:LabelTextBox">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Point">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelTextBox.Style>
+                            </ext:LabelTextBox>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="颜色">
+                                <xctk:ColorPicker SelectedColor="{Binding Color, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="亮度">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Luminance}" FormatString="F2" Increment=".1" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="64" Label="切光角">
+                                <ext:LabelControl.Style>
+                                    <Style TargetType="ext:LabelControl">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Parallel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type, Mode=OneTime}" Value="Point">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ext:LabelControl.Style>
+                                <xctk:RangeSlider LowerValue="{Binding CutoffInner, Mode=TwoWay}" HigherValue="{Binding CutoffOuter, Mode=TwoWay}" Minimum="0" Maximum="180" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="1" VerticalContentAlignment="Center" HigherValueChanged="GLMainInvalidator" LowerValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减常数">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding AttenuationC}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减一次项">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Attenuation1}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                            <ext:LabelControl Foreground="White" Background="{StaticResource brshDarkBackground}" LabelWidth="80" Label="衰减二次项">
+                                <xctk:DoubleUpDown Foreground="White" Value="{Binding Attenuation2}" FormatString="F3" Increment=".01" ValueChanged="GLMainInvalidator"/>
+                            </ext:LabelControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="Shader" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <DockPanel>
+                    <ComboBox x:Name="cboxShader" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalOnly" VerticalScrollBarVisibility="Hidden">
+                        <StackPanel x:Name="stkShader" Orientation="Vertical" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}">
+                            <ext:LabelTextBox x:Name="shdName" Foreground="White" Label="名称" LabelWidth="64" IsReadOnly="False" Content="{Binding Name, Mode=TwoWay}"/>
+                            <GroupBox Header="绑定资源" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                                <ItemsControl ItemsSource="{Binding Resources, Mode=OneWay}">
+                                    <ItemsControl.Resources>
+                                        <DataTemplate DataType="{x:Type oglu:ProgramResource}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                        <ColumnDefinition Width="3*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Type, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <!--<ext:LabelTextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Foreground="White" Label="绑定槽" LabelWidth="1*" LabelFontSize="11" Content="{Binding Location, Mode=OneWay}" IsReadOnly="True"/>-->
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:RangedProgInputRes_Float}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <Slider Grid.Row="1" Grid.ColumnSpan="2" Value="{Binding Value, Mode=TwoWay}" Minimum="{Binding MinValue, Mode=OneTime}" Maximum="{Binding MaxValue, Mode=OneTime}" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="3" VerticalContentAlignment="Center" ValueChanged="GLMainInvalidator"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:Ranged2ProgInputRes_Float}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <xctk:RangeSlider Grid.Row="1" Grid.ColumnSpan="2" LowerValue="{Binding LowValue, Mode=TwoWay}" HigherValue="{Binding HighValue, Mode=TwoWay}" Minimum="{Binding MinValue, Mode=OneTime}" Maximum="{Binding MaxValue, Mode=OneTime}" AutoToolTipPlacement="TopLeft" AutoToolTipPrecision="3" VerticalContentAlignment="Center" HigherValueChanged="GLMainInvalidator" LowerValueChanged="GLMainInvalidator"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:ColorProgInputRes}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ValueType, Mode=OneTime}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                                    <xctk:ColorPicker Grid.Row="1" Grid.ColumnSpan="2" SelectedColor="{Binding Value, Mode=TwoWay}" SelectedColorChanged="GLMainInvalidator" ColorMode="ColorCanvas"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type oglu:SwitchProgInputRes}">
+                                            <Border BorderThickness="0.5" BorderBrush="White">
+                                                <Grid Margin="4">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name, Mode=OneTime}" ToolTip="{Binding Description}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                                    <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding Value, Mode=TwoWay}" Checked="GLMainInvalidator" Unchecked="GLMainInvalidator"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.Resources>
+                                </ItemsControl>
+                            </GroupBox>
+                            <GroupBox Header="Subroutine" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                                <ItemsControl ItemsSource="{Binding Subroutines, Mode=OneTime}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ext:LabelControl Label="{Binding Name, Mode=OneTime}" ToolTip="{Binding Stage, Mode=OneTime}" Foreground="White" LabelWidth="Auto">
+                                                <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" ItemsSource="{Binding Routines, Mode=OneWay}" SelectedItem="{Binding Current, Mode=TwoWay}" SelectionChanged="GLMainInvalidator"/>
+                                            </ext:LabelControl>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </GroupBox>
+                            <GroupBox Header="Source" Foreground="White" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
+                                <ItemsControl ItemsSource="{Binding Shaders.Values, Mode=OneTime}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Foreground="White" Content="{Binding Type, Mode=OneTime}" Click="btnOpenShaderSrc_Click"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </GroupBox>
+                            <Button Foreground="White" Content="Use this" Click="btnUseShader_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="Test" IsTabStop="False" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <DockPanel>
+                    <ComboBox x:Name="cboxShader2" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" Margin="0,0,0,8" DockPanel.Dock="Top"/>
+                        <xctk:PropertyGrid x:Name="pgTest" AutoGenerateProperties="True" SelectedObject="{Binding SelectedItem, ElementName=cboxShader2, Mode=OneWay}">
+                        </xctk:PropertyGrid>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+        <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="5" HorizontalAlignment="Stretch" Background="#FF686868" />
+        <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
+            <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFileAsync" AllowDrop="True">
+            </oglv:OGLViewSRGB>
+        </WindowsFormsHost>
+    </Grid>
+</Window>

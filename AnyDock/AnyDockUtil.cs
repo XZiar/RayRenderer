@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -13,13 +15,23 @@ using System.Windows.Shapes;
 
 namespace AnyDock
 {
+    internal class CollapseIfEmptyConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return (int)value == 0 ? Visibility.Collapsed : Visibility.Visible;
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
     internal class CollapseIfNullConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             return value == null ? Visibility.Collapsed : Visibility.Visible;
         }
-
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
@@ -31,7 +43,6 @@ namespace AnyDock
         {
             return (value as bool?) == true ? Visibility.Visible : Visibility.Collapsed;
         }
-
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
@@ -43,7 +54,6 @@ namespace AnyDock
         {
             return (value as bool?) == true ? Visibility.Collapsed : Visibility.Visible;
         }
-
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
@@ -80,31 +90,30 @@ namespace AnyDock
             throw new NotImplementedException();
         }
     }
-    internal class DragData
+
+    static class Helper
     {
-        internal readonly UIElement Element;
-        internal readonly AnyDockPanel Panel;
-        internal readonly bool AllowDrag;
-        internal DragData(AnyDockTabLabel source) : this((UIElement)source.DataContext)
-        { }
-        internal DragData(UIElement source)
+        internal static IEnumerable<T> DeledItems<T>(this NotifyCollectionChangedEventArgs e)
         {
-            Element = source;
-            Panel = AnyDockManager.GetParentDock(Element);
-            AllowDrag = AnyDockManager.GetAllowDrag(Element);
+            if (e.Action == NotifyCollectionChangedAction.Reset ||
+                e.Action == NotifyCollectionChangedAction.Remove ||
+                e.Action == NotifyCollectionChangedAction.Replace)
+                if (e.OldItems != null)
+                    return e.OldItems.Cast<T>();
+            return Enumerable.Empty<T>();
+        }
+        internal static IEnumerable<T> AddedItems<T>(this NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add ||
+                e.Action == NotifyCollectionChangedAction.Replace)
+                if (e.NewItems != null)
+                    return e.NewItems.Cast<T>();
+            return Enumerable.Empty<T>();
         }
     }
 
-    public class AnyDockManager
+    public static class AnyDockManager
     {
-        private static readonly DependencyProperty ParentDockProperty = DependencyProperty.RegisterAttached(
-            "ParentDock",
-            typeof(AnyDockPanel),
-            typeof(AnyDockManager),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
-        internal static void SetParentDock(UIElement element, AnyDockPanel value) => element.SetValue(ParentDockProperty, value);
-        internal static AnyDockPanel GetParentDock(UIElement element) => element == null ? null : element.GetValue(ParentDockProperty) as AnyDockPanel;
-
         public static readonly DependencyProperty PageNameProperty = DependencyProperty.RegisterAttached(
             "PageName",
             typeof(string),
@@ -137,63 +146,37 @@ namespace AnyDock
         public static bool GetCanClose(UIElement element) => (bool)element.GetValue(CanCloseProperty);
         public static void SetCanClose(UIElement element, bool value) => element.SetValue(CanCloseProperty, value);
 
-        public class TabClosingEventArgs : RoutedEventArgs
+        public class TabCloseEventArgs : RoutedEventArgs
         {
-            public readonly AnyDockPanel ParentPanel;
-            public bool ShouldClose = false;
-            internal TabClosingEventArgs(UIElement element, AnyDockPanel panel) : base(ClosingEvent, element) { ParentPanel = panel; }
+            public readonly UIElement TargetElement;
+            public bool ShouldClose = true;
+            internal TabCloseEventArgs(UIElement element) : base(ClosingEvent) { TargetElement = element; }
         }
-        public delegate void TabClosingEventHandler(UIElement sender, TabClosingEventArgs args);
+        public delegate void TabCloseEventHandler(UIElement sender, TabCloseEventArgs args);
 
         public static readonly RoutedEvent ClosingEvent = EventManager.RegisterRoutedEvent(
             "Closing",
             RoutingStrategy.Direct,
-            typeof(TabClosingEventHandler),
+            typeof(TabCloseEventHandler),
             typeof(AnyDockManager));
-        public static void AddClosingHandler(UIElement element, TabClosingEventHandler handler) =>
+        public static void AddClosingHandler(UIElement element, TabCloseEventHandler handler) =>
             element.AddHandler(ClosingEvent, handler);
-        public static void RemoveClosingHandler(UIElement element, TabClosingEventHandler handler) =>
+        public static void RemoveClosingHandler(UIElement element, TabCloseEventHandler handler) =>
             element.RemoveHandler(ClosingEvent, handler);
 
-
-
-        internal class DragInfo { public AnyDockTabLabel Source = null; public Point StarPoint; }
-        internal static readonly DragInfo PendingDrag = new DragInfo();
-        internal static void PerformDrag(AnyDockTabLabel source)
+        internal static readonly RoutedEvent RemovedEvent = EventManager.RegisterRoutedEvent(
+            "Removed",
+            RoutingStrategy.Direct,
+            typeof(RoutedEventHandler),
+            typeof(AnyDockManager));
+        internal static void AddRemovedHandler(UIElement element, RoutedEventHandler handler) =>
+            element.AddHandler(RemovedEvent, handler);
+        internal static void RemoveRemovedHandler(UIElement element, RoutedEventHandler handler) =>
+            element.RemoveHandler(RemovedEvent, handler);
+        internal static void RaiseRemovedEvent(UIElement element)
         {
-            PendingDrag.Source = null;
-            /*    @TopLeft _ _ _ __
-             *    |  * StartPoint  |
-             *    |_ _ _ _ _ _ _ __|
-             *       @ WinPos
-             *          *CurPoint
-             */
-            source.CaptureMouse();
-            var curPoint = Mouse.GetPosition(source);
-            source.ReleaseMouseCapture();
-            var deltaPos = curPoint - PendingDrag.StarPoint;
-            var winPos = source.PointToScreen((Point)deltaPos);
+            element.RaiseEvent(new RoutedEventArgs(RemovedEvent));
+        }
 
-            var content = new Rectangle{ Width=100, Height=100, Fill=new SolidColorBrush(Color.FromRgb(32,192,192)) };
-            var dragWindow = new DragHostWindow(winPos, PendingDrag.StarPoint, content, new DragData(source));
-            dragWindow.Draging += OnDraging;
-            dragWindow.Draged += OnDraged;
-            dragWindow.Show();
-        }
-        private static void OnDraging(DragHostWindow window, Point screenPos, DragData data)
-        {
-            var srcWindow = Window.GetWindow(data.Element);
-            var hitted = VisualTreeHelper.HitTest(srcWindow, Mouse.GetPosition(srcWindow));
-            if (hitted == null || !(hitted.VisualHit is UIElement hitPart))
-                return;
-            //Console.WriteLine($"{screenPos}");
-            var ev = new RoutedEventArgs();
-            //hitPart.RaiseEvent(ev);
-        }
-        private static void OnDraged(DragHostWindow window, Point screenPos, DragData data)
-        {
-            var content = (UIElement)window.Content;
-            window.Content = null;
-        }
     }
 }

@@ -2,31 +2,61 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:AnyDock"
              mc:Ignorable="d" 
              d:DesignHeight="20" d:DesignWidth="100"
-             x:Name="self"
-             AllowDrop="True">
+             x:Name="self">
     <ContentControl.Resources>
         <local:CollapseIfNullConverter x:Key="CollapseIfNull"/>
         <local:CollapseIfFalseConverter x:Key="CollapseIfFalse"/>
         <local:TabStripAngleConverter x:Key="TabStripToAngle"/>
     </ContentControl.Resources>
-    <DockPanel Background="Transparent">
-        <Image x:Name="imgIcon" DockPanel.Dock="Left" Margin="2 0 2 0" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
-               Source="{Binding (local:AnyDockManager.PageIcon)}" 
-               Visibility="{Binding (local:AnyDockManager.PageIcon), Converter={StaticResource CollapseIfNull}}"
-               Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"/>
-        <Button x:Name="btnClose" DockPanel.Dock="Right" VerticalAlignment="Center" HorizontalAlignment="Center" 
-                Margin="2 0 2 0" BorderThickness="0" Background="Transparent"
-                Visibility="{Binding (local:AnyDockManager.CanClose), Converter={StaticResource CollapseIfFalse}}"
-                Width="{Binding ActualHeight, ElementName=Header}" Height="{Binding ActualHeight, ElementName=Header}"
+    <DockPanel>
+        <Image x:Name="imgIcon" DockPanel.Dock="Left" Margin="2 0 2 0" Stretch="Fill"
+               Source="{Binding (local:AnyDockManager.PageIcon)}" RenderOptions.BitmapScalingMode="HighQuality"
+               Width="16" Height="16">
+            <Image.Style>
+                <Style TargetType="Image">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding (local:AnyDockManager.PageIcon)}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding ParentTab.ShowIcon, ElementName=self}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Image.Style>
+        </Image>
+        <Button x:Name="btnClose" DockPanel.Dock="Right" Margin="2 0 2 0" 
+                Width="16" Height="16"
+                VerticalAlignment="Center" HorizontalAlignment="Center" 
+                BorderThickness="0" Background="Transparent"
                 Click="HandleClose">
-            <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="UniformToFill" StrokeThickness="1.5" 
-                  Fill="{Binding ParentTab.Foreground, ElementName=self}" Stroke="{Binding ParentTab.Foreground, ElementName=self}"/>
+            <Path Margin="1.5" Data="M0,0 L1,1 M0,1 L1,0" Stretch="Uniform" StrokeThickness="1.5" 
+                  Stroke="{Binding ParentTab.Foreground, ElementName=self}"/>
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding ParentTab.ShowCloseButton, ElementName=self}" Value="True"/>
+                                <Condition Binding="{Binding (local:AnyDockManager.CanClose)}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <MultiDataTrigger.Setters>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger.Setters>
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
         </Button>
-        <TextBlock x:Name="Header" Margin="2 0 2 0" VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
+        <TextBlock x:Name="Header" Margin="2 0 2 0" Height="16"
+                   VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"
                    Foreground="{Binding ParentTab.Foreground, ElementName=self}" Background="Transparent"
                    Text="{Binding (local:AnyDockManager.PageName)}" />
     </DockPanel>

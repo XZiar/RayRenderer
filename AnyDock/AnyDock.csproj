@@ -57,24 +57,81 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnyDockHost.cs" />
+    <Compile Include="AnyDockSidePanel.cs" />
+    <Compile Include="AnyGrid.cs" />
+    <Compile Include="DominantBidirectionalPanel.cs" />
+    <Compile Include="DraggableTabControl.cs" />
+    <Compile Include="DraggableTabPanel.cs" />
+    <Compile Include="DraggingWindow.xaml.cs">
+      <DependentUpon>DraggingWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DragManager.cs" />
+    <Compile Include="DroppableContentControl.xaml.cs">
+      <DependentUpon>DroppableContentControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="HiddenBar.xaml.cs">
+      <DependentUpon>HiddenBar.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MoreTabsPopup.xaml.cs">
+      <DependentUpon>MoreTabsPopup.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ObservableCollectionEx.cs" />
+    <Compile Include="ResizeThumb.xaml.cs">
+      <DependentUpon>ResizeThumb.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SquareButton.cs" />
+    <Page Include="AnyDockHost.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="AnyDockPanel.res.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="AnyDockSidePanel.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="AnyDockTabLabel.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="AnyDockContent.cs" />
     <Compile Include="AnyDockPanel.cs" />
     <Compile Include="AnyDockTabLabel.xaml.cs">
       <DependentUpon>AnyDockTabLabel.xaml</DependentUpon>
     </Compile>
-    <Compile Include="AnyDockTabPanel.cs" />
     <Compile Include="AnyDockUtil.cs" />
+    <Page Include="DraggableTabPanel.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DraggableTabControl.res.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DraggingWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="DroppableContentControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="HiddenBar.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="MoreTabsPopup.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ResizeThumb.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DragHostWindow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -97,6 +154,5 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
   </ItemGroup>
-  <Import Project="..\CommonUtil\CommonUtil.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

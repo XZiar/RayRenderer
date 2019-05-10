@@ -16,7 +16,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using XZiar.Util;
 
 namespace AnyDock
 {
@@ -58,30 +57,7 @@ namespace AnyDock
             "Orientation",
             typeof(Orientation),
             typeof(AnyDockPanel),
-            new FrameworkPropertyMetadata(Orientation.Horizontal, FrameworkPropertyMetadataOptions.AffectsRender, OnOrientationChanged));
-        private static void OnOrientationChanged(DependencyObject obj, DependencyPropertyChangedEventArgs e)
-        {
-            if (e.NewValue != e.OldValue) 
-            {
-                var self = (AnyDockPanel)obj;
-                var newOri = (Orientation)e.NewValue;
-                //self.MainGrid.RowDefinitions.Clear();
-                //self.MainGrid.ColumnDefinitions.Clear();
-                //if (newOri == Orientation.Horizontal)
-                //{
-                //    self.MainGrid.RowDefinitions.Add(new RowDefinition());
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //    self.MainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(0, GridUnitType.Auto) });
-                //}
-                //else
-                //{
-
-                //}
-                //if (self.Group1 != null)
-
-            }
-        }
+            new FrameworkPropertyMetadata(Orientation.Horizontal, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public Orientation Orientation
         {
@@ -102,7 +78,7 @@ namespace AnyDock
             protected set { SetValue(StatePropertyKey, value); }
         }
 
-        public ObservableCollection<UIElement> Children { get; } = new ObservableCollection<UIElement>();
+        public ObservableCollectionEx<UIElement> Children { get; } = new ObservableCollectionEx<UIElement>();
 
         public AnyDockPanel Group1
         {
@@ -130,25 +106,23 @@ namespace AnyDock
         }
         private void OnChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.NewItems != null)
+            foreach (var x in e.DeledItems<UIElement>())
             {
-                foreach (var x in e.NewItems.Cast<object>())
-                {
-                    if (!(x is UIElement ele))
-                        throw new InvalidOperationException("Only UIElement can be added");
-                    if (ele is AnyDockPanel)
-                        throw new InvalidOperationException("DockPanel should not be children!");
-                    AnyDockManager.SetParentDock(ele, this);
-                }
+                AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             }
-            if (e.Action == NotifyCollectionChangedAction.Remove || e.Action == NotifyCollectionChangedAction.Reset)
+            foreach (var x in e.AddedItems<UIElement>())
             {
-                if (e.OldItems != null)
-                    foreach (var x in e.OldItems.Cast<UIElement>())
-                        AnyDockManager.SetParentDock(x, null);
-                if (Children.Count == 0 && ShouldRefresh)
-                    RefreshState();
+                if (x is AnyDockPanel)
+                    throw new InvalidOperationException("DockPanel should not be children!");
+                MainTab.SelectedItem = x;
+                AnyDockManager.AddRemovedHandler(x, OnTabClosed);
             }
+            if (Children.Count == 0 && ShouldRefresh)
+                RefreshState();
+        }
+        private void OnTabClosed(object sender, RoutedEventArgs args)
+        {
+            Children.Remove((UIElement)sender);
         }
 
         private bool ShouldRefresh = false;
@@ -163,7 +137,8 @@ namespace AnyDock
             DragOverLay = (Viewbox)ResDict["DragOverLay"];
         }
 
-        public AnyDockPanel()
+        public AnyDockPanel() : this(true) { }
+        public AnyDockPanel(bool needRegister)
         {
             Template = AnyDockPanelTemplate;
             ApplyTemplate();
@@ -173,6 +148,11 @@ namespace AnyDock
             Splitter = (GridSplitter)Template.FindName("Splitter", this);
 
             Children.CollectionChanged += new NotifyCollectionChangedEventHandler(OnChildrenChanged);
+            if (needRegister)
+            {
+                Loaded += (o, e) => DragManager.RegistDragHost(this);
+                Unloaded += (o, e) => DragManager.UnregistDragHost(this);
+            }
             Loaded += (o, e) => 
             {
                 ShouldRefresh = true;
@@ -180,6 +160,7 @@ namespace AnyDock
             };
         }
 
+        
 
         private void RefreshState()
         {
@@ -277,76 +258,47 @@ namespace AnyDock
             RefreshState();
         }
 
-        internal void OnContentDragEnter(AnyDockContent content)
+        internal void ReorderItem(UIElement obj, UIElement dst)
         {
-            Console.WriteLine($"Drag enter [{this.GetHashCode()}] with [{content.GetHashCode()}]({(content.Content as Label).Content})");
-            DragOverLay.Height = content.ActualHeight;
-            DragOverLay.Width = content.ActualWidth;
-            switch(TabStripPlacement)
-            {
-            case Dock.Top:    DragOverLay.VerticalAlignment = VerticalAlignment.Bottom; DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-            case Dock.Bottom: DragOverLay.VerticalAlignment = VerticalAlignment.Top;    DragOverLay.HorizontalAlignment = HorizontalAlignment.Center; break;
-            case Dock.Left:   DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Right;  break;
-            case Dock.Right:  DragOverLay.VerticalAlignment = VerticalAlignment.Center; DragOverLay.HorizontalAlignment = HorizontalAlignment.Left;   break;
-            }
-            MainPanel.Children.Add(DragOverLay);
+            // exchange order only
+            int srcIdx = Children.IndexOf(obj);
+            int dstIdx = Children.IndexOf(dst);
+            if (srcIdx != dstIdx)
+                Children.Move(srcIdx, dstIdx);
         }
-        internal void OnContentDragLeave(AnyDockContent content)
+
+        
+        internal void OnContentDrop(DroppableContentControl content, DragData src, Point screenPos)
         {
-            MainPanel.Children.Remove(DragOverLay);
-        }
-        internal void OnContentDrop(AnyDockContent content, DragData src, DragEventArgs e)
-        {
-            var hitted = VisualTreeHelper.HitTest(DragOverLay, e.GetPosition(DragOverLay));
-            OnContentDragLeave(content);
+            var hitted = VisualTreeHelper.HitTest(DragOverLay, DragOverLay.PointFromScreen(screenPos));
             if (hitted == null || !((hitted.VisualHit as Polygon)?.Tag is string hitPart))
                 return;
             if (hitPart == "Middle")
             {
-                if (Children.Count == 0)
-                {
-                    src.Panel.Children.Remove(src.Element);
-                    Children.Add(src.Element);
-                }
-                else
-                {
-                    var dst = new DragData((UIElement)content.Content);
-                    DoDropTab(src, dst);
-                }
+                Children.Add(src.Element);
             }
             else
             {
                 if (Group1 != null || Group2 != null)
                     throw new InvalidOperationException("Panel should not has groups when accept drop");
                 AnyDockPanel panel1 = new AnyDockPanel(), panel2 = new AnyDockPanel();
-                src.Panel.Children.Remove(src.Element);
-                var dstPanel = State == AnyDockStates.Abandon ? ParentPanel : this; // in case collapsed
                 switch (hitPart)
                 {
                 case "Up":
                 case "Left":
                     panel1.Children.Add(src.Element);
-                    dstPanel.MoveChildrenTo(panel2);
+                    this.MoveChildrenTo(panel2);
                     break;
                 case "Down":
                 case "Right":
-                    dstPanel.MoveChildrenTo(panel1);
+                    this.MoveChildrenTo(panel1);
                     panel2.Children.Add(src.Element);
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown Tag [{hitPart}]");
                 }
-                dstPanel.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
+                this.SetGroups(panel1, panel2, (hitPart == "Left" || hitPart == "Right") ? Orientation.Horizontal : Orientation.Vertical);
             }
-        }
-
-        internal static void DoDropTab(DragData src, DragData dst)
-        {
-            src.Panel.Children.Remove(src.Element);
-            var dstPanel = dst.Panel.State == AnyDockStates.Abandon ? dst.Panel.ParentPanel : dst.Panel; // in case collapsed
-            int dstIdx = dstPanel.Children.IndexOf(dst.Element);
-            dstPanel.Children.Insert(dstIdx, src.Element);
-            dstPanel.MainTab.SelectedIndex = dstIdx;
         }
 
 
