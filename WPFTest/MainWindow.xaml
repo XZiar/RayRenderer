@@ -126,70 +126,18 @@
                         LeftMaxSize="200" RightMaxSize="300" TopMaxSize="200" BottomMaxSize="300"
                         CenterMinHeight="64" CenterMinWidth="64">
             <ad:AnyDockHost.Right>
-                <DockPanel x:Name="drawablePage" Background="{StaticResource brshDarkBackground}" 
-                           ad:AnyDockManager.PageName="物件"
-                           ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="False">
-                    <ComboBox x:Name="cboxDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-                        <local:ControllableGrid x:Name="ctlDrawable" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxDrawable, Mode=OneWay}">
-                            <DockPanel local:ControllableGrid.ItemCategory="Material">
-                                <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
-                                <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
-                                    <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
-                                        <xctk:ColorPicker.Style>
-                                            <Style TargetType="xctk:ColorPicker">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </xctk:ColorPicker.Style>
-                                    </xctk:ColorPicker>
-                                    <Border BorderBrush="#FFABABAB" BorderThickness="1" DragEnter="texture_DragEnter"  Drop="texture_Drop" AllowDrop="True">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <StackPanel Orientation="Vertical">
-                                            <ext:LabelTextBox IsReadOnly="True" Label="Albedo" Content="{Binding DiffuseMap.Name}" />
-                                            <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap, Mode=TwoWay}" ToolTip="{Binding DiffuseMap.Format}" />
-                                        </StackPanel>
-                                    </Border>
-                                </local:ControllableGrid>
-                            </DockPanel>
-                        </local:ControllableGrid>
-                    </ScrollViewer>
-                </DockPanel>
-                <DockPanel x:Name="lightPage" Background="{StaticResource brshDarkBackground}" 
-                           ad:AnyDockManager.PageName="灯光"
-                           ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="False">
-                    <ComboBox x:Name="cboxLight" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-                        <local:ControllableGrid x:Name="ctlLight" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxLight, Mode=OneWay}" />
-                    </ScrollViewer>
-                </DockPanel>
-                <DockPanel x:Name="shaderPage" Background="{StaticResource brshDarkBackground}" 
-                           ad:AnyDockManager.PageName="Shader"
-                           ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="False">
-                    <ComboBox x:Name="cboxShader" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-                        <local:ControllableGrid x:Name="ctlShader" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxShader, Mode=OneWay}" />
-                    </ScrollViewer>
-                </DockPanel>
-                <DockPanel x:Name="controlPage" Background="{StaticResource brshDarkBackground}" 
-                           ad:AnyDockManager.PageName="Control"
-                           ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="False">
-                    <ComboBox x:Name="cboxControl" Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" />
-                    <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-                        <local:ControllableGrid x:Name="ctlControl" Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding SelectedItem, ElementName=cboxControl, Mode=OneWay, diag:PresentationTraceSources.TraceLevel=High}" />
-                    </ScrollViewer>
-                </DockPanel>
+                <local:DrawablePage x:Name="drawablePage"
+                                    ad:AnyDockManager.PageName="物件" ad:AnyDockManager.CanClose="False" 
+                                    ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:BasicPage x:Name="lightPage"
+                                 ad:AnyDockManager.PageName="灯光" ad:AnyDockManager.CanClose="False" 
+                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:BasicPage x:Name="shaderPage"
+                                 ad:AnyDockManager.PageName="Shader" ad:AnyDockManager.CanClose="False" 
+                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:BasicPage x:Name="controlPage"
+                                 ad:AnyDockManager.PageName="Control" ad:AnyDockManager.CanClose="False" 
+                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
             </ad:AnyDockHost.Right>
             <ad:AnyDockHost.Bottom>
                 <DockPanel x:Name="logPage" Background="{StaticResource brshDarkBackground}" 

@@ -17,13 +17,8 @@ namespace AnyDock
     [ContentProperty(nameof(Center))]
     public class AnyDockHost : Panel
     {
-        private static readonly ResourceDictionary ResDict;
+        //private static readonly ResourceDictionary ResDict;
 
-        //public static readonly DependencyProperty CenterProperty = DependencyProperty.Register(
-        //    "Center",
-        //    typeof(FrameworkElement),
-        //    typeof(AnyDockHost),
-        //    new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsMeasure));
         public static readonly DependencyProperty PaddingProperty = Control.PaddingProperty.AddOwner(
             typeof(AnyDockHost), 
             new FrameworkPropertyMetadata(new Thickness(4), FrameworkPropertyMetadataOptions.AffectsMeasure));
@@ -46,14 +41,12 @@ namespace AnyDock
         {
             var self = (AnyDockHost)d;
             self.LeftPanel.Foreground = self.RightPanel.Foreground = self.TopPanel.Foreground = self.BottomPanel.Foreground = 
-                //self.LeftThumb.Foreground = self.RightThumb.Foreground = self.TopThumb.Foreground = self.BottomThumb.Foreground =
                 (Brush)e.NewValue;
         }
         private static void OnBackgroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var self = (AnyDockHost)d;
             self.LeftPanel.Background = self.RightPanel.Background = self.TopPanel.Background = self.BottomPanel.Background =
-                //self.LeftThumb.Foreground = self.RightThumb.Foreground = self.TopThumb.Foreground = self.BottomThumb.Foreground =
                 self.LeftThumb.Background = self.RightThumb.Background = self.TopThumb.Background = self.BottomThumb.Background =
                 (Brush)e.NewValue;
         }
@@ -70,8 +63,6 @@ namespace AnyDock
         public ObservableCollectionEx<UIElement> Bottom => BottomPanel.Children;
         public FrameworkElement Center
         {
-            //get => (FrameworkElement)GetValue(CenterProperty);
-            //set => SetValue(CenterProperty, value);
             get => Center_;
             set => CenterPanel.Content = Center_ = value;
         }
@@ -249,6 +240,7 @@ namespace AnyDock
             }
             var constraint = availableSize;
 
+            // measure Left & Right, if exceed availableSize, scale them proportionally
             constraint.Width -= Math.Min(padSize.Width + minSize.X, constraint.Width);
             LeftPanel.Measure(constraint);
             RightPanel.Measure(constraint);
@@ -265,6 +257,7 @@ namespace AnyDock
             LeftThumb.Measure(new Size(pad.Left, constraint.Height));
             RightThumb.Measure(new Size(pad.Right, constraint.Height));
 
+            // measure Top & Bottom, if exceed availableSize, scale them proportionally
             constraint.Height -= Math.Min(padSize.Height + minSize.Y, constraint.Height);
             TopPanel.Measure(constraint);
             BottomPanel.Measure(constraint);
@@ -286,7 +279,6 @@ namespace AnyDock
             {
                 CenterPanel.Measure(constraint);
                 cSize = CenterPanel.DesiredSize;
-                Console.WriteLine($"Measure Center [{cSize}]");
             }
 
             var totalWidth = lrWidth + padSize.Width +
@@ -302,6 +294,7 @@ namespace AnyDock
             var shouldCheckCenter = Center != null && Center.Visibility != Visibility.Collapsed;
             var pad = Padding;
 
+            // Arrange Left & Right, record LRthumbs' location as offsets
             var lWidth = LeftPanel.DesiredSize.Width;
             var rWidth = RightPanel.DesiredSize.Width;
             LeftPanel.Arrange(new Rect(0, 0, lWidth, finalSize.Height));
@@ -311,6 +304,7 @@ namespace AnyDock
             SizeOffsets.Right = finalSize.Width - rWidth - pad.Right;
             RightThumb.Arrange(new Rect(SizeOffsets.Right, 0, pad.Right, finalSize.Height));
 
+            // Arrange Top & Down, record TBthumbs' location as offsets
             var xOffset = lWidth + pad.Left;
             var availableWidth = Math.Max(finalSize.Width - (lWidth + rWidth + pad.Left + pad.Right), 0);
             var tHeight = TopPanel.DesiredSize.Height;

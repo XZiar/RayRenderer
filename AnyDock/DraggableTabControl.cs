@@ -143,8 +143,8 @@ namespace AnyDock
         private Button MoreTabDropButton;
         private void OnRealChildrenChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (ItemsSource != sender)
-                ItemsSource = sender as ObservableCollectionEx<UIElement>;
+            if (ItemsSource != RealChildren)
+                ItemsSource = RealChildren;
             foreach (var x in e.DeledItems<UIElement>())
                 AnyDockManager.RemoveRemovedHandler(x, OnTabClosed);
             foreach (var x in e.AddedItems<UIElement>())

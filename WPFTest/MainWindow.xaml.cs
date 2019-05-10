@@ -1,19 +1,14 @@
 ﻿using Dizz;
 using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using XZiar.Util;
 
@@ -110,16 +105,15 @@ namespace WPFTest
             fpsTimer.Start();
 
             Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
-            cboxDrawable.ItemsSource = Core.TheScene.Drawables;
+            drawablePage.DataContext = Core.TheScene.Drawables;
             Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
-            cboxLight.ItemsSource = Core.TheScene.Lights;
+            lightPage.DataContext = Core.TheScene.Lights;
             Core.Passes.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
-            cboxShader.ItemsSource = Core.Passes;
+            shaderPage.DataContext = Core.Passes;
             Core.Controls.ForEach(x => x.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName));
-            cboxControl.ItemsSource = Core.Controls;
+            controlPage.DataContext = Core.Controls;
             Core.TheScene.MainCamera.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName);
         }
-
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)
         {
@@ -454,36 +448,6 @@ namespace WPFTest
             ((sender as Button).Content as Image).Source = img;
         }
 
-        private async void texture_Drop(object sender, DragEventArgs e)
-        {
-            string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
-            try
-            {
-                WaitingCount++;
-                var img = new BitmapImage(new Uri(fname, UriKind.Absolute));
-                var imgCtrl = ((sender as Border).Child as StackPanel).Children.OfType<Image>().First();
-                imgCtrl.Source = img;
-                //var tex = await Core.TexLoader.LoadTextureAsync(fname, TexLoadType.Color);
-                //var mat = (sender as Border).DataContext as PBRMaterial;
-                //mat.DiffuseMap = tex;
-            }
-            catch (Exception ex)
-            {
-                new TextDialog(ex).ShowDialog();
-            }
-            finally
-            {
-                WaitingCount--;
-            }
-        }
-
-        private void texture_DragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                e.Effects = DragDropEffects.Link; e.Handled = true;
-            }
-        }
 
         private async void AddShaderAsync(string fileName)
         {

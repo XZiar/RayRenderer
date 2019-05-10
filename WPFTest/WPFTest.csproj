@@ -90,20 +90,12 @@
     <Compile Include="ControllableGrid.xaml.cs">
       <DependentUpon>ControllableGrid.xaml</DependentUpon>
     </Compile>
-    <Compile Include="DrawablePage.xaml.cs">
-      <DependentUpon>DrawablePage.xaml</DependentUpon>
-    </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="TheWindow.xaml.cs">
-      <DependentUpon>TheWindow.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="Utils\ThumbnailBinding.cs" />
+    <Compile Include="Utils\ProxyBinder.cs" />
     <Page Include="ControllableGrid.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="DrawablePage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -111,39 +103,33 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Pages\DrawablePage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Pages\BasicPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="TextDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="LightPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="MainWindow2.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
     </Page>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ControllableMapper.cs" />
     <Compile Include="LogManager.cs" />
+    <Compile Include="Pages\DrawablePage.xaml.cs">
+      <DependentUpon>DrawablePage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\BasicPage.xaml.cs">
+      <DependentUpon>BasicPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TextDialog.xaml.cs">
       <DependentUpon>TextDialog.xaml</DependentUpon>
     </Compile>
-    <Compile Include="LightPage.xaml.cs">
-      <DependentUpon>LightPage.xaml</DependentUpon>
-    </Compile>
     <Compile Include="TestCore.cs" />
-    <Compile Include="MainWindow2.xaml.cs">
-      <DependentUpon>MainWindow2.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Page Include="TheWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Resource Include="Styles.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

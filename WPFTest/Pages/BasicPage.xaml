@@ -1,0 +1,23 @@
+﻿<ContentControl x:Class="WPFTest.BasicPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:WPFTest"
+             xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="400"
+             x:Name="BasicPage_"
+             Background="{StaticResource brshDarkBackground}" Foreground="White">
+    <DockPanel>
+        <ComboBox x:Name="cbox" Margin="0,0,0,8" DockPanel.Dock="Top"
+                  Background="{StaticResource brshDarkBackground}" Foreground="White"
+                  Template="{StaticResource darkCombobox}" DisplayMemberPath="Name"
+                  ItemsSource="{Binding DataContext, ElementName=BasicPage_, Mode=OneWay}"/>
+        <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+            <local:ControllableGrid x:Name="ctl" Background="{StaticResource brshDarkBackground}" Foreground="White" 
+                                    DataContext="{Binding SelectedItem, ElementName=cbox, Mode=OneWay}" />
+        </ScrollViewer>
+    </DockPanel>
+</ContentControl>
