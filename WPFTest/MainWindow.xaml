@@ -140,29 +140,10 @@
                                  ad:AnyDockSidePanel.CollapseToSide="False"/>
             </ad:AnyDockHost.Right>
             <ad:AnyDockHost.Bottom>
-                <DockPanel x:Name="logPage" Background="{StaticResource brshDarkBackground}" 
-                           ad:AnyDockManager.PageName="日志"
-                           ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="True">
-                    <Grid DockPanel.Dock="Top">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1*"/>
-                            <ColumnDefinition Width="1*"/>
-                        </Grid.ColumnDefinitions>
-                        <ext:LabelControl Grid.Column="0" Foreground="White" Background="{StaticResource brshDarkBackground}"  Label="日志等级">
-                            <xctk:CheckComboBox x:Name="cboxDbgLv" Foreground="White" Text="日志等级"/>
-                        </ext:LabelControl>
-                        <ext:LabelControl Grid.Column="1" Foreground="White" Background="{StaticResource brshDarkBackground}" Label="日志来源">
-                            <xctk:CheckComboBox x:Name="cboxDbgSrc" Foreground="White" Text="日志来源"/>
-                        </ext:LabelControl>
-                    </Grid>
-                    <ScrollViewer x:Name="dbgScroll" Margin="0" CanContentScroll="True" PanningMode="VerticalOnly">
-                        <RichTextBox x:Name="dbgOutput" Background="#FF252526" VerticalScrollBarVisibility="Auto" FontFamily="Sarasa Term SC" IsReadOnly="True" SelectionBrush="#FFABABAB">
-                            <FlowDocument>
-                                <Paragraph x:Name="para"/>
-                            </FlowDocument>
-                        </RichTextBox>
-                    </ScrollViewer>
-                </DockPanel>
+                <local:LogPage x:Name="logPage" Background="{StaticResource brshDarkBackground}" 
+                               ad:AnyDockManager.PageName="日志"
+                               ad:AnyDockManager.CanClose="False" ad:AnyDockSidePanel.CollapseToSide="True">
+                </local:LogPage>
             </ad:AnyDockHost.Bottom>
             <ad:AnyDockHost.Center>
                 <WindowsFormsHost x:Name="wfh">

@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
@@ -18,6 +19,9 @@ namespace XZiar.WPFControl
 {
     public class LabelControl : ContentControl
     {
+        internal static readonly ResourceDictionary ResDict;
+        private static readonly ControlTemplate LabelControlTemplate;
+
         public static readonly DependencyProperty LabelProperty = DependencyProperty.Register("Label",
             typeof(string),
             typeof(LabelControl),
@@ -53,17 +57,32 @@ namespace XZiar.WPFControl
 
         static LabelControl()
         {
-            DefaultStyleKeyProperty.OverrideMetadata(typeof(LabelControl), new FrameworkPropertyMetadata(typeof(LabelControl)));
+            //DefaultStyleKeyProperty.OverrideMetadata(typeof(LabelControl), new FrameworkPropertyMetadata(typeof(LabelControl)));
+            ResDict = new ResourceDictionary { Source = new Uri("WPFControlExt;component/LabelControl.res.xaml", UriKind.RelativeOrAbsolute) };
+            LabelControlTemplate = (ControlTemplate)ResDict["LabelControlTemplate"];
+            TemplateProperty.OverrideMetadata(typeof(LabelControl), new FrameworkPropertyMetadata(LabelControlTemplate));
+        }
+
+        public LabelControl()
+        {
+            Template = LabelControlTemplate;
+            ApplyTemplate();
         }
     }
 
     public class LabelTextBox : LabelControl
     {
+        private static readonly DataTemplate ReadonlyLabelTextTemplate;
+        private static readonly DataTemplate EditableLabelTextTemplate;
 
         public static readonly DependencyProperty IsReadOnlyProperty = DependencyProperty.Register("IsReadOnly",
             typeof(bool),
             typeof(LabelTextBox),
-            new PropertyMetadata(false));
+            new PropertyMetadata(false, OnIsReadOnlyChanged));
+        private static void OnIsReadOnlyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ((LabelTextBox)d).ContentTemplate = (bool)e.NewValue ? ReadonlyLabelTextTemplate : EditableLabelTextTemplate;
+        }
 
         public static readonly DependencyProperty ContentToolTipProperty = DependencyProperty.Register("ContentToolTip",
             typeof(string),
@@ -85,6 +104,12 @@ namespace XZiar.WPFControl
         static LabelTextBox()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(LabelTextBox), new FrameworkPropertyMetadata(typeof(LabelTextBox)));
+            ReadonlyLabelTextTemplate = (DataTemplate)ResDict["ReadonlyLabelTextTemplate"];
+            EditableLabelTextTemplate = (DataTemplate)ResDict["EditableLabelTextTemplate"];
+        }
+        public LabelTextBox()
+        {
+            ContentTemplate = ReadonlyLabelTextTemplate;
         }
     }
 

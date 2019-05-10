@@ -1,0 +1,74 @@
+﻿<ContentControl x:Class="WPFTest.LogPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:WPFTest"
+             xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
+             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="500">
+    <ContentControl.Resources>
+        <local:LogColorConverter x:Key="LogColorConv"/>
+    </ContentControl.Resources>
+    <DockPanel>
+        <Grid DockPanel.Dock="Top" d:DesignHeight="100">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            <ext:LabelControl Grid.Column="0" Foreground="White" Background="{StaticResource brshDarkBackground}" Label="日志等级">
+                <xctk:CheckComboBox x:Name="LevelFilter" Foreground="White" Text="日志等级" ItemSelectionChanged="OnChangeLevel"/>
+            </ext:LabelControl>
+            <ext:LabelControl Grid.Column="1" Foreground="White" Background="{StaticResource brshDarkBackground}" Label="日志来源">
+                <xctk:CheckComboBox x:Name="SourceFilter" Foreground="White" Text="日志来源" ItemSelectionChanged="OnChangeSource"/>
+            </ext:LabelControl>
+        </Grid>
+        <ListView x:Name="logListView" Margin="0" VerticalContentAlignment="Top" VirtualizingPanel.ScrollUnit="Pixel"
+                  Foreground="White" Background="{StaticResource brshDarkBackground}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="来源">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" 
+                                           FontFamily="Sarasa Term SC" Text="{Binding Source}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="内容">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Top" 
+                                           Foreground="{Binding Level, Converter={StaticResource LogColorConv}}"
+                                           FontFamily="Sarasa Term SC" Text="{Binding Text}"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="{x:Type ListViewItem}">
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="White" />
+                            <Setter Property="Background" Value="{x:Null}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="{StaticResource brshBlue}" />
+                        </Trigger>
+                    </Style.Triggers>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <GridViewRowPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                                      VerticalAlignment="Top"
+                                                      Grid.RowSpan="2"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
+        </ListView>
+    </DockPanel>
+</ContentControl>

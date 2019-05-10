@@ -54,20 +54,24 @@
         </DockPanel>
         <ControlTemplate.Triggers>
             <Trigger Property="TabStripPlacement" Value="Top">
-                <Setter TargetName="PopupPage" Property="Placement" Value="Bottom"/>
+                <Setter TargetName="PopupPage" Property="Placement" Value="Bottom"/> 
                 <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=RealContent}"/>
+                <Setter TargetName="PopupPage" Property="MaxHeight" Value="{Binding PopupMaxSize, RelativeSource={RelativeSource TemplatedParent}}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Bottom">
                 <Setter TargetName="PopupPage" Property="Placement" Value="Top"/>
                 <Setter TargetName="PopupPage" Property="Width" Value="{Binding ActualWidth, ElementName=RealContent}"/>
+                <Setter TargetName="PopupPage" Property="MaxHeight" Value="{Binding PopupMaxSize, RelativeSource={RelativeSource TemplatedParent}}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Left">
                 <Setter TargetName="PopupPage" Property="Placement" Value="Right"/>
                 <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=RealContent}"/>
+                <Setter TargetName="PopupPage" Property="MaxWidth" Value="{Binding PopupMaxSize, RelativeSource={RelativeSource TemplatedParent}}"/>
             </Trigger>
             <Trigger Property="TabStripPlacement" Value="Right">
                 <Setter TargetName="PopupPage" Property="Placement" Value="Left"/>
                 <Setter TargetName="PopupPage" Property="Height" Value="{Binding ActualHeight, ElementName=RealContent}"/>
+                <Setter TargetName="PopupPage" Property="MaxWidth" Value="{Binding PopupMaxSize, RelativeSource={RelativeSource TemplatedParent}}"/>
             </Trigger>
         </ControlTemplate.Triggers>
     </ControlTemplate>

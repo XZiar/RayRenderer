@@ -23,7 +23,7 @@ namespace WPFTest
         private static BrushConverter Brush_Conv = new BrushConverter();
 
         private RenderCore Core = null;
-        private LogManager Logger;
+        //private LogManager Logger;
         private MemoryMonitor MemMonitor = null;
         private IMovable[] OperateTargets = new IMovable[3];
         private int CurTarget = 0;
@@ -53,7 +53,7 @@ namespace WPFTest
             imgPointLight = (ImageSource)this.FindResource("imgPointLight");
             brshBlue = (SolidColorBrush)this.FindResource("brshBlue");
             brshOrange = (SolidColorBrush)this.FindResource("brshOrange");
-            Logger = new LogManager(cboxDbgLv, cboxDbgSrc, para, dbgScroll);
+            //Logger = new LogManager(cboxDbgLv, cboxDbgSrc, para, dbgScroll);
 
             wfh.IsKeyboardFocusWithinChanged += (o, e) =>
             {

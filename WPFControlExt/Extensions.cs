@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -31,6 +32,23 @@ namespace XZiar.WPFControl
             }
 
             return wpfBitmap;
+        }
+    }
+
+    public static class WPFTreeHelper
+    {
+        public static IEnumerable<T> GetChildrenOfType<T>(this DependencyObject obj) where T : DependencyObject
+        {
+            if (obj == null) yield break;
+            var count = VisualTreeHelper.GetChildrenCount(obj);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(obj, i);
+                if (child is T ret)
+                    yield return ret;
+                foreach (var item in GetChildrenOfType<T>(child))
+                    yield return item;
+            }
         }
     }
 }

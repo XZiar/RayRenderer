@@ -56,6 +56,7 @@ namespace AnyDock
         private readonly ContentPresenter CenterPanel;
         private readonly PreviewResizeAdorner ResizePreview;
         private FrameworkElement Center_;
+        private double PopupMaxWidth = 0.5, PopupMaxHeight = 0.5;
 
         public ObservableCollectionEx<UIElement> Left   => LeftPanel.Children;
         public ObservableCollectionEx<UIElement> Right  => RightPanel.Children;
@@ -226,9 +227,10 @@ namespace AnyDock
             }
         }
 
-        private static bool IsAutoSize(double val) => double.IsNaN(val) || double.IsInfinity(val);
         protected override Size MeasureOverride(Size availableSize)
         {
+            bool IsAutoSize(double val) => double.IsNaN(val) || double.IsInfinity(val);
+
             var shouldCheckCenter = Center != null && Center.Visibility != Visibility.Collapsed;
             var pad = Padding;
             var padSize = new Size(pad.Left + pad.Right, pad.Top + pad.Bottom);
@@ -324,6 +326,12 @@ namespace AnyDock
                 var availableHeight = Math.Max(finalSize.Height - (tHeight + bHeight + pad.Top + pad.Bottom), 0);
                 CenterPanel.Arrange(new Rect(xOffset, yOffset, availableWidth, availableHeight));
             }
+
+            var popupWidth = PopupMaxWidth * finalSize.Width;
+            var popupHeight = PopupMaxHeight * finalSize.Height;
+            LeftPanel.PopupMaxSize = RightPanel.PopupMaxSize = popupWidth;
+            TopPanel.PopupMaxSize = BottomPanel.PopupMaxSize = popupHeight;
+
             return finalSize;
         }
 

@@ -38,9 +38,20 @@ namespace AnyDock
             get => (Dock)GetValue(TabStripPlacementProperty);
             set => SetValue(TabStripPlacementProperty, value);
         }
+
+        internal static readonly DependencyProperty PopupMaxSizeProperty = DependencyProperty.Register(
+            "PopupMaxSize",
+            typeof(double),
+            typeof(AnyDockSidePanel),
+            new FrameworkPropertyMetadata(double.PositiveInfinity));
+        internal double PopupMaxSize
+        {
+            get => (double)GetValue(PopupMaxSizeProperty);
+            set => SetValue(PopupMaxSizeProperty, value);
+        }
+
         internal ObservableCollectionEx<UIElement> HiddenChildren { get; } = new ObservableCollectionEx<UIElement>();
         internal ObservableCollectionEx<UIElement> ShownChildren { get; } = new ObservableCollectionEx<UIElement>();
-
 
         private DockPanel RealContent;
         private HiddenBar HiddenBar;
