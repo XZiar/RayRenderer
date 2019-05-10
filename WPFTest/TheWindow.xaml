@@ -138,7 +138,7 @@
                 <xcad:LayoutPanel Orientation="Horizontal">
                     <xcad:LayoutDocumentPane>
                         <xcad:LayoutDocument ContentId="mainView" Title="MainView" CanClose="False">
-                            <WindowsFormsHost x:Name="wfh" Grid.Row="1" Grid.Column="0">
+                            <WindowsFormsHost x:Name="wfh">
                                 <oglv:OGLViewSRGB x:Name="glMain" ResizeBGDraw="False" KeyDown="OnKeyDown" MouseAction="OnMouse" DragEnter="OnDragEnter" DragDrop="OnDropFile" AllowDrop="True">
                                 </oglv:OGLViewSRGB>
                             </WindowsFormsHost>

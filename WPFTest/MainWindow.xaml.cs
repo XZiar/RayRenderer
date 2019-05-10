@@ -1,28 +1,21 @@
-﻿using System;
+﻿using Dizz;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
-using OpenGLView;
-using RayRender;
-using Microsoft.Win32;
-using static XZiar.Util.BindingHelper;
-using XZiar.WPFControl;
-using XZiar.Util;
 using System.Windows.Threading;
-using System.Threading;
-using OpenGLUtil;
-using System.ComponentModel;
-using System.Windows.Input;
-using System.Collections.ObjectModel;
+using XZiar.Util;
 
 namespace WPFTest
 {
@@ -31,21 +24,23 @@ namespace WPFTest
     /// </summary>
     public partial class MainWindow : Window
     {
+        const float MULER = (float)(Math.PI / 180);
         private static BrushConverter Brush_Conv = new BrushConverter();
 
-        private TestCore Core = null;
+        private RenderCore Core = null;
         private LogManager Logger;
         private MemoryMonitor MemMonitor = null;
-        private OPObject OperateTarget = OPObject.Camera;
+        private IMovable[] OperateTargets = new IMovable[3];
+        private int CurTarget = 0;
+        private bool ShouldRefresh = false;
         private ImageSource imgCamera, imgCube, imgPointLight;
         private readonly SolidColorBrush brshBlue = Brush_Conv.ConvertFromString("#FF007ACC") as SolidColorBrush,
             brshOrange = Brush_Conv.ConvertFromString("#FFDC5E07") as SolidColorBrush;
         private Timer AutoRefresher;
-        private float MouseSensative => (float)slMouseSen.Value;
-        private float ScrollSensative => (float)slScrollSen.Value;
         private ushort waitingCount = 0;
         public ushort WaitingCount { get { return waitingCount; } set { waitingCount = value; ChangeStatusBar(value); } }
-        private ObservableCollection<XCTKControllable> XCTKControls = new ObservableCollection<XCTKControllable>();
+        private float MouseSensative => (float)60;
+        private float ScrollSensative => (float)1;
 
         private void ChangeStatusBar(ushort value)
         {
@@ -65,152 +60,46 @@ namespace WPFTest
             brshOrange = (SolidColorBrush)this.FindResource("brshOrange");
             Logger = new LogManager(cboxDbgLv, cboxDbgSrc, para, dbgScroll);
 
-            wfh.IsKeyboardFocusWithinChanged += (o, e) => 
+            wfh.IsKeyboardFocusWithinChanged += (o, e) =>
             {
                 if ((bool)e.NewValue == true)
                     wfh.TabInto(new System.Windows.Input.TraversalRequest(System.Windows.Input.FocusNavigationDirection.First));
                 //Console.WriteLine($"kbFocued:{e.NewValue}, now at {System.Windows.Input.Keyboard.FocusedElement}");
             };
             System.Windows.Input.Keyboard.Focus(wfh);
+            txtMemInfo.SetBinding(TextBlock.TextProperty, MemMonitor.GetTextBinding());
+            MemMonitor.UpdateInterval(1000, true);
 
             InitializeCore();
         }
 
+        private void InvalidateOnPropChanged(string name)
+        {
+            if (name != "Name")
+                glMain.Invalidate();
+        }
+
         private void InitializeCore()
         {
-            Logger.OnNewLog(common.LogLevel.Info, "WPF", "Window Loaded\n");
-            Core = new TestCore();
+            Core = new RenderCore();
+            ThumbnailBinding.ThumbMan.SetTarget(Core.ThumbMan);
+            ThumbnailBinding.TexLoad.SetTarget(Core.TexLoader);
+            OperateTargets[0] = Core.TheScene.MainCamera;
+            OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
+            OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
 
-            Core.Test.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
+            Core.Resize((uint)glMain.ClientSize.Width, (uint)glMain.ClientSize.Height);
             this.Closed += (o, e) => { Core.Dispose(); Core = null; };
 
-            Core.Test.GLShaders.ForEach(ctl => XCTKControls.Add(new XCTKControllable(ctl)));
-            XCTKControls.Add(new XCTKControllable(Core.Test.PostProc));
-            XCTKControls.Add(new XCTKControllable(Core.Test.FontView));
-            cboxShader2.ItemsSource = XCTKControls;
-            pgTest.PropertyChanged += (o, e) => glMain.Invalidate();
-
-            glMain.Draw += Core.Test.Draw;
-            glMain.Resize += (o, e) => { Core.Test.Resize((uint)e.Width, (uint)e.Height); };
-
-            txtMemInfo.SetBinding(TextBlock.TextProperty, MemMonitor.GetTextBinding());
-            MemMonitor.UpdateInterval(1000, true);
-
-            txtCurCamera.SetBinding(TextBlock.TextProperty, new Binding
-            {
-                Source = Core.Camera,
-                Path = new PropertyPath("Position"),
-                Mode = BindingMode.OneWay
-            });
-            txtCurObj.SetBinding(TextBlock.TextProperty, new Binding
-            {
-                Source = Core.Drawables,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.OneWay,
-                Converter = new OneWayValueConvertor(o => 
-                {
-                    if (o == null) return "No object selected";
-                    var obj = o as Drawable;
-                    return $"#{Core.Drawables.CurObjIdx}[{obj.Type}] {obj.Name}";
-                })
-            });
-            txtCurLight.SetBinding(TextBlock.TextProperty, new Binding
-            {
-                Source = Core.Lights,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.OneWay,
-                Converter = new OneWayValueConvertor(o =>
-                {
-                    if (o == null) return "No light selected";
-                    var light = o as Light;
-                    return $"#{Core.Lights.CurLgtIdx}[{light.Type}] {light.Name}";
-                })
-            });
-            txtCurShd.SetBinding(TextBlock.TextProperty, new Binding
-            {
-                Source = Core.Shaders,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.OneWay,
-                Converter = new OneWayValueConvertor(o => ((GLProgram)o)?.Name)
-            });
-
-            cboxFCull.ItemsSource = Enum.GetValues(typeof(FaceCullingType)).Cast<FaceCullingType>().ToList();
-            cboxFCull.SetBinding(ComboBox.SelectedItemProperty, new Binding
-            {
-                Source = Core.Test,
-                Path = new PropertyPath("FaceCulling"),
-                Mode = BindingMode.TwoWay
-            });
-            cboxFCull.SelectionChanged += (o, e) => glMain.Invalidate();
-            cboxDTest.ItemsSource = Enum.GetValues(typeof(DepthTestType)).Cast<DepthTestType>().ToList();
-            cboxDTest.SetBinding(ComboBox.SelectedItemProperty, new Binding
-            {
-                Source = Core.Test,
-                Path = new PropertyPath("DepthTesting"),
-                Mode = BindingMode.TwoWay
-            });
-            cboxDTest.SelectionChanged += (o, e) => glMain.Invalidate();
-            var offscreenSizes = new ValueTuple<uint, uint>[] { (800, 450), (800, 600), (1280, 720), (1280, 1024), (1440, 720), (1440, 1080), (320, 180) };
-            void resizeOffscreen()
-            {
-                var val = offscreenSizes[cboxOSize.SelectedIndex];
-                Core.Test.ResizeOffScreen(val.Item1, val.Item2, ckboxFDepth.IsChecked ?? true);
-                glMain.Invalidate();
-            }
-            cboxOSize.ItemsSource = offscreenSizes.Select(x => $"{x.Item1}x{x.Item2}");
-            cboxOSize.SelectedIndex = 2;
-            cboxOSize.SelectionChanged += (o,e) => resizeOffscreen();
-            ckboxFDepth.Checked += (o, e) => resizeOffscreen();
-            ckboxFDepth.Unchecked += (o, e) => resizeOffscreen();
-            slExposure.SetBinding(Slider.ValueProperty, new Binding
-            {
-                Source = Core.Test.PostProc,
-                Path = new PropertyPath("Exposure"),
-                Mode = BindingMode.TwoWay
-            });
-            slExposure.ValueChanged += (o, e) => glMain.Invalidate();
-
-            cboxLight.SetBinding(ComboBox.ItemsSourceProperty, new Binding
-            {
-                Source = Core.Lights,
-                Mode = BindingMode.OneWay
-            });
-            cboxLight.SetBinding(ComboBox.SelectedItemProperty, new Binding
-            {
-                Source = Core.Lights,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.TwoWay
-            });
-            cboxObj.SetBinding(ComboBox.ItemsSourceProperty, new Binding
-            {
-                Source = Core.Drawables,
-                Mode = BindingMode.OneWay
-            });
-            cboxObj.SetBinding(ComboBox.SelectedItemProperty, new Binding
-            {
-                Source = Core.Drawables,
-                Path = new PropertyPath("Current"),
-                Mode = BindingMode.TwoWay
-            });
-            cboxShader.SetBinding(ComboBox.ItemsSourceProperty, new Binding
-            {
-                Source = Core.Shaders,
-                Mode = BindingMode.OneWay
-            });
-            cboxShader.SelectedItem = Core.Shaders.Current;
-
-            {
-                var dpd = DependencyPropertyDescriptor.FromProperty(ComboBox.ItemsSourceProperty, typeof(ComboBox));
-                dpd.AddValueChanged(cboxMat, (o, e) => cboxMat.SelectedIndex = 0);
-            }
+            glMain.Draw += Core.Draw;
+            glMain.Resize += (o, e) => { Core.Resize((uint)e.Width, (uint)e.Height); };
 
             AutoRefresher = new Timer(o =>
             {
-                if (Core.IsAnimate)
-                {
-                    Core.Rotate(0, 3, 0, OPObject.Drawable);
-                    this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
-                }
+                if (!ShouldRefresh)
+                    return;
+                OperateTargets[1]?.Rotate(0, 3 * MULER, 0);
+                this.Dispatcher.InvokeAsync(() => glMain.Invalidate(), System.Windows.Threading.DispatcherPriority.Normal);
             }, null, 0, 15);
             this.Closing += (o, e) => AutoRefresher.Change(Timeout.Infinite, 20);
             glMain.Invalidate();
@@ -219,23 +108,34 @@ namespace WPFTest
             var fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
             fpsTimer.Tick += (o, e) => { var timeUs = glMain?.AvgDrawTime ?? 0; txtFPS.Text = timeUs > 0 ? $"{1000000 / timeUs} FPS@{timeUs / 1000}ms" : ""; };
             fpsTimer.Start();
+
+            Core.TheScene.Drawables.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
+            cboxDrawable.ItemsSource = Core.TheScene.Drawables;
+            Core.TheScene.Lights.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
+            cboxLight.ItemsSource = Core.TheScene.Lights;
+            Core.Passes.ObjectPropertyChanged += (s, t, e) => InvalidateOnPropChanged(e.PropertyName);
+            cboxShader.ItemsSource = Core.Passes;
+            Core.Controls.ForEach(x => x.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName));
+            cboxControl.ItemsSource = Core.Controls;
+            Core.TheScene.MainCamera.PropertyChanged += (o, e) => InvalidateOnPropChanged(e.PropertyName);
         }
+
 
         private void btnDragMode_Click(object sender, RoutedEventArgs e)
         {
             var btnImg = (ImageBrush)btnDragMode.Content;
-            switch (OperateTarget)
+            switch (CurTarget)
             {
-            case OPObject.Camera:
-                OperateTarget = OPObject.Drawable;
+            case 0:
+                CurTarget = 1;
                 btnImg.ImageSource = imgCube;
                 break;
-            case OPObject.Drawable:
-                OperateTarget = OPObject.Light;
+            case 1:
+                CurTarget = 2;
                 btnImg.ImageSource = imgPointLight;
                 break;
-            case OPObject.Light:
-                OperateTarget = OPObject.Camera;
+            case 2:
+                CurTarget = 0;
                 btnImg.ImageSource = imgCamera;
                 break;
             }
@@ -248,15 +148,15 @@ namespace WPFTest
             switch (mi.Tag as string)
             {
             case "camera":
-                OperateTarget = OPObject.Camera;
+                CurTarget = 0;
                 btnImg.ImageSource = imgCamera;
                 break;
             case "object":
-                OperateTarget = OPObject.Drawable;
+                CurTarget = 1;
                 btnImg.ImageSource = imgCube;
                 break;
             case "light":
-                OperateTarget = OPObject.Light;
+                CurTarget = 2;
                 btnImg.ImageSource = imgPointLight;
                 break;
             }
@@ -286,12 +186,12 @@ namespace WPFTest
             try
             {
                 WaitingCount++;
-                if (await Core.Drawables.AddModelAsync(fileName))
-                {
-                    Core.Rotate(90, 0, 0, OPObject.Drawable);
-                    Core.Move(-1, 0, 0, OPObject.Drawable);
-                    glMain.Invalidate();
-                }
+                var model = await Core.LoadModelAsync(fileName);
+                model.Rotate(-90 * MULER, 0, 0);
+                model.Move(-1, 0, 0);
+                Core.TheScene.Drawables.Add(model);
+                OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
+                glMain.Invalidate();
             }
             catch (Exception ex)
             {
@@ -343,127 +243,118 @@ namespace WPFTest
             switch (mi.Tag as string)
             {
             case "parallel":
-                Core.Lights.Add(LightType.Parallel);
+                Core.TheScene.Lights.Add(Light.NewLight(LightType.Parallel));
                 break;
             case "point":
-                Core.Lights.Add(LightType.Point);
+                Core.TheScene.Lights.Add(Light.NewLight(LightType.Point));
                 break;
             case "spot":
-                Core.Lights.Add(LightType.Spot);
+                Core.TheScene.Lights.Add(Light.NewLight(LightType.Spot));
                 break;
             }
+            OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
             glMain.Invalidate();
             e.Handled = true;
         }
+
 
         private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             Console.WriteLine($"KeyDown value[{e.KeyValue}] code[{e.KeyCode}] data[{e.KeyData}]");
             switch (e.KeyCode)
             {
-                case System.Windows.Forms.Keys.Up:
-                    Core.Move(0, 0.1f, 0, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.Down:
-                    Core.Move(0, -0.1f, 0, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.Left:
-                    Core.Move(-0.1f, 0, 0, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.Right:
-                    Core.Move(0.1f, 0, 0, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.PageUp:
-                    Core.Move(0, 0, -0.1f, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.PageDown:
-                    Core.Move(0, 0, 0.1f, OPObject.Drawable); break;
-                case System.Windows.Forms.Keys.Add:
-                    Core.Drawables.CurObjIdx++; break;
-                case System.Windows.Forms.Keys.Subtract:
-                    Core.Drawables.CurObjIdx--; break;
-                default:
-                    if (e.Shift)
+            case System.Windows.Forms.Keys.Up:
+                OperateTargets[CurTarget]?.Move(0, 0.1f, 0); break;
+            case System.Windows.Forms.Keys.Down:
+                OperateTargets[CurTarget]?.Move(0, -0.1f, 0); break;
+            case System.Windows.Forms.Keys.Left:
+                OperateTargets[CurTarget]?.Move(-0.1f, 0, 0); break;
+            case System.Windows.Forms.Keys.Right:
+                OperateTargets[CurTarget]?.Move(0.1f, 0, 0); break;
+            case System.Windows.Forms.Keys.PageUp:
+                OperateTargets[CurTarget]?.Move(0, 0, -0.1f); break;
+            case System.Windows.Forms.Keys.PageDown:
+                OperateTargets[CurTarget]?.Move(0, 0, 0.1f); break;
+            case System.Windows.Forms.Keys.Add:
+                {
+                    var idx = Core.TheScene.Drawables.IndexOf(OperateTargets[1] as Drawable) + 1;
+                    OperateTargets[1] = Core.TheScene.Drawables.ElementAtOrDefault(idx == Core.TheScene.Drawables.Count ? 0 : idx);
+                }
+                break;
+            case System.Windows.Forms.Keys.Subtract:
+                {
+                    var idx = Core.TheScene.Drawables.IndexOf(OperateTargets[1] as Drawable) - 1;
+                    OperateTargets[1] = Core.TheScene.Drawables.ElementAtOrDefault(idx < 0 ? Core.TheScene.Drawables.Count - 1 : idx);
+                }
+                break;
+            default:
+                if (e.Shift)
+                {
+                    switch (e.KeyValue)
                     {
-                        switch (e.KeyValue)
-                        {
-                            case 'A'://pan to left
-                                Core.Rotate(0, 3, 0, OPObject.Drawable); break;
-                            case 'D'://pan to right
-                                Core.Rotate(0, -3, 0, OPObject.Drawable); break;
-                            case 'W'://pan to up
-                                Core.Rotate(3, 0, 0, OPObject.Drawable); break;
-                            case 'S'://pan to down
-                                Core.Rotate(-3, 0, 0, OPObject.Drawable); break;
-                            case 'Q'://pan to left
-                                Core.Rotate(0, 0, -3, OPObject.Drawable); break;
-                            case 'E'://pan to left
-                                Core.Rotate(0, 0, 3, OPObject.Drawable); break;
-                            case '\r':
-                                Core.IsAnimate = !Core.IsAnimate; break;
-                        }
+                    case 'A'://pan to left
+                        OperateTargets[CurTarget]?.Rotate(0, 3 * MULER, 0); break;
+                    case 'D'://pan to right
+                        OperateTargets[CurTarget]?.Rotate(0, -3 * MULER, 0); break;
+                    case 'W'://pan to up
+                        OperateTargets[CurTarget]?.Rotate(3 * MULER, 0, 0); break;
+                    case 'S'://pan to down
+                        OperateTargets[CurTarget]?.Rotate(-3 * MULER, 0, 0); break;
+                    case 'Q'://pan to left
+                        OperateTargets[CurTarget]?.Rotate(0, 0, -3 * MULER); break;
+                    case 'E'://pan to left
+                        OperateTargets[CurTarget]?.Rotate(0, 0, 3 * MULER); break;
+                    case '\r':
+                        ShouldRefresh = !ShouldRefresh; break;
                     }
-                    else
+                }
+                else
+                {
+                    switch (e.KeyValue)
                     {
-                        switch (e.KeyValue)
-                        {
-                            case 'A'://pan to left
-                                Core.Rotate(0, 3, 0, OPObject.Camera); break;
-                            case 'D'://pan to right
-                                Core.Rotate(0, -3, 0, OPObject.Camera); break;
-                            case 'W'://pan to up
-                                Core.Rotate(3, 0, 0, OPObject.Camera); break;
-                            case 'S'://pan to down
-                                Core.Rotate(-3, 0, 0, OPObject.Camera); break;
-                            case 'Q'://pan to left
-                                Core.Rotate(0, 0, -3, OPObject.Camera); break;
-                            case 'E'://pan to left
-                                Core.Rotate(0, 0, 3, OPObject.Camera); break;
-                            case '\r':
-                                Core.Mode = !Core.Mode; break;
-                        }
+                    case 'A'://pan to left
+                        Core.TheScene.MainCamera.Rotate(0, 3 * MULER, 0); break;
+                    case 'D'://pan to right
+                        Core.TheScene.MainCamera.Rotate(0, -3 * MULER, 0); break;
+                    case 'W'://pan to up
+                        Core.TheScene.MainCamera.Rotate(3 * MULER, 0, 0); break;
+                    case 'S'://pan to down
+                        Core.TheScene.MainCamera.Rotate(-3 * MULER, 0, 0); break;
+                    case 'Q'://pan to left
+                        Core.TheScene.MainCamera.Rotate(0, 0, -3 * MULER); break;
+                    case 'E'://pan to left
+                        Core.TheScene.MainCamera.Rotate(0, 0, 3 * MULER); break;
                     }
-                    break;
+                }
+                break;
             }
-            glMain.Invalidate();
+            //glMain.Invalidate();
         }
 
-        private void OnMouse(object sender, MouseEventExArgs e)
+        private void OnMouse(object sender, OpenGLView.MouseEventExArgs e)
         {
             switch (e.Type)
             {
-                case MouseEventType.Moving:
-                    if (e.Button.HasFlag(OpenGLView.MouseButton.Left))
-                        Core.Move((e.dx * 10.0f / Core.Test.Width), (e.dy * 10.0f / Core.Test.Height), 0, OperateTarget);
-                    else if (e.Button.HasFlag(OpenGLView.MouseButton.Right))
-                        Core.Rotate((e.dy * MouseSensative / Core.Test.Height), (e.dx * -MouseSensative / Core.Test.Width), 0, OperateTarget); //need to reverse dx
-                    break;
-                case MouseEventType.Wheel:
-                    Core.Move(0, 0, (float)e.dx * ScrollSensative, OperateTarget);
-                    break;
-                default:
-                    return;
+            case OpenGLView.MouseEventType.Moving:
+                if (e.Button.HasFlag(OpenGLView.MouseButton.Left))
+                    OperateTargets[CurTarget]?.Move((e.dx * 10.0f / Core.Width), (e.dy * 10.0f / Core.Height), 0);
+                else if (e.Button.HasFlag(OpenGLView.MouseButton.Right))
+                    OperateTargets[CurTarget]?.Rotate((e.dy * MULER * MouseSensative / Core.Height), (e.dx * MULER * -MouseSensative / Core.Width), 0); //need to reverse dx
+                break;
+            case OpenGLView.MouseEventType.Wheel:
+                OperateTargets[CurTarget]?.Move(0, 0, (float)e.dx * ScrollSensative);
+                break;
+            default:
+                return;
             }
-            glMain.Invalidate();
+            //glMain.Invalidate();
         }
 
-        private void GLMainInvalidator(object sender, RoutedEventArgs e)
-        {
-            glMain.Invalidate();
-            e.Handled = true;
-        }
-
-        private void btnOpenShaderSrc_Click(object sender, RoutedEventArgs e)
-        {
-            var shader = (ShaderObject)((Button)sender).DataContext;
-            new TextDialog(shader.Source, $"{((GLProgram)stkShader.DataContext).Name} --- {shader.Type}").Show();
-            e.Handled = true;
-        }
-
-        private void cboxObj_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            cboxMat.SelectedIndex = 0;
-        }
 
         private void btnScreenshot_Click(object sender, RoutedEventArgs e)
         {
             WaitingCount++;
-            var saver = Core.Test.Screenshot();
+            var saver = Core.Screenshot();
             string fname;
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
@@ -515,7 +406,7 @@ namespace WPFTest
                 try
                 {
                     WaitingCount++;
-                    Core.Load(dlg.FileName);
+                    Core.DeSerialize(dlg.FileName);
                 }
                 catch (Exception ex)
                 {
@@ -542,7 +433,7 @@ namespace WPFTest
                 try
                 {
                     WaitingCount++;
-                    Core.Save(dlg.FileName);
+                    Core.Serialize(dlg.FileName);
                 }
                 catch (Exception ex)
                 {
@@ -556,55 +447,75 @@ namespace WPFTest
             glMain.Invalidate();
         }
 
-        private void btnUseShader_Click(object sender, RoutedEventArgs e)
+        private async void btnTest_Click(object sender, RoutedEventArgs e)
         {
-            Core.Shaders.UseProgram(cboxShader.SelectedItem as GLProgram);
-            glMain.Invalidate();
+            var tex = ((sender as Button).DataContext as PBRMaterial).DiffuseMap;
+            var img = await Core.ThumbMan.GetThumbnailAsync(tex);
+            ((sender as Button).Content as Image).Source = img;
         }
 
-        private async void OnDropFileAsync(object sender, System.Windows.Forms.DragEventArgs e)
+        private async void texture_Drop(object sender, DragEventArgs e)
+        {
+            string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
+            try
+            {
+                WaitingCount++;
+                var img = new BitmapImage(new Uri(fname, UriKind.Absolute));
+                var imgCtrl = ((sender as Border).Child as StackPanel).Children.OfType<Image>().First();
+                imgCtrl.Source = img;
+                //var tex = await Core.TexLoader.LoadTextureAsync(fname, TexLoadType.Color);
+                //var mat = (sender as Border).DataContext as PBRMaterial;
+                //mat.DiffuseMap = tex;
+            }
+            catch (Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
+            }
+        }
+
+        private void texture_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Link; e.Handled = true;
+            }
+        }
+
+        private async void AddShaderAsync(string fileName)
+        {
+            try
+            {
+                WaitingCount++;
+                var shaderName = DateTime.Now.ToString("HH:mm:ss");
+                var shader = await Core.LoadShaderAsync(fileName, shaderName);
+                Core.Passes.Add(shader);
+                glMain.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                new TextDialog(ex).ShowDialog();
+            }
+            finally
+            {
+                WaitingCount--;
+            }
+        }
+
+        private void OnDropFile(object sender, System.Windows.Forms.DragEventArgs e)
         {
             string fname = (e.Data.GetData(System.Windows.Forms.DataFormats.FileDrop) as Array).GetValue(0).ToString();
             var extName = System.IO.Path.GetExtension(fname).ToLower();
-            switch(extName)
+            switch (extName)
             {
             case ".obj":
                 AddModelAsync(fname);
                 break;
             case ".glsl":
-                try
-                {
-                    WaitingCount++;
-                    //if (await Core.Shaders.AddShaderAsync(fname))
-                    //    glMain.Invalidate();
-                    var shader = await Core.AddShaderAsync(fname);
-                    XCTKControls.Add(new XCTKControllable(shader));
-                    glMain.Invalidate();
-                }
-                catch (Exception ex)
-                {
-                    new TextDialog(ex).ShowDialog();
-                }
-                finally
-                {
-                    WaitingCount--;
-                }
-                break;
-            case ".cl":
-                try
-                {
-                    WaitingCount++;
-                    if (await Core.Test.ReloadCLAsync(fname))
-                        glMain.Invalidate();
-                }
-                catch (Exception ex)
-                {
-                    new TextDialog(ex).ShowDialog();
-                }
-                finally
-                {
-                    WaitingCount--;
-                }
+                AddShaderAsync(fname);
                 break;
             }
         }

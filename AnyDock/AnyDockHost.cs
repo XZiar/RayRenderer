@@ -99,7 +99,7 @@ namespace AnyDock
             protected override void OnRender(DrawingContext dc)
             {
                 base.OnRender(dc);
-                Console.WriteLine($"Now Reize Rect : {GuideRect}");
+                //Console.WriteLine($"Now Reize Rect : {GuideRect}");
                 dc.DrawRectangle(Host.Foreground, null, GuideRect);
             }
         }
@@ -122,7 +122,7 @@ namespace AnyDock
             RightThumb  = new ResizeThumb      { Cursor = Cursors.SizeWE };
             TopThumb    = new ResizeThumb      { Cursor = Cursors.SizeNS };
             BottomThumb = new ResizeThumb      { Cursor = Cursors.SizeNS };
-            CenterPanel = new ContentPresenter();
+            CenterPanel = new ContentPresenter { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
             ResizePreview = new PreviewResizeAdorner(this);
 
             InternalChildren.Add(LeftPanel);
@@ -284,8 +284,9 @@ namespace AnyDock
             var cSize = new Size(0, 0);
             if (shouldCheckCenter)
             {
-                Center.Measure(constraint);
-                cSize = Center.DesiredSize;
+                CenterPanel.Measure(constraint);
+                cSize = CenterPanel.DesiredSize;
+                Console.WriteLine($"Measure Center [{cSize}]");
             }
 
             var totalWidth = lrWidth + padSize.Width +

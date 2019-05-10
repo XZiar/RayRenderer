@@ -93,6 +93,9 @@
     <Compile Include="DrawablePage.xaml.cs">
       <DependentUpon>DrawablePage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.xaml.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TheWindow.xaml.cs">
       <DependentUpon>TheWindow.xaml</DependentUpon>
     </Compile>
@@ -104,6 +107,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="MainWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="TextDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -112,7 +119,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="MainWindow.xaml">
+    <Page Include="MainWindow2.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -129,13 +136,13 @@
       <DependentUpon>LightPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="TestCore.cs" />
-    <Compile Include="MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
+    <Compile Include="MainWindow2.xaml.cs">
+      <DependentUpon>MainWindow2.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
     <Page Include="TheWindow.xaml">
-      <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Resource Include="Styles.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -174,6 +181,10 @@
     <Resource Include="icon\spotlight.png" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AnyDock\AnyDock.csproj">
+      <Project>{c04c4904-299e-4297-9990-8e1816767520}</Project>
+      <Name>AnyDock</Name>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLView\OpenGLView.vcxproj">
       <Project>{2d168e14-c22d-4429-b97c-af5d41010e48}</Project>
       <Name>OpenGLView</Name>

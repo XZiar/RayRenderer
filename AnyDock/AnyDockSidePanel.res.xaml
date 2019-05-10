@@ -41,6 +41,7 @@
             </local:DraggableTabControl>
             <Popup x:Name="PopupPage" AllowsTransparency="True" StaysOpen="False"
                    PlacementTarget="{Binding ElementName=HiddenBar}">
+                   <!--MaxWidth="{TemplateBinding MaxWidth}" MaxHeight="{TemplateBinding MaxHeight}">-->
                 <Border Margin="1 1 4 4" BorderThickness="1" BorderBrush="{TemplateBinding Foreground}"
                         Background="{TemplateBinding Background}">
                     <Border.Effect>
