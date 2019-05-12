@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -17,16 +19,54 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Common;
 using Xceed.Wpf.Toolkit;
+using XZiar.Util.Collections;
 using static XZiar.Util.BindingHelper;
 
 namespace WPFTest
 {
-    /// <summary>
-    /// ControllableGrid.xaml 的交互逻辑
-    /// </summary>
+
     [ContentProperty(nameof(Children))]
-    public partial class ControllableGrid : ContentControl
+    public class ControllableGrid : ContentControl
     {
+        private static readonly ResourceDictionary ResDict;
+        private static readonly ItemsPanelTemplate ItemsPanelTemplate;
+        private static readonly DataTemplate ItemsDataTemplate;
+        static ControllableGrid()
+        {
+            ResDict = new ResourceDictionary { Source = new Uri("WPFTest;component/ControllableGrid.res.xaml", UriKind.RelativeOrAbsolute) };
+            ItemsPanelTemplate = (ItemsPanelTemplate)ResDict["ItemsPanelTemplate"];
+            ItemsDataTemplate = (DataTemplate)ResDict["ItemsDataTemplate"];
+        }
+
+        private class ControlGroupsControl : ItemsControl
+        {
+            private readonly ControllableGrid Upper;
+            internal ControlGroupsControl(ControllableGrid upper)
+            {
+                Upper = upper;
+                ItemsPanel = ItemsPanelTemplate;
+                //ItemTemplate = ItemsDataTemplate;
+            }
+            private static readonly Brush BorderBrush_ = new SolidColorBrush(Color.FromRgb(0xab, 0xab, 0xab));
+            private static readonly Thickness BorderThickness_ = new Thickness(0.5);
+            private static readonly Thickness Margin_ = new Thickness(3, 4, 3, 4);
+            protected override DependencyObject GetContainerForItemOverride()
+            {
+                return new GroupBox() { BorderBrush = BorderBrush_, BorderThickness = BorderThickness_, Margin = Margin_ };
+            }
+            protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
+            {
+                var ele = (GroupBox)element;
+                var dat = (KeyValuePair<string, string>)item;
+                ele.Header = dat.Value;
+                var grid = (Grid)ResDict["theGrid"];
+                ele.Content = grid;
+                grid.Tag = dat.Key;
+                Upper.gridMain_Initialized(grid);
+            }
+        }
+
+
         public static readonly DependencyProperty ItemCategoryProperty = DependencyProperty.RegisterAttached(
             "ItemCategory",
             typeof(string),
@@ -69,36 +109,34 @@ namespace WPFTest
             return element.GetValue(ItemDescriptionProperty) as string;
         }
 
-        public static readonly DependencyPropertyKey ChildrenProperty = DependencyProperty.RegisterReadOnly(
-            nameof(Children),
-            typeof(List<FrameworkElement>),
-            typeof(ControllableGrid),
-            new PropertyMetadata());
-        public List<FrameworkElement> Children
-        {
-            get { return (List<FrameworkElement>)GetValue(ChildrenProperty.DependencyProperty); }
-            private set { SetValue(ChildrenProperty, value); }
-        }
+        public ObservableCollection<FrameworkElement> Children { get; } = new ObservableCollection<FrameworkElement>();
 
-        public static readonly DependencyProperty CategoriesProperty = DependencyProperty.RegisterAttached(
-            nameof(Categories),
-            typeof(Dictionary<string, string>),
-            typeof(ControllableGrid),
-            new PropertyMetadata());
-        public Dictionary<string, string> Categories
-        {
-            get { return (Dictionary<string, string>)GetValue(CategoriesProperty); }
-            set { SetValue(CategoriesProperty, value); }
-        }
+        //public static readonly DependencyProperty CategoriesProperty = DependencyProperty.Register(
+        //    nameof(Categories),
+        //    typeof(Dictionary<string, string>),
+        //    typeof(ControllableGrid),
+        //    new PropertyMetadata());
+        //public Dictionary<string, string> Categories
+        //{
+        //    get { return (Dictionary<string, string>)GetValue(CategoriesProperty); }
+        //    set { SetValue(CategoriesProperty, value); }
+        //}
 
-        private readonly List<Grid> CategoryGrids = new List<Grid>();
         public delegate void GenerateControlEventHandler(ControllableGrid sender, ControlItem item, ref FrameworkElement element);
         public event GenerateControlEventHandler GeneratingControl;
+        public ObservableSet<string> ExceptIds { get; } = new ObservableSet<string>();
+
+        private readonly ItemsControl stkMain;
+
+        private readonly Dictionary<string, string> Categories = new Dictionary<string, string>();
+        private readonly List<Grid> CategoryGrids = new List<Grid>();
+
+
         public ControllableGrid()
         {
-            Children = new List<FrameworkElement>();
-            Categories = new Dictionary<string, string>();
-            InitializeComponent();
+            stkMain = new ControlGroupsControl(this);
+            Content = stkMain;
+            ExceptIds.CollectionChanged += ExceptIdsChanged;
             DataContextChanged += OnDataContextChanged;
             BindingForeground = new Binding
             {
@@ -118,19 +156,13 @@ namespace WPFTest
                 Path = new PropertyPath("BorderBrush"),
                 Mode = BindingMode.OneWay
             };
-            //stkMain.ItemContainerGenerator.ItemsChanged += (s, e) =>
-            //{
-            //    switch (e.Action)
-            //    {
-            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Reset:
-            //        break;
-            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Remove:
-            //        break;
-            //    case System.Collections.Specialized.NotifyCollectionChangedAction.Replace:
-            //        break;
-            //    }
-            //};
         }
+
+        private void ExceptIdsChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            Refresh();
+        }
+
         private readonly Binding BindingForeground;
         private readonly Binding BindingBackground;
         private readonly Binding BindingBorderBrush;
@@ -152,21 +184,22 @@ namespace WPFTest
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            Refresh();
+        }
+
+        private void Refresh()
+        {
             foreach (var grid in CategoryGrids)
                 grid.Children.Clear();
             CategoryGrids.Clear();
-            //var old = Enumerable.Range(0, stkMain.Items.Count)
-            //    .Select(x => stkMain.ItemContainerGenerator.ContainerFromIndex(x) as ContentPresenter)
-            //    .Select(cp => cp.ContentTemplate.FindName("gridMain", cp) as Grid);
-            //foreach (var grid in old)
-            //    grid.Children.Clear();
 
-            if (!(e.NewValue is Controllable control))
+            if (!(DataContext is Controllable control))
             {
                 stkMain.DataContext = null;
                 stkMain.ItemsSource = null;
                 return;
             }
+
             stkMain.DataContext = control;
             foreach (var element in Children)
                 element.DataContext = control;
@@ -176,162 +209,8 @@ namespace WPFTest
                 .Select(x => new KeyValuePair<string, string>(x, x));
             var allcat = control.Categories.Concat(newcat)
                 .Where(x => !Categories.ContainsKey(x.Key));
-            
-            stkMain.ItemsSource = Categories.Concat(allcat);
-        }
 
-        private static FrameworkElement OnGeneratingControl(ControllableGrid sender, ControlItem item)
-        {
-            FrameworkElement result = null;
-            sender.GeneratingControl?.Invoke(sender, item, ref result);
-            if (result != null) return result;
-            if (item.Type == ControlItem.PropType.Enum)
-            {
-                var cbox = new ComboBox
-                {
-                    ItemsSource = item.Cookie as string[]
-                };
-                cbox.SetBinding(ComboBox.SelectedItemProperty, sender.CreateBinding(item));
-                return cbox;
-            }
-            if (item.ValType == typeof(string))
-            {
-                if (item.Type == ControlItem.PropType.LongText)
-                {
-                    var btn = new Button { Content = "查看" };
-                    btn.Click += (o, e) =>
-                    {
-                        var control = sender.GetControllable();
-                        control.DoGetMember(item.Id, out object txt);
-                        new TextDialog(txt as string, $"{control.ToString()} --- {item.Name}").Show();
-                        e.Handled = true;
-                    };
-                    return btn;
-                }
-                {
-                    var tbox = new TextBox
-                    {
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    tbox.SetBinding(TextBox.TextProperty, sender.CreateBinding(item));
-                    tbox.IsReadOnly = !item.Access.HasFlag(ControlItem.PropAccess.Write);
-                    return tbox;
-                }
-            }
-            if (item.ValType == typeof(Vector2))
-            {
-                var limit = (Vector2)item.Cookie;
-                var slider = new RangeSlider
-                {
-                    AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
-                    AutoToolTipPrecision = 3,
-                    Minimum = limit.X,
-                    Maximum = limit.Y
-                };
-                slider.SetBinding(RangeSlider.LowerValueProperty,
-                    sender.CreateBinding(item, new TwoWayValueConvertor(
-                        o => ((Vector2)o).X,
-                        o => new Vector2(Convert.ToSingle(o), (float)slider.HigherValue))
-                        ));
-                slider.SetBinding(RangeSlider.HigherValueProperty,
-                    sender.CreateBinding(item, new TwoWayValueConvertor(
-                        o => ((Vector2)o).Y,
-                        o => new Vector2((float)slider.LowerValue, Convert.ToSingle(o)))
-                        ));
-                return slider;
-            }
-            if (item.ValType == typeof(Color))
-            {
-                var clrPicker = new ColorPicker()
-                {
-                    ColorMode = ColorMode.ColorCanvas
-                };
-                clrPicker.SetBinding(ColorPicker.SelectedColorProperty, sender.CreateBinding(item));
-                return clrPicker;
-            }
-            if (item.ValType == typeof(float))
-            {
-                if(item.Cookie == null)
-                {
-                    var spiner = new DoubleUpDown { FormatString = "F2", Increment = 0.1 };
-                    spiner.SetBinding(DoubleUpDown.ValueProperty, sender.CreateBinding(item, ConvertorForceSingle));
-                    return spiner;
-                }
-                else
-                {
-                    var limit = (Vector2)item.Cookie;
-                    var slider = new Slider
-                    {
-                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
-                        AutoToolTipPrecision = 3,
-                        Minimum = limit.X,
-                        Maximum = limit.Y
-                    };
-                    slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceSingle));
-                    return slider;
-                }
-            }
-            if (item.ValType == typeof(ushort))
-            {
-                if (item.Cookie == null)
-                {
-                    var spiner = new IntegerUpDown { Increment = 1 };
-                    spiner.SetBinding(IntegerUpDown.ValueProperty, sender.CreateBinding(item, ConvertorForceUShort));
-                    return spiner;
-                }
-                else
-                {
-                    dynamic limit = item.Cookie;
-                    var slider = new Slider
-                    {
-                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
-                        Minimum = limit.Item1,
-                        Maximum = limit.Item2
-                    };
-                    slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceUShort));
-                    return slider;
-                }
-            }
-            if (item.ValType == typeof(int))
-            {
-                if (item.Cookie == null)
-                {
-                    var spiner = new IntegerUpDown { Increment = 1 };
-                    spiner.SetBinding(IntegerUpDown.ValueProperty, sender.CreateBinding(item));
-                    return spiner;
-                }
-                else
-                {
-                    dynamic limit = item.Cookie;
-                    var slider = new Slider
-                    {
-                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
-                        Minimum = limit.Item1,
-                        Maximum = limit.Item2
-                    };
-                    slider.SetBinding(Slider.ValueProperty, sender.CreateBinding(item, ConvertorForceInt));
-                    return slider;
-                }
-            }
-            if (item.ValType == typeof(bool))
-            {
-                var ckBox = new CheckBox
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-                ckBox.SetBinding(CheckBox.IsCheckedProperty, sender.CreateBinding(item));
-                return ckBox;
-            }
-            {
-                var tblock = new TextBlock
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-                tblock.SetBinding(TextBlock.TextProperty, sender.CreateBinding(item));
-                return tblock;
-            }
+            stkMain.ItemsSource = Categories.Concat(allcat);
         }
 
         private void SetBasicBinding(FrameworkElement element)
@@ -369,20 +248,20 @@ namespace WPFTest
                 Name = GetItemName(control); Description = GetItemDescription(control); Control = control;
             }
         }
-        private void gridMain_Initialized(object sender, EventArgs e)
+        private void gridMain_Initialized(Grid grid)
         {
             var control = GetControllable();
             if (control == null)
                 return;
-            var grid = sender as Grid;
             CategoryGrids.Add(grid);
-            var splitter = grid.FindName("gridSplit") as GridSplitter;
+            var splitter = (GridSplitter)grid.Children[0];
             var cat = grid.Tag as string;
 
-            var itemControls = control.Items.Where(x => x.Category == cat)
+            var itemControls = control.Items
+                .Where(x => x.Category == cat && !ExceptIds.Contains(x.Id))
                 .Select(item =>
                 {
-                    var realControl = OnGeneratingControl(this, item);
+                    var realControl = OnGeneratingControl(item);
                     SetBasicBinding(realControl);
                     SetItemCategory(realControl, cat);
                     return new ControlPack(item, realControl);
@@ -445,9 +324,159 @@ namespace WPFTest
                 splitter.Visibility = Visibility.Collapsed;
         }
 
-        private void CleanGridMain()
+        private FrameworkElement OnGeneratingControl(ControlItem item)
         {
-            
+            FrameworkElement result = null;
+            GeneratingControl?.Invoke(this, item, ref result);
+            if (result != null) return result;
+            if (item.Type == ControlItem.PropType.Enum)
+            {
+                var cbox = new ComboBox
+                {
+                    ItemsSource = item.Cookie as string[]
+                };
+                cbox.SetBinding(ComboBox.SelectedItemProperty, this.CreateBinding(item));
+                return cbox;
+            }
+            if (item.ValType == typeof(string))
+            {
+                if (item.Type == ControlItem.PropType.LongText)
+                {
+                    var btn = new Button { Content = "查看" };
+                    btn.Click += (o, e) =>
+                    {
+                        var control = GetControllable();
+                        control.DoGetMember(item.Id, out object txt);
+                        new TextDialog(txt as string, $"{control.ToString()} --- {item.Name}").Show();
+                        e.Handled = true;
+                    };
+                    return btn;
+                }
+                {
+                    var tbox = new TextBox
+                    {
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    tbox.SetBinding(TextBox.TextProperty, CreateBinding(item));
+                    tbox.IsReadOnly = !item.Access.HasFlag(ControlItem.PropAccess.Write);
+                    return tbox;
+                }
+            }
+            if (item.ValType == typeof(Vector2))
+            {
+                var limit = (Vector2)item.Cookie;
+                var slider = new RangeSlider
+                {
+                    AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                    AutoToolTipPrecision = 3,
+                    Minimum = limit.X,
+                    Maximum = limit.Y
+                };
+                slider.SetBinding(RangeSlider.LowerValueProperty,
+                    CreateBinding(item, new TwoWayValueConvertor(
+                        o => ((Vector2)o).X,
+                        o => new Vector2(Convert.ToSingle(o), (float)slider.HigherValue))
+                        ));
+                slider.SetBinding(RangeSlider.HigherValueProperty,
+                    CreateBinding(item, new TwoWayValueConvertor(
+                        o => ((Vector2)o).Y,
+                        o => new Vector2((float)slider.LowerValue, Convert.ToSingle(o)))
+                        ));
+                return slider;
+            }
+            if (item.ValType == typeof(Color))
+            {
+                var clrPicker = new ColorPicker()
+                {
+                    ColorMode = ColorMode.ColorCanvas
+                };
+                clrPicker.SetBinding(ColorPicker.SelectedColorProperty, CreateBinding(item));
+                return clrPicker;
+            }
+            if (item.ValType == typeof(float))
+            {
+                if (item.Cookie == null)
+                {
+                    var spiner = new DoubleUpDown { FormatString = "F2", Increment = 0.1 };
+                    spiner.SetBinding(DoubleUpDown.ValueProperty, CreateBinding(item, ConvertorForceSingle));
+                    return spiner;
+                }
+                else
+                {
+                    var limit = (Vector2)item.Cookie;
+                    var slider = new Slider
+                    {
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                        AutoToolTipPrecision = 3,
+                        Minimum = limit.X,
+                        Maximum = limit.Y
+                    };
+                    slider.SetBinding(Slider.ValueProperty, CreateBinding(item, ConvertorForceSingle));
+                    return slider;
+                }
+            }
+            if (item.ValType == typeof(ushort))
+            {
+                if (item.Cookie == null)
+                {
+                    var spiner = new IntegerUpDown { Increment = 1 };
+                    spiner.SetBinding(IntegerUpDown.ValueProperty, CreateBinding(item, ConvertorForceUShort));
+                    return spiner;
+                }
+                else
+                {
+                    dynamic limit = item.Cookie;
+                    var slider = new Slider
+                    {
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                        Minimum = limit.Item1,
+                        Maximum = limit.Item2
+                    };
+                    slider.SetBinding(Slider.ValueProperty, CreateBinding(item, ConvertorForceUShort));
+                    return slider;
+                }
+            }
+            if (item.ValType == typeof(int))
+            {
+                if (item.Cookie == null)
+                {
+                    var spiner = new IntegerUpDown { Increment = 1 };
+                    spiner.SetBinding(IntegerUpDown.ValueProperty, CreateBinding(item));
+                    return spiner;
+                }
+                else
+                {
+                    dynamic limit = item.Cookie;
+                    var slider = new Slider
+                    {
+                        AutoToolTipPlacement = AutoToolTipPlacement.TopLeft,
+                        Minimum = limit.Item1,
+                        Maximum = limit.Item2
+                    };
+                    slider.SetBinding(Slider.ValueProperty, CreateBinding(item, ConvertorForceInt));
+                    return slider;
+                }
+            }
+            if (item.ValType == typeof(bool))
+            {
+                var ckBox = new CheckBox
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                ckBox.SetBinding(CheckBox.IsCheckedProperty, CreateBinding(item));
+                return ckBox;
+            }
+            {
+                var tblock = new TextBlock
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                tblock.SetBinding(TextBlock.TextProperty, CreateBinding(item));
+                return tblock;
+            }
         }
+
     }
 }

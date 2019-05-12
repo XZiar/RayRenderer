@@ -1,15 +1,15 @@
 ﻿<ContentControl x:Class="WPFTest.DrawablePage"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:WPFTest"
-             xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
-             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
-             mc:Ignorable="d" 
-             d:DesignHeight="800" d:DesignWidth="400"
-             x:Name="DrawablePage_"
-             Background="{StaticResource brshDarkBackground}" Foreground="White">
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+                xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+                xmlns:local="clr-namespace:WPFTest"
+                xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
+                xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+                mc:Ignorable="d" 
+                d:DesignHeight="800" d:DesignWidth="400"
+                x:Name="DrawablePage_"
+                Background="{StaticResource brshDarkBackground}" Foreground="White">
     <DockPanel>
         <ComboBox x:Name="cbox" Margin="0,0,0,8" DockPanel.Dock="Top"
                   Background="{StaticResource brshDarkBackground}" Foreground="White"
@@ -19,9 +19,15 @@
             <local:ControllableGrid x:Name="ctl" Background="{StaticResource brshDarkBackground}" Foreground="White" 
                                     DataContext="{Binding SelectedItem, ElementName=cbox, Mode=OneWay}">
                 <DockPanel local:ControllableGrid.ItemCategory="Material">
-                    <ComboBox Background="{StaticResource brshDarkBackground}" Foreground="White" Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" Margin="0,0,0,8" DockPanel.Dock="Top" ItemsSource="{Binding Materials, Mode=OneWay}" />
-                    <local:ControllableGrid Background="{StaticResource brshDarkBackground}" Foreground="White" DataContext="{Binding Children[0].SelectedItem, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DockPanel}, Mode=OneWay}">
-                        <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" ColorMode="ColorCanvas">
+                    <ComboBox x:Name="cboxMat" Margin="0,0,0,8" DockPanel.Dock="Top" 
+                              Background="{StaticResource brshDarkBackground}" Foreground="White" 
+                              Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" 
+                              ItemsSource="{Binding Materials, Mode=OneWay}" />
+                    <local:ControllableGrid x:Name="MatGrid" 
+                                            Background="{StaticResource brshDarkBackground}" Foreground="White" 
+                                            DataContext="{Binding SelectedItem, ElementName=cboxMat, Mode=OneWay}">
+                        <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" 
+                                          ColorMode="ColorCanvas">
                             <xctk:ColorPicker.Style>
                                 <Style TargetType="xctk:ColorPicker">
                                     <Style.Triggers>

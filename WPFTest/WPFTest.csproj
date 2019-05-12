@@ -87,9 +87,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="ControllableGrid.xaml.cs">
-      <DependentUpon>ControllableGrid.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="ControllableGrid.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
@@ -98,9 +96,9 @@
     </Compile>
     <Compile Include="Utils\ThumbnailBinding.cs" />
     <Compile Include="Utils\ProxyBinder.cs" />
-    <Page Include="ControllableGrid.xaml">
-      <SubType>Designer</SubType>
+    <Page Include="ControllableGrid.res.xaml">
       <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
@@ -177,6 +175,10 @@
       <Project>{c04c4904-299e-4297-9990-8e1816767520}</Project>
       <Name>AnyDock</Name>
     </ProjectReference>
+    <ProjectReference Include="..\CommonUtil\CommonUtil.csproj">
+      <Project>{e145898e-ce93-478e-a0c8-49a8c7afb7a6}</Project>
+      <Name>CommonUtil</Name>
+    </ProjectReference>
     <ProjectReference Include="..\OpenGLView\OpenGLView.vcxproj">
       <Project>{2d168e14-c22d-4429-b97c-af5d41010e48}</Project>
       <Name>OpenGLView</Name>
@@ -214,7 +216,6 @@
   <ItemGroup>
     <Resource Include="icon\save.png" />
   </ItemGroup>
-  <Import Project="..\CommonUtil\CommonUtil.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
