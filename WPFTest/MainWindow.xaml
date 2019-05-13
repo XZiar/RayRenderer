@@ -129,15 +129,18 @@
                 <local:DrawablePage x:Name="drawablePage"
                                     ad:AnyDockManager.PageName="物件" ad:AnyDockManager.CanClose="False" 
                                     ad:AnyDockSidePanel.CollapseToSide="False"/>
-                <local:BasicPage x:Name="lightPage"
-                                 ad:AnyDockManager.PageName="灯光" ad:AnyDockManager.CanClose="False" 
-                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
-                <local:BasicPage x:Name="shaderPage"
-                                 ad:AnyDockManager.PageName="Shader" ad:AnyDockManager.CanClose="False" 
-                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
-                <local:BasicPage x:Name="controlPage"
-                                 ad:AnyDockManager.PageName="Control" ad:AnyDockManager.CanClose="False" 
-                                 ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:SelectionControlGrid x:Name="lightPage"
+                                            ad:AnyDockManager.PageName="灯光" 
+                                            ad:AnyDockManager.CanClose="False" 
+                                            ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:SelectionControlGrid x:Name="shaderPage"
+                                            ad:AnyDockManager.PageName="Shader" 
+                                            ad:AnyDockManager.CanClose="False" 
+                                            ad:AnyDockSidePanel.CollapseToSide="False"/>
+                <local:SelectionControlGrid x:Name="controlPage"
+                                            ad:AnyDockManager.PageName="Control" 
+                                            ad:AnyDockManager.CanClose="False" 
+                                            ad:AnyDockSidePanel.CollapseToSide="False"/>
             </ad:AnyDockHost.Right>
             <ad:AnyDockHost.Bottom>
                 <local:LogPage x:Name="logPage" Background="{StaticResource brshDarkBackground}" 

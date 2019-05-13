@@ -10,52 +10,36 @@
                 d:DesignHeight="800" d:DesignWidth="400"
                 x:Name="DrawablePage_"
                 Background="{StaticResource brshDarkBackground}" Foreground="White">
-    <DockPanel>
-        <ComboBox x:Name="cbox" Margin="0,0,0,8" DockPanel.Dock="Top"
-                  Background="{StaticResource brshDarkBackground}" Foreground="White"
-                  Template="{StaticResource darkCombobox}" DisplayMemberPath="Name"
-                  ItemsSource="{Binding DataContext, ElementName=DrawablePage_, Mode=OneWay}"/>
-        <ScrollViewer Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
-            <local:ControllableGrid x:Name="ctl" Background="{StaticResource brshDarkBackground}" Foreground="White" 
-                                    DataContext="{Binding SelectedItem, ElementName=cbox, Mode=OneWay}">
-                <DockPanel local:ControllableGrid.ItemCategory="Material">
-                    <ComboBox x:Name="cboxMat" Margin="0,0,0,8" DockPanel.Dock="Top" 
-                              Background="{StaticResource brshDarkBackground}" Foreground="White" 
-                              Template="{StaticResource darkCombobox}" DisplayMemberPath="Name" 
-                              ItemsSource="{Binding Materials, Mode=OneWay}" />
-                    <local:ControllableGrid x:Name="MatGrid" 
-                                            Background="{StaticResource brshDarkBackground}" Foreground="White" 
-                                            DataContext="{Binding SelectedItem, ElementName=cboxMat, Mode=OneWay}">
-                        <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" 
-                                          ColorMode="ColorCanvas">
-                            <xctk:ColorPicker.Style>
-                                <Style TargetType="xctk:ColorPicker">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </xctk:ColorPicker.Style>
-                        </xctk:ColorPicker>
-                        <Border BorderBrush="#FFABABAB" BorderThickness="1" DragEnter="texture_DragEnter"  Drop="texture_Drop" AllowDrop="True">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <StackPanel Orientation="Vertical">
-                                <ext:LabelTextBox IsReadOnly="True" Label="Albedo" Content="{Binding DiffuseMap.Name}" />
-                                <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap, Mode=TwoWay}" ToolTip="{Binding DiffuseMap.Format}" />
-                            </StackPanel>
-                        </Border>
-                    </local:ControllableGrid>
-                </DockPanel>
-            </local:ControllableGrid>
-        </ScrollViewer>
-    </DockPanel>
+    <local:SelectionControlGrid>
+        <local:SelectionControlGrid x:Name="matGrid" local:ControllableGrid.ItemCategory="Material" 
+                                    Target="{Binding Materials}">
+            <xctk:ColorPicker local:ControllableGrid.ItemName="Albedo" SelectedColor="{Binding Color, Mode=TwoWay}" 
+                              ColorMode="ColorCanvas">
+                <xctk:ColorPicker.Style>
+                    <Style TargetType="xctk:ColorPicker">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="true">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </xctk:ColorPicker.Style>
+            </xctk:ColorPicker>
+            <Border BorderBrush="#FFABABAB" BorderThickness="1" DragEnter="texture_DragEnter"  Drop="texture_Drop" AllowDrop="True">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding UseDiffuseMap, Mode=OneWay}" Value="false">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel Orientation="Vertical">
+                    <ext:LabelTextBox IsReadOnly="True" Label="Albedo" Content="{Binding DiffuseMap.Name}" />
+                    <Image MaxWidth="256" Stretch="Fill" Source="{local:ThumbnailBinding DiffuseMap, Mode=TwoWay}" ToolTip="{Binding DiffuseMap.Format}" />
+                </StackPanel>
+            </Border>
+        </local:SelectionControlGrid>
+    </local:SelectionControlGrid>
 </ContentControl>

@@ -23,6 +23,7 @@ namespace WPFTest
         public DrawablePage()
         {
             InitializeComponent();
+            matGrid.CtrlGrid.ExceptIds.Add("Color");
         }
 
         private void texture_Drop(object sender, DragEventArgs e)

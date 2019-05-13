@@ -6,17 +6,9 @@
     <ItemsPanelTemplate x:Key="ItemsPanelTemplate">
         <StackPanel Orientation="Vertical" />
     </ItemsPanelTemplate>
-    <Grid x:Key="theGrid" x:Shared="False">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="2" />
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <GridSplitter x:Name="gridSplit" Grid.Row="0" Grid.Column="1" Width="3" HorizontalAlignment="Stretch" Background="#FF686868" />
-    </Grid>
-    <DataTemplate x:Key="ItemsDataTemplate">
-        <GroupBox x:Name="groupBox" Header="{Binding Value, Mode=OneTime}" BorderBrush="#FFABABAB" BorderThickness="0.5,0.5,0.5,0.5" Margin="3,4">
-            <Grid x:Name="gridMain" Tag="{Binding Key, Mode=OneTime}">
+    <DataTemplate x:Key="MainGridTemplate">
+        <Expander BorderThickness="0.5" Margin="2 4 2 4" Padding="4 2 4 2">
+            <Grid x:Name="gridMain">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="2" />
@@ -24,7 +16,7 @@
                 </Grid.ColumnDefinitions>
                 <GridSplitter x:Name="gridSplit" Grid.Row="0" Grid.Column="1" Width="3" HorizontalAlignment="Stretch" Background="#FF686868" />
             </Grid>
-        </GroupBox>
+        </Expander>
     </DataTemplate>
 </ResourceDictionary>
     

@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BindingHelper.cs" />
+    <Compile Include="CollectionHelper.cs" />
     <Compile Include="Collections.cs" />
     <Compile Include="MemoryMonitor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

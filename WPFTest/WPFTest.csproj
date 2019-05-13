@@ -88,9 +88,13 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="ControllableGrid.cs" />
+    <Compile Include="ControllableGroup.xaml.cs">
+      <DependentUpon>ControllableGroup.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\SelectionControlGrid.cs" />
     <Compile Include="Pages\LogPage.xaml.cs">
       <DependentUpon>LogPage.xaml</DependentUpon>
     </Compile>
@@ -100,15 +104,19 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="ControllableGroup.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Pages\DrawablePage.xaml">
+    <Page Include="Pages\BasicPages.res.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Pages\BasicPage.xaml">
+    <Page Include="Pages\DrawablePage.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -126,9 +134,6 @@
     </Compile>
     <Compile Include="Pages\DrawablePage.xaml.cs">
       <DependentUpon>DrawablePage.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\BasicPage.xaml.cs">
-      <DependentUpon>BasicPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="TextDialog.xaml.cs">
       <DependentUpon>TextDialog.xaml</DependentUpon>
