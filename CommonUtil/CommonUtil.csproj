@@ -7,7 +7,7 @@
     <ProjectGuid>{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CommonUtil</RootNamespace>
+    <RootNamespace>XZiar.Util</RootNamespace>
     <AssemblyName>CommonUtil</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -47,6 +47,7 @@
     <Compile Include="Collections.cs" />
     <Compile Include="MemoryMonitor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReflectionEx.cs" />
     <Compile Include="ViewModelHelper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

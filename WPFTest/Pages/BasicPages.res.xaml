@@ -2,6 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:System="clr-namespace:System;assembly=mscorlib"
                     xmlns:wpf="clr-namespace:System.Windows.Controls;assembly=PresentationFramework" 
+                    xmlns:ext="clr-namespace:XZiar.WPFControl;assembly=WPFControlExt"
                     xmlns:local="clr-namespace:WPFTest">
     <ControlTemplate x:Key="SelCtrlGridTemplate" TargetType="local:SelectionControlGrid">
         <DockPanel>
@@ -9,10 +10,10 @@
                   Background="{StaticResource brshDarkBackground}" Foreground="White"
                   Template="{StaticResource darkCombobox}" DisplayMemberPath="Name"
                   ItemsSource="{TemplateBinding Target}"/>
-            <ScrollViewer x:Name="scroll" Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
+            <ext:NestedScrollViewer x:Name="scroll" Margin="0" CanContentScroll="False" PanningMode="VerticalFirst" VerticalScrollBarVisibility="Hidden">
                 <local:ControllableGrid x:Name="ctl" Background="{StaticResource brshDarkBackground}" Foreground="White" 
                                         DataContext="{Binding SelectedItem, ElementName=cbox, Mode=OneWay}" />
-            </ScrollViewer>
+            </ext:NestedScrollViewer>
         </DockPanel>
     </ControlTemplate>
 </ResourceDictionary>

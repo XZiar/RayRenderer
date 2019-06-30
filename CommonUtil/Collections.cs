@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,7 +16,7 @@ namespace XZiar.Util.Collections
         static NotifyCollectionChangedEventArgsEx()
         {
             ResetInitializer = (InitRemoveDelegate)Delegate.CreateDelegate(typeof(InitRemoveDelegate), 
-                typeof(NotifyCollectionChangedEventArgs).GetMethod("InitializeRemove"));
+                typeof(NotifyCollectionChangedEventArgs).GetMethod("InitializeRemove", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public));
         }
         public static NotifyCollectionChangedEventArgs NewResetEvent(IList list)
         {

@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="Extensions.cs" />
     <Compile Include="LabelControl.cs" />
+    <Compile Include="NestedScrollViewer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -82,6 +83,12 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Themes\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CommonUtil\CommonUtil.csproj">
+      <Project>{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}</Project>
+      <Name>CommonUtil</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
