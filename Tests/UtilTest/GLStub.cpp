@@ -93,7 +93,8 @@ oglContext InitContext()
         GLX_STENCIL_SIZE, 8,
         None
     };
-    Display* display = XOpenDisplay(":0.0");
+    const char* const disp = getenv("DISPLAY");
+    Display* display = XOpenDisplay(disp ? disp : ":0.0");
     /* open display */
     if (!display)
     {

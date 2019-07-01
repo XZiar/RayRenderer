@@ -32,6 +32,7 @@
     <CustomBuild Include="*.ispc" />
     <CustomBuild Include="*.ispc" />
     <CustomBuild Include="*.ispc" />
+    <CustomBuild Include="*.ispc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
