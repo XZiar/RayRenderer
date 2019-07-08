@@ -7,11 +7,20 @@ import sys
 import time
 from collections import OrderedDict
 from ._Rely import *
+from .Environment import findAppInPath
 
 
 class BuildTarget(metaclass=abc.ABCMeta):
     @abc.abstractstaticmethod
     def prefix() -> str:
+        pass
+    @staticmethod
+    def initEnv(env: dict):
+        '''initialize environment'''
+        pass
+    @staticmethod
+    def modifyProject(proj, env:dict):
+        '''modify parent project'''
         pass
     
     def write(self, file):
@@ -43,6 +52,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
         self.sources.sort()
 
     def solveTarget(self, targets, env:dict):
+        '''solve sources and flags'''
         self.solveSource(targets, env)
         target = targets[self.prefix()]
         a,d = solveElementList(target, "flags", env)
@@ -61,13 +71,14 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.incpath = []
         self.pch = ""
         self.debugLevel = "-g3"
-        self.optimize = "-O2" if env["target"] == "Release" else "-O0"
+        self.optimize = ""
         self.version = ""
         super().__init__(targets, env)
 
     def solveTarget(self, targets, env:dict):
         self.flags += ["-Wall", "-pedantic", "-march=native", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs"]
         self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
+        self.optimize = "-O2" if env["target"] == "Release" else "-O0"
         if env["compiler"] == "clang":
             self.flags += ["-Wno-newline-eof"]
         if env["target"] == "Release":
@@ -176,3 +187,85 @@ class ISPCTarget(BuildTarget):
         super().write(file)
         writeItems(file, self.prefix()+"_targets", self.targets)
         writeItem(file, self.prefix()+"_flags", "--target="+(",".join(self.targets)), state="+")
+
+
+class CUDATarget(BuildTarget):
+    cudaHome = None
+    @staticmethod
+    def prefix() -> str:
+        return "cuda"
+    @staticmethod
+    def initEnv(env: dict):
+        CUDATarget.cudaHome = os.environ.get("CUDA_PATH")
+        if CUDATarget.cudaHome == None:
+            paths = findAppInPath("nvcc")
+            if len(paths) > 0:
+                CUDATarget.cudaHome = os.path.abspath(os.path.join(paths[0], os.pardir))
+        if env["platform"] == "x86":
+            print("{clr.yellow}Latest CUDA does not support 32bit any more{clr.clear}".format(clr=COLOR))
+
+    @staticmethod
+    def modifyProject(proj, env:dict):
+        proj.libDynamic += ["cuda", "cudart"]
+        if CUDATarget.cudaHome:
+            proj.libDirs += [os.path.join(CUDATarget.cudaHome, "lib64")]
+
+    def __init__(self, targets, env:dict):
+        self.defines = []
+        self.incpath = []
+        self.hostDebug = "-g"
+        self.deviceDebug = ""
+        self.optimize = ""
+        self.version = ""
+        self.arch = []
+        super().__init__(targets, env)
+        if CUDATarget.cudaHome:
+            self.incpath += [os.path.join(CUDATarget.cudaHome, "include")]
+        else:
+            print("{clr.yellow}CUDA Home directory not found{clr.clear}".format(clr=COLOR))
+
+    def solveTarget(self, targets, env:dict):
+        self.flags += ["-pg", "-lineinfo", "-use_fast_math", "-res-usage", "--source-in-ptx"]
+        self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
+        self.optimize = "-O2" if env["target"] == "Release" else "-O0"
+        if env["target"] == "Release":
+            self.defines += ["NDEBUG"]
+        cuda = targets.get("cuda")
+        if cuda is not None:
+            a,_ = solveElementList(cuda, "hostDebug", env)
+            self.hostDebug = a[0] if len(a)>0 else self.hostDebug
+            a,_ = solveElementList(cuda, "deviceDebug", env)
+            self.deviceDebug = a[0] if len(a)>0 else self.deviceDebug
+            a,_ = solveElementList(cuda, "optimize", env)
+            self.optimize = a[0] if len(a)>0 else self.optimize
+            a,d = solveElementList(cuda, "flags", env)
+            self.flags = combineElements(self.flags, a, d)
+            a,d = solveElementList(cuda, "defines", env)
+            self.defines = combineElements(self.defines, a, d)
+            a,d = solveElementList(cuda, "incpath", env)
+            self.incpath = combineElements(self.incpath, a, d)
+            a,d = solveElementList(cuda, "arch", env)
+            self.arch = combineElements(self.arch, a, d)
+            self.version = cuda.get("version", "-std=c++14")
+        super().solveTarget(targets, env)
+
+    def write(self, file):
+        super().write(file)
+        writeItems(file, self.prefix()+"_defs", self.defines)
+        writeItems(file, self.prefix()+"_incpaths", self.incpath)
+        writeItems(file, self.prefix()+"_flags", [self.version, self.hostDebug, self.deviceDebug, self.optimize], state="+")
+        if len(self.arch) > 0:
+            writeItem(file, self.prefix()+"_flags", "-arch="+",".join(self.arch), state="+")
+
+
+
+
+def _getSubclasses(clz):
+    for c in clz.__subclasses__():
+        if inspect.isabstract(c):
+            for subc in _getSubclasses(c):
+                yield subc
+        else:
+            yield c
+
+_AllTargets = list(_getSubclasses(BuildTarget))

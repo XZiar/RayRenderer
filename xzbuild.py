@@ -11,6 +11,7 @@ import time
 from collections import deque
 
 from xzbuild._Rely import COLOR
+from xzbuild.Target import _AllTargets
 from xzbuild.Project import Project
 from xzbuild.Environment import *
 
@@ -149,11 +150,14 @@ def main(argv=None):
             help()
             return 0
 
+        # initialize environent data
         projects = gatherProj()
         env = collectEnv()
         if len(argv) > 4: env["platform"] = argv[4]             
         if len(argv) > 3: env["target"] = argv[3]             
         env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
+        for t in _AllTargets:
+            t.initEnv(env)
 
         objproj = argv[2] if len(argv) > 2 else None
 

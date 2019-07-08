@@ -10,18 +10,7 @@ import sys
 import time
 from collections import deque
 from ._Rely import writeItems,writeItem
-from .Target import BuildTarget
-
-
-def _getSubclasses(clz):
-    for c in clz.__subclasses__():
-        if inspect.isabstract(c):
-            for subc in _getSubclasses(c):
-                yield subc
-        else:
-            yield c
-
-_AllTargets = list(_getSubclasses(BuildTarget))
+from .Target import _AllTargets
 
 
 class Project:
@@ -38,6 +27,7 @@ class Project:
         self.libDynamic = libs.get("dynamic", [])
         self.targets = []
         self.linkflags = []
+        self.libDirs = []
         pass
 
     def solveTarget(self, env:dict):
@@ -45,7 +35,10 @@ class Project:
             self.linkflags += ["-fuse-ld=gold"]
         os.chdir(os.path.join(env["rootDir"], self.path))
         targets = self.raw.get("targets", [])
-        self.targets = [t(targets, env) for t in _AllTargets if t.prefix() in targets]
+        existTargets = [t for t in _AllTargets if t.prefix() in targets]
+        self.targets = [t(targets, env) for t in existTargets]
+        for t in existTargets:
+            t.modifyProject(self, env)
         os.chdir(env["rootDir"])
 
     def solveDependency(self, projs:dict):
@@ -86,6 +79,7 @@ class Project:
             writeItems(file, "LINKFLAGS", self.linkflags)
             writeItems(file, "libDynamic", self.libDynamic)
             writeItems(file, "libStatic", self.libStatic)
+            writeItems(file, "xz_libDir", self.libDirs, state="+")
             for t in self.targets:
                 t.write(file)
 

@@ -3,6 +3,7 @@ CCOMPILER		?= gcc
 ASMCOMPILER		?= g++
 NASMCOMPILER	?= nasm
 ISPCCOMPILER	?= ispc
+CUDACOMPILER	?= nvcc
 STATICLINKER	?= ar
 DYNAMICLINKER	?= g++
 APPLINKER		?= g++
@@ -32,24 +33,27 @@ c_srcs		?=
 c_pch		?=
 asm_srcs	?=
 nasm_rcs	?=
+cuda_rcs	?=
 rc_srcs		?=
 ispc_srcs	?=
 
 APPPATH		 = $(SOLPATH)/$(OBJPATH)/
 INCPATH		 = -I"$(SOLPATH)" -I"$(SOLPATH)/3rdParty" $(patsubst %, -I"%", $(xz_incDir))
-LDPATH		 = -L"$(APPPATH)" -L.
+LDPATH		 = -L"$(APPPATH)" -L.  $(patsubst %, -L"%", $(xz_libDir))
 DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
 STALIBS		:= $(patsubst %, -l%, $(libStatic))
 CDEFFLAGS	:= $(patsubst %, -D%, $(c_defs))
 CPPDEFFLAGS	:= $(patsubst %, -D%, $(cpp_defs))
+CUDADEFFLAGS	:= $(patsubst %, -D%, $(cuda_defs))
 CINCPATHS	:= $(patsubst %, -I"%", $(c_incpaths)) $(INCPATH)
 CPPINCPATHS	:= $(patsubst %, -I"%", $(cpp_incpaths)) $(INCPATH)
+CUDAINCPATHS	:= $(patsubst %, -I"%", $(cuda_incpaths)) $(INCPATH)
 ASMINCPATHS	:= $(patsubst %, -I"%", $(asm_incpaths)) $(INCPATH)
 NASMINCPATHS	:= $(patsubst %, -I"%", $(nasm_incpaths)) $(INCPATH)
 
 
 ### section OBJs
-CXXOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs))
+CXXOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs) $(cuda_srcs))
 ISPCOBJECTS	 = $(patsubst %, $(OBJPATH)/%.o, $(ispc_srcs))
 OTHEROBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(asm_srcs) $(nasm_srcs))
 
@@ -116,15 +120,15 @@ clean:
 
 ### main targets
 ifeq ($(BUILD_TYPE), static)
-$(APP): $(CXXOBJS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
 	$(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
 else ifeq ($(BUILD_TYPE), dynamic)
-$(APP): $(CXXOBJS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
 	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
 else
-$(APP): $(CXXOBJS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
 	$(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
 endif
@@ -177,8 +181,15 @@ $(OBJPATH)/%.rc.o: %.rc $(DEP_MK)
 
 ###============================================================================
 ### ispc targets
+# ispc's dependency file is still buggy, so only generate it but not use it
 $(OBJPATH)/%.ispc.o: %.ispc $(DEP_MK)
-	$(ISPCCOMPILER) $< -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) 
+	$(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@
+#	sed -i '1s/^(null):/$@:/g' $(patsubst %.ispc.o, %.ispc.d, $@)
 	ld -r $(patsubst %, $(OBJPATH)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@
 
 
+###============================================================================
+### cuda targets
+$(OBJPATH)/%.cu.o: %.cu $(PCH_CPP) $(DEP_MK)
+	$(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -MM -MF $(patsubst %.cu.o, %.cu.d, $@)
+	$(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -o $@

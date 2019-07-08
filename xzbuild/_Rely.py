@@ -23,6 +23,7 @@ __tests = \
 }
 
 def _checkMatch(obj:dict, env:dict, name:str, test) -> bool:
+    '''given [env] and a [test], check if target corresponding to the [name] in [obj] satisfies'''
     target = obj.get(name)
     if target is None:
         return True
