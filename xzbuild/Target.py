@@ -24,12 +24,12 @@ class BuildTarget(metaclass=abc.ABCMeta):
         pass
     
     def write(self, file):
-        file.write("\n\n# For target [{}]\n".format(self.prefix()))
+        file.write(f"\n\n# For target [{self.prefix()}]\n")
         writeItems(file, self.prefix()+"_srcs", self.sources)
         writeItems(file, self.prefix()+"_flags", self.flags)
 
     def printSources(self):
-        print("{clr.magenta}[{}] Sources:\n{clr.white}{}{clr.clear}".format(self.prefix(), " ".join(self.sources), clr=COLOR))
+        print(f'{COLOR.magenta}[{self.prefix()}] Sources:\n{COLOR.White(" ".join(self.sources))}')
 
     def __init__(self, targets, env:dict):
         self.sources = []
@@ -202,7 +202,7 @@ class CUDATarget(BuildTarget):
             if len(paths) > 0:
                 CUDATarget.cudaHome = os.path.abspath(os.path.join(paths[0], os.pardir))
         if env["platform"] == "x86":
-            print("{clr.yellow}Latest CUDA does not support 32bit any more{clr.clear}".format(clr=COLOR))
+            print(COLOR.Yellow("Latest CUDA does not support 32bit any more"))
 
     @staticmethod
     def modifyProject(proj, env:dict):
@@ -222,7 +222,7 @@ class CUDATarget(BuildTarget):
         if CUDATarget.cudaHome:
             self.incpath += [os.path.join(CUDATarget.cudaHome, "include")]
         else:
-            print("{clr.yellow}CUDA Home directory not found{clr.clear}".format(clr=COLOR))
+            print(COLOR.Yellow("CUDA Home directory not found"))
 
     def solveTarget(self, targets, env:dict):
         self.flags += ["-pg", "-lineinfo", "-use_fast_math", "-res-usage", "--source-in-ptx"]

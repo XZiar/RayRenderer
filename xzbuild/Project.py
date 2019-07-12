@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from collections import deque
+from collections.abc import MutableMapping
 from ._Rely import writeItems,writeItem
 from .Target import _AllTargets
 
@@ -41,12 +42,12 @@ class Project:
             t.modifyProject(self, env)
         os.chdir(env["rootDir"])
 
-    def solveDependency(self, projs:dict):
+    def solveDependency(self, projs:"ProjectSet"):
         self.dependency.clear()
         for dep in self.raw.get("dependency", []):
             proj = projs.get(dep)
             if proj == None:
-                raise Exception("missing dependency for {}".format(dep))
+                raise Exception(f"missing dependency {dep} for {self.name}")
             self.dependency.append(proj)
         pass
 
@@ -88,4 +89,46 @@ class Project:
         return str(d)
 
 
+class ProjectSet:
+    def __init__(self, data=None):
+        self._data = {}
+        self.__add__(data)
+    def __getitem__(self, key):
+        return self._data[key]
+    def __delitem__(self, item):
+        name = item.name if item is Project else item
+        del self._data[name]
+    def __contains__(self, item):
+        return item in self._data.values() if item is Project else item in self._data
+    def __add__(self, data):
+        if data is None:
+            pass
+        if type(data) is Project:
+            if data.name in self._data: raise RuntimeError(f"project {data.name} being added already exists")
+            else: self._data[data.name] = data
+        else:
+            for item in data: self.__add__(item)
+    def __iter__(self):
+        return iter(self._data.values())
+    def __len__(self):
+        return len(self._data)
+    def __repr__(self):
+        return f"{type(self).__name__}({self._data})"
+    def get(self, key, val=None):
+        return self._data.get(key, val)
+    
+    def names(self):
+        return self._data.keys()
 
+    def solveDependency(self):
+        for proj in self._data.values():
+            proj.solveDependency(self)
+    
+    @staticmethod
+    def gatherFrom(dir:str="."):
+        def readMetaFile(d:str):
+            with open(os.path.join(d, "xzbuild.proj.json"), 'r') as f:
+                return json.load(f)
+        target = [(r, readMetaFile(r)) for r,d,f in os.walk(dir) if "xzbuild.proj.json" in f]
+        projects = ProjectSet([Project(proj, d) for d,proj in target])
+        return projects

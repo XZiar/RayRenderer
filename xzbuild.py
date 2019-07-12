@@ -12,30 +12,23 @@ from collections import deque
 
 from xzbuild._Rely import COLOR
 from xzbuild.Target import _AllTargets
-from xzbuild.Project import Project
-from xzbuild.Environment import *
+from xzbuild.Project import Project, ProjectSet
+from xzbuild.Environment import collectEnv, writeEnv
 
-def gatherProj():
-    def readMetaFile(d:str):
-        with open(os.path.join(d, "xzbuild.proj.json"), 'r') as f:
-            return json.load(f)
-    target = [(r, readMetaFile(r)) for r,d,f in os.walk(".") if "xzbuild.proj.json" in f]
-    projects = {p.name:p for p in [Project(proj, d) for d,proj in target]}
-    for proj in projects.values():
-        proj.solveDependency(projects)
-    return projects
 
 def help():
-    print("{0.white}build.py {0.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project> {0.magenta}[<Debug|Release>] [<x64|x86>]{0.clear}".format(COLOR))
-    print("{0.white}build.py {0.cyan}<list|help>{0.clear}".format(COLOR))
+    print(f"{COLOR.white}build.py {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project> "
+          f"{COLOR.magenta}[<Debug|Release>] [<x64|x86>]{COLOR.clear}")
+    print(f"{COLOR.white}build.py {COLOR.cyan}<list|help>{COLOR.clear}")
     pass
 
 def makeit(proj:Project, env:dict, action:str):
     # action = [build|clean|rebuild]
     rootDir = env["rootDir"]
     buildtype = "static library" if proj.type == "static" else ("dynamic library" if proj.type == "dynamic" else "executable binary")
-    print("{clr.green}{} {clr.magenta}{}{clr.clear} [{clr.cyan}{}{clr.clear}] [{clr.magenta}{}{clr.clear} version on {clr.magenta}{}{clr.clear}] to {clr.green}{}{clr.clear}"\
-        .format(action, buildtype, proj.name, env["target"], env["platform"], os.path.join(rootDir, env["objpath"]), clr=COLOR))
+    print(f'{COLOR.Green(action)} {COLOR.Magenta(buildtype)} [{COLOR.Cyan(proj.name)}] '
+          f'[{COLOR.Magenta(env["target"])} version on {COLOR.Magenta(env["platform"])}] '
+          f'to {COLOR.Green(os.path.join(rootDir, env["objpath"]))}')
     proj.solveTarget(env)
     proj.writeMakefile(env)
     projDir = os.path.join(rootDir, proj.path)
@@ -49,22 +42,21 @@ def makeit(proj:Project, env:dict, action:str):
         doClean = 1
     if action == "clean":
         buildObj = "clean"
-    cmd = "make {0} OBJPATH=\"{1}\" SOLPATH=\"{2}\" CLEAN={3} -f {2}/XZBuildMakeCore.mk -j4"
-    cmd = cmd.format(buildObj, env["objpath"], rootDir, doClean)
+    cmd = f'make {buildObj} OBJPATH="{env["objpath"]}" SOLPATH="{rootDir}" CLEAN={doClean} -f {rootDir}/XZBuildMakeCore.mk -j{env["threads"]}'
     #print(cmd)
     ret = subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)
     return ret
 
-def listproj(projs:dict, projname: str):
+def listproj(projs: ProjectSet, projname: str):
     if projname == None:
-        for proj in projs.values():
-            print("{clr.green}[{}] {clr.magenta}({}) {clr.clear}{}\n{}".format(proj.name, proj.type, proj.version, proj.desc, clr=COLOR))
+        for proj in projs:
+            print(f"{COLOR.green}[{proj.name}] {COLOR.magenta}({proj.type}) {COLOR.clear}{proj.version}\n{proj.desc}")
     else:
         def printDep(proj: Project, ends: tuple):
             prev = "".join(["   " if l else "│  " for l in ends[:-1]])
             cur = "" if len(ends)==1 else ("└──" if ends[-1] else "├──")
-            print("{}{}{clr.green}[{}]{clr.magenta}({}){clr.clear}{}".format(prev, cur, proj.name, proj.type, proj.desc, clr=COLOR))
+            print(f"{prev}{cur}{COLOR.green}[{proj.name}]{COLOR.magenta}({proj.type}){COLOR.clear}{proj.desc}")
             newends = ends + (False,)
             for dep in proj.dependency[:-1]:
                 printDep(dep, newends)
@@ -114,7 +106,8 @@ def mainmake(action:str, projs:set, env:dict):
         action = action[:-3]
     else:
         projs = [x for x in sortDependency(projs)]
-    print("build dependency:\t" + "->".join(["{clr.green}[{}]{clr.clear}".format(p.name, clr=COLOR) for p in projs]))
+    print(f"run {env['threads']} threads on {env['cpuCount']} cores")
+    print("build dependency:\t" + "->".join([f"{COLOR.green}[{p.name}]{COLOR.clear}" for p in projs]))
     writeEnv(env)
     suc = 0
     all = 0
@@ -124,77 +117,82 @@ def mainmake(action:str, projs:set, env:dict):
         suc += 1 if b else 0
     return (suc, all)
 
-def parseProj(proj:str, projs:dict):
+def parseProj(proj:str, projs:ProjectSet):
     wanted = set()
     names = set(re.findall(r"[-.\w']+", proj)) # not keep removed items
     if "all" in names:
-        names.update(projs.keys())
+        names.update(projs.names())
     if "all-dynamic" in names:
-        names.update([pn for pn,p in projs.items() if p.type == "dynamic"])
+        names.update([p.name for p in projs if p.type == "dynamic"])
     if "all-static" in names:
-        names.update([pn for pn,p in projs.items() if p.type == "static"])
+        names.update([p.name for p in projs if p.type == "static"])
     if "all-executable" in names:
-        names.update([pn for pn,p in projs.items() if p.type == "executable"])
+        names.update([p.name for p in projs if p.type == "executable"])
     names.difference_update(["all", "all-dynamic", "all-static", "all-executable"]) # exclude special reserved items
     wantRemove = set([y for x in proj if x.startswith("-") for y in (x,x[1:])]) # exclude removed items
     names.difference_update(wantRemove)
     for x in names:
         if x in projs: wanted.add(projs[x])
-        else: print("{clr.red}Unknwon project{clr.cyan}[{}]{clr.clear}".format(x, clr=COLOR))
+        else: print(f"{COLOR.red}Unknwon project{COLOR.cyan}[{x}]{COLOR.clear}")
     return wanted
 
-def main(argv=None):
+def main(argv:list, paras:dict):
     try:
-        action = argv[1]
+        action = argv[0]
         if action == "help":
             help()
             return 0
 
         # initialize environent data
-        projects = gatherProj()
-        env = collectEnv()
-        if len(argv) > 4: env["platform"] = argv[4]             
-        if len(argv) > 3: env["target"] = argv[3]             
+        projects = ProjectSet.gatherFrom()
+        projects.solveDependency()
+        
+        env = collectEnv(paras)
+        if len(argv) > 3: env["platform"] = argv[3]             
+        if len(argv) > 2: env["target"] = argv[2]             
         env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
         for t in _AllTargets:
             t.initEnv(env)
 
-        objproj = argv[2] if len(argv) > 2 else None
+        objproj = argv[1] if len(argv) > 1 else None
 
         if action == "test":
-            for proj in projects.values():
+            for proj in projects:
                 proj.solveTarget(env)
-                print("{}\n{}\n\n".format(proj.name, str(proj)))
+                print(f"{proj.name}\n{str(proj)}\n\n")
                 proj.writeMakefile(env)
         elif action == "list":
             listproj(projects, objproj)
             return 0
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
             projs = parseProj(objproj, projects)
-            suc, all = mainmake(action, projs, env)
-            preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < all else COLOR.green
-            print("{}build [{}/{}] successed.{clr.clear}".format(preclr, suc, all, clr=COLOR))
-            return 0 if suc == all else -2
+            suc, tol = mainmake(action, projs, env)
+            preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < tol else COLOR.green
+            print(f"{preclr}build [{suc}/{tol}] successed.{COLOR.clear}")
+            return 0 if suc == tol else -2
         else:
             raise IndexError()
     except IndexError:
-        print("{clr.red}unknown action: {}{clr.clear}".format(argv[1:], clr=COLOR))
+        print(f"{COLOR.red}unknown action: {argv}{COLOR.clear}")
         help()
         return -1
     except KeyError:
-        print("{clr.red}cannot find target project [{}]{clr.clear}".format(objproj, clr=COLOR))
+        print(f"{COLOR.red}cannot find target project [{objproj}]{COLOR.clear}")
         return -1
     pass
 
 if __name__ == "__main__":
     osname = platform.system()
     if osname == "Windows":
-        # print("{0.yellow}For Windows, use Visual Studio 2017 to build!{0.clear}".format(COLOR))
+        # print(COLOR.Yellow("For Windows, use Visual Studio 2019 to build!"))
         # sys.exit(0)
         pass
     elif osname == "Darwin":
-        print("{0.yellow}maxOS support is not tested!{0.clear}".format(COLOR))
+        print(COLOR.Yellow("maxOS support is not tested!"))
     elif osname != "Linux":
-        print("{0.yellow}unknown OS!{0.clear}".format(COLOR))
+        print(COLOR.Yellow("unknown OS!"))
         sys.exit(-1)
-    sys.exit(main(sys.argv))
+    args  = [x for x in sys.argv[1:] if not x.startswith("/")]
+    paras = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
+    paras = {p[0]:"=".join(p[1:]) for p in paras}
+    sys.exit(main(args, paras))

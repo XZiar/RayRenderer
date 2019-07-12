@@ -23,7 +23,7 @@ _intrinMap = \
 }
 
 
-def collectEnv() -> dict:
+def collectEnv(paras:dict) -> dict:
     solDir = os.getcwd()
     env = {"rootDir": solDir, "target": "Debug"}
     is64Bits = sys.maxsize > 2**32
@@ -40,6 +40,8 @@ def collectEnv() -> dict:
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
+    env["cpuCount"] = os.cpu_count()
+    env["threads"] = paras.get("threads", env["cpuCount"])
     return env
 
 def writeEnv(env:dict):
