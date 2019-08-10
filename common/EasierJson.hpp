@@ -6,7 +6,14 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:5054)
+#endif
 #include "3rdParty/rapidjson/document.h"
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 #include "3rdParty/rapidjson/encodings.h"
 #include "3rdParty/rapidjson/stringbuffer.h"
 #include "3rdParty/rapidjson/writer.h"
@@ -45,6 +52,7 @@ template<bool IsConst>
 class JObjectIterator;
 }
 
+// mempool holder, provide node creation
 class DocumentHandle
 {
     template<typename, typename, typename, bool> friend class JComplexType;
@@ -75,23 +83,43 @@ struct SharedUtil
             return true;
         return false;
     }
+};
+
+struct JsonConvertor
+{
     template<typename T>
-    static rapidjson::Value ToJString(const T& name, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
+    static rapidjson::Value ToJString(const T& str, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
         rapidjson::Value jstr;
-        if constexpr(std::is_same_v<string, PlainType>)
-            jstr.SetString(name.data(), static_cast<uint32_t>(name.size()), mempool);
+        if constexpr (std::is_same_v<common::u8StrView, PlainType>)
+            jstr.SetString(rapidjson::StringRef(str.CharData(), static_cast<uint32_t>(str.Length())));
+        else if constexpr(std::is_same_v<string, PlainType>)
+            jstr.SetString(str.data(), static_cast<uint32_t>(str.size()), mempool);
         else if constexpr(std::is_same_v<string_view, PlainType> || std::is_convertible_v<const T&, string_view>)
         {
-            const string_view namesv(name);
-            jstr.SetString(rapidjson::StringRef(namesv.data(), namesv.size()));
+            const string_view strsv(str);
+            jstr.SetString(rapidjson::StringRef(strsv.data(), strsv.size()));
         }
         else if constexpr(std::is_convertible_v<const T&, string>)
         {
-            const string namestr(name);
-            jstr.SetString(namestr.data(), static_cast<uint32_t>(namestr.size()), mempool);
+            const string str2(str);
+            jstr.SetString(str2.data(), static_cast<uint32_t>(str2.size()), mempool);
         }
+#if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
+        else if constexpr (std::is_same_v<std::u8string, PlainType>)
+            jstr.SetString(reinterpret_cast<const char*>(str.data()), static_cast<uint32_t>(str.size()), mempool);
+        else if constexpr (std::is_same_v<std::u8string_view, PlainType> || std::is_convertible_v<const T&, std::u8string_view>)
+        {
+            const std::u8string_view strsv(str);
+            jstr.SetString(rapidjson::StringRef(reinterpret_cast<const char*>(strsv.data()), strsv.size()));
+        }
+        else if constexpr (std::is_convertible_v<const T&, std::u8string>)
+        {
+            const std::u8string str2(str);
+            jstr.SetString(reinterpret_cast<const char*>(str2.data()), static_cast<uint32_t>(str2.size()), mempool);
+        }
+#endif
         else
         {
             static_assert(!common::AlwaysTrue<T>, "unsupported type");
@@ -109,7 +137,7 @@ struct SharedUtil
             else
                 return rapidjson::Value(rapidjson::kNullType);
         }
-        else if constexpr(IsString<PlainType>())
+        else if constexpr(SharedUtil::IsString<PlainType>())
             return ToJString(std::forward<T>(val), mempool);
         else if constexpr(std::is_convertible_v<T, rapidjson::Value>)
             return static_cast<rapidjson::Value>(val);
@@ -188,6 +216,7 @@ struct SharedUtil
     }
 };
 
+
 namespace detail
 {
 template<class T>
@@ -242,6 +271,7 @@ public:
 };
 }
 
+// Basic JSON node, wrapping a rapidjson::Value
 template<typename Child>
 struct JNode
 {
@@ -315,6 +345,7 @@ struct JPointerSupport
     JArrayRef<false> GetOrCreateArrayFromPath(const string_view& path);
 };
 
+// JSON Document
 class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>, public JPointerSupport<JDoc, false>
 {
     friend struct JNode<JDoc>;
@@ -364,10 +395,10 @@ public:
     explicit JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<bool R = !IsConst, typename = std::enable_if_t<R>>
     explicit operator rapidjson::Value() { return std::move(Val); }
-    template<typename T>
+    template<typename T, typename Convertor = JsonConvertor>
     T AsValue(T val = {}) const
     {
-        SharedUtil::FromVal(*Val, val);
+        Convertor::FromVal(*Val, val);
         return val;
     }
 };
@@ -407,29 +438,29 @@ protected:
         return static_cast<const DocumentHandle*>(static_cast<const ValHolder*>(this))->MemPool;
     }
 public:
-    template<typename T>
+    template<typename T, typename Convertor = JsonConvertor>
     bool TryGet(KeyType key, T& val) const
     {
-        return KeyChecker::GetIf(static_cast<const ValHolder*>(this)->ValRef(), key, val);
+        return KeyChecker::template GetIf<Convertor>(static_cast<const ValHolder*>(this)->ValRef(), key, val);
     }
-    template<typename T>
+    template<typename T, typename Convertor = JsonConvertor>
     T Get(KeyType key, T val = {}) const
     {
-        TryGet<T>(key, val);
+        TryGet<T, Convertor>(key, val);
         return val;
     }
     JObjectRef<true> GetObject(KeyType key) const;
     JArrayRef<true> GetArray(KeyType key) const;
 
-    template<typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
+    template<typename T, typename Convertor = JsonConvertor, bool R = !IsConst, typename = std::enable_if_t<R>>
     bool TryGet(KeyType key, T& val)
     {
-        return KeyChecker::GetIf(static_cast<ValHolder*>(this)->ValRef(), key, val);
+        return KeyChecker::template GetIf<Convertor>(static_cast<ValHolder*>(this)->ValRef(), key, val);
     }
-    template<typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
+    template<typename T, typename Convertor = JsonConvertor, bool R = !IsConst, typename = std::enable_if_t<R>>
     T Get(KeyType key, T val = {})
     {
-        TryGet<T>(key, val);
+        TryGet<T, Convertor>(key, val);
         return val;
     }
     template<bool R = !IsConst>
@@ -490,32 +521,37 @@ class JArrayLike : public JComplexType<const rapidjson::SizeType, JArrayLike<Chi
     using Parent = JComplexType<const rapidjson::SizeType, JArrayLike<Child, IsConst>, Child, IsConst>;
 private:
 
-    template<typename V, typename T>
+    template<typename Convertor, typename V, typename T>
     static forceinline bool GetIf(V& valref, const rapidjson::SizeType index, T& val)
     {
         if (index < valref.Size())
-            return SharedUtil::FromVal(valref[index], val);
+            return Convertor::FromVal(valref[index], val);
         return false;
     }
-    template<typename... Ts, size_t... Indexes>
+    template<typename Convertor, typename... Ts, size_t... Indexes>
     size_t InnerTryGetMany(const rapidjson::SizeType offset, std::index_sequence<Indexes...>, Ts&... val) const
     {
         const auto& valref = static_cast<const Child*>(this)->ValRef();
-        return (0 + ... + GetIf(valref, static_cast<rapidjson::SizeType>(Indexes + offset), val));
+        return (0 + ... + GetIf<Convertor>(valref, static_cast<rapidjson::SizeType>(Indexes + offset), val));
     }
 protected:
-    template<typename... T>
+    template<typename Convertor, typename... T>
     forceinline void Push(T&&... val)
     {
         auto& mempool = static_cast<Child*>(this)->GetMemPool();
         auto& valref = static_cast<Child*>(this)->ValRef();
-        (valref.PushBack(SharedUtil::ToVal(std::forward<T>(val), mempool), mempool), ...);
+        (valref.PushBack(Convertor::ToVal(std::forward<T>(val), mempool), mempool), ...);
     }
 public:
+    template<typename Convertor, typename... Ts>
+    size_t TryGetMany(const rapidjson::SizeType offset, Ts&... val) const
+    {
+        return InnerTryGetMany<Convertor>(offset, std::make_index_sequence<sizeof...(Ts)>(), val...);
+    }
     template<typename... Ts>
     size_t TryGetMany(const rapidjson::SizeType offset, Ts&... val) const
     {
-        return InnerTryGetMany(offset, std::make_index_sequence<sizeof...(Ts)>(), val...);
+        return TryGetMany<JsonConvertor>(offset, val...);
     }
     detail::JArrayIterator<true> begin() const
     {
@@ -536,26 +572,26 @@ public:
 };
 
 template<typename Child, bool IsConst>
-class JObjectLike : public JComplexType<const std::string_view&, JObjectLike<Child, IsConst>, Child, IsConst>
+class JObjectLike : public JComplexType<const common::u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>
 {
     template<typename, typename, typename, bool>friend class JComplexType;
-    using Parent = JComplexType<const std::string_view&, JObjectLike<Child, IsConst>, Child, IsConst>;
+    using Parent = JComplexType<const common::u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>;
 private:
 
-    template<typename V, typename T>
-    static forceinline bool GetIf(V& valref, const std::string_view& name, T& val)
+    template<typename Convertor, typename V, typename T>
+    static forceinline bool GetIf(V& valref, const common::u8StrView& name, T& val)
     {
-        if (auto it = valref.FindMember(name.data()); it != valref.MemberEnd())
-            return SharedUtil::FromVal(it->value, val);
+        if (auto it = valref.FindMember(name.CharData()); it != valref.MemberEnd())
+            return Convertor::FromVal(it->value, val);
         return false;
     }
 protected:
-    template<typename T, typename U>
+    template<typename Convertor, typename T, typename U>
     forceinline void Add(T&& name, U&& val)
     {
         auto& mempool = *Parent::InnerMemPool();
-        auto key = SharedUtil::ToJString(std::forward<T>(name), mempool);
-        auto value = SharedUtil::ToVal(std::forward<U>(val), mempool);
+        auto key = Convertor::ToJString(std::forward<T>(name), mempool);
+        auto value = Convertor::ToVal(std::forward<U>(val), mempool);
         static_cast<Child*>(this)->ValRef().AddMember(key, value, mempool);
     }
 public:
@@ -586,7 +622,7 @@ protected:
     JArray(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const T& data) : JArray(mempool)
     {
         for (const auto& val : data)
-            JArrayLike<JArray, false>::Push(val);
+            JArrayLike<JArray, false>::Push<JsonConvertor>(val);
     }
 public:
     JArray() : JDoc(rapidjson::kArrayType) {}
@@ -597,18 +633,23 @@ public:
     }
     template<typename T>
     explicit JArray(JDoc&& doc, const T& data) : JArray(doc.MemPool, data) {}
+    template<typename Convertor, typename... T>
+    JArray& Push(T&&... val)
+    {
+        JArrayLike<JArray, false>::Push<Convertor>(std::forward<T>(val)...);
+        return *this;
+    }
     template<typename... T>
     JArray& Push(T&&... val)
     {
-        JArrayLike<JArray, false>::Push(std::forward<T>(val)...);
-        return *this;
+        return Push<JsonConvertor>(std::forward<T>(val)...);
     }
 };
 
 template<bool IsConst>
 class JArrayRef : public JDocRef<IsConst>, public JArrayLike<JArrayRef<IsConst>, IsConst>
 {
-    friend struct SharedUtil;
+    friend struct JsonConvertor;
     template<typename, typename, typename, bool>friend class JComplexType;
     template<typename, bool> friend struct JPointerSupport;
 protected:
@@ -630,11 +671,16 @@ public:
     JArrayRef(const JArray& jarray) : JDocRef<IsConst>(jarray) {}
     //template<bool R = !IsConst, typename = std::enable_if_t<R>>
     JArrayRef(JArray& jarray) : JDocRef<IsConst>(jarray) {}
+    template<typename Convertor, typename... T>
+    JArrayRef<IsConst>& Push(T&&... val)
+    {
+        JArrayLike<JArrayRef<IsConst>, IsConst>::template Push<Convertor>(std::forward<T>(val)...);
+        return *this;
+    }
     template<typename... T>
     JArrayRef<IsConst>& Push(T&&... val)
     {
-        JArrayLike<JArrayRef<IsConst>, IsConst>::Push(std::forward<T>(val)...);
-        return *this;
+        return Push<JsonConvertor>(std::forward<T>(val)...);
     }
 };
 
@@ -647,7 +693,7 @@ protected:
     JObject(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const T& datamap) : JObject(mempool)
     {
         for (const auto&[name, val] : datamap)
-            JObjectLike<JObject, false>::Add(name, val);
+            JObjectLike<JObject, false>::Add<JsonConvertor>(name, val);
     }
 public:
     JObject() : JDoc(rapidjson::kObjectType) {}
@@ -658,18 +704,23 @@ public:
     }
     template<typename T>
     explicit JObject(JDoc&& doc, const T& datamap) : JObject(doc.MemPool, datamap) {}
+    template<typename Convertor, typename T, typename U>
+    JObject& Add(T&& name, U&& val)
+    {
+        JObjectLike<JObject, false>::Add<Convertor>(std::forward<T>(name), std::forward<U>(val));
+        return *this;
+    }
     template<typename T, typename U>
     JObject& Add(T&& name, U&& val)
     {
-        JObjectLike<JObject, false>::Add(std::forward<T>(name), std::forward<U>(val));
-        return *this;
+        return Add<JsonConvertor>(std::forward<T>(name), std::forward<U>(val));
     }
 };
 
 template<bool IsConst>
 class JObjectRef : public JDocRef<IsConst>, public JObjectLike<JObjectRef<IsConst>, IsConst>
 {
-    friend struct SharedUtil;
+    friend struct JsonConvertor;
     template<typename, typename, typename, bool> friend class JComplexType;
     template<typename, bool> friend struct JPointerSupport;
     template<bool> friend class JObjectRef;
@@ -695,11 +746,16 @@ public:
     JObjectRef(const JObject& jobject) : JDocRef<IsConst>(jobject) {}
     //template<bool R = !IsConst, typename = std::enable_if_t<R>>
     JObjectRef(JObject& jobject) : JDocRef<IsConst>(jobject) {}
+    template<typename Convertor, typename T, typename U>
+    JObjectRef<IsConst>& Add(T&& name, U&& val)
+    {
+        JObjectLike<JObjectRef<IsConst>, IsConst>::template Add<Convertor>(std::forward<T>(name), std::forward<U>(val));
+        return *this;
+    }
     template<typename T, typename U>
     JObjectRef<IsConst>& Add(T&& name, U&& val)
     {
-        JObjectLike<JObjectRef<IsConst>, IsConst>::Add(std::forward<T>(name), std::forward<U>(val));
-        return *this;
+        return Add<JsonConvertor>(std::forward<T>(name), std::forward<U>(val));
     }
 };
 

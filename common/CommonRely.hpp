@@ -290,6 +290,36 @@ struct NonMovable
 };
 
 
+#if defined(__cpp_lib_string_view)
+#include <string_view>
+class u8StrView
+{
+private:
+    const intptr_t Ptr;
+    size_t Size;
+public:
+    constexpr size_t Length() const noexcept { return Size; }
+   
+    constexpr u8StrView(const std::string_view& sv) noexcept :
+        Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
+    template<size_t N> constexpr u8StrView(const char(&str)[N]) noexcept :
+        Ptr((intptr_t)(str)), Size(std::char_traits<char>::length(str)) { }
+
+    constexpr const char* CharData() const noexcept { return (const char*)(Ptr); }
+    constexpr operator std::string_view() const noexcept { return { CharData(), Length() }; }
+
+#if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
+    constexpr u8StrView(const std::u8string_view& sv) noexcept :
+        Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
+    template<size_t N> constexpr u8StrView(const char8_t(&str)[N]) noexcept :
+        Ptr((intptr_t)(str)), Size(std::char_traits<char8_t>::length(str)) { }
+
+    constexpr const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
+    constexpr operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
+#endif
+};
+#endif
+
 template<size_t Align>
 struct AlignBase
 {

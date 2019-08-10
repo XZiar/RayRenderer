@@ -91,6 +91,11 @@ using CallbackInvoke = std::function<void(std::function<T(Args...)>)>;
 namespace detail
 {
 
+struct JsonConv : ejson::JsonConvertor
+{
+    
+};
+
 template<typename T>
 forceinline ejson::JArray ToJArray(T& handle, const b3d::Coord2D& vec)
 {

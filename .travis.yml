@@ -68,7 +68,7 @@ before_install:
   - export CPP_DEPENDENCY_PATH=$(pwd)
   - wget -O ispc.tar.gz https://sourceforge.net/projects/ispcmirror/files/v1.11.0/ispc-v1.11.0-linux.tar.gz/download
   - tar xzf ispc.tar.gz
-  - export ISPCCOMPILER=$(pwd)/ispc-1.11.0-linux/bin/ispc
+  - export ISPCCOMPILER=$(find $(pwd) -type f -name ispc)
   - cd ..
 
 before_script:

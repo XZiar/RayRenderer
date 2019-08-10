@@ -62,12 +62,12 @@ namespace XZiar.WPFControl
         //private delegate Vector GetUnusedTranslationDelegate(object panningInfo);
         //private delegate void SetUnusedTranslationDelegate(object panningInfo, Vector value);
         private delegate void ManipulateScrollDelegate(ScrollViewer view, double delta, double cumulativeTranslation, bool isHorizontal);
-        private delegate void CanStartScrollManipulationDelegate(ScrollViewer view, Vector translation, out bool cancelManipulation);
+        //private delegate void CanStartScrollManipulationDelegate(ScrollViewer view, Vector translation, out bool cancelManipulation);
 
         //private static readonly GetUnusedTranslationDelegate GetUnusedTranslation;
         //private static readonly SetUnusedTranslationDelegate SetUnusedTranslation;
         private static readonly ManipulateScrollDelegate ManipulateScroll;
-        private static readonly CanStartScrollManipulationDelegate CanStartScrollManipulation;
+        //private static readonly CanStartScrollManipulationDelegate CanStartScrollManipulation;
 
         private delegate bool GetManipulationRequested(ManipulationDeltaEventArgs arg);
         private delegate void SetManipulationRequested(ManipulationDeltaEventArgs arg, bool isRequested);
@@ -112,9 +112,9 @@ namespace XZiar.WPFControl
             ManipulateScroll = mths
                 .Where(x => x.Name == "ManipulateScroll" && x.GetParameters().Length == 3).First()
                 .ToDelegate<ManipulateScrollDelegate>();
-            CanStartScrollManipulation = mths
-                .Where(x => x.Name == "CanStartScrollManipulation").First()
-                .ToDelegate<CanStartScrollManipulationDelegate>();
+            //CanStartScrollManipulation = mths
+            //    .Where(x => x.Name == "CanStartScrollManipulation").First()
+            //    .ToDelegate<CanStartScrollManipulationDelegate>();
 
 
             var propCancel = typeof(ManipulationDeltaEventArgs)

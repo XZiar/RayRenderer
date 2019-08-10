@@ -61,6 +61,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
     def __repr__(self):
         return str(vars(self))
 
+
 class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
     @abc.abstractstaticmethod
     def langVersion() -> str:
@@ -116,6 +117,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
         writeItem(file, self.prefix()+"_pch", self.pch)
 
+
 class CPPTarget(CXXTarget):
     @staticmethod
     def prefix() -> str:
@@ -123,6 +125,7 @@ class CPPTarget(CXXTarget):
     @staticmethod
     def langVersion() -> str:
         return "-std=c++17"
+
 
 class CTarget(CXXTarget):
     @staticmethod
@@ -132,6 +135,7 @@ class CTarget(CXXTarget):
     def langVersion() -> str:
         return "-std=c11"
 
+
 class ASMTarget(CXXTarget):
     @staticmethod
     def prefix() -> str:
@@ -139,6 +143,7 @@ class ASMTarget(CXXTarget):
     @staticmethod
     def langVersion() -> str:
         return ""
+
 
 class NASMTarget(BuildTarget):
     @staticmethod
@@ -162,15 +167,28 @@ class NASMTarget(BuildTarget):
         super().write(file)
         writeItems(file, self.prefix()+"_incpaths", self.incpath)
 
+
 class RCTarget(BuildTarget):
     @staticmethod
     def prefix() -> str:
         return "rc"
 
+
 class ISPCTarget(BuildTarget):
+    compiler = None
     @staticmethod
     def prefix() -> str:
         return "ispc"
+    @staticmethod
+    def initEnv(env: dict):
+        if "ISPCCOMPILER" not in os.environ:
+            paths = findAppInPath("ispc")
+            if len(paths) > 0:
+                ISPCTarget.compiler = os.path.join(paths[0], "ispc")
+            else:
+                print(COLOR.Yellow("Seems ISPC is not found"))
+
+
     def __init__(self, targets, env:dict):
         self.targets = ["sse4", "avx2"]
         super().__init__(targets, env)
@@ -187,6 +205,9 @@ class ISPCTarget(BuildTarget):
         super().write(file)
         writeItems(file, self.prefix()+"_targets", self.targets)
         writeItem(file, self.prefix()+"_flags", "--target="+(",".join(self.targets)), state="+")
+        if ISPCTarget.compiler:
+            writeItem(file, "ISPCCOMPILER", ISPCTarget.compiler, state="?")
+            pass
 
 
 class CUDATarget(BuildTarget):
@@ -256,7 +277,6 @@ class CUDATarget(BuildTarget):
         writeItems(file, self.prefix()+"_flags", [self.version, self.hostDebug, self.deviceDebug, self.optimize], state="+")
         if len(self.arch) > 0:
             writeItem(file, self.prefix()+"_flags", "-arch="+",".join(self.arch), state="+")
-
 
 
 
