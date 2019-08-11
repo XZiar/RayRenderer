@@ -189,15 +189,15 @@ void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) cons
 {
     jself.Add("name", strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
-    jself.EJOBJECT_ADD(Metalness)
-        .EJOBJECT_ADD(Roughness)
-        .EJOBJECT_ADD(Specular)
-        .EJOBJECT_ADD(AO)
-        .EJOBJECT_ADD(UseDiffuseMap)
-        .EJOBJECT_ADD(UseNormalMap)
-        .EJOBJECT_ADD(UseMetalMap)
-        .EJOBJECT_ADD(UseRoughMap)
-        .EJOBJECT_ADD(UseAOMap);
+    jself.Add(EJ_FIELD(Metalness))
+         .Add(EJ_FIELD(Roughness))
+         .Add(EJ_FIELD(Specular))
+         .Add(EJ_FIELD(AO))
+         .Add(EJ_FIELD(UseDiffuseMap))
+         .Add(EJ_FIELD(UseNormalMap))
+         .Add(EJ_FIELD(UseMetalMap))
+         .Add(EJ_FIELD(UseRoughMap))
+         .Add(EJ_FIELD(UseAOMap));
     jself.Add("DiffuseMap", SerializeTex(DiffuseMap, context));
     jself.Add("NormalMap",  SerializeTex(NormalMap,  context));
     jself.Add("MetalMap",   SerializeTex(MetalMap,   context));
@@ -208,15 +208,15 @@ void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<
 {
     Name = strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
-    EJSON_GET_MEMBER(object, Metalness);
-    EJSON_GET_MEMBER(object, Roughness);
-    EJSON_GET_MEMBER(object, Specular);
-    EJSON_GET_MEMBER(object, AO);
-    EJSON_GET_MEMBER(object, UseDiffuseMap);
-    EJSON_GET_MEMBER(object, UseNormalMap);
-    EJSON_GET_MEMBER(object, UseMetalMap);
-    EJSON_GET_MEMBER(object, UseRoughMap);
-    EJSON_GET_MEMBER(object, UseAOMap);
+    object.TryGet(EJ_FIELD(Metalness));
+    object.TryGet(EJ_FIELD(Roughness));
+    object.TryGet(EJ_FIELD(Specular));
+    object.TryGet(EJ_FIELD(AO));
+    object.TryGet(EJ_FIELD(UseDiffuseMap));
+    object.TryGet(EJ_FIELD(UseNormalMap));
+    object.TryGet(EJ_FIELD(UseMetalMap));
+    object.TryGet(EJ_FIELD(UseRoughMap));
+    object.TryGet(EJ_FIELD(UseAOMap));
     DiffuseMap = DeserializeTex(context, object.Get<string_view>("DiffuseMap"));
     NormalMap  = DeserializeTex(context, object.Get<string_view>("NormalMap"));
     MetalMap   = DeserializeTex(context, object.Get<string_view>("MetalMap"));

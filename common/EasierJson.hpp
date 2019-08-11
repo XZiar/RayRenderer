@@ -87,6 +87,7 @@ struct SharedUtil
 
 struct JsonConvertor
 {
+public:
     template<typename T>
     static rapidjson::Value ToJString(const T& str, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
@@ -126,22 +127,31 @@ struct JsonConvertor
         }
         return jstr;
     }
-    template<typename T>
-    static rapidjson::Value ToVal(T&& val, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
-    {
+
+#define EJSONCOV_TOVAL_BEGIN template<typename T> \
+    static rapidjson::Value ToVal(T&& val, [[maybe_unused]] xziar::ejson::DocumentHandle& handle) \
+    { \
         using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
+#define EJSONCOV_TOVAL_END }
+
+#define EJSONCOV_FROMVAL template<typename V, typename T> \
+    static bool FromVal(V& value, T& val)
+
+
+    EJSONCOV_TOVAL_BEGIN
+    {
         if constexpr (common::is_specialization<PlainType, std::optional>::value)
         {
             if (val.has_value())
-                return ToVal(val.value(), mempool);
+                return ToVal(val.value(), handle);
             else
                 return rapidjson::Value(rapidjson::kNullType);
         }
-        else if constexpr(SharedUtil::IsString<PlainType>())
-            return ToJString(std::forward<T>(val), mempool);
-        else if constexpr(std::is_convertible_v<T, rapidjson::Value>)
+        else if constexpr (SharedUtil::IsString<PlainType>())
+            return ToJString(std::forward<T>(val), handle.GetMemPool());
+        else if constexpr (std::is_convertible_v<T, rapidjson::Value>)
             return static_cast<rapidjson::Value>(val);
-        else if constexpr(std::is_constructible_v<rapidjson::Value, T>)
+        else if constexpr (std::is_constructible_v<rapidjson::Value, T>)
             return rapidjson::Value(std::forward<T>(val));
         else
         {
@@ -149,8 +159,9 @@ struct JsonConvertor
             //return {};
         }
     }
-    template<typename V, typename T>
-    static bool FromVal(V& value, T& val)
+    EJSONCOV_TOVAL_END
+
+    EJSONCOV_FROMVAL
     {
         if constexpr(std::is_same_v<T, bool>)
         {
@@ -438,29 +449,39 @@ protected:
         return static_cast<const DocumentHandle*>(static_cast<const ValHolder*>(this))->MemPool;
     }
 public:
-    template<typename T, typename Convertor = JsonConvertor>
-    bool TryGet(KeyType key, T& val) const
+    template<typename Convertor, typename T>
+    bool TryGet(KeyType key, T & val) const
     {
         return KeyChecker::template GetIf<Convertor>(static_cast<const ValHolder*>(this)->ValRef(), key, val);
+    }
+    template<typename T>
+    bool TryGet(KeyType key, T& val) const
+    {
+        return TryGet<JsonConvertor>(key, val);
     }
     template<typename T, typename Convertor = JsonConvertor>
     T Get(KeyType key, T val = {}) const
     {
-        TryGet<T, Convertor>(key, val);
+        TryGet<Convertor>(key, val);
         return val;
     }
     JObjectRef<true> GetObject(KeyType key) const;
     JArrayRef<true> GetArray(KeyType key) const;
 
-    template<typename T, typename Convertor = JsonConvertor, bool R = !IsConst, typename = std::enable_if_t<R>>
+    template<typename Convertor, typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
     bool TryGet(KeyType key, T& val)
     {
         return KeyChecker::template GetIf<Convertor>(static_cast<ValHolder*>(this)->ValRef(), key, val);
     }
+    template<typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
+    bool TryGet(KeyType key, T& val)
+    {
+        return TryGet<JsonConvertor>(key, val);
+    }
     template<typename T, typename Convertor = JsonConvertor, bool R = !IsConst, typename = std::enable_if_t<R>>
     T Get(KeyType key, T val = {})
     {
-        TryGet<T, Convertor>(key, val);
+        TryGet<Convertor>(key, val);
         return val;
     }
     template<bool R = !IsConst>
@@ -538,9 +559,10 @@ protected:
     template<typename Convertor, typename... T>
     forceinline void Push(T&&... val)
     {
-        auto& mempool = static_cast<Child*>(this)->GetMemPool();
-        auto& valref = static_cast<Child*>(this)->ValRef();
-        (valref.PushBack(Convertor::ToVal(std::forward<T>(val), mempool), mempool), ...);
+        auto& self = *static_cast<Child*>(this);
+        auto& mempool = self.GetMemPool();
+        auto& valref = self.ValRef();
+        (valref.PushBack(Convertor::ToVal(std::forward<T>(val), self), mempool), ...);
     }
 public:
     template<typename Convertor, typename... Ts>
@@ -589,10 +611,11 @@ protected:
     template<typename Convertor, typename T, typename U>
     forceinline void Add(T&& name, U&& val)
     {
+        auto& self = *static_cast<Child*>(this);
         auto& mempool = *Parent::InnerMemPool();
         auto key = Convertor::ToJString(std::forward<T>(name), mempool);
-        auto value = Convertor::ToVal(std::forward<U>(val), mempool);
-        static_cast<Child*>(this)->ValRef().AddMember(key, value, mempool);
+        auto value = Convertor::ToVal(std::forward<U>(val), self);
+        self.ValRef().AddMember(key, value, mempool);
     }
 public:
     detail::JObjectIterator<true> begin() const
@@ -787,14 +810,14 @@ template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst
 forceinline JObjectRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key) const
 {
     JObjectRef<true> val(InnerMemPool());
-    TryGet<JObjectRef<true>>(key, val);
+    TryGet(key, val);
     return val;
 }
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 forceinline JArrayRef<true> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key) const
 {
     JArrayRef<true> val(InnerMemPool());
-    TryGet<JArrayRef<true>>(key, val);
+    TryGet(key, val);
     return val;
 }
 
@@ -803,7 +826,7 @@ template<bool R>
 forceinline std::enable_if_t<R, JObjectRef<false>> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetObject(KeyType key)
 {
     JObjectRef<false> val(InnerMemPool());
-    TryGet<JObjectRef<false>>(key, val);
+    TryGet(key, val);
     return val;
 }
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
@@ -811,7 +834,7 @@ template<bool R>
 forceinline std::enable_if_t<R, JArrayRef<false>> JComplexType<KeyType, KeyChecker, ValHolder, IsConst>::GetArray(KeyType key)
 {
     JArrayRef<false> val(InnerMemPool());
-    TryGet<JArrayRef<false>>(key, val);
+    TryGet(key, val);
     return val;
 }
 
@@ -837,8 +860,7 @@ forceinline JArray DocumentHandle::NewArray()
 
 
 }
-#define EJSON_ADD_MEMBER(jobject, field) jobject.Add(u8"" #field, field)
-#define EJOBJECT_ADD(field) Add(u8"" #field, field)
-#define EJSON_GET_MEMBER(jobject, field) jobject.TryGet(u8"" #field, field)
 
+
+#define EJ_FIELD(field)                         u8 ## #field, field
 

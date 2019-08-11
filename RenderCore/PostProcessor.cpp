@@ -159,12 +159,12 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 
 void PostProcessor::Serialize(SerializeUtil&, ejson::JObject& jself) const
 {
-    jself.EJOBJECT_ADD(LutSize)
-        .EJOBJECT_ADD(Exposure);
+    jself.Add(EJ_FIELD(LutSize))
+         .Add(EJ_FIELD(Exposure));
 }
 void PostProcessor::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
-    EJSON_GET_MEMBER(object, Exposure);
+    object.TryGet(EJ_FIELD(Exposure));
 }
 RESPAK_IMPL_COMP_DESERIALIZE(PostProcessor, oclu::oclContext, oclu::oclCmdQue, uint32_t)
 {

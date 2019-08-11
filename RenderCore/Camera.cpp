@@ -30,24 +30,26 @@ Camera::Camera() noexcept
     RegistControllable();
 }
 
-void Camera::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Camera::Serialize(SerializeUtil&, ejson::JObject& jself) const
 {
+    using detail::JsonConv;
     jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
-    jself.Add("Position", detail::ToJArray(context, Position));
-    jself.Add("Rotation", detail::ToJArray(context, Rotation));
-    jself.Add("Right", detail::ToJArray(context, CamMat.x));
-    jself.Add("Up", detail::ToJArray(context, CamMat.y));
-    jself.Add("Toward", detail::ToJArray(context, CamMat.z));
-    jself.EJOBJECT_ADD(Fovy).EJOBJECT_ADD(zNear).EJOBJECT_ADD(zFar);
+    jself.Add<JsonConv>(EJ_FIELD(Position))
+         .Add<JsonConv>(EJ_FIELD(Rotation))
+         .Add<JsonConv>("Right", CamMat.x)
+         .Add<JsonConv>("Up", CamMat.y)
+         .Add<JsonConv>("Toward", CamMat.z)
+         .Add(EJ_FIELD(Fovy)).Add(EJ_FIELD(zNear)).Add(EJ_FIELD(zFar));
 }
 void Camera::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 {
+    using detail::JsonConv;
     Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
-    detail::FromJArray(object.GetArray("Position"), Position);
-    detail::FromJArray(object.GetArray("Rotation"), Rotation);
-    detail::FromJArray(object.GetArray("Right"), CamMat.x);
-    detail::FromJArray(object.GetArray("Up"), CamMat.y);
-    detail::FromJArray(object.GetArray("Toward"), CamMat.z);
+    object.TryGet<JsonConv>(EJ_FIELD(Position));
+    object.TryGet<JsonConv>(EJ_FIELD(Rotation));
+    object.TryGet<JsonConv>("Right", CamMat.x);
+    object.TryGet<JsonConv>("Up", CamMat.y);
+    object.TryGet<JsonConv>("Toward", CamMat.z);
     Fovy = object.Get("Fovy", 60.0f);
     zNear = object.Get("zNear", 1.0f);
     zFar = object.Get("zFar", 100.0f);

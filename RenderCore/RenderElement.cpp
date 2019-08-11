@@ -200,21 +200,23 @@ void Drawable::RegistControllable()
 
 void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
+    using detail::JsonConv;
     jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Uid", boost::uuids::to_string(Uid));
-    jself.Add("Position", detail::ToJArray(context, Position));
-    jself.Add("Rotation", detail::ToJArray(context, Rotation));
-    jself.Add("Scale", detail::ToJArray(context, Scale));
+    jself.Add<JsonConv>(EJ_FIELD(Position));
+    jself.Add<JsonConv>(EJ_FIELD(Rotation));
+    jself.Add<JsonConv>(EJ_FIELD(Scale));
     context.AddObject(jself, "material", MaterialHolder);
 }
 
 void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
 {
+    using detail::JsonConv;
     Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
-    detail::FromJArray(object.GetArray("Position"), Position);
-    detail::FromJArray(object.GetArray("Rotation"), Rotation);
-    detail::FromJArray(object.GetArray("Scale"), Scale);
+    object.TryGet<JsonConv>(EJ_FIELD(Position));
+    object.TryGet<JsonConv>(EJ_FIELD(Rotation));
+    object.TryGet<JsonConv>(EJ_FIELD(Scale));
     MaterialHolder.Deserialize(context, object.GetObject("material"));
 }
 

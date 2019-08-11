@@ -46,7 +46,7 @@ void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, stri
 void Pyramid::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.EJOBJECT_ADD(Sidelen);
+    jself.Add<detail::JsonConv>(EJ_FIELD(Sidelen));
 }
 void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -121,7 +121,7 @@ void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, strin
 void Sphere::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.EJOBJECT_ADD(Radius);
+    jself.Add(EJ_FIELD(Radius));
 }
 void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -212,7 +212,7 @@ void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&
 void Box::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.Add("Size", detail::ToJArray(context, Size));
+    jself.Add<detail::JsonConv>("Size", Size);
 }
 void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {
@@ -253,7 +253,8 @@ void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
 void Plane::Serialize(SerializeUtil & context, ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
-    jself.EJOBJECT_ADD(SideLen).EJOBJECT_ADD(TexRepeat);
+    jself.Add(EJ_FIELD(SideLen))
+         .Add(EJ_FIELD(TexRepeat));
 }
 void Plane::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
 {

@@ -36,6 +36,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | Windows & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
+| [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | Windows |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
 | [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
@@ -44,27 +45,27 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-To build C++ parts, VS2019(`16.0`) or GCC7.3 needed since many C++17 technic are taken, like STL-Components(`string_view`, `any`, `optional`, `variant`), `constexpr-if`, structureed-binding, selection-statements-initializers, inline variables. 
-
 For Windows-only parts, Windows SDK Target is `10.0.17763.0` and .Net Framework 4.7.2 needed for C# components.
 
-Project uses xzbuild with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0). They can be built by execute [`xzbuild.py`](xzbuild.py) (python3).
+To use `xzbuild`, python3.6+ is required.
 
-## Additional Requirements
+## Build
 
-Some VC++ default props should be set --- `include path` and `libpath`.
+To build C++ parts, an C++17 compiler is needed. For Linux, GCC7.3 and later are tested. For Windows, VS2019(`16.0`) is needed for the vcproj version.
 
-`boost` headers folder should be found inside `include path`, or inside environment `CPP_DEPENDENCY_PATH`.
+Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0).
+
+They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
+
+### Additional Requirements
+
+`boost` headers folder should be found inside `include path`. It can be added in [SolutionInclude.props](./SolutionInclude.props) in Windows, or specified by environment variable `CPP_DEPENDENCY_PATH`.
 
 `gl.h` and `glu.h` headers should be found inside `include path\GL`.
 
 [nasm](https://www.nasm.us/) needed for [libjpeg-turbo](./3rdParty/libjpeg-turbo) --- add it to system environment path
 
 [ispc compiler](https://ispc.github.io/downloads.html) needed for [ispc_texcomp](./3rdParty/ispc_texcomp) --- add it to system environment path
-
-## Hotfixes
-
-boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits/issues/99), hence windows paltform need a hotfix, using [dev branch of type_traits](https://github.com/boostorg/type_traits)
 
 ## Dependency
 
@@ -76,7 +77,7 @@ boost 1.69.0 has [some bug with C++/CLI](https://github.com/boostorg/type_traits
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.69.0 (not included in this repo) (type_traits@dev)
+* [boost](http://www.boost.org/)  1.70.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 

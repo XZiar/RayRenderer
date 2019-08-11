@@ -93,7 +93,67 @@ namespace detail
 
 struct JsonConv : ejson::JsonConvertor
 {
-    
+    EJSONCOV_TOVAL_BEGIN
+    {
+        using ejson::JArray;
+        if constexpr (std::is_same_v<PlainType, b3d::Coord2D>)
+        {
+            auto ret = handle.NewArray();
+            ret.Push(val.u, val.v);
+            return static_cast<rapidjson::Value>(ret);
+        }
+        else if constexpr (std::is_same_v<PlainType, miniBLAS::Vec3> || std::is_same_v<PlainType, b3d::Vec3>)
+        {
+            auto ret = handle.NewArray();
+            ret.Push(val.x, val.y, val.z);
+            return static_cast<rapidjson::Value>(ret);
+        }
+        else if constexpr (std::is_same_v<PlainType, miniBLAS::Vec4> || std::is_same_v<PlainType, b3d::Vec4>)
+        {
+            auto ret = handle.NewArray();
+            ret.Push(val.x, val.y, val.z, val.w);
+            return static_cast<rapidjson::Value>(ret);
+        }
+        else if constexpr (std::is_same_v<PlainType, boost::uuids::uuid>)
+            return JsonConvertor::ToVal(boost::uuids::to_string(val), handle);
+        else
+            return JsonConvertor::ToVal(std::forward<T>(val), handle);
+    }
+    EJSONCOV_TOVAL_END
+
+    EJSONCOV_FROMVAL
+    {
+        if constexpr (std::is_same_v<T, b3d::Coord2D>)
+        {
+            if (!value.IsArray() || value.Size() != 2) return false;
+            JsonConvertor::FromVal(value[0], val.u);
+            JsonConvertor::FromVal(value[1], val.v);
+        }
+        else if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, b3d::Vec3>)
+        {
+            if (!value.IsArray() || value.Size() != 3) return false;
+            JsonConvertor::FromVal(value[0], val.x);
+            JsonConvertor::FromVal(value[1], val.y);
+            JsonConvertor::FromVal(value[2], val.z);
+        }
+        else if constexpr (std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Vec4>)
+        {
+            if (!value.IsArray() || value.Size() != 4) return false;
+            JsonConvertor::FromVal(value[0], val.x);
+            JsonConvertor::FromVal(value[1], val.y);
+            JsonConvertor::FromVal(value[2], val.z);
+            JsonConvertor::FromVal(value[3], val.w);
+        }
+        /*else if constexpr (std::is_same_v<T, boost::uuids::uuid>)
+        {
+            static const boost::uuids::string_generator Generator;
+            const auto ptr = value.GetString();
+            return Generator(ptr, ptr + value.GetStringLength());
+        }*/
+        else
+            return JsonConvertor::FromVal(value, val);
+        return true;
+    }
 };
 
 template<typename T>
