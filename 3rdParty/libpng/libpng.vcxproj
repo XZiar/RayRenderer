@@ -214,6 +214,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="png.h" />
+    <ClInclude Include="pngconf.h" />
     <ClInclude Include="pngdebug.h" />
     <ClInclude Include="pnginfo.h" />
     <ClInclude Include="pnglibconf.h" />
@@ -222,6 +223,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />
+    <None Include="README" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

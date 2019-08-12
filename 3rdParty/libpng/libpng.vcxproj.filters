@@ -86,9 +86,13 @@
     <ClInclude Include="pnglibconf.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pngconf.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />
     <None Include="xzbuild.proj.json" />
+    <None Include="README" />
   </ItemGroup>
 </Project>

@@ -71,6 +71,12 @@
     <ClInclude Include="deflate_p.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="inflate_p.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="zendian.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="infback.c">

@@ -1,5 +1,26 @@
-Release Notes											{#changelog}
+Release Notes
 =============
+
+2.1.0 release (2019-08-05):
+---------------------------
+
+- Added detection of IEEE floating-point exceptions to operators and functions.
+- Added configuration options for automatic exception handling.
+- Added functions for explicitly managing floating-point exception flags.
+- Improved accuracy of `pow` and `atan2` functions.
+
+
+2.0.0 release (2019-07-23):
+---------------------------
+
+- Made internal implementation independent from built-in floating point 
+  facilities for increased reliability and IEEE-conformance.
+- Changed default rounding mode to rounding to nearest.
+- Always round ties to even when rounding to nearest.
+- Extended `constexpr` support to comparison and classification functions.
+- Added support for F16C compiler intrinsics for conversions.
+- Enabled C++11 feature detection for Intel compilers.
+
 
 1.12.0 release (2017-03-06):
 ----------------------------

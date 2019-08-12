@@ -55,7 +55,7 @@
 #include "match_p.h"
 #include "functable.h"
 
-const char deflate_copyright[] = " deflate 1.2.11.f Copyright 1995-2016 Jean-loup Gailly and Mark Adler ";
+const char zng_deflate_copyright[] = " deflate 1.2.11.f Copyright 1995-2016 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -64,9 +64,43 @@ const char deflate_copyright[] = " deflate 1.2.11.f Copyright 1995-2016 Jean-lou
  */
 
 /* ===========================================================================
+ *  Architecture-specific hooks.
+ */
+#ifdef S390_DFLTCC_DEFLATE
+#  include "arch/s390/dfltcc_deflate.h"
+#else
+/* Memory management for the deflate state. Useful for allocating arch-specific extension blocks. */
+#  define ZALLOC_STATE(strm, items, size) ZALLOC(strm, items, size)
+#  define ZFREE_STATE(strm, addr) ZFREE(strm, addr)
+#  define ZCOPY_STATE(dst, src, size) memcpy(dst, src, size)
+/* Memory management for the window. Useful for allocation the aligned window. */
+#  define ZALLOC_WINDOW(strm, items, size) ZALLOC(strm, items, size)
+#  define TRY_FREE_WINDOW(strm, addr) TRY_FREE(strm, addr)
+/* Invoked at the beginning of deflateSetDictionary(). Useful for checking arch-specific window data. */
+#  define DEFLATE_SET_DICTIONARY_HOOK(strm, dict, dict_len) do {} while (0)
+/* Invoked at the beginning of deflateGetDictionary(). Useful for adjusting arch-specific window data. */
+#  define DEFLATE_GET_DICTIONARY_HOOK(strm, dict, dict_len) do {} while (0)
+/* Invoked at the end of deflateResetKeep(). Useful for initializing arch-specific extension blocks. */
+#  define DEFLATE_RESET_KEEP_HOOK(strm) do {} while (0)
+/* Invoked at the beginning of deflateParams(). Useful for updating arch-specific compression parameters. */
+#  define DEFLATE_PARAMS_HOOK(strm, level, strategy) do {} while (0)
+/* Adjusts the upper bound on compressed data length based on compression parameters and uncompressed data length.
+ * Useful when arch-specific deflation code behaves differently than regular zlib-ng algorithms. */
+#  define DEFLATE_BOUND_ADJUST_COMPLEN(strm, complen, sourceLen) do {} while (0)
+/* Returns whether an optimistic upper bound on compressed data length should *not* be used.
+ * Useful when arch-specific deflation code behaves differently than regular zlib-ng algorithms. */
+#  define DEFLATE_NEED_CONSERVATIVE_BOUND(strm) 0
+/* Invoked for each deflate() call. Useful for plugging arch-specific deflation code. */
+#  define DEFLATE_HOOK(strm, flush, bstate) 0
+/* Returns whether zlib-ng should compute a checksum. Set to 0 if arch-specific deflation code already does that. */
+#  define DEFLATE_NEED_CHECKSUM(strm) 1
+/* Returns whether reproducibility parameter can be set to a given value. */
+#  define DEFLATE_CAN_SET_REPRODUCIBLE(strm, reproducible) 1
+#endif
+
+/* ===========================================================================
  *  Function prototypes.
  */
-
 typedef block_state (*compress_func) (deflate_state *s, int flush);
 /* Compression function. Returns the block state after the call. */
 
@@ -83,7 +117,6 @@ static block_state deflate_rle   (deflate_state *s, int flush);
 static block_state deflate_huff  (deflate_state *s, int flush);
 static void lm_init              (deflate_state *s);
 static void putShortMSB          (deflate_state *s, uint16_t b);
-ZLIB_INTERNAL void flush_pending (PREFIX3(stream) *strm);
 ZLIB_INTERNAL unsigned read_buf  (PREFIX3(stream) *strm, unsigned char *buf, unsigned size);
 
 extern void crc_reset(deflate_state *const s);
@@ -248,11 +281,11 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
 
     strm->msg = NULL;
     if (strm->zalloc == NULL) {
-        strm->zalloc = zcalloc;
+        strm->zalloc = zng_calloc;
         strm->opaque = NULL;
     }
     if (strm->zfree == NULL)
-        strm->zfree = zcfree;
+        strm->zfree = zng_cfree;
 
     if (level == Z_DEFAULT_COMPRESSION)
         level = 6;
@@ -279,7 +312,7 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
         windowBits = 13;
 #endif
 
-    s = (deflate_state *) ZALLOC(strm, 1, sizeof(deflate_state));
+    s = (deflate_state *) ZALLOC_STATE(strm, 1, sizeof(deflate_state));
     if (s == NULL)
         return Z_MEM_ERROR;
     strm->state = (struct internal_state *)s;
@@ -309,7 +342,7 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
     window_padding = 8;
 #endif
 
-    s->window = (unsigned char *) ZALLOC(strm, s->w_size + window_padding, 2*sizeof(unsigned char));
+    s->window = (unsigned char *) ZALLOC_WINDOW(strm, s->w_size + window_padding, 2*sizeof(unsigned char));
     s->prev   = (Pos *)  ZALLOC(strm, s->w_size, sizeof(Pos));
     memset(s->prev, 0, s->w_size * sizeof(Pos));
     s->head   = (Pos *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
@@ -378,6 +411,7 @@ int ZEXPORT PREFIX(deflateInit2_)(PREFIX3(stream) *strm, int level, int method, 
     s->strategy = strategy;
     s->method = (unsigned char)method;
     s->block_open = 0;
+    s->reproducible = 0;
 
     return PREFIX(deflateReset)(strm);
 }
@@ -423,6 +457,7 @@ int ZEXPORT PREFIX(deflateSetDictionary)(PREFIX3(stream) *strm, const unsigned c
     /* when using zlib wrappers, compute Adler-32 for provided dictionary */
     if (wrap == 1)
         strm->adler = functable.adler32(strm->adler, dictionary, dictLength);
+    DEFLATE_SET_DICTIONARY_HOOK(strm, dictionary, dictLength);  /* hook for IBM Z DFLTCC */
     s->wrap = 0;                    /* avoid computing Adler-32 in read_buf */
 
     /* if dictionary would fill window, just replace the history */
@@ -470,6 +505,7 @@ int ZEXPORT PREFIX(deflateGetDictionary)(PREFIX3(stream) *strm, unsigned char *d
 
     if (deflateStateCheck(strm))
         return Z_STREAM_ERROR;
+    DEFLATE_GET_DICTIONARY_HOOK(strm, dictionary, dictLength);  /* hook for IBM Z DFLTCC */
     s = strm->state;
     len = s->strstart + s->lookahead;
     if (len > s->w_size)
@@ -514,7 +550,9 @@ int ZEXPORT PREFIX(deflateResetKeep)(PREFIX3(stream) *strm) {
         strm->adler = functable.adler32(0L, NULL, 0);
     s->last_flush = -2;
 
-    _tr_init(s);
+    zng_tr_init(s);
+
+    DEFLATE_RESET_KEEP_HOOK(strm);  /* hook for IBM Z DFLTCC */
 
     return Z_OK;
 }
@@ -565,7 +603,7 @@ int ZEXPORT PREFIX(deflatePrime)(PREFIX3(stream) *strm, int bits, int value) {
             put = bits;
         s->bi_buf |= (uint16_t)((value & ((1 << put) - 1)) << s->bi_valid);
         s->bi_valid += put;
-        _tr_flush_bits(s);
+        zng_tr_flush_bits(s);
         value >>= put;
         bits -= put;
     } while (bits);
@@ -586,6 +624,7 @@ int ZEXPORT PREFIX(deflateParams)(PREFIX3(stream) *strm, int level, int strategy
     if (level < 0 || level > 9 || strategy < 0 || strategy > Z_FIXED) {
         return Z_STREAM_ERROR;
     }
+    DEFLATE_PARAMS_HOOK(strm, level, strategy);  /* hook for IBM Z DFLTCC */
     func = configuration_table[s->level].func;
 
     if ((strategy != s->strategy || func != configuration_table[level].func) &&
@@ -653,6 +692,7 @@ unsigned long ZEXPORT PREFIX(deflateBound)(PREFIX3(stream) *strm, unsigned long 
 
     /* conservative upper bound for compressed data */
     complen = sourceLen + ((sourceLen + 7) >> 3) + ((sourceLen + 63) >> 6) + 5;
+    DEFLATE_BOUND_ADJUST_COMPLEN(strm, complen, sourceLen);  /* hook for IBM Z DFLTCC */
 
     /* if can't get parameters, return conservative bound plus zlib wrapper */
     if (deflateStateCheck(strm))
@@ -697,7 +737,8 @@ unsigned long ZEXPORT PREFIX(deflateBound)(PREFIX3(stream) *strm, unsigned long 
     }
 
     /* if not default parameters, return conservative bound */
-    if (s->w_bits != 15 || s->hash_bits != 8 + 7)
+    if (DEFLATE_NEED_CONSERVATIVE_BOUND(strm) ||  /* hook for IBM Z DFLTCC */
+            s->w_bits != 15 || s->hash_bits != 8 + 7)
         return complen + wraplen;
 
     /* default settings: return tight bound for that case */
@@ -724,7 +765,7 @@ ZLIB_INTERNAL void flush_pending(PREFIX3(stream) *strm) {
     uint32_t len;
     deflate_state *s = strm->state;
 
-    _tr_flush_bits(s);
+    zng_tr_flush_bits(s);
     len = s->pending;
     if (len > strm->avail_out)
         len = strm->avail_out;
@@ -985,7 +1026,8 @@ int ZEXPORT PREFIX(deflate)(PREFIX3(stream) *strm, int flush) {
     if (strm->avail_in != 0 || s->lookahead != 0 || (flush != Z_NO_FLUSH && s->status != FINISH_STATE)) {
         block_state bstate;
 
-        bstate = s->level == 0 ? deflate_stored(s, flush) :
+        bstate = DEFLATE_HOOK(strm, flush, &bstate) ? bstate :  /* hook for IBM Z DFLTCC */
+                 s->level == 0 ? deflate_stored(s, flush) :
                  s->strategy == Z_HUFFMAN_ONLY ? deflate_huff(s, flush) :
                  s->strategy == Z_RLE ? deflate_rle(s, flush) :
 #ifdef X86_QUICK_STRATEGY
@@ -1011,9 +1053,9 @@ int ZEXPORT PREFIX(deflate)(PREFIX3(stream) *strm, int flush) {
         }
         if (bstate == block_done) {
             if (flush == Z_PARTIAL_FLUSH) {
-                _tr_align(s);
+                zng_tr_align(s);
             } else if (flush != Z_BLOCK) { /* FULL_FLUSH or SYNC_FLUSH */
-                _tr_stored_block(s, (char*)0, 0L, 0);
+                zng_tr_stored_block(s, (char*)0, 0L, 0);
                 /* For a full flush, this empty block will be recognized
                  * as a special marker by inflate_sync().
                  */
@@ -1081,9 +1123,9 @@ int ZEXPORT PREFIX(deflateEnd)(PREFIX3(stream) *strm) {
     TRY_FREE(strm, strm->state->pending_buf);
     TRY_FREE(strm, strm->state->head);
     TRY_FREE(strm, strm->state->prev);
-    TRY_FREE(strm, strm->state->window);
+    TRY_FREE_WINDOW(strm, strm->state->window);
 
-    ZFREE(strm, strm->state);
+    ZFREE_STATE(strm, strm->state);
     strm->state = NULL;
 
     return status == BUSY_STATE ? Z_DATA_ERROR : Z_OK;
@@ -1104,14 +1146,14 @@ int ZEXPORT PREFIX(deflateCopy)(PREFIX3(stream) *dest, PREFIX3(stream) *source) 
 
     memcpy((void *)dest, (void *)source, sizeof(PREFIX3(stream)));
 
-    ds = (deflate_state *) ZALLOC(dest, 1, sizeof(deflate_state));
+    ds = (deflate_state *) ZALLOC_STATE(dest, 1, sizeof(deflate_state));
     if (ds == NULL)
         return Z_MEM_ERROR;
     dest->state = (struct internal_state *) ds;
-    memcpy((void *)ds, (void *)ss, sizeof(deflate_state));
+    ZCOPY_STATE((void *)ds, (void *)ss, sizeof(deflate_state));
     ds->strm = dest;
 
-    ds->window = (unsigned char *) ZALLOC(dest, ds->w_size, 2*sizeof(unsigned char));
+    ds->window = (unsigned char *) ZALLOC_WINDOW(dest, ds->w_size, 2*sizeof(unsigned char));
     ds->prev   = (Pos *)  ZALLOC(dest, ds->w_size, sizeof(Pos));
     ds->head   = (Pos *)  ZALLOC(dest, ds->hash_size, sizeof(Pos));
     ds->pending_buf = (unsigned char *) ZALLOC(dest, ds->lit_bufsize, 4);
@@ -1153,6 +1195,9 @@ ZLIB_INTERNAL unsigned read_buf(PREFIX3(stream) *strm, unsigned char *buf, unsig
 
     strm->avail_in  -= len;
 
+    if (!DEFLATE_NEED_CHECKSUM(strm)) {
+        memcpy(buf, strm->next_in, len);
+    } else
 #ifdef GZIP
     if (strm->state->wrap == 2)
         copy_with_crc(strm, buf, len);
@@ -1399,7 +1444,7 @@ static block_state deflate_stored(deflate_state *s, int flush) {
          * including any pending bits. This also updates the debugging counts.
          */
         last = flush == Z_FINISH && len == left + s->strm->avail_in ? 1 : 0;
-        _tr_stored_block(s, (char *)0, 0L, last);
+        zng_tr_stored_block(s, (char *)0, 0L, last);
 
         /* Replace the lengths in the dummy stored block with len. */
         s->pending_buf[s->pending - 4] = len;
@@ -1523,7 +1568,7 @@ static block_state deflate_stored(deflate_state *s, int flush) {
         len = MIN(left, have);
         last = flush == Z_FINISH && s->strm->avail_in == 0 &&
                len == left ? 1 : 0;
-        _tr_stored_block(s, (char *)s->window + s->block_start, len, last);
+        zng_tr_stored_block(s, (char *)s->window + s->block_start, len, last);
         s->block_start += len;
         flush_pending(s->strm);
     }
@@ -1581,7 +1626,7 @@ static block_state deflate_rle(deflate_state *s, int flush) {
         if (s->match_length >= MIN_MATCH) {
             check_match(s, s->strstart, s->strstart - 1, s->match_length);
 
-            _tr_tally_dist(s, 1, s->match_length - MIN_MATCH, bflush);
+            zng_tr_tally_dist(s, 1, s->match_length - MIN_MATCH, bflush);
 
             s->lookahead -= s->match_length;
             s->strstart += s->match_length;
@@ -1589,7 +1634,7 @@ static block_state deflate_rle(deflate_state *s, int flush) {
         } else {
             /* No match, output a literal byte */
             Tracevv((stderr, "%c", s->window[s->strstart]));
-            _tr_tally_lit(s, s->window[s->strstart], bflush);
+            zng_tr_tally_lit(s, s->window[s->strstart], bflush);
             s->lookahead--;
             s->strstart++;
         }
@@ -1627,7 +1672,7 @@ static block_state deflate_huff(deflate_state *s, int flush) {
         /* Output a literal byte */
         s->match_length = 0;
         Tracevv((stderr, "%c", s->window[s->strstart]));
-        _tr_tally_lit(s, s->window[s->strstart], bflush);
+        zng_tr_tally_lit(s, s->window[s->strstart], bflush);
         s->lookahead--;
         s->strstart++;
         if (bflush)
@@ -1666,5 +1711,144 @@ void send_bits(deflate_state *s, int value, int length) {
         s->bi_buf |= (uint16_t)value << s->bi_valid;
         s->bi_valid += length;
     }
+}
+#endif
+
+#ifndef ZLIB_COMPAT
+/* =========================================================================
+ * Checks whether buffer size is sufficient and whether this parameter is a duplicate.
+ */
+static int deflateSetParamPre(zng_deflate_param_value **out, size_t min_size, zng_deflate_param_value *param) {
+    int buf_error = param->size < min_size;
+
+    if (*out != NULL) {
+        (*out)->status = Z_BUF_ERROR;
+        buf_error = 1;
+    }
+    *out = param;
+    return buf_error;
+}
+
+/* ========================================================================= */
+int ZEXPORT zng_deflateSetParams(zng_stream *strm, zng_deflate_param_value *params, size_t count) {
+    size_t i;
+    deflate_state *s;
+    zng_deflate_param_value *new_level = NULL;
+    zng_deflate_param_value *new_strategy = NULL;
+    zng_deflate_param_value *new_reproducible = NULL;
+    int param_buf_error;
+    int version_error = 0;
+    int buf_error = 0;
+    int stream_error = 0;
+    int ret;
+    int val;
+
+    /* Initialize the statuses. */
+    for (i = 0; i < count; i++)
+        params[i].status = Z_OK;
+
+    /* Check whether the stream state is consistent. */
+    if (deflateStateCheck(strm))
+        return Z_STREAM_ERROR;
+    s = strm->state;
+
+    /* Check buffer sizes and detect duplicates. */
+    for (i = 0; i < count; i++) {
+        switch (params[i].param) {
+            case Z_DEFLATE_LEVEL:
+                param_buf_error = deflateSetParamPre(&new_level, sizeof(int), &params[i]);
+                break;
+            case Z_DEFLATE_STRATEGY:
+                param_buf_error = deflateSetParamPre(&new_strategy, sizeof(int), &params[i]);
+                break;
+            case Z_DEFLATE_REPRODUCIBLE:
+                param_buf_error = deflateSetParamPre(&new_reproducible, sizeof(int), &params[i]);
+                break;
+            default:
+                params[i].status = Z_VERSION_ERROR;
+                version_error = 1;
+                param_buf_error = 0;
+                break;
+        }
+        if (param_buf_error) {
+            params[i].status = Z_BUF_ERROR;
+            buf_error = 1;
+        }
+    }
+    /* Exit early if small buffers or duplicates are detected. */
+    if (buf_error)
+        return Z_BUF_ERROR;
+
+    /* Apply changes, remember if there were errors. */
+    if (new_level != NULL || new_strategy != NULL) {
+        ret = PREFIX(deflateParams)(strm, new_level == NULL ? s->level : *(int *)new_level->buf,
+                                    new_strategy == NULL ? s->strategy : *(int *)new_strategy->buf);
+        if (ret != Z_OK) {
+            if (new_level != NULL)
+                new_level->status = Z_STREAM_ERROR;
+            if (new_strategy != NULL)
+                new_strategy->status = Z_STREAM_ERROR;
+            stream_error = 1;
+        }
+    }
+    if (new_reproducible != NULL) {
+        val = *(int *)new_reproducible->buf;
+        if (DEFLATE_CAN_SET_REPRODUCIBLE(strm, val))
+            s->reproducible = val;
+        else {
+            new_reproducible->status = Z_STREAM_ERROR;
+            stream_error = 1;
+        }
+    }
+
+    /* Report version errors only if there are no real errors. */
+    return stream_error ? Z_STREAM_ERROR : (version_error ? Z_VERSION_ERROR : Z_OK);
+}
+
+/* ========================================================================= */
+int ZEXPORT zng_deflateGetParams(zng_stream *strm, zng_deflate_param_value *params, size_t count) {
+    deflate_state *s;
+    size_t i;
+    int buf_error = 0;
+    int version_error = 0;
+
+    /* Initialize the statuses. */
+    for (i = 0; i < count; i++)
+        params[i].status = Z_OK;
+
+    /* Check whether the stream state is consistent. */
+    if (deflateStateCheck(strm))
+        return Z_STREAM_ERROR;
+    s = strm->state;
+
+    for (i = 0; i < count; i++) {
+        switch (params[i].param) {
+            case Z_DEFLATE_LEVEL:
+                if (params[i].size < sizeof(int))
+                    params[i].status = Z_BUF_ERROR;
+                else
+                    *(int *)params[i].buf = s->level;
+                break;
+            case Z_DEFLATE_STRATEGY:
+                if (params[i].size < sizeof(int))
+                    params[i].status = Z_BUF_ERROR;
+                else
+                    *(int *)params[i].buf = s->strategy;
+                break;
+            case Z_DEFLATE_REPRODUCIBLE:
+                if (params[i].size < sizeof(int))
+                    params[i].status = Z_BUF_ERROR;
+                else
+                    *(int *)params[i].buf = s->reproducible;
+                break;
+            default:
+                params[i].status = Z_VERSION_ERROR;
+                version_error = 1;
+                break;
+        }
+        if (params[i].status == Z_BUF_ERROR)
+            buf_error = 1;
+    }
+    return buf_error ? Z_BUF_ERROR : (version_error ? Z_VERSION_ERROR : Z_OK);
 }
 #endif

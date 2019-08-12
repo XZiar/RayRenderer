@@ -201,11 +201,13 @@
     <ClInclude Include="inffast.h" />
     <ClInclude Include="inffixed.h" />
     <ClInclude Include="inflate.h" />
+    <ClInclude Include="inflate_p.h" />
     <ClInclude Include="inftrees.h" />
     <ClInclude Include="trees.h" />
     <ClInclude Include="zbuild.h" />
     <ClInclude Include="zconf-ng.h" />
     <ClInclude Include="zconf.h" />
+    <ClInclude Include="zendian.h" />
     <ClInclude Include="zlib-ng.h" />
     <ClInclude Include="zlib.h" />
     <ClInclude Include="zutil.h" />

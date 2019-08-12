@@ -2,6 +2,8 @@
 
 #pragma unmanaged
 
+#define HALF_ENABLE_CPP11_CFENV 0
+
 #include "RenderCore/RenderCore.h"
 #include "RenderCore/BasicTest.h"
 #include "common/Exceptions.hpp"

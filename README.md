@@ -45,7 +45,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-For Windows-only parts, Windows SDK Target is `10.0.17763.0` and .Net Framework 4.7.2 needed for C# components.
+For Windows parts, Windows SDK Target is `10(latest)` and .Net Framework 4.7.2 needed for C# components.
 
 To use `xzbuild`, python3.6+ is required.
 
@@ -53,7 +53,7 @@ To use `xzbuild`, python3.6+ is required.
 
 To build C++ parts, an C++17 compiler is needed. For Linux, GCC7.3 and later are tested. For Windows, VS2019(`16.0`) is needed for the vcproj version.
 
-Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(6.0).
+Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(7.0).
 
 They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
@@ -101,7 +101,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
 
-* [FreeType2](https://www.freetype.org/) 2.10.0
+* [FreeType2](https://www.freetype.org/) 2.10.1
 
   [The FreeType License](./3rdParty/freetype2/license.txt)
 
@@ -123,7 +123,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 * [itoa](https://github.com/miloyip/itoa-benchmark)
 
-* [half](http://half.sourceforge.net/) 1.12.0
+* [half](http://half.sourceforge.net/) 2.1.0
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
