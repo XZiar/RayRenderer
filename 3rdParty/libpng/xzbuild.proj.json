@@ -2,7 +2,7 @@
     "name": "png",
     "type": "static",
     "description": "The official PNG reference library",
-    "version": "1.6.36",
+    "version": "1.6.37",
     "dependency": ["zlib-ng"],
     "library": 
     {

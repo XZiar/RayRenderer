@@ -89,7 +89,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [BSD-2 License](./3rdParty/fmt/license.rst)
 
-* [crypto++](https://www.cryptopp.com) 8.1.0
+* [crypto++](https://www.cryptopp.com) 8.2.0
 
   [Boost Software License](./3rdParty/cryptopp/license.txt)
 

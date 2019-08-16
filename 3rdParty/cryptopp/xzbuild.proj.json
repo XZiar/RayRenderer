@@ -1,7 +1,7 @@
 {
     "name": "cryptopp",
     "type": "static",
-    "version": "8.1.0",
+    "version": "8.2.0",
     "description": "A free C++ Class Library of Cryptographic Schemes",
     "dependency": [],
     "library": 
@@ -13,7 +13,17 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp", {"-": "simple.cpp"}],
+            "sources": 
+            [
+                "cryptlib.cpp", "cpu.cpp", "integer.cpp",
+                "adv_simd.cpp", "sse_simd.cpp", 
+                "misc.cpp", "dll.cpp", "pch.cpp", "filters.cpp",
+                "base32.cpp", "base64.cpp", "basecode.cpp",
+                "chacha.cpp", "chacha_*.cpp", "chachapoly.cpp",
+                "crc.cpp", "md5.cpp", 
+                "rijndael.cpp", "rijndael_simd.cpp", "rdtables.cpp",
+                "sha.cpp", "sha_simd.cpp", "sha3.cpp"
+            ],
             "optimize": {"ifneq": {"target": "Release"}, "+": "-O1"},
             "debug": "-g",
             "defines": 

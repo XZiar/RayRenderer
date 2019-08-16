@@ -18,295 +18,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cryptlib.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cpu.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="integer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="3way.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="adler32.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="algparam.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arc4.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="aria.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ariatab.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="asn.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="authenc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="base32.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="base64.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="basecode.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="bfinit.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blake2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blowfish.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blumshub.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="camellia.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cast.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="casts.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cbcmac.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ccm.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="chacha.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="channels.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cmac.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="crc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="default.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="des.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="dessp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="dh.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="dh2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="dll.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="dsa.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="eax.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ec2n.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ecp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="elgamal.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="emsa2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="esign.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="files.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="filters.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="fips140.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gcm.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gf256.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gf2_32.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gf2n.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gfpcrypt.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gost.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="hex.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="hmac.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="hrtimer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ida.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="idea.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="iterhash.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="kalyna.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="kalynatab.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="keccak.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="luc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="mars.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="marss.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="md2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="md4.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="md5.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="misc.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="modes.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="mqueue.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="mqv.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="nbtheory.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="oaep.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="osrng.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="padlkrng.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="panama.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="pch.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="pkcspad.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="poly1305.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="pssr.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="pubkey.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="queue.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rabin.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="randpool.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rc2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rc5.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rc6.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rdrand.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rdtables.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="rijndael.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ripemd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rng.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rsa.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rw.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="safer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="salsa.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="scrypt.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="seal.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="seed.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="serpent.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="sha.cpp">
@@ -315,617 +27,132 @@
     <ClCompile Include="sha3.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="shacal2.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="shark.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sharkbox.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="simon.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="skipjack.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sm3.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sm4.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sosemanuk.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="speck.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="square.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="squaretb.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="strciphr.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tea.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tftables.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="threefish.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tiger.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tigertab.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ttmac.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="tweetnacl.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="twofish.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="vmac.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="wake.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="whrlpool.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="xtr.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="xtrcrypt.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="aria_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blake2s_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="blake2b_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="chacha_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cham.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="cham_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="chacha_avx.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="crc_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gcm_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="rijndael_simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="sha_simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="shacal2_simd.cpp">
+    <ClCompile Include="cpu.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="simon128_simd.cpp">
+    <ClCompile Include="misc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="simon64_simd.cpp">
+    <ClCompile Include="rdtables.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="speck64_simd.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="speck128_simd.cpp">
+    <ClCompile Include="iterhash.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="sse_simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="darn.cpp">
+    <ClCompile Include="cryptlib.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="chachapoly.cpp">
+    <ClCompile Include="fips140.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="shake.cpp">
+    <ClCompile Include="filters.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="donna_sse.cpp">
+    <ClCompile Include="algparam.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="donna_32.cpp">
+    <ClCompile Include="queue.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="donna_64.cpp">
+    <ClCompile Include="mqueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="integer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pubkey.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="asn.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="nbtheory.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dll.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="modes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="hmac.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="gfpcrypt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="gf2n_simd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="hc256.cpp">
+    <ClCompile Include="gf2n.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="hc128.cpp">
+    <ClCompile Include="ec2n.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="hight.cpp">
+    <ClCompile Include="ecp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="keccak_simd.cpp">
+    <ClCompile Include="basecode.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="keccak_core.cpp">
+    <ClCompile Include="base32.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lea_simd.cpp">
+    <ClCompile Include="base64.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="lea.cpp">
+    <ClCompile Include="hex.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="rabbit.cpp">
+    <ClCompile Include="osrng.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="simeck_simd.cpp">
+    <ClCompile Include="rng.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="simeck.cpp">
+    <ClCompile Include="des.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="sm4_simd.cpp">
+    <ClCompile Include="randpool.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="xed25519.cpp">
+    <ClCompile Include="hrtimer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="3way.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="adler32.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="aes.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="algebra.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="algparam.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="arc4.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="aria.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="argnames.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="asn.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="authenc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="base32.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="base64.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="basecode.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="blake2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="blowfish.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="blumshub.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="camellia.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="cast.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="cbcmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ccm.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="chacha.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="channels.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="cmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="config.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="cpu.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="crc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="cryptlib.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="default.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="des.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dh.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dh2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="drbg.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dsa.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="eax.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ec2n.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ecp.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ecpoint.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="elgamal.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="emsa2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="esign.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="files.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="filters.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="fips140.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="fhmqv.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="fltrimpl.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gcm.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gf256.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gf2_32.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gf2n.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gfpcrypt.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gost.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="hex.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="hkdf.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="hmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="hmqv.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="hrtimer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ida.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="idea.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="integer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="iterhash.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="kalyna.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="keccak.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="lubyrack.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="luc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="mars.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="md2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="md4.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="md5.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="mdc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="misc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="modarith.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="modes.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="modexppc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="mqueue.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="mqv.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="naclite.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="nbtheory.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="nr.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="oaep.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="oids.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="osrng.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="padlkrng.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="panama.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="pkcspad.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="poly1305.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="polynomi.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="pssr.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="pubkey.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="pwdbased.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="queue.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rabin.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="randpool.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rc2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rc5.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rc6.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rdrand.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rijndael.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ripemd.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rng.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rsa.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rw.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="safer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="salsa.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="scrypt.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="seal.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="secblock.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="seckey.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="seed.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="serpent.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sha.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sha3.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="shacal2.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="shark.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="simple.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="simon.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="siphash.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="skipjack.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sm3.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sm4.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="smartptr.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sosemanuk.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="speck.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="square.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="stdcpp.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="strciphr.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="tea.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="threefish.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="tiger.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="trap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="trunhash.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ttmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="tweetnacl.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="twofish.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="vmac.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="wake.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="whrlpool.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="words.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="xtr.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="xtrcrypt.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="adv_simd.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
+    <ClCompile Include="dessp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chacha_avx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chacha_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chachapoly.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="chacha.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="crc.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="md5.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Readme.txt" />
@@ -944,5 +171,40 @@
     <MASM Include="x64dll.asm">
       <Filter>asm</Filter>
     </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="config.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="adv_simd.h">
+      <Filter>源文件</Filter>
+    </ClInclude>
+    <ClInclude Include="chachapoly.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="crc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="md5.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="sha.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="sha3.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="aes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="base32.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="base64.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="chacha.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,13 +1,33 @@
 dist: bionic
 language: cpp
-compiler: 
-  - gcc
-  - clang
 
 matrix:
   include:
+    - name: "GCC7"
+      os: linux
+      compiler: gcc
+      env:
+        - CCOMPILER=gcc
+        - ASMCOMPILER=g++
+        - CPPCOMPILER=g++
+        - DYNAMICLINKER=g++
+        - APPLINKER=g++
+        - BUILDMODULES="all"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - nasm
+            - python3-pip
+            - libx11-dev
+            - libgl1-mesa-dev
+            - libglu1-mesa-dev
+            - libxi-dev
+            
     - name: "GCC8"
       os: linux
+      compiler: gcc
       env:
         - CCOMPILER=gcc-8
         - ASMCOMPILER=g++-8
@@ -30,6 +50,7 @@ matrix:
             
     - name: "Clang7"
       os: linux
+      compiler: clang
       env:
         - CCOMPILER=clang
         - ASMCOMPILER=clang++
@@ -42,10 +63,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - llvm-7.0-dev  # for LLVMgold.so
+            - llvm-7-dev  # for LLVMgold.so
             - binutils-gold
             - binutils-dev
-            - g++-8
             - nasm
             - python3-pip
             - libx11-dev
