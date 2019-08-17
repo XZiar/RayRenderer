@@ -8,7 +8,6 @@
 #   define COMMONAPI _declspec(dllimport) 
 #   define COMMONTPL
 # endif
-# define StrText(x) L ##x
 #else
 # ifdef COMMON_EXPORT
 #   define COMMONAPI __attribute__((visibility("default")))
@@ -17,7 +16,6 @@
 #   define COMMONAPI 
 #   define COMMONTPL
 # endif
-# define StrText(x) x
 #endif
 
 #define __STDC_WANT_SECURE_LIB__ 1
@@ -89,6 +87,7 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
     memmove(dest, src, count);
     return 0;
 }
+#   define _FILE_OFFSET_BITS 64
 #   endif
 #else
 #   define forceinline inline
@@ -144,7 +143,8 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #define WIDEN_NX(X) L ## X
 #define WIDEN(X) WIDEN_NX(X)
 
-#define UTF16ER(X) u"" X
+#define UTF16ER_NX(X) u ## X
+#define UTF16ER(X) UTF16ER_NX(X)
 
 
 #define ENUM_CLASS_BITFIELD_FUNC(T, U) \
@@ -237,8 +237,8 @@ template <class T, template <typename...> class Template>
 struct is_specialization : std::false_type {};
 template <template <typename...> class Template, typename... Ts>
 struct is_specialization<Template<Ts...>, Template> : std::true_type {};
-template <class T, template <auto...> class Template>
 #if (defined(__cpp_nontype_template_parameter_auto) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+template <class T, template <auto...> class Template>
 struct is_specialization2 : std::false_type {};
 template <template <auto...> class Template, auto... Vs>
 struct is_specialization2<Template<Vs...>, Template> : std::true_type {};
@@ -292,32 +292,42 @@ struct NonMovable
 
 #if defined(__cpp_lib_string_view)
 #include <string_view>
+#  if COMPILER_CLANG
+#    define U8STR_CONSTEXPR 
+#else
+#    define U8STR_CONSTEXPR constexpr
+#  endif
 class u8StrView
 {
 private:
     const intptr_t Ptr;
-    size_t Size;
+    const size_t Size;
 public:
+    constexpr u8StrView(const u8StrView& other) noexcept : Ptr(other.Ptr), Size(other.Size) {}
+    u8StrView(u8StrView&&) noexcept = delete;
+    u8StrView& operator=(const u8StrView&) = delete;
+    u8StrView& operator=(u8StrView&&) = delete;
     constexpr size_t Length() const noexcept { return Size; }
    
-    constexpr u8StrView(const std::string_view& sv) noexcept :
+    U8STR_CONSTEXPR u8StrView(const std::string_view& sv) noexcept :
         Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
-    template<size_t N> constexpr u8StrView(const char(&str)[N]) noexcept :
+    template<size_t N> U8STR_CONSTEXPR u8StrView(const char(&str)[N]) noexcept :
         Ptr((intptr_t)(str)), Size(std::char_traits<char>::length(str)) { }
 
-    constexpr const char* CharData() const noexcept { return (const char*)(Ptr); }
-    constexpr operator std::string_view() const noexcept { return { CharData(), Length() }; }
+    U8STR_CONSTEXPR const char* CharData() const noexcept { return (const char*)(Ptr); }
+    U8STR_CONSTEXPR operator std::string_view() const noexcept { return { CharData(), Length() }; }
 
 #if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
-    constexpr u8StrView(const std::u8string_view& sv) noexcept :
+    U8STR_CONSTEXPR u8StrView(const std::u8string_view& sv) noexcept :
         Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
-    template<size_t N> constexpr u8StrView(const char8_t(&str)[N]) noexcept :
+    template<size_t N> U8STR_CONSTEXPR u8StrView(const char8_t(&str)[N]) noexcept :
         Ptr((intptr_t)(str)), Size(std::char_traits<char8_t>::length(str)) { }
 
-    constexpr const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
-    constexpr operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
+    U8STR_CONSTEXPR const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
+    U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
 #endif
 };
+#  undef U8STR_CONSTEXPR
 #endif
 
 template<size_t Align>

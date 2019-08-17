@@ -10,11 +10,7 @@
 #include <exception>
 #include <memory>
 #include <any>
-#if defined(__GNUC__)
-#   include <experimental/filesystem>
-#else
-#   include <filesystem>
-#endif
+
 
 namespace common
 {
@@ -23,14 +19,15 @@ class BaseException;
 
 namespace detail
 {
-class OtherException;
+
 class AnyException : public std::runtime_error, public std::enable_shared_from_this<AnyException>
 {
 protected:
-    const char * const TypeName;
+    const char* const TypeName;
     explicit AnyException(const char* const type) : std::runtime_error(type), TypeName(type) {}
     using std::runtime_error::what;
 };
+
 class OtherException : public AnyException
 {
     friend BaseException;
@@ -57,7 +54,9 @@ private:
     OtherException(const std::exception_ptr& exptr) : AnyException(TYPENAME), StdException(exptr)
     {}
 };
+
 class ExceptionHelper;
+
 }
 
 
@@ -67,12 +66,12 @@ public:
     SharedString<char16_t> File;
     SharedString<char16_t> Func;
     size_t Line;
-    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) 
+    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos)
         : File(file), Func(func), Line(pos) {}
-    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos) 
+    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos)
         : File(file), Func(std::u16string(func, func + std::char_traits<char>::length(func))), Line(pos) {}
     template<typename T1, typename T2>
-    StackTraceItem(T1&& file, T2&& func, const size_t pos) 
+    StackTraceItem(T1&& file, T2&& func, const size_t pos)
         : File(std::forward<T1>(file)), Func(std::forward<T2>(func)), Line(pos) {}
 };
 
@@ -88,7 +87,7 @@ protected:
     std::shared_ptr<detail::AnyException> InnerException;
     std::vector<StackTraceItem> StackTrace;
     static std::shared_ptr<detail::AnyException> getCurrentException();
-    BaseException(const char * const type, const std::u16string_view& msg, const std::any& data_)
+    BaseException(const char* const type, const std::u16string_view& msg, const std::any& data_)
         : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
     { }
 private:
@@ -173,32 +172,10 @@ inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException(
 
 
 #if defined(_MSC_VER)
-#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ u"" __FILE__, u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
+#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
 #else
-#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ u"" __FILE__, __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
+#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
 #endif
-
-#if defined(__GNUC__)
-namespace fs = std::experimental::filesystem;
-#else
-namespace fs = std::filesystem;
-#endif
-
-class FileException : public BaseException
-{
-public:
-    enum class Reason { NotExist, WrongFormat, OpenFail, ReadFail, WriteFail, CloseFail };
-public:
-    fs::path filepath;
-public:
-    EXCEPTION_CLONE_EX(FileException);
-    const Reason reason;
-    FileException(const Reason why, const fs::path& file, const std::u16string_view& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data_), filepath(file), reason(why)
-    { }
-    ~FileException() override {}
-};
-
 
 }
 

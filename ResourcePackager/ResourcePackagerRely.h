@@ -46,7 +46,7 @@ using std::variant;
 template<size_t N>
 using bytearray = std::array<std::byte, N>;
 using common::BaseException;
-using common::FileException;
+using common::file::FileException;
 using common::NonCopyable;
 using common::NonMovable;
 

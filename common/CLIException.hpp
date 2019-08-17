@@ -20,12 +20,12 @@ private:
     {
         if (const auto& inner = be.NestedException())
         {
-            if (const auto fex = std::dynamic_pointer_cast<common::FileException>(inner))
+            if (const auto fex = std::dynamic_pointer_cast<common::file::FileException>(inner))
             {
                 auto msg = ToStr((const std::u16string_view&)fex->message);
                 auto fpath = ToStr(fex->filepath.u16string());
                 auto innerEx = formInnerException(*fex);
-                if (fex->reason == common::FileException::Reason::NotExist)
+                if (fex->reason == common::file::FileException::Reason::NotExist)
                     return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
                 else
                     return gcnew IO::FileLoadException(msg, fpath, innerEx);

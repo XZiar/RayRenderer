@@ -79,7 +79,7 @@ using common::NonMovable;
 using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
-using common::FileException;
+using common::file::FileException;
 using common::linq::Linq;
 using str::Charset;
 using xziar::respak::SerializeUtil;

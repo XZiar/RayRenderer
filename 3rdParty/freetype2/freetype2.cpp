@@ -10,6 +10,7 @@
 namespace ft
 {
 using namespace common;
+using common::file::FileException;
 
 static void* CreateLibrary()
 {

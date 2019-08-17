@@ -16,6 +16,7 @@ namespace stb
 {
 
 using namespace common;
+using common::file::FileException;
 
 static int ReadFile(void *user, char *data, int size)
 {

@@ -1,5 +1,6 @@
 #include "utfext.h"
 #include "common/StrCharset.hpp"
+#include <ctime>
 
 using namespace common::str::detail;
 

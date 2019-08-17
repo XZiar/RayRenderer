@@ -1,18 +1,5 @@
 #pragma once
 
-#if defined(_WIN32)
-#   define FSeek64(fp, offset, whence) _fseeki64(fp, offset, whence)
-#   define FTell64(fp) _ftelli64(fp)
-#else
-//#   define _FILE_OFFSET_BITS 64
-#   ifndef _LARGEFILE_SOURCE
-#       define _LARGEFILE_SOURCE 1
-#   endif
-#   include <unistd.h>
-#   include <cerrno>
-#   define FSeek64(fp, offset, whence) fseeko64(fp, offset, whence)
-#   define FTell64(fp) ftello64(fp)
-#endif
 
 #include "CommonRely.hpp"
 #include "Exceptions.hpp"
@@ -26,14 +13,54 @@
 #include <string>
 #include <optional>
 
+#if defined(__cpp_lib_filesystem)
+#   include <filesystem>
+#else
+#   include <experimental/filesystem>
+#endif
+
+
+#if defined(_WIN32)
+#   define FSeek64(fp, offset, whence) _fseeki64(fp, offset, whence)
+#   define FTell64(fp) _ftelli64(fp)
+#else
+#   include <unistd.h>
+#   include <cerrno>
+#   define FSeek64(fp, offset, whence) fseeko64(fp, offset, whence)
+#   define FTell64(fp) ftello64(fp)
+#endif
+
+namespace common
+{
+#if defined(__cpp_lib_filesystem)
+namespace fs = std::filesystem;
+#else
+namespace fs = std::experimental::filesystem;
+#endif
+}
 
 namespace common::file
 {
 
-
 using std::string;
 using std::u16string;
 using std::byte;
+
+
+class FileException : public BaseException
+{
+public:
+    enum class Reason { NotExist, WrongFormat, OpenFail, ReadFail, WriteFail, CloseFail };
+public:
+    fs::path filepath;
+public:
+    EXCEPTION_CLONE_EX(FileException);
+    const Reason reason;
+    FileException(const Reason why, const fs::path& file, const std::u16string_view& msg, const std::any& data_ = std::any())
+        : BaseException(TYPENAME, msg, data_), filepath(file), reason(why)
+    { }
+    ~FileException() override {}
+};
 
 
 enum class OpenFlag : uint8_t 
@@ -145,6 +172,11 @@ private:
     FILE *fp;
     OpenFlag Flag;
 
+#if defined(_WIN32)
+#   define StrText(x) L ##x
+#else
+#   define StrText(x) x
+#endif
     static constexpr const auto* ParseFlag(const OpenFlag flag)
     {
         switch ((uint8_t)flag)
@@ -164,6 +196,7 @@ private:
         default:      return StrText("");
         }
     }
+#undef StrText
 
     FileObject(const fs::path& path, FILE *fp, const OpenFlag flag) : FilePath(path), fp(fp), Flag(flag)
     {
@@ -523,3 +556,7 @@ inline string ReadAllText(const fs::path& fpath)
 
 
 }
+
+
+#undef FSeek64
+#undef FTell64

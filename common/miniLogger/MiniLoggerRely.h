@@ -20,6 +20,7 @@
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
+#include "common/FileEx.hpp"
 #include "3rdParty/fmt/format.h"
 #include "3rdParty/fmt/utfext.h"
 #include "StringCharset/Convert.h"
