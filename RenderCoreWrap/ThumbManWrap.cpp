@@ -106,7 +106,7 @@ Task<TexHolder^>^ TextureLoader::LoadTextureAsync(String^ fname, TexLoadType typ
 }
 
 
-ThumbnailMan::ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan) 
+ThumbnailMan::ThumbnailMan(const std::shared_ptr<rayr::ThumbnailManager>& thumbMan)
     : ThumbnailMap(new std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>())
 {
     Lock = gcnew ReaderWriterLockSlim();

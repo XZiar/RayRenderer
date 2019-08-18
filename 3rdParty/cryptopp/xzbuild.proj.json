@@ -15,17 +15,18 @@
         {
             "sources": 
             [
-                "cryptlib.cpp", "cpu.cpp", "integer.cpp", "iterhash.cpp",
+                "cryptlib.cpp", "cpu.cpp", "integer.cpp", "iterhash.cpp", "algparam.cpp",
                 "adv_simd.cpp", "sse_simd.cpp", 
                 "misc.cpp", "dll.cpp", "pch.cpp", "filters.cpp", "fips140.cpp", 
                 "modes.cpp", "queue.cpp", "mqueue.cpp", "nbtheory.cpp", "pubkey.cpp",
                 "base32.cpp", "base64.cpp", "basecode.cpp",
                 "chacha.cpp", "chacha_*.cpp", "chachapoly.cpp",
-                "crc.cpp", "md5.cpp", "des.cpp", "dessp.cpp", 
+                "crc.cpp", "crc_simd.cpp", "md5.cpp", "des.cpp", "dessp.cpp", 
                 "rijndael.cpp", "rijndael_simd.cpp", "rdtables.cpp",
                 "sha.cpp", "sha_simd.cpp", "sha3.cpp",
+                "keccak.cpp", "keccak_core.cpp", "keccak_simd.cpp",
                 "asn.cpp", "ec2n.cpp", "ecp.cpp", "gf2n.cpp", "gf2n_simd.cpp",
-                "gfpcrypt.cpp", "hex.cpp", "hmac.cpp", "hrtimer.cpp", 
+                "gfpcrypt.cpp", "hex.cpp", "hmac.cpp", "hrtimer.cpp", "oaep.cpp", "authenc.cpp",
                 "osrng.cpp", "randpool.cpp", "rng.cpp"
             ],
             "optimize": {"ifneq": {"target": "Release"}, "+": "-O1"},

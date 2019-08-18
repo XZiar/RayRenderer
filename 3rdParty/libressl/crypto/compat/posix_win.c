@@ -79,7 +79,7 @@ posix_fgets(char *s, int size, FILE *stream)
 int
 posix_rename(const char *oldpath, const char *newpath)
 {
-	return MoveFileEx(oldpath, newpath, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
+	return MoveFileExA(oldpath, newpath, MOVEFILE_REPLACE_EXISTING) ? 0 : -1;
 }
 
 static int

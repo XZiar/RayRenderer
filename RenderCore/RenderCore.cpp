@@ -2,6 +2,9 @@
 #include "resource.h"
 #include "RenderCore.h"
 #include "FontTest.h"
+#include "ThumbnailManager.h"
+#include "TextureLoader.h"
+#include "PostProcessor.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
@@ -103,8 +106,8 @@ RenderCore::RenderCore()
     MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
     TexLoader = std::make_shared<TextureLoader>(MipMapper);
     //MipMapper->Test2();
-    ThumbMan.reset(TexWorker, GLWorker);
-    PostProc.reset(CLSharedContext, CLQue);
+    ThumbMan = std::make_shared<ThumbnailManager>(TexWorker, GLWorker);
+    PostProc = std::make_shared<PostProcessor>(CLSharedContext, CLQue);
     TheScene.reset();
 
     InitShaders();

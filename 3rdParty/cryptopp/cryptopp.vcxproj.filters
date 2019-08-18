@@ -153,6 +153,18 @@
     <ClCompile Include="md5.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="crc_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="keccak_simd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="keccak.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="keccak_core.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Readme.txt" />

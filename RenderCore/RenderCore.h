@@ -3,9 +3,9 @@
 #include "RenderCoreRely.h"
 #include "SceneManager.h"
 #include "RenderPass.h"
-#include "ThumbnailManager.h"
-#include "TextureLoader.h"
-#include "PostProcessor.h"
+//#include "ThumbnailManager.h"
+//#include "TextureLoader.h"
+//#include "PostProcessor.h"
 #include "GLShader.h"
 
 namespace oglu::texutil
@@ -18,7 +18,9 @@ namespace rayr
 using namespace oglu;
 using namespace oclu;
 using xziar::img::Image;
-
+class ThumbnailManager;
+class TextureLoader;
+class PostProcessor;
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -33,8 +35,8 @@ private:
     std::shared_ptr<texutil::TexUtilWorker> TexWorker;
     std::shared_ptr<texutil::TexMipmap> MipMapper;
     std::shared_ptr<TextureLoader> TexLoader;
-    Wrapper<ThumbnailManager> ThumbMan;
-    Wrapper<PostProcessor> PostProc;
+    std::shared_ptr<ThumbnailManager> ThumbMan;
+    std::shared_ptr<PostProcessor> PostProc;
     std::shared_ptr<oglWorker> GLWorker;
     set<Wrapper<RenderPass>> RenderPasses;
     Wrapper<Scene> TheScene;
@@ -53,9 +55,9 @@ public:
 
     const Wrapper<Scene>& GetScene() const noexcept { return TheScene; }
     const Wrapper<RenderPipeLine>& GetCurPipeLine() const noexcept { return RenderTask; }
-    const Wrapper<PostProcessor>& GetPostProc() const noexcept { return PostProc; }
+    const std::shared_ptr<PostProcessor>& GetPostProc() const noexcept { return PostProc; }
     const std::shared_ptr<TextureLoader>& GetTexLoader() const noexcept { return TexLoader; }
-    const Wrapper<ThumbnailManager>& GetThumbMan() const noexcept { return ThumbMan; }
+    const std::shared_ptr<ThumbnailManager>& GetThumbMan() const noexcept { return ThumbMan; }
     const set<Wrapper<RenderPass>>& GetRenderPasses() const noexcept { return RenderPasses; }
     const set<Wrapper<RenderPipeLine>>& GetPipeLines() const noexcept { return PipeLines; }
     vector<std::shared_ptr<Controllable>> GetControllables() const noexcept;

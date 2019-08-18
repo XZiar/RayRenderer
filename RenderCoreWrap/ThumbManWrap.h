@@ -56,7 +56,7 @@ internal:
     std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor> * const ThumbnailMap = nullptr;
     const std::weak_ptr<rayr::ThumbnailManager> *ThumbMan;
 
-    ThumbnailMan(const common::Wrapper<rayr::ThumbnailManager>& thumbMan);
+    ThumbnailMan(const std::shared_ptr<rayr::ThumbnailManager>& thumbMan);
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
     BitmapSource^ GetThumbnail3(IntPtr imgptr);

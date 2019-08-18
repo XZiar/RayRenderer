@@ -188,6 +188,7 @@
     <ClCompile Include="chacha_simd.cpp" />
     <ClCompile Include="cpu.cpp" />
     <ClCompile Include="crc.cpp" />
+    <ClCompile Include="crc_simd.cpp" />
     <ClCompile Include="cryptlib.cpp" />
     <ClCompile Include="des.cpp" />
     <ClCompile Include="dessp.cpp" />
@@ -208,6 +209,9 @@
     <ClCompile Include="iterhash.cpp">
       <PrecompiledHeader />
     </ClCompile>
+    <ClCompile Include="keccak.cpp" />
+    <ClCompile Include="keccak_core.cpp" />
+    <ClCompile Include="keccak_simd.cpp" />
     <ClCompile Include="md5.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="modes.cpp" />

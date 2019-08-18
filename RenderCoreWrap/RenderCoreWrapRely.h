@@ -5,6 +5,7 @@
 #define HALF_ENABLE_CPP11_CFENV 0
 
 #include "RenderCore/RenderCore.h"
+#include "RenderCore/TextureLoader.h"
 #include "RenderCore/BasicTest.h"
 #include "common/Exceptions.hpp"
 #include "common/miniLogger/miniLogger.h"

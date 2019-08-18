@@ -54,7 +54,7 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     {
         return common::file::ReadAllText(shaderPath);
     }
-    catch (const common::FileException& fe)
+    catch (const common::file::FileException& fe)
     {
         log().error(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
     }

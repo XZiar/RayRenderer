@@ -1008,9 +1008,6 @@
     <ClCompile Include="crypto\evp\names.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="crypto\des\ncbc_enc.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="crypto\asn1\nsseq.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -1468,9 +1465,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="crypto\compat\strndup.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="crypto\compat\strnlen.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="crypto\compat\strsep.c">

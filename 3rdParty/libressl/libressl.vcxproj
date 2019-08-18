@@ -325,7 +325,6 @@
     <ClCompile Include="crypto\compat\strlcat.c" />
     <ClCompile Include="crypto\compat\strlcpy.c" />
     <ClCompile Include="crypto\compat\strndup.c" />
-    <ClCompile Include="crypto\compat\strnlen.c" />
     <ClCompile Include="crypto\compat\strsep.c" />
     <ClCompile Include="crypto\compat\timegm.c" />
     <ClCompile Include="crypto\compat\timingsafe_bcmp.c" />
@@ -361,7 +360,6 @@
     <ClCompile Include="crypto\des\enc_writ.c" />
     <ClCompile Include="crypto\des\fcrypt.c" />
     <ClCompile Include="crypto\des\fcrypt_b.c" />
-    <ClCompile Include="crypto\des\ncbc_enc.c" />
     <ClCompile Include="crypto\des\ofb64ede.c" />
     <ClCompile Include="crypto\des\ofb64enc.c" />
     <ClCompile Include="crypto\des\ofb_enc.c" />
