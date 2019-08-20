@@ -52,14 +52,19 @@ namespace detail
 {
 
 template<class T>
-class AsyncResult_ : public common::detail::PromiseResult_<void>
+class AsyncResult_ : public common::detail::PromiseResultCore, public std::enable_shared_from_this<AsyncResult_<T>>
 {
     friend class common::asyexe::AsyncAgent;
+private:
+    T Wait()
+    {
+        Prepare();
+        return WaitPms();
+    }
 protected:
     AsyncResult_()
     { }
-    T virtual wait() = 0;
-public:
+    T virtual WaitPms() = 0;
 };
 
 }

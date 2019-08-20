@@ -36,12 +36,12 @@ static std::variant<uint8_t, std::pair<uint16_t, uint16_t>> CalcSize(const TexHo
 common::PromiseResult<std::optional<ImageView>> ThumbnailManager::GetThumbnail(const TexHolder& holder)
 {
     if(holder.index() == 0)
-        return common::GetFinishedResult<std::optional<ImageView>>(std::optional<ImageView>{});
+        return common::FinishedResult<std::optional<ImageView>>::Get(std::optional<ImageView>{});
     CacheLock.LockRead();
     auto ret = FindInMap(ThumbnailMap, holder.GetWeakRef(), std::in_place);
     CacheLock.UnlockRead();
     if (ret.has_value())
-        return common::GetFinishedResult<std::optional<ImageView>>(std::move(ret));
+        return common::FinishedResult<std::optional<ImageView>>::Get(std::move(ret));
     return InnerPrepareThumbnail(holder);
 }
 
