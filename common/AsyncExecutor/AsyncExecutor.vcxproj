@@ -161,10 +161,12 @@
     <ClInclude Include="AsyncExecutorRely.h" />
     <ClInclude Include="AsyncManager.h" />
     <ClInclude Include="AsyncAgent.h" />
+    <ClInclude Include="AsyncProxy.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AsyncAgent.cpp" />
     <ClCompile Include="AsyncManager.cpp" />
+    <ClCompile Include="AsyncProxy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\3rdParty\boost.context\boost.context.vcxproj">

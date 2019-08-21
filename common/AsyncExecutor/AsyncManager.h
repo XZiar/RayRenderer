@@ -25,7 +25,6 @@ namespace asyexe
 
 namespace detail
 {
-struct AsyncTaskNode;
 
 template<typename T>
 class AsyncTaskResult : public PromiseResultSTD<T>
@@ -45,11 +44,17 @@ enum class AsyncTaskStatus : uint8_t
 {
     New = 0, Ready = 1, Yield = 128, Wait = 129, Error = 250, Finished = 251
 };
-struct ASYEXEAPI AsyncTaskNode
+
+struct ASYEXEAPI AsyncTaskNodeData
 {
     boost::context::continuation Context;
+};
+
+struct ASYEXEAPI AsyncTaskNode 
+    : public AsyncTaskNodeData, 
+      public common::container::BiDirLinkedList<AsyncTaskNode>::NodeBase
+{
     std::u16string Name;
-    AsyncTaskNode *Prev = nullptr, *Next = nullptr;//spin-locker's memory_order_seq_cst promise their order
     PmsCore Promise = nullptr; // current waiting promise
     common::SimpleTimer TaskTimer; // execution timer
     uint64_t ElapseTime = 0; // execution time
@@ -121,13 +126,13 @@ class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
 {
     friend class AsyncAgent;
 private:
-    std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode
+    common::container::BiDirLinkedList<detail::AsyncTaskNode> TaskList;
+    //std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode
     std::atomic_bool ShouldRun { false };
     std::atomic_uint32_t TaskUid { 0 };
     std::mutex RunningMtx, TerminateMtx;
     std::condition_variable CondWait;
     boost::context::continuation Context;
-    std::atomic<detail::AsyncTaskNode*> Head { nullptr }, Tail { nullptr };
     detail::AsyncTaskNode *Current = nullptr;
     const std::u16string Name;
     const AsyncAgent Agent;
@@ -138,7 +143,6 @@ private:
 
     bool AddNode(detail::AsyncTaskNode* node);
 
-    detail::AsyncTaskNode* DelNode(detail::AsyncTaskNode* node);//only called from self thread
     void Resume();
     void MainLoop();
     void OnTerminate(const std::function<void(void)>& exiter = {}); //run at worker thread

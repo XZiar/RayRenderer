@@ -13,46 +13,13 @@ namespace common::asyexe
 
 bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 {
-    node->Next = nullptr;
-    common::SpinLocker::Lock(ModifyFlag);//ensure add is done
     if (!AllowStopAdd && !ShouldRun)
-    {
-        common::SpinLocker::Unlock(ModifyFlag);
         return false;
-    }
-    node->Prev = Tail;
-    if (Head)
-    {
-        Tail = node;
-        node->Prev->Next = node;
-        common::SpinLocker::Unlock(ModifyFlag);
-    }
-    else //list became not empty
-    {
-        RunningMtx.lock(); //ensure that mainloop is waiting
-        Head = Tail = node;
-        RunningMtx.unlock();
-        common::SpinLocker::Unlock(ModifyFlag);
+    if (TaskList.AppendNode(node)) // need to notify worker
         CondWait.notify_one();
-    }
     return true;
 }
 
-detail::AsyncTaskNode* AsyncManager::DelNode(detail::AsyncTaskNode* node)
-{
-    common::SpinLocker locker(ModifyFlag);
-    auto prev = node->Prev, next = node->Next;
-    if (prev)
-        prev->Next = next;
-    else
-        Head = next;
-    if (next)
-        next->Prev = prev;
-    else
-        Tail = prev;
-    delete node;
-    return next;
-}
 
 void AsyncManager::Resume()
 {
@@ -68,7 +35,7 @@ void AsyncManager::MainLoop()
     common::SimpleTimer timer;
     while (ShouldRun)
     {
-        if (Head == nullptr)
+        if (TaskList.IsEmpty())
         {
             CondWait.wait(cvLock);
             if (!ShouldRun.load(std::memory_order_relaxed)) //in case that waked by terminator
@@ -76,7 +43,7 @@ void AsyncManager::MainLoop()
         }
         timer.Start();
         bool hasExecuted = false;
-        for (Current = Head; Current != nullptr;)
+        for (Current = TaskList.Begin(); Current != nullptr;)
         {
             switch (Current->Status)
             {
@@ -110,13 +77,12 @@ void AsyncManager::MainLoop()
             {
                 if (Current->Status == detail::AsyncTaskStatus::Yield)
                     Current->Status = detail::AsyncTaskStatus::Ready;
-                common::SpinLocker locker(ModifyFlag); //ensure 'next' not changed when accessing it
-                Current = Current->Next;
+                Current = TaskList.ToNext(Current);
             }
             else //has returned
             {
                 Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
-                Current = DelNode(Current);
+                Current = TaskList.DelNode(Current);
             }
             //quick exit when terminate
             if (!ShouldRun.load(std::memory_order_relaxed)) 
@@ -137,34 +103,32 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
     ShouldRun = false; //in case self-terminate
     Logger.verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
     //destroy all task
-    common::SpinLocker locker(ModifyFlag); //ensure no pending adding
-    for (Current = Head; Current != nullptr;)
-    {
-        auto next = Current->Next;
-        switch (Current->Status)
+    Current = nullptr;
+    TaskList.ForEach([&](detail::AsyncTaskNode* node)
         {
-        case detail::AsyncTaskStatus::New:
-            Logger.warning(u"Task [{}] cancelled due to termination.\n", Current->Name); 
-            try
+            switch (node->Status)
             {
-                COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
+            case detail::AsyncTaskStatus::New:
+                Logger.warning(u"Task [{}] cancelled due to termination.\n", node->Name);
+                try
+                {
+                    COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
+                }
+                catch (AsyncTaskException&)
+                {
+                    node->OnException(std::current_exception());
+                }
+                break;
+            case detail::AsyncTaskStatus::Wait:
+                [[fallthrough]] ;
+            case detail::AsyncTaskStatus::Ready:
+                node->Context = node->Context.resume(); // need to resume so that stack will be released
+                break;
+            default:
+                break;
             }
-            catch (AsyncTaskException&)
-            {
-                Current->OnException(std::current_exception());
-            }
-            break;
-        case detail::AsyncTaskStatus::Wait:
-            [[fallthrough]];
-        case detail::AsyncTaskStatus::Ready:
-            Current->Context = Current->Context.resume(); // need to resume so that stack will be released
-            break;
-        default:
-            break;
-        }
-        delete Current;
-        Current = next;
-    }
+            delete Current;
+        });
     if (exiter)
         exiter();
 }

@@ -62,8 +62,35 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
+            - llvm-toolchain-bionic-7
           packages:
             - llvm-7-dev  # for LLVMgold.so
+            - binutils-gold
+            - binutils-dev
+            - nasm
+            - python3-pip
+            - libx11-dev
+            - libgl1-mesa-dev
+            - libglu1-mesa-dev
+            - libxi-dev
+            
+    - name: "Clang8"
+      os: linux
+      compiler: clang
+      env:
+        - CCOMPILER=clang-8
+        - ASMCOMPILER=clang++-8
+        - CPPCOMPILER=clang++-8
+        - DYNAMICLINKER=clang++-8
+        - APPLINKER=clang++-8
+        - BUILDMODULES="all"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-bionic-8
+          packages:
+            - llvm-8-dev  # for LLVMgold.so
             - binutils-gold
             - binutils-dev
             - nasm

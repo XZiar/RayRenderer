@@ -12,6 +12,7 @@ enum class PromiseState : uint8_t
 {
     Invalid = 0, Unissued = 1, Issued = 8, Executing = 64, Executed = 128, Success = 144, Error = 192
 };
+
 namespace detail
 {
 
@@ -93,7 +94,6 @@ template<typename T>
 class FinishedResult
 {
 private:
-    template<typename T>
     class FinishedResult_ : public detail::PromiseResult_<T>
     {
         friend class FinishedResult<T>;
@@ -101,7 +101,7 @@ private:
         T Data;
     protected:
         PromiseState virtual State() override { return PromiseState::Executed; }
-        T virtual WaitPms() { return std::move(Data); }
+        T virtual WaitPms() override { return std::move(Data); }
     public:
         FinishedResult_(T&& data) : Data(data) {}
         virtual ~FinishedResult_() override {}
@@ -110,7 +110,7 @@ public:
     template<typename U>
     static PromiseResult<T> Get(U&& data)
     {
-        return std::make_shared<FinishedResult_<T>>(std::forward<U>(data));
+        return std::make_shared<FinishedResult_>(std::forward<U>(data));
     }
 };
 
