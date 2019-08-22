@@ -20,7 +20,7 @@
 #include "common/CommonRely.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
-#include "common/BiDirLinkedList.hpp"
+#include "common/IntrusiveDoubleLinkList.hpp"
 #include <cstdint>
 #include <string>
 #include <memory>

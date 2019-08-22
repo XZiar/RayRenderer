@@ -52,7 +52,7 @@ struct ASYEXEAPI AsyncTaskNodeData
 
 struct ASYEXEAPI AsyncTaskNode 
     : public AsyncTaskNodeData, 
-      public common::container::BiDirLinkedList<AsyncTaskNode>::NodeBase
+      public common::container::IntrusiveDoubleLinkListNodeBase<AsyncTaskNode>
 {
     std::u16string Name;
     PmsCore Promise = nullptr; // current waiting promise
@@ -126,7 +126,7 @@ class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
 {
     friend class AsyncAgent;
 private:
-    common::container::BiDirLinkedList<detail::AsyncTaskNode> TaskList;
+    common::container::IntrusiveDoubleLinkList<detail::AsyncTaskNode> TaskList;
     //std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode
     std::atomic_bool ShouldRun { false };
     std::atomic_uint32_t TaskUid { 0 };

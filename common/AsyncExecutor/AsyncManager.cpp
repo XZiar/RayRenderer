@@ -82,7 +82,9 @@ void AsyncManager::MainLoop()
             else //has returned
             {
                 Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
-                Current = TaskList.DelNode(Current);
+                auto tmp = Current;
+                Current = TaskList.PopNode(Current);
+                delete tmp;
             }
             //quick exit when terminate
             if (!ShouldRun.load(std::memory_order_relaxed)) 
@@ -127,8 +129,8 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
             default:
                 break;
             }
-            delete Current;
-        });
+            delete node;
+        }, true);
     if (exiter)
         exiter();
 }

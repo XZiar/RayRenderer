@@ -15,6 +15,25 @@
 namespace common
 {
 
+namespace detail
+{
+template<typename T, void(T::*Lock)(), void(T::*Unlock)()>
+struct LockScope
+{
+private:
+    T& Locker;
+public:
+    LockScope(T& locker) : Locker(locker)
+    {
+        (Locker.*Lock)();
+    }
+    ~LockScope()
+    {
+        (Locker.*Unlock)();
+    }
+};
+}
+
 
 struct SpinLocker : public NonCopyable
 {
@@ -77,6 +96,14 @@ public:
     {
         Flag.fetch_sub(0x00010000);
     }
+    auto WeakScope()
+    {
+        return detail::LockScope<PreferSpinLock, &PreferSpinLock::LockWeak, &PreferSpinLock::UnlockWeak>(*this);
+    }
+    auto StrongScope()
+    {
+        return detail::LockScope<PreferSpinLock, &PreferSpinLock::LockStrong, &PreferSpinLock::UnlockStrong>(*this);
+    }
 };
 
 struct WRSpinLock : public NonCopyable, public NonMovable //Writer-first
@@ -118,6 +145,14 @@ public:
             expected |= 0x80000000; //ensure there's a writer
         }
     }
+    auto ReadScope()
+    {
+        return detail::LockScope<WRSpinLock, &WRSpinLock::LockRead, &WRSpinLock::UnlockRead>(*this);
+    }
+    auto WriteScope()
+    {
+        return detail::LockScope<WRSpinLock, &WRSpinLock::LockWrite, &WRSpinLock::UnlockWrite>(*this);
+    }
 };
 
 struct RWSpinLock : public NonCopyable, public NonMovable //Reader-first
@@ -153,6 +188,14 @@ public:
         {
             expected |= 0x80000000; //ensure there's a writer
         }
+    }
+    auto ReadScope()
+    {
+        return detail::LockScope<RWSpinLock, &RWSpinLock::LockRead, &RWSpinLock::UnlockRead>(*this);
+    }
+    auto WriteScope()
+    {
+        return detail::LockScope<RWSpinLock, &RWSpinLock::LockWrite, &RWSpinLock::UnlockWrite>(*this);
     }
     //unsuported, may cause deadlock
     //void UpgradeToWrite()
