@@ -34,6 +34,11 @@ public:
 };
 }
 
+struct EmptyLock
+{
+    void lock() {}
+    void unlock() {}
+};
 
 struct SpinLocker : public NonCopyable
 {

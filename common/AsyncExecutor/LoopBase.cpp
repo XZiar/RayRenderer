@@ -7,28 +7,122 @@ namespace common::asyexe
 {
 
 
-struct LoopBase::LoopHost : public NonCopyable, public NonMovable
+struct LoopExecutor::ControlBlock
+{
+    std::mutex ControlMtx, RunningMtx;
+    std::condition_variable_any StopCond;
+};
+
+bool LoopExecutor::Start()
+{
+    std::unique_lock<std::mutex> ctrlLock(Control->ControlMtx); //ensure no one call stop
+    if (IsRunning.exchange(true)) // not exit yet
+        return false;
+    return OnStart();
+}
+bool LoopExecutor::Stop()
+{
+    std::unique_lock<std::mutex> ctrlLock(Control->ControlMtx); //ensure no one call stop again
+    if (!IsRunning)
+        return false;
+    RequestStop = true;
+    return OnStop();
+}
+void LoopExecutor::RunLoop() noexcept
+{
+    Loop.MainLoop();
+    IsRunning = false;
+}
+LoopExecutor::LoopExecutor(LoopBase& loop) : Loop(loop), Control(new ControlBlock())
+{ }
+LoopExecutor::~LoopExecutor()
+{
+    delete Control;
+}
+
+
+class ThreadedExecutor : public LoopExecutor
 {
     std::thread MainThread;
-    std::mutex RunningMtx, ControlMtx;
-    std::condition_variable SleepCond, StopCond;
+    std::condition_variable SleepCond;
+    std::unique_lock<std::mutex> RunningLock;
+protected:
+    virtual void Sleep() override
+    {
+        SleepCond.wait(RunningLock);
+    }
+    virtual void Wakeup() override
+    {
+        SleepCond.notify_one();
+    }
+    virtual bool OnStart() override
+    {
+        if (MainThread.joinable())
+            MainThread.join();
+        RequestStop = false;
+        MainThread = std::thread([&]() 
+            {
+                RunningLock = std::unique_lock<std::mutex>(Control->RunningMtx);
+                this->RunLoop();
+                RunningLock = {};
+                Control->StopCond.notify_one();
+            });
+        return true;
+    }
+    virtual bool OnStop() override
+    {
+        std::unique_lock<std::mutex> runningLock(Control->RunningMtx); //wait until thread sleep or ends
+        if (IsRunning)
+        {
+            Wakeup();
+            Control->StopCond.wait(runningLock, [&]() { return !IsRunning; });
+        }
+        return true;
+    }
+public:
+    ThreadedExecutor(LoopBase& loop) : LoopExecutor(loop) {}
+    virtual ~ThreadedExecutor() {}
 };
+
+
+void InplaceExecutor::Sleep() { } // do nothing
+void InplaceExecutor::Wakeup() { } // do nothing
+bool InplaceExecutor::OnStart()
+{
+    return true;
+}
+bool InplaceExecutor::OnStop() 
+{
+    std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+    return true;
+}
+bool InplaceExecutor::RunInplace()
+{
+    if (IsRunning)
+    {
+        std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+        this->RunLoop();
+        return true;
+    }
+    return false;
+}
+
+
 
 
 void LoopBase::MainLoop() noexcept
 {
-    std::unique_lock<std::mutex> runningLock(Host->RunningMtx);
     if (!OnStart())
         return;
-    while (!RequestStop.load(std::memory_order_relaxed))
+    while (!Host->RequestStop.load(std::memory_order_relaxed))
     {
-        try 
+        try
         {
             const auto state = OnLoop();
             if (state == LoopState::Finish)
                 break;
             if (state == LoopState::Sleep)
-                Host->SleepCond.wait(runningLock);
+                Host->Sleep();
         }
         catch (...)
         {
@@ -37,52 +131,41 @@ void LoopBase::MainLoop() noexcept
         }
     }
     OnStop();
-    IsRunning = false;
-    Host->StopCond.notify_one();
 }
 
 void LoopBase::Wakeup() const
 {
-    Host->SleepCond.notify_one();
+    Host->Wakeup();
 }
 
-LoopBase::LoopBase() : Host(new LoopHost())
+LoopBase::LoopBase(std::unique_ptr<LoopExecutor>&& host) : Host(std::move(host))
 {
 }
 
 LoopBase::~LoopBase()
 {
     Stop();
-    delete Host;
 }
 
 bool LoopBase::Start()
 {
-    std::unique_lock<std::mutex> ctrlLock(Host->ControlMtx); //ensure no one call stop
-    if (IsRunning.exchange(true)) // not exit yet
-        return false;
-    if (Host->MainThread.joinable())
-        Host->MainThread.join();
-    RequestStop = false;
-    Host->MainThread = std::thread([&]() { this->MainLoop(); });
-    return true;
+    return Host->Start();
 }
 
 bool LoopBase::Stop()
 {
-    std::unique_lock<std::mutex> ctrlLock(Host->ControlMtx); //ensure no one call stop again
-    if (!IsRunning)
-        return false;
-    RequestStop = true;
-    {
-        std::unique_lock<std::mutex> runningLock(Host->RunningMtx); //wait until thread sleep or ends
-        if (IsRunning)
-        {
-            Wakeup();
-            Host->StopCond.wait(runningLock, [&]() { return !IsRunning; });
-        }
-    }
-    return true;
+    return Host->Stop();
 }
+
+std::unique_ptr<LoopExecutor> LoopBase::GetThreadedExecutor(LoopBase& loop)
+{
+    return std::unique_ptr<LoopExecutor>(new ThreadedExecutor(loop));
+}
+std::unique_ptr<LoopExecutor> LoopBase::GetInplaceExecutor(LoopBase& loop)
+{
+    return std::unique_ptr<LoopExecutor>(new InplaceExecutor(loop));
+}
+
+
 
 }
