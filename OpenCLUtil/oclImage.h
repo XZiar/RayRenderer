@@ -6,6 +6,12 @@
 #include "oclContext.h"
 #include "oclException.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
 namespace oclu
 {
 
@@ -127,3 +133,7 @@ using oclGLInterImg2D = Wrapper<detail::_oclGLInterImg2D>;
 using oclGLInterImg3D = Wrapper<detail::_oclGLInterImg3D>;
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

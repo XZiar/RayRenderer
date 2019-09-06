@@ -284,6 +284,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyDockTest", "Tests\AnyDoc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonUtil", "CommonUtil\CommonUtil.csproj", "{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Blur", "Tests\Blur\Blur.vcxproj", "{43B6E40D-793D-4224-897C-74DA6489619E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -461,6 +463,10 @@ Global
 		{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}.Debug|x64.Build.0 = Debug|Any CPU
 		{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}.Release|x64.ActiveCfg = Release|Any CPU
 		{E145898E-CE93-478E-A0C8-49A8C7AFB7A6}.Release|x64.Build.0 = Release|Any CPU
+		{43B6E40D-793D-4224-897C-74DA6489619E}.Debug|x64.ActiveCfg = Debug|x64
+		{43B6E40D-793D-4224-897C-74DA6489619E}.Debug|x64.Build.0 = Debug|x64
+		{43B6E40D-793D-4224-897C-74DA6489619E}.Release|x64.ActiveCfg = Release|x64
+		{43B6E40D-793D-4224-897C-74DA6489619E}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -519,6 +525,7 @@ Global
 		{C04C4904-299E-4297-9990-8E1816767520} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{AC74696C-25FD-4BFA-8704-ECB03E6C4CE0} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{E145898E-CE93-478E-A0C8-49A8C7AFB7A6} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
+		{43B6E40D-793D-4224-897C-74DA6489619E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

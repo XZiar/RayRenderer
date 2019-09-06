@@ -54,7 +54,7 @@ static int32_t JudgeVendor(const Vendor vendor)
 
 static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, const oglContext glContext)
 {
-    const auto venderClPlat = Linq::FromIterable(oclUtil::getPlatforms())
+    const auto venderClPlat = Linq::FromIterable(oclUtil::GetPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
@@ -62,7 +62,7 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
         .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
         COMMON_THROW(BaseException, u"No avaliable OpenCL Platform found");
-    const auto glPlat = Linq::FromIterable(oclUtil::getPlatforms())
+    const auto glPlat = Linq::FromIterable(oclUtil::GetPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Where([&](const auto& plat) { return plat->IsGLShared(glContext); })

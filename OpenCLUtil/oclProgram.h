@@ -7,6 +7,12 @@
 #include "oclImage.h"
 
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
 namespace oclu
 {
 
@@ -163,3 +169,8 @@ using oclProgram = Wrapper<detail::_oclProgram>;
 
 }
 
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

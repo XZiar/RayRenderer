@@ -22,11 +22,11 @@ static void OCLStub()
 {
     oclUtil::Init(false);
 
-    Linq::FromIterable(oclUtil::getPlatforms())
+    Linq::FromIterable(oclUtil::GetPlatforms())
         .ForEach([i = 0u](const auto& plat) mutable { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
     uint32_t platidx = 0;
     std::cin >> platidx;
-    const auto plat = oclUtil::getPlatforms()[platidx];
+    const auto plat = oclUtil::GetPlatforms()[platidx];
 
     auto thedev = Linq::FromIterable(plat->GetDevices())
         .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })

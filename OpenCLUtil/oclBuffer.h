@@ -4,6 +4,12 @@
 #include "oclCmdQue.h"
 #include "oclMem.h"
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
 namespace oclu
 {
 
@@ -79,3 +85,8 @@ using oclGLBuffer = Wrapper<detail::_oclGLBuffer>;
 using oclGLInterBuf = Wrapper<detail::_oclGLInterBuf>;
 
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

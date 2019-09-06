@@ -5,11 +5,11 @@ namespace oclu
 {
 
 
-vector<oclPlatform> oclUtil::platforms;
+static vector<oclPlatform> CL_Platforms;
 
 void oclUtil::Init(const bool checkGL)
 {
-    platforms.clear();
+    CL_Platforms.clear();
     cl_uint numPlatforms = 0;
     clGetPlatformIDs(0, nullptr, &numPlatforms);
     //Get all Platforms
@@ -20,7 +20,7 @@ void oclUtil::Init(const bool checkGL)
     {
         auto plt = oclPlatform(new detail::_oclPlatform(pID));
         plt->Init();
-        platforms.push_back(plt);
+        CL_Platforms.push_back(plt);
         auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
         fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plt->Name, plt->Ver, plt->IsGLShared(curGLCtx) ? 'Y' : 'N');
         for (const auto dev : plt->GetDevices())
@@ -30,9 +30,14 @@ void oclUtil::Init(const bool checkGL)
     }
 }
 
+const vector<oclPlatform>& oclUtil::GetPlatforms()
+{
+    return CL_Platforms;
+}
+
 oclContext oclUtil::CreateGLSharedContext(const oglu::oglContext & ctx)
 {
-    for (const auto& plat : platforms)
+    for (const auto& plat : CL_Platforms)
     {
         if (plat->IsGLShared(ctx))
             return plat->CreateContext(ctx);
