@@ -18,10 +18,10 @@ struct JpegHelper
     static boolean ReadFromFile(j_decompress_ptr cinfo)
     {
         auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
-        auto& imgFile = reader->ImgFile;
+        auto& stream = reader->Stream;
         auto& buffer = reader->Buffer;
-        const auto readSize = std::min(imgFile.LeftSpace(), buffer.GetSize());
-        if (imgFile.Read(readSize, buffer.GetRawPtr()))
+        const auto readSize = std::min(stream->GetSize() - stream->CurrentPos(), buffer.GetSize());
+        if (stream->Read(readSize, buffer.GetRawPtr()))
         {
             cinfo->src->bytes_in_buffer = readSize;
             cinfo->src->next_input_byte = buffer.GetRawPtr<uint8_t>();
@@ -31,17 +31,27 @@ struct JpegHelper
 
     static void SkipFile(j_decompress_ptr cinfo, long bytes)
     {
-        auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
-        auto& imgFile = reader->ImgFile;
-        imgFile.Skip(bytes);
+        if (cinfo->src->bytes_in_buffer >= bytes)
+        {
+            cinfo->src->bytes_in_buffer -= bytes;
+            cinfo->src->next_input_byte += bytes;
+        }
+        else
+        {
+            bytes -= cinfo->src->bytes_in_buffer;
+            cinfo->src->bytes_in_buffer = 0;
+            auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
+            auto& stream = reader->Stream;
+            stream->Skip(bytes);
+        }
     }
 
     static boolean WriteToFile(j_compress_ptr cinfo)
     {
         auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
-        auto& imgFile = writer->ImgFile;
+        auto& stream = writer->Stream;
         auto& buffer = writer->Buffer;
-        if (imgFile.Write(buffer.GetSize(), buffer.GetRawPtr()))
+        if (stream->Write(buffer.GetSize(), buffer.GetRawPtr()))
         {
             cinfo->dest->free_in_buffer = buffer.GetSize();
             cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
@@ -52,10 +62,10 @@ struct JpegHelper
     static void FlushToFile(j_compress_ptr cinfo)
     {
         auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
-        auto& imgFile = writer->ImgFile;
+        auto& stream = writer->Stream;
         auto& buffer = writer->Buffer;
         const auto writeSize = buffer.GetSize() - cinfo->dest->free_in_buffer;
-        if (imgFile.Write(writeSize, buffer.GetRawPtr()))
+        if (stream->Write(writeSize, buffer.GetRawPtr()))
         {
             cinfo->dest->free_in_buffer = buffer.GetSize();
             cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
@@ -86,7 +96,7 @@ struct JpegHelper
     }
 };
 
-JpegReader::JpegReader(FileObject& file) : ImgFile(file), Buffer(65536)
+JpegReader::JpegReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream), Buffer(65536)
 {
     auto decompStruct = new jpeg_decompress_struct();
     JpegDecompStruct = decompStruct;
@@ -126,7 +136,7 @@ JpegReader::~JpegReader()
 
 bool JpegReader::Validate()
 {
-    ImgFile.Rewind();
+    Stream->SetPos(0);
     auto decompStruct = (j_decompress_ptr)JpegDecompStruct;
     try
     {
@@ -178,7 +188,7 @@ Image JpegReader::Read(const ImageDataType dataType)
 }
 
 
-JpegWriter::JpegWriter(FileObject& file) : ImgFile(file), Buffer(65536)
+JpegWriter::JpegWriter(const std::unique_ptr<RandomOutputStream>& stream) : Stream(stream), Buffer(65536)
 {
     auto compStruct = new jpeg_compress_struct();
     JpegCompStruct = compStruct;

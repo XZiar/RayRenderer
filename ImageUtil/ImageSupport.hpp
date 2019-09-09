@@ -10,8 +10,10 @@
 
 namespace xziar::img
 {
-using common::file::BufferedFileReader;
-using common::file::FileObject;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
+using common::io::BufferedRandomInputStream;
+//using common::io::BufferedRandomOutputStream;
 using common::Wrapper;
 
 
@@ -22,7 +24,6 @@ public:
     virtual ~ImgReader() {}
     virtual bool Validate() = 0;
     virtual Image Read(const ImageDataType dataType) = 0;
-    virtual void Release() {}
 };
 
 class IMGUTILAPI ImgWriter : public common::NonCopyable
@@ -39,8 +40,8 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const u16string Name;
-    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string& ext) const = 0;
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string& ext) const = 0;
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 

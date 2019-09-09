@@ -18,13 +18,13 @@ class IMGUTILAPI JpegReader : public ImgReader
 {
     friend JpegHelper;
 private:
-    FileObject & ImgFile;
+    const std::unique_ptr<RandomInputStream>& Stream;
     common::AlignedBuffer Buffer;
     void *JpegDecompStruct = nullptr;
     void *JpegSource = nullptr;
     void *JpegErrorHandler = nullptr;
 public:
-    JpegReader(FileObject& file);
+    JpegReader(const std::unique_ptr<RandomInputStream>& stream);
     virtual ~JpegReader() override;
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -34,13 +34,13 @@ class IMGUTILAPI JpegWriter : public ImgWriter
 {
     friend JpegHelper;
 private:
-    FileObject& ImgFile;
+    const std::unique_ptr<RandomOutputStream>& Stream;
     common::AlignedBuffer Buffer;
     void *JpegCompStruct = nullptr;
     void *JpegDest = nullptr;
     void *JpegErrorHandler = nullptr;
 public:
-    JpegWriter(FileObject& file);
+    JpegWriter(const std::unique_ptr<RandomOutputStream>& stream);
     virtual ~JpegWriter() override;
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -50,10 +50,18 @@ class IMGUTILAPI JpegSupport : public ImgSupport
 public:
     JpegSupport() : ImgSupport(u"Jpeg") {}
     virtual ~JpegSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<JpegReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<JpegWriter>(file).cast_dynamic<ImgWriter>(); }
+    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<JpegReader>(stream);
+    }
+    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<JpegWriter>(stream);
+    }
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
-    { return (ext == u".JPEG" || ext == u".JPG") ? 240 : 0; }
+    { 
+        return (ext == u"JPEG" || ext == u"JPG") ? 240 : 0;
+    }
 };
 
 }

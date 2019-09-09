@@ -28,15 +28,15 @@ public:
     }
     void WriteMtl() const
     {
-        BufferedFileWriter mtlFile(FileObject::OpenThrow(PathMtl, OpenFlag::CreatNewBinary), 65536);
-        mtlFile.Write(BOM_UTF16LE);
+        FileOutputStream mtlFile(FileObject::OpenThrow(PathMtl, OpenFlag::CreatNewBinary));
+        mtlFile.WriteFrom(BOM_UTF16LE);
         const auto header = fmt::format(u"#XZiar Dizz Renderer MTL Exporter\r\n#Created at {:%Y-%m-%d %H:%M:%S}\r\n\r\n", SimpleTimer::getCurLocalTime());
         mtlFile.Write(header.size() * sizeof(char16_t), header.data());
     }
     void WriteObj() const
     {
-        BufferedFileWriter objFile(FileObject::OpenThrow(PathMtl, OpenFlag::CreatNewBinary), 65536);
-        objFile.Write(BOM_UTF16LE);
+        FileOutputStream objFile(FileObject::OpenThrow(PathObj, OpenFlag::CreatNewBinary));
+        objFile.WriteFrom(BOM_UTF16LE);
         const auto header = fmt::format(u"#XZiar Dizz Renderer OBJ Exporter\r\n#Created at {:%Y-%m-%d %H:%M:%S}\r\n\r\n", SimpleTimer::getCurLocalTime());
         objFile.Write(header.size() * sizeof(char16_t), header.data());
     }

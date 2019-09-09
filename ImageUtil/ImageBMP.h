@@ -44,27 +44,25 @@ constexpr size_t BMP_INFO_SIZE = sizeof(BmpInfo);
 class IMGUTILAPI BmpReader : public ImgReader
 {
 private:
-    FileObject& OriginalFile;
-    BufferedFileReader ImgFile;
+    const std::unique_ptr<RandomInputStream>& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpReader(FileObject& file);
+    BmpReader(const std::unique_ptr<RandomInputStream>& stream);
     virtual ~BmpReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
-    virtual void Release() override;
 };
 
 
 class IMGUTILAPI BmpWriter : public ImgWriter
 {
 private:
-    FileObject& ImgFile;
+    const std::unique_ptr<RandomOutputStream>& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpWriter(FileObject& file);
+    BmpWriter(const std::unique_ptr<RandomOutputStream>& stream);
     virtual ~BmpWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -74,9 +72,18 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<BmpReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<BmpWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".BMP" ? 240 : 0; }
+    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<BmpReader>(stream);
+    }
+    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<BmpWriter>(stream);
+    }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    { 
+        return ext == u"BMP" ? 240 : 0;
+    }
 };
 
 

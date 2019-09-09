@@ -12,11 +12,11 @@ using namespace common;
 class IMGUTILAPI PngReader : public ImgReader
 {
 private:
-    FileObject& ImgFile;
+    const std::unique_ptr<RandomInputStream>& Stream;
     void *PngStruct = nullptr;
     void *PngInfo = nullptr;
 public:
-    PngReader(FileObject& file);
+    PngReader(const std::unique_ptr<RandomInputStream>& stream);
     virtual ~PngReader() override;
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -25,11 +25,11 @@ public:
 class IMGUTILAPI PngWriter : public ImgWriter
 {
 private:
-    FileObject& ImgFile;
+    const std::unique_ptr<RandomOutputStream>& Stream;
     void *PngStruct = nullptr;
     void *PngInfo = nullptr;
 public:
-    PngWriter(FileObject& file);
+    PngWriter(const std::unique_ptr<RandomOutputStream>& stream);
     virtual ~PngWriter() override;
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -39,9 +39,18 @@ class IMGUTILAPI PngSupport : public ImgSupport
 public:
     PngSupport() : ImgSupport(u"Png") {}
     virtual ~PngSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<PngReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<PngWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".PNG" ? 240 : 0; }
+    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<PngReader>(stream);
+    }
+    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<PngWriter>(stream);
+    }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    { 
+        return ext == u"PNG" ? 240 : 0;
+    }
 };
 
 

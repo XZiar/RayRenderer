@@ -54,24 +54,22 @@ struct ColorMapInfo
 class IMGUTILAPI TgaReader : public ImgReader
 {
 private:
-    FileObject & OriginalFile;
-    BufferedFileReader ImgFile;
+    const std::unique_ptr<RandomInputStream>& Stream;
     detail::TgaHeader Header;
     int32_t Width, Height;
 public:
-    TgaReader(FileObject& file);
+    TgaReader(const std::unique_ptr<RandomInputStream>& stream);
     virtual ~TgaReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
-    virtual void Release() override;
 };
 
 class IMGUTILAPI TgaWriter : public ImgWriter
 {
 private:
-    FileObject& ImgFile;
+    const std::unique_ptr<RandomOutputStream>& Stream;
 public:
-    TgaWriter(FileObject& file);
+    TgaWriter(const std::unique_ptr<RandomOutputStream>& stream);
     virtual ~TgaWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -83,9 +81,18 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual Wrapper<ImgReader> GetReader(FileObject& file, const u16string&) const override { return Wrapper<TgaReader>(file).cast_dynamic<ImgReader>(); }
-    virtual Wrapper<ImgWriter> GetWriter(FileObject& file, const u16string&) const override { return Wrapper<TgaWriter>(file).cast_dynamic<ImgWriter>(); }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override { return ext == u".TGA" ? 240 : 0; }
+    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<TgaReader>(stream);
+    }
+    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    {
+        return std::make_unique<TgaWriter>(stream);
+    }
+    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    { 
+        return ext == u"TGA" ? 240 : 0;
+    }
 };
 
 

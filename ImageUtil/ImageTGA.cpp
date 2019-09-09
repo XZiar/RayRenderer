@@ -7,20 +7,15 @@ namespace xziar::img::tga
 {
 
 
-TgaReader::TgaReader(FileObject& file) : OriginalFile(file), ImgFile(std::move(OriginalFile), 65536)
+TgaReader::TgaReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream)
 {
-}
-
-void TgaReader::Release()
-{
-    OriginalFile = ImgFile.Release();
 }
 
 bool TgaReader::Validate()
 {
     using detail::TGAImgType;
-    ImgFile.Rewind();
-    if (!ImgFile.Read(Header))
+    Stream->SetPos(0);
+    if (!Stream->Read(Header))
         return false;
     switch (Header.ColorMapType)
     {
@@ -75,7 +70,7 @@ public:
         case 15:
             {
                 std::vector<uint16_t> tmp(count);
-                reader.Read(count, tmp);
+                reader.ReadInto(tmp, count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
                     convert::BGR15ToRGBAs(destPtr, tmp.data(), tmp.size());
@@ -85,7 +80,7 @@ public:
         case 16:
             {
                 std::vector<uint16_t> tmp(count);
-                reader.Read(count, tmp);
+                reader.ReadInto(tmp, count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
                     convert::BGR16ToRGBAs(destPtr, tmp.data(), count);
@@ -130,7 +125,7 @@ public:
         case 16:
             {
                 std::vector<uint16_t> tmp(count);
-                reader.Read(count, tmp);
+                reader.ReadInto(tmp, count);
                 auto * __restrict destPtr = output.GetRawPtr();
                 if (isOutputRGB)
                     convert::BGR15ToRGBs(destPtr, tmp.data(), count);
@@ -182,14 +177,14 @@ public:
             if (header.PixelDepth == 8)
             {
                 std::vector<uint8_t> idxes;
-                reader.Read(count, idxes);
+                reader.ReadInto(idxes, count);
                 for (auto idx : idxes)
                     *destPtr++ = mapPtr[idx];
             }
             else if (header.PixelDepth == 16)
             {
                 std::vector<uint16_t> idxes;
-                reader.Read(count, idxes);
+                reader.ReadInto(idxes, count);
                 for (auto idx : idxes)
                     *destPtr++ = mapPtr[idx];
             }
@@ -201,7 +196,7 @@ public:
             if (header.PixelDepth == 8)
             {
                 std::vector<uint8_t> idxes;
-                reader.Read(count, idxes);
+                reader.ReadInto(idxes, count);
                 for (auto idx : idxes)
                 {
                     const size_t idx3 = idx * 3;
@@ -213,7 +208,7 @@ public:
             else if (header.PixelDepth == 16)
             {
                 std::vector<uint16_t> idxes;
-                reader.Read(count, idxes);
+                reader.ReadInto(idxes, count);
                 for (auto idx : idxes)
                 {
                     const size_t idx3 = idx * 3;
@@ -469,7 +464,7 @@ public:
 class RLEFileDecoder
 {
 private:
-    BufferedFileReader& ImgFile;
+    const std::unique_ptr<RandomInputStream>& Stream;
     const uint8_t ElementSize;
     static inline uint8_t ByteToSize(const byte b)
     {
@@ -479,14 +474,14 @@ private:
     {
         while (limit)
         {
-            const byte info = ImgFile.ReadByteNE();
+            const byte info = Stream->ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
             limit -= size;
             if (::HAS_FIELD(info, 0x80))
             {
-                const auto obj = ImgFile.ReadByteNE<uint8_t>();
+                const auto obj = Stream->ReadByteNE<uint8_t>();
                 common::copy::BroadcastMany(output, size, obj, size);
                 output += size;
                 /*for (auto count = size; count--;)
@@ -494,7 +489,7 @@ private:
             }
             else
             {
-                if (!ImgFile.Read(size, output))
+                if (!Stream->Read(size, output))
                     return false;
                 output += size;
             }
@@ -505,7 +500,7 @@ private:
     {
         while (limit)
         {
-            const byte info = ImgFile.ReadByteNE();
+            const byte info = Stream->ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
@@ -513,7 +508,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
             {
                 uint16_t obj;
-                if (!ImgFile.Read(obj))
+                if (!Stream->Read(obj))
                     return false;
                 common::copy::BroadcastMany(output, size, obj, size);
                 output += size;
@@ -522,7 +517,7 @@ private:
             }
             else
             {
-                if (!ImgFile.Read(size * 2, output))
+                if (!Stream->Read(size * 2, output))
                     return false;
                 output += size;
             }
@@ -533,7 +528,7 @@ private:
     {
         while (limit)
         {
-            const byte info = ImgFile.ReadByteNE();
+            const byte info = Stream->ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
@@ -541,7 +536,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
             {
                 uint8_t obj[3];
-                if (!ImgFile.Read(3, obj))//use array load will keep invoke ftell(), which serverely decrease the performance
+                if (!Stream->Read(3, obj))//use array load will keep invoke ftell(), which serverely decrease the performance
                     return false;
                 for (auto count = size; count--;)
                 {
@@ -552,7 +547,7 @@ private:
             }
             else
             {
-                if (!ImgFile.Read(size * 3, output))
+                if (!Stream->Read(size * 3, output))
                     return false;
                 output += size * 3;
             }
@@ -563,7 +558,7 @@ private:
     {
         while (limit)
         {
-            const byte info = ImgFile.ReadByteNE();
+            const byte info = Stream->ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
@@ -571,7 +566,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
             {
                 uint32_t obj;
-                if (!ImgFile.Read(obj))
+                if (!Stream->Read(obj))
                     return false;
                 common::copy::BroadcastMany(output, size, obj, size);
                 output += size;
@@ -580,7 +575,7 @@ private:
             }
             else
             {
-                if (!ImgFile.Read(size * 4, output))
+                if (!Stream->Read(size * 4, output))
                     return false;
                 output += size;
             }
@@ -588,11 +583,12 @@ private:
         return true;
     }
 public:
-    RLEFileDecoder(BufferedFileReader& file, const uint8_t elementDepth) : ImgFile(file), ElementSize(elementDepth == 15 ? 2 : (elementDepth / 8)) {}
-    void Skip(const size_t offset = 0) { ImgFile.Skip(offset); }
+    RLEFileDecoder(const std::unique_ptr<RandomInputStream>& stream, const uint8_t elementDepth) 
+        : Stream(stream), ElementSize(elementDepth == 15 ? 2 : (elementDepth / 8)) {}
+    void Skip(const size_t offset = 0) { Stream->Skip(offset); }
 
-    template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
-    size_t Read(const size_t count, T& output)
+    template<class T>
+    size_t ReadInto(T& output, size_t count)
     {
         return Read(count * sizeof(typename T::value_type), output.data()) ? count : 0;
     }
@@ -624,27 +620,27 @@ Image TgaReader::Read(const ImageDataType dataType)
         return image;
     if (image.IsGray() && REMOVE_MASK(Header.ImageType, detail::TGAImgType::RLE_MASK) != detail::TGAImgType::GRAY)//down-convert, not supported
         return image;
-    ImgFile.Rewind(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
+    Stream->SetPos(detail::TGA_HEADER_SIZE + Header.IdLength);//Next ColorMap(optional)
     image.SetSize(Width, Height);
     if (Header.ColorMapType)
     {
         if (HAS_FIELD(Header.ImageType, detail::TGAImgType::RLE_MASK))
         {
-            RLEFileDecoder decoder(ImgFile, Header.PixelDepth);
-            TgaHelper::ReadFromColorMapped(Header, image, ImgFile, decoder);
+            RLEFileDecoder decoder(Stream, Header.PixelDepth);
+            TgaHelper::ReadFromColorMapped(Header, image, *Stream, decoder);
         }
         else
-            TgaHelper::ReadFromColorMapped(Header, image, ImgFile, ImgFile);
+            TgaHelper::ReadFromColorMapped(Header, image, *Stream, *Stream);
     }
     else
     {
         if (HAS_FIELD(Header.ImageType, detail::TGAImgType::RLE_MASK))
         {
-            RLEFileDecoder decoder(ImgFile, Header.PixelDepth);
+            RLEFileDecoder decoder(Stream, Header.PixelDepth);
             TgaHelper::ReadDirect(Header, image, decoder);
         }
         else
-            TgaHelper::ReadDirect(Header, image, ImgFile);
+            TgaHelper::ReadDirect(Header, image, *Stream);
     }
     timer.Stop();
     ImgLog().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
@@ -665,7 +661,7 @@ Image TgaReader::Read(const ImageDataType dataType)
     return image;
 }
 
-TgaWriter::TgaWriter(FileObject& file) : ImgFile(file)
+TgaWriter::TgaWriter(const std::unique_ptr<RandomOutputStream>& stream) : Stream(stream)
 {
 }
 
@@ -691,17 +687,17 @@ void TgaWriter::Write(const Image& image, const uint8_t)
     header.PixelDepth = image.GetElementSize() * 8;
     header.ImageDescriptor = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? 0x28 : 0x20;
     
-    ImgFile.Write(header);
-    ImgFile.Write(identity);
+    Stream->Write(header);
+    Stream->Write(identity);
     SimpleTimer timer;
     timer.Start();
     //next: true image data
     if (image.IsGray())
-        TgaHelper::WriteRLEGray(image, ImgFile);
+        TgaHelper::WriteRLEGray(image, *Stream);
     else if (HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK))
-        TgaHelper::WriteRLEColor4(image, ImgFile);
+        TgaHelper::WriteRLEColor4(image, *Stream);
     else
-        TgaHelper::WriteRLEColor3(image, ImgFile);
+        TgaHelper::WriteRLEColor3(image, *Stream);
     timer.Stop();
     ImgLog().debug(u"zextga write cost {} ms\n", timer.ElapseMs());
 }

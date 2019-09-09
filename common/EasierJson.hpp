@@ -1,6 +1,6 @@
 #pragma once
-#include "common/CommonRely.hpp"
-#include "common/FileEx.hpp"
+#include "CommonRely.hpp"
+#include "Stream.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -230,21 +230,20 @@ public:
 
 namespace detail
 {
-template<class T>
 class WriteStreamWrapper
 {
 private:
-    T & Backend;
+    common::io::OutputStream& Backend;
 public:
     using Ch = char;
-    WriteStreamWrapper(T& backend) : Backend(backend) { }
+    WriteStreamWrapper(common::io::OutputStream& backend) : Backend(backend) { }
     char Peek() const { assert(false); return '\0'; }
     char Take() { assert(false); return '\0'; }
     size_t Tell() const { assert(false); return 0; }
     char* PutBegin() { assert(false); return nullptr; }
     void Put(char c)
     {
-        Backend.WriteByteNE(c);
+        Backend.Write(c);
     }
     void Flush()
     {
@@ -252,24 +251,23 @@ public:
     }
     size_t PutEnd(char*) { assert(false); return 0; }
 };
-template<class T>
 class ReadStreamWrapper
 {
 private:
-    T & Backend;
+    common::io::RandomInputStream& Backend;
 public:
     using Ch = char;
-    ReadStreamWrapper(T& backend) : Backend(backend) { }
+    ReadStreamWrapper(common::io::RandomInputStream& backend) : Backend(backend) { }
     char Peek() const
     {
         const auto pos = Backend.CurrentPos();
         const char data = Take();
-        Backend.Rewind(pos);
+        Backend.SetPos(pos);
         return data;
     }
-    char Take()
+    char Take() const
     {
-        return static_cast<char>(Backend.ReadByteNE());
+        return Backend.ReadByteNE<char>();
     }
     size_t Tell() const
     {
@@ -311,18 +309,17 @@ public:
         }
         return strBuf.GetString();
     }
-    template<class T>
-    void Stringify(T& writeBackend, const bool pretty = false) const
+    void Stringify(common::io::OutputStream& writeBackend, const bool pretty = false) const
     {
-        detail::WriteStreamWrapper<T> streamer(writeBackend);
+        detail::WriteStreamWrapper streamer(writeBackend);
         if (pretty)
         {
-            rapidjson::PrettyWriter<detail::WriteStreamWrapper<T>> writer(streamer);
+            rapidjson::PrettyWriter<detail::WriteStreamWrapper> writer(streamer);
             ValRef().Accept(writer);
         }
         else
         {
-            rapidjson::Writer<detail::WriteStreamWrapper<T>> writer(streamer);
+            rapidjson::Writer<detail::WriteStreamWrapper> writer(streamer);
             ValRef().Accept(writer);
         }
     }

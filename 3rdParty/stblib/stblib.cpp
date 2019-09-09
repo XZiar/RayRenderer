@@ -20,27 +20,27 @@ using common::file::FileException;
 
 static int ReadFile(void *user, char *data, int size)
 {
-    auto& file = *static_cast<common::file::FileObject*>(user);
-    return (int)file.ReadMany(size, data);
+    auto& stream = *static_cast<common::file::FileInputStream*>(user);
+    return (int)stream.ReadMany(size, 1, data);
 }
 static void SkipFile(void *user, int n)
 {
-    auto& file = *static_cast<common::file::FileObject*>(user);
-    file.Rewind(file.CurrentPos() + n);
+    auto& stream = *static_cast<common::file::FileInputStream*>(user);
+    stream.Skip(n);
 }
 static int IsEof(void *user)
 {
-    auto& file = *static_cast<common::file::FileObject*>(user);
-    return file.IsEnd() ? 1 : 0;
+    auto& stream = *static_cast<common::file::FileInputStream*>(user);
+    return stream.IsEnd() ? 1 : 0;
 }
 
 static constexpr stbi_io_callbacks FileCallback{ ReadFile, SkipFile, IsEof };
 
 std::tuple<int32_t, int32_t> loadImage(const common::fs::path& fpath, std::vector<uint32_t>& data)
 {
-    auto imgFile = file::FileObject::OpenThrow(fpath, file::OpenFlag::READ | file::OpenFlag::BINARY);
+    auto stream = file::FileInputStream(file::FileObject::OpenThrow(fpath, file::OpenFlag::READ | file::OpenFlag::BINARY));
     int width, height, comp;
-    auto ret = stbi_load_from_callbacks(&FileCallback, &imgFile, &width, &height, &comp, 4);
+    auto ret = stbi_load_from_callbacks(&FileCallback, &stream, &width, &height, &comp, 4);
     if (ret == nullptr)
         COMMON_THROW(FileException, FileException::Reason::ReadFail, fpath, u"cannot parse image");
 
@@ -63,15 +63,15 @@ std::vector<uint32_t> resizeImage(const std::vector<uint32_t>& input, const uint
 
 void writeToFile(void *context, void *data, int size)
 {
-    auto& file = *static_cast<common::file::FileObject*>(context);
-    file.Write(size, data);
+    auto& stream = *static_cast<common::file::FileOutputStream*>(context);
+    stream.Write(size, data);
 }
 
 
 void saveImage(const common::fs::path& fpath, const void *data, const uint32_t width, const uint32_t height, const uint8_t compCount)
 {
-    auto imgFile = file::FileObject::OpenThrow(fpath, file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY);
-    const auto ret = stbi_write_png_to_func(&writeToFile, &imgFile, (int)width, (int)height, compCount, data, 0);
+    auto stream = file::FileOutputStream(file::FileObject::OpenThrow(fpath, file::OpenFlag::CreatNewBinary));
+    const auto ret = stbi_write_png_to_func(&writeToFile, &stream, (int)width, (int)height, compCount, data, 0);
     if (ret == 0)
         COMMON_THROW(FileException, FileException::Reason::WriteFail, fpath, u"cannot parse image");
 }

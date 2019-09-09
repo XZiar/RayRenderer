@@ -90,23 +90,24 @@ public:
 class FileBackend : public LoggerQBackend
 {
 protected:
-    file::FileObject File;
+    file::FileOutputStream Stream;
     void virtual OnStart() override
     {
         common::SetThreadName(u"File-MLogger-Backend");
     }
     void virtual OnStop() override
     {
-        File.Flush();
+        Stream.Flush();
     }
 public:
-    FileBackend(const fs::path& path) : File(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::BINARY)) 
+    FileBackend(const fs::path& path) : 
+        Stream(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::BINARY))
     { } // using binary to bypass encoding
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
         auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
-        File.Write(buffer.size() * sizeof(char16_t), buffer.data());
+        Stream.Write(buffer.size() * sizeof(char16_t), buffer.data());
     }
 };
 

@@ -18,13 +18,13 @@ constexpr static size_t PNG_BYTES_TO_CHECK = 8;
 
 static void OnReadFile(png_structp pngStruct, uint8_t *data, size_t length)
 {
-    FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
-    file.Read(length, data);
+    auto& stream = *(RandomInputStream*)png_get_io_ptr(pngStruct);
+    stream.Read(length, data);
 }
 static void OnWriteFile(png_structp pngStruct, uint8_t *data, size_t length)
 {
-    FileObject& file = *(FileObject*)png_get_io_ptr(pngStruct);
-    file.Write(length, data);
+    auto& stream = *(RandomOutputStream*)png_get_io_ptr(pngStruct);
+    stream.Write(length, data);
 }
 static void OnFlushFile([[maybe_unused]] png_structp pngStruct) {}
 
@@ -98,9 +98,10 @@ static void ReadPng(void *pngStruct, const uint32_t passes, Image& image, const 
     ImgLog().debug(u"[png]post add alpha cost {} ms\n", timer.ElapseMs());
 }
 
-PngReader::PngReader(FileObject& file) : ImgFile(file), PngStruct(CreateReadStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
+PngReader::PngReader(const std::unique_ptr<RandomInputStream>& stream) : 
+    Stream(stream), PngStruct(CreateReadStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
 {
-    png_set_read_fn((png_structp)PngStruct, &ImgFile, OnReadFile);
+    png_set_read_fn((png_structp)PngStruct, Stream.get(), OnReadFile);
 }
 
 PngReader::~PngReader()
@@ -116,9 +117,9 @@ PngReader::~PngReader()
 
 bool PngReader::Validate()
 {
-    ImgFile.Rewind();
+    Stream->SetPos(0);
     uint8_t buf[PNG_BYTES_TO_CHECK];
-    if (ImgFile.Read(buf) != PNG_BYTES_TO_CHECK)
+    if (Stream->ReadInto(buf) != PNG_BYTES_TO_CHECK)
         return false;
     return !png_sig_cmp(buf, 0, PNG_BYTES_TO_CHECK);
 }
@@ -131,7 +132,7 @@ Image PngReader::Read(const ImageDataType dataType)
     if (HAS_FIELD(dataType, ImageDataType::FLOAT_MASK))
         //NotSupported Yet
         return image;
-    ImgFile.Rewind();
+    Stream->SetPos(0);
 
     png_read_info(pngStruct, pngInfo);
     uint32_t width = 0, height = 0;
@@ -198,9 +199,10 @@ Image PngReader::Read(const ImageDataType dataType)
 }
 
 
-PngWriter::PngWriter(FileObject& file) : ImgFile(file), PngStruct(CreateWriteStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
+PngWriter::PngWriter(const std::unique_ptr<RandomOutputStream>& stream) 
+    : Stream(stream), PngStruct(CreateWriteStruct()), PngInfo(CreateInfo((png_structp)PngStruct))
 {
-    png_set_write_fn((png_structp)PngStruct, &ImgFile, OnWriteFile, OnFlushFile);
+    png_set_write_fn((png_structp)PngStruct, Stream.get(), OnWriteFile, OnFlushFile);
 }
 
 PngWriter::~PngWriter()
@@ -223,7 +225,7 @@ void PngWriter::Write(const Image& image, const uint8_t quality)
     if (HAS_FIELD(image.GetDataType(), ImageDataType::FLOAT_MASK))
         //NotSupported Yet
         return;
-    ImgFile.Rewind();
+    Stream->SetPos(0);
 
     const auto alphaMask = HAS_FIELD(image.GetDataType(), ImageDataType::ALPHA_MASK) ? PNG_COLOR_MASK_ALPHA : 0;
     const auto colorMask = image.IsGray() ? PNG_COLOR_TYPE_GRAY : PNG_COLOR_TYPE_RGB;

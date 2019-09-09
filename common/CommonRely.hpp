@@ -237,7 +237,7 @@ template <class T, template <typename...> class Template>
 struct is_specialization : std::false_type {};
 template <template <typename...> class Template, typename... Ts>
 struct is_specialization<Template<Ts...>, Template> : std::true_type {};
-#if (defined(__cpp_nontype_template_parameter_auto) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+#if defined(__cpp_nontype_template_parameter_auto) || (defined(__cplusplus) && (__cplusplus >= 201703L))
 template <class T, template <auto...> class Template>
 struct is_specialization2 : std::false_type {};
 template <template <auto...> class Template, auto... Vs>

@@ -53,7 +53,7 @@ void _oglShader::compile()
 oglShader oglShader::LoadFromFile(const ShaderType type, const fs::path& path)
 {
     using namespace common::file;
-    string txt = FileObject::OpenThrow(path, OpenFlag::BINARY | OpenFlag::READ).ReadAllText();
+    string txt = common::file::ReadAllText(path);
     oglShader shader(type, txt);
     return shader;
 }

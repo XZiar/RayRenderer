@@ -72,8 +72,8 @@ bool ResourceItem::operator!=(const ResourceItem& other) const
 }
 
 SerializeUtil::SerializeUtil(const fs::path& fileName)
-    : DocWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
-    ResWriter(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CREATE | OpenFlag::BINARY | OpenFlag::WRITE), 65536),
+    : DocWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CreatNewBinary))),
+    ResWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CreatNewBinary))),
     SharedMap(DocRoot.Add("#global_map", DocRoot.NewObject()).GetObject("#global_map")), Root(DocRoot)
 {
     auto config = DocRoot.NewObject();
@@ -85,7 +85,7 @@ SerializeUtil::SerializeUtil(const fs::path& fileName)
 
 SerializeUtil::~SerializeUtil()
 {
-    DocWriter.Flush();
+    DocWriter->Flush();
 }
 
 ejson::JObject SerializeUtil::Serialize(const Serializable & object)
@@ -173,8 +173,8 @@ string SerializeUtil::PutResource(const void * data, const size_t size, const st
     if (findres)
         return ResourceList[findres.value()].ExtractHandle();
     ResourceSet.try_emplace(metadata.SHA256, ResCount);
-    ResWriter.Write(metadata);
-    ResWriter.Write(size, data);
+    ResWriter->Write(metadata);
+    ResWriter->Write(size, data);
     ResourceList.push_back(metadata);
     if (!id.empty())
         ResourceLookup.insert_or_assign(id, ResCount);
@@ -192,16 +192,16 @@ string SerializeUtil::LookupResource(const string & id) const
 void SerializeUtil::Finish()
 {
     CheckFinished();
-    ResWriter.Write(ResCount * RESITEM_SIZE, ResourceList.data());
+    ResWriter->Write(ResCount * RESITEM_SIZE, ResourceList.data());
     detail::ResourceItem sumdata(ResourceUtil::SHA256(ResourceList.data(), ResourceList.size() * RESITEM_SIZE), 0, ResOffset, ResCount);
     sumdata.Dummy[0] = byte('X');
     sumdata.Dummy[1] = byte('Z');
     sumdata.Dummy[2] = byte('P');
     sumdata.Dummy[3] = byte('K');
-    ResWriter.Write(sumdata);
-    ResWriter.Flush();
-    DocRoot.Stringify(DocWriter, IsPretty);
-    DocWriter.Flush();
+    ResWriter->Write(sumdata);
+    ResWriter->Flush();
+    DocRoot.Stringify(*DocWriter, IsPretty);
+    DocWriter->Flush();
     HasFinished = true;
 }
 
@@ -219,7 +219,7 @@ uint32_t DeserializeUtil::RegistDeserializer(const std::string_view& type, const
 }
 
 DeserializeUtil::DeserializeUtil(const fs::path & fileName)
-    : ResReader(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ), 65536),
+    : ResReader(std::make_unique<FileInputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ))),
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
@@ -227,12 +227,12 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
         .ToMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
             [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
-    const auto size = ResReader.GetSize();
+    const auto size = ResReader->GetSize();
     if (size < RESITEM_SIZE)
         COMMON_THROWEX(BaseException, u"wrong respak size");
     detail::ResourceItem sumdata;
-    ResReader.Rewind(size - RESITEM_SIZE);
-    ResReader.Read(sumdata);
+    ResReader->SetPos(size - RESITEM_SIZE);
+    ResReader->Read(sumdata);
     if (sumdata.Dummy[0] != byte('X') || sumdata.Dummy[1] != byte('Z') || sumdata.Dummy[2] != byte('P') || sumdata.Dummy[3] != byte('K'))
         COMMON_THROWEX(BaseException, u"wrong respak signature");
     const auto itemcount = sumdata.GetIndex();
@@ -241,8 +241,8 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
     if (offset + indexsize != size - sizeof(sumdata))
         COMMON_THROWEX(BaseException, u"wrong respak size");
     ResourceList.resize(itemcount);
-    ResReader.Rewind(offset);
-    ResReader.Read(indexsize, ResourceList.data());
+    ResReader->SetPos(offset);
+    ResReader->Read(indexsize, ResourceList.data());
     if (!sumdata.CheckSHA(ResourceUtil::SHA256(ResourceList.data(), indexsize)))
         COMMON_THROWEX(BaseException, u"wrong checksum for resource index");
     if (Linq::FromIterable(ResourceList)
@@ -271,13 +271,13 @@ common::AlignedBuffer DeserializeUtil::GetResource(const string& handle, const b
     if (!findres)
         return {};
     const auto& metadata = ResourceList[findres.value()];
-    ResReader.Rewind(metadata.GetOffset());
+    ResReader->SetPos(metadata.GetOffset());
     detail::ResourceItem item;
-    ResReader.Read(item);
+    ResReader->Read(item);
     if (metadata != item)
         COMMON_THROWEX(BaseException, u"unmatch resource metadata with resource index");
     common::AlignedBuffer ret((size_t)metadata.GetSize());
-    ResReader.Read((size_t)metadata.GetSize(), ret.GetRawPtr());
+    ResReader->Read((size_t)metadata.GetSize(), ret.GetRawPtr());
     if (cache)
         ResourceCache.emplace(handle, ret.CreateSubBuffer());
     return ret;

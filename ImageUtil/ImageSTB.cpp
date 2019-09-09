@@ -34,18 +34,18 @@ namespace xziar::img::stb
 
 static int ReadFile(void *user, char *data, int size)
 {
-    auto& file = *static_cast<FileObject*>(user);
-    return (int)file.ReadMany(size, data);
+    auto& stream = *static_cast<RandomInputStream*>(user);
+    return (int)stream.ReadMany(size, 1, data);
 }
 static void SkipFile(void *user, int n)
 {
-    auto& file = *static_cast<FileObject*>(user);
-    file.Rewind(file.CurrentPos() + n);
+    auto& stream = *static_cast<RandomInputStream*>(user);
+    stream.SetPos(stream.CurrentPos() + n); // n can be negative
 }
 static int IsEof(void *user)
 {
-    auto& file = *static_cast<FileObject*>(user);
-    return file.IsEnd() ? 1 : 0;
+    auto& stream = *static_cast<RandomInputStream*>(user);
+    return stream.IsEnd() ? 1 : 0;
 }
 static stbi_io_callbacks IOCallBack{ ReadFile, SkipFile, IsEof };
 
@@ -59,11 +59,12 @@ struct StbData
     }
 };
 
-StbReader::StbReader(FileObject& file) : ImgFile(file)
+
+StbReader::StbReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream)
 {
     auto context = new stbi__context();
     StbContext = context;
-    stbi__start_callbacks(context, &IOCallBack, &ImgFile);
+    stbi__start_callbacks(context, &IOCallBack, Stream.get());
 }
 
 StbReader::~StbReader()
@@ -152,7 +153,7 @@ Image StbReader::Read(const ImageDataType dataType)
 }
 
 
-StbWriter::StbWriter(FileObject& file, const u16string& ext) : ImgFile(file)
+StbWriter::StbWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string& ext) : Stream(stream)
 {
     if (ext == u".PNG")      
         TargetType = ImgType::PNG;
@@ -173,8 +174,8 @@ StbWriter::~StbWriter()
 
 static void WriteToFile(void *context, void *data, int size)
 {
-    auto& file = *static_cast<common::file::FileObject*>(context);
-    file.Write(size, data);
+    auto& stream = *static_cast<RandomOutputStream*>(context);
+    stream.Write(size, data);
 }
 
 void StbWriter::Write(const Image& image, const uint8_t quality)
@@ -185,10 +186,10 @@ void StbWriter::Write(const Image& image, const uint8_t quality)
     int32_t ret = 0; 
     switch (TargetType)
     {
-    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr(), 0); break;
-    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &ImgFile, width, height, reqComp, image.GetRawPtr(), quality); break;
+    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr(), 0); break;
+    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr(), quality); break;
     default:            COMMON_THROW(BaseException, u"unsupported image type");
     }
     if (ret == 0)
@@ -200,14 +201,14 @@ uint8_t StbSupport::MatchExtension(const u16string& ext, const ImageDataType, co
 {
     if (IsRead)
     {
-        if (ext == u".PPM" || ext == u".PGM")
+        if (ext == u"PPM" || ext == u"PGM")
             return 240;
-        if (ext == u".JPG" || ext == u".JPEG" || ext == u".PNG" || ext == u".BMP" || ext == u".PIC" || ext == u".TGA")
+        if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"PIC" || ext == u"TGA")
             return 128;
     }
     else
     {
-        if (ext == u".JPG" || ext == u".JPEG" || ext == u".PNG" || ext == u".BMP" || ext == u".TGA")
+        if (ext == u"JPG" || ext == u"JPEG" || ext == u"PNG" || ext == u"BMP" || ext == u"TGA")
             return 128;
     }
     return 0;

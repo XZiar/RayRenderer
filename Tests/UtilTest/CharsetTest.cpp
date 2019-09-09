@@ -54,13 +54,13 @@ static void TestStrConv()
     vector<std::byte> csvdest(utf16.size() * 2 + 2, std::byte(0));
     csvdest[0] = byte(0xff), csvdest[1] = byte(0xfe);
     memcpy_s(&csvdest[2], csvdest.size() - 2, utf16.data(), utf16.size() * 2);
-    file::FileObject::OpenThrow(basePath / u"utf8-sample-utf16.html", file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY).Write(csvdest.size(), csvdest);
+    file::WriteAll(basePath / u"utf8-sample-utf16.html", csvdest);
 
     std::wstring_convert<gb18030_utf16_cvter> gb18030_utf16_cvt(new gb18030_utf16_cvter());
     const auto myget = str::to_string(utf16, Charset::GB18030, Charset::UTF16LE);
-    file::FileObject::OpenThrow(basePath / u"utf8-sample-gb18030.html", file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY).Write(myget.size(), myget);
+    file::WriteAll(basePath / u"utf8-sample-gb18030.html", myget);
     const auto myout = str::to_u8string(myget, Charset::GB18030);
-    file::FileObject::OpenThrow(basePath / u"utf8-sample-myout.html", file::OpenFlag::WRITE | file::OpenFlag::CREATE | file::OpenFlag::BINARY).Write(myout.size(), myout);
+    file::WriteAll(basePath / u"utf8-sample-myout.html", myout);
     //const auto rawget = gb18030_utf16_cvt.to_bytes(*(std::wstring*)&utf16);
     size_t idx = 0;
     common::container::zip(u8raw, myout).foreach([&idx](auto raw, auto my)

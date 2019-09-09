@@ -91,8 +91,8 @@ class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
 public:
     using FilterFunc = std::function<string(const string_view&)>;
 private:
-    BufferedFileWriter DocWriter;
-    BufferedFileWriter ResWriter;
+    std::unique_ptr<RandomOutputStream> DocWriter;
+    std::unique_ptr<RandomOutputStream> ResWriter;
     ejson::JObject DocRoot;
     ejson::JObjectRef<false> SharedMap;
     vector<FilterFunc> Filters;
@@ -173,7 +173,7 @@ private:
     };
 
     static std::unordered_map<std::string_view, DeserializeFunc>& DeserializeMap();
-    BufferedFileReader ResReader;
+    std::unique_ptr<RandomInputStream> ResReader;
     ejson::JObject DocRoot;
     
     // store cookies injected by deserialize host

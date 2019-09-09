@@ -1,6 +1,7 @@
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "common/miniLogger/miniLogger.h"
 #include "common/FileEx.hpp"
+#include "common/MemoryStream.hpp"
 #include "common/SpinLock.hpp"
 #include <thread>
 #include <mutex>
@@ -75,9 +76,13 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     oclKernel blurX = prog->GetKernel("blurX");
     oclKernel blurY = prog->GetKernel("blurY");
 
+    common::PromiseResult<void> pms;
+
     const auto coeff = ComputeCoeff(sigma);
     oclBuffer rawBuf(ctx, MemFlag::ReadWrite, image.GetSize());
-    rawBuf->Write(cmdque, image.GetRawPtr(), image.GetSize());
+    pms = rawBuf->Write(cmdque, image.GetRawPtr(), image.GetSize(), 0, false);
+    pms->Wait();
+    const auto time1 = pms->ElapseNs() / 1e6f;
     oclBuffer midBuf1(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
     oclBuffer midBuf2(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
     
@@ -91,8 +96,10 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
         blurX->SetSimpleArg(4, h4);
         blurX->SetSimpleArg(5, width);
         blurX->SetSimpleArg(6, coeff);
-        blurX->Run<1>(cmdque, { h4 });
+        pms = blurX->Run<1>(cmdque, { h4 }, false);
     }
+    pms->Wait();
+    const auto time2 = pms->ElapseNs() / 1e6f;
     {
         blurY->SetArg(0, midBuf2);
         blurY->SetArg(1, midBuf1);
@@ -101,11 +108,16 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
         blurY->SetSimpleArg(4, h4);
         blurY->SetSimpleArg(5, width);
         blurY->SetSimpleArg(6, coeff);
-        blurY->Run<1>(cmdque, { w4 });
+        pms = blurY->Run<1>(cmdque, { w4 }, false);
     }
+    pms->Wait();
+    const auto time3 = pms->ElapseNs() / 1e6f;
     xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
     img2.SetSize(image.GetWidth(), image.GetHeight());
-    rawBuf->Read(cmdque, img2.GetRawPtr(), width*height*4);
+    rawBuf->Read(cmdque, img2.GetRawPtr(), width*height*4, false);
+    pms->Wait();
+    const auto time4 = pms->ElapseNs() / 1e6f;
+    log().info(u"WRITE[{}ms], BLURX[{}ms], BLURY[{}ms], READ[{}ms]\n", time1, time2, time3, time4);
     return img2;
 }
 catch (common::BaseException& be)
@@ -119,9 +131,20 @@ int main()
 {
     static const common::fs::path basepath(UTF16ER(__FILE__));
     const auto kernelPath = common::fs::path(basepath).replace_filename("iirblur.cl");
-    log().verbose(u"cl path:{}", kernelPath.u16string());
+    log().verbose(u"cl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
+
     auto img = xziar::img::ReadImage("./download.jpg");
+
+    std::vector<std::byte> data;
+    common::file::ReadAll("./download.jpg", data);
+    std::unique_ptr<common::io::RandomInputStream> stream = 
+        std::make_unique<common::io::MemoryInputStream>(data.data(), data.size());
+    auto img1 = xziar::img::ReadImage(stream, u"JPG");
+
+    xziar::img::WriteImage(img, "./downlaod0.bmp");
+    xziar::img::WriteImage(img1, "./downlaod1.bmp");
+
     auto img2 = ProcessImg(str, img, 2.0f);
     xziar::img::WriteImage(img2, "./downlaod2.jpg");
     getchar();

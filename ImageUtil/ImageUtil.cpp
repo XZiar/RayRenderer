@@ -31,26 +31,43 @@ static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, con
         .ToVector();
 }
 
+static u16string GetExtName(const fs::path& path)
+{
+    auto ext = path.extension().u16string();
+    return ext.empty() ? ext : ext.substr(1);
+}
+
 Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
-    auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY);
+#define USEBUF 1
+#if defined(USEBUF)
+    const std::unique_ptr<RandomInputStream> stream = std::make_unique<BufferedRandomInputStream>(
+        common::file::FileInputStream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY)),
+        65599);
+#else
+    const std::unique_ptr<RandomInputStream> stream = std::make_unique<common::file::FileInputStream>(
+        file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY));
+#endif
     ImgLog().debug(u"Read Image {}\n", path.u16string());
-    const auto ext = common::strchset::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
-    auto testList = GenerateSupportList(ext, dataType, true, true);
+    return ReadImage(stream, GetExtName(path), dataType);
+}
+
+Image ReadImage(const std::unique_ptr<RandomInputStream>& stream, const std::u16string& ext, const ImageDataType dataType)
+{
+    const auto extName = common::strchset::ToUpperEng(ext, common::str::Charset::UTF16LE);
+    auto testList = GenerateSupportList(extName, dataType, true, true);
     for (auto& support : testList)
     {
         try
         {
-            auto reader = support->GetReader(imgFile, ext);
+            auto reader = support->GetReader(stream, extName);
             if (!reader->Validate())
             {
-                reader->Release();
-                imgFile.Rewind();
+                stream->SetPos(0);
                 continue;
             }
             ImgLog().debug(u"Using [{}]\n", support->Name);
             auto img = reader->Read(dataType);
-            reader->Release();
             return img;
         }
         catch (BaseException& be)
@@ -58,20 +75,26 @@ Image ReadImage(const fs::path& path, const ImageDataType dataType)
             ImgLog().warning(u"Read Image using {} receive error {}\n", support->Name, be.message);
         }
     }
-    COMMON_THROW(BaseException, u"cannot read image", path);
+    COMMON_THROW(BaseException, u"cannot read image");
 }
 
 void WriteImage(const Image& image, const fs::path & path, const uint8_t quality)
 {
-    auto imgFile = file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary);
+    const std::unique_ptr<RandomOutputStream> stream = std::make_unique<common::file::FileOutputStream>(
+        file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary));
     ImgLog().debug(u"Write Image {}\n", path.u16string());
-    const auto ext = common::strchset::ToUpperEng(path.extension().u16string(), common::str::Charset::UTF16LE);
-    auto testList = GenerateSupportList(ext, image.GetDataType(), false, false);
+    WriteImage(image, stream, GetExtName(path), quality);
+}
+
+void WriteImage(const Image& image, const std::unique_ptr<RandomOutputStream>& stream, const std::u16string& ext, const uint8_t quality)
+{
+    const auto extName = common::strchset::ToUpperEng(ext, common::str::Charset::UTF16LE);
+    auto testList = GenerateSupportList(extName, image.GetDataType(), false, false);
     for (auto& support : testList)
     {
         try
         {
-            auto writer = support->GetWriter(imgFile, ext);
+            auto writer = support->GetWriter(stream, extName);
             ImgLog().debug(u"Using [{}]\n", support->Name);
             return writer->Write(image, quality);
         }
@@ -80,7 +103,7 @@ void WriteImage(const Image& image, const fs::path & path, const uint8_t quality
             ImgLog().warning(u"Write Image using {} receive error {}\n", support->Name, be.message);
         }
     }
-    return;
+    COMMON_THROW(BaseException, u"cannot write image");
 }
 
 

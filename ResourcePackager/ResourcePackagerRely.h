@@ -30,9 +30,12 @@ namespace xziar::respak
 {
 namespace fs = common::fs;
 using common::file::FileObject;
+using common::file::FileInputStream;
+using common::file::FileOutputStream;
 using common::file::OpenFlag;
-using common::file::BufferedFileReader;
-using common::file::BufferedFileWriter;
+using common::io::RandomInputStream;
+using common::io::BufferedRandomInputStream;
+using common::io::RandomOutputStream;
 using std::byte;
 using std::wstring;
 using std::string;
