@@ -7,7 +7,7 @@ namespace xziar::img::bmp
 {
 
 
-static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStream>& stream, bool needFlip, const detail::BmpInfo& info)
+static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needFlip, const detail::BmpInfo& info)
 {
     const auto width = image.GetWidth(), height = image.GetHeight();
     const auto dataType = image.GetDataType();
@@ -21,7 +21,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             const auto bufptr = buffer.GetRawPtr();
             for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
             {
-                stream->Read(frowsize, buffer.GetRawPtr());
+                stream.Read(frowsize, buffer.GetRawPtr());
                 auto imgrow = image.GetRawPtr(needFlip ? j : i);
                 switch (dataType)
                 {
@@ -43,7 +43,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             const auto bufptr = buffer.GetRawPtr();
             for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
             {
-                stream->Read(frowsize, buffer.GetRawPtr());
+                stream.Read(frowsize, buffer.GetRawPtr());
                 auto imgrow = image.GetRawPtr(needFlip ? j : i);
                 switch (dataType)
                 {
@@ -68,7 +68,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    stream->Read(frowsize, bufptr);
+                    stream.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
                     if (isOutputRGB)
                         convert::BGR15ToRGBAs(destPtr, bufptr, width);//ignore alpha
@@ -80,7 +80,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    stream->Read(frowsize, bufptr);
+                    stream.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
                     if (isOutputRGB)
                         convert::BGR15ToRGBs(destPtr, bufptr, width);//ignore alpha
@@ -91,13 +91,13 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
         }break;
     case 8:
         {
-            const auto carraypos = stream->CurrentPos();
-            stream->SetPos(detail::BMP_HEADER_SIZE + info.Size);
+            const auto carraypos = stream.CurrentPos();
+            stream.SetPos(detail::BMP_HEADER_SIZE + info.Size);
             const uint32_t paletteCount = info.PaletteUsed ? info.PaletteUsed : (1u << info.BitCount);
             AlignedBuffer palette(paletteCount * 4);
-            stream->Read(paletteCount * 4, palette.GetRawPtr());
+            stream.Read(paletteCount * 4, palette.GetRawPtr());
             convert::FixAlpha(paletteCount, palette.GetRawPtr<uint32_t>());
-            stream->SetPos(carraypos);
+            stream.SetPos(carraypos);
 
             const bool isOutputRGB = REMOVE_MASK(dataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::RGB;
             if (isOutputRGB)
@@ -109,7 +109,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    stream->Read(frowsize, bufptr);
+                    stream.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr<uint32_t>(needFlip ? j : i);
                     for (uint32_t col = 0; col < width; ++col)
                     {
@@ -121,7 +121,7 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
             {
                 for (uint32_t i = 0, j = height - 1; i < height; ++i, --j)
                 {
-                    stream->Read(frowsize, bufptr);
+                    stream.Read(frowsize, bufptr);
                     auto * __restrict destPtr = image.GetRawPtr(needFlip ? j : i);
                     for (uint32_t col = 0; col < width; ++col)
                     {
@@ -137,23 +137,23 @@ static void ReadUncompressed(Image& image, const std::unique_ptr<RandomInputStre
 
 
 
-BmpReader::BmpReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream)
+BmpReader::BmpReader(RandomInputStream& stream) : Stream(stream)
 {
 }
 
 bool BmpReader::Validate()
 {
-    Stream->SetPos(0);
-    if (!Stream->Read(Header))
+    Stream.SetPos(0);
+    if (!Stream.Read(Header))
         return false;
-    if (!Stream->Read(Info))
+    if (!Stream.Read(Info))
         return false;
 
     if (Header.Sig[0] != 'B' || Header.Sig[1] != 'M' || Header.Reserved != 0)
         return false;
     auto size = convert::ParseDWordLE(Header.Size);
-    const auto fsize = Stream->GetSize();
-    if (size > 0 && size != Stream->GetSize())
+    const auto fsize = Stream.GetSize();
+    if (size > 0 && size != Stream.GetSize())
         return false;
     if (convert::ParseDWordLE(Header.Offset) >= fsize)
         return false;
@@ -187,7 +187,7 @@ Image BmpReader::Read(const ImageDataType dataType)
     const uint32_t width = convert::ParseDWordLE(Info.Width);
     image.SetSize(width, height);
 
-    Stream->SetPos(convert::ParseDWordLE(Header.Offset));
+    Stream.SetPos(convert::ParseDWordLE(Header.Offset));
     
     if (Info.Compression == 0)//BI_RGB
     {
@@ -198,7 +198,7 @@ Image BmpReader::Read(const ImageDataType dataType)
 }
 
 
-BmpWriter::BmpWriter(const std::unique_ptr<RandomOutputStream>& stream) : Stream(stream)
+BmpWriter::BmpWriter(RandomOutputStream& stream) : Stream(stream)
 {
 }
 
@@ -224,8 +224,8 @@ void BmpWriter::Write(const Image& image, const uint8_t)
     info.BitCount = image.GetElementSize() * 8;
     info.Compression = 0;
 
-    Stream->Write(header);
-    Stream->Write(info);
+    Stream.Write(header);
+    Stream.Write(info);
     SimpleTimer timer;
     timer.Start();
 
@@ -234,9 +234,9 @@ void BmpWriter::Write(const Image& image, const uint8_t)
     
     if (image.IsGray())//must be ImageDataType::Gray only
     {
-        Stream->WriteFrom(convert::GrayToRGBAMAP);
+        Stream.WriteFrom(convert::GrayToRGBAMAP);
         if (frowsize == irowsize)
-            Stream->Write(image.GetSize(), image.GetRawPtr());
+            Stream.Write(image.GetSize(), image.GetRawPtr());
         else
         {
             const byte* __restrict imgptr = image.GetRawPtr();
@@ -244,13 +244,13 @@ void BmpWriter::Write(const Image& image, const uint8_t)
             const size_t padding = frowsize - irowsize;
             for (uint32_t i = 0; i < image.GetHeight(); ++i)
             {
-                Stream->Write(irowsize, imgptr);
-                Stream->Write(padding, empty);
+                Stream.Write(irowsize, imgptr);
+                Stream.Write(padding, empty);
             }
         }
     }
     else if (frowsize == irowsize && isInputBGR)//perfect match, write directly
-        Stream->Write(image.GetSize(), image.GetRawPtr());
+        Stream.Write(image.GetSize(), image.GetRawPtr());
     else
     {
         AlignedBuffer buffer(frowsize);
@@ -259,16 +259,16 @@ void BmpWriter::Write(const Image& image, const uint8_t)
         {
             auto rowptr = image.GetRawPtr(i);
             if (isInputBGR)
-                Stream->Write(frowsize, rowptr);
+                Stream.Write(frowsize, rowptr);
             else if(needAlpha)
             {
                 convert::BGRAsToRGBAs(bufptr, rowptr, image.GetWidth());
-                Stream->Write(frowsize, bufptr);
+                Stream.Write(frowsize, bufptr);
             }
             else
             {
                 convert::BGRsToRGBs(bufptr, rowptr, image.GetWidth());
-                Stream->Write(frowsize, bufptr);
+                Stream.Write(frowsize, bufptr);
             }
         }
     }

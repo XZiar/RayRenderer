@@ -44,11 +44,11 @@ constexpr size_t BMP_INFO_SIZE = sizeof(BmpInfo);
 class IMGUTILAPI BmpReader : public ImgReader
 {
 private:
-    const std::unique_ptr<RandomInputStream>& Stream;
+    RandomInputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpReader(const std::unique_ptr<RandomInputStream>& stream);
+    BmpReader(RandomInputStream& stream);
     virtual ~BmpReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -58,11 +58,11 @@ public:
 class IMGUTILAPI BmpWriter : public ImgWriter
 {
 private:
-    const std::unique_ptr<RandomOutputStream>& Stream;
+    RandomOutputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpWriter(const std::unique_ptr<RandomOutputStream>& stream);
+    BmpWriter(RandomOutputStream& stream);
     virtual ~BmpWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -72,11 +72,11 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
     {
         return std::make_unique<BmpReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
     {
         return std::make_unique<BmpWriter>(stream);
     }

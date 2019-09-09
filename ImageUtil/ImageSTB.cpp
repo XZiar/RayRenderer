@@ -1,6 +1,7 @@
 #include "ImageUtilRely.h"
 #include "ImageSTB.h"
 #include "DataConvertor.hpp"
+#include "common/MemoryStream.hpp"
 
 
 #define STBI_NO_HDR
@@ -32,12 +33,12 @@
 namespace xziar::img::stb
 {
 
-static int ReadFile(void *user, char *data, int size)
+static int ReadStream(void *user, char *data, int size)
 {
     auto& stream = *static_cast<RandomInputStream*>(user);
     return (int)stream.ReadMany(size, 1, data);
 }
-static void SkipFile(void *user, int n)
+static void SkipStream(void *user, int n)
 {
     auto& stream = *static_cast<RandomInputStream*>(user);
     stream.SetPos(stream.CurrentPos() + n); // n can be negative
@@ -47,7 +48,7 @@ static int IsEof(void *user)
     auto& stream = *static_cast<RandomInputStream*>(user);
     return stream.IsEnd() ? 1 : 0;
 }
-static stbi_io_callbacks IOCallBack{ ReadFile, SkipFile, IsEof };
+static stbi_io_callbacks IOCallBack{ ReadStream, SkipStream, IsEof };
 
 struct StbData
 {
@@ -60,11 +61,18 @@ struct StbData
 };
 
 
-StbReader::StbReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream)
+StbReader::StbReader(RandomInputStream& stream) : Stream(stream)
 {
     auto context = new stbi__context();
     StbContext = context;
-    stbi__start_callbacks(context, &IOCallBack, Stream.get());
+    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
+    {
+        ImgLog().verbose(u"STB faces MemoryStream, bypass it.\n");
+        const auto [ptr, size] = memStream->ExposeAvaliable();
+        stbi__start_mem(context, reinterpret_cast<const unsigned char*>(ptr), static_cast<int>(size));
+    }
+    else
+        stbi__start_callbacks(context, &IOCallBack, &Stream);
 }
 
 StbReader::~StbReader()
@@ -95,7 +103,7 @@ bool StbReader::Validate()
 
 Image StbReader::Read(const ImageDataType dataType)
 {
-    const int32_t reqComp = Image::GetElementSize(dataType);
+    //const int32_t reqComp = Image::GetElementSize(dataType);
     int32_t width, height, comp;
     stbi__result_info resInfo;
     memset(&resInfo, 0, sizeof(stbi__result_info)); // make sure it's initialized if we add new fields
@@ -107,12 +115,12 @@ Image StbReader::Read(const ImageDataType dataType)
     StbData ret;
     switch (TestedType)
     {
-    case ImgType::PNM:  ret.Ptr = stbi__pnm_load (context, &width, &height, &comp, reqComp, &resInfo); break;
-    case ImgType::JPG:  ret.Ptr = stbi__jpeg_load(context, &width, &height, &comp, reqComp, &resInfo); break;
-    case ImgType::PNG:  ret.Ptr = stbi__png_load (context, &width, &height, &comp, reqComp, &resInfo); break;
-    case ImgType::BMP:  ret.Ptr = stbi__bmp_load (context, &width, &height, &comp, reqComp, &resInfo); break;
-    case ImgType::PIC:  ret.Ptr = stbi__pic_load (context, &width, &height, &comp, reqComp, &resInfo); break;
-    case ImgType::TGA:  ret.Ptr = stbi__tga_load (context, &width, &height, &comp, reqComp, &resInfo); break;
+    case ImgType::PNM:  ret.Ptr = stbi__pnm_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::JPG:  ret.Ptr = stbi__jpeg_load(context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::PNG:  ret.Ptr = stbi__png_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::BMP:  ret.Ptr = stbi__bmp_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::PIC:  ret.Ptr = stbi__pic_load (context, &width, &height, &comp, 0, &resInfo); break;
+    case ImgType::TGA:  ret.Ptr = stbi__tga_load (context, &width, &height, &comp, 0, &resInfo); break;
     default:            COMMON_THROW(BaseException, u"unvalidated image");
     }
     if (ret.Ptr == nullptr)
@@ -121,7 +129,7 @@ Image StbReader::Read(const ImageDataType dataType)
     }
 
     ImageDataType retType;
-    switch (reqComp)
+    switch (comp)
     {
     case 1: retType = ImageDataType::GRAY; break;
     case 2: retType = ImageDataType::GA; break;
@@ -153,15 +161,15 @@ Image StbReader::Read(const ImageDataType dataType)
 }
 
 
-StbWriter::StbWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string& ext) : Stream(stream)
+StbWriter::StbWriter(RandomOutputStream& stream, const u16string& ext) : Stream(stream)
 {
-    if (ext == u".PNG")      
+    if (ext == u"PNG")      
         TargetType = ImgType::PNG;
-    else if (ext == u".BMP") 
+    else if (ext == u"BMP") 
         TargetType = ImgType::BMP;
-    else if (ext == u".TGA") 
+    else if (ext == u"TGA") 
         TargetType = ImgType::TGA;
-    else if (ext == u".JPG" || ext == u"JPEG") 
+    else if (ext == u"JPG" || ext == u"JPEG") 
         TargetType = ImgType::JPG;
     else 
         COMMON_THROW(BaseException, u"unsupported image type");
@@ -186,10 +194,10 @@ void StbWriter::Write(const Image& image, const uint8_t quality)
     int32_t ret = 0; 
     switch (TargetType)
     {
-    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr(), 0); break;
-    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr()); break;
-    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, Stream.get(), width, height, reqComp, image.GetRawPtr(), quality); break;
+    case ImgType::BMP:  ret = stbi_write_bmp_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::PNG:  ret = stbi_write_png_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), 0); break;
+    case ImgType::TGA:  ret = stbi_write_tga_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr()); break;
+    case ImgType::JPG:  ret = stbi_write_jpg_to_func(&WriteToFile, &Stream, width, height, reqComp, image.GetRawPtr(), quality); break;
     default:            COMMON_THROW(BaseException, u"unsupported image type");
     }
     if (ret == 0)

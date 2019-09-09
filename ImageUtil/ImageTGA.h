@@ -54,11 +54,11 @@ struct ColorMapInfo
 class IMGUTILAPI TgaReader : public ImgReader
 {
 private:
-    const std::unique_ptr<RandomInputStream>& Stream;
+    RandomInputStream& Stream;
     detail::TgaHeader Header;
     int32_t Width, Height;
 public:
-    TgaReader(const std::unique_ptr<RandomInputStream>& stream);
+    TgaReader(RandomInputStream& stream);
     virtual ~TgaReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -67,9 +67,9 @@ public:
 class IMGUTILAPI TgaWriter : public ImgWriter
 {
 private:
-    const std::unique_ptr<RandomOutputStream>& Stream;
+    RandomOutputStream& Stream;
 public:
-    TgaWriter(const std::unique_ptr<RandomOutputStream>& stream);
+    TgaWriter(RandomOutputStream& stream);
     virtual ~TgaWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -81,11 +81,11 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
     {
         return std::make_unique<TgaReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
     {
         return std::make_unique<TgaWriter>(stream);
     }

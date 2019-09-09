@@ -1,11 +1,71 @@
 #include "ImageUtilRely.h"
 #include "ImageJPEG.h"
 #include "libjpeg-turbo/jpeglib.h"
+#include "common/MemoryStream.hpp"
 
 
 #pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
 namespace xziar::img::jpeg
 {
+
+
+class BufferedStreamReader : public StreamReader
+{
+private:
+    common::io::BufferedRandomInputStream& Stream;
+public:
+    BufferedStreamReader(common::io::BufferedRandomInputStream& stream) : Stream(stream) {}
+    virtual ~BufferedStreamReader() override {}
+    virtual MemSpan Rewind() override
+    {
+        Stream.SetPos(0);
+        return Stream.ExposeAvaliable();
+    }
+    virtual MemSpan ReadFromStream() override
+    {
+        Stream.LoadNext();
+        return Stream.ExposeAvaliable();
+    }
+    virtual MemSpan SkipStream(size_t len) override
+    {
+        const auto totalLen = Stream.ExposeAvaliable().second + len;
+        Stream.Skip(totalLen);
+        return Stream.ExposeAvaliable();
+    }
+};
+
+class BasicStreamReader : public StreamReader
+{
+private:
+    common::io::RandomInputStream& Stream;
+    common::AlignedBuffer Buffer;
+public:
+    BasicStreamReader(common::io::RandomInputStream& stream, const size_t bufSize) : Stream(stream), Buffer(bufSize) {}
+    virtual ~BasicStreamReader() override {}
+    virtual MemSpan Rewind() override
+    {
+        Stream.SetPos(0);
+        return ReadFromStream();
+    }
+    virtual MemSpan ReadFromStream() override
+    {
+        const auto avaliable = Stream.ReadMany(Buffer.GetSize(), 1, Buffer.GetRawPtr());
+        return { Buffer.GetRawPtr(), avaliable };
+    }
+    virtual MemSpan SkipStream(size_t len) override
+    {
+        Stream.Skip(len);
+        return ReadFromStream();
+    }
+};
+
+static std::unique_ptr<StreamReader> GetReader(RandomInputStream& stream)
+{
+    if (auto bufStream = dynamic_cast<common::io::BufferedRandomInputStream*>(&stream))
+        return std::make_unique<BufferedStreamReader>(*bufStream);
+    else
+        return std::make_unique<BasicStreamReader>(stream, 65536);
+}
 
 
 struct JpegHelper
@@ -15,21 +75,35 @@ struct JpegHelper
     static void EmptyCompFunc([[maybe_unused]] j_compress_ptr cinfo)
     { }
 
-    static boolean ReadFromFile(j_decompress_ptr cinfo)
+    forceinline static void SetMemSpan(j_decompress_ptr cinfo, const StreamReader::MemSpan& span)
     {
-        auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
-        auto& stream = reader->Stream;
-        auto& buffer = reader->Buffer;
-        const auto readSize = std::min(stream->GetSize() - stream->CurrentPos(), buffer.GetSize());
-        if (stream->Read(readSize, buffer.GetRawPtr()))
+        if (span.second > 0)
         {
-            cinfo->src->bytes_in_buffer = readSize;
-            cinfo->src->next_input_byte = buffer.GetRawPtr<uint8_t>();
+            cinfo->src->bytes_in_buffer = span.second;
+            cinfo->src->next_input_byte = reinterpret_cast<const uint8_t*>(span.first);
         }
+        else
+        {
+            constexpr uint8_t EndMark[4] = { 0xff, JPEG_EOI, 0, 0 };
+            cinfo->src->bytes_in_buffer = 2;
+            cinfo->src->next_input_byte = EndMark;
+        }
+    }
+
+    static void InitStream(j_decompress_ptr cinfo)
+    {
+        auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
+        SetMemSpan(cinfo, reader.Rewind());
+    }
+
+    static boolean ReadFromStream(j_decompress_ptr cinfo)
+    {
+        auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
+        SetMemSpan(cinfo, reader.ReadFromStream());
         return 1;
     }
 
-    static void SkipFile(j_decompress_ptr cinfo, long bytes)
+    static void SkipStream(j_decompress_ptr cinfo, long bytes)
     {
         if (cinfo->src->bytes_in_buffer >= bytes)
         {
@@ -38,20 +112,18 @@ struct JpegHelper
         }
         else
         {
-            bytes -= cinfo->src->bytes_in_buffer;
-            cinfo->src->bytes_in_buffer = 0;
-            auto reader = reinterpret_cast<JpegReader*>(cinfo->client_data);
-            auto& stream = reader->Stream;
-            stream->Skip(bytes);
+            const auto needSkip = bytes - cinfo->src->bytes_in_buffer;
+            auto& reader = *reinterpret_cast<StreamReader*>(cinfo->client_data);
+            SetMemSpan(cinfo, reader.SkipStream(needSkip));
         }
     }
 
-    static boolean WriteToFile(j_compress_ptr cinfo)
+    static boolean WriteToStream(j_compress_ptr cinfo)
     {
         auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
         auto& stream = writer->Stream;
         auto& buffer = writer->Buffer;
-        if (stream->Write(buffer.GetSize(), buffer.GetRawPtr()))
+        if (stream.Write(buffer.GetSize(), buffer.GetRawPtr()))
         {
             cinfo->dest->free_in_buffer = buffer.GetSize();
             cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
@@ -59,13 +131,13 @@ struct JpegHelper
         return 1;
     }
 
-    static void FlushToFile(j_compress_ptr cinfo)
+    static void FlushToStream(j_compress_ptr cinfo)
     {
         auto writer = reinterpret_cast<JpegWriter*>(cinfo->client_data);
         auto& stream = writer->Stream;
         auto& buffer = writer->Buffer;
         const auto writeSize = buffer.GetSize() - cinfo->dest->free_in_buffer;
-        if (stream->Write(writeSize, buffer.GetRawPtr()))
+        if (stream.Write(writeSize, buffer.GetRawPtr()))
         {
             cinfo->dest->free_in_buffer = buffer.GetSize();
             cinfo->dest->next_output_byte = buffer.GetRawPtr<uint8_t>();
@@ -96,22 +168,32 @@ struct JpegHelper
     }
 };
 
-JpegReader::JpegReader(const std::unique_ptr<RandomInputStream>& stream) : Stream(stream), Buffer(65536)
+JpegReader::JpegReader(RandomInputStream& stream) : Stream(stream)
 {
     auto decompStruct = new jpeg_decompress_struct();
     JpegDecompStruct = decompStruct;
-    decompStruct->client_data = this;
     jpeg_create_decompress(decompStruct);
 
-    auto jpegSource = new jpeg_source_mgr();
-    JpegSource = jpegSource;
-    decompStruct->src = jpegSource;
-    jpegSource->init_source = JpegHelper::EmptyDecompFunc;
-    jpegSource->fill_input_buffer = JpegHelper::ReadFromFile;
-    jpegSource->skip_input_data = JpegHelper::SkipFile;
-    jpegSource->resync_to_restart = jpeg_resync_to_restart;
-    jpegSource->term_source = JpegHelper::EmptyDecompFunc;
-    jpegSource->bytes_in_buffer = 0;
+    if (auto memStream = dynamic_cast<common::io::MemoryInputStream*>(&Stream))
+    {
+        ImgLog().verbose(u"LIBJPEG faces MemoryStream, bypass it.\n");
+        const auto [ptr, size] = memStream->ExposeAvaliable();
+        jpeg_mem_src(decompStruct, reinterpret_cast<const unsigned char*>(ptr), static_cast<unsigned long>(size));
+    }
+    else
+    {
+        Reader = GetReader(stream);
+        decompStruct->client_data = Reader.get();
+        auto jpegSource = new jpeg_source_mgr();
+        JpegSource = jpegSource;
+        decompStruct->src = jpegSource;
+        jpegSource->init_source = JpegHelper::InitStream;
+        jpegSource->fill_input_buffer = JpegHelper::ReadFromStream;
+        jpegSource->skip_input_data = JpegHelper::SkipStream;
+        jpegSource->resync_to_restart = jpeg_resync_to_restart;
+        jpegSource->term_source = JpegHelper::EmptyDecompFunc;
+        jpegSource->bytes_in_buffer = 0;
+    }
 
     auto jpegErrorHandler = new jpeg_error_mgr();
     JpegErrorHandler = jpegErrorHandler;
@@ -136,7 +218,7 @@ JpegReader::~JpegReader()
 
 bool JpegReader::Validate()
 {
-    Stream->SetPos(0);
+    Stream.SetPos(0);
     auto decompStruct = (j_decompress_ptr)JpegDecompStruct;
     try
     {
@@ -188,7 +270,7 @@ Image JpegReader::Read(const ImageDataType dataType)
 }
 
 
-JpegWriter::JpegWriter(const std::unique_ptr<RandomOutputStream>& stream) : Stream(stream), Buffer(65536)
+JpegWriter::JpegWriter(RandomOutputStream& stream) : Stream(stream), Buffer(65536)
 {
     auto compStruct = new jpeg_compress_struct();
     JpegCompStruct = compStruct;
@@ -199,8 +281,8 @@ JpegWriter::JpegWriter(const std::unique_ptr<RandomOutputStream>& stream) : Stre
     JpegDest = jpegDest;
     compStruct->dest = jpegDest;
     jpegDest->init_destination = JpegHelper::EmptyCompFunc;
-    jpegDest->empty_output_buffer = JpegHelper::WriteToFile;
-    jpegDest->term_destination = JpegHelper::FlushToFile;
+    jpegDest->empty_output_buffer = JpegHelper::WriteToStream;
+    jpegDest->term_destination = JpegHelper::FlushToStream;
     jpegDest->free_in_buffer = Buffer.GetSize();
     jpegDest->next_output_byte = Buffer.GetRawPtr<uint8_t>();
 

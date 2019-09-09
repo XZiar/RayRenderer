@@ -39,20 +39,19 @@ static u16string GetExtName(const fs::path& path)
 
 Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
-#define USEBUF 1
+//#define USEBUF 1
 #if defined(USEBUF)
-    const std::unique_ptr<RandomInputStream> stream = std::make_unique<BufferedRandomInputStream>(
+    BufferedRandomInputStream stream(
         common::file::FileInputStream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY)),
-        65599);
+        65536);
 #else
-    const std::unique_ptr<RandomInputStream> stream = std::make_unique<common::file::FileInputStream>(
-        file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY));
+    common::file::FileInputStream stream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY));
 #endif
     ImgLog().debug(u"Read Image {}\n", path.u16string());
     return ReadImage(stream, GetExtName(path), dataType);
 }
 
-Image ReadImage(const std::unique_ptr<RandomInputStream>& stream, const std::u16string& ext, const ImageDataType dataType)
+Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const ImageDataType dataType)
 {
     const auto extName = common::strchset::ToUpperEng(ext, common::str::Charset::UTF16LE);
     auto testList = GenerateSupportList(extName, dataType, true, true);
@@ -63,7 +62,7 @@ Image ReadImage(const std::unique_ptr<RandomInputStream>& stream, const std::u16
             auto reader = support->GetReader(stream, extName);
             if (!reader->Validate())
             {
-                stream->SetPos(0);
+                stream.SetPos(0);
                 continue;
             }
             ImgLog().debug(u"Using [{}]\n", support->Name);
@@ -80,13 +79,12 @@ Image ReadImage(const std::unique_ptr<RandomInputStream>& stream, const std::u16
 
 void WriteImage(const Image& image, const fs::path & path, const uint8_t quality)
 {
-    const std::unique_ptr<RandomOutputStream> stream = std::make_unique<common::file::FileOutputStream>(
-        file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary));
+    common::file::FileOutputStream stream(file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary));
     ImgLog().debug(u"Write Image {}\n", path.u16string());
     WriteImage(image, stream, GetExtName(path), quality);
 }
 
-void WriteImage(const Image& image, const std::unique_ptr<RandomOutputStream>& stream, const std::u16string& ext, const uint8_t quality)
+void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16string& ext, const uint8_t quality)
 {
     const auto extName = common::strchset::ToUpperEng(ext, common::str::Charset::UTF16LE);
     auto testList = GenerateSupportList(extName, image.GetDataType(), false, false);

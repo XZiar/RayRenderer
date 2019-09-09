@@ -113,7 +113,7 @@ private:
     template<size_t Size>
     forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
     {
-        if (offset + want > count)
+        if (offset >= count)
             return 0;
         const auto acceptable = AcceptableSpace();
         want = std::min(want, count - offset);
@@ -242,11 +242,21 @@ public:
         static_assert(std::is_base_of_v<RandomInputStream, T>, "T should derive from RandomInputStream");
         LoadBuffer();
     }
-    ~BufferedRandomInputStream() {}
+    virtual ~BufferedRandomInputStream() override {}
+
     std::unique_ptr<RandomInputStream> Release()
     {
         FlushPos();
         return std::move(BackStream);
+    }
+
+    std::pair<const std::byte*, size_t> ExposeAvaliable() const
+    {
+        return { Buffer.GetRawPtr() + BufPos, BufLen - BufPos };
+    }
+    void LoadNext()
+    {
+        LoadBuffer(BufBegin + BufLen);
     }
 
     //==========RandomStream=========//

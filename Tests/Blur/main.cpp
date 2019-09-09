@@ -138,8 +138,8 @@ int main()
 
     std::vector<std::byte> data;
     common::file::ReadAll("./download.jpg", data);
-    std::unique_ptr<common::io::RandomInputStream> stream = 
-        std::make_unique<common::io::MemoryInputStream>(data.data(), data.size());
+    common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
+    //common::io::MemoryInputStream stream(data.data(), data.size());
     auto img1 = xziar::img::ReadImage(stream, u"JPG");
 
     xziar::img::WriteImage(img, "./downlaod0.bmp");
@@ -147,5 +147,9 @@ int main()
 
     auto img2 = ProcessImg(str, img, 2.0f);
     xziar::img::WriteImage(img2, "./downlaod2.jpg");
+    data.resize(0);
+    common::io::ContainerOutputStream<std::vector<std::byte>> stream2(data);
+    xziar::img::WriteImage(img2, stream2, u"JPG");
+    common::file::WriteAll("./downlaod3.jpg", data);
     getchar();
 }

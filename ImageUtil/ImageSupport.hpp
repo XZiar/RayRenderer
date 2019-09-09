@@ -40,8 +40,8 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const u16string Name;
-    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string& ext) const = 0;
-    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string& ext) const = 0;
     virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 

@@ -12,11 +12,11 @@ using namespace common;
 class IMGUTILAPI PngReader : public ImgReader
 {
 private:
-    const std::unique_ptr<RandomInputStream>& Stream;
+    RandomInputStream& Stream;
     void *PngStruct = nullptr;
     void *PngInfo = nullptr;
 public:
-    PngReader(const std::unique_ptr<RandomInputStream>& stream);
+    PngReader(RandomInputStream& stream);
     virtual ~PngReader() override;
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -25,11 +25,11 @@ public:
 class IMGUTILAPI PngWriter : public ImgWriter
 {
 private:
-    const std::unique_ptr<RandomOutputStream>& Stream;
+    RandomOutputStream& Stream;
     void *PngStruct = nullptr;
     void *PngInfo = nullptr;
 public:
-    PngWriter(const std::unique_ptr<RandomOutputStream>& stream);
+    PngWriter(RandomOutputStream& stream);
     virtual ~PngWriter() override;
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -39,11 +39,11 @@ class IMGUTILAPI PngSupport : public ImgSupport
 public:
     PngSupport() : ImgSupport(u"Png") {}
     virtual ~PngSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(const std::unique_ptr<RandomInputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
     {
         return std::make_unique<PngReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(const std::unique_ptr<RandomOutputStream>& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
     {
         return std::make_unique<PngWriter>(stream);
     }

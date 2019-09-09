@@ -69,101 +69,6 @@ enum class OpenFlag : uint8_t
 MAKE_ENUM_BITFIELD(OpenFlag)
 
 
-//template<class Base>
-//class Readable
-//{
-//private:
-//    forceinline bool Read_(const size_t len, void * const ptr) { return static_cast<Base*>(this)->Read(len, ptr); }
-//    forceinline void Rewind_(const size_t offset = 0) { return static_cast<Base*>(this)->Rewind(offset); }
-//    forceinline size_t CurrentPos_() const { return static_cast<const Base*>(this)->CurrentPos(); }
-//    forceinline size_t GetSize_() { return static_cast<Base*>(this)->GetSize(); }
-//public:
-//    forceinline size_t LeftSpace() { return GetSize_() - CurrentPos_(); }
-//
-//    template<typename T>
-//    bool Read(T& output)
-//    {
-//        return Read_(sizeof(T), &output);
-//    }
-//
-//    template<class T, size_t N>
-//    size_t Read(T(&output)[N], size_t count = N)
-//    {
-//        const size_t elementSize = sizeof(T);
-//        const auto left = LeftSpace();
-//        count = std::min(count, N);
-//        count = std::min(left / elementSize, N);
-//        auto ret = Read_(count * elementSize, output);
-//        return ret ? count : 0;
-//    }
-//
-//    template<class T, typename = typename std::enable_if<std::is_class<T>::value>::type>
-//    size_t Read(size_t count, T& output)
-//    {
-//        const size_t elementSize = sizeof(typename T::value_type);
-//        const auto left = LeftSpace();
-//        count = std::min(left / elementSize, count);
-//        output.resize(count);
-//        return Read_(count * elementSize, output.data()) ? count : 0;
-//    }
-//
-//    template<class T, typename = typename std::enable_if_t<std::is_class_v<T>>>
-//    void ReadAll(T& output)
-//    {
-//        static_assert(sizeof(typename T::value_type) == 1, "element's size should be 1 byte");
-//        const auto flen = GetSize_();
-//        Rewind_();
-//        Read(flen, output);
-//    }
-//
-//    template<typename T = byte>
-//    std::vector<T> ReadAll()
-//    {
-//        std::vector<T> fdata;
-//        ReadAll(fdata);
-//        return fdata;
-//    }
-//
-//    std::string ReadAllText()
-//    {
-//        std::string text;
-//        ReadAll(text);
-//        return text;
-//    }
-//};
-
-//template<class Base>
-//class Writable
-//{
-//private:
-//    forceinline bool Write_(const size_t len, const void * const ptr) { return static_cast<Base*>(this)->Write(len, ptr); }
-//public:
-//    template<typename T>
-//    bool Write(const T& output)
-//    {
-//        return Write_(sizeof(T), &output);
-//    }
-//
-//    template<class T, size_t N>
-//    size_t Write(T(&output)[N], size_t count = N)
-//    {
-//        const size_t elementSize = sizeof(T);
-//        count = std::min(count, N);
-//        auto ret = Write_(count * elementSize, output);
-//        return ret ? count : 0;
-//    }
-//
-//    template<class T, typename = typename std::enable_if<std::is_class_v<T>>::type>
-//    size_t Write(size_t count, const T& input)
-//    {
-//        const size_t elementSize = sizeof(typename T::value_type);
-//        count = std::min(input.size(), count);
-//        return Write_(count * elementSize, input.data()) ? count : 0;
-//    }
-//};
-
-
-
 class FileObject : public std::enable_shared_from_this<FileObject>, public NonCopyable, public NonMovable
 {
     friend class FileStream;
@@ -389,7 +294,7 @@ class FileOutputStream : private FileStream, public io::RandomOutputStream
 public:
     FileOutputStream(const std::shared_ptr<FileObject>& file) : FileStream(file) { WriteCheck(); }
     FileOutputStream(FileOutputStream&& stream) noexcept : FileStream(std::move(stream.File)) { }
-    virtual ~FileOutputStream() override {}
+    virtual ~FileOutputStream() override { Flush(); }
     
     //==========OutputStream=========//
     virtual size_t AcceptableSpace() override
@@ -424,121 +329,6 @@ public:
     }
 };
 
-
-
-//class BufferedFileReader : public Readable<BufferedFileReader>, public NonCopyable
-//{
-//private:
-//    AlignedBuffer Buffer;
-//    FileObject File;
-//    size_t BufBegin, BufPos = 0, BufLen = 0;
-//    template<bool IsNext = true>
-//    void LoadBuffer()
-//    {
-//        if(IsNext)
-//            BufBegin += BufLen;
-//        BufPos = 0;
-//        BufLen = File.ReadMany(Buffer.GetSize(), Buffer.GetRawPtr());
-//    }
-//public:
-//    BufferedFileReader(FileObject&& file, const size_t bufSize) : Buffer(bufSize), File(std::move(file))
-//    {
-//        BufBegin = File.CurrentPos();
-//        LoadBuffer();
-//    }
-//
-//    void Flush() 
-//    {
-//        File.Rewind(BufBegin + BufPos);
-//        BufLen -= BufPos;
-//        memmove_s(Buffer.GetRawPtr(), Buffer.GetSize(), Buffer.GetRawPtr() + BufPos, BufLen);
-//    }
-//    FileObject Release()
-//    {
-//        Flush();
-//        return std::move(File);
-//    }
-//
-//    void Rewind(const size_t offset = 0) 
-//    {
-//        if (offset >= BufBegin)
-//        {
-//            const auto dist = offset - BufBegin;
-//            if (dist < BufLen)
-//            {
-//                BufPos = dist;
-//                return;
-//            }
-//        }
-//        //need reload
-//        File.Rewind(BufBegin = offset);
-//        LoadBuffer<false>();
-//    }
-//    void Skip(const size_t offset = 0) 
-//    {
-//        const auto newBufPos = BufPos + offset;
-//        if (newBufPos < BufLen)
-//        {
-//            BufPos = newBufPos;
-//            return;
-//        }
-//        //need reload
-//        BufBegin += offset;
-//        File.Rewind(BufBegin);
-//        LoadBuffer<false>();
-//    }
-//    size_t CurrentPos() const { return BufBegin + BufPos; }
-//    bool IsEnd() const { return (BufPos >= BufLen) && File.IsEnd(); }
-//    size_t GetSize() { return File.GetSize(); }
-//
-//    bool Read(const size_t len, void * const ptr)
-//    {
-//        //copy as many as possible
-//        const auto bufBytes = std::min(BufLen - BufPos, len);
-//        memcpy_s(ptr, len, Buffer.GetRawPtr() + BufPos, bufBytes);
-//        BufPos += bufBytes;
-//
-//        const auto stillNeed = len - bufBytes;
-//        if (stillNeed == 0)
-//            return true;
-//        // force bypass buffer
-//        if (stillNeed >= Buffer.GetSize())
-//        {
-//            const auto ret = File.Read(stillNeed, reinterpret_cast<uint8_t*>(ptr) + bufBytes);
-//            BufBegin = File.CurrentPos();
-//            LoadBuffer<false>();
-//            return ret;
-//        }
-//        // 0 < stillNeed < BufSize
-//        LoadBuffer();
-//        if (stillNeed > BufLen) //simple reject
-//            return false;
-//        memcpy_s(reinterpret_cast<uint8_t*>(ptr) + bufBytes, stillNeed, Buffer.GetRawPtr(), stillNeed);
-//        BufPos += stillNeed;
-//        return true;
-//    }
-//
-//    template<typename T = byte>
-//    T ReadByteNE()//without checking
-//    {
-//        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
-//        if (BufPos >= BufLen)
-//            LoadBuffer();
-//        return (T)Buffer[BufPos++];
-//    }
-//    template<typename T = byte>
-//    T ReadByte()
-//    {
-//        static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
-//        if (BufPos >= BufLen)
-//            LoadBuffer();
-//        if (BufPos >= BufLen)
-//            COMMON_THROW(FileException, FileException::Reason::ReadFail, File.Path(), u"reach end of file");
-//        return (T)Buffer[BufPos++];
-//    }
-//
-//    using Readable<BufferedFileReader>::Read;
-//};
 
 //class BufferedFileWriter : public Writable<BufferedFileWriter>, public NonCopyable
 //{
@@ -669,7 +459,3 @@ inline void WriteAll(const fs::path& fpath, T& output)
 }
 
 }
-
-
-//#undef FSeek64
-//#undef FTell64
