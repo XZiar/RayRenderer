@@ -1,7 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageSTB.h"
 #include "DataConvertor.hpp"
-#include "common/MemoryStream.hpp"
 
 
 #define STBI_NO_HDR
@@ -27,6 +26,10 @@
 #   pragma clang diagnostic pop
 #elif COMPILER_MSVC
 #   pragma warning(pop)
+#endif
+
+#if defined(STBI_SSE2)
+#pragma message("Compiling ImageSTB with support of [SSE2]")
 #endif
 
 

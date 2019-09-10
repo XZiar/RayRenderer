@@ -1,7 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageJPEG.h"
 #include "libjpeg-turbo/jpeglib.h"
-#include "common/MemoryStream.hpp"
 
 
 #pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
@@ -105,7 +104,12 @@ struct JpegHelper
 
     static void SkipStream(j_decompress_ptr cinfo, long bytes)
     {
-        if (cinfo->src->bytes_in_buffer >= bytes)
+        if (bytes < 0)
+        {
+            ImgLog().warning(u"LIBJPEG request an negative skip, ignored.\n");
+            return;
+        }
+        if (cinfo->src->bytes_in_buffer >= static_cast<size_t>(bytes))
         {
             cinfo->src->bytes_in_buffer -= bytes;
             cinfo->src->next_input_byte += bytes;

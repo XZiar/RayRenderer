@@ -14,7 +14,6 @@ using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 using common::io::BufferedRandomInputStream;
 //using common::io::BufferedRandomOutputStream;
-using common::Wrapper;
 
 
 class IMGUTILAPI ImgReader : public common::NonCopyable

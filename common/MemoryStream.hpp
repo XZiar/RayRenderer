@@ -235,7 +235,7 @@ protected:
     virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) override
     {
         if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
-            return MemoryOutputStream.Grow(size);
+            return MemoryOutputStream::Grow(size);
         else
         {
             constexpr auto eleSize = detail::ContainerHolder<T>::GetElementSize();
@@ -243,7 +243,7 @@ protected:
             const auto newSize = GetSize() + size + eleSize - 1;
             const auto newCount = newSize / eleSize;
             container->resize(newCount);
-            return { this->GetPtr(), newCount * eleSize };
+            return { reinterpret_cast<std::byte*>(this->GetPtr()), newCount * eleSize };
         }
     }
 public:

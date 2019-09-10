@@ -1,5 +1,6 @@
 #include "ImageUtilRely.h"
 #include "ImageUtil.h"
+#include "ImageSupport.hpp"
 #include "common/Linq.hpp"
 
 
@@ -39,7 +40,7 @@ static u16string GetExtName(const fs::path& path)
 
 Image ReadImage(const fs::path& path, const ImageDataType dataType)
 {
-//#define USEBUF 1
+#define USEBUF 1
 #if defined(USEBUF)
     BufferedRandomInputStream stream(
         common::file::FileInputStream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY)),

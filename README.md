@@ -81,10 +81,6 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Boost Software License](./License/boost.txt)
 
-* [stb](https://github.com/nothings/stb)
-
-  [MIT License](./3rdParty/stblib/license.txt)
-
 * [fmt](http://fmtlib.net) 5.3.0 (customized with utf-support)
 
   [BSD-2 License](./3rdParty/fmt/license.rst)

@@ -36,6 +36,10 @@ Since This component is binded with X86 optimization, internal data layout is as
 * [libjpeg-turbo](http://www.libjpeg-turbo.org/Main/HomePage)  2.0.2
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
+  
+* [stb](https://github.com/nothings/stb)
+
+  [MIT License](./3rdParty/stblib/license.txt)
 
 ## License
 

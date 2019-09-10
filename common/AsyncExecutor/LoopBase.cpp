@@ -7,6 +7,13 @@ namespace common::asyexe
 {
 
 
+struct BasicLockObject : public LoopExecutor::LockObject
+{
+    std::unique_lock<std::mutex> Lock;
+    BasicLockObject(std::mutex& mutex) : Lock(mutex) {}
+    virtual ~BasicLockObject() {}
+};
+
 struct LoopExecutor::ControlBlock
 {
     std::mutex ControlMtx, RunningMtx;
@@ -33,7 +40,11 @@ void LoopExecutor::RunLoop() noexcept
     Loop.MainLoop();
     IsRunning = false;
 }
-LoopExecutor::LoopExecutor(LoopBase& loop) : Loop(loop), Control(new ControlBlock())
+std::unique_ptr<LoopExecutor::LockObject> LoopExecutor::AcquireRunningLock()
+{
+    return std::make_unique<BasicLockObject>(Control->ControlMtx);
+}
+LoopExecutor::LoopExecutor(LoopBase& loop) : Control(new ControlBlock()), Loop(loop)
 { }
 LoopExecutor::~LoopExecutor()
 {
@@ -93,14 +104,16 @@ bool InplaceExecutor::OnStart()
 }
 bool InplaceExecutor::OnStop() 
 {
-    std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+    const auto lock = AcquireRunningLock();
+    //std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
     return true;
 }
 bool InplaceExecutor::RunInplace()
 {
     if (IsRunning)
     {
-        std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+        const auto lock = AcquireRunningLock();
+        //std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
         this->RunLoop();
         return true;
     }
@@ -136,10 +149,6 @@ void LoopBase::MainLoop() noexcept
 void LoopBase::Wakeup() const
 {
     Host->Wakeup();
-}
-
-LoopBase::LoopBase(std::unique_ptr<LoopExecutor>&& host) : Host(std::move(host))
-{
 }
 
 LoopBase::~LoopBase()

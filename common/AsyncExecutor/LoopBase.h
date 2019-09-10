@@ -18,6 +18,8 @@ class LoopBase;
 class ASYEXEAPI LoopExecutor : public NonCopyable
 {
     friend class LoopBase;
+public:
+    struct LockObject { virtual ~LockObject() {} };
 private:
     struct ControlBlock;
     bool Start();
@@ -29,6 +31,7 @@ protected:
 
     LoopExecutor(LoopBase& loop);
     void RunLoop() noexcept;
+    std::unique_ptr<LockObject> AcquireRunningLock();
 
     virtual void Sleep() = 0; // executor request sleep
     virtual void Wakeup() = 0; // other requst executor to wake up
@@ -59,13 +62,20 @@ private:
     void MainLoop() noexcept;
 protected:
     enum class LoopState : uint8_t { Continue, Finish, Sleep };
+    std::unique_ptr<LoopExecutor::LockObject> AcquireRunningLock() { return Host->AcquireRunningLock(); }
     bool ShouldStop() const { return Host->RequestStop; }
     void Wakeup() const;
     virtual LoopState OnLoop() = 0;
     virtual bool OnStart() noexcept { return true; }
     virtual void OnStop() noexcept {}
     virtual bool OnError(std::exception_ptr) noexcept { return false; }
-    LoopBase(std::unique_ptr<LoopExecutor>&& host);
+    template<typename T>
+    LoopBase(const T& HostGenerator)
+    {
+        Host = HostGenerator(*this);
+        if (!Host)
+            COMMON_THROW(BaseException, u"Host invalid");
+    }
     bool Start();
     bool Stop();
 public:

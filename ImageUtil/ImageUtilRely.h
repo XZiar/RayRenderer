@@ -23,6 +23,7 @@
 #include "common/AlignedContainer.hpp"
 #include "common/StringEx.hpp"
 #include "common/FileEx.hpp"
+#include "common/MemoryStream.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Wrapper.hpp"
 #include "StringCharset/Convert.h"

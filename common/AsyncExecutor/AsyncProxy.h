@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AsyncExecutorRely.h"
+#include "LoopBase.h"
+#include "common/miniLogger/miniLogger.h"
 #include <functional>
 
 
@@ -8,27 +10,29 @@ namespace common
 {
 namespace asyexe
 {
-namespace detail
-{
-class AsyncCaller;
-}
 
-class ASYEXEAPI AsyncProxy
+
+class ASYEXEAPI AsyncProxy : public LoopBase
 {
-    friend class AsyncCaller;
 public:
     template<typename T> using CompleteCallback = std::function<void(T&&)>;
     using ErrorCallback = std::function<void(const BaseException&)>;
+
 private:
-    struct AsyncNodeBase : public NonCopyable, public NonMovable
+    struct AsyncNodeBase : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<AsyncNodeBase>
     {
         const PmsCore Promise;
-        AsyncNodeBase(PmsCore&& promise) : Promise(std::move(promise)) {}
+        common::SimpleTimer Timer;
+        std::uint32_t Id = 0;
+        AsyncNodeBase(PmsCore&& promise) : Promise(std::move(promise))
+        { 
+            Timer.Start();
+        }
         virtual ~AsyncNodeBase() = 0;
         virtual void Resolve() const noexcept = 0;
     };
     template<typename T>
-    struct AsyncNode : AsyncNodeBase
+    struct AsyncNode : public AsyncNodeBase
     {
         const CompleteCallback<T> OnCompleted;
         const ErrorCallback OnErrored;
@@ -49,12 +53,22 @@ private:
             }
         }
     };
-    static void AddNode(const AsyncNodeBase* node);
+
+    static AsyncProxy& GetSelf();
+
+    common::container::IntrusiveDoubleLinkList<AsyncNodeBase> TaskList;
+    common::mlog::MiniLogger<false> Logger;
+    std::atomic_uint32_t TaskUid{ 0 };
+    AsyncProxy();
+    virtual ~AsyncProxy() override {}
+    virtual LoopState OnLoop() override;
+    virtual bool OnStart() noexcept override;
+    void AddNode(AsyncNodeBase* node);
 public:
     template<typename T>
     static void OnComplete(const PromiseResult<T>& pms, CompleteCallback<T>&& onComplete, ErrorCallback&& onError)
     {
-        AddNode(new AsyncNode<T>(pms, std::move(onComplete), std::move(onError)));
+        GetSelf().AddNode(new AsyncNode<T>(pms, std::move(onComplete), std::move(onError)));
     }
 };
 
