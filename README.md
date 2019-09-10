@@ -73,11 +73,11 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Modified BSD & MIT License](./3rdParty/glew/license.txt)
 
-* [FreeGLUT](http://freeglut.sourceforge.net)  3.0.0 master@2018-10-09
+* [FreeGLUT](http://freeglut.sourceforge.net)  3.2.0 RC1
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.70.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.71.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 

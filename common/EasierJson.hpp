@@ -274,7 +274,7 @@ public:
         return Backend.CurrentPos();
     }
     char* PutBegin() { assert(false); return nullptr; }
-    void Put(char c) { assert(false); }
+    void Put(char) { assert(false); }
     void Flush() { assert(false); }
     size_t PutEnd(char*) { assert(false); return 0; }
 };

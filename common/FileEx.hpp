@@ -440,13 +440,20 @@ inline void ReadAll(const fs::path& fpath, T& output)
     fis.ReadInto(output, SIZE_MAX);
 }
 
-template<typename Char = char>
-inline string ReadAllText(const fs::path& fpath)
+template<class T>
+inline std::vector<T> ReadAll(const fs::path& fpath)
 {
-    FileInputStream fis(FileObject::OpenThrow(fpath, OpenFlag::BINARY | OpenFlag::READ));
-    std::basic_string<Char> text;
-    fis.ReadInto(text, SIZE_MAX);
-    return text;
+    std::vector<T> output;
+    ReadAll(fpath, output);
+    return output;
+}
+
+template<typename Char = char>
+inline std::basic_string<Char> ReadAllText(const fs::path& fpath)
+{
+    std::basic_string<Char> output;
+    ReadAll(fpath, output);
+    return output;
 }
 
 

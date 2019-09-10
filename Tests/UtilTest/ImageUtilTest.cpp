@@ -45,9 +45,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"CTC16.TGA";
         log().info(u"Test TGA16-Reading\n");
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = img::ReadImage(srcPath, img::ImageDataType::RGB);
+        auto img = img::ReadImage(fdata, u"tga", img::ImageDataType::RGB);
         timer.Stop();
         log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
         ::stb::saveImage(basePath / u"CTC16-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
@@ -55,10 +55,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"pngtest.png";
         log().info(u"Test PNG(Alpha)-Reading\n");
-        //const auto pftch = 
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = img::ReadImage(srcPath);
+        auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
         log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
 
@@ -99,10 +98,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"qw11.png";
         log().info(u"Test PNG-Reading\n");
-        //const auto pftch = 
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = img::ReadImage(srcPath);
+        auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
         log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
         std::vector<uint32_t> data;
@@ -124,7 +122,7 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"head2.tga";
         log().info(u"Test TGA-Reading\n");
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         std::vector<uint32_t> data;
         timer.Start();
         auto size = stb::loadImage(srcPath, data);
@@ -134,7 +132,7 @@ static void TestImageUtil()
         img::WriteImage(img2, basePath / u"head2-stb.bmp");
 
         timer.Start();
-        auto img = img::ReadImage(srcPath);
+        auto img = img::ReadImage(fdata, u"tga");
         timer.Stop();
         log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
         file::FileOutputStream(file::FileObject::OpenThrow(basePath / "head-raw.dat", file::OpenFlag::CreatNewBinary))
@@ -145,9 +143,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"qw22.jpg";
         log().info(u"Test JPG-Reading\n");
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = xziar::img::ReadImage(srcPath);
+        auto img = xziar::img::ReadImage(fdata, u"jpg");
         timer.Stop();
         log().debug(u"libjpeg read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22-ljpg.png");
@@ -164,9 +162,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"qw22b8.bmp";
         log().info(u"Test BMP-Reading\n");
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = img::ReadImage(srcPath);
+        auto img = img::ReadImage(fdata, u"bmp");
         timer.Stop();
         log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b8-zex.png");
@@ -183,9 +181,9 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"qw22b.bmp";
         log().info(u"Test BMP-Reading\n");
-        file::ReadAllText(srcPath);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
         timer.Start();
-        auto img = img::ReadImage(srcPath);
+        auto img = img::ReadImage(fdata, u"bmp");
         timer.Stop();
         log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b-zex.png");
@@ -202,8 +200,8 @@ static void TestImageUtil()
     {
         const fs::path srcPath = basePath / u"head.tga";
         log().info(u"Test Image-Conversion\n");
-        file::ReadAllText(srcPath);
-        auto img = img::ReadImage(srcPath, img::ImageDataType::BGRA);
+        const auto fdata = file::ReadAll<std::byte>(srcPath);
+        auto img = img::ReadImage(fdata, u"tga", img::ImageDataType::BGRA);
         auto imgs = img::Image(img::ImageDataType::RGB);
         imgs.SetSize(img.GetWidth() * 2, img.GetHeight() * 2);
         timer.Start();

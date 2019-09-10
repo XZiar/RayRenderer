@@ -24,7 +24,8 @@
                 {"-": ["jccolext.c", "jdcol565.c", "jdcolext.c", "jdmrg565.c", "jdmrgext.c", "jstdhuff.c"]},
                 {"ifeq": {"platform": "x64"}, "+": "simd/x86-64/jsimd-x86-64.c"},
                 {"ifeq": {"platform": "x86"}, "+": "simd/i386/jsimd-i386.c"}
-            ]
+            ],
+            "version": ""
         },
         "nasm":
         {

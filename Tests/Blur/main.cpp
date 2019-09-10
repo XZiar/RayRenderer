@@ -136,10 +136,8 @@ int main()
 
     auto img = xziar::img::ReadImage("./download.jpg");
 
-    std::vector<std::byte> data;
-    common::file::ReadAll("./download.jpg", data);
+    auto data = common::file::ReadAll<std::byte>("./download.jpg");
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
-    //common::io::MemoryInputStream stream(data.data(), data.size());
     auto img1 = xziar::img::ReadImage(stream, u"JPG");
 
     xziar::img::WriteImage(img, "./downlaod0.bmp");

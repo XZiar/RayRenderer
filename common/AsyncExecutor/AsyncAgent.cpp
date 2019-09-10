@@ -25,7 +25,6 @@ public:
         Target = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(sleepTimeMs);
     }
     virtual ~AsyncSleeper() {}
-    AsyncSleeper(AsyncSleeper&&) = default;
 };
 
 }

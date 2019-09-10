@@ -263,9 +263,9 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
         .TryGetFirst().value();
     fs::path basePath = u"C:\\Programs Temps\\RayRenderer";
     if (!fs::exists(basePath))
-		basePath = u"D:\\ProgramsTemps\\RayRenderer";
-	if (!fs::exists(basePath))
-		basePath = u"C:\\ProgramsTemps\\RayRenderer";
+        basePath = u"D:\\ProgramsTemps\\RayRenderer";
+    if (!fs::exists(basePath))
+        basePath = u"C:\\ProgramsTemps\\RayRenderer";
     ftest->SetFont(basePath / u"test.ttf");
 
     FreeGLUTViewRun();
