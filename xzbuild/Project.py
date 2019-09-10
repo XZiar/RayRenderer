@@ -33,7 +33,7 @@ class Project:
 
     def solveTarget(self, env:dict):
         if env["compiler"] == "clang" and env["target"] == "Release":
-            self.linkflags += ["-fuse-ld=gold"]
+            self.linkflags += ["-fuse-ld=lld"]
         os.chdir(os.path.join(env["rootDir"], self.path))
         targets = self.raw.get("targets", [])
         existTargets = [t for t in _AllTargets if t.prefix() in targets]

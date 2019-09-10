@@ -65,9 +65,9 @@ matrix:
             - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-7 main'
               key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
           packages:
-            - llvm-7-dev  # for LLVMgold.so
-            - binutils-gold
-            - binutils-dev
+            - clang-7
+            - lld-7
+            #- binutils-dev
             - nasm
             - python3-pip
             - libx11-dev
@@ -92,9 +92,9 @@ matrix:
             - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main'
               key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
           packages:
-            - llvm-8-dev  # for LLVMgold.so
-            - binutils-gold
-            - binutils-dev
+            - clang-8
+            - lld-8
+            #- binutils-dev
             - nasm
             - python3-pip
             - libx11-dev
@@ -106,11 +106,11 @@ before_install:
   - mkdir tmp
   - cd tmp
   - mkdir include
-  - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.bz2
+  - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.71.0/source/boost_1_71_0.tar.bz2
   - tar xjf boost.tar.bz2
-  - mv ./boost_1_70_0/boost ./include/
+  - mv ./boost_1_71_0/boost ./include/
   - export CPP_DEPENDENCY_PATH=$(pwd)
-  - wget -O ispc.tar.gz https://sourceforge.net/projects/ispcmirror/files/v1.11.0/ispc-v1.11.0-linux.tar.gz/download
+  - wget -O ispc.tar.gz https://sourceforge.net/projects/ispcmirror/files/v1.12.0/ispc-v1.12.0-linux.tar.gz/download
   - tar xzf ispc.tar.gz
   - export ISPCCOMPILER=$(find $(pwd) -type f -name ispc)
   - cd ..
