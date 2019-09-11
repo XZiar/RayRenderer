@@ -56,11 +56,11 @@ class ThreadedExecutor : public LoopExecutor
 {
     std::thread MainThread;
     std::condition_variable SleepCond;
-    std::unique_lock<std::mutex> RunningLock;
+    std::unique_lock<std::mutex>* RunningLock = nullptr;
 protected:
     virtual void Sleep() override
     {
-        SleepCond.wait(RunningLock);
+        SleepCond.wait(*RunningLock);
     }
     virtual void Wakeup() override
     {
@@ -73,9 +73,10 @@ protected:
         RequestStop = false;
         MainThread = std::thread([&]() 
             {
-                RunningLock = std::unique_lock<std::mutex>(Control->RunningMtx);
+                std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+                RunningLock = &runningLock;
                 this->RunLoop();
-                RunningLock = {};
+                RunningLock = nullptr;
                 Control->StopCond.notify_one();
             });
         return true;
@@ -86,8 +87,10 @@ protected:
         if (IsRunning)
         {
             Wakeup();
-            Control->StopCond.wait(runningLock, [&]() { return !IsRunning; });
+            //Control->StopCond.wait(runningLock, [&]() { return !IsRunning; });
         }
+        if (MainThread.joinable())
+            MainThread.join();
         return true;
     }
 public:

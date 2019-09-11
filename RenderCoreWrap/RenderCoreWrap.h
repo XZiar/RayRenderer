@@ -54,6 +54,7 @@ public:
     void Resize(const uint32_t w, const uint32_t h);
 
     Task<Drawable^>^ LoadModelAsync(String^ fname);
+    Task<Drawable^>^ LoadModelAsync2(String^ fname);
     Task<RenderPass^>^ LoadShaderAsync(String^ fname, String^ shaderName);
 
     void Serialize(String^ path);

@@ -9,6 +9,7 @@
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
 #include "Basic3DObject.h"
+#include "common/PromiseTaskSTD.hpp"
 #include <thread>
 
 using common::container::FindInSet;
@@ -230,6 +231,28 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
                 onFinish(Wrapper<Model>());
         }
     }, fname).detach();
+}
+
+common::PromiseResult<Wrapper<Model>> RenderCore::LoadModelAsync2(const u16string& fname) const
+{
+    std::promise<Wrapper<Model>> pms;
+    auto ret = PromiseResultSTD<Wrapper<Model>>::Get(pms);
+    std::thread([&](const u16string name, std::promise<Wrapper<Model>>&& pms_)
+        {
+            common::SetThreadName(u"AsyncLoader for Model");
+            try
+            {
+                Wrapper<Model> mod(name, TexLoader, GLWorker);
+                mod->Name = u"model";
+                pms_.set_value(mod);
+            }
+            catch (BaseException& be)
+            {
+                dizzLog().error(u"failed to load model by file {}\n", name);
+                pms_.set_exception(std::current_exception());
+            }
+        }, fname, std::move(pms)).detach();
+        return ret;
 }
 
 void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError) const

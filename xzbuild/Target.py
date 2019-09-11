@@ -77,14 +77,16 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         super().__init__(targets, env)
 
     def solveTarget(self, targets, env:dict):
-        self.flags += ["-Wall", "-pedantic", "-march=native", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs"]
+        self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs"]
+        self.flags += [f"-march={env['arch']}"]
         self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"
         if env["compiler"] == "clang":
             self.flags += ["-Wno-newline-eof"]
         if env["target"] == "Release":
             self.defines += ["NDEBUG"]
-            self.flags += ["-flto"]
+            if env["paras"].get("lto", "on") == "on":
+                self.flags += ["-flto"]
         cxx = targets.get("cxx")
         if cxx is not None:
             a,_ = solveElementList(cxx, "debug", env)

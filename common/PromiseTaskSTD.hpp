@@ -44,6 +44,11 @@ public:
     PromiseResultSTD(std::shared_future<T>&& fut) : Future(std::move(fut))
     { }
     virtual ~PromiseResultSTD() override { }
+    template<typename U>
+    static PromiseResult<T> Get(U&& data)
+    {
+        return std::make_shared<PromiseResultSTD>(std::forward<U>(data));
+    }
 };
 
 template<typename T, bool IsShared = false>

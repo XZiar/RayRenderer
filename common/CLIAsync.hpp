@@ -267,4 +267,7 @@ inline Task<RetType>^ doAsync3(Func<CLIWrapper<MiddleType>^, RetType>^ next, Mem
 }
 
 
+
+
+
 }

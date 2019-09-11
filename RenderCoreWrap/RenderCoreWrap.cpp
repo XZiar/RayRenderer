@@ -96,11 +96,74 @@ static Drawable^ ConstructDrawable(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
 {
     return gcnew Drawable(theModel->Extract());
 }
-Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
+Task<Drawable^>^ RenderCore::LoadModelAsync2(String^ fname)
 {
     return doAsync3<Drawable^>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, Drawable^>(&ConstructDrawable),
         &rayr::RenderCore::LoadModelAsync, *Core, ToU16Str(fname));
 }
+
+
+template<class RetType>
+inline void __cdecl SetTcsResult(const gcroot<TaskCompletionSource<RetType>^>& tcs, const gcroot<RetType>& ret)
+{
+    tcs->SetResult(ret);
+}
+
+#pragma managed(push, off)
+
+template<auto Caller, auto Convertor, typename NativeT, typename ManagedT, typename C, typename... Args>
+inline void NewDoAsyncNative(C& self, gcroot<TaskCompletionSource<ManagedT>^> tcs, Args... args)
+{
+    //common::PromiseResult<NativeT> pms = self.*Caller(std::forward<Args>(args)...);
+    common::PromiseResult<NativeT> pms = std::invoke(Caller, self, std::forward<Args>(args)...);
+    common::asyexe::AsyncProxy::OnComplete<NativeT>(pms, [=](NativeT obj)
+        {
+            auto obj2 = Convertor(obj);
+            SetTcsResult(tcs, obj2);
+        });
+
+}
+#pragma managed(pop)
+
+template<auto Caller, auto Convertor, typename C, typename... Args>
+inline auto NewDoAsync(C& self, Args... args)
+{
+    static_assert(std::is_invocable_v<decltype(Caller), C, Args...>, "invalid caller");
+    using TaskPtr = std::invoke_result_t<decltype(Caller), C, Args...>;
+    static_assert(common::is_specialization<TaskPtr, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
+    using TaskType = typename TaskPtr::element_type;
+    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
+    using NativeT = typename TaskType::ResultType;
+    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&>, "convertor should accept a reference of ResultType");
+    //using ManagedT = std::invoke_result_t<decltype(Convertor), NativeT&>;
+    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&>;
+    using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
+    //using ManagedT = decltype(*std::declval<ManagedT2&>());
+
+    gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();
+    NewDoAsyncNative<Caller, Convertor, NativeT, ManagedT>(self, tcs, std::forward<Args>(args)...);
+    return tcs->Task;
+
+}
+
+static gcroot<Drawable^> __cdecl ConvDrawable(Wrapper<rayr::Model>& theModel)
+{
+    return gcnew Drawable(theModel);
+}
+
+Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
+{
+    /*static_assert(std::is_invocable_v<decltype(&rayr::RenderCore::LoadModelAsync2), rayr::RenderCore, std::u16string>, "invalid caller");
+    static_assert(std::is_invocable_v<decltype(ConvDrawable), Wrapper<rayr::Model>&>, "convertor should accept a reference of ResultType");
+    using ManagedT = std::invoke_result_t<decltype(ConvDrawable), Wrapper<rayr::Model>&>;
+
+    using MT = decltype(std::declval<ManagedT&>().operator->());*/
+
+    return NewDoAsync<&rayr::RenderCore::LoadModelAsync2, ConvDrawable>(*Core, ToU16Str(fname));
+}
+
+
+
 
 static RenderPass^ ConstructRenderPass(CLIWrapper<Wrapper<rayr::DefaultRenderPass>>^ pass)
 {

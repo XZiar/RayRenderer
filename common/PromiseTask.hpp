@@ -46,6 +46,7 @@ protected:
     { }
     T virtual WaitPms() = 0;
 public:
+    using ResultType = T;
     PromiseResult_(PromiseResult_&&) = default;
     T Wait()
     {

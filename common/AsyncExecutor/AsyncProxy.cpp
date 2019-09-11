@@ -20,7 +20,7 @@ LoopBase::LoopState AsyncProxy::OnLoop()
             hasExecuted = true;
             Current->Timer.Stop();
             Logger.verbose(u"Task[{}] spend {}ms\n", Current->Id, Current->Timer.ElapseMs());
-            Current->Resolve();
+            Current->Resolve([&](const BaseException& be) { Logger.warning(u"Task[{}] reported an unhandled error:\t{}\n", be.message); });
             Current = TaskList.PopNode(Current);
         }
         else

@@ -4,6 +4,7 @@
 #include "LoopBase.h"
 #include "common/miniLogger/miniLogger.h"
 #include <functional>
+#include <optional>
 
 
 namespace common
@@ -12,12 +13,11 @@ namespace asyexe
 {
 
 
-class ASYEXEAPI AsyncProxy : public LoopBase
+class ASYEXEAPI AsyncProxy final : private LoopBase
 {
 public:
-    template<typename T> using CompleteCallback = std::function<void(T&&)>;
+    template<typename T> using CompleteCallback = std::function<void(T)>;
     using ErrorCallback = std::function<void(const BaseException&)>;
-
 private:
     struct AsyncNodeBase : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<AsyncNodeBase>
     {
@@ -28,28 +28,37 @@ private:
         { 
             Timer.Start();
         }
-        virtual ~AsyncNodeBase() = 0;
-        virtual void Resolve() const noexcept = 0;
+        virtual ~AsyncNodeBase() {};
+        virtual void Resolve(const ErrorCallback& onErr) const noexcept = 0;
     };
     template<typename T>
     struct AsyncNode : public AsyncNodeBase
     {
         const CompleteCallback<T> OnCompleted;
         const ErrorCallback OnErrored;
-        AsyncNode(const PromiseResult<T>& promise, CompleteCallback<T>&& onComplete, ErrorCallback&& onError)
-            : AsyncNodeBase(promise), OnCompleted(std::move(onComplete)), OnErrored(std::move(onError))
+        AsyncNode(PromiseResult<T>&& promise, CompleteCallback<T>&& onComplete, ErrorCallback&& onError)
+            : AsyncNodeBase(std::move(promise)), OnCompleted(std::move(onComplete)), OnErrored(std::move(onError))
         {}
         virtual ~AsyncNode() override {}
-        virtual void Resolve() const noexcept
+        virtual void Resolve(const ErrorCallback& onErr) const noexcept
         {
             try 
             {
                 auto pms = std::dynamic_pointer_cast<common::detail::PromiseResult_<T>>(Promise);
-                OnCompleted(pms->Wait());
+                if constexpr (std::is_same_v<T, void>)
+                {
+                    pms->Wait();
+                    OnCompleted();
+                }
+                else
+                    OnCompleted(pms->Wait());
             }
             catch (const BaseException& be)
             {
-                OnErrored(be);
+                if (OnErrored)
+                    OnErrored(be);
+                else
+                    onErr(be);
             }
         }
     };
@@ -66,9 +75,9 @@ private:
     void AddNode(AsyncNodeBase* node);
 public:
     template<typename T>
-    static void OnComplete(const PromiseResult<T>& pms, CompleteCallback<T>&& onComplete, ErrorCallback&& onError)
+    static void OnComplete(PromiseResult<T> pms, CompleteCallback<T> onComplete, ErrorCallback onError = nullptr)
     {
-        GetSelf().AddNode(new AsyncNode<T>(pms, std::move(onComplete), std::move(onError)));
+        GetSelf().AddNode(new AsyncNode<T>(std::move(pms), std::move(onComplete), std::move(onError)));
     }
 };
 

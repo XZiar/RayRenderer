@@ -25,17 +25,19 @@ _intrinMap = \
 
 def collectEnv(paras:dict) -> dict:
     solDir = os.getcwd()
-    env = {"rootDir": solDir, "target": "Debug"}
+    env = {"rootDir": solDir, "target": "Debug", "paras": paras}
+    env["arch"] = paras.get("arch", "native")
     is64Bits = sys.maxsize > 2**32
     env["platform"] = "x64" if is64Bits else "x86"
     env["incDirs"] = []
     env["libDirs"] = []
     env["incDirs"] += [x+"/include" for x in [os.environ.get("CPP_DEPENDENCY_PATH")] if x is not None]
-    cppcompiler = os.environ.get("CPPCOMPILER", "g++")
+    cppcompiler = os.environ.get("CC", "g++")
+    cppcompiler = os.environ.get("CPPCOMPILER", cppcompiler)
     defs = []
     osname = platform.system()
     if not osname == "Windows":
-        rawdefs = subprocess.check_output("{} -march=native -dM -E - < /dev/null".format(cppcompiler), shell=True)
+        rawdefs = subprocess.check_output(f"{cppcompiler} -march={env['arch']} -dM -E - < /dev/null", shell=True)
         defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
