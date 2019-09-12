@@ -9,7 +9,6 @@
 #include "RenderCore/BasicTest.h"
 #include "common/Exceptions.hpp"
 #include "common/miniLogger/miniLogger.h"
-#include "common/AsyncExecutor/AsyncProxy.h"
 
 using std::vector;
 using common::Wrapper;

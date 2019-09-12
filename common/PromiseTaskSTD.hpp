@@ -47,7 +47,7 @@ public:
     template<typename U>
     static PromiseResult<T> Get(U&& data)
     {
-        return std::make_shared<PromiseResultSTD>(std::forward<U>(data));
+        return std::make_shared<PromiseResultSTD<T, IsShared>>(std::forward<U>(data));
     }
 };
 

@@ -2,10 +2,11 @@
 
 #include "RenderCoreWrapRely.h"
 #include "ControllableWrap.h"
-#include "Async.h"
+//#include "Async.h"
 
 using namespace System;
 using namespace System::Collections::Generic;
+using namespace System::Threading;
 using namespace System::Threading::Tasks;
 using namespace msclr::interop;
 using System::Windows::Media::Imaging::BitmapSource;
@@ -59,7 +60,7 @@ internal:
     ThumbnailMan(const std::shared_ptr<rayr::ThumbnailManager>& thumbMan);
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
-    BitmapSource^ GetThumbnail3(IntPtr imgptr);
+    //BitmapSource^ GetThumbnail3(IntPtr imgptr);
     BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
 public:
     ~ThumbnailMan() { this->!ThumbnailMan(); }

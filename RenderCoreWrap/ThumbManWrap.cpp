@@ -1,6 +1,7 @@
 #include "RenderCoreWrapRely.h"
 #include "ThumbManWrap.h"
 #include "ImageUtil.h"
+#include "common/CLIAsync.hpp"
 
 using common::container::FindInMap;
 using System::Windows::Media::Imaging::BitmapImage;
@@ -69,11 +70,14 @@ TextureLoader::!TextureLoader()
         delete ptr;
 }
 
-static TexHolder^ ToTexHolder(IntPtr ptr)
+//static TexHolder^ ToTexHolder(IntPtr ptr)
+//{
+//    return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
+//}
+static gcroot<TexHolder^> ConvTexHolder(rayr::FakeTex& tex)
 {
-    return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
+    return TexHolder::CreateTexHolder(tex);
 }
-
 Task<TexHolder^>^ TextureLoader::LoadTextureAsync(BitmapSource^ image, TexLoadType type)
 {
     auto bmp = static_cast<BitmapImage^>(image);
@@ -86,8 +90,9 @@ Task<TexHolder^>^ TextureLoader::LoadTextureAsync(BitmapSource^ image, TexLoadTy
     }
     else
     {
-        return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
-            gcnew Func<IntPtr, TexHolder^>(ToTexHolder));
+        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)));
+        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
+            gcnew Func<IntPtr, TexHolder^>(ToTexHolder));*/
     }
 }
 
@@ -100,8 +105,9 @@ Task<TexHolder^>^ TextureLoader::LoadTextureAsync(String^ fname, TexLoadType typ
     }
     else
     {
-        return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
-            gcnew Func<IntPtr, TexHolder^>(ToTexHolder));
+        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)));
+        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
+            gcnew Func<IntPtr, TexHolder^>(ToTexHolder));*/
     }
 }
 
@@ -146,14 +152,14 @@ BitmapSource^ ThumbnailMan::GetThumbnail(const xziar::img::ImageView& img)
     return timg;
 }
 
-BitmapSource^ ThumbnailMan::GetThumbnail3(IntPtr imgptr)
-{
-    auto& img = *reinterpret_cast<std::optional<xziar::img::ImageView>*>(imgptr.ToPointer());
-    if (img.has_value())
-        return GetThumbnail(img.value());
-    else
-        return nullptr;
-}
+//BitmapSource^ ThumbnailMan::GetThumbnail3(IntPtr imgptr)
+//{
+//    auto& img = *reinterpret_cast<std::optional<xziar::img::ImageView>*>(imgptr.ToPointer());
+//    if (img.has_value())
+//        return GetThumbnail(img.value());
+//    else
+//        return nullptr;
+//}
 
 BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 {
@@ -163,11 +169,18 @@ BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
     return GetThumbnail(img.value());
 }
 
-
+static gcroot<BitmapSource^> ConvThumbnail(std::optional<xziar::img::ImageView>& img, gcroot<ThumbnailMan^> self)
+{
+    if (img.has_value())
+        return self->GetThumbnail(img.value());
+    else
+        return nullptr;
+}
 Task<BitmapSource^>^ ThumbnailMan::GetThumbnailAsync(TexHolder^ holder)
 {
-    return AsyncWaiter::ReturnTask(ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()), 
-        gcnew Func<IntPtr, BitmapSource^>(this, &ThumbnailMan::GetThumbnail3));
+    return ReturnTask<ConvThumbnail>(ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()), this);
+    /*return AsyncWaiter::ReturnTask(ThumbMan->lock()->GetThumbnail(holder->ExtractHolder()),
+        gcnew Func<IntPtr, BitmapSource^>(this, &ThumbnailMan::GetThumbnail3));*/
 }
 
 

@@ -11,6 +11,7 @@
 #include "Basic3DObject.h"
 #include "common/PromiseTaskSTD.hpp"
 #include <thread>
+#include <future>
 
 using common::container::FindInSet;
 using common::container::FindInMap;
@@ -235,24 +236,22 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
 
 common::PromiseResult<Wrapper<Model>> RenderCore::LoadModelAsync2(const u16string& fname) const
 {
-    std::promise<Wrapper<Model>> pms;
-    auto ret = PromiseResultSTD<Wrapper<Model>>::Get(pms);
-    std::thread([&](const u16string name, std::promise<Wrapper<Model>>&& pms_)
+    auto fut = std::async(std::launch::async, [&](const u16string name)
         {
             common::SetThreadName(u"AsyncLoader for Model");
             try
             {
                 Wrapper<Model> mod(name, TexLoader, GLWorker);
                 mod->Name = u"model";
-                pms_.set_value(mod);
+                return mod;
             }
             catch (BaseException& be)
             {
                 dizzLog().error(u"failed to load model by file {}\n", name);
-                pms_.set_exception(std::current_exception());
+                throw be;
             }
-        }, fname, std::move(pms)).detach();
-        return ret;
+        }, fname);
+    return PromiseResultSTD<Wrapper<Model>>::Get(std::move(fut));
 }
 
 void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError) const
@@ -279,6 +278,19 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
             onError(be);
         }
     }, std::move(pms)).detach();
+}
+
+common::PromiseResult<Wrapper<DefaultRenderPass>> RenderCore::LoadShaderAsync2(const u16string& fname, const u16string& shdName) const
+{
+    return GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
+        {
+            auto shader = Wrapper<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
+            shader->Program->State()
+                .SetSubroutine("lighter", "tex0")
+                .SetSubroutine("getNorm", "bothNormal")
+                .SetSubroutine("getAlbedo", "bothAlbedo");
+            return shader;
+        }, u"load shader " + shdName, common::asyexe::StackSize::Big);
 }
 
 bool RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)

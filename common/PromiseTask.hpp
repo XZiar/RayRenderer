@@ -115,4 +115,38 @@ public:
     }
 };
 
+
+template<typename T>
+struct PromiseChecker
+{
+private:
+    using PureType = std::remove_cv_t<std::remove_reference_t<T>>;
+    static_assert(common::is_specialization<PureType, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
+    using TaskType = typename PureType::element_type;
+    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
+public:
+    using TaskRet = typename TaskType::ResultType;
+};
+template<typename T>
+inline constexpr bool IsPromiseResult()
+{
+    if constexpr (!common::is_specialization<T, std::shared_ptr>::value)
+        return false;
+    else
+    {
+        using TaskType = typename T::element_type;
+        if (!common::is_specialization<TaskType, common::detail::PromiseResult_>::value)
+            return false;
+    }
+    return true;
+}
+template<typename T>
+inline constexpr void EnsurePromiseResult()
+{
+    static_assert(common::is_specialization<T, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
+    using TaskType = typename T::element_type;
+    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
+}
+
+
 }

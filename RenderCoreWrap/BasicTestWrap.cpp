@@ -1,7 +1,7 @@
 #include "RenderCoreWrapRely.h"
 #include "BasicTestWrap.h"
 #include "ImageUtil.h"
-#include "common/CLIAsync.hpp"
+#include "common/CLIAsyncOld.hpp"
 
 
 namespace RayRender
@@ -73,7 +73,7 @@ bool DrawableHolder::AddModel(CLIWrapper<Wrapper<rayr::Model>>^ theModel)
 }
 Task<bool>^ DrawableHolder::AddModelAsync(String^ fname)
 {
-    return doAsync3<bool>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, bool>(this, &DrawableHolder::AddModel), 
+    return doAsync3<bool>(gcnew Func<CLIWrapper<Wrapper<rayr::Model>>^, bool>(this, &DrawableHolder::AddModel),
         &rayr::BasicTest::LoadModelAsync, Core, ToU16Str(fname));
 }
 

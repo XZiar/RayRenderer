@@ -12,11 +12,23 @@ namespace common
 namespace asyexe
 {
 
+namespace detail
+{
+template<typename T>
+struct CompleteCallback : public std::function<void(T)>
+{
+    using std::function<void(T)>::function;
+};
+template<>
+struct CompleteCallback<void> : public std::function<void()>
+{
+    using std::function<void()>::function;
+};
+}
 
 class ASYEXEAPI AsyncProxy final : private LoopBase
 {
 public:
-    template<typename T> using CompleteCallback = std::function<void(T)>;
     using ErrorCallback = std::function<void(const BaseException&)>;
 private:
     struct AsyncNodeBase : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<AsyncNodeBase>
@@ -31,12 +43,15 @@ private:
         virtual ~AsyncNodeBase() {};
         virtual void Resolve(const ErrorCallback& onErr) const noexcept = 0;
     };
+    
+
     template<typename T>
     struct AsyncNode : public AsyncNodeBase
     {
-        const CompleteCallback<T> OnCompleted;
-        const ErrorCallback OnErrored;
-        AsyncNode(PromiseResult<T>&& promise, CompleteCallback<T>&& onComplete, ErrorCallback&& onError)
+        detail::CompleteCallback<T> OnCompleted;
+        ErrorCallback OnErrored;
+
+        AsyncNode(PromiseResult<T> promise, detail::CompleteCallback<T> onComplete, ErrorCallback onError)
             : AsyncNodeBase(std::move(promise)), OnCompleted(std::move(onComplete)), OnErrored(std::move(onError))
         {}
         virtual ~AsyncNode() override {}
@@ -62,7 +77,7 @@ private:
             }
         }
     };
-
+   
     static AsyncProxy& GetSelf();
 
     common::container::IntrusiveDoubleLinkList<AsyncNodeBase> TaskList;
@@ -74,10 +89,11 @@ private:
     virtual bool OnStart() noexcept override;
     void AddNode(AsyncNodeBase* node);
 public:
-    template<typename T>
-    static void OnComplete(PromiseResult<T> pms, CompleteCallback<T> onComplete, ErrorCallback onError = nullptr)
+    template<typename Pms, typename CB>
+    static void OnComplete(Pms&& pms, CB&& onComplete, ErrorCallback onError = nullptr)
     {
-        GetSelf().AddNode(new AsyncNode<T>(std::move(pms), std::move(onComplete), std::move(onError)));
+        using RetType = typename PromiseChecker<Pms>::TaskRet;
+        GetSelf().AddNode(new AsyncNode<RetType>(std::forward<Pms>(pms), std::forward<CB>(onComplete), std::move(onError)));
     }
 };
 

@@ -2,14 +2,31 @@
 #include "common/AsyncExecutor/AsyncAgent.h"
 #include "common/AsyncExecutor/AsyncManager.h"
 #include "common/AsyncExecutor/AsyncProxy.h"
-#include "common/miniLogger/QueuedBackend.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "StringCharset/Convert.h"
 #include "fmt/format.h"
 #include <thread>
-#include <sstream>
-#include <conio.h>
+#if defined(_WIN32)
+#  include <conio.h>
+#else
+#  include <termios.h>
+inline char _getch()
+{
+    char buf = 0;
+    termios oldx;
+    tcgetattr(0, &oldx);
+    termios newx = oldx;
+    newx.c_lflag &= ~ICANON;
+    newx.c_lflag &= ~ECHO;
+    newx.c_cc[VMIN] = 1;
+    newx.c_cc[VTIME] = 0;
+    tcsetattr(0, TCSANOW, &newx);
+    read(0, &buf, 1);
+    tcsetattr(0, TCSADRAIN, &oldx);
+    return buf;
+ }
+#endif
 
 using namespace common;
 using namespace common::mlog;
@@ -72,8 +89,7 @@ static void AsyncTest()
                     agent.Sleep(3000);
                     //return 1;
                 });
-            AsyncProxy::OnComplete<void>(pms,
-                [&]() { printf("Recieved one [%d]\n", 1); });
+            AsyncProxy::OnComplete(pms, [&]() { printf("Recieved one [%d]\n", 1); });
         }
     }
 }

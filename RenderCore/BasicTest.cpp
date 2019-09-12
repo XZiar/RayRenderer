@@ -471,6 +471,26 @@ void BasicTest::LoadModelAsync(const u16string& fname, std::function<void(Wrappe
     }, fname).detach();
 }
 
+common::PromiseResult<Wrapper<Model>> BasicTest::LoadModelAsync2(const u16string& fname) const
+{
+    auto fut = std::async(std::launch::async, [&](const u16string name)
+        {
+            common::SetThreadName(u"AsyncLoader for Model");
+            try
+            {
+                Wrapper<Model> mod(name, TexLoader, GLWorker);
+                mod->Name = u"model";
+                return mod;
+            }
+            catch (BaseException& be)
+            {
+                dizzLog().error(u"failed to load model by file {}\n", name);
+                throw be;
+            }
+        }, fname);
+    return PromiseResultSTD<Wrapper<Model>>::Get(std::move(fut));
+}
+
 void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError /*= nullptr*/)
 {
     auto pms = GLWorker->InvokeShare([fpath, shdName](const common::asyexe::AsyncAgent&)
@@ -497,6 +517,20 @@ void BasicTest::LoadShaderAsync(const u16string& fpath, const u16string& shdName
         }
     }, std::move(pms)).detach();
 }
+
+common::PromiseResult<Wrapper<GLShader>> BasicTest::LoadShaderAsync2(const u16string& fname, const u16string& shdName) const
+{
+    return GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
+        {
+            auto shader = Wrapper<GLShader>(shdName, common::file::ReadAllText(fname));
+            shader->Program->State()
+                .SetSubroutine("lighter", "tex0")
+                .SetSubroutine("getNorm", "bothNormal")
+                .SetSubroutine("getAlbedo", "bothAlbedo");
+            return shader;
+        }, u"load shader " + shdName, common::asyexe::StackSize::Big);
+}
+
 
 bool BasicTest::AddObject(const Wrapper<Drawable>& drawable)
 {

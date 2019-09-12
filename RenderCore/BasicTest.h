@@ -87,6 +87,8 @@ public:
     void ReloadFontLoaderAsync(const u16string& fname, CallbackInvoke<bool> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadShaderAsync(const u16string& fname, const u16string& shdName, std::function<void(Wrapper<GLShader>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
     void LoadModelAsync(const u16string& fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError = nullptr);
+    common::PromiseResult<Wrapper<GLShader>> LoadShaderAsync2(const u16string& fname, const u16string& shdName) const;
+    common::PromiseResult<Wrapper<Model>> LoadModelAsync2(const u16string& fname) const;
     bool AddObject(const Wrapper<Drawable>& drawable);
     bool AddLight(const Wrapper<Light>& light);
     void DelAllLight();
