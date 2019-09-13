@@ -27,16 +27,6 @@ RESPAK_IMPL_COMP_DESERIALIZE(FontTester, oclu::oclContext)
 }
 
 
-struct Init
-{
-    Init()
-    {
-        dizzLog().verbose(u"RenderCore Static Init\n");
-        oglUtil::Init();
-        oclUtil::Init();
-    }
-};
-
 static int32_t JudgeVendor(const Vendor vendor)
 {
     switch (vendor)
@@ -85,9 +75,8 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
 
 RenderCore::RenderCore()
 {
-    static Init init;
-    const auto oriCtx = oglu::oglContext::CurrentContext();
-    oriCtx->SetRetain(true);
+    const auto oriCtx = oglu::oglContext::Refresh();
+    //oriCtx->SetRetain(true);
     GLContext = oglu::oglContext::NewContext(oriCtx);
     GLContext->UseContext();
     //for reverse-z

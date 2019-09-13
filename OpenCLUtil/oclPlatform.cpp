@@ -42,7 +42,7 @@ oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) 
             if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
                 return *dev;
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::getErrorString(ret));
+            oclLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }
     //try context that may be associated 
     {
@@ -53,7 +53,7 @@ oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) 
             if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dIDs[0]; }); dev)
                 return *dev;
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::getErrorString(ret));
+            oclLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }
     return {};
 }

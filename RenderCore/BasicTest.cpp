@@ -19,8 +19,8 @@ struct Init
     Init()
     {
         dizzLog().verbose(u"BasicTest Static Init\n");
-        oglUtil::Init();
-        oclUtil::Init();
+        oglContext::Refresh();
+        oclUtil::GetPlatforms();
     }
 };
 
@@ -84,7 +84,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
 {
     static Init _init;
     const auto oriCtx = oglu::oglContext::CurrentContext();
-    oriCtx->SetRetain(true);
+    //oriCtx->SetRetain(true);
     glContext = oglu::oglContext::NewContext(oriCtx);
     glContext->UseContext();
     //glContext = oglu::oglContext::CurrentContext();

@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include "3DBasic/miniBLAS.hpp"
-#include "half/half.hpp"
+#include "3rdParty/half/half.hpp"
 
 
 namespace b3d

@@ -36,7 +36,8 @@ class OGLUAPI oglUtil
 {
 private:
 public:
-    static void Init(const bool initLatestVer = false);
+    //static void Init(const bool initLatestVer = false);
+    static void InitLatestVersion();
     static u16string GetVersionStr();
     static optional<string_view> GetError();
     static set<string_view, std::less<>> GetExtensions();

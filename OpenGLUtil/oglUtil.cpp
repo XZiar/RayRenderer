@@ -8,30 +8,22 @@ namespace oglu
 {
 
 
-constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-void oglUtil::Init(const bool initLatestVer)
+void oglUtil::InitLatestVersion()
 {
-    oglLog().info(u"GL Version:{}\n", GetVersionStr());
-    oglContext::BasicInit();
+    constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
     const auto glctx = oglContext::Refresh();
-    if (initLatestVer)
+    oglLog().info(u"GL Version:{}\n", GetVersionStr());
+    for (const auto ver : VERSIONS)
     {
-        for (const auto ver : VERSIONS)
+        const auto ctx = oglContext::NewContext(glctx, false, ver);
+        if (ctx)
         {
-            const auto ctx = oglContext::NewContext(glctx, false, ver);
-            if (ctx)
-            {
-                ctx->UseContext();
-                oglLog().info(u"Latest GL Version:{}\n", GetVersionStr());
-                glctx->UseContext();
-                break;
-            }
+            ctx->UseContext();
+            oglLog().info(u"Latest GL Version:{}\n", GetVersionStr());
+            glctx->UseContext();
+            break;
         }
     }
-#if defined(_DEBUG) || 1
-    glctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-#endif
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 u16string oglUtil::GetVersionStr()
 {

@@ -14,7 +14,7 @@ static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t s
     cl_int errcode;
     const auto id = clCreateBuffer(ctx, (cl_mem_flags)flag, size, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create memory", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create memory");
     return id;
 }
 
@@ -43,7 +43,7 @@ void* _oclBuffer::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
     cl_int ret;
     const auto ptr = clEnqueueMapBuffer(que->cmdque, MemID, CL_TRUE, (cl_map_flags)mapFlag, 0, Size, 0, nullptr, &e, &ret);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot map clBuffer", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clBuffer");
     return ptr;
 }
 
@@ -56,7 +56,7 @@ PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size
     cl_event e;
     auto ret = clEnqueueReadBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clMemory", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clMemory");
     if (shouldBlock)
         return {};
     else
@@ -72,7 +72,7 @@ PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const b
     cl_event e;
     const auto ret = clEnqueueWriteBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clMemory", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
     if (shouldBlock)
         return {};
     else

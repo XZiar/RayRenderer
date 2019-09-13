@@ -41,12 +41,12 @@ protected:
         const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
         if (ret != CL_SUCCESS)
         {
-            oclLog().warning(u"Error in reading cl_event's status: {}\n", oclUtil::getErrorString(ret));
+            oclLog().warning(u"Error in reading cl_event's status: {}\n", oclUtil::GetErrorString(ret));
             return PromiseState::Invalid;
         }
         if (status < 0)
         {
-            oclLog().warning(u"cl_event's status shows an error: {}\n", oclUtil::getErrorString(status));
+            oclLog().warning(u"cl_event's status shows an error: {}\n", oclUtil::GetErrorString(status));
             return PromiseState::Error;
         }
         switch (status)

@@ -57,7 +57,7 @@ static cl_program LoadProgram(const string& src, const cl_context& ctx)
     size_t size = src.length();
     const auto prog = clCreateProgramWithSource(ctx, 1, &str, &size, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create program", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create program");
     return prog;
 }
 
@@ -78,7 +78,7 @@ vector<cl_device_id> _oclProgram::getDevs() const
     vector<cl_device_id> devids(devCount);
     ret = clGetProgramInfo(progID, CL_PROGRAM_DEVICES, sizeof(cl_device_id)*devCount, devids.data(), nullptr);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"ANY ERROR in get devices from program", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"ANY ERROR in get devices from program");
     return devids;
 }
 
@@ -163,13 +163,13 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
     else
     {
         oclLog().error(u"build program {:p} failed:\n{}\n", (void*)progID, buildlog);
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"Build Program failed", ret), buildlog);
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed", buildlog);
     }
 
     size_t len = 0;
     ret = clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, 0, nullptr, &len);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot find kernels", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot find kernels");
     vector<char> buf(len, '\0');
     clGetProgramInfo(progID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
     if (len > 0)
@@ -193,10 +193,10 @@ oclKernel _oclProgram::GetKernel(const string& name)
 
 static cl_kernel CreateKernel(const cl_program prog, const std::string& name)
 {
-    cl_int errorcode;
-    auto kid = clCreateKernel(prog, name.data(), &errorcode);
-    if (errorcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"canot create kernel from program", errorcode));
+    cl_int errcode;
+    auto kid = clCreateKernel(prog, name.data(), &errcode);
+    if (errcode != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"canot create kernel from program");
     return kid;
 }
 static uint32_t GetKernelInfoInt(cl_kernel kernel, cl_kernel_info param)
@@ -306,7 +306,7 @@ void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf->MemID);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
 void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
@@ -314,7 +314,7 @@ void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->MemID);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
 void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
@@ -322,7 +322,7 @@ void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, size, dat);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"set kernel argument error", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
 
@@ -337,7 +337,7 @@ PromiseResult<void> _oclKernel::Run(const PromiseResult<void>& pms, const uint32
         depend = &clpms->GetEvent(), ecount = 1;
     ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"excute kernel error", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"excute kernel error");
     if (isBlock)
     {
         clWaitForEvents(1, &e);

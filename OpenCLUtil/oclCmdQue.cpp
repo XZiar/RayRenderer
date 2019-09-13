@@ -22,7 +22,7 @@ static cl_command_queue CreateCmdQue(const cl_context ctx, const cl_device_id de
 
     const auto que = clCreateCommandQueue(ctx, dev, props, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create command queue", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create command queue");
     return que;
 }
 

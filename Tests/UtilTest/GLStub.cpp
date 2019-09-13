@@ -17,7 +17,7 @@ static MiniLogger<false>& log()
 
 oglContext CreateContext()
 {
-    oglUtil::Init(true);
+    oglUtil::InitLatestVersion();
     // uint32_t major, minor;
     // log().info(u"Input major and minor version...");
     // std::cin >> major >> minor;
@@ -66,6 +66,7 @@ oglContext InitContext()
     wglMakeCurrent(tmpDC, tmpRC);
 
     auto ctx = CreateContext();
+    oglContext::ReleaseExternContext(tmpRC);
     wglDeleteContext(tmpRC);
     return ctx;
 }
@@ -116,6 +117,7 @@ oglContext InitContext()
     glXMakeCurrent(display, win, tmpCtx);
 
     auto ctx = CreateContext();
+    oglContext::ReleaseExternContext(tmpCtx);
     glXDestroyContext(display, tmpCtx);
     return ctx;
 }

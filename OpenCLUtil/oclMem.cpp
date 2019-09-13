@@ -14,7 +14,7 @@ _oclMapPtr::~_oclMapPtr()
     cl_event e;
     auto ret = clEnqueueUnmapMemObject(Queue->cmdque, MemId, Pointer, 0, nullptr, &e); 
     if (ret != CL_SUCCESS)
-        oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::getErrorString(ret));
+        oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::GetErrorString(ret));
 }
 
 _oclMem::_oclMem(const oclContext& ctx, cl_mem mem, const MemFlag flag) : Context(ctx), MemID(mem), Flag(flag)
@@ -80,7 +80,7 @@ GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Queue(que), M
         glFinish();
     cl_int ret = clEnqueueAcquireGLObjects(Queue->cmdque, 1, &mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot lock oglObject for oclMemObject", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");
 }
 GLResLocker::~GLResLocker()
 {
@@ -88,7 +88,7 @@ GLResLocker::~GLResLocker()
         Queue->Flush(); // assume promise is correctly waited before relase lock
     cl_int ret = clEnqueueReleaseGLObjects(Queue->cmdque, 1, &Mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
-        oclLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::getErrorString(ret));
+        oclLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
 }
 
 cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& buf)
@@ -96,7 +96,7 @@ cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const o
     cl_int errcode;
     const auto id = clCreateFromGLBuffer(ctx->context, (cl_mem_flags)flag, buf->bufferID, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glBuffer", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glBuffer");
     return id;
 }
 cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex)
@@ -111,7 +111,7 @@ cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const o
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
     const auto id = clCreateFromGLTexture(ctx->context, (cl_mem_flags)flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create clMem from glTexture", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glTexture");
     return id;
 }
 

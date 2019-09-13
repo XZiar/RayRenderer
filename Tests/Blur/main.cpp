@@ -43,8 +43,6 @@ std::array<float, 4> ComputeCoeff(const float sigma)
 
 Image ProcessImg(const string kernel, const Image& image, float sigma) try
 {
-    oclUtil::Init(false);
-
     const auto& plats = oclUtil::GetPlatforms();
     if (plats.size() == 0)
         return {};

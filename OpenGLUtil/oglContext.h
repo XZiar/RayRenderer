@@ -87,22 +87,21 @@ public:
     template<typename T, bool Dummy>
     T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
-        Lock.LockRead();
-        ContextResource **obj = common::container::FindInMap(Resources, &cfg);
-        Lock.UnlockRead();
+        ContextResource** obj = nullptr;
+        {
+            auto lock = Lock.ReadScope();
+            obj = common::container::FindInMap(Resources, &cfg);
+        }
         if (obj)
             return *dynamic_cast<AnyCtxRes<T>*>(*obj);
         T ele = cfg.Construct();// create first, in case chained creation
-        Lock.LockWrite();
-        obj = common::container::FindInMap(Resources, &cfg);
-        if (obj)
         {
-            Lock.UnlockWrite();
+            auto lock = Lock.WriteScope();
+            obj = common::container::FindInMap(Resources, &cfg);
+            if (!obj)
+                obj = &Resources.emplace(&cfg, new AnyCtxRes<T>(std::move(ele))).first->second;
             return *dynamic_cast<AnyCtxRes<T>*>(*obj);
         }
-        obj = &Resources.emplace(&cfg, new AnyCtxRes<T>(std::move(ele))).first->second;
-        Lock.UnlockWrite();
-        return *dynamic_cast<AnyCtxRes<T>*>(*obj);
     }
     void Release();
 };
@@ -147,11 +146,12 @@ private:
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
     uint32_t Version = 0;
-    bool IsRetain = false;
+    bool IsExternal;
+    //bool IsRetain = false;
 #if defined(_WIN32)
-    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc);
+    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external = false);
 #else
-    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw);
+    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external = false);
 #endif
     void Init(const bool isCurrent);
 public:
@@ -161,7 +161,7 @@ public:
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
-    void SetRetain(const bool isRetain);
+    //void SetRetain(const bool isRetain);
     template<bool IsShared, typename T, bool Dummy>
     T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
@@ -236,7 +236,7 @@ class OGLUAPI oglContext : public common::Wrapper<detail::_oglContext>
     friend class detail::_oglContext;
     friend class oglUtil;
 private:
-    static void BasicInit();
+    //static void BasicInit();
 public:
     using common::Wrapper<detail::_oglContext>::Wrapper;
     static uint32_t GetLatestVersion();
@@ -244,6 +244,7 @@ public:
     static oglContext Refresh();
     static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs);
     static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
+    static bool ReleaseExternContext(void* hrc);
 };
 
 struct OGLUAPI BindingState

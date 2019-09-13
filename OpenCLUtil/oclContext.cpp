@@ -39,7 +39,7 @@ cl_context _oclContext::CreateContext(vector<cl_context_properties>& props, cons
         props.insert(props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics }); 
     const auto ctx = clCreateContext(props.data(), (cl_uint)deviceIDs.size(), deviceIDs.data(), &onNotify, self, &ret);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create opencl-context", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot create opencl-context");
     return ctx;
 }
 

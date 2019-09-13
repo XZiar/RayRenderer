@@ -54,11 +54,12 @@ thread_local oglContext InnerCurCtx{ };
 #define CHECKCURRENT()
 #endif
 
-static uint32_t& LatestVersion()
-{
-    static uint32_t version = 0;
-    return version;
-}
+
+static std::atomic_uint32_t LatestVersion = 0;
+static std::map<void*, std::weak_ptr<detail::_oglContext>> CTX_MAP;
+static std::map<void*, std::weak_ptr<detail::_oglContext>> EXTERN_CTX_MAP;
+static common::RWSpinLock CTX_LOCK;
+std::atomic_flag EXTERN_CTX_LOCK, VER_LOCK;
 
 namespace detail
 {
@@ -89,11 +90,10 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
 
 void CtxResHandler::Release()
 {
-    Lock.LockWrite();
+    auto lock = Lock.WriteScope();
     for (auto& res : Resources)
         delete res.second;
     Resources.clear();
-    Lock.UnlockWrite();
 }
 CtxResHandler::~CtxResHandler()
 {
@@ -109,11 +109,11 @@ SharedContextCore::~SharedContextCore()
 }
 
 #if defined(_WIN32)
-_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc) : Hdc(hdc), Hrc(hrc),
-    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore) { }
+_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external) : Hdc(hdc), Hrc(hrc),
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore), IsExternal(external) { }
 #else
-_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw) : Hdc(hdc), Hrc(hrc), DRW(drw),
-    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore) { }
+_oglContext::_oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external) : Hdc(hdc), Hrc(hrc), DRW(drw),
+    DSAs(new DSAFuncs(), [](DSAFuncs* ptr){ delete ptr; }), SharedCore(sharedCore), IsExternal(external) { }
 #endif
 
 void _oglContext::Init(const bool isCurrent)
@@ -128,12 +128,16 @@ void _oglContext::Init(const bool isCurrent)
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
     Version = major * 10 + minor;
-    auto& latestVer = LatestVersion();
-    if (Version > latestVer)
     {
-        oglLog().info(u"update API Version to [{}.{}]\n", Version / 10, Version % 10);
-        glewInit();
-        latestVer = Version;
+        common::SpinLocker lock(VER_LOCK);
+        if (Version > LatestVersion)
+        {
+            LatestVersion = Version;
+            oglLog().info(u"update API Version to [{}.{}]\n", major, minor);
+            glewInit();
+        }
+        InitDSAFuncs(*DSAs);
+        Extensions = oglUtil::GetExtensions();
     }
     glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (glIsEnabled(GL_CULL_FACE))
@@ -152,9 +156,6 @@ void _oglContext::Init(const bool isCurrent)
     else
         FaceCulling = FaceCullingType::OFF;
 
-    InitDSAFuncs(*DSAs);
-    Extensions = oglUtil::GetExtensions();
-
     if (!isCurrent)
         oldCtx->UseContext();
     else
@@ -167,7 +168,8 @@ _oglContext::~_oglContext()
     oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
     ResHandler.Release();
-    if (!IsRetain)
+    //if (!IsRetain)
+    if (!IsExternal)
     {
 #if defined(_WIN32)
         wglDeleteContext((HGLRC)Hrc);
@@ -246,21 +248,21 @@ void _oglContext::Release()
     //Lock.UnlockWrite();
     UnloadContext();
 }
-void _oglContext::SetRetain(const bool isRetain)
-{
-    static std::set<oglContext> retainMap;
-    static std::atomic_flag mapLock = { };
-    if(isRetain != IsRetain)
-    {
-        common::SpinLocker lock(mapLock);
-        auto self = this->shared_from_this();
-        if (isRetain)
-            retainMap.insert(self);
-        else
-            retainMap.erase(self);
-    }
-    IsRetain = isRetain;
-}
+//void _oglContext::SetRetain(const bool isRetain)
+//{
+//    static std::set<oglContext> retainMap;
+//    static std::atomic_flag mapLock = { };
+//    if(isRetain != IsRetain)
+//    {
+//        common::SpinLocker lock(mapLock);
+//        auto self = this->shared_from_this();
+//        if (isRetain)
+//            retainMap.insert(self);
+//        else
+//            retainMap.erase(self);
+//    }
+//    IsRetain = isRetain;
+//}
 
 void _oglContext::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 {
@@ -362,58 +364,71 @@ miniBLAS::VecI4 _oglContext::GetViewPort() const
 }
 
 
-static std::map<void*, std::weak_ptr<detail::_oglContext>> CTX_MAP;
-static common::RWSpinLock CTX_LOCK;
-
 uint32_t oglContext::GetLatestVersion()
 {
-    return LatestVersion();
-}
-void oglContext::BasicInit()
-{
-#if !defined(_WIN32)
-    glxewInit(); // for some glx API
-#endif
+    return LatestVersion;
 }
 oglContext oglContext::CurrentContext()
 {
     return InnerCurCtx;
 }
 
+struct EssentialInit
+{
+    EssentialInit()
+    {
+#if !defined(_WIN32)
+        glxewInit(); // for some glx API
+#endif
+    }
+};
 oglContext oglContext::Refresh()
 {
+    [[maybe_unused]]static EssentialInit EINIT;
     oglContext ctx;
 #if defined(_WIN32)
     void *hrc = wglGetCurrentContext();
 #else
     void *hrc = glXGetCurrentContext();
 #endif
-    CTX_LOCK.LockRead();
-    ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock();
+    if (hrc == nullptr)
+    {
+        oglLog().debug(u"currently no GLContext\n");
+        return ctx;
+    }
+    {
+        auto lock = CTX_LOCK.ReadScope();
+        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock();
+    }
     if (ctx)
     {
-        CTX_LOCK.UnlockRead();
         InnerCurCtx = ctx;
         return ctx;
     }
     else
     {
-        CTX_LOCK.UnlockRead();
-        CTX_LOCK.LockWrite();
-        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock(); // second check
-        if (!ctx) // need to create the wrapper
         {
+            auto lock = CTX_LOCK.WriteScope();
+            ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock(); // second check
+            if (!ctx) // need to create the wrapper
+            {
 #if defined(_WIN32)
-            ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), wglGetCurrentDC(), hrc));
+                ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), wglGetCurrentDC(), hrc, true));
 #else
-            ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), glXGetCurrentDisplay(), hrc, glXGetCurrentDrawable()));
+                ctx = oglContext(new detail::_oglContext(std::make_shared<detail::SharedContextCore>(), glXGetCurrentDisplay(), hrc, glXGetCurrentDrawable(), true));
 #endif
-            CTX_MAP.emplace(hrc, ctx);
+                CTX_MAP.emplace(hrc, ctx);
+            }
         }
         InnerCurCtx = ctx;
-        CTX_LOCK.UnlockWrite();
         ctx->Init(true);
-        ctx->SetRetain(true);
+#if defined(_DEBUG) || 1
+        ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
+#endif
+        {
+            common::SpinLocker lock(EXTERN_CTX_LOCK);
+            EXTERN_CTX_MAP.emplace(hrc, ctx);
+        }
         return ctx;
     }
 }
@@ -472,16 +487,17 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, co
 #endif
     newCtx->Init(false);
 
-    CTX_LOCK.LockWrite();
-    CTX_MAP.emplace(newHrc, newCtx.weakRef());
-    CTX_LOCK.UnlockWrite();
+    {
+        auto lock = CTX_LOCK.WriteScope();
+        CTX_MAP.emplace(newHrc, newCtx.weakRef());
+    }
 
     return newCtx;
 }
 oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, uint32_t version)
 {
     if (version == 0) 
-        version = LatestVersion();
+        version = LatestVersion;
 #if defined(_WIN32)
     vector<int32_t> ctxAttrb
     {
@@ -522,6 +538,27 @@ oglContext oglContext::NewContext(const oglContext& ctx, const bool isShared, ui
     ctxAttrb.push_back(0);
     return NewContext(ctx, isShared, ctxAttrb.data());
 }
+
+bool oglContext::ReleaseExternContext(void* hrc)
+{
+    size_t dels = 0;
+    {
+        common::SpinLocker lock(EXTERN_CTX_LOCK);
+        dels = EXTERN_CTX_MAP.erase(hrc);
+    }
+    if (dels > 0)
+    {
+        auto lock2 = CTX_LOCK.WriteScope();
+        CTX_MAP.erase(hrc);
+        return true;
+    }
+    else
+    {
+        oglLog().warning(u"unretained HRC[{:p}] was requesr release.\n", hrc);
+        return false;
+    }
+}
+
 
 namespace detail
 {

@@ -123,7 +123,7 @@ static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const cl_image
     const auto format = ParseImageFormat(dformat);
     const auto id = clCreateImage(ctx, (cl_mem_flags)flag, &format, &desc, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot create image", errcode));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create image");
     return id;
 }
 
@@ -178,7 +178,7 @@ void* _oclImage::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
         origin, region, &image_row_pitch, &image_slice_pitch,
         0, nullptr, &e, &ret);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot map clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clImage");
     oclLog().info(u"Mapped clImage [{}x{}x{}] with row pitch [{}] and slice pitch [{}].\n", Width, Height, Depth, image_row_pitch, image_slice_pitch);
     return ptr;
 }
@@ -193,7 +193,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, cons
     cl_event e;
     const auto ret = clEnqueueWriteImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot write clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
     if (shouldBlock)
         return {};
     else
@@ -217,7 +217,7 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool 
     cl_event e;
     const auto ret = clEnqueueReadImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     if (shouldBlock)
         return {};
     else
@@ -240,7 +240,7 @@ PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
     cl_event e;
     const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, std::move(img));
 }
 
@@ -252,7 +252,7 @@ PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) con
     cl_event e;
     const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errString(u"cannot read clImage", ret));
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que->cmdque, std::move(buffer));
 }
 

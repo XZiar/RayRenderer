@@ -33,7 +33,7 @@
 #include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC
-#include "glew/glew.h"
+#include "3rdParty/glew/glew.h"
 
 
 #if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
@@ -62,7 +62,7 @@
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wmismatched-tags"
 #endif
-#include "half/half.hpp"
+#include "3rdParty/half/half.hpp"
 #if COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif

@@ -5,25 +5,15 @@ namespace oclu
 {
 
 
-static vector<oclPlatform> CL_Platforms;
 
-void oclUtil::Init(const bool checkGL)
+void oclUtil::LogCLInfo(const bool checkGL)
 {
-    CL_Platforms.clear();
-    cl_uint numPlatforms = 0;
-    clGetPlatformIDs(0, nullptr, &numPlatforms);
-    //Get all Platforms
-    vector<cl_platform_id> platformIDs(numPlatforms);
-    clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
     const auto curGLCtx = checkGL ? oglu::oglContext::CurrentContext() : oglu::oglContext{};
-    for (const auto& pID : platformIDs)
+    for (const auto& plat : GetPlatforms())
     {
-        auto plt = oclPlatform(new detail::_oclPlatform(pID));
-        plt->Init();
-        CL_Platforms.push_back(plt);
         auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
-        fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plt->Name, plt->Ver, plt->IsGLShared(curGLCtx) ? 'Y' : 'N');
-        for (const auto dev : plt->GetDevices())
+        fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plat->Name, plat->Ver, plat->IsGLShared(curGLCtx) ? 'Y' : 'N');
+        for (const auto dev : plat->GetDevices())
             fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", detail::_oclDevice::GetDeviceTypeName(dev->Type),
                 dev->Name, dev->Vendor, dev->Version);
         oclLog().verbose(strBuffer);
@@ -32,12 +22,28 @@ void oclUtil::Init(const bool checkGL)
 
 const vector<oclPlatform>& oclUtil::GetPlatforms()
 {
-    return CL_Platforms;
+    static vector<oclPlatform> Plats = []()
+    {
+        vector<oclPlatform> plats;
+        cl_uint numPlatforms = 0;
+        clGetPlatformIDs(0, nullptr, &numPlatforms);
+        //Get all Platforms
+        vector<cl_platform_id> platformIDs(numPlatforms);
+        clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
+        for (const auto& pID : platformIDs)
+        {
+            auto plt = oclPlatform(new detail::_oclPlatform(pID));
+            plt->Init();
+            plats.push_back(plt);
+        }
+        return plats;
+    }();
+    return Plats;
 }
 
 oclContext oclUtil::CreateGLSharedContext(const oglu::oglContext & ctx)
 {
-    for (const auto& plat : CL_Platforms)
+    for (const auto& plat : GetPlatforms())
     {
         if (plat->IsGLShared(ctx))
             return plat->CreateContext(ctx);
@@ -47,7 +53,7 @@ oclContext oclUtil::CreateGLSharedContext(const oglu::oglContext & ctx)
 
 using namespace std::literals;
 
-u16string_view oclUtil::getErrorString(const cl_int err)
+u16string_view oclUtil::GetErrorString(const cl_int err)
 {
     switch (err)
     {
