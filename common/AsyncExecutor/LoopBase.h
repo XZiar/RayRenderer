@@ -18,25 +18,30 @@ class LoopBase;
 class ASYEXEAPI LoopExecutor : public NonCopyable
 {
     friend class LoopBase;
-public:
-    struct LockObject { virtual ~LockObject() {} };
-private:
-    struct ControlBlock;
-    bool Start();
-    bool Stop();
 protected:
+    struct ControlBlock;
     ControlBlock* const Control;
-    std::atomic_bool RequestStop{ false }, IsRunning{ false };
+private:
     LoopBase& Loop;
-
+    std::any Cookie = {};
+    enum class ExeStates : uint8_t { Stopped = 0, Starting = 1, Running = 2, Stopping = 3 };
+    std::atomic<ExeStates> ExeState{ ExeStates::Stopped };
+    //std::atomic_bool RequestStop{ false }, IsRunning{ false };
+    enum class SleepStates : uint8_t { Can=0, CanNot=1, Pending=2 };
+    std::atomic<SleepStates> SleepState{ SleepStates::Can };
+    std::atomic_bool WakeupLock{ false };
+    bool Start(std::any cookie = {});
+    bool Stop();
+    void Wakeup();
+    bool RequestStop();
+    virtual void DoSleep(void* runningLock) noexcept = 0; // executor request sleep
+    virtual void DoWakeup() noexcept = 0; // other requst executor to wake up
+    virtual void DoStart() = 0; // when executor is requested to start
+    virtual void WaitUtilStop() = 0; // when executor is requested to stop
+protected:
     LoopExecutor(LoopBase& loop);
+    bool TurnToRun() noexcept;
     void RunLoop() noexcept;
-    std::unique_ptr<LockObject> AcquireRunningLock();
-
-    virtual void Sleep() = 0; // executor request sleep
-    virtual void Wakeup() = 0; // other requst executor to wake up
-    virtual bool OnStart() = 0; // when executor is requested to start
-    virtual bool OnStop() = 0; // when executor is requested to stop
 public:
     virtual ~LoopExecutor();
 };
@@ -45,10 +50,10 @@ class ASYEXEAPI InplaceExecutor : public LoopExecutor
 {
     friend class LoopBase;
 protected:
-    virtual void Sleep() override;
-    virtual void Wakeup() override;
-    virtual bool OnStart() override;
-    virtual bool OnStop() override;
+    virtual void DoSleep(void* runningLock) noexcept override;
+    virtual void DoWakeup() noexcept override;
+    virtual void DoStart() override;
+    virtual void WaitUtilStop() override;
 public:
     using LoopExecutor::LoopExecutor;
     bool RunInplace();
@@ -59,14 +64,12 @@ class ASYEXEAPI LoopBase : public NonCopyable, public NonMovable
     friend void LoopExecutor::RunLoop() noexcept;
 private:
     std::unique_ptr<LoopExecutor> Host;
-    void MainLoop() noexcept;
 protected:
     enum class LoopState : uint8_t { Continue, Finish, Sleep };
-    std::unique_ptr<LoopExecutor::LockObject> AcquireRunningLock() { return Host->AcquireRunningLock(); }
-    bool ShouldStop() const { return Host->RequestStop; }
+    bool IsRunning() const;
     void Wakeup() const;
     virtual LoopState OnLoop() = 0;
-    virtual bool OnStart() noexcept { return true; }
+    virtual bool OnStart(std::any) noexcept { return true; }
     virtual void OnStop() noexcept {}
     virtual bool OnError(std::exception_ptr) noexcept { return false; }
     template<typename T>
@@ -76,8 +79,10 @@ protected:
         if (!Host)
             COMMON_THROW(BaseException, u"Host invalid");
     }
-    bool Start();
+    bool Start(std::any cookie = {});
     bool Stop();
+    bool RequestStop();
+    LoopExecutor& GetHost();
 public:
     virtual ~LoopBase();
 

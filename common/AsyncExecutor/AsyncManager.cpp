@@ -3,8 +3,6 @@
 #include "AsyncManager.h"
 #include "common/IntToString.hpp"
 #include "common/SpinLock.hpp"
-#include "common/ThreadEx.inl"
-#include <mutex>
 
 
 
@@ -13,10 +11,10 @@ namespace common::asyexe
 
 bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 {
-    if (!AllowStopAdd && !ShouldRun)
+    if (!AllowStopAdd && !IsRunning())
         return false;
     if (TaskList.AppendNode(node)) // need to notify worker
-        CondWait.notify_one();
+        Wakeup();
     return true;
 }
 
@@ -24,88 +22,83 @@ bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
 void AsyncManager::Resume()
 {
     Context = Context.resume();
-    if (!ShouldRun.load(std::memory_order_relaxed))
+    if (!IsRunning())
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
 }
 
-void AsyncManager::MainLoop()
+LoopBase::LoopState AsyncManager::OnLoop()
 {
-    std::unique_lock<std::mutex> cvLock(RunningMtx);
-    AsyncAgent::GetRawAsyncAgent() = &Agent;
+    if (TaskList.IsEmpty())
+        return LoopState::Sleep;
     common::SimpleTimer timer;
-    while (ShouldRun)
+    timer.Start();
+    bool hasExecuted = false;
+    for (Current = TaskList.Begin(); Current != nullptr;)
     {
-        if (TaskList.IsEmpty())
+        switch (Current->Status)
         {
-            CondWait.wait(cvLock);
-            if (!ShouldRun.load(std::memory_order_relaxed)) //in case that waked by terminator
-                break;
-        }
-        timer.Start();
-        bool hasExecuted = false;
-        for (Current = TaskList.Begin(); Current != nullptr;)
-        {
-            switch (Current->Status)
-            {
-            case detail::AsyncTaskStatus::New:
-                Current->Context = boost::context::callcc(std::allocator_arg, boost::context::fixedsize_stack(Current->StackSize),
-                    [&](boost::context::continuation && context)
+        case detail::AsyncTaskStatus::New:
+            Current->Context = boost::context::callcc(std::allocator_arg, boost::context::fixedsize_stack(Current->StackSize),
+                [&](boost::context::continuation&& context)
                 {
                     Context = std::move(context);
                     (*Current)(Agent);
                     return std::move(Context);
                 });
+            break;
+        case detail::AsyncTaskStatus::Wait:
+        {
+            const uint8_t state = (uint8_t)Current->Promise->GetState();
+            if (state < (uint8_t)PromiseState::Executed) // not ready for execution
                 break;
-            case detail::AsyncTaskStatus::Wait:
-                {
-                    const uint8_t state = (uint8_t)Current->Promise->GetState();
-                    if (state < (uint8_t)PromiseState::Executed) // not ready for execution
-                        break;
-                    Current->Status = detail::AsyncTaskStatus::Ready;
-                }
-                [[fallthrough]];
-            case detail::AsyncTaskStatus::Ready:
-                Current->TaskTimer.Start();
-                Current->Context = Current->Context.resume();
-                hasExecuted = true;
-                break;
-            default:
-                break;
-            }
-            //after processing
-            if (Current->Context)
-            {
-                if (Current->Status == detail::AsyncTaskStatus::Yield)
-                    Current->Status = detail::AsyncTaskStatus::Ready;
-                Current = TaskList.ToNext(Current);
-            }
-            else //has returned
-            {
-                Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
-                auto tmp = Current;
-                Current = TaskList.PopNode(Current);
-                delete tmp;
-            }
-            //quick exit when terminate
-            if (!ShouldRun.load(std::memory_order_relaxed)) 
-            {
-                hasExecuted = true;
-                break;
-            }
+            Current->Status = detail::AsyncTaskStatus::Ready;
         }
-        timer.Stop();
-        if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
-            std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
+        [[fallthrough]] ;
+        case detail::AsyncTaskStatus::Ready:
+            Current->TaskTimer.Start();
+            Current->Context = Current->Context.resume();
+            hasExecuted = true;
+            break;
+        default:
+            break;
+        }
+        //after processing
+        if (Current->Context)
+        {
+            if (Current->Status == detail::AsyncTaskStatus::Yield)
+                Current->Status = detail::AsyncTaskStatus::Ready;
+            Current = TaskList.ToNext(Current);
+        }
+        else //has returned
+        {
+            Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
+            auto tmp = Current;
+            Current = TaskList.PopNode(Current);
+            delete tmp;
+        }
     }
-    AsyncAgent::GetRawAsyncAgent() = nullptr;
+    timer.Stop();
+    if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
+        std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
+    return LoopState::Continue;
 }
 
-void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
+bool AsyncManager::OnStart(std::any cookie) noexcept
 {
-    ShouldRun = false; //in case self-terminate
+    AsyncAgent::GetRawAsyncAgent() = &Agent;
+    Logger.info(u"AsyncProxy started\n");
+    Injector initer;
+    std::tie(initer, ExitCallback) = std::any_cast<std::pair<Injector, Injector>>(std::move(cookie));
+    if (initer)
+        initer();
+    return true;
+}
+
+void AsyncManager::OnStop() noexcept
+{
     Logger.verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
-    //destroy all task
     Current = nullptr;
+    //destroy all task
     TaskList.ForEach([&](detail::AsyncTaskNode* node)
         {
             switch (node->Status)
@@ -131,50 +124,29 @@ void AsyncManager::OnTerminate(const std::function<void(void)>& exiter)
             }
             delete node;
         }, true);
-    if (exiter)
-        exiter();
+    AsyncAgent::GetRawAsyncAgent() = nullptr;
+    if (ExitCallback)
+        ExitCallback();
 }
 
-bool AsyncManager::Start(const std::function<void(void)>& initer, const std::function<void(void)>& exiter)
+
+bool AsyncManager::Start(Injector initer, Injector exiter)
 {
-    if (RunningThread.joinable() || ShouldRun.exchange(true)) //has turn state into true, just return
-        return false;
-    RunningThread = std::thread([&](const std::function<void(void)> initer, const std::function<void(void)> exiter)
-    {
-        if (initer)
-            initer();
-
-        this->MainLoop();
-
-        this->OnTerminate(exiter);
-    }, initer, exiter);
-    return true;
-}
-void AsyncManager::Stop()
-{
-    if (ShouldRun.exchange(false))
-    {
-        CondWait.notify_all();
-        if (RunningThread.joinable()) //thread has not been terminated
-            RunningThread.join();
-    }
-}
-bool AsyncManager::Run(const std::function<void(std::function<void(void)>)>& initer)
-{
-    if (RunningThread.joinable() || ShouldRun.exchange(true)) //has turn state into true, just return
-        return false;
-    if (initer)
-        initer([&]() { ShouldRun = false; });
-    this->MainLoop();
-    this->OnTerminate();
-    return true;
+    return LoopBase::Start(std::pair(initer, exiter));
 }
 
 
-AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
-    Name(name), Agent(*this), Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }), 
+AsyncManager::AsyncManager(std::unique_ptr<LoopExecutor>(*hostGen)(LoopBase&), const std::u16string& name,
+    const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
+    LoopBase(hostGen), Name(name), Agent(*this), 
+    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }), 
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
 { }
+AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
+    : AsyncManager(isthreaded ? LoopBase::GetThreadedExecutor : LoopBase::GetInplaceExecutor,
+        name, timeYieldSleep, timeSensitive, allowStopAdd) {}
+AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
+    : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) {}
 AsyncManager::~AsyncManager()
 {
     this->Stop();

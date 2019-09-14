@@ -1,5 +1,9 @@
 #include "FreeGLUTView.h"
-
+#include "common/AsyncExecutor/AsyncManager.h"
+#include "common/miniLogger/miniLogger.h"
+#include "common/TimeUtil.hpp"
+#include "common/ContainerEx.hpp"
+#include "common/ThreadEx.inl"
 #include <cstdint>
 #include <cstdio>
 #include <tuple>
@@ -8,10 +12,6 @@
 #include <mutex>
 #include <future>
 #include <vector>
-#include "common/TimeUtil.hpp"
-#include "common/miniLogger/miniLogger.h"
-#include "common/ContainerEx.hpp"
-#include "common/AsyncExecutor/AsyncManager.h"
 
 #ifndef _DEBUG
 #   define NDEBUG 1
@@ -258,47 +258,50 @@ private:
 public:
     static AsyncManager& Executor()
     { 
-        static AsyncManager executor(u"FreeGLUTView", 1000 / 240, 1000 / 120, true);
+        static AsyncManager executor(false, u"FreeGLUTView", 1000 / 240, 1000 / 120, true);
         return executor;
     };
     static void Run()
     {
-        Executor().Run([&](std::function<void(void)> stopper) 
-        {
-            Executor().AddTask([stopper=std::move(stopper)](const AsyncAgent& agent)
+        auto& executor = Executor();
+        executor.Start([&]()
             {
-                SimpleTimer timer;
-                constexpr uint64_t stepTime = 1000 * 1000 / 120; // us
-                while (GetViewMap().size() > 0)
+                common::SetThreadName(u"FreeGLUTView");
+                executor.AddTask([&](const AsyncAgent& agent)
                 {
-                    timer.Start();
-                    try
+                    SimpleTimer timer;
+                    constexpr uint64_t stepTime = 1000 * 1000 / 120; // us
+                    while (GetViewMap().size() > 0)
                     {
-                        FilterMessage();
-                        glutMainLoopEvent();
+                        timer.Start();
+                        try
+                        {
+                            FilterMessage();
+                            glutMainLoopEvent();
+                        }
+                        catch (BaseException& be)
+                        {
+                            fgvLog().error(u"Occur Error:\t{}\n", be.message);
+                        }
+                        catch (std::runtime_error& err)
+                        {
+                            fgvLog().error(u"Occur Error:\t{}\n", err.what());
+                        }
+                        timer.Stop();
+                        const auto uiTime = timer.ElapseUs();
+                        if (uiTime < stepTime && stepTime - uiTime > 1000)
+                        {
+                            const auto leftTime = stepTime - uiTime;
+                            if (leftTime > 1000)
+                                agent.Sleep(static_cast<uint32_t>(leftTime / 1000));
+                        }
+                        else
+                            agent.YieldThis();
                     }
-                    catch (BaseException& be)
-                    {
-                        fgvLog().error(u"Occur Error:\t{}\n", be.message);
-                    }
-                    catch (std::runtime_error& err)
-                    {
-                        fgvLog().error(u"Occur Error:\t{}\n", err.what());
-                    }
-                    timer.Stop();
-                    const auto uiTime = timer.ElapseUs();
-                    if (uiTime < stepTime && stepTime - uiTime > 1000)
-                    {
-                        const auto leftTime = stepTime - uiTime;
-                        if (leftTime > 1000)
-                            agent.Sleep(static_cast<uint32_t>(leftTime / 1000));
-                    }
-                    else
-                        agent.YieldThis();
-                }
-                stopper();
-            }, u"FGEventLoop", StackSize::Large);
-        });
+                    executor.RequestStop();
+                }, u"FGEventLoop", StackSize::Large);
+            });
+        dynamic_cast<InplaceExecutor&>(executor.GetHost()).RunInplace();
     }
 };
 

@@ -91,7 +91,16 @@ static void AsyncTest()
                 });
             AsyncProxy::OnComplete(pms, [&]() { printf("Recieved one [%d]\n", 1); });
         }
+        else if (key == 'q')
+        {
+            producer.Stop();
+            break;
+        }
     }
+
+    getchar();
+    getchar();
+    getchar();
 }
 
 const static uint32_t ID = RegistTest("AsyncTest", &AsyncTest);

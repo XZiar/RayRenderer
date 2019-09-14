@@ -7,43 +7,98 @@ namespace common::asyexe
 {
 
 
-struct BasicLockObject : public LoopExecutor::LockObject
-{
-    std::unique_lock<std::mutex> Lock;
-    BasicLockObject(std::mutex& mutex) : Lock(mutex) {}
-    virtual ~BasicLockObject() {}
-};
-
 struct LoopExecutor::ControlBlock
 {
     std::mutex ControlMtx, RunningMtx;
-    std::condition_variable_any StopCond;
+
+    std::unique_lock<std::mutex> AcquireRunningLock()
+    {
+        return std::unique_lock<std::mutex>(RunningMtx);
+    }
+    bool CheckRunning()
+    {
+        std::unique_lock<std::mutex> lock(RunningMtx, std::try_to_lock);
+        return !lock;
+    }
 };
 
-bool LoopExecutor::Start()
+bool LoopExecutor::Start(std::any cookie)
 {
     std::unique_lock<std::mutex> ctrlLock(Control->ControlMtx); //ensure no one call stop
-    if (IsRunning.exchange(true)) // not exit yet
+    auto desire = ExeStates::Stopped;
+    if (!ExeState.compare_exchange_strong(desire, ExeStates::Starting)) // not exit yet
         return false;
-    return OnStart();
+    SleepState = SleepStates::Can;
+    Cookie = std::move(cookie);
+    DoStart();
+    return true;
 }
 bool LoopExecutor::Stop()
 {
     std::unique_lock<std::mutex> ctrlLock(Control->ControlMtx); //ensure no one call stop again
-    if (!IsRunning)
+    if (!RequestStop())
         return false;
-    RequestStop = true;
-    return OnStop();
+    Wakeup();
+    WaitUtilStop();
+    return true;
+}
+void LoopExecutor::Wakeup()
+{
+    if (WakeupLock.exchange(true)) // others handling
+        return;
+    auto desire = SleepStates::Can;
+    if (!SleepState.compare_exchange_strong(desire, SleepStates::CanNot))
+    {
+        if (desire == SleepStates::Pending)
+            DoWakeup();
+    }
+    WakeupLock = false;
+}
+bool LoopExecutor::RequestStop()
+{
+    auto desire = LoopExecutor::ExeStates::Running;
+    while (!ExeState.compare_exchange_strong(desire, LoopExecutor::ExeStates::Stopping))
+    {
+        if (desire == LoopExecutor::ExeStates::Stopped)
+            return false;
+    }
+    return true;
+}
+bool LoopExecutor::TurnToRun() noexcept
+{
+    auto desire = ExeStates::Starting;
+    return ExeState.compare_exchange_strong(desire, ExeStates::Running);
 }
 void LoopExecutor::RunLoop() noexcept
 {
-    Loop.MainLoop();
-    IsRunning = false;
+    std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
+    if (!Loop.OnStart(Cookie))
+        return;
+    while (ExeState.load(std::memory_order_relaxed) == ExeStates::Running)
+    {
+        try
+        {
+            const auto state = Loop.OnLoop();
+            if (state == LoopBase::LoopState::Finish)
+                break;
+            if (state == LoopBase::LoopState::Sleep)
+            {
+                auto desire = SleepStates::Can;
+                if (SleepState.compare_exchange_strong(desire, SleepStates::Pending))
+                    DoSleep(&runningLock);
+            }
+            SleepState = SleepStates::Can;
+        }
+        catch (...)
+        {
+            if (!Loop.OnError(std::current_exception()))
+                break;
+        }
+    }
+    Loop.OnStop();
+    ExeState = ExeStates::Stopped;
 }
-std::unique_ptr<LoopExecutor::LockObject> LoopExecutor::AcquireRunningLock()
-{
-    return std::make_unique<BasicLockObject>(Control->ControlMtx);
-}
+
 LoopExecutor::LoopExecutor(LoopBase& loop) : Control(new ControlBlock()), Loop(loop)
 { }
 LoopExecutor::~LoopExecutor()
@@ -56,42 +111,32 @@ class ThreadedExecutor : public LoopExecutor
 {
     std::thread MainThread;
     std::condition_variable SleepCond;
-    std::unique_lock<std::mutex>* RunningLock = nullptr;
 protected:
-    virtual void Sleep() override
+    virtual void DoSleep(void* runningLock) noexcept override
     {
-        SleepCond.wait(*RunningLock);
+        SleepCond.wait(*reinterpret_cast<std::unique_lock<std::mutex>*>(runningLock));
     }
-    virtual void Wakeup() override
+    virtual void DoWakeup() noexcept override
     {
+        auto lock = Control->AcquireRunningLock(); // ensure in the sleep
         SleepCond.notify_one();
     }
-    virtual bool OnStart() override
+    virtual void DoStart() override
     {
-        if (MainThread.joinable())
+        if (MainThread.joinable()) // ensure MainThread invalid
             MainThread.join();
-        RequestStop = false;
         MainThread = std::thread([&]() 
             {
-                std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
-                RunningLock = &runningLock;
-                this->RunLoop();
-                RunningLock = nullptr;
-                Control->StopCond.notify_one();
+                if (TurnToRun())
+                    this->RunLoop();
             });
-        return true;
     }
-    virtual bool OnStop() override
+    virtual void WaitUtilStop() override
     {
-        std::unique_lock<std::mutex> runningLock(Control->RunningMtx); //wait until thread sleep or ends
-        if (IsRunning)
+        if (MainThread.joinable()) // ensure MainThread invalid
         {
-            Wakeup();
-            //Control->StopCond.wait(runningLock, [&]() { return !IsRunning; });
-        }
-        if (MainThread.joinable())
             MainThread.join();
-        return true;
+        }
     }
 public:
     ThreadedExecutor(LoopBase& loop) : LoopExecutor(loop) {}
@@ -99,24 +144,17 @@ public:
 };
 
 
-void InplaceExecutor::Sleep() { } // do nothing
-void InplaceExecutor::Wakeup() { } // do nothing
-bool InplaceExecutor::OnStart()
+void InplaceExecutor::DoSleep(void*) noexcept { } // do nothing
+void InplaceExecutor::DoWakeup() noexcept { } // do nothing
+void InplaceExecutor::DoStart() { }
+void InplaceExecutor::WaitUtilStop()
 {
-    return true;
-}
-bool InplaceExecutor::OnStop() 
-{
-    const auto lock = AcquireRunningLock();
-    //std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
-    return true;
+    const auto runningLock = Control->AcquireRunningLock();
 }
 bool InplaceExecutor::RunInplace()
 {
-    if (IsRunning)
+    if (TurnToRun())
     {
-        const auto lock = AcquireRunningLock();
-        //std::unique_lock<std::mutex> runningLock(Control->RunningMtx);
         this->RunLoop();
         return true;
     }
@@ -125,28 +163,10 @@ bool InplaceExecutor::RunInplace()
 
 
 
-
-void LoopBase::MainLoop() noexcept
+bool LoopBase::IsRunning() const
 {
-    if (!OnStart())
-        return;
-    while (!Host->RequestStop.load(std::memory_order_relaxed))
-    {
-        try
-        {
-            const auto state = OnLoop();
-            if (state == LoopState::Finish)
-                break;
-            if (state == LoopState::Sleep)
-                Host->Sleep();
-        }
-        catch (...)
-        {
-            if (!OnError(std::current_exception()))
-                break;
-        }
-    }
-    OnStop();
+    const auto state = Host->ExeState.load();
+    return state == LoopExecutor::ExeStates::Starting || state == LoopExecutor::ExeStates::Running;
 }
 
 void LoopBase::Wakeup() const
@@ -159,14 +179,24 @@ LoopBase::~LoopBase()
     Stop();
 }
 
-bool LoopBase::Start()
+bool LoopBase::Start(std::any cookie)
 {
-    return Host->Start();
+    return Host->Start(std::move(cookie));
 }
 
 bool LoopBase::Stop()
 {
     return Host->Stop();
+}
+
+bool LoopBase::RequestStop()
+{
+    return Host->RequestStop();
+}
+
+LoopExecutor& LoopBase::GetHost()
+{
+    return *Host;
 }
 
 std::unique_ptr<LoopExecutor> LoopBase::GetThreadedExecutor(LoopBase& loop)

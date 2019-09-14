@@ -86,7 +86,7 @@ private:
     AsyncProxy();
     virtual ~AsyncProxy() override {}
     virtual LoopState OnLoop() override;
-    virtual bool OnStart() noexcept override;
+    virtual bool OnStart(std::any cookie) noexcept override;
     void AddNode(AsyncNodeBase* node);
 public:
     template<typename Pms, typename CB>

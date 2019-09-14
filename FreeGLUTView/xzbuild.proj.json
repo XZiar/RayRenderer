@@ -2,7 +2,7 @@
     "name": "FreeGLUTView",
     "type": "dynamic",
     "description": "FreeGLUT wrapper",
-    "dependency": ["fmt", "freeglut", "miniLogger", "AsyncExecutor"],
+    "dependency": ["fmt", "freeglut", "miniLogger", "AsyncExecutor", "StringCharset"],
     "library": 
     {
         "static": [],

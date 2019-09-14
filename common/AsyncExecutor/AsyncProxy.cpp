@@ -1,4 +1,5 @@
 #include "AsyncProxy.h"
+#include "common/ThreadEx.inl"
 #include <thread>
 
 namespace common::asyexe
@@ -20,7 +21,7 @@ LoopBase::LoopState AsyncProxy::OnLoop()
             hasExecuted = true;
             Current->Timer.Stop();
             Logger.verbose(u"Task[{}] spend {}ms\n", Current->Id, Current->Timer.ElapseMs());
-            Current->Resolve([&](const BaseException& be) { Logger.warning(u"Task[{}] reported an unhandled error:\t{}\n", be.message); });
+            Current->Resolve([&](const BaseException& be) { Logger.warning(u"Task[{}] reported an unhandled error:\t{}\n", Current->Id, be.message); });
             Current = TaskList.PopNode(Current);
         }
         else
@@ -32,9 +33,10 @@ LoopBase::LoopState AsyncProxy::OnLoop()
     return LoopState::Continue;
 }
 
-bool AsyncProxy::OnStart() noexcept
+bool AsyncProxy::OnStart(std::any) noexcept
 {
     Logger.info(u"AsyncProxy started\n");
+    common::SetThreadName(u"AsyncProxy");
     return true;
 }
 
@@ -50,7 +52,7 @@ void AsyncProxy::AddNode(AsyncNodeBase* node)
     node->Id = TaskUid.fetch_add(1, std::memory_order_relaxed);
     if (TaskList.AppendNode(node))
     {
-        const auto lock = AcquireRunningLock();
+        //const auto lock = AcquireRunningLock();
         Wakeup();
     }
 }

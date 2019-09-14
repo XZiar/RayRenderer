@@ -1,13 +1,11 @@
 #pragma once
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
+#include "LoopBase.h"
 #include "common/miniLogger/miniLogger.h"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/IntToString.hpp"
 #include <atomic>
-#include <future>
-#include <thread>
-#include <condition_variable>
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
 #include <boost/context/continuation.hpp>
@@ -121,36 +119,40 @@ struct TaskNode : public AsyncTaskNode
 
 
 
-class ASYEXEAPI AsyncManager : public NonCopyable, public NonMovable
+class ASYEXEAPI AsyncManager final : private LoopBase
 {
     friend class AsyncAgent;
 private:
+    using Injector = std::function<void(void)>;
     common::container::IntrusiveDoubleLinkList<detail::AsyncTaskNode> TaskList;
-    //std::atomic_flag ModifyFlag = ATOMIC_FLAG_INIT; //spinlock for modify TaskNode
-    std::atomic_bool ShouldRun { false };
-    std::atomic_uint32_t TaskUid { 0 };
-    std::mutex RunningMtx, TerminateMtx;
-    std::condition_variable CondWait;
     boost::context::continuation Context;
+    Injector ExitCallback = nullptr;
     detail::AsyncTaskNode *Current = nullptr;
     const std::u16string Name;
     const AsyncAgent Agent;
     common::mlog::MiniLogger<false> Logger;
-    std::thread RunningThread;
     uint32_t TimeYieldSleep, TimeSensitive;
+    std::atomic_uint32_t TaskUid{ 0 };
     bool AllowStopAdd;
 
     bool AddNode(detail::AsyncTaskNode* node);
 
     void Resume();
-    void MainLoop();
-    void OnTerminate(const std::function<void(void)>& exiter = {}); //run at worker thread
+    virtual LoopState OnLoop() override;
+    virtual bool OnStart(std::any cookie) noexcept override;
+    virtual void OnStop() noexcept override;
+    //void OnTerminate(const std::function<void(void)>& exiter = {}); //run at worker thread
+    AsyncManager(std::unique_ptr<LoopExecutor>(*hostGen)(LoopBase&), const std::u16string& name,
+        const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd);
 public:
+    AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
     AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    ~AsyncManager();
-    bool Start(const std::function<void(void)>& initer = {}, const std::function<void(void)>& exiter = {});
-    void Stop();
-    bool Run(const std::function<void(std::function<void(void)>)>& initer = {});
+    virtual ~AsyncManager() override;
+    bool Start(Injector initer = {}, Injector exiter = {});
+    using LoopBase::Stop;
+    using LoopBase::RequestStop;
+    using LoopBase::GetHost;
+    //bool Run(const std::function<void(std::function<void(void)>)>& initer = {});
 
     template<typename Func, typename Ret = std::invoke_result_t<Func, const AsyncAgent&>>
     PromiseResult<Ret> AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)
