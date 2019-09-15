@@ -1,6 +1,6 @@
 #pragma once
 #include "oglRely.h"
-#include "common/AsyncExecutor/AsyncAgent.h"
+#include "AsyncExecutor/AsyncAgent.h"
 #include "3DElement.hpp"
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
@@ -19,7 +19,6 @@ struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
     TransformOP(const Vec4& vec_, const TransformType type_) :vec(vec_), type(type_) { }
 };
 
-using common::asyexe::AsyncTaskFunc;
 
 enum class GLMemBarrier : GLenum 
 {

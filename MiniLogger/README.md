@@ -1,6 +1,10 @@
-# miniLogger
+# MiniLogger
 
 Mini Logger
+
+A simple logger that provide thread-safe(maybe) logging and global logging management.
+
+It uses [fmt](../3rdParty/fmt) as format support.
 
 ## Concept
 
@@ -32,4 +36,4 @@ Backend are bound with logger instance, but they are "shared". Also, logger has 
 
 ## License
 
-miniLogger (including its component) is licensed under the [MIT license](../../License.txt).
+MiniLogger (including its component) is licensed under the [MIT license](../../License.txt).

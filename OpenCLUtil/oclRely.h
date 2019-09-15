@@ -100,7 +100,7 @@ class _oclKernel;
 }
 
 #ifdef OCLU_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 namespace oclu
 {
 common::mlog::MiniLogger<false>& oclLog();

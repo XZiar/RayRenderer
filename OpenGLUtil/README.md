@@ -71,7 +71,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
   low-level OpenGL API supporter.
 
-* [miniLogger](../common/miniLogger)
+* [MiniLogger](../MiniLogger)
   
   used for logging message and errors, with prefix `OpenGLUtil`
 
@@ -79,7 +79,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   
   used for Image-Texture processing
 
-* [AsyncExecutor](../common/AsyncExecutor)
+* [AsyncExecutor](../AsyncExecutor)
 
   provide async-execution environment for OpenGL workers.
 

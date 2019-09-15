@@ -9,18 +9,38 @@
 namespace common::asyexe
 {
 
-bool AsyncManager::AddNode(detail::AsyncTaskNode* node)
+namespace detail
 {
-    if (!AllowStopAdd && !IsRunning())
-        return false;
+void AsyncTaskNodeBase::BeginTask()
+{
+    Status = detail::AsyncTaskStatus::Ready;
+    TaskTimer.Start();
+}
+void AsyncTaskNodeBase::SumPartialTime()
+{
+    TaskTimer.Stop();
+    ElapseTime += TaskTimer.ElapseNs();
+}
+void AsyncTaskNodeBase::FinishTask(const detail::AsyncTaskStatus status, AsyncTaskTime& taskTime)
+{
+    SumPartialTime();
+    taskTime.ElapseTime = ElapseTime;
+    Status = status;
+}
+}
+
+
+bool AsyncManager::AddNode(detail::AsyncTaskNodeBase* node)
+{
     if (TaskList.AppendNode(node)) // need to notify worker
         Wakeup();
     return true;
 }
 
-
-void AsyncManager::Resume()
+void AsyncManager::Resume(detail::AsyncTaskStatus status)
 {
+    Current->SumPartialTime();
+    Current->Status = status;
     Context = Context.resume();
     if (!IsRunning())
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
@@ -99,7 +119,7 @@ void AsyncManager::OnStop() noexcept
     Logger.verbose(u"AsyncExecutor [{}] begin to exit\n", Name);
     Current = nullptr;
     //destroy all task
-    TaskList.ForEach([&](detail::AsyncTaskNode* node)
+    TaskList.ForEach([&](detail::AsyncTaskNodeBase* node)
         {
             switch (node->Status)
             {
@@ -147,12 +167,6 @@ AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, co
         name, timeYieldSleep, timeSensitive, allowStopAdd) {}
 AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
     : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) {}
-AsyncManager::~AsyncManager()
-{
-    this->Stop();
-}
-
 
 
 }
-

@@ -22,7 +22,7 @@
 #include <mutex>
 #include <future>
 #include "common/TimeUtil.hpp"
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 #include "FreeGLUTView.h"
 
 #include <boost/multi_index_container.hpp>

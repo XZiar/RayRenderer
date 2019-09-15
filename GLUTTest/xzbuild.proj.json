@@ -2,7 +2,7 @@
     "name": "GLUTTest",
     "type": "executable",
     "description": "Test Program based on FreeGLUT",
-    "dependency": ["fmt", "FreeGLUTView", "miniLogger", "RenderCore", "ResourcePackager", "ImageUtil", "StringCharset"],
+    "dependency": ["fmt", "FreeGLUTView", "MiniLogger", "RenderCore", "ResourcePackager", "ImageUtil", "StringCharset"],
     "library": 
     {
         "static": [],

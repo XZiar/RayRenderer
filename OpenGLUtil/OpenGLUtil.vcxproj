@@ -69,10 +69,10 @@
     <ProjectReference Include="..\3rdParty\glew\glew.vcxproj">
       <Project>{7025ca4a-22fd-4343-b296-008060483193}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\AsyncExecutor\AsyncExecutor.vcxproj">
+    <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">

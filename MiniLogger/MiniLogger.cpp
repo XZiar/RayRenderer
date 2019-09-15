@@ -1,5 +1,5 @@
 #include "MiniLoggerRely.h"
-#include "miniLogger.h"
+#include "MiniLogger.h"
 #include "QueuedBackend.h"
 #include "common/ThreadEx.h"
 #include <map>

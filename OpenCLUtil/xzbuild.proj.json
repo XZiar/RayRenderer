@@ -2,7 +2,7 @@
     "name": "OpenCLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenCL Utility",
-    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "glew", "ImageUtil", "OpenCLICDLoader", "StringCharset"],
+    "dependency": ["fmt", "OpenGLUtil", "MiniLogger", "glew", "ImageUtil", "OpenCLICDLoader", "StringCharset"],
     "library": 
     {
         "static": [],

@@ -2,8 +2,8 @@
 #include "TextureLoader.h"
 #include "TextureUtil/TexCompressor.h"
 #include "TextureUtil/TexMipmap.h"
+#include "AsyncExecutor/AsyncManager.h"
 #include "common/PromiseTaskSTD.hpp"
-#include "common/AsyncExecutor/AsyncManager.h"
 #include <thread>
 
 namespace rayr

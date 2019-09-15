@@ -38,27 +38,19 @@ const AsyncAgent*& AsyncAgent::GetRawAsyncAgent()
 void AsyncAgent::AddPms(const PmsCore& pmscore) const
 {
     pmscore->Prepare();
-    Manager.Current->TaskTimer.Stop();
-    Manager.Current->ElapseTime += Manager.Current->TaskTimer.ElapseNs();
 
     Manager.Current->Promise = pmscore;
-    Manager.Current->Status = detail::AsyncTaskStatus::Wait;
-    Manager.Resume();
+    Manager.Resume(detail::AsyncTaskStatus::Wait);
     Manager.Current->Promise = nullptr; //don't hold pms
 }
 void AsyncAgent::YieldThis() const
 {
-    Manager.Current->TaskTimer.Stop();
-    Manager.Current->ElapseTime += Manager.Current->TaskTimer.ElapseNs();
-
-    Manager.Current->Status = detail::AsyncTaskStatus::Yield;
-    Manager.Resume();
+    Manager.Resume(detail::AsyncTaskStatus::Yield);
 }
 void AsyncAgent::Sleep(const uint32_t ms) const
 {
     auto pms = std::make_shared<detail::AsyncSleeper>(ms);
-    auto pmscore = std::dynamic_pointer_cast<common::detail::PromiseResultCore>(pms);
-    AddPms(pmscore);
+    AddPms(pms);
 }
 
 const common::asyexe::AsyncAgent* AsyncAgent::GetAsyncAgent()

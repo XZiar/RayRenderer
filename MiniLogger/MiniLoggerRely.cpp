@@ -4,8 +4,8 @@
 #include <array>
 
 #include <boost/version.hpp>
-#pragma message("Compiling miniLogger with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
-#pragma message("Compiling miniLogger with fmt[" STRINGIZE(FMT_VERSION) "]" )
+#pragma message("Compiling MiniLogger with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
+#pragma message("Compiling MiniLogger with fmt[" STRINGIZE(FMT_VERSION) "]" )
 
 
 namespace common::mlog

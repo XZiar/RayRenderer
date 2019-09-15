@@ -2,7 +2,7 @@
     "name": "AsyncExecutor",
     "type": "dynamic",
     "description": "An async task execution library",
-    "dependency": ["fmt", "miniLogger", "boost.context", "StringCharset"],
+    "dependency": ["fmt", "MiniLogger", "boost.context", "StringCharset"],
     "library": 
     {
         "static": [],

@@ -2,7 +2,7 @@
     "name": "OpenGLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenGL Utility",
-    "dependency": ["fmt", "cpuid", "miniLogger", "glew", "ImageUtil", "AsyncExecutor", "StringCharset"],
+    "dependency": ["fmt", "cpuid", "MiniLogger", "glew", "ImageUtil", "AsyncExecutor", "StringCharset"],
     "library": 
     {
         "static": [],

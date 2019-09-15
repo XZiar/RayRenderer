@@ -120,7 +120,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;MiniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -148,7 +148,7 @@
       <AdditionalDependencies />
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
-      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;MiniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -173,7 +173,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;MiniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -198,7 +198,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;miniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>OpenGLUtil.dll;ImageUtil.dll;RenderCore.dll;MiniLogger.dll;AsyncExecutor.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
   </ItemDefinitionGroup>
@@ -274,10 +274,10 @@
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\AsyncExecutor\AsyncExecutor.vcxproj">
+    <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">

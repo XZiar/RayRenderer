@@ -58,6 +58,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\FileMapper.h = common\FileMapper.h
 		common\FileMapper.inl = common\FileMapper.inl
 		common\IntrusiveDoubleLinkList.hpp = common\IntrusiveDoubleLinkList.hpp
+		common\IntrusiveDoubleLinkList.natvis = common\IntrusiveDoubleLinkList.natvis
 		common\IntToString.hpp = common\IntToString.hpp
 		common\Linq.hpp = common\Linq.hpp
 		common\LUT_gb18030.tab = common\LUT_gb18030.tab
@@ -130,7 +131,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLUtil", "OpenCLUtil\Op
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FontHelper", "FontHelper\FontHelper.vcxproj", "{3A51A60C-CC0C-43E9-9A48-FB251EDC1135}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "miniLogger", "common\miniLogger\miniLogger.vcxproj", "{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MiniLogger", "MiniLogger\MiniLogger.vcxproj", "{536EEEC1-C2EC-4F53-8E80-4A437264C6C0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFTest", "WPFTest\WPFTest.csproj", "{E05720DB-A5FB-4A0C-9552-F3777E66FE29}"
 EndProject
@@ -171,7 +172,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{533CDA1C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.context", "3rdParty\boost.context\boost.context.vcxproj", "{E308A1B2-DA99-4D69-A2E5-FF5B57E6EFC7}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AsyncExecutor", "common\AsyncExecutor\AsyncExecutor.vcxproj", "{1FE31563-6F8F-4DEF-A552-EE9CF04C1C58}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AsyncExecutor", "AsyncExecutor\AsyncExecutor.vcxproj", "{1FE31563-6F8F-4DEF-A552-EE9CF04C1C58}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UtilTest", "Tests\UtilTest\UtilTest.vcxproj", "{98F7C4AF-2104-45E6-B205-EA364C317D2E}"
 EndProject

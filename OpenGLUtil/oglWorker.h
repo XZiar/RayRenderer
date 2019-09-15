@@ -2,7 +2,7 @@
 
 #include "oglRely.h"
 #include "oglContext.h"
-#include "common/AsyncExecutor/AsyncManager.h"
+#include "AsyncExecutor/AsyncManager.h"
 
 namespace oglu
 {

@@ -2,7 +2,7 @@
     "name": "Blur",
     "type": "executable",
     "description": "Blur test",
-    "dependency": ["fmt", "miniLogger", "ImageUtil", "OpenCLUtil"],
+    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCLUtil"],
     "library": 
     {
         "static": [],

@@ -198,7 +198,7 @@ forceinline void FromJArray(const T& jarray, miniBLAS::Vec4& vec)
 }
 
 #ifdef RAYCORE_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 namespace rayr
 {
 common::mlog::MiniLogger<false>& dizzLog();

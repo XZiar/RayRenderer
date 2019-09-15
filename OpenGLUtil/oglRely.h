@@ -145,7 +145,7 @@ public:
 }
 
 #ifdef OGLU_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 namespace oglu
 {
 common::mlog::MiniLogger<false>& oglLog();

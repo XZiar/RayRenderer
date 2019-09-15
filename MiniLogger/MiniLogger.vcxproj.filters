@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="miniLogger.h">
+    <ClInclude Include="MiniLogger.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="QueuedBackend.h">
@@ -26,7 +26,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="miniLogger.cpp">
+    <ClCompile Include="MiniLogger.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="QueuedBackend.cpp">
@@ -40,7 +40,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="miniLogger.natvis" />
+    <Natvis Include="MiniLogger.natvis" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

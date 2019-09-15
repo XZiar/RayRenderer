@@ -27,6 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Detect.cpp">

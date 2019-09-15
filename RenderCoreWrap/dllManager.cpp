@@ -67,7 +67,7 @@ static void createDLL(const wstring& dllname, const int32_t dllid)
 static const std::map<int32_t, wstring> DLL_MAP = 
 {
     { IDR_DLL_STRCHARSET,   L"StringCharset.dll"        },
-    { IDR_DLL_MLOG,         L"miniLogger.dll"           },
+    { IDR_DLL_MLOG,         L"MiniLogger.dll"           },
     { IDR_DLL_BOOSTSTACK,   L"boost.stacktrace.dll"     },
     { IDR_DLL_ASYEXE,       L"AsyncExecutor.dll"        },
     { IDR_DLL_OGLU,         L"OpenGLUtil.dll"           },

@@ -1,5 +1,5 @@
 {
-    "name": "miniLogger",
+    "name": "MiniLogger",
     "type": "dynamic",
     "description": "A mini logger library",
     "dependency": ["fmt", "StringCharset"],

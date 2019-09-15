@@ -176,7 +176,7 @@
     <ProjectReference Include="..\3rdParty\freetype2\freetype2.vcxproj">
       <Project>{7b5c2843-dedf-44ad-b02a-2af72d78f2e9}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">

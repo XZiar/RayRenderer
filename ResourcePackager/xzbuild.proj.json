@@ -2,7 +2,7 @@
     "name": "ResourcePackager",
     "type": "dynamic",
     "description": "Resource package and management library",
-    "dependency": ["fmt", "miniLogger", "cryptopp", "boost.stacktrace"],
+    "dependency": ["fmt", "MiniLogger", "cryptopp", "boost.stacktrace"],
     "library": 
     {
         "static": [],

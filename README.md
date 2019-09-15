@@ -22,8 +22,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | N/A |
 | [common](./common) | Basic but useful things | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
-| [miniLogger](./common/miniLogger) | Mini Logger | Windows & Linux |
-| [AsyncExecutor](./common/AsyncExecutor) | Async Executor | Windows & Linux |
+| [MiniLogger](./MiniLogger) | Mini Logger | Windows & Linux |
+| [AsyncExecutor](./AsyncExecutor) | Async Executor | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows & Linux |
@@ -53,7 +53,7 @@ To use `xzbuild`, python3.6+ is required.
 
 To build C++ parts, an C++17 compiler is needed. For Linux, GCC7.3 and later are tested. For Windows, VS2019(`16.0`) is needed for the vcproj version.
 
-Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(7.0).
+Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(7.0&8.0).
 
 They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 

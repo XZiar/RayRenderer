@@ -176,7 +176,7 @@
     <ProjectReference Include="..\3rdParty\zlib-ng\zlib-ng.vcxproj">
       <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\common\miniLogger\miniLogger.vcxproj">
+    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
     <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">

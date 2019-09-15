@@ -2,7 +2,7 @@
     "name": "TextureUtil",
     "type": "dynamic",
     "description": "Texture Utility",
-    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "ispc_texcomp", "ImageUtil", "OpenCLUtil", "StringCharset", "AsyncExecutor"],
+    "dependency": ["fmt", "OpenGLUtil", "MiniLogger", "ispc_texcomp", "ImageUtil", "OpenCLUtil", "StringCharset", "AsyncExecutor"],
     "library": 
     {
         "static": [],

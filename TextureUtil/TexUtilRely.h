@@ -41,7 +41,7 @@ class TexUtilWorker;
 }
 
 #ifdef TEXUTIL_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 namespace oglu::texutil
 {
 common::mlog::MiniLogger<false>& texLog();

@@ -37,7 +37,6 @@ class AsyncAgent;
 class AsyncManager;
 
 using PmsCore = std::shared_ptr<::common::detail::PromiseResultCore>;
-using AsyncTaskFunc = std::function<void(const AsyncAgent&)>;
 
 class AsyncTaskException : public BaseException
 {

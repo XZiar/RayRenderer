@@ -99,18 +99,6 @@ A collection of useful utilities
 
   An extended version of STL's shared_ptr. It adds some sugar to cover some design of shared_ptr, while it also leads to some problem.
 
-* [**miniLogger**](./miniLogger)
-
-  A simple logger that provide thread-safe(maybe) logging and global logging management.
-
-  It uses [fmt](../3rdParty/fmt) as format support.
-
-* [**AsyncExecutor**](./AsyncExecutor)
-
-  An async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
-
-  It simply uses a polling scheduler, waiting events are queried every xx ms(default 20ms).
-
 ## Dependency
 
 * C++17 required
@@ -156,15 +144,6 @@ Inside Wrapper I used some SFINAE tech to detect type, which may result in some 
 `split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
 
 `concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
-
-### StrCharset
-
-StrCharset provide encoding defines and charset transform with self-made conversion class. Correctness check is not completed.
-
-`codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
-
-Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
-
 
 ## License
 

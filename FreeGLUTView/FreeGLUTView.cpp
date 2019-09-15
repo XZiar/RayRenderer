@@ -1,6 +1,6 @@
 #include "FreeGLUTView.h"
-#include "common/AsyncExecutor/AsyncManager.h"
-#include "common/miniLogger/miniLogger.h"
+#include "AsyncExecutor/AsyncManager.h"
+#include "MiniLogger/MiniLogger.h"
 #include "common/TimeUtil.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/ThreadEx.inl"

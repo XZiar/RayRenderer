@@ -2,7 +2,7 @@
     "name": "RenderCore",
     "type": "dynamic",
     "description": "Renderer core",
-    "dependency": ["fmt", "OpenGLUtil", "miniLogger", "boost.stacktrace", "ImageUtil", "OpenGLUtil", "StringCharset", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil"],
+    "dependency": ["fmt", "OpenGLUtil", "MiniLogger", "boost.stacktrace", "ImageUtil", "OpenGLUtil", "StringCharset", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil"],
     "library": 
     {
         "static": [],

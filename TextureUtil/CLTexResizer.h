@@ -1,6 +1,6 @@
 #pragma once
 #include "TexUtilRely.h"
-#include "common/AsyncExecutor/AsyncManager.h"
+#include "AsyncExecutor/AsyncManager.h"
 
 #if COMPILER_MSVC
 #   pragma warning(push)

@@ -1,6 +1,10 @@
 # AsyncExecutor
 
-Async Task Executor, based on boost::context.
+Async Task Executor.
+
+An async task-execution environment. It uses [boost.context](../3rdParty/boost.context) as backend support, providing async promise-waiting via PromiseTask.
+
+It simply uses a polling scheduler, waiting events are queried every xx ms(default 20ms).
 
 ## Concept
 

@@ -1,5 +1,5 @@
 #include "OpenCLUtil/OpenCLUtil.h"
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 #include "common/FileEx.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/SpinLock.hpp"

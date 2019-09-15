@@ -57,7 +57,7 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
   OpenGL Utility, used for optional inter-op but currently a required dependency.
 
-* [miniLogger](../common/miniLogger)
+* [MiniLogger](../MiniLogger)
   
   used for logging message and errors, with prefix `OpenCLUtil`
 

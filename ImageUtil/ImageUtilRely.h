@@ -46,11 +46,11 @@ using std::wstring;
 using std::u16string;
 using std::tuple;
 class ImgSupport;
-IMGUTILAPI uint32_t RegistImageSupport(const common::Wrapper<ImgSupport>& support);
+IMGUTILAPI uint32_t RegistImageSupport(const std::shared_ptr<ImgSupport>& support);
 template<typename T>
 uint32_t RegistImageSupport()
 {
-    return RegistImageSupport(common::Wrapper<T>(std::in_place).template cast_static<ImgSupport>());
+    return RegistImageSupport(std::make_shared<T>());
 }
 }
 
@@ -59,7 +59,7 @@ uint32_t RegistImageSupport()
 #endif
 
 #ifdef IMGUTIL_EXPORT
-#include "common/miniLogger/miniLogger.h"
+#include "MiniLogger/MiniLogger.h"
 namespace xziar::img
 {
 common::mlog::MiniLogger<false>& ImgLog();

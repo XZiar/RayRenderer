@@ -9,20 +9,20 @@ namespace xziar::img
 using std::vector;
 using namespace common;
 
-static vector<Wrapper<ImgSupport>>& SUPPORT_MAP()
+static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP()
 {
-    static vector<Wrapper<ImgSupport>> supports;
+    static vector<std::shared_ptr<ImgSupport>> supports;
     return supports;
 }
 
-uint32_t RegistImageSupport(const Wrapper<ImgSupport>& support)
+uint32_t RegistImageSupport(const std::shared_ptr<ImgSupport>& support)
 {
     SUPPORT_MAP().push_back(support);
     return 0;
 }
 
 
-static vector<Wrapper<ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
+static vector<std::shared_ptr<ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
     return common::linq::Linq::FromIterable(SUPPORT_MAP())
         .Select([&](const auto& support) { return std::pair(support, support->MatchExtension(ext, dataType, isRead)); })

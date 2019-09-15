@@ -1,5 +1,5 @@
 #include "TestRely.h"
-#include "common/miniLogger/QueuedBackend.h"
+#include "MiniLogger/QueuedBackend.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "StringCharset/Convert.h"
