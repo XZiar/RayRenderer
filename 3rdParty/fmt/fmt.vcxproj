@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{70DDE3A9-B057-4AE0-842E-37917F633582}</ProjectGuid>
-    <RootNamespace>fmt2</RootNamespace>
+    <RootNamespace>fmt</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -134,11 +134,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <CompileAs>CompileAsCpp</CompileAs>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;FMT_LOCALE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Lib>
@@ -153,7 +154,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;FMT_LOCALE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -185,7 +186,6 @@
     <ClInclude Include="posix.h" />
     <ClInclude Include="printf.h" />
     <ClInclude Include="ranges.h" />
-    <ClInclude Include="time.h" />
     <ClInclude Include="utfext.h" />
   </ItemGroup>
   <ItemGroup>

@@ -1,9 +1,7 @@
 #pragma once
 #include "RenderCoreRely.h"
 #include "ModelMesh.h"
-#pragma warning(disable : 4996)
-#include "fmt/time.h"
-#pragma warning(default : 4996)
+#include "fmt/chrono.h"
 
 
 

@@ -32,9 +32,6 @@
     <ClInclude Include="ranges.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="time.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="chrono.h">
       <Filter>头文件</Filter>
     </ClInclude>

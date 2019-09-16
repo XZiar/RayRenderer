@@ -21,8 +21,15 @@
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
 #include "common/FileEx.hpp"
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
 #include "3rdParty/fmt/format.h"
 #include "3rdParty/fmt/utfext.h"
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 #include "StringCharset/Convert.h"
 #include <cstdint>
 #include <chrono>

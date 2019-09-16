@@ -1,12 +1,10 @@
 #include "FontRely.h"
 #include "FontCreator.h"
-#include "freetype2/freetype2.h"
 #include "OpenCLUtil/oclException.h"
+#include "3rdParty/freetype2/freetype2.h"
+#include "3rdParty/fmt/chrono.h"
 #include <cmath>
 #include "resource.h"
-#pragma warning(disable : 4996)
-#include "fmt/time.h"
-#pragma warning(default : 4996)
 
 namespace oglu
 {
