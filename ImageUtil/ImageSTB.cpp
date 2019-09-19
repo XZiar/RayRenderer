@@ -18,8 +18,8 @@
 #   pragma warning(push)
 //#   pragma warning(disable:4505 4100)
 #endif
-#include "3rdParty/stblib/stb_image.h"
-#include "3rdParty/stblib/stb_image_write.h"
+#include "3rdParty/stb/stb_image.h"
+#include "3rdParty/stb/stb_image_write.h"
 #if COMPILER_GCC
 #   pragma GCC diagnostic pop
 #elif COMPILER_CLANG

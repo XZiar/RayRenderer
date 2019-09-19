@@ -9,7 +9,7 @@
   - [ ] Add multi thread executor
 
 * ImageUtil
-  - [ ] Add memory input/output
+  - [x] Add memory input/output
   - [x] Make Image mutable
   - [x] Add stb as fallback handler
   - [x] Add more format suppprt

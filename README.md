@@ -113,7 +113,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/date/LICENSE.txt)
 
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader)
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.1.0
 
   [License](./3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
 

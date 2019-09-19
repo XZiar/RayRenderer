@@ -2,6 +2,7 @@
 using OpenGLView;
 using Dizz;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace WinFormTest
 {
@@ -10,9 +11,9 @@ namespace WinFormTest
         //conver to radius
         const float MULER = (float)(Math.PI / 180);
         private OGLView GLView;
-        private RenderCore Core;
+        private RenderCore Core = null;
         private bool IsAnimate = false;
-        private ushort curObj = 0;
+        private IMovable[] OperateTargets = new IMovable[3];
         public Form1()
         {
             Common.ViewModelSyncRoot.Init();
@@ -35,6 +36,9 @@ namespace WinFormTest
                 ResizeBGDraw = false
             };
             Core = new RenderCore();
+            OperateTargets[0] = Core.TheScene.MainCamera;
+            OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
+            OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();
             Core.Resize((uint)ClientSize.Width, (uint)ClientSize.Height);
 
             Controls.Add(GLView);
@@ -56,11 +60,11 @@ namespace WinFormTest
             {
             case ".obj":
                 {
-                    var drawable = await Core.LoadModelAsync(fname);
-                    drawable.Rotate(-90 * MULER, 0, 0);
-                    drawable.Move(-1, 0, 0);
-                    Core.TheScene.Drawables.Add(drawable);
-                    curObj = (ushort)(Core.TheScene.Drawables.Count - 1);
+                    var model = await Core.LoadModelAsync(fname);
+                    model.Rotate(-90 * MULER, 0, 0);
+                    model.Move(-1, 0, 0);
+                    Core.TheScene.Drawables.Add(model);
+                    OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
                 } break;
             }
             GLView.Invalidate();
@@ -72,26 +76,28 @@ namespace WinFormTest
             switch (e.KeyCode)
             {
                 case Keys.Up:
-                    Core.TheScene.Drawables[curObj].Move(0, 0.1f, 0); break;
+                    OperateTargets[1]?.Move(0, 0.1f, 0); break;
                 case Keys.Down:
-                    Core.TheScene.Drawables[curObj].Move(0, -0.1f, 0); break;
+                    OperateTargets[1]?.Move(0, -0.1f, 0); break;
                 case Keys.Left:
-                    Core.TheScene.Drawables[curObj].Move(-0.1f, 0, 0); break;
+                    OperateTargets[1]?.Move(-0.1f, 0, 0); break;
                 case Keys.Right:
-                    Core.TheScene.Drawables[curObj].Move(0.1f, 0, 0); break;
+                    OperateTargets[1]?.Move(0.1f, 0, 0); break;
                 case Keys.PageUp:
-                    Core.TheScene.Drawables[curObj].Move(0, 0, -0.1f); break;
+                    OperateTargets[1]?.Move(0, 0, -0.1f); break;
                 case Keys.PageDown:
-                    Core.TheScene.Drawables[curObj].Move(0, 0, 0.1f); break;
+                    OperateTargets[1]?.Move(0, 0, 0.1f); break;
                 case Keys.Add:
-                    curObj++;
-                    if (curObj >= Core.TheScene.Drawables.Count)
-                        curObj = 0;
+                    {
+                        var idx = Core.TheScene.Drawables.IndexOf(OperateTargets[1] as Drawable) + 1;
+                        OperateTargets[1] = Core.TheScene.Drawables.ElementAtOrDefault(idx == Core.TheScene.Drawables.Count ? 0 : idx);
+                    }
                     break;
                 case Keys.Subtract:
-                    if (curObj == 0)
-                        curObj = (ushort)Core.TheScene.Drawables.Count;
-                    curObj--;
+                    {
+                        var idx = Core.TheScene.Drawables.IndexOf(OperateTargets[1] as Drawable) - 1;
+                        OperateTargets[1] = Core.TheScene.Drawables.ElementAtOrDefault(idx < 0 ? Core.TheScene.Drawables.Count - 1 : idx);
+                    }
                     break;
                 default:
                     if (e.Shift)
@@ -99,17 +105,17 @@ namespace WinFormTest
                         switch (e.KeyValue)
                         {
                             case 'A':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 3 * MULER, 0); break;
+                                OperateTargets[1]?.Rotate(0, 3 * MULER, 0); break;
                             case 'D':
-                                Core.TheScene.Drawables[curObj].Rotate(0, -3 * MULER, 0); break;
+                                OperateTargets[1]?.Rotate(0, -3 * MULER, 0); break;
                             case 'W':
-                                Core.TheScene.Drawables[curObj].Rotate(3 * MULER, 0, 0); break;
+                                OperateTargets[1]?.Rotate(3 * MULER, 0, 0); break;
                             case 'S':
-                                Core.TheScene.Drawables[curObj].Rotate(-3 * MULER, 0, 0); break;
+                                OperateTargets[1]?.Rotate(-3 * MULER, 0, 0); break;
                             case 'Q':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 0, 3 * MULER); break;
+                                OperateTargets[1]?.Rotate(0, 0, 3 * MULER); break;
                             case 'E':
-                                Core.TheScene.Drawables[curObj].Rotate(0, 0, -3 * MULER); break;
+                                OperateTargets[1]?.Rotate(0, 0, -3 * MULER); break;
                             case '\r':
                                 IsAnimate = !IsAnimate; break;
                         }

@@ -2,19 +2,57 @@
 #include "common/FileEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "ImageUtil/ImageUtil.h"
-#include "stblib/stblib.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "3rdParty/stb/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "3rdParty/stb/stb_image_write.h"
+
 
 using namespace common::mlog;
 using namespace common;
 namespace img = xziar::img;
+using common::file::FileException;
 using std::vector;
 using std::tuple;
+using std::byte;
 
 static MiniLogger<false>& log()
 {
     static MiniLogger<false> log(u"ImgUtilTest", { GetConsoleBackend() });
     return log;
 }
+
+static img::Image STBLoadImage(const std::vector<byte>& fdata)
+{
+    int width, height, comp;
+    auto ret = stbi_load_from_memory(reinterpret_cast<const unsigned char*>(fdata.data()), static_cast<int>(fdata.size()),
+        &width, &height, &comp, 4);
+    if (ret == nullptr)
+        COMMON_THROW(BaseException, u"cannot parse image");
+
+    img::Image img(xziar::img::ImageDataType::RGBA);
+    img.SetSize(width, height);
+    memcpy_s(img.GetRawPtr(), img.GetSize(), ret, width * height * 4);
+    stbi_image_free(ret);
+    return img;
+}
+
+void writeToFile(void* context, void* data, int size)
+{
+    auto& stream = *static_cast<common::file::FileOutputStream*>(context);
+    stream.Write(size, data);
+}
+
+static void STBSaveImage(const common::fs::path& fpath, const img::Image& img)
+{
+    auto stream = file::FileOutputStream(file::FileObject::OpenThrow(fpath, file::OpenFlag::CreatNewBinary));
+    const auto ret = stbi_write_png_to_func(&writeToFile, &stream, 
+        (int)img.GetWidth(), (int)img.GetHeight(), img.GetElementSize(), img.GetRawPtr(), 0);
+    if (ret == 0)
+        COMMON_THROW(FileException, FileException::Reason::WriteFail, fpath, u"cannot parse image");
+}
+
 
 static img::Image stbToImage(const vector<uint32_t>& stbimg, const tuple<int32_t, int32_t> size)
 {
@@ -50,27 +88,26 @@ static void TestImageUtil()
         auto img = img::ReadImage(fdata, u"tga", img::ImageDataType::RGB);
         timer.Stop();
         log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
-        ::stb::saveImage(basePath / u"CTC16-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
+        STBSaveImage(basePath / u"CTC16-stb.png", img);
     }
     {
         const fs::path srcPath = basePath / u"pngtest.png";
         log().info(u"Test PNG(Alpha)-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
+
         timer.Start();
         auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
         log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
 
-        std::vector<uint32_t> data;
         timer.Start();
-        auto img2 = ::stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
 
         log().info(u"Test PNG(Alpha)-Writing\n");
-        auto size = img.GetWidth() * img.GetHeight() + data.size();
         timer.Start();
-        ::stb::saveImage(basePath / u"pngtest-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
+        STBSaveImage(basePath / u"pngtest-stb.png", img);
         timer.Stop();
         log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
 
@@ -99,21 +136,23 @@ static void TestImageUtil()
         const fs::path srcPath = basePath / u"qw11.png";
         log().info(u"Test PNG-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
+
         timer.Start();
         auto img = img::ReadImage(fdata, u"png");
         timer.Stop();
         log().debug(u"libpng read cost {} ms\n", timer.ElapseMs());
-        std::vector<uint32_t> data;
+
         timer.Start();
-        auto img2 = ::stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbpng read cost {} ms\n", timer.ElapseMs());
-        auto size = img.GetWidth() * img.GetHeight() + data.size();
+
         log().info(u"Test PNG-Writing\n");
         timer.Start();
-        ::stb::saveImage(basePath / u"qw11-stb.png", img.GetRawPtr(), img.GetWidth(), img.GetHeight(), img.GetElementSize());
+        STBSaveImage(basePath / u"qw11-stb.png", img);
         timer.Stop();
         log().debug(u"stbpng write cost {} ms\n", timer.ElapseMs());
+
         timer.Start();
         img::WriteImage(img, basePath / u"qw11-lpng.png");
         timer.Stop();
@@ -123,12 +162,10 @@ static void TestImageUtil()
         const fs::path srcPath = basePath / u"head2.tga";
         log().info(u"Test TGA-Reading\n");
         const auto fdata = file::ReadAll<std::byte>(srcPath);
-        std::vector<uint32_t> data;
         timer.Start();
-        auto size = stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbtga read cost {} ms\n", timer.ElapseMs());
-        auto img2 = stbToImage(data, size);
         img::WriteImage(img2, basePath / u"head2-stb.bmp");
 
         timer.Start();
@@ -150,12 +187,10 @@ static void TestImageUtil()
         log().debug(u"libjpeg read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22-ljpg.png");
 
-        std::vector<uint32_t> data;
         timer.Start();
-        auto size = stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbjpg read cost {} ms\n", timer.ElapseMs());
-        const auto img2 = stbToImage(data, size);
         img::WriteImage(img, basePath / u"qw22-stb.png");
     }
     //if (false)
@@ -169,12 +204,10 @@ static void TestImageUtil()
         log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b8-zex.png");
 
-        std::vector<uint32_t> data;
         timer.Start();
-        auto size = stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
-        const auto img2 = stbToImage(data, size);
         img::WriteImage(img2, basePath / u"qw22b8-stb.bmp");
     }
     //if (false)
@@ -188,12 +221,10 @@ static void TestImageUtil()
         log().debug(u"zexbmp read cost {} ms\n", timer.ElapseMs());
         img::WriteImage(img, basePath / u"qw22b-zex.png");
 
-        std::vector<uint32_t> data;
         timer.Start();
-        auto size = stb::loadImage(srcPath, data);
+        auto img2 = STBLoadImage(fdata);
         timer.Stop();
         log().debug(u"stbbmp read cost {} ms\n", timer.ElapseMs());
-        auto img2 = stbToImage(data, size);
         img::WriteImage(img2, basePath / u"qw22b-stb.bmp");
     }
     //if (false)

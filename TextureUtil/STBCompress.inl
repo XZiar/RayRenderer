@@ -13,7 +13,7 @@
 #   pragma warning(push)
 #   pragma warning(disable:4244)
 #endif
-#include "3rdParty/stblib/stb_dxt.h"
+#include "3rdParty/stb/stb_dxt.h"
 #if COMPILER_MSVC
 #   pragma warning(pop)
 #endif
@@ -23,7 +23,7 @@
 namespace oglu::texutil::detail
 {
 
-//SIMD optimized according to stblib's implementation
+//SIMD optimized according to stb's implementation
 static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __restrict buffer)
 {
 #if COMMON_SIMD_LV < 31

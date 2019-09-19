@@ -39,7 +39,7 @@ Since This component is binded with X86 optimization, internal data layout is as
   
 * [stb](https://github.com/nothings/stb)
 
-  [MIT License](./3rdParty/stblib/license.txt)
+  [MIT License](./3rdParty/stb/license.txt)
 
 ## License
 

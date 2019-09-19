@@ -4,7 +4,7 @@
 #include "FloatConvertor.hpp"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stblib/stb_image_resize.h"
+#include "stb/stb_image_resize.h"
 
 
 namespace xziar::img
