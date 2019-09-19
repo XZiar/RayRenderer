@@ -1,42 +1,25 @@
 /*
- * Copyright (c) 2016 The Khronos Group Inc.
+ * Copyright (c) 2016-2019 The Khronos Group Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software source and associated documentation files (the "Materials"),
- * to deal in the Materials without restriction, including without limitation
- * the rights to use, copy, modify, compile, merge, publish, distribute,
- * sublicense, and/or sell copies of the Materials, and to permit persons to
- * whom the Materials are furnished to do so, subject the following terms and
- * conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * All modifications to the Materials used to create a binary that is
- * distributed to third parties shall be provided to Khronos with an
- * unrestricted license to use for the purposes of implementing bug fixes and
- * enhancements to the Materials;
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * If the binary is used as part of an OpenCL(TM) implementation, whether binary
- * is distributed together with or separately to that implementation, then
- * recipient must become an OpenCL Adopter and follow the published OpenCL
- * conformance process for that implementation, details at:
- * http://www.khronos.org/conformance/;
- *
- * The above copyright notice, the OpenCL trademark license, and this permission
- * notice shall be included in all copies or substantial portions of the
- * Materials.
- *
- * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE MATERIALS OR THE USE OR OTHER DEALINGS IN
- * THE MATERIALS.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * OpenCL is a trademark of Apple Inc. used under license by Khronos.
  */
 
 #ifndef _ICD_H_
 #define _ICD_H_
+
+#include "icd_platform.h"
 
 #ifndef CL_USE_DEPRECATED_OPENCL_1_0_APIS
 #define CL_USE_DEPRECATED_OPENCL_1_0_APIS
@@ -52,10 +35,6 @@
 
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
-
-#ifdef _WIN32
-#include <tchar.h>
-#endif
 
 /*
  * type definitions
@@ -119,6 +98,9 @@ void khrIcdInitialize(void);
 // the registry) and call khrIcdVendorAdd for each vendor encountered
 // n.b, this call is OS-specific
 void khrIcdOsVendorsEnumerateOnce(void);
+
+// read vendors from environment variables
+void khrIcdVendorsEnumerateEnv(void);
 
 // add a vendor's implementation to the list of libraries
 void khrIcdVendorAdd(const char *libraryName);

@@ -1,36 +1,17 @@
 /*
- * Copyright (c) 2016 The Khronos Group Inc.
+ * Copyright (c) 2012-2019 The Khronos Group Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software source and associated documentation files (the "Materials"),
- * to deal in the Materials without restriction, including without limitation
- * the rights to use, copy, modify, compile, merge, publish, distribute,
- * sublicense, and/or sell copies of the Materials, and to permit persons to
- * whom the Materials are furnished to do so, subject the following terms and
- * conditions:
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * All modifications to the Materials used to create a binary that is
- * distributed to third parties shall be provided to Khronos with an
- * unrestricted license to use for the purposes of implementing bug fixes and
- * enhancements to the Materials;
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * If the binary is used as part of an OpenCL(TM) implementation, whether binary
- * is distributed together with or separately to that implementation, then
- * recipient must become an OpenCL Adopter and follow the published OpenCL
- * conformance process for that implementation, details at:
- * http://www.khronos.org/conformance/;
- *
- * The above copyright notice, the OpenCL trademark license, and this permission
- * notice shall be included in all copies or substantial portions of the
- * Materials.
- *
- * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE MATERIALS OR THE USE OR OTHER DEALINGS IN
- * THE MATERIALS.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  * OpenCL is a trademark of Apple Inc. used under license by Khronos.
  */
@@ -1378,14 +1359,21 @@ CL_API_ENTRY void * CL_API_CALL
 clGetExtensionFunctionAddressForPlatform(cl_platform_id platform,
                                          const char *   function_name) CL_API_SUFFIX__VERSION_1_2
 {
+    KHR_ICD_VALIDATE_HANDLE_RETURN_ERROR(function_name, NULL);
+
     // make sure the ICD is initialized
     khrIcdInitialize();    
 
     // return any ICD-aware extensions
+
+    // Most extensions, including multi-vendor KHR and EXT extensions,
+    // do not need to be ICD-aware and do not require any ICD loader
+    // modifications.  The KHR and EXT extensions below were added for
+    // backwards compatibility only.
     #define CL_COMMON_EXTENSION_ENTRYPOINT_ADD(name) if (!strcmp(function_name, #name) ) return (void *)(size_t)&name
 
-    // Are these core or ext?  This is unclear, but they appear to be
-    // independent from cl_khr_gl_sharing.
+    // Functions supporting the creation of OpenCL Memory Objects
+    // from OpenGL Objects (cl_apple_gl_sharing, cl_khr_gl_sharing)
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLBuffer);
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLTexture);
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLTexture2D);
@@ -1440,10 +1428,12 @@ clGetExtensionFunctionAddressForPlatform(cl_platform_id platform,
     /* cl_khr_sub_groups */
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clGetKernelSubGroupInfoKHR);
 
-    // fall back to vendor extension detection
+    #undef CL_COMMON_EXTENSION_ENTRYPOINT_ADD
 
-    // FIXME Now that we have a platform id here, we need to validate that it isn't NULL, so shouldn't we have an errcode_ret
-    // KHR_ICD_VALIDATE_HANDLE_RETURN_HANDLE(platform, CL_INVALID_PLATFORM);   
+    // This is not an ICD-aware extension, so call into the implementation
+    // to get the extension function address.
+
+    KHR_ICD_VALIDATE_HANDLE_RETURN_ERROR(platform, NULL);
     return platform->dispatch->clGetExtensionFunctionAddressForPlatform(
         platform,
         function_name);
@@ -1581,17 +1571,25 @@ clEnqueueBarrier(cl_command_queue command_queue) CL_EXT_SUFFIX__VERSION_1_1_DEPR
 CL_API_ENTRY void * CL_API_CALL
 clGetExtensionFunctionAddress(const char *function_name) CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED
 {
-    size_t function_name_length = strlen(function_name);
+    size_t function_name_length = 0;
     KHRicdVendor* vendor = NULL;
+
+    KHR_ICD_VALIDATE_HANDLE_RETURN_ERROR(function_name, NULL);
 
     // make sure the ICD is initialized
     khrIcdInitialize();    
+    function_name_length = strlen(function_name);
 
     // return any ICD-aware extensions
+
+    // Most extensions, including multi-vendor KHR and EXT extensions,
+    // do not need to be ICD-aware and do not require any ICD loader
+    // modifications.  The KHR and EXT extensions below were added for
+    // backwards compatibility only.
     #define CL_COMMON_EXTENSION_ENTRYPOINT_ADD(name) if (!strcmp(function_name, #name) ) return (void *)(size_t)&name
 
-    // Are these core or ext?  This is unclear, but they appear to be
-    // independent from cl_khr_gl_sharing.
+    // Functions supporting the creation of OpenCL Memory Objects
+    // from OpenGL Objects (cl_apple_gl_sharing, cl_khr_gl_sharing)
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLBuffer);
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLTexture);
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clCreateFromGLTexture2D);
@@ -1645,6 +1643,8 @@ clGetExtensionFunctionAddress(const char *function_name) CL_EXT_SUFFIX__VERSION_
 
     /* cl_khr_sub_groups */
     CL_COMMON_EXTENSION_ENTRYPOINT_ADD(clGetKernelSubGroupInfoKHR);
+
+    #undef CL_COMMON_EXTENSION_ENTRYPOINT_ADD
 
     // fall back to vendor extension detection
     for (vendor = khrIcdVendors; vendor; vendor = vendor->next)

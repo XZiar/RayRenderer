@@ -24,6 +24,15 @@
     <ClInclude Include="icd_dispatch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="icd_platform.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="icd_windows_dxgk.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="icd_envvars.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenCL.rc">
@@ -41,6 +50,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="icd_windows_hkr.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="icd_windows_dxgk.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="icd_windows_envvars.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

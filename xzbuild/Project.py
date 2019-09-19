@@ -27,7 +27,7 @@ class Project:
         self.libStatic = libs.get("static", [])
         self.libDynamic = libs.get("dynamic", [])
         self.targets = []
-        self.linkflags = []
+        self.linkflags = data.get("linkflags", [])
         self.libDirs = []
         pass
 

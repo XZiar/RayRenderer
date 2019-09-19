@@ -18,4 +18,4 @@
 
 #include <stdbool.h>
 
-bool khrIcdOsVendorsEnumerateHKR(void);
+bool khrIcdOsVendorsEnumerateDXGK(void);

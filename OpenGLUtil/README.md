@@ -4,6 +4,12 @@ A C++ wrapper of modern OpenGL.
 
 It aims at providing a OOP wrapper which makes OpenGL's states transparent to upper programmers.
 
+## GL Dependency
+
+* [OpenGL Header](../3rdParty/GL) 20190911
+
+* [KHR API Header](../3rdParty/KHR) 20190424
+
 ## Componoent
 
 * **oglShader**  OpenGL Shader

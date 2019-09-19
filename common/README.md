@@ -72,6 +72,14 @@ A collection of useful utilities
 
   ShareString provides access using string_view and uses embedded reference-block to save pointer's dereference overhead.
 
+* **StrCharset**
+
+  StrCharset provide encoding defines and charset transform with self-made conversion class. Correctness check is not completed.
+
+  `codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
+
+  Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
+
 * **SpinLocker**
 
   Spin-lock implemented using std::atomic. It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.

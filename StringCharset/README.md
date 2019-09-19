@@ -1,11 +1,9 @@
-# StrCharset
+## StringCharset
 
-StrCharset provide encoding defines and charset transform with self-made conversion class. Correctness check is not completed.
+StringCharset wrap [StrCharset](../common/StrCharset.hpp) to provide charset conversion, reducing the overhead and size by dynamic linking.
 
-`codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
-
-Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
+It also uses [uchardet](../3rdParty/uchardetlib) to privede charset detection.
 
 ## License
 
-AsyncExecutor (including its component) is licensed under the [MIT license](../License.txt).
+StringCharset (including its component) is licensed under the [MIT license](../License.txt).
