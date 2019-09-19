@@ -1,6 +1,5 @@
 #pragma once
 
-#include "fmt/format.h"
 #include "fmt/utfext.h"
 #include "common/ColorConsole.h"
 #include <tuple>
@@ -35,12 +34,26 @@ inline std::u16string ToColor(const LogType type)
     case LogType::Verbose:  return ConsoleHelper::GetColorStr(ConsoleColor::BrightCyan);
     }
 }
+inline common::console::ConsoleColor ToColor2(const LogType type)
+{
+    using namespace common::console;
+    switch (type)
+    {
+    case LogType::Error:    return ConsoleColor::BrightRed;
+    case LogType::Success:  return ConsoleColor::BrightGreen;
+    case LogType::Warning:  return ConsoleColor::BrightYellow;
+    default:
+    case LogType::Info:     return ConsoleColor::BrightWhite;
+    case LogType::Verbose:  return ConsoleColor::BrightCyan;
+    }
+}
 const common::console::ConsoleHelper& GetConsole();
 template<class... Args>
 inline void Log(const LogType type, const std::u16string_view& formater, Args&&... args)
 {
-    const auto txt = ToColor(type).append(ToU16Str(formater, std::forward<Args>(args)...)).append(u"\x1b[39m\n");
-    GetConsole().Print(txt);
+    /*const auto txt = ToColor(type).append(ToU16Str(formater, std::forward<Args>(args)...)).append(u"\x1b[39m\n");
+    GetConsole().Print(txt);*/
+    GetConsole().Print(ToColor2(type), ToU16Str(formater, std::forward<Args>(args)...));
 }
 
 

@@ -31,7 +31,7 @@ int main()
     {
         COMMON_THROWEX(BaseException, u"hey");
     }
-    catch (const BaseException& be)
+    catch (const BaseException&)
     {
         try
         {

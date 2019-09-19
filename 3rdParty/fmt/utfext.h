@@ -1,6 +1,12 @@
 #pragma once
+#ifdef FMT_FORMAT_H_
+#  error "Don't include format.h before utfext.h"
+#endif
+#define FMT_USE_GRISU 1
+#ifndef FMT_EXPORT
+#  define FMT_SHARED
+#endif
 #include "format.h"
-#include "common/CommonRely.hpp"
 
 
 
@@ -10,24 +16,6 @@ FMT_BEGIN_NAMESPACE
 
 namespace internal
 {
-
-
-
-
-//template <>
-//struct char_traits<char16_t>
-//{
-//    // Formats a floating-point number.
-//    template <typename T>
-//    FMT_API static int format_float(char16_t *buffer, std::size_t size, const char16_t *format, int precision, T value);
-//};
-//template <>
-//struct char_traits<char32_t>
-//{
-//    // Formats a floating-point number.
-//    template <typename T>
-//    FMT_API static int format_float(char32_t *buffer, std::size_t size, const char32_t *format, int precision, T value);
-//};
 
 
 
@@ -41,22 +29,21 @@ namespace internal
 //    }
 //};
 
+namespace temp
+{
+template <class T, template <typename...> class Template>
+struct is_specialization : std::false_type {};
+template <template <typename...> class Template, typename... Ts>
+struct is_specialization<Template<Ts...>, Template> : std::true_type {};
 
+template<typename T>
+constexpr bool AlwaysTrue() { return true; }
+}
 
 template <typename Context>
 struct UTFMakeValueProxy
 {
     using Char = typename Context::char_type;
-    /*template<typename T>
-    static FMT_CONSTEXPR bool IsChar()
-    {
-        return std::is_same_v<T, char> || std::is_same_v<T, char16_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, char32_t>;
-    }*/
-    template<typename T> 
-    static FMT_CONSTEXPR bool IsTransChar()
-    {
-        return is_char<T>::value && !std::is_same_v<T, Char>;
-    }
 
     template<typename T>
     static constexpr basic_string_view<Char> ToStringValue(const T* ptr, const size_t size)
@@ -72,7 +59,7 @@ struct UTFMakeValueProxy
         else if constexpr (std::is_same_v<T, wchar_t>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | WCharTag);
         else
-            static_assert(!common::AlwaysTrue<T>(), "Non-char type enter here");
+            static_assert(!temp::AlwaysTrue<T>(), "Non-char type enter here");
     }
     template<typename T>
     static constexpr auto ToStringValue(const T* ptr) { return ToStringValue(ptr, std::char_traits<T>::length(ptr)); }
@@ -81,8 +68,8 @@ struct UTFMakeValueProxy
     static FMT_CONSTEXPR auto map(T* val)
     {
         using RawT = std::remove_cv_t<T>;
-        //static_assert(IsChar<RawT>(), "non-ch pointer enter here");
-        if constexpr (IsTransChar<RawT>())
+        //static_assert(is_char<T>::value, "non-ch pointer enter here");
+        if constexpr (is_char<RawT>::value && !std::is_same_v<RawT, Char>)
             return ToStringValue(val);
         else
             return arg_mapper<Context>().map(val);
@@ -91,10 +78,9 @@ struct UTFMakeValueProxy
     template<typename T>
     static FMT_CONSTEXPR auto map(const T& val)
     {
-        using common::is_specialization;
-        if constexpr (is_specialization<T, basic_string_view>::value
-            || is_specialization<T, std::basic_string_view>::value
-            || is_specialization<T, std::basic_string>::value)
+        if constexpr (temp::is_specialization<T, basic_string_view>::value
+            || temp::is_specialization<T, std::basic_string_view>::value
+            || temp::is_specialization<T, std::basic_string>::value)
             return ToStringValue(val.data(), val.size());
         else if constexpr (is_char<T>::value)
             return ToStringValue(&val, 1);

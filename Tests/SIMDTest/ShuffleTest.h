@@ -42,7 +42,7 @@ bool GenerateShuffle(const T& data)
         //const auto poses = std::array<uint8_t, sizeof...(Poses)>{ Poses... };
         const bool ret = RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, poses);
         if (!ret)
-            Log(ret ? LogType::Verbose : LogType::Error, u"at poses [{}], get val [{}]", GeneratePosString(poses), GenerateValString<T>(output));
+            Log(ret ? LogType::Verbose : LogType::Error, u"at poses [{}], get val [{}]\n", GeneratePosString(poses), GenerateValString<T>(output));
         return ret;
     }
     else
@@ -72,7 +72,7 @@ bool GenerateShuffleVar(const T& data, [[maybe_unused]]const uint64_t N, const P
         //const auto posArray = std::array<uint8_t, sizeof...(Poses)>{ poses... };
         const bool ret = RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, posArray);
         if (!ret)
-            Log(ret ? LogType::Verbose : LogType::Error, u"at poses [{}], get val [{}]", GeneratePosString(posArray), GenerateValString<T>(output));
+            Log(ret ? LogType::Verbose : LogType::Error, u"at poses [{}], get val [{}]\n", GeneratePosString(posArray), GenerateValString<T>(output));
         return ret;
     }
     else

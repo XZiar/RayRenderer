@@ -1,5 +1,6 @@
 #include "ColorConsole.h"
 #include <algorithm>
+#include <stdexcept>
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1

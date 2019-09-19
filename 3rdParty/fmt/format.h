@@ -625,6 +625,11 @@ using wmemory_buffer = basic_memory_buffer<wchar_t>;
 using u16memory_buffer = basic_memory_buffer<char16_t>;
 using u32memory_buffer = basic_memory_buffer<char32_t>;
 
+// ++MOD++
+#if FMT_MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable: 4275)
+#endif
 /** A formatting error such as invalid format string. */
 class FMT_API format_error : public std::runtime_error {
  public:
@@ -633,6 +638,9 @@ class FMT_API format_error : public std::runtime_error {
       : std::runtime_error(message) {}
   ~format_error() FMT_NOEXCEPT;
 };
+#if FMT_MSC_VER
+#  pragma warning(pop)
+#endif
 
 namespace internal {
 
@@ -2696,6 +2704,11 @@ class arg_formatter : public internal::UTFFormatterSupport, public internal::arg
   }
 };
 
+// ++MOD++
+#if FMT_MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable: 4275)
+#endif
 /**
  An error returned by an operating system or a language runtime,
  for example a file opening error.
@@ -2737,6 +2750,9 @@ class FMT_API system_error : public std::runtime_error {
 
   int error_code() const { return error_code_; }
 };
+#if FMT_MSC_VER
+#  pragma warning(pop)
+#endif
 
 /**
   \rst

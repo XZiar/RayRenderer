@@ -62,20 +62,20 @@ static uint32_t GetSIMDLevel()
 int main()
 {
     const auto& tests = GetTestMap();
-    Log(LogType::Success, u"[{}] Test found.", tests.size());
+    Log(LogType::Success, u"[{}] Test found.\n", tests.size());
     {
         uint32_t idx = 0;
         for (const auto test : tests)
-            Log(LogType::Verbose, u"[{:2}] {:<30}", idx++, test.Name);
+            Log(LogType::Verbose, u"[{:2}] {:<30}\n", idx++, test.Name);
     }
     const auto simdLv = GetSIMDLevel();
-    Log(LogType::Info, u"Runtime SIMD Level: [{}]", simdLv);
-    Log(LogType::Success, u"Start Test.\n");
+    Log(LogType::Info, u"Runtime SIMD Level: [{}]\n", simdLv);
+    Log(LogType::Success, u"Start Test.\n\n");
 
     uint32_t pass = 0, total = 0;
     for (const auto test : tests)
     {
-        Log(LogType::Info, u"begin [{}]", test.Name);
+        Log(LogType::Info, u"begin [{}]\n", test.Name);
         if (simdLv < test.SIMDLevel)
         {
             Log(LogType::Warning, u"SIMD [{}] required unsatisfied, skip.\n", test.SIMDLevel);
@@ -92,9 +92,6 @@ int main()
             Log(LogType::Error,   u"Test failed in {} ms.\n", timer.ElapseMs());
     }
 
-    Log(pass == total ? LogType::Success : LogType::Error, u"[{}/{}] Test pases.\n", pass, total);
+    Log(pass == total ? LogType::Success : LogType::Error, u"\n[{}/{}] Test pases.\n", pass, total);
 
-#if COMPILER_MSVC
-    getchar();
-#endif
 }

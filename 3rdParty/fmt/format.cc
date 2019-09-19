@@ -5,8 +5,8 @@
 //
 // For the license information refer to format.h.
 
-#include "format-inl.h"
 #include "utfext.h"
+#include "format-inl.h"
 
 FMT_BEGIN_NAMESPACE
 template struct FMT_API internal::basic_data<void>;

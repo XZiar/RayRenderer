@@ -4,7 +4,7 @@
 #include "common/FileEx.hpp"
 #include "common/ResourceHelper.inl"
 #include "common/DelayLoader.inl"
-#include "3rdParty/fmt/format.h"
+#include "3rdParty/fmt/utfext.h"
 #define CRYPTOPP_ENABLE_NAMESPACE_WEAK 1
 #include "3rdParty/cryptopp/md5.h"
 #include "resource.h"
@@ -24,7 +24,7 @@ using std::wstring;
 using std::vector;
 using std::map;
 using std::pair;
-namespace fs = std::experimental::filesystem;
+namespace fs = common::fs;
 using common::DelayLoader;
 using common::SimpleTimer;
 static fs::path RRPath, DLLSPath;

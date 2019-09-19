@@ -123,10 +123,10 @@ inline std::size_t strftime(wchar_t* str, std::size_t count,
 }
 
 // ++UTF++
-std::size_t strftime(char16_t* str, std::size_t count, const char16_t* format,
+FMT_API std::size_t strftime(char16_t* str, std::size_t count, const char16_t* format,
                             const std::tm* time);
 
-std::size_t strftime(char32_t* str, std::size_t count,
+FMT_API std::size_t strftime(char32_t* str, std::size_t count,
                             const char32_t* format, const std::tm* time);
 }  // namespace internal
 
