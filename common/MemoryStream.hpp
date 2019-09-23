@@ -76,7 +76,7 @@ public:
 
     forceinline virtual std::byte ReadByteNE(bool& isSuccess) override
     {
-        isSuccess = CurPos >= TotalSize;
+        isSuccess = CurPos < TotalSize;
         if (isSuccess)
             return Ptr[CurPos++];
         else
@@ -84,7 +84,7 @@ public:
     }
     forceinline virtual std::byte ReadByteME() override
     {
-        if (CurPos >= TotalSize)
+        if (CurPos < TotalSize)
             return Ptr[CurPos++];
         else
             COMMON_THROW(BaseException, u"reach end of memoryinputstream");

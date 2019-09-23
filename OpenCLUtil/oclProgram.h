@@ -57,14 +57,61 @@ namespace detail
 class _oclProgram;
 
 
-class OCLUAPI _oclKernel
+class OCLUAPI _oclKernel : public std::enable_shared_from_this<_oclKernel>
 {
     friend class _oclProgram;
 private:
     const std::shared_ptr<_oclProgram> Prog;
     const cl_kernel Kernel;
+    std::atomic_flag ArgLock;
     _oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name);
     void CheckArgIdx(const uint32_t idx) const;
+    template<size_t N>
+    constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
+    {
+        for (size_t i = 0; i < N; ++i)
+            if (localsize[i] != 0)
+                return localsize;
+        return nullptr;
+    }
+    template<uint8_t N, typename... Args>
+    class KernelCallSite
+    {
+        friend class _oclKernel;
+    private:
+        std::shared_ptr<_oclKernel> Kernel;
+        // clSetKernelArg does not hold parameter ownership, so need to manully hold it
+        std::tuple<Args...> Paras;
+        common::SpinLocker KernelLock;
+
+        template<size_t Idx>
+        forceinline void SetArg() const
+        {
+            using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
+            if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
+                Kernel->SetArg(Idx, std::get<Idx>(Paras));
+            else if constexpr (common::container::ContiguousHelper<ArgType>::IsContiguous)
+                Kernel->SetSpanArg(Idx, std::get<Idx>(Paras));
+            else
+                Kernel->SetSimpleArg(Idx, std::get<Idx>(Paras));
+            if constexpr (Idx != 0)
+                SetArg<Idx - 1>();
+        }
+
+        KernelCallSite(std::shared_ptr<_oclKernel> kernel, Args&& ... args) : Kernel(std::move(kernel)), Paras(std::forward<Args>(args)...), KernelLock(Kernel->ArgLock)
+        {
+            SetArg<sizeof...(Args) - 1>();
+        }
+    public:
+        PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        {
+            return Kernel->Run({}, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
+        }
+        PromiseResult<void> operator()(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        {
+            return Kernel->Run(pms, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
+        }
+    };
 public:
     const string Name;
     const vector<KernelArgInfo> ArgsInfo;
@@ -82,7 +129,7 @@ public:
     void SetArg(const uint32_t idx, const oclImage& img);
     void SetArg(const uint32_t idx, const void *dat, const size_t size);
     template<class T>
-    void SetSimpleArg(const uint32_t idx, const T &dat)
+    void SetSimpleArg(const uint32_t idx, const T& dat)
     {
         static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
         return SetArg(idx, &dat, sizeof(T));
@@ -124,8 +171,14 @@ public:
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run({}, N, que, worksize, isBlock, workoffset, localsize);
     }
-    template<uint8_t N>
-    PromiseResult<void> Call(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t* worksize, const size_t* workoffset = nullptr, const size_t* localsize = nullptr);
+    template<uint8_t N, typename... Args>
+    auto Call(Args&&... args)
+    {
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
+        if (sizeof...(Args) != ArgsInfo.size())
+            COMMON_THROW(BaseException, u"Argument parameter provided does not match parameter needed.");
+        return KernelCallSite<N, Args...>(shared_from_this(), std::forward<Args>(args)...);
+    }
 
 };
 

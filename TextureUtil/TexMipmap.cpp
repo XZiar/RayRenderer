@@ -86,36 +86,26 @@ void TexMipmap::Test()
     oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
     Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth() / 2, src.GetHeight() / 2} };
     infoBuf->Write(CmdQue, &info, sizeof(info));
-    DownsampleSrc->SetArg(0, inBuf);
-    DownsampleSrc->SetArg(1, infoBuf);
-    DownsampleSrc->SetSimpleArg<uint8_t>(2, 0);
-    DownsampleSrc->SetArg(3, midBuf);
-    DownsampleSrc->SetArg(4, outBuf);
-    const auto pms = DownsampleSrc->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
+    const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms->Wait();
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
     WriteImage(dst, fs::temp_directory_path() / u"dst.png");
 
-    /*DownsampleTest->SetArg(0, inBuf);
-    DownsampleTest->SetArg(1, infoBuf);
-    DownsampleTest->SetSimpleArg<uint8_t>(2, 0);
-    DownsampleTest->SetArg(3, midBuf);
-    DownsampleTest->SetArg(4, outBuf);
-    const auto pms2 = DownsampleTest->Run<2>(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
+
+
+    /*
+    const auto pms2 = DownsampleTest->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms2->Wait();
     const auto time2 = pms2->ElapseNs();
     Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst2.GetRawPtr(), dst2.GetSize());
-    WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");*/
+    WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");
+    */
 
 
-    DownsampleRaw->SetArg(0, inBuf);
-    DownsampleRaw->SetArg(1, infoBuf);
-    DownsampleRaw->SetSimpleArg<uint8_t>(2, 0);
-    DownsampleRaw->SetArg(3, outBuf);
-    const auto pms3 = DownsampleRaw->Run<2>(pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY }, false);
+    const auto pms3 = DownsampleRaw->Call<2>(inBuf, infoBuf, (uint8_t)0, outBuf)(pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms3->Wait();
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
@@ -180,21 +170,12 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
                 PromiseResult<void> pms;
                 if (idx == 0)
                 {
-                    DownsampleSrc->SetArg(0, inBuf);
-                    DownsampleSrc->SetArg(1, infoBuf);
-                    DownsampleSrc->SetSimpleArg(2, idx);
-                    DownsampleSrc->SetArg(3, midBuf);
-                    DownsampleSrc->SetArg(4, outBuf);
-                    pms = DownsampleSrc->Run<2>(CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY }, false);
+                    pms = DownsampleSrc->Call<2>(inBuf, infoBuf, idx, midBuf, outBuf)(CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
                 }
                 else
                 {
-                    DownsampleMid->SetArg(0, (idx & 1) == 0 ? inBuf : midBuf);
-                    DownsampleMid->SetArg(1, infoBuf);
-                    DownsampleMid->SetSimpleArg(2, idx);
-                    DownsampleMid->SetArg(3, (idx & 1) == 0 ? midBuf : inBuf);
-                    DownsampleMid->SetArg(4, outBuf);
-                    pms = DownsampleMid->Run<2>(pmss.back(), CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY }, false);
+                    pms = DownsampleMid->Call<2>((idx & 1) == 0 ? inBuf : midBuf, infoBuf, idx, (idx & 1) == 0 ? midBuf : inBuf, outBuf)
+                        (pmss.back(), CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
                 }
                 pmss.push_back(pms);
             }
@@ -223,17 +204,11 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
                 const auto& info = infos[idx];
                 images.emplace_back(mainBuf.CreateSubBuffer(offset, info.SrcWidth * info.SrcHeight), info.SrcWidth / 2, info.SrcHeight / 2, ImageDataType::RGBA);
                 offset += info.SrcWidth * info.SrcHeight;
-                if (idx == 0)
-                    DownsampleRaw->SetArg(0, inBuf);
-                else
-                    DownsampleRaw->SetArg(0, outBuf);
-                DownsampleRaw->SetArg(1, infoBuf);
-                DownsampleRaw->SetSimpleArg(2, idx);
-                DownsampleRaw->SetArg(3, outBuf);
                 PromiseResult<void> prev;
                 if (!pmss.empty()) 
                     prev = pmss.back();
-                const auto pms = DownsampleRaw->Run<2>(prev, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY }, false);
+                const auto pms = DownsampleRaw->Call<2>(idx == 0 ? inBuf : outBuf, infoBuf, idx, outBuf)
+                    (prev, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY });
                 pmss.push_back(pms);
             }
             agent.Await(pmss.back());

@@ -120,7 +120,7 @@ template<typename T>
 struct PromiseChecker
 {
 private:
-    using PureType = std::remove_cv_t<std::remove_reference_t<T>>;
+    using PureType = common::remove_cvref_t<T>;
     static_assert(common::is_specialization<PureType, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
     using TaskType = typename PureType::element_type;
     static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");

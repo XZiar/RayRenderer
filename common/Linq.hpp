@@ -154,7 +154,7 @@ template<typename Child, typename EleType>
 struct Enumerable
 {
 public:
-    using RawEleType = std::remove_cv_t<std::remove_reference_t<EleType>>;
+    using RawEleType = common::remove_cvref_t<EleType>;
     static constexpr bool IsKVPair = common::is_specialization<RawEleType, std::pair>::value;
     static constexpr bool CheckKVTuple() 
     {

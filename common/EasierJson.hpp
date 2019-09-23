@@ -76,7 +76,7 @@ struct SharedUtil
     template<typename T>
     constexpr static bool IsString()
     {
-        using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
+        using PlainType = common::remove_cvref_t<T>;
         if constexpr (std::is_same_v<string, PlainType> || std::is_same_v<string_view, PlainType>)
             return true;
         if constexpr (std::is_convertible_v<const T&, string_view> || std::is_convertible_v<const T&, string>)
@@ -91,7 +91,7 @@ public:
     template<typename T>
     static rapidjson::Value ToJString(const T& str, [[maybe_unused]] rapidjson::MemoryPoolAllocator<>& mempool)
     {
-        using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
+        using PlainType = common::remove_cvref_t<T>;
         rapidjson::Value jstr;
         if constexpr (std::is_same_v<common::u8StrView, PlainType>)
             jstr.SetString(rapidjson::StringRef(str.CharData(), static_cast<uint32_t>(str.Length())));
@@ -131,7 +131,7 @@ public:
 #define EJSONCOV_TOVAL_BEGIN template<typename T> \
     static rapidjson::Value ToVal(T&& val, [[maybe_unused]] xziar::ejson::DocumentHandle& handle) \
     { \
-        using PlainType = std::remove_cv_t<std::remove_reference_t<T>>;
+        using PlainType = common::remove_cvref_t<T>;
 #define EJSONCOV_TOVAL_END }
 
 #define EJSONCOV_FROMVAL template<typename V, typename T> \

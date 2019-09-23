@@ -224,6 +224,10 @@ namespace common
 {
 
 template<typename T>
+using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
+
+
+template<typename T>
 constexpr bool AlwaysTrue() { return true; }
 
 template<template<typename...> class Base, typename...Ts>

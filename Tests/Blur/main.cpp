@@ -86,36 +86,17 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     
     const auto width = image.GetWidth(), height = image.GetHeight();
     const auto w4 = width - width % 4, h4 = height - height % 4;
-    {
-        blurX->SetArg(0, rawBuf);
-        blurX->SetArg(1, midBuf1);
-        blurX->SetArg(2, midBuf2);
-        blurX->SetSimpleArg(3, w4);
-        blurX->SetSimpleArg(4, h4);
-        blurX->SetSimpleArg(5, width);
-        blurX->SetSimpleArg(6, coeff);
-        pms = blurX->Run<1>(cmdque, { h4 }, false);
-    }
-    pms->Wait();
-    const auto time2 = pms->ElapseNs() / 1e6f;
-    {
-        blurY->SetArg(0, midBuf2);
-        blurY->SetArg(1, midBuf1);
-        blurY->SetArg(2, rawBuf);
-        blurY->SetSimpleArg(3, w4);
-        blurY->SetSimpleArg(4, h4);
-        blurY->SetSimpleArg(5, width);
-        blurY->SetSimpleArg(6, coeff);
-        pms = blurY->Run<1>(cmdque, { w4 }, false);
-    }
-    pms->Wait();
-    const auto time3 = pms->ElapseNs() / 1e6f;
+    auto pmsX = blurX->Call<1>(rawBuf, midBuf1, midBuf2, w4, h4, width, coeff)(cmdque, { h4 });
+    auto pmsY = blurY->Call<1>(midBuf2, midBuf1, rawBuf, w4, h4, width, coeff)(pmsX, cmdque, { w4 });
+    pmsY->Wait();
+    const auto time2 = pmsX->ElapseNs() / 1e6f;
+    const auto time3 = pmsY->ElapseNs() / 1e6f;
     xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
     img2.SetSize(image.GetWidth(), image.GetHeight());
     rawBuf->Read(cmdque, img2.GetRawPtr(), width*height*4, false);
     pms->Wait();
     const auto time4 = pms->ElapseNs() / 1e6f;
-    log().info(u"WRITE[{}ms], BLURX[{}ms], BLURY[{}ms], READ[{}ms]\n", time1, time2, time3, time4);
+    log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
     return img2;
 }
 catch (common::BaseException& be)

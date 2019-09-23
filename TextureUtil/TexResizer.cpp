@@ -284,13 +284,9 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         common::AlignedBuffer buffer(width*height*eleSize, 4096);
         oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer.GetSize(), buffer.GetRawPtr());
         ImageInfo info{ img->Width, img->Height, width, height, 1.0f / width, 1.0f / height };
-        ker->SetArg(0, img);
-        ker->SetArg(1, outBuf);
-        ker->SetSimpleArg(2, 1u);
-        ker->SetSimpleArg(3, info);
 
         const size_t worksize[] = { width, height };
-        auto pms = ker->Run<2>(CmdQue, worksize, false);
+        auto pms = ker->Call<2>(img, outBuf, 1u, info)(CmdQue, worksize);
         agent.Await(common::PromiseResult<void>(pms));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
         outBuf->Map(CmdQue, oclu::MapFlag::Read);

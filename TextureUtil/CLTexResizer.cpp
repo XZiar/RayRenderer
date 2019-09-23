@@ -94,13 +94,9 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& inp
         oclBuffer output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
         ImageInfo info{ input->Width, input->Height, width, height, 1.0f / width, 1.0f / height };
         const auto& ker = HAS_FIELD(format, ImageDataType::ALPHA_MASK) ? ResizeToDat4 : ResizeToDat3;
-        ker->SetArg(0, input);
-        ker->SetArg(1, output);
-        ker->SetSimpleArg(2, 1);
-        ker->SetSimpleArg(3, info);
 
         const size_t worksize[] = { width, height };
-        auto pms1 = ker->Run<2>(CmdQue, worksize, false);
+        auto pms1 = ker->Call<2>(input, output, 1, info)(CmdQue, worksize);
         agent.Await(common::PromiseResult<void>(pms1));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms1->ElapseNs() / 1000);
 

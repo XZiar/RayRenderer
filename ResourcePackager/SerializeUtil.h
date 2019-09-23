@@ -116,12 +116,12 @@ public:
     //template<typename... Ts>
     //static bool IsAnyType(const Serializable& object)
     //{
-    //    return (... || (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
+    //    return (... || (dynamic_cast<const common::remove_cvref_t<Ts>*>(&object) != nullptr));
     //}
     //template<typename... Ts>
     //static bool IsAllType(const Serializable& object)
     //{
-    //    return (... && (dynamic_cast<const std::remove_cv_t<std::remove_reference_t<Ts>>*>(&object) != nullptr));
+    //    return (... && (dynamic_cast<const common::remove_cvref_t<Ts>*>(&object) != nullptr));
     //}
     void AddFilter(const FilterFunc& filter) { Filters.push_back(filter); }
 

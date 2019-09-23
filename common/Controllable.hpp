@@ -103,7 +103,7 @@ private:
         template<typename G>
         static ControlArg PackGetValue(G&& value)
         {
-            using GetType = std::remove_cv_t<std::remove_reference_t<G>>;
+            using GetType = common::remove_cvref_t<G>;
             static_assert(std::is_convertible_v<GetType, T> || std::is_enum_v<std::remove_reference_t<GetType>>, "getter's return cannot be convert to T");
             if constexpr (std::is_constructible_v<ControlArg, T>)
             {
@@ -132,13 +132,13 @@ private:
         template<typename D>
         constexpr static void CheckSubClass()
         {
-            static_assert(std::is_base_of_v<Controllable, std::remove_cv_t<std::remove_reference_t<D>>>, "type D should be subclass of Controllable");
+            static_assert(std::is_base_of_v<Controllable, common::remove_cvref_t<D>>, "type D should be subclass of Controllable");
         }
     public:
         template<typename Getter>
         ItemPrep<T>& RegistGetter(Getter&& getter) 
         { 
-            using GetType = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<Getter, const Controllable&, const std::string&>>>;
+            using GetType = common::remove_cvref_t<std::invoke_result_t<Getter, const Controllable&, const std::string&>>;
             static_assert(std::is_same_v<GetType, T> || std::is_same_v<GetType, ControlArg>, "getter doesnot match item type");
             Item.Getter = getter; 
             return *this;
@@ -154,7 +154,7 @@ private:
         ItemPrep<T>& RegistGetter(G(D::*getter)(void) const)
         { 
             CheckSubClass<D>();
-            using GetType = std::remove_cv_t<std::remove_reference_t<G>>;
+            using GetType = common::remove_cvref_t<G>;
             Item.Getter = [getter](const Controllable& obj, const std::string&) 
             { 
                 return PackGetValue((dynamic_cast<const D&>(obj).*getter)());
@@ -165,7 +165,7 @@ private:
         ItemPrep<T>& RegistSetter(void(D::*setter)(S))
         { 
             CheckSubClass<D>();
-            using SetType = std::remove_cv_t<std::remove_reference_t<S>>;
+            using SetType = common::remove_cvref_t<S>;
             Item.Setter = [setter](Controllable& obj, const std::string&, const ControlArg& arg) 
             { 
                 (dynamic_cast<D&>(obj).*setter)(UnPackSetValue<SetType>(arg));
