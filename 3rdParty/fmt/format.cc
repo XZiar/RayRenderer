@@ -5,7 +5,6 @@
 //
 // For the license information refer to format.h.
 
-#include "utfext.h"
 #include "format-inl.h"
 
 FMT_BEGIN_NAMESPACE
@@ -55,47 +54,4 @@ template FMT_API void internal::arg_map<wformat_context>::init(
 
 template FMT_API std::wstring internal::vformat<wchar_t>(
     wstring_view, basic_format_args<wformat_context>);
-
-    
-// ++UTF++
-// Explicit instantiations for char16_t.
-
-template<> FMT_API char16_t internal::thousands_sep_impl(locale_ref loc)
-{
-    return (char16_t)internal::thousands_sep<char>(loc);
-}
-template<> FMT_API char16_t internal::decimal_point_impl(locale_ref loc)
-{
-    return (char16_t)internal::decimal_point_impl<char>(loc);
-}
-
-template FMT_API void internal::buffer<char16_t>::append(const char16_t*,
-                                                         const char16_t*);
-
-template FMT_API void internal::arg_map<u16format_context>::init(
-    const basic_format_args<u16format_context>&);
-
-template FMT_API std::u16string internal::vformat<char16_t>(
-    u16string_view, basic_format_args<u16format_context>);
-
-// Explicit instantiations for char32_t.
-
-template<> FMT_API char32_t internal::thousands_sep_impl(locale_ref loc)
-{
-    return (char32_t)internal::thousands_sep<char>(loc);
-}
-template<> FMT_API char32_t internal::decimal_point_impl(locale_ref loc)
-{
-    return (char32_t)internal::decimal_point_impl<char>(loc);
-}
-
-template FMT_API void internal::buffer<char32_t>::append(const char32_t*,
-                                                         const char32_t*);
-
-template FMT_API void internal::arg_map<u32format_context>::init(
-    const basic_format_args<u32format_context>&);
-
-template FMT_API std::u32string internal::vformat<char32_t>(
-    u32string_view, basic_format_args<u32format_context>);
-
 FMT_END_NAMESPACE

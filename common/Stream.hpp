@@ -2,6 +2,7 @@
 
 
 #include "CommonRely.hpp"
+#include "ContainerHelper.hpp"
 
 #include <cstddef>
 #include <cstdio>
@@ -120,13 +121,6 @@ private:
         want = std::min(acceptable / Size, want);
         return want;
     }
-    template<size_t Size, typename C>
-    forceinline size_t WriteFrom_(const C& output, const size_t offset, size_t want)
-    {
-        if (want == 0)
-            return 0;
-        return WriteMany(want, Size, &output[offset]);
-    }
 protected:
     virtual size_t AcceptableSpace() { return SIZE_MAX; };
 public:
@@ -144,29 +138,17 @@ public:
         return Write(sizeof(T), &output);
     }
 
-    template<typename T, size_t N>
-    forceinline size_t WriteFrom(const T(&output)[N], const size_t offset = 0, size_t count = N)
-    {
-        constexpr size_t Size = sizeof(T);
-        const auto want = CalcCount<Size>(offset, N, count);
-        return WriteFrom_<Size>(output, offset, want);
-    }
-    template<typename T, size_t N>
-    forceinline size_t WriteFrom(const std::array<T, N>& output, const size_t offset = 0, size_t count = N)
-    {
-        constexpr size_t Size = sizeof(T);
-        const auto want = CalcCount<Size>(offset, N, count);
-        return WriteFrom_<Size>(output, offset, want);
-    }
-
     template<class T>
-    size_t WriteFrom(const T& output, size_t offset = 0, size_t count = SIZE_MAX)
+    size_t WriteFrom(const T& input, size_t offset = 0, size_t count = SIZE_MAX)
     {
-        constexpr size_t Size = sizeof(typename T::value_type);
-        const auto want = CalcCount<Size>(offset, output.size(), count);
-        return WriteFrom_<Size>(output, offset, want);
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "Only accept contiguous type");
+        constexpr size_t EleSize = Helper::EleSize;
+        const auto want = CalcCount<EleSize>(offset, Helper::Count(input), count);
+        if (want == 0)
+            return 0;
+        return WriteMany(want, EleSize, Helper::Data(input) + offset);
     }
-
 };
 
 

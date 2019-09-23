@@ -63,7 +63,7 @@ private:
         BufInfo(const size_t size) noexcept : Size(size), RefCount(1) {}
     };
     BufInfo* CoreInfo = nullptr;
-    std::byte* GetPtr() const noexcept
+    constexpr std::byte* GetPtr() const noexcept
     {
         if (CoreInfo)
             return reinterpret_cast<std::byte*>(CoreInfo) - CoreInfo->Size;
@@ -159,11 +159,11 @@ public:
     std::byte& operator[](std::ptrdiff_t idx) noexcept { return Data[idx]; }
     const std::byte& operator[] (std::ptrdiff_t idx) const noexcept { return Data[idx]; }
     template<typename T = std::byte>
-    T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
+    constexpr T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
     template<typename T = std::byte>
-    const T* GetRawPtr() const noexcept { return reinterpret_cast<const T*>(Data); }
-    size_t GetSize() const noexcept { return Size; }
-    size_t GetAlignment() const noexcept { return Align; }
+    constexpr const T* GetRawPtr() const noexcept { return reinterpret_cast<const T*>(Data); }
+    constexpr size_t GetSize() const noexcept { return Size; }
+    constexpr size_t GetAlignment() const noexcept { return Align; }
     AlignedBuffer CreateSubBuffer(const size_t offset = 0, size_t size = SIZE_MAX) const
     {
         if (size == SIZE_MAX)
@@ -219,6 +219,5 @@ using hashmapEx = std::unordered_map<K, H, E, V, common::AlignAllocator<std::pai
 
 template<class T, class H = std::hash<T>, class E = std::equal_to<T>>
 using hashsetEx = std::unordered_set<T, H, E, common::AlignAllocator<T>>;
-
 
 }

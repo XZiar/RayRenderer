@@ -42,9 +42,6 @@
     <ClInclude Include="SceneManagerWrap.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="BasicTestWrap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="RenderCoreWrap.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -81,9 +78,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="SceneManagerWrap.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="BasicTestWrap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="RenderCoreWrap.cpp">

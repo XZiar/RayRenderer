@@ -109,6 +109,11 @@ struct UTFMakeValueProxy
     }
 
 };
+
+
+using u16memory_buffer = basic_memory_buffer<char16_t>;
+using u32memory_buffer = basic_memory_buffer<char32_t>;
+
 template<> struct MakeValueProxy<u16format_context> : public UTFMakeValueProxy<u16format_context> {};
 template<> struct MakeValueProxy<u32format_context> : public UTFMakeValueProxy<u32format_context> {};
 

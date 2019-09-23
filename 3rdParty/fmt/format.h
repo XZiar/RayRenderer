@@ -621,9 +621,6 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(std::size_t size) {
 
 using memory_buffer = basic_memory_buffer<char>;
 using wmemory_buffer = basic_memory_buffer<wchar_t>;
-// ++UTF++
-using u16memory_buffer = basic_memory_buffer<char16_t>;
-using u32memory_buffer = basic_memory_buffer<char32_t>;
 
 // ++MOD++
 #if FMT_MSC_VER

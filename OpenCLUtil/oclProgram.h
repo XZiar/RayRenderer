@@ -5,6 +5,7 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclImage.h"
+#include "common/ContainerHelper.hpp"
 
 
 
@@ -55,6 +56,7 @@ namespace detail
 {
 class _oclProgram;
 
+
 class OCLUAPI _oclKernel
 {
     friend class _oclProgram;
@@ -79,21 +81,18 @@ public:
     void SetArg(const uint32_t idx, const oclBuffer& buf);
     void SetArg(const uint32_t idx, const oclImage& img);
     void SetArg(const uint32_t idx, const void *dat, const size_t size);
-    template<class T, size_t N>
-    void SetArg(const uint32_t idx, const T(&dat)[N])
-    {
-        return SetArg(idx, dat, N * sizeof(T));
-    }
     template<class T>
     void SetSimpleArg(const uint32_t idx, const T &dat)
     {
         static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
         return SetArg(idx, &dat, sizeof(T));
     }
-    template<class T, typename A>
-    void SetArg(const uint32_t idx, const vector<T, A>& dat)
+    template<typename T>
+    void SetSpanArg(const uint32_t idx, const T& dat)
     {
-        return SetArg(idx, dat.data(), dat.size() * sizeof(T));
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "Only accept contiguous type");
+        return SetArg(idx, Helper::Data(dat), Helper::Count(dat) * Helper::EleSize);
     }
     PromiseResult<void> Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr);
     template<uint8_t N>
@@ -108,6 +107,7 @@ public:
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run(pms, N, que, worksize, isBlock, workoffset, localsize);
     }
+
     PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr)
     {
         return Run({}, workdim, que, worksize, isBlock, workoffset, localsize);
@@ -124,6 +124,9 @@ public:
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run({}, N, que, worksize, isBlock, workoffset, localsize);
     }
+    template<uint8_t N>
+    PromiseResult<void> Call(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t* worksize, const size_t* workoffset = nullptr, const size_t* localsize = nullptr);
+
 };
 
 }

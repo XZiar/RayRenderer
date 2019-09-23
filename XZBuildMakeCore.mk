@@ -54,8 +54,10 @@ NASMINCPATHS	:= $(patsubst %, -I"%", $(nasm_incpaths)) $(INCPATH)
 
 ### section OBJs
 CXXOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs) $(cuda_srcs))
-ISPCOBJECTS	 = $(patsubst %, $(OBJPATH)/%.o, $(ispc_srcs))
-OTHEROBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(asm_srcs) $(nasm_srcs))
+ISPCOBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(ispc_srcs))
+ASMOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(asm_srcs))
+NASMOBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(nasm_srcs))
+OTHEROBJS	 = $(ASMOBJS) $(NASMOBJS)
 
 
 ### section PCH
@@ -83,13 +85,13 @@ endif
 
 ###============================================================================
 ### create directory
-DIRS		 = $(dir $(ISPCOBJECTS) $(CXXOBJS) $(OTHEROBJS) $(PCH_PCH))
+DIRS		 = $(dir $(ISPCOBJS) $(CXXOBJS) $(OTHEROBJS) $(PCH_PCH))
 $(shell mkdir -p $(OBJPATH) $(DIRS))
 
 
 ###============================================================================
 ### dependent includes
-DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
+DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS) $(ASMOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
 DEP_MK	:= xzbuild.proj.json
 
 
@@ -108,7 +110,7 @@ endif
 ### clean
 ifeq ($(CLEAN), 1)
 $(info docleaning......)
-CLEAN_RET	:=$(shell rm -f $(PCH_PCH) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) $(DEPS) $(APP))
+CLEAN_RET	:=$(shell rm -f $(PCH_PCH) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(DEPS) $(APP))
 endif
 
 ### exposed targets
@@ -120,17 +122,17 @@ clean:
 
 ### main targets
 ifeq ($(BUILD_TYPE), static)
-$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
+	$(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 else ifeq ($(BUILD_TYPE), dynamic)
-$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
+	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
 else
-$(APP): $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS)
+$(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJECTS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
+	$(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
 endif
 
 ### dependent includes
@@ -154,13 +156,13 @@ endif
 
 ###============================================================================
 ### cxx targets
-$(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
+$(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
 	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
-$(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJECTS) $(DEP_MK)
+$(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
 	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
-$(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJECTS) $(DEP_MK)
+$(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
 	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
 
 

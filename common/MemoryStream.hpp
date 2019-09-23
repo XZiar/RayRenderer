@@ -159,18 +159,12 @@ class ContainerHolder
 {
 private:
     std::variant<T, T*> Container;
-
+    using Helper = common::container::ContiguousHelper<std::remove_cv_t<T>>;
+    static_assert(Helper::IsContiguous, "need a container that satisfies contiguous container concept");
 protected:
     ContainerHolder(T& container) : Container(&container) {}
     ContainerHolder(T&& container) : Container(std::move(container)) {}
     ContainerHolder(ContainerHolder<T>&& other) : Container(std::move(other.container)) {}
-    const T* GetContainer() const
-    {
-        if (std::holds_alternative<T>(Container))
-            return std::get_if<T>(&Container);
-        else
-            return std::get<T*>(Container);
-    }
     T* GetContainer()
     {
         if (std::holds_alternative<T>(Container))
@@ -181,31 +175,15 @@ protected:
 public:
     constexpr static size_t GetElementSize()
     {
-        if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
-            return 1;
-        else
-            return sizeof(decltype(*std::declval<T&>().data()));
-    }
-    const auto* GetPtr() const
-    {
-        if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
-            return GetContainer()->GetRawPtr();
-        else
-            return GetContainer()->data();
+        return Helper::EleSize;
     }
     auto* GetPtr()
     {
-        if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
-            return GetContainer()->GetRawPtr();
-        else
-            return GetContainer()->data();
+        return Helper::Data(*GetContainer());
     }
-    size_t GetCount() const
+    size_t GetCount()
     {
-        if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
-            return GetContainer()->GetSize();
-        else
-            return GetContainer()->size();
+        return Helper::Count(*GetContainer());
     }
 };
 }

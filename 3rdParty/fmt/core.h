@@ -329,9 +329,6 @@ template <typename Char> class basic_string_view {
 
 using string_view = basic_string_view<char>;
 using wstring_view = basic_string_view<wchar_t>;
-// ++UTF++
-using u16string_view = basic_string_view<char16_t>;
-using u32string_view = basic_string_view<char32_t>;
 
 #ifndef __cpp_char8_t
 // A UTF-8 code unit type.
@@ -483,15 +480,9 @@ class basic_parse_context : private ErrorHandler {
 
 using format_parse_context = basic_parse_context<char>;
 using wformat_parse_context = basic_parse_context<wchar_t>;
-// ++UTF++
-using u16format_parse_context = basic_parse_context<char16_t>;
-using u32format_parse_context = basic_parse_context<char32_t>;
 
 using parse_context FMT_DEPRECATED = basic_parse_context<char>;
 using wparse_context FMT_DEPRECATED = basic_parse_context<wchar_t>;
-// ++UTF++
-using u16parse_context FMT_DEPRECATED = basic_parse_context<char16_t>;
-using u32parse_context FMT_DEPRECATED = basic_parse_context<char32_t>;
 
 template <typename Context> class basic_format_arg;
 template <typename Context> class basic_format_args;
@@ -1254,17 +1245,6 @@ struct wformat_args : basic_format_args<wformat_context> {
   template <typename... Args>
   wformat_args(Args&&... args)
       : basic_format_args<wformat_context>(std::forward<Args>(args)...) {}
-};
-// ++UTF++
-struct u16format_args : basic_format_args<u16format_context> {
-  template <typename... Args>
-  u16format_args(Args&&... args)
-    : basic_format_args<u16format_context>(std::forward<Args>(args)...) {}
-};
-struct u32format_args : basic_format_args<u32format_context> {
-  template <typename... Args>
-  u32format_args(Args&&... args)
-    : basic_format_args<u32format_context>(std::forward<Args>(args)...) {}
 };
 
 template <typename Container> struct is_contiguous : std::false_type {};
