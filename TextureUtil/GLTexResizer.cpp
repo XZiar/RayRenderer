@@ -237,7 +237,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::Aligned
         if (TexFormatUtil::IsCompressType(dataFormat))
             tex->SetCompressedData(rawdata->GetRawPtr(), rawdata->GetSize());
         else
-            tex->SetData(TexFormatUtil::ConvertDtypeFrom(dataFormat), rawdata->GetRawPtr());
+            tex->SetData(TexFormatUtil::ToDType(dataFormat), rawdata->GetRawPtr());
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });

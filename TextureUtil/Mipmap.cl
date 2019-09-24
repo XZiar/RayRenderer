@@ -44,6 +44,7 @@ float3 LinearToSRGB(const float3 color)
 #define COEF_D3 -0.0625f
 
 #ifdef cl_intel_subgroups
+//stage1,SRGB,Subgroup opt
 kernel void Downsample_SrcSG(global const uchar4* restrict src, constant const Info* info, const uchar level, global uchar8* restrict mid, global uchar4* restrict dst)
 {
     private const uchar lidX = get_sub_group_local_id(), lidY = get_sub_group_id(), lid = lidY * get_sub_group_size() + lidX;
@@ -140,6 +141,7 @@ kernel void Downsample_SrcSG(global const uchar4* restrict src, constant const I
 #endif
 
 
+//stage1,SRGB
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_Src(global const uchar4* restrict src, constant const Info* info, const uchar level, global uchar8* restrict mid, global uchar4* restrict dst)
 {
@@ -240,6 +242,7 @@ kernel void Downsample_Src(global const uchar4* restrict src, constant const Inf
 }
 
 
+//stage2,Linear
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_Mid(global const uchar8* restrict src, constant const Info* info, const uchar level, global uchar8* restrict mid, global uchar4* restrict dst)
 {
@@ -330,6 +333,8 @@ kernel void Downsample_Mid(global const uchar8* restrict src, constant const Inf
     }
 }
 
+
+//Linear
 #define COEF_D1I  (short)9
 #define COEF_D3I (short)-1
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
@@ -438,6 +443,7 @@ half3 LinearToSRGBH(const half3 color)
 #define COEF_D1H  0.5625h
 #define COEF_D3H -0.0625h
 
+//stage1,SRGB,fp16 opt
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_SrcH(global const uchar4* restrict src, constant const Info* info, const uchar level, global half4* restrict mid, global uchar4* restrict dst)
 {
@@ -536,6 +542,8 @@ kernel void Downsample_SrcH(global const uchar4* restrict src, constant const In
         vstore8(convert_uchar8(thePix * 255.h), info[level].SrcWidth / 4, ptrDst);
     }
 }
+
+//stage2,Linear,fp16 opt
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_MidH(global const half4* restrict src, constant const Info* info, const uchar level, global half4* restrict mid, global uchar4* restrict dst)
 {
@@ -626,6 +634,8 @@ kernel void Downsample_MidH(global const half4* restrict src, constant const Inf
     }
 }
 
+
+//Linear,fp16 opt
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_RawH(global const uchar4* restrict src, constant const Info* info, const uchar level, global uchar4* restrict dst)
 {
@@ -713,6 +723,7 @@ kernel void Downsample_RawH(global const uchar4* restrict src, constant const In
 #endif
 
 
+//stage1,SRGB,share-mem opt
 // much slower to use local mem
 __attribute__((reqd_work_group_size(CountX, CountY, 1)))
 kernel void Downsample_SrcSM(global const uchar4* restrict src, constant const Info* info, const uchar level, global uchar8* restrict mid, global uchar4* restrict dst)

@@ -32,8 +32,8 @@ private:
 public:
     const vector<oclDevice> Devices;
     const u16string PlatformName;
-    const common::container::FrozenDenseSet<oglu::TextureDataFormat> Img2DFormatSupport;
-    const common::container::FrozenDenseSet<oglu::TextureDataFormat> Img3DFormatSupport;
+    const common::container::FrozenDenseSet<xziar::img::TextureDataFormat> Img2DFormatSupport;
+    const common::container::FrozenDenseSet<xziar::img::TextureDataFormat> Img3DFormatSupport;
     const Vendor vendor;
     MessageCallBack onMessage = nullptr;
     ~_oclContext();

@@ -4,6 +4,7 @@
 #define IDR_SHADER_GLRESIZER                    108
 #define IDR_SHADER_CLRESIZER                    109
 #define IDR_SHADER_MIPMAP                       110
+#define IDR_SHADER_GASIIR                       111
 
 // 新对象的下一组默认值
 // 

@@ -13,6 +13,7 @@ namespace rayr
 
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
+using xziar::img::TextureDataFormat;
 
 struct Init
 {

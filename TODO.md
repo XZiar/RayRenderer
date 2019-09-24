@@ -25,9 +25,15 @@
   - [x] Add context-sesative dispatching for version-based functions 
   - [ ] Seperate sampler and texture
   - [ ] Seperate VAO bindings
+  - [ ] Remove explicit include of glew
+  - [ ] Reduce hazzlement of TexDataType and TexInnerType
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL
+
+* OpenCLUtil
+  - [ ] Remove explicit include of `cl*.h`
+  - [ ] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
 
 * FontHelper
   - [ ] Implement proper text render

@@ -51,10 +51,10 @@ static void OCLStub()
         {
             string img2d("2DImage Supports:\n");
             for (const auto& dformat : ctx->Img2DFormatSupport)
-                img2d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
+                img2d.append(xziar::img::TexDFormatUtil::GetFormatDetail(dformat)).append("\n");
             string img3d("3DImage Supports:\n");
             for (const auto& dformat : ctx->Img3DFormatSupport)
-                img3d.append(oglu::TexFormatUtil::GetFormatDetail(dformat)).append("\n");
+                img3d.append(xziar::img::TexDFormatUtil::GetFormatDetail(dformat)).append("\n");
             log().verbose(u"{}{}\n", img2d, img3d);
             continue;
         }

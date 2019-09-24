@@ -142,7 +142,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL doesnot support compressed texture yet.");
         else
         {
-            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(dataFormat));
+            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ToDType(dataFormat));
             auto pms1 = input->Write(CmdQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));

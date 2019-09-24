@@ -95,5 +95,8 @@
     </None>
     <None Include="mipmap.py" />
     <None Include="xzbuild.proj.json" />
+    <None Include="GaussianIIR.cl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

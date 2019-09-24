@@ -43,22 +43,17 @@ public:
         return Read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
     }
     PromiseResult<void> Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
-    template<class T, class A>
-    PromiseResult<void> Write(const oclCmdQue& que, const vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+    template<typename T>
+    PromiseResult<void> WriteSpan(const oclCmdQue& que, const T& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
     {
-        const auto vsize = buf.size();
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "Only accept contiguous type");
+        const auto vcount = Helper::Count(buf);
         if (count == 0)
-            count = vsize;
-        else if (count > vsize)
+            count = vcount;
+        else if (count > vcount)
             COMMON_THROW(BaseException, u"write size overflow");
-        const auto wsize = count * sizeof(T);
-        return Write(que, buf.data(), wsize, offset, shouldBlock);
-    }
-    template<class T, size_t N>
-    PromiseResult<void> Write(const oclCmdQue& que, const T(&buf)[N], const size_t offset = 0, const bool shouldBlock = true) const
-    {
-        auto wsize = N * sizeof(T);
-        return Write(que, buf, wsize, offset, shouldBlock);
+        return Write(que, Helper::Data(buf), count * Helper::EleSize, offset * Helper::EleSize, shouldBlock);
     }
 };
 

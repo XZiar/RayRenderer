@@ -13,6 +13,8 @@ namespace xziar::img
 
 using common::BaseException;
 
+//[has-alpha|float|RGB channel]
+//[****7****|**6**|1.........0]
 enum class ImageDataType : uint8_t
 {
     ALPHA_MASK = 0x80, FLOAT_MASK = 0x40, EMPTY_MASK = 0x0, UNKNOWN_RESERVE = 0xff,

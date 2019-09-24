@@ -2,7 +2,7 @@
 #include "oglRely.h"
 #include "oglBuffer.h"
 #include "oglException.h"
-
+#include "ImageUtil/TexFormat.h"
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -21,7 +21,7 @@ enum class TextureInnerFormat : uint16_t
 {
     BITS_MASK = 0x001f, CHANNEL_MASK = 0x00e0, FORMAT_MASK = 0x1f00, FLAG_MASK = 0xe000, CAT_MASK = FORMAT_MASK | BITS_MASK, EMPTY_MASK = 0x0000, ERROR = 0xffff,
     //Bits
-    BITS_2 = 0, BITS_4 = 2, BITS_5 = 3, BITS_8 = 4, BITS_10 = 5, BITS_11 = 6, BITS_12 = 7, BITS_16 = 8, BITS_32 = 9,
+    BITS_2 = 0, BITS_4 = 2, BITS_5 = 3, BITS_8 = 4, BITS_9 = 5, BITS_10 = 6, BITS_11 = 7, BITS_12 = 8, BITS_16 = 9, BITS_32 = 10,
     //Channels[842]
     CHANNEL_R = 0x00, CHANNEL_RG = 0x20, CHANNEL_RA = CHANNEL_RG, CHANNEL_RGB = 0x40, CHANNEL_RGBA = 0x60, CHANNEL_ALPHA_MASK = 0x20,
     //Formats
@@ -57,7 +57,7 @@ enum class TextureInnerFormat : uint16_t
     //float(FP32)
     Rf = CAT_FLOAT | CHANNEL_R, RGf = CAT_FLOAT | CHANNEL_RG, RGBf = CAT_FLOAT | CHANNEL_RGB, RGBAf = CAT_FLOAT | CHANNEL_RGBA,
     //special
-    RG11B10 = BITS_11 | FORMAT_FLOAT | FLAG_COMP | CHANNEL_RGB, 
+    RG11B10 = BITS_11 | FORMAT_FLOAT | FLAG_COMP | CHANNEL_RGB, RGB95 = BITS_9 | FORMAT_FLOAT | FLAG_COMP | CHANNEL_RGB,
     RGBA4444 = BITS_4 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGBA12 = BITS_12 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
     RGB332 = BITS_2 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB, RGB5A1 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB565 = BITS_5 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGB,
     RGB10A2 = BITS_10 | FORMAT_UNORM | FLAG_COMP | CHANNEL_RGBA, RGB10A2U = BITS_10 | FORMAT_UINT | FLAG_COMP | CHANNEL_RGBA,
@@ -68,50 +68,13 @@ enum class TextureInnerFormat : uint16_t
 };
 MAKE_ENUM_BITFIELD(TextureInnerFormat)
 
-//[reverse|component|normal|data type]
-//[     15|14......8|     7|6.......0]
-enum class TextureDataFormat : uint16_t
-{
-    TYPE_MASK = 0x00ff, INTEGER_MASK = 0x0080, TYPE_RAW_MASK = 0x007f, COMP_MASK = 0x0010, FORMAT_MASK = 0xff00, REVERSE_MASK = 0x8000, EMPTY_MASK = 0x0000,
-    //format(channel)
-    FORMAT_R = 0x0100, FORMAT_G = 0x0200, FORMAT_B = 0x0400, FORMAT_A = 0x0800, 
-    FORMAT_RG = 0x0900, FORMAT_RGB = 0x0700, FORMAT_BGR = 0x8700, FORMAT_RGBA = 0x0f00, FORMAT_BGRA = 0x8f00,
-    //data type
-    TYPE_U8 = 0x0, TYPE_I8 = 0x1, TYPE_U16 = 0x2, TYPE_I16 = 0x3, TYPE_U32 = 0x4, TYPE_I32 = 0x5, TYPE_HALF = 0x6, TYPE_FLOAT = 0x7,
-    TYPE_COMP = 0x10, TYPE_REV_MASK = 0x01,
-    TYPE_332 = 0x10, TYPE_233R = 0x11, TYPE_565 = 0x12, TYPE_565R = 0x13, TYPE_4444 = 0x14, TYPE_4444R = 0x15, TYPE_5551 = 0x16, TYPE_1555R = 0x17,
-    TYPE_8888 = 0x18, TYPE_8888R = 0x19, TYPE_10_2 = 0x1a, TYPE_10_2R = 0x1b, TYPE_11_10 = 0x1c, TYPE_11_10R = 0x1d,
-    //normalized integer[0,1]
-    R8 = FORMAT_R | TYPE_U8, RG8 = FORMAT_RG | TYPE_U8, RGB8 = FORMAT_RGB | TYPE_U8, BGR8 = FORMAT_BGR | TYPE_U8, RGBA8 = FORMAT_RGBA | TYPE_U8, BGRA8 = FORMAT_BGRA | TYPE_U8,
-    R16 = FORMAT_R | TYPE_U16, RG16 = FORMAT_RG | TYPE_U16, RGB16 = FORMAT_RGB | TYPE_U16, BGR16 = FORMAT_BGR | TYPE_U16, RGBA16 = FORMAT_RGBA | TYPE_U16, BGRA16 = FORMAT_BGRA | TYPE_U16,
-    //normalized integer[-1,1]
-    R8S = FORMAT_R | TYPE_U8, RG8S = FORMAT_RG | TYPE_U8, RGB8S = FORMAT_RGB | TYPE_U8, BGR8S = FORMAT_BGR | TYPE_U8, RGBA8S = FORMAT_RGBA | TYPE_U8, BGRA8S = FORMAT_BGRA | TYPE_U8,
-    R16S = FORMAT_R | TYPE_U16, RG16S = FORMAT_RG | TYPE_U16, RGB16S = FORMAT_RGB | TYPE_U16, BGR16S = FORMAT_BGR | TYPE_U16, RGBA16S = FORMAT_RGBA | TYPE_U16, BGRA16S = FORMAT_BGRA | TYPE_U16,
-    //non-normalized integer(unsigned)
-    R8U = R8 | INTEGER_MASK, RG8U = RG8 | INTEGER_MASK, RGB8U = RGB8 | INTEGER_MASK, BGR8U = BGR8 | INTEGER_MASK, RGBA8U = RGBA8 | INTEGER_MASK, BGRA8U = BGRA8 | INTEGER_MASK,
-    R16U = R16 | INTEGER_MASK, RG16U = RG16 | INTEGER_MASK, RGB16U = RGB16 | INTEGER_MASK, BGR16U = BGR16 | INTEGER_MASK, RGBA16U = RGBA16 | INTEGER_MASK, BGRA16U = BGRA16 | INTEGER_MASK,
-    R32U = FORMAT_R | TYPE_U32 | INTEGER_MASK, RG32U = FORMAT_RG | TYPE_U32 | INTEGER_MASK, RGB32U = FORMAT_RGB | TYPE_U32 | INTEGER_MASK, 
-    BGR32U = FORMAT_BGR | TYPE_U32 | INTEGER_MASK, RGBA32U = FORMAT_RGBA | TYPE_U32 | INTEGER_MASK, BGRA32U = FORMAT_BGRA | TYPE_U32 | INTEGER_MASK,
-    //non-normalized integer(signed)
-    R8I = R8S | INTEGER_MASK, RG8I = RG8S | INTEGER_MASK, RGB8I = RGB8S | INTEGER_MASK, BGR8I = BGR8S | INTEGER_MASK, RGBA8I = RGBA8S | INTEGER_MASK, BGRA8I = BGRA8S | INTEGER_MASK,
-    R16I = R16S | INTEGER_MASK, RG16I = RG16S | INTEGER_MASK, RGB16I = RGB16S | INTEGER_MASK, BGR16I = BGR16S | INTEGER_MASK, RGBA16I = RGBA16S | INTEGER_MASK, BGRA16I = BGRA16S | INTEGER_MASK,
-    R32I = FORMAT_R | TYPE_I32 | INTEGER_MASK, RG32I = FORMAT_RG | TYPE_I32 | INTEGER_MASK, RGB32I = FORMAT_RGB | TYPE_I32 | INTEGER_MASK,
-    BGR32I = FORMAT_BGR | TYPE_I32 | INTEGER_MASK, RGBA32I = FORMAT_RGBA | TYPE_I32 | INTEGER_MASK, BGRA32I = FORMAT_BGRA | TYPE_I32 | INTEGER_MASK,
-    //half-float(FP16)
-    Rh = FORMAT_R | TYPE_HALF, RGh = FORMAT_RG | TYPE_HALF, RGBh = FORMAT_RGB | TYPE_HALF, BGRh = FORMAT_BGR | TYPE_HALF, RGBAh = FORMAT_RGBA | TYPE_HALF, BGRAh = FORMAT_BGRA | TYPE_HALF,
-    //float(FP32)
-    Rf = FORMAT_R | TYPE_FLOAT, RGf = FORMAT_RG | TYPE_FLOAT, RGBf = FORMAT_RGB | TYPE_FLOAT, BGRf = FORMAT_BGR | TYPE_FLOAT, RGBAf = FORMAT_RGBA | TYPE_FLOAT, BGRAf = FORMAT_BGRA | TYPE_FLOAT,
-    //composite
-    RGB10A2 = FORMAT_RGBA | TYPE_10_2, RGB10A2U = RGB10A2 | INTEGER_MASK,
-};
-MAKE_ENUM_BITFIELD(TextureDataFormat)
 
 class OGLWrongFormatException : public OGLException
 {
 public:
     EXCEPTION_CLONE_EX(OGLWrongFormatException);
-    std::variant<TextureDataFormat, TextureInnerFormat> Format;
-    OGLWrongFormatException(const std::u16string_view& msg, const TextureDataFormat format, const std::any& data_ = std::any())
+    std::variant<xziar::img::TextureDataFormat, TextureInnerFormat> Format;
+    OGLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureDataFormat format, const std::any& data_ = std::any())
         : OGLException(TYPENAME, GLComponent::OGLU, msg, data_), Format(format)
     { }
     OGLWrongFormatException(const std::u16string_view& msg, const TextureInnerFormat format, const std::any& data_ = std::any())
@@ -152,10 +115,10 @@ struct OGLUAPI TexFormatUtil
     }
     static bool IsSRGBType(const TextureInnerFormat format) noexcept { return HAS_FIELD(format, TextureInnerFormat::FLAG_SRGB); }
     static TextureInnerFormat ConvertFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
-    static TextureInnerFormat ConvertFrom(const TextureDataFormat dformat) noexcept;
+    static TextureInnerFormat ConvertFrom(const xziar::img::TextureDataFormat dformat) noexcept;
 
-    static void ParseFormat(const TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept;
-    static std::pair<GLenum, GLenum> ParseFormat(const TextureDataFormat dformat, const bool isUpload) noexcept
+    static void ParseFormat(const xziar::img::TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept;
+    static std::pair<GLenum, GLenum> ParseFormat(const xziar::img::TextureDataFormat dformat, const bool isUpload) noexcept
     {
         GLenum datatype, comptype;
         ParseFormat(dformat, isUpload, datatype, comptype);
@@ -169,15 +132,11 @@ struct OGLUAPI TexFormatUtil
         return { datatype,comptype };
     }
     static size_t ParseFormatSize(const TextureInnerFormat dformat) noexcept;
-    static size_t ParseFormatSize(const TextureDataFormat dformat) noexcept;
-    static TextureDataFormat ConvertDtypeFrom(const TextureInnerFormat format);
-    static TextureDataFormat ConvertDtypeFrom(const xziar::img::ImageDataType dtype, const bool normalized) noexcept;
+    static xziar::img::TextureDataFormat ToDType(const TextureInnerFormat format);
     static xziar::img::ImageDataType ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert = false) noexcept;
-    static xziar::img::ImageDataType ConvertToImgType(const TextureDataFormat format, const bool relaxConvert = false) noexcept;
     static u16string_view GetTypeName(const TextureType type) noexcept;
     static u16string_view GetFormatName(const TextureInnerFormat format) noexcept;
     static string GetFormatDetail(const TextureInnerFormat format) noexcept;
-    static string GetFormatDetail(const TextureDataFormat format) noexcept;
 };
 
 
@@ -211,7 +170,7 @@ protected:
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
-    void Clear(const TextureDataFormat dformat);
+    void Clear(const xziar::img::TextureDataFormat dformat);
 public:
     u16string Name;
     virtual ~_oglTexBase() noexcept;
@@ -231,12 +190,12 @@ public:
 template<typename Base>
 struct _oglTexCommon
 {
-    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const void *data, const uint8_t level)
+    forceinline void SetData(const bool isSub, const xziar::img::TextureDataFormat dformat, const void *data, const uint8_t level)
     {
         const auto[datatype, comptype] = TexFormatUtil::ParseFormat(dformat, true);
         ((Base&)(*this)).SetData(isSub, datatype, comptype, data, level);
     }
-    forceinline void SetData(const bool isSub, const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level)
+    forceinline void SetData(const bool isSub, const xziar::img::TextureDataFormat dformat, const oglPBO& buf, const uint8_t level)
     {
         buf->bind();
         SetData(isSub, dformat, nullptr, level);
@@ -286,7 +245,7 @@ public:
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
     using _oglTexBase::SetProperty;
     optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
-    vector<uint8_t> GetData(const TextureDataFormat dformat, const uint8_t level = 0);
+    vector<uint8_t> GetData(const xziar::img::TextureDataFormat dformat, const uint8_t level = 0);
     Image GetImage(const ImageDataType format, const bool flipY = true, const uint8_t level = 0);
 };
 
@@ -310,11 +269,11 @@ private:
 public:
     _oglTexture2DStatic(const uint32_t width, const uint32_t height, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
 
-    void SetData(const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
-    void SetData(const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
+    void SetData(const xziar::img::TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetData(const xziar::img::TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
     void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
+    void SetData(const xziar::img::TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
     { 
         SetData(dformat, data.data(), level);
     }
@@ -327,7 +286,7 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ToDType(InnerFormat)); }
 
     Wrapper<_oglTexture2DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture2DView> GetTextureView() const { return GetTextureView(InnerFormat); }
@@ -344,11 +303,11 @@ public:
     using _oglTexBase::Clear;
     void GenerateMipmap();
     
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
+    void SetData(const TextureInnerFormat iformat, const xziar::img::TextureDataFormat dformat, const uint32_t w, const uint32_t h, const void *data);
+    void SetData(const TextureInnerFormat iformat, const xziar::img::TextureDataFormat dformat, const uint32_t w, const uint32_t h, const oglPBO& buf);
     void SetData(const TextureInnerFormat iformat, const Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
-    void SetData(const TextureInnerFormat iformat, const TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data)
+    void SetData(const TextureInnerFormat iformat, const xziar::img::TextureDataFormat dformat, const uint32_t w, const uint32_t h, const vector<T, A>& data)
     { 
         SetData(iformat, dformat, w, h, data.data()); 
     }
@@ -382,11 +341,11 @@ public:
     using _oglTexBase::SetProperty;
     void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
     void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true, const uint8_t level = 0);
-    void SetTextureLayer(const uint32_t layer, const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetTextureLayer(const uint32_t layer, const xziar::img::TextureDataFormat dformat, const void *data, const uint8_t level = 0);
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size, const uint8_t level = 0);
     void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
 
-    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ToDType(InnerFormat)); }
 
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer, const TextureInnerFormat format) const;
     Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const { return ViewTextureLayer(layer, InnerFormat); }
@@ -413,7 +372,7 @@ public:
     using _oglTexBase::SetProperty;
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height, Depth }; }
     optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
-    vector<uint8_t> GetData(const TextureDataFormat dformat, const uint8_t level = 0);
+    vector<uint8_t> GetData(const xziar::img::TextureDataFormat dformat, const uint8_t level = 0);
 };
 
 class _oglTexture3DStatic;
@@ -432,11 +391,11 @@ private:
 public:
     _oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureInnerFormat iformat, const uint8_t mipmap = 1);
 
-    void SetData(const TextureDataFormat dformat, const void *data, const uint8_t level = 0);
-    void SetData(const TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
+    void SetData(const xziar::img::TextureDataFormat dformat, const void *data, const uint8_t level = 0);
+    void SetData(const xziar::img::TextureDataFormat dformat, const oglPBO& buf, const uint8_t level = 0);
     void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
+    void SetData(const xziar::img::TextureDataFormat dformat, const vector<T, A>& data, const uint8_t level = 0)
     {
         SetData(dformat, data.data(), level);
     }
@@ -449,7 +408,7 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void Clear() { _oglTexBase::Clear(TexFormatUtil::ConvertDtypeFrom(InnerFormat)); }
+    void Clear() { _oglTexBase::Clear(TexFormatUtil::ToDType(InnerFormat)); }
 
     Wrapper<_oglTexture3DView> GetTextureView(const TextureInnerFormat format) const;
     Wrapper<_oglTexture3DView> GetTextureView() const { return GetTextureView(InnerFormat); }

@@ -185,7 +185,7 @@ static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::
     if (TexFormatUtil::IsCompressType(innerFormat))
         tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
     else
-        tex->SetData(TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
+        tex->SetData(TexFormatUtil::ToDType(innerFormat), data.GetRawPtr());
     tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
     return tex;
 }
@@ -332,7 +332,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL
     {
         const auto img = agent.Await(pms);
         oglTex2DS tex(width, height, output);
-        tex->SetData(TexFormatUtil::ConvertDtypeFrom(img.GetDataType(), true), img.GetRawPtr());
+        tex->SetData(xziar::img::TexDFormatUtil::FromImageDType(img.GetDataType(), true), img.GetRawPtr());
         agent.Await(oglUtil::SyncGL());
         return tex;
     });
@@ -390,7 +390,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     {
         if (TexFormatUtil::IsSRGBType(innerFormat))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, TexFormatUtil::ConvertDtypeFrom(innerFormat), data.GetRawPtr());
+        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, TexFormatUtil::ToDType(innerFormat), data.GetRawPtr());
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
         return agent.Await(pms);
     });

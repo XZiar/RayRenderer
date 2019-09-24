@@ -162,7 +162,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
                 if (tex->IsCompressed())
                     data = tex->GetCompressedData(i).value();
                 else
-                    data = tex->GetData(oglu::TexFormatUtil::ConvertDtypeFrom(tex->GetInnerFormat()), i);
+                    data = tex->GetData(oglu::TexFormatUtil::ToDType(tex->GetInnerFormat()), i);
                 const auto datahandle = context.PutResource(data.data(), data.size());
                 jdataarr.Push(datahandle);
             } break;
@@ -238,7 +238,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
                 pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
             }
         }
-        chkTex->SetData(oglu::TextureDataFormat::RGBA8, pixs.data());
+        chkTex->SetData(xziar::img::TextureDataFormat::RGBA8, pixs.data());
         const auto texv = chkTex->GetTextureView();
         texv->Name = u"Check Image";
         dizzLog().verbose(u"new CheckTex generated.\n");
@@ -275,7 +275,7 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
                 if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                     texarr->SetCompressedTextureLayer(layer, dat.GetRawPtr(), dat.GetSize(), i++);
                 else
-                    texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ConvertDtypeFrom(fakeTex->TexFormat), dat.GetRawPtr(), i++);
+                    texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ToDType(fakeTex->TexFormat), dat.GetRawPtr(), i++);
             }
         } break;
     default:

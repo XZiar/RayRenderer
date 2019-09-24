@@ -58,6 +58,9 @@
     <ClInclude Include="ImageSTB.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TexFormat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">
@@ -82,6 +85,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ImageSTB.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="TexFormat.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

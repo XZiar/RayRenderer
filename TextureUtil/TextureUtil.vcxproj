@@ -228,6 +228,7 @@
   <ItemGroup>
     <None Include="BC7Compress.cl" />
     <None Include="CLResizer.cl" />
+    <None Include="GaussianIIR.cl" />
     <None Include="GLResizer.glsl" />
     <None Include="Mipmap.cl" />
     <None Include="mipmap.py" />

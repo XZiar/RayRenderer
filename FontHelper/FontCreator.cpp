@@ -11,6 +11,7 @@ namespace oglu
 using namespace oclu;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
+using xziar::img::TextureDataFormat;
 
 
 struct FontInfo
