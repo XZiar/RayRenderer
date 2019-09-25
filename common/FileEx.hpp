@@ -2,8 +2,8 @@
 
 
 #include "CommonRely.hpp"
+#include "EnumEx.hpp"
 #include "Exceptions.hpp"
-#include "AlignedContainer.hpp"
 #include "Stream.hpp"
 
 #include <cstddef>

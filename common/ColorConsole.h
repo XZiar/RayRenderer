@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonRely.hpp"
+#include "EnumEx.hpp"
 #include <string_view>
 
 namespace common

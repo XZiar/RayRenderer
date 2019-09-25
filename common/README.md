@@ -2,129 +2,136 @@
 
 A collection of useful utilities
 
-## Component
+**Some components (\*.hpp) are header-only, while some (\*.h&\*.inl) are not. (\*.h) provides declaration and (\*.inl) provides implements.**
 
-* **AlignedContainer**
+## Main Componennts
 
-  A custom allocator that support aligned memory management
+### [CommonRely](./CommonRely.hpp)
 
-* **ColorConsole**
+Basic header for most of utilities here, provides compiler check and some basic utilities like `hash_string`, `MACRO OPs`, `NonCopyable/NonMovable` 
 
-  A library providing color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
+### [EnumEx](./EnumEx.hpp)
 
-* **ContainerEx**
+Enum enhancement.
 
-  A simple library providing some shortcuts for container operations
+It adds `bitfield` mode for `enum class`, so that you can use bitwise operator among those enums. `HAS_FIELD` and `REMOVE_MASK` also provide simpler usage.
 
-* **Controllable**
+It also has experiemental compile-time reflection support based on `FUNCSIG` macro. The idea comes from [magic_enum](https://github.com/Neargye/magic_enum).
 
-  A base class using type erasure to support dynamic property access. object's property need to be registered explicitly.
+### [Exception](./Exceptions.hpp)
 
-  **Controllable stores data inside the instance, so multi-inherited class may consider using virtual inheritance.**
+Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
 
-* **DelayLoader**
+### [Linq](./Linq.hpp)
 
-  A wrapper to manage win32's delay-load DLL
+C#-like Linq implementation. It is compile-time based.
 
-* **EasierJSON**
+### [Stream](./Stream.hpp)
 
-  A wrapper for `rapidjson`, providing strong-type json component and easier set/get conversion and operations.
+Stream is an abstract resouce that can read data from or write data to. 
 
-* **Exception**
+* [Stream.hpp](./Stream.hpp) provides basic stream concept and buffered wrapper.
 
-  Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
+* [MemoryStream.hpp](./MemoryStream.hpp) provides stream from memory (and specially from contiguous container).
 
-* **FileEx**
+* [FileEx.hpp](./FileEx.hpp) provide stream for files. FileStream are acquired from `FileObject` which uses RAII to wrap file handle.
 
-  A wrapper of file operations, using RAII to wrap file handle. Buffered reader supported using CRTP.
+### [SpinLocker](./SpinLocker.hpp)
 
-* **FileMapper** `buggy`
+Spin-lock implemented using std::atomic. 
 
-  A wrapper to manage win32's file mapper
+It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.
 
-* **Linq**
+### [TimeUtil](./TimeUtil.hpp)
 
-  A try of implementing LINQ on C++.
+A utility to provide time query support, mainly used as a timer.
 
-* **PromiseTask**
+### [SIMD](./SIMD.hpp) **`unfinished`**
 
-  A wrapper for C++11's future&promise, provides universal API with preparation and time-query support. 
+It provides SSE/AVX static version test (compiler support).
+
+[SIMD128](./SIMD128.hpp) and [SIMD256](./SIMD256.hpp) provide SIMD vector types support.
+
+### [Wrapper](./Wrapper.hpp)
+
+Wrapper can be simply regarded as a combination of `shared_ptr` and `make_shared`. It is mostly my own taste and may not be recommended.
+
+Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper for an incomplete type, which is common in forward-declaration.
+
+### [SharedString](./SharedString.hpp)
+
+A shared immutable string.
   
-  It uses virtual method to hide STL's `thread` (which is not supported in C++/CLI).
+Some string is used across threads but not being modified, so they can be shared with proper lifetime management.
 
-* **ResourceHelper**
+ShareString provides access using string_view and uses embedded reference-block to save pointer's dereference overhead.
 
-  A wrapper to manage embedded resource. It uses DLL's embedded resource on Win32 and binary object on *nix.
+### [PromiseTask](./PromiseTask.hpp)
 
-* **SharedResource**
+`PromiseResut` is the foundation of other async operation utilities (like `AsyncExecutor`, `OpenGLUtil`, `OpenCLUtil`), which provides a common interface to operate a result which may not be ready yet.
 
-  An auto management for shared resource.
+Non-templated `PromiseResultCore` provides state and time infomation, which ease the promise storing with type-erasure. Because of this, `PromiseResut` should be stored in heap and wrapped by `shared_ptr`
+
+`IsPromiseResult<T>()` and `EnsurePromiseResult<T>()` can be used to check if `T` is type of `PromiseResult`. `PromiseChecker` provides ability to return result type.
+
+[PromiseTaskSTD.hpp](PromiseTaskSTD.hpp) is a wrapper for C++11's `future` and `promise`. It is seperated due to the incompatiblility with C++/CLI.
+
+### [EasierJSON](./EasierJSON.hpp)
+
+A wrapper for `rapidjson`, providing strong-typed json components and easier conversions and operations.
+
+It uses shared_ptr to implicitly manage memory resources, which will lead to more overhead than original `rapidjson`.
+
+* **`DocumentHandle`** wraps a MemoryPoolAllocator, can be use to create new `JArray` and `JObject`.
+
+* **`JNode`** an abstract concept of JSON node (array or object), provides functionality for `Stringify()`. Any actual node type should use CRTP to inherit from it.
+
+* **`JDoc`** a JSON document, which is basicly a `DocumentHandle` with `JNode`'s `Stringify` support. It can only be created from `Parse()` of string.
+
+* **`JDocRef<B>`** wraps a `JDoc`, can be const reference.
+
+* **`JComplexType`** an abstract concept of JSON node, provides functionality for getting inner data. Any actual node type should use CRTP to inherit from it.
+
+* **`JArrayLike`** an abstract concept of JSON array, it uses `rapidjson::SizeType` as KeyType of `JComplexType`.
+
+* **`JObjectLike`** an abstract concept of JSON object, it uses `common::u8StrView` as KeyType of `JComplexType`.
+
+* **`JArray`** actual JSON array, uses `Push` to add data.
+
+* **`JArrayRef<B>`** wraps a `JArray`, can be const reference.
+
+* **`JObject`** actual JSON array, uses `Add` to add data.
+
+* **`JObjectRef<B>`** wraps a `JObject`, can be const reference.
+
+### [StringEx](./StringEx.hpp)
+
+Some useful utilities for string operations like split, concat...
+
+`split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
+
+`concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
+
+### [StrCharset](./StrCharset.hpp)
+
+StrCharset provide encoding defines and charset transform with self-made conversion class. Conversion is partial optimized, and partial-checked.
+
+Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
+
+Thanks to `伐木丁丁鸟鸣嘤嘤`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `谢振斌`'s work. [LUT_gb18030.tab](./LUT_gb18030.tab) is based on their works.
+
+### [Controllable](./Controllable.hpp)
+
+A base class using type erasure to support dynamic property access. object's property need to be registered explicitly.
+
+**Controllable stores data inside the instance, so multi-inherited class may consider using virtual inheritance.**
+
+**Controllable will soon be moved into a standalone dynamic library project to provide better metadata management**
+
+### [SharedResource](./SharedResource.hpp)
+
+An auto management for shared resource.
   
-  Some resources should be shared like static member or global variable, which make it hard to trace their lifetime.
-
-  SharedResource is based on `Wrapper`, using weak_ptr and shared_ptr to managed resource. It is thread-safe and resource will get released once it's no longer held by anyone.
-
-* **SharedString**
-
-  An shared immutable string.
-  
-  Some string is used across threads but not being modified, so they can be shared with proper lifetime management.
-
-  ShareString provides access using string_view and uses embedded reference-block to save pointer's dereference overhead.
-
-* **StrCharset**
-
-  StrCharset provide encoding defines and charset transform with self-made conversion class. Correctness check is not completed.
-
-  `codecvt` is removed since it is marked deprecated in C++17 and some conversion seems to be locale-dependent.
-
-  Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
-
-* **SpinLocker**
-
-  Spin-lock implemented using std::atomic. It also provided a read-write lock(both priority supported) and a prefer-lock, both are spin-locked.
-
-* **StringEx**
-
-  Some useful utilities for string operations like split, concat...
-
-* **StrCharset**
-  
-  Define text charset and conversions between them. Conversion is self-made, partial optimized, and partial-checked.
-
-  Thanks to `伐木丁丁鸟鸣嘤嘤`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `谢振斌`'s work.
-  LUT_gb18030.tab is based on their works.
-
-* **TimeUtil**
-
-  A utility to provide time query support, mainly used as a timer.
-
-* **ThreadEx**
-
-  A wrapper to support setting or getting thread's information. It's designed to be cross-platform but not fully tested.
-
-* **Wrapper**
-
-  An extended version of STL's shared_ptr. It adds some sugar to cover some design of shared_ptr, while it also leads to some problem.
-
-## Dependency
-
-* C++17 required
-  * `chrono` -- TimeUtil
-  * `memory` -- shared_ptr and weak_ptr
-  * `tuple` -- used in some container operation
-  * `atomic` `mutex` `condition_variable` -- providing thread-safe operation
-  * `thread` -- used to provide thread creation and sleep function
-  * `future` -- provide STD PromiseTask
-  * `any` -- used for Exception to carry arbitray data
-  * `optional` -- providing "nullable" result
-
-## Feature
-
-Some components (\*.hpp) are header-only, while some (\*.h&\*.inl) are not. (\*.h) provides declaration and (\*.inl) provides implements. 
-
-### SharedResource
-
 Some resources need to be shared among classes or instances, hence they are often defined as "static".
 "static" variable will be initialized when the first time it's reached, however, there is no promise when they will be destroyed.
 
@@ -141,17 +148,63 @@ Also, it uses weak_ptr to keep track of resource, whose lock method will cause s
 
 The best practise should be acquiring the resource only once, and keep a copy of it until finish using it.
 
-### Wrapper
+## Container Components
 
-Wrapper can be simply regarded as a combination of shared_ptr and make_shared. It is mostly my own taste and may not be recommended.
+### [AlignedContainer](./AlignedContainer.hpp)
 
-Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper of self in self's declaration.
+* **`AlignBase<size_t>`** custom base that support aligned memory allocation when created on heap
 
-### StringEx
+* **`AlignAllocator`** custom allocator that support aligned memory management
 
-`split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
+std containers with `AlignAllocator` is defined under `common::container` as xxx**Ex**.
 
-`concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
+### [AlignedBuffer](./AlignedBuffer.hpp)
+
+A non-typed aligned memory space, provide sub-buffer creation and mamnagement(using reference counter).
+
+### [ContainerHelper](./ContainerHelper.hpp)
+
+Provides [contiguous container](https://en.cppreference.com/w/cpp/named_req/ContiguousContainer) type check.
+
+### [ContainerEx](./ContainerEx.hpp)
+
+A simple library providing some shortcuts for container operations, like comparator for tupel/pair, finding element in set/map/vector, creating a iteration-view for map's key/value.
+
+* **`FrozenDenseSet`** an immutable set, which is in fact a sorted vector.
+
+### [IntrusiveDoubleLinkList](./IntrusiveDoubleLinkList.hpp)
+
+Bi-direction linked list with embedded node metadata.
+
+NodeType should use CRTP to inherit from `IntrusiveDoubleLinkListNodeBase` and it will be `NonCopyable`.
+
+`IntrusiveDoubleLinkList` uses [WRSpinLock](./SpinLock.hpp) as lock to provide thread-safty. However, **`AppendNode` only requires ReadScope, and they in fact uses CAS to achieve lock-free.** WriteScope is used when requires double-CAS and for blocking operations like `Clear` and `ForEach`.
+
+## System Components
+
+### [ColorConsole](./ColorConsole.h)
+
+A library providing color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
+
+[MiniLogger](../MiniLogger)'s `ConsoleBackend` is based on this.
+
+### [ResourceHelper](./ResourceHelper.h)
+
+A wrapper to manage embedded resource. It uses DLL's embedded resource on Win32 and `binary object` on *nix.
+
+On windows, you need to manually initalize the helper in dllmain. On *nix, initilize is done be global static variable initilization.
+
+### [DelayLoader](./DelayLoader.h)
+
+A wrapper to manage win32 DLL's delay-load feature.
+
+### [ThreadEx](./ThreadEx.h)
+
+A wrapper to support setting or getting thread's information. It's designed to be cross-platform but not fully tested.
+
+### [FileMapper](./FileMapper.h) **`buggy`** **`unfinished`**
+
+A wrapper to manage win32's file mapper
 
 ## License
 

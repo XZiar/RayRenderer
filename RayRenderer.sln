@@ -33,6 +33,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
 	ProjectSection(SolutionItems) = preProject
+		common\AlignedBuffer.hpp = common\AlignedBuffer.hpp
 		common\AlignedContainer.hpp = common\AlignedContainer.hpp
 		common\AlignedContainer.natvis = common\AlignedContainer.natvis
 		common\CLIAsync.hpp = common\CLIAsync.hpp

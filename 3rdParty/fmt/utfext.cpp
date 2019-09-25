@@ -1,6 +1,6 @@
 #include "utfext.h"
 #include "StringCharset/Convert.h"
-#include "chrono.h"
+#include <ctime>
 
 
 using common::str::Charset;

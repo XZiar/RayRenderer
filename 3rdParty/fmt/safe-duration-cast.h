@@ -161,7 +161,10 @@ To safe_duration_cast(std::chrono::duration<FromRep, FromPeriod> from,
   ec = 0;
   // the basic idea is that we need to convert from count() in the from type
   // to count() in the To type, by multiplying it with this:
-  using Factor = std::ratio_divide<typename From::period, typename To::period>;
+  //using Factor = std::ratio_divide<typename From::period, typename To::period>;
+  //++BUG++ see https://github.com/fmtlib/fmt/commit/ac59d9f3a412f30efc77572ea74f9dfe67b3713f
+  struct Factor
+      : std::ratio_divide<typename From::period, typename To::period> {};
 
   static_assert(Factor::num > 0, "num must be positive");
   static_assert(Factor::den > 0, "den must be positive");
@@ -234,7 +237,10 @@ To safe_duration_cast(std::chrono::duration<FromRep, FromPeriod> from,
 
   // the basic idea is that we need to convert from count() in the from type
   // to count() in the To type, by multiplying it with this:
-  using Factor = std::ratio_divide<typename From::period, typename To::period>;
+  //using Factor = std::ratio_divide<typename From::period, typename To::period>;
+  //++BUG++ see https://github.com/fmtlib/fmt/commit/ac59d9f3a412f30efc77572ea74f9dfe67b3713f
+  struct Factor
+      : std::ratio_divide<typename From::period, typename To::period> {};
 
   static_assert(Factor::num > 0, "num must be positive");
   static_assert(Factor::den > 0, "den must be positive");

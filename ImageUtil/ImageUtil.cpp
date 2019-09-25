@@ -2,6 +2,7 @@
 #include "ImageUtil.h"
 #include "ImageSupport.hpp"
 #include "common/Linq.hpp"
+#include "StringCharset/Convert.h"
 
 
 namespace xziar::img

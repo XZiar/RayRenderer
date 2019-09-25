@@ -17,16 +17,15 @@
 #endif
 
 #include "common/CommonRely.hpp"
+#include "common/EnumEx.hpp"
 #include "common/SIMD.hpp"
 #include "common/CopyEx.hpp"
 #include "common/Exceptions.hpp"
-#include "common/AlignedContainer.hpp"
-#include "common/StringEx.hpp"
+#include "common/AlignedBuffer.hpp"
 #include "common/FileEx.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Wrapper.hpp"
-#include "StringCharset/Convert.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -39,7 +38,6 @@
 namespace xziar::img
 {
 namespace fs = common::fs;
-namespace str = common::str;
 using std::byte;
 using std::string;
 using std::wstring;

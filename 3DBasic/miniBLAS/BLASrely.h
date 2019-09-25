@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/CommonRely.hpp"
+#include "common/AlignedContainer.hpp"
 #include "common/SIMD.hpp"
 #include <cstdint>
 #include <type_traits>

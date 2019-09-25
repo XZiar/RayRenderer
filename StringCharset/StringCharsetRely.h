@@ -18,7 +18,6 @@
 
 #include "common/CommonRely.hpp"
 #include "common/Exceptions.hpp"
-#include "common/AlignedContainer.hpp"
 #include "common/StrBase.hpp"
 #include "common/Wrapper.hpp"
 #include <cstddef>

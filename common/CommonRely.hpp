@@ -147,44 +147,6 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #define UTF16ER(X) UTF16ER_NX(X)
 
 
-#define ENUM_CLASS_BITFIELD_FUNC(T, U) \
-inline constexpr T  operator &  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) & static_cast<U>(y)); } \
-inline constexpr T& operator &= (T& x, const T y) { x = x & y; return x; } \
-inline constexpr T  operator |  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) | static_cast<U>(y)); } \
-inline constexpr T& operator |= (T& x, const T y) { x = x | y; return x; } \
-inline constexpr T  operator ^  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) ^ static_cast<U>(y)); } \
-inline constexpr T& operator ^= (T& x, const T y) { x = x ^ y; return x; } \
-inline constexpr T  operator ~  (const T x) { return static_cast<T>(~static_cast<U>(x)); } \
-inline constexpr bool HAS_FIELD(const T x, const T obj) { return static_cast<U>(x & obj) != 0; } \
-inline constexpr T REMOVE_MASK(const T x, const T mask) \
-{ \
-    return x & (~mask); \
-} \
-inline constexpr T REMOVE_MASK(const T x, const T mask, const T mask2) \
-{ \
-    return x & (~(mask | mask2)); \
-} \
-template<typename... Masks> \
-inline constexpr T REMOVE_MASK(const T x, const T mask, const T mask2, const Masks... masks) \
-{ \
-    return REMOVE_MASK(x, mask | mask2, masks...); \
-} \
-inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) \
-{ \
-    for (const auto obj : objs) \
-        if (x == obj) return true; \
-    return false; \
-}
-
-#define MAKE_ENUM_BITFIELD(T) ENUM_CLASS_BITFIELD_FUNC(T, std::underlying_type_t<T>)
-
-
-//for std::byte
-#if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L) || defined(__cpp_lib_byte))
-inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
-#endif
-
-
 /**
 ** @brief calculate simple hash for string, used for switch-string
 ** @param str std-string_view/string for the text
@@ -334,52 +296,6 @@ public:
 #  undef U8STR_CONSTEXPR
 #endif
 
-template<size_t Align>
-struct AlignBase
-{
-public:
-#if defined(__cpp_lib_gcd_lcm)
-    static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
-#else
-#   message("C++17 unsupported, AlignSize may be incorrect")
-    static constexpr size_t ALIGN_SIZE = std::max((size_t)Align, (size_t)32);
-#endif
-    static void* operator new(size_t size)
-    {
-        return malloc_align(size, ALIGN_SIZE);
-    };
-    static void operator delete(void *p)
-    {
-        return free_align(p);
-    }
-    static void* operator new[](size_t size)
-    {
-        return malloc_align(size, ALIGN_SIZE);
-    };
-    static void operator delete[](void *p)
-    {
-        return free_align(p);
-    }
-};
-
-template<typename T>
-struct AlignBaseHelper
-{
-private:
-    template<size_t Align>
-    static std::true_type is_derived_from_alignbase_impl(const AlignBase<Align>*);
-    static std::false_type is_derived_from_alignbase_impl(const void*);
-    static constexpr size_t GetAlignSize()
-    {
-        if constexpr(IsDerivedFromAlignBase)
-            return T::ALIGN_SIZE;
-        else
-            return AlignBase<alignof(T)>::ALIGN_SIZE;
-    }
-public:
-    static constexpr bool IsDerivedFromAlignBase = decltype(is_derived_from_alignbase_impl(std::declval<T*>()))::value;
-    static constexpr size_t Align = GetAlignSize();
-};
 
 template<typename T, template <typename...> class Base>
 struct TemplateDerivedHelper

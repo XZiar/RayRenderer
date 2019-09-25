@@ -16,13 +16,12 @@
 # endif
 #endif
 
-#include "3DBasic/miniBLAS.hpp"
 #include "common/CommonRely.hpp"
+#include "common/EnumEx.hpp"
 #include "common/Wrapper.hpp"
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StringEx.hpp"
-#include "common/AlignedContainer.hpp"
 #include "common/PromiseTask.hpp"
 #include "common/Linq.hpp"
 
@@ -75,7 +74,6 @@ using common::Wrapper;
 using common::SimpleTimer;
 using common::NonCopyable;
 using common::NonMovable;
-using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::file::FileException;

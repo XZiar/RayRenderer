@@ -18,6 +18,7 @@
 
 
 #include "common/CommonRely.hpp"
+#include "common/EnumEx.hpp"
 #include "common/Wrapper.hpp"
 #include "common/AlignedContainer.hpp"
 #include "common/Controllable.hpp"
@@ -76,9 +77,9 @@ using common::Wrapper;
 using common::SimpleTimer;
 using common::NonCopyable;
 using common::NonMovable;
-using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
+using common::container::vectorEx;
 using common::file::FileException;
 using common::linq::Linq;
 using str::Charset;

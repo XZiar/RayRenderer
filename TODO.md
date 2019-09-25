@@ -3,6 +3,8 @@
 * common
   - [ ] Add async file operation (cross-platform)
   - [x] Add linq (iterator-based)
+  - [ ] Move Contorllable into standalone project with better metadata management
+  - [ ] Implement new SIMD vector lib.
 
 * AsyncExecutor
   - [x] Add support for returning value

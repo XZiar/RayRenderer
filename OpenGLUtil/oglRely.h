@@ -17,7 +17,7 @@
 #endif
 
 #include "common/CommonRely.hpp"
-#include "common/AlignedContainer.hpp"
+#include "common/EnumEx.hpp"
 #include "common/CopyEx.hpp"
 #include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
@@ -107,7 +107,6 @@ using common::Wrapper;
 using common::SimpleTimer;
 using common::NonCopyable;
 using common::NonMovable;
-using common::vectorEx;
 using common::PromiseResult;
 using common::BaseException;
 using common::file::FileException;
