@@ -14,7 +14,13 @@ Basic header for most of utilities here, provides compiler check and some basic 
 
 Enum enhancement.
 
-It adds `bitfield` mode for `enum class`, so that you can use bitwise operator among those enums. `HAS_FIELD` and `REMOVE_MASK` also provide simpler usage.
+* **`BitField`** : `MAKE_ENUM_BITFIELD(x)`
+  
+  `enum class` with `BitFiled` mode can be easily performed bitwise operation. `HAS_FIELD` and `REMOVE_MASK` also provide simpler usage.
+
+* **`Range`** : `MAKE_ENUM_RANGE(x)`
+  
+  `enum class` with `Range` mode can be easily performed comparasion and increasment/decreasement.
 
 It also has experiemental compile-time reflection support based on `FUNCSIG` macro. The idea comes from [magic_enum](https://github.com/Neargye/magic_enum).
 

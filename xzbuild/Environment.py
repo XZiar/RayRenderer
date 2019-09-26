@@ -36,6 +36,7 @@ def collectEnv(paras:dict) -> dict:
     cppcompiler = os.environ.get("CPPCOMPILER", cppcompiler)
     defs = []
     osname = platform.system()
+    env["osname"] = osname
     if not osname == "Windows":
         rawdefs = subprocess.check_output(f"{cppcompiler} -march={env['arch']} -dM -E - < /dev/null", shell=True)
         defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
@@ -43,7 +44,11 @@ def collectEnv(paras:dict) -> dict:
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
     env["cpuCount"] = os.cpu_count()
-    env["threads"] = paras.get("threads", env["cpuCount"])
+    threads = paras.get("threads", "x1")
+    if threads.startswith('x'):
+        env["threads"] = int(env["cpuCount"] * float(threads[1:]))
+    else:
+        env["threads"] = int(threads)
     return env
 
 def writeEnv(env:dict):

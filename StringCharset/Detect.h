@@ -43,19 +43,11 @@ std::string STRCHSETAPI GetEncoding(const void *data, const size_t len);
 
 
 template<typename T>
-common::str::Charset DetectEncoding(const std::basic_string<T>& str)
+inline common::str::Charset DetectEncoding(const T& cont)
 {
-    return common::str::toCharset(GetEncoding(str.data(), str.size() * sizeof(T)));
-}
-template<typename T>
-common::str::Charset DetectEncoding(const std::basic_string_view<T>& str)
-{
-    return common::str::toCharset(GetEncoding(str.data(), str.size() * sizeof(T)));
-}
-template<typename T, typename A>
-common::str::Charset DetectEncoding(const std::vector<T, A>& str)
-{
-    return common::str::toCharset(GetEncoding(str.data(), str.size() * sizeof(T)));
+    using Helper = common::container::ContiguousHelper<T>;
+    static_assert(Helper::IsContiguous, "only accept contiguous container as input");
+    return common::str::toCharset(GetEncoding(Helper::Data(cont), Helper::Count(cont) * Helper::EleSize));
 }
 
 

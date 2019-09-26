@@ -13,15 +13,6 @@ namespace detail
 {
 
 
-template<typename T>
-inline constexpr bool IsDirectString()
-{
-    return common::is_specialization<T, std::basic_string>::value
-        || common::is_specialization<T, std::basic_string_view>::value
-        || common::is_specialization<T, std::vector>::value;
-}
-
-
 template <typename Char, class T>
 inline constexpr bool is_str_vector_v()
 {

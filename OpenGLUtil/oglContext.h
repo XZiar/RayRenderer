@@ -29,6 +29,8 @@ enum class MsgType :uint16_t
 };
 MAKE_ENUM_BITFIELD(MsgType)
 enum class MsgLevel :uint8_t { High = 3, Medium = 2, Low = 1, Notfication = 0 };
+MAKE_ENUM_RANGE(MsgLevel)
+
 
 enum class DepthTestType : GLenum 
 {

@@ -6,10 +6,10 @@
 
 #define ENUM_CLASS_BITFIELD_FUNCS(T, U) \
 inline constexpr T  operator &  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) & static_cast<U>(y)); } \
-inline constexpr T& operator &= (T& x, const T y) { x = x & y; return x; } \
 inline constexpr T  operator |  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) | static_cast<U>(y)); } \
-inline constexpr T& operator |= (T& x, const T y) { x = x | y; return x; } \
 inline constexpr T  operator ^  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) ^ static_cast<U>(y)); } \
+inline constexpr T& operator &= (T& x, const T y) { x = x & y; return x; } \
+inline constexpr T& operator |= (T& x, const T y) { x = x | y; return x; } \
 inline constexpr T& operator ^= (T& x, const T y) { x = x ^ y; return x; } \
 inline constexpr T  operator ~  (const T x) { return static_cast<T>(~static_cast<U>(x)); } \
 inline constexpr bool HAS_FIELD(const T x, const T obj) { return static_cast<U>(x & obj) != 0; } \
@@ -39,6 +39,36 @@ inline constexpr bool MATCH_ANY(const T x, const std::initializer_list<T> objs) 
 #if (defined(_HAS_STD_BYTE) && _HAS_STD_BYTE) || (defined(__cplusplus) && (__cplusplus >= 201703L)) || defined(__cpp_lib_byte)
 inline constexpr bool HAS_FIELD(const std::byte b, const uint8_t bits) { return static_cast<uint8_t>(b & std::byte(bits)) != 0; }
 #endif
+
+
+#define ENUM_CLASS_RANGE_FUNCS(T, U) \
+inline constexpr bool operator <  (const T x, const T y) { return static_cast<U>(x) <  static_cast<U>(y); } \
+inline constexpr bool operator <= (const T x, const T y) { return static_cast<U>(x) <= static_cast<U>(y); } \
+inline constexpr bool operator >  (const T x, const T y) { return static_cast<U>(x) >  static_cast<U>(y); } \
+inline constexpr bool operator >= (const T x, const T y) { return static_cast<U>(x) >= static_cast<U>(y); } \
+inline constexpr bool operator <  (const T x, const U y) { return static_cast<U>(x) <                 y ; } \
+inline constexpr bool operator <= (const T x, const U y) { return static_cast<U>(x) <=                y ; } \
+inline constexpr bool operator >  (const T x, const U y) { return static_cast<U>(x) >                 y ; } \
+inline constexpr bool operator >= (const T x, const U y) { return static_cast<U>(x) >=                y ; } \
+inline constexpr bool operator <  (const U x, const T y) { return                x  <  static_cast<U>(y); } \
+inline constexpr bool operator <= (const U x, const T y) { return                x  <= static_cast<U>(y); } \
+inline constexpr bool operator >  (const U x, const T y) { return                x  >  static_cast<U>(y); } \
+inline constexpr bool operator >= (const U x, const T y) { return                x  >= static_cast<U>(y); } \
+inline constexpr T  operator +  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) + static_cast<U>(y)); } \
+inline constexpr T  operator -  (const T x, const T y) { return static_cast<T>(static_cast<U>(x) - static_cast<U>(y)); } \
+inline constexpr T  operator +  (const T x, const U y) { return static_cast<T>(static_cast<U>(x) +                y ); } \
+inline constexpr T  operator -  (const T x, const U y) { return static_cast<T>(static_cast<U>(x) -                y ); } \
+inline constexpr T  operator +  (const U x, const T y) { return static_cast<T>(               x  + static_cast<U>(y)); } \
+inline constexpr T  operator -  (const U x, const T y) { return static_cast<T>(               x  - static_cast<U>(y)); } \
+inline constexpr T& operator += (T& x, const T y) { x = x + y; return x; } \
+inline constexpr T& operator -= (T& x, const T y) { x = x - y; return x; } \
+inline constexpr T& operator += (T& x, const U y) { x = x + y; return x; } \
+inline constexpr T& operator -= (T& x, const U y) { x = x - y; return x; } \
+inline constexpr T& operator ++ (T& x) { x = x + static_cast<U>(1); return x; } \
+inline constexpr T& operator -- (T& x) { x = x - static_cast<U>(1); return x; }
+
+
+#define MAKE_ENUM_RANGE(T) ENUM_CLASS_RANGE_FUNCS(T, std::underlying_type_t<T>)
 
 
 namespace common

@@ -160,7 +160,6 @@ class FileStream
 protected:
     std::shared_ptr<FileObject> File;
 
-    FileStream(const std::shared_ptr<FileObject>& file) noexcept : File(file) {}
     FileStream(std::shared_ptr<FileObject>&& file) noexcept : File(std::move(file)) {}
 
 #if defined(_WIN32)
@@ -236,7 +235,7 @@ class FileInputStream : private FileStream, public io::RandomInputStream
 {
     friend class FileObject;
 public:
-    FileInputStream(const std::shared_ptr<FileObject>& file) : FileStream(file) { ReadCheck(); }
+    FileInputStream(std::shared_ptr<FileObject> file) : FileStream(std::move(file)) { ReadCheck(); }
     FileInputStream(FileInputStream&& stream) noexcept : FileStream(std::move(stream.File)) { }
     virtual ~FileInputStream() override {}
 
@@ -292,7 +291,7 @@ class FileOutputStream : private FileStream, public io::RandomOutputStream
 {
     friend class FileObject;
 public:
-    FileOutputStream(const std::shared_ptr<FileObject>& file) : FileStream(file) { WriteCheck(); }
+    FileOutputStream(std::shared_ptr<FileObject> file) : FileStream(std::move(file)) { WriteCheck(); }
     FileOutputStream(FileOutputStream&& stream) noexcept : FileStream(std::move(stream.File)) { }
     virtual ~FileOutputStream() override { Flush(); }
     

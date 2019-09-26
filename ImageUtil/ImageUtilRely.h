@@ -44,7 +44,7 @@ using std::wstring;
 using std::u16string;
 using std::tuple;
 class ImgSupport;
-IMGUTILAPI uint32_t RegistImageSupport(const std::shared_ptr<ImgSupport>& support);
+IMGUTILAPI uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support);
 template<typename T>
 uint32_t RegistImageSupport()
 {

@@ -28,8 +28,8 @@ protected:
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
     forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
 public:
-    MiniLoggerBase(const std::u16string& name, const std::set<std::shared_ptr<LoggerBackend>>& outputer = {}, const LogLevel level = LogLevel::Debug)
-        : LeastLevel(level), Prefix(name), Outputer(outputer)
+    MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug)
+        : LeastLevel(level), Prefix(name), Outputer(std::move(outputer))
     { }
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
     LogLevel GetLeastLevel() { return LeastLevel; }
@@ -81,7 +81,7 @@ public:
     template<typename T, typename... Args>
     void log(const LogLevel level, T&& formatter, Args&&... args)
     {
-        if ((uint8_t)level < (uint8_t)LeastLevel.load(std::memory_order_relaxed))
+        if (level < LeastLevel.load(std::memory_order_relaxed))
             return;
 
         LogMessage* msg = nullptr;
@@ -107,21 +107,21 @@ public:
         }
     }
 
-    template<bool R = DynamicBackend, typename = std::enable_if_t<R>>
-    void AddOuputer(const std::shared_ptr<LoggerBackend>& outputer)
+    template<bool R = DynamicBackend>
+    std::enable_if_t<R, bool> AddOuputer(std::shared_ptr<LoggerBackend> outputer)
     {
         static_assert(DynamicBackend == R, "Should not override template arg");
-        WRLock.LockWrite();
-        Outputer.insert(outputer);
-        WRLock.UnlockWrite();
+        if (!outputer) return false;
+        auto lock = WRLock.WriteScope();
+        return Outputer.emplace(outputer).second;
     }
-    template<bool R = DynamicBackend, typename = std::enable_if_t<R>>
-    void DelOutputer(const std::shared_ptr<LoggerBackend>& outputer)
+    template<bool R = DynamicBackend>
+    std::enable_if_t<R, bool> DelOutputer(const std::shared_ptr<LoggerBackend>& outputer)
     {
         static_assert(DynamicBackend == R, "Should not override template arg");
-        WRLock.LockWrite();
-        Outputer.erase(outputer);
-        WRLock.UnlockWrite();
+        if (!outputer) return false;
+        auto lock = WRLock.WriteScope();
+        return Outputer.erase(outputer) > 0;
     }
 };
 

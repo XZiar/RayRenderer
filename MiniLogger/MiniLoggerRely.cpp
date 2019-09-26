@@ -11,10 +11,53 @@
 namespace common::mlog
 {
 
-const LogMessage::TimeConv LogMessage::TimeBase = []() -> LogMessage::TimeConv
+using namespace std::chrono;
+
+struct TimeConv 
+{ 
+    system_clock::time_point SysClock;
+    uint64_t Base;
+    TimeConv() : SysClock(system_clock::now()),
+        Base(static_cast<uint64_t>(high_resolution_clock::now().time_since_epoch().count())) {}
+};
+
+
+LogMessage* LogMessage::MakeMessage(const SharedString<char16_t>& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time)
 {
-    return { std::chrono::system_clock::now(), static_cast<uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()) };
-}();
+    if (len >= UINT32_MAX)
+        COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
+    uint8_t* ptr = (uint8_t*)malloc_align(sizeof(LogMessage) + sizeof(char16_t) * len, 64);
+    if (!ptr)
+        return nullptr; //not throw an exception yet
+    LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
+    memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t) * len, content, sizeof(char16_t) * len);
+    return msg;
+}
+
+bool LogMessage::Consume(LogMessage* msg)
+{
+    if (msg->RefCount-- == 1) //last one
+    {
+        free_align(msg);
+        return true;
+    }
+    return false;
+}
+
+system_clock::time_point LogMessage::GetSysTime() const
+{
+    static TimeConv TimeBase;
+    return TimeBase.SysClock + duration_cast<system_clock::duration>(nanoseconds(Timestamp - TimeBase.Base));
+}
+
+
+void LoggerBackend::Print(LogMessage* msg)
+{
+    if (msg->Level >= LeastLevel)
+        OnPrint(*msg);
+    LogMessage::Consume(msg);
+}
+
 
 namespace detail
 {
@@ -85,7 +128,7 @@ std::u16string_view GetLogLevelStr(const LogLevel level)
     default:
         {
             const auto lvNum = static_cast<uint8_t>(level);
-            auto ptr = &LevelNumStr[(uint8_t)level * 4];
+            auto ptr = &LevelNumStr[lvNum * 4];
             if (lvNum < 10)
                 return { ptr, 1 };
             else if (lvNum < 100)
@@ -95,6 +138,7 @@ std::u16string_view GetLogLevelStr(const LogLevel level)
         }
     }
 }
+
 
 }
 

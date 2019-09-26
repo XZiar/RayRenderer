@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "EnumEx.hpp"
 #include <memory>
 #include <functional>
 #include <atomic>
@@ -12,6 +13,7 @@ enum class PromiseState : uint8_t
 {
     Invalid = 0, Unissued = 1, Issued = 8, Executing = 64, Executed = 128, Success = 144, Error = 192
 };
+MAKE_ENUM_RANGE(PromiseState)
 
 namespace detail
 {

@@ -3,6 +3,7 @@
 #include "CommonRely.hpp"
 #include "Exceptions.hpp"
 #include "StrBase.hpp"
+#include "ContainerHelper.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -773,10 +774,11 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
 
 
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::string>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::string>
     to_string(const T& str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
 {
-    return to_string(str.data(), str.size(), outchset, inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return to_string(Helper::Data(str), Helper::Count(str), outchset, inchset);
 }
 template<typename Char>
 inline std::string to_string(const Char *str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
@@ -791,10 +793,11 @@ inline std::string to_u8string(const Char *str, const size_t size, const Charset
     return to_string(str, size, Charset::UTF8, inchset);
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::string>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::string>
     to_u8string(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return to_string(str.data(), str.size(), Charset::UTF8, inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return to_string(Helper::Data(str), Helper::Count(str), Charset::UTF8, inchset);
 }
 template<typename Char>
 inline std::string to_u8string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -841,10 +844,11 @@ inline std::u16string to_u16string(const Char *str, const size_t size, const Cha
     }
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::u16string>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::u16string>
     to_u16string(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return to_u16string(str.data(), str.size(), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return to_u16string(Helper::Data(str), Helper::Count(str), inchset);
 }
 template<typename Char>
 inline std::u16string to_u16string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -891,10 +895,11 @@ inline std::u32string to_u32string(const Char *str, const size_t size, const Cha
     }
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::u32string>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::u32string>
     to_u32string(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return to_u32string(str.data(), str.size(), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return to_u32string(Helper::Data(str), Helper::Count(str), inchset);
 }
 template<typename Char>
 inline std::u32string to_u32string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -943,10 +948,11 @@ inline std::wstring to_wstring(const Char *str, const size_t size, const Charset
     }
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::wstring>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::wstring>
     to_wstring(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return to_wstring(str.data(), str.size(), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return to_wstring(Helper::Data(str), Helper::Count(str), inchset);
 }
 template<typename Char>
 inline std::wstring to_wstring(const Char *str, const Charset inchset = Charset::ASCII)
@@ -1006,10 +1012,11 @@ inline void ForEachChar(const Char *str, const size_t size, const Consumer& cons
     }
 }
 template<typename T, typename Consumer>
-inline std::enable_if_t<detail::IsDirectString<T>(), void>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, void>
     ForEachChar(const T& str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
 {
-    return ForEachChar(str.data(), str.size(), consumer, inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return ForEachChar(Helper::Data(str), Helper::Count(str), consumer, inchset);
 }
 template<typename Char, typename Consumer>
 inline void ForEachChar(const Char *str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
@@ -1084,10 +1091,11 @@ inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, co
     }
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::basic_string<typename T::value_type>>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename T::value_type>>
     ToUpperEng(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return ToUpperEng(str.data(), str.size(), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return ToUpperEng(Helper::Data(str), Helper::Count(str), inchset);
 }
 template<typename Char>
 inline void ToUpperEng(const Char *str, const Charset inchset = Charset::ASCII)
@@ -1145,10 +1153,11 @@ inline std::basic_string<Char> ToLowerEng(const Char *str, const size_t size, co
     }
 }
 template<typename T>
-inline std::enable_if_t<detail::IsDirectString<T>(), std::basic_string<typename T::value_type>>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename T::value_type>>
     ToLowerEng(const T& str, const Charset inchset = Charset::ASCII)
 {
-    return ToLowerEng(str.data(), str.size(), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return ToLowerEng(Helper::Data(str), Helper::Count(str), inchset);
 }
 template<typename Char>
 inline void ToLowerEng(const Char *str, const Charset inchset = Charset::ASCII)
@@ -1213,10 +1222,12 @@ inline bool IsIBeginWith(const Char *str, const size_t size1, const Char *prefix
     }
 }
 template<typename T1, typename T2>
-inline std::enable_if_t<detail::IsDirectString<T1>() && detail::IsDirectString<T2>(), bool>
+inline std::enable_if_t<container::ContiguousHelper<T1>::IsContiguous && container::ContiguousHelper<T2>::IsContiguous, bool>
     IsIBeginWith(const T1& str, const T2& prefix, const Charset strchset = Charset::ASCII)
 {
-    return IsIBeginWith(str.data(), str.size(), prefix.data(), prefix.size(), strchset);
+    using Helper1 = common::container::ContiguousHelper<T1>;
+    using Helper2 = common::container::ContiguousHelper<T2>;
+    return IsIBeginWith(Helper1::Data(str), Helper1::Count(str), Helper2::Data(prefix), Helper2::Count(prefix), strchset);
 }
 template<typename Char>
 inline bool IsIBeginWith(const Char *str, const Char *prefix, const Charset strchset = Charset::ASCII)

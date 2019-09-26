@@ -15,8 +15,7 @@ LoopBase::LoopState AsyncProxy::OnLoop()
     bool hasExecuted = false;
     for (auto Current = TaskList.Begin(); Current != nullptr;)
     {
-        const uint8_t state = (uint8_t)Current->Promise->GetState();
-        if (state >= (uint8_t)PromiseState::Executed) // ready for callback
+        if (Current->Promise->GetState() >= PromiseState::Executed) // ready for callback
         {
             hasExecuted = true;
             Current->Timer.Stop();

@@ -24,10 +24,11 @@ inline std::string to_string(const Char *str, const size_t size, const Charset o
     return detail::to_string(reinterpret_cast<const char*>(str), size * sizeof(Char), outchset, inchset);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::string>
-to_string(const T& sv, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::string>
+    to_string(const T& cont, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
 {
-    return detail::to_string(reinterpret_cast<const char*>(sv.data()), sv.size() * sizeof(typename T::value_type), outchset, inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return detail::to_string(reinterpret_cast<const char*>(Helper::Data(cont)), Helper::Count(cont) * Helper::EleSize, outchset, inchset);
 }
 template<typename Char>
 inline std::string to_string(const Char *str, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
@@ -41,10 +42,11 @@ inline std::u32string to_u32string(const Char *str, const size_t size, const Cha
     return detail::to_u32string(reinterpret_cast<const char*>(str), size * sizeof(Char), inchset);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::u32string>
-to_u32string(const T& sv, const Charset inchset = Charset::ASCII)
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::u32string>
+    to_u32string(const T& cont, const Charset inchset = Charset::ASCII)
 {
-    return detail::to_u32string(reinterpret_cast<const char*>(sv.data()), sv.size() * sizeof(typename T::value_type), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return detail::to_u32string(reinterpret_cast<const char*>(Helper::Data(cont)), Helper::Count(cont) * Helper::EleSize, inchset);
 }
 template<typename Char>
 inline std::u32string to_u32string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -58,10 +60,11 @@ inline std::u16string to_u16string(const Char *str, const size_t size, const Cha
     return detail::to_u16string(reinterpret_cast<const char*>(str), size * sizeof(Char), inchset);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::u16string>
-to_u16string(const T& sv, const Charset inchset = Charset::ASCII)
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::u16string>
+    to_u16string(const T& cont, const Charset inchset = Charset::ASCII)
 {
-    return detail::to_u16string(reinterpret_cast<const char*>(sv.data()), sv.size() * sizeof(typename T::value_type), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return detail::to_u16string(reinterpret_cast<const char*>(Helper::Data(cont)), Helper::Count(cont) * Helper::EleSize, inchset);
 }
 template<typename Char>
 inline std::u16string to_u16string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -75,10 +78,11 @@ inline std::string to_u8string(const Char *str, const size_t size, const Charset
     return detail::to_u8string(reinterpret_cast<const char*>(str), size * sizeof(Char), inchset);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::string>
-to_u8string(const T& sv, const Charset inchset = Charset::ASCII)
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::string>
+    to_u8string(const T& cont, const Charset inchset = Charset::ASCII)
 {
-    return detail::to_u8string(reinterpret_cast<const char*>(sv.data()), sv.size() * sizeof(typename T::value_type), inchset);
+    using Helper = common::container::ContiguousHelper<T>;
+    return detail::to_u8string(reinterpret_cast<const char*>(Helper::Data(cont)), Helper::Count(cont) * Helper::EleSize, inchset);
 }
 template<typename Char>
 inline std::string to_u8string(const Char *str, const Charset inchset = Charset::ASCII)
@@ -93,8 +97,8 @@ inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, co
     return detail::ToULEng(str, size, inchset, true);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::basic_string<typename T::value_type>>
-ToUpperEng(const T& str, const Charset inchset = Charset::ASCII)
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename container::ContiguousHelper<T>::EleType>>
+    ToUpperEng(const T& str, const Charset inchset = Charset::ASCII)
 {
     return detail::ToULEng(str.data(), str.size(), inchset, true);
 }
@@ -110,7 +114,7 @@ inline std::basic_string<Char> ToLowerEng(const Char *str, const size_t size, co
     return detail::ToULEng(str, size, inchset, false);
 }
 template<typename T>
-inline std::enable_if_t<common::str::detail::IsDirectString<T>(), std::basic_string<typename T::value_type>>
+inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename container::ContiguousHelper<T>::EleType>>
     ToLowerEng(const T& str, const Charset inchset = Charset::ASCII)
 {
     return detail::ToULEng(str.data(), str.size(), inchset, false);

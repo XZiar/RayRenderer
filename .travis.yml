@@ -125,6 +125,6 @@ before_script:
   - nasm -v
 
 script:
-  - python3 xzbuild.py rebuild $BUILDMODULES
-  - python3 xzbuild.py rebuildall "SIMDTest" Release
+  - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5
+  - python3 xzbuild.py rebuildall "SIMDTest" Release /threads=x1.5
   - ./x64/Release/SIMDTest

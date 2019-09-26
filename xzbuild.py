@@ -3,7 +3,6 @@
 import glob
 import json
 import os
-import platform
 import re
 import subprocess
 import sys
@@ -14,7 +13,6 @@ from xzbuild._Rely import COLOR
 from xzbuild.Target import _AllTargets
 from xzbuild.Project import Project, ProjectSet
 from xzbuild.Environment import collectEnv, writeEnv
-
 
 def help():
     print(f"{COLOR.white}python3 xzbuild.py {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project,[project]|all> "
@@ -166,6 +164,15 @@ def main(argv:list, paras:dict):
             listproj(projects, objproj)
             return 0
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
+            if env["osname"] == "Windows":
+                print(COLOR.Yellow("For Windows, use Visual Studio 2019 to build!"))
+                return -1
+            elif env["osname"] == "Darwin":
+                print(COLOR.Yellow("maxOS support is not tested!"))
+            elif env["osname"] != "Linux":
+                print(COLOR.Yellow("unknown OS!"))
+                return -1
+            
             projs = parseProj(objproj, projects)
             suc, tol = mainmake(action, projs, env)
             preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < tol else COLOR.green
@@ -183,16 +190,6 @@ def main(argv:list, paras:dict):
     pass
 
 if __name__ == "__main__":
-    osname = platform.system()
-    if osname == "Windows":
-        # print(COLOR.Yellow("For Windows, use Visual Studio 2019 to build!"))
-        # sys.exit(0)
-        pass
-    elif osname == "Darwin":
-        print(COLOR.Yellow("maxOS support is not tested!"))
-    elif osname != "Linux":
-        print(COLOR.Yellow("unknown OS!"))
-        sys.exit(-1)
     args  = [x for x in sys.argv[1:] if not x.startswith("/")]
     paras = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
     paras = {p[0]:"=".join(p[1:]) for p in paras}

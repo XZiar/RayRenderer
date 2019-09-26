@@ -20,6 +20,7 @@
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
+#include "common/EnumEx.hpp"
 #include "common/FileEx.hpp"
 #include "3rdParty/fmt/utfext.h"
 #include "StringCharset/Convert.h"
@@ -47,14 +48,13 @@ class MiniLoggerBase;
 }
 
 enum class LogLevel : uint8_t { Debug = 20, Verbose = 40, Info = 60, Success = 70, Warning = 85, Error = 100, None = 120 };
+MAKE_ENUM_RANGE(LogLevel)
+
 MINILOGAPI std::u16string_view GetLogLevelStr(const LogLevel level);
 
 struct MINILOGAPI LogMessage : public NonCopyable, public NonMovable
 {
     friend class detail::MiniLoggerBase;
-private:
-    struct TimeConv { std::chrono::system_clock::time_point SysClock; uint64_t Base; };
-    static const TimeConv TimeBase;
 public:
     const uint64_t Timestamp;
 private:
@@ -68,17 +68,7 @@ private:
         : Timestamp(time), Source(prefix), RefCount(1), Length(length), Level(level) //RefCount is at first 1
     { }
 public:
-    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t *content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
-    {
-        if (len >= UINT32_MAX)
-            COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
-        uint8_t* ptr = (uint8_t*)malloc_align(sizeof(LogMessage) + sizeof(char16_t)*len, 64);
-        if (!ptr)
-            return nullptr; //not throw an exception yet
-        LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
-        memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t)*len, content, sizeof(char16_t)*len);
-        return msg;
-    }
+    static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
     template<size_t N>
     forceinline static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t(&content)[N], const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
@@ -90,22 +80,10 @@ public:
         static_assert(std::is_convertible_v<decltype(std::declval<const T>().data()), const char16_t*>, "only accept container of char16_t");
         return MakeMessage(prefix, content.data(), content.size(), level, time);
     }
-    static bool Consume(LogMessage* msg)
-    {
-        if (msg->RefCount-- == 1) //last one
-        {
-            free_align(msg);
-            return true;
-        }
-        return false;
-    }
+    static bool Consume(LogMessage* msg);
     std::u16string_view GetContent() const { return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length); }
     const std::u16string_view& GetSource() const { return Source; }
-    std::chrono::system_clock::time_point GetSysTime() const 
-    {
-        using namespace std::chrono;
-        return TimeBase.SysClock + duration_cast<system_clock::duration>(nanoseconds(Timestamp - TimeBase.Base));
-    }
+    std::chrono::system_clock::time_point GetSysTime() const;
 };
 
 class MINILOGAPI LoggerBackend : public NonCopyable
@@ -115,12 +93,7 @@ protected:
     void virtual OnPrint(const LogMessage& msg) = 0;
 public:
     virtual ~LoggerBackend() { }
-    void virtual Print(LogMessage* msg) 
-    {
-        if ((uint8_t)msg->Level >= (uint8_t)LeastLevel)
-            OnPrint(*msg);
-        LogMessage::Consume(msg);
-    }
+    void virtual Print(LogMessage* msg);
     void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
     LogLevel GetLeastLevel() { return LeastLevel; }
 };
