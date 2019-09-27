@@ -104,15 +104,7 @@ namespace container
 {
 
 template<class T>
-class vectorEx : public std::vector<T, common::AlignAllocator<T>>
-{
-public:
-    using std::vector<T, common::AlignAllocator<T>>::vector;
-    operator const std::vector<T>& () const
-    {
-        return *(const std::vector<T>*)this;
-    }
-};
+using vectorEx = std::vector<T, common::AlignAllocator<T>>;
 
 template<class T>
 using dequeEx = std::deque<T, common::AlignAllocator<T>>;

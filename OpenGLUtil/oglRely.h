@@ -113,6 +113,29 @@ using common::file::FileException;
 using common::linq::Linq;
 using common::str::Charset;
 
+
+using GLboolean  = uint8_t;
+using GLbyte     = int8_t;
+using GLubyte    = uint8_t;
+using GLshort    = int16_t;
+using GLushort   = uint16_t;
+using GLint      = int32_t;
+using GLuint     = uint32_t;
+using GLfixed    = uint32_t;
+using GLint64    = int64_t;
+using GLuint64   = uint64_t;
+using GLsizei    = int32_t;
+using GLenum     = uint32_t;
+using GLintptr   = ptrdiff_t;
+using GLsizeiptr = ptrdiff_t;
+using GLbitfield = uint32_t;
+using GLhalf     = uint16_t;
+using GLfloat    = float;
+using GLclampf   = float;
+using GLdouble   = double;
+using GLclampd   = double;
+
+
 class oglWorker;
 struct DSAFuncs;
 
@@ -131,8 +154,8 @@ class OGLUAPI oglCtxObject : public common::NonCopyable
 {
 private:
     using CtxType = std::conditional_t<IsShared, SharedContextCore, _oglContext>;
-    const std::weak_ptr<CtxType> Context;
     static std::weak_ptr<CtxType> GetCtx();
+    const std::weak_ptr<CtxType> Context;
 protected:
     oglCtxObject() : Context(GetCtx()) { }
     bool EnsureValid();

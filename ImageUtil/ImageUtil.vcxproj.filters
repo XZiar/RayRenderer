@@ -61,6 +61,9 @@
     <ClInclude Include="TexFormat.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ImageUtilPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtil.cpp">

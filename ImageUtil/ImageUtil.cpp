@@ -1,9 +1,6 @@
-#include "ImageUtilRely.h"
+#include "ImageUtilPch.h"
 #include "ImageUtil.h"
 #include "ImageSupport.hpp"
-#include "common/Linq.hpp"
-#include "StringCharset/Convert.h"
-#include <functional>
 
 
 namespace xziar::img

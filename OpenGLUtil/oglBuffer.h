@@ -10,23 +10,26 @@
 namespace oglu
 {
 
-enum class BufferType : GLenum
+
+enum class BufferType : uint8_t { Array, Element, Uniform, ShaderStorage, Pixel, Texture, Indirect };
+enum class BufferWriteMode : uint8_t 
 {
-    Array = GL_ARRAY_BUFFER, Element = GL_ELEMENT_ARRAY_BUFFER, Uniform = GL_UNIFORM_BUFFER, ShaderStorage = GL_SHADER_STORAGE_BUFFER,
-    Pixel = GL_PIXEL_UNPACK_BUFFER, Texture = GL_TEXTURE_BUFFER, Indirect = GL_DRAW_INDIRECT_BUFFER
+    FREQ_MASK = 0x0f, ACCESS_MASK = 0xf0,
+    FREQ_STREAM = 0x01, FREQ_STATIC = 0x02, FREQ_DYNAMIC = 0x03,
+    ACCESS_DRAW = 0x10, ACCESS_READ = 0x20, ACCESS_COPY  = 0x30,
+    StreamDraw  = FREQ_STREAM  | ACCESS_DRAW, StreamRead  = FREQ_STREAM  | ACCESS_READ, StreamCopy  = FREQ_STREAM  | ACCESS_COPY,
+    StaticDraw  = FREQ_STATIC  | ACCESS_DRAW, StaticRead  = FREQ_STATIC  | ACCESS_READ, StaticCopy  = FREQ_STATIC  | ACCESS_COPY,
+    DynamicDraw = FREQ_DYNAMIC | ACCESS_DRAW, DynamicRead = FREQ_DYNAMIC | ACCESS_READ, DynamicCopy = FREQ_DYNAMIC | ACCESS_COPY,
 };
-enum class BufferWriteMode : GLenum
+MAKE_ENUM_BITFIELD(BufferWriteMode)
+
+enum class MapFlag : uint16_t
 {
-    StreamDraw = GL_STREAM_DRAW, StreamRead = GL_STREAM_READ, StreamCopy = GL_STREAM_COPY,
-    StaticDraw = GL_STATIC_DRAW, StaticRead = GL_STATIC_READ, StaticCopy = GL_STATIC_COPY,
-    DynamicDraw = GL_DYNAMIC_DRAW, DynamicRead = GL_DYNAMIC_READ, DynamicCopy = GL_DYNAMIC_COPY,
-};
-enum class MapFlag : GLenum
-{
-    MapRead = GL_MAP_READ_BIT, MapWrite = GL_MAP_WRITE_BIT, PersistentMap = GL_MAP_PERSISTENT_BIT, CoherentMap = GL_MAP_COHERENT_BIT,
-    DynamicStorage = GL_DYNAMIC_STORAGE_BIT, ClientStorage = GL_CLIENT_STORAGE_BIT,
-    ExplicitFlush = GL_MAP_FLUSH_EXPLICIT_BIT, UnSynchronize = GL_MAP_UNSYNCHRONIZED_BIT,
-    InvalidateRange = GL_MAP_INVALIDATE_RANGE_BIT, InvalidateAll = GL_MAP_INVALIDATE_BUFFER_BIT,
+    MapRead         = 0x0001/*GL_MAP_READ_BIT*/,             MapWrite        = 0x0002/*GL_MAP_WRITE_BIT*/, 
+    PersistentMap   = 0x0040/*GL_MAP_PERSISTENT_BIT*/,       CoherentMap     = 0x0080/*GL_MAP_COHERENT_BIT*/,
+    DynamicStorage  = 0x0100/*GL_DYNAMIC_STORAGE_BIT*/,      ClientStorage   = 0x0200/*GL_CLIENT_STORAGE_BIT*/,
+    InvalidateRange = 0x0004/*GL_MAP_INVALIDATE_RANGE_BIT*/, InvalidateAll   = 0x0008/*GL_MAP_INVALIDATE_BUFFER_BIT*/,
+    ExplicitFlush   = 0x0010/*GL_MAP_FLUSH_EXPLICIT_BIT*/,   UnSynchronize   = 0x0020/*GL_MAP_UNSYNCHRONIZED_BIT*/,
     PrepareMask = MapRead | MapWrite | PersistentMap | CoherentMap | DynamicStorage | ClientStorage,
     RangeMask = MapRead | MapWrite | PersistentMap | CoherentMap | InvalidateRange | InvalidateAll | ExplicitFlush | UnSynchronize
 };
@@ -42,7 +45,7 @@ class OGLUAPI _oglMapPtr : public NonCopyable, public NonMovable
     friend class oglMapPtr;
 private:
     void* Pointer = nullptr;
-    GLuint BufId = GL_INVALID_INDEX;
+    GLuint BufId;
     size_t Size;
     _oglMapPtr(_oglBuffer& buf, const MapFlag flags);
 public:
@@ -75,8 +78,8 @@ class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
 protected:
     oglMapPtr PersistentPtr;
     size_t BufSize;
+    GLuint bufferID;
     const BufferType BufType;
-    GLuint bufferID = GL_INVALID_INDEX;
     void bind() const noexcept;
     void unbind() const noexcept;
     _oglBuffer(const BufferType type) noexcept;
@@ -87,15 +90,12 @@ public:
     oglMapPtr GetPersistentPtr() const { return PersistentPtr; }
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
-    template<class T, class A>
-    void Write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    template<typename T>
+    void Write(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
-        Write(dat.data(), sizeof(T)*dat.size(), mode);
-    }
-    template<class T, size_t N>
-    void Write(T(&dat)[N], const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-    {
-        Write(dat, sizeof(dat), mode);
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "need contiguous container type");
+        Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
     }
 };
 
@@ -163,7 +163,7 @@ public:
 protected:
     std::variant<vector<DrawElementsIndirectCommand>, vector<DrawArraysIndirectCommand>> Commands;
     GLsizei Count = 0;
-    bool IsIndexed = false;
+    bool IsIndexed() const;
 public:
     _oglIndirectBuffer() noexcept;
     ~_oglIndirectBuffer() noexcept { };
@@ -188,29 +188,20 @@ class OGLUAPI _oglElementBuffer : public _oglBuffer
 protected:
     GLenum IndexType = GL_INVALID_ENUM;
     uint8_t IndexSize = 0;
-    void SetSize(const uint8_t elesize)
-    {
-        switch (IndexSize = elesize)
-        {
-        case 1:
-            IndexType = GL_UNSIGNED_BYTE; return;
-        case 2:
-            IndexType = GL_UNSIGNED_SHORT; return;
-        case 4:
-            IndexType = GL_UNSIGNED_INT; return;
-        }
-    }
+    void SetSize(const uint8_t elesize);
 public:
     _oglElementBuffer() noexcept : _oglBuffer(BufferType::Element) {}
     ///<summary>Write index</summary>  
     ///<param name="dat">index container of [std::vector]</param>
     ///<param name="mode">buffer write mode</param>
-    template<class T, class A>
-    void Write(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    template<typename T>
+    void Write(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
-        static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
-        SetSize(sizeof(T));
-        _oglBuffer::Write(dat.data(), IndexSize*dat.size(), mode);
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "need contiguous container type");
+        static_assert(std::is_integral_v<Helper::EleType> && sizeof(Helper::EleType) <= 4, "input type should be of integeral type and no more than uint32_t");
+        SetSize(Helper::EleSize);
+        _oglBuffer::Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
     }
     ///<summary>Write index</summary>  
     ///<param name="dat">index ptr</param>
@@ -226,52 +217,59 @@ public:
     ///<summary>Compact and write index</summary>  
     ///<param name="dat">index container of [std::vector]</param>
     ///<param name="mode">buffer write mode</param>
-    template<class T, class A>
-    void WriteCompact(const vector<T, A>& dat, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    template<typename T>
+    void WriteCompact(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
-        static_assert(std::is_integral_v<T>, "input type should be of integeral type and no more than uint32_t");
-        auto res = std::minmax_element(dat.begin(), dat.end());
-        if (*res.first < 0)
+        using Helper = common::container::ContiguousHelper<T>;
+        static_assert(Helper::IsContiguous, "need contiguous container type");
+        static_assert(std::is_integral_v<Helper::EleType>, "input type should be of integeral type");
+        
+        const auto* ptr = Helper::Data(cont);
+        const size_t count = Helper::Count(cont);
+
+        auto [minptr, maxptr] = std::minmax_element(ptr, ptr + count);
+        if (*minptr < 0)
             COMMON_THROW(BaseException, u"element buffer cannot appear negatve value");
-        auto maxval = *res.second;
+        auto maxval = *maxptr;
+
         if (maxval <= UINT8_MAX)
         {
-            if constexpr(sizeof(T) == 1)
-                Write(dat, mode);
+            if constexpr (sizeof(T) == 1)
+                Write(ptr, count, mode);
             else
             {
-                common::AlignedBuffer newdata(dat.size());
-                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), dat.data(), dat.size());
-                Write(newdata.GetRawPtr<uint8_t>(), dat.size(), mode);
+                common::AlignedBuffer newdata(count * 1);
+                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), ptr, count);
+                Write(newdata.GetRawPtr<uint8_t>(), count, mode);
             }
         }
         else if (maxval <= UINT16_MAX)
         {
             if constexpr(sizeof(T) == 2)
-                Write(dat, mode);
+                Write(ptr, count, mode);
             else
             {
-                common::AlignedBuffer newdata(dat.size()*sizeof(uint16_t));
-                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), dat.data(), dat.size());
-                Write(newdata.GetRawPtr<uint16_t>(), dat.size(), mode);
+                common::AlignedBuffer newdata(count * 2);
+                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), ptr, count);
+                Write(newdata.GetRawPtr<uint16_t>(), count, mode);
             }
         }
         else if (maxval <= UINT32_MAX)
         {
             if constexpr(sizeof(T) == 4)
-                Write(dat, mode);
+                Write(ptr, count, mode);
             else
             {
                 vector<uint32_t> newdat;
-                newdat.reserve(dat.size());
-                for (const auto idx : dat)
-                    newdat.push_back((uint32_t)idx);
-                //std::copy(dat.begin(), dat.end(), std::back_inserter(newdat));
+                newdat.reserve(count);
+                const auto *cur = ptr, *end = ptr + count;
+                while (cur != end)
+                    newdat.push_back(static_cast<uint32_t>(*cur++));
                 Write(newdat, mode);
             }
         }
         else
-            COMMON_THROW(BaseException, u"Too much element held for element buffer");
+            COMMON_THROW(BaseException, u"input should be no more than uint32_t");
     }
 };
 

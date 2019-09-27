@@ -1,11 +1,11 @@
 #pragma once
 
+#include "CommonRely.hpp"
+#include "SpinLock.hpp"
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <exception>
-#include "CommonRely.hpp"
-#include "Wrapper.hpp"
-#include "SpinLock.hpp"
 
 
 namespace common

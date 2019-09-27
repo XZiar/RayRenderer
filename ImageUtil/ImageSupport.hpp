@@ -45,6 +45,13 @@ public:
 };
 
 
+IMGUTILAPI uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support);
+template<typename T>
+inline uint32_t RegistImageSupport()
+{
+    return RegistImageSupport(std::make_shared<T>());
+}
+
 }
 
 #if COMPILER_MSVC

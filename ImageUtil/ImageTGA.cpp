@@ -1,7 +1,5 @@
-#include "ImageUtilRely.h"
+#include "ImageUtilPch.h"
 #include "ImageTGA.h"
-#include "DataConvertor.hpp"
-#include "RGB15Converter.hpp"
 
 namespace xziar::img::tga
 {

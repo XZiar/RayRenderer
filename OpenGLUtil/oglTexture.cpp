@@ -639,7 +639,7 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
     if (TexFormatUtil::IsCompressType(format))
         COMMON_THROW(OGLWrongFormatException, u"TexImg does not support compressed texture type", format);
     if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP) &&
-        MATCH_ANY(format & TextureInnerFormat::BITS_MASK, { TextureInnerFormat::BITS_2, TextureInnerFormat::BITS_4, TextureInnerFormat::BITS_5, TextureInnerFormat::BITS_12 }))
+        common::MatchAny(format & TextureInnerFormat::BITS_MASK, TextureInnerFormat::BITS_2, TextureInnerFormat::BITS_4, TextureInnerFormat::BITS_5, TextureInnerFormat::BITS_12 ))
         COMMON_THROW(OGLWrongFormatException, u"TexImg does not support some composite texture type", format);
 }
 

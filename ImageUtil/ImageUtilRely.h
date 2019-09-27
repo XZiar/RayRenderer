@@ -25,15 +25,13 @@
 #include "common/FileEx.hpp"
 #include "common/MemoryStream.hpp"
 #include "common/TimeUtil.hpp"
-#include "common/Wrapper.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
 #include <array>
-#include <tuple>
-#include <algorithm>
 
 namespace xziar::img
 {
@@ -43,23 +41,8 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using std::tuple;
-class ImgSupport;
-IMGUTILAPI uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support);
-template<typename T>
-uint32_t RegistImageSupport()
-{
-    return RegistImageSupport(std::make_shared<T>());
-}
 }
 
 #if COMMON_SIMD_LV >= 20
 #   define IMGU_USE_SIMD
-#endif
-
-#ifdef IMGUTIL_EXPORT
-#include "MiniLogger/MiniLogger.h"
-namespace xziar::img
-{
-common::mlog::MiniLogger<false>& ImgLog();
-}
 #endif

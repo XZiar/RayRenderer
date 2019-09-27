@@ -8,6 +8,39 @@
 namespace oglu::detail
 {
 
+constexpr static GLenum ParseBufferType(const BufferType type)
+{
+    switch (type)
+    {
+    case BufferType::Array:             return GL_ARRAY_BUFFER;
+    case BufferType::Element:           return GL_ELEMENT_ARRAY_BUFFER;
+    case BufferType::Uniform:           return GL_UNIFORM_BUFFER;
+    case BufferType::ShaderStorage:     return GL_SHADER_STORAGE_BUFFER;
+    case BufferType::Pixel:             return GL_PIXEL_UNPACK_BUFFER;
+    case BufferType::Texture:           return GL_TEXTURE_BUFFER;
+    case BufferType::Indirect:          return GL_DRAW_INDIRECT_BUFFER;
+    default:                            return GL_INVALID_ENUM;
+    }
+}
+
+constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
+{
+    switch (type)
+    {
+    case BufferWriteMode::StreamDraw:   return GL_STREAM_DRAW;
+    case BufferWriteMode::StreamRead:   return GL_STREAM_READ;
+    case BufferWriteMode::StreamCopy:   return GL_STREAM_COPY;
+    case BufferWriteMode::StaticDraw:   return GL_STATIC_DRAW;
+    case BufferWriteMode::StaticRead:   return GL_STATIC_READ;
+    case BufferWriteMode::StaticCopy:   return GL_STATIC_COPY;
+    case BufferWriteMode::DynamicDraw:  return GL_DYNAMIC_DRAW;
+    case BufferWriteMode::DynamicRead:  return GL_DYNAMIC_READ;
+    case BufferWriteMode::DynamicCopy:  return GL_DYNAMIC_COPY;
+    default:                            return GL_INVALID_ENUM;
+    }
+}
+
+
 _oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufId(buf.bufferID), Size(buf.BufSize)
 {
     GLenum access;
@@ -28,11 +61,12 @@ _oglMapPtr::~_oglMapPtr()
 }
 
 
-_oglBuffer::_oglBuffer(const BufferType _type) noexcept : BufType(_type)
+_oglBuffer::_oglBuffer(const BufferType _type) noexcept :
+    BufSize(0), bufferID(GL_INVALID_INDEX), BufType(_type)
 {
     glGenBuffers(1, &bufferID);
-    glBindBuffer((GLenum)BufType, bufferID);
-    glBindBuffer((GLenum)BufType, 0);
+    glBindBuffer(ParseBufferType(BufType), bufferID);
+    glBindBuffer(ParseBufferType(BufType), 0);
 }
 
 _oglBuffer::~_oglBuffer() noexcept
@@ -49,7 +83,7 @@ _oglBuffer::~_oglBuffer() noexcept
 void _oglBuffer::bind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer((GLenum)BufType, bufferID);
+    glBindBuffer(ParseBufferType(BufType), bufferID);
     //if (BufType == BufferType::Indirect)
         //oglLog().verbose(u"binding ibo[{}].\n", bufferID);
 }
@@ -57,7 +91,7 @@ void _oglBuffer::bind() const noexcept
 void _oglBuffer::unbind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer((GLenum)BufType, 0);
+    glBindBuffer(ParseBufferType(BufType), 0);
 }
 
 oglMapPtr _oglBuffer::Map(const MapFlag flags)
@@ -66,7 +100,7 @@ oglMapPtr _oglBuffer::Map(const MapFlag flags)
     bind();
     const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
     if (newPersist)
-        glBufferStorage((GLenum)BufType, BufSize, nullptr, (GLenum)(flags & MapFlag::PrepareMask));
+        glBufferStorage(ParseBufferType(BufType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
     oglMapPtr ptr(new _oglMapPtr(*this, flags));
     if (newPersist)
         PersistentPtr = ptr;
@@ -82,7 +116,7 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     }
     else
     {
-        DSA->ogluNamedBufferData(bufferID, size, dat, (GLenum)mode);
+        DSA->ogluNamedBufferData(bufferID, size, dat, ParseBufferWriteMode(mode));
         BufSize = size;
     }
 }
@@ -124,6 +158,11 @@ void _oglUniformBuffer::bind(const uint16_t pos) const
 }
 
 
+bool _oglIndirectBuffer::IsIndexed() const
+{
+    return Commands.index() == 0;
+}
+
 _oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferType::Indirect)
 { }
 
@@ -134,7 +173,6 @@ void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const ve
     if (count != sizes.size())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
     Count = (GLsizei)count;
-    IsIndexed = isIndexed;
     if (isIndexed)
     {
         vector<DrawElementsIndirectCommand> commands;
@@ -157,7 +195,6 @@ void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t siz
 {
     CheckCurrent();
     Count = 1;
-    IsIndexed = isIndexed;
     if (isIndexed)
     {
         DrawElementsIndirectCommand command{ size, 1, offset, 0, 0 };
@@ -172,5 +209,18 @@ void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t siz
     }
 }
 
+
+inline void _oglElementBuffer::SetSize(const uint8_t elesize)
+{
+    switch (IndexSize = elesize)
+    {
+    case 1:
+        IndexType = GL_UNSIGNED_BYTE; return;
+    case 2:
+        IndexType = GL_UNSIGNED_SHORT; return;
+    case 4:
+        IndexType = GL_UNSIGNED_INT; return;
+    }
+}
 
 }

@@ -192,6 +192,13 @@ using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
 template<typename T>
 constexpr bool AlwaysTrue() { return true; }
 
+
+template<typename T, typename... Args>
+constexpr bool MatchAny(const T& obj, Args... args)
+{
+    return (... || (obj == args));
+}
+
 template<template<typename...> class Base, typename...Ts>
 std::true_type is_base_of_template_impl(const Base<Ts...>*);
 template<template<typename...> class Base>

@@ -1,4 +1,4 @@
-#include "ImageUtilRely.h"
+#include "ImageUtilPch.h"
 
 #pragma message("Compiling ImageUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
 

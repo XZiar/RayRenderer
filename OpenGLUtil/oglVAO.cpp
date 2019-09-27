@@ -98,7 +98,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
 
 _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo, GLint offset, GLsizei size)
 {
-    if ((bool)vao.IndexBuffer != ibo->IsIndexed)
+    if ((bool)vao.IndexBuffer != ibo->IsIndexed())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
     if (offset > ibo->Count || offset < 0)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset exceed ebo size.");
@@ -107,7 +107,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo, GLint offset,
     else if (size + offset > ibo->Count)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"draw size exceed ebo size.");
     vao.IndirectBuffer = ibo;
-    vao.Method = ibo->IsIndexed ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
+    vao.Method = ibo->IsIndexed() ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
     vao.Count = size;
     vao.Offsets = offset;
     return *this;

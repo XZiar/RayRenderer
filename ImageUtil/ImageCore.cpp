@@ -1,7 +1,5 @@
-#include "ImageUtilRely.h"
+#include "ImageUtilPch.h"
 #include "ImageCore.h"
-#include "DataConvertor.hpp"
-#include "FloatConvertor.hpp"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb/stb_image_resize.h"
