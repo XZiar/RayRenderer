@@ -10,9 +10,18 @@
 namespace oglu
 {
 
+enum class BufferType : GLenum
+{
+    Array           = 0x8892/*GL_ARRAY_BUFFER*/,
+    Element         = 0x8893/*GL_ELEMENT_ARRAY_BUFFER*/,
+    Uniform         = 0x8A11/*GL_UNIFORM_BUFFER*/,
+    ShaderStorage   = 0x90D2/*GL_SHADER_STORAGE_BUFFER*/,
+    Pixel           = 0x88EC/*GL_PIXEL_UNPACK_BUFFER*/,
+    Texture         = 0x8C2A/*GL_TEXTURE_BUFFER*/,
+    Indirect        = 0x8F3F/*GL_DRAW_INDIRECT_BUFFER*/
+}; 
 
-enum class BufferType : uint8_t { Array, Element, Uniform, ShaderStorage, Pixel, Texture, Indirect };
-enum class BufferWriteMode : uint8_t 
+enum class BufferWriteMode : uint8_t
 {
     FREQ_MASK = 0x0f, ACCESS_MASK = 0xf0,
     FREQ_STREAM = 0x01, FREQ_STATIC = 0x02, FREQ_DYNAMIC = 0x03,
@@ -192,14 +201,14 @@ protected:
 public:
     _oglElementBuffer() noexcept : _oglBuffer(BufferType::Element) {}
     ///<summary>Write index</summary>  
-    ///<param name="dat">index container of [std::vector]</param>
+    ///<param name="cont">index container</param>
     ///<param name="mode">buffer write mode</param>
     template<typename T>
     void Write(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
         using Helper = common::container::ContiguousHelper<T>;
         static_assert(Helper::IsContiguous, "need contiguous container type");
-        static_assert(std::is_integral_v<Helper::EleType> && sizeof(Helper::EleType) <= 4, "input type should be of integeral type and no more than uint32_t");
+        static_assert(std::is_integral_v<typename Helper::EleType> && sizeof(typename Helper::EleType) <= 4, "input type should be of integeral type and no more than uint32_t");
         SetSize(Helper::EleSize);
         _oglBuffer::Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
     }
@@ -215,14 +224,14 @@ public:
         _oglBuffer::Write(dat, IndexSize*count, mode);
     }
     ///<summary>Compact and write index</summary>  
-    ///<param name="dat">index container of [std::vector]</param>
+    ///<param name="cont">index container</param>
     ///<param name="mode">buffer write mode</param>
     template<typename T>
     void WriteCompact(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
         using Helper = common::container::ContiguousHelper<T>;
         static_assert(Helper::IsContiguous, "need contiguous container type");
-        static_assert(std::is_integral_v<Helper::EleType>, "input type should be of integeral type");
+        static_assert(std::is_integral_v<typename Helper::EleType>, "input type should be of integeral type");
         
         const auto* ptr = Helper::Data(cont);
         const size_t count = Helper::Count(cont);

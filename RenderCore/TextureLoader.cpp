@@ -88,16 +88,16 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
             layers = Linq::FromIterable(agent.Await(pms)).template Cast<ImageView>().ToVector();
         }
         layers.insert(layers.begin(), imgview);
-        TextureInnerFormat format = TextureInnerFormat::EMPTY_MASK,
-            srgbMask = (type == TexLoadType::Color ? TextureInnerFormat::FLAG_SRGB : TextureInnerFormat::EMPTY_MASK);
+        TextureInnerFormat format = TextureInnerFormat::EMPTY,
+            srgbMask = (type == TexLoadType::Color ? TextureInnerFormat::FLAG_SRGB : TextureInnerFormat::EMPTY);
         switch (proc.Proc)
         {
         case TexProcType::Plain:
             format = TextureInnerFormat::RGBA8 | srgbMask; break;
         case TexProcType::CompressBC5:
-            format = TextureInnerFormat::BC5; break;
+            format = TextureInnerFormat::BC5;              break;
         case TexProcType::CompressBC7:
-            format = TextureInnerFormat::BC7 | srgbMask; break;
+            format = TextureInnerFormat::BC7   | srgbMask; break;
         default:
             break;
         }

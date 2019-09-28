@@ -10,13 +10,16 @@
 
 namespace oglu
 {
-enum class RBOFormat : GLenum
+enum class RBOFormat : uint8_t
 {
-    Depth = GL_DEPTH_COMPONENT, Depth16 = GL_DEPTH_COMPONENT16, Depth24 = GL_DEPTH_COMPONENT24, Depth32 = GL_DEPTH_COMPONENT32,
-    Stencil = GL_STENCIL_INDEX, Stencil1 = GL_STENCIL_INDEX1, Stencil8 = GL_STENCIL_INDEX8, Stencil16 = GL_STENCIL_INDEX16,
-    Depth24Stencil8 = GL_DEPTH24_STENCIL8, Depth32Stencil8 = GL_DEPTH32F_STENCIL8,
-    RGBA8 = GL_RGBA, RGBA8U = GL_RGBA8UI, RGBAf = GL_RGBA32F, RGB10A2 = GL_RGB10_A2
+    TYPE_MASK = 0xf0,
+    TYPE_DEPTH = 0x10, TYPE_STENCIL = 0x20, TYPE_DEPTH_STENCIL = 0x30, TYPE_COLOR = 0x40,
+    Depth   = TYPE_DEPTH   | 0x0, Depth16  = TYPE_DEPTH   | 0x1, Depth24  = TYPE_DEPTH   | 0x2, Depth32   = TYPE_DEPTH   | 0x3,
+    Stencil = TYPE_STENCIL | 0x0, Stencil1 = TYPE_STENCIL | 0x1, Stencil8 = TYPE_STENCIL | 0x2, Stencil16 = TYPE_STENCIL | 0x3,
+    RGBA8   = TYPE_COLOR   | 0x0, RGBA8U   = TYPE_COLOR   | 0x1, RGBAf    = TYPE_COLOR   | 0x2, RGB10A2   = TYPE_COLOR   | 0x3,
+    Depth24Stencil8 = TYPE_DEPTH_STENCIL | 0x0, Depth32Stencil8 = TYPE_DEPTH_STENCIL | 0x1,
 };
+MAKE_ENUM_BITFIELD(RBOFormat)
 
 namespace detail
 {
@@ -24,15 +27,14 @@ class OGLUAPI _oglRenderBuffer : public NonMovable, public oglCtxObject<true>
 {
     friend class _oglFrameBuffer;
 public:
-    enum class RBOType : uint8_t { Depth, Stencil, DepthStencil, Color };
 private:
-    GLuint RBOId = GL_INVALID_INDEX;
+    GLuint RBOId;
     const RBOFormat InnerFormat;
     const uint32_t Width, Height;
 public:
-    const RBOType Type;
     _oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format);
     ~_oglRenderBuffer();
+    RBOFormat GetType() const { return InnerFormat & RBOFormat::TYPE_MASK; }
 };
 }
 using oglRBO = Wrapper<detail::_oglRenderBuffer>;
@@ -51,7 +53,7 @@ class OGLUAPI _oglFrameBuffer : public NonMovable, public oglCtxObject<false>
 public:
     using FBOAttachment = variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, pair<oglTex2DArray, uint32_t>>;
 private:
-    GLuint FBOId = GL_INVALID_INDEX;
+    GLuint FBOId;
     vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
@@ -71,7 +73,7 @@ public:
     void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void Use() const;
-    std::pair<uint32_t, uint32_t> DebugBinding() const;
+    std::pair<GLuint, GLuint> DebugBinding() const;
 };
 }
 
@@ -80,7 +82,7 @@ class OGLUAPI oglFBO : public common::Wrapper<detail::_oglFrameBuffer>
 public:
     using common::Wrapper<detail::_oglFrameBuffer>::Wrapper;
     static void UseDefault();
-    static std::pair<uint32_t, uint32_t> DebugBinding(uint32_t id);
+    static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
 };
 
 }

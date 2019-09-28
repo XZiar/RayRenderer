@@ -8,21 +8,6 @@
 namespace oglu::detail
 {
 
-constexpr static GLenum ParseBufferType(const BufferType type)
-{
-    switch (type)
-    {
-    case BufferType::Array:             return GL_ARRAY_BUFFER;
-    case BufferType::Element:           return GL_ELEMENT_ARRAY_BUFFER;
-    case BufferType::Uniform:           return GL_UNIFORM_BUFFER;
-    case BufferType::ShaderStorage:     return GL_SHADER_STORAGE_BUFFER;
-    case BufferType::Pixel:             return GL_PIXEL_UNPACK_BUFFER;
-    case BufferType::Texture:           return GL_TEXTURE_BUFFER;
-    case BufferType::Indirect:          return GL_DRAW_INDIRECT_BUFFER;
-    default:                            return GL_INVALID_ENUM;
-    }
-}
-
 constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
 {
     switch (type)
@@ -65,8 +50,8 @@ _oglBuffer::_oglBuffer(const BufferType _type) noexcept :
     BufSize(0), bufferID(GL_INVALID_INDEX), BufType(_type)
 {
     glGenBuffers(1, &bufferID);
-    glBindBuffer(ParseBufferType(BufType), bufferID);
-    glBindBuffer(ParseBufferType(BufType), 0);
+    glBindBuffer(common::enum_cast(BufType), bufferID);
+    glBindBuffer(common::enum_cast(BufType), 0);
 }
 
 _oglBuffer::~_oglBuffer() noexcept
@@ -83,7 +68,7 @@ _oglBuffer::~_oglBuffer() noexcept
 void _oglBuffer::bind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(ParseBufferType(BufType), bufferID);
+    glBindBuffer(common::enum_cast(BufType), bufferID);
     //if (BufType == BufferType::Indirect)
         //oglLog().verbose(u"binding ibo[{}].\n", bufferID);
 }
@@ -91,7 +76,7 @@ void _oglBuffer::bind() const noexcept
 void _oglBuffer::unbind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(ParseBufferType(BufType), 0);
+    glBindBuffer(common::enum_cast(BufType), 0);
 }
 
 oglMapPtr _oglBuffer::Map(const MapFlag flags)
@@ -100,7 +85,7 @@ oglMapPtr _oglBuffer::Map(const MapFlag flags)
     bind();
     const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
     if (newPersist)
-        glBufferStorage(ParseBufferType(BufType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
+        glBufferStorage(common::enum_cast(BufType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
     oglMapPtr ptr(new _oglMapPtr(*this, flags));
     if (newPersist)
         PersistentPtr = ptr;

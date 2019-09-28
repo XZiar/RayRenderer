@@ -76,8 +76,7 @@ struct TexDFormatUtil
 {
     constexpr static bool IsMonoColor(const TextureDataFormat format) noexcept
     {
-        const auto channel = format & TextureDataFormat::CHANNEL_MASK;
-        return channel == TextureDataFormat::CHANNEL_R || channel == TextureDataFormat::CHANNEL_RA;
+        return common::MatchAny(format & TextureDataFormat::CHANNEL_MASK, TextureDataFormat::CHANNEL_R, TextureDataFormat::CHANNEL_RA);
     }
     constexpr static bool HasAlpha(const TextureDataFormat format) noexcept
     {

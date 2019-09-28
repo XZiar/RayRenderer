@@ -11,38 +11,34 @@ namespace oglu
 namespace detail
 {
 
-static _oglRenderBuffer::RBOType ParseType(const RBOFormat format)
+static GLenum ParseRBOFormat(const RBOFormat format)
 {
     switch (format)
     {
-    case RBOFormat::Depth:
-    case RBOFormat::Depth16:
-    case RBOFormat::Depth24:
-    case RBOFormat::Depth32:
-        return _oglRenderBuffer::RBOType::Depth;
-    case RBOFormat::Stencil:
-    case RBOFormat::Stencil1:
-    case RBOFormat::Stencil8:
-    case RBOFormat::Stencil16:
-        return _oglRenderBuffer::RBOType::Stencil;
-    case RBOFormat::Depth24Stencil8:
-    case RBOFormat::Depth32Stencil8:
-        return _oglRenderBuffer::RBOType::DepthStencil;
-    case RBOFormat::RGBA8:
-    case RBOFormat::RGBA8U:
-    case RBOFormat::RGBAf:
-    case RBOFormat::RGB10A2:
-        return _oglRenderBuffer::RBOType::Color;
-    default:
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"invalid RBO format");
+    case RBOFormat::Depth:              return GL_DEPTH_COMPONENT;
+    case RBOFormat::Depth16:            return GL_DEPTH_COMPONENT16;
+    case RBOFormat::Depth24:            return GL_DEPTH_COMPONENT24;
+    case RBOFormat::Depth32:            return GL_DEPTH_COMPONENT32;
+    case RBOFormat::Stencil:            return GL_STENCIL_INDEX;
+    case RBOFormat::Stencil1:           return GL_STENCIL_INDEX1;
+    case RBOFormat::Stencil8:           return GL_STENCIL_INDEX8;
+    case RBOFormat::Stencil16:          return GL_STENCIL_INDEX16;
+    case RBOFormat::Depth24Stencil8:    return GL_DEPTH24_STENCIL8;
+    case RBOFormat::Depth32Stencil8:    return GL_DEPTH32F_STENCIL8;
+    case RBOFormat::RGBA8:              return GL_RGBA;
+    case RBOFormat::RGBA8U:             return GL_RGBA8UI;
+    case RBOFormat::RGBAf:              return GL_RGBA32F;
+    case RBOFormat::RGB10A2:            return GL_RGB10_A2;
+    default: COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unknown RBOFormat.");
     }
 }
 
+
 _oglRenderBuffer::_oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format)
-    : InnerFormat(format), Width(width), Height(height), Type(ParseType(format))
+    : RBOId(GL_INVALID_INDEX), InnerFormat(format), Width(width), Height(height)
 {
     glGenRenderbuffers(1, &RBOId);
-    glNamedRenderbufferStorageEXT(RBOId, (GLenum)InnerFormat, Width, Height);
+    glNamedRenderbufferStorageEXT(RBOId, ParseRBOFormat(InnerFormat), Width, Height);
 }
 
 _oglRenderBuffer::~_oglRenderBuffer()
@@ -52,7 +48,7 @@ _oglRenderBuffer::~_oglRenderBuffer()
 }
 
 
-_oglFrameBuffer::_oglFrameBuffer()
+_oglFrameBuffer::_oglFrameBuffer() : FBOId(GL_INVALID_INDEX)
 {
     DSA->ogluCreateFramebuffers(1, &FBOId);
     GLint maxAttach;
@@ -112,7 +108,7 @@ void _oglFrameBuffer::AttachColorTexture(const oglTex2DArray& tex, const uint32_
 
 void _oglFrameBuffer::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
 {
-    if (rbo->Type != _oglRenderBuffer::RBOType::Color)
+    if (rbo->GetType() != RBOFormat::TYPE_COLOR)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, rbo->RBOId);
@@ -128,7 +124,7 @@ void _oglFrameBuffer::AttachDepthTexture(const oglTex2D& tex)
 
 void _oglFrameBuffer::AttachDepthTexture(const oglRBO& rbo)
 {
-    if (rbo->Type != _oglRenderBuffer::RBOType::Depth)
+    if (rbo->GetType() != RBOFormat::TYPE_DEPTH)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
@@ -144,7 +140,7 @@ void _oglFrameBuffer::AttachStencilTexture(const oglTex2D& tex)
 
 void _oglFrameBuffer::AttachStencilTexture(const oglRBO& rbo)
 {
-    if (rbo->Type != _oglRenderBuffer::RBOType::Stencil)
+    if (rbo->GetType() != RBOFormat::TYPE_STENCIL)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
@@ -153,7 +149,7 @@ void _oglFrameBuffer::AttachStencilTexture(const oglRBO& rbo)
 
 void _oglFrameBuffer::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
-    if (rbo->Type != _oglRenderBuffer::RBOType::DepthStencil)
+    if (rbo->GetType() != RBOFormat::TYPE_DEPTH_STENCIL)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo->RBOId);
@@ -206,7 +202,7 @@ void _oglFrameBuffer::Use() const
         glBindFramebuffer(GL_FRAMEBUFFER, fbo = FBOId);
 }
 
-std::pair<uint32_t, uint32_t> _oglFrameBuffer::DebugBinding() const
+std::pair<GLuint, GLuint> _oglFrameBuffer::DebugBinding() const
 {
     return oglFBO::DebugBinding(FBOId);
 }
@@ -219,12 +215,12 @@ void oglFBO::UseDefault()
     glBindFramebuffer(GL_FRAMEBUFFER, fbo = 0);
 }
 
-std::pair<uint32_t, uint32_t> oglFBO::DebugBinding(uint32_t id)
+std::pair<GLuint, GLuint> oglFBO::DebugBinding(GLuint id)
 {
     GLint clrId = 0, depId = 0;
     glGetNamedFramebufferAttachmentParameterivEXT(id, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &clrId);
-    glGetNamedFramebufferAttachmentParameterivEXT(id, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depId);
-    return std::pair<uint32_t, uint32_t>(clrId, depId);
+    glGetNamedFramebufferAttachmentParameterivEXT(id, GL_DEPTH_ATTACHMENT , GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depId);
+    return std::pair<GLuint, GLuint>(clrId, depId);
 }
 
 }

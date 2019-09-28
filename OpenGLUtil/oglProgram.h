@@ -48,7 +48,7 @@ public:
     string Name;
     GLenum Type;
     GLenum Valtype;
-    GLint location = GL_INVALID_INDEX;
+    GLint location;
     //length of array
     mutable GLuint len;
     uint16_t size;
@@ -82,17 +82,26 @@ public:
 private:
     const GLint UniLoc;
 public:
-    SubroutineResource(const GLenum stage, const GLint location, const string& name, vector<Routine>&& routines)
-        : Name(name), Routines(std::move(routines)), Stage(ShaderType(stage)), UniLoc(location) {}
+    SubroutineResource(const ShaderType sType, const GLint location, const string& name, vector<Routine>&& routines)
+        : Name(name), Routines(std::move(routines)), Stage(sType), UniLoc(location) {}
     using Lesser = common::container::SetKeyLess<SubroutineResource, &SubroutineResource::Name>;
 };
 
 
 enum class ProgramMappingTarget : uint64_t 
 { 
-    ProjectMat = "ProjectMat"_hash, ViewMat = "ViewMat"_hash, ModelMat = "ModelMat"_hash, MVPMat = "MVPMat"_hash, MVPNormMat = "MVPNormMat"_hash,
-    CamPosVec = "CamPosVec"_hash,
-    VertPos = "VertPos"_hash, VertNorm = "VertNorm"_hash, VertTexc = "VertTexc"_hash, VertColor = "VertColor"_hash, VertTan = "VertTan"_hash, DrawID = "DrawID"_hash
+    ProjectMat = "ProjectMat"_hash,
+    ViewMat    = "ViewMat"_hash,
+    ModelMat   = "ModelMat"_hash,
+    MVPMat     = "MVPMat"_hash,
+    MVPNormMat = "MVPNormMat"_hash,
+    CamPosVec  = "CamPosVec"_hash,
+    VertPos    = "VertPos"_hash,
+    VertNorm   = "VertNorm"_hash,
+    VertTexc   = "VertTexc"_hash,
+    VertColor  = "VertColor"_hash,
+    VertTan    = "VertTan"_hash,
+    DrawID     = "DrawID"_hash,
 };
 
 namespace detail

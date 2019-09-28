@@ -78,7 +78,7 @@ common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareTh
                     else
                     {
                         ret = ImageView(Image(fakeTex->TexData[mipmap].CreateSubBuffer(), fakeTex->Width >> mipmap, fakeTex->Height >> mipmap,
-                            oglu::TexFormatUtil::ConvertToImgType(fakeTex->TexFormat)));
+                            oglu::TexFormatUtil::ToImageDType(fakeTex->TexFormat)));
                     }
                     CacheLock.LockWrite();
                     ThumbnailMap.emplace(weakref, ret.value());

@@ -239,7 +239,7 @@ void _oglProgram::InitSubroutines()
     string nameBuf;
     for (const auto stype : common::container::KeySet(shaders))
     {
-        const auto stage = static_cast<GLenum>(stype);
+        const auto stage = common::enum_cast(stype);
         GLint count;
         glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
         GLint maxNameLen = 0;
@@ -277,13 +277,13 @@ void _oglProgram::InitSubroutines()
                 fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
                 routines.push_back(SubroutineResource::Routine(subrName, subridx));
             }
-            const auto it = SubroutineRess.emplace(stage, uniformLoc, uniformName, std::move(routines)).first;
+            const auto it = SubroutineRess.emplace(stype, uniformLoc, uniformName, std::move(routines)).first;
             for (auto& routine : it->Routines)
                 subrLookup[&routine] = &(*it);
         }
         GLint locCount = 0;
         glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
-        SubroutineSettings[(ShaderType)stage].resize(locCount);
+        SubroutineSettings[stype].resize(locCount);
     }
     oglLog().debug(strBuffer);
     
@@ -561,11 +561,11 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, co
 void _oglProgram::SetSubroutine()
 {
     CheckCurrent();
-    for (const auto&[stage, subrs] : SubroutineSettings)
+    for (const auto&[stype, subrs] : SubroutineSettings)
     {
         GLsizei cnt = (GLsizei)subrs.size();
         if (cnt > 0)
-            glUniformSubroutinesuiv((GLenum)stage, cnt, subrs.data());
+            glUniformSubroutinesuiv(common::enum_cast(stype), cnt, subrs.data());
     }
 }
 

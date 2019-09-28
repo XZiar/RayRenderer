@@ -6,9 +6,12 @@ namespace oglu
 
 enum class ShaderType : GLenum
 {
-    Vertex = GL_VERTEX_SHADER, Geometry = GL_GEOMETRY_SHADER, Fragment = GL_FRAGMENT_SHADER,
-    TessCtrl = GL_TESS_CONTROL_SHADER, TessEval = GL_TESS_EVALUATION_SHADER,
-    Compute = GL_COMPUTE_SHADER
+    Vertex   = 0x8B31/*GL_VERTEX_SHADER*/, 
+    Geometry = 0x8DD9/*GL_GEOMETRY_SHADER*/, 
+    Fragment = 0x8B30/*GL_FRAGMENT_SHADER*/,
+    TessCtrl = 0xBE88/*GL_TESS_CONTROL_SHADER*/, 
+    TessEval = 0x8E87/*GL_TESS_EVALUATION_SHADER*/,
+    Compute  = 0x91B9/*GL_COMPUTE_SHADER*/
 };
 
 
@@ -63,7 +66,7 @@ private:
 public:
     using Wrapper::Wrapper;
     static oglShader LoadFromFile(const ShaderType type, const fs::path& path);
-    static vector<oglShader> LoadFromFiles(const u16string& fname);
+    static vector<oglShader> LoadFromFiles(fs::path fname);
     static vector<oglShader> LoadFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
     static vector<oglShader> LoadDrawFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
     { return LoadFromExSrc(src, info, config, false); }

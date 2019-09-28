@@ -20,10 +20,12 @@ struct TexLogItem
 {
     uint64_t ThreadId;
     GLuint TexId;
-    TextureInnerFormat InnerFormat;
     TextureType TexType;
-    TexLogItem(const _oglTexBase& tex) : ThreadId(common::ThreadObject::GetCurrentThreadId()), TexId(tex.textureID), InnerFormat(tex.InnerFormat), TexType(tex.Type) {}
-    bool operator<(const TexLogItem& other) { return TexId < other.TexId; }
+    TextureInnerFormat InnerFormat;
+    TexLogItem(const _oglTexBase& tex) : 
+        ThreadId(common::ThreadObject::GetCurrentThreadId()), TexId(tex.textureID), 
+        TexType(tex.Type), InnerFormat(tex.InnerFormat) { }
+    bool operator<(const TexLogItem& other) const { return TexId < other.TexId; }
 };
 struct TexLogMap
 {
@@ -84,10 +86,11 @@ TextureManager& _oglTexBase::getTexMan() noexcept
     return oglContext::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
 }
 
-_oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept : Type(type), Mipmap(1)
+_oglTexBase::_oglTexBase(const TextureType type, const bool shouldBindType) noexcept :
+    Type(type), InnerFormat(TextureInnerFormat::ERROR), textureID(GL_INVALID_INDEX), Mipmap(1)
 {
     if (shouldBindType)
-        DSA->ogluCreateTextures((GLenum)Type, 1, &textureID);
+        DSA->ogluCreateTextures(common::enum_cast(Type), 1, &textureID);
     else
         glGenTextures(1, &textureID);
     if (const auto e = oglUtil::GetError(); e.has_value())
@@ -112,7 +115,7 @@ _oglTexBase::~_oglTexBase() noexcept
 void _oglTexBase::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
-    DSA->ogluBindTextureUnit(pos, (GLenum)Type, textureID);
+    DSA->ogluBindTextureUnit(pos, common::enum_cast(Type), textureID);
     //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
     //glActiveTexture(GL_TEXTURE0 + pos);
     //glBindTexture((GLenum)Type, textureID);
@@ -133,8 +136,8 @@ std::pair<uint32_t, uint32_t> _oglTexBase::GetInternalSize2() const
 {
     CheckCurrent();
     GLint w = 0, h = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_HEIGHT, &h);
     return { (uint32_t)w,(uint32_t)h };
 }
 
@@ -142,9 +145,9 @@ std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
 {
     CheckCurrent();
     GLint w = 0, h = 0, z = 0;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_WIDTH, &w);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_HEIGHT, &h);
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_DEPTH, &z);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_WIDTH, &w);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_HEIGHT, &h);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_DEPTH, &z);
     if (const auto e = oglUtil::GetError(); e.has_value())
     {
         oglLog().warning(u"GetInternalSize3 occurs error due to {}.\n", e.value());
@@ -152,19 +155,32 @@ std::tuple<uint32_t, uint32_t, uint32_t> _oglTexBase::GetInternalSize3() const
     return { (uint32_t)w,(uint32_t)h,(uint32_t)z };
 }
 
+static GLint ParseWrap(const TextureWrapVal val)
+{
+    switch (val)
+    {
+    case TextureWrapVal::Repeat:        return GL_REPEAT;
+    case TextureWrapVal::ClampEdge:     return GL_CLAMP_TO_EDGE;
+    case TextureWrapVal::ClampBorder:   return GL_CLAMP_TO_BORDER;
+    };
+    COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unknown texture wrap value.");
+}
+
 void _oglTexBase::SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT)
 {
     CheckCurrent();
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
+    const auto valS = ParseWrap(wrapS), valT = ParseWrap(wrapT);
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_WRAP_S, valS);
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_WRAP_T, valT);
 }
 
 void _oglTexBase::SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR)
 {
     CheckCurrent();
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_S, (GLint)wrapS);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_T, (GLint)wrapT);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_WRAP_R, (GLint)wrapR);
+    const auto valS = ParseWrap(wrapS), valT = ParseWrap(wrapT), valR = ParseWrap(wrapR);
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_WRAP_S, valS);
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_WRAP_T, valT);
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_WRAP_R, valR);
 }
 
 static GLint ConvertFilterVal(const TextureFilterVal filter) noexcept
@@ -196,8 +212,8 @@ void _oglTexBase::SetProperty(const TextureFilterVal magFilter, TextureFilterVal
     CheckCurrent();
     //if (Mipmap <= 1)
     //    minFilter = REMOVE_MASK(minFilter, TextureFilterVal::MIPMAP_MASK);
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MAG_FILTER, ConvertFilterVal(REMOVE_MASK(magFilter, TextureFilterVal::MIPMAP_MASK)));
-    DSA->ogluTextureParameteri(textureID, (GLenum)Type, GL_TEXTURE_MIN_FILTER, ConvertFilterVal(minFilter));
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_MAG_FILTER, ConvertFilterVal(REMOVE_MASK(magFilter, TextureFilterVal::MIPMAP_MASK)));
+    DSA->ogluTextureParameteri(textureID, common::enum_cast(Type), GL_TEXTURE_MIN_FILTER, ConvertFilterVal(minFilter));
 }
 
 void _oglTexBase::Clear(const TextureDataFormat dformat)
@@ -212,7 +228,7 @@ bool _oglTexBase::IsCompressed() const
 {
     CheckCurrent();
     GLint ret = GL_FALSE;
-    DSA->ogluGetTextureLevelParameteriv(textureID, (GLenum)Type, 0, GL_TEXTURE_COMPRESSED, &ret);
+    DSA->ogluGetTextureLevelParameteriv(textureID, common::enum_cast(Type), 0, GL_TEXTURE_COMPRESSED, &ret);
     return ret != GL_FALSE;
 }
 
@@ -302,7 +318,7 @@ static void CheckCompatible(const TextureInnerFormat formatA, const TextureInner
     }
     else
     {
-        if (TexFormatUtil::ParseFormatSize(formatA) != TexFormatUtil::ParseFormatSize(formatB))
+        if (TexFormatUtil::UnitSize(formatA) != TexFormatUtil::UnitSize(formatB))
             COMMON_THROW(OGLWrongFormatException, u"texture aliases not compatible between different sized format", formatB, formatA);
         else
             return;
@@ -437,7 +453,7 @@ void _oglTexture2DArray::SetTextureLayer(const uint32_t layer, const oglTex2D& t
         oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint16_t)tex->InnerFormat, textureID, (uint16_t)InnerFormat);
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
-        glCopyImageSubData(tex->textureID, (GLenum)tex->Type, i, 0, 0, 0,
+        glCopyImageSubData(tex->textureID, common::enum_cast(tex->Type), i, 0, 0, 0,
             textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, layer,
             tex->Width >> i, tex->Height >> i, 1);
     }
@@ -646,7 +662,15 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
 void _oglImgBase::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
-    glBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, (GLenum)Usage, TexFormatUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
+    GLenum usage = GL_INVALID_ENUM;
+    switch (Usage)
+    {
+    case TexImgUsage::ReadOnly:     usage = GL_READ_ONLY;  break;
+    case TexImgUsage::WriteOnly:    usage = GL_WRITE_ONLY; break;
+    case TexImgUsage::ReadWrite:    usage = GL_READ_WRITE; break;
+    // Assume won't have unexpected Usage
+    }
+    glBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, usage, TexFormatUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
 }
 
 void _oglImgBase::unbind() const noexcept
@@ -740,92 +764,7 @@ GLenum TexFormatUtil::GetInnerFormat(const TextureInnerFormat format) noexcept
     default:                                return GL_INVALID_ENUM;
     }
 }
-TextureInnerFormat TexFormatUtil::ConvertFrom(const ImageDataType type, const bool normalized) noexcept
-{
-    TextureInnerFormat baseFormat = HAS_FIELD(type, ImageDataType::FLOAT_MASK) ? TextureInnerFormat::CAT_FLOAT :
-        (normalized ? TextureInnerFormat::CAT_UNORM8 : TextureInnerFormat::CAT_U8) | TextureInnerFormat::FLAG_SRGB;
-    switch (REMOVE_MASK(type, ImageDataType::FLOAT_MASK))
-    {
-    case ImageDataType::RGB:
-    case ImageDataType::BGR:    return TextureInnerFormat::CHANNEL_RGB  | baseFormat;
-    case ImageDataType::RGBA:
-    case ImageDataType::BGRA:   return TextureInnerFormat::CHANNEL_RGBA | baseFormat;
-    case ImageDataType::GRAY:   return TextureInnerFormat::CHANNEL_R    | baseFormat;
-    case ImageDataType::GA:     return TextureInnerFormat::CHANNEL_RG   | baseFormat;
-    default:                    return TextureInnerFormat::ERROR;
-    }
-}
-TextureInnerFormat TexFormatUtil::ConvertFrom(const TextureDataFormat dformat) noexcept
-{
-    const bool isInteger = HAS_FIELD(dformat, TextureDataFormat::DTYPE_INTEGER_MASK);
-    if (HAS_FIELD(dformat, TextureDataFormat::DTYPE_COMP_MASK))
-    {
-        switch (REMOVE_MASK(dformat, TextureDataFormat::CHANNEL_REVERSE_MASK))
-        {
-        case TextureDataFormat::COMP_10_2:      return isInteger ? TextureInnerFormat::RGB10A2U : TextureInnerFormat::RGB10A2;
-        case TextureDataFormat::COMP_5551:      return isInteger ? TextureInnerFormat::ERROR    : TextureInnerFormat::RGB5A1;
-        case TextureDataFormat::COMP_565:       return isInteger ? TextureInnerFormat::ERROR    : TextureInnerFormat::RGB565;
-        case TextureDataFormat::COMP_4444:      return isInteger ? TextureInnerFormat::ERROR    : TextureInnerFormat::RGBA4444;
-        case TextureDataFormat::COMP_332:       return isInteger ? TextureInnerFormat::ERROR    : TextureInnerFormat::RGB332;
-        default:                                return TextureInnerFormat::ERROR;
-        }
-    }
-    else
-    {
-        TextureInnerFormat format = TextureInnerFormat::EMPTY_MASK;
-        switch (dformat & TextureDataFormat::DTYPE_RAW_MASK)
-        {
-        case TextureDataFormat::DTYPE_U8:       format |= isInteger ? TextureInnerFormat::CAT_U8  : TextureInnerFormat::CAT_UNORM8;  break;
-        case TextureDataFormat::DTYPE_I8:       format |= isInteger ? TextureInnerFormat::CAT_S8  : TextureInnerFormat::CAT_SNORM8;  break;
-        case TextureDataFormat::DTYPE_U16:      format |= isInteger ? TextureInnerFormat::CAT_U16 : TextureInnerFormat::CAT_UNORM16; break;
-        case TextureDataFormat::DTYPE_I16:      format |= isInteger ? TextureInnerFormat::CAT_S16 : TextureInnerFormat::CAT_SNORM16; break;
-        case TextureDataFormat::DTYPE_U32:      format |= isInteger ? TextureInnerFormat::CAT_U32 : TextureInnerFormat::CAT_UNORM32; break;
-        case TextureDataFormat::DTYPE_I32:      format |= isInteger ? TextureInnerFormat::CAT_S32 : TextureInnerFormat::CAT_SNORM32; break;
-        case TextureDataFormat::DTYPE_HALF:     format |= isInteger ? TextureInnerFormat::ERROR   : TextureInnerFormat::CAT_HALF;    break;
-        case TextureDataFormat::DTYPE_FLOAT:    format |= isInteger ? TextureInnerFormat::ERROR   : TextureInnerFormat::CAT_FLOAT;   break;
-        default:                                break;
-        }
-        switch (dformat & TextureDataFormat::CHANNEL_MASK)
-        {
-        case TextureDataFormat::CHANNEL_R:      format |= TextureInnerFormat::CHANNEL_R;    break;
-        case TextureDataFormat::CHANNEL_G:      format |= TextureInnerFormat::CHANNEL_R;    break;
-        case TextureDataFormat::CHANNEL_B:      format |= TextureInnerFormat::CHANNEL_R;    break;
-        case TextureDataFormat::CHANNEL_A:      format |= TextureInnerFormat::CHANNEL_R;    break;
-        case TextureDataFormat::CHANNEL_RG:     format |= TextureInnerFormat::CHANNEL_RA;   break;
-        case TextureDataFormat::CHANNEL_RGB:    format |= TextureInnerFormat::CHANNEL_RGB;  break;
-        case TextureDataFormat::CHANNEL_BGR:    format |= TextureInnerFormat::CHANNEL_RGB;  break;
-        case TextureDataFormat::CHANNEL_RGBA:   format |= TextureInnerFormat::CHANNEL_RGBA; break;
-        case TextureDataFormat::CHANNEL_BGRA:   format |= TextureInnerFormat::CHANNEL_RGBA; break;
-        default:                                break;
-        }
-        return format;
-    }
-}
-ImageDataType TexFormatUtil::ConvertToImgType(const TextureInnerFormat format, const bool relaxConvert) noexcept
-{
-    if (!HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
-    {
-        ImageDataType dtype;
-        switch (format & TextureInnerFormat::CHANNEL_MASK)
-        {
-        case TextureInnerFormat::CHANNEL_R:     dtype = ImageDataType::RED; break;
-        case TextureInnerFormat::CHANNEL_RG:    dtype = ImageDataType::RA; break;
-        case TextureInnerFormat::CHANNEL_RGB:   dtype = ImageDataType::RGB; break;
-        case TextureInnerFormat::CHANNEL_RGBA:  dtype = ImageDataType::RGBA; break;
-        default:                                return ImageDataType::UNKNOWN_RESERVE;
-        }
-        switch (format & TextureInnerFormat::CAT_MASK)
-        {
-        case TextureInnerFormat::CAT_SNORM8:
-        case TextureInnerFormat::CAT_U8:
-        case TextureInnerFormat::CAT_S8:        if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; //only pass through when relaxConvert
-        case TextureInnerFormat::CAT_UNORM8:    return dtype;
-        case TextureInnerFormat::CAT_FLOAT:     return dtype | ImageDataType::FLOAT_MASK;
-        default:                                return ImageDataType::UNKNOWN_RESERVE;
-        }
-    }
-    return ImageDataType::UNKNOWN_RESERVE;
-}
+
 
 void TexFormatUtil::ParseFormat(const TextureDataFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept
 {
@@ -977,43 +916,6 @@ oglu::TextureDataFormat TexFormatUtil::ToDType(const oglu::TextureInnerFormat fo
     }
 }
 
-size_t TexFormatUtil::ParseFormatSize(const TextureInnerFormat format) noexcept
-{
-    if (HAS_FIELD(format, TextureInnerFormat::FLAG_COMP))
-    {
-        switch (format)
-        {
-        case TextureInnerFormat::RG11B10:       return 4;
-        case TextureInnerFormat::RGB332:        return 1;
-        case TextureInnerFormat::RGB5A1:        return 2;
-        case TextureInnerFormat::RGB565:        return 2;
-        case TextureInnerFormat::RGB10A2:       return 4;
-        case TextureInnerFormat::RGB10A2U:      return 4;
-        case TextureInnerFormat::RGBA12:        return 6;
-        default:                                return 0;
-        }
-    }
-    if (IsCompressType(format))
-        return 0; // should not use this
-    size_t size = 0;
-    switch (format & TextureInnerFormat::BITS_MASK)
-    {
-    case TextureInnerFormat::BITS_8:        size = 8; break;
-    case TextureInnerFormat::BITS_16:       size = 8; break;
-    case TextureInnerFormat::BITS_32:       size = 8; break;
-    default:                                return 0;
-    }
-    switch (format & TextureInnerFormat::CHANNEL_MASK)
-    {
-    case TextureInnerFormat::CHANNEL_R:     size *= 1; break;
-    case TextureInnerFormat::CHANNEL_RG:    size *= 2; break;
-    case TextureInnerFormat::CHANNEL_RGB:   size *= 3; break;
-    case TextureInnerFormat::CHANNEL_RGBA:  size *= 4; break;
-    default:                                return 0;
-    }
-    return size / 8;
-}
-
 using namespace std::literals;
 
 u16string_view TexFormatUtil::GetTypeName(const TextureType type) noexcept
@@ -1118,6 +1020,7 @@ string TexFormatUtil::GetFormatDetail(const TextureInnerFormat format) noexcept
     case TextureInnerFormat::BITS_4:    bits = 4; break;
     case TextureInnerFormat::BITS_5:    bits = 5; break;
     case TextureInnerFormat::BITS_8:    bits = 8; break;
+    case TextureInnerFormat::BITS_9:    bits = 9; break;
     case TextureInnerFormat::BITS_10:   bits = 10; break;
     case TextureInnerFormat::BITS_11:   bits = 11; break;
     case TextureInnerFormat::BITS_12:   bits = 12; break;

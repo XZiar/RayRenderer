@@ -12,13 +12,15 @@ using common::container::FindInVec;
 
 namespace oglu
 {
+
+
 namespace detail
 {
 
 _oglShader::_oglShader(const ShaderType type, const string & txt) : src(txt), shaderType(type)
 {
     auto ptr = txt.c_str();
-    shaderID = glCreateShader(GLenum(type));
+    shaderID = glCreateShader(common::enum_cast(type));
     glShaderSource(shaderID, 1, &ptr, NULL);
 }
 
@@ -52,36 +54,35 @@ void _oglShader::compile()
 
 oglShader oglShader::LoadFromFile(const ShaderType type, const fs::path& path)
 {
-    using namespace common::file;
     string txt = common::file::ReadAllText(path);
     oglShader shader(type, txt);
     return shader;
 }
 
 
-vector<oglShader> oglShader::LoadFromFiles(const u16string& fname)
+vector<oglShader> oglShader::LoadFromFiles(fs::path fname)
 {
-    static pair<u16string, ShaderType> types[] =
+    static constexpr pair<u16string_view, ShaderType> types[] =
     {
-        { u".vert",ShaderType::Vertex },
-        { u".frag",ShaderType::Fragment },
-        { u".geom",ShaderType::Geometry },
-        { u".comp",ShaderType::Compute },
-        { u".tscl",ShaderType::TessCtrl },
-        { u".tsev",ShaderType::TessEval }
+        { u".vert", ShaderType::Vertex },
+        { u".frag", ShaderType::Fragment },
+        { u".geom", ShaderType::Geometry },
+        { u".comp", ShaderType::Compute },
+        { u".tscl", ShaderType::TessCtrl },
+        { u".tsev", ShaderType::TessEval }
     };
     vector<oglShader> shaders;
-    for (const auto& type : types)
+    for (const auto& [ext,type] : types)
     {
-        fs::path fpath = fname + type.first;
+        fname.replace_extension(ext);
         try
         {
-            auto shader = LoadFromFile(type.second, fpath);
-            shaders.push_back(shader);
+            auto shader = LoadFromFile(type, fname);
+            shaders.emplace_back(shader);
         }
         catch (const FileException& fe)
         {
-            oglLog().warning(u"skip loading {} due to Exception[{}]", fpath.u16string(), fe.message);
+            oglLog().warning(u"skip loading {} due to Exception[{}]", fname.u16string(), fe.message);
         }
     }
     return shaders;

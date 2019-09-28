@@ -115,10 +115,10 @@ static TextureInnerFormat DecideFormat(const ImageDataType& type)
 
 static TextureInnerFormat DecideFormat(ImageDataType type, const TextureInnerFormat prefer)
 {
-    if (!TexFormatUtil::IsAlphaType(prefer))
+    if (!TexFormatUtil::HasAlpha(prefer))
         type = REMOVE_MASK(type, ImageDataType::ALPHA_MASK);
     const TextureInnerFormat matched = DecideFormat(type);
-    if (TexFormatUtil::IsGrayType(matched) != TexFormatUtil::IsGrayType(prefer))
+    if (TexFormatUtil::IsMonoColor(matched) != TexFormatUtil::IsMonoColor(prefer))
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to convert between color and gray");
     return matched;
 }

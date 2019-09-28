@@ -169,7 +169,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
     else
     {
         auto ptr = img->Map(que, oclu::MapFlag::Read);
-        auto format = TexFormatUtil::ConvertFrom(img->GetFormat());
+        auto format = TexFormatUtil::FromTexDType(img->GetFormat());
         if (isSRGB)
             format |= TextureInnerFormat::FLAG_SRGB;
         oglTex2DS tex(img->Width, img->Height, format);
@@ -244,13 +244,13 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return ExtractImage(ResizeToTex<ResizeMethod::OpenGL>(tex, width, height, TexFormatUtil::ConvertFrom(output, true), flipY), output);
+    return ExtractImage(ResizeToTex<ResizeMethod::OpenGL>(tex, width, height, TexFormatUtil::FromImageDType(output, true), flipY), output);
 }
 
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
-    return ExtractImage(ResizeToTex<ResizeMethod::Compute>(tex, width, height, TexFormatUtil::ConvertFrom(output, true), flipY), output);
+    return ExtractImage(ResizeToTex<ResizeMethod::Compute>(tex, width, height, TexFormatUtil::FromImageDType(output, true), flipY), output);
 }
 template<>
 TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
@@ -317,7 +317,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::ConvertFrom(img.GetDataType(), true));
+        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
         tex->SetData(img.AsRawImage(), true);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::OpenGL>(tex, width, height, output, flipY);
@@ -327,7 +327,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 template<>
 TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
 {
-    auto pms = ResizeToImg<ResizeMethod::OpenCL>(tex, width, height, TexFormatUtil::ConvertToImgType(output, true), flipY);
+    auto pms = ResizeToImg<ResizeMethod::OpenCL>(tex, width, height, TexFormatUtil::ToImageDType(output, true), flipY);
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto img = agent.Await(pms);
@@ -342,7 +342,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::ConvertFrom(img.GetDataType(), true));
+        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
         tex->SetData(img.AsRawImage(), true);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::Compute>(tex, width, height, output, flipY);

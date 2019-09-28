@@ -34,8 +34,15 @@ MAKE_ENUM_RANGE(MsgLevel)
 
 enum class DepthTestType : GLenum 
 {
-    OFF = GL_INVALID_INDEX, Never = GL_NEVER, Equal = GL_EQUAL, NotEqual = GL_NOTEQUAL, Always = GL_ALWAYS,
-    Less = GL_LESS, LessEqual = GL_LEQUAL, Greater = GL_GREATER, GreaterEqual = GL_GEQUAL
+    OFF          = 0xFFFFFFFF/*GL_INVALID_INDEX*/,
+    Never        = 0x0200/*GL_NEVER*/,
+    Equal        = 0x0202/*GL_EQUAL*/,
+    NotEqual     = 0x0205/*GL_NOTEQUAL*/,
+    Always       = 0x0207/*GL_ALWAYS*/,
+    Less         = 0x0201/*GL_LESS*/,
+    LessEqual    = 0x0203/*GL_LEQUAL*/,
+    Greater      = 0x0204/*GL_GREATER*/,
+    GreaterEqual = 0x0206/*GL_GEQUAL*/
 };
 enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
@@ -194,42 +201,14 @@ public:
 struct OGLUAPI DebugMessage
 {
     friend class detail::_oglContext;
-private:
-    static MsgSrc ParseSrc(const GLenum src)
-    {
-        return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
-    }
-    static MsgType ParseType(const GLenum type)
-    {
-        if (type <= GL_DEBUG_TYPE_OTHER)
-            return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
-        else
-            return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
-    }
-    static MsgLevel ParseLevel(const GLenum lv)
-    {
-        switch (lv)
-        {
-        case GL_DEBUG_SEVERITY_NOTIFICATION:
-            return MsgLevel::Notfication;
-        case GL_DEBUG_SEVERITY_LOW:
-            return MsgLevel::Low;
-        case GL_DEBUG_SEVERITY_MEDIUM:
-            return MsgLevel::Medium;
-        case GL_DEBUG_SEVERITY_HIGH:
-            return MsgLevel::High;
-        default:
-            return MsgLevel::Notfication;
-        }
-    }
 public:
     const MsgType Type;
     const MsgSrc From;
     const MsgLevel Level;
     u16string Msg;
 
-    DebugMessage(const GLenum from, const GLenum type, const GLenum lv)
-        :Type(ParseType(type)), From(ParseSrc(from)), Level(ParseLevel(lv)) { }
+    DebugMessage(const GLenum from, const GLenum type, const GLenum lv);
+    ~DebugMessage();
 };
 
 

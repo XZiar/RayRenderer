@@ -279,7 +279,9 @@ void _oglContext::SetDepthTest(const DepthTestType type)
     CHECKCURRENT();
     switch (type)
     {
-    case DepthTestType::OFF: glDisable(GL_DEPTH_TEST); break;
+    case DepthTestType::OFF: 
+        glDisable(GL_DEPTH_TEST); 
+        break;
     case DepthTestType::Never:
     case DepthTestType::Always:
     case DepthTestType::Equal:
@@ -288,7 +290,9 @@ void _oglContext::SetDepthTest(const DepthTestType type)
     case DepthTestType::LessEqual:
     case DepthTestType::Greater:
     case DepthTestType::GreaterEqual:
-        glEnable(GL_DEPTH_TEST); glDepthFunc((GLenum)type); break;
+        glEnable(GL_DEPTH_TEST); 
+        glDepthFunc(common::enum_cast(type));
+        break;
     default:
         oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
         return;
@@ -613,5 +617,40 @@ bool oglCtxObject<false>::EnsureValid()
     return false;
 }
 }
+
+static MsgSrc ParseSrc(const GLenum src)
+{
+    return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
+}
+
+static MsgType ParseType(const GLenum type)
+{
+    if (type <= GL_DEBUG_TYPE_OTHER)
+        return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
+    else
+        return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
+}
+
+static MsgLevel ParseLevel(const GLenum lv)
+{
+    switch (lv)
+    {
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        return MsgLevel::Notfication;
+    case GL_DEBUG_SEVERITY_LOW:
+        return MsgLevel::Low;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        return MsgLevel::Medium;
+    case GL_DEBUG_SEVERITY_HIGH:
+        return MsgLevel::High;
+    default:
+        return MsgLevel::Notfication;
+    }
+}
+
+DebugMessage::DebugMessage(const GLenum from, const GLenum type, const GLenum lv)
+    :Type(ParseType(type)), From(ParseSrc(from)), Level(ParseLevel(lv)) { }
+
+DebugMessage::~DebugMessage(){ }
 
 }

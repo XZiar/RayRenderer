@@ -72,6 +72,9 @@
     <ClInclude Include="DataTypeConvert.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oglTexFormat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oglProgram.cpp">

@@ -69,6 +69,13 @@ inline constexpr T  operator -- (T& x, int) { const T ret = x; x--; return ret; 
 namespace common
 {
 
+template<typename T>
+inline constexpr std::enable_if_t<std::is_enum_v<T>, std::underlying_type_t<T>>
+enum_cast(const T val)
+{
+    return static_cast<std::underlying_type_t<T>>(val);
+}
+
 struct Enumer
 {
     template<auto E>
