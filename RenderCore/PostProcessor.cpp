@@ -36,7 +36,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
     : CLContext(ctx), CmdQue(que), LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {
-    LutTex.reset(LutSize, LutSize, LutSize, TextureInnerFormat::RGB10A2);
+    LutTex.reset(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     LutImg.reset(LutTex, oglu::TexImgUsage::WriteOnly);
     ShaderConfig config;
@@ -113,7 +113,7 @@ bool PostProcessor::UpdateFBO()
 {
     if (UpdateDemand.Extract(PostProcUpdate::FBO))
     {
-        FBOTex.reset(MidFrameConfig.Width, MidFrameConfig.Height, TextureInnerFormat::RG11B10);
+        FBOTex.reset(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         PostShader->Program->State().SetTexture(FBOTex, "scene");
         MiddleFrame->AttachColorTexture(FBOTex, 0);

@@ -11,7 +11,7 @@ namespace oglu
 using namespace oclu;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
-using xziar::img::TextureDataFormat;
+using xziar::img::TextureFormat;
 
 
 struct FontInfo
@@ -106,7 +106,7 @@ void FontCreator::reload(const string& src)
 void FontCreator::setChar(char32_t ch) const
 {
     auto[img, width, height] = ft2->getChBitmap(ch);
-    testTex->SetData(TextureInnerFormat::R8, TextureDataFormat::R8, width, height, img.GetRawPtr());
+    testTex->SetData(TextureFormat::R8, width, height, img.GetRawPtr());
 }
 
 Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const

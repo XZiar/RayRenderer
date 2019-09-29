@@ -69,7 +69,7 @@ common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareTh
                     const auto& fakeTex = std::get<FakeTex>(holder);
                     const auto mipmap = std::get<0>(sizeRet);
                     std::optional<ImageView> ret;
-                    if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                    if (xziar::img::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                     {   //promise in GL's thread
                         oglu::oglTex2DS tex(fakeTex->Width >> mipmap, fakeTex->Height >> mipmap, fakeTex->TexFormat);
                         tex->SetCompressedData(fakeTex->TexData[mipmap].GetRawPtr(), fakeTex->TexData[mipmap].GetSize());
@@ -78,7 +78,7 @@ common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareTh
                     else
                     {
                         ret = ImageView(Image(fakeTex->TexData[mipmap].CreateSubBuffer(), fakeTex->Width >> mipmap, fakeTex->Height >> mipmap,
-                            oglu::TexFormatUtil::ToImageDType(fakeTex->TexFormat)));
+                            xziar::img::TexFormatUtil::ToImageDType(fakeTex->TexFormat)));
                     }
                     CacheLock.LockWrite();
                     ThumbnailMap.emplace(weakref, ret.value());
@@ -104,7 +104,7 @@ common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareTh
                     const auto& fakeTex = std::get<FakeTex>(holder);
                     const uint8_t mipmap = fakeTex->GetMipmapCount() - 1;
                     const auto srcSize = std::pair<uint32_t, uint32_t>{ fakeTex->Width >> mipmap, fakeTex->Height >> mipmap };
-                    if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                    if (xziar::img::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                         pms = Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);
                     else
                         pms = Resizer->ResizeToImg<ResizeMethod::Compute>(fakeTex->TexData[mipmap], srcSize, fakeTex->TexFormat, neww, newh, ImageDataType::RGBA);

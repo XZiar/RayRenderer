@@ -10,6 +10,8 @@
 
 namespace oglu::texutil
 {
+using namespace std::literals;
+using xziar::img::TexFormatUtil;
 
 GLTexResizer::GLTexResizer(oglContext&& glContext) : Executor(u"GLTexResizer"), GLContext(glContext)
 {
@@ -92,38 +94,38 @@ GLTexResizer::~GLTexResizer()
     Executor.Stop();
 }
 
-static TextureInnerFormat DecideFormat(const ImageDataType& type)
+static TextureFormat DecideFormat(const ImageDataType& type)
 {
     switch (type)
     {
-    case ImageDataType::GRAY:       return TextureInnerFormat::R8;
-    case ImageDataType::GA:         return TextureInnerFormat::RG8;
+    case ImageDataType::GRAY:       return TextureFormat::R8;
+    case ImageDataType::GA:         return TextureFormat::RG8;
     case ImageDataType::BGR:        [[fallthrough]];
-    case ImageDataType::RGB:        return TextureInnerFormat::SRGB8;
+    case ImageDataType::RGB:        return TextureFormat::SRGB8;
     case ImageDataType::BGRA:       [[fallthrough]];
-    case ImageDataType::RGBA:       return TextureInnerFormat::SRGBA8;
+    case ImageDataType::RGBA:       return TextureFormat::SRGBA8;
 
-    case ImageDataType::GRAYf:       return TextureInnerFormat::Rf;
-    case ImageDataType::GAf:         return TextureInnerFormat::RGf;
+    case ImageDataType::GRAYf:       return TextureFormat::Rf;
+    case ImageDataType::GAf:         return TextureFormat::RGf;
     case ImageDataType::BGRf:        [[fallthrough]];
-    case ImageDataType::RGBf:        return TextureInnerFormat::RGBf;
+    case ImageDataType::RGBf:        return TextureFormat::RGBf;
     case ImageDataType::BGRAf:       [[fallthrough]];
-    case ImageDataType::RGBAf:       return TextureInnerFormat::RGBAf;
-    default:                         return TextureInnerFormat::SRGBA8;
+    case ImageDataType::RGBAf:       return TextureFormat::RGBAf;
+    default:                         return TextureFormat::SRGBA8;
     }
 }
 
-static TextureInnerFormat DecideFormat(ImageDataType type, const TextureInnerFormat prefer)
+static TextureFormat DecideFormat(ImageDataType type, const TextureFormat prefer)
 {
     if (!TexFormatUtil::HasAlpha(prefer))
         type = REMOVE_MASK(type, ImageDataType::ALPHA_MASK);
-    const TextureInnerFormat matched = DecideFormat(type);
+    const TextureFormat matched = DecideFormat(type);
     if (TexFormatUtil::IsMonoColor(matched) != TexFormatUtil::IsMonoColor(prefer))
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to convert between color and gray");
     return matched;
 }
 
-static void FilterFormat(const TextureInnerFormat format)
+static void FilterFormat(const TextureFormat format)
 {
     if (TexFormatUtil::IsCompressType(format))
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to resize to a compressed format");
@@ -149,13 +151,13 @@ common::PromiseResult<Image> GLTexResizer::ResizeToDat(const oglTex2D& tex, cons
     return ExtractImage(std::move(pmsTex), format);
 }
 
-common::PromiseResult<Image> GLTexResizer::ResizeToDat(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
+common::PromiseResult<Image> GLTexResizer::ResizeToDat(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
     auto pmsTex = ResizeToTex(data, size, dataFormat, width, height, DecideFormat(format), flipY);
     return ExtractImage(std::move(pmsTex), format);
 }
 
-common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const Image& img, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
+common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const Image& img, const uint16_t width, const uint16_t height, const TextureFormat format, const bool flipY)
 {
     FilterFormat(format);
 
@@ -169,20 +171,22 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const Image& img, con
     });
 }
 
-common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
+common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat format, const bool flipY)
 {
     FilterFormat(format);
     const auto vao = flipY ? FlipYVAO : NormalVAO;
-    string routineName = "PlainCopy";
-    if (static_cast<uint16_t>(format & TextureInnerFormat::CHANNEL_MASK) > static_cast<uint16_t>(tex->GetInnerFormat() & TextureInnerFormat::CHANNEL_MASK))
-    { // need more channel
-        switch (tex->GetInnerFormat() & TextureInnerFormat::CHANNEL_MASK)
-        {
-        case TextureInnerFormat::CHANNEL_R:     routineName = "G2RGBA"; break;
-        case TextureInnerFormat::CHANNEL_RG:    routineName = "GA2RGBA"; break;
-        default:                                break; // others just keep default
-        }
+    const auto inFormat = tex->GetInnerFormat();
+    //if ((output & TextureFormat::MASK_CHANNEL) == (input & TextureFormat::MASK_CHANNEL))
+    //    return "PlainCopy"sv;
+    string_view routineName = "PlainCopy"sv;
+    if ((format & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_RGBA)
+    {
+        if ((inFormat & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_RG)
+            routineName = "GA2RGBA"sv; // need more channel
+        if ((inFormat & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_R)
+            routineName = "G2RGBA"sv; // need more channel
     }
+
     if (true)
         return Executor.AddTask([this, tex, width, height, format, vao, rt = routineName](const common::asyexe::AsyncAgent& agent)
         {
@@ -207,7 +211,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         return Executor.AddTask([this, tex, width, height, format, rt = routineName](const common::asyexe::AsyncAgent& agent)
         {
             tex->CheckCurrent();
-            oglTex2DS outtex(width, height, REMOVE_MASK(format, TextureInnerFormat::FLAG_SRGB) | TextureInnerFormat::CHANNEL_ALPHA_MASK);
+            oglTex2DS outtex(width, height, REMOVE_MASK(format, TextureFormat::MASK_SRGB) | TextureFormat::CHANNEL_A);
             outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
             oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
             b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
@@ -226,7 +230,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const oglTex2D& tex, 
         });
 }
 
-common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat format, const bool flipY)
+common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat dataFormat, const uint16_t width, const uint16_t height, const TextureFormat format, const bool flipY)
 {
     FilterFormat(format);
 
@@ -237,7 +241,7 @@ common::PromiseResult<oglTex2DS> GLTexResizer::ResizeToTex(const common::Aligned
         if (TexFormatUtil::IsCompressType(dataFormat))
             tex->SetCompressedData(rawdata->GetRawPtr(), rawdata->GetSize());
         else
-            tex->SetData(TexFormatUtil::ToDType(dataFormat), rawdata->GetRawPtr());
+            tex->SetData(dataFormat, rawdata->GetRawPtr());
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         return agent.Await(ResizeToTex(tex, width, height, format, flipY));
     });

@@ -7,6 +7,7 @@
 
 namespace oclu::detail
 {
+using xziar::img::TexFormatUtil;
 
 
 _oclMapPtr::~_oclMapPtr()
@@ -107,7 +108,7 @@ cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const o
         oclLog().warning(u"When Create CLGLImage, only DeviceAccessFlag can be use, others are ignored.\n");
     }
     cl_int errcode;
-    if (oglu::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
+    if (TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
     const auto id = clCreateFromGLTexture(ctx->context, (cl_mem_flags)flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
     if (errcode != CL_SUCCESS)

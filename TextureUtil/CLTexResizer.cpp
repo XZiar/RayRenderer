@@ -8,6 +8,7 @@
 namespace oglu::texutil
 {
 using namespace oclu;
+using xziar::img::TexFormatUtil;
 
 CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) : Executor(u"CLTexResizer"), GLContext(glContext), CLContext(clContext)
 {
@@ -75,12 +76,12 @@ struct ImageInfo
     float HeightStep;
 };
 
-static TextureDataFormat FixFormat(const TextureDataFormat dformat)
+static TextureFormat FixFormat(const TextureFormat dformat)
 {
     switch (dformat)
     {
-    case TextureDataFormat::RGB8:       return TextureDataFormat::RGBA8;
-    case TextureDataFormat::BGR8:       return TextureDataFormat::BGRA8;
+    case TextureFormat::RGB8:       return TextureFormat::RGBA8;
+    case TextureFormat::BGR8:       return TextureFormat::BGRA8;
     default:                            return dformat;
     }
 }
@@ -89,7 +90,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& inp
 {
     return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        //const auto wantFormat = TexFormatUtil::ConvertDtypeFrom(format, true);
+        //const auto wantFormat = OGLTexUtil::ConvertDtypeFrom(format, true);
         //oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
         oclBuffer output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
         ImageInfo info{ input->Width, input->Height, width, height, 1.0f / width, 1.0f / height };
@@ -127,14 +128,14 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
             const auto img = tex->GetImage(ImageDataType::RGBA);
-            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureDataFormat::RGBA8);
+            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureFormat::RGBA8);
             auto pms1 = input->Write(CmdQue, img, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
         });
     }
 }
-common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
+common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat dataFormat, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
     return Executor.AddTask([=, &data](const common::asyexe::AsyncAgent& agent)
     {
@@ -142,7 +143,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL doesnot support compressed texture yet.");
         else
         {
-            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, TexFormatUtil::ToDType(dataFormat));
+            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, dataFormat);
             auto pms1 = input->Write(CmdQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));

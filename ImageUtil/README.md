@@ -8,7 +8,7 @@ Image's datatype convertion is AVX/SSE optimized.
 
 Since This component is binded with X86 optimization, internal data layout is assumed to be Little-endian.
 
-## Current Support
+## Format Support
 
 | Type | Support Format | Provider |
 |:-------|:-------:|:------:|
@@ -18,6 +18,21 @@ Since This component is binded with X86 optimization, internal data layout is as
 | BMP | RGB/RGBA | zexbmp(self) / stb |
 | PNM | RGB | stb |
 
+## [TextureFormat](./TexFormat.h)
+
+`TextureFormat` provides an universal representation for texture data format, which mainly focus on GPU-related texture type.
+
+It's bitfield arrangement is listed below
+```
+[unused|sRGB|channel-order|channels|type categroy|data type]
+[------|*14*|13.........12|11.....8|7...........6|5.......0]
+```
+* Data Type Category
+  * **Plain** Normal type
+  * **Composite** Composite type, combine multiple channel into bitfields
+  * **Compress** Compressed type
+
+`ImdageDataFormat` is just a small subset of it and is used to simplify format check/conversion.
 
 ## Dependency
 

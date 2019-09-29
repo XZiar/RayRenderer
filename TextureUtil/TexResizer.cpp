@@ -11,6 +11,7 @@ namespace oglu::texutil
 {
 using namespace oclu;
 using namespace std::literals;
+using xziar::img::TexFormatUtil;
 
 TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(worker)
 {
@@ -120,33 +121,34 @@ struct ImageInfo
     float HeightStep;
 };
 
-static TextureDataFormat FixFormat(const TextureDataFormat dformat) // for Compute Shader
+static TextureFormat FixFormat(const TextureFormat dformat) // for Compute Shader
 {
     switch (dformat)
     {
-    case TextureDataFormat::RGB8:       return TextureDataFormat::RGBA8;
-    case TextureDataFormat::BGR8:       return TextureDataFormat::BGRA8;
+    case TextureFormat::RGB8:       return TextureFormat::RGBA8;
+    case TextureFormat::BGR8:       return TextureFormat::BGRA8;
     default:                            return dformat;
     }
 }
 
-static void FilterFormat(const TextureInnerFormat format)
+static void FilterFormat(const TextureFormat format)
 {
     if (TexFormatUtil::IsCompressType(format))
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to resize to a compressed format");
 }
-static string_view GetSubroutine(const TextureInnerFormat input, const TextureInnerFormat output)
+static string_view GetSubroutine(const TextureFormat input, const TextureFormat output)
 {
-    if (static_cast<uint16_t>(output & TextureInnerFormat::CHANNEL_MASK) > static_cast<uint16_t>(input & TextureInnerFormat::CHANNEL_MASK))
-    { // need more channel
-        switch (input & TextureInnerFormat::CHANNEL_MASK)
-        {
-        case TextureInnerFormat::CHANNEL_R:     return "G2RGBA"sv;
-        case TextureInnerFormat::CHANNEL_RG:    return "GA2RGBA"sv;
-        default:                                break; // others just keep default
-        }
+    //if ((output & TextureFormat::MASK_CHANNEL) == (input & TextureFormat::MASK_CHANNEL))
+    //    return "PlainCopy"sv;
+    if ((output & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_RGBA)
+    {
+        if ((output & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_RG)
+            return "GA2RGBA"sv; // need more channel
+        if ((output & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_R)
+            return "G2RGBA"sv; // need more channel
     }
-    return "PlainCopy"sv;
+    else
+        return "PlainCopy"sv;
 }
 
 
@@ -169,9 +171,9 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
     else
     {
         auto ptr = img->Map(que, oclu::MapFlag::Read);
-        auto format = TexFormatUtil::FromTexDType(img->GetFormat());
+        auto format = img->GetFormat();
         if (isSRGB)
-            format |= TextureInnerFormat::FLAG_SRGB;
+            format |= TextureFormat::MASK_SRGB;
         oglTex2DS tex(img->Width, img->Height, format);
         tex->SetData(img->GetFormat(), ptr);
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
@@ -179,18 +181,18 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         return (oglTex2D)tex;
     }
 }
-static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat)
+static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat)
 {
     oglTex2DS tex(size.first, size.second, innerFormat);
     if (TexFormatUtil::IsCompressType(innerFormat))
         tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
     else
-        tex->SetData(TexFormatUtil::ToDType(innerFormat), data.GetRawPtr());
+        tex->SetData(innerFormat, data.GetRawPtr());
     tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
     return tex;
 }
 template<>
-TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
+TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY)
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
@@ -214,11 +216,11 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
     });
 }
 template<>
-TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
+TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Compute>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY)
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        const auto outformat = REMOVE_MASK(output, TextureInnerFormat::FLAG_SRGB);
+        const auto outformat = REMOVE_MASK(output, TextureFormat::MASK_SRGB);
         tex->CheckCurrent();
         oglTex2DS outtex(width, height, outformat);
         outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
@@ -226,7 +228,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
         b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
         const auto& localSize = GLResizer2->GetLocalSize();
         GLResizer2->SetVec("coordStep", coordStep);
-        GLResizer2->SetUniform("isSrgbDst", HAS_FIELD(output, TextureInnerFormat::FLAG_SRGB));
+        GLResizer2->SetUniform("isSrgbDst", HAS_FIELD(output, TextureFormat::MASK_SRGB));
         GLResizer2->SetUniform("isFlipY", flipY);
         GLResizer2->State()
             .SetTexture(tex, "tex")
@@ -325,14 +327,14 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY)
+TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL>(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY)
 {
     auto pms = ResizeToImg<ResizeMethod::OpenCL>(tex, width, height, TexFormatUtil::ToImageDType(output, true), flipY);
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto img = agent.Await(pms);
         oglTex2DS tex(width, height, output);
-        tex->SetData(xziar::img::TexDFormatUtil::FromImageDType(img.GetDataType(), true), img.GetRawPtr());
+        tex->SetData(xziar::img::TexFormatUtil::FromImageDType(img.GetDataType(), true), img.GetRawPtr());
         agent.Await(oglUtil::SyncGL());
         return tex;
     });
@@ -362,7 +364,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
 }
 
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
@@ -373,7 +375,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
@@ -384,13 +386,13 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
     });
 }
 template<>
-TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
+TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY)
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         if (TexFormatUtil::IsSRGBType(innerFormat))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, TexFormatUtil::ToDType(innerFormat), data.GetRawPtr());
+        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, innerFormat, data.GetRawPtr());
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
         return agent.Await(pms);
     });

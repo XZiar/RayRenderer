@@ -13,7 +13,7 @@ namespace rayr
 
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
-using xziar::img::TextureDataFormat;
+using xziar::img::TextureFormat;
 
 struct Init
 {
@@ -215,7 +215,7 @@ void BasicTest::init3d(const fs::path& shaderPath)
 
 void BasicTest::initTex()
 {
-    picTex.reset(128, 128, TextureInnerFormat::RGBA8);
+    picTex.reset(128, 128, xziar::img::TextureFormat::RGBA8);
     picBuf.reset();
     {
         picTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
@@ -232,13 +232,13 @@ void BasicTest::initTex()
             }
         }
         empty[0][0] = empty[0][127] = empty[127][0] = empty[127][127] = Vec4(0, 0, 1, 1);
-        picTex->SetData(TextureDataFormat::RGBAf, empty);
+        picTex->SetData(TextureFormat::RGBAf, empty);
         picBuf->Write(nullptr, 128 * 128 * 4, BufferWriteMode::DynamicDraw);
     }
     chkTex = MultiMaterialHolder::GetCheckTex();
     chkTex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
     {
-        oglu::oglTex2DArray tex2darr(128, 128, 1, TextureInnerFormat::SRGBA8);
+        oglu::oglTex2DArray tex2darr(128, 128, 1, xziar::img::TextureFormat::SRGBA8);
         tex2darr->SetTextureLayer(0, chkTex);
     }
 }
@@ -288,7 +288,7 @@ void BasicTest::fontTest(const char32_t word)
             const auto imgShow = fontCreator->clgraysdfs(U'啊', 16);
             GLWorker->InvokeShare([&imgShow, &fonttex](const common::asyexe::AsyncAgent& agent) 
             {
-                fonttex->SetData(TextureInnerFormat::R8, imgShow);
+                fonttex->SetData(xziar::img::TextureFormat::R8, imgShow);
                 agent.Await(oglu::oglUtil::SyncGL());
             })->Wait();
             img::WriteImage(imgShow, Basepath / (u"Show.png"));
@@ -313,7 +313,7 @@ void BasicTest::fontTest(const char32_t word)
             auto imgShow = fontCreator->clgraysdfs(U'啊', 16);
             img::WriteImage(imgShow, Basepath / u"Show.png");
             imgShow.FlipVertical(); // pre-flip
-            fonttex->SetData(TextureInnerFormat::R8, imgShow, true, false);
+            fonttex->SetData(xziar::img::TextureFormat::R8, imgShow, true, false);
             fonttex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
             fontViewer->BindTexture(fonttex);
         }
@@ -341,7 +341,7 @@ void BasicTest::Draw()
     }
     /*if (PostProc->UpdateLut())
     {
-        const auto lutdata = PostProc->GetLut()->GetData(TextureDataFormat::RGB10A2);
+        const auto lutdata = PostProc->GetLut()->GetData(TextureFormat::RGB10A2);
         Image img(ImageDataType::RGBA);
         const auto lutSize = PostProc->GetLutSize();
         img.SetSize(lutSize, lutSize * lutSize);
@@ -408,7 +408,7 @@ void BasicTest::Resize(const uint32_t w, const uint32_t h, const bool changeWind
 void BasicTest::ResizeFBO(const uint32_t w, const uint32_t h, const bool isFloatDepth)
 {
     RefreshContext();
-    fboTex.reset(w, h, TextureInnerFormat::RG11B10);
+    fboTex.reset(w, h, xziar::img::TextureFormat::RG11B10);
     fboTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     MiddleFrame->AttachColorTexture(fboTex, 0);
     oglRBO mainRBO(w, h, isFloatDepth ? oglu::RBOFormat::Depth32Stencil8 : oglu::RBOFormat::Depth24Stencil8);
@@ -600,7 +600,7 @@ xziar::img::Image BasicTest::Screenshot()
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
     oglu::oglFBO ssFBO(std::in_place);
-    oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
+    oglu::oglTex2DS ssTex(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");

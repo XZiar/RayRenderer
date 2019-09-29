@@ -19,11 +19,8 @@ class OCLWrongFormatException : public OCLException
 {
 public:
     EXCEPTION_CLONE_EX(OCLWrongFormatException);
-    std::variant<xziar::img::TextureDataFormat, oglu::TextureInnerFormat> Format;
-    OCLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureDataFormat format, const std::any& data_ = std::any())
-        : OCLException(TYPENAME, CLComponent::OCLU, msg, data_), Format(format)
-    { }
-    OCLWrongFormatException(const std::u16string_view& msg, const oglu::TextureInnerFormat format, const std::any& data_ = std::any())
+    xziar::img::TextureFormat Format;
+    OCLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format, const std::any& data_ = std::any())
         : OCLException(TYPENAME, CLComponent::OCLU, msg, data_), Format(format)
     { }
     virtual ~OCLWrongFormatException() {}
@@ -39,10 +36,10 @@ class OCLUAPI _oclImage : public _oclMem
     friend class _oclContext;
 protected:
     const uint32_t Width, Height, Depth;
-    const xziar::img::TextureDataFormat Format;
-    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureDataFormat dformat, const cl_mem id);
-    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureDataFormat dformat, cl_mem_object_type type);
-    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureDataFormat dformat, cl_mem_object_type type, const void* ptr);
+    const xziar::img::TextureFormat Format;
+    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
+    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type);
+    _oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr);
     virtual void* MapObject(const oclCmdQue& que, const MapFlag mapFlag) override;
 public:
     virtual ~_oclImage();
@@ -57,10 +54,9 @@ public:
     PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
-    xziar::img::TextureDataFormat GetFormat() const { return Format; }
+    xziar::img::TextureFormat GetFormat() const { return Format; }
 
-    static bool CheckFormatCompatible(xziar::img::TextureDataFormat format);
-    static bool CheckFormatCompatible(oglu::TextureInnerFormat format);
+    static bool CheckFormatCompatible(xziar::img::TextureFormat format);
 };
 
 class OCLUAPI _oclImage2D : public _oclImage 
@@ -69,11 +65,11 @@ protected:
     using _oclImage::_oclImage;
 public:
     using _oclImage::Width; using _oclImage::Height;
-    _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureDataFormat dformat);
+    _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format);
     _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
-        : _oclImage2D(ctx, flag, width, height, xziar::img::TexDFormatUtil::FromImageDType(dtype, isNormalized)) { }
+        : _oclImage2D(ctx, flag, width, height, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized)) { }
     _oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const bool isNormalized = true);
-    _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureDataFormat dformat, const void* ptr);
+    _oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr);
 };
 
 class OCLUAPI _oclImage3D : public _oclImage
@@ -82,9 +78,9 @@ protected:
     using _oclImage::_oclImage;
 public:
     using _oclImage::Width; using _oclImage::Height; using _oclImage::Depth;
-    _oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureDataFormat dformat);
+    _oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format);
     _oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
-        : _oclImage3D(ctx, flag, width, height, depth, xziar::img::TexDFormatUtil::FromImageDType(dtype, isNormalized)) { }
+        : _oclImage3D(ctx, flag, width, height, depth, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized)) { }
 };
 
 

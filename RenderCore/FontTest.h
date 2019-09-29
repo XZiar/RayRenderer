@@ -43,7 +43,7 @@ protected:
             {
                 auto imgShow = FontCreator->clgraysdfs(CharBegin, CharCount);
                 imgShow.FlipVertical(); // pre-flip
-                FontTex->SetData(TextureInnerFormat::R8, imgShow, true, false);
+                FontTex->SetData(xziar::img::TextureFormat::R8, imgShow, true, false);
                 FontTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
                 FontViewer->BindTexture(FontTex);
             }

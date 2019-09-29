@@ -19,7 +19,7 @@ static void CheckImgSize(const ImageView& img)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"image being comoressed should has a non-zero size.");
 }
 
-common::AlignedBuffer CompressToDat(const ImageView& img, const TextureInnerFormat format, const bool needAlpha)
+common::AlignedBuffer CompressToDat(const ImageView& img, const TextureFormat format, const bool needAlpha)
 {
     CheckImgSize(img);
     common::SimpleTimer timer;
@@ -27,23 +27,23 @@ common::AlignedBuffer CompressToDat(const ImageView& img, const TextureInnerForm
     timer.Start();
     switch (format)
     {
-    case TextureInnerFormat::BC1:
-    case TextureInnerFormat::BC1SRGB:
+    case TextureFormat::BC1:
+    case TextureFormat::BC1SRGB:
         result = detail::CompressBC1(img); break;
-    case TextureInnerFormat::BC3:
-    case TextureInnerFormat::BC3SRGB:
+    case TextureFormat::BC3:
+    case TextureFormat::BC3SRGB:
         result = detail::CompressBC3(img); break;
-    case TextureInnerFormat::BC5:
+    case TextureFormat::BC5:
         result = detail::CompressBC5(img); break;
-    case TextureInnerFormat::BC7:
-    case TextureInnerFormat::BC7SRGB:
+    case TextureFormat::BC7:
+    case TextureFormat::BC7SRGB:
         result = detail::CompressBC7(img, needAlpha); break;
     default:
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"not supported compression yet");
     }
     timer.Stop();
     texLog().debug(u"Compressed a image of [{}x{}] to [{}], cost {}ms.\n",
-        img.GetWidth(), img.GetHeight(), oglu::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
+        img.GetWidth(), img.GetHeight(), xziar::img::TexFormatUtil::GetFormatName(format), timer.ElapseMs());
     return result;
 }
 

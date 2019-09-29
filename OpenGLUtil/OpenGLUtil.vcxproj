@@ -22,7 +22,6 @@
     <ClInclude Include="3DElement.hpp" />
     <ClInclude Include="DataTypeConvert.h" />
     <ClInclude Include="DSAWrapper.h" />
-    <ClInclude Include="oglTexFormat.h" />
     <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglContext.h" />

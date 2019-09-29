@@ -11,7 +11,7 @@ namespace rayr
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 using common::asyexe::StackSize;
-using oglu::TextureInnerFormat;
+using xziar::img::TextureFormat;
 using namespace xziar::img;
 
 
@@ -88,16 +88,16 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
             layers = Linq::FromIterable(agent.Await(pms)).template Cast<ImageView>().ToVector();
         }
         layers.insert(layers.begin(), imgview);
-        TextureInnerFormat format = TextureInnerFormat::EMPTY,
-            srgbMask = (type == TexLoadType::Color ? TextureInnerFormat::FLAG_SRGB : TextureInnerFormat::EMPTY);
+        xziar::img::TextureFormat format = xziar::img::TextureFormat::EMPTY,
+            srgbMask = (type == TexLoadType::Color ? xziar::img::TextureFormat::MASK_SRGB : xziar::img::TextureFormat::EMPTY);
         switch (proc.Proc)
         {
         case TexProcType::Plain:
-            format = TextureInnerFormat::RGBA8 | srgbMask; break;
+            format = xziar::img::TextureFormat::RGBA8 | srgbMask; break;
         case TexProcType::CompressBC5:
-            format = TextureInnerFormat::BC5;              break;
+            format = xziar::img::TextureFormat::BC5;              break;
         case TexProcType::CompressBC7:
-            format = TextureInnerFormat::BC7   | srgbMask; break;
+            format = xziar::img::TextureFormat::BC7   | srgbMask; break;
         default:
             break;
         }
@@ -127,7 +127,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         catch (const BaseException& be)
         {
             dizzLog().error(u"Error when compress texture file [{}] into [{}]: {}\n",
-                picPath.filename().u16string(), oglu::TexFormatUtil::GetFormatName(format), be.message);
+                picPath.filename().u16string(), xziar::img::TexFormatUtil::GetFormatName(format), be.message);
         }
         return tex;
     }, picPath.filename().u16string(), StackSize::Big);

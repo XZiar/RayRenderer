@@ -43,14 +43,14 @@ cl_context _oclContext::CreateContext(vector<cl_context_properties>& props, cons
     return ctx;
 }
 
-extern xziar::img::TextureDataFormat ParseImageFormat(const cl_image_format& format);
-static common::container::FrozenDenseSet<xziar::img::TextureDataFormat> GetSupportedImageFormat(const cl_context& ctx, const cl_mem_object_type type)
+extern xziar::img::TextureFormat ParseImageFormat(const cl_image_format& format);
+static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupportedImageFormat(const cl_context& ctx, const cl_mem_object_type type)
 {
     cl_uint count;
     clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, 0, nullptr, &count);
     vector<cl_image_format> formats(count);
     clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, count, formats.data(), &count);
-    set<xziar::img::TextureDataFormat, std::less<>> dformats;
+    set<xziar::img::TextureFormat, std::less<>> dformats;
     for (const auto format : formats)
         dformats.insert(ParseImageFormat(format));
     return dformats;

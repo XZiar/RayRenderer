@@ -7,13 +7,13 @@ namespace rayr
 using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
-using oglu::TextureInnerFormat;
+using xziar::img::TextureFormat;
 
 namespace detail
 {
-RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, oglu::TextureInnerFormat, uint32_t, uint32_t)
+RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, xziar::img::TextureFormat, uint32_t, uint32_t)
 {
-    const auto format = (oglu::TextureInnerFormat)object.Get<uint16_t>("format");
+    const auto format = (xziar::img::TextureFormat)object.Get<uint16_t>("format");
     const auto width = object.Get<uint32_t>("width");
     const auto height = object.Get<uint32_t>("height");
     //const auto mipmap = object.Get<uint8_t>("mipmap");
@@ -37,13 +37,13 @@ void _FakeTex::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& obje
 }
 }
 
-oglu::TextureInnerFormat TexHolder::GetInnerFormat() const
+xziar::img::TextureFormat TexHolder::GetInnerFormat() const
 {
     switch (index())
     {
     case 1: return std::get<oglTex2D>(*this)->GetInnerFormat();
     case 2: return std::get<FakeTex>(*this)->TexFormat;
-    default: return (TextureInnerFormat)GL_INVALID_ENUM;
+    default: return xziar::img::TextureFormat::ERROR;
     }
 }
 u16string TexHolder::GetName() const
@@ -162,7 +162,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
                 if (tex->IsCompressed())
                     data = tex->GetCompressedData(i).value();
                 else
-                    data = tex->GetData(oglu::TexFormatUtil::ToDType(tex->GetInnerFormat()), i);
+                    data = tex->GetData(tex->GetInnerFormat(), i);
                 const auto datahandle = context.PutResource(data.data(), data.size());
                 jdataarr.Push(datahandle);
             } break;
@@ -229,7 +229,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
 {
     oglu::oglTex2DV Construct() const 
     { 
-        oglu::oglTex2DS chkTex(128, 128, oglu::TextureInnerFormat::SRGBA8);
+        oglu::oglTex2DS chkTex(128, 128, xziar::img::TextureFormat::SRGBA8);
         std::array<uint32_t, 128 * 128> pixs{};
         for (uint32_t a = 0, idx = 0; a < 128; ++a)
         {
@@ -238,7 +238,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
                 pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
             }
         }
-        chkTex->SetData(xziar::img::TextureDataFormat::RGBA8, pixs.data());
+        chkTex->SetData(xziar::img::TextureFormat::RGBA8, pixs.data());
         const auto texv = chkTex->GetTextureView();
         texv->Name = u"Check Image";
         dizzLog().verbose(u"new CheckTex generated.\n");
@@ -272,10 +272,10 @@ static void InsertLayer(const oglTex2DArray& texarr, const uint32_t layer, const
             uint8_t i = 0;
             for (const auto& dat : fakeTex->TexData)
             {
-                if (oglu::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
+                if (xziar::img::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                     texarr->SetCompressedTextureLayer(layer, dat.GetRawPtr(), dat.GetSize(), i++);
                 else
-                    texarr->SetTextureLayer(layer, oglu::TexFormatUtil::ToDType(fakeTex->TexFormat), dat.GetRawPtr(), i++);
+                    texarr->SetTextureLayer(layer, fakeTex->TexFormat, dat.GetRawPtr(), i++);
             }
         } break;
     default:
@@ -349,7 +349,7 @@ void MultiMaterialHolder::Refresh()
     // workaround for intel gen7.5
     for (auto&[tid, texs] : needAdd)
     {
-        if (oglu::TexFormatUtil::IsCompressType(tid.Info.Format))
+        if (xziar::img::TexFormatUtil::IsCompressType(tid.Info.Format))
         {
             auto& texarr = Textures[tid];
             if (texarr)
@@ -377,7 +377,7 @@ void MultiMaterialHolder::Refresh()
         {
             texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(FMT_STRING(u"MatTexArr {}@{}x{}x{}"), oglu::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
+            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(FMT_STRING(u"MatTexArr {}@{}x{}x{}"), xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
         }
         texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)

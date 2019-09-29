@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclException.h"
+#include "StringCharset/Convert.h"
 #include "common/Linq.hpp"
 
 
@@ -11,6 +12,8 @@ using namespace oglu;
 using std::string;
 using std::cin;
 using common::linq::Linq;
+using xziar::img::TexFormatUtil;
+using common::strchset::to_u16string;
 
 static MiniLogger<false>& log()
 {
@@ -49,13 +52,15 @@ static void OCLStub()
         }
         else if (fpath == "IMAGE")
         {
-            string img2d("2DImage Supports:\n");
-            for (const auto& dformat : ctx->Img2DFormatSupport)
-                img2d.append(xziar::img::TexDFormatUtil::GetFormatDetail(dformat)).append("\n");
-            string img3d("3DImage Supports:\n");
-            for (const auto& dformat : ctx->Img3DFormatSupport)
-                img3d.append(xziar::img::TexDFormatUtil::GetFormatDetail(dformat)).append("\n");
-            log().verbose(u"{}{}\n", img2d, img3d);
+            const auto proc = [](u16string str, auto& formats)
+            {
+                for (const auto& format : formats)
+                    str.append(TexFormatUtil::GetFormatName(format)).append(u"\t")
+                       .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
+                return str;
+            };
+            log().verbose(u"{}",   proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
+            log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
             continue;
         }
         bool exConfig = false;

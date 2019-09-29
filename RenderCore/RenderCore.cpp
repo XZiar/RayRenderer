@@ -356,7 +356,7 @@ xziar::img::Image RenderCore::Screenshot()
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
     oglu::oglFBO ssFBO(std::in_place);
-    oglu::oglTex2DS ssTex(width, height, TextureInnerFormat::SRGBA8);
+    oglu::oglTex2DS ssTex(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");

@@ -39,11 +39,11 @@ struct RAYCOREAPI _FakeTex : public NonCopyable, public xziar::respak::Serializa
 public:
     vector<common::AlignedBuffer> TexData;
     u16string Name;
-    oglu::TextureInnerFormat TexFormat;
+    xziar::img::TextureFormat TexFormat;
     uint32_t Width, Height;
-    _FakeTex(common::AlignedBuffer&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+    _FakeTex(common::AlignedBuffer&& texData, const xziar::img::TextureFormat format, const uint32_t width, const uint32_t height)
         : TexData(vector<common::AlignedBuffer>{std::move(texData)}), TexFormat(format), Width(width), Height(height) {}
-    _FakeTex(vector<common::AlignedBuffer>&& texData, const oglu::TextureInnerFormat format, const uint32_t width, const uint32_t height)
+    _FakeTex(vector<common::AlignedBuffer>&& texData, const xziar::img::TextureFormat format, const uint32_t width, const uint32_t height)
         : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height) {}
     ~_FakeTex() {}
     uint8_t GetMipmapCount() const
@@ -60,7 +60,7 @@ using FakeTex = std::shared_ptr<detail::_FakeTex>;
 struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D, FakeTex>
 {
     using std::variant<std::monostate, oglu::oglTex2D, FakeTex>::variant;
-    oglu::TextureInnerFormat GetInnerFormat() const;
+    xziar::img::TextureFormat GetInnerFormat() const;
     u16string GetName() const;
     std::pair<uint32_t, uint32_t> GetSize() const;
     std::weak_ptr<void> GetWeakRef() const;
@@ -110,13 +110,13 @@ union TexTag
     uint64_t Val;
     struct Dummy
     {
-        oglu::TextureInnerFormat Format;
+        xziar::img::TextureFormat Format;
         uint16_t Width;
         uint16_t Height;
         uint8_t Mipmap;
     } Info;
     template<typename T>
-    TexTag(const oglu::TextureInnerFormat format, const T width, const T height, const uint8_t mipmap) 
+    TexTag(const xziar::img::TextureFormat format, const T width, const T height, const uint8_t mipmap)
         : Info{ format, static_cast<uint16_t>(width), static_cast<uint16_t>(height), mipmap } {}
     bool operator<(const TexTag& other) const noexcept { return Val < other.Val; }
     bool operator==(const TexTag& other) const noexcept { return Val == other.Val; }

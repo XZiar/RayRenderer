@@ -35,13 +35,13 @@ public:
     static void CheckOutputFormat(const TextureInnerFormat format);
     */
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY = false);
+    PromiseResult<oglTex2DS> ResizeToTex(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY = false);
+    PromiseResult<oglTex2DS> ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const ImageView& img, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY = false);
+    PromiseResult<oglTex2DS> ResizeToTex(const ImageView& img, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const TextureInnerFormat output, const bool flipY = false);
+    PromiseResult<oglTex2DS> ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
 
     template<ResizeMethod>
     PromiseResult<Image> ResizeToImg(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
@@ -50,7 +50,7 @@ public:
     template<ResizeMethod>
     PromiseResult<Image> ResizeToImg(const ImageView& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<Image> ResizeToImg(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureInnerFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
+    PromiseResult<Image> ResizeToImg(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
 
 };
 

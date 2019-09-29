@@ -33,7 +33,7 @@ static void FGTest()
     oglDrawProgram drawer(u"MainDrawer");
     oglVBO screenBox(std::in_place);
     oglVAO basicVAO(VAODrawMode::Triangles);
-    oglTex3DS lutTex(64, 64, 64, TextureInnerFormat::RGBA8);
+    oglTex3DS lutTex(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     oglImg3D lutImg(lutTex, TexImgUsage::WriteOnly);
     oglComputeProgram lutGenerator(u"ColorLut");
@@ -70,7 +70,7 @@ static void FGTest()
     {
         lutGenerator->Run(64, 64, 64);
         oglUtil::ForceSyncGL()->Wait();
-        const auto lutdata = lutTex->GetData(TextureDataFormat::RGBA8);
+        const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
         Image img(ImageDataType::RGBA);
         img.SetSize(64, 64 * 64);
         memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
