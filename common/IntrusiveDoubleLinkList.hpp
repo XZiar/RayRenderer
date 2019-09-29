@@ -16,7 +16,9 @@ struct IntrusiveDoubleLinkListNodeBase : public NonCopyable
 {
     friend class IntrusiveDoubleLinkList<NodeType>;
 private:
-    NodeType* Prev = nullptr, * Next = nullptr; //spin-locker's memory_order_seq_cst promise their order
+    NodeType* Prev, * Next; //spin-locker's memory_order_seq_cst promise their order
+protected:
+    IntrusiveDoubleLinkListNodeBase() : Prev(nullptr), Next(nullptr) { }
 };
 
 template<typename NodeType>

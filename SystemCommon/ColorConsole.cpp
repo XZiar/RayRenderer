@@ -5,9 +5,9 @@
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
-#   include "WinVersionHelper.hpp"
+#   include "common/WinVersionHelper.hpp"
 #else
-#   include "StrCharset.hpp"
+#   include "common/StrCharset.hpp"
 #endif
 
 namespace common::console

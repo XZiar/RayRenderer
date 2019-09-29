@@ -1,7 +1,7 @@
 #include "MiniLoggerRely.h"
 #include "MiniLogger.h"
 #include "QueuedBackend.h"
-#include "common/ThreadEx.h"
+#include "SystemCommon/ThreadEx.h"
 #include <map>
 
 namespace common::mlog

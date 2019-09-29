@@ -1,12 +1,11 @@
 #include "AsyncProxy.h"
-#include "common/ThreadEx.inl"
-#include <thread>
+#include "SystemCommon/ThreadEx.h"
 
 namespace common::asyexe
 {
 
 
-LoopBase::LoopState AsyncProxy::OnLoop()
+common::loop::LoopBase::LoopState AsyncProxy::OnLoop()
 {
     if (TaskList.IsEmpty())
         return LoopState::Sleep;

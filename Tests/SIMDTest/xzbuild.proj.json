@@ -2,7 +2,7 @@
     "name": "SIMDTest",
     "type": "executable",
     "description": "SIMD test",
-    "dependency": ["fmt", "cpuid"],
+    "dependency": ["fmt", "cpuid", "SystemCommon"],
     "library": 
     {
         "static": [],

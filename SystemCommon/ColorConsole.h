@@ -1,7 +1,5 @@
 #pragma once
-#include "CommonRely.hpp"
-#include "EnumEx.hpp"
-#include <string_view>
+#include "SystemCommonRely.h"
 
 namespace common
 {
@@ -16,7 +14,14 @@ enum class ConsoleColor : uint8_t
 };
 MAKE_ENUM_BITFIELD(ConsoleColor)
 
-class ConsoleHelper : public NonCopyable
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
+
+class SYSCOMMONAPI ConsoleHelper : public NonCopyable
 {
 private:
     uintptr_t Handle;
@@ -54,6 +59,12 @@ public:
         }
     }
 };
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 
 }
 

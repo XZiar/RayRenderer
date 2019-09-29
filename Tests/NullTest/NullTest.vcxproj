@@ -147,6 +147,9 @@
     <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
+      <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

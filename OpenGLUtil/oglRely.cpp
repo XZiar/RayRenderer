@@ -1,5 +1,4 @@
 #include "oglRely.h"
-#include "common/ThreadEx.inl"
 
 #if defined(_WIN32)
 #   pragma comment (lib, "opengl32.lib")// link Microsoft OpenGL lib

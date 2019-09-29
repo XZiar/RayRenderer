@@ -1,21 +1,21 @@
 #pragma once
 
-#include "AsyncExecutorRely.h"
+#include "SystemCommonRely.h"
+#include <atomic>
+#include <any>
+#include <memory>
 
-
-namespace common
-{
-namespace asyexe
+namespace common::loop
 {
 
 class LoopBase;
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 
-class ASYEXEAPI LoopExecutor : public NonCopyable
+class SYSCOMMONAPI LoopExecutor : public NonCopyable
 {
     friend class LoopBase;
 protected:
@@ -46,7 +46,7 @@ public:
     virtual ~LoopExecutor();
 };
 
-class ASYEXEAPI InplaceExecutor : public LoopExecutor
+class SYSCOMMONAPI InplaceExecutor : public LoopExecutor
 {
     friend class LoopBase;
 protected:
@@ -54,12 +54,12 @@ protected:
     virtual void DoWakeup() noexcept override;
     virtual void DoStart() override;
     virtual void WaitUtilStop() override;
-public:
+public:    
     using LoopExecutor::LoopExecutor;
     bool RunInplace();
 };
 
-class ASYEXEAPI LoopBase : public NonCopyable, public NonMovable
+class SYSCOMMONAPI LoopBase : public NonCopyable, public NonMovable
 {
     friend void LoopExecutor::RunLoop() noexcept;
 private:
@@ -95,5 +95,4 @@ public:
 #   pragma warning(pop)
 #endif
 
-}
 }

@@ -6,8 +6,8 @@
 #endif
 #include "QueuedBackend.h"
 #include "common/FileEx.hpp"
-#include "common/ThreadEx.h"
-#include "common/ColorConsole.h"
+#include "SystemCommon/ThreadEx.h"
+#include "SystemCommon/ColorConsole.h"
 
 
 namespace common::mlog

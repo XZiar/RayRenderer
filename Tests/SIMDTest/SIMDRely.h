@@ -1,7 +1,7 @@
 #pragma once
 
+#include "SystemCommon/ColorConsole.h"
 #include "fmt/utfext.h"
-#include "common/ColorConsole.h"
 #include <tuple>
 #include <array>
 

@@ -2,35 +2,18 @@
 #include "AsyncExecutor/AsyncAgent.h"
 #include "AsyncExecutor/AsyncManager.h"
 #include "AsyncExecutor/AsyncProxy.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "StringCharset/Convert.h"
 #include "fmt/format.h"
 #include <thread>
-#if defined(_WIN32)
-#  include <conio.h>
-#else
-#  include <termios.h>
-inline char _getch()
-{
-    char buf = 0;
-    termios oldx;
-    tcgetattr(0, &oldx);
-    termios newx = oldx;
-    newx.c_lflag &= ~ICANON;
-    newx.c_lflag &= ~ECHO;
-    newx.c_cc[VMIN] = 1;
-    newx.c_cc[VTIME] = 0;
-    tcsetattr(0, TCSANOW, &newx);
-    read(0, &buf, 1);
-    tcsetattr(0, TCSADRAIN, &oldx);
-    return buf;
- }
-#endif
+
 
 using namespace common;
 using namespace common::mlog;
 using namespace common::asyexe;
+using namespace common::console;
 
 static MiniLogger<false>& log()
 {
@@ -81,7 +64,7 @@ static void AsyncTest()
     common::PromiseResult<void> pms;
     while (true)
     {
-        const auto key = _getch();
+        const auto key = ConsoleEx::ReadCharImmediate(false);
         if (key == 'x')
         {
             auto pms = producer.AddTask([](const AsyncAgent& agent)

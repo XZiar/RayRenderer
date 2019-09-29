@@ -188,12 +188,6 @@ NodeType should use CRTP to inherit from `IntrusiveDoubleLinkListNodeBase` and i
 
 ## System Components
 
-### [ColorConsole](./ColorConsole.h)
-
-A library providing color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
-
-[MiniLogger](../MiniLogger)'s `ConsoleBackend` is based on this.
-
 ### [ResourceHelper](./ResourceHelper.h)
 
 A wrapper to manage embedded resource. It uses DLL's embedded resource on Win32 and `binary object` on *nix.
@@ -203,10 +197,6 @@ On windows, you need to manually initalize the helper in dllmain. On *nix, initi
 ### [DelayLoader](./DelayLoader.h)
 
 A wrapper to manage win32 DLL's delay-load feature.
-
-### [ThreadEx](./ThreadEx.h)
-
-A wrapper to support setting or getting thread's information. It's designed to be cross-platform but not fully tested.
 
 ### [FileMapper](./FileMapper.h) **`buggy`** **`unfinished`**
 

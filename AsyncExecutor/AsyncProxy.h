@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AsyncExecutorRely.h"
-#include "LoopBase.h"
 #include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/LoopBase.h"
 #include <functional>
 #include <optional>
 
@@ -26,7 +26,7 @@ struct CompleteCallback<void> : public std::function<void()>
 };
 }
 
-class ASYEXEAPI AsyncProxy final : private LoopBase
+class AsyncProxy final : private common::loop::LoopBase
 {
 public:
     using ErrorCallback = std::function<void(const BaseException&)>;
@@ -78,7 +78,7 @@ private:
         }
     };
    
-    static AsyncProxy& GetSelf();
+    static ASYEXEAPI AsyncProxy& GetSelf();
 
     common::container::IntrusiveDoubleLinkList<AsyncNodeBase> TaskList;
     common::mlog::MiniLogger<false> Logger;
@@ -88,7 +88,7 @@ private:
     virtual LoopState OnLoop() override;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep
     virtual bool OnStart(std::any cookie) noexcept override;
-    void AddNode(AsyncNodeBase* node);
+    void ASYEXEAPI AddNode(AsyncNodeBase* node);
 public:
     template<typename Pms, typename CB>
     static void OnComplete(Pms&& pms, CB&& onComplete, ErrorCallback onError = nullptr)

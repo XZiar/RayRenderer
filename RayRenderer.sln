@@ -40,8 +40,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\CLICommonRely.hpp = common\CLICommonRely.hpp
 		common\CLIException.hpp = common\CLIException.hpp
 		common\CLIViewModel.hpp = common\CLIViewModel.hpp
-		common\ColorConsole.h = common\ColorConsole.h
-		common\ColorConsole.inl = common\ColorConsole.inl
 		common\CommonRely.hpp = common\CommonRely.hpp
 		common\ContainerEx.hpp = common\ContainerEx.hpp
 		common\ContainerHelper.hpp = common\ContainerHelper.hpp
@@ -80,8 +78,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\StrCharset.hpp = common\StrCharset.hpp
 		common\Stream.hpp = common\Stream.hpp
 		common\StringEx.hpp = common\StringEx.hpp
-		common\ThreadEx.h = common\ThreadEx.h
-		common\ThreadEx.inl = common\ThreadEx.inl
 		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\UnifyLinq.hpp = common\UnifyLinq.hpp
 		common\WinVersionHelper.hpp = common\WinVersionHelper.hpp
@@ -302,6 +298,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "stb", "stb", "{8F7469AA-0AE
 		3rdParty\stb\stb_image_write.h = 3rdParty\stb\stb_image_write.h
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SystemCommon", "SystemCommon\SystemCommon.vcxproj", "{2965DA11-4C56-48B6-840E-A16B8FDF21E2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -479,6 +477,10 @@ Global
 		{43B6E40D-793D-4224-897C-74DA6489619E}.Debug|x64.Build.0 = Debug|x64
 		{43B6E40D-793D-4224-897C-74DA6489619E}.Release|x64.ActiveCfg = Release|x64
 		{43B6E40D-793D-4224-897C-74DA6489619E}.Release|x64.Build.0 = Release|x64
+		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Debug|x64.ActiveCfg = Debug|x64
+		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Debug|x64.Build.0 = Debug|x64
+		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Release|x64.ActiveCfg = Release|x64
+		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -538,6 +540,7 @@ Global
 		{E145898E-CE93-478E-A0C8-49A8C7AFB7A6} = {ECC412A1-998E-4715-BA83-E8C12C9BAB39}
 		{43B6E40D-793D-4224-897C-74DA6489619E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{8F7469AA-0AE0-4F71-B3A3-4CDBD49A93C9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{2965DA11-4C56-48B6-840E-A16B8FDF21E2} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

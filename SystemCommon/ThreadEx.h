@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CommonRely.hpp"
+#include "SystemCommonRely.h"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -16,16 +16,16 @@
 namespace common
 {
 
-bool SetThreadName(const std::string_view threadName);
-bool SetThreadName(const std::u16string_view threadName);
-std::u16string GetThreadName();
+SYSCOMMONAPI bool SetThreadName(const std::string_view threadName);
+SYSCOMMONAPI bool SetThreadName(const std::u16string_view threadName);
+SYSCOMMONAPI std::u16string GetThreadName();
 
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
-class COMMONAPI ThreadObject : public NonCopyable
+class SYSCOMMONAPI ThreadObject : public NonCopyable
 {
 protected:
     uintptr_t Handle;

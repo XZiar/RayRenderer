@@ -1,6 +1,5 @@
 #include "RenderCoreRely.h"
 #include "common/ResourceHelper.inl"
-#include "common/ThreadEx.inl"
 
 #include <boost/version.hpp>
 #pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )

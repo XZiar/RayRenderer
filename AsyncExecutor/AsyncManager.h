@@ -1,8 +1,8 @@
 #pragma once
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
-#include "LoopBase.h"
 #include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/LoopBase.h"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/IntToString.hpp"
 #include <atomic>
@@ -124,7 +124,7 @@ public:
 
 
 
-class ASYEXEAPI AsyncManager final : private LoopBase
+class ASYEXEAPI AsyncManager final : private common::loop::LoopBase
 {
     friend class AsyncAgent;
 private:
@@ -147,15 +147,15 @@ private:
     virtual bool OnStart(std::any cookie) noexcept override;
     virtual void OnStop() noexcept override;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep
-    AsyncManager(std::unique_ptr<LoopExecutor>(*hostGen)(LoopBase&), const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd);
 public:
     AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);
-    virtual ~AsyncManager() override {}
+    AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false)
+        : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) { }
+    virtual ~AsyncManager() override;
     bool Start(Injector initer = {}, Injector exiter = {});
-    using LoopBase::Stop;
-    using LoopBase::RequestStop;
-    using LoopBase::GetHost;
+    bool Stop();
+    bool RequestStop();
+    common::loop::LoopExecutor& GetHost();
 
     template<typename Func, typename Ret = std::invoke_result_t<Func, const AsyncAgent&>>
     PromiseResult<Ret> AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)

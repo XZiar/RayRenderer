@@ -46,7 +46,7 @@ void AsyncManager::Resume(detail::AsyncTaskStatus status)
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
 }
 
-LoopBase::LoopState AsyncManager::OnLoop()
+common::loop::LoopBase::LoopState AsyncManager::OnLoop()
 {
     if (TaskList.IsEmpty())
         return LoopState::Sleep;
@@ -158,18 +158,30 @@ bool AsyncManager::Start(Injector initer, Injector exiter)
     return LoopBase::Start(std::pair(initer, exiter));
 }
 
+bool AsyncManager::Stop()
+{
+    return LoopBase::Stop();
+}
 
-AsyncManager::AsyncManager(std::unique_ptr<LoopExecutor>(*hostGen)(LoopBase&), const std::u16string& name,
-    const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
-    LoopBase(hostGen), Name(name), Agent(*this), 
-    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }), 
+bool AsyncManager::RequestStop()
+{
+    return LoopBase::RequestStop();
+}
+
+common::loop::LoopExecutor& AsyncManager::GetHost()
+{
+    return LoopBase::GetHost();
+}
+
+
+AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
+    LoopBase(isthreaded ? LoopBase::GetThreadedExecutor : LoopBase::GetInplaceExecutor),
+    Name(name), Agent(*this), 
+    Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }),
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
-{ }
-AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
-    : AsyncManager(isthreaded ? LoopBase::GetThreadedExecutor : LoopBase::GetInplaceExecutor,
-        name, timeYieldSleep, timeSensitive, allowStopAdd) {}
-AsyncManager::AsyncManager(const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd)
-    : AsyncManager(true, name, timeYieldSleep, timeSensitive, allowStopAdd) {}
+    { }
 
+AsyncManager::~AsyncManager()
+{ }
 
 }

@@ -1,5 +1,5 @@
+#include "SystemCommon/ColorConsole.h"
 #include "common/CommonRely.hpp"
-#include "common/ColorConsole.inl"
 #include "common/Linq.hpp"
 #define FMT_STRING_ALIAS 1
 #include "fmt/utfext.h"

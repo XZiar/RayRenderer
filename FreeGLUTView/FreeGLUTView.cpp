@@ -1,9 +1,9 @@
 #include "FreeGLUTView.h"
 #include "AsyncExecutor/AsyncManager.h"
 #include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/ThreadEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/ContainerEx.hpp"
-#include "common/ThreadEx.inl"
 #include <cstdint>
 #include <cstdio>
 #include <tuple>
@@ -301,7 +301,7 @@ public:
                     executor.RequestStop();
                 }, u"FGEventLoop", StackSize::Large);
             });
-        dynamic_cast<InplaceExecutor&>(executor.GetHost()).RunInplace();
+        dynamic_cast<common::loop::InplaceExecutor&>(executor.GetHost()).RunInplace();
     }
 };
 

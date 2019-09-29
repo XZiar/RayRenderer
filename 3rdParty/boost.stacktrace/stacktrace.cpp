@@ -1,5 +1,5 @@
 #include "stacktrace.h"
-#include "common/ThreadEx.inl"
+#include "SystemCommon/ThreadEx.h"
 #include "StringCharset/Convert.h"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1

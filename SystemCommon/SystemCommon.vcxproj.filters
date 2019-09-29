@@ -7,7 +7,7 @@
     </Filter>
     <Filter Include="头文件">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
     <Filter Include="资源文件">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
@@ -15,35 +15,38 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AsyncAgent.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="AsyncExecutorRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="AsyncManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="AsyncProxy.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="AsyncAgent.cpp">
+    <ClCompile Include="LoopBase.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="AsyncManager.cpp">
+    <ClCompile Include="ColorConsole.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="AsyncProxy.cpp">
+    <ClCompile Include="ThreadEx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleEx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="AsyncExecutor.natvis" />
+    <ClInclude Include="LoopBase.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemCommonRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorConsole.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadEx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsoleEx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

@@ -2,19 +2,6 @@
 
 Async Task Support.
 
-## [LoopBased Structure](LoopBase.h)
-
-* `LoopBase`    Base structure for loop based operation.
-
-* `LoopExecutor`    Base structure that runs a loop, handles the majority work.
-
-They provide loop based operation support, with loop implememntation and execution seperated. Only polling-like scheduler supported.
-
-There' 2 kind of Executor:
-
-* Threaded: runs the loop in new thread, with proper synchronization.
-* Inplace:  runs the loopin a given thread, with no sleep support.
-
 ## [AsyncManager](AsyncManager.h)
 
 An stackful coroutine environment using [boost.context](../3rdParty/boost.context) as backend support.

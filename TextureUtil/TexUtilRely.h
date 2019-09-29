@@ -26,7 +26,7 @@
 #include "common/TimeUtil.hpp"
 #include "common/FileEx.hpp"
 #include "common/PromiseTask.hpp"
-#include "common/ThreadEx.h"
+#include "SystemCommon/ThreadEx.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "ImageUtil/ImageUtil.h"

@@ -1,0 +1,20 @@
+{
+    "name": "SystemCommon",
+    "type": "dynamic",
+    "description": "common library for some system-level utilities",
+    "dependency": ["StringCharset"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines":  ["SYSCOMMON_EXPORT"]
+        }
+        
+    }
+}

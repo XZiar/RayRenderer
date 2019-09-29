@@ -27,9 +27,9 @@
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
-#include "common/ThreadEx.h"
 #include "common/Linq.hpp"
 #include "StringCharset/Convert.h"
+#include "SystemCommon/ThreadEx.h"
 #include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC
