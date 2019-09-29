@@ -94,7 +94,7 @@ GLResLocker::~GLResLocker()
 cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& buf)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx->context, (cl_mem_flags)flag, buf->bufferID, &errcode);
+    const auto id = clCreateFromGLBuffer(ctx->context, (cl_mem_flags)flag, buf->BufferID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glBuffer");
     return id;

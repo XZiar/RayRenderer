@@ -86,6 +86,7 @@ private:
     AsyncProxy();
     virtual ~AsyncProxy() override {}
     virtual LoopState OnLoop() override;
+    virtual bool SleepCheck() noexcept override; // double check if shoul sleep
     virtual bool OnStart(std::any cookie) noexcept override;
     void AddNode(AsyncNodeBase* node);
 public:

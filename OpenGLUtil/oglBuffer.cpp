@@ -26,7 +26,7 @@ constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
 }
 
 
-_oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufId(buf.bufferID), Size(buf.BufSize)
+_oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufferID(buf.BufferID), Size(buf.BufSize)
 {
     GLenum access;
     if (HAS_FIELD(flags, MapFlag::MapRead) && !HAS_FIELD(flags, MapFlag::MapWrite))
@@ -36,22 +36,22 @@ _oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufId(buf.bufferI
     else
         access = GL_READ_WRITE;
 
-    Pointer = DSA->ogluMapNamedBuffer(BufId, access);
+    Pointer = DSA->ogluMapNamedBuffer(BufferID, access);
 }
 
 _oglMapPtr::~_oglMapPtr()
 {
-    if (DSA->ogluUnmapNamedBuffer(BufId) == GL_FALSE)
-        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", BufId, Size);
+    if (DSA->ogluUnmapNamedBuffer(BufferID) == GL_FALSE)
+        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", BufferID, Size);
 }
 
 
-_oglBuffer::_oglBuffer(const BufferType _type) noexcept :
-    BufSize(0), bufferID(GL_INVALID_INDEX), BufType(_type)
+_oglBuffer::_oglBuffer(const BufferTypes type) noexcept :
+    BufSize(0), BufferID(GL_INVALID_INDEX), BufferType(type)
 {
-    glGenBuffers(1, &bufferID);
-    glBindBuffer(common::enum_cast(BufType), bufferID);
-    glBindBuffer(common::enum_cast(BufType), 0);
+    glGenBuffers(1, &BufferID);
+    glBindBuffer(common::enum_cast(BufferType), BufferID);
+    glBindBuffer(common::enum_cast(BufferType), 0);
 }
 
 _oglBuffer::~_oglBuffer() noexcept
@@ -59,24 +59,24 @@ _oglBuffer::~_oglBuffer() noexcept
     if (!EnsureValid()) return;
     if (PersistentPtr)
         PersistentPtr.reset();
-    if (bufferID != GL_INVALID_INDEX)
-        glDeleteBuffers(1, &bufferID);
+    if (BufferID != GL_INVALID_INDEX)
+        glDeleteBuffers(1, &BufferID);
     else
-        oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", bufferID, (uint32_t)BufType, BufSize);
+        oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
 }
 
 void _oglBuffer::bind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(common::enum_cast(BufType), bufferID);
-    //if (BufType == BufferType::Indirect)
-        //oglLog().verbose(u"binding ibo[{}].\n", bufferID);
+    glBindBuffer(common::enum_cast(BufferType), BufferID);
+    //if (BufferType== BufferType::Indirect)
+        //oglLog().verbose(u"binding ibo[{}].\n", BufferID);
 }
 
 void _oglBuffer::unbind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(common::enum_cast(BufType), 0);
+    glBindBuffer(common::enum_cast(BufferType), 0);
 }
 
 oglMapPtr _oglBuffer::Map(const MapFlag flags)
@@ -85,7 +85,7 @@ oglMapPtr _oglBuffer::Map(const MapFlag flags)
     bind();
     const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
     if (newPersist)
-        glBufferStorage(common::enum_cast(BufType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
+        glBufferStorage(common::enum_cast(BufferType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
     oglMapPtr ptr(new _oglMapPtr(*this, flags));
     if (newPersist)
         PersistentPtr = ptr;
@@ -101,17 +101,22 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     }
     else
     {
-        DSA->ogluNamedBufferData(bufferID, size, dat, ParseBufferWriteMode(mode));
+        DSA->ogluNamedBufferData(BufferID, size, dat, ParseBufferWriteMode(mode));
         BufSize = size;
     }
 }
 
-_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferType::Texture)
+_oglPixelBuffer::~_oglPixelBuffer() noexcept {}
+_oglArrayBuffer::~_oglArrayBuffer() noexcept {}
+
+
+_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferTypes::Texture)
 {
 }
+_oglTextureBuffer::~_oglTextureBuffer() noexcept {}
 
 
-_oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(BufferType::Uniform)
+_oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(BufferTypes::Uniform)
 {
     BufSize = size;
     Map(MapFlag::CoherentMap | MapFlag::PersistentMap | MapFlag::MapWrite);
@@ -123,7 +128,7 @@ _oglUniformBuffer::~_oglUniformBuffer() noexcept
 {
     if (!EnsureValid()) return;
     //force unbind ubo, since bufID may be reused after releasaed
-    getUBOMan().forcePop(bufferID);
+    getUBOMan().forcePop(BufferID);
 }
 
 struct UBOCtxConfig : public CtxResConfig<false, UBOManager>
@@ -139,7 +144,7 @@ UBOManager& _oglUniformBuffer::getUBOMan()
 void _oglUniformBuffer::bind(const uint16_t pos) const
 {
     CheckCurrent();
-    glBindBufferBase(GL_UNIFORM_BUFFER, pos, bufferID);
+    glBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
 }
 
 
@@ -148,8 +153,9 @@ bool _oglIndirectBuffer::IsIndexed() const
     return Commands.index() == 0;
 }
 
-_oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferType::Indirect)
+_oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferTypes::Indirect)
 { }
+_oglIndirectBuffer::~_oglIndirectBuffer() noexcept {}
 
 void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
 {
@@ -195,7 +201,12 @@ void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t siz
 }
 
 
-inline void _oglElementBuffer::SetSize(const uint8_t elesize)
+_oglElementBuffer::_oglElementBuffer() noexcept : 
+    _oglBuffer(BufferTypes::Element), IndexType(GL_INVALID_ENUM), IndexSize(0) {}
+
+_oglElementBuffer::~_oglElementBuffer() noexcept {}
+
+void _oglElementBuffer::SetSize(const uint8_t elesize)
 {
     switch (IndexSize = elesize)
     {

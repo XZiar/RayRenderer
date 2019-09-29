@@ -61,7 +61,7 @@ void GLShader::RegistControllable()
         .RegistMember<false, true>(&GLShader::Source);
     for (const auto&[type, shader] : Program->getShaders())
     {
-        const auto stage = oglu::oglShader::GetStageName(shader->shaderType);
+        const auto stage = oglu::oglShader::GetStageName(shader->Type);
         const auto u16stage = strchset::to_u16string(stage);
         RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
             .RegistGetterProxy<GLShader>([type=type](const GLShader& self)

@@ -22,15 +22,15 @@ class OGLUAPI _oglShader : public oglCtxObject<true>
 {
     friend class _oglProgram;
 private:
-    string src;
-    GLuint shaderID = GL_INVALID_INDEX;
+    string Src;
+    GLuint ShaderID;
 public:
-    const ShaderType shaderType;
+    const ShaderType Type;
     _oglShader(const ShaderType type, const string& txt);
     ~_oglShader();
 
     void compile();
-    const string& SourceText() const { return src; }
+    const string& SourceText() const { return Src; }
 };
 
 }
@@ -39,11 +39,12 @@ enum class ShaderPropertyType : uint8_t { Vector, Color, Range, Matrix, Float, B
 
 struct ShaderExtProperty
 {
-    const string Name;
-    const string Description;
-    const ShaderPropertyType Type;
-    const std::any Data;
-    ShaderExtProperty(const string& name, const ShaderPropertyType type, const string& desc = "", const std::any& data = {}) :Name(name), Description(desc), Type(type), Data(data) {}
+    string Name;
+    string Description;
+    ShaderPropertyType Type;
+    std::any Data;
+    ShaderExtProperty(string name, const ShaderPropertyType type, string desc = "", std::any data = {}) :
+        Name(std::move(name)), Description(std::move(desc)), Type(type), Data(std::move(data)) {}
     using Lesser = common::container::SetKeyLess<ShaderExtProperty, &ShaderExtProperty::Name>;
 };
 

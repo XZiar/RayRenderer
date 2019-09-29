@@ -27,8 +27,8 @@ private:
     enum class ExeStates : uint8_t { Stopped = 0, Starting = 1, Running = 2, Stopping = 3 };
     std::atomic<ExeStates> ExeState{ ExeStates::Stopped };
     //std::atomic_bool RequestStop{ false }, IsRunning{ false };
-    enum class SleepStates : uint8_t { Can=0, CanNot=1, Pending=2 };
-    std::atomic<SleepStates> SleepState{ SleepStates::Can };
+    enum class SleepStates : uint8_t { Running = 0, Pending = 1, Forbit = 2, Sleep = 3 };
+    std::atomic<SleepStates> SleepState{ SleepStates::Running };
     std::atomic_bool WakeupLock{ false };
     bool Start(std::any cookie = {});
     bool Stop();
@@ -69,6 +69,7 @@ protected:
     bool IsRunning() const;
     void Wakeup() const;
     virtual LoopState OnLoop() = 0;
+    virtual bool SleepCheck() noexcept { return true; }; // double check if shoul sleep
     virtual bool OnStart(std::any) noexcept { return true; }
     virtual void OnStop() noexcept {}
     virtual bool OnError(std::exception_ptr) noexcept { return false; }

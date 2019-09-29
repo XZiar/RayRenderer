@@ -32,6 +32,11 @@ LoopBase::LoopState AsyncProxy::OnLoop()
     return LoopState::Continue;
 }
 
+bool AsyncProxy::SleepCheck() noexcept
+{
+    return TaskList.IsEmpty();
+}
+
 bool AsyncProxy::OnStart(std::any) noexcept
 {
     Logger.info(u"AsyncProxy started\n");

@@ -20,7 +20,7 @@ public enum class DepthTestType : GLenum
 };
 public enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
-public enum class ShaderType : GLenum
+public enum class ShaderType : uint32_t
 {
     Vertex = GL_VERTEX_SHADER, Geometry = GL_GEOMETRY_SHADER, Fragment = GL_FRAGMENT_SHADER,
     TessCtrl = GL_TESS_CONTROL_SHADER, TessEval = GL_TESS_EVALUATION_SHADER,
@@ -80,7 +80,7 @@ internal:
     initonly ShaderType type;
     ShaderObject(const oglu::oglShader& shader)
     {
-        type = (ShaderType)shader->shaderType;
+        type = (ShaderType)shader->Type;
         Source = ToStr(shader->SourceText());
     }
 };

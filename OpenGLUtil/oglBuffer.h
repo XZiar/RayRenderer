@@ -10,7 +10,7 @@
 namespace oglu
 {
 
-enum class BufferType : GLenum
+enum class BufferTypes : GLenum
 {
     Array           = 0x8892/*GL_ARRAY_BUFFER*/,
     Element         = 0x8893/*GL_ELEMENT_ARRAY_BUFFER*/,
@@ -39,8 +39,8 @@ enum class MapFlag : uint16_t
     DynamicStorage  = 0x0100/*GL_DYNAMIC_STORAGE_BIT*/,      ClientStorage   = 0x0200/*GL_CLIENT_STORAGE_BIT*/,
     InvalidateRange = 0x0004/*GL_MAP_INVALIDATE_RANGE_BIT*/, InvalidateAll   = 0x0008/*GL_MAP_INVALIDATE_BUFFER_BIT*/,
     ExplicitFlush   = 0x0010/*GL_MAP_FLUSH_EXPLICIT_BIT*/,   UnSynchronize   = 0x0020/*GL_MAP_UNSYNCHRONIZED_BIT*/,
-    PrepareMask = MapRead | MapWrite | PersistentMap | CoherentMap | DynamicStorage | ClientStorage,
-    RangeMask = MapRead | MapWrite | PersistentMap | CoherentMap | InvalidateRange | InvalidateAll | ExplicitFlush | UnSynchronize
+    PrepareMask = MapRead | MapWrite | PersistentMap | CoherentMap | DynamicStorage  | ClientStorage,
+    RangeMask   = MapRead | MapWrite | PersistentMap | CoherentMap | InvalidateRange | InvalidateAll | ExplicitFlush | UnSynchronize
 };
 MAKE_ENUM_BITFIELD(MapFlag)
 
@@ -54,7 +54,7 @@ class OGLUAPI _oglMapPtr : public NonCopyable, public NonMovable
     friend class oglMapPtr;
 private:
     void* Pointer = nullptr;
-    GLuint BufId;
+    GLuint BufferID;
     size_t Size;
     _oglMapPtr(_oglBuffer& buf, const MapFlag flags);
 public:
@@ -87,11 +87,11 @@ class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
 protected:
     oglMapPtr PersistentPtr;
     size_t BufSize;
-    GLuint bufferID;
-    const BufferType BufType;
+    GLuint BufferID;
+    const BufferTypes BufferType;
     void bind() const noexcept;
     void unbind() const noexcept;
-    _oglBuffer(const BufferType type) noexcept;
+    _oglBuffer(const BufferTypes type) noexcept;
 public:
     virtual ~_oglBuffer() noexcept;
 
@@ -114,7 +114,8 @@ class OGLUAPI _oglPixelBuffer : public _oglBuffer
     template<typename Base>
     friend struct _oglTexCommon;
 public:
-    _oglPixelBuffer() noexcept : _oglBuffer(BufferType::Pixel) { }
+    _oglPixelBuffer() noexcept : _oglBuffer(BufferTypes::Pixel) { }
+    virtual ~_oglPixelBuffer() noexcept override;
 };
 
 
@@ -122,7 +123,8 @@ class OGLUAPI _oglArrayBuffer : public _oglBuffer
 {
     friend class _oglVAO;
 public:
-    _oglArrayBuffer() noexcept : _oglBuffer(BufferType::Array) { }
+    _oglArrayBuffer() noexcept : _oglBuffer(BufferTypes::Array) { }
+    virtual ~_oglArrayBuffer() noexcept override;
 };
 
 
@@ -131,6 +133,7 @@ class OGLUAPI _oglTextureBuffer : public _oglBuffer
     friend class _oglBufferTexture;
 public:
     _oglTextureBuffer() noexcept;
+    virtual ~_oglTextureBuffer() noexcept override;
 };
 
 
@@ -175,7 +178,7 @@ protected:
     bool IsIndexed() const;
 public:
     _oglIndirectBuffer() noexcept;
-    ~_oglIndirectBuffer() noexcept { };
+    virtual ~_oglIndirectBuffer() noexcept override;
     ///<summary>Write indirect draw commands</summary>  
     ///<param name="offsets">offsets</param>
     ///<param name="sizes">sizes</param>
@@ -195,11 +198,12 @@ class OGLUAPI _oglElementBuffer : public _oglBuffer
 {
     friend class _oglVAO;
 protected:
-    GLenum IndexType = GL_INVALID_ENUM;
-    uint8_t IndexSize = 0;
+    GLenum IndexType;
+    uint8_t IndexSize;
     void SetSize(const uint8_t elesize);
 public:
-    _oglElementBuffer() noexcept : _oglBuffer(BufferType::Element) {}
+    _oglElementBuffer() noexcept;
+    virtual ~_oglElementBuffer() noexcept override;
     ///<summary>Write index</summary>  
     ///<param name="cont">index container</param>
     ///<param name="mode">buffer write mode</param>

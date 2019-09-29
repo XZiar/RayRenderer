@@ -17,33 +17,34 @@ namespace oglu
 namespace detail
 {
 
-_oglShader::_oglShader(const ShaderType type, const string & txt) : src(txt), shaderType(type)
+_oglShader::_oglShader(const ShaderType type, const string & txt) :
+    Src(txt), ShaderID(GL_INVALID_INDEX), Type(type)
 {
     auto ptr = txt.c_str();
-    shaderID = glCreateShader(common::enum_cast(type));
-    glShaderSource(shaderID, 1, &ptr, NULL);
+    ShaderID = glCreateShader(common::enum_cast(type));
+    glShaderSource(ShaderID, 1, &ptr, NULL);
 }
 
 _oglShader::~_oglShader()
 {
-    if (shaderID != GL_INVALID_INDEX)
-        glDeleteShader(shaderID);
+    if (ShaderID != GL_INVALID_INDEX)
+        glDeleteShader(ShaderID);
 }
 
 void _oglShader::compile()
 {
     CheckCurrent();
-    glCompileShader(shaderID);
+    glCompileShader(ShaderID);
 
     GLint result;
 
-    glGetShaderiv(shaderID, GL_COMPILE_STATUS, &result);
+    glGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
     if (!result)
     {
         GLsizei len = 0;
-        glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &len);
+        glGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
-        glGetShaderInfoLog(shaderID, len, &len, logstr.data());
+        glGetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
@@ -306,7 +307,7 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
                     break;
                 case "Property"_hash:
                     if (auto prop = ParseExtProperty(ogluAttr.Params))
-                        info.Properties.insert(prop.value());
+                        info.Properties.emplace(prop.value());
                     break;
                 default:
                     break;
@@ -433,7 +434,7 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
         case "COMP"_hash:
             {
                 if (curVer < 430) curVer = 430;
-                shaderType = ShaderType::Compute;
+                    shaderType = ShaderType::Compute;
                 scopeDef = "#define OGLU_COMP\r\n";
             } break;
         default:

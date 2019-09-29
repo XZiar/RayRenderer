@@ -56,7 +56,7 @@ string_view ProgramResource::GetValTypeName() const noexcept
     }
 }
 
-ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint programID, const GLint idx)
+ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint ProgramID, const GLint idx)
 {
     ProgramResource progres;
     progres.Name = name;
@@ -67,13 +67,13 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint p
     {
         progres.Valtype = GL_UNIFORM_BLOCK;
         progres.ResType |= ProgResType::UBOCat;
-        progres.location = glGetProgramResourceIndex(programID, type, name.c_str());
-        progres.size = ProgResGetValue<uint16_t>(programID, type, idx, GL_BUFFER_DATA_SIZE);
+        progres.location = glGetProgramResourceIndex(ProgramID, type, name.c_str());
+        progres.size = ProgResGetValue<uint16_t>(ProgramID, type, idx, GL_BUFFER_DATA_SIZE);
         progres.len = 1;
     }
     else
     {
-        progres.Valtype = ProgResGetValue<GLenum>(programID, type, idx, GL_TYPE);
+        progres.Valtype = ProgResGetValue<GLenum>(ProgramID, type, idx, GL_TYPE);
         switch (type)
         {
         case GL_PROGRAM_INPUT:
@@ -92,9 +92,9 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint p
                 progres.ResType |= ProgResType::PrimitiveType;
             break;
         }
-        progres.location = glGetProgramResourceLocation(programID, type, name.c_str());
+        progres.location = glGetProgramResourceLocation(ProgramID, type, name.c_str());
         progres.size = 0;
-        progres.len = ProgResGetValue<GLuint>(programID, type, idx, GL_ARRAY_SIZE);
+        progres.len = ProgResGetValue<GLuint>(ProgramID, type, idx, GL_ARRAY_SIZE);
     }
     return progres;
 }
@@ -111,7 +111,7 @@ static ProgRecCtxConfig PROGREC_CTXCFG;
 
 _oglProgram::_oglProgram(const u16string& name) : Name(name)
 {
-    programID = glCreateProgram();
+    ProgramID = glCreateProgram();
 }
 
 _oglProgram::~_oglProgram()
@@ -121,19 +121,19 @@ _oglProgram::~_oglProgram()
         auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
         glUseProgram(progRec = 0);
     }
-    glDeleteProgram(programID);
+    glDeleteProgram(ProgramID);
 }
 
 bool _oglProgram::usethis(_oglProgram& prog, const bool change)
 {
     prog.CheckCurrent();
     auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
-    if (progRec == prog.programID)
+    if (progRec == prog.ProgramID)
         return true;
     if (!change)//only return status
         return false;
 
-    glUseProgram(progRec = prog.programID);
+    glUseProgram(progRec = prog.ProgramID);
     prog.RecoverState();
     return true;
 }
@@ -163,16 +163,16 @@ void _oglProgram::InitLocs()
     for (const GLenum dtype : datatypes)
     {
         GLint cnt = 0;
-        glGetProgramInterfaceiv(programID, dtype, GL_ACTIVE_RESOURCES, &cnt);
+        glGetProgramInterfaceiv(ProgramID, dtype, GL_ACTIVE_RESOURCES, &cnt);
         GLint maxNameLen = 0;
-        glGetProgramInterfaceiv(programID, dtype, GL_MAX_NAME_LENGTH, &maxNameLen);
+        glGetProgramInterfaceiv(ProgramID, dtype, GL_MAX_NAME_LENGTH, &maxNameLen);
         for (GLint a = 0; a < cnt; ++a)
         {
             string_view resName;
             {
                 nameBuf.resize(maxNameLen);
                 GLsizei nameLen = 0;
-                glGetProgramResourceName(programID, dtype, a, maxNameLen, &nameLen, nameBuf.data());
+                glGetProgramResourceName(ProgramID, dtype, a, maxNameLen, &nameLen, nameBuf.data());
                 resName = string_view(nameBuf.c_str(), nameLen);
             }
             common::str::CutStringViewSuffix(resName, '.');//remove struct
@@ -188,7 +188,7 @@ void _oglProgram::InitLocs()
                 continue;
             }
 
-            ProgramResource datinfo = GenProgRes(nameBuf, dtype, programID, a);
+            ProgramResource datinfo = GenProgRes(nameBuf, dtype, ProgramID, a);
 
             if (datinfo.location != (GLint)GL_INVALID_INDEX)
             {
@@ -237,16 +237,16 @@ void _oglProgram::InitSubroutines()
         strBuffer.append(tmp.data(), tmp.data() + tmp.size());
     }
     string nameBuf;
-    for (const auto stype : common::container::KeySet(shaders))
+    for (const auto stype : common::container::KeySet(Shaders))
     {
         const auto stage = common::enum_cast(stype);
         GLint count;
-        glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
+        glGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
         GLint maxNameLen = 0;
-        glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
+        glGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
         {
             GLint maxUNameLen = 0;
-            glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
+            glGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
             maxNameLen = std::max(maxNameLen, maxUNameLen);
         }
         nameBuf.resize(maxNameLen);
@@ -255,15 +255,15 @@ void _oglProgram::InitSubroutines()
             string uniformName;
             {
                 GLint nameLen = 0;
-                glGetActiveSubroutineUniformName(programID, stage, a, maxNameLen, &nameLen, nameBuf.data());
+                glGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &nameLen, nameBuf.data());
                 uniformName.assign(nameBuf, 0, nameLen);
             }
-            auto uniformLoc = glGetSubroutineUniformLocation(programID, stage, uniformName.data());
+            auto uniformLoc = glGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
             fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
             GLint srcnt = 0;
-            glGetActiveSubroutineUniformiv(programID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
+            glGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
             vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
-            glGetActiveSubroutineUniformiv(programID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
+            glGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
             
             vector<SubroutineResource::Routine> routines;
             for (const auto subridx : compSRs)
@@ -271,7 +271,7 @@ void _oglProgram::InitSubroutines()
                 string subrName;
                 {
                     GLint nameLen = 0;
-                    glGetActiveSubroutineName(programID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
+                    glGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
                     subrName.assign(nameBuf, 0, nameLen);
                 }
                 fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
@@ -282,7 +282,7 @@ void _oglProgram::InitSubroutines()
                 subrLookup[&routine] = &(*it);
         }
         GLint locCount = 0;
-        glGetProgramStageiv(programID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
+        glGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
         SubroutineSettings[stype].resize(locCount);
     }
     oglLog().debug(strBuffer);
@@ -329,37 +329,37 @@ void _oglProgram::FilterProperties()
                 case ShaderPropertyType::Color:
                     {
                         Vec4 vec;
-                        glGetUniformfv(programID, res->location, vec);
+                        glGetUniformfv(ProgramID, res->location, vec);
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Range:
                     {
                         b3d::Coord2D vec;
-                        glGetUniformfv(programID, res->location, vec);
+                        glGetUniformfv(ProgramID, res->location, vec);
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Bool:
                     {
                         int32_t flag = 0;
-                        glGetUniformiv(programID, res->location, &flag);
+                        glGetUniformiv(ProgramID, res->location, &flag);
                         UniValCache.insert_or_assign(res->location, (bool)flag);
                     } break;
                 case ShaderPropertyType::Int:
                     {
                         int32_t val = 0;
-                        glGetUniformiv(programID, res->location, &val);
+                        glGetUniformiv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 case ShaderPropertyType::Uint:
                     {
                         uint32_t val = 0;
-                        glGetUniformuiv(programID, res->location, &val);
+                        glGetUniformuiv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 case ShaderPropertyType::Float:
                     {
                         float val = 0;
-                        glGetUniformfv(programID, res->location, &val);
+                        glGetUniformfv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 default:
@@ -378,31 +378,31 @@ void _oglProgram::FilterProperties()
 void _oglProgram::AddShader(const oglShader& shader)
 {
     CheckCurrent();
-    if (shaders.try_emplace(shader->shaderType, shader).second)
-        glAttachShader(programID, shader->shaderID);
+    if (Shaders.try_emplace(shader->Type, shader).second)
+        glAttachShader(ProgramID, shader->ShaderID);
     else
-        oglLog().warning(u"Repeat adding shader {} to program [{}], ignored\n", shader->shaderID, Name);
+        oglLog().warning(u"Repeat adding shader {} to program [{}], ignored\n", shader->ShaderID, Name);
 }
 
 
 void _oglProgram::Link()
 {
     CheckCurrent();
-    glLinkProgram(programID);
+    glLinkProgram(ProgramID);
 
     int result;
-    glGetProgramiv(programID, GL_LINK_STATUS, &result);
+    glGetProgramiv(ProgramID, GL_LINK_STATUS, &result);
     int len;
-    glGetProgramiv(programID, GL_INFO_LOG_LENGTH, &len);
+    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &len);
     string logstr((size_t)len, '\0');
-    glGetProgramInfoLog(programID, len, &len, logstr.data());
+    glGetProgramInfoLog(ProgramID, len, &len, logstr.data());
     if (len > 0 && logstr.back() == '\0')
         logstr.pop_back(); //null-terminated so pop back
     const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
     if (!result)
     {
         oglLog().warning(u"Link program failed.\n{}\n", logdat);
-        glDeleteProgram(programID);
+        glDeleteProgram(ProgramID);
         COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
     }
     oglLog().success(u"Link program success.\n{}\n", logdat);
@@ -485,7 +485,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglT
     if (obj == val)//no change
         return;
     //change value and update uniform-hold map
-    glProgramUniform1i(programID, pos, obj = val);
+    glProgramUniform1i(ProgramID, pos, obj = val);
 }
 
 void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
@@ -499,7 +499,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBas
         SetTexture(texMan, texs.begin()->first, texs.begin()->second, shouldPin);
         break;
     default:
-        texMan.bindAll(programID, texs, UniBindCache, shouldPin);
+        texMan.bindAll(ProgramID, texs, UniBindCache, shouldPin);
         break;
     }
 }
@@ -512,7 +512,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const GLint pos, const oglImgB
     if (obj == val)//no change
         return;
     //change value and update uniform-hold map
-    glProgramUniform1i(programID, pos, obj = val);
+    glProgramUniform1i(ProgramID, pos, obj = val);
 }
 
 void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>& imgs, const bool shouldPin)
@@ -526,7 +526,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>&
         SetImage(texMan, imgs.begin()->first, imgs.begin()->second, shouldPin);
         break;
     default:
-        texMan.bindAll(programID, imgs, UniBindCache, shouldPin);
+        texMan.bindAll(ProgramID, imgs, UniBindCache, shouldPin);
         break;
     }
 }
@@ -539,7 +539,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo,
     if (obj == val)//no change
         return;
     //change value and update uniform-hold map
-    glUniformBlockBinding(programID, pos, obj = val);
+    glUniformBlockBinding(ProgramID, pos, obj = val);
 }
 
 void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
@@ -553,7 +553,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, co
         SetUBO(uboMan, ubos.begin()->first, ubos.begin()->second, shouldPin);
         break;
     default:
-        uboMan.bindAll(programID, ubos, UniBindCache, shouldPin);
+        uboMan.bindAll(ProgramID, ubos, UniBindCache, shouldPin);
         break;
     }
 }
@@ -585,7 +585,7 @@ void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const boo
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
-        glProgramUniform2fv(programID, pos, 1, vec);
+        glProgramUniform2fv(ProgramID, pos, 1, vec);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
@@ -595,7 +595,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const b
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
-        glProgramUniform3fv(programID, pos, 1, vec);
+        glProgramUniform3fv(ProgramID, pos, 1, vec);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
@@ -605,7 +605,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const b
     {
         if (keep)
             UniValCache.insert_or_assign(pos, vec);
-        glProgramUniform4fv(programID, pos, 1, vec);
+        glProgramUniform4fv(ProgramID, pos, 1, vec);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
@@ -615,7 +615,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const
     {
         if (keep)
             UniValCache.insert_or_assign(pos, mat);
-        glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
+        glProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
@@ -625,7 +625,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const
     {
         if (keep)
             UniValCache.insert_or_assign(pos, mat);
-        glProgramUniformMatrix4fv(programID, pos, 1, GL_FALSE, mat.inv());
+        glProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
@@ -635,7 +635,7 @@ void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
-        glProgramUniform1i(programID, pos, val);
+        glProgramUniform1i(ProgramID, pos, val);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep)
@@ -645,7 +645,7 @@ void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
-        glProgramUniform1i(programID, pos, val);
+        glProgramUniform1i(ProgramID, pos, val);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool keep)
@@ -655,7 +655,7 @@ void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool kee
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
-        glProgramUniform1ui(programID, pos, val);
+        glProgramUniform1ui(ProgramID, pos, val);
     }
 }
 void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
@@ -665,7 +665,7 @@ void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
     {
         if (keep)
             UniValCache.insert_or_assign(pos, val);
-        glProgramUniform1f(programID, pos, val);
+        glProgramUniform1f(ProgramID, pos, val);
     }
 }
 
@@ -861,10 +861,10 @@ ProgDraw& ProgDraw::Restore(const bool quick)
                 {
                 case ProgResType::TexType:
                 case ProgResType::ImgType:
-                    glProgramUniform1i(Prog.programID, pos, obj = val);
+                    glProgramUniform1i(Prog.ProgramID, pos, obj = val);
                     break;
                 case ProgResType::UBOCat:
-                    glUniformBlockBinding(Prog.programID, pos, obj = val);
+                    glUniformBlockBinding(Prog.ProgramID, pos, obj = val);
                     break;
                 default: break;
                 }
@@ -1052,7 +1052,7 @@ bool _oglComputeProgram::AddExtShaders(const string& src, const ShaderConfig& co
 }
 void _oglComputeProgram::OnPrepare()
 {
-    glGetProgramiv(programID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
+    glGetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
     oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
 void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)

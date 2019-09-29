@@ -115,7 +115,7 @@ class OGLUAPI _oglProgram : public NonMovable, public common::AlignBase<32>, pub
     friend class ProgState;
     friend class ProgDraw;
 protected:
-    map<ShaderType, oglShader> shaders;
+    map<ShaderType, oglShader> Shaders;
     ShaderExtInfo ExtInfo;
     map<string, const ProgramResource*, std::less<>> ResNameMapping;
     set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess, AttrRess;
@@ -128,7 +128,7 @@ protected:
     map<GLuint, oglUBO> UBOBindings;
     map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
     map<ShaderType, vector<GLuint>> SubroutineSettings;
-    GLuint programID = 0; //zero means invalid program
+    GLuint ProgramID = 0; //zero means invalid program
 
     static bool usethis(_oglProgram& prog, const bool change = true);
     void RecoverState();
@@ -137,7 +137,7 @@ protected:
     void FilterProperties();
     virtual void OnPrepare() = 0;
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
-    GLint GetLoc(const string& name, GLenum valtype) const;
+    GLint GetLoc(const string& name,         GLenum valtype) const;
 
     void SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
     void SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
@@ -148,15 +148,15 @@ protected:
     void SetSubroutine();
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
-    void SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep = true);
+    void SetUniform(const GLint pos, const b3d::Coord2D& vec,     const bool keep = true);
+    void SetUniform(const GLint pos, const miniBLAS::Vec3& vec,   const bool keep = true);
+    void SetUniform(const GLint pos, const miniBLAS::Vec4& vec,   const bool keep = true);
     void SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep = true);
     void SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep = true);
-    void SetUniform(const GLint pos, const bool val, const bool keep = true);
-    void SetUniform(const GLint pos, const int32_t val, const bool keep = true);
-    void SetUniform(const GLint pos, const uint32_t val, const bool keep = true);
-    void SetUniform(const GLint pos, const float val, const bool keep = true);
+    void SetUniform(const GLint pos, const bool val,              const bool keep = true);
+    void SetUniform(const GLint pos, const int32_t val,           const bool keep = true);
+    void SetUniform(const GLint pos, const uint32_t val,          const bool keep = true);
+    void SetUniform(const GLint pos, const float val,             const bool keep = true);
 public:
     u16string Name;
     _oglProgram(const u16string& name);
@@ -166,7 +166,7 @@ public:
     const set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
     const set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ExtInfo.Properties; }
     const set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
-    const map<ShaderType, oglShader>& getShaders() const { return shaders; }
+    const map<ShaderType, oglShader>& getShaders() const { return Shaders; }
     const map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
     void AddShader(const oglShader& shader);
@@ -177,30 +177,30 @@ public:
     const SubroutineResource::Routine* GetSubroutine(const string& sruname);
     const SubroutineResource::Routine* GetSubroutine(const SubroutineResource& sru);
     ProgState State() noexcept;
-    void SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); }
-    void SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); }
-    void SetVec(const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); }
-    void SetVec(const ProgramResource* res, const b3d::Coord2D& vec) { SetUniform(GetLoc(res, GL_FLOAT_VEC2), vec); }
-    void SetVec(const ProgramResource* res, const miniBLAS::Vec3& vec) { SetUniform(GetLoc(res, GL_FLOAT_VEC3), vec); }
-    void SetVec(const ProgramResource* res, const miniBLAS::Vec4& vec) { SetUniform(GetLoc(res, GL_FLOAT_VEC4), vec); }
-    void SetMat(const ProgramResource* res, const miniBLAS::Mat3x3& mat) { SetUniform(GetLoc(res, GL_FLOAT_MAT3), mat); }
-    void SetMat(const ProgramResource* res, const miniBLAS::Mat4x4& mat) { SetUniform(GetLoc(res, GL_FLOAT_MAT4), mat); }
-    void SetUniform(const ProgramResource* res, const bool val) { SetUniform(GetLoc(res, GL_BOOL), val); }
-    void SetUniform(const ProgramResource* res, const int32_t val) { SetUniform(GetLoc(res, GL_INT), val); }
-    void SetUniform(const ProgramResource* res, const uint32_t val) { SetUniform(GetLoc(res, GL_UNSIGNED_INT), val); }
-    void SetUniform(const ProgramResource* res, const float val) { SetUniform(GetLoc(res, GL_FLOAT), val); }
-    void SetVec(const string& name, const float x, const float y) { SetVec(name, b3d::Coord2D(x, y)); }
-    void SetVec(const string& name, const float x, const float y, const float z) { SetVec(name, miniBLAS::Vec3(x, y, z)); }
-    void SetVec(const string& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); }
-    void SetVec(const string& name, const b3d::Coord2D& vec) { SetUniform(GetLoc(name, GL_FLOAT_VEC2), vec); }
-    void SetVec(const string& name, const miniBLAS::Vec3& vec) { SetUniform(GetLoc(name, GL_FLOAT_VEC3), vec); }
-    void SetVec(const string& name, const miniBLAS::Vec4& vec) { SetUniform(GetLoc(name, GL_FLOAT_VEC4), vec); }
-    void SetMat(const string& name, const miniBLAS::Mat3x3& mat) { SetUniform(GetLoc(name, GL_FLOAT_MAT3), mat); }
-    void SetMat(const string& name, const miniBLAS::Mat4x4& mat) { SetUniform(GetLoc(name, GL_FLOAT_MAT4), mat); }
-    void SetUniform(const string& name, const bool val) { SetUniform(GetLoc(name, GL_BOOL), val); }
-    void SetUniform(const string& name, const int32_t val) { SetUniform(GetLoc(name, GL_INT), val); }
-    void SetUniform(const string& name, const uint32_t val) { SetUniform(GetLoc(name, GL_UNSIGNED_INT), val); }
-    void SetUniform(const string& name, const float val) { SetUniform(GetLoc(name, GL_FLOAT), val); }
+    void SetVec    (const ProgramResource* res, const float x, const float y)                               { SetVec(res, b3d::Coord2D  (x, y)      ); }
+    void SetVec    (const ProgramResource* res, const float x, const float y, const float z)                { SetVec(res, miniBLAS::Vec3(x, y, z)   ); }
+    void SetVec    (const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); }
+    void SetVec    (const ProgramResource* res, const b3d::Coord2D& vec)        { SetUniform(GetLoc(res, GL_FLOAT_VEC2  ), vec); }
+    void SetVec    (const ProgramResource* res, const miniBLAS::Vec3& vec)      { SetUniform(GetLoc(res, GL_FLOAT_VEC3  ), vec); }
+    void SetVec    (const ProgramResource* res, const miniBLAS::Vec4& vec)      { SetUniform(GetLoc(res, GL_FLOAT_VEC4  ), vec); }
+    void SetMat    (const ProgramResource* res, const miniBLAS::Mat3x3& mat)    { SetUniform(GetLoc(res, GL_FLOAT_MAT3  ), mat); }
+    void SetMat    (const ProgramResource* res, const miniBLAS::Mat4x4& mat)    { SetUniform(GetLoc(res, GL_FLOAT_MAT4  ), mat); }
+    void SetUniform(const ProgramResource* res, const bool val)                 { SetUniform(GetLoc(res, GL_BOOL        ), val); }
+    void SetUniform(const ProgramResource* res, const int32_t val)              { SetUniform(GetLoc(res, GL_INT         ), val); }
+    void SetUniform(const ProgramResource* res, const uint32_t val)             { SetUniform(GetLoc(res, GL_UNSIGNED_INT), val); }
+    void SetUniform(const ProgramResource* res, const float val)                { SetUniform(GetLoc(res, GL_FLOAT       ), val); }
+    void SetVec    (const string& name, const float x, const float y)                               { SetVec(name, b3d::Coord2D  (x, y)      ); }
+    void SetVec    (const string& name, const float x, const float y, const float z)                { SetVec(name, miniBLAS::Vec3(x, y, z)   ); }
+    void SetVec    (const string& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); }
+    void SetVec    (const string& name, const b3d::Coord2D& vec)        { SetUniform(GetLoc(name, GL_FLOAT_VEC2  ), vec); }
+    void SetVec    (const string& name, const miniBLAS::Vec3& vec)      { SetUniform(GetLoc(name, GL_FLOAT_VEC3  ), vec); }
+    void SetVec    (const string& name, const miniBLAS::Vec4& vec)      { SetUniform(GetLoc(name, GL_FLOAT_VEC4  ), vec); }
+    void SetMat    (const string& name, const miniBLAS::Mat3x3& mat)    { SetUniform(GetLoc(name, GL_FLOAT_MAT3  ), mat); }
+    void SetMat    (const string& name, const miniBLAS::Mat4x4& mat)    { SetUniform(GetLoc(name, GL_FLOAT_MAT4  ), mat); }
+    void SetUniform(const string& name, const bool val)                 { SetUniform(GetLoc(name, GL_BOOL        ), val); }
+    void SetUniform(const string& name, const int32_t val)              { SetUniform(GetLoc(name, GL_INT         ), val); }
+    void SetUniform(const string& name, const uint32_t val)             { SetUniform(GetLoc(name, GL_UNSIGNED_INT), val); }
+    void SetUniform(const string& name, const float val)                { SetUniform(GetLoc(name, GL_FLOAT       ), val); }
 };
 
 ///<summary>ProgState, use to batch set program binding states</summary>  
@@ -304,30 +304,30 @@ public:
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
     ProgDraw& SetSubroutine(const string_view& subrName, const string_view& routineName);
 
-    ProgDraw& SetVec(const ProgramResource* res, const float x, const float y) { SetVec(res, b3d::Coord2D(x, y)); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const float x, const float y, const float z) { SetVec(res, miniBLAS::Vec3(x, y, z)); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const b3d::Coord2D& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC2), vec); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec3& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC3), vec, false); return *this; }
-    ProgDraw& SetVec(const ProgramResource* res, const miniBLAS::Vec4& vec) { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC4), vec, false); return *this; }
-    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT3), mat, false); return *this; }
-    ProgDraw& SetMat(const ProgramResource* res, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT4), mat, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const bool val) { Prog.SetUniform(GetLoc(res, GL_BOOL), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const int32_t val) { Prog.SetUniform(GetLoc(res, GL_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const uint32_t val) { Prog.SetUniform(GetLoc(res, GL_UNSIGNED_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const ProgramResource* res, const float val) { Prog.SetUniform(GetLoc(res, GL_FLOAT), val, false); return *this; }
-    ProgDraw& SetVec(const string& name, const float x, const float y) { SetVec(name, b3d::Coord2D(x, y)); return *this; }
-    ProgDraw& SetVec(const string& name, const float x, const float y, const float z) { SetVec(name, miniBLAS::Vec3(x, y, z)); return *this; }
-    ProgDraw& SetVec(const string& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); return *this; }
-    ProgDraw& SetVec(const string& name, const b3d::Coord2D& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC2), vec); return *this; }
-    ProgDraw& SetVec(const string& name, const miniBLAS::Vec3& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC3), vec, false); return *this; }
-    ProgDraw& SetVec(const string& name, const miniBLAS::Vec4& vec) { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC4), vec, false); return *this; }
-    ProgDraw& SetMat(const string& name, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT3), mat, false); return *this; }
-    ProgDraw& SetMat(const string& name, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT4), mat, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const bool val) { Prog.SetUniform(GetLoc(name, GL_BOOL), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const int32_t val) { Prog.SetUniform(GetLoc(name, GL_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const uint32_t val) { Prog.SetUniform(GetLoc(name, GL_UNSIGNED_INT), val, false); return *this; }
-    ProgDraw& SetUniform(const string& name, const float val) { Prog.SetUniform(GetLoc(name, GL_FLOAT), val, false); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const float x, const float y)                               { SetVec(res, b3d::Coord2D  (x, y)      ); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const float x, const float y, const float z)                { SetVec(res, miniBLAS::Vec3(x, y, z)   ); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const float x, const float y, const float z, const float w) { SetVec(res, miniBLAS::Vec4(x, y, z, w)); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const b3d::Coord2D& vec)     { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC2  ), vec       ); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const miniBLAS::Vec3& vec)   { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC3  ), vec, false); return *this; }
+    ProgDraw& SetVec    (const ProgramResource* res, const miniBLAS::Vec4& vec)   { Prog.SetUniform(GetLoc(res, GL_FLOAT_VEC4  ), vec, false); return *this; }
+    ProgDraw& SetMat    (const ProgramResource* res, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT3  ), mat, false); return *this; }
+    ProgDraw& SetMat    (const ProgramResource* res, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(res, GL_FLOAT_MAT4  ), mat, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const bool val)              { Prog.SetUniform(GetLoc(res, GL_BOOL        ), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const int32_t val)           { Prog.SetUniform(GetLoc(res, GL_INT         ), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const uint32_t val)          { Prog.SetUniform(GetLoc(res, GL_UNSIGNED_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const ProgramResource* res, const float val)             { Prog.SetUniform(GetLoc(res, GL_FLOAT       ), val, false); return *this; }
+    ProgDraw& SetVec    (const string& name, const float x, const float y)                               { SetVec(name, b3d::Coord2D  (x, y)      ); return *this; }
+    ProgDraw& SetVec    (const string& name, const float x, const float y, const float z)                { SetVec(name, miniBLAS::Vec3(x, y, z)   ); return *this; }
+    ProgDraw& SetVec    (const string& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); return *this; }
+    ProgDraw& SetVec    (const string& name, const b3d::Coord2D& vec)     { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC2  ), vec       ); return *this; }
+    ProgDraw& SetVec    (const string& name, const miniBLAS::Vec3& vec)   { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC3  ), vec, false); return *this; }
+    ProgDraw& SetVec    (const string& name, const miniBLAS::Vec4& vec)   { Prog.SetUniform(GetLoc(name, GL_FLOAT_VEC4  ), vec, false); return *this; }
+    ProgDraw& SetMat    (const string& name, const miniBLAS::Mat3x3& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT3  ), mat, false); return *this; }
+    ProgDraw& SetMat    (const string& name, const miniBLAS::Mat4x4& mat) { Prog.SetUniform(GetLoc(name, GL_FLOAT_MAT4  ), mat, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const bool val)              { Prog.SetUniform(GetLoc(name, GL_BOOL        ), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const int32_t val)           { Prog.SetUniform(GetLoc(name, GL_INT         ), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const uint32_t val)          { Prog.SetUniform(GetLoc(name, GL_UNSIGNED_INT), val, false); return *this; }
+    ProgDraw& SetUniform(const string& name, const float val)             { Prog.SetUniform(GetLoc(name, GL_FLOAT       ), val, false); return *this; }
 };
 
 template<typename Iterator>

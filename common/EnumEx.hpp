@@ -59,8 +59,8 @@ inline constexpr T& operator += (T& x, const U y) { x = x + y; return x; }      
 inline constexpr T& operator -= (T& x, const U y) { x = x - y; return x; }                                                  \
 inline constexpr T& operator ++ (T& x) { x = x + static_cast<U>(1); return x; }                                             \
 inline constexpr T& operator -- (T& x) { x = x - static_cast<U>(1); return x; }                                             \
-inline constexpr T  operator ++ (T& x, int) { const T ret = x; x++; return ret; }                                           \
-inline constexpr T  operator -- (T& x, int) { const T ret = x; x--; return ret; }                                           \
+inline constexpr T  operator ++ (T& x, int) { const T ret = x; ++x; return ret; }                                           \
+inline constexpr T  operator -- (T& x, int) { const T ret = x; --x; return ret; }                                           \
 
 
 #define MAKE_ENUM_RANGE(T) ENUM_CLASS_RANGE_FUNCS(T, std::underlying_type_t<T>)

@@ -150,7 +150,7 @@ void _oglVAO::unbind() noexcept
     glBindVertexArray(0);
 }
 
-_oglVAO::_oglVAO(const VAODrawMode mode) noexcept :DrawMode(mode)
+_oglVAO::_oglVAO(const VAODrawMode mode) noexcept : VAOId(GL_INVALID_INDEX), DrawMode(mode)
 {
     glGenVertexArrays(1, &VAOId);
 }

@@ -146,6 +146,7 @@ private:
     virtual LoopState OnLoop() override;
     virtual bool OnStart(std::any cookie) noexcept override;
     virtual void OnStop() noexcept override;
+    virtual bool SleepCheck() noexcept override; // double check if shoul sleep
     AsyncManager(std::unique_ptr<LoopExecutor>(*hostGen)(LoopBase&), const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd);
 public:
     AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep = 20, const uint32_t timeSensitive = 20, const bool allowStopAdd = false);

@@ -14,7 +14,7 @@ namespace oglu
 
 enum class VAODrawMode : GLenum
 {
-    Triangles = GL_TRIANGLES
+    Triangles = 0x0004/*GL_TRIANGLES*/
 };
 
 template<GLenum ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
@@ -68,7 +68,7 @@ protected:
     std::variant<std::monostate, const void*, GLint, vector<const void*>, vector<GLint>> Offsets;
     oglEBO IndexBuffer;
     oglIBO IndirectBuffer;
-    GLuint VAOId = GL_INVALID_INDEX;
+    GLuint VAOId;
     VAODrawMode DrawMode;
     DrawMethod Method = DrawMethod::UnPrepared;
     void bind() const noexcept;

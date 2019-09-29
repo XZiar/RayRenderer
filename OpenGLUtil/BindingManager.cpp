@@ -41,7 +41,7 @@ void TexImgManager::outterBind(const GLuint prog, const GLuint loc, const uint16
 
 GLuint UBOManager::getID(const oglUBO& obj) const
 {
-	return obj->bufferID;
+	return obj->BufferID;
 }
 
 void UBOManager::innerBind(const oglUBO& obj, const uint16_t slot) const

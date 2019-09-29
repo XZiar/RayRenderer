@@ -323,7 +323,7 @@ protected:
     TexImgUsage Usage;
     const bool IsLayered;
     static TexImgManager& getImgMan() noexcept;
-    GLuint GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
+    GLuint GetTextureID() const noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     _oglImgBase(const Wrapper<_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered);

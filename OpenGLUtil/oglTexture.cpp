@@ -630,7 +630,7 @@ void _oglBufferTexture::SetBuffer(const TextureInnerFormat iformat, const oglTBO
     CheckCurrent();
     InnerBuf = tbo;
     InnerFormat = iformat;
-    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, TexFormatUtil::GetInnerFormat(iformat), tbo->bufferID);
+    DSA->ogluTextureBuffer(textureID, GL_TEXTURE_BUFFER, TexFormatUtil::GetInnerFormat(iformat), tbo->BufferID);
 }
 
 
@@ -645,6 +645,7 @@ TexImgManager& _oglImgBase::getImgMan() noexcept
     return oglContext::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
 }
 
+
 _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered)
     : InnerTex(tex), Usage(usage), IsLayered(isLayered)
 {
@@ -658,6 +659,8 @@ _oglImgBase::_oglImgBase(const Wrapper<detail::_oglTexBase>& tex, const TexImgUs
         common::MatchAny(format & TextureInnerFormat::BITS_MASK, TextureInnerFormat::BITS_2, TextureInnerFormat::BITS_4, TextureInnerFormat::BITS_5, TextureInnerFormat::BITS_12 ))
         COMMON_THROW(OGLWrongFormatException, u"TexImg does not support some composite texture type", format);
 }
+
+GLuint _oglImgBase::GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
 
 void _oglImgBase::bind(const uint16_t pos) const noexcept
 {

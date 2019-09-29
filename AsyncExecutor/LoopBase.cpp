@@ -28,7 +28,7 @@ bool LoopExecutor::Start(std::any cookie)
     auto desire = ExeStates::Stopped;
     if (!ExeState.compare_exchange_strong(desire, ExeStates::Starting)) // not exit yet
         return false;
-    SleepState = SleepStates::Can;
+    SleepState = SleepStates::Running;
     Cookie = std::move(cookie);
     DoStart();
     return true;
@@ -46,10 +46,10 @@ void LoopExecutor::Wakeup()
 {
     if (WakeupLock.exchange(true)) // others handling
         return;
-    auto desire = SleepStates::Can;
-    if (!SleepState.compare_exchange_strong(desire, SleepStates::CanNot))
+    auto desire = SleepStates::Pending;
+    if (!SleepState.compare_exchange_strong(desire, SleepStates::Forbit))
     {
-        if (desire == SleepStates::Pending)
+        if (desire == SleepStates::Sleep)
             DoWakeup();
     }
     WakeupLock = false;
@@ -83,11 +83,15 @@ void LoopExecutor::RunLoop() noexcept
                 break;
             if (state == LoopBase::LoopState::Sleep)
             {
-                auto desire = SleepStates::Can;
-                if (SleepState.compare_exchange_strong(desire, SleepStates::Pending))
-                    DoSleep(&runningLock);
+                SleepState = SleepStates::Pending;
+                if (Loop.SleepCheck())
+                {
+                    auto desire = SleepStates::Pending;
+                    if (SleepState.compare_exchange_strong(desire, SleepStates::Sleep))
+                        DoSleep(&runningLock);
+                }
             }
-            SleepState = SleepStates::Can;
+            SleepState = SleepStates::Running;
         }
         catch (...)
         {

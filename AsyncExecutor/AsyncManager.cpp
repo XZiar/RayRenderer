@@ -101,6 +101,10 @@ LoopBase::LoopState AsyncManager::OnLoop()
         std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
     return LoopState::Continue;
 }
+bool AsyncManager::SleepCheck() noexcept
+{
+    return TaskList.IsEmpty();
+}
 
 bool AsyncManager::OnStart(std::any cookie) noexcept
 {
