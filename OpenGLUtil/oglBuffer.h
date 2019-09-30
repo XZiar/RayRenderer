@@ -83,7 +83,7 @@ class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
 {
     friend class _oglMapPtr;
     friend class _oglProgram;
-    friend class ::oclu::GLInterOP;
+    friend class ::oclu::GLInterop;
 protected:
     oglMapPtr PersistentPtr;
     size_t BufSize;

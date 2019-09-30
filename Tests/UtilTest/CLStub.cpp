@@ -8,7 +8,6 @@
 using namespace common;
 using namespace common::mlog;
 using namespace oclu;
-using namespace oglu;
 using std::string;
 using std::cin;
 using common::linq::Linq;

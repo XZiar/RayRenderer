@@ -14,12 +14,12 @@ namespace oclu
 
 class OCLUAPI oclContext_ : public NonCopyable, public NonMovable
 {
+    friend class GLInterop;
     friend class oclPlatform_;
     friend class oclCmdQue_;
     friend class oclProgram_;
     friend class oclBuffer_;
     friend class oclImage_;
-    friend class GLInterOP;
 private:
     MAKE_ENABLER();
     const std::shared_ptr<const oclPlatform_> Plat;

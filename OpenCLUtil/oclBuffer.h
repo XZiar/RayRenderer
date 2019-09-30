@@ -56,28 +56,6 @@ public:
     static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };
 
-class OCLUAPI oclGLBuffer_ : public oclBuffer_
-{
-    friend class oclGLInterBuf_;
-private:
-    MAKE_ENABLER();
-    oclGLBuffer_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
-public:
-    const oglu::oglBuffer GLBuf;
-    virtual ~oclGLBuffer_();
-};
-MAKE_ENABLER_IMPL(oclGLBuffer_)
-
-class OCLUAPI oclGLInterBuf_ : public oclGLObject_<oclGLBuffer_>
-{
-private:
-    MAKE_ENABLER();
-    oclGLInterBuf_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
-public:
-    static oclGLInterBuf Create(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
-};
-
-
 
 }
 

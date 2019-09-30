@@ -16,12 +16,13 @@ enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
 
 class OCLUAPI oclDevice_ : public NonCopyable, public NonMovable
 {
+    friend class oclUtil;
+    friend class GLInterop;
     friend class oclContext_;
     friend class oclPlatform_;
     friend class oclProgram_;
     friend class oclKernel_;
     friend class oclCmdQue_;
-    friend class oclUtil;
 private:
     MAKE_ENABLER();
     const std::weak_ptr<const oclPlatform_> Plat;

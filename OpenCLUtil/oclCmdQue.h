@@ -16,11 +16,10 @@ namespace oclu
 
 class OCLUAPI oclCmdQue_ : public NonCopyable
 {
+    friend class GLInterop;
     friend class oclContext_;
     friend class oclMem_;
     friend class oclMapPtr_;
-    friend class GLResLocker;
-    friend class GLInterOP;
     friend class oclBuffer_;
     friend class oclImage_;
     friend class oclProgram_;

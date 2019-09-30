@@ -6,13 +6,17 @@ namespace oclu
 
 
 
-void oclUtil::LogCLInfo(const bool checkGL)
+common::mlog::MiniLogger<false>& oclUtil::GetOCLLog()
 {
-    const auto curGLCtx = checkGL ? oglu::oglContext::CurrentContext() : oglu::oglContext{};
+    return oclLog();
+}
+
+void oclUtil::LogCLInfo()
+{
     for (const auto& plat : GetPlatforms())
     {
         auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
-        fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plat->Name, plat->Ver, plat->IsGLShared(curGLCtx) ? 'Y' : 'N');
+        fmt::format_to(strBuffer, u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
         for (const auto dev : plat->GetDevices())
             fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
                 dev->Name, dev->Vendor, dev->Version);
@@ -41,15 +45,6 @@ const vector<oclPlatform>& oclUtil::GetPlatforms()
     return Plats;
 }
 
-oclContext oclUtil::CreateGLSharedContext(const oglu::oglContext & ctx)
-{
-    for (const auto& plat : GetPlatforms())
-    {
-        if (plat->IsGLShared(ctx))
-            return plat->CreateContext(ctx);
-    }
-    return {};
-}
 
 using namespace std::literals;
 

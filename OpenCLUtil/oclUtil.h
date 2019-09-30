@@ -10,10 +10,12 @@ namespace oclu
 
 class OCLUAPI oclUtil
 {
+    friend class GLInterop;
+private:
+    static common::mlog::MiniLogger<false>& GetOCLLog();
 public:
-    static void LogCLInfo(const bool checkGL = true);
+    static void LogCLInfo();
     static const vector<oclPlatform>& GetPlatforms();
-    static oclContext CreateGLSharedContext(const oglu::oglContext& ctx);
     static u16string_view GetErrorString(const cl_int err);
 };
 

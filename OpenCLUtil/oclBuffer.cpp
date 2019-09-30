@@ -8,7 +8,6 @@
 namespace oclu
 {
 MAKE_ENABLER_IMPL(oclBuffer_)
-MAKE_ENABLER_IMPL(oclGLInterBuf_)
 
 
 static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t size, const void* ptr)
@@ -82,20 +81,6 @@ oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const si
     return MAKE_ENABLER_SHARED(oclBuffer_, ctx, AddMemHostCopyFlag(flag, ptr), size, ptr);
 }
 
-
-oclGLBuffer_::oclGLBuffer_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : oclBuffer_(ctx, flag, SIZE_MAX, GLInterOP::CreateMemFromGLBuf(ctx, flag, buf)), GLBuf(buf) { }
-
-oclGLBuffer_::~oclGLBuffer_() {}
-
-
-oclGLInterBuf_::oclGLInterBuf_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : oclGLObject_<oclGLBuffer_>(MAKE_ENABLER_UNIQUE(oclGLBuffer_, ctx, flag, buf)) {}
-
-oclGLInterBuf oclGLInterBuf_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-{
-    return MAKE_ENABLER_SHARED(oclGLInterBuf_, ctx, flag, buf);
-}
 
 
 }

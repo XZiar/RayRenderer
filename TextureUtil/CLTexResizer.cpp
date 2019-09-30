@@ -1,5 +1,6 @@
 #include "TexUtilRely.h"
 #include "CLTexResizer.h"
+#include "OpenCLInterop/GLInterop.h"
 #include "resource.h"
 #include <future>
 #include <thread>

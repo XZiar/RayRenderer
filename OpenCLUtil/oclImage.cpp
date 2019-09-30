@@ -11,8 +11,6 @@ using xziar::img::TextureFormat;
 
 MAKE_ENABLER_IMPL(oclImage2D_)
 MAKE_ENABLER_IMPL(oclImage3D_)
-MAKE_ENABLER_IMPL(oclGLInterImg2D_)
-MAKE_ENABLER_IMPL(oclGLInterImg3D_)
 
 
 TextureFormat ParseCLImageFormat(const cl_image_format& clFormat)
@@ -294,38 +292,6 @@ oclImage3D_::oclImage3D_(const oclContext& ctx, const MemFlag flag, const uint32
 oclImg3D oclImage3D_::Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr)
 {
     return MAKE_ENABLER_SHARED(oclImage3D_, ctx, flag, width, height, depth, format, ptr);
-}
-
-
-
-oclGLImage2D_::oclGLImage2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : oclImage2D_(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1,
-        tex->GetInnerFormat(), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
-    GLTex(tex) { }
-
-oclGLImage2D_::~oclGLImage2D_() {}
-
-oclGLImage3D_::oclGLImage3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-    : oclImage3D_(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
-        tex->GetInnerFormat(), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
-    GLTex(tex) { }
-
-oclGLImage3D_::~oclGLImage3D_() {}
-
-oclGLInterImg2D_::oclGLInterImg2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : oclGLObject_<oclGLImage2D_>(MAKE_ENABLER_UNIQUE(oclGLImage2D_, ctx, flag, tex)) {}
-
-oclGLInterImg2D oclGLInterImg2D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-{
-    return MAKE_ENABLER_SHARED(oclGLInterImg2D_, ctx, flag, tex);
-}
-
-oclGLInterImg3D_::oclGLInterImg3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-    : oclGLObject_<oclGLImage3D_>(MAKE_ENABLER_UNIQUE(oclGLImage3D_, ctx, flag, tex)) {}
-
-oclGLInterImg3D oclGLInterImg3D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-{
-    return MAKE_ENABLER_SHARED(oclGLInterImg3D_, ctx, flag, tex);
 }
 
 

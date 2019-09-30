@@ -35,7 +35,7 @@
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
-  - [ ] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
+  - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
 
 * FontHelper
   - [ ] Implement proper text render

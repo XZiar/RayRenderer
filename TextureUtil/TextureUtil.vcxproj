@@ -180,6 +180,9 @@
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\OpenCLInterop\OpenCLInterop.vcxproj">
+      <Project>{a40342f9-e282-46d4-a879-960758a3db64}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\OpenCLUtil\OpenCLUtil.vcxproj">
       <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
     </ProjectReference>

@@ -300,6 +300,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "stb", "stb", "{8F7469AA-0AE
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SystemCommon", "SystemCommon\SystemCommon.vcxproj", "{2965DA11-4C56-48B6-840E-A16B8FDF21E2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLInterop", "OpenCLInterop\OpenCLInterop.vcxproj", "{A40342F9-E282-46D4-A879-960758A3DB64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -481,6 +483,10 @@ Global
 		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Debug|x64.Build.0 = Debug|x64
 		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Release|x64.ActiveCfg = Release|x64
 		{2965DA11-4C56-48B6-840E-A16B8FDF21E2}.Release|x64.Build.0 = Release|x64
+		{A40342F9-E282-46D4-A879-960758A3DB64}.Debug|x64.ActiveCfg = Debug|x64
+		{A40342F9-E282-46D4-A879-960758A3DB64}.Debug|x64.Build.0 = Debug|x64
+		{A40342F9-E282-46D4-A879-960758A3DB64}.Release|x64.ActiveCfg = Release|x64
+		{A40342F9-E282-46D4-A879-960758A3DB64}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -541,6 +547,7 @@ Global
 		{43B6E40D-793D-4224-897C-74DA6489619E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{8F7469AA-0AE0-4F71-B3A3-4CDBD49A93C9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{2965DA11-4C56-48B6-840E-A16B8FDF21E2} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
+		{A40342F9-E282-46D4-A879-960758A3DB64} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

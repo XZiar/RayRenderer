@@ -1,9 +1,10 @@
 #include "TexUtilRely.h"
 #include "TexResizer.h"
 #include "TexUtilWorker.h"
+#include "OpenCLInterop/GLInterop.h"
+#include "common/PromiseTaskSTD.hpp"
 #include <future>
 #include <thread>
-#include "common/PromiseTaskSTD.hpp"
 #include "resource.h"
 
 

@@ -51,12 +51,12 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, c
     const auto glPlat = Linq::FromIterable(oclUtil::GetPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
-        .Where([&](const auto& plat) { return plat->IsGLShared(glContext); })
+        .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
         .TryGetFirst().value_or(oclPlatform{});
     oclContext defCtx, sharedCtx;
     if (glPlat)
     {
-        sharedCtx = glPlat->CreateContext(glContext);
+        sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
         dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
         sharedCtx->onMessage = [](const u16string& errtxt) 
         { 

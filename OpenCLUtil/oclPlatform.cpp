@@ -10,52 +10,13 @@ namespace oclu
 {
 
 
-vector<cl_context_properties> oclPlatform_::GetCLProps(const oglu::oglContext & glContext) const
+vector<cl_context_properties> oclPlatform_::GetCLProps() const
 {
-#if defined(_WIN32)
-    constexpr cl_context_properties glPropName = CL_WGL_HDC_KHR;
-#else
-    constexpr cl_context_properties glPropName = CL_GLX_DISPLAY_KHR;
-#endif
     vector<cl_context_properties> props{ CL_CONTEXT_PLATFORM, (cl_context_properties)PlatformID };
-    if (glContext)
-        props.insert(props.cend(),
-        {
-            //OpenGL context
-            CL_GL_CONTEXT_KHR,   (cl_context_properties)glContext->Hrc,
-            //HDC used to create the OpenGL context
-            glPropName,          (cl_context_properties)glContext->Hdc
-        });
     props.push_back(0);
     return props;
 }
 
-oclDevice oclPlatform_::GetGLDevice(const vector<cl_context_properties>& props) const
-{
-    if (!FuncClGetGLContext) return {};
-    {
-        cl_device_id dID;
-        size_t retSize = 0;
-        const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
-        if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
-                return *dev;
-        if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
-    }
-    //try context that may be associated 
-    {
-        std::vector<cl_device_id> dIDs(Devices.size());
-        size_t retSize = 0;
-        const auto ret = FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id) * Devices.size(), dIDs.data(), &retSize);
-        if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(Devices, [=](const oclDevice& d) { return d->deviceID == dIDs[0]; }); dev)
-                return *dev;
-        if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
-    }
-    return {};
-}
 
 static Vendor JudgeBand(const u16string& name)
 {
@@ -116,10 +77,6 @@ void oclPlatform_::Init()
         .TryGetFirst().value_or(oclDevice{});
 }
 
-bool oclPlatform_::IsGLShared(const oglu::oglContext & context) const
-{
-    return (bool)GetGLDevice(GetCLProps(context));
-}
 
 oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
 {
@@ -128,18 +85,6 @@ oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vect
         if (!detail::owner_equals(dev->Plat, self))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"cannot using device from other platform", dev);
     return MAKE_ENABLER_SHARED(oclContext_, self, props, devs, Name, PlatVendor);
-}
-oclContext oclPlatform_::CreateContext(const oglu::oglContext& context) const
-{
-    const auto props = GetCLProps(context);
-    if (context)
-    {
-        if (const auto dev = GetGLDevice(props); dev)
-            return CreateContext({ dev }, props);
-        return {};
-    }
-    else
-        return CreateContext(Devices, props);
 }
 
 

@@ -31,6 +31,7 @@
 #include "SystemCommon/ThreadEx.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"
+#include "OpenCLInterop/GLInterop.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ResourcePackager/ResourceUtil.h"
 #include "ResourcePackager/SerializeUtil.h"

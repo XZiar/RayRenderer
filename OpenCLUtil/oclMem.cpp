@@ -75,46 +75,4 @@ oclMapPtr oclMem_::Map(const oclCmdQue& que, const MapFlag mapFlag)
 
 
 
-GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Queue(que), Mem(mem)
-{
-    if (!Queue->SupportImplicitGLSync())
-        glFinish();
-    cl_int ret = clEnqueueAcquireGLObjects(Queue->cmdque, 1, &mem, 0, nullptr, nullptr);
-    if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");
-}
-GLResLocker::~GLResLocker()
-{
-    if (!Queue->SupportImplicitGLSync())
-        Queue->Flush(); // assume promise is correctly waited before relase lock
-    cl_int ret = clEnqueueReleaseGLObjects(Queue->cmdque, 1, &Mem, 0, nullptr, nullptr);
-    if (ret != CL_SUCCESS)
-        oclLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
-}
-
-cl_mem GLInterOP::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& buf)
-{
-    cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx->context, (cl_mem_flags)flag, buf->BufferID, &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glBuffer");
-    return id;
-}
-cl_mem GLInterOP::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex)
-{
-    if (HAS_FIELD(flag, MemFlag::HostAccessMask) || HAS_FIELD(flag, MemFlag::HostInitMask))
-    {
-        flag &= MemFlag::DeviceAccessMask;
-        oclLog().warning(u"When Create CLGLImage, only DeviceAccessFlag can be use, others are ignored.\n");
-    }
-    cl_int errcode;
-    if (TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx->context, (cl_mem_flags)flag, (GLenum)tex->Type, 0, tex->textureID, &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glTexture");
-    return id;
-}
-
-
 }

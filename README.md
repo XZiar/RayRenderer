@@ -29,6 +29,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Windows & Linux |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Windows & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Windows & Linux |
+| [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Windows & Linux |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Windows & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Windows & Linux |

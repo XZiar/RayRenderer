@@ -4,12 +4,6 @@ A C++ wrapper of OpenCL.
 
 It aims at providing a OOP wrapper which makes OpenCL's various object and functions.
 
-## CL Dependency
-
-* [OpenCL Header](../3rdParty/CL) 20190806 [License](../3rdParty/CL/LICENSE)
-
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.4 [License](../3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
-
 ## Componoent
 
 * **oclPlatform**  OpenCL Platform
@@ -26,7 +20,7 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 * **oclMem**  OpenCL Memory-Like Object base
   
-  Provide basic function for OpenCL's Memory-Like Object and inter-operation with OpenGL.
+  Provide basic function for OpenCL's Memory-Like Object.
 
 * **oclBuffer**  OpenCL Memory Object
   
@@ -42,6 +36,10 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
   Chained operation is partially supported (only single-link chain).
 
+* **oclKernel**  OpenCL Kernel
+
+  Actual object that can be invoke. It's part of oclProgram and will retain program object. Any build operation will invalid previous kernel.
+
 * **oclPromise**  OpenCL Promise
 
   With OpenCL's timer support.
@@ -50,25 +48,19 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 ## Dependency
 
+* [OpenCL Header](../3rdParty/CL) 20190806 [License](../3rdParty/CL/LICENSE)
+
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.4 [License](../3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
+
+  OpenCL ICD Loader.
+
 * [common](../common)
   * Exception -- an exception model with support for nested-exception, strong-type, Unicode message, arbitrary extra data 
   * StringEx -- some useful operation for string, including encoding-conversion
 
-* [OpenCL_ICD_Loader](../3rdParty/OpenCL_ICD_Loader)
-
-  OpenCL ICD Loader.
-
-* [OpenGLUtil](../OpenGLUtil)
-
-  OpenGL Utility, used for optional inter-op but currently a required dependency.
-
 * [MiniLogger](../MiniLogger)
   
   used for logging message and errors, with prefix `OpenCLUtil`
-
-* C++17 required
-  * optional -- used for some return value
-  * tuple -- used for some internal structure
 
 ## License
 

@@ -75,9 +75,9 @@
 
 namespace oclu
 {
+class GLInterop; 
 class oclPlatform_;
 class oclGLBuffer_;
-class _oclGLImage;
 class GLInterOP;
 }
 

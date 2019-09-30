@@ -1,0 +1,19 @@
+{
+    "name": "OpenCLInterop",
+    "type": "dynamic",
+    "description": "OpenCL Interoperation Utility",
+    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCLICDLoader", "OpenCLUtil", "OpenGLUtil"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread", "stdc++fs"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["OCLIOP_EXPORT"]
+        }
+    }
+}

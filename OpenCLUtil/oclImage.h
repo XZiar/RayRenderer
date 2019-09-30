@@ -93,56 +93,6 @@ public:
 };
 
 
-class OCLUAPI oclGLImage2D_ : public oclImage2D_
-{
-    friend class oclGLInterImg2D_;
-private:
-    MAKE_ENABLER();
-    oclGLImage2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex);
-public:
-    const oglu::oglTex2D GLTex;
-    virtual ~oclGLImage2D_() override;
-};
-MAKE_ENABLER_IMPL(oclGLImage2D_)
-class OCLUAPI oclGLImage3D_ : public oclImage3D_
-{
-    friend class oclGLInterImg3D_;
-private:
-    MAKE_ENABLER();
-    oclGLImage3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex);
-public:
-    const oglu::oglTex3D GLTex;
-    virtual ~oclGLImage3D_() override;
-};
-MAKE_ENABLER_IMPL(oclGLImage3D_)
-
-class OCLUAPI oclGLInterImg2D_ : public oclGLObject_<oclGLImage2D_>
-{
-private:
-    MAKE_ENABLER();
-    oclGLInterImg2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex);
-public:
-    oglu::oglTex2D GetGLTex() const { return CLObject->GLTex; }
-    
-    static oclGLInterImg2D Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex);
-};
-
-class OCLUAPI oclGLInterImg3D_ : public oclGLObject_<oclGLImage3D_>
-{
-private:
-    MAKE_ENABLER();
-    oclGLInterImg3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex);
-public:
-    oglu::oglTex3D GetGLTex() const { return CLObject->GLTex; }
-    
-    static oclGLInterImg3D Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex);
-};
-
-
-//using oclGLImage      = std::shared_ptr<_oclGLImage>;
-using oclGLImg2D        = std::shared_ptr<oclGLImage2D_>;
-using oclGLImg3D        = std::shared_ptr<oclGLImage3D_>;
-
 }
 
 #if COMPILER_MSVC

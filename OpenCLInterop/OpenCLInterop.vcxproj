@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{45231916-6D39-4FD5-A232-40DAAFEA819B}</ProjectGuid>
-    <RootNamespace>OpenCLUtil</RootNamespace>
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{A40342F9-E282-46D4-A879-960758A3DB64}</ProjectGuid>
+    <RootNamespace>OpenCLInterop</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -74,17 +74,43 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>OCLIOP_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>OCLIOP_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
@@ -92,69 +118,16 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>OCLU_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ConformanceMode>true</ConformanceMode>
+      <PreprocessorDefinitions>OCLIOP_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>OCLU_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ConformanceMode>true</ConformanceMode>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-    </ClCompile>
-    <Link>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>OCLU_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ConformanceMode>true</ConformanceMode>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-    </ClCompile>
-    <Link>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -164,64 +137,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>OCLU_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/favor:INTEL64 %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <CallingConvention>Cdecl</CallingConvention>
-      <DisableSpecificWarnings>4251;</DisableSpecificWarnings>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>oclRely.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
+      <DiagnosticsFormat>Caret</DiagnosticsFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>OCLIOP_EXPORT;_ENABLE_EXTENDED_ALIGNED_STORAGE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="oclDevice.h" />
-    <ClInclude Include="oclCmdQue.h" />
-    <ClInclude Include="oclContext.h" />
-    <ClInclude Include="oclException.h" />
-    <ClInclude Include="oclBuffer.h" />
-    <ClInclude Include="oclImage.h" />
-    <ClInclude Include="oclMem.h" />
-    <ClInclude Include="oclPlatform.h" />
-    <ClInclude Include="oclProgram.h" />
-    <ClInclude Include="oclPromise.hpp" />
-    <ClInclude Include="oclRely.h" />
-    <ClInclude Include="oclUtil.h" />
-    <ClInclude Include="OpenCLUtil.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="oclDevice.cpp" />
-    <ClCompile Include="oclCmdQue.cpp" />
-    <ClCompile Include="oclContext.cpp" />
-    <ClCompile Include="oclBuffer.cpp" />
-    <ClCompile Include="oclImage.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="oclMem.cpp" />
-    <ClCompile Include="oclPlatform.cpp" />
-    <ClCompile Include="oclProgram.cpp" />
-    <ClCompile Include="oclRely.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="oclUtil.cpp" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
       <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
@@ -229,22 +156,29 @@
     <ProjectReference Include="..\3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj">
       <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
-      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
+    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
+      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\OpenCLUtil\OpenCLUtil.vcxproj">
+      <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
+      <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GLInterop.h" />
+    <ClInclude Include="OpenCLInteropRely.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GLInterop.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="OpenCLUtil.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -91,58 +91,6 @@ public:
 };
 
 
-class OCLUAPI GLResLocker : public NonCopyable, public NonMovable
-{
-    template<typename> friend class oclGLObject_;
-private:
-    MAKE_ENABLER();
-    const oclCmdQue Queue;
-    const cl_mem Mem;
-    GLResLocker(const oclCmdQue& que, const cl_mem mem);
-public:
-    virtual ~GLResLocker();
-};
-MAKE_ENABLER_IMPL(GLResLocker)
-
-
-class OCLUAPI GLInterOP
-{
-public:
-    static cl_mem CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& bufId);
-    static cl_mem CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex);
-};
-
-
-template<typename T>
-class oclGLObject_ : public std::enable_shared_from_this<oclGLObject_<T>>
-{
-protected:
-    const std::unique_ptr<T> CLObject;
-    oclGLObject_(std::unique_ptr<T>&& obj) : CLObject(std::move(obj)) { }
-public:
-    class oclGLMem
-    {
-        friend class oclGLObject_<T>;
-    private:
-        std::shared_ptr<oclGLObject_> Host;
-        std::shared_ptr<GLResLocker> ResLocker;
-        oclGLMem(std::shared_ptr<oclGLObject_> host, const oclCmdQue& que, const cl_mem mem) :
-            Host(std::move(host)), ResLocker(MAKE_ENABLER_SHARED(GLResLocker, que, mem))
-        { }
-    public:
-        std::shared_ptr<T> Get() const 
-        { 
-            return std::shared_ptr<T>(ResLocker, Host->CLObject.get());
-        }
-        operator const std::shared_ptr<T>& () const { return Get(); }
-    };
-
-    oclGLMem Lock(const oclCmdQue& que)
-    {
-        return oclGLMem(this->shared_from_this(), que, CLObject->MemID);
-    }
-};
-
 }
 
 #if COMPILER_MSVC

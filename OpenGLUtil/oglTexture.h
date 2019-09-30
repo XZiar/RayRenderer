@@ -82,7 +82,7 @@ class OGLUAPI _oglTexBase : public NonMovable, public oglCtxObject<true>
     friend class ProgState;
     friend class ProgDraw;
     friend struct TexLogItem;
-    friend class ::oclu::GLInterOP;
+    friend class ::oclu::GLInterop;
 protected:
     const TextureType Type;
     xziar::img::TextureFormat InnerFormat;

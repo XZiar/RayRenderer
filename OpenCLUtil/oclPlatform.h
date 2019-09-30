@@ -16,7 +16,8 @@ namespace oclu
 
 class OCLUAPI oclPlatform_ : public NonCopyable, public NonMovable, public std::enable_shared_from_this<oclPlatform_>
 {
-    friend class ::oclu::oclUtil;
+    friend class oclUtil;
+    friend class GLInterop;
     friend class oclKernel_;
 private:
     const cl_platform_id PlatformID;
@@ -26,8 +27,7 @@ private:
     clGetKernelSubGroupInfoKHR_fn FuncClGetKernelSubGroupInfo = nullptr;
 
     oclPlatform_(const cl_platform_id pID);
-    vector<cl_context_properties> GetCLProps(const oglu::oglContext& context) const;
-    oclDevice GetGLDevice(const vector<cl_context_properties>& props) const;
+    vector<cl_context_properties> GetCLProps() const;
     void Init();
     oclContext CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const;
 public:
@@ -37,10 +37,9 @@ public:
     const vector<oclDevice>& GetDevices() const { return Devices; }
     const common::container::FrozenDenseSet<string>& GetExtensions() const { return Extensions; }
     const oclDevice& GetDefaultDevice() const { return DefDevice; }
-    bool IsGLShared(const oglu::oglContext& context) const;
-    oclContext CreateContext(const oglu::oglContext& context = {}) const;
-    oclContext CreateContext(const oclDevice& dev) const { return CreateContext({ dev }, GetCLProps({})); }
-    oclContext CreateContext(const vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps({})); }
+    oclContext CreateContext(const oclDevice& dev) const { return CreateContext({ dev }, GetCLProps()); }
+    oclContext CreateContext(const vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
+    oclContext CreateContext() const { return CreateContext(Devices, GetCLProps()); }
 };
 
 

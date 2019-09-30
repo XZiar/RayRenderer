@@ -27,7 +27,7 @@
 #include <new>
 #include <numeric>
 #include <type_traits> 
-#include <initializer_list>
+#include <memory>
 #if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
 #   include<variant>
 #endif
@@ -145,6 +145,23 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 
 #define UTF16ER_NX(X) u ## X
 #define UTF16ER(X) UTF16ER_NX(X)
+
+
+/*Hacker for std::make_shared/std::make_unique*/
+
+#define MAKE_ENABLER() struct make_enabler
+
+#define MAKE_ENABLER_IMPL(clz)                  \
+struct clz::make_enabler : public clz           \
+{                                               \
+    template<typename... Args>                  \
+    make_enabler(Args... args) :                \
+        clz(std::forward<Args>(args)...) { }    \
+};                                              \
+
+#define MAKE_ENABLER_SHARED(clz, ...) std::static_pointer_cast<clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
+#define MAKE_ENABLER_SHARED_CONST(clz, ...) std::static_pointer_cast<const clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
+#define MAKE_ENABLER_UNIQUE(clz, ...) std::make_unique<clz::make_enabler>(__VA_ARGS__)
 
 
 /**
