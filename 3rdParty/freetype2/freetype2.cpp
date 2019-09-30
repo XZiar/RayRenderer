@@ -12,6 +12,7 @@ namespace ft
 {
 using namespace common;
 using common::file::FileException;
+using common::file::FileErrReason;
 
 static void* CreateLibrary()
 {
@@ -41,9 +42,9 @@ FreeTyper::FreeTyper(const fs::path& fontpath, const uint16_t pixSize, const uin
     case FT_Err_Ok:
         break;
     case FT_Err_Unknown_File_Format:
-        COMMON_THROW(FileException, FileException::Reason::WrongFormat, fontpath, u"freetype does not support this kinds of format");
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongFormat, fontpath, u"freetype does not support this kinds of format");
     case FT_Err_Cannot_Open_Resource:
-        COMMON_THROW(FileException, FileException::Reason::OpenFail, fontpath, u"freetype cannot open file");
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr  , fontpath, u"freetype cannot open file");
     default:
         COMMON_THROW(FTException, u"unknown exception while load freetype face");
     }

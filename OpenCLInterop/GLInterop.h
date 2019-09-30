@@ -46,7 +46,6 @@ private:
     public:
         ~GLResLocker();
     };
-    MAKE_ENABLER_IMPL(GLResLocker)
 
     static cl_mem CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& bufId);
     static cl_mem CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex);
@@ -57,6 +56,7 @@ public:
     static oclContext CreateGLSharedContext(const oglu::oglContext& context);
     static oclContext CreateGLSharedContext(const oclPlatform_& plat, const oglu::oglContext& context);
 };
+MAKE_ENABLER_IMPL(GLInterop::GLResLocker)
 
 
 template<typename T>

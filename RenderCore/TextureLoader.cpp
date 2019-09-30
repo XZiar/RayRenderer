@@ -8,6 +8,7 @@
 
 namespace rayr
 {
+using common::file::FileErrReason;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 using common::asyexe::StackSize;
@@ -142,10 +143,10 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
     }
     catch (const FileException& fe)
     {
-        if (fe.reason == FileException::Reason::ReadFail)
-            dizzLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
-        else
+        if (fe.reason == (FileErrReason::OpenFail | FileErrReason::NotExist))
             dizzLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
+        else
+            dizzLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());
     }
     catch (const BaseException&)
     {

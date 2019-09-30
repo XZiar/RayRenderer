@@ -30,6 +30,7 @@ class SYSCOMMONAPI FileObject : public std::enable_shared_from_this<FileObject>,
 {
     friend class FileStream;
 private:
+    MAKE_ENABLER();
 #if defined(_WIN32)
     using FlagType = wchar_t;
 #else
@@ -69,7 +70,7 @@ protected:
     FILE* GetFP() const;
     void WriteCheck() const;
     void ReadCheck() const;
-    void CheckError(const FileException::Reason reason);
+    void CheckError(FileErrReason fileop);
     size_t LeftSpace();
 
     //==========RandomStream=========//

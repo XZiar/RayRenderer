@@ -7,17 +7,18 @@
 #include <string>
 
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#else
 #   include <unistd.h>
 #   include <cerrno>
 #endif
 
 namespace common::file
 {
-
 using std::string;
 using std::u16string;
 using std::byte;
+MAKE_ENABLER_IMPL(FileObject)
 
 
 const FileObject::FlagType* FileObject::ParseFlag(const OpenFlag flag)
@@ -71,23 +72,31 @@ std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const Ope
     if (fp == nullptr)
         return {};
 #endif
-    return std::shared_ptr<FileObject>(new FileObject(path, fp, flag));
+    return MAKE_ENABLER_SHARED(FileObject, path, fp, flag);
 }
 
 std::shared_ptr<FileObject> FileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
 {
     if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::CREATE))
-        COMMON_THROW(FileException, FileException::Reason::NotExist, path, u"target file not exist");
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"target file not exist");
     FILE* fp;
 #if defined(_WIN32)
-    if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)
-        COMMON_THROW(FileException, FileException::Reason::OpenFail, path, u"cannot open target file");
+    errno_t err = _wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag));
 #else
     fp = fopen(path.u8string().c_str(), ParseFlag(flag));
-    if (fp == nullptr)
-        COMMON_THROW(FileException, FileException::Reason::OpenFail, path, u"cannot open target file");
+    error_t err = (fp == nullptr) ? errno : 0;
 #endif
-    return std::shared_ptr<FileObject>(new FileObject(path, fp, flag));
+    switch (err)
+    {
+    case 0:         return MAKE_ENABLER_SHARED(FileObject, path, fp, flag);
+    case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist      , path, u"cannot open target file, not exists");
+    case ENOMEM:    throw std::bad_alloc(/*"fopen reported no enough memory error"*/);
+    case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny, path, u"cannot open target file, no permission");
+    case EEXIST:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist  , path, u"cannot open target file, already exists");
+    case EISDIR:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::IsDir         , path, u"cannot open target file, is a directory");
+    case EINVAL:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam    , path, u"cannot open target file, invalid params");
+    default:        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr     , path, u"cannot open target file");
+    }
 }
 
 
@@ -118,22 +127,24 @@ FILE* FileStream::GetFP() const { return File->fp; }
 void FileStream::WriteCheck() const
 {
     if (!HAS_FIELD(File->Flag, OpenFlag::WRITE))
-        COMMON_THROW(FileException, FileException::Reason::WriteFail, File->FilePath, u"not opened for write");
+        COMMON_THROW(FileException, FileErrReason::WriteFail | FileErrReason::OpMismatch, File->FilePath, u"not opened for write");
 }
 
 void FileStream::ReadCheck() const
 {
     if (!HAS_FIELD(File->Flag, OpenFlag::READ))
-        COMMON_THROW(FileException, FileException::Reason::ReadFail, File->FilePath, u"not opened for read");
+        COMMON_THROW(FileException, FileErrReason::ReadFail  | FileErrReason::OpMismatch, File->FilePath, u"not opened for read");
 }
 
-void FileStream::CheckError(const FileException::Reason reason)
+void FileStream::CheckError(FileErrReason fileop)
 {
+    fileop &= FileErrReason::MASK_OP;
     if (feof(GetFP()) != 0)
-        COMMON_THROW(FileException, reason, File->FilePath, u"reach end of file");
+        COMMON_THROW(FileException, fileop | FileErrReason::EndOfFile, File->FilePath, u"reach end of file");
     if (ferror(GetFP()) != 0)
-        COMMON_THROW(FileException, reason, File->FilePath, u"access file failed");
-    COMMON_THROW(FileException, reason, File->FilePath, u"unknown error");
+        COMMON_THROW(FileException, fileop | FileErrReason::EndOfFile, File->FilePath, u"access file failed");
+    else
+        COMMON_THROW(FileException, fileop | FileErrReason::UnknowErr, File->FilePath, u"unknown error");
 }
 
 size_t FileStream::LeftSpace()
@@ -200,7 +211,7 @@ std::byte FileInputStream::ReadByteME()
 {
     const auto ret = fgetc(GetFP());
     if (ret == EOF)
-        CheckError(FileException::Reason::ReadFail);
+        CheckError(FileErrReason::ReadFail);
     return std::byte(ret);
 }
 
@@ -222,9 +233,9 @@ bool FileInputStream::SetPos(const size_t offset)
 FileOutputStream::FileOutputStream(std::shared_ptr<FileObject> file) : 
     FileStream(std::move(file)) { WriteCheck(); }
 
-inline FileOutputStream::FileOutputStream(FileOutputStream&& stream) noexcept : FileStream(std::move(stream.File)) { }
+FileOutputStream::FileOutputStream(FileOutputStream&& stream) noexcept : FileStream(std::move(stream.File)) { }
 
-inline FileOutputStream::~FileOutputStream() { Flush(); }
+FileOutputStream::~FileOutputStream() { Flush(); }
 
 //==========OutputStream=========//
 size_t FileOutputStream::AcceptableSpace()

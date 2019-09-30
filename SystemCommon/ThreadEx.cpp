@@ -30,30 +30,33 @@
 namespace common
 {
 
-namespace detail
-{
+
 #if defined(_WIN32)
+static void SetThreadNameImpl(const std::string& name, const DWORD tid)
+{
 #   pragma pack(push,8) 
-struct THREADNAME_INFO
-{
-    DWORD dwType = 0x1000;  // Must be 0x1000.
-    LPCSTR szName;  // Pointer to name (in user addr space).
-    DWORD dwThreadID;  // Thread ID (-1=caller thread).
-    DWORD dwFlags;  // Reserved for future use, must be zero.
-};
+    struct THREADNAME_INFO
+    {
+        DWORD dwType = 0x1000;  // Must be 0x1000.
+        LPCSTR szName;  // Pointer to name (in user addr space).
+        DWORD dwThreadID;  // Thread ID (-1=caller thread).
+        DWORD dwFlags;  // Reserved for future use, must be zero.
+    };
 #   pragma pack(pop)
-static void SetThreadNameImpl(const detail::THREADNAME_INFO* info)
-{
     constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
     __try
     {
+        THREADNAME_INFO info;
+        info.szName = name.c_str();
+        info.dwThreadID = tid;
+        info.dwFlags = 0;
         RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
     }
     __except (EXCEPTION_EXECUTE_HANDLER)
     { }
 }
 #endif
-}
+
 
 bool SetThreadName(const std::string_view threadName)
 {
@@ -65,11 +68,7 @@ bool SetThreadName(const std::string_view threadName)
     }
     else
     {
-        detail::THREADNAME_INFO info;
-        info.szName = threadName.data();
-        info.dwThreadID = GetCurrentThreadId();
-        info.dwFlags = 0;
-        detail::SetThreadNameImpl(&info);
+        SetThreadNameImpl(std::string(threadName), ::GetCurrentThreadId());
     }
 #else
     if (threadName.length() >= 16) // pthread limit name to 16 bytes(including null)
@@ -91,15 +90,11 @@ bool SetThreadName(const std::u16string_view threadName)
         ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
     else
     {
-        detail::THREADNAME_INFO info;
         const auto asciiThreadName = strchset::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
-        info.szName = asciiThreadName.data();
-        info.dwThreadID = GetCurrentThreadId();
-        info.dwFlags = 0;
-        detail::SetThreadNameImpl(&info);
+        SetThreadNameImpl(asciiThreadName, ::GetCurrentThreadId());
     }
 #else
-    const auto u8TName = strchset::to_u8string(threadName, str::Charset::UTF8);
+    const auto u8TName = strchset::to_u8string(threadName, str::Charset::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
 # if defined(__APPLE__)
