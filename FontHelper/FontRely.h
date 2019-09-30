@@ -24,7 +24,7 @@
 #include "common/Wrapper.hpp"
 #include "common/Exceptions.hpp"
 #include "common/TimeUtil.hpp"
-#include "common/FileEx.hpp"
+#include "SystemCommon/FileEx.h"
 #include "common/StrBase.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenCLUtil/OpenCLUtil.h"

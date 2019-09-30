@@ -22,7 +22,7 @@
 #include "common/CopyEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/AlignedBuffer.hpp"
-#include "common/FileEx.hpp"
+#include "SystemCommon/FileEx.h"
 #include "common/MemoryStream.hpp"
 #include "common/TimeUtil.hpp"
 

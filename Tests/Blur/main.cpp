@@ -1,6 +1,7 @@
 #include "OpenCLUtil/OpenCLUtil.h"
+#include "ImageUtil/ImageUtil.h"
 #include "MiniLogger/MiniLogger.h"
-#include "common/FileEx.hpp"
+#include "SystemCommon/FileEx.h"
 #include "common/MemoryStream.hpp"
 #include "common/SpinLock.hpp"
 #include <thread>

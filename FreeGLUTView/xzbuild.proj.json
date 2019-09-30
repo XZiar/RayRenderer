@@ -6,7 +6,7 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs", "GL", "X11", "Xxf86vm", "Xi"]
+        "dynamic": ["GL", "X11", "Xxf86vm", "Xi"]
     },
     "targets":
     {

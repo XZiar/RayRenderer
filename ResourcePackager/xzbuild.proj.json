@@ -2,11 +2,11 @@
     "name": "ResourcePackager",
     "type": "dynamic",
     "description": "Resource package and management library",
-    "dependency": ["fmt", "MiniLogger", "cryptopp", "boost.stacktrace"],
+    "dependency": ["fmt", "MiniLogger", "cryptopp", "boost.stacktrace", "SystemCommon"],
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs"]
+        "dynamic": []
     },
     "targets":
     {

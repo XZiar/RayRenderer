@@ -95,6 +95,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -107,6 +108,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -121,6 +123,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -139,6 +142,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -148,12 +152,14 @@
   <ItemGroup>
     <ClCompile Include="ColorConsole.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
+    <ClCompile Include="FileEx.cpp" />
     <ClCompile Include="LoopBase.cpp" />
     <ClCompile Include="ThreadEx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ColorConsole.h" />
     <ClInclude Include="ConsoleEx.h" />
+    <ClInclude Include="FileEx.h" />
     <ClInclude Include="LoopBase.h" />
     <ClInclude Include="SystemCommonRely.h" />
     <ClInclude Include="ThreadEx.h" />

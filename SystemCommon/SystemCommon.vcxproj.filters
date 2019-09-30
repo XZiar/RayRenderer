@@ -27,6 +27,9 @@
     <ClCompile Include="ConsoleEx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FileEx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -42,6 +45,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ConsoleEx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FileEx.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -20,8 +20,8 @@
 #include "common/CommonRely.hpp"
 #include "common/Exceptions.hpp"
 #include "common/EnumEx.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <memory>
 #include <string_view>
-

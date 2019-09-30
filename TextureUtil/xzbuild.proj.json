@@ -6,7 +6,7 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs"]
+        "dynamic": []
     },
     "targets":
     {

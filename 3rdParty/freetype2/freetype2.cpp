@@ -3,6 +3,7 @@
 #include "ft2build.h"
 #include FT_FREETYPE_H
 #include <freetype/ftoutln.h>
+#include "common/FileExceptions.hpp"
 
 #pragma message("Compile FreeType2 with FreeType2[" STRINGIZE(FREETYPE2_VERSION) "]")
 

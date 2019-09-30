@@ -40,8 +40,6 @@ Stream is an abstract resouce that can read data from or write data to.
 
 * [MemoryStream.hpp](./MemoryStream.hpp) provides stream from memory (and specially from contiguous container).
 
-* [FileEx.hpp](./FileEx.hpp) provide stream for files. FileStream are acquired from `FileObject` which uses RAII to wrap file handle.
-
 ### [SpinLocker](./SpinLocker.hpp)
 
 Spin-lock implemented using std::atomic. 

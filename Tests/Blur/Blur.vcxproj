@@ -101,6 +101,9 @@
     <ProjectReference Include="..\..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
+      <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

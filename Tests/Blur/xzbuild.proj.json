@@ -2,11 +2,11 @@
     "name": "Blur",
     "type": "executable",
     "description": "Blur test",
-    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCLUtil"],
+    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCLUtil", "SystemCommon"],
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs"]
+        "dynamic": []
     },
     "targets":
     {

@@ -21,7 +21,7 @@
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
 #include "common/EnumEx.hpp"
-#include "common/FileEx.hpp"
+#include "SystemCommon/FileEx.h"
 #include "3rdParty/fmt/utfext.h"
 #include "StringCharset/Convert.h"
 #include <cstdint>

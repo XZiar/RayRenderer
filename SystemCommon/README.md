@@ -39,6 +39,10 @@ Others wakeup prevent sleeping    -> | Forbid | --|
 
 Some utilities aims to provide equal functionality on different OSs.
 
+### [FileEx.hpp](./FileEx.hpp)
+
+Providing stream for files. FileStreams are acquired from `FileObject` which uses RAII to wrap file handle.
+
 ### [ConsoleEx](./ConsoleEx.h)
 
 Providing console-related operation, like quering console size. It also provides `getch`, `getche` for linux using `termios`.

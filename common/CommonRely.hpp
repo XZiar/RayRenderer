@@ -32,6 +32,12 @@
 #   include<variant>
 #endif
 
+#if defined(__cpp_lib_filesystem)
+#   include <filesystem>
+#else
+#   include <experimental/filesystem>
+#endif
+
 
 #if defined(__APPLE__)
 #   include <malloc/malloc.h>
@@ -201,6 +207,11 @@ inline constexpr uint64_t operator "" _hash(const char *str, size_t)
 
 namespace common
 {
+#if defined(__cpp_lib_filesystem)
+namespace fs = std::filesystem;
+#else
+namespace fs = std::experimental::filesystem;
+#endif
 
 template<typename T>
 using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
