@@ -34,7 +34,7 @@ static void OCLStub()
         .TryGetFirst().value_or(plat->GetDefaultDevice());
     const auto ctx = plat->CreateContext(thedev);
     ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
-    oclCmdQue que(ctx, thedev);
+    auto que = oclCmdQue_::Create(ctx, thedev);
     ClearReturn();
     //SimpleTest(ctx);
     while (true)
@@ -71,7 +71,7 @@ static void OCLStub()
         try
         {
             const auto kertxt = common::file::ReadAllText(filepath);
-            oclProgram clProg(ctx, kertxt);
+            auto clProg = oclProgram_::Create(ctx, kertxt);
             CLProgConfig config;
             config.Defines["LOC_MEM_SIZE"] = thedev->LocalMemSize;
             if (exConfig)

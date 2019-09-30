@@ -87,7 +87,7 @@ RenderCore::RenderCore()
     {
         const auto ctxs = CreateOCLContext(Vendor::NVIDIA, GLContext);
         CLContext = ctxs.first; CLSharedContext = ctxs.second;
-        CLQue.reset(CLSharedContext, CLSharedContext->GetGPUDevice());
+        CLQue = oclCmdQue_::Create(CLSharedContext, CLSharedContext->GetGPUDevice());
         if (!CLQue)
             COMMON_THROWEX(BaseException, u"clQueue initialized failed!");
     }

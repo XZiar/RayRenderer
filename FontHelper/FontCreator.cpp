@@ -22,7 +22,7 @@ struct FontInfo
 
 void FontCreator::loadCL(const string& src)
 {
-    oclProgram clProg(clCtx, src);
+    auto clProg = oclProgram_::Create(clCtx, src);
     try
     {
         oclu::CLProgConfig config;
@@ -42,7 +42,7 @@ void FontCreator::loadCL(const string& src)
 
 void FontCreator::loadDownSampler(const string& src)
 {
-    oclProgram clProg(clCtx, src);
+    auto clProg = oclProgram_::Create(clCtx, src);
     try
     {
         oclu::CLProgConfig config;
@@ -67,7 +67,7 @@ FontCreator::FontCreator(const oclu::oclContext ctx) : clCtx(ctx)
     const auto dev = ctx->GetGPUDevice();
     if (!dev)
         COMMON_THROW(BaseException, u"There may be no GPU device found in context");
-    clQue.reset(clCtx, dev);
+    clQue = oclCmdQue_::Create(clCtx, dev);
 
     //prepare LUT
     {
@@ -96,9 +96,9 @@ void FontCreator::reloadFont(const fs::path& fontpath)
 
 void FontCreator::reload(const string& src)
 {
-    kerSdf.release();
-    kerSdfGray.release();
-    kerDownSamp.release();
+    kerSdf.reset();
+    kerSdfGray.reset();
+    kerDownSamp.reset();
     loadCL(src);
     loadDownSampler(getShaderFromDLL(IDR_SHADER_DWNSAMP));
 }
@@ -147,11 +147,11 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     fntLog().verbose(u"raster cost {} us\n", timer.ElapseUs());
 
     fntLog().verbose(u"prepare start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
-    timer.Start();
-    oclu::oclBuffer inputBuf(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::UseHost, buffer1.GetSize(), buffer1.GetRawPtr());
-    oclu::oclBuffer infoBuf(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, finfos.size() * sizeof(FontInfo), finfos.data());
+    timer.Start(); 
+    auto inputBuf = oclBuffer_::Create(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::UseHost, buffer1.GetSize(), buffer1.GetRawPtr());
+    auto infoBuf = oclBuffer_::Create(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, finfos.size() * sizeof(FontInfo), finfos.data());
     common::AlignedBuffer buffer2(fontCount * fontCount * fontsizelim / 4 * fontsizelim / 4 * sizeof(uint8_t), 4096);
-    oclu::oclBuffer outputBuf(clCtx, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer2.GetSize(), buffer2.GetRawPtr());
+    auto outputBuf = oclBuffer_::Create(clCtx, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer2.GetSize(), buffer2.GetRawPtr());
     timer.Stop();
     fntLog().verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)
@@ -192,7 +192,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
     }
     else
     {
-        oclu::oclBuffer middleBuf(clCtx, MemFlag::ReadWrite | MemFlag::HostReadOnly, fontCount * fontCount * fontsizelim * fontsizelim * sizeof(uint16_t));
+        auto middleBuf = oclBuffer_::Create(clCtx, MemFlag::ReadWrite | MemFlag::HostReadOnly, fontCount * fontCount * fontsizelim * fontsizelim * sizeof(uint16_t));
 
         fntLog().verbose(u"OpenCL start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();

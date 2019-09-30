@@ -5,8 +5,10 @@
 #include "oclPromise.hpp"
 
 
-namespace oclu::detail
+namespace oclu
 {
+MAKE_ENABLER_IMPL(oclBuffer_)
+MAKE_ENABLER_IMPL(oclGLInterBuf_)
 
 
 static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t size, const void* ptr)
@@ -18,26 +20,22 @@ static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t s
     return id;
 }
 
-_oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
-    :_oclMem(ctx, id, flag), Size(size)
+oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
+    : oclMem_(ctx, id, flag), Size(size)
 {
 }
 
-_oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size)
-    : _oclBuffer(ctx, flag, size, CreateMem(ctx->context, flag, size, nullptr))
-{ }
-
-_oclBuffer::_oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
-    : _oclBuffer(ctx, flag, size, CreateMem(ctx->context, flag, size, ptr))
+oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
+    : oclBuffer_(ctx, flag, size, CreateMem(ctx->context, flag, size, ptr))
 {
 }
 
-_oclBuffer::~_oclBuffer()
+oclBuffer_::~oclBuffer_()
 { 
     oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
 }
 
-void* _oclBuffer::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
+void* oclBuffer_::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
 {
     cl_event e;
     cl_int ret;
@@ -47,7 +45,7 @@ void* _oclBuffer::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
     return ptr;
 }
 
-PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
 {
     if (offset >= Size)
         COMMON_THROW(BaseException, u"offset overflow");
@@ -60,10 +58,10 @@ PromiseResult<void> _oclBuffer::Read(const oclCmdQue& que, void *buf, const size
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 
-PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
 {
     if (offset >= Size)
         COMMON_THROW(BaseException, u"offset overflow");
@@ -76,16 +74,28 @@ PromiseResult<void> _oclBuffer::Write(const oclCmdQue& que, const void * const b
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
+}
+
+oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
+{
+    return MAKE_ENABLER_SHARED(oclBuffer_, ctx, AddMemHostCopyFlag(flag, ptr), size, ptr);
 }
 
 
-_oclGLBuffer::_oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : _oclBuffer(ctx, flag, SIZE_MAX, GLInterOP::CreateMemFromGLBuf(ctx, flag, buf)), GLBuf(buf) { }
+oclGLBuffer_::oclGLBuffer_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
+    : oclBuffer_(ctx, flag, SIZE_MAX, GLInterOP::CreateMemFromGLBuf(ctx, flag, buf)), GLBuf(buf) { }
 
-_oclGLInterBuf::_oclGLInterBuf(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : _oclGLObject<_oclGLBuffer>(ctx, flag, buf) {}
+oclGLBuffer_::~oclGLBuffer_() {}
 
+
+oclGLInterBuf_::oclGLInterBuf_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
+    : oclGLObject_<oclGLBuffer_>(MAKE_ENABLER_UNIQUE(oclGLBuffer_, ctx, flag, buf)) {}
+
+oclGLInterBuf oclGLInterBuf_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
+{
+    return MAKE_ENABLER_SHARED(oclGLInterBuf_, ctx, flag, buf);
+}
 
 
 }

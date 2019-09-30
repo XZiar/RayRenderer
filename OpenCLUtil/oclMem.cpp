@@ -5,12 +5,12 @@
 #include "oclPromise.hpp"
 
 
-namespace oclu::detail
+namespace oclu
 {
 using xziar::img::TexFormatUtil;
 
 
-_oclMapPtr::~_oclMapPtr()
+oclMapPtr_::~oclMapPtr_()
 {
     cl_event e;
     auto ret = clEnqueueUnmapMemObject(Queue->cmdque, MemId, Pointer, 0, nullptr, &e); 
@@ -18,9 +18,9 @@ _oclMapPtr::~_oclMapPtr()
         oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::GetErrorString(ret));
 }
 
-_oclMem::_oclMem(const oclContext& ctx, cl_mem mem, const MemFlag flag) : Context(ctx), MemID(mem), Flag(flag)
+oclMem_::oclMem_(const oclContext& ctx, cl_mem mem, const MemFlag flag) : Context(ctx), MemID(mem), Flag(flag)
 { }
-_oclMem::~_oclMem()
+oclMem_::~oclMem_()
 {
     MapPtr.reset();
 #ifdef _DEBUG
@@ -37,11 +37,11 @@ _oclMem::~_oclMem()
     clReleaseMemObject(MemID);
 #endif
 }
-oclMapPtr _oclMem::TryGetMap() const
+oclMapPtr oclMem_::TryGetMap() const
 {
     return MapPtr;
 }
-oclMapPtr _oclMem::Map(const oclCmdQue& que, const MapFlag mapFlag)
+oclMapPtr oclMem_::Map(const oclCmdQue& que, const MapFlag mapFlag)
 {
     if (MapPtr)
         return MapPtr;
@@ -54,13 +54,13 @@ oclMapPtr _oclMem::Map(const oclCmdQue& que, const MapFlag mapFlag)
         if (!ptr) // need to create it
         {
             auto rawptr = MapObject(que, mapFlag);
-            ptr = std::shared_ptr<detail::_oclMapPtr>(new _oclMapPtr(que, MemID, rawptr));
+            ptr = std::shared_ptr<oclMapPtr_>(new oclMapPtr_(que, MemID, rawptr));
             TmpPtr = ptr;
         }
     }
     return ptr;
 }
-//oclMapPtr _oclMem::PersistMap(const oclCmdQue& que)
+//oclMapPtr oclMem_::PersistMap(const oclCmdQue& que)
 //{
 //    MapFlag mapFlag;
 //    if (HAS_FIELD(Flag, MemFlag::HostWriteOnly))

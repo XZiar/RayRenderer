@@ -13,22 +13,20 @@ namespace oclu
 
 enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
 
-namespace detail
-{
 
-
-class OCLUAPI _oclDevice : public NonCopyable, public NonMovable
+class OCLUAPI oclDevice_ : public NonCopyable, public NonMovable
 {
-    friend class _oclContext;
-    friend class _oclPlatform;
-    friend class _oclProgram;
-    friend class _oclKernel;
-    friend class _oclCmdQue;
-    friend class ::oclu::oclUtil;
+    friend class oclContext_;
+    friend class oclPlatform_;
+    friend class oclProgram_;
+    friend class oclKernel_;
+    friend class oclCmdQue_;
+    friend class oclUtil;
 private:
-    const std::shared_ptr<_oclPlatform> Plat;
+    MAKE_ENABLER();
+    const std::weak_ptr<const oclPlatform_> Plat;
     const cl_device_id deviceID;
-    _oclDevice(const std::shared_ptr<_oclPlatform>& plat, const cl_device_id dID);
+    oclDevice_(std::weak_ptr<const oclPlatform_> plat, const cl_device_id dID);
 public:
     const u16string Name, Vendor, Version;
     const common::container::FrozenDenseSet<string> Extensions;
@@ -36,12 +34,10 @@ public:
     const uint32_t MemBaseAddrAlign;
     const bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     const DeviceType Type;
+    u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
     static u16string_view GetDeviceTypeName(const DeviceType type);
 };
-
-
-}
-using oclDevice = Wrapper<detail::_oclDevice>;
+MAKE_ENABLER_IMPL(oclDevice_)
 
 
 }

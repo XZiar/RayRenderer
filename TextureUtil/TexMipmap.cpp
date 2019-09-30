@@ -18,7 +18,7 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
         GLContext = Worker->GLContext;
         CLContext = Worker->CLContext;
         CmdQue = Worker->CmdQue;
-        oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_MIPMAP));
+        auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_MIPMAP));
         try
         {
             oclu::CLProgConfig config;
@@ -78,12 +78,12 @@ void TexMipmap::Test()
         for (uint32_t i = 0; i < 256 * 256; ++i)
             src.GetRawPtr<uint32_t>()[i] = i | 0xff000000u;
     }
-    oclBuffer inBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, src.GetSize());
+    auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, src.GetSize());
     inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
-    oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
-    oclBuffer mid2Buf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 8);
-    oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
-    oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
+    auto midBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
+    auto mid2Buf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 8);
+    auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
+    auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
     Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth() / 2, src.GetHeight() / 2} };
     infoBuf->Write(CmdQue, &info, sizeof(info));
     const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
@@ -155,10 +155,10 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
-            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
-            oclBuffer inBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
-            oclBuffer midBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
-            oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
+            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
+            auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+            auto midBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
+            auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
             vector<PromiseResult<void>> pmss;
@@ -193,9 +193,9 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
             const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
-            oclBuffer infoBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
-            oclBuffer inBuf(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
-            oclBuffer outBuf(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
+            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
+            auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+            auto outBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
             vector<PromiseResult<void>> pmss;

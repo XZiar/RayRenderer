@@ -67,7 +67,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
 
         if (CLContext)
         {
-            oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
+            auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
             try
             {
                 oclu::CLProgConfig config;
@@ -100,7 +100,7 @@ TexResizer::~TexResizer()
 {
     Worker->AddTask([this](const auto&)
     {
-        KerToImg.release(); KerToDat3.release(); KerToDat4.release();
+        KerToImg.reset(); KerToDat3.reset(); KerToDat4.reset();
         //exit
         GLResizer.release();
         GLResizer2.release();
@@ -147,8 +147,7 @@ static string_view GetSubroutine(const TextureFormat input, const TextureFormat 
         if ((output & TextureFormat::MASK_CHANNEL_RAW) == TextureFormat::CHANNEL_R)
             return "G2RGBA"sv; // need more channel
     }
-    else
-        return "PlainCopy"sv;
+    return "PlainCopy"sv;
 }
 
 
@@ -163,8 +162,7 @@ PromiseResult<Image> TexResizer::ExtractImage(common::PromiseResult<oglTex2DS>&&
 
 static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const common::asyexe::AsyncAgent& agent, const bool isSRGB)
 {
-    const auto glImg = img.cast_dynamic<oclu::detail::_oclGLImage2D>();
-    if (glImg)
+    if (const auto glImg = std::dynamic_pointer_cast<oclu::oclGLImage2D_>(img); glImg)
     {
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"oclImg2D comes from GL Tex and being locked, can not be used with OpenGL.");
     }
@@ -284,7 +282,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         const auto& ker = HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? KerToDat4 : KerToDat3;
         const auto eleSize = HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? 4 : 3;
         common::AlignedBuffer buffer(width*height*eleSize, 4096);
-        oclBuffer outBuf(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer.GetSize(), buffer.GetRawPtr());
+        auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer.GetSize(), buffer.GetRawPtr());
         ImageInfo info{ img->Width, img->Height, width, height, 1.0f / width, 1.0f / height };
 
         const size_t worksize[] = { width, height };
@@ -292,7 +290,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         agent.Await(common::PromiseResult<void>(pms));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
         outBuf->Map(CmdQue, oclu::MapFlag::Read);
-        outBuf.release();
+        outBuf.reset();
         Image result(std::move(buffer), width, height, HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? ImageDataType::RGBA : ImageDataType::RGB);
         if (flipY)
             result.FlipVertical();
@@ -308,7 +306,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     {
         if (TexFormatUtil::IsSRGBType(tex->GetInnerFormat()))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclGLInterImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, tex);
+        auto img = oclGLInterImg2D_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess, tex);
         auto lockimg = img->Lock(CmdQue);
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(lockimg.Get(), false, width, height, output, flipY);
         return agent.Await(pms);
@@ -357,7 +355,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D climg(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, img.AsRawImage(), true);
+        auto climg = oclImage2D_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, img.AsRawImage(), true);
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(climg, false, width, height, output, flipY);
         return agent.Await(pms);
     });
@@ -392,7 +390,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
     {
         if (TexFormatUtil::IsSRGBType(innerFormat))
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"sRGB texture is not supported on OpenCL");
-        oclImg2D img(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, innerFormat, data.GetRawPtr());
+        auto img = oclImage2D_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly | MemFlag::HostCopy, size.first, size.second, innerFormat, data.GetRawPtr());
         auto pms = ResizeToImg<ResizeMethod::OpenCL>(img, false, width, height, output, flipY);
         return agent.Await(pms);
     });

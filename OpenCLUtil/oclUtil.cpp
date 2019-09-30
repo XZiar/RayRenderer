@@ -14,7 +14,7 @@ void oclUtil::LogCLInfo(const bool checkGL)
         auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
         fmt::format_to(strBuffer, u"\nPlatform {} --- {} -- {}\n", plat->Name, plat->Ver, plat->IsGLShared(curGLCtx) ? 'Y' : 'N');
         for (const auto dev : plat->GetDevices())
-            fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", detail::_oclDevice::GetDeviceTypeName(dev->Type),
+            fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
                 dev->Name, dev->Vendor, dev->Version);
         oclLog().verbose(strBuffer);
     }
@@ -32,7 +32,7 @@ const vector<oclPlatform>& oclUtil::GetPlatforms()
         clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
         for (const auto& pID : platformIDs)
         {
-            auto plt = oclPlatform(new detail::_oclPlatform(pID));
+            auto plt = oclPlatform(new oclPlatform_(pID));
             plt->Init();
             plats.push_back(plt);
         }

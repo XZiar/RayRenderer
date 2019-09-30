@@ -10,13 +10,10 @@ using common::container::FindInVec;
 namespace oclu
 {
 
-namespace detail
-{
-
 
 static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const void * private_info, size_t, void *user_data)
 {
-    const _oclContext& ctx = *(_oclContext*)user_data;
+    const oclContext_& ctx = *(oclContext_*)user_data;
     const auto u16Info = common::strchset::to_u16string(errinfo, common::strchset::Charset::UTF8);
     oclLog().verbose(u"{}\n", u16Info);
     if (ctx.onMessage)
@@ -24,7 +21,7 @@ static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const voi
     return;
 }
 
-cl_context _oclContext::CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self)
+cl_context oclContext_::CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self)
 {
     cl_int ret;
     vector<cl_device_id> deviceIDs;
@@ -43,7 +40,8 @@ cl_context _oclContext::CreateContext(vector<cl_context_properties>& props, cons
     return ctx;
 }
 
-extern xziar::img::TextureFormat ParseImageFormat(const cl_image_format& format);
+extern xziar::img::TextureFormat ParseCLImageFormat(const cl_image_format& format);
+
 static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupportedImageFormat(const cl_context& ctx, const cl_mem_object_type type)
 {
     cl_uint count;
@@ -52,22 +50,22 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
     clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, count, formats.data(), &count);
     set<xziar::img::TextureFormat, std::less<>> dformats;
     for (const auto format : formats)
-        dformats.insert(ParseImageFormat(format));
+        dformats.insert(ParseCLImageFormat(format));
     return dformats;
 }
 
-_oclContext::_oclContext(vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor)
-    : context(CreateContext(props, devices, this)), Devices(devices), PlatformName(name), 
+oclContext_::oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor)
+    : Plat(plat), context(CreateContext(props, devices, this)), Devices(devices), PlatformName(name), 
     Img2DFormatSupport(GetSupportedImageFormat(context, CL_MEM_OBJECT_IMAGE2D)), Img3DFormatSupport(GetSupportedImageFormat(context, CL_MEM_OBJECT_IMAGE3D)),
     vendor(thevendor) { }
 
-oclDevice _oclContext::GetDevice(const cl_device_id devid) const
+oclDevice oclContext_::GetDevice(const cl_device_id devid) const
 {
     const auto it = FindInVec(Devices, [=](const oclDevice& dev) {return dev->deviceID == devid; });
     return it ? *it : oclDevice{};
 }
 
-_oclContext::~_oclContext()
+oclContext_::~oclContext_()
 {
 #ifdef _DEBUG
     uint32_t refCount = 0;
@@ -84,7 +82,7 @@ _oclContext::~_oclContext()
 #endif
 }
 
-oclDevice _oclContext::GetGPUDevice() const
+oclDevice oclContext_::GetGPUDevice() const
 {
     const auto gpuDev = std::find_if(Devices.cbegin(), Devices.cend(), [&](const oclDevice& dev)
     {
@@ -92,9 +90,5 @@ oclDevice _oclContext::GetGPUDevice() const
     });
     return gpuDev == Devices.cend() ? oclDevice{} : *gpuDev;
 }
-
-}
-
-
 
 }

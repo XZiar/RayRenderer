@@ -14,12 +14,21 @@ namespace oclu
 
 enum class MemFlag : cl_mem_flags
 {
+    Empty = 0,
     ReadOnly = CL_MEM_READ_ONLY, WriteOnly = CL_MEM_WRITE_ONLY, ReadWrite = CL_MEM_READ_WRITE,
     UseHost = CL_MEM_USE_HOST_PTR, HostAlloc = CL_MEM_ALLOC_HOST_PTR, HostCopy = CL_MEM_COPY_HOST_PTR,
     HostWriteOnly = CL_MEM_HOST_WRITE_ONLY, HostReadOnly = CL_MEM_HOST_READ_ONLY, HostNoAccess = CL_MEM_HOST_NO_ACCESS,
     DeviceAccessMask = ReadOnly | WriteOnly | ReadWrite, HostInitMask = UseHost | HostAlloc | HostCopy, HostAccessMask = HostWriteOnly | HostReadOnly | HostNoAccess,
 };
 MAKE_ENUM_BITFIELD(MemFlag)
+
+constexpr MemFlag AddMemHostCopyFlag(const MemFlag flag, const void* ptr)
+{
+    if (ptr != nullptr && (flag & MemFlag::UseHost) == MemFlag::Empty)
+        return flag | MemFlag::HostCopy;
+    else
+        return flag;
+}
 
 enum class MapFlag : cl_map_flags
 {
@@ -32,81 +41,69 @@ template<typename T>
 class oclGLMem;
 
 
-namespace detail
-{
-class _oclMem;
+class oclMem_;
 
-class OCLUAPI _oclMapPtr : public NonCopyable, public NonMovable
+class OCLUAPI oclMapPtr_ : public NonCopyable, public NonMovable
 {
-    friend class _oclMem;
+    friend class oclMem_;
     friend class oclMapPtr;
 private:
     const oclCmdQue Queue;
     const cl_mem MemId;
     void* Pointer;
-    _oclMapPtr(const oclCmdQue& que, const cl_mem mem, void* pointer) : Queue(que), MemId(mem), Pointer(pointer) {}
+    oclMapPtr_(const oclCmdQue& que, const cl_mem mem, void* pointer) : Queue(que), MemId(mem), Pointer(pointer) {}
 public:
-    ~_oclMapPtr();
+    ~oclMapPtr_();
     void* GetPtr() const { return Pointer; }
 };
-}
-class oclMapPtr : public std::shared_ptr<detail::_oclMapPtr>
+
+
+class oclMapPtr : public std::shared_ptr<oclMapPtr_>
 {
 public:
     constexpr oclMapPtr() {}
-    oclMapPtr(const std::shared_ptr<detail::_oclMapPtr>& ptr) : std::shared_ptr<detail::_oclMapPtr>(ptr) {}
+    oclMapPtr(const std::shared_ptr<oclMapPtr_>& ptr) : std::shared_ptr<oclMapPtr_>(ptr) {}
     operator void*() const { return (*this)->GetPtr(); }
     template<typename T>
     T* AsType() const { return reinterpret_cast<T*>((*this)->GetPtr()); }
 };
 
-namespace detail
-{
 
-class OCLUAPI _oclMem : public NonCopyable, public NonMovable
+class OCLUAPI oclMem_ : public NonCopyable, public NonMovable
 {
-    friend class _oclKernel;
-    friend class _oclContext;
-    template<typename> friend class _oclGLMem;
+    friend class oclKernel_;
+    friend class oclContext_;
+    template<typename> friend class oclGLObject_;
 private:
     std::atomic_flag LockObj = ATOMIC_FLAG_INIT;
     oclMapPtr MapPtr;
-    std::weak_ptr<_oclMapPtr> TmpPtr;
+    std::weak_ptr<oclMapPtr_> TmpPtr;
 protected:
     const oclContext Context;
     const cl_mem MemID;
     const MemFlag Flag;
-    _oclMem(const oclContext& ctx, cl_mem mem, const MemFlag flag);
+    oclMem_(const oclContext& ctx, cl_mem mem, const MemFlag flag);
     virtual void* MapObject(const oclCmdQue& que, const MapFlag mapFlag) = 0;
     oclMapPtr TryGetMap() const;
 public:
-    virtual ~_oclMem();
+    virtual ~oclMem_();
     oclMapPtr Map(const oclCmdQue& que, const MapFlag mapFlag);
 };
 
 
 class OCLUAPI GLResLocker : public NonCopyable, public NonMovable
 {
+    template<typename> friend class oclGLObject_;
 private:
+    MAKE_ENABLER();
     const oclCmdQue Queue;
     const cl_mem Mem;
-protected:
     GLResLocker(const oclCmdQue& que, const cl_mem mem);
 public:
     virtual ~GLResLocker();
 };
+MAKE_ENABLER_IMPL(GLResLocker)
 
-template<typename T>
-class _oclGLMem : public GLResLocker
-{
-    template<typename> friend class oclGLMem;
-private:
-    T Obj;
-public:
-    _oclGLMem(const oclCmdQue& que, const T& obj) : GLResLocker(que, obj->MemID), Obj(obj) { }
-    virtual ~_oclGLMem() override {}
-    T GetObj() const { return Obj; }
-};
 
 class OCLUAPI GLInterOP
 {
@@ -116,35 +113,35 @@ public:
 };
 
 
-}
 template<typename T>
-class oclGLMem : public std::shared_ptr<detail::_oclGLMem<T>>
-{
-public:
-    constexpr oclGLMem() {}
-    oclGLMem(const std::shared_ptr<detail::_oclGLMem<T>>& ptr) : std::shared_ptr<detail::_oclGLMem<T>>(ptr) {}
-    operator const T&() const { return (*this)->GetObj(); }
-    T Get() const { return (*this)->GetObj(); }
-};
-
-namespace detail
-{
-
-template<typename T>
-class _oclGLObject
+class oclGLObject_ : public std::enable_shared_from_this<oclGLObject_<T>>
 {
 protected:
-    const Wrapper<T> CLObject;
-    template<typename... Args>
-    _oclGLObject(Args&&... args) : CLObject(new T(std::forward<Args>(args)...)) { }
+    const std::unique_ptr<T> CLObject;
+    oclGLObject_(std::unique_ptr<T>&& obj) : CLObject(std::move(obj)) { }
 public:
-    oclGLMem<Wrapper<T>> Lock(const oclCmdQue& que) const
+    class oclGLMem
     {
-        return std::make_shared<detail::_oclGLMem<Wrapper<T>>>(que, CLObject);
+        friend class oclGLObject_<T>;
+    private:
+        std::shared_ptr<oclGLObject_> Host;
+        std::shared_ptr<GLResLocker> ResLocker;
+        oclGLMem(std::shared_ptr<oclGLObject_> host, const oclCmdQue& que, const cl_mem mem) :
+            Host(std::move(host)), ResLocker(MAKE_ENABLER_SHARED(GLResLocker, que, mem))
+        { }
+    public:
+        std::shared_ptr<T> Get() const 
+        { 
+            return std::shared_ptr<T>(ResLocker, Host->CLObject.get());
+        }
+        operator const std::shared_ptr<T>& () const { return Get(); }
+    };
+
+    oclGLMem Lock(const oclCmdQue& que)
+    {
+        return oclGLMem(this->shared_from_this(), que, CLObject->MemID);
     }
 };
-
-}
 
 }
 

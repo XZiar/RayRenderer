@@ -7,6 +7,7 @@
 #include <mutex>
 #include <array>
 #include <cmath>
+#include <iostream>
 
 using namespace oclu;
 using namespace common::mlog;
@@ -57,8 +58,8 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     const auto ctx = plat->CreateContext(thedev);
     //ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
 
-    oclCmdQue cmdque(ctx, thedev);
-    oclProgram prog(ctx, kernel);
+    auto cmdque = oclCmdQue_::Create(ctx, thedev);
+    auto prog = oclProgram_::Create(ctx, kernel);
     try
     {
         prog->Build({}, thedev);
@@ -77,12 +78,12 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     common::PromiseResult<void> pms;
 
     const auto coeff = ComputeCoeff(sigma);
-    oclBuffer rawBuf(ctx, MemFlag::ReadWrite, image.GetSize());
+    auto rawBuf = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize());
     pms = rawBuf->Write(cmdque, image.GetRawPtr(), image.GetSize(), 0, false);
     pms->Wait();
     const auto time1 = pms->ElapseNs() / 1e6f;
-    oclBuffer midBuf1(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
-    oclBuffer midBuf2(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
+    auto midBuf1 = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
+    auto midBuf2 = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
     
     const auto width = image.GetWidth(), height = image.GetHeight();
     const auto w4 = width - width % 4, h4 = height - height % 4;
@@ -113,20 +114,21 @@ int main()
     log().verbose(u"cl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
-    auto img = xziar::img::ReadImage("./download.jpg");
+    string fname;
+    std::getline(std::cin, fname);
+    common::fs::path fpath = fname;
 
-    auto data = common::file::ReadAll<std::byte>("./download.jpg");
+    auto data = common::file::ReadAll<std::byte>(fpath);
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
     auto img1 = xziar::img::ReadImage(stream, u"JPG");
 
-    xziar::img::WriteImage(img, "./downlaod0.bmp");
-    xziar::img::WriteImage(img1, "./downlaod1.bmp");
+    auto fpath2 = fpath;
+    fpath2.replace_extension(".bmp");
+    xziar::img::WriteImage(img1, fpath2);
 
-    auto img2 = ProcessImg(str, img, 2.0f);
-    xziar::img::WriteImage(img2, "./downlaod2.jpg");
-    data.resize(0);
-    common::io::ContainerOutputStream<std::vector<std::byte>> stream2(data);
-    xziar::img::WriteImage(img2, stream2, u"JPG");
-    common::file::WriteAll("./downlaod3.jpg", data);
+    auto img2 = ProcessImg(str, img1, 2.0f);
+    auto fpath3 = fpath;
+    fpath3.replace_extension(".blur.jpg");
+    xziar::img::WriteImage(img2, fpath3);
     getchar();
 }

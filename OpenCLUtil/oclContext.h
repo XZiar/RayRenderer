@@ -12,22 +12,20 @@
 namespace oclu
 {
 
-namespace detail
+class OCLUAPI oclContext_ : public NonCopyable, public NonMovable
 {
-
-
-class OCLUAPI _oclContext : public NonCopyable, public NonMovable
-{
-    friend class _oclPlatform;
-    friend class _oclCmdQue;
-    friend class _oclProgram;
-    friend class _oclBuffer;
-    friend class _oclImage;
+    friend class oclPlatform_;
+    friend class oclCmdQue_;
+    friend class oclProgram_;
+    friend class oclBuffer_;
+    friend class oclImage_;
     friend class GLInterOP;
 private:
+    MAKE_ENABLER();
+    const std::shared_ptr<const oclPlatform_> Plat;
     const cl_context context;
     static cl_context CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self);
-    _oclContext(vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor);
+    oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor);
     oclDevice GetDevice(const cl_device_id devid) const;
 public:
     const vector<oclDevice> Devices;
@@ -36,12 +34,10 @@ public:
     const common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
     const Vendor vendor;
     MessageCallBack onMessage = nullptr;
-    ~_oclContext();
+    ~oclContext_();
     oclDevice GetGPUDevice() const;
 };
-
-}
-using oclContext = Wrapper<detail::_oclContext>;
+MAKE_ENABLER_IMPL(oclContext_)
 
 
 }

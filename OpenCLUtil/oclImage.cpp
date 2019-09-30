@@ -4,12 +4,18 @@
 #include "oclPromise.hpp"
 
 
-namespace oclu::detail
+namespace oclu
 {
 using xziar::img::TexFormatUtil;
 using xziar::img::TextureFormat;
 
-TextureFormat ParseImageFormat(const cl_image_format& clFormat)
+MAKE_ENABLER_IMPL(oclImage2D_)
+MAKE_ENABLER_IMPL(oclImage3D_)
+MAKE_ENABLER_IMPL(oclGLInterImg2D_)
+MAKE_ENABLER_IMPL(oclGLInterImg3D_)
+
+
+TextureFormat ParseCLImageFormat(const cl_image_format& clFormat)
 {
     TextureFormat format = TextureFormat::EMPTY;
     switch(clFormat.image_channel_data_type)
@@ -53,7 +59,7 @@ TextureFormat ParseImageFormat(const cl_image_format& clFormat)
     }
     return format;
 }
-static cl_image_format ParseImageFormat(const TextureFormat format)
+static cl_image_format ParseTextureFormat(const TextureFormat format)
 {
     cl_image_format clFormat;
     const auto category = format & TextureFormat::MASK_DTYPE_CAT;
@@ -66,11 +72,11 @@ static cl_image_format ParseImageFormat(const TextureFormat format)
         switch (dtype)
         {
         case TextureFormat::COMP_565:    
-            clFormat.image_channel_data_type = CL_UNORM_SHORT_565;    clFormat.image_channel_order = CL_RGBx;
+            clFormat.image_channel_data_type = CL_UNORM_SHORT_565;    clFormat.image_channel_order = CL_RGBx; break;
         case TextureFormat::COMP_5551:   
-            clFormat.image_channel_data_type = CL_UNORM_SHORT_555;    clFormat.image_channel_order = CL_RGBx;
+            clFormat.image_channel_data_type = CL_UNORM_SHORT_555;    clFormat.image_channel_order = CL_RGBx; break;
         case TextureFormat::COMP_10_2:   
-            clFormat.image_channel_data_type = CL_UNORM_INT_101010_2; clFormat.image_channel_order = CL_RGBx;
+            clFormat.image_channel_data_type = CL_UNORM_INT_101010_2; clFormat.image_channel_order = CL_RGBx; break;
         default: 
             COMMON_THROW(OCLWrongFormatException, u"unsupported composed format", format); // should not enter
         }
@@ -80,14 +86,14 @@ static cl_image_format ParseImageFormat(const TextureFormat format)
         {
             switch (format & TextureFormat::MASK_PLAIN_RAW)
             {
-            case TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNSIGNED_INT8; break;
-            case TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SIGNED_INT8; break;
+            case TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNSIGNED_INT8;  break;
+            case TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SIGNED_INT8;    break;
             case TextureFormat::DTYPE_U16:    clFormat.image_channel_data_type = CL_UNSIGNED_INT16; break;
-            case TextureFormat::DTYPE_I16:    clFormat.image_channel_data_type = CL_SIGNED_INT16; break;
+            case TextureFormat::DTYPE_I16:    clFormat.image_channel_data_type = CL_SIGNED_INT16;   break;
             case TextureFormat::DTYPE_U32:    clFormat.image_channel_data_type = CL_UNSIGNED_INT32; break;
-            case TextureFormat::DTYPE_I32:    clFormat.image_channel_data_type = CL_SIGNED_INT32; break;
-            case TextureFormat::DTYPE_HALF:   clFormat.image_channel_data_type = CL_HALF_FLOAT; break;
-            case TextureFormat::DTYPE_FLOAT:  clFormat.image_channel_data_type = CL_FLOAT; break;
+            case TextureFormat::DTYPE_I32:    clFormat.image_channel_data_type = CL_SIGNED_INT32;   break;
+            case TextureFormat::DTYPE_HALF:   clFormat.image_channel_data_type = CL_HALF_FLOAT;     break;
+            case TextureFormat::DTYPE_FLOAT:  clFormat.image_channel_data_type = CL_FLOAT;          break;
             default: COMMON_THROW(OCLWrongFormatException, u"unsupported integer/float format", format); // should not enter
             }
         }
@@ -95,8 +101,8 @@ static cl_image_format ParseImageFormat(const TextureFormat format)
         {
             switch (format & TextureFormat::MASK_PLAIN_RAW)
             {
-            case TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNORM_INT8; break;
-            case TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SNORM_INT8; break;
+            case TextureFormat::DTYPE_U8:     clFormat.image_channel_data_type = CL_UNORM_INT8;  break;
+            case TextureFormat::DTYPE_I8:     clFormat.image_channel_data_type = CL_SNORM_INT8;  break;
             case TextureFormat::DTYPE_U16:    clFormat.image_channel_data_type = CL_UNORM_INT16; break;
             case TextureFormat::DTYPE_I16:    clFormat.image_channel_data_type = CL_SNORM_INT16; break;
             default: COMMON_THROW(OCLWrongFormatException, u"unsupported normalized format", format);
@@ -104,9 +110,9 @@ static cl_image_format ParseImageFormat(const TextureFormat format)
         }
         switch (format & TextureFormat::MASK_CHANNEL)
         {
-        case TextureFormat::CHANNEL_R:        clFormat.image_channel_order = CL_R; break;
-        case TextureFormat::CHANNEL_RG:       clFormat.image_channel_order = CL_RG; break;
-        case TextureFormat::CHANNEL_RGB:      clFormat.image_channel_order = CL_RGB; break;
+        case TextureFormat::CHANNEL_R:        clFormat.image_channel_order = CL_R;    break;
+        case TextureFormat::CHANNEL_RG:       clFormat.image_channel_order = CL_RG;   break;
+        case TextureFormat::CHANNEL_RGB:      clFormat.image_channel_order = CL_RGB;  break;
         case TextureFormat::CHANNEL_RGBA:     clFormat.image_channel_order = CL_RGBA; break;
         case TextureFormat::CHANNEL_BGRA:     clFormat.image_channel_order = CL_BGRA; break;
         case TextureFormat::CHANNEL_ABGR:     clFormat.image_channel_order = CL_ABGR; break;
@@ -150,18 +156,18 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
 static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
 {
     cl_int errcode;
-    const auto clFormat = ParseImageFormat(format);
+    const auto clFormat = ParseTextureFormat(format);
     const auto id = clCreateImage(ctx, (cl_mem_flags)flag, &clFormat, &desc, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create image");
     return id;
 }
 
-bool _oclImage::CheckFormatCompatible(TextureFormat format)
+bool oclImage_::CheckFormatCompatible(TextureFormat format)
 {
     try
     {
-        ParseImageFormat(format);
+        ParseTextureFormat(format);
         return true;
     }
     catch (const BaseException&)
@@ -170,23 +176,20 @@ bool _oclImage::CheckFormatCompatible(TextureFormat format)
     }
 }
 
-_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const cl_mem id)
-    :_oclMem(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(format)
+oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const cl_mem id)
+    :oclMem_(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(format)
 { }
-_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type)
-    :_oclImage(ctx, flag, width, height, depth, format, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), format, nullptr))
-{ }
-_oclImage::_oclImage(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type, const void* ptr)
-    :_oclImage(ctx, flag, width, height, depth, format, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), format, ptr))
+oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type, const void* ptr)
+    :oclImage_(ctx, flag, width, height, depth, format, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), format, ptr))
 { }
 
 
-_oclImage::~_oclImage()
+oclImage_::~oclImage_()
 { 
     oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)MemID, Width, Height, Depth);
 }
 
-void* _oclImage::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
+void* oclImage_::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
@@ -203,7 +206,7 @@ void* _oclImage::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
 }
 
 
-PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock) const
+PromiseResult<void> oclImage_::Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock) const
 {
     constexpr size_t origin[3] = { 0,0,0 };
     if (Width*Height*Depth*TexFormatUtil::BitPerPixel(Format) / 8 > size)
@@ -219,7 +222,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const void *data, cons
         return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 
-PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
+PromiseResult<void> oclImage_::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
 {
     if (image.GetWidth() != Width || image.GetHeight() != Height * Depth)
         COMMON_THROW(BaseException, u"write image size mismatch");
@@ -229,7 +232,7 @@ PromiseResult<void> _oclImage::Write(const oclCmdQue que, const Image& image, co
     return Write(que, image.GetRawPtr(), image.GetSize(), shouldBlock);
 }
 
-PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
+PromiseResult<void> oclImage_::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
@@ -243,14 +246,14 @@ PromiseResult<void> _oclImage::Read(const oclCmdQue que, void *data, const bool 
         return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
 }
 
-PromiseResult<void> _oclImage::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
+PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
 {
     image = Image(xziar::img::TexFormatUtil::ToImageDType(Format, true));
     image.SetSize(Width, Height*Depth);
-    return _oclImage::Read(que, image.GetRawPtr(), shouldBlock);
+    return oclImage_::Read(que, image.GetRawPtr(), shouldBlock);
 }
 
-PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
+PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
 {
     Image img(xziar::img::TexFormatUtil::ToImageDType(Format, true));
     img.SetSize(Width, Height*Depth);
@@ -263,7 +266,7 @@ PromiseResult<Image> _oclImage::Read(const oclCmdQue que) const
     return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, std::move(img));
 }
 
-PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) const
+PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
 {
     common::AlignedBuffer buffer(Width * Height * Depth * xziar::img::TexFormatUtil::BitPerPixel(Format) / 8);
     constexpr size_t origin[3] = { 0,0,0 };
@@ -275,38 +278,55 @@ PromiseResult<common::AlignedBuffer> _oclImage::ReadRaw(const oclCmdQue que) con
     return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que->cmdque, std::move(buffer));
 }
 
-_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format)
-    : _oclImage(ctx, flag, width, height, 1, format, CL_MEM_OBJECT_IMAGE2D)
-{ }
-_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const Image& image, const bool isNormalized)
-    : _oclImage(ctx, flag, image.GetWidth(), image.GetHeight(), 1, xziar::img::TexFormatUtil::FromImageDType(image.GetDataType(), isNormalized), CL_MEM_OBJECT_IMAGE2D, image.GetRawPtr())
-{ }
-_oclImage2D::_oclImage2D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)
-    : _oclImage(ctx, flag | MemFlag::HostCopy, width, height, 1, format, CL_MEM_OBJECT_IMAGE2D, ptr)
+oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)
+    : oclImage_(ctx, AddMemHostCopyFlag(flag, ptr), width, height, 1, format, CL_MEM_OBJECT_IMAGE2D, ptr)
 { }
 
+oclImg2D oclImage2D_::Create(const oclContext & ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr)
+{
+    return MAKE_ENABLER_SHARED(oclImage2D_, ctx, flag, width, height, format, ptr);
+}
 
-_oclImage3D::_oclImage3D(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format)
-    : _oclImage(ctx, flag, width, height, depth, format, CL_MEM_OBJECT_IMAGE3D)
+
+oclImage3D_::oclImage3D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const void* ptr)
+    : oclImage_(ctx, AddMemHostCopyFlag(flag, ptr), width, height, depth, format, CL_MEM_OBJECT_IMAGE3D, ptr)
 { }
+oclImg3D oclImage3D_::Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr)
+{
+    return MAKE_ENABLER_SHARED(oclImage3D_, ctx, flag, width, height, depth, format, ptr);
+}
 
 
 
-_oclGLImage2D::_oclGLImage2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : _oclImage2D(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1,
+oclGLImage2D_::oclGLImage2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
+    : oclImage2D_(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1,
         tex->GetInnerFormat(), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
     GLTex(tex) { }
 
-_oclGLImage3D::_oclGLImage3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-    : _oclImage3D(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
+oclGLImage2D_::~oclGLImage2D_() {}
+
+oclGLImage3D_::oclGLImage3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
+    : oclImage3D_(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
         tex->GetInnerFormat(), GLInterOP::CreateMemFromGLTex(ctx, flag, tex)),
     GLTex(tex) { }
 
-_oclGLInterImg2D::_oclGLInterImg2D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : _oclGLObject<_oclGLImage2D>(ctx, flag, tex) {}
+oclGLImage3D_::~oclGLImage3D_() {}
 
-_oclGLInterImg3D::_oclGLInterImg3D(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-    : _oclGLObject<_oclGLImage3D>(ctx, flag, tex) {}
+oclGLInterImg2D_::oclGLInterImg2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
+    : oclGLObject_<oclGLImage2D_>(MAKE_ENABLER_UNIQUE(oclGLImage2D_, ctx, flag, tex)) {}
+
+oclGLInterImg2D oclGLInterImg2D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
+{
+    return MAKE_ENABLER_SHARED(oclGLInterImg2D_, ctx, flag, tex);
+}
+
+oclGLInterImg3D_::oclGLInterImg3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
+    : oclGLObject_<oclGLImage3D_>(MAKE_ENABLER_UNIQUE(oclGLImage3D_, ctx, flag, tex)) {}
+
+oclGLInterImg3D oclGLInterImg3D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
+{
+    return MAKE_ENABLER_SHARED(oclGLInterImg3D_, ctx, flag, tex);
+}
 
 
 }

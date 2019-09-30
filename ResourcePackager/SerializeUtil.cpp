@@ -224,7 +224,7 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
     Root(ejson::JObjectRef<true>(DocRoot))
 {
     SharedObjectLookup = Linq::FromIterable(Root.GetObject("#global_map"))
-        .ToMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
+        .ToMap(std::move(SharedObjectLookup), [](const auto& kvpair) { return kvpair.first; },
             [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
     const auto size = ResReader->GetSize();
@@ -250,7 +250,7 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
         .TryGetFirst())
         COMMON_THROWEX(BaseException, u"wrong index list for resource index");
     ResourceSet = Linq::FromIterable(ResourceList)
-        .ToMap(ResourceSet, [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
+        .ToMap(std::move(ResourceSet), [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
             [index = 0](const auto&) mutable { return index++; });
 }
 

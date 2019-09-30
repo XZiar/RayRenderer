@@ -75,13 +75,10 @@
 
 namespace oclu
 {
-namespace detail
-{
-class _oclGLBuffer;
-class _oclPlatform;
+class oclPlatform_;
+class oclGLBuffer_;
 class _oclGLImage;
 class GLInterOP;
-}
 }
 
 namespace oglu

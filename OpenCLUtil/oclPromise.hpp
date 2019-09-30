@@ -9,9 +9,9 @@ namespace detail
 
 class oclPromiseCore
 {
-    friend class _oclBuffer;
-    friend class _oclImage;
-    friend class _oclKernel;
+    friend class oclBuffer_;
+    friend class oclImage_;
+    friend class oclKernel_;
 protected:
     const std::shared_ptr<oclPromiseCore> Prev;
     const cl_event Event;
@@ -75,8 +75,8 @@ protected:
 template<typename T>
 class oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore
 {
-    friend class _oclBuffer;
-    friend class _oclImage;
+    friend class oclBuffer_;
+    friend class oclImage_;
 private:
     virtual void PreparePms() override 
     { 
@@ -105,9 +105,9 @@ public:
 
 class oclPromiseVoid : public ::common::detail::PromiseResult_<void>, public oclPromiseCore
 {
-    friend class _oclBuffer;
-    friend class _oclImage;
-    friend class _oclKernel;
+    friend class oclBuffer_;
+    friend class oclImage_;
+    friend class oclKernel_;
 private:
     virtual void PreparePms() override
     {
@@ -129,6 +129,7 @@ public:
     { 
         return oclPromiseCore::ElapseNs();
     }
+    using oclPromiseCore::GetEvent;
 };
 
 }

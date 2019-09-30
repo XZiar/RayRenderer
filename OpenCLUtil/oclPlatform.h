@@ -14,22 +14,20 @@ namespace oclu
 {
 
 
-namespace detail
-{
-
-class OCLUAPI _oclPlatform : public NonCopyable, public NonMovable, public std::enable_shared_from_this<_oclPlatform>
+class OCLUAPI oclPlatform_ : public NonCopyable, public NonMovable, public std::enable_shared_from_this<oclPlatform_>
 {
     friend class ::oclu::oclUtil;
-    friend class _oclKernel;
+    friend class oclKernel_;
 private:
     const cl_platform_id PlatformID;
     vector<oclDevice> Devices;
     oclDevice DefDevice;
     clGetGLContextInfoKHR_fn FuncClGetGLContext = nullptr;
     clGetKernelSubGroupInfoKHR_fn FuncClGetKernelSubGroupInfo = nullptr;
+
+    oclPlatform_(const cl_platform_id pID);
     vector<cl_context_properties> GetCLProps(const oglu::oglContext& context) const;
     oclDevice GetGLDevice(const vector<cl_context_properties>& props) const;
-    _oclPlatform(const cl_platform_id pID);
     void Init();
     oclContext CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const;
 public:
@@ -45,9 +43,6 @@ public:
     oclContext CreateContext(const vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps({})); }
 };
 
-
-}
-using oclPlatform = Wrapper<detail::_oclPlatform>;
 
 }
 

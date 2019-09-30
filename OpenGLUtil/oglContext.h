@@ -132,7 +132,7 @@ class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_share
     friend class ::oglu::oglUtil;
     friend class ::oglu::oglContext;
     friend struct ::oglu::BindingState;
-    friend class ::oclu::detail::_oclPlatform;
+    friend class ::oclu::oclPlatform_;
     template<bool> friend class oglCtxObject;
 public:
     struct DBGLimit

@@ -17,29 +17,30 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 ## Component
 
-| Component | Description | Platform |
-|:-------|:-------:|:-------:|
-| [3rdParty](./3rdParty) | 3rd party library | N/A |
-| [common](./common) | Basic but useful things | N/A |
-| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | Windows & Linux |
-| [MiniLogger](./MiniLogger) | Mini Logger | Windows & Linux |
-| [AsyncExecutor](./AsyncExecutor) | Async Executor | Windows & Linux |
-| [ImageUtil](./ImageUtil) | Image Read/Write Utility | Windows & Linux |
-| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | Windows & Linux |
-| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | Windows & Linux |
-| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | Windows & Linux |
-| [TextureUtil](./TextureUtil) | Texture Utility | Windows & Linux |
-| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | Windows & Linux |
-| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | Windows & Linux |
-| [RenderCore](./RenderCore) | Core of RayRenderer | Windows & Linux |
-| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | Windows & Linux |
-| [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | Windows & Linux |
-| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | Windows |
-| [CommonUtil](./CommonUtil) | Basic utilities for C# | Windows |
-| [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | Windows |
-| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | Windows |
-| [WinFormTest](./WinFormTest) | Test Program(C#) in WinForm (using OpenGLView) | Windows |
-| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | Windows |
+| Component | Description | Language | Platform |
+|:-------|:-------:|:---:|:-------:|
+| [3rdParty](./3rdParty) | 3rd party library | C,C++ | N/A |
+| [common](./common) | Basic but useful things | Multi | N/A |
+| [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
+| [StringCharset](./StringCharset) | String Charset Library | C++ | Windows & Linux |
+| [SystemCommon](./SystemCommon) | System-level common library | C++ | Windows & Linux |
+| [MiniLogger](./MiniLogger) | Mini Logger | C++ | Windows & Linux |
+| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Windows & Linux |
+| [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Windows & Linux |
+| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Windows & Linux |
+| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Windows & Linux |
+| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Windows & Linux |
+| [TextureUtil](./TextureUtil) | Texture Utility | C++ | Windows & Linux |
+| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Windows & Linux |
+| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Windows & Linux |
+| [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Windows & Linux |
+| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | C++/CLI | Windows |
+| [CommonUtil](./CommonUtil) | Basic utilities for C# | C# | Windows |
+| [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | C# | Windows |
+| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | C++/CLI | Windows |
+| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | C++ | Windows & Linux |
+| [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | C++ | Windows & Linux |
+| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | C#  | Windows |
 
 ## Platform Requirements
 
@@ -85,25 +86,13 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 
-* [crypto++](https://www.cryptopp.com) 8.2.0
-
-  [Boost Software License](./3rdParty/cryptopp/license.txt)
-
 * [rapidjson](http://rapidjson.org/) 1.1.0 master@2019-02-10
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
-* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6 @2018-09-26
-
-  [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
-
 * [FreeType2](https://www.freetype.org/) 2.10.1
 
   [The FreeType License](./3rdParty/freetype2/license.txt)
-
-* [cpplinq](http://cpplinq.codeplex.com/)
-
-  [MS-PL License](./3rdParty/cpplinq.html)
 
 * [ISPCTextureCompressor](https://github.com/GameTechDev/ISPCTextureCompressor)
   

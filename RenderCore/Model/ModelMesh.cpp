@@ -224,7 +224,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
     size = maxv - minv;
     dizzLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
     dizzLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-    dizzLog().info(u"OBJ size:\t [{},{},{}]\n", size.x, size.y, size.z);
+    dizzLog().info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.x, size.y, size.z);
     MaterialMap = mtlLoader.GetMaterialMap();
 }
 catch (const FileException&)
@@ -318,7 +318,7 @@ void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<t
         .ToVector();
     MaterialMap.clear();
     MaterialMap = Linq::FromIterable(object.GetObject("materials"))
-        .ToMap(MaterialMap, [](const auto& kvpair) { return (string)kvpair.first; },
+        .ToMap(std::move(MaterialMap), [](const auto& kvpair) { return (string)kvpair.first; },
             [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
 
     const auto asyncer = context.GetCookie<Wrapper<oglu::oglWorker>>("oglWorker");

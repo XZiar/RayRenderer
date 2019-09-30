@@ -24,7 +24,7 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
 
         if (CLContext)
         {
-            CmdQue.reset(CLContext, CLContext->GetGPUDevice());
+            CmdQue = oclCmdQue_::Create(CLContext, CLContext->GetGPUDevice());
             if (!CmdQue)
                 COMMON_THROW(BaseException, u"clQueue initialized failed!");
         }
@@ -32,8 +32,8 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
             texLog().warning(u"TexUtil has no shared CL context attached\n");
     }, [this]
     {
-        CmdQue.release();
-        CLContext.release();
+        CmdQue.reset();
+        CLContext.reset();
         //exit
         if (!GLContext->UnloadContext())
             texLog().error(u"TexUtil cannot terminate GL context\n");

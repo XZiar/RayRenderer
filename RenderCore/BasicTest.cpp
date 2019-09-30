@@ -92,7 +92,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     {
         const auto ctxs = CreateOCLContext(Vendor::NVIDIA, glContext);
         ClContext = ctxs.first; ClSharedContext = ctxs.second;
-        ClQue.reset(ClSharedContext, ClSharedContext->GetGPUDevice());
+        ClQue = oclCmdQue_::Create(ClSharedContext, ClSharedContext->GetGPUDevice());
         if (!ClQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
     }

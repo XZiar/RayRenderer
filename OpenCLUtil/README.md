@@ -51,7 +51,6 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 ## Dependency
 
 * [common](../common)
-  * Wrapper -- an extended version of STL's shared_ptr
   * Exception -- an exception model with support for nested-exception, strong-type, Unicode message, arbitrary extra data 
   * StringEx -- some useful operation for string, including encoding-conversion
 

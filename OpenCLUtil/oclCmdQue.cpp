@@ -5,10 +5,7 @@
 
 namespace oclu
 {
-
-
-namespace detail
-{
+MAKE_ENABLER_IMPL(oclCmdQue_)
 
 
 static cl_command_queue CreateCmdQue(const cl_context ctx, const cl_device_id dev, const bool enableProfiling, const bool enableOutOfOrder)
@@ -26,29 +23,31 @@ static cl_command_queue CreateCmdQue(const cl_context ctx, const cl_device_id de
     return que;
 }
 
-_oclCmdQue::_oclCmdQue(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) : Context(ctx), Device(dev),
+oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) : Context(ctx), Device(dev),
     cmdque(CreateCmdQue(Context->context, Device->deviceID, enableProfiling && Device->SupportProfiling, enableOutOfOrder && Device->SupportOutOfOrder))
 { }
 
 
-_oclCmdQue::~_oclCmdQue()
+oclCmdQue_::~oclCmdQue_()
 {
     Finish();
     clReleaseCommandQueue(cmdque);
 }
 
 
-void _oclCmdQue::Flush() const
+void oclCmdQue_::Flush() const
 {
     clFlush(cmdque);
 }
 
-void _oclCmdQue::Finish() const
+void oclCmdQue_::Finish() const
 {
     clFinish(cmdque);
 }
 
-
+std::shared_ptr<oclCmdQue_> oclCmdQue_::Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder)
+{
+    return MAKE_ENABLER_SHARED(oclCmdQue_, ctx, dev, enableProfiling, enableOutOfOrder);
 }
 
 

@@ -8,6 +8,9 @@ namespace oclu
 {
 using namespace std::literals::string_view_literals;
 
+MAKE_ENABLER_IMPL(oclProgram_)
+MAKE_ENABLER_IMPL(oclKernel_)
+
 string_view KernelArgInfo::GetSpace() const
 {
     switch (Space)
@@ -45,10 +48,9 @@ string KernelArgInfo::GetQualifier() const
 }
 
 
-namespace detail
-{
 using common::container::FindInMap;
 using common::container::ContainInVec;
+
 
 static cl_program LoadProgram(const string& src, const cl_context& ctx)
 {
@@ -61,16 +63,16 @@ static cl_program LoadProgram(const string& src, const cl_context& ctx)
     return prog;
 }
 
-_oclProgram::_oclProgram(const oclContext& ctx, const string& str) : Context(ctx), src(str), progID(LoadProgram(src, Context->context))
+oclProgram_::oclProgram_(const oclContext& ctx, const string& str) : Context(ctx), src(str), progID(LoadProgram(src, Context->context))
 {
 }
 
-_oclProgram::~_oclProgram()
+oclProgram_::~oclProgram_()
 {
     clReleaseProgram(progID);
 }
 
-vector<cl_device_id> _oclProgram::getDevs() const
+vector<cl_device_id> oclProgram_::getDevs() const
 {
     cl_int ret;
     cl_uint devCount = 0;
@@ -82,7 +84,7 @@ vector<cl_device_id> _oclProgram::getDevs() const
     return devids;
 }
 
-u16string _oclProgram::GetBuildLog(const cl_device_id dev) const
+u16string oclProgram_::GetBuildLog(const cl_device_id dev) const
 {
     cl_build_status status;
     clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
@@ -111,8 +113,9 @@ u16string _oclProgram::GetBuildLog(const cl_device_id dev) const
 }
 
 
-void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
+void oclProgram_::Build(const CLProgConfig& config, const oclDevice dev)
 {
+    Kernels.clear();
     string options;
     switch (Context->vendor)
     {
@@ -178,17 +181,21 @@ void _oclProgram::Build(const CLProgConfig& config, const oclDevice dev)
     KernelNames.assign(names.cbegin(), names.cend());
 
     Kernels = Linq::FromIterable(KernelNames)
-        .ToMap(Kernels, [](const auto& name) { return name; },
-            [self = shared_from_this()](const auto& name) { return oclKernel(new _oclKernel(self, name)); });
+        .ToMap(std::move(Kernels), [](const auto& name) { return name; },
+            [&](const auto& name) { return MAKE_ENABLER_UNIQUE(oclKernel_, Context->Plat.get(), this, name); });
 }
 
-oclKernel _oclProgram::GetKernel(const string& name)
+oclKernel oclProgram_::GetKernel(const string& name)
 {
     if (const auto it = FindInMap(Kernels, name); it)
-        return *it;
+        return oclKernel(shared_from_this(), (*it).get());
     return {};
 }
 
+std::shared_ptr<oclProgram_> oclProgram_::Create(const oclContext& ctx_, const string& str)
+{
+    return MAKE_ENABLER_SHARED(oclProgram_, ctx_, str);
+}
 
 
 static cl_kernel CreateKernel(const cl_program prog, const std::string& name)
@@ -253,17 +260,18 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
     }
     return infos;
 }
-_oclKernel::_oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name) : Prog(prog), Kernel(CreateKernel(Prog->progID, name)),
-Name(name), ArgsInfo(GerKernelArgsInfo(Kernel))
+oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name) :
+    Plat(*plat), Prog(*prog), Kernel(CreateKernel(prog->progID, name)),
+    Name(std::move(name)), ArgsInfo(GerKernelArgsInfo(Kernel))
 {
 }
 
-_oclKernel::~_oclKernel()
+oclKernel_::~oclKernel_()
 {
     clReleaseKernel(Kernel);
 }
 
-WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
+WorkGroupInfo oclKernel_::GetWorkGroupInfo(const oclDevice& dev)
 {
     const cl_device_id devid = dev->deviceID;
     WorkGroupInfo info;
@@ -278,30 +286,32 @@ WorkGroupInfo _oclKernel::GetWorkGroupInfo(const oclDevice& dev)
         info.SpillMemSize = 0;
     return info;
 }
-std::optional<SubgroupInfo> _oclKernel::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize)
+std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize)
 {
-    if (!dev->Plat->FuncClGetKernelSubGroupInfo)
+    const cl_device_id devid = dev->deviceID;
+    if (!common::container::ContainInVec(Prog.getDevs(), devid))
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"target device is not related to this kernel");
+    if (!Plat.FuncClGetKernelSubGroupInfo)
         return {};
     if (!dev->Extensions.Has("cl_khr_subgroups") && !dev->Extensions.Has("cl_intel_subgroups"))
         return {};
-    const cl_device_id devid = dev->deviceID;
     SubgroupInfo info;
-    dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
-    dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
+    Plat.FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
+    Plat.FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t)*dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
     if (dev->Extensions.Has("cl_intel_required_subgroup_size"))
-        dev->Plat->FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
+        Plat.FuncClGetKernelSubGroupInfo(Kernel, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
     else
         info.CompiledSubgroupSize = 0;
     return info;
 }
 
-void _oclKernel::CheckArgIdx(const uint32_t idx) const
+void oclKernel_::CheckArgIdx(const uint32_t idx) const
 {
     if (idx >= ArgsInfo.size())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
 }
 
-void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
+void oclKernel_::SetArg(const uint32_t idx, const oclBuffer& buf)
 {
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf->MemID);
@@ -309,7 +319,7 @@ void _oclKernel::SetArg(const uint32_t idx, const oclBuffer& buf)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
+void oclKernel_::SetArg(const uint32_t idx, const oclImage& img)
 {
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->MemID);
@@ -317,7 +327,7 @@ void _oclKernel::SetArg(const uint32_t idx, const oclImage& img)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
+void oclKernel_::SetArg(const uint32_t idx, const void *dat, const size_t size)
 {
     CheckArgIdx(idx);
     auto ret = clSetKernelArg(Kernel, idx, size, dat);
@@ -326,13 +336,13 @@ void _oclKernel::SetArg(const uint32_t idx, const void *dat, const size_t size)
 }
 
 
-PromiseResult<void> _oclKernel::Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
+PromiseResult<void> oclKernel_::Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock, const size_t *workoffset, const size_t *localsize)
 {
     cl_int ret;
     cl_event e;
     cl_uint ecount = 0;
     const cl_event* depend = nullptr;
-    const auto& clpms = std::dynamic_pointer_cast<oclPromiseVoid>(pms);
+    const auto& clpms = std::dynamic_pointer_cast<detail::oclPromiseVoid>(pms);
     if (clpms)
         depend = &clpms->GetEvent(), ecount = 1;
     ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
@@ -344,11 +354,9 @@ PromiseResult<void> _oclKernel::Run(const PromiseResult<void>& pms, const uint32
         return {};
     }
     else
-        return std::make_shared<oclPromiseVoid>(e, que->cmdque, clpms);
+        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque, clpms);
 }
 
-
-}
 
 
 }

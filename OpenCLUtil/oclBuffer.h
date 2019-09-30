@@ -13,22 +13,19 @@
 namespace oclu
 {
 
-namespace detail
+class OCLUAPI oclBuffer_ : public oclMem_
 {
-
-class OCLUAPI _oclBuffer : public _oclMem
-{
-    friend class _oclKernel;
-    friend class _oclContext;
-public:
-    const size_t Size;
+    friend class oclKernel_;
+    friend class oclContext_;
+private:
+    MAKE_ENABLER();
 protected:
-    _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
+    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
+    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
     virtual void* MapObject(const oclCmdQue& que, const MapFlag mapFlag) override;
 public:
-    _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size);
-    _oclBuffer(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
-    virtual ~_oclBuffer();
+    const size_t Size;
+    virtual ~oclBuffer_();
     PromiseResult<void> Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset = 0, const bool shouldBlock = true) const;
     template<class T, class A>
     PromiseResult<void> Read(const oclCmdQue& que, vector<T, A>& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
@@ -55,29 +52,32 @@ public:
             COMMON_THROW(BaseException, u"write size overflow");
         return Write(que, Helper::Data(buf), count * Helper::EleSize, offset * Helper::EleSize, shouldBlock);
     }
+
+    static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };
 
-class OCLUAPI _oclGLBuffer : public _oclBuffer
+class OCLUAPI oclGLBuffer_ : public oclBuffer_
 {
-    template<typename> friend class _oclGLObject;
+    friend class oclGLInterBuf_;
 private:
-    _oclGLBuffer(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
+    MAKE_ENABLER();
+    oclGLBuffer_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
 public:
     const oglu::oglBuffer GLBuf;
-    virtual ~_oclGLBuffer() {}
+    virtual ~oclGLBuffer_();
 };
+MAKE_ENABLER_IMPL(oclGLBuffer_)
 
-class OCLUAPI _oclGLInterBuf : public _oclGLObject<_oclGLBuffer>
+class OCLUAPI oclGLInterBuf_ : public oclGLObject_<oclGLBuffer_>
 {
+private:
+    MAKE_ENABLER();
+    oclGLInterBuf_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
 public:
-    _oclGLInterBuf(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
+    static oclGLInterBuf Create(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf);
 };
 
 
-}
-using oclBuffer = Wrapper<detail::_oclBuffer>;
-using oclGLBuffer = Wrapper<detail::_oclGLBuffer>;
-using oclGLInterBuf = Wrapper<detail::_oclGLInterBuf>;
 
 }
 

@@ -52,19 +52,18 @@ struct OCLUAPI KernelArgInfo
     string GetQualifier() const;
 };
 
-namespace detail
-{
-class _oclProgram;
+class oclProgram_;
 
-
-class OCLUAPI _oclKernel : public std::enable_shared_from_this<_oclKernel>
+class OCLUAPI oclKernel_ : public NonCopyable, public NonMovable
 {
-    friend class _oclProgram;
+    friend class oclProgram_;
 private:
-    const std::shared_ptr<_oclProgram> Prog;
+    MAKE_ENABLER();
+    const oclPlatform_& Plat;
+    const oclProgram_& Prog;
     const cl_kernel Kernel;
-    std::atomic_flag ArgLock;
-    _oclKernel(const std::shared_ptr<_oclProgram>& prog, const string& name);
+    std::atomic_flag ArgLock = ATOMIC_FLAG_INIT;
+    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name);
     void CheckArgIdx(const uint32_t idx) const;
     template<size_t N>
     constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
@@ -77,9 +76,9 @@ private:
     template<uint8_t N, typename... Args>
     class KernelCallSite
     {
-        friend class _oclKernel;
+        friend class oclKernel_;
     private:
-        std::shared_ptr<_oclKernel> Kernel;
+        oclKernel_& Kernel;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
         common::SpinLocker KernelLock;
@@ -89,33 +88,33 @@ private:
         {
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
             if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
-                Kernel->SetArg(Idx, std::get<Idx>(Paras));
+                Kernel.SetArg(Idx, std::get<Idx>(Paras));
             else if constexpr (common::container::ContiguousHelper<ArgType>::IsContiguous)
-                Kernel->SetSpanArg(Idx, std::get<Idx>(Paras));
+                Kernel.SetSpanArg(Idx, std::get<Idx>(Paras));
             else
-                Kernel->SetSimpleArg(Idx, std::get<Idx>(Paras));
+                Kernel.SetSimpleArg(Idx, std::get<Idx>(Paras));
             if constexpr (Idx != 0)
                 SetArg<Idx - 1>();
         }
 
-        KernelCallSite(std::shared_ptr<_oclKernel> kernel, Args&& ... args) : Kernel(std::move(kernel)), Paras(std::forward<Args>(args)...), KernelLock(Kernel->ArgLock)
+        KernelCallSite(oclKernel_* kernel, Args&& ... args) : Kernel(*kernel), Paras(std::forward<Args>(args)...), KernelLock(Kernel.ArgLock)
         {
             SetArg<sizeof...(Args) - 1>();
         }
     public:
         PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Kernel->Run({}, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
+            return Kernel.Run({}, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
         }
         PromiseResult<void> operator()(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Kernel->Run(pms, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
+            return Kernel.Run(pms, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
         }
     };
 public:
     const string Name;
     const vector<KernelArgInfo> ArgsInfo;
-    ~_oclKernel();
+    ~oclKernel_();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev);
     std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize);
@@ -177,13 +176,11 @@ public:
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         if (sizeof...(Args) != ArgsInfo.size())
             COMMON_THROW(BaseException, u"Argument parameter provided does not match parameter needed.");
-        return KernelCallSite<N, Args...>(shared_from_this(), std::forward<Args>(args)...);
+        return KernelCallSite<N, Args...>(this, std::forward<Args>(args)...);
     }
 
 };
 
-}
-using oclKernel = Wrapper<detail::_oclKernel>;
 
 
 struct CLProgConfig
@@ -193,34 +190,34 @@ struct CLProgConfig
     set<string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
 };
 
-namespace detail
-{
 
-class OCLUAPI _oclProgram : public std::enable_shared_from_this<_oclProgram>
+class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, public NonCopyable
 {
-    friend class _oclContext;
-    friend class _oclKernel;
+    friend class oclContext_;
+    friend class oclKernel_;
 private:
+    MAKE_ENABLER();
     const oclContext Context;
     const string src;
     const cl_program progID;
     vector<string> KernelNames;
-    map<string, oclKernel, std::less<>> Kernels;
+    map<string, std::unique_ptr<oclKernel_>, std::less<>> Kernels;
     vector<cl_device_id> getDevs() const;
     u16string GetBuildLog(const cl_device_id dev) const;
+protected:
+    oclProgram_(const oclContext& ctx_, const string& str);
 public:
-    _oclProgram(const oclContext& ctx_, const string& str);
-    ~_oclProgram();
+    ~oclProgram_();
     void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
     u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
     oclKernel GetKernel(const string& name);
     auto GetKernels() const { return common::container::ValSet(Kernels); }
     const vector<string>& GetKernelNames() const { return KernelNames; }
+
+    static std::shared_ptr<oclProgram_> Create(const oclContext& ctx_, const string& str);
 };
 
 
-}
-using oclProgram = Wrapper<detail::_oclProgram>;
 
 
 }

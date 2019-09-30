@@ -1,5 +1,6 @@
 #include "oclRely.h"
 #include "oclPlatform.h"
+#include "oclException.h"
 #include "oclUtil.h"
 
 using common::container::FindInVec;
@@ -9,9 +10,7 @@ namespace oclu
 {
 
 
-namespace detail
-{
-vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & glContext) const
+vector<cl_context_properties> oclPlatform_::GetCLProps(const oglu::oglContext & glContext) const
 {
 #if defined(_WIN32)
     constexpr cl_context_properties glPropName = CL_WGL_HDC_KHR;
@@ -31,7 +30,7 @@ vector<cl_context_properties> _oclPlatform::GetCLProps(const oglu::oglContext & 
     return props;
 }
 
-oclDevice _oclPlatform::GetGLDevice(const vector<cl_context_properties>& props) const
+oclDevice oclPlatform_::GetGLDevice(const vector<cl_context_properties>& props) const
 {
     if (!FuncClGetGLContext) return {};
     {
@@ -88,7 +87,7 @@ static u16string GetUStr(const cl_platform_id platformID, const cl_platform_info
     return u16string(u8str.cbegin(), u8str.cend()); 
 }
 
-_oclPlatform::_oclPlatform(const cl_platform_id pID)
+oclPlatform_::oclPlatform_(const cl_platform_id pID)
     : PlatformID(pID), Extensions(common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false)), 
     Name(GetUStr(pID, CL_PLATFORM_NAME)), Ver(GetUStr(pID, CL_PLATFORM_VERSION)), PlatVendor(JudgeBand(Name))
 {
@@ -97,7 +96,7 @@ _oclPlatform::_oclPlatform(const cl_platform_id pID)
     FuncClGetKernelSubGroupInfo = (clGetKernelSubGroupInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetKernelSubGroupInfoKHR");
 }
 
-void _oclPlatform::Init()
+void oclPlatform_::Init()
 {
     cl_uint numDevices;
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
@@ -105,9 +104,9 @@ void _oclPlatform::Init()
     vector<cl_device_id> deviceIDs(numDevices);
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, deviceIDs.data(), nullptr);
 
-    const auto self = shared_from_this();
+    const auto self = weak_from_this();
     Devices = Linq::FromIterable(deviceIDs)
-        .Select([&self](const auto dID) { return oclDevice(new _oclDevice(self, dID)); })
+        .Select([&self](const auto dID) { return MAKE_ENABLER_SHARED_CONST(oclDevice_, self, dID); })
         .ToVector();
 
     cl_device_id defDevID;
@@ -117,16 +116,20 @@ void _oclPlatform::Init()
         .TryGetFirst().value_or(oclDevice{});
 }
 
-bool _oclPlatform::IsGLShared(const oglu::oglContext & context) const
+bool oclPlatform_::IsGLShared(const oglu::oglContext & context) const
 {
     return (bool)GetGLDevice(GetCLProps(context));
 }
 
-oclContext _oclPlatform::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
+oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
 {
-    return oclContext(new _oclContext(props, devs, Name, PlatVendor));
+    const auto self = shared_from_this();
+    for (const auto& dev : devs)
+        if (!detail::owner_equals(dev->Plat, self))
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"cannot using device from other platform", dev);
+    return MAKE_ENABLER_SHARED(oclContext_, self, props, devs, Name, PlatVendor);
 }
-oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
+oclContext oclPlatform_::CreateContext(const oglu::oglContext& context) const
 {
     const auto props = GetCLProps(context);
     if (context)
@@ -137,9 +140,6 @@ oclContext _oclPlatform::CreateContext(const oglu::oglContext& context) const
     }
     else
         return CreateContext(Devices, props);
-}
-
-
 }
 
 

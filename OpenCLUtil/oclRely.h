@@ -18,7 +18,6 @@
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
-#include "common/Wrapper.hpp"
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StringEx.hpp"
@@ -84,15 +83,53 @@ using MessageCallBack = std::function<void(const u16string&)>;
 
 enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
 
+
+class oclPlatform_;
+using oclPlatform = std::shared_ptr<oclPlatform_>;
+class oclProgram_;
+using oclProgram = std::shared_ptr<oclProgram_>;
+class oclKernel_;
+using oclKernel = std::shared_ptr<oclKernel_>;
+class oclDevice_;
+using oclDevice = std::shared_ptr<const oclDevice_>;
+class oclCmdQue_;
+using oclCmdQue = std::shared_ptr<oclCmdQue_>;
+class oclContext_;
+using oclContext = std::shared_ptr<oclContext_>;
+class oclBuffer_;
+using oclBuffer = std::shared_ptr<oclBuffer_>;
+class oclGLBuffer_;
+using oclGLBuffer = std::shared_ptr<oclGLBuffer_>;
+class oclGLInterBuf_;
+using oclGLInterBuf = std::shared_ptr<oclGLInterBuf_>;
+class oclImage_;
+using oclImage = std::shared_ptr<oclImage_>;
+class oclImage2D_;
+using oclImg2D = std::shared_ptr<oclImage2D_>;
+class oclImage3D_;
+using oclImg3D = std::shared_ptr<oclImage3D_>;
+class oclGLInterImg2D_;
+using oclGLInterImg2D = std::shared_ptr<oclGLInterImg2D_>;
+class oclGLInterImg3D_;
+using oclGLInterImg3D = std::shared_ptr<oclGLInterImg3D_>;
+class oclMem_;
+class oclMapPtr_;
+class GLResLocker;
+class GLInterOP;
+class GLSharedCore;
+
 namespace detail
 {
-class _oclPlatform;
-class _oclContext;
-class GLSharedCore;
-class _oclMem;
-class _oclBuffer;
-class _oclImage;
-class _oclKernel;
+template<typename T>
+bool owner_equals(const std::shared_ptr<T>& lhs, const std::weak_ptr<T>& rhs)
+{
+    return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
+}
+template<typename T>
+bool owner_equals(const std::weak_ptr<T>& lhs, const std::shared_ptr<T>& rhs)
+{
+    return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
+}
 }
 
 }
@@ -104,3 +141,19 @@ namespace oclu
 common::mlog::MiniLogger<false>& oclLog();
 }
 #endif
+
+
+#define MAKE_ENABLER() struct make_enabler
+
+#define MAKE_ENABLER_IMPL(clz)                  \
+struct clz::make_enabler : public clz           \
+{                                               \
+    template<typename... Args>                  \
+    make_enabler(Args... args) :                \
+        clz(std::forward<Args>(args)...) { }    \
+};                                              \
+
+#define MAKE_ENABLER_SHARED(clz, ...) std::static_pointer_cast<clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
+#define MAKE_ENABLER_SHARED_CONST(clz, ...) std::static_pointer_cast<const clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
+
+#define MAKE_ENABLER_UNIQUE(clz, ...) std::make_unique<clz::make_enabler>(__VA_ARGS__)

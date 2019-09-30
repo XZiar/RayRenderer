@@ -6,9 +6,6 @@ namespace oclu
 {
 
 
-namespace detail
-{
-
 static string GetStr(const cl_device_id deviceID, const cl_device_info type)
 {
     string ret;
@@ -54,7 +51,7 @@ static DeviceType GetDevType(const cl_device_id deviceID)
     }
 }
 
-_oclDevice::_oclDevice(const std::shared_ptr<_oclPlatform>& plat, const cl_device_id dID) : Plat(plat), deviceID(dID),
+oclDevice_::oclDevice_(std::weak_ptr<const oclPlatform_> plat, const cl_device_id dID) : Plat(plat), deviceID(dID),
     Name(GetUStr(dID, CL_DEVICE_NAME)), Vendor(GetUStr(dID, CL_DEVICE_VENDOR)), Version(GetUStr(dID, CL_DEVICE_VERSION)),
     Extensions(common::str::Split(GetStr(dID, CL_DEVICE_EXTENSIONS), ' ', false)),
     ConstantBufSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), GlobalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)),
@@ -68,7 +65,7 @@ _oclDevice::_oclDevice(const std::shared_ptr<_oclPlatform>& plat, const cl_devic
 
 using namespace std::literals;
 
-u16string_view _oclDevice::GetDeviceTypeName(const DeviceType type)
+u16string_view oclDevice_::GetDeviceTypeName(const DeviceType type)
 {
     switch (type)
     {
@@ -78,10 +75,6 @@ u16string_view _oclDevice::GetDeviceTypeName(const DeviceType type)
     case DeviceType::Custom:        return u"Custom"sv;
     default:                        return u"Unknown"sv;
     }
-}
-
-
-
 }
 
 

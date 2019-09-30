@@ -28,11 +28,11 @@ CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) 
             texLog().error(u"CLTexResizer cannot create shared CL context from given OGL context\n");
             return;
         }
-        CmdQue.reset(CLContext, CLContext->GetGPUDevice());
+        CmdQue = oclCmdQue_::Create(CLContext, CLContext->GetGPUDevice());
         if (!CmdQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
 
-        oclProgram clProg(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
+        auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
         try
         {
             oclu::CLProgConfig config;
@@ -53,9 +53,9 @@ CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) 
         texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] private mem\n", wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize);
     }, [this] 
     {
-        ResizeToImg.release(); ResizeToDat3.release(); ResizeToDat4.release();
-        CmdQue.release();
-        CLContext.release();
+        ResizeToImg.reset(); ResizeToDat3.reset(); ResizeToDat4.reset();
+        CmdQue.reset();
+        CLContext.reset();
         GLContext->UnloadContext();
         GLContext.release();
     });
@@ -92,7 +92,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& inp
     {
         //const auto wantFormat = OGLTexUtil::ConvertDtypeFrom(format, true);
         //oclImage output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width, height, FixFormat(wantFormat));
-        oclBuffer output(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
+        auto output = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, width*height*Image::GetElementSize(format));
         ImageInfo info{ input->Width, input->Height, width, height, 1.0f / width, 1.0f / height };
         const auto& ker = HAS_FIELD(format, ImageDataType::ALPHA_MASK) ? ResizeToDat4 : ResizeToDat3;
 
@@ -117,7 +117,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
     {
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
-            auto interimg = oclGLInterImg2D(CLContext, MemFlag::ReadOnly, tex);
+            auto interimg = oclGLInterImg2D_::Create(CLContext, MemFlag::ReadOnly, tex);
             auto lockimg = interimg->Lock(CmdQue);
             auto img = agent.Await(ResizeToDat(lockimg.Get(), width, height, format, flipY));
             return img;
@@ -128,7 +128,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, cons
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {
             const auto img = tex->GetImage(ImageDataType::RGBA);
-            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureFormat::RGBA8);
+            auto input = oclImage2D_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, img.GetWidth(), img.GetHeight(), TextureFormat::RGBA8);
             auto pms1 = input->Write(CmdQue, img, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
@@ -143,7 +143,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const common::AlignedBuff
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL doesnot support compressed texture yet.");
         else
         {
-            oclImg2D input(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, dataFormat);
+            auto input = oclImage2D_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, size.first, size.second, dataFormat);
             auto pms1 = input->Write(CmdQue, data, false);
             agent.Await(common::PromiseResult<void>(pms1));
             return agent.Await(ResizeToDat(input, width, height, format, flipY));
