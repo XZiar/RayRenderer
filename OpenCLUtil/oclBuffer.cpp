@@ -13,7 +13,7 @@ MAKE_ENABLER_IMPL(oclBuffer_)
 static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t size, const void* ptr)
 {
     cl_int errcode;
-    const auto id = clCreateBuffer(ctx, (cl_mem_flags)flag, size, const_cast<void*>(ptr), &errcode);
+    const auto id = clCreateBuffer(ctx, common::enum_cast(flag), size, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create memory");
     return id;
@@ -25,7 +25,7 @@ oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t s
 }
 
 oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
-    : oclBuffer_(ctx, flag, size, CreateMem(ctx->context, flag, size, ptr))
+    : oclBuffer_(ctx, flag, size, CreateMem(ctx->Context, flag, size, ptr))
 {
 }
 
@@ -34,11 +34,11 @@ oclBuffer_::~oclBuffer_()
     oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
 }
 
-void* oclBuffer_::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
+void* oclBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
 {
     cl_event e;
     cl_int ret;
-    const auto ptr = clEnqueueMapBuffer(que->cmdque, MemID, CL_TRUE, (cl_map_flags)mapFlag, 0, Size, 0, nullptr, &e, &ret);
+    const auto ptr = clEnqueueMapBuffer(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, &e, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clBuffer");
     return ptr;
@@ -57,7 +57,7 @@ PromiseResult<void> oclBuffer_::Read(const oclCmdQue& que, void *buf, const size
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
@@ -73,7 +73,7 @@ PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const b
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
 }
 
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)

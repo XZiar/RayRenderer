@@ -47,8 +47,8 @@ private:
         ~GLResLocker();
     };
 
-    static cl_mem CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& bufId);
-    static cl_mem CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex);
+    static cl_mem CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& bufId);
+    static cl_mem CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex);
     static vector<cl_context_properties> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
     static oclDevice GetGLDevice(const oclPlatform_& plat, const vector<cl_context_properties>& props);
 public:

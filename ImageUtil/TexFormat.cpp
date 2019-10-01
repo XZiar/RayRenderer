@@ -24,7 +24,7 @@ constexpr static string_view GetChannelSV(const TextureFormat format) noexcept
     case TextureFormat::CHANNEL_RGBA:   return "RGBA"sv;
     case TextureFormat::CHANNEL_BGRA:   return "BGRA"sv;
     case TextureFormat::CHANNEL_ABGR:   return "ABGR"sv;
-    default:                                return "UNKNOWN"sv;
+    default:                            return "UNKNOWN"sv;
     }
 }
 
@@ -54,7 +54,7 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
             case TextureFormat::COMP_999_5:     dtype = "RGB9E5"sv;  break;
             case TextureFormat::COMP_10_2:      dtype = "10_2"sv;    break;
             case TextureFormat::COMP_11_10R:    dtype = "11_10"sv;   break;
-            default:                                dtype = "UNKNOWN"sv; break;
+            default:                            dtype = "UNKNOWN"sv; break;
             }
             const auto channel = GetChannelSV(format & TextureFormat::MASK_CHANNEL_RAW);
             return fmt::format(FMT_STRING("COMPOSITE [{:^7}{:3}] channel[{:^7}] {}"), dtype, rev, channel, srgb);
@@ -77,7 +77,7 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
             case TextureFormat::CPRS_PVRTC:     dtype = "PVRTC"sv;   break;
             case TextureFormat::CPRS_PVRTC2:    dtype = "PVRTC2"sv;  break;
             case TextureFormat::CPRS_ASTC:      dtype = "ASTC"sv;    break;
-            default:                                dtype = "UNKNOWN"sv; break;
+            default:                            dtype = "UNKNOWN"sv; break;
             }
             const auto channel = GetChannelSV(format & TextureFormat::MASK_CHANNEL_RAW);
             return fmt::format(FMT_STRING("COMPRESS [{:^7}] channel[{:^7}] {}"), dtype, channel, srgb);
@@ -93,13 +93,13 @@ std::string TexFormatUtil::GetFormatDetail(const TextureFormat format) noexcept
                     TextureFormat::DTYPE_PLAIN_RAW ? "INTEGER"sv : "NORMAL"sv;
                 switch (REMOVE_MASK(dataType, TextureFormat::MASK_PLAIN_NORMALIZE))
                 {
-                case TextureFormat::DTYPE_U8:    dtype = "U8"sv;    break;
-                case TextureFormat::DTYPE_I8:    dtype = "I8"sv;    break;
-                case TextureFormat::DTYPE_U16:   dtype = "U16"sv;   break;
-                case TextureFormat::DTYPE_I16:   dtype = "I16"sv;   break;
-                case TextureFormat::DTYPE_U32:   dtype = "U32"sv;   break;
-                case TextureFormat::DTYPE_I32:   dtype = "I32"sv;   break;
-                default:                             dtype = "UNKNOWN"sv; break;
+                case TextureFormat::DTYPE_U8:   dtype = "U8"sv;    break;
+                case TextureFormat::DTYPE_I8:   dtype = "I8"sv;    break;
+                case TextureFormat::DTYPE_U16:  dtype = "U16"sv;   break;
+                case TextureFormat::DTYPE_I16:  dtype = "I16"sv;   break;
+                case TextureFormat::DTYPE_U32:  dtype = "U32"sv;   break;
+                case TextureFormat::DTYPE_I32:  dtype = "I32"sv;   break;
+                default:                        dtype = "UNKNOWN"sv; break;
                 }
             }
             const auto channel = GetChannelSV(format);
@@ -171,7 +171,7 @@ std::u16string_view TexFormatUtil::GetFormatName(const TextureFormat format) noe
     case TextureFormat::RGB565:        return u"RGB565"sv;
     case TextureFormat::RGB10A2:       return u"RGB10A2"sv;
     case TextureFormat::RGB10A2U:      return u"RGB10A2U"sv;
-        //case TextureFormat::RGBA12:      return u"RGBA12"sv;
+    //case TextureFormat::RGBA12:      return u"RGBA12"sv;
     case TextureFormat::BC1:           return u"BC1"sv;
     case TextureFormat::BC1A:          return u"BC1A"sv;
     case TextureFormat::BC2:           return u"BC2"sv;
@@ -185,7 +185,7 @@ std::u16string_view TexFormatUtil::GetFormatName(const TextureFormat format) noe
     case TextureFormat::BC2SRGB:       return u"BC2SRGB"sv;
     case TextureFormat::BC3SRGB:       return u"BC3SRGB"sv;
     case TextureFormat::BC7SRGB:       return u"BC7SRGB"sv;
-    default:                               return u"Other"sv;
+    default:                           return u"Other"sv;
     }
 }
 

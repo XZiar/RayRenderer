@@ -37,9 +37,9 @@ public:
     const vector<oclDevice>& GetDevices() const { return Devices; }
     const common::container::FrozenDenseSet<string>& GetExtensions() const { return Extensions; }
     const oclDevice& GetDefaultDevice() const { return DefDevice; }
-    oclContext CreateContext(const oclDevice& dev) const { return CreateContext({ dev }, GetCLProps()); }
     oclContext CreateContext(const vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
-    oclContext CreateContext() const { return CreateContext(Devices, GetCLProps()); }
+    oclContext CreateContext(oclDevice dev) const { return CreateContext(vector<oclDevice>{ dev }); }
+    oclContext CreateContext() const { return CreateContext(Devices); }
 };
 
 

@@ -23,8 +23,9 @@ static cl_command_queue CreateCmdQue(const cl_context ctx, const cl_device_id de
     return que;
 }
 
-oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) : Context(ctx), Device(dev),
-    cmdque(CreateCmdQue(Context->context, Device->deviceID, enableProfiling && Device->SupportProfiling, enableOutOfOrder && Device->SupportOutOfOrder))
+oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) 
+    : Context(ctx), Device(dev),
+    cmdque(CreateCmdQue(Context->Context, Device->deviceID, enableProfiling && Device->SupportProfiling, enableOutOfOrder && Device->SupportOutOfOrder))
 { }
 
 

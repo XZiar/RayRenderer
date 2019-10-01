@@ -36,15 +36,15 @@ GLInterop::GLResLocker::~GLResLocker()
 //    return oclUtil::GetOCLLog();
 //}
 
-cl_mem GLInterop::CreateMemFromGLBuf(const oclContext ctx, MemFlag flag, const oglu::oglBuffer& buf)
+cl_mem GLInterop::CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& buf)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx->context, common::enum_cast(flag), buf->BufferID, &errcode);
+    const auto id = clCreateFromGLBuffer(ctx.Context, common::enum_cast(flag), buf->BufferID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glBuffer");
     return id;
 }
-cl_mem GLInterop::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const oglu::oglTexBase& tex)
+cl_mem GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex)
 {
     if (HAS_FIELD(flag, MemFlag::HostAccessMask) || HAS_FIELD(flag, MemFlag::HostInitMask))
     {
@@ -54,7 +54,7 @@ cl_mem GLInterop::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const o
     cl_int errcode;
     if (xziar::img::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx->context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->textureID, &errcode);
+    const auto id = clCreateFromGLTexture(ctx.Context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->textureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glTexture");
     return id;
@@ -63,6 +63,7 @@ cl_mem GLInterop::CreateMemFromGLTex(const oclContext ctx, MemFlag flag, const o
 vector<cl_context_properties> GLInterop::GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context)
 {
     auto props = plat.GetCLProps();
+    props.pop_back();
 #if defined(_WIN32)
     constexpr cl_context_properties glPropName = CL_WGL_HDC_KHR;
 #else
@@ -137,18 +138,18 @@ oclContext GLInterop::CreateGLSharedContext(const oclPlatform_& plat, const oglu
 
 
 oclGLBuffer_::oclGLBuffer_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : oclBuffer_(ctx, flag, SIZE_MAX, GLInterop::CreateMemFromGLBuf(ctx, flag, buf)), GLBuf(buf) { }
+    : oclBuffer_(ctx, flag, SIZE_MAX, GLInterop::CreateMemFromGLBuf(*ctx, flag, buf)), GLBuf(buf) { }
 oclGLBuffer_::~oclGLBuffer_() {}
 
 oclGLImage2D_::oclGLImage2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
     : oclImage2D_(ctx, flag, tex->GetSize().first, tex->GetSize().second, 1,
-        tex->GetInnerFormat(), GLInterop::CreateMemFromGLTex(ctx, flag, tex)),
+        tex->GetInnerFormat(), GLInterop::CreateMemFromGLTex(*ctx, flag, tex)),
     GLTex(tex) { }
 oclGLImage2D_::~oclGLImage2D_() {}
 
 oclGLImage3D_::oclGLImage3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
     : oclImage3D_(ctx, flag, std::get<0>(tex->GetSize()), std::get<1>(tex->GetSize()), std::get<2>(tex->GetSize()),
-        tex->GetInnerFormat(), GLInterop::CreateMemFromGLTex(ctx, flag, tex)),
+        tex->GetInnerFormat(), GLInterop::CreateMemFromGLTex(*ctx, flag, tex)),
     GLTex(tex) { }
 oclGLImage3D_::~oclGLImage3D_() {}
 

@@ -13,6 +13,7 @@ using namespace common::mlog;
 using namespace common;
 namespace img = xziar::img;
 using common::file::FileException;
+using common::file::FileErrReason;
 using std::vector;
 using std::tuple;
 using std::byte;
@@ -50,7 +51,7 @@ static void STBSaveImage(const common::fs::path& fpath, const img::Image& img)
     const auto ret = stbi_write_png_to_func(&writeToFile, &stream, 
         (int)img.GetWidth(), (int)img.GetHeight(), img.GetElementSize(), img.GetRawPtr(), 0);
     if (ret == 0)
-        COMMON_THROW(FileException, FileException::Reason::WriteFail, fpath, u"cannot parse image");
+        COMMON_THROW(FileException, FileErrReason::WriteFail, fpath, u"cannot parse image");
 }
 
 

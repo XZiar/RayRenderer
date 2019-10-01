@@ -2,9 +2,11 @@
 
 [![Build Status](https://travis-ci.org/XZiar/RayRenderer.svg?branch=master)](https://travis-ci.org/XZiar/RayRenderer)
 
-A messy renderer based on my old RayTrace project.
+No it's not a renderer.
 
-But it's not a renderer yet, it's just a collection of utilities.
+That's just an excuse for me to write a collection of utilities which "will be used for the renderer".
+
+Maintaing and growing the project is much more fun than make it actually renderable. :sweat_smile:
 
 ### Changes from old project
 

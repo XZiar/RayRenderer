@@ -55,8 +55,8 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
 }
 
 oclContext_::oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor)
-    : Plat(plat), context(CreateContext(props, devices, this)), Devices(devices), PlatformName(name), 
-    Img2DFormatSupport(GetSupportedImageFormat(context, CL_MEM_OBJECT_IMAGE2D)), Img3DFormatSupport(GetSupportedImageFormat(context, CL_MEM_OBJECT_IMAGE3D)),
+    : Plat(plat), Context(CreateContext(props, devices, this)), Devices(devices), PlatformName(name),
+    Img2DFormatSupport(GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE2D)), Img3DFormatSupport(GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE3D)),
     vendor(thevendor) { }
 
 oclDevice oclContext_::GetDevice(const cl_device_id devid) const
@@ -69,14 +69,14 @@ oclContext_::~oclContext_()
 {
 #ifdef _DEBUG
     uint32_t refCount = 0;
-    clGetContextInfo(context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
+    clGetContextInfo(Context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
     if (refCount == 1)
     {
-        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)context, PlatformName, refCount);
-        clReleaseContext(context);
+        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)Context, PlatformName, refCount);
+        clReleaseContext(Context);
     }
     else
-        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)context, PlatformName, refCount);
+        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)Context, PlatformName, refCount);
 #else
     clReleaseContext(context);
 #endif

@@ -23,7 +23,7 @@ class OCLUAPI oclContext_ : public NonCopyable, public NonMovable
 private:
     MAKE_ENABLER();
     const std::shared_ptr<const oclPlatform_> Plat;
-    const cl_context context;
+    const cl_context Context;
     static cl_context CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self);
     oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor);
     oclDevice GetDevice(const cl_device_id devid) const;

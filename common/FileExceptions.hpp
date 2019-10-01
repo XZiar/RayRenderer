@@ -1,7 +1,8 @@
+#pragma once
 #include "CommonRely.hpp"
 #include "Exceptions.hpp"
 #include "EnumEx.hpp"
-
+#include <string_view>
 
 namespace common::file
 {
@@ -16,6 +17,19 @@ enum class FileErrReason : uint8_t
     WrongParam, OpMismatch, IsDir, NotExist, AlreadyExist, PermissionDeny, WrongFormat, EndOfFile,
 };
 MAKE_ENUM_BITFIELD(FileErrReason)
+
+constexpr inline std::u16string_view GetReasonOp(const FileErrReason reason)
+{
+    switch (reason & FileErrReason::MASK_OP)
+    {
+    case FileErrReason::OpenFail:       return u"Open";
+    case FileErrReason::ReadFail:       return u"Read";
+    case FileErrReason::WriteFail:      return u"Write";
+    case FileErrReason::CloseFail:      return u"Close";
+    default:                            return u"Unknown";
+    }
+}
+
 
 class FileException : public BaseException
 {

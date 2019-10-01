@@ -88,7 +88,7 @@ private:
         {
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
             if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
-                Kernel.SetArg(Idx, std::get<Idx>(Paras));
+                Kernel.SetArg(Idx, *std::get<Idx>(Paras));
             else if constexpr (common::container::ContiguousHelper<ArgType>::IsContiguous)
                 Kernel.SetSpanArg(Idx, std::get<Idx>(Paras));
             else
@@ -124,8 +124,8 @@ public:
         static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
         return GetSubgroupInfo(dev, N, localsize);
     }
-    void SetArg(const uint32_t idx, const oclBuffer& buf);
-    void SetArg(const uint32_t idx, const oclImage& img);
+    void SetArg(const uint32_t idx, const oclBuffer_& buf);
+    void SetArg(const uint32_t idx, const oclImage_& img);
     void SetArg(const uint32_t idx, const void *dat, const size_t size);
     template<class T>
     void SetSimpleArg(const uint32_t idx, const T& dat)

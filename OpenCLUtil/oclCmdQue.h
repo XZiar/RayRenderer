@@ -17,6 +17,7 @@ namespace oclu
 class OCLUAPI oclCmdQue_ : public NonCopyable
 {
     friend class GLInterop;
+    friend class detail::oclPromiseCore;
     friend class oclContext_;
     friend class oclMem_;
     friend class oclMapPtr_;

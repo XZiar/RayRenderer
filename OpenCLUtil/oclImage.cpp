@@ -151,11 +151,12 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
     desc.buffer = 0;
     return desc;
 }
+
 static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
 {
     cl_int errcode;
     const auto clFormat = ParseTextureFormat(format);
-    const auto id = clCreateImage(ctx, (cl_mem_flags)flag, &clFormat, &desc, const_cast<void*>(ptr), &errcode);
+    const auto id = clCreateImage(ctx, common::enum_cast(flag), &clFormat, &desc, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create image");
     return id;
@@ -178,7 +179,7 @@ oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t w
     :oclMem_(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(format)
 { }
 oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type, const void* ptr)
-    :oclImage_(ctx, flag, width, height, depth, format, CreateMem(ctx->context, flag, CreateImageDesc(type, width, height, depth), format, ptr))
+    :oclImage_(ctx, flag, width, height, depth, format, CreateMem(ctx->Context, flag, CreateImageDesc(type, width, height, depth), format, ptr))
 { }
 
 
@@ -187,14 +188,14 @@ oclImage_::~oclImage_()
     oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)MemID, Width, Height, Depth);
 }
 
-void* oclImage_::MapObject(const oclCmdQue& que, const MapFlag mapFlag)
+void* oclImage_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
     cl_int ret;
     size_t image_row_pitch = 0, image_slice_pitch = 0;
-    const auto ptr = clEnqueueMapImage(que->cmdque, MemID, CL_TRUE, (cl_map_flags)mapFlag, 
+    const auto ptr = clEnqueueMapImage(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 
         origin, region, &image_row_pitch, &image_slice_pitch,
         0, nullptr, &e, &ret);
     if (ret != CL_SUCCESS)
@@ -217,7 +218,7 @@ PromiseResult<void> oclImage_::Write(const oclCmdQue que, const void *data, cons
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclImage_::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
@@ -241,7 +242,7 @@ PromiseResult<void> oclImage_::Read(const oclCmdQue que, void *data, const bool 
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque);
+        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
@@ -261,7 +262,7 @@ PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
     const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<detail::oclPromise<Image>>(e, que->cmdque, std::move(img));
+    return std::make_shared<detail::oclPromise<Image>>(e, que, std::move(img));
 }
 
 PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
@@ -273,7 +274,7 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) con
     const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que->cmdque, std::move(buffer));
+    return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que, std::move(buffer));
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)

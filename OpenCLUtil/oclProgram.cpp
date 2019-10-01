@@ -63,7 +63,8 @@ static cl_program LoadProgram(const string& src, const cl_context& ctx)
     return prog;
 }
 
-oclProgram_::oclProgram_(const oclContext& ctx, const string& str) : Context(ctx), src(str), progID(LoadProgram(src, Context->context))
+oclProgram_::oclProgram_(const oclContext& ctx, const string& str) 
+    : Context(ctx), src(str), progID(LoadProgram(src, Context->Context))
 {
 }
 
@@ -311,18 +312,18 @@ void oclKernel_::CheckArgIdx(const uint32_t idx) const
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
 }
 
-void oclKernel_::SetArg(const uint32_t idx, const oclBuffer& buf)
+void oclKernel_::SetArg(const uint32_t idx, const oclBuffer_& buf)
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf->MemID);
+    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-void oclKernel_::SetArg(const uint32_t idx, const oclImage& img)
+void oclKernel_::SetArg(const uint32_t idx, const oclImage_& img)
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img->MemID);
+    auto ret = clSetKernelArg(Kernel, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
@@ -342,7 +343,7 @@ PromiseResult<void> oclKernel_::Run(const PromiseResult<void>& pms, const uint32
     cl_event e;
     cl_uint ecount = 0;
     const cl_event* depend = nullptr;
-    const auto& clpms = std::dynamic_pointer_cast<detail::oclPromiseVoid>(pms);
+    auto clpms = std::dynamic_pointer_cast<detail::oclPromise<void>>(pms);
     if (clpms)
         depend = &clpms->GetEvent(), ecount = 1;
     ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
@@ -354,7 +355,7 @@ PromiseResult<void> oclKernel_::Run(const PromiseResult<void>& pms, const uint32
         return {};
     }
     else
-        return std::make_shared<detail::oclPromiseVoid>(e, que->cmdque, clpms);
+        return std::make_shared<detail::oclPromise<void>>(e, que, 0, clpms);
 }
 
 

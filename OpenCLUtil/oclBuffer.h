@@ -22,7 +22,7 @@ private:
 protected:
     oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
     oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
-    virtual void* MapObject(const oclCmdQue& que, const MapFlag mapFlag) override;
+    virtual void* MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
 public:
     const size_t Size;
     virtual ~oclBuffer_();

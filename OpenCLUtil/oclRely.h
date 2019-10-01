@@ -95,6 +95,8 @@ class oclCmdQue_;
 using oclCmdQue = std::shared_ptr<oclCmdQue_>;
 class oclContext_;
 using oclContext = std::shared_ptr<oclContext_>;
+class oclMem_;
+using oclMem = std::shared_ptr<oclMem_>;
 class oclBuffer_;
 using oclBuffer = std::shared_ptr<oclBuffer_>;
 class oclImage_;
@@ -103,11 +105,12 @@ class oclImage2D_;
 using oclImg2D = std::shared_ptr<oclImage2D_>;
 class oclImage3D_;
 using oclImg3D = std::shared_ptr<oclImage3D_>;
-class oclMem_;
 class oclMapPtr_;
 
 namespace detail
 {
+class oclPromiseCore;
+
 template<typename T>
 bool owner_equals(const std::shared_ptr<T>& lhs, const std::weak_ptr<T>& rhs)
 {
