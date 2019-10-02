@@ -36,6 +36,7 @@ bool LogMessage::Consume(LogMessage* msg)
 {
     if (msg->RefCount-- == 1) //last one
     {
+        msg->~LogMessage();
         free_align(msg);
         return true;
     }

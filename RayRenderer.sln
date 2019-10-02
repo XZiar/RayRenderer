@@ -64,6 +64,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\PromiseTask.hpp = common\PromiseTask.hpp
 		common\PromiseTaskSTD.hpp = common\PromiseTaskSTD.hpp
 		common\README.md = common\README.md
+		common\RefObject.hpp = common\RefObject.hpp
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\SharedResource.hpp = common\SharedResource.hpp
