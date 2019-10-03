@@ -16,26 +16,27 @@ struct AData
 {
     int pp;
     AData(int d) : pp(d) { }
-    ~AData() { printf("deconst AData %d\n", pp); }
+    virtual ~AData() { printf("deconst AData %d\n", pp); }
 };
 
 struct BData : public AData
 {
     int pk;
     BData(int d) : AData(d), pk(d) { }
-    ~BData() { printf("deconst BData %d\n", pk); }
+    ~BData() override { printf("deconst BData %d\n", pk); }
 };
 
 struct A : public common::RefObject<AData>
 {
-    A(common::RefObject<AData>&& other) : common::RefObject<AData>(std::move(other))
-    { }
+    /*A(common::RefObject<AData>&& other) : common::RefObject<AData>(std::move(other))
+    { }*/
+    INIT_REFOBJ(A, AData)
     A(int data) : common::RefObject<AData>(Create(data)) 
     { }
     using common::RefObject<AData>::RefObject;
     int GetIt() const
     {
-        return GetSelf().pp;
+        return Self().pp;
     }
     A Child(int data)
     {
@@ -45,14 +46,15 @@ struct A : public common::RefObject<AData>
 
 struct B : public common::RefObject<BData>
 {
-    B(common::RefObject<BData>&& other) : common::RefObject<BData>(std::move(other))
-    { }
+    INIT_REFOBJ(B, BData)
+    /*B(common::RefObject<BData>&& other) : common::RefObject<BData>(std::move(other))
+    { }*/
     B(int data) : common::RefObject<BData>(Create(data))
     { }
     using common::RefObject<BData>::RefObject;
     int GetIt() const
     {
-        return GetSelf().pk;
+        return Self().pk;
     }
 
 };
@@ -71,11 +73,18 @@ void TestRefObj()
     printf("a: %d\n", a.GetIt());
     printf("b: %d\n", b.GetIt());
     printf("c: %d\n", c.GetIt());
+    auto d = common::RefCast<B>(a);
+    printf("d=cast(a)\n");
+    printf("a: %d\n", a.GetIt());
+    printf("b: %d\n", b.GetIt());
+    printf("c: %d\n", c.GetIt());
+    printf("d: %d\n", d.GetIt());
     a = std::move(c);
     printf("a=move(c)\n");
     printf("a: %d\n", a.GetIt());
     printf("b: %d\n", b.GetIt());
-    printf("c: %d\n", c.GetIt());
+    printf("c: %s\n", c ? "valid" : "invalid");
+    printf("d: %d\n", d.GetIt());
 }
 
 void TestLinq()

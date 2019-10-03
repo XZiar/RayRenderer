@@ -9,9 +9,9 @@ namespace detail
 
 class oclPromiseCore
 {
-    friend class oclBuffer_;
-    friend class oclImage_;
-    friend class oclKernel_;
+    friend class ::oclu::oclBuffer_;
+    friend class ::oclu::oclImage_;
+    friend class ::oclu::oclKernel_;
 protected:
     const std::shared_ptr<oclPromiseCore> Prev;
     const cl_event Event;
@@ -75,8 +75,8 @@ protected:
 template<typename T>
 class oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore
 {
-    friend class oclBuffer_;
-    friend class oclImage_;
+    friend class ::oclu::oclBuffer_;
+    friend class ::oclu::oclImage_;
 private:
     std::conditional_t<std::is_same_v<T, void>, uint32_t, T> Result;
     virtual void PreparePms() override
@@ -103,35 +103,6 @@ public:
         return oclPromiseCore::ElapseNs();
     }
 };
-
-//class oclPromiseVoid : public ::common::detail::PromiseResult_<void>, public oclPromiseCore
-//{
-//    friend class oclBuffer_;
-//    friend class oclImage_;
-//    friend class oclKernel_;
-//private:
-//    virtual void PreparePms() override
-//    {
-//        Flush();
-//    }
-//    common::PromiseState virtual State() override
-//    {
-//        return oclPromiseCore::State();
-//    }
-//    void WaitPms() override
-//    {
-//        oclPromiseCore::Wait();
-//    }
-//public:
-//    oclPromiseVoid(const cl_event e, const cl_command_queue que, const std::shared_ptr<oclPromiseVoid>& pms = {})
-//        : oclPromiseCore(e, que, pms) { }
-//    ~oclPromiseVoid() override { }
-//    uint64_t ElapseNs() override 
-//    { 
-//        return oclPromiseCore::ElapseNs();
-//    }
-//    using oclPromiseCore::GetEvent;
-//};
 
 }
 

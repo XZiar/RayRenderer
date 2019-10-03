@@ -17,14 +17,45 @@ namespace detail
 
 class RefBlock
 {
-    template<typename> friend class ::common::RefObject;
 private:
-    static void Increase(RefBlock*& block) noexcept
+    static void DeleteSelf(RefBlock* block, void*) noexcept
+    {
+        delete block;
+    }
+protected:
+    void* Pointer;
+private:
+    void (*DeleterObj )(void*) noexcept;
+    void (*DeleterSelf)(RefBlock*, void*);
+    void* Cookie;
+    RefBlock* Parent;
+    std::atomic_uint32_t RefCount;
+protected:
+    constexpr RefBlock(void* ptr, void (*deleteObj)(void*) noexcept, void (*deleteSelf)(RefBlock*, void*) noexcept = &DeleteSelf, void* cookie = nullptr) noexcept
+        : Pointer(ptr), DeleterObj(deleteObj), DeleterSelf(deleteSelf), Cookie(cookie), Parent(nullptr), RefCount(1)
+    { }
+public:
+    RefBlock(const RefBlock&) = delete;
+    RefBlock(RefBlock&&) = delete;
+    RefBlock& operator=(const RefBlock&) = delete;
+    RefBlock& operator=(RefBlock&&) = delete;
+
+    void AttachParent(RefBlock* parent) noexcept
+    {
+        if (Parent != parent)
+        {
+            std::swap(Parent, parent);
+            Increase(Parent);
+            Decreace(parent);
+        }
+    }
+
+    static void Increase(RefBlock* block) noexcept
     {
         if (block)
             block->RefCount++;
     }
-    static bool Decreace(RefBlock*& block) noexcept
+    static bool Decreace(RefBlock * &block) noexcept
     {
         if (block && block->RefCount-- == 1)
         {
@@ -36,21 +67,6 @@ private:
         }
         return false;
     }
-    static void DeleteSelf(RefBlock* block, void*) noexcept
-    {
-        delete block;
-    }
-protected:
-    void* Pointer;
-    void (*DeleterObj )(void*) noexcept;
-    void (*DeleterSelf)(RefBlock*, void*);
-    void* Cookie;
-    RefBlock* Parent = nullptr;
-    std::atomic_uint32_t RefCount;
-
-    constexpr RefBlock(void* ptr, void (*deleteObj)(void*) noexcept, void (*deleteSelf)(RefBlock*, void*) noexcept = &DeleteSelf, void* cookie = nullptr) noexcept
-        : Pointer(ptr), DeleterObj(deleteObj), DeleterSelf(deleteSelf), Cookie(cookie), RefCount(1)
-    { }
 };
 
 class AllocTemp
@@ -93,9 +109,9 @@ private:
     {
         free_align(cookie);
     }
-public:
     RefBlockT(void* ptr, void* mem) noexcept : RefBlock(ptr, &DeleteCombineObj, &DeleteCombine, mem)
     { }
+public:
     RefBlockT(void* ptr) noexcept : RefBlock(ptr, &DeleteObj)
     { }
     T* Get() { return reinterpret_cast<T*>(Pointer); }
@@ -121,20 +137,30 @@ public:
 
 }
 
+template<typename T>
+class RefObject;
+template<typename T, typename U>
+T RefCast(const RefObject<U>& obj);
 
 template<typename T>
 class RefObject
 {
     template<typename> friend class RefObject;
+    template<typename X, typename Y> friend X RefCast(const RefObject<Y>&);
 private:
     T* Pointer;
     detail::RefBlock* Control;
     constexpr RefObject(detail::RefBlockT<T>* control) noexcept : Pointer(control->Get()), Control(control)
     { }
+    template<typename U>
+    constexpr RefObject(detail::RefBlock* control, U* ptr) noexcept : Pointer(dynamic_cast<T*>(ptr)), Control(ptr ? control : nullptr)
+    {
+        detail::RefBlock::Increase(Control);
+    }
 protected:
     using RefType = RefObject<T>;
-    T& GetSelf() { return *Pointer; }
-    const T& GetSelf() const { return *Pointer; }
+    T& Self() { return *Pointer; }
+    const T& Self() const { return *Pointer; }
     template<typename... Args>
     static RefObject<T> Create(Args... args)
     {
@@ -144,9 +170,8 @@ protected:
     template<typename U, typename... Args>
     RefObject<U> CreateWith(Args... args)
     {
-        auto control = detail::RefBlockT<T>::CreateBlockTCombined(std::forward<Args>(args)...);
-        control->Parent = Control;
-        detail::RefBlock::Increase(Control);
+        auto control = detail::RefBlockT<U>::CreateBlockTCombined(std::forward<Args>(args)...);
+        control->AttachParent(Control);
         return RefObject<U>(control);
     }
 public:
@@ -170,21 +195,19 @@ public:
         Release();
     }
 
-    /*template<typename Arg, typename = std::enable_if_t<std::is_constructible_v<T, Arg>>>
-    explicit Wrapper(Arg&& arg) : base_type(std::make_shared<T>(std::forward<Arg>(arg)))
-    { }
-    template<typename Arg, typename... Args, typename = std::enable_if_t<sizeof...(Args) != 0>>
-    explicit Wrapper(Arg&& arg, Args&&... args) : base_type(std::make_shared<T>(std::forward<Arg>(arg), std::forward<Args>(args)...))
-    { }*/
-
     void Release() 
     {
         detail::RefBlock::Decreace(Control);
+        Control = nullptr;
         Pointer = nullptr;
+    }
+    operator bool() const
+    {
+        return Control != nullptr;
     }
 
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
-    RefObject& operator=(const RefObject<U>& other) noexcept
+    RefObject<T>& operator=(const RefObject<U>& other) noexcept
     {
         detail::RefBlock::Increase(other.Control);
         detail::RefBlock::Decreace(Control);
@@ -193,14 +216,39 @@ public:
         return *this;
     }
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
-    RefObject& operator=(RefObject<U>&& other) noexcept
+    RefObject<T>& operator=(RefObject<U>&& other) noexcept
     {
         std::swap(Control, other.Control);
         Pointer = other.Pointer;
+        other.Release();
         return *this;
     }
 };
 
+template<typename T, typename U>
+T RefCast(const RefObject<U>& obj)
+{
+    using V = typename T::ObjectType;
+    static_assert(std::is_base_of_v<RefObject<V>, T>, "Need to be cast into RefObject");
+    return RefObject<V>(obj.Control, obj.Pointer);
+}
 
+#define INIT_REFOBJ(Name, Data)                                 \
+Name(::common::RefObject<Data>&& other) :                       \
+    ::common::RefObject<Data>(std::move(other)) { }             \
+template<typename U, typename =                                 \
+    std::enable_if_t<std::is_convertible_v<U*, Data*>>>         \
+Name& operator=(const RefObject<U>& other) noexcept             \
+{                                                               \
+    *static_cast<RefObject<Data>*>(this) = other;               \
+    return *this;                                               \
+}                                                               \
+template<typename U, typename =                                 \
+    std::enable_if_t<std::is_convertible_v<U*, Data*>>>         \
+Name& operator=(RefObject<U>&& other) noexcept                  \
+{                                                               \
+    *static_cast<RefObject<Data>*>(this) = std::move(other);    \
+    return *this;                                               \
+}                                                               \
 
 }

@@ -56,6 +56,12 @@ It provides SSE/AVX static version test (compiler support).
 
 [SIMD128](./SIMD128.hpp) and [SIMD256](./SIMD256.hpp) provide SIMD vector types support.
 
+### [RefObject](./RefObject.hpp)
+
+An ateempt to combine intrusive refrence counting with pimpl. It natively supports type erasure and belonging ownership. 
+
+It is used by inherit so we can expose operations natively without using `->`. However, seperating data and operation makes it harder to decide which part need to be keep by others.
+
 ### [Wrapper](./Wrapper.hpp)
 
 Wrapper can be simply regarded as a combination of `shared_ptr` and `make_shared`. It is mostly my own taste and may not be recommended.
