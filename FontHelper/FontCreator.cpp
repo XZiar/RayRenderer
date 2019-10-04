@@ -46,7 +46,7 @@ void FontCreator::loadDownSampler(const string& src)
     try
     {
         oclu::CLProgConfig config;
-        if (clCtx->vendor == Vendor::NVIDIA)
+        if (clCtx->GetVendor() == Vendors::NVIDIA)
         {
             config.Flags.insert({"-cl-kernel-arg-info", "-cl-nv-verbose"});
             config.Defines.insert_or_assign("NVIDIA", std::monostate{});

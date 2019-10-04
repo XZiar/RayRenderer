@@ -42,18 +42,18 @@ static string LoadShaderFallback(const fs::path& shaderPath, int32_t id)
     return getShaderFromDLL(id);
 }
 
-static int32_t JudgeVendor(const Vendor vendor)
+static int32_t JudgeVendor(const Vendors vendor)
 {
     switch (vendor)
     {
-    case Vendor::NVIDIA: return 1;
-    case Vendor::AMD:    return 2;
-    case Vendor::Intel:  return 3;
+    case Vendors::NVIDIA: return 1;
+    case Vendors::AMD:    return 2;
+    case Vendors::Intel:  return 3;
     default:             return 4;
     }
 }
 
-static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, const oglContext glContext)
+static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, const oglContext glContext)
 {
     const auto venderClPlat = Linq::FromIterable(oclUtil::GetPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
@@ -90,7 +90,7 @@ BasicTest::BasicTest(const fs::path& shaderPath)
     glContext->UseContext();
     //glContext = oglu::oglContext::CurrentContext();
     {
-        const auto ctxs = CreateOCLContext(Vendor::NVIDIA, glContext);
+        const auto ctxs = CreateOCLContext(Vendors::NVIDIA, glContext);
         ClContext = ctxs.first; ClSharedContext = ctxs.second;
         ClQue = oclCmdQue_::Create(ClSharedContext, ClSharedContext->GetGPUDevice());
         if (!ClQue)

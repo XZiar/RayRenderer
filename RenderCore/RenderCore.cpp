@@ -27,18 +27,18 @@ RESPAK_IMPL_COMP_DESERIALIZE(FontTester, oclu::oclContext)
 }
 
 
-static int32_t JudgeVendor(const Vendor vendor)
+static int32_t JudgeVendor(const Vendors vendor)
 {
     switch (vendor)
     {
-    case Vendor::NVIDIA: return 1;
-    case Vendor::AMD:    return 2;
-    case Vendor::Intel:  return 3;
+    case Vendors::NVIDIA: return 1;
+    case Vendors::AMD:    return 2;
+    case Vendors::Intel:  return 3;
     default:             return 4;
     }
 }
 
-static std::pair<oclContext, oclContext> CreateOCLContext(const Vendor vendor, const oglContext glContext)
+static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, const oglContext glContext)
 {
     const auto venderClPlat = Linq::FromIterable(oclUtil::GetPlatforms())
         .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
@@ -85,7 +85,7 @@ RenderCore::RenderCore()
     GLContext->SetSRGBFBO(true);
     //GLContext->SetFaceCulling(FaceCullingType::CullCW);
     {
-        const auto ctxs = CreateOCLContext(Vendor::NVIDIA, GLContext);
+        const auto ctxs = CreateOCLContext(Vendors::NVIDIA, GLContext);
         CLContext = ctxs.first; CLSharedContext = ctxs.second;
         CLQue = oclCmdQue_::Create(CLSharedContext, CLSharedContext->GetGPUDevice());
         if (!CLQue)

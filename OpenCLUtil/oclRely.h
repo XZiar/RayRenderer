@@ -76,52 +76,14 @@ using common::BaseException;
 using common::file::FileException;
 using common::linq::Linq;
 
+
 class oclUtil;
-using MessageCallBack = std::function<void(const u16string&)>;
-
-enum class Vendor { Other = 0, NVIDIA, Intel, AMD };
-
-
-class GLInterop;
-class oclPlatform_;
-using oclPlatform = std::shared_ptr<oclPlatform_>;
-class oclProgram_;
-using oclProgram = std::shared_ptr<oclProgram_>;
-class oclKernel_;
-using oclKernel = std::shared_ptr<oclKernel_>;
-class oclDevice_;
-using oclDevice = std::shared_ptr<const oclDevice_>;
-class oclCmdQue_;
-using oclCmdQue = std::shared_ptr<oclCmdQue_>;
-class oclContext_;
-using oclContext = std::shared_ptr<oclContext_>;
-class oclMem_;
-using oclMem = std::shared_ptr<oclMem_>;
-class oclBuffer_;
-using oclBuffer = std::shared_ptr<oclBuffer_>;
-class oclImage_;
-using oclImage = std::shared_ptr<oclImage_>;
-class oclImage2D_;
-using oclImg2D = std::shared_ptr<oclImage2D_>;
-class oclImage3D_;
-using oclImg3D = std::shared_ptr<oclImage3D_>;
 class oclMapPtr_;
+class GLInterop;
+using MessageCallBack = std::function<void(const u16string&)>;
+enum class Vendors { Other = 0, NVIDIA, Intel, AMD };
 
-namespace detail
-{
-class oclPromiseCore;
 
-template<typename T>
-bool owner_equals(const std::shared_ptr<T>& lhs, const std::weak_ptr<T>& rhs)
-{
-    return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
-}
-template<typename T>
-bool owner_equals(const std::weak_ptr<T>& lhs, const std::shared_ptr<T>& rhs)
-{
-    return !lhs.owner_before(rhs) && !rhs.owner_before(lhs);
-}
-}
 
 }
 

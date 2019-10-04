@@ -18,7 +18,7 @@ GLInterop::GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Qu
 {
     if (!Queue->SupportImplicitGLSync())
         glFinish();
-    cl_int ret = clEnqueueAcquireGLObjects(Queue->cmdque, 1, &mem, 0, nullptr, nullptr);
+    cl_int ret = clEnqueueAcquireGLObjects(Queue->CmdQue, 1, &mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");
 }
@@ -26,7 +26,7 @@ GLInterop::GLResLocker::~GLResLocker()
 {
     if (!Queue->SupportImplicitGLSync())
         Queue->Flush(); // assume promise is correctly waited before relase lock
-    cl_int ret = clEnqueueReleaseGLObjects(Queue->cmdque, 1, &Mem, 0, nullptr, nullptr);
+    cl_int ret = clEnqueueReleaseGLObjects(Queue->CmdQue, 1, &Mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
         oclUtil::GetOCLLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
 }
@@ -81,38 +81,38 @@ vector<cl_context_properties> GLInterop::GetGLProps(const oclPlatform_& plat, co
     return props;
 }
 
-oclDevice GLInterop::GetGLDevice(const oclPlatform_& plat, const vector<cl_context_properties>& props)
+oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_context_properties>& props)
 {
-    if (!plat.FuncClGetGLContext)
+    if (!plat->FuncClGetGLContext)
         return {};
     {
         cl_device_id dID;
         size_t retSize = 0;
-        const auto ret = plat.FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
+        const auto ret = plat->FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
         if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(plat.Devices, [=](const oclDevice& d) { return d->deviceID == dID; }); dev)
-                return *dev;
+            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& d) { return d.DeviceID == dID; }); dev)
+                return oclDevice(plat, dev);
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }
     //try context that may be associated 
-    {
-        std::vector<cl_device_id> dIDs(plat.Devices.size());
+    /*{
+        std::vector<cl_device_id> dIDs(plat->Devices.size());
         size_t retSize = 0;
-        const auto ret = plat.FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id) * plat.Devices.size(), dIDs.data(), &retSize);
+        const auto ret = plat->FuncClGetGLContext(props.data(), CL_DEVICES_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id) * plat->Devices.size(), dIDs.data(), &retSize);
         if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(plat.Devices, [=](const oclDevice& d) { return d->deviceID == dIDs[0]; }); dev)
-                return *dev;
+            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& d) { return d.DeviceID == dIDs[0]; }); dev)
+                return oclDevice(plat, dev);
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
-    }
+    }*/
     return {};
 }
 
 bool GLInterop::CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context)
 {
     const auto props = GetGLProps(plat, context);
-    return (bool)GetGLDevice(plat, props);
+    return (bool)GetGLDevice(plat.shared_from_this(), props);
 }
 
 oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
@@ -120,7 +120,7 @@ oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
     for (const auto& plat : oclUtil::GetPlatforms())
     {
         const auto props = GetGLProps(*plat, context);
-        const auto dev = GetGLDevice(*plat, props);
+        const auto dev = GetGLDevice(plat, props);
         if (dev)
             return plat->CreateContext({ dev }, props);
     }
@@ -130,7 +130,7 @@ oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
 oclContext GLInterop::CreateGLSharedContext(const oclPlatform_& plat, const oglu::oglContext& context)
 {
     const auto props = GetGLProps(plat, context);
-    const auto dev = GetGLDevice(plat, props);
+    const auto dev = GetGLDevice(plat.shared_from_this(), props);
     if (dev)
         return plat.CreateContext({ dev }, props);
     return {};

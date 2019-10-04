@@ -8,6 +8,7 @@ namespace oclu
 {
 using xziar::img::TexFormatUtil;
 using xziar::img::TextureFormat;
+using xziar::img::Image;
 
 MAKE_ENABLER_IMPL(oclImage2D_)
 MAKE_ENABLER_IMPL(oclImage3D_)
@@ -212,13 +213,13 @@ PromiseResult<void> oclImage_::Write(const oclCmdQue que, const void *data, cons
         COMMON_THROW(BaseException, u"write size not sufficient");
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
+    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
+        return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclImage_::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
@@ -236,13 +237,13 @@ PromiseResult<void> oclImage_::Read(const oclCmdQue que, void *data, const bool 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
+        return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
@@ -259,10 +260,10 @@ PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<detail::oclPromise<Image>>(e, que, std::move(img));
+    return std::make_shared<oclPromise<Image>>(e, que, std::move(img));
 }
 
 PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
@@ -271,10 +272,10 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) con
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->cmdque, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<detail::oclPromise<common::AlignedBuffer>>(e, que, std::move(buffer));
+    return std::make_shared<oclPromise<common::AlignedBuffer>>(e, que, std::move(buffer));
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)

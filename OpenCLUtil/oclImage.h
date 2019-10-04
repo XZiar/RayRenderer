@@ -14,6 +14,13 @@
 
 namespace oclu
 {
+class oclImage_;
+using oclImage = std::shared_ptr<oclImage_>;
+class oclImage2D_;
+using oclImg2D = std::shared_ptr<oclImage2D_>;
+class oclImage3D_;
+using oclImg3D = std::shared_ptr<oclImage3D_>;
+
 
 class OCLWrongFormatException : public OCLException
 {
@@ -26,7 +33,6 @@ public:
     virtual ~OCLWrongFormatException() {}
 };
 
-using xziar::img::Image;
 
 class OCLUAPI oclImage_ : public oclMem_
 {
@@ -43,11 +49,11 @@ public:
     PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;
     PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer& data, const bool shouldBlock = true) const
     { return Write(que, data.GetRawPtr(), data.GetSize(), shouldBlock); }
-    PromiseResult<void> Write(const oclCmdQue que, const Image& image, const bool shouldBlock = true) const;
+    PromiseResult<void> Write(const oclCmdQue que, const xziar::img::Image& image, const bool shouldBlock = true) const;
 
     PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
-    PromiseResult<void> Read(const oclCmdQue que, Image& image, const bool shouldBlock = true) const;
-    PromiseResult<Image> Read(const oclCmdQue que) const;
+    PromiseResult<void> Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
+    PromiseResult<xziar::img::Image> Read(const oclCmdQue que) const;
     PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
@@ -70,7 +76,7 @@ public:
     {
         return Create(ctx, flag, width, height, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized));
     }
-    static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const Image& image, const bool isNormalized = true)
+    static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const xziar::img::Image& image, const bool isNormalized = true)
     {
         return Create(ctx, flag, image.GetWidth(), image.GetHeight(), xziar::img::TexFormatUtil::FromImageDType(image.GetDataType(), isNormalized), image.GetRawPtr());
     }

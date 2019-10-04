@@ -118,11 +118,11 @@ void oclProgram_::Build(const CLProgConfig& config, const oclDevice dev)
 {
     Kernels.clear();
     string options;
-    switch (Context->vendor)
+    switch (Context->GetVendor())
     {
-    case Vendor::NVIDIA:    options = "-DOCLU_NVIDIA -cl-nv-verbose "; break;
-    case Vendor::AMD:       options = "-DOCLU_AMD "; break;
-    case Vendor::Intel:     options = "-DOCLU_INTEL "; break;
+    case Vendors::NVIDIA:    options = "-DOCLU_NVIDIA -cl-nv-verbose "; break;
+    case Vendors::AMD:       options = "-DOCLU_AMD "; break;
+    case Vendors::Intel:     options = "-DOCLU_INTEL "; break;
     default:                break;
     }
     for (const auto& def : config.Defines)
@@ -146,7 +146,7 @@ void oclProgram_::Build(const CLProgConfig& config, const oclDevice dev)
     {
         devices.push_back(dev);
         options.append("-DOCLU_LOCAL_MEM_SIZE=").append(std::to_string(dev->LocalMemSize));
-        ret = clBuildProgram(progID, 1, &dev->deviceID, options.c_str(), nullptr, nullptr);
+        ret = clBuildProgram(progID, 1, &dev->DeviceID, options.c_str(), nullptr, nullptr);
     }
     else
     {
@@ -154,7 +154,7 @@ void oclProgram_::Build(const CLProgConfig& config, const oclDevice dev)
         ret = clBuildProgram(progID, 0, nullptr, options.c_str(), nullptr, nullptr);
         const auto dids = getDevs();
         for (const auto& d : Context->Devices)
-            if (ContainInVec(dids, d->deviceID))
+            if (ContainInVec(dids, d->DeviceID))
                 devices.push_back(d);
     }
     u16string buildlog;
@@ -274,7 +274,7 @@ oclKernel_::~oclKernel_()
 
 WorkGroupInfo oclKernel_::GetWorkGroupInfo(const oclDevice& dev)
 {
-    const cl_device_id devid = dev->deviceID;
+    const cl_device_id devid = dev->DeviceID;
     WorkGroupInfo info;
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, nullptr);
     clGetKernelWorkGroupInfo(Kernel, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, nullptr);
@@ -289,7 +289,7 @@ WorkGroupInfo oclKernel_::GetWorkGroupInfo(const oclDevice& dev)
 }
 std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize)
 {
-    const cl_device_id devid = dev->deviceID;
+    const cl_device_id devid = dev->DeviceID;
     if (!common::container::ContainInVec(Prog.getDevs(), devid))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"target device is not related to this kernel");
     if (!Plat.FuncClGetKernelSubGroupInfo)
@@ -343,19 +343,19 @@ PromiseResult<void> oclKernel_::Run(const PromiseResult<void>& pms, const uint32
     cl_event e;
     cl_uint ecount = 0;
     const cl_event* depend = nullptr;
-    auto clpms = std::dynamic_pointer_cast<detail::oclPromise<void>>(pms);
+    auto clpms = std::dynamic_pointer_cast<oclPromise<void>>(pms);
     if (clpms)
         depend = &clpms->GetEvent(), ecount = 1;
-    ret = clEnqueueNDRangeKernel(que->cmdque, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
+    ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel, workdim, workoffset, worksize, localsize, ecount, depend, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"excute kernel error");
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
     if (isBlock)
     {
         clWaitForEvents(1, &e);
         return {};
     }
     else
-        return std::make_shared<detail::oclPromise<void>>(e, que, 0, clpms);
+        return std::make_shared<oclPromise<void>>(e, que, 0, clpms);
 }
 
 

@@ -51,13 +51,13 @@ PromiseResult<void> oclBuffer_::Read(const oclCmdQue& que, void *buf, const size
     else if (offset + size > Size)
         COMMON_THROW(BaseException, u"read size overflow");
     cl_event e;
-    auto ret = clEnqueueReadBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
+    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clMemory");
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
+        return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
 PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
@@ -67,13 +67,13 @@ PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const b
     else if (offset + size > Size)
         COMMON_THROW(BaseException, u"write size overflow"); 
     cl_event e;
-    const auto ret = clEnqueueWriteBuffer(que->cmdque, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
+    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<detail::oclPromise<void>>(e, que, 0);
+        return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)

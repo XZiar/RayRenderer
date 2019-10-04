@@ -2,6 +2,7 @@
 #include "oclContext.h"
 #include "oclException.h"
 #include "oclDevice.h"
+#include "oclPlatform.h"
 #include "oclUtil.h"
 #include "oclImage.h"
 
@@ -15,30 +16,9 @@ static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const voi
 {
     const oclContext_& ctx = *(oclContext_*)user_data;
     const auto u16Info = common::strchset::to_u16string(errinfo, common::strchset::Charset::UTF8);
-    oclLog().verbose(u"{}\n", u16Info);
-    if (ctx.onMessage)
-        ctx.onMessage(u16Info);
-    return;
+    ctx.OnMessage(u16Info);
 }
 
-cl_context oclContext_::CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self)
-{
-    cl_int ret;
-    vector<cl_device_id> deviceIDs;
-    bool supportIntelDiag = true;
-    for (const auto& dev : devices)
-    {
-        deviceIDs.push_back(dev->deviceID);
-        supportIntelDiag &= dev->Extensions.Has("cl_intel_driver_diagnostics");
-    }
-    constexpr cl_context_properties intelDiagnostics = CL_CONTEXT_DIAGNOSTICS_LEVEL_BAD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_GOOD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_NEUTRAL_INTEL;
-    if (supportIntelDiag)
-        props.insert(props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics }); 
-    const auto ctx = clCreateContext(props.data(), (cl_uint)deviceIDs.size(), deviceIDs.data(), &onNotify, self, &ret);
-    if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot create opencl-context");
-    return ctx;
-}
 
 extern xziar::img::TextureFormat ParseCLImageFormat(const cl_image_format& format);
 
@@ -54,16 +34,34 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
     return dformats;
 }
 
-oclContext_::oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor)
-    : Plat(plat), Context(CreateContext(props, devices, this)), Devices(devices), PlatformName(name),
-    Img2DFormatSupport(GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE2D)), Img3DFormatSupport(GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE3D)),
-    vendor(thevendor) { }
-
-oclDevice oclContext_::GetDevice(const cl_device_id devid) const
+oclContext_::oclContext_(std::shared_ptr<const oclPlatform_> plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
+    : Plat(std::move(plat)), Devices(devices)
 {
-    const auto it = FindInVec(Devices, [=](const oclDevice& dev) {return dev->deviceID == devid; });
-    return it ? *it : oclDevice{};
+    cl_int ret;
+    vector<cl_device_id> DeviceIDs;
+    DeviceIDs.reserve(devices.size());
+    bool supportIntelDiag = true;
+    for (const auto& dev : devices)
+    {
+        DeviceIDs.push_back(dev->DeviceID);
+        supportIntelDiag &= dev->Extensions.Has("cl_intel_driver_diagnostics");
+    }
+    constexpr cl_context_properties intelDiagnostics = CL_CONTEXT_DIAGNOSTICS_LEVEL_BAD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_GOOD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_NEUTRAL_INTEL;
+    if (supportIntelDiag)
+        props.insert(props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics });
+    Context = clCreateContext(props.data(), (cl_uint)DeviceIDs.size(), DeviceIDs.data(), &onNotify, this, &ret);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot create opencl-context");
+
+    Img2DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE2D);
+    Img3DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE3D);
 }
+
+//oclDevice oclContext_::GetDevice(const cl_device_id devid) const
+//{
+//    const auto it = FindInVec(Devices, [=](const oclDevice& dev) {return dev->DeviceID == devid; });
+//    return it ? *it : oclDevice{};
+//}
 
 oclContext_::~oclContext_()
 {
@@ -72,14 +70,32 @@ oclContext_::~oclContext_()
     clGetContextInfo(Context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
     if (refCount == 1)
     {
-        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)Context, PlatformName, refCount);
+        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)Context, GetPlatformName(), refCount);
         clReleaseContext(Context);
     }
     else
-        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)Context, PlatformName, refCount);
+        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)Context, GetPlatformName(), refCount);
 #else
     clReleaseContext(Context);
 #endif
+}
+
+u16string oclContext_::GetPlatformName() const
+{
+    return Plat->Name;
+}
+
+Vendors oclContext_::GetVendor() const
+{
+    return Plat->PlatVendor;
+}
+
+void oclContext_::OnMessage(const std::u16string& msg) const
+{
+    oclLog().verbose(u"{}\n", msg);
+    if (onMessage)
+        onMessage(msg);
+    return;
 }
 
 oclDevice oclContext_::GetGPUDevice() const

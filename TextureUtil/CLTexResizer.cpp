@@ -114,7 +114,7 @@ common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oclu::oclImg2D& inp
 }
 common::PromiseResult<Image> CLTexResizer::ResizeToDat(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType format, const bool flipY)
 {
-    if (CLContext->vendor == Vendor::Intel) //seems nvidia not handle cl_gl_share correctly.
+    if (CLContext->GetVendor() == Vendors::Intel) //seems nvidia not handle cl_gl_share correctly.
     {
         return Executor.AddTask([=](const common::asyexe::AsyncAgent& agent)
         {

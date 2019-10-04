@@ -63,14 +63,15 @@ public:
     size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
     {
+        Release();
         Width = width, Height = height, Size = CalcSize();
-        Alloc(zero);
+        zero ? AllocFill() : Alloc();
     }
     void SetSize(const uint32_t width, const uint32_t height, const byte fill)
     {
+        Release();
         Width = width, Height = height, Size = CalcSize();
-        Alloc(false);
-        memset(Data, std::to_integer<uint8_t>(fill), Size);
+        AllocFill(fill);
     }
     template<typename T>
     void SetSize(const tuple<T, T>& size, const bool zero = true)

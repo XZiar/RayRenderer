@@ -319,7 +319,7 @@ class FrozenDenseSet
 private:
     std::vector<T> Data;
 public:
-    FrozenDenseSet() {}
+    constexpr FrozenDenseSet() {}
     template<typename T1, typename Alloc>
     FrozenDenseSet(const std::set<T1, Compare, Alloc>& data)
     {

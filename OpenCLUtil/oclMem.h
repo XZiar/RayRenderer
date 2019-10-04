@@ -11,6 +11,8 @@
 
 namespace oclu
 {
+class oclMem_;
+using oclMem = std::shared_ptr<oclMem_>;
 
 enum class MemFlag : cl_mem_flags
 {
@@ -53,7 +55,7 @@ private:
         friend class oclMem_;
         friend class oclMapPtr;
     private:
-        MAKE_ENABLER();
+        //MAKE_ENABLER();
         const oclCmdQue Queue;
         const oclMem_& Mem;
         void* Pointer;

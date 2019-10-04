@@ -28,8 +28,6 @@ struct BData : public AData
 
 struct A : public common::RefObject<AData>
 {
-    /*A(common::RefObject<AData>&& other) : common::RefObject<AData>(std::move(other))
-    { }*/
     INIT_REFOBJ(A, AData)
     A(int data) : common::RefObject<AData>(Create(data)) 
     { }
@@ -47,8 +45,6 @@ struct A : public common::RefObject<AData>
 struct B : public common::RefObject<BData>
 {
     INIT_REFOBJ(B, BData)
-    /*B(common::RefObject<BData>&& other) : common::RefObject<BData>(std::move(other))
-    { }*/
     B(int data) : common::RefObject<BData>(Create(data))
     { }
     using common::RefObject<BData>::RefObject;
@@ -89,6 +85,11 @@ void TestRefObj()
 
 void TestLinq()
 {
+    std::vector<std::unique_ptr<int>> kkk;
+    const auto ky = Linq::FromIterable(kkk)
+        .Where([](const auto&) { return true; })
+        .Select([](const auto&) { return true; });
+
     std::vector<int> src{ 1,2,3,4,5,6,7 };
     auto lq = Linq::FromIterable(src);
     for (auto& item : lq)

@@ -11,6 +11,9 @@
 
 namespace oclu
 {
+class oclPlatform_;
+class oclContext_;
+using oclContext = std::shared_ptr<const oclContext_>;
 
 class OCLUAPI oclContext_ : public NonCopyable, public NonMovable
 {
@@ -23,18 +26,18 @@ class OCLUAPI oclContext_ : public NonCopyable, public NonMovable
 private:
     MAKE_ENABLER();
     const std::shared_ptr<const oclPlatform_> Plat;
-    const cl_context Context;
-    static cl_context CreateContext(vector<cl_context_properties>& props, const vector<oclDevice>& devices, void* self);
-    oclContext_(const std::shared_ptr<const oclPlatform_>& plat, vector<cl_context_properties> props, const vector<oclDevice>& devices, const u16string name, const Vendor thevendor);
-    oclDevice GetDevice(const cl_device_id devid) const;
+    cl_context Context = nullptr;
+    oclContext_(std::shared_ptr<const oclPlatform_> plat, vector<cl_context_properties> props, const vector<oclDevice>& devices);
 public:
-    const vector<oclDevice> Devices;
-    const u16string PlatformName;
-    const common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
-    const common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
-    const Vendor vendor;
-    MessageCallBack onMessage = nullptr;
+    vector<oclDevice> Devices;
+    common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
+    common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
+    mutable MessageCallBack onMessage = nullptr;
+
     ~oclContext_();
+    u16string GetPlatformName() const;
+    Vendors GetVendor() const;
+    void OnMessage(const std::u16string& msg) const;
     oclDevice GetGPUDevice() const;
 };
 MAKE_ENABLER_IMPL(oclContext_)

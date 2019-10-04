@@ -16,6 +16,10 @@
 
 namespace oclu
 {
+class oclProgram_;
+using oclProgram = std::shared_ptr<oclProgram_>;
+class oclKernel_;
+using oclKernel = std::shared_ptr<oclKernel_>;
 
 
 struct WorkGroupInfo
@@ -209,7 +213,7 @@ protected:
 public:
     ~oclProgram_();
     void Build(const CLProgConfig& config = {}, const oclDevice dev = {});
-    u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->deviceID); }
+    u16string GetBuildLog(const oclDevice& dev) const { return GetBuildLog(dev->DeviceID); }
     oclKernel GetKernel(const string& name);
     auto GetKernels() const { return common::container::ValSet(Kernels); }
     const vector<string>& GetKernelNames() const { return KernelNames; }

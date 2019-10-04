@@ -4,14 +4,16 @@
 
 namespace oclu
 {
-namespace detail
-{
+class oclBuffer_;
+class oclImage_;
+class oclKernel_;
+
 
 class oclPromiseCore
 {
-    friend class ::oclu::oclBuffer_;
-    friend class ::oclu::oclImage_;
-    friend class ::oclu::oclKernel_;
+    friend class oclBuffer_;
+    friend class oclImage_;
+    friend class oclKernel_;
 protected:
     const std::shared_ptr<oclPromiseCore> Prev;
     const cl_event Event;
@@ -30,7 +32,7 @@ protected:
     {
         if (Exception)
             std::rethrow_exception(Exception);
-        clFlush(Queue->cmdque);
+        clFlush(Queue->CmdQue);
     }
     common::PromiseState State()
     {
@@ -104,6 +106,5 @@ public:
     }
 };
 
-}
 
 }

@@ -12,6 +12,8 @@
 
 namespace oclu
 {
+class oclBuffer_;
+using oclBuffer = std::shared_ptr<oclBuffer_>;
 
 class OCLUAPI oclBuffer_ : public oclMem_
 {

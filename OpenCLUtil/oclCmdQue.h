@@ -12,12 +12,14 @@
 
 namespace oclu
 {
+class oclCmdQue_;
+using oclCmdQue = std::shared_ptr<const oclCmdQue_>;
 
 
 class OCLUAPI oclCmdQue_ : public NonCopyable
 {
     friend class GLInterop;
-    friend class detail::oclPromiseCore;
+    friend class oclPromiseCore;
     friend class oclContext_;
     friend class oclMem_;
     friend class oclMapPtr_;
@@ -25,12 +27,11 @@ class OCLUAPI oclCmdQue_ : public NonCopyable
     friend class oclImage_;
     friend class oclProgram_;
     friend class oclKernel_;
-    template<typename> friend class GLShared;
 private:
     MAKE_ENABLER();
     const oclContext Context;
     const oclDevice Device;
-    const cl_command_queue cmdque;
+    cl_command_queue CmdQue;
     oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder);
 public:
     ~oclCmdQue_();
@@ -38,7 +39,7 @@ public:
     void Finish() const;
     bool SupportImplicitGLSync() const { return Device->SupportImplicitGLSync; }
 
-    static std::shared_ptr<oclCmdQue_> Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling = true, const bool enableOutOfOrder = false);
+    static oclCmdQue Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling = true, const bool enableOutOfOrder = false);
 };
 
 }

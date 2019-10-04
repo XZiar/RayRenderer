@@ -154,7 +154,9 @@ template<typename Child, typename EleType>
 struct Enumerable
 {
 public:
+    using RealEleType = EleType;
     using RawEleType = common::remove_cvref_t<EleType>;
+    static constexpr bool IsRefEle = std::is_reference_v<EleType>;
     static constexpr bool IsKVPair = common::is_specialization<RawEleType, std::pair>::value;
     static constexpr bool CheckKVTuple() 
     {
@@ -163,6 +165,7 @@ public:
         return false;
     }
     static constexpr bool IsKVTuple = CheckKVTuple();
+
 
     AnyEnumerable<EleType> ToAnyEnumerable() 
     {
@@ -201,7 +204,8 @@ public:
         std::vector<RawEleType> ret;
         while (!self->IsEnd())
         {
-            ret.push_back(self->GetCurrent());
+            ret.emplace_back(std::move(self->GetCurrent()));
+            //ret.push_back(self->GetCurrent());
             self->MoveNext();
         }
         return ret;
@@ -212,7 +216,8 @@ public:
         std::list<RawEleType> ret;
         while (!self->IsEnd())
         {
-            ret.push_back(self->GetCurrent());
+            ret.emplace_back(std::move(self->GetCurrent()));
+            //ret.push_back(self->GetCurrent());
             self->MoveNext();
         }
         return ret;
@@ -224,7 +229,8 @@ public:
         std::set<RawEleType, Comparator> ret;
         while (!self->IsEnd())
         {
-            ret.insert(self->GetCurrent());
+            ret.emplace(std::move(self->GetCurrent()));
+            //ret.insert(self->GetCurrent());
             self->MoveNext();
         }
         return ret;
@@ -236,7 +242,8 @@ public:
         std::unordered_set<RawEleType, Hasher> ret;
         while (!self->IsEnd())
         {
-            ret.insert(self->GetCurrent());
+            ret.emplace(std::move(self->GetCurrent()));
+            //ret.insert(self->GetCurrent());
             self->MoveNext();
         }
         return ret;
@@ -431,8 +438,12 @@ struct MappedSource : public Enumerable<MappedSource<Source, Func>, std::invoke_
 {
     Source Src;
     Func Mapper;
-    MappedSource(Source&& source, Func&& mapper) : Src(source), Mapper(mapper) {}
-    decltype(auto) GetCurrent() const { return Mapper(Src.GetCurrent()); }
+    MappedSource(Source&& source, Func&& mapper) : Src(std::move(source)), Mapper(std::move(mapper)) {}
+    decltype(auto) GetCurrent() const 
+    { 
+        return Mapper(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
+        //return Mapper(Src.GetCurrent());
+    }
     void MoveNext() { Src.MoveNext(); }
     bool IsEnd() const { return Src.IsEnd(); }
 };
@@ -447,18 +458,18 @@ auto Enumerable<Child, EleType>::Select(Func&& mapper)
 }
 
 
-template<typename Src, typename Func, typename MiddleType>
-struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, MiddleType>, decltype(std::declval<MiddleType&>().GetCurrent())>
+template<typename Source, typename Func, typename MiddleType>
+struct MultiMappedSource : public Enumerable<MultiMappedSource<Source, Func, MiddleType>, decltype(std::declval<MiddleType&>().GetCurrent())>
 {
-    Src Source; // Source is at next element of Middle
+    Source Src; // Source is at next element of Middle
     Func Mapper;
     std::optional<MiddleType> Middle; // won't keep ended state
-    MultiMappedSource(Src&& source, Func&& mapper) : Source(source), Mapper(mapper)
+    MultiMappedSource(Source&& source, Func&& mapper) : Src(std::move(source)), Mapper(std::move(mapper))
     {
-        while (!Source.IsEnd())
+        while (!Src.IsEnd())
         {
-            auto tmp = Mapper(Source.GetCurrent());
-            Source.MoveNext();
+            auto tmp = Mapper(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
+            Src.MoveNext();
             if (!tmp.IsEnd()) // only set Middle when is not ended
             {
                 Middle.emplace(std::move(tmp));
@@ -477,10 +488,10 @@ struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, Middle
             return;
         // need to update middle
         Middle.reset();
-        while (!Source.IsEnd())
+        while (!Src.IsEnd())
         {
-            auto tmp = Mapper(Source.GetCurrent());
-            Source.MoveNext();
+            auto tmp = Mapper(Src.GetCurrent());
+            Src.MoveNext();
             if (!tmp.IsEnd()) // only set Middle when is not ended
             {
                 Middle.emplace(std::move(tmp));
@@ -488,7 +499,7 @@ struct MultiMappedSource : public Enumerable<MultiMappedSource<Src, Func, Middle
             }
         }
     }
-    bool IsEnd() const { return Source.IsEnd() && !Middle.has_value(); }
+    bool IsEnd() const { return Src.IsEnd() && !Middle.has_value(); }
 };
 
 template<typename Child, typename EleType>
@@ -505,11 +516,24 @@ auto Enumerable<Child, EleType>::SelectMany(Func&& mapper)
 template<typename Source, typename Func>
 struct FilteredSource : public Enumerable<FilteredSource<Source, Func>, decltype(std::declval<Source&>().GetCurrent())>
 {
+private:
     Source Src;
     Func Filter;
-    FilteredSource(Source&& source, Func&& filter) : Src(source), Filter(filter) 
+    bool FilterCurrent()
     {
-        while (!Src.IsEnd() && !Filter(Src.GetCurrent()))
+        /*if constexpr (Source::IsRefEle)
+        {
+            auto& cur = Src.GetCurrent();
+            return Filter(cur);
+        }
+        else
+            return Filter(std::forward<typename Source::RealEleType>(Src.GetCurrent()));*/
+        return Filter(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
+    }
+public:
+    FilteredSource(Source&& source, Func&& filter) : Src(std::move(source)), Filter(std::move(filter))
+    {
+        while (!Src.IsEnd() && !FilterCurrent())
             Src.MoveNext();
     }
     decltype(auto) GetCurrent() const { return Src.GetCurrent(); }
@@ -522,7 +546,7 @@ struct FilteredSource : public Enumerable<FilteredSource<Source, Func>, decltype
             Src.MoveNext();
             if (Src.IsEnd())
                 break;
-            if (Filter(Src.GetCurrent()))
+            if (FilterCurrent())
                 break;
         }
     }
@@ -545,7 +569,8 @@ struct ConcatedSource : public Enumerable<ConcatedSource<Src1, Src2>, decltype(s
     Src1 Source1;
     Src2 Source2;
     bool IsSrc2;
-    ConcatedSource(Src1&& src1, Src2&& src2) : Source1(src1), Source2(src2), IsSrc2(Source1.IsEnd()) { }
+    ConcatedSource(Src1&& src1, Src2&& src2) : 
+        Source1(std::move(src1)), Source2(std::move(src2)), IsSrc2(Source1.IsEnd()) { }
     decltype(auto) GetCurrent() const { return IsSrc2 ? Source2.GetCurrent() : Source1.GetCurrent(); }
     void MoveNext()
     {
@@ -579,7 +604,7 @@ struct PairedSource : public Enumerable<PairedSource<Src1, Src2>, std::pair<type
 {
     Src1 Source1;
     Src2 Source2;
-    PairedSource(Src1&& src1, Src2&& src2) : Source1(src1), Source2(src2) { }
+    PairedSource(Src1&& src1, Src2&& src2) : Source1(std::move(src1)), Source2(std::move(src2)) { }
     decltype(auto) GetCurrent() const { return std::pair<typename Src1::RawEleType, typename Src2::RawEleType>(Source1.GetCurrent(), Source2.GetCurrent()); }
     void MoveNext()
     {
@@ -602,7 +627,7 @@ template<typename Src, typename DstType>
 struct CastedSource : public Enumerable<CastedSource<Src, DstType>, DstType>
 {
     Src Source;
-    CastedSource(Src&& source) : Source(source) {}
+    CastedSource(Src&& source) : Source(std::move(source)) {}
     DstType GetCurrent() const { return static_cast<DstType>(Source.GetCurrent()); }
     void MoveNext() { Source.MoveNext(); }
     bool IsEnd() const { return Source.IsEnd(); }
@@ -612,7 +637,7 @@ template<typename Src, typename DstType>
 struct CastCtorSource : public Enumerable<CastCtorSource<Src, DstType>, DstType>
 {
     Src Source;
-    CastCtorSource(Src&& source) : Source(source) {}
+    CastCtorSource(Src&& source) : Source(std::move(source)) {}
     DstType GetCurrent() const { return DstType(Source.GetCurrent()); }
     void MoveNext() { Source.MoveNext(); }
     bool IsEnd() const { return Source.IsEnd(); }
@@ -636,7 +661,7 @@ struct LimitCountSource : public Enumerable<LimitCountSource<Src, DstType>, DstT
 {
     Src Source;
     size_t Count;
-    constexpr LimitCountSource(Src&& source, const size_t count) : Source(source), Count(count) {}
+    constexpr LimitCountSource(Src&& source, const size_t count) : Source(std::move(source)), Count(count) {}
     constexpr DstType GetCurrent() const { return static_cast<DstType>(Source.GetCurrent()); }
     constexpr void MoveNext() 
     { 
@@ -663,7 +688,7 @@ struct IteratorSource : public Enumerable<IteratorSource<T>, decltype(*std::decl
     TB Current;
     TE End;
     constexpr IteratorSource(T&& source) : Source(std::move(source)), Current(std::begin(*Source)), End(std::end(*Source)) {}
-    constexpr IteratorSource(T& source) : Source(), Current(std::begin(source)), End(std::end(source)) {}
+    constexpr IteratorSource(TB from, TE to) : Source(), Current(std::move(from)), End(std::move(to)) {}
     constexpr decltype(auto) GetCurrent() const { return *Current; }
     constexpr void MoveNext() { ++Current; }
     constexpr bool IsEnd() const { return !(Current != End); }
@@ -731,9 +756,9 @@ struct Linq
         if constexpr (std::is_rvalue_reference_v<decltype(source)>)
             return detail::IteratorSource<RawType>(std::move(source));
         else if constexpr (std::is_const_v<CVType>)
-            return detail::IteratorSource<const RawType>(source);
+            return detail::IteratorSource<const RawType>(source.cbegin(), source.cend());
         else
-            return detail::IteratorSource<RawType>(source);
+            return detail::IteratorSource<RawType>(source.begin(), source.end());
     }
     template<typename T>
     static constexpr detail::NumericRangeSource<T> FromRange(const T begin, const T end, const T step = 1)

@@ -37,7 +37,6 @@ const vector<oclPlatform>& oclUtil::GetPlatforms()
         for (const auto& pID : platformIDs)
         {
             auto plt = oclPlatform(new oclPlatform_(pID));
-            plt->Init();
             plats.push_back(plt);
         }
         return plats;

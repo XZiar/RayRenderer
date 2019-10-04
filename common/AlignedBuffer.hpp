@@ -30,34 +30,29 @@ private:
         if (CoreInfo)
             CoreInfo->RefCount++;
     }
-    void ReleaseCore() const noexcept
+protected:
+    std::byte *Data = nullptr;
+    size_t Size = 0;
+    size_t Align = 0;
+    void Alloc() noexcept
+    {
+        const auto rawPtr = (std::uint8_t*)malloc_align(Size + sizeof(BufInfo), Align);
+        CoreInfo = new (rawPtr + Size)BufInfo(Size);
+        Data = GetPtr();
+    }
+    void AllocFill(const std::byte fill = std::byte{ 0x0 }) noexcept
+    {
+        Alloc();
+        memset(Data, std::to_integer<uint8_t>(fill), Size);
+    }
+    void Release() noexcept
     {
         if (CoreInfo)
         {
             if (--CoreInfo->RefCount == 0)
                 free_align(GetPtr());
-            else
-                GetPtr();
+            CoreInfo = nullptr;
         }
-    }
-protected:
-    std::byte *Data = nullptr;
-    size_t Size = 0;
-    size_t Align = 0;
-    void Alloc(const bool zero = false) noexcept
-    {
-        ReleaseCore();
-        {
-            const auto rawPtr = (std::uint8_t*)malloc_align(Size + sizeof(BufInfo), Align);
-            CoreInfo = new (rawPtr + Size)BufInfo(Size);
-        }
-        Data = GetPtr();
-        if (zero)
-            memset(Data, 0x0, Size);
-    }
-    void Release() noexcept
-    {
-        ReleaseCore();
         Data = nullptr;
         Size = 0;
     };
@@ -72,9 +67,7 @@ public:
     }
     AlignedBuffer(const size_t size, const std::byte fill, const size_t align = 64) noexcept : Size(size), Align(align)
     {
-        Alloc();
-        if (Data)
-            memset(Data, std::to_integer<uint8_t>(fill), Size);
+        AllocFill(fill);
     }
     AlignedBuffer(const AlignedBuffer& other) noexcept : Size(other.Size), Align(other.Align)
     {
@@ -86,12 +79,13 @@ public:
     {
         other.CoreInfo = nullptr; other.Data = nullptr; other.Size = 0;
     }
-    ~AlignedBuffer() noexcept { ReleaseCore(); }
+    ~AlignedBuffer() noexcept { Release(); }
 
     AlignedBuffer& operator= (const AlignedBuffer& other) noexcept
     {
         if (other.Align != Align || other.Size != Size)
         {
+            Release();
             Size = other.Size;
             Align = other.Align;
             Alloc();
@@ -103,7 +97,7 @@ public:
     {
         if (this != &other)
         {
-            ReleaseCore();
+            Release();
             CoreInfo = other.CoreInfo; other.CoreInfo = nullptr;
             Data = other.Data; other.Data = nullptr;
             Size = other.Size; other.Size = 0;

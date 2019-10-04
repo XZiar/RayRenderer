@@ -1,15 +1,13 @@
 #include "oclRely.h"
 #include "oclMem.h"
-#include "oclException.h"
 #include "oclUtil.h"
-//#include "oclPromise.hpp"
 
 
 namespace oclu
 {
 using xziar::img::TexFormatUtil;
 
-MAKE_ENABLER_IMPL(oclMem_::oclMapPtr_)
+//MAKE_ENABLER_IMPL(oclMem_::oclMapPtr_)
 
 
 void* oclMapPtr::Get() const { return Ptr->Pointer; }
@@ -21,7 +19,7 @@ oclMem_::oclMapPtr_::oclMapPtr_(oclCmdQue que, const oclMem_& mem, void* pointer
 oclMem_::oclMapPtr_::~oclMapPtr_()
 {
     cl_event e;
-    const auto ret = clEnqueueUnmapMemObject(Queue->cmdque, Mem.MemID, Pointer, 0, nullptr, &e); 
+    const auto ret = clEnqueueUnmapMemObject(Queue->CmdQue, Mem.MemID, Pointer, 0, nullptr, &e); 
     if (ret != CL_SUCCESS)
         oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::GetErrorString(ret));
 }
@@ -48,7 +46,7 @@ oclMem_::~oclMem_()
 
 oclMapPtr oclMem_::Map(oclCmdQue que, const MapFlag mapFlag)
 {
-    auto rawptr = MapObject(que->cmdque, mapFlag);
+    auto rawptr = MapObject(que->CmdQue, mapFlag);
     auto ptr = new oclMapPtr_(std::move(que), *this, rawptr);
     return oclMapPtr(std::shared_ptr<oclMem_::oclMapPtr_>(shared_from_this(), ptr));
 }

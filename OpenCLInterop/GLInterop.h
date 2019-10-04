@@ -50,7 +50,7 @@ private:
     static cl_mem CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& bufId);
     static cl_mem CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex);
     static vector<cl_context_properties> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
-    static oclDevice GetGLDevice(const oclPlatform_& plat, const vector<cl_context_properties>& props);
+    static oclDevice GetGLDevice(const oclPlatform& plat, const vector<cl_context_properties>& props);
 public:
     static bool CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context);
     static oclContext CreateGLSharedContext(const oglu::oglContext& context);
