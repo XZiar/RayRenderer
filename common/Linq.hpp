@@ -153,17 +153,18 @@ public:
 template<typename Child, typename EleType>
 struct Enumerable
 {
-public:
-    using RealEleType = EleType;
-    using RawEleType = common::remove_cvref_t<EleType>;
-    static constexpr bool IsRefEle = std::is_reference_v<EleType>;
-    static constexpr bool IsKVPair = common::is_specialization<RawEleType, std::pair>::value;
+private:
     static constexpr bool CheckKVTuple() 
     {
         if constexpr (common::is_specialization<RawEleType, std::tuple>::value) 
             return std::tuple_size_v<RawEleType> == 2;
         return false;
     }
+public:
+    using RealEleType = EleType;
+    using RawEleType = common::remove_cvref_t<EleType>;
+    static constexpr bool IsRefEle = std::is_reference_v<EleType>;
+    static constexpr bool IsKVPair = common::is_specialization<RawEleType, std::pair>::value;
     static constexpr bool IsKVTuple = CheckKVTuple();
 
 
@@ -249,7 +250,7 @@ public:
         return ret;
     }
     template<bool ShouldReplace = true, typename Map = void, typename KeyF, typename ValF>
-    Map ToMap(Map themap, KeyF&& keyMapper = EnumerableHelper::KeyMapper, ValF&& valMapper = EnumerableHelper::ValueMapper)
+    void IntoMap(Map& themap, KeyF&& keyMapper = EnumerableHelper::KeyMapper, ValF&& valMapper = EnumerableHelper::ValueMapper)
     {
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
@@ -261,6 +262,12 @@ public:
                 themap.emplace(keyMapper(tmp), valMapper(tmp));
             self->MoveNext();
         }
+    }
+    template<typename Map, bool ShouldReplace = true, typename KeyF, typename ValF>
+    Map ToMap(KeyF&& keyMapper = EnumerableHelper::KeyMapper, ValF&& valMapper = EnumerableHelper::ValueMapper)
+    {
+        Map themap;
+        IntoMap<ShouldReplace>(themap, std::forward<KeyF>(keyMapper), std::forward<ValF>(valMapper));
         return themap;
     }
     template<bool ShouldReplace = true, typename Comp = void>
@@ -272,7 +279,7 @@ public:
         Child* self = static_cast<Child*>(this);
         while (!self->IsEnd())
         {
-            const auto& tmp = self->GetCurrent();
+            RealEleType tmp = self->GetCurrent();
             if constexpr (IsKVPair)
             {
                 if constexpr (ShouldReplace)
@@ -441,8 +448,7 @@ struct MappedSource : public Enumerable<MappedSource<Source, Func>, std::invoke_
     MappedSource(Source&& source, Func&& mapper) : Src(std::move(source)), Mapper(std::move(mapper)) {}
     decltype(auto) GetCurrent() const 
     { 
-        return Mapper(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
-        //return Mapper(Src.GetCurrent());
+        return Mapper(Src.GetCurrent());
     }
     void MoveNext() { Src.MoveNext(); }
     bool IsEnd() const { return Src.IsEnd(); }
@@ -452,7 +458,7 @@ template<typename Child, typename EleType>
 template<typename Func>
 auto Enumerable<Child, EleType>::Select(Func&& mapper)
 {
-    static_assert(std::is_invocable_v<Func, RawEleType>, "mapper does not accept target element");
+    static_assert(std::is_invocable_v<Func, RealEleType>, "mapper does not accept target element");
     Child* self = static_cast<Child*>(this);
     return MappedSource<Child, Func>(std::move(*self), std::forward<Func>(mapper));
 }
@@ -468,7 +474,7 @@ struct MultiMappedSource : public Enumerable<MultiMappedSource<Source, Func, Mid
     {
         while (!Src.IsEnd())
         {
-            auto tmp = Mapper(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
+            auto tmp = Mapper(Src.GetCurrent());
             Src.MoveNext();
             if (!tmp.IsEnd()) // only set Middle when is not ended
             {
@@ -506,8 +512,8 @@ template<typename Child, typename EleType>
 template<typename Func>
 auto Enumerable<Child, EleType>::SelectMany(Func&& mapper)
 {
-    static_assert(std::is_invocable_v<Func, RawEleType>, "mapper does not accept target element");
-    using MiddleType = decltype(mapper(std::declval<RawEleType>()));
+    static_assert(std::is_invocable_v<Func, RealEleType>, "mapper does not accept target element");
+    using MiddleType = decltype(mapper(std::declval<RealEleType>()));
     static_assert(EnumerableHelper::IsEnumerable<MiddleType>(), "mapper should return an enumerable");
     return MultiMappedSource<Child, Func, MiddleType>(std::move(*static_cast<Child*>(this)), std::forward<Func>(mapper));
 }
@@ -519,16 +525,16 @@ struct FilteredSource : public Enumerable<FilteredSource<Source, Func>, decltype
 private:
     Source Src;
     Func Filter;
+    mutable std::optional<typename Source::RawEleType> Temp;
     bool FilterCurrent()
     {
-        /*if constexpr (Source::IsRefEle)
-        {
-            auto& cur = Src.GetCurrent();
-            return Filter(cur);
-        }
+        if constexpr(Source::IsRefEle)
+            return Filter(Src.GetCurrent());
         else
-            return Filter(std::forward<typename Source::RealEleType>(Src.GetCurrent()));*/
-        return Filter(std::forward<typename Source::RealEleType>(Src.GetCurrent()));
+        {
+            Temp.emplace(Src.GetCurrent());
+            return Filter(*Temp);
+        }
     }
 public:
     FilteredSource(Source&& source, Func&& filter) : Src(std::move(source)), Filter(std::move(filter))
@@ -536,11 +542,24 @@ public:
         while (!Src.IsEnd() && !FilterCurrent())
             Src.MoveNext();
     }
-    decltype(auto) GetCurrent() const { return Src.GetCurrent(); }
+    decltype(std::declval<Source&>().GetCurrent()) GetCurrent() const 
+    { 
+        if constexpr (Source::IsRefEle)
+            return Src.GetCurrent();
+        else
+        {
+            if (Temp)
+                return std::move(*Temp);
+            else
+                return Src.GetCurrent();
+        }
+    }
     void MoveNext() 
     {
         if (Src.IsEnd())
             return;
+        if constexpr (!Source::IsRefEle)
+            Temp.reset();
         while (true)
         {
             Src.MoveNext();
@@ -557,7 +576,7 @@ template<typename Child, typename EleType>
 template<typename Func>
 auto Enumerable<Child, EleType>::Where(Func&& filter)
 {
-    static_assert(std::is_invocable_r_v<bool, Func, RawEleType>, "filter should accept target element and return bool");
+    static_assert(std::is_invocable_r_v<bool, Func, RealEleType>, "filter should accept target element and return bool");
     Child* self = static_cast<Child*>(this);
     return FilteredSource<Child, Func>(std::move(*self), std::forward<Func>(filter));
 }
@@ -599,13 +618,23 @@ auto Enumerable<Child, EleType>::Concat(Other&& other)
 }
 
 
+template<typename Src>
+struct PairHelper
+{
+    using Type = std::conditional_t<Src::IsRefEle, std::reference_wrapper<typename Src::RawEleType>, typename Src::RawEleType>;
+};
+
 template<typename Src1, typename Src2>
-struct PairedSource : public Enumerable<PairedSource<Src1, Src2>, std::pair<typename Src1::RawEleType, typename Src2::RawEleType>>
+struct PairedSource : public Enumerable<PairedSource<Src1, Src2>, 
+    std::pair<typename PairHelper<Src1>::Type, typename PairHelper<Src2>::Type>>
 {
     Src1 Source1;
     Src2 Source2;
     PairedSource(Src1&& src1, Src2&& src2) : Source1(std::move(src1)), Source2(std::move(src2)) { }
-    decltype(auto) GetCurrent() const { return std::pair<typename Src1::RawEleType, typename Src2::RawEleType>(Source1.GetCurrent(), Source2.GetCurrent()); }
+    decltype(auto) GetCurrent() const 
+    { 
+        return std::pair<typename PairHelper<Src1>::Type, typename PairHelper<Src2>::Type>(Source1.GetCurrent(), Source2.GetCurrent());
+    }
     void MoveNext()
     {
         Source1.MoveNext();

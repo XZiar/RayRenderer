@@ -2,6 +2,7 @@
 
 #include "oclRely.h"
 #include "oclDevice.h"
+#include "common/Delegate.hpp"
 
 
 #if COMPILER_MSVC
@@ -32,12 +33,11 @@ public:
     vector<oclDevice> Devices;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
-    mutable MessageCallBack onMessage = nullptr;
+    mutable common::Delegate<const std::u16string&> OnMessage;
 
     ~oclContext_();
     u16string GetPlatformName() const;
     Vendors GetVendor() const;
-    void OnMessage(const std::u16string& msg) const;
     oclDevice GetGPUDevice() const;
 };
 MAKE_ENABLER_IMPL(oclContext_)

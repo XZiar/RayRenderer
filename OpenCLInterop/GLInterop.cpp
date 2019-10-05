@@ -91,7 +91,7 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_contex
         const auto ret = plat->FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
         if (ret == CL_SUCCESS && retSize)
             if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& d) { return d.DeviceID == dID; }); dev)
-                return oclDevice(plat, dev);
+                return dev;
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }
@@ -106,7 +106,7 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_contex
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }*/
-    return {};
+    return nullptr;
 }
 
 bool GLInterop::CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context)

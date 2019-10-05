@@ -203,8 +203,8 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
     ShaderConfig config;
     {
         const auto jconfig = object.GetObject("config");
-        config.Defines = Linq::FromIterable(jconfig.GetObject("defines"))
-            .ToMap(std::move(config.Defines),
+        Linq::FromIterable(jconfig.GetObject("defines"))
+            .IntoMap(config.Defines,
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) -> ShaderConfig::DefineVal
         {
@@ -221,7 +221,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
             }
         });
         config.Routines = Linq::FromIterable(jconfig.GetObject("routines"))
-            .ToMap(std::map<string, string>{},
+            .ToMap<std::map<string, string>>(
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) { return kvpair.second.template AsValue<string>(); });
     }

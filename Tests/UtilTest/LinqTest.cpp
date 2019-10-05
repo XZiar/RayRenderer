@@ -116,7 +116,9 @@ static void TestLinq()
     log().info(u"====ret6====\n{}\n", ToString(ret6));
     const auto ret7 = Linq::FromRange(5, 1, -1)
         .OrderBy<std::less<>>()
-        .ToMap<false>(std::multimap<int32_t, int32_t>{}, [](const int32_t i) { return i; }, [](const int32_t i) { return i; });
+        .ToMap<std::multimap<int32_t, int32_t>, false>(
+            [](const int32_t i) { return i; },
+            [](const int32_t i) { return i; });
     //for (const auto& p : common::container::ValSet(ret7))
     //{
     //    log().info(u"{}", p);

@@ -32,7 +32,7 @@ static void OCLStub()
         .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
         .TryGetFirst().value_or(plat->GetDefaultDevice());
     const auto ctx = plat->CreateContext(thedev);
-    ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+    ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
     auto que = oclCmdQue_::Create(ctx, thedev);
     ClearReturn();
     //SimpleTest(ctx);
@@ -70,7 +70,6 @@ static void OCLStub()
         try
         {
             const auto kertxt = common::file::ReadAllText(filepath);
-            auto clProg = oclProgram_::Create(ctx, kertxt);
             CLProgConfig config;
             config.Defines["LOC_MEM_SIZE"] = thedev->LocalMemSize;
             if (exConfig)
@@ -93,7 +92,7 @@ static void OCLStub()
                     break;
                 }
             }
-            clProg->Build(config);
+            auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config);
             log().success(u"loaded! kernels:\n");
             for (const auto& ker : clProg->GetKernels())
             {

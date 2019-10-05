@@ -22,13 +22,15 @@ struct FontInfo
 
 void FontCreator::loadCL(const string& src)
 {
-    auto clProg = oclProgram_::Create(clCtx, src);
+    oclProgram clProg;
     try
     {
+        auto stub = oclProgram_::Create(clCtx, src);
         oclu::CLProgConfig config;
         config.Flags.insert("-cl-fast-relaxed-math");
         config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
-        clProg->Build(config);
+        stub.Build(config);
+        clProg = stub.Finish();
     }
     catch (OCLException& cle)
     {
@@ -42,9 +44,10 @@ void FontCreator::loadCL(const string& src)
 
 void FontCreator::loadDownSampler(const string& src)
 {
-    auto clProg = oclProgram_::Create(clCtx, src);
+    oclProgram clProg;
     try
     {
+        auto stub = oclProgram_::Create(clCtx, src);
         oclu::CLProgConfig config;
         if (clCtx->GetVendor() == Vendors::NVIDIA)
         {
@@ -52,7 +55,8 @@ void FontCreator::loadDownSampler(const string& src)
             config.Defines.insert_or_assign("NVIDIA", std::monostate{});
         }
         config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
-        clProg->Build(config);
+        stub.Build(config);
+        clProg = stub.Finish();
     }
     catch (OCLException& cle)
     {

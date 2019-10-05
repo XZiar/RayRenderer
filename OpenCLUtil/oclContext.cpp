@@ -37,6 +37,8 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
 oclContext_::oclContext_(std::shared_ptr<const oclPlatform_> plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
     : Plat(std::move(plat)), Devices(devices)
 {
+    OnMessage += [](const auto& msg) { oclLog().verbose(u"{}\n", msg); };
+
     cl_int ret;
     vector<cl_device_id> DeviceIDs;
     DeviceIDs.reserve(devices.size());
@@ -90,13 +92,6 @@ Vendors oclContext_::GetVendor() const
     return Plat->PlatVendor;
 }
 
-void oclContext_::OnMessage(const std::u16string& msg) const
-{
-    oclLog().verbose(u"{}\n", msg);
-    if (onMessage)
-        onMessage(msg);
-    return;
-}
 
 oclDevice oclContext_::GetGPUDevice() const
 {

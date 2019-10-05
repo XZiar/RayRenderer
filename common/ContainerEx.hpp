@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <utility>
+#include <memory>
 
 namespace common::container
 {
@@ -310,6 +311,70 @@ template<typename Map>
 struct ValSet : public detail::KVSet<Map, false>
 {
     ValSet(Map& themap) : detail::KVSet<Map, false>(themap) { }
+};
+
+namespace detail
+{
+template<typename E>
+struct SlaveVectorHelper
+{
+    using T = E;
+};
+template<typename E>
+struct SlaveVectorHelper<std::unique_ptr<E>>
+{
+    using T = E;
+};
+}
+template<typename HostT, typename E>
+struct SlaveVector
+{
+private:
+    using T = typename detail::SlaveVectorHelper<E>::T;
+    class SlaveIterator
+    {
+    private:
+        std::shared_ptr<const HostT> Host;
+        typename std::vector<E>::const_iterator It;
+    public:
+        SlaveIterator(const std::shared_ptr<const HostT>& host, typename std::vector<E>::const_iterator it)
+            : Host(host), It(it) { }
+
+        SlaveIterator& operator++()
+        {
+            It++; return *this;
+        }
+        bool operator!=(const SlaveIterator& other) const { return It != other.It; }
+        std::shared_ptr<const T> operator*() const
+        {
+            if constexpr(std::is_same_v<E, T>)
+                return std::shared_ptr<const T>(Host, &*It);
+            else
+                return std::shared_ptr<const T>(Host, (*It).get());
+        }
+    };
+
+    std::shared_ptr<const HostT> Host;
+    const std::vector<E>& Vec;
+public:
+    SlaveVector(std::shared_ptr<const HostT> host, const std::vector<E>& vec)
+        : Host(host), Vec(vec) { }
+    SlaveIterator begin() const
+    {
+        return SlaveIterator(Host, Vec.cbegin());
+    }
+    SlaveIterator end() const
+    {
+        return SlaveIterator(Host, Vec.cend());
+    }
+    operator std::vector<std::shared_ptr<const T>>() const
+    {
+        std::vector<std::shared_ptr<const T>> vec;
+        vec.reserve(Vec.size());
+        for (auto x : *this)
+            vec.emplace_back(x);
+        return vec;
+    }
 };
 
 

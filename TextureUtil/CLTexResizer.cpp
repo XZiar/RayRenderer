@@ -33,11 +33,11 @@ CLTexResizer::CLTexResizer(oglContext&& glContext, const oclContext& clContext) 
         if (!CmdQue)
             COMMON_THROW(BaseException, u"clQueue initialized failed!");
 
-        auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
+        oclProgram clProg;
         try
         {
             oclu::CLProgConfig config;
-            clProg->Build(config);
+            clProg = oclProgram_::CreateAndBuild(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER), config);
         }
         catch (OCLException& cle)
         {

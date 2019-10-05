@@ -86,9 +86,16 @@ void TestRefObj()
 void TestLinq()
 {
     std::vector<std::unique_ptr<int>> kkk;
-    const auto ky = Linq::FromIterable(kkk)
+    kkk.emplace_back(std::make_unique<int>(23));
+    kkk.emplace_back(std::make_unique<int>(24));
+    const auto ky = Linq::FromRange(0, 10)
+        .Pair(Linq::FromIterable(kkk))
+        //.Select([](auto& val) { return std::make_pair(true, std::move(val)); })
         .Where([](const auto&) { return true; })
-        .Select([](const auto&) { return true; });
+        /*.ToMap<std::map<int16_t, std::unique_ptr<int>>>(
+            [](const auto& p) -> int16_t { return p.first; },
+            [](auto& p) { return std::move(p.second); });*/
+        .ToVector();
 
     std::vector<int> src{ 1,2,3,4,5,6,7 };
     auto lq = Linq::FromIterable(src);

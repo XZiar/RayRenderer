@@ -317,8 +317,8 @@ void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<t
         .Select([](const ejson::JObjectRef<true>& obj) { return std::pair{ obj.Get<string>("Name"), obj.Get<uint32_t>("Offset") }; })
         .ToVector();
     MaterialMap.clear();
-    MaterialMap = Linq::FromIterable(object.GetObject("materials"))
-        .ToMap(std::move(MaterialMap), [](const auto& kvpair) { return (string)kvpair.first; },
+    Linq::FromIterable(object.GetObject("materials"))
+        .IntoMap(MaterialMap, [](const auto& kvpair) { return (string)kvpair.first; },
             [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
 
     const auto asyncer = context.GetCookie<Wrapper<oglu::oglWorker>>("oglWorker");

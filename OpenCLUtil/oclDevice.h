@@ -11,7 +11,7 @@
 namespace oclu
 {
 class oclDevice_;
-using oclDevice = std::shared_ptr<const oclDevice_>;
+using oclDevice = const oclDevice_*;
 
 enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
 
@@ -26,7 +26,6 @@ class OCLUAPI oclDevice_ : public NonCopyable
     friend class oclKernel_;
     friend class oclCmdQue_;
 private:
-    //MAKE_ENABLER();
     cl_device_id DeviceID;
     oclDevice_(const cl_device_id dID);
 public:
@@ -41,7 +40,6 @@ public:
 
     static u16string_view GetDeviceTypeName(const DeviceType type);
 };
-//MAKE_ENABLER_IMPL(oclDevice_)
 
 
 }

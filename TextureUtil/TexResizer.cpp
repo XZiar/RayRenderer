@@ -68,11 +68,10 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
 
         if (CLContext)
         {
-            auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER));
             try
             {
                 oclu::CLProgConfig config;
-                clProg->Build(config); 
+                auto clProg = oclProgram_::CreateAndBuild(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER), config);
                 KerToImg = clProg->GetKernel("ResizeToImg");
                 KerToDat3 = clProg->GetKernel("ResizeToDat3");
                 KerToDat4 = clProg->GetKernel("ResizeToDat4");

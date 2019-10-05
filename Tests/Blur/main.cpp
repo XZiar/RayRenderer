@@ -60,10 +60,10 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     //ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
 
     auto cmdque = oclCmdQue_::Create(ctx, thedev);
-    auto prog = oclProgram_::Create(ctx, kernel);
+    oclProgram prog;
     try
     {
-        prog->Build({}, thedev);
+        prog = oclProgram_::CreateAndBuild(ctx, kernel, {}, { thedev });
     }
     catch (OCLException& cle)
     {

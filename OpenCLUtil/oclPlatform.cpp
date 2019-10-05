@@ -49,7 +49,7 @@ static u16string GetUStr(const cl_platform_id platformID, const cl_platform_info
 }
 
 oclPlatform_::oclPlatform_(const cl_platform_id pID)
-    : PlatformID(pID)
+    : PlatformID(pID), DefDevice(nullptr)
 {
     Extensions = common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false);
     Name = GetUStr(pID, CL_PLATFORM_NAME);
@@ -79,22 +79,21 @@ oclPlatform_::oclPlatform_(const cl_platform_id pID)
         .TryGetFirst().value_or(nullptr);
 }
 
-oclDevice oclPlatform_::GetDefaultDevice() const
-{
-    return DefDevice ? oclDevice(shared_from_this(), DefDevice) : oclDevice{};
-}
-
-
 oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
 {
-    const auto self = shared_from_this();
 
     for (const auto& dev : devs)
     {
-        if (self.owner_before(dev) || dev.owner_before(self))
+        if (dev < &Devices.front() || dev > &Devices.back())
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"cannot using device from other platform", dev);
     }
+    const auto self = shared_from_this();
     return MAKE_ENABLER_SHARED(oclContext_, self, props, devs);
+}
+
+vector<oclDevice> oclPlatform_::GetDevices() const
+{
+    return Linq::FromIterable(Devices).Select([](const auto& dev) { return &dev; }).ToVector();
 }
 
 oclContext oclPlatform_::CreateContext() const

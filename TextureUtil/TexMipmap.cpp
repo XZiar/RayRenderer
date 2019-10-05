@@ -18,13 +18,12 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
         GLContext = Worker->GLContext;
         CLContext = Worker->CLContext;
         CmdQue = Worker->CmdQue;
-        auto clProg = oclProgram_::Create(CLContext, getShaderFromDLL(IDR_SHADER_MIPMAP));
         try
         {
             oclu::CLProgConfig config;
             config.Defines["CountX"] = GroupX;
             config.Defines["CountY"] = GroupY;
-            clProg->Build(config);
+            auto clProg = oclProgram_::CreateAndBuild(CLContext, getShaderFromDLL(IDR_SHADER_MIPMAP), config);
             DownsampleSrc = clProg->GetKernel("Downsample_SrcH");
             if (!DownsampleSrc)
                 DownsampleSrc = clProg->GetKernel("Downsample_Src");

@@ -223,8 +223,8 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
-    SharedObjectLookup = Linq::FromIterable(Root.GetObject("#global_map"))
-        .ToMap(std::move(SharedObjectLookup), [](const auto& kvpair) { return kvpair.first; },
+    Linq::FromIterable(Root.GetObject("#global_map"))
+        .IntoMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
             [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
     const auto size = ResReader->GetSize();
@@ -249,8 +249,8 @@ DeserializeUtil::DeserializeUtil(const fs::path & fileName)
         .Where([index = 0u](const detail::ResourceItem& item) mutable { return item.GetIndex() != index++; })
         .TryGetFirst())
         COMMON_THROWEX(BaseException, u"wrong index list for resource index");
-    ResourceSet = Linq::FromIterable(ResourceList)
-        .ToMap(std::move(ResourceSet), [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
+    Linq::FromIterable(ResourceList)
+        .IntoMap(ResourceSet, [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
             [index = 0](const auto&) mutable { return index++; });
 }
 

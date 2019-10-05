@@ -73,11 +73,18 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
     {
         sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
         dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
-        sharedCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
+        sharedCtx->OnMessage += [](const u16string& errtxt) 
+            { dizzLog().error(u"Error from shared CLContext:\t{}\n", errtxt); };
     }
-    defCtx = glPlat == venderClPlat ? sharedCtx : venderClPlat->CreateContext();
+    if (glPlat == venderClPlat)
+        defCtx = sharedCtx;
+    else
+    {
+        defCtx = venderClPlat->CreateContext();
+        defCtx->OnMessage += [](const u16string& errtxt)
+            { dizzLog().error(u"Error from CLContext:\t{}\n", errtxt); };
+    }
     dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
-    defCtx->onMessage = [](const u16string& errtxt) { dizzLog().error(u"Error from CLContext:\t{}\n", errtxt); };
     return { defCtx, sharedCtx };
 }
 
