@@ -17,13 +17,14 @@
 #endif
 
 
+#include "SystemCommon/FileEx.h"
+#include "StringCharset/Convert.h"
+#include "3rdParty/fmt/utfext.h"
 #include "common/CommonRely.hpp"
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
 #include "common/EnumEx.hpp"
-#include "SystemCommon/FileEx.h"
-#include "3rdParty/fmt/utfext.h"
-#include "StringCharset/Convert.h"
+#include "common/Delegate.hpp"
 #include <cstdint>
 #include <chrono>
 #include <string>

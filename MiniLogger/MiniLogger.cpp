@@ -2,7 +2,7 @@
 #include "MiniLogger.h"
 #include "QueuedBackend.h"
 #include "SystemCommon/ThreadEx.h"
-#include <map>
+#include "common/Delegate.hpp"
 
 namespace common::mlog
 {
@@ -10,54 +10,53 @@ namespace common::mlog
 class GlobalBackend final : public LoggerQBackend
 {
 private:
-    std::atomic_uint32_t Idx = 0;
-    std::mutex ModifyMtx;
-    std::map<uint32_t, MLoggerCallback> Callbacks;
+    Delegate<const LogMessage&> DoPrint;
 protected:
-    void virtual OnStart() override
+    virtual bool OnStart(std::any) noexcept override
     {
         common::SetThreadName(u"Debugger-GlobalBackend");
+        return true;
     }
 public:
+    GlobalBackend() {}
     ~GlobalBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        std::unique_lock<std::mutex> lock(ModifyMtx);
-        if (Callbacks.empty())
-            return;
-        for (const auto& item : Callbacks)
-            item.second(msg);
+        DoPrint(msg);
     }
-    uint32_t AddCallback(const MLoggerCallback& cb)
+    CallbackToken AddCallback(const MLoggerCallback& cb)
     {
-        std::unique_lock<std::mutex> lock(ModifyMtx);
-        const auto id = Idx++;
-        Callbacks.emplace(id, cb);
-        Start();
-        return id;
+        const auto token = DoPrint += cb;
+        EnsureRunning();
+        return token;
     }
-    void DelCallback(const uint32_t cbidx)
+    bool DelCallback(const CallbackToken& token)
     {
-        std::unique_lock<std::mutex> lock(ModifyMtx);
-        Callbacks.erase(cbidx);
+        return DoPrint -= token;
     }
 };
 
-namespace detail
+static GlobalBackend& GetGlobalOutputer()
 {
-
-const std::unique_ptr<LoggerBackend> MiniLoggerBase::GlobalOutputer = std::unique_ptr<LoggerBackend>(new GlobalBackend());
-
+    static const auto GlobalOutputer = std::make_unique<GlobalBackend>();
+    return *GlobalOutputer;
 }
 
-uint32_t AddGlobalCallback(const MLoggerCallback& cb)
+CallbackToken AddGlobalCallback(const MLoggerCallback& cb)
 {
-    return reinterpret_cast<GlobalBackend*>(detail::MiniLoggerBase::GlobalOutputer.get())->AddCallback(cb);
+    return GetGlobalOutputer().AddCallback(cb);
 }
-void DelGlobalCallback(const uint32_t id)
+void DelGlobalCallback(const CallbackToken& token)
 {
-    reinterpret_cast<GlobalBackend*>(detail::MiniLoggerBase::GlobalOutputer.get())->DelCallback(id);
+    GetGlobalOutputer().DelCallback(token);
 }
+
+
+void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
+{
+    GetGlobalOutputer().Print(msg);
+}
+
 
 template class MINILOGAPI MiniLogger<true>;
 template class MINILOGAPI MiniLogger<false>;

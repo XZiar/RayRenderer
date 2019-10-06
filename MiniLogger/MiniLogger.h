@@ -11,21 +11,22 @@ namespace common::mlog
 {
 
 
-MINILOGAPI uint32_t AddGlobalCallback(const MLoggerCallback& cb);
-MINILOGAPI void DelGlobalCallback(const uint32_t id);
+MINILOGAPI CallbackToken AddGlobalCallback(const MLoggerCallback& cb);
+MINILOGAPI void DelGlobalCallback(const CallbackToken& token);
 
 namespace detail
 {
 
 class MINILOGAPI MiniLoggerBase : public NonCopyable
 {
-    friend uint32_t common::mlog::AddGlobalCallback(const MLoggerCallback& cb);
-    friend void common::mlog::DelGlobalCallback(const uint32_t id);
+    friend CallbackToken common::mlog::AddGlobalCallback(const MLoggerCallback& cb);
+    friend void common::mlog::DelGlobalCallback(const CallbackToken& id);
 protected:
-    static const std::unique_ptr<LoggerBackend> GlobalOutputer;
     std::atomic<LogLevel> LeastLevel;
     const SharedString<char16_t> Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
+
+    static void SentToGlobalOutputer(LogMessage* msg);
     forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
 public:
     MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug)
@@ -91,7 +92,7 @@ public:
             msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(std::forward<T>(formatter), std::forward<Args>(args)...), level);
 
         AddRefCount(*msg, 1);
-        MiniLoggerBase::GlobalOutputer->Print(msg);
+        SentToGlobalOutputer(msg);
 
         if constexpr (DynamicBackend)
         {

@@ -15,6 +15,8 @@
   - [x] Make Image mutable
   - [x] Add stb as fallback handler
   - [x] Add more format suppprt
+  - [ ] Use TexFormat instead of ImageDataType
+  - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
 
 * OpenGLUtil
@@ -28,7 +30,8 @@
   - [ ] Seperate sampler and texture
   - [ ] Seperate VAO bindings
   - [ ] Remove explicit include of glew
-  - [ ] Reduce hazzlement of TexDataType and TexInnerType
+  - [x] Reduce hazzlement of TexDataType and TexInnerType
+  - [ ] Re-design object creation
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL

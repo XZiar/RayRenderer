@@ -1,39 +1,76 @@
+#pragma once
 #include "CommonRely.hpp"
 #include "SpinLock.hpp"
-#include <map>
+#include "IntrusiveDoubleLinkList.hpp"
 #include <functional>
+#include <random>
 
 namespace common
 {
 
 
+class CallbackToken
+{
+    template<typename...> friend class Delegate;
+    void* CallbackPtr;
+    uint32_t ID;
+    CallbackToken(void* ptr, const uint32_t id) : CallbackPtr(ptr), ID(id) { }
+};
+
 template<typename... Args>
 class Delegate : public NonCopyable
 {
 private:
+    struct CallbackNode : container::IntrusiveDoubleLinkListNodeBase<CallbackNode>
+    {
+        uint32_t ID;
+        uint32_t UID;
+        std::function<void(const Args&...)> Callback;
+        template<typename T>
+        CallbackNode(const uint32_t id, const uint32_t uid, T&& callback)
+            : ID(id), UID(uid), Callback(std::forward<T>(callback)) { }
+    };
+
+    container::IntrusiveDoubleLinkList<CallbackNode> CallbackList;
     std::atomic_uint32_t Indexer;
-    std::map<uint32_t, std::function<void(const Args&...)>> Callbacks;
-    RWSpinLock Lock;
+    mutable RWSpinLock Lock;
+    uint32_t UID;
 public:
-    void operator()(const Args&... args)
+    Delegate() : Indexer(0), Lock(), UID(std::random_device()())
+    { }
+    ~Delegate()
+    {
+        CallbackList.ForEach([](CallbackNode* node) { delete node; }, true);
+    }
+    void operator()(const Args&... args) const
     {
         const auto lock = Lock.ReadScope();
-        for (const auto pair : Callbacks)
-            pair.second(args...);
+        CallbackList.ForEachRead([&](CallbackNode* node) 
+            {
+                node->Callback(args...);
+            });
     }
     template<typename T>
-    uint32_t operator+=(T&& callback)
+    CallbackToken operator+=(T&& callback)
     {
         const auto lock = Lock.WriteScope();
         const auto idx = Indexer++;
-        Callbacks.emplace(idx, std::forward<T>(callback));
-        return idx;
+        auto node = new CallbackNode(idx, UID, std::forward<T>(callback));
+        CallbackList.AppendNode(node);
+        return CallbackToken(node, idx);
     }
-    bool operator-=(uint32_t idx)
+    bool operator-=(const CallbackToken& token)
     {
-        const auto lock = Lock.WriteScope();
-        Callbacks.erase(idx);
-        return true;
+        auto node = reinterpret_cast<CallbackNode*>(token.CallbackPtr);
+        if (node == nullptr || node->UID != UID || token.ID != node->ID)
+            return false;
+        else
+        {
+            const auto lock = Lock.WriteScope();
+            CallbackList.PopNode(node);
+            delete node;
+            return true;
+        }
     }
 };
 

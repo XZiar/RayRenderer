@@ -16,9 +16,10 @@ namespace common::mlog
 class DebuggerBackend : public LoggerQBackend
 {
 protected:
-    void virtual OnStart() override
+    bool virtual OnStart(std::any) noexcept override
     {
         common::SetThreadName(u"Debugger-MLogger-Backend");
+        return true;
     }
 public:
     static void PrintText(const std::u16string_view& txt)
@@ -57,9 +58,10 @@ private:
         default:                return ConsoleColor::White;
         }
     }
-    void virtual OnStart() override
+    bool virtual OnStart(std::any) noexcept override
     {
         common::SetThreadName(u"Console-MLogger-Backend");
+        return true;
     }
 public:
     ConsoleBackend()
@@ -91,11 +93,12 @@ class FileBackend : public LoggerQBackend
 {
 protected:
     file::FileOutputStream Stream;
-    void virtual OnStart() override
+    bool virtual OnStart(std::any) noexcept override
     {
         common::SetThreadName(u"File-MLogger-Backend");
+        return true;
     }
-    void virtual OnStop() override
+    void virtual OnStop() noexcept override
     {
         Stream.Flush();
     }

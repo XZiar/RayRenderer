@@ -4,64 +4,42 @@
 
 namespace common::mlog
 {
-namespace detail
-{
-struct ThreadWrapper : public std::thread
-{
-    using thread::thread;
-};
-}
 
-void LoggerQBackend::LoggerWorker()
+bool LoggerQBackend::SleepCheck() noexcept
 {
-    std::unique_lock<std::mutex> lock(RunningMtx);
-    OnStart();
+    return MsgQueue.empty();
+}
+loop::LoopBase::LoopState LoggerQBackend::OnLoop()
+{
     LogMessage* msg = nullptr;
-    while (ShouldRun)
+    for (uint32_t i = 16; !MsgQueue.pop(msg) && i--;)
     {
-        for (uint32_t i = 0; !MsgQueue.pop(msg); ++i)
-        {
-            if (i < 16)
-            {
-                std::this_thread::yield();
-                continue;
-            }
-            IsWaiting = true;
-            CondWait.wait(lock, [&]()
-            {
-                const bool poped = MsgQueue.pop(msg);
-                return poped || !ShouldRun;
-            });
-            IsWaiting = false;
-            break;
-        }
-        if (msg)
-        {
-            OnPrint(*msg);
-            LogMessage::Consume(msg);
-            msg = nullptr;
-        }
+            std::this_thread::yield();
     }
-    OnStop();
+    if (msg)
+    {
+        OnPrint(*msg);
+        LogMessage::Consume(msg);
+        return LoopState::Continue;
+    }
+    else
+    {
+        return LoopState::Sleep;
+    }
 }
 
-void LoggerQBackend::Start()
+void LoggerQBackend::EnsureRunning()
 {
-    if(!ShouldRun.exchange(true) && !RunningThread)
-        RunningThread = std::make_unique<detail::ThreadWrapper>(&LoggerQBackend::LoggerWorker, this);
+    if (!IsRunning())
+        Start();
 }
 
-LoggerQBackend::LoggerQBackend(const size_t initSize) : MsgQueue(initSize)
+LoggerQBackend::LoggerQBackend(const size_t initSize) :
+    LoopBase(LoopBase::GetThreadedExecutor), MsgQueue(initSize)
 {
 }
 LoggerQBackend::~LoggerQBackend()
 {
-    if (RunningThread && RunningThread->joinable())
-    {
-        ShouldRun = false;
-        CondWait.notify_all();
-        RunningThread->join();
-    }
     //release the msgs left
     LogMessage* msg;
     while (MsgQueue.pop(msg))
@@ -70,18 +48,15 @@ LoggerQBackend::~LoggerQBackend()
 
 void LoggerQBackend::Print(LogMessage* msg)
 {
-    if ((uint8_t)msg->Level < (uint8_t)LeastLevel || !ShouldRun.load(std::memory_order_relaxed))
+    if (msg->Level < LeastLevel || !IsRunning())
     {
         LogMessage::Consume(msg);
-        return;
     }
-    MsgQueue.push(msg);
-    if (IsWaiting.load(std::memory_order_relaxed))
-        CondWait.notify_one(); //may leak message, but whatever
-}
-void LoggerQBackend::Flush()
-{
-    CondWait.notify_one();
+    else
+    {
+        MsgQueue.push(msg);
+        Wakeup();
+    }
 }
 
 

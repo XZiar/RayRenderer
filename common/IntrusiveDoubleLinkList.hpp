@@ -1,3 +1,4 @@
+#pragma once
 #include "CommonRely.hpp"
 #include "SpinLock.hpp"
 #include <atomic>
@@ -16,7 +17,7 @@ struct IntrusiveDoubleLinkListNodeBase : public NonCopyable
 {
     friend class IntrusiveDoubleLinkList<NodeType>;
 private:
-    NodeType* Prev, * Next; //spin-locker's memory_order_seq_cst promise their order
+    NodeType *Prev, *Next; //spin-locker's memory_order_seq_cst promise their order
 protected:
     IntrusiveDoubleLinkListNodeBase() : Prev(nullptr), Next(nullptr) { }
 };
@@ -28,9 +29,9 @@ public:
     static_assert(std::is_base_of_v<IntrusiveDoubleLinkListNodeBase<NodeType>, NodeType>, "NodeType should deriver from BiDirLinkedListNodeBase");
 private:
     std::atomic<NodeType*> Head{ nullptr }, Tail{ nullptr };
-    WRSpinLock ModifyLock;
+    mutable WRSpinLock ModifyLock;
 public:
-    bool AppendNode(NodeType* node)
+    bool AppendNode(NodeType* node) noexcept
     {
         const auto lock = ModifyLock.ReadScope();
         NodeType* tail = Tail;
@@ -52,7 +53,7 @@ public:
         }
     }
 
-    NodeType* PopNode(NodeType* node, bool returnNext = true)
+    NodeType* PopNode(NodeType* node, bool returnNext = true) noexcept
     {
         const auto lock = ModifyLock.WriteScope();
         auto prev = node->Prev, next = node->Next;
@@ -78,6 +79,17 @@ public:
     NodeType* End() const noexcept { return Tail; }
 
     template<typename Func>
+    void ForEachRead(Func&& func) const
+    {
+        const auto lock = ModifyLock.ReadScope();
+        for (NodeType* current = Head; current != nullptr;)
+        {
+            func(current);
+            current = current->Next;
+        }
+    }
+
+    template<typename Func>
     void ForEach(Func&& func, bool cleanup = false)
     {
         const auto lock = ModifyLock.WriteScope();
@@ -91,7 +103,7 @@ public:
             Head = nullptr, Tail = nullptr;
     }
 
-    void Clear(bool needToRelease = true)
+    void Clear(bool needToRelease = true) noexcept
     {
         NodeType* current = nullptr;
         {

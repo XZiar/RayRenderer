@@ -164,6 +164,7 @@ private:
     _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external = false);
 #endif
     void Init(const bool isCurrent);
+    void FinishGL();
 public:
     ~_oglContext();
     const auto& GetExtensions() const { return Extensions; }

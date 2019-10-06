@@ -1,5 +1,6 @@
 #pragma once
 #include "MiniLoggerRely.h"
+#include "SystemCommon/LoopBase.h"
 #if defined(_MSC_VER)
 #   define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #   pragma warning(disable:4996)
@@ -8,35 +9,24 @@
 #else
 #   include "boost/lockfree/queue.hpp"
 #endif
-#include <mutex>
-#include <condition_variable>
+
 
 namespace common::mlog
 {
 
-namespace detail
+class MINILOGAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
 {
-struct ThreadWrapper;
-}
-
-class MINILOGAPI LoggerQBackend : public LoggerBackend
-{
-protected:
+private:
     boost::lockfree::queue<LogMessage*> MsgQueue;
-    std::unique_ptr<detail::ThreadWrapper> RunningThread;
-    std::mutex RunningMtx;
-    std::condition_variable CondWait;
-    std::atomic_bool ShouldRun = false;
-    std::atomic_bool IsWaiting = false;
-    void LoggerWorker();
-    void virtual OnStart() {}
-    void virtual OnStop() {}
-    void Start();
+    virtual bool SleepCheck() noexcept override; // double check if shoul sleep
+    virtual LoopState OnLoop() override;
+protected:
+    using LoopBase::Stop;
+    void EnsureRunning();
 public:
     LoggerQBackend(const size_t initSize = 64);
     virtual ~LoggerQBackend() override;
-    void virtual Print(LogMessage* msg) override;
-    void Flush();
+    void virtual Print(LogMessage* msg) override final;
     template<class T, typename... Args>
     static std::unique_ptr<T> InitialQBackend(Args&&... args)
     {

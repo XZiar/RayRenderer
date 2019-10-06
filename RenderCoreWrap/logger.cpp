@@ -20,8 +20,8 @@ public enum class LogLevel : uint8_t
 };
 
 #pragma unmanaged
-static uint32_t setLogCB();
-static void unsetLogCB(const uint32_t);
+static common::CallbackToken setLogCB();
+static void unsetLogCB(const common::CallbackToken*);
 struct SVComparator
 {
     constexpr bool operator()(const std::u16string_view& left, const std::u16string_view& right) const noexcept
@@ -32,19 +32,24 @@ struct SVComparator
 static std::map<std::u16string_view, gcroot<String^>, SVComparator> STR_CACHE;
 #pragma managed
 
+
 public ref class Logger
 {
 public:
     delegate void LogEventHandler(LogLevel level, String^ from, String^ content);
 private:
     static Logger^ TheLogger;
-    initonly uint32_t ID;
+    NativeWrapper<common::CallbackToken> ID;
     Logger()
     {
-        ID = setLogCB();
+        ID.Construct(setLogCB());
     }
     ~Logger() { this->!Logger(); }
-    !Logger() { unsetLogCB(ID); }
+    !Logger() 
+    { 
+        WRAPPER_NATIVE_PTR(ID, pID);
+        unsetLogCB(pID);
+    }
 internal:
     static void RaiseOnLog(LogLevel level, String^ from, String^ content)
     {
@@ -69,14 +74,14 @@ static void __cdecl LogCallback(const common::mlog::LogMessage& msg)
 }
 
 #pragma unmanaged
-static uint32_t setLogCB()
+static common::CallbackToken setLogCB()
 {
     //common::mlog::GetConsoleBackend()->SetLeastLevel(common::mlog::LogLevel::Error);
     return common::mlog::AddGlobalCallback(LogCallback);
 }
-static void unsetLogCB(const uint32_t id)
+static void unsetLogCB(const common::CallbackToken* token)
 {
-    common::mlog::DelGlobalCallback(id);
+    common::mlog::DelGlobalCallback(*token);
 }
 #pragma managed
 

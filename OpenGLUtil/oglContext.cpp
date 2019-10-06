@@ -162,6 +162,12 @@ void _oglContext::Init(const bool isCurrent)
         DSA = DSAs.get(); // DSA just initialized, set it
 }
 
+void _oglContext::FinishGL()
+{
+    CHECKCURRENT();
+    glFinish();
+}
+
 _oglContext::~_oglContext()
 {
 #if defined(_DEBUG)
