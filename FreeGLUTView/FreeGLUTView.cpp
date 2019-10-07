@@ -45,6 +45,12 @@
 
 namespace glutview
 {
+using std::string;
+using std::wstring;
+using std::u16string;
+using common::BaseException;
+using common::SimpleTimer;
+
 
 common::mlog::MiniLogger<false>& fgvLog()
 {

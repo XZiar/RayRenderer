@@ -13,9 +13,6 @@
 
 
 #include "common/CommonRely.hpp"
-#include "common/Exceptions.hpp"
-#include "common/ContainerEx.hpp"
-#include "SystemCommon/FileEx.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -23,36 +20,12 @@
 #include <string_view>
 #include <array>
 #include <vector>
-#include <map>
-#include <unordered_map>
-#include <variant>
 
 namespace xziar::respak
 {
-namespace fs = common::fs;
-using common::file::FileObject;
-using common::file::FileInputStream;
-using common::file::FileOutputStream;
-using common::file::OpenFlag;
-using common::io::RandomInputStream;
-using common::io::BufferedRandomInputStream;
-using common::io::RandomOutputStream;
-using std::byte;
-using std::wstring;
-using std::string;
-using std::u16string;
-using std::string_view;
-using std::array;
-using std::vector;
-using std::map;
-using std::unordered_map;
-using std::variant;
 template<size_t N>
 using bytearray = std::array<std::byte, N>;
-using common::BaseException;
-using common::file::FileException;
-using common::NonCopyable;
-using common::NonMovable;
+
 
 namespace detail
 {
@@ -83,7 +56,7 @@ constexpr inline bytearray<sizeof(T)> ToLEByteArray(const T raw)
     auto intval = static_cast<uint64_t>(raw);
     bytearray<sizeof(T)> output{};
     for (size_t i = 0; i < sizeof(T); ++i, intval >>= 8)
-        output[i] = byte(intval);
+        output[i] = std::byte(intval);
     return output;
 }
 template<typename T>

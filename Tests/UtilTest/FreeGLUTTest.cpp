@@ -25,7 +25,7 @@ static void FGTest()
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
-    FreeGLUTView window(std::in_place);
+    auto window = std::make_shared<glutview::detail::_FreeGLUTView>();
     oglUtil::InitLatestVersion();
     const auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
     ctx->UseContext();
@@ -131,7 +131,7 @@ static void FGTest()
         oldCtx->UseContext();
     };
     FreeGLUTViewRun();
-    window.release();
+    window.reset();
 }
 
 const static uint32_t ID = RegistTest("FGTest", &FGTest);

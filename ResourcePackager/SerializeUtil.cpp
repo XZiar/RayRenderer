@@ -1,6 +1,7 @@
 #include "ResourcePackagerRely.h"
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
+#include "common/Exceptions.hpp"
 #include "common/Linq.hpp"
 #include "3rdParty/boost.stacktrace/stacktrace.h"
 
@@ -18,14 +19,25 @@
 // |ResourceItem|
 // |------------|
 
+
+
+namespace xziar::respak
+{
+using std::byte;
+using std::string;
+using std::string_view;
+using common::BaseException;
+using common::fs::path;
+using common::file::OpenFlag;
+using common::file::FileObject;
+using common::file::FileInputStream;
+using common::file::FileOutputStream;
 using common::linq::Linq;
 using common::container::FindInMap;
 
 static constexpr std::string_view TypeFieldName = "#Type";
-
-namespace xziar::respak
-{
 static constexpr size_t RESITEM_SIZE = sizeof(detail::ResourceItem);
+
 
 namespace detail
 {
@@ -71,9 +83,9 @@ bool ResourceItem::operator!=(const ResourceItem& other) const
 
 }
 
-SerializeUtil::SerializeUtil(const fs::path& fileName)
-    : DocWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CreatNewBinary))),
-    ResWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::CreatNewBinary))),
+SerializeUtil::SerializeUtil(const path& fileName)
+    : DocWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CreatNewBinary))),
+    ResWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::CreatNewBinary))),
     SharedMap(DocRoot.Add("#global_map", DocRoot.NewObject()).GetObject("#global_map")), Root(DocRoot)
 {
     auto config = DocRoot.NewObject();
@@ -218,9 +230,9 @@ uint32_t DeserializeUtil::RegistDeserializer(const std::string_view& type, const
     return 0;
 }
 
-DeserializeUtil::DeserializeUtil(const fs::path & fileName)
-    : ResReader(std::make_unique<FileInputStream>(FileObject::OpenThrow(fs::path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ))),
-    DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(fs::path(fileName).replace_extension(u".xzrp.json")))),
+DeserializeUtil::DeserializeUtil(const path & fileName)
+    : ResReader(std::make_unique<FileInputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ))),
+    DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
     Linq::FromIterable(Root.GetObject("#global_map"))

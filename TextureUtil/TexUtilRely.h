@@ -17,19 +17,19 @@
 #endif
 
 
+
+#include "OpenGLUtil/OpenGLUtil.h"
+#include "OpenCLUtil/OpenCLUtil.h"
+#include "ImageUtil/ImageUtil.h"
+#include "SystemCommon/FileEx.h"
+#include "SystemCommon/ThreadEx.h"
+#include "common/Exceptions.hpp"
+#include "common/TimeUtil.hpp"
+#include "common/PromiseTask.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include <map>
-#include "common/Wrapper.hpp"
-#include "common/Exceptions.hpp"
-#include "common/TimeUtil.hpp"
-#include "SystemCommon/FileEx.h"
-#include "common/PromiseTask.hpp"
-#include "SystemCommon/ThreadEx.h"
-#include "OpenGLUtil/OpenGLUtil.h"
-#include "OpenCLUtil/OpenCLUtil.h"
-#include "ImageUtil/ImageUtil.h"
 
 
 namespace oglu::texutil

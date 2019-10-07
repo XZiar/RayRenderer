@@ -1,6 +1,11 @@
 #pragma once
 #include "ResourcePackagerRely.h"
+#include "SystemCommon/FileEx.h"
+#include "common/ContainerEx.hpp"
 #include "common/EasierJson.hpp"
+#include <map>
+#include <unordered_map>
+#include <variant>
 
 
 #if COMPILER_MSVC
@@ -21,7 +26,7 @@ class RESPAKAPI Serializable
 public:
     virtual ~Serializable() {}
 protected:
-    virtual string_view SerializedType() const = 0;
+    virtual std::string_view SerializedType() const = 0;
     virtual void Serialize(SerializeUtil&, ejson::JObject&) const {}
     virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) {}
 };
@@ -72,10 +77,10 @@ public:
     bytearray<8> Size;
     bytearray<8> Offset;
     bytearray<4> Index;
-    bytearray<12> Dummy = { byte(0) };
+    bytearray<12> Dummy = { std::byte(0) };
     ResourceItem() {}
     ResourceItem(bytearray<32>&& sha256, const uint64_t size, const uint64_t offset, const uint32_t index);
-    string ExtractHandle() const;
+    std::string ExtractHandle() const;
     uint64_t GetSize() const;
     uint64_t GetOffset() const;
     uint32_t GetIndex() const;
@@ -86,22 +91,22 @@ public:
 
 }
 
-class RESPAKAPI SerializeUtil : public NonCopyable, public NonMovable
+class RESPAKAPI SerializeUtil : public common::NonCopyable, public common::NonMovable
 {
 public:
-    using FilterFunc = std::function<string(const string_view&)>;
+    using FilterFunc = std::function<std::string(const std::string_view&)>;
 private:
-    std::unique_ptr<RandomOutputStream> DocWriter;
-    std::unique_ptr<RandomOutputStream> ResWriter;
+    std::unique_ptr<common::io::RandomOutputStream> DocWriter;
+    std::unique_ptr<common::io::RandomOutputStream> ResWriter;
     ejson::JObject DocRoot;
     ejson::JObjectRef<false> SharedMap;
-    vector<FilterFunc> Filters;
+    std::vector<FilterFunc> Filters;
 
     // lookup table for global object
-    unordered_map<string, string> ObjectLookup;
-    vector<detail::ResourceItem> ResourceList;
-    unordered_map<bytearray<32>, uint32_t, detail::SHA256Hash> ResourceSet;
-    unordered_map<string, uint32_t> ResourceLookup;
+    std::unordered_map<std::string, std::string> ObjectLookup;
+    std::vector<detail::ResourceItem> ResourceList;
+    std::unordered_map<bytearray<32>, uint32_t, detail::SHA256Hash> ResourceSet;
+    std::unordered_map<std::string, uint32_t> ResourceLookup;
     uint64_t ResOffset = 0;
     uint32_t ResCount = 0;
     bool HasFinished = false;
@@ -110,7 +115,7 @@ private:
 public:
     ejson::JObjectRef<false> Root;
     bool IsPretty = false;
-    SerializeUtil(const fs::path& fileName);
+    SerializeUtil(const common::fs::path& fileName);
     ~SerializeUtil();
 
     //template<typename... Ts>
@@ -133,27 +138,27 @@ public:
     ejson::JArray NewArray() { return DocRoot.NewArray(); }
 
     //simply add node to docroot, bypassing filter
-    void AddObject(const string& name, ejson::JDoc& node);
+    void AddObject(const std::string& name, ejson::JDoc& node);
     //simply add a global object, will be filtered to get proper path
-    string AddObject(const Serializable& object, string id = "");
+    std::string AddObject(const Serializable& object, std::string id = "");
     //simply add a global object (already parssed), will be filtered to get proper path
-    string AddObject(ejson::JObject&& object, string id);
+    std::string AddObject(ejson::JObject&& object, std::string id);
     //string LookupObject(const Serializable& object) const;
     //add object to an object, bypassing filter
-    void AddObject(ejson::JObject& target, const string& name, const Serializable& object);
-    void AddObject(ejson::JObjectRef<false>& target, const string& name, const Serializable& object);
+    void AddObject(ejson::JObject& target, const std::string& name, const Serializable& object);
+    void AddObject(ejson::JObjectRef<false>& target, const std::string& name, const Serializable& object);
     //add object to an array, bypassing filter
     void AddObject(ejson::JArray& target, const Serializable& object);
     void AddObject(ejson::JArrayRef<false>& target, const Serializable& object);
 
-    string PutResource(const void* data, const size_t size, const string& id = "");
-    string LookupResource(const string& id) const;
+    std::string PutResource(const void* data, const size_t size, const std::string& id = "");
+    std::string LookupResource(const std::string& id) const;
 
     void Finish();
 };
 
 
-class RESPAKAPI DeserializeUtil : public NonCopyable, public NonMovable
+class RESPAKAPI DeserializeUtil : public common::NonCopyable, public common::NonMovable
 {
 public:
     using DeserializeFunc = std::function<std::unique_ptr<Serializable>(DeserializeUtil&, const ejson::JObjectRef<true>&)>;
@@ -173,37 +178,37 @@ private:
     };
 
     static std::unordered_map<std::string_view, DeserializeFunc>& DeserializeMap();
-    std::unique_ptr<RandomInputStream> ResReader;
+    std::unique_ptr<common::io::RandomInputStream> ResReader;
     ejson::JObject DocRoot;
     
     // store cookies injected by deserialize host
-    map<string, std::any, std::less<>> Cookies;
+    std::map<std::string, std::any, std::less<>> Cookies;
     // store deserialized shared object acoording to json-node
-    unordered_map<ejson::JObjectRef<true>, std::shared_ptr<Serializable>, ejson::JNodeHash> ObjectCache;
+    std::unordered_map<ejson::JObjectRef<true>, std::shared_ptr<Serializable>, ejson::JNodeHash> ObjectCache;
     // store share object lookup
-    map<string_view, string_view, std::less<>> SharedObjectLookup;
+    std::map<std::string_view, std::string_view, std::less<>> SharedObjectLookup;
     // store deserialized shared resource acoording to res-handle
-    unordered_map<string, common::AlignedBuffer> ResourceCache;
+    std::unordered_map<std::string, common::AlignedBuffer> ResourceCache;
     // resource index
-    vector<detail::ResourceItem> ResourceList;
+    std::vector<detail::ResourceItem> ResourceList;
     // resource lookup [handle->residx]
-    unordered_map<string, uint32_t> ResourceSet;
+    std::unordered_map<std::string, uint32_t> ResourceSet;
     std::unique_ptr<Serializable> InnerDeserialize(const ejson::JObjectRef<true>& object, std::unique_ptr<Serializable>(*fallback)(DeserializeUtil&, const ejson::JObjectRef<true>&));
-    ejson::JObjectRef<true> InnerFindShare(const string_view& id);
+    ejson::JObjectRef<true> InnerFindShare(const std::string_view& id);
 public:
     static uint32_t RegistDeserializer(const std::string_view& type, const DeserializeFunc& func);
 
     const ejson::JObjectRef<true> Root;
-    DeserializeUtil(const fs::path& fileName);
+    DeserializeUtil(const common::fs::path& fileName);
     ~DeserializeUtil();
 
     template<typename T>
-    void SetCookie(const string_view& name, T&& cookie)
+    void SetCookie(const std::string_view& name, T&& cookie)
     {
-        Cookies.insert_or_assign(string(name), std::any(cookie));
+        Cookies.insert_or_assign(std::string(name), std::any(cookie));
     }
     template<typename T>
-    const T* GetCookie(const string_view& name) const
+    const T* GetCookie(const std::string_view& name) const
     {
         const auto it = common::container::FindInMap(Cookies, name);
         if (it)
@@ -211,7 +216,7 @@ public:
         else 
             return nullptr;
     }
-    common::AlignedBuffer GetResource(const string& handle, const bool cache = true);
+    common::AlignedBuffer GetResource(const std::string& handle, const bool cache = true);
 
     template<typename T = Serializable>
     std::unique_ptr<T> Deserialize(const ejson::JObjectRef<true>& object)
@@ -240,13 +245,13 @@ public:
         return obj;
     }
     template<typename T = Serializable>
-    std::unique_ptr<T> Deserialize(const string_view& id)
+    std::unique_ptr<T> Deserialize(const std::string_view& id)
     {
         const auto& node = InnerFindShare(id);
         return node.IsNull() ? std::unique_ptr<T>{} : Deserialize<T>(node);
     }
     template<typename T>
-    std::shared_ptr<T> DeserializeShare(const string_view& id, const bool cache = true)
+    std::shared_ptr<T> DeserializeShare(const std::string_view& id, const bool cache = true)
     {
         const auto& node = InnerFindShare(id);
         return node.IsNull() ? std::shared_ptr<T>{} : DeserializeShare<T>(node, cache);

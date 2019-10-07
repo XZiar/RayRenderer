@@ -2,7 +2,6 @@
 #include "common/AlignedBuffer.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <tuple>
 
 
@@ -11,12 +10,7 @@
 
 namespace ft
 {
-namespace fs = common::fs;
-using std::vector;
-using std::pair;
-using std::tuple;
-using std::byte;
-using BMPair = tuple<common::AlignedBuffer, uint32_t, uint32_t>;
+using BMPair = std::tuple<common::AlignedBuffer, uint32_t, uint32_t>;
 
 class FreeTyper
 {
@@ -25,7 +19,7 @@ private:
     const uint16_t PixSize, Border;
     uint32_t getGlyphIndex(char32_t ch) const;
 public:
-    FreeTyper(const fs::path& fontpath, const uint16_t pixSize = 128, const uint16_t border = 2);
+    FreeTyper(const common::fs::path& fontpath, const uint16_t pixSize = 128, const uint16_t border = 2);
     BMPair getChBitmap(char32_t ch) const;
 };
 

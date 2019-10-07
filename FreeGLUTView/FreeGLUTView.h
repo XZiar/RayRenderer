@@ -16,10 +16,11 @@
 # endif
 #endif
 
-#include "common/Wrapper.hpp"
+#include "common/CommonRely.hpp"
 #include "common/TimeUtil.hpp"
 #include <string>
 #include <functional>
+#include <memory>
 
 
 
@@ -30,13 +31,8 @@
 
 namespace glutview
 {
-
 class GLUTHacker;
 
-using namespace common;
-using std::string;
-using std::wstring;
-using std::u16string;
 
 enum class Key : uint8_t
 {
@@ -83,7 +79,7 @@ namespace detail
 {
 class _FreeGLUTView;
 }
-using FreeGLUTView = Wrapper<detail::_FreeGLUTView>;
+using FreeGLUTView = std::shared_ptr<detail::_FreeGLUTView>;
 
 
 using FuncBasic = std::function<void(FreeGLUTView)>;
@@ -94,14 +90,14 @@ using FuncMouseEvent = std::function<void(FreeGLUTView, MouseEvent)>;
 //-param elapse time(ms)
 //-return whether continue this timer
 using FuncTimer = std::function<bool(FreeGLUTView, uint32_t)>;
-using FuncDropFile = std::function<void(FreeGLUTView, u16string filePath)>;
+using FuncDropFile = std::function<void(FreeGLUTView, std::u16string filePath)>;
 
 
 namespace detail
 {
 class FreeGLUTManager;
 
-class GLUTVIEWAPI _FreeGLUTView : public NonCopyable, public std::enable_shared_from_this<_FreeGLUTView>
+class GLUTVIEWAPI _FreeGLUTView : public common::NonCopyable, public std::enable_shared_from_this<_FreeGLUTView>
 {
     friend class FreeGLUTManager;
     friend class ::glutview::GLUTHacker;
@@ -124,7 +120,7 @@ private:
     void onWheel(int button, int dir, int x, int y);
     void onMouse(int x, int y);
     void onMouse(int button, int state, int x, int y);
-    void onDropFile(const u16string& fname);
+    void onDropFile(const std::u16string& fname);
     void onClose();
 public:
     bool deshake = true;
@@ -137,7 +133,7 @@ public:
     _FreeGLUTView(const int w = 1280, const int h = 720);
     ~_FreeGLUTView();
     void SetTimerCallback(FuncTimer funTime, const uint16_t ms);
-    void SetTitle(const string& title);
+    void SetTitle(const std::string& title);
     void Refresh();
     void Invoke(const std::function<void(const FreeGLUTView&)>& task);
 };

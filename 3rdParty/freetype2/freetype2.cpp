@@ -4,15 +4,20 @@
 #include FT_FREETYPE_H
 #include <freetype/ftoutln.h>
 #include "common/FileExceptions.hpp"
+#include <vector>
 
 #pragma message("Compile FreeType2 with FreeType2[" STRINGIZE(FREETYPE2_VERSION) "]")
 
 
 namespace ft
 {
-using namespace common;
+using std::byte;
+using common::AlignedBuffer;
+using common::BaseException;
+using common::fs::path;
 using common::file::FileException;
 using common::file::FileErrReason;
+
 
 static void* CreateLibrary()
 {
@@ -34,7 +39,7 @@ uint32_t FreeTyper::getGlyphIndex(char32_t ch) const
     return FT_Get_Char_Index((FT_Face)face, ch);
 }
 
-FreeTyper::FreeTyper(const fs::path& fontpath, const uint16_t pixSize, const uint16_t border) : PixSize(pixSize), Border(border)
+FreeTyper::FreeTyper(const path& fontpath, const uint16_t pixSize, const uint16_t border) : PixSize(pixSize), Border(border)
 {
     auto ret = FT_New_Face(&GetLibrary(), fontpath.string().c_str(), 0, (FT_Face*)&face);
     switch (ret)

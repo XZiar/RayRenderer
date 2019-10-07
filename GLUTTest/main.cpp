@@ -102,7 +102,7 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             switch (keyevent.key)
             {
             case (uint8_t)Key::ESC:
-                window.release();
+                window.reset();
                 return;
             case 'a'://pan to left
                 tester->GetScene()->GetCamera()->Yaw(3 * muler); break;
@@ -129,10 +129,10 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
             case 'E':
                 CurObj->Rotate(0, -3 * muler, 0); break;
             case 'x':
-                wd2.reset(800, 600);
+                wd2 = std::make_shared<glutview::detail::_FreeGLUTView>(800, 600);
                 break;
             case 'X':
-                wd2.release(); break;
+                wd2.reset(); break;
             case 13:
                 if (keyevent.hasShift())
                     isAnimate = !isAnimate;
@@ -237,7 +237,7 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
-    window.reset();
+    window = std::make_shared<glutview::detail::_FreeGLUTView>();
     tester.reset(new rayr::RenderCore());
     tester->TestSceneInit();
     CurObj = tester->GetScene()->GetDrawables().begin()->second;

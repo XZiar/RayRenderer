@@ -16,6 +16,7 @@ using namespace common::mlog;
 using namespace xziar::img;
 using namespace std::string_view_literals;
 using std::string;
+using std::u16string;
 
 
 static MiniLogger<false>& log()

@@ -8,10 +8,12 @@
 
 namespace oglu
 {
-using namespace oclu;
+using std::string;
+using std::u16string;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 using xziar::img::TextureFormat;
+using namespace oclu;
 
 
 struct FontInfo
@@ -94,7 +96,7 @@ FontCreator::~FontCreator()
 
 void FontCreator::reloadFont(const fs::path& fontpath)
 {
-    ft2.reset(fontpath, (uint16_t)124, (uint16_t)2);
+    ft2 = std::make_unique<ft::FreeTyper>(fontpath, (uint16_t)124, (uint16_t)2);
 }
 
 

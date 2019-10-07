@@ -5,6 +5,10 @@
 
 namespace xziar::respak
 {
+using std::byte;
+using std::string;
+using std::string_view;
+using std::vector;
 
 
 string ResourceUtil::Hex2Str(const void * data, const size_t size)
