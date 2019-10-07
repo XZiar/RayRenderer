@@ -46,18 +46,18 @@ MAKE_ENUM_BITFIELD(KerArgFlag)
 
 struct OCLUAPI KernelArgInfo
 {
-    string Name;
-    string Type;
+    std::string Name;
+    std::string Type;
     KerArgSpace Space;
     ImgAccess Access;
     KerArgFlag Qualifier;
-    string_view GetSpace() const;
-    string_view GetImgAccess() const;
-    string GetQualifier() const;
+    std::string_view GetSpace() const;
+    std::string_view GetImgAccess() const;
+    std::string GetQualifier() const;
 };
 
 
-class OCLUAPI oclKernel_ : public NonCopyable
+class OCLUAPI oclKernel_ : public common::NonCopyable
 {
     friend class oclProgram_;
 private:
@@ -66,7 +66,7 @@ private:
     const oclProgram_& Prog;
     cl_kernel KernelID;
     mutable std::atomic_flag ArgLock = ATOMIC_FLAG_INIT;
-    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name);
+    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
     void CheckArgIdx(const uint32_t idx) const;
     template<size_t N>
     constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
@@ -105,18 +105,18 @@ private:
             SetArg<sizeof...(Args) - 1>();
         }
     public:
-        PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        common::PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
             return Kernel.Run({}, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
         }
-        PromiseResult<void> operator()(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        common::PromiseResult<void> operator()(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
             return Kernel.Run(pms, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
         }
     };
 public:
-    string Name;
-    vector<KernelArgInfo> ArgsInfo;
+    std::string Name;
+    std::vector<KernelArgInfo> ArgsInfo;
     ~oclKernel_();
 
     WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev) const;
@@ -143,32 +143,32 @@ public:
         static_assert(Helper::IsContiguous, "Only accept contiguous type");
         return SetArg(idx, Helper::Data(dat), Helper::Count(dat) * Helper::EleSize);
     }
-    PromiseResult<void> Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const;
+    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const;
     template<uint8_t N>
-    PromiseResult<void> Run(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
+    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run(pms, N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint8_t N>
-    PromiseResult<void> Run(const PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
+    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run(pms, N, que, worksize, isBlock, workoffset, localsize);
     }
 
-    PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const
+    common::PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const
     {
         return Run({}, workdim, que, worksize, isBlock, workoffset, localsize);
     }
     template<uint8_t N>
-    PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
+    common::PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run({}, N, que, worksize, isBlock, workoffset, nullptr);
     }
     template<uint8_t N>
-    PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
+    common::PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return Run({}, N, que, worksize, isBlock, workoffset, localsize);
@@ -178,7 +178,7 @@ public:
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         if (sizeof...(Args) != ArgsInfo.size())
-            COMMON_THROW(BaseException, u"Argument parameter provided does not match parameter needed.");
+            COMMON_THROW(common::BaseException, u"Argument parameter provided does not match parameter needed.");
         return KernelCallSite<N, Args...>(this, std::forward<Args>(args)...);
     }
 
@@ -189,55 +189,55 @@ public:
 struct CLProgConfig
 {
     using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
-    map<string, DefineVal> Defines;
-    set<string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
+    std::map<std::string, DefineVal> Defines;
+    std::set<std::string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
 };
 
 
-class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, public NonCopyable
+class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, public common::NonCopyable
 {
     friend class oclContext_;
     friend class oclKernel_;
 private:
     MAKE_ENABLER();
     const oclContext Context;
-    const string Source;
+    const std::string Source;
     cl_program ProgID;
-    vector<string> KernelNames;
-    vector<std::unique_ptr<oclKernel_>> Kernels;
+    std::vector<std::string> KernelNames;
+    std::vector<std::unique_ptr<oclKernel_>> Kernels;
     common::container::FrozenDenseSet<cl_device_id> DeviceIDs;
 
-    static u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
-    static u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
-    static u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
+    static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
+    static std::u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
+    static std::u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
     class OCLUAPI oclProgStub : public NonCopyable
     {
         friend class oclProgram_;
     private:
         oclContext Context;
-        string Source;
+        std::string Source;
         cl_program ProgID;
     public:
-        oclProgStub(const oclContext& ctx, const string& str);
+        oclProgStub(const oclContext& ctx, const std::string& str);
         ~oclProgStub();
         void Build(const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
         void Build(const CLProgConfig& config, const oclDevice dev) { Build(config, std::vector<oclDevice>{ dev }); }
-        u16string GetBuildLog(const oclDevice& dev) const { return GetProgBuildLog(ProgID, dev->DeviceID); }
+        std::u16string GetBuildLog(const oclDevice& dev) const { return GetProgBuildLog(ProgID, dev->DeviceID); }
         oclProgram Finish();
     };
     oclProgram_(oclProgStub* stub);
 public:
     ~oclProgram_();
-    oclKernel GetKernel(const string& name) const;
+    oclKernel GetKernel(const std::string& name) const;
     auto GetKernels() const
     {
         return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);
     }
-    const vector<string>& GetKernelNames() const { return KernelNames; }
-    u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Context, DeviceIDs); }
+    const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
+    std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Context, DeviceIDs); }
 
-    static oclProgStub Create(const oclContext& ctx, const string& str);
-    static oclProgram CreateAndBuild(const oclContext& ctx, const string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
+    static oclProgStub Create(const oclContext& ctx, const std::string& str);
+    static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
 };
 
 

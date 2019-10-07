@@ -16,18 +16,16 @@
 # endif
 #endif
 
-#include "common/CommonRely.hpp"
-#include "common/EnumEx.hpp"
-#include "common/Exceptions.hpp"
-#include "common/ContainerEx.hpp"
-#include "common/StringEx.hpp"
-#include "common/PromiseTask.hpp"
-#include "common/Linq.hpp"
-
 #include "MiniLogger/MiniLogger.h"
 #include "ImageUtil/ImageCore.h"
 #include "ImageUtil/TexFormat.h"
-#include "StringCharset/Convert.h"
+
+#include "common/CommonRely.hpp"
+#include "common/ContainerEx.hpp"
+#include "common/Delegate.hpp"
+#include "common/EnumEx.hpp"
+#include "common/Exceptions.hpp"
+#include "common/PromiseTask.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -52,45 +50,14 @@
 
 namespace oclu
 {
-namespace str = common::str;
-namespace fs = common::fs;
-using std::string;
-using std::wstring;
-using std::u16string;
-using std::string_view;
-using std::u16string_view;
-using std::wstring_view;
-using std::tuple;
-using std::set;
-using std::map;
-using std::vector;
-using std::function;
-using std::optional;
-using common::min;
-using common::max;
-using common::SimpleTimer;
-using common::NonCopyable;
-using common::NonMovable;
-using common::PromiseResult;
-using common::BaseException;
-using common::file::FileException;
-using common::linq::Linq;
-
 
 class oclUtil;
 class oclMapPtr_;
 class GLInterop;
-using MessageCallBack = std::function<void(const u16string&)>;
+
+using MessageCallBack = std::function<void(const std::u16string&)>;
+
 enum class Vendors { Other = 0, NVIDIA, Intel, AMD };
 
-
-
 }
-
-#ifdef OCLU_EXPORT
-namespace oclu
-{
-common::mlog::MiniLogger<false>& oclLog();
-}
-#endif
 

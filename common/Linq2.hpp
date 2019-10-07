@@ -384,6 +384,7 @@ class Enumerable
 {
     friend class detail::EnumerableChecker;
 public:
+    using ProviderType = T;
     using EleType = typename T::OutType;
     static_assert(!std::is_rvalue_reference_v<EleType>, "Output should never be r-value reference");
     using PlainEleType = common::remove_cvref_t<EleType>;
@@ -533,6 +534,15 @@ public:
     constexpr U Sum(U data = {})
     {
         return Reduce([](U& ret, const auto& item) { ret += item; }, data);
+    }
+    constexpr std::optional<PlainEleType> TryGetFirst() const
+    {
+        return Provider.IsEnd() ? std::optional<PlainEleType>{} : Provider.GetCurrent();
+    }
+
+    constexpr bool Empty() const
+    {
+        return Provider.IsEnd();
     }
     template<typename U>
     constexpr bool Contains(const U& obj)
@@ -742,8 +752,6 @@ public:
     {
         return e.Provider;
     }
-    
-    template<typename T> using ProviderType = decltype(std::declval<T&>().Provider);
 };
 
 }

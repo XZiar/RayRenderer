@@ -1,4 +1,4 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclContext.h"
 #include "oclException.h"
 #include "oclDevice.h"
@@ -7,9 +7,15 @@
 #include "oclImage.h"
 
 
-using common::container::FindInVec;
 namespace oclu
 {
+using std::string;
+using std::u16string;
+using std::string_view;
+using std::u16string_view;
+using std::vector;
+using std::set;
+using common::container::FindInVec;
 
 
 static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const void * private_info, size_t, void *user_data)
@@ -34,7 +40,7 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
     return dformats;
 }
 
-oclContext_::oclContext_(std::shared_ptr<const oclPlatform_> plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
+oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
     : Plat(std::move(plat)), Devices(devices)
 {
     OnMessage += [](const auto& msg) { oclLog().verbose(u"{}\n", msg); };

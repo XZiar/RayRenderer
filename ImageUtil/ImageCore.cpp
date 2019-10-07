@@ -7,6 +7,10 @@
 
 namespace xziar::img
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
 
 
 void Image::FlipVertical()

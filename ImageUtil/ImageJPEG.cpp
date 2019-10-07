@@ -7,6 +7,10 @@
 #pragma message("Compiling ImageJPEG with libjpeg-turbo[" STRINGIZE(LIBJPEG_TURBO_VERSION) "]")
 namespace xziar::img::jpeg
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
 
 
 class BufferedStreamReader : public StreamReader

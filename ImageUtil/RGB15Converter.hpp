@@ -38,24 +38,24 @@ inline void BGR16ToRGBAs(uint32_t * __restrict destPtr, const uint16_t * __restr
     }
 }
 
-inline void RGB15ToRGBs(byte * __restrict destPtr, const uint16_t * __restrict srcPtr, uint64_t count)
+inline void RGB15ToRGBs(std::byte * __restrict destPtr, const uint16_t * __restrict srcPtr, uint64_t count)
 {
     while (count--)
     {
         const auto bgr15 = *srcPtr++;
-        *destPtr++ = byte((bgr15 & 0x7c00) >> 7);
-        *destPtr++ = byte((bgr15 & 0x03e0) >> 2);
-        *destPtr++ = byte((bgr15 & 0x1f) << 3);
+        *destPtr++ = std::byte((bgr15 & 0x7c00) >> 7);
+        *destPtr++ = std::byte((bgr15 & 0x03e0) >> 2);
+        *destPtr++ = std::byte((bgr15 & 0x1f) << 3);
     }
 }
-inline void BGR15ToRGBs(byte * __restrict destPtr, const uint16_t * __restrict srcPtr, uint64_t count)
+inline void BGR15ToRGBs(std::byte * __restrict destPtr, const uint16_t * __restrict srcPtr, uint64_t count)
 {
     while (count--)
     {
         const auto bgr15 = *srcPtr++;
-        *destPtr++ = byte((bgr15 & 0x1f) << 3);
-        *destPtr++ = byte((bgr15 & 0x03e0) >> 2);
-        *destPtr++ = byte((bgr15 & 0x7c00) >> 7);
+        *destPtr++ = std::byte((bgr15 & 0x1f) << 3);
+        *destPtr++ = std::byte((bgr15 & 0x03e0) >> 2);
+        *destPtr++ = std::byte((bgr15 & 0x7c00) >> 7);
     }
 }
 

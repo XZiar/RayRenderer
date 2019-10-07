@@ -2,15 +2,16 @@
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclException.h"
 #include "StringCharset/Convert.h"
-#include "common/Linq.hpp"
+#include "common/Linq2.hpp"
+#include "common/StringEx.hpp"
 
 
 using namespace common;
 using namespace common::mlog;
 using namespace oclu;
 using std::string;
+using std::u16string;
 using std::cin;
-using common::linq::Linq;
 using xziar::img::TexFormatUtil;
 using common::strchset::to_u16string;
 
@@ -22,13 +23,14 @@ static MiniLogger<false>& log()
 
 static void OCLStub()
 {
-    Linq::FromIterable(oclUtil::GetPlatforms())
-        .ForEach([i = 0u](const auto& plat) mutable { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
+    common::linq::FromIterable(oclUtil::GetPlatforms())
+        .ForEach([i = 0u](const auto& plat) mutable 
+    { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
     uint32_t platidx = 0;
     std::cin >> platidx;
     const auto plat = oclUtil::GetPlatforms()[platidx];
 
-    auto thedev = Linq::FromIterable(plat->GetDevices())
+    auto thedev = common::linq::FromContainer(plat->GetDevices())
         .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
         .TryGetFirst().value_or(plat->GetDefaultDevice());
     const auto ctx = plat->CreateContext(thedev);

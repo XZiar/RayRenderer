@@ -35,7 +35,7 @@ class OCLIOPAPI GLInterop
     friend class oclGLImage3D_;
 private:
 
-    class OCLIOPAPI GLResLocker : public NonCopyable, public NonMovable
+    class OCLIOPAPI GLResLocker : public common::NonCopyable, public common::NonMovable
     {
         template<typename> friend class oclGLObject_;
     private:
@@ -49,8 +49,8 @@ private:
 
     static cl_mem CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& bufId);
     static cl_mem CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex);
-    static vector<cl_context_properties> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
-    static oclDevice GetGLDevice(const oclPlatform& plat, const vector<cl_context_properties>& props);
+    static std::vector<cl_context_properties> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
+    static oclDevice GetGLDevice(const oclPlatform& plat, const std::vector<cl_context_properties>& props);
 public:
     static bool CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context);
     static oclContext CreateGLSharedContext(const oglu::oglContext& context);

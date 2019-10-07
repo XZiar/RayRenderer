@@ -9,6 +9,11 @@
 
 namespace xziar::img::png
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
+
 constexpr static size_t PNG_BYTES_TO_CHECK = 8;
 
 

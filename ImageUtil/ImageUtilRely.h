@@ -16,32 +16,22 @@
 # endif
 #endif
 
-#include "common/CommonRely.hpp"
-#include "common/EnumEx.hpp"
-#include "common/SIMD.hpp"
-#include "common/CopyEx.hpp"
-#include "common/Exceptions.hpp"
-#include "common/AlignedBuffer.hpp"
 #include "SystemCommon/FileEx.h"
+
+#include "common/CommonRely.hpp"
+#include "common/AlignedBuffer.hpp"
+#include "common/EnumEx.hpp"
+#include "common/Exceptions.hpp"
 #include "common/MemoryStream.hpp"
-#include "common/TimeUtil.hpp"
+#include "common/SIMD.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include <vector>
-#include <array>
+#include <tuple>
 
-namespace xziar::img
-{
-namespace fs = common::fs;
-using std::byte;
-using std::string;
-using std::wstring;
-using std::u16string;
-using std::tuple;
-}
 
 #if COMMON_SIMD_LV >= 20
 #   define IMGU_USE_SIMD

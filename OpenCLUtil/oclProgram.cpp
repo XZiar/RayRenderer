@@ -1,4 +1,4 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclProgram.h"
 #include "oclException.h"
 #include "oclUtil.h"
@@ -6,9 +6,15 @@
 
 namespace oclu
 {
+using std::string;
+using std::u16string;
+using std::string_view;
+using std::u16string_view;
+using std::vector;
+using common::linq::Linq;
+using common::PromiseResult;
 using namespace std::literals::string_view_literals;
-using common::container::FindInMap;
-using common::container::ContainInVec;
+
 
 MAKE_ENABLER_IMPL(oclProgram_)
 //MAKE_ENABLER_IMPL(oclKernel_)
@@ -367,7 +373,7 @@ oclProgram_::oclProgram_(oclProgStub* stub)
     clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
     if (len > 0)
         buf.pop_back(); //null-terminated
-    const auto names = str::Split<char>(buf, ';', false);
+    const auto names = common::str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
     Kernels = Linq::FromIterable(KernelNames)

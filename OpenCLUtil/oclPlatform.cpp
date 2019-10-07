@@ -1,13 +1,18 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclPlatform.h"
 #include "oclException.h"
 #include "oclUtil.h"
 
-using common::container::FindInVec;
-using common::linq::Linq;
 
 namespace oclu
 {
+using std::string;
+using std::u16string;
+using std::string_view;
+using std::u16string_view;
+using std::vector;
+using common::linq::Linq;
+using common::str::Charset;
 
 
 vector<cl_context_properties> oclPlatform_::GetCLProps() const
@@ -20,7 +25,7 @@ vector<cl_context_properties> oclPlatform_::GetCLProps() const
 
 static Vendors JudgeBand(const u16string& name)
 {
-    const auto capName = common::strchset::ToUpperEng(name, str::Charset::UTF16LE);
+    const auto capName = common::strchset::ToUpperEng(name, Charset::UTF16LE);
     if (capName.find(u"NVIDIA") != u16string::npos)
         return Vendors::NVIDIA;
     else if (capName.find(u"AMD") != u16string::npos)

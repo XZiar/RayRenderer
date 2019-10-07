@@ -39,15 +39,15 @@ class IMGUTILAPI PngSupport : public ImgSupport
 public:
     PngSupport() : ImgSupport(u"Png") {}
     virtual ~PngSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<PngReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<PngWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"PNG" ? 240 : 0;
     }

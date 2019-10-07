@@ -25,14 +25,14 @@ struct TgaHeader
     TGAImgType ImageType;
     struct ColorMapSpec
     {
-        byte ColorMapOffset[2];
-        byte ColorMapCount[2];
+        std::byte ColorMapOffset[2];
+        std::byte ColorMapCount[2];
         uint8_t ColorEntryDepth;
     } ColorMapData;
-    byte OriginHorizontal[2];
-    byte OriginVertical[2];
-    byte Width[2];
-    byte Height[2];
+    std::byte OriginHorizontal[2];
+    std::byte OriginVertical[2];
+    std::byte Width[2];
+    std::byte Height[2];
     uint8_t PixelDepth;
     uint8_t ImageDescriptor;
 };
@@ -81,15 +81,15 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"TGA" ? 240 : 0;
     }

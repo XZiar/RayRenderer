@@ -5,10 +5,11 @@
 #endif
 
 
-using common::container::FindInVec;
 
 namespace oclu
 {
+using std::vector;
+using common::container::FindInVec;
 MAKE_ENABLER_IMPL(oclGLInterBuf_)
 MAKE_ENABLER_IMPL(oclGLInterImg2D_)
 MAKE_ENABLER_IMPL(oclGLInterImg3D_)

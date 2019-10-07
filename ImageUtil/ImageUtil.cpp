@@ -5,8 +5,11 @@
 
 namespace xziar::img
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
 using std::vector;
-using namespace common;
 
 static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP()
 {
@@ -31,18 +34,18 @@ static vector<std::reference_wrapper<const ImgSupport>> GenerateSupportList(cons
         .ToVector();
 }
 
-static u16string GetExtName(const fs::path& path)
+static u16string GetExtName(const common::fs::path& path)
 {
     auto ext = path.extension().u16string();
     return ext.empty() ? ext : ext.substr(1);
 }
 
-Image ReadImage(const fs::path& path, const ImageDataType dataType)
+Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
 {
 #define USEBUF 1
 #if defined(USEBUF)
     BufferedRandomInputStream stream(
-        common::file::FileInputStream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY)),
+        common::file::FileInputStream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::READ | common::file::OpenFlag::BINARY)),
         65536);
 #else
     common::file::FileInputStream stream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY));
@@ -77,9 +80,9 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
     COMMON_THROW(BaseException, u"cannot read image");
 }
 
-void WriteImage(const Image& image, const fs::path & path, const uint8_t quality)
+void WriteImage(const Image& image, const common::fs::path & path, const uint8_t quality)
 {
-    common::file::FileOutputStream stream(file::FileObject::OpenThrow(path, file::OpenFlag::CreatNewBinary));
+    common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::CreatNewBinary));
     ImgLog().debug(u"Write Image {}\n", path.u16string());
     WriteImage(image, stream, GetExtName(path), quality);
 }

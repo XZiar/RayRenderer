@@ -3,6 +3,10 @@
 
 namespace xziar::img::bmp
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
 
 
 static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needFlip, const detail::BmpInfo& info)

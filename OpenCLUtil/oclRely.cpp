@@ -1,4 +1,4 @@
-#include "oclRely.h"
+#include "oclPch.h"
 
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 

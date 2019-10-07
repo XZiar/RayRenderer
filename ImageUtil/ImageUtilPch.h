@@ -7,12 +7,13 @@
 #include "MiniLogger/MiniLogger.h"
 #include "StringCharset/Convert.h"
 
+#include "common/CopyEx.hpp"
+#include "common/Linq.hpp"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
-#include "common/Linq.hpp"
 
+#include <array>
 #include <cmath>
-#include <tuple>
 #include <algorithm>
 #include <functional>
 

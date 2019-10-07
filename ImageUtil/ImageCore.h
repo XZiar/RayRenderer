@@ -67,30 +67,30 @@ public:
         Width = width, Height = height, Size = CalcSize();
         zero ? AllocFill() : Alloc();
     }
-    void SetSize(const uint32_t width, const uint32_t height, const byte fill)
+    void SetSize(const uint32_t width, const uint32_t height, const std::byte fill)
     {
         Release();
         Width = width, Height = height, Size = CalcSize();
         AllocFill(fill);
     }
     template<typename T>
-    void SetSize(const tuple<T, T>& size, const bool zero = true)
+    void SetSize(const std::tuple<T, T>& size, const bool zero = true)
     {
         SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
     bool IsGray() const noexcept { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
-    template<typename T = byte>
+    template<typename T = std::byte>
     T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
     {
         return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
-    template<typename T = byte>
+    template<typename T = std::byte>
     const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {
         return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
-    template<typename T = byte>
+    template<typename T = std::byte>
     std::vector<T*> GetRowPtrs(const size_t offset = 0)
     {
         std::vector<T*> pointers(Height, nullptr);
@@ -100,7 +100,7 @@ public:
             ptr = rawPtr + offset, rawPtr += lineStep;
         return pointers;
     }
-    template<typename T = byte>
+    template<typename T = std::byte>
     std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
     {
         std::vector<const T*> pointers(Height, nullptr);
@@ -195,12 +195,12 @@ public:
     using Image::ConvertToFloat;
     using Image::IsGray;
     using Image::ExtractData;
-    template<typename T = byte>
+    template<typename T = std::byte>
     const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {
         return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
     }
-    template<typename T = byte>
+    template<typename T = std::byte>
     std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
     {
         std::vector<const T*> pointers(Height, nullptr);

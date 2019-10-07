@@ -43,24 +43,23 @@ MAKE_ENUM_BITFIELD(MapFlag)
 
 class oclMapPtr;
 
-class OCLUAPI oclMem_ : public NonCopyable, public NonMovable, public std::enable_shared_from_this<oclMem_>
+class OCLUAPI oclMem_ : public common::NonCopyable, public common::NonMovable, public std::enable_shared_from_this<oclMem_>
 {
     friend class oclKernel_;
     friend class oclContext_;
     friend class oclMapPtr;
     template<typename> friend class oclGLObject_;
 private:
-    class OCLUAPI oclMapPtr_ : public NonCopyable, public NonMovable
+    class OCLUAPI oclMapPtr_ : public common::NonCopyable, public common::NonMovable
     {
-        friend class oclMem_;
         friend class oclMapPtr;
     private:
         //MAKE_ENABLER();
         const oclCmdQue Queue;
         const oclMem_& Mem;
         void* Pointer;
-        oclMapPtr_(oclCmdQue que, const oclMem_& mem, void* pointer);
     public:
+        oclMapPtr_(oclCmdQue que, const oclMem_& mem, void* pointer);
         ~oclMapPtr_();
     };
 protected:
@@ -80,7 +79,7 @@ class OCLUAPI oclMapPtr
     friend class oclMem_;
 private:
     std::shared_ptr<oclMem_::oclMapPtr_> Ptr;
-    oclMapPtr(std::shared_ptr<oclMem_::oclMapPtr_>&& ptr) : Ptr(std::move(ptr)) { }
+    oclMapPtr(std::shared_ptr<oclMem_::oclMapPtr_> ptr) : Ptr(std::move(ptr)) { }
 public:
     void* Get() const;
     template<typename T>

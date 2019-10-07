@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oclRely.h"
+#include "oclPch.h"
 
 namespace oclu
 {
@@ -62,6 +62,8 @@ protected:
     }
     void Wait()
     {
+        if (Exception)
+            std::rethrow_exception(Exception);
         clWaitForEvents(1, &Event);
     }
     uint64_t ElapseNs()
@@ -77,8 +79,8 @@ protected:
 template<typename T>
 class oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore
 {
-    friend class ::oclu::oclBuffer_;
-    friend class ::oclu::oclImage_;
+    friend class oclBuffer_;
+    friend class oclImage_;
 private:
     std::conditional_t<std::is_same_v<T, void>, uint32_t, T> Result;
     virtual void PreparePms() override

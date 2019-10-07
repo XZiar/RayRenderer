@@ -147,8 +147,8 @@ void TestLinq()
         .Select([](const auto i) { return KK{ i * 2 }; });
 
     ;
-    static_assert(std::is_same_v<EnumerableChecker::ProviderType<decltype(d1)>::OutType, KK>, "should be KK");
-    static_assert(EnumerableChecker::ProviderType<decltype(d1)>::ShouldCache, "should be KK");
+    static_assert(std::is_same_v<decltype(d1)::ProviderType::OutType, KK>, "should be KK");
+    static_assert(decltype(d1)::ProviderType::ShouldCache, "should be KK");
     auto d2 = d1.Select([](const KK& p) { return p; });
     /*static_assert(std::is_same_v<decltype(d2.Provider)::OutType, KK>, "should be KK");*/
     //decltype(FromContainer(src).Provider)::OutType;

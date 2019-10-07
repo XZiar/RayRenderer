@@ -4,6 +4,7 @@
 #include "SystemCommon/FileEx.h"
 #include "common/MemoryStream.hpp"
 #include "common/SpinLock.hpp"
+#include "common/Linq2.hpp"
 #include <thread>
 #include <mutex>
 #include <array>
@@ -15,6 +16,7 @@ using namespace common::mlog;
 using namespace xziar::img;
 using namespace std::string_view_literals;
 using std::string;
+
 
 static MiniLogger<false>& log()
 {
@@ -49,11 +51,12 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     if (plats.size() == 0)
         return {};
 
-    Linq::FromIterable(plats)
-        .ForEach([i = 0u](const auto& plat) mutable { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
+    common::linq::FromIterable(plats)
+        .ForEach([i = 0u](const auto& plat) mutable 
+        { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
     const auto plat = plats[1];
 
-    auto thedev = Linq::FromIterable(plat->GetDevices())
+    auto thedev = common::linq::FromContainer(plat->GetDevices())
         .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
         .TryGetFirst().value_or(plat->GetDefaultDevice());
     const auto ctx = plat->CreateContext(thedev);

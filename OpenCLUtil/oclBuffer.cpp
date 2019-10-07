@@ -1,4 +1,4 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclBuffer.h"
 #include "oclException.h"
 #include "oclUtil.h"
@@ -7,6 +7,8 @@
 
 namespace oclu
 {
+using common::BaseException;
+using common::PromiseResult;
 MAKE_ENABLER_IMPL(oclBuffer_)
 
 

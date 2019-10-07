@@ -15,8 +15,8 @@ private:
     static common::mlog::MiniLogger<false>& GetOCLLog();
 public:
     static void LogCLInfo();
-    static const vector<oclPlatform>& GetPlatforms();
-    static u16string_view GetErrorString(const cl_int err);
+    static const std::vector<oclPlatform>& GetPlatforms();
+    static std::u16string_view GetErrorString(const cl_int err);
 };
 
 }

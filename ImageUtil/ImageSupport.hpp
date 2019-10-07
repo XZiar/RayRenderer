@@ -35,13 +35,13 @@ public:
 class IMGUTILAPI ImgSupport
 {
 protected:
-    ImgSupport(const u16string& name) : Name(name) {}
+    ImgSupport(const std::u16string& name) : Name(name) {}
     virtual ~ImgSupport() {}
 public:
-    const u16string Name;
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string& ext) const = 0;
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string& ext) const = 0;
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
+    const std::u16string Name;
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string& ext) const = 0;
+    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 
 

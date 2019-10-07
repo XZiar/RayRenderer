@@ -14,7 +14,7 @@
         {
             "sources": ["*.cpp"],
             "defines": ["OCLU_EXPORT"],
-            "pch": "oclRely.h"
+            "pch": "oclPch.h"
         }
     }
 }

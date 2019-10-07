@@ -1,4 +1,4 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclImage.h"
 #include "oclUtil.h"
 #include "oclPromise.hpp"
@@ -6,9 +6,11 @@
 
 namespace oclu
 {
+using common::BaseException;
+using common::PromiseResult;
+using xziar::img::Image;
 using xziar::img::TexFormatUtil;
 using xziar::img::TextureFormat;
-using xziar::img::Image;
 
 MAKE_ENABLER_IMPL(oclImage2D_)
 MAKE_ENABLER_IMPL(oclImage3D_)

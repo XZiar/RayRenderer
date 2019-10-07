@@ -16,7 +16,7 @@ using oclDevice = const oclDevice_*;
 enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
 
 
-class OCLUAPI oclDevice_ : public NonCopyable
+class OCLUAPI oclDevice_ : public common::NonCopyable
 {
     friend class oclUtil;
     friend class GLInterop;
@@ -29,16 +29,16 @@ private:
     cl_device_id DeviceID;
     oclDevice_(const cl_device_id dID);
 public:
-    u16string Name, Vendor, Version;
-    common::container::FrozenDenseSet<string> Extensions;
+    std::u16string Name, Vendor, Version;
+    common::container::FrozenDenseSet<std::string> Extensions;
     uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
     uint32_t MemBaseAddrAlign;
     bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     DeviceType Type;
 
-    u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
+    std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
 
-    static u16string_view GetDeviceTypeName(const DeviceType type);
+    static std::u16string_view GetDeviceTypeName(const DeviceType type);
 };
 
 

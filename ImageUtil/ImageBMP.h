@@ -14,20 +14,20 @@ namespace detail
 struct BmpHeader
 {
     char Sig[2];
-    byte Size[4];
+    std::byte Size[4];
     union
     {
         uint8_t Dummy[4];
         uint32_t Reserved;
     };
-    byte Offset[4];
+    std::byte Offset[4];
 };
 constexpr size_t BMP_HEADER_SIZE = sizeof(BmpHeader);
 struct BmpInfo
 {
     uint32_t Size;
-    byte Width[4];
-    byte Height[4];
+    std::byte Width[4];
+    std::byte Height[4];
     uint16_t Planes;
     uint16_t BitCount;
     uint32_t Compression;
@@ -72,15 +72,15 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"BMP" ? 240 : 0;
     }

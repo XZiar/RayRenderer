@@ -3,7 +3,7 @@
 #include "ImageUtilRely.h"
 #include <boost/predef/other/endian.h>
 #if !BOOST_ENDIAN_LITTLE_BYTE
-#   pragma message("unsupported byte order (non little endian), fallback to SIMD_LV = 0")
+#   pragma message("unsupported std::byte order (non little endian), fallback to SIMD_LV = 0")
 #   undef COMMON_SIMD_LV
 #   define COMMON_SIMD_LV 0
 #endif
@@ -11,23 +11,23 @@
 namespace xziar::img::convert
 {
 
-inline uint16_t ParseWordLE(const byte * __restrict data) 
+inline uint16_t ParseWordLE(const std::byte * __restrict data) 
 { 
     return static_cast<uint16_t>((std::to_integer<uint16_t>(data[1]) << 8) + std::to_integer<uint16_t>(data[0]));
 }
-inline uint16_t ParseWordBE(const byte * __restrict data) 
+inline uint16_t ParseWordBE(const std::byte * __restrict data) 
 { 
     return static_cast<uint16_t>(std::to_integer<uint16_t>(data[1]) + std::to_integer<uint16_t>(data[0] << 8));
 }
-inline void WordToLE(byte * __restrict output, const uint16_t data) 
+inline void WordToLE(std::byte * __restrict output, const uint16_t data) 
 { 
-    output[0] = byte(data & 0xff); output[1] = byte(data >> 8);
+    output[0] = std::byte(data & 0xff); output[1] = std::byte(data >> 8);
 }
-inline void WordToBE(byte * __restrict output, const uint16_t data) 
+inline void WordToBE(std::byte * __restrict output, const uint16_t data) 
 { 
-    output[1] = byte(data & 0xff); output[0] = byte(data >> 8);
+    output[1] = std::byte(data & 0xff); output[0] = std::byte(data >> 8);
 }
-inline uint32_t ParseDWordLE(const byte * __restrict data)
+inline uint32_t ParseDWordLE(const std::byte * __restrict data)
 { 
     return static_cast<uint32_t>(
         (std::to_integer<uint32_t>(data[3]) << 24) + 
@@ -35,7 +35,7 @@ inline uint32_t ParseDWordLE(const byte * __restrict data)
         (std::to_integer<uint32_t>(data[1]) << 8) + 
         (std::to_integer<uint32_t>(data[0])));
 }
-inline uint32_t ParseDWordBE(const byte * __restrict data)
+inline uint32_t ParseDWordBE(const std::byte * __restrict data)
 {
     return static_cast<uint32_t>(
         (std::to_integer<uint32_t>(data[3])) + 
@@ -43,13 +43,13 @@ inline uint32_t ParseDWordBE(const byte * __restrict data)
         (std::to_integer<uint32_t>(data[1]) << 16) + 
         (std::to_integer<uint32_t>(data[0]) << 24));
 }
-inline void DWordToLE(byte * __restrict output, const uint32_t data)
+inline void DWordToLE(std::byte * __restrict output, const uint32_t data)
 { 
-    output[0] = byte(data & 0xff); output[1] = byte(data >> 8); output[2] = byte(data >> 16); output[3] = byte(data >> 24);
+    output[0] = std::byte(data & 0xff); output[1] = std::byte(data >> 8); output[2] = std::byte(data >> 16); output[3] = std::byte(data >> 24);
 }
-inline void DWordToBE(byte * __restrict output, const uint32_t data)
+inline void DWordToBE(std::byte * __restrict output, const uint32_t data)
 { 
-    output[3] = byte(data & 0xff); output[2] = byte(data >> 8); output[1] = byte(data >> 16); output[0] = byte(data >> 24);
+    output[3] = std::byte(data & 0xff); output[2] = std::byte(data >> 8); output[1] = std::byte(data >> 16); output[0] = std::byte(data >> 24);
 }
 
 template<typename T>
@@ -67,9 +67,9 @@ inline void FixAlpha(size_t count, uint32_t* __restrict destPtr)
         (*destPtr++) |= 0xff000000u;
 }
 
-inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
+inline void CopyRGBAToRGB(std::byte * __restrict &destPtr, const uint32_t color)
 {
-    const auto* __restrict colorPtr = reinterpret_cast<const byte*>(&color);
+    const auto* __restrict colorPtr = reinterpret_cast<const std::byte*>(&color);
     *destPtr++ = colorPtr[0];
     *destPtr++ = colorPtr[1];
     *destPtr++ = colorPtr[2];
@@ -77,7 +77,7 @@ inline void CopyRGBAToRGB(byte * __restrict &destPtr, const uint32_t color)
 
 
 #pragma region GRAY->GRAYA
-inline void GraysToGrayAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GraysToGrayAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if defined(COMPILER_MSVC)
 #   pragma warning(suppress: 4309)
@@ -155,7 +155,7 @@ constexpr auto MAKE_GRAY2RGBA()
 }
 inline constexpr auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
 #define LOOP_GRAY_RGBA *(uint32_t*)destPtr = GrayToRGBAMAP[*(uint8_t*)srcPtr++]; destPtr += 4; count--;
-inline void GraysToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GraysToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
     const auto alphaMask = _mm256_set1_epi32(0xff000000);
@@ -219,7 +219,7 @@ inline const auto& GraysToBGRAs = GraysToRGBAs;
 
 
 #pragma region GRAYA->GRAY
-inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GrayAsToGrays(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
     const auto shuffleMask1 = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
@@ -260,7 +260,7 @@ inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict src
 #endif
     while (count)
     {
-    #define LOOP_GRAYA_GRAY *destPtr++ = byte(*(const uint16_t*)srcPtr & 0xff); srcPtr += 2; count--;
+    #define LOOP_GRAYA_GRAY *destPtr++ = std::byte(*(const uint16_t*)srcPtr & 0xff); srcPtr += 2; count--;
         switch (count)
         {
         default:LOOP_GRAYA_GRAY
@@ -281,7 +281,7 @@ inline void GrayAsToGrays(byte * __restrict destPtr, const byte * __restrict src
 #pragma region GRAYA->RGBA
 #pragma warning(disable: 4309)
 #define LOOP_GRAYA_RGBA { const uint16_t dat = *(uint16_t*)srcPtr; *(uint32_t*)destPtr = ((dat & 0xffu) * 0x00010101u) | ((dat & 0xff00u) << 16); destPtr += 4; srcPtr+=2; count--; }
-inline void GrayAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GrayAsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 200
     const auto shuffleMask1 = _mm256_setr_epi8(0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7, 0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7);
@@ -344,7 +344,7 @@ inline const auto& GrayAsToBGRAs = GrayAsToRGBAs;
 
 #pragma region GRAY->RGB
 #define LOOP_GRAY_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr++; destPtr += 3; count--;
-inline void GraysToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GraysToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5);
@@ -401,7 +401,7 @@ inline const auto& GraysToBGRs = GraysToRGBs;
 
 #pragma region GRAYA->RGB
 #define LOOP_GRAYA_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr; destPtr += 3; srcPtr += 2; count--;
-inline void GrayAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void GrayAsToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10);
@@ -461,7 +461,7 @@ inline const auto& GrayAsToBGRs = GrayAsToRGBs;
         *destPtr++ = *srcPtr++; \
         *destPtr++ = *srcPtr++; \
         srcPtr++; count--;
-inline void RGBAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void RGBAsToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
     while (count)
     {
@@ -489,7 +489,7 @@ inline const auto& BGRAsToBGRs = RGBAsToRGBs;
         *destPtr++ = srcPtr[1]; \
         *destPtr++ = srcPtr[0]; \
         srcPtr += 4; count--;
-inline void BGRAsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void BGRAsToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
     while (count)
     {
@@ -519,7 +519,7 @@ inline const auto& RGBAsToBGRs = BGRAsToRGBs;
             destPtr[2] = tmp; \
             destPtr += 3; count--; \
         }
-inline void BGRsToRGBs(byte * __restrict destPtr, uint64_t count)
+inline void BGRsToRGBs(std::byte * __restrict destPtr, uint64_t count)
 {
     while (count)
     {
@@ -548,7 +548,7 @@ inline void BGRsToRGBs(byte * __restrict destPtr, uint64_t count)
             destPtr[2] = srcPtr[0]; \
             destPtr += 3, srcPtr += 3; count--; \
         }
-inline void BGRsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void BGRsToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
     while (count)
     {
@@ -574,8 +574,8 @@ inline void BGRsToRGBs(byte * __restrict destPtr, const byte * __restrict srcPtr
         *destPtr++ = *srcPtr++; \
         *destPtr++ = *srcPtr++; \
         *destPtr++ = *srcPtr++; \
-        *destPtr++ = byte(0xff); count--;
-inline void RGBsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+        *destPtr++ = std::byte(0xff); count--;
+inline void RGBsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 41
     const auto shuffleMask = _mm_setr_epi8(0x0, 0x1, 0x2, -1, 0x3, 0x4, 0x5, -1, 0x6, 0x7, 0x8, -1, 0x9, 0xa, 0xb, -1);
@@ -627,9 +627,9 @@ inline const auto& BGRsToBGRAs = RGBsToRGBAs;
         *destPtr++ = srcPtr[2]; \
         *destPtr++ = srcPtr[1]; \
         *destPtr++ = *srcPtr; \
-        *destPtr++ = byte(0xff); \
+        *destPtr++ = std::byte(0xff); \
         srcPtr += 3; count--;
-inline void BGRsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void BGRsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 41
     const auto shuffleMask = _mm_setr_epi8(0x2, 0x1, 0x0, -1, 0x5, 0x4, 0x3, -1, 0x8, 0x7, 0x6, -1, 0xb, 0xa, 0x9, -1);
@@ -684,7 +684,7 @@ inline const auto& RGBsToBGRAs = BGRsToRGBAs;
             destPtr[2] = tmp; \
             destPtr += 4; count--; \
         }
-inline void BGRAsToRGBAs(byte * __restrict destPtr, uint64_t count)
+inline void BGRAsToRGBAs(std::byte * __restrict destPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
@@ -753,7 +753,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, uint64_t count)
             destPtr[3] = srcPtr[3]; \
             destPtr += 4, srcPtr += 4; count--; \
         }
-inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count)
+inline void BGRAsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
 #if COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
@@ -821,7 +821,7 @@ inline void BGRAsToRGBAs(byte * __restrict destPtr, const byte * __restrict srcP
             *ptrA++ = *ptrB; \
             *ptrB++ = tmp; \
         } 
-inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t bytes)
+inline bool Swap2Buffer(std::byte * __restrict ptrA, std::byte * __restrict ptrB, uint64_t bytes)
 {
     if (ptrA == ptrB)
         return false;
@@ -949,7 +949,7 @@ inline bool Swap2Buffer(byte * __restrict ptrA, byte * __restrict ptrB, uint64_t
             *ptrA++ = *ptrB; \
             *ptrB-- = tmp; \
         } 
-inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
+inline bool ReverseBuffer4(std::byte * __restrict ptr, uint64_t count)
 {
     uint32_t * __restrict ptrA = reinterpret_cast<uint32_t*>(ptr);
     uint32_t * __restrict ptrB = reinterpret_cast<uint32_t*>(ptr) + (count - 1);
@@ -1085,10 +1085,10 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
     return true;
 }
 #undef REV_BLOCK
-#pragma endregion REVERSE one buffer(per 4byte)
+#pragma endregion REVERSE one buffer(per 4std::byte)
 
 
-#pragma region REVERSE one buffer(per 3byte)
+#pragma region REVERSE one buffer(per 3std::byte)
 #define LOOP_REV_BLOCK3 \
         { \
             const auto tmp0 = ptrA[0], tmp1 = ptrA[1], tmp2 = ptrA[2]; \
@@ -1096,7 +1096,7 @@ inline bool ReverseBuffer4(byte * __restrict ptr, uint64_t count)
             ptrB[0] = tmp0, ptrB[1] = tmp1, ptrB[2] = tmp2; \
             ptrA +=3, ptrB -=3, count --; \
         } 
-inline bool ReverseBuffer3(byte * __restrict ptr, uint64_t count)
+inline bool ReverseBuffer3(std::byte * __restrict ptr, uint64_t count)
 {
     uint8_t * __restrict ptrA = reinterpret_cast<uint8_t*>(ptr);
     uint8_t * __restrict ptrB = reinterpret_cast<uint8_t*>(ptr) + (count - 1) * 3;
@@ -1120,7 +1120,7 @@ inline bool ReverseBuffer3(byte * __restrict ptr, uint64_t count)
     return true;
 }
 #undef LOOP_REV_BLOCK3
-#pragma endregion REVERSE one buffer(per 3byte)
+#pragma endregion REVERSE one buffer(per 3std::byte)
 
 
 

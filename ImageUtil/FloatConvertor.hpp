@@ -7,7 +7,7 @@ namespace xziar::img::convert
 
 
 
-inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict srcPtr, uint64_t count, const float floatRange)
+inline void Float1sToU8s(std::byte * __restrict destPtr, const float * __restrict srcPtr, uint64_t count, const float floatRange)
 {
     const auto muler = 255 / floatRange;
 #if COMMON_SIMD_LV >= 200
@@ -78,19 +78,19 @@ inline void Float1sToU8s(byte * __restrict destPtr, const float * __restrict src
     {
         switch (count)
         {
-        default: *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 7:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 6:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 5:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 4:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 3:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 2:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
-        case 1:  *destPtr++ = byte(uint8_t(*srcPtr++ * muler)); count--;
+        default: *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 7:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 6:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 5:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 4:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 3:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 2:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
+        case 1:  *destPtr++ = std::byte(uint8_t(*srcPtr++ * muler)); count--;
         }
     }
 }
 
-inline void U8sToFloat1s(float * __restrict destPtr, const byte * __restrict srcPtr, uint64_t count, const float floatRange)
+inline void U8sToFloat1s(float * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count, const float floatRange)
 {
     const auto muler = floatRange / 255;
 #if COMMON_SIMD_LV >= 200

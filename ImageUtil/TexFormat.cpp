@@ -4,10 +4,9 @@
 
 namespace xziar::img
 {
-
-using namespace std::string_view_literals;
-using std::string_view;
 using std::string;
+using std::string_view;
+using namespace std::string_view_literals;
 
 
 constexpr static string_view GetChannelSV(const TextureFormat format) noexcept

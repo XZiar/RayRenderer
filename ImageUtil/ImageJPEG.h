@@ -57,15 +57,15 @@ class IMGUTILAPI JpegSupport : public ImgSupport
 public:
     JpegSupport() : ImgSupport(u"Jpeg") {}
     virtual ~JpegSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<JpegReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<JpegWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const u16string& ext, const ImageDataType, const bool) const override 
+    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return (ext == u"JPEG" || ext == u"JPG") ? 240 : 0;
     }

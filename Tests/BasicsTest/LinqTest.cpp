@@ -5,12 +5,12 @@ using namespace common::linq;
 using common::linq::detail::EnumerableChecker;
 
 
-#define SrcType(e) EnumerableChecker::ProviderType<decltype(e)>
+#define SrcType(e) decltype(e)::ProviderType
 
 template<typename E>
 constexpr bool GetIsRef(const E&)
 {
-    return std::is_reference_v<EnumerableChecker::ProviderType<E>::OutType>;
+    return std::is_reference_v<E::ProviderType::OutType>;
 }
 
 TEST(Linq, Compiling)

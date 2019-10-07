@@ -16,7 +16,7 @@ class oclCmdQue_;
 using oclCmdQue = std::shared_ptr<const oclCmdQue_>;
 
 
-class OCLUAPI oclCmdQue_ : public NonCopyable
+class OCLUAPI oclCmdQue_ : public common::NonCopyable
 {
     friend class GLInterop;
     friend class oclPromiseCore;

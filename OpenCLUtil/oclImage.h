@@ -46,15 +46,15 @@ protected:
     virtual void* MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
 public:
     virtual ~oclImage_();
-    PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;
-    PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer& data, const bool shouldBlock = true) const
+    common::PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;
+    common::PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer& data, const bool shouldBlock = true) const
     { return Write(que, data.GetRawPtr(), data.GetSize(), shouldBlock); }
-    PromiseResult<void> Write(const oclCmdQue que, const xziar::img::Image& image, const bool shouldBlock = true) const;
+    common::PromiseResult<void> Write(const oclCmdQue que, const xziar::img::Image& image, const bool shouldBlock = true) const;
 
-    PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
-    PromiseResult<void> Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
-    PromiseResult<xziar::img::Image> Read(const oclCmdQue que) const;
-    PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
+    common::PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
+    common::PromiseResult<void> Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
+    common::PromiseResult<xziar::img::Image> Read(const oclCmdQue que) const;
+    common::PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
     xziar::img::TextureFormat GetFormat() const { return Format; }

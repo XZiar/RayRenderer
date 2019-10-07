@@ -3,6 +3,10 @@
 
 namespace xziar::img::tga
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
 
 
 TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream)

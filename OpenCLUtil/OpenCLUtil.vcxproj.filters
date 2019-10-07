@@ -54,6 +54,9 @@
     <ClInclude Include="oclMem.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oclPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">

@@ -34,6 +34,11 @@
 
 namespace xziar::img::stb
 {
+using std::byte;
+using std::string;
+using std::wstring;
+using std::u16string;
+
 
 static int ReadStream(void *user, char *data, int size)
 {

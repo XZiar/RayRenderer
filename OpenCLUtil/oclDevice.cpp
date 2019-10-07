@@ -1,9 +1,13 @@
-#include "oclRely.h"
+#include "oclPch.h"
 #include "oclDevice.h"
 
 
 namespace oclu
 {
+using std::string;
+using std::u16string;
+using std::string_view;
+using std::u16string_view;
 
 
 static string GetStr(const cl_device_id DeviceID, const cl_device_info type)
