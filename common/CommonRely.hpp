@@ -227,6 +227,7 @@ constexpr bool MatchAny(const T& obj, Args... args)
     return (... || (obj == args));
 }
 
+
 template<template<typename...> class Base, typename...Ts>
 std::true_type is_base_of_template_impl(const Base<Ts...>*);
 template<template<typename...> class Base>
@@ -244,6 +245,28 @@ struct is_specialization2 : std::false_type {};
 template <template <auto...> class Template, auto... Vs>
 struct is_specialization2<Template<Vs...>, Template> : std::true_type {};
 #endif
+
+
+template<typename T, typename U, typename = void>
+struct is_equal_comparable : std::false_type
+{ };
+template<typename T, typename U>
+struct is_equal_comparable<T, U,
+    std::enable_if_t<true,
+    decltype(std::declval<const T&>() == std::declval<const U&>(), (void)0)
+    >> : std::true_type
+{ };
+
+template<typename T, typename U, typename = void>
+struct is_notequal_comparable : std::false_type
+{ };
+template<typename T, typename U>
+struct is_notequal_comparable<T, U,
+    std::enable_if_t<true,
+    decltype(std::declval<const T&>() != std::declval<const U&>(), (void)0)
+    >> : std::true_type
+{ };
+
 
 #if defined(__cpp_lib_variant)
 template <typename> struct variant_tag { };

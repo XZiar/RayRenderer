@@ -336,7 +336,7 @@ inline void BroadcastMany(void* const dest, const uint32_t src, size_t count)
         destPtr += 8; count -= 8;
     }
 #elif COMMON_SIMD_LV >= 20
-    const auto dat = _mm_set1_epi8(src);
+    const auto dat = _mm_set1_epi32(src);
     while (count > 4)
     {
         _mm_storeu_si128(reinterpret_cast<__m128i*>(destPtr), dat);

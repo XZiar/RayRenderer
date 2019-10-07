@@ -73,20 +73,87 @@ TEST(Linq, Range)
 TEST(Linq, Skip)
 {
     {
-        const auto ret = FromRange<int32_t>(0, 3, 1).Skip(0).ToVector();
-        EXPECT_THAT(ret, testing::ElementsAre(0, 1, 2));
+        EXPECT_THAT(FromRange<int32_t>(0, 3, 1).Skip(0).ToVector(), 
+            testing::ElementsAre(0, 1, 2));
     }
     {
-        const auto ret = FromRange<int32_t>(0, 3, 1).Skip(1).ToVector();
-        EXPECT_THAT(ret, testing::ElementsAre(1, 2));
+        EXPECT_THAT(FromRange<int32_t>(0, 3, 1).Skip(1).ToVector(), 
+            testing::ElementsAre(1, 2));
     }
     {
-        const auto ret = FromRange<int32_t>(0, 3, 1).Skip(2).ToVector();
-        EXPECT_THAT(ret, testing::ElementsAre(2));
+        EXPECT_THAT(FromRange<int32_t>(0, 3, 1).Skip(2).ToVector(), 
+            testing::ElementsAre(2));
     }
     {
-        const auto ret = FromRange<int32_t>(0, 3, 1).Skip(5).ToVector();
-        EXPECT_THAT(ret, testing::ElementsAre());
+        EXPECT_THAT(FromRange<int32_t>(0, 3, 1).Skip(5).ToVector(), 
+            testing::ElementsAre());
+    }
+}
+
+TEST(Linq, Take)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 5, 1).Take(3).Skip(0).ToVector(),
+            testing::ElementsAre(0, 1, 2));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 5, 1).Take(3).Skip(1).ToVector(),
+            testing::ElementsAre(1, 2));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 5, 1).Take(3).Skip(2).ToVector(),
+            testing::ElementsAre(2));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 5, 1).Take(3).Skip(5).ToVector(),
+            testing::ElementsAre());
+    }
+}
+
+TEST(Linq, Relation)
+{
+    {
+        EXPECT_TRUE(FromRange<int32_t>(0, 5, 1)
+            .Where([](const auto i) { return i % 2 == 0; })
+            .AllIf([](const auto i) { return i % 2 == 0; }));
+    }
+    {
+        EXPECT_FALSE(FromRange<int32_t>(0, 5, 1)
+            .Where([](const auto i) { return i % 2 == 0; })
+            .ContainsIf([](const auto i) { return i % 2 != 0; }));
+    }
+    {
+        EXPECT_FALSE(FromRange<int32_t>(0, 5, 1)
+            .Where([](const auto i) { return i % 2 == 0; })
+            .Contains(1));
+    }
+    {
+        EXPECT_TRUE(FromRange<int32_t>(0, 5, 1)
+            .Select([](const auto i) { return i - i; })
+            .All(0));
+    }
+}
+
+TEST(Linq, OrderBy)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(5, 0, -1)
+            .OrderBy<std::less<>>().ToVector(),
+            testing::ElementsAre(1, 2, 3, 4, 5));
+    }
+}
+
+TEST(Linq, Random)
+{
+    {
+        const auto ret = FromRandom().Take(15)
+            .OrderBy<std::less<>>().ToVector();
+        EXPECT_TRUE(std::is_sorted(ret.cbegin(), ret.cend()));
+    }
+    {
+        const auto ret = FromRandomSource(std::mt19937_64(std::random_device()())).Take(15)
+            .OrderBy<std::less<>>().ToVector();
+        EXPECT_TRUE(std::is_sorted(ret.cbegin(), ret.cend()));
     }
 }
 
@@ -130,6 +197,7 @@ TEST(Linq, MapCache)
         .Where([&](const auto) { whereCnt++; return true; })
         .ToVector();
     EXPECT_EQ(selectCnt, whereCnt);
+
     selectCnt = whereCnt = 0;
     auto ret2 = FromRange<int16_t>(0, 12, 1)
         .Select<false>([&](const auto i) { selectCnt++; return i; })
@@ -145,7 +213,7 @@ TEST(Linq, ModifySource)
 {
     std::vector<int32_t> data{ 1,2,3 };
     auto ret = FromIterable(data)
-        .Select<false>([](auto& i) { return ++i; })
+        .Select([](auto& i) { return ++i; })
         .ToVector();
     EXPECT_THAT(data, testing::ElementsAre(2, 3, 4));
     EXPECT_THAT(data, testing::ContainerEq(ret));

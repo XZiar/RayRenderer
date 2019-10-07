@@ -12,6 +12,7 @@
 #include <map>
 #include <unordered_map>
 #include <algorithm>
+#include <random>
 
 namespace common
 {
@@ -73,6 +74,37 @@ struct RepeatSource
 
 
 template<typename T>
+struct PassthroughGenerator
+{
+    template<typename U>
+    T operator()(U& eng) const noexcept { return static_cast<T>(eng()); }
+};
+
+template<typename T, typename U>
+struct RandomSource
+{
+    using OutType = decltype(std::declval<U&>()(std::declval<T&>()));
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = true;
+    static constexpr bool CanSkipMultiple = true;
+
+    mutable T Engine;
+    mutable U Generator;
+
+    constexpr RandomSource(T&& eng, U&& gen) : Engine(std::move(eng)), Generator(std::move(gen)) {}
+    OutType GetCurrent() const { return Generator(Engine); }
+    constexpr void MoveNext() noexcept { }
+    constexpr bool IsEnd() const noexcept { return false; }
+    constexpr size_t Count() const noexcept { return SIZE_MAX; }
+    void MoveMultiple(size_t count) noexcept 
+    { 
+        Engine.discard(count);
+    }
+};
+
+
+template<typename T>
 struct ObjCache
 {
 private:
@@ -85,7 +117,6 @@ protected:
     constexpr const T& Obj() const { return *Object; }
 };
 
-
 template<typename TB, typename TE>
 struct IteratorSource
 {
@@ -93,7 +124,7 @@ struct IteratorSource
     static constexpr bool ShouldCache = false;
     static constexpr bool InvolveCache = false;
     static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = false;
+    static constexpr bool CanSkipMultiple = true;
 
     TB Begin;
     TE End;
@@ -102,6 +133,10 @@ struct IteratorSource
     constexpr OutType GetCurrent() const { return *Begin; }
     constexpr void MoveNext() { Begin++; }
     constexpr bool IsEnd() const { return !(Begin != End); }
+    void MoveMultiple(size_t count) noexcept
+    {
+        std::advance(Begin, count);
+    }
 };
 
 
@@ -116,7 +151,7 @@ public:
     static constexpr bool ShouldCache = false;
     static constexpr bool InvolveCache = false;
     static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = false;
+    static constexpr bool CanSkipMultiple = true;
 
     template<typename U>
     constexpr ContainedIteratorSource(U&& obj) :
@@ -124,6 +159,7 @@ public:
     using BaseType::GetCurrent;
     using BaseType::MoveNext;
     using BaseType::IsEnd;
+    using BaseType::MoveMultiple;
 };
 
 
@@ -202,10 +238,10 @@ private:
 
 
 template<typename P>
-struct LimitSource : public std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>
+struct LimitSource : public NestedSource<P>
 {
 private:
-    using BaseType = std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>;
+    using BaseType = NestedSource<P>;
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -236,11 +272,15 @@ public:
         return Avaliable == 0 || this->Prev.IsEnd();
     }
     
-    constexpr std::enable_if_t<IsCountable, size_t> Count() const
-    { 
+    constexpr size_t Count() const
+    {
         return std::min(Avaliable, BaseType::Count());
     }
-    using BaseType::MoveMultiple;
+    constexpr void MoveMultiple(const size_t count)
+    {
+        BaseType::MoveMultiple(count);
+        Avaliable -= count;
+    }
 };
 
 
@@ -301,10 +341,10 @@ private:
 
 
 template<typename P, typename Mapper, bool NeedCache>
-struct MappedSource : public std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>
+struct MappedSource : public NestedSource<P>
 {
 private:
-    using BaseType = std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>;
+    using BaseType = NestedSource<P>;
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -439,6 +479,16 @@ public:
         return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
     }
 
+    template<typename Func>
+    Enumerable<detail::ContainedIteratorSource<std::vector<PlainEleType>>> OrderBy(Func&& comparator = {})
+    {
+        static_assert(std::is_invocable_r_v<bool, Func, const PlainEleType&, const PlainEleType&>, 
+            "sort need a comparator that accepts two element and returns bool");
+        auto tmp = ToVector();
+        std::sort(tmp.begin(), tmp.end(), comparator);
+        return detail::ContainedIteratorSource<std::vector<PlainEleType>>(std::move(tmp));
+    }
+
     constexpr size_t Count()
     {
         if constexpr (T::IsCountable)
@@ -455,9 +505,8 @@ public:
         }
     }
 
-
     template<typename Func>
-    void ForEach(Func&& func)
+    constexpr void ForEach(Func&& func)
     {
         static_assert(std::is_invocable_v<Func, EleType>, "foreach function should accept element");
         while (!Provider.IsEnd())
@@ -466,13 +515,13 @@ public:
             Provider.MoveNext();
         }
     }
-    template<typename T, typename Func>
-    T Reduce(Func&& func, T data = {})
+    template<typename U, typename Func>
+    constexpr U Reduce(Func&& func, U data = {})
     {
-        static_assert(std::is_invocable_v<Func, T&, EleType>, "reduce function should accept target and element");
+        static_assert(std::is_invocable_v<Func, U&, EleType>, "reduce function should accept target and element");
         while (!Provider.IsEnd())
         {
-            if constexpr (std::is_invocable_r_v<T, Func, const T&, EleType>)
+            if constexpr (std::is_invocable_r_v<U, Func, const U&, EleType>)
                 data = func(data, Provider.GetCurrent());
             else
                 func(data, Provider.GetCurrent());
@@ -480,11 +529,78 @@ public:
         }
         return data;
     }
-    template<typename T = EleType>
-    T Sum(T data = {})
+    template<typename U = EleType>
+    constexpr U Sum(U data = {})
     {
-        return Reduce([](T& ret, const auto& item) { ret += item; }, data);
+        return Reduce([](U& ret, const auto& item) { ret += item; }, data);
     }
+    template<typename U>
+    constexpr bool Contains(const U& obj)
+    {
+        while (!Provider.IsEnd())
+        {
+            if constexpr (common::is_equal_comparable<U, EleType>::value)
+            {
+                if (obj == Provider.GetCurrent())
+                    return true;
+            }
+            else if constexpr (common::is_notequal_comparable<U, EleType>::value)
+            {
+                if (!(obj != Provider.GetCurrent()))
+                    return true;
+            }
+            else
+                static_assert(common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
+            Provider.MoveNext();
+        }
+        return false;
+    }
+    template<typename Func>
+    constexpr bool ContainsIf(Func&& judger)
+    {
+        static_assert(std::is_invocable_r_v<bool, Func, EleType>, "judger should accept element and return bool");
+        while (!Provider.IsEnd())
+        {
+            if (judger(Provider.GetCurrent()))
+                return true;
+            Provider.MoveNext();
+        }
+        return false;
+    }
+    template<typename U>
+    constexpr bool All(const U& obj)
+    {
+        while (!Provider.IsEnd())
+        {
+            if constexpr (common::is_equal_comparable<U, EleType>::value)
+            {
+                if (!(obj == Provider.GetCurrent()))
+                    return false;
+            }
+            else if constexpr (common::is_notequal_comparable<U, EleType>::value)
+            {
+                if (obj != Provider.GetCurrent())
+                    return false;
+            }
+            else
+                static_assert(common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
+            Provider.MoveNext();
+        }
+        return true;
+    }
+    template<typename Func>
+    constexpr bool AllIf(Func&& judger)
+    {
+        static_assert(std::is_invocable_r_v<bool, Func, EleType>, "judger should accept element and return bool");
+        while (!Provider.IsEnd())
+        {
+            if (!judger(Provider.GetCurrent()))
+                return false;
+            Provider.MoveNext();
+        }
+        return true;
+    }
+
     std::vector<PlainEleType> ToVector()
     {
         std::vector<PlainEleType> ret;
@@ -504,6 +620,61 @@ public:
             Provider.MoveNext();
         }
         return ret;
+    }
+    template<typename Comparator = std::less<PlainEleType>>
+    std::set<PlainEleType, Comparator> ToOrderSet()
+    {
+        std::set<PlainEleType, Comparator> ret;
+        while (!Provider.IsEnd())
+        {
+            ret.emplace(Provider.GetCurrent());
+            Provider.MoveNext();
+        }
+        return ret;
+    }
+    template<typename Hasher = std::hash<PlainEleType>>
+    std::unordered_set<PlainEleType, Hasher> ToHashSet()
+    {
+        std::unordered_set<PlainEleType, Hasher> ret;
+        while (!Provider.IsEnd())
+        {
+            ret.emplace(Provider.GetCurrent());
+            Provider.MoveNext();
+        }
+        return ret;
+    }
+    template<template<typename> typename Set>
+    auto ToAnySet()
+    {
+        Set<PlainEleType> ret;
+        while (!Provider.IsEnd())
+        {
+            ret.emplace(Provider.GetCurrent());
+            Provider.MoveNext();
+        }
+        return ret;
+    }
+    template<bool ShouldReplace = true, typename Map, typename KeyF, typename ValF>
+    void IntoMap(Map& themap, KeyF&& keyMapper, ValF&& valMapper)
+    {
+        while (!Provider.IsEnd())
+        {
+            EleType tmp = Provider.GetCurrent();
+            if constexpr (ShouldReplace)
+                themap.insert_or_assign(keyMapper(tmp), valMapper(tmp));
+            else
+                themap.emplace(keyMapper(tmp), valMapper(tmp));
+            Provider.MoveNext();
+        }
+    }
+    template<template<typename, typename> typename Map, bool ShouldReplace = true, typename KeyF, typename ValF>
+    auto ToAnyMap(KeyF&& keyMapper, ValF&& valMapper)
+    {
+        using KeyType = std::invoke_result_t<KeyF, EleType>;
+        using ValType = std::invoke_result_t<ValF, EleType>;
+        Map<KeyType, ValType> themap;
+        IntoMap<ShouldReplace>(themap, std::forward<KeyF>(keyMapper), std::forward<ValF>(valMapper));
+        return themap;
     }
 private:
     T Provider;
@@ -543,6 +714,22 @@ FromContainer(T&& container)
     return Enumerable(detail::ContainedIteratorSource<T>(std::move(container)));
 }
 
+
+template<typename... Args, typename Eng = std::mt19937, 
+    typename Gen = detail::PassthroughGenerator<decltype(std::declval<Eng&>()())>>
+inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
+FromRandom(Args... args)
+{
+    return Enumerable(detail::RandomSource<Eng, Gen>(Eng(), Gen(std::forward<Args>(args)...)));
+}
+
+template<typename Eng = std::mt19937,
+    typename Gen = detail::PassthroughGenerator<decltype(std::declval<Eng&>()())>>
+inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
+FromRandomSource(Eng&& eng = {}, Gen&& gen = {})
+{
+    return Enumerable(detail::RandomSource<Eng, Gen>(std::move(eng), std::move(gen)));
+}
 
 namespace detail
 {
