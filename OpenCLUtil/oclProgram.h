@@ -210,7 +210,7 @@ private:
     static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
     static std::u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
     static std::u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
-    class OCLUAPI oclProgStub : public NonCopyable
+    class OCLUAPI oclProgStub : public common::NonCopyable
     {
         friend class oclProgram_;
     private:
@@ -228,7 +228,7 @@ private:
     oclProgram_(oclProgStub* stub);
 public:
     ~oclProgram_();
-    oclKernel GetKernel(const std::string& name) const;
+    oclKernel GetKernel(const std::string_view& name) const;
     auto GetKernels() const
     {
         return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);

@@ -2,6 +2,9 @@
 #include "common/CommonRely.hpp"
 #include "common/Linq2.hpp"
 #include "common/RefObject.hpp"
+#define COMMON_SIMD_LV 200
+#include "common/SIMD128.hpp"
+#include "common/SIMD256.hpp"
 #define FMT_STRING_ALIAS 1
 #include "fmt/utfext.h"
 #include "boost.stacktrace/stacktrace.h"
@@ -182,8 +185,12 @@ void TestStacktrace()
     }
 }
 
+
+
+
 int main()
 {
+
     TestLinq();
     printf("\n\n");
 

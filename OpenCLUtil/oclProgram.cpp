@@ -391,7 +391,7 @@ oclProgram_::~oclProgram_()
     clReleaseProgram(ProgID);
 }
 
-oclKernel oclProgram_::GetKernel(const string& name) const
+oclKernel oclProgram_::GetKernel(const string_view& name) const
 {
     for (const auto& ker : Kernels)
         if (ker->Name == name)

@@ -3,11 +3,6 @@
 
 namespace copytest
 {
-static std::mt19937& GetRanEng()
-{
-    static std::mt19937 gen(std::random_device{}());
-    return gen;
-}
 template<typename T>
 static std::vector<T> InitRandom(const uint32_t size);
 template<typename Src, typename Dst>
@@ -16,8 +11,8 @@ static std::vector<Dst> InitConvertData();
 
 struct CopyTestHelper
 {
-    static uint32_t GetARand();
     static const std::vector<uint32_t>& GetCopyRanges();
+    static const std::vector<uint32_t>& GetMemSetRanges();
     template<typename T>
     static const std::vector<T>& GetRandomSources()
     {
@@ -57,16 +52,26 @@ static std::vector<Dst> InitConvertData()
 }
 
 
-uint32_t CopyTestHelper::GetARand()
-{
-    return GetRanEng()();
-}
 const std::vector<uint32_t>& CopyTestHelper::GetCopyRanges()
 {
     static std::vector<uint32_t> Sizes =
     {
         4800u, 4097u, 4096u, 4095u,
         256u,  260u,  252u,
+        64u,   67u,   61u,
+        32u,   34u,   30u,
+        16u,   17u,   15u,
+        9u,    8u,    7u,
+        4u,    3u,    2u,    1u,    0u
+    };
+    return Sizes;
+}
+const std::vector<uint32_t>& CopyTestHelper::GetMemSetRanges()
+{
+    static std::vector<uint32_t> Sizes =
+    {
+        256u,  260u,  252u,
+        128u,  131u,  125u,
         64u,   67u,   61u,
         32u,   34u,   30u,
         16u,   17u,   15u,

@@ -16,10 +16,13 @@
     <ClCompile Include="CopyTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="CopyTestAVX2.cpp">
+    <ClCompile Include="TestAVX2.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="CopyTestSSSE3.cpp">
+    <ClCompile Include="TestAVX.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="TestSSE42.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -39,6 +42,9 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="CopyTest.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ShuffleTest.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
