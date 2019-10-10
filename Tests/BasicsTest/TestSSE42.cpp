@@ -3,26 +3,30 @@
 #include "common/SIMD.hpp"
 #if COMMON_SIMD_LV_ >= 42
 #   include "CopyTest.h"
+#   include "ShuffleTest.h"
 
 
-namespace copytest
-{
-using namespace common::copy;
 
-GEN_COPY_TEST(32, 32)
+RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
 
-GEN_COPY_TEST(32, 16)
+RegisterSIMDTest("u32_u16", 42, copytest::CopyTest<uint32_t, uint16_t>)
 
-GEN_COPY_TEST(32,  8)
+RegisterSIMDTest("u32_u8",  42, copytest::CopyTest<uint32_t, uint8_t>)
 
-GEN_COPY_TEST(16,  8)
+RegisterSIMDTest("u16_u8",  42, copytest::CopyTest<uint16_t, uint8_t>)
 
-GEN_BCAST_TEST(32)
 
-GEN_BCAST_TEST(16)
+RegisterSIMDTest("u32", 42, copytest::BroadcastTest<uint32_t>)
 
-GEN_BCAST_TEST(8)
+RegisterSIMDTest("u16", 42, copytest::BroadcastTest<uint16_t>)
 
-}
+RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
+
+
+RegisterSIMDTest("F64x2", 42, shuftest::ShuffleTest<common::simd::F64x2>)
+RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 42, shuftest::ShuffleTest<common::simd::F32x4>)
+RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
+
 #endif
 

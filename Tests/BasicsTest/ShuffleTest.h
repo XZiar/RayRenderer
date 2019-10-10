@@ -1,12 +1,19 @@
 #pragma once
 #include "common/SIMD128.hpp"
-#include "common/SIMD256.hpp"
+#if COMMON_SIMD_LV >= 100
+#   include "common/SIMD256.hpp"
+#endif
 #pragma message("Compiling ShuffleTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 
 namespace shuftest
 {
 
+template<typename T, typename U, size_t... Indexes, size_t N>
+bool RealCheck(const T& data, std::index_sequence<Indexes...>, const U(&poses)[N])
+{
+    return (... && (data.Val[Indexes] == poses[Indexes]));
+}
 
 template<typename T, uint32_t PosCount, uint64_t N, uint8_t... Poses>
 void GenerateShuffle(const T& data)
@@ -16,7 +23,8 @@ void GenerateShuffle(const T& data)
         using ArgType = std::remove_reference_t<decltype(*data.Val)>;
         const auto output = data.template Shuffle<Poses...>();
         const ArgType poses[sizeof...(Poses)]{ Poses... };
-        EXPECT_THAT(output.Val, testing::ContainerEq(poses));
+        if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, poses))
+            EXPECT_THAT(output.Val, testing::ContainerEq(poses));
     }
     else
     {
@@ -45,7 +53,8 @@ void GenerateShuffleVar(const T& data, [[maybe_unused]] const uint64_t N, const 
         using ArgType = std::remove_reference_t<decltype(*data.Val)>;
         const auto output = data.Shuffle(poses...);
         const ArgType posArray[sizeof...(Poses)]{ static_cast<ArgType>(poses)... };
-        EXPECT_THAT(output.Val, testing::ContainerEq(posArray));
+        if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, posArray))
+            EXPECT_THAT(output.Val, testing::ContainerEq(posArray));
     }
     else
     {
@@ -78,25 +87,30 @@ constexpr T GenerateT()
 }
 
 
-#define SHUF_GEN_BASE_NAME(TYPE) TYPE##_
-#define SHUF_GEN_TEST_NAME(TYPE) PPCAT(SHUF_GEN_BASE_NAME(TYPE), COMMON_SIMD_INTRIN)
+template<typename T>
+class ShuffleTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "Shuffle";
+    void TestBody() override
+    {
+        const auto data = GenerateT<T>();
+        TestShuffle<T, 0, Pow<T::Count, T::Count>() - 1>(data);
+    }
+};
 
-#define GEN_SHUF_TEST(TYPE)                                                             \
-TEST(Shuffle, SHUF_GEN_TEST_NAME(TYPE))                                                 \
-{                                                                                       \
-    auto data = GenerateT<TYPE>();                                                      \
-    TestShuffle<TYPE, 0, Pow<TYPE::Count, TYPE::Count>() - 1>(data);                    \
-}                                                                                       \
 
-#define SHUF_GEN_BASE_NAME2(TYPE) TYPE##_Var_
-#define SHUF_GEN_TEST_NAME2(TYPE) PPCAT(SHUF_GEN_BASE_NAME2(TYPE), COMMON_SIMD_INTRIN)
-
-#define GEN_SHUF_VAR_TEST(TYPE)                                                         \
-TEST(Shuffle, SHUF_GEN_TEST_NAME2(TYPE))                                                \
-{                                                                                       \
-    auto data = GenerateT<TYPE>();                                                      \
-    TestShuffleVar<TYPE>(data, 0, Pow<TYPE::Count, TYPE::Count>() - 1);                 \
-}                                                                                       \
+template<typename T>
+class ShuffleVarTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "ShuffleVar";
+    void TestBody() override
+    {
+        const auto data = GenerateT<T>();
+        TestShuffleVar<T>(data, 0, Pow<T::Count, T::Count>() - 1);
+    }
+};
 
 
 }

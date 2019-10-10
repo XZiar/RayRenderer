@@ -250,6 +250,7 @@ kernel*_ispc*.h
 # Project Exception
 /Tests/Data/
 /Tests/Temp/
+/Tests/Conv/
 /.vscode
 /__pycache__
 /xzbuild/__pycache__

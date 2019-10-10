@@ -6,43 +6,30 @@
 #   include "ShuffleTest.h"
 
 
-namespace copytest
-{
-using namespace common::copy;
+RegisterSIMDTest("u32", 100, copytest::BroadcastTest<uint32_t>)
 
-GEN_BCAST_TEST(32)
+RegisterSIMDTest("u16", 100, copytest::BroadcastTest<uint16_t>)
 
-GEN_BCAST_TEST(16)
+RegisterSIMDTest("u8",  100, copytest::BroadcastTest< uint8_t>)
 
-GEN_BCAST_TEST( 8)
 
-}
 
-namespace shuftest
-{
-using namespace common::simd;
+RegisterSIMDTest("F64x4", 100, shuftest::ShuffleTest<common::simd::F64x4>)
+//RegisterSIMDTest("I64x4", 100, shuftest::ShuffleTest<common::simd::I64x4>) // No Intergel xmm in AVX
+RegisterSIMDTest("F64x2", 100, shuftest::ShuffleTest<common::simd::F64x2>)
+RegisterSIMDTest("I64x2", 100, shuftest::ShuffleTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<common::simd::F32x4>)
+RegisterSIMDTest("I32x4", 100, shuftest::ShuffleTest<common::simd::I32x4>)
 
-GEN_SHUF_TEST(F64x4)
 
-GEN_SHUF_TEST(F64x2)
+RegisterSIMDTest("F64x4", 100, shuftest::ShuffleVarTest<common::simd::F64x4>)
+RegisterSIMDTest("F32x8", 100, shuftest::ShuffleVarTest<common::simd::F32x8>)
+//RegisterSIMDTest("I64x4", 100, shuftest::ShuffleVarTest<common::simd::I64x4>) // No Intergel xmm in AVX
+RegisterSIMDTest("F64x2", 100, shuftest::ShuffleVarTest<common::simd::F64x2>)
+RegisterSIMDTest("I64x2", 100, shuftest::ShuffleVarTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<common::simd::F32x4>)
+RegisterSIMDTest("I32x4", 100, shuftest::ShuffleVarTest<common::simd::I32x4>)
 
-GEN_SHUF_TEST(I64x2)
-
-GEN_SHUF_TEST(F32x4)
-
-GEN_SHUF_TEST(I32x4)
-
-GEN_SHUF_VAR_TEST(F64x4)
-
-GEN_SHUF_VAR_TEST(F64x2)
-
-GEN_SHUF_VAR_TEST(F32x8)
-
-GEN_SHUF_VAR_TEST(F32x4)
-
-GEN_SHUF_VAR_TEST(I32x4)
-
-}
 
 
 #endif

@@ -6,46 +6,33 @@
 #   include "ShuffleTest.h"
 
 
-namespace copytest
-{
-using namespace common::copy;
 
-GEN_COPY_TEST(32, 32)
+RegisterSIMDTest("u32_u32", 200, copytest::CopyTest<uint32_t, uint32_t>)
 
-GEN_COPY_TEST(32, 16)
+RegisterSIMDTest("u32_u16", 200, copytest::CopyTest<uint32_t, uint16_t>)
 
-GEN_COPY_TEST(32,  8)
+RegisterSIMDTest("u32_u8",  200, copytest::CopyTest<uint32_t, uint8_t>)
 
-GEN_COPY_TEST(16,  8)
-
-}
+RegisterSIMDTest("u16_u8",  200, copytest::CopyTest<uint16_t, uint8_t>)
 
 
-namespace shuftest
-{
-using namespace common::simd;
+RegisterSIMDTest("F64x4", 200, shuftest::ShuffleTest<common::simd::F64x4>)
+RegisterSIMDTest("I64x4", 200, shuftest::ShuffleTest<common::simd::I64x4>)
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<common::simd::F64x2>)
+RegisterSIMDTest("I64x2", 200, shuftest::ShuffleTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 200, shuftest::ShuffleTest<common::simd::F32x4>)
+RegisterSIMDTest("I32x4", 200, shuftest::ShuffleTest<common::simd::I32x4>)
 
-GEN_SHUF_TEST(F64x4)
 
-GEN_SHUF_TEST(I64x4)
+RegisterSIMDTest("F64x4", 200, shuftest::ShuffleVarTest<common::simd::F64x4>)
+RegisterSIMDTest("I64x4", 200, shuftest::ShuffleVarTest<common::simd::I64x4>)
+RegisterSIMDTest("F32x8", 200, shuftest::ShuffleVarTest<common::simd::F32x8>)
+RegisterSIMDTest("I32x8", 200, shuftest::ShuffleVarTest<common::simd::I32x8>)
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
+RegisterSIMDTest("I64x2", 200, shuftest::ShuffleVarTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 200, shuftest::ShuffleVarTest<common::simd::F32x4>)
+RegisterSIMDTest("I32x4", 200, shuftest::ShuffleVarTest<common::simd::I32x4>)
 
-GEN_SHUF_TEST(F64x2)
-
-GEN_SHUF_TEST(I64x2)
-
-GEN_SHUF_TEST(F32x4)
-
-GEN_SHUF_TEST(I32x4)
-
-GEN_SHUF_VAR_TEST(F64x4)
-
-GEN_SHUF_VAR_TEST(I64x4)
-
-GEN_SHUF_VAR_TEST(F32x8)
-
-GEN_SHUF_VAR_TEST(I32x8)
-
-}
 
 
 #endif

@@ -52,8 +52,7 @@ TEST(Linq, Compiling)
 TEST(Linq, Range)
 {
     {
-        EXPECT_THAT(
-            FromRange<int32_t>(0, 3, 1).ToVector(), 
+        EXPECT_THAT(FromRange<int32_t>(0, 3, 1).ToVector(), 
             testing::ElementsAre(0, 1, 2));
     }
     {
@@ -68,6 +67,12 @@ TEST(Linq, Range)
         EXPECT_THAT(FromRange<float>(1.0f, 3.0f, 0.5f).ToVector(), 
             testing::ElementsAre(1.0f, 1.5f, 2.0f, 2.5f));
     }
+}
+
+TEST(Linq, TryGetFirst)
+{
+    EXPECT_FALSE(FromRange<int32_t>(0, 0, 1).TryGetFirst().has_value());
+    EXPECT_EQ(FromRange<int32_t>(0, 1, 1).TryGetFirst().value(), 0);
 }
 
 TEST(Linq, Skip)
