@@ -24,7 +24,9 @@ void GenerateShuffle(const T& data)
         const auto output = data.template Shuffle<Poses...>();
         const ArgType poses[sizeof...(Poses)]{ Poses... };
         if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, poses))
+        {
             EXPECT_THAT(output.Val, testing::ContainerEq(poses));
+        }
     }
     else
     {
@@ -54,7 +56,9 @@ void GenerateShuffleVar(const T& data, [[maybe_unused]] const uint64_t N, const 
         const auto output = data.Shuffle(poses...);
         const ArgType posArray[sizeof...(Poses)]{ static_cast<ArgType>(poses)... };
         if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, posArray))
+        {
             EXPECT_THAT(output.Val, testing::ContainerEq(posArray));
+        }
     }
     else
     {

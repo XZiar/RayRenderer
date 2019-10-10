@@ -10,7 +10,7 @@ using common::linq::detail::EnumerableChecker;
 template<typename E>
 constexpr bool GetIsRef(const E&)
 {
-    return std::is_reference_v<E::ProviderType::OutType>;
+    return std::is_reference_v<typename E::ProviderType::OutType>;
 }
 
 TEST(Linq, Compiling)
@@ -176,8 +176,8 @@ struct Repeater
     constexpr Repeater() noexcept {}
     constexpr Repeater(const Repeater&) noexcept { CopyConstCnt++; }
     constexpr Repeater(Repeater&&) noexcept { MoveConstCnt++; }
-    constexpr Repeater& operator=(const Repeater&) noexcept { CopyAssignCnt++; return *this; }
-    constexpr Repeater& operator=(Repeater&&) noexcept { MoveAssignCnt++; return *this; }
+    Repeater& operator=(const Repeater&) noexcept { CopyAssignCnt++; return *this; }
+    Repeater& operator=(Repeater&&) noexcept { MoveAssignCnt++; return *this; }
 };
 
 TEST(Linq, Repeat)

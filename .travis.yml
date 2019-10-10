@@ -12,13 +12,14 @@ matrix:
         - CPPCOMPILER=g++
         - DYNAMICLINKER=g++
         - APPLINKER=g++
-        - BUILDMODULES="all"
+        - BUILDMODULES="all,-BasicsTest"
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
             - nasm
+            - unzip
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
@@ -34,7 +35,7 @@ matrix:
         - CPPCOMPILER=g++-8
         - DYNAMICLINKER=g++-8
         - APPLINKER=g++-8
-        - BUILDMODULES="all"
+        - BUILDMODULES="all,-BasicsTest"
       addons:
         apt:
           sources:
@@ -42,6 +43,7 @@ matrix:
           packages:
             - g++-8
             - nasm
+            - unzip
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
@@ -57,7 +59,7 @@ matrix:
         - CPPCOMPILER=clang++
         - DYNAMICLINKER=clang++
         - APPLINKER=clang++
-        - BUILDMODULES="all"
+        - BUILDMODULES="all,-BasicsTest"
       addons:
         apt:
           sources:
@@ -69,6 +71,7 @@ matrix:
             - lld-7
             #- binutils-dev
             - nasm
+            - unzip
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
@@ -84,7 +87,7 @@ matrix:
         - CPPCOMPILER=clang++-8
         - DYNAMICLINKER=clang++-8
         - APPLINKER=clang++-8
-        - BUILDMODULES="all"
+        - BUILDMODULES="all,-BasicsTest"
       addons:
         apt:
           sources:
@@ -96,6 +99,7 @@ matrix:
             - lld-8
             #- binutils-dev
             - nasm
+            - unzip
             - python3-pip
             - libx11-dev
             - libgl1-mesa-dev
@@ -106,9 +110,21 @@ before_install:
   - mkdir tmp
   - cd tmp
   - mkdir include
+  - mkdir src
   - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.71.0/source/boost_1_71_0.tar.bz2
   - tar xjf boost.tar.bz2
   - mv ./boost_1_71_0/boost ./include/
+  - wget -O gtest.zip https://github.com/google/googletest/archive/release-1.10.0.zip
+  - unzip gtest.zip
+  - cp -r ./googletest-release-1.10.0/googletest/include/gtest ./include/gtest
+  - cp -r ./googletest-release-1.10.0/googlemock/include/gmock ./include/gmock
+  - cd ./googletest-release-1.10.0/
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/lib
+  - cd ../..
   - export CPP_DEPENDENCY_PATH=$(pwd)
   - wget -O ispc.tar.gz https://sourceforge.net/projects/ispcmirror/files/v1.12.0/ispc-v1.12.0-linux.tar.gz/download
   - tar xzf ispc.tar.gz
@@ -126,5 +142,5 @@ before_script:
 
 script:
   - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5
-  - python3 xzbuild.py rebuildall "SIMDTest" Release /threads=x1.5
-  - ./x64/Release/SIMDTest
+  - python3 xzbuild.py rebuildall "BasicsTest" Release /threads=x1.5
+  - ./x64/Release/BasicsTest

@@ -66,8 +66,8 @@ struct SIMDFactory
     }
 };
 
-#define RegisterSIMDTest(Test, Level, ...)                  \
-uint32_t SIMDFactory<__VA_ARGS__, Level>::Dummy =           \
-    SIMDFactory<__VA_ARGS__, Level>::                       \
-    PendingRegister(Test, __FILE__, __LINE__);              \
+#define RegisterSIMDTest(Test, Level, ...)                          \
+template<> uint32_t SIMDFactory<__VA_ARGS__, Level>::Dummy =        \
+    SIMDFactory<__VA_ARGS__, Level>::                               \
+    PendingRegister(Test, __FILE__, __LINE__);                      \
 

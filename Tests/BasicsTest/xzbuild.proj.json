@@ -1,0 +1,19 @@
+{
+    "name": "BasicsTest",
+    "type": "executable",
+    "description": "Basics test",
+    "dependency": ["cpuid"],
+    "library": 
+    {
+        "static": ["gtest", "gmock", "gtest_main"],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "pch": "pch.h"
+        }
+    }
+}

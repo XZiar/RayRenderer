@@ -52,5 +52,6 @@
     <None Include="packages.config">
       <Filter>Dependency</Filter>
     </None>
+    <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>
