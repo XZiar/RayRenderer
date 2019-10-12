@@ -52,7 +52,7 @@ public:
 	MouseEventType Type;
 	MouseButton Button;
 	int x, y, dx, dy;
-	MouseEventExArgs(const MouseEventType type, const MouseButton btn, const int x_, const int y_, const int dx_, const int dy_)
+	MouseEventExArgs(MouseEventType type, MouseButton btn, const int x_, const int y_, const int dx_, const int dy_)
 		:Type(type), Button(btn), x(x_), y(y_), dx(dx_), dy(dy_)
 	{
 	}

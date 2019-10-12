@@ -49,7 +49,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 
 Since C++/CLI is used for C# bindings, and multiple DLL hacks are token for DLL-embedding, it's Windows-only.
 
-For Windows parts, Windows SDK Target is `10(latest)` and .Net Framework 4.7.2 needed for C# components.
+For Windows parts, Windows SDK Target is `10(latest)` and .Net Framework 4.8 needed for C# components.
 
 To use `xzbuild`, python3.6+ is required.
 

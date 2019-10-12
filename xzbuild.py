@@ -118,7 +118,7 @@ def mainmake(action:str, projs:set, env:dict):
 
 def parseProj(proj:str, projs:ProjectSet):
     wanted = set()
-    names = set(re.findall(r"[-.\w']+", proj)) # not keep removed items
+    names = set(re.findall(r"[-.\w']+", proj)) # keep removed items
     if "all" in names:
         names.update(projs.names())
     if "all-dynamic" in names:
@@ -128,7 +128,7 @@ def parseProj(proj:str, projs:ProjectSet):
     if "all-executable" in names:
         names.update([p.name for p in projs if p.type == "executable"])
     names.difference_update(["all", "all-dynamic", "all-static", "all-executable"]) # exclude special reserved items
-    wantRemove = set([y for x in proj if x.startswith("-") for y in (x,x[1:])]) # exclude removed items
+    wantRemove = set([y for x in names if x.startswith("-") for y in (x,x[1:])]) # exclude removed items
     names.difference_update(wantRemove)
     for x in names:
         if x in projs: wanted.add(projs[x])
@@ -164,6 +164,7 @@ def main(argv:list, paras:dict):
             listproj(projects, objproj)
             return 0
         elif action in set(["build", "buildall", "clean", "cleanall", "rebuild", "rebuildall"]):
+            projs = parseProj(objproj, projects)
             if env["osname"] == "Windows":
                 print(COLOR.Yellow("For Windows, use Visual Studio 2019 to build!"))
                 return -1
@@ -173,7 +174,6 @@ def main(argv:list, paras:dict):
                 print(COLOR.Yellow("unknown OS!"))
                 return -1
             
-            projs = parseProj(objproj, projects)
             suc, tol = mainmake(action, projs, env)
             preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < tol else COLOR.green
             print(f"{preclr}build [{suc}/{tol}] successed.{COLOR.clear}")

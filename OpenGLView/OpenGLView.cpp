@@ -70,6 +70,7 @@ namespace OpenGLView
         event MouseEventExHandler^ MouseAction;
         event KeyBoardEventHandler^ KeyAction;
 
+    private:
         static OGLView()
         {
             HWND tmpWND = CreateWindow(
@@ -116,6 +117,7 @@ namespace OpenGLView
             DeleteDC(tmpDC);
             DestroyWindow(tmpWND);
         }
+    public:
         OGLView() : OGLView(false, 0) { }
         OGLView(const bool isSRGB, const uint32_t multiSample)
         {
@@ -197,7 +199,7 @@ namespace OpenGLView
             if (ResizeBGDraw)
                 Control::OnPaintBackground(pevent);
         }
-        void OnPaint(PaintEventArgs^ e) override
+        void OnPaint(PaintEventArgs^) override
         {
             common::SimpleTimer timer;
             timer.Start();
@@ -294,14 +296,14 @@ namespace OpenGLView
                 isCapital = !isCapital;
             else if (e->KeyValue >= 65 && e->KeyValue <= 90)
             {
-                keyDownEvent->key = (e->Shift ^ isCapital ? L'A' : L'a') + (e->KeyValue - 65);
+                keyDownEvent->key = static_cast<wchar_t>((e->Shift ^ isCapital ? L'A' : L'a') + (e->KeyValue - 65));
             }
             else if (e->KeyValue >= 96 && e->KeyValue <= 105)
-                keyDownEvent->key = L'0' + (e->KeyValue - 96);
+                keyDownEvent->key = static_cast<wchar_t>(L'0' + (e->KeyValue - 96));
             else if (e->KeyValue >= 112 && e->KeyValue <= 123)
-                keyDownEvent->key = (wchar_t)Key::F1 + (e->KeyValue - 112);
+                keyDownEvent->key = static_cast<wchar_t>((wchar_t)Key::F1 + (e->KeyValue - 112));
             else if (e->KeyValue >= 37 && e->KeyValue <= 40)
-                keyDownEvent->key = (wchar_t)Key::Left + (e->KeyValue - 37);
+                keyDownEvent->key = static_cast<wchar_t>((wchar_t)Key::Left + (e->KeyValue - 37));
             else switch (e->KeyCode)
             {
             case Keys::Home:
