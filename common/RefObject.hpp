@@ -179,10 +179,19 @@ public:
 
     constexpr RefObject() noexcept : Pointer(nullptr), Control(nullptr) 
     { }
+    RefObject(const RefObject<T>& other) noexcept : Pointer(other.Pointer), Control(other.Control)
+    {
+        detail::RefBlock::Increase(Control);
+    }
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     RefObject(const RefObject<U>& other) noexcept : Pointer(other.Pointer), Control(other.Control) 
     {
         detail::RefBlock::Increase(Control);
+    }
+    RefObject(RefObject<T>&& other) noexcept : Pointer(other.Pointer), Control(other.Control)
+    {
+        other.Pointer = nullptr;
+        other.Control = nullptr;
     }
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     constexpr RefObject(RefObject<U>&& other) noexcept : Pointer(other.Pointer), Control(other.Control)
@@ -206,6 +215,14 @@ public:
         return Control != nullptr;
     }
 
+    RefObject<T>& operator=(const RefObject<T>& other) noexcept
+    {
+        detail::RefBlock::Increase(other.Control);
+        detail::RefBlock::Decreace(Control);
+        Pointer = other.Pointer;
+        Control = other.Control;
+        return *this;
+    }
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
     RefObject<T>& operator=(const RefObject<U>& other) noexcept
     {
@@ -213,6 +230,13 @@ public:
         detail::RefBlock::Decreace(Control);
         Pointer = other.Pointer;
         Control = other.Control;
+        return *this;
+    }
+    RefObject<T>& operator=(RefObject<T>&& other) noexcept
+    {
+        std::swap(Control, other.Control);
+        Pointer = other.Pointer;
+        other.Release();
         return *this;
     }
     template<typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>

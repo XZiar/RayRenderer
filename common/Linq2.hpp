@@ -456,16 +456,20 @@ public:
         }
         return *this;
     }
+
     constexpr Enumerable<detail::LimitSource<T>> Take(const size_t n)
     {
         return detail::LimitSource<T>(std::move(Provider), n);
     }
+
     template<bool ForceCache, typename Mapper>
     constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> Select(Mapper&& mapper)
     {
+        static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using OutType = std::invoke_result_t<Mapper, EleType>;
         return detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>(std::move(Provider), std::forward<Mapper>(mapper));
     }
+
     template<typename Mapper>
     constexpr decltype(auto) Select(Mapper&& mapper)
     {
@@ -474,9 +478,13 @@ public:
         constexpr bool ShouldCache = !std::is_lvalue_reference_v<OutType>;
         return Select<ShouldCache>(std::forward<Mapper>(mapper));
     }
+
     template<typename Filter>
     constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> Where(Filter&& filter)
     {
+        static_assert(std::is_invocable_r_v<bool, Filter, EleType>
+            || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
+            "filter should accept EleType and return bool");
         return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
     }
 
@@ -516,6 +524,7 @@ public:
             Provider.MoveNext();
         }
     }
+
     template<typename U, typename Func>
     constexpr U Reduce(Func&& func, U data = {})
     {
@@ -530,11 +539,13 @@ public:
         }
         return data;
     }
+
     template<typename U = EleType>
     constexpr U Sum(U data = {})
     {
         return Reduce([](U& ret, const auto& item) { ret += item; }, data);
     }
+
     constexpr std::optional<PlainEleType> TryGetFirst() const
     {
         return Provider.IsEnd() ? std::optional<PlainEleType>{} : Provider.GetCurrent();
@@ -544,6 +555,7 @@ public:
     {
         return Provider.IsEnd();
     }
+
     template<typename U>
     constexpr bool Contains(const U& obj)
     {
@@ -577,6 +589,7 @@ public:
         }
         return false;
     }
+
     template<typename U>
     constexpr bool All(const U& obj)
     {

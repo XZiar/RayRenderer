@@ -1,10 +1,6 @@
 #include "SystemCommon/ColorConsole.h"
 #include "common/CommonRely.hpp"
 #include "common/Linq2.hpp"
-#include "common/RefObject.hpp"
-#define COMMON_SIMD_LV 200
-#include "common/SIMD128.hpp"
-#include "common/SIMD256.hpp"
 #define FMT_STRING_ALIAS 1
 #include "fmt/utfext.h"
 #include "boost.stacktrace/stacktrace.h"
@@ -14,77 +10,6 @@
 using common::BaseException;
 using common::console::ConsoleHelper;
 
-
-struct AData
-{
-    int pp;
-    AData(int d) : pp(d) { }
-    virtual ~AData() { printf("deconst AData %d\n", pp); }
-};
-
-struct BData : public AData
-{
-    int pk;
-    BData(int d) : AData(d), pk(d) { }
-    ~BData() override { printf("deconst BData %d\n", pk); }
-};
-
-struct A : public common::RefObject<AData>
-{
-    INIT_REFOBJ(A, AData)
-    A(int data) : common::RefObject<AData>(Create(data)) 
-    { }
-    using common::RefObject<AData>::RefObject;
-    int GetIt() const
-    {
-        return Self().pp;
-    }
-    A Child(int data)
-    {
-        return CreateWith<AData>(data);
-    }
-};
-
-struct B : public common::RefObject<BData>
-{
-    INIT_REFOBJ(B, BData)
-    B(int data) : common::RefObject<BData>(Create(data))
-    { }
-    using common::RefObject<BData>::RefObject;
-    int GetIt() const
-    {
-        return Self().pk;
-    }
-
-};
-
-void TestRefObj()
-{
-    A a(1);
-    B b(2);
-    auto c = a.Child(3);
-    printf("init\n");
-    printf("a: %d\n", a.GetIt());
-    printf("b: %d\n", b.GetIt());
-    printf("c: %d\n", c.GetIt());
-    a = b;
-    printf("a=b\n");
-    printf("a: %d\n", a.GetIt());
-    printf("b: %d\n", b.GetIt());
-    printf("c: %d\n", c.GetIt());
-    auto d = common::RefCast<B>(a);
-    printf("d=cast(a)\n");
-    printf("a: %d\n", a.GetIt());
-    printf("b: %d\n", b.GetIt());
-    printf("c: %d\n", c.GetIt());
-    printf("d: %d\n", d.GetIt());
-    a = std::move(c);
-    printf("a=move(c)\n");
-    printf("a: %d\n", a.GetIt());
-    printf("b: %d\n", b.GetIt());
-    printf("c: %s\n", c ? "valid" : "invalid");
-    printf("d: %d\n", d.GetIt());
-}
 
 
 struct KK
@@ -192,9 +117,6 @@ int main()
 {
 
     TestLinq();
-    printf("\n\n");
-
-    TestRefObj();
     printf("\n\n");
 
     TestStacktrace();

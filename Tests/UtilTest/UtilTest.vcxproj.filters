@@ -39,9 +39,6 @@
     <ClCompile Include="LogTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="LinqTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="CURLTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

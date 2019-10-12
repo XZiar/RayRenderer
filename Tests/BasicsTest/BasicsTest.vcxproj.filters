@@ -25,6 +25,9 @@
     <ClCompile Include="TestSSE42.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="RefObjTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

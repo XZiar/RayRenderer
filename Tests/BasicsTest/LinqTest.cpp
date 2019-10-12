@@ -168,14 +168,14 @@ struct Repeater
     static inline size_t MoveConstCnt = 0;
     static inline size_t CopyAssignCnt = 0;
     static inline size_t MoveAssignCnt = 0;
-    static constexpr void Reset() noexcept
+    static void Reset() noexcept
     {
         CopyConstCnt = MoveConstCnt = CopyAssignCnt = MoveAssignCnt = 0;
     }
 
     constexpr Repeater() noexcept {}
-    constexpr Repeater(const Repeater&) noexcept { CopyConstCnt++; }
-    constexpr Repeater(Repeater&&) noexcept { MoveConstCnt++; }
+    Repeater(const Repeater&) noexcept { CopyConstCnt++; }
+    Repeater(Repeater&&) noexcept { MoveConstCnt++; }
     Repeater& operator=(const Repeater&) noexcept { CopyAssignCnt++; return *this; }
     Repeater& operator=(Repeater&&) noexcept { MoveAssignCnt++; return *this; }
 };
@@ -233,6 +233,7 @@ TEST(Linq, ModifyNonCopyable)
     EXPECT_TRUE(ret);
     EXPECT_THAT(data, testing::Each(testing::Pointee(0)));
 }
+
 TEST(Linq, Basic)
 {
     size_t selectCnt = 0, whereCnt = 0;

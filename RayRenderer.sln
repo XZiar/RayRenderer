@@ -45,7 +45,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\ContainerHelper.hpp = common\ContainerHelper.hpp
 		common\Controllable.hpp = common\Controllable.hpp
 		common\CopyEx.hpp = common\CopyEx.hpp
-		common\CPPAsync.hpp = common\CPPAsync.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
 		common\Delegate.hpp = common\Delegate.hpp
@@ -81,6 +80,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\StrCharset.hpp = common\StrCharset.hpp
 		common\Stream.hpp = common\Stream.hpp
 		common\StringEx.hpp = common\StringEx.hpp
+		common\Stringify.hpp = common\Stringify.hpp
 		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\UnifyLinq.hpp = common\UnifyLinq.hpp
 		common\WinVersionHelper.hpp = common\WinVersionHelper.hpp
@@ -242,8 +242,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CL", "CL", "{1C8E3D45-3BDA-
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL_ICD_Loader", "3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SIMDTest", "Tests\SIMDTest\SIMDTest.vcxproj", "{DCA497AF-8000-4163-B6FD-E0C09C89612E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpuid", "3rdParty\cpuid\cpuid.vcxproj", "{8F5ADF15-4807-4EC9-888E-290C1A3169A4}"
 EndProject
@@ -435,10 +433,6 @@ Global
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Debug|x64.Build.0 = Debug|x64
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Release|x64.ActiveCfg = Release|x64
 		{5C5933E1-4992-47F8-87ED-7921735157BA}.Release|x64.Build.0 = Release|x64
-		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x64.ActiveCfg = Debug|x64
-		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Debug|x64.Build.0 = Debug|x64
-		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x64.ActiveCfg = Release|x64
-		{DCA497AF-8000-4163-B6FD-E0C09C89612E}.Release|x64.Build.0 = Release|x64
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4}.Debug|x64.ActiveCfg = Debug|x64
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4}.Debug|x64.Build.0 = Debug|x64
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4}.Release|x64.ActiveCfg = Release|x64
@@ -545,7 +539,6 @@ Global
 		{A9F8DF7E-4636-4C92-8D78-9D8214414986} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{1C8E3D45-3BDA-426A-8170-B5F2472BFBCF} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{5C5933E1-4992-47F8-87ED-7921735157BA} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
-		{DCA497AF-8000-4163-B6FD-E0C09C89612E} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{8F5ADF15-4807-4EC9-888E-290C1A3169A4} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{11B95B5A-BD8C-4B17-AC69-9E290D6E50E1} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{483ED897-89C7-4125-86AD-E7146C933B46} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
