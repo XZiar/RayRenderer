@@ -3,6 +3,7 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 #include "TextureUtil/TexMipmap.h"
+#include "AsyncExecutor/AsyncAgent.h"
 #include "common/Controllable.hpp"
 
 

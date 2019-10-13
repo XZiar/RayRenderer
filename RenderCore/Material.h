@@ -148,7 +148,7 @@ public:
     uint8_t GetSize()const { return static_cast<uint8_t>(Materials.size()); }
 
     void Refresh();
-    void BindTexture(oglu::detail::ProgDraw& drawcall) const;
+    void BindTexture(oglu::ProgDraw& drawcall) const;
     uint32_t WriteData(std::byte *ptr) const; 
     
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;

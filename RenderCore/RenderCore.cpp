@@ -80,9 +80,9 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
 
 RenderCore::RenderCore()
 {
-    const auto oriCtx = oglu::oglContext::Refresh();
+    const auto oriCtx = oglu::oglContext_::Refresh();
     //oriCtx->SetRetain(true);
-    GLContext = oglu::oglContext::NewContext(oriCtx);
+    GLContext = oglu::oglContext_::NewContext(oriCtx);
     GLContext->UseContext();
     //for reverse-z
     GLContext->SetDepthClip(true);
@@ -98,7 +98,7 @@ RenderCore::RenderCore()
     }
     GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
-    TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext::NewContext(GLContext, true), CLSharedContext);
+    TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext_::NewContext(GLContext, true), CLSharedContext);
     MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
     TexLoader = std::make_shared<TextureLoader>(MipMapper);
     //MipMapper->Test2();
@@ -132,7 +132,7 @@ RenderCore::~RenderCore()
 
 void RenderCore::RefreshContext() const
 {
-    oglContext::Refresh();
+    oglContext_::Refresh();
     GLContext->UseContext();
 }
 
@@ -360,8 +360,8 @@ xziar::img::Image RenderCore::Screenshot()
 {
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
-    oglu::oglFBO ssFBO(std::in_place);
-    oglu::oglTex2DS ssTex(width, height, xziar::img::TextureFormat::SRGBA8);
+    auto ssFBO = oglu::oglFrameBuffer_::Create();
+    auto ssTex = oglu::oglTex2DStatic_::Create(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");

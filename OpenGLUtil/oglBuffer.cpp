@@ -2,15 +2,23 @@
 #include "oglBuffer.h"
 #include "oglContext.h"
 #include "oglException.h"
+#include "oglUtil.h"
 #include "BindingManager.h"
 #include "DSAWrapper.h"
 
 
-namespace oglu::detail
+namespace oglu
 {
 using std::string;
 using std::u16string;
 using std::vector;
+
+MAKE_ENABLER_IMPL(oglPixelBuffer_)
+MAKE_ENABLER_IMPL(oglArrayBuffer_)
+MAKE_ENABLER_IMPL(oglTextureBuffer_)
+MAKE_ENABLER_IMPL(oglUniformBuffer_)
+MAKE_ENABLER_IMPL(oglIndirectBuffer_)
+MAKE_ENABLER_IMPL(oglElementBuffer_)
 
 
 constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
@@ -31,12 +39,13 @@ constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
 }
 
 
-_oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufferID(buf.BufferID), Size(buf.BufSize)
+oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) : 
+    BufferID(buf->BufferID), Size(buf->BufSize), Flag(flags)
 {
     GLenum access;
-    if (HAS_FIELD(flags, MapFlag::MapRead) && !HAS_FIELD(flags, MapFlag::MapWrite))
+    if (HAS_FIELD(Flag, MapFlag::MapRead) && !HAS_FIELD(Flag, MapFlag::MapWrite))
         access = GL_READ_ONLY;
-    else if (!HAS_FIELD(flags, MapFlag::MapRead) && HAS_FIELD(flags, MapFlag::MapWrite))
+    else if (!HAS_FIELD(Flag, MapFlag::MapRead) && HAS_FIELD(Flag, MapFlag::MapWrite))
         access = GL_WRITE_ONLY;
     else
         access = GL_READ_WRITE;
@@ -44,14 +53,14 @@ _oglMapPtr::_oglMapPtr(_oglBuffer& buf, const MapFlag flags) : BufferID(buf.Buff
     Pointer = DSA->ogluMapNamedBuffer(BufferID, access);
 }
 
-_oglMapPtr::~_oglMapPtr()
+oglBuffer_::oglMapPtr_::~oglMapPtr_()
 {
     if (DSA->ogluUnmapNamedBuffer(BufferID) == GL_FALSE)
         oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", BufferID, Size);
 }
 
 
-_oglBuffer::_oglBuffer(const BufferTypes type) noexcept :
+oglBuffer_::oglBuffer_(const BufferTypes type) noexcept :
     BufSize(0), BufferID(GL_INVALID_INDEX), BufferType(type)
 {
     glGenBuffers(1, &BufferID);
@@ -59,7 +68,7 @@ _oglBuffer::_oglBuffer(const BufferTypes type) noexcept :
     glBindBuffer(common::enum_cast(BufferType), 0);
 }
 
-_oglBuffer::~_oglBuffer() noexcept
+oglBuffer_::~oglBuffer_() noexcept
 {
     if (!EnsureValid()) return;
     if (PersistentPtr)
@@ -70,7 +79,7 @@ _oglBuffer::~_oglBuffer() noexcept
         oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
 }
 
-void _oglBuffer::bind() const noexcept
+void oglBuffer_::bind() const noexcept
 {
     CheckCurrent();
     glBindBuffer(common::enum_cast(BufferType), BufferID);
@@ -78,31 +87,48 @@ void _oglBuffer::bind() const noexcept
         //oglLog().verbose(u"binding ibo[{}].\n", BufferID);
 }
 
-void _oglBuffer::unbind() const noexcept
+void oglBuffer_::unbind() const noexcept
 {
     CheckCurrent();
     glBindBuffer(common::enum_cast(BufferType), 0);
 }
 
-oglMapPtr _oglBuffer::Map(const MapFlag flags)
+void oglBuffer_::PersistentMap(MapFlag flags)
 {
-    CheckCurrent();
-    bind();
-    const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
-    if (newPersist)
-        glBufferStorage(common::enum_cast(BufferType), BufSize, nullptr, static_cast<GLenum>(flags & MapFlag::PrepareMask));
-    oglMapPtr ptr(new _oglMapPtr(*this, flags));
-    if (newPersist)
-        PersistentPtr = ptr;
-    return ptr;
+    oglBuffer_::bind();
+    flags |= MapFlag::CoherentMap | MapFlag::PersistentMap;
+    glBufferStorage(common::enum_cast(BufferType), BufSize, nullptr, common::enum_cast(flags & MapFlag::PrepareMask));
+    PersistentPtr.emplace(this, flags);
 }
 
-void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
+oglMapPtr oglBuffer_::Map(const MapFlag flags)
 {
     CheckCurrent();
-    if (PersistentPtr)
+    const bool newPersist = !PersistentPtr && HAS_FIELD(flags, MapFlag::PersistentMap);
+    if (newPersist)
     {
-        memcpy_s(PersistentPtr, BufSize, dat, size);
+        PersistentMap(flags);
+        return GetPersistentPtr();
+    }
+    else
+    {
+        bind();
+        oglMapPtr_* ptr = new oglMapPtr_(this, flags);
+        return oglMapPtr(std::shared_ptr<const oglMapPtr_>(shared_from_this(), ptr));
+    }
+}
+
+oglMapPtr oglBuffer_::GetPersistentPtr() const
+{
+    return oglMapPtr(std::shared_ptr<const oglMapPtr_>(shared_from_this(), &*PersistentPtr));
+}
+
+void oglBuffer_::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
+{
+    CheckCurrent();
+    if (PersistentPtr && HAS_FIELD(PersistentPtr->Flag, MapFlag::MapWrite))
+    {
+        memcpy_s(PersistentPtr->Pointer, BufSize, dat, size);
     }
     else
     {
@@ -111,58 +137,78 @@ void _oglBuffer::Write(const void * const dat, const size_t size, const BufferWr
     }
 }
 
-_oglPixelBuffer::~_oglPixelBuffer() noexcept {}
-_oglArrayBuffer::~_oglArrayBuffer() noexcept {}
-
-
-_oglTextureBuffer::_oglTextureBuffer() noexcept : _oglBuffer(BufferTypes::Texture)
+oglPixelBuffer_::~oglPixelBuffer_() noexcept {}
+oglPBO oglPixelBuffer_::Create()
 {
+    return MAKE_ENABLER_SHARED(oglPixelBuffer_);
 }
-_oglTextureBuffer::~_oglTextureBuffer() noexcept {}
+
+oglArrayBuffer_::~oglArrayBuffer_() noexcept {}
+oglVBO oglArrayBuffer_::Create()
+{
+    return MAKE_ENABLER_SHARED(oglArrayBuffer_);
+}
 
 
-_oglUniformBuffer::_oglUniformBuffer(const size_t size) noexcept : _oglBuffer(BufferTypes::Uniform)
+oglTextureBuffer_::oglTextureBuffer_() noexcept : oglBuffer_(BufferTypes::Texture)
+{ }
+oglTextureBuffer_::~oglTextureBuffer_() noexcept {}
+oglTBO oglTextureBuffer_::Create()
+{
+    return MAKE_ENABLER_SHARED(oglTextureBuffer_);
+}
+
+
+oglUniformBuffer_::oglUniformBuffer_(const size_t size) noexcept : oglBuffer_(BufferTypes::Uniform)
 {
     BufSize = size;
-    Map(MapFlag::CoherentMap | MapFlag::PersistentMap | MapFlag::MapWrite);
+    PersistentMap(MapFlag::MapWrite);
     vector<uint8_t> empty(size);
     Write(empty, BufferWriteMode::StreamDraw);
 }
 
-_oglUniformBuffer::~_oglUniformBuffer() noexcept
+oglUniformBuffer_::~oglUniformBuffer_() noexcept
 {
     if (!EnsureValid()) return;
     //force unbind ubo, since bufID may be reused after releasaed
     getUBOMan().forcePop(BufferID);
 }
-
-struct UBOCtxConfig : public CtxResConfig<false, UBOManager>
+oglUBO oglUniformBuffer_::Create(const size_t size)
 {
-    UBOManager Construct() const { return {}; }
-};
-static UBOCtxConfig UBO_CTXCFG;
-UBOManager& _oglUniformBuffer::getUBOMan()
-{
-    return oglContext::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
+    return MAKE_ENABLER_SHARED(oglUniformBuffer_, size);
 }
 
-void _oglUniformBuffer::bind(const uint16_t pos) const
+struct UBOCtxConfig : public CtxResConfig<false, detail::UBOManager>
+{
+    detail::UBOManager Construct() const { return {}; }
+};
+static UBOCtxConfig UBO_CTXCFG;
+detail::UBOManager& oglUniformBuffer_::getUBOMan()
+{
+    return oglContext_::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
+}
+
+void oglUniformBuffer_::bind(const uint16_t pos) const
 {
     CheckCurrent();
     glBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
 }
 
 
-bool _oglIndirectBuffer::IsIndexed() const
+bool oglIndirectBuffer_::IsIndexed() const
 {
     return Commands.index() == 0;
 }
 
-_oglIndirectBuffer::_oglIndirectBuffer() noexcept : _oglBuffer(BufferTypes::Indirect)
+oglIndirectBuffer_::oglIndirectBuffer_() noexcept : oglBuffer_(BufferTypes::Indirect)
 { }
-_oglIndirectBuffer::~_oglIndirectBuffer() noexcept {}
+oglIndirectBuffer_::~oglIndirectBuffer_() noexcept {}
+oglIBO oglIndirectBuffer_::Create()
+{
+    return MAKE_ENABLER_SHARED(oglIndirectBuffer_);
+}
 
-void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
+void oglIndirectBuffer_::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
 {
     CheckCurrent();
     const auto count = offsets.size();
@@ -187,7 +233,7 @@ void _oglIndirectBuffer::WriteCommands(const vector<uint32_t>& offsets, const ve
     }
 }
 
-void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed)
+void oglIndirectBuffer_::WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed)
 {
     CheckCurrent();
     Count = 1;
@@ -206,12 +252,16 @@ void _oglIndirectBuffer::WriteCommands(const uint32_t offset, const uint32_t siz
 }
 
 
-_oglElementBuffer::_oglElementBuffer() noexcept : 
-    _oglBuffer(BufferTypes::Element), IndexType(GL_INVALID_ENUM), IndexSize(0) {}
+oglElementBuffer_::oglElementBuffer_() noexcept : 
+    oglBuffer_(BufferTypes::Element), IndexType(GL_INVALID_ENUM), IndexSize(0) {}
 
-_oglElementBuffer::~_oglElementBuffer() noexcept {}
+oglElementBuffer_::~oglElementBuffer_() noexcept {}
+oglEBO oglElementBuffer_::Create()
+{
+    return MAKE_ENABLER_SHARED(oglElementBuffer_);
+}
 
-void _oglElementBuffer::SetSize(const uint8_t elesize)
+void oglElementBuffer_::SetSize(const uint8_t elesize)
 {
     switch (IndexSize = elesize)
     {

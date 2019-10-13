@@ -37,7 +37,7 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
         //exit
         if (!GLContext->UnloadContext())
             texLog().error(u"TexUtil cannot terminate GL context\n");
-        GLContext.release();
+        GLContext.reset();
     });
 }
 

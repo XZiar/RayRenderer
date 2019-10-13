@@ -11,9 +11,10 @@
 namespace oglu
 {
 class oglUtil;
-class oglContext;
 struct BindingState;
 struct DSAFuncs;
+class oglContext_;
+using oglContext = std::shared_ptr<oglContext_>;
 
 enum class MsgSrc :uint8_t 
 {
@@ -30,6 +31,28 @@ enum class MsgType :uint16_t
 MAKE_ENUM_BITFIELD(MsgType)
 enum class MsgLevel :uint8_t { High = 3, Medium = 2, Low = 1, Notfication = 0 };
 MAKE_ENUM_RANGE(MsgLevel)
+
+struct OGLUAPI DebugMessage
+{
+    friend class oglContext_;
+public:
+    const MsgType Type;
+    const MsgSrc From;
+    const MsgLevel Level;
+    std::u16string Msg;
+
+    DebugMessage(const GLenum from, const GLenum type, const GLenum lv);
+    ~DebugMessage();
+};
+
+
+struct OGLUAPI BindingState
+{
+    void* HRC = nullptr;
+    GLint Prog = 0, VAO = 0, FBO = 0, DFB = 0, RFB = 0, VBO = 0, IBO = 0, EBO = 0;
+    GLint Tex2D = 0, Tex2DArray = 0, Tex3D = 0;
+    BindingState();
+};
 
 
 enum class DepthTestType : GLenum 
@@ -58,10 +81,10 @@ struct CtxResConfig : public CtxResCfg
     virtual T Construct() const = 0;
 };
 
+class oglProgram_;
+
 namespace detail
 {
-class _oglProgram;
-
 struct ContextResource
 {
     virtual ~ContextResource()
@@ -78,8 +101,8 @@ public:
     virtual ~AnyCtxRes() override {}
     T* Ptr() { return &Res; }
     const T* Ptr() const { return &Res; }
-    operator T&() { return Res; }
-    operator const T&() const { return Res; }
+    operator T& () { return Res; }
+    operator const T& () const { return Res; }
     T* operator->() { return &Res; }
     const T* operator->() const { return &Res; }
 };
@@ -117,24 +140,25 @@ public:
 
 struct OGLUAPI SharedContextCore
 {
-    friend class _oglContext;
+    friend class oglContext_;
     CtxResHandler ResHandler;
     const uint32_t Id;
     SharedContextCore();
     ~SharedContextCore();
 };
+}
+
 
 ///<summary>oglContext, all set/get method should be called after UseContext</summary>  
-class OGLUAPI _oglContext : public common::NonCopyable, public std::enable_shared_from_this<_oglContext>
+class OGLUAPI oglContext_ : public common::NonCopyable, public std::enable_shared_from_this<oglContext_>
 {
-    friend class _oglProgram;
-    friend class ::oglu::oglWorker;
-    friend class ::oglu::oglUtil;
-    friend class ::oglu::oglContext;
-    friend struct ::oglu::BindingState;
+    friend class oglProgram_;
+    friend class oglWorker;
+    friend class oglUtil;
+    friend struct BindingState;
     friend class ::oclu::GLInterop;
     friend class ::oclu::oclPlatform_;
-    template<bool> friend class oglCtxObject;
+    template<bool> friend class detail::oglCtxObject;
 public:
     struct DBGLimit
     {
@@ -143,15 +167,16 @@ public:
         MsgLevel minLV;
     };
 private:
+    MAKE_ENABLER();
     void *Hdc, *Hrc;
 #if defined(_WIN32)
 #else
     unsigned long DRW;
 #endif
-    CtxResHandler ResHandler;
+    detail::CtxResHandler ResHandler;
     std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
     common::container::FrozenDenseSet<std::string_view> Extensions;
-    const std::shared_ptr<SharedContextCore> SharedCore;
+    const std::shared_ptr<detail::SharedContextCore> SharedCore;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
@@ -159,14 +184,14 @@ private:
     bool IsExternal;
     //bool IsRetain = false;
 #if defined(_WIN32)
-    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external = false);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external = false);
 #else
-    _oglContext(const std::shared_ptr<SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external = false);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external = false);
 #endif
     void Init(const bool isCurrent);
     void FinishGL();
 public:
-    ~_oglContext();
+    ~oglContext_();
     const auto& GetExtensions() const { return Extensions; }
 
     bool UseContext(const bool force = false);
@@ -195,48 +220,17 @@ public:
     void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
     void SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);
     miniBLAS::VecI4 GetViewPort() const;
-};
-
-}
 
 
-struct OGLUAPI DebugMessage
-{
-    friend class detail::_oglContext;
-public:
-    const MsgType Type;
-    const MsgSrc From;
-    const MsgLevel Level;
-    std::u16string Msg;
 
-    DebugMessage(const GLenum from, const GLenum type, const GLenum lv);
-    ~DebugMessage();
-};
-
-
-class OGLUAPI oglContext : public common::Wrapper<detail::_oglContext>
-{
-    friend class detail::_oglContext;
-    friend class oglUtil;
-private:
-    //static void BasicInit();
-public:
-    using common::Wrapper<detail::_oglContext>::Wrapper;
     static uint32_t GetLatestVersion();
     static oglContext CurrentContext();
     static oglContext Refresh();
-    static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs);
+    static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
     static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
     static bool ReleaseExternContext(void* hrc);
 };
 
-struct OGLUAPI BindingState
-{
-    void *HRC = nullptr;
-    GLint Prog = 0, VAO = 0, FBO = 0, DFB = 0, RFB = 0, VBO = 0, IBO = 0, EBO = 0;
-    GLint Tex2D = 0, Tex2DArray = 0, Tex3D = 0;
-    BindingState();
-};
 
 
 }

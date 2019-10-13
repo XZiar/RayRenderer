@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "AsyncExecutor/AsyncAgent.h"
 #include "3DElement.hpp"
 
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
@@ -45,7 +44,6 @@ class OGLUAPI oglUtil
 {
 private:
 public:
-    //static void Init(const bool initLatestVer = false);
     static void InitLatestVersion();
     static std::u16string GetVersionStr();
     static std::optional<std::string_view> GetError();

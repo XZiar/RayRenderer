@@ -14,7 +14,7 @@ using common::linq::Linq;
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
     : Source(source), Config(config)
 {
-    Program.reset(name);
+    Program = oglDrawProgram_::Create(name);
     try
     {
         Program->AddExtShaders(source, Config);
@@ -61,7 +61,7 @@ void GLShader::RegistControllable()
         .RegistMember<false, true>(&GLShader::Source);
     for (const auto&[type, shader] : Program->getShaders())
     {
-        const auto stage = oglu::oglShader::GetStageName(shader->Type);
+        const auto stage = oglu::oglShader_::GetStageName(shader->Type);
         const auto u16stage = strchset::to_u16string(stage);
         RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
             .RegistGetterProxy<GLShader>([type=type](const GLShader& self)

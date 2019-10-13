@@ -20,11 +20,11 @@ using common::PromiseResult;
 void oglUtil::InitLatestVersion()
 {
     constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-    const auto glctx = oglContext::Refresh();
+    const auto glctx = oglContext_::Refresh();
     oglLog().info(u"GL Version:{}\n", GetVersionStr());
     for (const auto ver : VERSIONS)
     {
-        const auto ctx = oglContext::NewContext(glctx, false, ver);
+        const auto ctx = oglContext_::NewContext(glctx, false, ver);
         if (ctx)
         {
             ctx->UseContext();

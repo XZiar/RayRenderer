@@ -85,7 +85,7 @@ FontCreator::FontCreator(const oclu::oclContext ctx) : clCtx(ctx)
     
     loadCL(getShaderFromDLL(IDR_SHADER_SDFTEST));
     loadDownSampler(getShaderFromDLL(IDR_SHADER_DWNSAMP));
-    testTex.reset();
+    testTex = oglTex2DDynamic_::Create();
     testTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
 

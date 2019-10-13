@@ -30,10 +30,7 @@ static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
 }
 
 
-namespace detail
-{
 extern GLuint GetCurFBO();
-}
 
 static void GLAPIENTRY ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index)
 {
@@ -256,7 +253,7 @@ static void GLAPIENTRY ogluCreateFramebuffers(GLsizei n, GLuint *framebuffers)
     glGenFramebuffers(n, framebuffers);
     for (int i = 0; i < n; ++i)
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
-    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
 }
 static void GLAPIENTRY ogluFramebufferTextureARB(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
 {
@@ -273,12 +270,12 @@ static void GLAPIENTRY ogluFramebufferTexture(GLuint framebuffer, GLenum attachm
     case GL_TEXTURE_1D:
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         glFramebufferTexture1D(framebuffer, attachment, textarget, texture, level);
-        glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+        glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
         break;
     case GL_TEXTURE_2D:
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         glFramebufferTexture2D(framebuffer, attachment, textarget, texture, level);
-        glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+        glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
         break;
     default:
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported texture argument when calling Non-DSA FramebufferTexture");
@@ -292,27 +289,27 @@ static void GLAPIENTRY ogluFramebufferTextureLayer(GLuint framebuffer, GLenum at
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture, level, layer);
-    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
 }
 static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, detail::GetCurFBO());
+    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
 }
 
 
-static void GLAPIENTRY ogluMultiDrawArraysIndirect(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawArraysIndirect(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     DSAFuncs::Bind(indirect); //IBO not included in VAO
-    glMultiDrawArraysIndirect(mode, (const void*)(intptr_t)(offset * sizeof(detail::_oglIndirectBuffer::DrawArraysIndirectCommand)), primcount, 0);
+    glMultiDrawArraysIndirect(mode, (const void*)(intptr_t)(offset * sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand)), primcount, 0);
 }
-static void GLAPIENTRY ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     DSAFuncs::Bind(indirect); //IBO not included in VAO
-    glMultiDrawElementsIndirect(mode, type, (const void*)(intptr_t)(offset * sizeof(detail::_oglIndirectBuffer::DrawArraysIndirectCommand)), primcount, 0);
+    glMultiDrawElementsIndirect(mode, type, (const void*)(intptr_t)(offset * sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand)), primcount, 0);
 }
-static void GLAPIENTRY ogluMultiDrawArraysIndirectIB(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawArraysIndirectIB(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     const auto& cmd = &indirect->GetArrayCommands()[offset];
     for (GLsizei i = 0; i < primcount; i++)
@@ -320,7 +317,7 @@ static void GLAPIENTRY ogluMultiDrawArraysIndirectIB(GLenum mode, const Wrapper<
         glDrawArraysInstancedBaseInstance(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
     }
 }
-static void GLAPIENTRY ogluMultiDrawElementsIndirectIB(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawElementsIndirectIB(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     const auto& cmd = &indirect->GetElementCommands()[offset];
     for (GLsizei i = 0; i < primcount; i++)
@@ -328,7 +325,7 @@ static void GLAPIENTRY ogluMultiDrawElementsIndirectIB(GLenum mode, GLenum type,
         glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd[i].count, type, (const void*)(intptr_t)cmd[i].firstIndex, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
     }
 }
-static void GLAPIENTRY ogluMultiDrawArraysIndirectI(GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawArraysIndirectI(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     const auto& cmd = &indirect->GetArrayCommands()[offset];
     for (GLsizei i = 0; i < primcount; i++)
@@ -336,7 +333,7 @@ static void GLAPIENTRY ogluMultiDrawArraysIndirectI(GLenum mode, const Wrapper<d
         glDrawArraysInstanced(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
     }
 }
-static void GLAPIENTRY ogluMultiDrawElementsIndirectI(GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount)
+static void GLAPIENTRY ogluMultiDrawElementsIndirectI(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
 {
     const auto& cmd = &indirect->GetElementCommands()[offset];
     for (GLsizei i = 0; i < primcount; i++)

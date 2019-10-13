@@ -95,7 +95,7 @@ void _ModelMesh::ReleaseModel(const u16string& fname)
 }
 #pragma warning(default:4996)
 
-void _ModelMesh::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
+void _ModelMesh::PrepareVAO(oglu::oglVAO_::VAOPrep& vaoPrep) const
 {
     if (groups.empty())
         vaoPrep.SetDrawSize(0, (uint32_t)indexs.size());
@@ -111,7 +111,7 @@ void _ModelMesh::PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const
         }
         sizs.push_back(static_cast<uint32_t>(indexs.size() - last));
         //vaoPrep.SetDrawSize(offs, sizs);
-        vaoPrep.SetDrawSize(ibo);
+        vaoPrep.SetDrawSizeFrom(ibo);
     }
 }
 
@@ -248,12 +248,12 @@ void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
         AsyncAgent::SafeWait(task);
         return;
     }
-    vbo.reset();
+    vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
-    ebo.reset();
+    ebo = oglu::oglElementBuffer_::Create();
     ebo->WriteCompact(indexs);
     {
-        ibo.reset();
+        ibo = oglu::oglIndirectBuffer_::Create();
         vector<uint32_t> offs, sizes;
         uint32_t last = 0;
         for (const auto& g : groups)

@@ -60,7 +60,7 @@ struct VAOPack
 };
 
 using VAOKey = boost::multi_index::key<&VAOPack::drawable, &VAOPack::prog>;
-using ProgWeakComp = std::owner_less<std::weak_ptr<oglu::detail::_oglProgram>>;
+using ProgWeakComp = std::owner_less<std::weak_ptr<oglu::oglProgram_>>;
 using VAOKeyComp = boost::multi_index::composite_key_compare<std::less<const Drawable*>, ProgWeakComp>;
 using VAOMap = boost::multi_index_container<VAOPack, boost::multi_index::indexed_by<
     boost::multi_index::ordered_unique<VAOKey, VAOKeyComp>,
@@ -72,7 +72,7 @@ struct VAOMAPCtxConfig : public oglu::CtxResConfig<true, VAOMap>
     VAOMap Construct() const { return {}; }
 };
 static VAOMAPCtxConfig VAOMAP_CTX_CFG;
-static VAOMap& GetVAOMap(const oglu::oglContext& ctx = oglu::oglContext::CurrentContext())
+static VAOMap& GetVAOMap(const oglu::oglContext& ctx = oglu::oglContext_::CurrentContext())
 {
     return ctx->GetOrCreate<false>(VAOMAP_CTX_CFG);
 }
@@ -100,7 +100,7 @@ Drawable::Drawable(const std::type_index type, const u16string& typeName) : Uid(
 
 Drawable::~Drawable()
 {
-    const auto ctx = oglu::oglContext::CurrentContext();
+    const auto ctx = oglu::oglContext_::CurrentContext();
     if (!ctx) return;
     auto& vaomap = GetVAOMap();
     const auto& its = vaomap.equal_range(this);
@@ -110,7 +110,7 @@ Drawable::~Drawable()
 void Drawable::PrepareMaterial()
 {
     MaterialHolder = OnPrepareMaterial();
-    MaterialUBO.reset(32 * MultiMaterialHolder::WriteSize);
+    MaterialUBO = oglu::oglUniformBuffer_::Create(32 * MultiMaterialHolder::WriteSize);
 }
 
 void Drawable::AssignMaterial()
@@ -135,7 +135,7 @@ u16string Drawable::GetType() const
 void Drawable::ReleaseAll(const oglu::oglDrawProgram& prog)
 {
     auto& keyPart = GetVAOMap().get<1>();
-    const auto its = keyPart.equal_range(prog.weakRef());
+    const auto its = keyPart.equal_range(std::weak_ptr(prog));
     keyPart.erase(its.first, its.second);
 }
 
@@ -166,9 +166,9 @@ Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
 void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const
 {
     auto& vaomap = GetVAOMap();
-    const auto& it = vaomap.find(std::make_tuple(this, prog.weakRef()));
+    const auto& it = vaomap.find(std::make_tuple(this, std::weak_ptr(prog)));
     if (it == vaomap.cend())
-        vaomap.insert({ this, prog.weakRef(),vao });
+        vaomap.insert({ this, std::weak_ptr(prog),vao });
     else
         vaomap.modify(it, [&](VAOPack& pack) { pack.vao = vao; });
 }

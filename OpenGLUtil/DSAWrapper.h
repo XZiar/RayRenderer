@@ -4,10 +4,8 @@
 namespace oglu
 {
 
-namespace detail
-{
-class _oglIndirectBuffer;
-}
+class oglIndirectBuffer_;
+
 struct DSAFuncs
 {
     template<typename T>
@@ -47,8 +45,8 @@ struct DSAFuncs
     void (GLAPIENTRY *ogluFramebufferTextureLayer) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
     void (GLAPIENTRY *ogluFramebufferRenderbuffer) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
 
-    void (GLAPIENTRY *ogluMultiDrawArraysIndirect) (GLenum mode, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount) = nullptr;
-    void (GLAPIENTRY *ogluMultiDrawElementsIndirect) (GLenum mode, GLenum type, const Wrapper<detail::_oglIndirectBuffer>& indirect, GLint offset, GLsizei primcount) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawArraysIndirect) (GLenum mode, const std::shared_ptr<oglIndirectBuffer_>& indirect, GLint offset, GLsizei primcount) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawElementsIndirect) (GLenum mode, GLenum type, const std::shared_ptr<oglIndirectBuffer_>& indirect, GLint offset, GLsizei primcount) = nullptr;
 
 };
 extern thread_local const DSAFuncs* DSA;

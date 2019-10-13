@@ -16,9 +16,9 @@ using std::u16string;
 
 void oglWorker::Start()
 {
-    const auto curCtx = oglContext::CurrentContext();
-    ShareContext = oglContext::NewContext(curCtx, true);
-    IsolateContext = oglContext::NewContext(curCtx, false);
+    const auto curCtx = oglContext_::CurrentContext();
+    ShareContext = oglContext_::NewContext(curCtx, true);
+    IsolateContext = oglContext_::NewContext(curCtx, false);
     ShareExecutor.Start([&]()
     {
         const auto& prefix = u"[oglShare]" + Name;
@@ -36,7 +36,7 @@ void oglWorker::Start()
         {
             oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", prefix, ShareContext->Hdc, ShareContext->Hrc, GetError());
         }
-        ShareContext.release();
+        ShareContext.reset();
     });
     IsolateExecutor.Start([&]()
     {
@@ -55,7 +55,7 @@ void oglWorker::Start()
         {
             oglLog().error(u"{} terminate with HDC[{}] HRC[{}], error: {}\n", prefix, IsolateContext->Hdc, IsolateContext->Hrc, GetError());
         }
-        IsolateContext.release();
+        IsolateContext.reset();
     });
 }
 

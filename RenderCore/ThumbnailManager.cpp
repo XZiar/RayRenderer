@@ -71,7 +71,7 @@ common::PromiseResult<std::optional<ImageView>> ThumbnailManager::InnerPrepareTh
                     std::optional<ImageView> ret;
                     if (xziar::img::TexFormatUtil::IsCompressType(fakeTex->TexFormat))
                     {   //promise in GL's thread
-                        oglu::oglTex2DS tex(fakeTex->Width >> mipmap, fakeTex->Height >> mipmap, fakeTex->TexFormat);
+                        auto tex = oglu::oglTex2DStatic_::Create(fakeTex->Width >> mipmap, fakeTex->Height >> mipmap, fakeTex->TexFormat);
                         tex->SetCompressedData(fakeTex->TexData[mipmap].GetRawPtr(), fakeTex->TexData[mipmap].GetSize());
                         ret = ImageView(tex->GetImage(ImageDataType::RGB));
                     }

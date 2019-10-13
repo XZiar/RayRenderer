@@ -68,7 +68,7 @@ std::weak_ptr<void> TexHolder::GetWeakRef() const
 {
     switch (index())
     {
-    case 1: return std::get<oglTex2D>(*this).weakRef();
+    case 1: return std::get<oglTex2D>(*this);
     case 2: return std::weak_ptr<detail::_FakeTex>(std::get<FakeTex>(*this));
     default: return {};
     }
@@ -229,7 +229,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
 {
     oglu::oglTex2DV Construct() const 
     { 
-        oglu::oglTex2DS chkTex(128, 128, xziar::img::TextureFormat::SRGBA8);
+        auto chkTex = oglu::oglTex2DStatic_::Create(128, 128, xziar::img::TextureFormat::SRGBA8);
         std::array<uint32_t, 128 * 128> pixs{};
         for (uint32_t a = 0, idx = 0; a < 128; ++a)
         {
@@ -249,7 +249,7 @@ static CheckTexCtxConfig CHKTEX_CTXCFG;
 
 oglu::oglTex2DV MultiMaterialHolder::GetCheckTex()
 {
-    return oglu::oglContext::CurrentContext()->GetOrCreate<true>(CHKTEX_CTXCFG);
+    return oglu::oglContext_::CurrentContext()->GetOrCreate<true>(CHKTEX_CTXCFG);
 }
 
 
@@ -357,7 +357,7 @@ void MultiMaterialHolder::Refresh()
                 for (const auto&[th, p] : newArrange)
                     if (p.first == tid)
                         texs.insert(th);
-                texarr.release(); //release texture, wait for reconstruct
+                texarr.reset(); //release texture, wait for reconstruct
             }
         }
     }
@@ -370,12 +370,12 @@ void MultiMaterialHolder::Refresh()
         {
             objLayer = (uint16_t)std::get<2>(texarr->GetSize());
             const auto texname = texarr->Name;
-            texarr = oglTex2DArray(texarr, (uint32_t)(texs.size()));
+            texarr = oglu::oglTex2DArray_::Create(texarr, (uint32_t)(texs.size()));
             texarr->Name = texname;
         }
         else
         {
-            texarr.reset(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
+            texarr = oglu::oglTex2DArray_::Create(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
             texarr->Name = fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(FMT_STRING(u"MatTexArr {}@{}x{}x{}"), xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
         }
@@ -399,7 +399,7 @@ void MultiMaterialHolder::Refresh()
     }
 }
 
-void MultiMaterialHolder::BindTexture(oglu::detail::ProgDraw& drawcall) const
+void MultiMaterialHolder::BindTexture(oglu::ProgDraw& drawcall) const
 {
     for (const auto&[tid, bank] : TextureLookup)
     {

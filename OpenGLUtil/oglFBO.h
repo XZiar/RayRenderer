@@ -10,6 +10,13 @@
 
 namespace oglu
 {
+class oglRenderBuffer_;
+using oglRBO = std::shared_ptr<oglRenderBuffer_>;
+class oglFrameBuffer_;
+using oglFBO = std::shared_ptr<oglFrameBuffer_>;
+
+
+
 enum class RBOFormat : uint8_t
 {
     TYPE_MASK = 0xf0,
@@ -21,45 +28,43 @@ enum class RBOFormat : uint8_t
 };
 MAKE_ENUM_BITFIELD(RBOFormat)
 
-namespace detail
-{
-class OGLUAPI _oglRenderBuffer : public common::NonMovable, public oglCtxObject<true>
-{
-    friend class _oglFrameBuffer;
-public:
-private:
-    GLuint RBOId;
-    const RBOFormat InnerFormat;
-    const uint32_t Width, Height;
-public:
-    _oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format);
-    ~_oglRenderBuffer();
-    RBOFormat GetType() const { return InnerFormat & RBOFormat::TYPE_MASK; }
-};
-}
-using oglRBO = Wrapper<detail::_oglRenderBuffer>;
-
 enum class FBOStatus : uint8_t
 {
     Complete, Undefined, Unsupported, IncompleteAttachment, MissingAttachment, IncompleteDrawBuffer, IncompleteReadBuffer, IncompleteMultiSample, IncompleteLayerTargets, Unknown
 };
 
-class oglFBO;
-namespace detail
+
+class OGLUAPI oglRenderBuffer_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-class OGLUAPI _oglFrameBuffer : public common::NonMovable, public oglCtxObject<false>
-{
-    friend class _oglContext;
-public:
-    using FBOAttachment = std::variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, std::pair<oglTex2DArray, uint32_t>>;
+    friend class oglFrameBuffer_;
 private:
+    MAKE_ENABLER();
+    GLuint RBOId;
+    const RBOFormat InnerFormat;
+    const uint32_t Width, Height;
+    oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format);
+public:
+    ~oglRenderBuffer_();
+    RBOFormat GetType() const { return InnerFormat & RBOFormat::TYPE_MASK; }
+
+    static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
+};
+
+
+class OGLUAPI oglFrameBuffer_ : public common::NonMovable, public detail::oglCtxObject<false>
+{
+    friend class oglContext_;
+public:
+    using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, std::pair<oglTex2DArray, uint32_t>>;
+private:
+    MAKE_ENABLER();
     GLuint FBOId;
     std::vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
+    oglFrameBuffer_();
 public:
-    _oglFrameBuffer();
-    ~_oglFrameBuffer();
+    ~oglFrameBuffer_();
     FBOStatus CheckStatus() const;
     void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment);
     void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
@@ -74,16 +79,13 @@ public:
     void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void Use() const;
     std::pair<GLuint, GLuint> DebugBinding() const;
-};
-}
 
-class OGLUAPI oglFBO : public common::Wrapper<detail::_oglFrameBuffer>
-{
-public:
-    using common::Wrapper<detail::_oglFrameBuffer>::Wrapper;
+
+    static oglFBO Create();
     static void UseDefault();
     static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
 };
+
 
 }
 

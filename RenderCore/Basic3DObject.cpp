@@ -31,13 +31,13 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), Sidelen(len)
     };
     for (auto& pt : pts)
         pt.pos *= Sidelen;
-    vbo.reset();
+    vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
 }
 
 void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+    auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
         .SetDrawSize(0, 12);
     SetVAO(prog, vao);
@@ -102,16 +102,16 @@ Sphere::Sphere(const float r) : Drawable(this, TYPENAME), Radius(r)
 {
     vectorEx<Point> pts;
     auto indexs = CreateSphere(pts, Radius);
-    vbo.reset();
+    vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
-    ebo.reset();
+    ebo = oglu::oglElementBuffer_::Create();
     ebo->WriteCompact(indexs);
     ptcount = static_cast<uint32_t>(indexs.size());
 }
 
 void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+    auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)//bind vertex attribute
         .SetIndex(ebo)//index draw
         .SetDrawSize(0, ptcount);
@@ -197,13 +197,13 @@ Box::Box(const float length, const float height, const float width) : Drawable(t
     pts.assign(BoxBasePts, BoxBasePts + 36);
     for (auto& pt : pts)
         pt.pos *= Size;
-    vbo.reset();
+    vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
 }
 
 void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+    auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
         .SetDrawSize(0, 36);
     SetVAO(prog, vao);
@@ -238,13 +238,13 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME),
         { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
         { { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, texRepeat } },//v7
     };
-    vbo.reset();
+    vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts, sizeof(pts));
 }
 
 void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+    auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
     DefaultBind(prog, vao, vbo)
         .SetDrawSize(0, 6);
     SetVAO(prog, vao);

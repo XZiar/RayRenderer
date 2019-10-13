@@ -53,7 +53,7 @@ void FontViewer::RegisterControllable()
 
 FontViewer::FontViewer()
 {
-    prog.reset(u"FontViewer");
+    prog = oglDrawProgram_::Create(u"FontViewer");
     try
     {
         prog->AddExtShaders(getShaderFromDLL(IDR_SHADER_PRINTFONT));
@@ -73,8 +73,8 @@ FontViewer::FontViewer()
         COMMON_THROW(BaseException, u"link Program error");
     }
 
-    viewVAO.reset(VAODrawMode::Triangles);
-    viewRect.reset();
+    viewVAO = oglVAO_::Create(VAODrawMode::Triangles);
+    viewRect = oglArrayBuffer_::Create();
     {
         const Point pa({ -1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }),
             pb({ 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 0.0f }),

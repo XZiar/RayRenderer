@@ -22,9 +22,15 @@ using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
-
-
+using b3d::Vec3;
+using b3d::Vec4;
+using b3d::Mat3x3;
+using b3d::Mat4x4;
 using namespace std::literals;
+
+MAKE_ENABLER_IMPL(oglDrawProgram_)
+MAKE_ENABLER_IMPL(oglComputeProgram_)
+
 
 template<typename T = GLint>
 static T ProgResGetValue(const GLuint pid, const GLenum type, const GLint ifidx, const GLenum prop)
@@ -108,8 +114,6 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint P
 }
 
 
-namespace detail
-{
 
 struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
 {
@@ -117,25 +121,25 @@ struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
 };
 static ProgRecCtxConfig PROGREC_CTXCFG;
 
-_oglProgram::_oglProgram(const u16string& name) : Name(name)
+oglProgram_::oglProgram_(const u16string& name) : Name(name)
 {
     ProgramID = glCreateProgram();
 }
 
-_oglProgram::~_oglProgram()
+oglProgram_::~oglProgram_()
 {
     if (usethis(*this, false)) //need unuse
     {
-        auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
+        auto& progRec = oglContext_::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
         glUseProgram(progRec = 0);
     }
     glDeleteProgram(ProgramID);
 }
 
-bool _oglProgram::usethis(_oglProgram& prog, const bool change)
+bool oglProgram_::usethis(oglProgram_& prog, const bool change)
 {
     prog.CheckCurrent();
-    auto& progRec = oglContext::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
+    auto& progRec = oglContext_::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
     if (progRec == prog.ProgramID)
         return true;
     if (!change)//only return status
@@ -146,15 +150,15 @@ bool _oglProgram::usethis(_oglProgram& prog, const bool change)
     return true;
 }
 
-void _oglProgram::RecoverState()
+void oglProgram_::RecoverState()
 {
     CheckCurrent();
     SetSubroutine();
-    auto& texMan = _oglTexBase::getTexMan();
+    auto& texMan = oglTexBase_::getTexMan();
     texMan.unpin();
-    auto& imgMan = _oglImgBase::getImgMan();
+    auto& imgMan = oglImgBase_::getImgMan();
     imgMan.unpin();
-    auto& uboMan = _oglUniformBuffer::getUBOMan();
+    auto& uboMan = oglUniformBuffer_::getUBOMan();
     uboMan.unpin();
     SetTexture(texMan, TexBindings, true);
     SetImage(imgMan, ImgBindings, true);
@@ -162,7 +166,7 @@ void _oglProgram::RecoverState()
 }
 
 
-void _oglProgram::InitLocs()
+void oglProgram_::InitLocs()
 {
     CheckCurrent();
     set<ProgramResource, ProgramResource::Lesser> dataMap;
@@ -232,7 +236,7 @@ void _oglProgram::InitLocs()
     UniBindCache.resize(maxUniLoc, GL_INVALID_INDEX);
 }
 
-void _oglProgram::InitSubroutines()
+void oglProgram_::InitSubroutines()
 {
     CheckCurrent();
     SubroutineRess.clear();
@@ -321,7 +325,7 @@ static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
     }
 }
 
-void _oglProgram::FilterProperties()
+void oglProgram_::FilterProperties()
 {
     CheckCurrent();
     set<ShaderExtProperty, ShaderExtProperty::Lesser> newProperties;
@@ -383,7 +387,7 @@ void _oglProgram::FilterProperties()
 }
 
 
-void _oglProgram::AddShader(const oglShader& shader)
+void oglProgram_::AddShader(const oglShader& shader)
 {
     CheckCurrent();
     if (Shaders.try_emplace(shader->Type, shader).second)
@@ -393,7 +397,7 @@ void _oglProgram::AddShader(const oglShader& shader)
 }
 
 
-void _oglProgram::Link()
+void oglProgram_::Link()
 {
     CheckCurrent();
     glLinkProgram(ProgramID);
@@ -444,13 +448,13 @@ void _oglProgram::Link()
 }
 
 
-GLint _oglProgram::GetLoc(const ProgramResource* res, GLenum valtype) const
+GLint oglProgram_::GetLoc(const ProgramResource* res, GLenum valtype) const
 {
     if (res && res->Valtype == valtype)
         return res->location;
     return GL_INVALID_INDEX;
 }
-GLint _oglProgram::GetLoc(const string& name, GLenum valtype) const
+GLint oglProgram_::GetLoc(const string& name, GLenum valtype) const
 {
     auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
         : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
@@ -458,7 +462,7 @@ GLint _oglProgram::GetLoc(const string& name, GLenum valtype) const
         return obj->location;
     return GL_INVALID_INDEX;
 }
-GLint _oglProgram::GetLoc(const string& name) const
+GLint oglProgram_::GetLoc(const string& name) const
 {
     auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
         : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
@@ -467,25 +471,25 @@ GLint _oglProgram::GetLoc(const string& name) const
     return GL_INVALID_INDEX;
 }
 
-const SubroutineResource::Routine* _oglProgram::GetSubroutine(const string& sruname)
+const SubroutineResource::Routine* oglProgram_::GetSubroutine(const string& sruname)
 {
     if (const SubroutineResource* pSru = FindInSet(SubroutineRess, sruname); pSru)
         return GetSubroutine(*pSru);
     oglLog().warning(u"cannot find subroutine object {}\n", sruname);
     return nullptr;
 }
-const SubroutineResource::Routine* _oglProgram::GetSubroutine(const SubroutineResource& sru)
+const SubroutineResource::Routine* oglProgram_::GetSubroutine(const SubroutineResource& sru)
 {
     return FindInMapOrDefault(SubroutineBindings, &sru);
 }
 
-ProgState _oglProgram::State() noexcept
+ProgState oglProgram_::State() noexcept
 {
     return ProgState(*this);
 }
 
 
-void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin)
+void oglProgram_::SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin)
 {
     CheckCurrent();
     auto& obj = UniBindCache[pos];
@@ -496,7 +500,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const GLint pos, const oglT
     glProgramUniform1i(ProgramID, pos, obj = val);
 }
 
-void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
+void oglProgram_::SetTexture(detail::TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
 {
     CheckCurrent();
     switch (texs.size())
@@ -512,7 +516,7 @@ void _oglProgram::SetTexture(TextureManager& texMan, const map<GLuint, oglTexBas
     }
 }
 
-void _oglProgram::SetImage(TexImgManager& texMan, const GLint pos, const oglImgBase& img, const bool shouldPin)
+void oglProgram_::SetImage(detail::TexImgManager& texMan, const GLint pos, const oglImgBase& img, const bool shouldPin)
 {
     CheckCurrent();
     auto& obj = UniBindCache[pos];
@@ -523,7 +527,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const GLint pos, const oglImgB
     glProgramUniform1i(ProgramID, pos, obj = val);
 }
 
-void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>& imgs, const bool shouldPin)
+void oglProgram_::SetImage(detail::TexImgManager& texMan, const map<GLuint, oglImgBase>& imgs, const bool shouldPin)
 {
     CheckCurrent();
     switch (imgs.size())
@@ -539,7 +543,7 @@ void _oglProgram::SetImage(TexImgManager& texMan, const map<GLuint, oglImgBase>&
     }
 }
 
-void _oglProgram::SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin)
+void oglProgram_::SetUBO(detail::UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin)
 {
     CheckCurrent();
     auto& obj = UniBindCache[pos];
@@ -550,7 +554,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo,
     glUniformBlockBinding(ProgramID, pos, obj = val);
 }
 
-void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
+void oglProgram_::SetUBO(detail::UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
 {
     CheckCurrent();
     switch (ubos.size())
@@ -566,7 +570,7 @@ void _oglProgram::SetUBO(UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, co
     }
 }
 
-void _oglProgram::SetSubroutine()
+void oglProgram_::SetSubroutine()
 {
     CheckCurrent();
     for (const auto&[stype, subrs] : SubroutineSettings)
@@ -577,7 +581,7 @@ void _oglProgram::SetSubroutine()
     }
 }
 
-void _oglProgram::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
+void oglProgram_::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
 {
     CheckCurrent();
     auto& oldRoutine = SubroutineBindings[subr];
@@ -586,7 +590,7 @@ void _oglProgram::SetSubroutine(const SubroutineResource* subr, const Subroutine
     oldRoutine = routine;
 }
 
-void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -596,7 +600,7 @@ void _oglProgram::SetUniform(const GLint pos, const b3d::Coord2D& vec, const boo
         glProgramUniform2fv(ProgramID, pos, 1, vec);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -606,7 +610,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const b
         glProgramUniform3fv(ProgramID, pos, 1, vec);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -616,7 +620,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const b
         glProgramUniform4fv(ProgramID, pos, 1, vec);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -626,7 +630,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const
         glProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -636,7 +640,7 @@ void _oglProgram::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const
         glProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const bool val, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -646,7 +650,7 @@ void _oglProgram::SetUniform(const GLint pos, const bool val, const bool keep)
         glProgramUniform1i(ProgramID, pos, val);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const int32_t val, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -656,7 +660,7 @@ void _oglProgram::SetUniform(const GLint pos, const int32_t val, const bool keep
         glProgramUniform1i(ProgramID, pos, val);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const uint32_t val, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -666,7 +670,7 @@ void _oglProgram::SetUniform(const GLint pos, const uint32_t val, const bool kee
         glProgramUniform1ui(ProgramID, pos, val);
     }
 }
-void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
+void oglProgram_::SetUniform(const GLint pos, const float val, const bool keep)
 {
     CheckCurrent();
     if (pos != (GLint)GL_INVALID_INDEX)
@@ -680,7 +684,7 @@ void _oglProgram::SetUniform(const GLint pos, const float val, const bool keep)
 
 ProgState::~ProgState()
 {
-    if (_oglProgram::usethis(Prog, false)) //self used, then changed to keep pinned status
+    if (oglProgram_::usethis(Prog, false)) //self used, then changed to keep pinned status
     {
         Prog.RecoverState();
     }
@@ -771,7 +775,7 @@ ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_vi
 }
 
 
-void _oglDrawProgram::OnPrepare()
+void oglDrawProgram_::OnPrepare()
 {
     for (const auto&[target, res] : ResNameMapping)
     {
@@ -787,9 +791,9 @@ void _oglDrawProgram::OnPrepare()
     }
 }
 
-bool _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& config)
+bool oglDrawProgram_::AddExtShaders(const string& src, const ShaderConfig& config)
 {
-    const auto s = oglShader::LoadDrawFromExSrc(src, ExtInfo, config);
+    const auto s = oglShader_::LoadDrawFromExSrc(src, ExtInfo, config);
     for (auto shader : s)
     {
         shader->compile();
@@ -798,32 +802,37 @@ bool _oglDrawProgram::AddExtShaders(const string& src, const ShaderConfig& confi
     return !s.empty();
 }
 
-void _oglDrawProgram::SetProject(const Mat4x4& projMat)
+void oglDrawProgram_::SetProject(const Mat4x4& projMat)
 {
     matrix_Proj = projMat;
     SetUniform(Uni_projMat, matrix_Proj);
 }
 
-void _oglDrawProgram::SetView(const Mat4x4 & viewMat)
+void oglDrawProgram_::SetView(const Mat4x4 & viewMat)
 {
     matrix_View = viewMat;
     SetUniform(Uni_viewMat, matrix_View);
 }
 
-ProgDraw _oglDrawProgram::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
 {
     return ProgDraw(*this, modelMat, normMat);
 }
-ProgDraw _oglDrawProgram::Draw(const Mat4x4& modelMat) noexcept
+ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat) noexcept
 {
     return Draw(modelMat, (Mat3x3)modelMat);
 }
 
-
-ProgDraw::ProgDraw(_oglDrawProgram& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-    : Prog(prog), TexMan(_oglTexBase::getTexMan()), ImgMan(_oglImgBase::getImgMan()), UboMan(_oglUniformBuffer::getUBOMan())
+oglDrawProgram oglu::oglDrawProgram_::Create(const std::u16string& name)
 {
-    _oglProgram::usethis(Prog);
+    return MAKE_ENABLER_SHARED(oglDrawProgram_, name);
+}
+
+
+ProgDraw::ProgDraw(oglDrawProgram_& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+    : Prog(prog), TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
+{
+    oglProgram_::usethis(Prog);
     SetPosition(modelMat, normMat);
 }
 ProgDraw::~ProgDraw()
@@ -895,9 +904,9 @@ ProgDraw& ProgDraw::Restore(const bool quick)
     }
     return *this;
 }
-std::weak_ptr<_oglDrawProgram> ProgDraw::GetProg() const noexcept
+std::weak_ptr<oglDrawProgram_> ProgDraw::GetProg() const noexcept
 {
-    return std::dynamic_pointer_cast<_oglDrawProgram>(Prog.shared_from_this());
+    return std::dynamic_pointer_cast<oglDrawProgram_>(Prog.shared_from_this());
 }
 
 ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
@@ -1048,9 +1057,9 @@ ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view
 
 
 
-bool _oglComputeProgram::AddExtShaders(const string& src, const ShaderConfig& config)
+bool oglComputeProgram_::AddExtShaders(const string& src, const ShaderConfig& config)
 {
-    const auto s = oglShader::LoadComputeFromExSrc(src, ExtInfo, config);
+    const auto s = oglShader_::LoadComputeFromExSrc(src, ExtInfo, config);
     if (s.empty())
         return false;// COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");
     auto shader = *s.cbegin();
@@ -1058,18 +1067,22 @@ bool _oglComputeProgram::AddExtShaders(const string& src, const ShaderConfig& co
     AddShader(shader);
     return true;
 }
-void _oglComputeProgram::OnPrepare()
+void oglComputeProgram_::OnPrepare()
 {
     glGetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
     oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
-void _oglComputeProgram::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
+void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
 {
     CheckCurrent();
     usethis(*this);
     glDispatchCompute(groupX, groupY, groupZ);
 }
 
+oglComputeProgram oglu::oglComputeProgram_::Create(const std::u16string& name)
+{
+    return MAKE_ENABLER_SHARED(oglComputeProgram_, name);
 }
+
 
 }

@@ -17,7 +17,7 @@ ProgramResource::ProgramResource(const oglu::ProgramResource& res)
 }
 
 
-SubroutineResource::SubroutineResource(const std::weak_ptr<oglu::detail::_oglProgram>& prog, const oglu::SubroutineResource& res)
+SubroutineResource::SubroutineResource(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::SubroutineResource& res)
     : Prog(prog), cppname(res.Name)
 {
     name = ToStr(cppname);
@@ -28,7 +28,7 @@ SubroutineResource::SubroutineResource(const std::weak_ptr<oglu::detail::_oglPro
 }
 
 
-GLProgram::GLProgram(const oglu::oglProgram& obj) : prog(new std::weak_ptr<oglu::detail::_oglProgram>(obj))
+GLProgram::GLProgram(const oglu::oglProgram& obj) : prog(new std::weak_ptr<oglu::oglProgram_>(obj))
 {
     const auto& props = obj->getResourceProperties();
     for (const auto& res : obj->getResources())

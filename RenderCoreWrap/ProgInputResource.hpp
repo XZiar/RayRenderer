@@ -7,7 +7,7 @@ namespace OpenGLUtil
 {
 
 #pragma managed(push, off)
-inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::detail::_oglProgram>& prog, const GLint location)
+inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const GLint location)
 {
     return common::container::FindInMap(prog.lock()->getCurUniforms(), (GLint)location);
 }
@@ -16,10 +16,10 @@ inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::det
 public ref class ProgInputResource : public ProgramResource
 {
 protected:
-    const std::weak_ptr<oglu::detail::_oglProgram>& Prog;
+    const std::weak_ptr<oglu::oglProgram_>& Prog;
     const oglu::ProgramResource *ptrRes;
     initonly String^ description;
-    ProgInputResource(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    ProgInputResource(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : ProgramResource(res), Prog(*ptrProg), ptrRes(&res), description(ToStr(prop.Description))
     { }
     const oglu::UniformValue* GetValue() { return GetProgCurUniform(Prog, location); }
@@ -32,7 +32,7 @@ template<typename T>
 public ref class RangedProgInputRes abstract : public ProgInputResource
 {
 internal:
-    RangedProgInputRes(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    RangedProgInputRes(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : ProgInputResource(ptrProg, res, prop)
     {
         const auto& range = *std::any_cast<std::pair<T, T>>(&prop.Data);
@@ -56,7 +56,7 @@ template<typename T>
 public ref class Ranged2ProgInputRes abstract : public ProgInputResource
 {
 internal:
-    Ranged2ProgInputRes(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    Ranged2ProgInputRes(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : ProgInputResource(ptrProg, res, prop)
     {
         const auto& range = *std::any_cast<std::pair<T, T>>(&prop.Data);
@@ -93,7 +93,7 @@ protected:
         Prog.lock()->SetUniform(ptrRes, val);
     };
 internal:
-    RangedProgInputRes_Float(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    RangedProgInputRes_Float(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : RangedProgInputRes(ptrProg, res, prop) { }
 };
 
@@ -119,7 +119,7 @@ protected:
         }
     };
 internal:
-    Ranged2ProgInputRes_Float(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    Ranged2ProgInputRes_Float(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : Ranged2ProgInputRes(ptrProg, res, prop) { }
 };
 
@@ -127,7 +127,7 @@ internal:
 public ref class ColorProgInputRes : public ProgInputResource
 {
 internal:
-    ColorProgInputRes(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    ColorProgInputRes(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : ProgInputResource(ptrProg, res, prop)
     {
         defValue = System::Windows::Media::Color::FromArgb(0, 0, 0, 0);
@@ -154,7 +154,7 @@ public:
 public ref class SwitchProgInputRes : public ProgInputResource
 {
 internal:
-    SwitchProgInputRes(const std::weak_ptr<oglu::detail::_oglProgram>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
+    SwitchProgInputRes(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
         : ProgInputResource(ptrProg, res, prop)
     { }
 public:

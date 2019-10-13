@@ -6,7 +6,7 @@
 
 #include "RenderCore/RenderCore.h"
 #include "RenderCore/TextureLoader.h"
-#include "RenderCore/BasicTest.h"
+#include "RenderCore/ThumbnailManager.h"
 #include "common/Exceptions.hpp"
 #include "MiniLogger/MiniLogger.h"
 

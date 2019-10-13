@@ -52,7 +52,7 @@ rayr::TexHolder TexHolder::ExtractHolder()
     if (!holder) return {};
     switch (TypeId)
     {
-    case 1: return oglu::oglTex2D(std::reinterpret_pointer_cast<oglu::detail::_oglTexture2D>(holder));
+    case 1: return oglu::oglTex2D(std::reinterpret_pointer_cast<oglu::oglTex2D_>(holder));
     case 2: return std::reinterpret_pointer_cast<rayr::detail::_FakeTex>(holder);
     default: return {};
     }

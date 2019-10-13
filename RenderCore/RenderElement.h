@@ -16,7 +16,7 @@ using namespace b3d;
 class RAYCOREAPI Drawable : public AlignBase<16>, public NonCopyable, public xziar::respak::Serializable, public Controllable
 {
 public:
-    using Drawcall = oglu::detail::ProgDraw;
+    using Drawcall = oglu::ProgDraw;
     Vec3 Position = Vec3::zero(), Rotation = Vec3::zero(), Scale = Vec3::one();
     MultiMaterialHolder MaterialHolder;
     u16string Name;
@@ -77,7 +77,7 @@ protected:
     ///<param name="prog">target shader program</param>
     ///<param name="vao">saved VAO</param>
     void SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const;
-    const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram& prog) const { return GetVAO(prog.weakRef()); }
+    const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram& prog) const { return GetVAO(std::weak_ptr<oglu::oglDrawProgram_>(prog)); }
     const oglu::oglVAO& GetVAO(const Drawcall& drawcall) const { return GetVAO(drawcall.GetProg()); }
     const oglu::oglVAO& GetVAO(const oglu::oglDrawProgram::weak_type& weakProg) const;
     template<typename T>

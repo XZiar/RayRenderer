@@ -63,7 +63,7 @@ public:
     oglu::oglVAO VAOScreen;
     FontTester(const oclu::oclContext ctx) : FontCreator(ctx), FontViewer(std::in_place)
     {
-        FontTex.reset();
+        FontTex = oglu::oglTex2DDynamic_::Create();
         RegistControllable();
     }
     ~FontTester() {}

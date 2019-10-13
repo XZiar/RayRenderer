@@ -52,7 +52,7 @@ void RenderPassContext::SetTexture(const string_view & name, const oglu::oglTex2
 }
 
 
-RenderPass::RenderPass() : GLContext(oglu::oglContext::CurrentContext())
+RenderPass::RenderPass() : GLContext(oglu::oglContext_::CurrentContext())
 {
 
 }
@@ -145,7 +145,7 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     }
     else
     {
-        oglu::oglFBO::UseDefault();
+        oglu::oglFrameBuffer_::UseDefault();
     }
     Program->SetProject(cam->GetProjection(float(scw) / sch));
     Program->SetView(cam->GetView());
@@ -192,7 +192,7 @@ void RenderPipeLine::RegistControllable()
         .RegistMember(&RenderPipeLine::Name);
 }
 
-RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext::CurrentContext())
+RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext_::CurrentContext())
 {
 }
 

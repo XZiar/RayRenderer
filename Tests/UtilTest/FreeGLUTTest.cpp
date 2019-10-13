@@ -27,16 +27,16 @@ static void FGTest()
     FreeGLUTViewInit();
     auto window = std::make_shared<glutview::detail::_FreeGLUTView>();
     oglUtil::InitLatestVersion();
-    const auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
+    const auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
     ctx->UseContext();
     window->SetTitle("FGTest");
-    oglDrawProgram drawer(u"MainDrawer");
-    oglVBO screenBox(std::in_place);
-    oglVAO basicVAO(VAODrawMode::Triangles);
-    oglTex3DS lutTex(64, 64, 64, xziar::img::TextureFormat::RGBA8);
+    auto drawer = oglDrawProgram_::Create(u"MainDrawer");
+    auto screenBox = oglArrayBuffer_::Create();
+    auto basicVAO = oglVAO_::Create(VAODrawMode::Triangles);
+    auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    oglImg3D lutImg(lutTex, TexImgUsage::WriteOnly);
-    oglComputeProgram lutGenerator(u"ColorLut");
+    auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
+    auto lutGenerator = oglComputeProgram_::Create(u"ColorLut");
     lutGenerator->AddExtShaders(LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     lutGenerator->Link();
     lutGenerator->State()
@@ -78,7 +78,7 @@ static void FGTest()
     }
     window->funDisp = [&](FreeGLUTView) 
     { 
-        oglContext::Refresh(); 
+        oglContext_::Refresh(); 
         ctx->UseContext(); 
         drawer->Draw()
             .SetUniform("lutZ", lutZ)
@@ -87,7 +87,7 @@ static void FGTest()
     };
     window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)
     {
-        oglContext::Refresh();
+        oglContext_::Refresh();
         ctx->UseContext();
         ctx->SetViewPort(0, 0, w, h);
         log().verbose(u"Resize to [{},{}].\n", w, h);
@@ -122,11 +122,11 @@ static void FGTest()
     // window->funDropFile = onDropFile;
     window->funOnClose = [&](FreeGLUTView) 
     { 
-        auto oldCtx = oglContext::Refresh(); 
+        auto oldCtx = oglContext_::Refresh(); 
         ctx->UseContext();
-        drawer.release();
-        screenBox.release();
-        basicVAO.release();
+        drawer.reset();
+        screenBox.reset();
+        basicVAO.reset();
         ctx->Release();
         oldCtx->UseContext();
     };

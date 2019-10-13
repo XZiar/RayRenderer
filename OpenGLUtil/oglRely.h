@@ -23,7 +23,6 @@
 #include "common/EnumEx.hpp"
 #include "common/CopyEx.hpp"
 #include "common/ContainerEx.hpp"
-#include "common/Wrapper.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
@@ -79,9 +78,6 @@ class GLInterOP;
 
 namespace oglu
 {
-using common::Wrapper;
-
-
 using GLboolean  = uint8_t;
 using GLbyte     = int8_t;
 using GLubyte    = uint8_t;
@@ -106,6 +102,7 @@ using GLclampd   = double;
 
 class oglWorker;
 struct DSAFuncs;
+class oglContext_;
 
 
 namespace detail
@@ -114,14 +111,12 @@ class TextureManager;
 class TexImgManager;
 class UBOManager;
 struct SharedContextCore;
-class _oglContext;
-class _oglBuffer;
 
 template<bool IsShared>
 class OGLUAPI oglCtxObject : public common::NonCopyable
 {
 private:
-    using CtxType = std::conditional_t<IsShared, SharedContextCore, _oglContext>;
+    using CtxType = std::conditional_t<IsShared, SharedContextCore, oglContext_>;
     static std::weak_ptr<CtxType> GetCtx();
     const std::weak_ptr<CtxType> Context;
 protected:

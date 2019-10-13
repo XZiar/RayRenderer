@@ -15,19 +15,17 @@
 
 namespace oglu
 {
-using b3d::Vec3;
-using b3d::Vec4;
-using b3d::Mat3x3;
-using b3d::Mat4x4;
+class ProgDraw;
+class oglProgram_;
+using oglProgram        = std::shared_ptr<oglProgram_>;
+class oglDrawProgram_;
+using oglDrawProgram    = std::shared_ptr<oglDrawProgram_>;
+class oglComputeProgram_;
+using oglComputeProgram = std::shared_ptr<oglComputeProgram_>;
+
 
 using UniformValue = std::variant<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
 
-namespace detail
-{
-class _oglProgram;
-class ProgState;
-class ProgDraw;
-}
 
 enum class ProgResType : uint16_t 
 { 
@@ -41,9 +39,9 @@ MAKE_ENUM_BITFIELD(ProgResType)
 
 struct OGLUAPI ProgramResource
 {
-    friend class detail::_oglProgram;
-    friend class detail::ProgState;
-    friend class detail::ProgDraw;
+    friend class oglProgram_;
+    friend class ProgState;
+    friend class ProgDraw;
 public:
     std::string Name;
     GLenum Type;
@@ -61,16 +59,16 @@ public:
 
 class OGLUAPI SubroutineResource
 {
-    friend class detail::_oglProgram;
-    friend class detail::ProgState;
-    friend class detail::ProgDraw;
+    friend class oglProgram_;
+    friend class ProgState;
+    friend class ProgDraw;
 public:
     struct OGLUAPI Routine
     {
         friend class SubroutineResource;
-        friend class ::oglu::detail::_oglProgram;
-        friend class ::oglu::detail::ProgState;
-        friend class ::oglu::detail::ProgDraw;
+        friend class oglProgram_;
+        friend class ProgState;
+        friend class ProgDraw;
         const std::string Name;
     private:
         const GLuint Id;
@@ -104,11 +102,33 @@ enum class ProgramMappingTarget : uint64_t
     DrawID     = "DrawID"_hash,
 };
 
-namespace detail
+
+///<summary>ProgState, use to batch set program binding states</summary>  
+class OGLUAPI ProgState : public common::NonCopyable
 {
+    friend class oglProgram_;
+private:
+    oglProgram_& Prog;
+    ProgState(oglProgram_& prog) : Prog(prog) { }
+    ProgState(ProgState&& other) = default;
+public:
+    ~ProgState();
+    ProgState& SetTexture(const oglTexBase& tex, const std::string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
+    ProgState& SetImage(const oglImgBase& img, const std::string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetImage(const oglImgBase& img, const GLuint pos);
+    ProgState& SetUBO(const oglUBO& ubo, const std::string& name, const GLuint idx = 0);
+    //no check on pos, carefully use
+    ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
+    ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
+    ProgState& SetSubroutine(const std::string_view& subrName, const std::string_view& routineName);
+};
 
 
-class OGLUAPI _oglProgram : public common::NonMovable, public common::AlignBase<32>, public oglCtxObject<true>, public std::enable_shared_from_this<_oglProgram>
+class OGLUAPI oglProgram_ : public common::NonMovable, public common::AlignBase<32>, 
+    public detail::oglCtxObject<true>, public std::enable_shared_from_this<oglProgram_>
 {
     friend class TextureManager;
     friend class UBOManager;
@@ -130,7 +150,8 @@ protected:
     std::map<ShaderType, std::vector<GLuint>> SubroutineSettings;
     GLuint ProgramID = 0; //zero means invalid program
 
-    static bool usethis(_oglProgram& prog, const bool change = true);
+    static bool usethis(oglProgram_& prog, const bool change = true);
+    oglProgram_(const std::u16string& name);
     void RecoverState();
     void InitLocs();
     void InitSubroutines();
@@ -139,12 +160,12 @@ protected:
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
     GLint GetLoc(const std::string& name,         GLenum valtype) const;
 
-    void SetTexture(TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
-    void SetTexture(TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
-    void SetImage(TexImgManager& texMan, const GLint pos, const oglImgBase& tex, const bool shouldPin = false);
-    void SetImage(TexImgManager& texMan, const std::map<GLuint, oglImgBase>& texs, const bool shouldPin = false);
-    void SetUBO(UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
-    void SetUBO(UBOManager& uboMan, const std::map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
+    void SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
+    void SetTexture(detail::TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
+    void SetImage(detail::TexImgManager& texMan, const GLint pos, const oglImgBase& tex, const bool shouldPin = false);
+    void SetImage(detail::TexImgManager& texMan, const std::map<GLuint, oglImgBase>& texs, const bool shouldPin = false);
+    void SetUBO(detail::UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
+    void SetUBO(detail::UBOManager& uboMan, const std::map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void SetSubroutine();
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
@@ -159,8 +180,7 @@ protected:
     void SetUniform(const GLint pos, const float val,             const bool keep = true);
 public:
     std::u16string Name;
-    _oglProgram(const std::u16string& name);
-    virtual ~_oglProgram();
+    virtual ~oglProgram_();
     virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) = 0;
 
     const std::set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
@@ -203,35 +223,15 @@ public:
     void SetUniform(const std::string& name, const float val)                { SetUniform(GetLoc(name, GL_FLOAT       ), val); }
 };
 
-///<summary>ProgState, use to batch set program binding states</summary>  
-class OGLUAPI ProgState : public common::NonCopyable
-{
-    friend class _oglProgram;
-private:
-    _oglProgram & Prog;
-    ProgState(_oglProgram& prog) : Prog(prog) { }
-    ProgState(ProgState&& other) = default;
-public:
-    ~ProgState();
-    ProgState& SetTexture(const oglTexBase& tex, const std::string& name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
-    ProgState& SetImage(const oglImgBase& img, const std::string& name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetImage(const oglImgBase& img, const GLuint pos);
-    ProgState& SetUBO(const oglUBO& ubo, const std::string& name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
-    ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
-    ProgState& SetSubroutine(const std::string_view& subrName, const std::string_view& routineName);
-};
 
-
-class OGLUAPI _oglDrawProgram : public _oglProgram
+class OGLUAPI oglDrawProgram_ : public oglProgram_
 {
     friend class ProgDraw;
 private:
-    Mat4x4 matrix_Proj, matrix_View;
+    MAKE_ENABLER();
+    using oglProgram_::oglProgram_;
+
+    b3d::Mat4x4 matrix_Proj, matrix_View;
     GLint
         Uni_projMat   = GL_INVALID_INDEX,
         Uni_viewMat   = GL_INVALID_INDEX,
@@ -241,35 +241,36 @@ private:
         Uni_camPos    = GL_INVALID_INDEX;
     virtual void OnPrepare() override;
 public:
-    using _oglProgram::_oglProgram;
-    virtual ~_oglDrawProgram() override {}
+    virtual ~oglDrawProgram_() override {}
 
     virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) override;
     //void RegisterLocation();
-    void SetProject(const Mat4x4 &);
-    void SetView(const Mat4x4 &);
+    void SetProject(const b3d::Mat4x4 &);
+    void SetView(const b3d::Mat4x4 &);
 
-    ProgDraw Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
-    ProgDraw Draw(const Mat4x4& modelMat = Mat4x4::identity()) noexcept;
+    ProgDraw Draw(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
+    ProgDraw Draw(const b3d::Mat4x4& modelMat = b3d::Mat4x4::identity()) noexcept;
     template<typename Iterator>
     ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
+
+    static oglDrawProgram Create(const std::u16string& name);
 };
 
 class OGLUAPI ProgDraw
 {
-    friend class _oglDrawProgram;
+    friend class oglDrawProgram_;
 private:
-    _oglDrawProgram& Prog;
-    TextureManager& TexMan;
-    TexImgManager& ImgMan;
-    UBOManager& UboMan;
+    oglDrawProgram_& Prog;
+    detail::TextureManager& TexMan;
+    detail::TexImgManager& ImgMan;
+    detail::UBOManager& UboMan;
     std::map<GLuint, oglTexBase> TexCache;
     std::map<GLuint, oglImgBase> ImgCache;
     std::map<GLuint, oglUBO> UBOCache;
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     std::map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
     std::map<GLint, UniformValue> UniValBackup;
-    ProgDraw(_oglDrawProgram& prog_, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept;
+    ProgDraw(oglDrawProgram_& prog_, const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {
@@ -286,9 +287,9 @@ public:
     ///<param name="quick">whether perform quick restore</param>
     ///<returns>self</returns>
     ProgDraw& Restore(const bool quick = false);
-    std::weak_ptr<_oglDrawProgram> GetProg() const noexcept;
-    ProgDraw& SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat);
-    ProgDraw& SetPosition(const Mat4x4& modelMat) { return SetPosition(modelMat, (Mat3x3)modelMat); }
+    std::weak_ptr<oglDrawProgram_> GetProg() const noexcept;
+    ProgDraw& SetPosition(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat);
+    ProgDraw& SetPosition(const b3d::Mat4x4& modelMat) { return SetPosition(modelMat, (b3d::Mat3x3)modelMat); }
     ///<summary>draw actual vao</summary>  
     ///<param name="size">elements count being drawed</param>
     ///<param name="offset">elements offset</param>
@@ -331,11 +332,11 @@ public:
 };
 
 template<typename Iterator>
-ProgDraw _oglDrawProgram::Draw(const Iterator& begin, const Iterator& end) noexcept
+ProgDraw oglDrawProgram_::Draw(const Iterator& begin, const Iterator& end) noexcept
 {
     static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
-    Mat4x4 matModel = Mat4x4::identity();
-    Mat3x3 matNormal = Mat3x3::identity();
+    b3d::Mat4x4 matModel = b3d::Mat4x4::identity();
+    b3d::Mat3x3 matNormal = b3d::Mat3x3::identity();
     for (auto cur = begin; cur != end; ++cur)
     {
         const TransformOP& trans = *cur;
@@ -345,29 +346,27 @@ ProgDraw _oglDrawProgram::Draw(const Iterator& begin, const Iterator& end) noexc
 }
 
 
-class OGLUAPI _oglComputeProgram : public _oglProgram
+class OGLUAPI oglComputeProgram_ : public oglProgram_
 {
 private:
+    MAKE_ENABLER();
+    using oglProgram_::oglProgram_;
     std::array<uint32_t, 3> LocalSize = { 0, 0, 0 };
     virtual void OnPrepare() override;
-    using _oglProgram::AddShader;
+    using oglProgram_::AddShader;
 public:
-    using _oglProgram::_oglProgram;
-    virtual ~_oglComputeProgram() override {}
+    virtual ~oglComputeProgram_() override {}
 
     virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) override;
     const std::array<uint32_t, 3>& GetLocalSize() const { return LocalSize; }
 
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
+
+    static oglComputeProgram Create(const std::u16string& name);
 };
 
 
-}
 
-
-using oglProgram = Wrapper<detail::_oglProgram>;
-using oglDrawProgram = Wrapper<detail::_oglDrawProgram>;
-using oglComputeProgram = Wrapper<detail::_oglComputeProgram>;
 
 }
 

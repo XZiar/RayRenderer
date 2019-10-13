@@ -9,6 +9,23 @@
 
 namespace oglu
 {
+class oglMapPtr;
+
+class oglBuffer_;
+using oglBuffer = std::shared_ptr<oglBuffer_>;
+class oglPixelBuffer_;
+using oglPBO    = std::shared_ptr<oglPixelBuffer_>;
+class oglArrayBuffer_;
+using oglVBO    = std::shared_ptr<oglArrayBuffer_>;
+class oglTextureBuffer_;
+using oglTBO    = std::shared_ptr<oglTextureBuffer_>;
+class oglUniformBuffer_;
+using oglUBO    = std::shared_ptr<oglUniformBuffer_>;
+class oglElementBuffer_;
+using oglEBO    = std::shared_ptr<oglElementBuffer_>;
+class oglIndirectBuffer_;
+using oglIBO    = std::shared_ptr<oglIndirectBuffer_>;
+
 
 enum class BufferTypes : GLenum
 {
@@ -44,59 +61,41 @@ enum class MapFlag : uint16_t
 };
 MAKE_ENUM_BITFIELD(MapFlag)
 
-class oglMapPtr;
-namespace detail
-{
 
-class OGLUAPI _oglMapPtr : public common::NonCopyable, public common::NonMovable
+
+class OGLUAPI oglBuffer_ : public common::NonMovable, public std::enable_shared_from_this<oglBuffer_>, public detail::oglCtxObject<true>
 {
-    friend class _oglBuffer;
     friend class oglMapPtr;
-private:
-    void* Pointer = nullptr;
-    GLuint BufferID;
-    size_t Size;
-    _oglMapPtr(_oglBuffer& buf, const MapFlag flags);
-public:
-    ~_oglMapPtr();
-    void* GetPtr() const { return Pointer; }
-};
-
-}
-
-class oglMapPtr : public std::shared_ptr<detail::_oglMapPtr>
-{
-public:
-    constexpr oglMapPtr() {}
-    oglMapPtr(detail::_oglMapPtr* ptr) : std::shared_ptr<detail::_oglMapPtr>(ptr) {}
-    oglMapPtr(const std::shared_ptr<detail::_oglMapPtr>& ptr) : std::shared_ptr<detail::_oglMapPtr>(ptr) {}
-    operator void*() const { return (*this)->GetPtr(); }
-    template<typename T>
-    T* AsType() const { return reinterpret_cast<T*>((*this)->GetPtr()); }
-};
-
-namespace detail
-{
-
-
-class OGLUAPI _oglBuffer : public common::NonMovable, public oglCtxObject<true>
-{
-    friend class _oglMapPtr;
-    friend class _oglProgram;
+    friend class oglProgram_;
     friend class ::oclu::GLInterop;
+private:
+    class OGLUAPI oglMapPtr_ : public common::NonCopyable, public common::NonMovable
+    {
+        friend class oglBuffer_;
+        friend class oglMapPtr;
+    private:
+        void* Pointer = nullptr;
+        GLuint BufferID;
+        size_t Size;
+        MapFlag Flag;
+    public:
+        oglMapPtr_(oglBuffer_* buf, const MapFlag flags);
+        ~oglMapPtr_();
+    };
 protected:
-    oglMapPtr PersistentPtr;
+    std::optional<oglMapPtr_> PersistentPtr;
     size_t BufSize;
     GLuint BufferID;
     const BufferTypes BufferType;
     void bind() const noexcept;
     void unbind() const noexcept;
-    _oglBuffer(const BufferTypes type) noexcept;
+    oglBuffer_(const BufferTypes type) noexcept;
+    void PersistentMap(MapFlag flags);
 public:
-    virtual ~_oglBuffer() noexcept;
+    virtual ~oglBuffer_() noexcept;
 
     oglMapPtr Map(const MapFlag flags);
-    oglMapPtr GetPersistentPtr() const { return PersistentPtr; }
+    oglMapPtr GetPersistentPtr() const;
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
     template<typename T>
@@ -109,53 +108,72 @@ public:
 };
 
 
-class OGLUAPI _oglPixelBuffer : public _oglBuffer
+class OGLUAPI oglPixelBuffer_ : public oglBuffer_
 {
     template<typename Base>
-    friend struct _oglTexCommon;
+    friend struct oglTexCommon_;
+private:
+    MAKE_ENABLER();
+    oglPixelBuffer_() noexcept : oglBuffer_(BufferTypes::Pixel) { }
 public:
-    _oglPixelBuffer() noexcept : _oglBuffer(BufferTypes::Pixel) { }
-    virtual ~_oglPixelBuffer() noexcept override;
+    virtual ~oglPixelBuffer_() noexcept override;
+
+    static oglPBO Create();
 };
 
 
-class OGLUAPI _oglArrayBuffer : public _oglBuffer
+class OGLUAPI oglArrayBuffer_ : public oglBuffer_
 {
-    friend class _oglVAO;
+    friend class oglVAO_;
+private:
+    MAKE_ENABLER();
+    oglArrayBuffer_() noexcept : oglBuffer_(BufferTypes::Array) { }
 public:
-    _oglArrayBuffer() noexcept : _oglBuffer(BufferTypes::Array) { }
-    virtual ~_oglArrayBuffer() noexcept override;
+    virtual ~oglArrayBuffer_() noexcept override;
+
+    static oglVBO Create();
 };
 
 
-class OGLUAPI _oglTextureBuffer : public _oglBuffer
+class OGLUAPI oglTextureBuffer_ : public oglBuffer_
 {
-    friend class _oglBufferTexture;
+    friend class oglBufferTexture_;
+private:
+    MAKE_ENABLER();
+    oglTextureBuffer_() noexcept;
 public:
-    _oglTextureBuffer() noexcept;
-    virtual ~_oglTextureBuffer() noexcept override;
+    virtual ~oglTextureBuffer_() noexcept override;
+
+    static oglTBO Create();
 };
 
 
-class OGLUAPI _oglUniformBuffer : public _oglBuffer
+class OGLUAPI oglUniformBuffer_ : public oglBuffer_
 {
-    friend class UBOManager;
-    friend class _oglProgram;
+    friend class detail::UBOManager;
+    friend class oglProgram_;
     friend class ProgDraw;
+private:
+    MAKE_ENABLER();
+    oglUniformBuffer_(const size_t size) noexcept;
 protected:
-    static UBOManager& getUBOMan();
+    static detail::UBOManager& getUBOMan();
     void bind(const uint16_t pos) const;
 public:
-    _oglUniformBuffer(const size_t size) noexcept;
-    virtual ~_oglUniformBuffer() noexcept override;
+    virtual ~oglUniformBuffer_() noexcept override;
     size_t Size() const { return BufSize; };
+
+    static oglUBO Create(const size_t size);
 };
 
 
-class OGLUAPI _oglIndirectBuffer : public _oglBuffer
+class OGLUAPI oglIndirectBuffer_ : public oglBuffer_
 {
-    friend class _oglVAO;
+    friend class oglVAO_;
     friend struct ::oglu::DSAFuncs;
+private:
+    MAKE_ENABLER();
+    oglIndirectBuffer_() noexcept;
 public:
     struct DrawElementsIndirectCommand
     {
@@ -177,8 +195,7 @@ protected:
     GLsizei Count = 0;
     bool IsIndexed() const;
 public:
-    _oglIndirectBuffer() noexcept;
-    virtual ~_oglIndirectBuffer() noexcept override;
+    virtual ~oglIndirectBuffer_() noexcept override;
     ///<summary>Write indirect draw commands</summary>  
     ///<param name="offsets">offsets</param>
     ///<param name="sizes">sizes</param>
@@ -191,19 +208,23 @@ public:
     void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
     const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const { return std::get<std::vector<DrawElementsIndirectCommand>>(Commands); }
     const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const { return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); }
+
+    static oglIBO Create();
 };
 
 
-class OGLUAPI _oglElementBuffer : public _oglBuffer
+class OGLUAPI oglElementBuffer_ : public oglBuffer_
 {
-    friend class _oglVAO;
+    friend class oglVAO_;
+private:
+    MAKE_ENABLER();
+    oglElementBuffer_() noexcept;
 protected:
     GLenum IndexType;
     uint8_t IndexSize;
     void SetSize(const uint8_t elesize);
 public:
-    _oglElementBuffer() noexcept;
-    virtual ~_oglElementBuffer() noexcept override;
+    virtual ~oglElementBuffer_() noexcept override;
     ///<summary>Write index</summary>  
     ///<param name="cont">index container</param>
     ///<param name="mode">buffer write mode</param>
@@ -214,7 +235,7 @@ public:
         static_assert(Helper::IsContiguous, "need contiguous container type");
         static_assert(std::is_integral_v<typename Helper::EleType> && sizeof(typename Helper::EleType) <= 4, "input type should be of integeral type and no more than uint32_t");
         SetSize(Helper::EleSize);
-        _oglBuffer::Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
+        oglBuffer_::Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
     }
     ///<summary>Write index</summary>  
     ///<param name="dat">index ptr</param>
@@ -225,7 +246,7 @@ public:
     {
         static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
         SetSize(sizeof(T));
-        _oglBuffer::Write(dat, IndexSize*count, mode);
+        oglBuffer_::Write(dat, IndexSize*count, mode);
     }
     ///<summary>Compact and write index</summary>  
     ///<param name="cont">index container</param>
@@ -284,19 +305,24 @@ public:
         else
             COMMON_THROW(common::BaseException, u"input should be no more than uint32_t");
     }
+
+    static oglEBO Create();
 };
 
-}
 
+class OGLUAPI oglMapPtr
+{
+    friend class oglBuffer_;
+private:
+    std::shared_ptr<const oglBuffer_::oglMapPtr_> Ptr;
+    oglMapPtr(std::shared_ptr<const oglBuffer_::oglMapPtr_> ptr) : Ptr(std::move(ptr)) { }
+public:
+    constexpr oglMapPtr() {}
+    void* Get() const { return Ptr->Pointer; }
+    template<typename T>
+    T* AsType() const { return reinterpret_cast<T*>(Get()); }
+};
 
-
-using oglBuffer = Wrapper<detail::_oglBuffer>;
-using oglPBO = Wrapper<detail::_oglPixelBuffer>;
-using oglVBO = Wrapper<detail::_oglArrayBuffer>;
-using oglTBO = Wrapper<detail::_oglTextureBuffer>;
-using oglUBO = Wrapper<detail::_oglUniformBuffer>;
-using oglEBO = Wrapper<detail::_oglElementBuffer>;
-using oglIBO = Wrapper<detail::_oglIndirectBuffer>;
 
 
 }

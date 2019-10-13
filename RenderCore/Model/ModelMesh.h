@@ -35,7 +35,7 @@ private:
     _ModelMesh(const u16string& fname);
     _ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer = {});
 public:
-    void PrepareVAO(oglu::detail::_oglVAO::VAOPrep& vaoPrep) const;
+    void PrepareVAO(oglu::oglVAO_::VAOPrep& vaoPrep) const;
 
     RESPAK_DECL_COMP_DESERIALIZE("rayr#ModelMesh")
     virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;

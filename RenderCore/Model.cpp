@@ -41,7 +41,7 @@ Model::~Model()
 void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
     using oglu::PointEx;
-    oglu::oglVAO vao(oglu::VAODrawMode::Triangles);
+    auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
     const GLint attrs[4] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc"), prog->GetLoc("@VertTan") };
     {
         auto vaoprep = std::move(vao->Prepare()

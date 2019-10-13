@@ -198,7 +198,7 @@ public:
 };
 
 
-class _oglProgram;
+class oglProgram_;
 
 //D:derived class type, T:resource type
 template<class D, class T, uint8_t Offset>

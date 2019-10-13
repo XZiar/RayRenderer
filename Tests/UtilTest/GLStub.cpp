@@ -24,7 +24,7 @@ oglContext CreateContext()
     // std::cin >> major >> minor;
     // std::cin.ignore();
     // auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
-    auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, oglu::oglContext::GetLatestVersion());
+    auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
     ctx->UseContext();
     ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     return ctx;
@@ -67,7 +67,7 @@ oglContext InitContext()
     wglMakeCurrent(tmpDC, tmpRC);
 
     auto ctx = CreateContext();
-    oglContext::ReleaseExternContext(tmpRC);
+    oglContext_::ReleaseExternContext(tmpRC);
     wglDeleteContext(tmpRC);
     return ctx;
 }
@@ -118,7 +118,7 @@ oglContext InitContext()
     glXMakeCurrent(display, win, tmpCtx);
 
     auto ctx = CreateContext();
-    oglContext::ReleaseExternContext(tmpCtx);
+    oglContext_::ReleaseExternContext(tmpCtx);
     glXDestroyContext(display, tmpCtx);
     return ctx;
 }
@@ -190,8 +190,8 @@ static void OGLStub()
                         log().error(u"Extra info:{}\n", *buildLog);
                 }
             };
-            oglDrawProgram drawProg(u"Draw Prog");
-            oglComputeProgram compProg(u"Compute Prog");
+            auto drawProg = oglDrawProgram_::Create(u"Draw Prog");
+            auto compProg = oglComputeProgram_::Create(u"Compute Prog");
             log().info(u"Try Draw Program\n");
             AssembleProg(drawProg);
             log().info(u"Try Compute Program\n");

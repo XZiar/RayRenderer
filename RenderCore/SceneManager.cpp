@@ -13,7 +13,7 @@ static constexpr uint32_t LightLimit = 16;
 Scene::Scene()
 {
     MainCam.reset(std::in_place);
-    LightUBO.reset(LightLimit * Light::WriteSize);
+    LightUBO = oglu::oglUniformBuffer_::Create(LightLimit * Light::WriteSize);
 }
 
 void Scene::PrepareDrawable()

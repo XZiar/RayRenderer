@@ -48,7 +48,7 @@ oclMapPtr oclMem_::Map(oclCmdQue que, const MapFlag mapFlag)
 {
     auto rawptr = MapObject(que->CmdQue, mapFlag);
     auto ptr = new oclMapPtr_(std::move(que), *this, rawptr);
-    return oclMapPtr(std::shared_ptr<oclMem_::oclMapPtr_>(shared_from_this(), ptr));
+    return oclMapPtr(std::shared_ptr<const oclMapPtr_>(shared_from_this(), ptr));
 }
 
 //oclMapPtr oclMem_::PersistMap(const oclCmdQue& que)

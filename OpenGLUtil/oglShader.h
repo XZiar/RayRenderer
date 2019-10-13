@@ -3,6 +3,9 @@
 
 namespace oglu
 {
+class oglShader_;
+using oglShader = std::shared_ptr<oglShader_>;
+
 
 enum class ShaderType : GLenum
 {
@@ -13,27 +16,6 @@ enum class ShaderType : GLenum
     TessEval = 0x8E87/*GL_TESS_EVALUATION_SHADER*/,
     Compute  = 0x91B9/*GL_COMPUTE_SHADER*/
 };
-
-
-namespace detail
-{
-
-class OGLUAPI _oglShader : public oglCtxObject<true>
-{
-    friend class _oglProgram;
-private:
-    std::string Src;
-    GLuint ShaderID;
-public:
-    const ShaderType Type;
-    _oglShader(const ShaderType type, const std::string& txt);
-    ~_oglShader();
-
-    void compile();
-    const std::string& SourceText() const { return Src; }
-};
-
-}
 
 enum class ShaderPropertyType : uint8_t { Vector, Color, Range, Matrix, Float, Bool, Int, Uint };
 
@@ -61,19 +43,34 @@ struct ShaderConfig
     std::map<std::string, std::string> Routines;
 };
 
-class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
+
+class OGLUAPI oglShader_ : public detail::oglCtxObject<true>
 {
+    friend class oglProgram_;
 private:
+    MAKE_ENABLER();
+    std::string Src;
+    GLuint ShaderID;
+    oglShader_(const ShaderType type, const std::string& txt);
 public:
-    using Wrapper::Wrapper;
+    const ShaderType Type;
+    ~oglShader_();
+
+    void compile();
+    const std::string& SourceText() const { return Src; }
+
     static oglShader LoadFromFile(const ShaderType type, const common::fs::path& path);
     static std::vector<oglShader> LoadFromFiles(common::fs::path fname);
     static std::vector<oglShader> LoadFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
     static std::vector<oglShader> LoadDrawFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
-    { return LoadFromExSrc(src, info, config, false); }
+    {
+        return LoadFromExSrc(src, info, config, false);
+    }
     static std::vector<oglShader> LoadComputeFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
-    { return LoadFromExSrc(src, info, config, true, false); }
-    static std::vector<oglShader> LoadFromExSrc(const std::string& src, const ShaderConfig& config = {}) 
+    {
+        return LoadFromExSrc(src, info, config, true, false);
+    }
+    static std::vector<oglShader> LoadFromExSrc(const std::string& src, const ShaderConfig& config = {})
     {
         ShaderExtInfo dummy;
         return LoadFromExSrc(src, dummy, config);

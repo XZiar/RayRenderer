@@ -7,9 +7,9 @@
 
 namespace oglu
 {
+MAKE_ENABLER_IMPL(oglRenderBuffer_)
+MAKE_ENABLER_IMPL(oglFrameBuffer_)
 
-namespace detail
-{
 
 static GLenum ParseRBOFormat(const RBOFormat format)
 {
@@ -34,35 +34,43 @@ static GLenum ParseRBOFormat(const RBOFormat format)
 }
 
 
-_oglRenderBuffer::_oglRenderBuffer(const uint32_t width, const uint32_t height, const RBOFormat format)
+oglRenderBuffer_::oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format)
     : RBOId(GL_INVALID_INDEX), InnerFormat(format), Width(width), Height(height)
 {
     glGenRenderbuffers(1, &RBOId);
     glNamedRenderbufferStorageEXT(RBOId, ParseRBOFormat(InnerFormat), Width, Height);
 }
+oglRBO oglRenderBuffer_::Create(const uint32_t width, const uint32_t height, const RBOFormat format)
+{
+    return MAKE_ENABLER_SHARED(oglRenderBuffer_, width, height, format);
+}
 
-_oglRenderBuffer::~_oglRenderBuffer()
+oglRenderBuffer_::~oglRenderBuffer_()
 {
     if (!EnsureValid()) return;
     glDeleteRenderbuffers(1, &RBOId);
 }
 
 
-_oglFrameBuffer::_oglFrameBuffer() : FBOId(GL_INVALID_INDEX)
+oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX)
 {
     DSA->ogluCreateFramebuffers(1, &FBOId);
     GLint maxAttach;
     glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxAttach);
     ColorAttachemnts.resize(maxAttach);
 }
+oglFBO oglFrameBuffer_::Create()
+{
+    return MAKE_ENABLER_SHARED(oglFrameBuffer_);
+}
 
-_oglFrameBuffer::~_oglFrameBuffer()
+oglFrameBuffer_::~oglFrameBuffer_()
 {
     if (!EnsureValid()) return;
     glDeleteFramebuffers(1, &FBOId);
 }
 
-FBOStatus _oglFrameBuffer::CheckStatus() const
+FBOStatus oglFrameBuffer_::CheckStatus() const
 {
     CheckCurrent();
     switch (glCheckNamedFramebufferStatusEXT(FBOId, GL_FRAMEBUFFER))
@@ -90,14 +98,14 @@ FBOStatus _oglFrameBuffer::CheckStatus() const
     }
 }
 
-void _oglFrameBuffer::AttachColorTexture(const oglTex2D& tex, const uint8_t attachment)
+void oglFrameBuffer_::AttachColorTexture(const oglTex2D& tex, const uint8_t attachment)
 {
     CheckCurrent();
     DSA->ogluFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D, tex->textureID, 0);
     ColorAttachemnts[attachment] = tex;
 }
 
-void _oglFrameBuffer::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment)
+void oglFrameBuffer_::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment)
 {
     if (layer >= tex->Layers)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture layer overflow");
@@ -106,7 +114,7 @@ void _oglFrameBuffer::AttachColorTexture(const oglTex2DArray& tex, const uint32_
     ColorAttachemnts[attachment] = std::make_pair(tex, layer);
 }
 
-void _oglFrameBuffer::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
+void oglFrameBuffer_::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
 {
     if (rbo->GetType() != RBOFormat::TYPE_COLOR)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
@@ -115,14 +123,14 @@ void _oglFrameBuffer::AttachColorTexture(const oglRBO& rbo, const uint8_t attach
     ColorAttachemnts[attachment] = rbo;
 }
 
-void _oglFrameBuffer::AttachDepthTexture(const oglTex2D& tex)
+void oglFrameBuffer_::AttachDepthTexture(const oglTex2D& tex)
 {
     CheckCurrent();
     DSA->ogluFramebufferTextureLayer(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex->textureID, 0);
     DepthAttachment = tex;
 }
 
-void _oglFrameBuffer::AttachDepthTexture(const oglRBO& rbo)
+void oglFrameBuffer_::AttachDepthTexture(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_DEPTH)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
@@ -131,14 +139,14 @@ void _oglFrameBuffer::AttachDepthTexture(const oglRBO& rbo)
     DepthAttachment = rbo;
 }
 
-void _oglFrameBuffer::AttachStencilTexture(const oglTex2D& tex)
+void oglFrameBuffer_::AttachStencilTexture(const oglTex2D& tex)
 {
     CheckCurrent();
     DSA->ogluFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, tex->textureID, 0);
     StencilAttachment = tex;
 }
 
-void _oglFrameBuffer::AttachStencilTexture(const oglRBO& rbo)
+void oglFrameBuffer_::AttachStencilTexture(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_STENCIL)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
@@ -147,7 +155,7 @@ void _oglFrameBuffer::AttachStencilTexture(const oglRBO& rbo)
     StencilAttachment = rbo;
 }
 
-void _oglFrameBuffer::AttachDepthStencilBuffer(const oglRBO& rbo)
+void oglFrameBuffer_::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_DEPTH_STENCIL)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
@@ -170,14 +178,14 @@ static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFboId);
 }
 
-void _oglFrameBuffer::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+void oglFrameBuffer_::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     CheckCurrent();
     if (to)
         to->CheckCurrent();
     BlitColor(FBOId, to ? to->FBOId : 0, rect);
 }
-void _oglFrameBuffer::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+void oglFrameBuffer_::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     CheckCurrent();
     if (from)
@@ -192,30 +200,29 @@ struct FBOCtxConfig : public CtxResConfig<false, GLuint>
 static FBOCtxConfig FBO_CTXCFG;
 GLuint GetCurFBO()
 {
-    return oglContext::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
+    return oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
 }
-void _oglFrameBuffer::Use() const
+void oglFrameBuffer_::Use() const
 {
     CheckCurrent();
-    auto& fbo = oglContext::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
+    auto& fbo = oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
     if (FBOId != fbo)
         glBindFramebuffer(GL_FRAMEBUFFER, fbo = FBOId);
 }
 
-std::pair<GLuint, GLuint> _oglFrameBuffer::DebugBinding() const
+std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding() const
 {
-    return oglFBO::DebugBinding(FBOId);
+    return oglFrameBuffer_::DebugBinding(FBOId);
 }
 
-}
 
-void oglFBO::UseDefault()
+void oglFrameBuffer_::UseDefault()
 {
-    auto& fbo = oglContext::CurrentContext()->GetOrCreate<false>(detail::FBO_CTXCFG);
+    auto& fbo = oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo = 0);
 }
 
-std::pair<GLuint, GLuint> oglFBO::DebugBinding(GLuint id)
+std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding(GLuint id)
 {
     GLint clrId = 0, depId = 0;
     glGetNamedFramebufferAttachmentParameterivEXT(id, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &clrId);

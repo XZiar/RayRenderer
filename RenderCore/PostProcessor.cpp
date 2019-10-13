@@ -36,12 +36,12 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
     : CLContext(ctx), CmdQue(que), LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {
-    LutTex.reset(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
+    LutTex = oglu::oglTex3DStatic_::Create(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    LutImg.reset(LutTex, oglu::TexImgUsage::WriteOnly);
+    LutImg = oglu::oglImg3D_::Create(LutTex, oglu::TexImgUsage::WriteOnly);
     ShaderConfig config;
     config.Routines["ToneMap"] = "ACES";
-    LutGenerator.reset(u"ColorLut");
+    LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut");
     LutGenerator->AddExtShaders(lutSrc, config);
     LutGenerator->Link();
     const auto& localSize = LutGenerator->GetLocalSize();
@@ -52,13 +52,13 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     LutGenerator->SetUniform("exposure", 1.0f);
 
 
-    MiddleFrame.reset();
-    ScreenBox.reset();
+    MiddleFrame = oglu::oglFrameBuffer_::Create();
+    ScreenBox = oglu::oglArrayBuffer_::Create();
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
     ScreenBox->Write(DatVert, sizeof(DatVert));
     PostShader.reset(u"PostProcess", postSrc);
-    VAOScreen.reset(VAODrawMode::Triangles);
+    VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
     VAOScreen->Prepare()
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
@@ -113,11 +113,11 @@ bool PostProcessor::UpdateFBO()
 {
     if (UpdateDemand.Extract(PostProcUpdate::FBO))
     {
-        FBOTex.reset(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
+        FBOTex = oglu::oglTex2DStatic_::Create(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         PostShader->Program->State().SetTexture(FBOTex, "scene");
         MiddleFrame->AttachColorTexture(FBOTex, 0);
-        oglRBO mainRBO(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
+        auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
         dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
             MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
@@ -143,7 +143,7 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 {
     if (EnablePostProcess)
     {
-        oglu::oglFBO::UseDefault();
+        oglu::oglFrameBuffer_::UseDefault();
         GLContext->SetSRGBFBO(false);
 
         const auto cam = context.GetScene()->GetCamera();

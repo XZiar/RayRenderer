@@ -8,30 +8,32 @@
 
 
 
-namespace oglu::detail
+namespace oglu
 {
 using std::string;
 using std::u16string;
 using std::vector;
 using common::linq::Linq;
 
+MAKE_ENABLER_IMPL(oglVAO_)
 
-_oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) noexcept :vao(vao_), isEmpty(false)
+
+oglVAO_::VAOPrep::VAOPrep(oglVAO_& vao_) noexcept :vao(vao_), isEmpty(false)
 {
     vao.bind();
 }
 
-void _oglVAO::VAOPrep::End() noexcept
+void oglVAO_::VAOPrep::End() noexcept
 {
     vao.CheckCurrent();
     if (!isEmpty)
     {
         isEmpty = true;
-        _oglVAO::unbind();
+        oglVAO_::unbind();
     }
 }
 
-void _oglVAO::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void oglVAO_::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
@@ -40,7 +42,7 @@ void _oglVAO::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, con
         glVertexAttribDivisor(attridx, divisor);
     }
 }
-void _oglVAO::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void oglVAO_::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
@@ -50,7 +52,7 @@ void _oglVAO::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, co
     }
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetIndex(const oglEBO& ebo)
 {
     vao.CheckCurrent();
     ebo->bind();
@@ -58,7 +60,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetIndex(const oglEBO& ebo)
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const uint32_t offset, const uint32_t size)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSize(const uint32_t offset, const uint32_t size)
 {
     vao.CheckCurrent();
     vao.Count = (GLsizei)size;
@@ -75,7 +77,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const uint32_t offset, const uin
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes)
 {
     vao.CheckCurrent();
     const auto count = offsets.size();
@@ -100,7 +102,7 @@ _oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const vector<uint32_t>& offsets,
     return *this;
 }
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawSize(const oglIBO& ibo, GLint offset, GLsizei size)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizeFrom(const oglIBO& ibo, GLint offset, GLsizei size)
 {
     if ((bool)vao.IndexBuffer != ibo->IsIndexed())
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
@@ -124,7 +126,7 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
         std::vector<int32_t> ids(4096);
         for (int32_t i = 0; i < 4096; ++i)
             ids[i] = i;
-        oglVBO drawIdVBO(std::in_place);
+        auto drawIdVBO = oglArrayBuffer_::Create();
         drawIdVBO->Write(ids.data(), ids.size() * sizeof(int32_t));
         oglLog().success(u"new DrawIdVBO generated.\n");
         return drawIdVBO;
@@ -132,46 +134,46 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
 };
 static DRAWIDCtxConfig DRAWID_CTX_CFG;
 
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const GLint attridx)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId(const GLint attridx)
 {
     vao.CheckCurrent();
-    return SetInteger<int32_t>(oglContext::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), attridx, sizeof(int32_t), 1, 0, 1);
+    return SetInteger<int32_t>(oglContext_::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), attridx, sizeof(int32_t), 1, 0, 1);
 }
-_oglVAO::VAOPrep& _oglVAO::VAOPrep::SetDrawId(const Wrapper<_oglDrawProgram>& prog)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId(const std::shared_ptr<oglDrawProgram_>& prog)
 {
     return SetDrawId(prog->GetLoc("@DrawID"));
 }
 
 
-void _oglVAO::bind() const noexcept
+void oglVAO_::bind() const noexcept
 {
     CheckCurrent();
     glBindVertexArray(VAOId);
 }
 
-void _oglVAO::unbind() noexcept
+void oglVAO_::unbind() noexcept
 {
     glBindVertexArray(0);
 }
 
-_oglVAO::_oglVAO(const VAODrawMode mode) noexcept : VAOId(GL_INVALID_INDEX), DrawMode(mode)
+oglVAO_::oglVAO_(const VAODrawMode mode) noexcept : VAOId(GL_INVALID_INDEX), DrawMode(mode)
 {
     glGenVertexArrays(1, &VAOId);
 }
 
-_oglVAO::~_oglVAO() noexcept
+oglVAO_::~oglVAO_() noexcept
 {
     if (!EnsureValid()) return;
     glDeleteVertexArrays(1, &VAOId);
 }
 
-_oglVAO::VAOPrep _oglVAO::Prepare() noexcept
+oglVAO_::VAOPrep oglVAO_::Prepare() noexcept
 {
     CheckCurrent();
     return VAOPrep(*this);
 }
 
-void _oglVAO::Draw(const uint32_t size, const uint32_t offset) const noexcept
+void oglVAO_::Draw(const uint32_t size, const uint32_t offset) const noexcept
 {
     CheckCurrent();
     bind();
@@ -189,7 +191,7 @@ void _oglVAO::Draw(const uint32_t size, const uint32_t offset) const noexcept
     unbind();
 }
 
-void _oglVAO::Draw() const noexcept
+void oglVAO_::Draw() const noexcept
 {
     CheckCurrent();
     bind();
@@ -231,13 +233,18 @@ void _oglVAO::Draw() const noexcept
     unbind();
 }
 
-void _oglVAO::Test() const noexcept
+void oglVAO_::Test() const noexcept
 {
     CheckCurrent();
     bind();
     BindingState state;
     unbind();
     oglLog().debug(u"Current VAO[{}]'s binding: VAO[{}], VBO[{}], IBO[{}], EBO[{}]\n", VAOId, state.VAO, state.VBO, state.IBO, state.EBO);
+}
+
+oglVAO oglVAO_::Create(const VAODrawMode mode)
+{
+    return MAKE_ENABLER_SHARED(oglVAO_, mode);
 }
 
 }

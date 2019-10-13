@@ -23,7 +23,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         CmdQue = Worker->CmdQue;
         GLContext->SetSRGBFBO(true);
         GLContext->SetDepthTest(DepthTestType::OFF);
-        GLResizer.reset(u"GLResizer");
+        GLResizer = oglDrawProgram_::Create(u"GLResizer");
         const string shaderSrc = getShaderFromDLL(IDR_SHADER_GLRESIZER);
         try
         {
@@ -35,7 +35,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
-        GLResizer2.reset(u"GLResizer2");
+        GLResizer2 = oglComputeProgram_::Create(u"GLResizer2");
         try
         {
             GLResizer2->AddExtShaders(shaderSrc);
@@ -46,24 +46,24 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
             texLog().warning(u"Compute Shader is disabled");
         }
-        ScreenBox.reset();
+        ScreenBox = oglArrayBuffer_::Create();
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         const Vec4 paf(-1.0f, -1.0f, 0.0f, 1.0f), pbf(1.0f, -1.0f, 1.0f, 1.0f), pcf(-1.0f, 1.0f, 0.0f, 0.0f), pdf(1.0f, 1.0f, 1.0f, 0.0f);
         const Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb, paf,pbf,pcf, pdf,pcf,pbf };
         ScreenBox->Write(DatVert, sizeof(DatVert));
 
-        NormalVAO.reset(VAODrawMode::Triangles);
+        NormalVAO = oglVAO_::Create(VAODrawMode::Triangles);
         NormalVAO->Prepare()
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
-        FlipYVAO.reset(VAODrawMode::Triangles);
+        FlipYVAO = oglVAO_::Create(VAODrawMode::Triangles);
         FlipYVAO->Prepare()
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
-        OutputFrame.reset();
+        OutputFrame = oglFrameBuffer_::Create();
         OutputFrame->Use();
 
         if (CLContext)
@@ -102,12 +102,12 @@ TexResizer::~TexResizer()
     {
         KerToImg.reset(); KerToDat3.reset(); KerToDat4.reset();
         //exit
-        GLResizer.release();
-        GLResizer2.release();
-        ScreenBox.release();
-        NormalVAO.release();
-        FlipYVAO.release();
-        OutputFrame.release();
+        GLResizer.reset();
+        GLResizer2.reset();
+        ScreenBox.reset();
+        NormalVAO.reset();
+        FlipYVAO.reset();
+        OutputFrame.reset();
     })->Wait();
 }
 
@@ -172,7 +172,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         auto format = img->GetFormat();
         if (isSRGB)
             format |= TextureFormat::MASK_SRGB;
-        oglTex2DS tex(img->Width, img->Height, format);
+        auto tex = oglTex2DStatic_::Create(img->Width, img->Height, format);
         tex->SetData(img->GetFormat(), ptr.Get());
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
@@ -181,7 +181,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
 }
 static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat)
 {
-    oglTex2DS tex(size.first, size.second, innerFormat);
+    auto tex = oglTex2DStatic_::Create(size.first, size.second, innerFormat);
     if (TexFormatUtil::IsCompressType(innerFormat))
         tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
     else
@@ -196,7 +196,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
     {
         const auto vao = flipY ? FlipYVAO : NormalVAO;
         tex->CheckCurrent();
-        oglTex2DS outtex(width, height, output);
+        auto outtex = oglTex2DStatic_::Create(width, height, output);
         outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
 
         OutputFrame->AttachColorTexture(outtex, 0);
@@ -220,9 +220,9 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
     {
         const auto outformat = REMOVE_MASK(output, TextureFormat::MASK_SRGB);
         tex->CheckCurrent();
-        oglTex2DS outtex(width, height, outformat);
+        auto outtex = oglTex2DStatic_::Create(width, height, outformat);
         outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
-        oglImg2D outimg(outtex, TexImgUsage::WriteOnly);
+        auto outimg = oglImg2D_::Create(outtex, TexImgUsage::WriteOnly);
         b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
         const auto& localSize = GLResizer2->GetLocalSize();
         GLResizer2->SetVec("coordStep", coordStep);
@@ -317,7 +317,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenGL>(co
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
+            auto tex = oglTex2DStatic_::Create(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
         tex->SetData(img.AsRawImage(), true);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::OpenGL>(tex, width, height, output, flipY);
@@ -331,7 +331,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
         const auto img = agent.Await(pms);
-        oglTex2DS tex(width, height, output);
+        auto tex = oglTex2DStatic_::Create(width, height, output);
         tex->SetData(xziar::img::TexFormatUtil::FromImageDType(img.GetDataType(), true), img.GetRawPtr());
         agent.Await(oglUtil::SyncGL());
         return tex;
@@ -342,7 +342,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::Compute>(c
 {
     return Worker->AddTask([=](const common::asyexe::AsyncAgent& agent)
     {
-        oglTex2DS tex(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
+        auto tex = oglTex2DStatic_::Create(img.GetWidth(), img.GetHeight(), TexFormatUtil::FromImageDType(img.GetDataType(), true));
         tex->SetData(img.AsRawImage(), true);
         agent.Await(oglUtil::SyncGL());
         auto pms = ResizeToImg<ResizeMethod::Compute>(tex, width, height, output, flipY);

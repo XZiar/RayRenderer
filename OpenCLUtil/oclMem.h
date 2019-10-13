@@ -78,9 +78,10 @@ class OCLUAPI oclMapPtr
 {
     friend class oclMem_;
 private:
-    std::shared_ptr<oclMem_::oclMapPtr_> Ptr;
-    oclMapPtr(std::shared_ptr<oclMem_::oclMapPtr_> ptr) : Ptr(std::move(ptr)) { }
+    std::shared_ptr<const oclMem_::oclMapPtr_> Ptr;
+    oclMapPtr(std::shared_ptr<const oclMem_::oclMapPtr_> ptr) : Ptr(std::move(ptr)) { }
 public:
+    constexpr oclMapPtr() {}
     void* Get() const;
     template<typename T>
     T* AsType() const { return reinterpret_cast<T*>(Get()); }

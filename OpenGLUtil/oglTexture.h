@@ -11,6 +11,33 @@
 
 namespace oglu
 {
+class oglTexBase_;
+using oglTexBase    = std::shared_ptr<oglTexBase_>;
+class oglTex2D_;
+using oglTex2D      = std::shared_ptr<oglTex2D_>;
+class oglTex2DStatic_;
+using oglTex2DS     = std::shared_ptr<oglTex2DStatic_>;
+class oglTex2DDynamic_;
+using oglTex2DD     = std::shared_ptr<oglTex2DDynamic_>;
+class oglTex2DView_;
+using oglTex2DV     = std::shared_ptr<oglTex2DView_>;
+class oglTex2DArray_;
+using oglTex2DArray = std::shared_ptr<oglTex2DArray_>;
+class oglTex3D_;
+using oglTex3D      = std::shared_ptr<oglTex3D_>;
+class oglTex3DStatic_;
+using oglTex3DS     = std::shared_ptr<oglTex3DStatic_>;
+class oglTex3DView_;
+using oglTex3DV     = std::shared_ptr<oglTex3DView_>;
+class oglBufferTexture_;
+using oglBufTex     = std::shared_ptr<oglBufferTexture_>;
+class oglImgBase_;
+using oglImgBase    = std::shared_ptr<oglImgBase_>;
+class oglImg2D_;
+using oglImg2D      = std::shared_ptr<oglImg2D_>;
+class oglImg3D_;
+using oglImg3D      = std::shared_ptr<oglImg3D_>;
+
 
 enum class TextureType : GLenum
 {
@@ -67,18 +94,13 @@ enum class TextureWrapVal : uint8_t { Repeat, ClampEdge, ClampBorder };
 enum class TexImgUsage : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
 
-namespace detail
-{
-using xziar::img::ImageDataType;
-using xziar::img::Image;
 
-
-class OGLUAPI _oglTexBase : public common::NonMovable, public oglCtxObject<true>
+class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-    friend class TextureManager;
-    friend class _oglImgBase;
-    friend class _oglFrameBuffer;
-    friend class _oglProgram;
+    friend class detail::TextureManager;
+    friend class oglImgBase_;
+    friend class oglFrameBuffer_;
+    friend class oglProgram_;
     friend class ProgState;
     friend class ProgDraw;
     friend struct TexLogItem;
@@ -88,8 +110,8 @@ protected:
     xziar::img::TextureFormat InnerFormat;
     GLuint textureID;
     uint8_t Mipmap;
-    static TextureManager& getTexMan() noexcept;
-    explicit _oglTexBase(const TextureType type, const bool shouldBindType) noexcept;
+    static detail::TextureManager& getTexMan() noexcept;
+    explicit oglTexBase_(const TextureType type, const bool shouldBindType) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     void CheckMipmapLevel(const uint8_t level) const;
@@ -100,7 +122,7 @@ protected:
     void Clear(const xziar::img::TextureFormat format);
 public:
     std::u16string Name;
-    virtual ~_oglTexBase() noexcept;
+    virtual ~oglTexBase_() noexcept;
     void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
     {
@@ -115,7 +137,7 @@ public:
 };
 
 template<typename Base>
-struct _oglTexCommon
+struct oglTexCommon_
 {
     forceinline void SetData(const bool isSub, const xziar::img::TextureFormat format, const void *data, const uint8_t level)
     {
@@ -128,7 +150,7 @@ struct _oglTexCommon
         SetData(isSub, format, nullptr, level);
         buf->unbind();
     }
-    forceinline void SetData(const bool isSub, const Image& img, const bool normalized, const bool flipY, const uint8_t level)
+    forceinline void SetData(const bool isSub, const xziar::img::Image& img, const bool normalized, const bool flipY, const uint8_t level)
     {
         const auto[datatype, comptype] = OGLTexUtil::ParseFormat(img.GetDataType(), normalized);
         if (flipY)
@@ -149,56 +171,59 @@ struct _oglTexCommon
     }
 };
 
-class _oglTexture2DView;
+class oglTex2DView_;
 
-class OGLUAPI _oglTexture2D : public _oglTexBase, protected _oglTexCommon<_oglTexture2D>
+class OGLUAPI oglTex2D_ : public oglTexBase_, protected oglTexCommon_<oglTex2D_>
 {
-    friend _oglTexCommon<_oglTexture2D>;
-    friend class _oglTexture2DArray;
-    friend class _oglFrameBuffer;
+    friend oglTexCommon_<oglTex2D_>;
+    friend class oglTex2DArray_;
+    friend class oglFrameBuffer_;
 protected:
     uint32_t Width, Height;
 
-    explicit _oglTexture2D(const bool shouldBindType) noexcept 
-        : _oglTexBase(TextureType::Tex2D, shouldBindType), Width(0), Height(0) {}
+    explicit oglTex2D_(const bool shouldBindType) noexcept 
+        : oglTexBase_(TextureType::Tex2D, shouldBindType), Width(0), Height(0) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
     void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level) noexcept;
-    using _oglTexCommon<_oglTexture2D>::SetData;
-    using _oglTexCommon<_oglTexture2D>::SetCompressedData;
+    using oglTexCommon_<oglTex2D_>::SetData;
+    using oglTexCommon_<oglTex2D_>::SetCompressedData;
 public:
     std::pair<uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height }; }
     virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
-    using _oglTexBase::SetProperty;
+    using oglTexBase_::SetProperty;
     std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
     std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
-    Image GetImage(const ImageDataType format, const bool flipY = true, const uint8_t level = 0);
+    xziar::img::Image GetImage(const xziar::img::ImageDataType format, const bool flipY = true, const uint8_t level = 0);
 };
 
-class _oglTexture2DArray;
-class _oglTexture2DStatic;
+class oglTex2DArray_;
+class oglTex2DStatic_;
 ///<summary>Texture2D View, readonly</summary>  
-class OGLUAPI _oglTexture2DView : public _oglTexture2D
+class OGLUAPI oglTex2DView_: public oglTex2D_
 {
-    friend class _oglTexture2DArray;
-    friend class _oglTexture2DStatic;
+    friend class oglTex2DArray_;
+    friend class oglTex2DStatic_;
 private:
-    _oglTexture2DView(const _oglTexture2DStatic& tex, const xziar::img::TextureFormat format);
-    _oglTexture2DView(const _oglTexture2DArray& tex, const xziar::img::TextureFormat format, const uint32_t layer);
+    MAKE_ENABLER();
+    oglTex2DView_(const oglTex2DStatic_& tex, const xziar::img::TextureFormat format);
+    oglTex2DView_(const oglTex2DArray_& tex, const xziar::img::TextureFormat format, const uint32_t layer);
 };
 
 
-class OGLUAPI _oglTexture2DStatic : public _oglTexture2D
+class OGLUAPI oglTex2DStatic_ : public oglTex2D_
 {
-    friend class _oglTexture2DView;
+    friend class oglTex2DView_;
 private:
+    MAKE_ENABLER();
+    oglTex2DStatic_(const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
 public:
-    _oglTexture2DStatic(const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
+    static oglTex2DS Create(const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
 
     void SetData(const xziar::img::TextureFormat format, const void *data, const uint8_t level = 0);
     void SetData(const xziar::img::TextureFormat format, const oglPBO& buf, const uint8_t level = 0);
-    void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
+    void SetData(const xziar::img::Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
     void SetData(const xziar::img::TextureFormat format, const std::vector<T, A>& data, const uint8_t level = 0)
     { 
@@ -213,26 +238,28 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void Clear() { _oglTexBase::Clear(InnerFormat); }
+    void Clear() { oglTexBase_::Clear(InnerFormat); }
 
-    Wrapper<_oglTexture2DView> GetTextureView(const xziar::img::TextureFormat format) const;
-    Wrapper<_oglTexture2DView> GetTextureView() const { return GetTextureView(InnerFormat); }
+    oglTex2DV GetTextureView(const xziar::img::TextureFormat format) const;
+    oglTex2DV GetTextureView() const { return GetTextureView(InnerFormat); }
 };
 
 
-class OGLUAPI _oglTexture2DDynamic : public _oglTexture2D
+class OGLUAPI oglTex2DDynamic_ : public oglTex2D_
 {
 protected:
+    MAKE_ENABLER();
+    oglTex2DDynamic_() noexcept : oglTex2D_(true) {}
     void CheckAndSetMetadata(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h);
 public:
-    _oglTexture2DDynamic() noexcept : _oglTexture2D(true) {}
+    static oglTex2DD Create();
 
-    using _oglTexBase::Clear;
+    using oglTexBase_::Clear;
     void GenerateMipmap();
     
     void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const void *data);
     void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const oglPBO& buf);
-    void SetData(const xziar::img::TextureFormat format, const Image& img, const bool normalized = true, const bool flipY = true);
+    void SetData(const xziar::img::TextureFormat format, const xziar::img::Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
     void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const std::vector<T, A>& data)
     { 
@@ -250,77 +277,83 @@ public:
 
 
 ///<summary>Texture2D Array, immutable only</summary>  
-class OGLUAPI _oglTexture2DArray : public _oglTexBase
+class OGLUAPI oglTex2DArray_ : public oglTexBase_
 {
-    friend class _oglFrameBuffer;
-    friend class _oglTexture2DView;
+    friend class oglFrameBuffer_;
+    friend class oglTex2DView_;
 private:
+    MAKE_ENABLER();
     uint32_t Width, Height, Layers;
+
+    oglTex2DArray_(const uint32_t width, const uint32_t height, const uint32_t layers, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
+    oglTex2DArray_(const oglTex2DArray& old, const uint32_t layerAdd);
     void CheckLayerRange(const uint32_t layer) const;
 public:
-    _oglTexture2DArray(const uint32_t width, const uint32_t height, const uint32_t layers, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
-    _oglTexture2DArray(const Wrapper<_oglTexture2DArray>& old, const uint32_t layerAdd);
+    static oglTex2DArray Create(const uint32_t width, const uint32_t height, const uint32_t layers, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
+    static oglTex2DArray Create(const oglTex2DArray& old, const uint32_t layerAdd);
     
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
-
     virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
-    using _oglTexBase::SetProperty;
-    void SetTextureLayer(const uint32_t layer, const Wrapper<_oglTexture2D>& tex);
-    void SetTextureLayer(const uint32_t layer, const Image& img, const bool flipY = true, const uint8_t level = 0);
+    using oglTexBase_::SetProperty;
+    void SetTextureLayer(const uint32_t layer, const oglTex2D& tex);
+    void SetTextureLayer(const uint32_t layer, const xziar::img::Image& img, const bool flipY = true, const uint8_t level = 0);
     void SetTextureLayer(const uint32_t layer, const xziar::img::TextureFormat format, const void *data, const uint8_t level = 0);
     void SetCompressedTextureLayer(const uint32_t layer, const void *data, const size_t size, const uint8_t level = 0);
-    void SetTextureLayers(const uint32_t destLayer, const Wrapper<_oglTexture2DArray>& tex, const uint32_t srcLayer, const uint32_t layerCount);
+    void SetTextureLayers(const uint32_t destLayer, const oglTex2DArray& tex, const uint32_t srcLayer, const uint32_t layerCount);
 
-    void Clear() { _oglTexBase::Clear(InnerFormat); }
+    void Clear() { oglTexBase_::Clear(InnerFormat); }
 
-    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer, const xziar::img::TextureFormat format) const;
-    Wrapper<_oglTexture2DView> ViewTextureLayer(const uint32_t layer) const { return ViewTextureLayer(layer, InnerFormat); }
+    oglTex2DV ViewTextureLayer(const uint32_t layer, const xziar::img::TextureFormat format) const;
+    oglTex2DV ViewTextureLayer(const uint32_t layer) const { return ViewTextureLayer(layer, InnerFormat); }
 };
 
 
-class OGLUAPI _oglTexture3D : public _oglTexBase, protected _oglTexCommon<_oglTexture3D>
+class OGLUAPI oglTex3D_ : public oglTexBase_, protected oglTexCommon_<oglTex3D_>
 {
-    friend _oglTexCommon<_oglTexture3D>;
+    friend oglTexCommon_<oglTex3D_>;
     friend class ::oclu::oclGLBuffer_;
 protected:
     uint32_t Width, Height, Depth;
 
-    explicit _oglTexture3D(const bool shouldBindType) noexcept 
-        : _oglTexBase(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0) {}
+    explicit oglTex3D_(const bool shouldBindType) noexcept 
+        : oglTexBase_(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0) {}
 
     void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
     void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level);
-    using _oglTexCommon<_oglTexture3D>::SetData;
-    using _oglTexCommon<_oglTexture3D>::SetCompressedData;
+    using oglTexCommon_<oglTex3D_>::SetData;
+    using oglTexCommon_<oglTex3D_>::SetCompressedData;
 public:
     virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR) { SetWrapProperty(wrapS, wrapT, wrapR); }
-    using _oglTexBase::SetProperty;
+    using oglTexBase_::SetProperty;
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height, Depth }; }
     std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
     std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
 };
 
-class _oglTexture3DStatic;
+class oglTex3DStatic_;
 ///<summary>Texture3D View, readonly</summary>  
-class OGLUAPI _oglTexture3DView : public _oglTexture3D
+class OGLUAPI oglTex3DView_ : public oglTex3D_
 {
-    friend class _oglTexture3DStatic;
+    friend class oglTex3DStatic_;
 private:
-    _oglTexture3DView(const _oglTexture3DStatic& tex, const xziar::img::TextureFormat format);
+    MAKE_ENABLER();
+    oglTex3DView_(const oglTex3DStatic_& tex, const xziar::img::TextureFormat format);
 };
 
-class OGLUAPI _oglTexture3DStatic : public _oglTexture3D
+class OGLUAPI oglTex3DStatic_ : public oglTex3D_
 {
-    friend class _oglTexture3DView;
+    friend class oglTex3DView_;
 private:
+    MAKE_ENABLER();
+    oglTex3DStatic_(const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
 public:
-    _oglTexture3DStatic(const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
+    static oglTex3DS Create(const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const uint8_t mipmap = 1);
 
     void SetData(const xziar::img::TextureFormat format, const void *data, const uint8_t level = 0);
     void SetData(const xziar::img::TextureFormat format, const oglPBO& buf, const uint8_t level = 0);
-    void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
+    void SetData(const xziar::img::Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
     void SetData(const xziar::img::TextureFormat format, const std::vector<T, A>& data, const uint8_t level = 0)
     {
@@ -335,70 +368,64 @@ public:
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
 
-    void Clear() { _oglTexBase::Clear(InnerFormat); }
+    void Clear() { oglTexBase_::Clear(InnerFormat); }
 
-    Wrapper<_oglTexture3DView> GetTextureView(const xziar::img::TextureFormat format) const;
-    Wrapper<_oglTexture3DView> GetTextureView() const { return GetTextureView(InnerFormat); }
+    oglTex3DV GetTextureView(const xziar::img::TextureFormat format) const;
+    oglTex3DV GetTextureView() const { return GetTextureView(InnerFormat); }
 };
 
 
-class OGLUAPI _oglBufferTexture : public _oglTexBase
+class OGLUAPI oglBufferTexture_ : public oglTexBase_
 {
+private:
+    MAKE_ENABLER();
+    oglBufferTexture_() noexcept;
 protected:
     oglTBO InnerBuf;
 public:
-    _oglBufferTexture() noexcept;
-    virtual ~_oglBufferTexture() noexcept {}
+    //static oglBufTex Create();
+    virtual ~oglBufferTexture_() noexcept {}
     void SetBuffer(const xziar::img::TextureFormat format, const oglTBO& tbo);
 };
 
 
-class OGLUAPI _oglImgBase : public common::NonMovable, public oglCtxObject<true>
+class OGLUAPI oglImgBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-    friend class TexImgManager;
-    friend class _oglProgram;
+    friend class detail::TexImgManager;
+    friend class oglProgram_;
     friend class ProgState;
     friend class ProgDraw;
 protected:
-    Wrapper<_oglTexBase> InnerTex;
+    oglTexBase InnerTex;
     TexImgUsage Usage;
     const bool IsLayered;
-    static TexImgManager& getImgMan() noexcept;
+    static detail::TexImgManager& getImgMan() noexcept;
     GLuint GetTextureID() const noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
-    _oglImgBase(const Wrapper<_oglTexBase>& tex, const TexImgUsage usage, const bool isLayered);
+    oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const bool isLayered);
 public:
     TextureType GetType() const { return InnerTex->Type; }
 };
 
-class OGLUAPI _oglImg2D : public _oglImgBase
+class OGLUAPI oglImg2D_ : public oglImgBase_
 {
+private:
+    MAKE_ENABLER();
+    oglImg2D_(const oglTex2D& tex, const TexImgUsage usage);
 public:
-    _oglImg2D(const Wrapper<detail::_oglTexture2D>& tex, const TexImgUsage usage);
+    static oglImg2D Create(const oglTex2D& tex, const TexImgUsage usage);
 };
 
-class OGLUAPI _oglImg3D : public _oglImgBase
+class OGLUAPI oglImg3D_ : public oglImgBase_
 {
+private:
+    MAKE_ENABLER();
+    oglImg3D_(const oglTex3D& tex, const TexImgUsage usage);
 public:
-    _oglImg3D(const Wrapper<detail::_oglTexture3D>& tex, const TexImgUsage usage);
+    static oglImg3D Create(const oglTex3D& tex, const TexImgUsage usage);
 };
 
-}
-
-using oglTexBase    = Wrapper<detail::_oglTexBase>;
-using oglTex2D      = Wrapper<detail::_oglTexture2D>;
-using oglTex2DS     = Wrapper<detail::_oglTexture2DStatic>;
-using oglTex2DD     = Wrapper<detail::_oglTexture2DDynamic>;
-using oglTex2DV     = Wrapper<detail::_oglTexture2DView>;
-using oglTex2DArray = Wrapper<detail::_oglTexture2DArray>;
-using oglTex3D      = Wrapper<detail::_oglTexture3D>;
-using oglTex3DS     = Wrapper<detail::_oglTexture3DStatic>;
-using oglTex3DV     = Wrapper<detail::_oglTexture3DView>;
-using oglBufTex     = Wrapper<detail::_oglBufferTexture>;
-using oglImgBase    = Wrapper<detail::_oglImgBase>;
-using oglImg2D      = Wrapper<detail::_oglImg2D>;
-using oglImg3D      = Wrapper<detail::_oglImg3D>;
 
 
 }

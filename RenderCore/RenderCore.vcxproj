@@ -234,7 +234,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Basic3DObject.h" />
-    <ClInclude Include="BasicTest.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="FontTest.h" />
     <ClInclude Include="GLShader.h" />
@@ -262,7 +261,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Basic3DObject.cpp" />
-    <ClCompile Include="BasicTest.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="dllmain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
