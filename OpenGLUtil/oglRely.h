@@ -16,21 +16,18 @@
 # endif
 #endif
 
+
+
+#include "ImageUtil/ImageCore.h"
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
 #include "common/CopyEx.hpp"
-#include "common/Wrapper.hpp"
 #include "common/ContainerEx.hpp"
+#include "common/Wrapper.hpp"
 #include "common/SpinLock.hpp"
-#include "common/StringEx.hpp"
-#include "SystemCommon/FileEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
-#include "common/Linq.hpp"
-#include "StringCharset/Convert.h"
-#include "SystemCommon/ThreadEx.h"
-#include "ImageUtil/ImageUtil.h"
 
 #define GLEW_STATIC
 #include "3rdParty/glew/glew.h"
@@ -56,7 +53,6 @@
 #include <tuple>
 #include <optional>
 #include <variant>
-#include <algorithm>
 #include <atomic>
 #if COMPILER_CLANG
 #   pragma clang diagnostic push
@@ -83,32 +79,7 @@ class GLInterOP;
 
 namespace oglu
 {
-namespace str = common::str;
-namespace fs = common::fs;
-using std::string;
-using std::string_view;
-using std::wstring;
-using std::u16string;
-using std::u16string_view;
-using std::byte;
-using std::tuple;
-using std::pair;
-using std::vector;
-using std::array;
-using std::map;
-using std::set;
-using std::function;
-using std::optional;
-using std::variant;
 using common::Wrapper;
-using common::SimpleTimer;
-using common::NonCopyable;
-using common::NonMovable;
-using common::PromiseResult;
-using common::BaseException;
-using common::file::FileException;
-using common::linq::Linq;
-using common::str::Charset;
 
 
 using GLboolean  = uint8_t;
@@ -162,14 +133,6 @@ public:
 
 }
 }
-
-#ifdef OGLU_EXPORT
-#include "MiniLogger/MiniLogger.h"
-namespace oglu
-{
-common::mlog::MiniLogger<false>& oglLog();
-}
-#endif
 
 
 #if COMPILER_MSVC

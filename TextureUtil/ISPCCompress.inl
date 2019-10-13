@@ -6,6 +6,9 @@
 
 namespace oglu::texutil::detail
 {
+using xziar::img::ImageView;
+using xziar::img::ImageDataType;
+
 
 static common::AlignedBuffer CompressBC1(const ImageView& img)
 {

@@ -14,7 +14,7 @@
         {
             "sources": ["*.cpp"],
             "defines": ["OGLU_EXPORT"],
-            "pch": "oglRely.h"
+            "pch": "oglPch.h"
         }
     }
 }

@@ -11,11 +11,11 @@ namespace oglu
 class OGLUAPI oglWorker
 {
 private:
-    const u16string Name;
+    const std::u16string Name;
     common::asyexe::AsyncManager ShareExecutor, IsolateExecutor;
     oglContext ShareContext, IsolateContext;
 public:
-    oglWorker(u16string name) : Name(name), ShareExecutor(u"oglWorker[S]-" + name), IsolateExecutor(u"oglWorker[I]-" + name)
+    oglWorker(std::u16string name) : Name(name), ShareExecutor(u"oglWorker[S]-" + name), IsolateExecutor(u"oglWorker[I]-" + name)
     {
     }
     ~oglWorker()

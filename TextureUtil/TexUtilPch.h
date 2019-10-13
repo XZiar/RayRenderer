@@ -1,0 +1,19 @@
+#pragma once
+#include "TexUtilRely.h"
+#include "TexUtilWorker.h"
+#include "OpenCLInterop/GLInterop.h"
+#include "OpenGLUtil/oglException.h"
+#include "ImageUtil/ImageUtil.h"
+#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/FileEx.h"
+#include "SystemCommon/ThreadEx.h"
+#include "common/TimeUtil.hpp"
+#include "common/Linq2.hpp"
+#include "common/PromiseTaskSTD.hpp"
+
+
+namespace oglu::texutil
+{
+common::mlog::MiniLogger<false>& texLog();
+std::string getShaderFromDLL(int32_t id);
+}

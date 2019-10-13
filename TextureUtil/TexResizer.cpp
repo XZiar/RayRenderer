@@ -1,18 +1,18 @@
-#include "TexUtilRely.h"
+#include "TexUtilPch.h"
 #include "TexResizer.h"
 #include "TexUtilWorker.h"
-#include "OpenCLInterop/GLInterop.h"
-#include "common/PromiseTaskSTD.hpp"
-#include <future>
-#include <thread>
 #include "resource.h"
 
 
 namespace oglu::texutil
 {
+using std::string;
+using std::string_view;
+using std::u16string;
+using common::PromiseResult;
+using namespace xziar::img;
 using namespace oclu;
 using namespace std::literals;
-using xziar::img::TexFormatUtil;
 
 TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(worker)
 {

@@ -1,12 +1,17 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglBuffer.h"
 #include "oglContext.h"
 #include "oglException.h"
 #include "BindingManager.h"
 #include "DSAWrapper.h"
 
+
 namespace oglu::detail
 {
+using std::string;
+using std::u16string;
+using std::vector;
+
 
 constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
 {

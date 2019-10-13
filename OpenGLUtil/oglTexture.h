@@ -50,7 +50,7 @@ struct OGLUAPI OGLTexUtil
         return { datatype,comptype };
     }
 
-    static u16string_view GetTypeName(const TextureType type) noexcept;
+    static std::u16string_view GetTypeName(const TextureType type) noexcept;
 };
 
 
@@ -73,7 +73,7 @@ using xziar::img::ImageDataType;
 using xziar::img::Image;
 
 
-class OGLUAPI _oglTexBase : public NonMovable, public oglCtxObject<true>
+class OGLUAPI _oglTexBase : public common::NonMovable, public oglCtxObject<true>
 {
     friend class TextureManager;
     friend class _oglImgBase;
@@ -99,7 +99,7 @@ protected:
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
     void Clear(const xziar::img::TextureFormat format);
 public:
-    u16string Name;
+    std::u16string Name;
     virtual ~_oglTexBase() noexcept;
     void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
@@ -171,8 +171,8 @@ public:
     virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
     using _oglTexBase::SetProperty;
-    optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
-    vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
+    std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
+    std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
     Image GetImage(const ImageDataType format, const bool flipY = true, const uint8_t level = 0);
 };
 
@@ -200,7 +200,7 @@ public:
     void SetData(const xziar::img::TextureFormat format, const oglPBO& buf, const uint8_t level = 0);
     void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const xziar::img::TextureFormat format, const vector<T, A>& data, const uint8_t level = 0)
+    void SetData(const xziar::img::TextureFormat format, const std::vector<T, A>& data, const uint8_t level = 0)
     { 
         SetData(format, data.data(), level);
     }
@@ -208,7 +208,7 @@ public:
     void SetCompressedData(const void *data, const size_t size, const uint8_t level = 0);
     void SetCompressedData(const oglPBO& buf, const size_t size, const uint8_t level = 0);
     template<class T, class A>
-    void SetCompressedData(const vector<T, A>& data, const uint8_t level = 0)
+    void SetCompressedData(const std::vector<T, A>& data, const uint8_t level = 0)
     { 
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
@@ -234,7 +234,7 @@ public:
     void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const oglPBO& buf);
     void SetData(const xziar::img::TextureFormat format, const Image& img, const bool normalized = true, const bool flipY = true);
     template<class T, class A>
-    void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const vector<T, A>& data)
+    void SetData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const std::vector<T, A>& data)
     { 
         SetData(format, format, w, h, data.data());
     }
@@ -242,7 +242,7 @@ public:
     void SetCompressedData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const void *data, const size_t size);
     void SetCompressedData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const oglPBO& buf, const size_t size);
     template<class T, class A>
-    void SetCompressedData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const vector<T, A>& data)
+    void SetCompressedData(const xziar::img::TextureFormat format, const uint32_t w, const uint32_t h, const std::vector<T, A>& data)
     { 
         SetCompressedData(format, w, h, data.data(), data.size() * sizeof(T));
     }
@@ -298,8 +298,8 @@ public:
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR) { SetWrapProperty(wrapS, wrapT, wrapR); }
     using _oglTexBase::SetProperty;
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height, Depth }; }
-    optional<vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
-    vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
+    std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
+    std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
 };
 
 class _oglTexture3DStatic;
@@ -322,7 +322,7 @@ public:
     void SetData(const xziar::img::TextureFormat format, const oglPBO& buf, const uint8_t level = 0);
     void SetData(const Image& img, const bool normalized = true, const bool flipY = true, const uint8_t level = 0);
     template<class T, class A>
-    void SetData(const xziar::img::TextureFormat format, const vector<T, A>& data, const uint8_t level = 0)
+    void SetData(const xziar::img::TextureFormat format, const std::vector<T, A>& data, const uint8_t level = 0)
     {
         SetData(format, data.data(), level);
     }
@@ -330,7 +330,7 @@ public:
     void SetCompressedData(const void *data, const size_t size, const uint8_t level = 0);
     void SetCompressedData(const oglPBO& buf, const size_t size, const uint8_t level = 0);
     template<class T, class A>
-    void SetCompressedData(const vector<T, A>& data, const uint8_t level = 0)
+    void SetCompressedData(const std::vector<T, A>& data, const uint8_t level = 0)
     {
         SetCompressedData(data.data(), data.size() * sizeof(T), level);
     }
@@ -353,7 +353,7 @@ public:
 };
 
 
-class OGLUAPI _oglImgBase : public NonMovable, public oglCtxObject<true>
+class OGLUAPI _oglImgBase : public common::NonMovable, public oglCtxObject<true>
 {
     friend class TexImgManager;
     friend class _oglProgram;

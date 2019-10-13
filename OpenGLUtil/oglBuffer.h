@@ -48,7 +48,7 @@ class oglMapPtr;
 namespace detail
 {
 
-class OGLUAPI _oglMapPtr : public NonCopyable, public NonMovable
+class OGLUAPI _oglMapPtr : public common::NonCopyable, public common::NonMovable
 {
     friend class _oglBuffer;
     friend class oglMapPtr;
@@ -79,7 +79,7 @@ namespace detail
 {
 
 
-class OGLUAPI _oglBuffer : public NonMovable, public oglCtxObject<true>
+class OGLUAPI _oglBuffer : public common::NonMovable, public oglCtxObject<true>
 {
     friend class _oglMapPtr;
     friend class _oglProgram;
@@ -173,7 +173,7 @@ public:
         GLuint baseInstance;
     };
 protected:
-    std::variant<vector<DrawElementsIndirectCommand>, vector<DrawArraysIndirectCommand>> Commands;
+    std::variant<std::vector<DrawElementsIndirectCommand>, std::vector<DrawArraysIndirectCommand>> Commands;
     GLsizei Count = 0;
     bool IsIndexed() const;
 public:
@@ -183,14 +183,14 @@ public:
     ///<param name="offsets">offsets</param>
     ///<param name="sizes">sizes</param>
     ///<param name="isIndexed">Indexed commands or not</param>
-    void WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed);
+    void WriteCommands(const std::vector<uint32_t>& offsets, const std::vector<uint32_t>& sizes, const bool isIndexed);
     ///<summary>Write indirect draw commands</summary>  
     ///<param name="offset">offset</param>
     ///<param name="size">size</param>
     ///<param name="isIndexed">Indexed commands or not</param>
     void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
-    const vector<DrawElementsIndirectCommand>& GetElementCommands() const { return std::get<vector<DrawElementsIndirectCommand>>(Commands); }
-    const vector<DrawArraysIndirectCommand>& GetArrayCommands() const { return std::get<vector<DrawArraysIndirectCommand>>(Commands); }
+    const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const { return std::get<std::vector<DrawElementsIndirectCommand>>(Commands); }
+    const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const { return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); }
 };
 
 
@@ -242,7 +242,7 @@ public:
 
         auto [minptr, maxptr] = std::minmax_element(ptr, ptr + count);
         if (*minptr < 0)
-            COMMON_THROW(BaseException, u"element buffer cannot appear negatve value");
+            COMMON_THROW(common::BaseException, u"element buffer cannot appear negatve value");
         auto maxval = *maxptr;
 
         if (maxval <= UINT8_MAX)
@@ -273,7 +273,7 @@ public:
                 Write(ptr, count, mode);
             else
             {
-                vector<uint32_t> newdat;
+                std::vector<uint32_t> newdat;
                 newdat.reserve(count);
                 const auto *cur = ptr, *end = ptr + count;
                 while (cur != end)
@@ -282,7 +282,7 @@ public:
             }
         }
         else
-            COMMON_THROW(BaseException, u"input should be no more than uint32_t");
+            COMMON_THROW(common::BaseException, u"input should be no more than uint32_t");
     }
 };
 

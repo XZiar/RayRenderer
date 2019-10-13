@@ -19,32 +19,23 @@
 
 
 #include "OpenGLUtil/OpenGLUtil.h"
-#include "OpenCLUtil/OpenCLUtil.h"
-#include "ImageUtil/ImageUtil.h"
-#include "SystemCommon/FileEx.h"
-#include "SystemCommon/ThreadEx.h"
+#include "OpenCLUtil/oclCmdQue.h"
+#include "OpenCLUtil/oclProgram.h"
+#include "OpenCLUtil/oclImage.h"
+#include "OpenCLUtil/oclBuffer.h"
+#include "ImageUtil/ImageCore.h"
 #include "common/Exceptions.hpp"
-#include "common/TimeUtil.hpp"
 #include "common/PromiseTask.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <string>
-#include <map>
 
 
 namespace oglu::texutil
 {
 
-using namespace xziar::img;
 class TexUtilWorker;
 
 }
 
-#ifdef TEXUTIL_EXPORT
-#include "MiniLogger/MiniLogger.h"
-namespace oglu::texutil
-{
-common::mlog::MiniLogger<false>& texLog();
-string getShaderFromDLL(int32_t id);
-}
-#endif
+

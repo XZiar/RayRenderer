@@ -1,4 +1,4 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglVAO.h"
 #include "oglException.h"
 #include "oglContext.h"
@@ -10,6 +10,10 @@
 
 namespace oglu::detail
 {
+using std::string;
+using std::u16string;
+using std::vector;
+using common::linq::Linq;
 
 
 _oglVAO::VAOPrep::VAOPrep(_oglVAO& vao_) noexcept :vao(vao_), isEmpty(false)

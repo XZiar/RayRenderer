@@ -4,7 +4,7 @@
 namespace oglu::texutil
 {
 
-common::AlignedBuffer TEXUTILAPI CompressToDat(const ImageView& img, const TextureFormat format, const bool needAlpha = true);
+common::AlignedBuffer TEXUTILAPI CompressToDat(const xziar::img::ImageView& img, const xziar::img::TextureFormat format, const bool needAlpha = true);
 
 
 }

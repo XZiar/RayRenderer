@@ -10,17 +10,15 @@
 
 namespace oglu::texutil
 {
-using common::PromiseResult;
-using namespace oclu;
 
-class TEXUTILAPI TexUtilWorker : public NonCopyable, public NonMovable
+class TEXUTILAPI TexUtilWorker : public common::NonCopyable, public common::NonMovable
 {
 private:
     common::asyexe::AsyncManager Executor;
 public:
     oglContext GLContext;
-    oclContext CLContext;
-    oclCmdQue CmdQue;
+    oclu::oclContext CLContext;
+    oclu::oclCmdQue CmdQue;
     TexUtilWorker(oglContext&& glContext, const oclu::oclContext& clContext);
     ~TexUtilWorker();
     template<typename T>

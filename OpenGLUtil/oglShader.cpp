@@ -1,17 +1,30 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglException.h"
 #include "oglShader.h"
 #include <regex>
 
-using namespace std::literals;
-using std::regex;
-using std::smatch;
-using common::container::FindInMap;
-using common::container::FindInSet;
-using common::container::FindInVec;
 
 namespace oglu
 {
+using std::string;
+using std::string_view;
+using std::u16string;
+using std::u16string_view;
+using std::set;
+using std::map;
+using std::pair;
+using std::vector;
+using std::regex;
+using std::smatch;
+using common::BaseException;
+using common::str::Charset;
+using common::file::FileException;
+using common::fs::path;
+using common::linq::Linq;
+using common::container::FindInMap;
+using common::container::FindInSet;
+using common::container::FindInVec;
+using namespace std::literals;
 
 
 namespace detail
@@ -53,7 +66,7 @@ void _oglShader::compile()
 
 }
 
-oglShader oglShader::LoadFromFile(const ShaderType type, const fs::path& path)
+oglShader oglShader::LoadFromFile(const ShaderType type, const path& path)
 {
     string txt = common::file::ReadAllText(path);
     oglShader shader(type, txt);
@@ -61,7 +74,7 @@ oglShader oglShader::LoadFromFile(const ShaderType type, const fs::path& path)
 }
 
 
-vector<oglShader> oglShader::LoadFromFiles(fs::path fname)
+vector<oglShader> oglShader::LoadFromFiles(path fname)
 {
     static constexpr pair<u16string_view, ShaderType> types[] =
     {
@@ -110,7 +123,7 @@ static vector<string_view> ExtractParams(const string_view& paramPart, const siz
     if (p2 < p3)
     {
         bool inRegion = false;
-        str::SplitAndDo<char>(paramPart.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
+        common::str::SplitAndDo<char>(paramPart.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
         {
             if (ch == '"')
             {
@@ -278,7 +291,7 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
 
     finalShader.reserve(src.size() + 1024);
     info.ResMappings.insert_or_assign("DrawID", "ogluDrawId");
-    str::SplitAndDo<char>(src, '\n',
+    common::str::SplitAndDo<char>(src, '\n',
         [&](const char *pos, size_t len) 
         {
             const size_t curLine = lines.size();
@@ -288,11 +301,11 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
             const auto p0 = line.find_first_not_of(' ');
             const string_view realline = line.substr(p0 == string_view::npos ? 0 : p0);
             if (realline.size() <= 6) return;
-            if (str::IsBeginWith(realline, "#version"))
+            if (common::str::IsBeginWith(realline, "#version"))
             {
                 verLineNum = curLine;
             }
-            else if (str::IsBeginWith(realline, "//@OGLU@"))
+            else if (common::str::IsBeginWith(realline, "//@OGLU@"))
             {
                 OgluAttribute ogluAttr(realline.substr(8));
                 switch (hash_(ogluAttr.Name))
@@ -313,13 +326,13 @@ vector<oglShader> oglShader::LoadFromExSrc(const string& src, ShaderExtInfo& inf
                     break;
                 }
             }
-            else if(str::IsBeginWith(realline, "OGLU_ROUTINE("))
+            else if(common::str::IsBeginWith(realline, "OGLU_ROUTINE("))
             {
                 const auto&[it,ret] = routines.insert(RoutineItem(line, curLine));
                 if (!ret)
                     oglLog().warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
             }
-            else if(str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
+            else if(common::str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
             {
                 const auto sub = RoutineItem::TryParseSubroutine(line);
                 if (sub.has_value())

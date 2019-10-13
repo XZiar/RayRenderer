@@ -12,7 +12,7 @@ namespace oglu
 {
 
 
-class FONTHELPAPI FontCreator : public NonCopyable
+class FONTHELPAPI FontCreator : public common::NonCopyable
 {
 private:
     std::unique_ptr<ft::FreeTyper> ft2;

@@ -1,14 +1,12 @@
-#include "TexUtilRely.h"
+#include "TexUtilPch.h"
 #include "TexCompressor.h"
 #include "ISPCCompress.inl"
 #include "STBCompress.inl"
-#include "OpenGLUtil/oglException.h"
-#include "common/PromiseTaskSTD.hpp"
-#include <future>
 
 
 namespace oglu::texutil
 {
+using namespace xziar::img;
 
 
 static void CheckImgSize(const ImageView& img)

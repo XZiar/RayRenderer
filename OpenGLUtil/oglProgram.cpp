@@ -1,4 +1,4 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglException.h"
 #include "oglProgram.h"
 #include "oglContext.h"
@@ -9,6 +9,14 @@
 
 namespace oglu
 {
+using std::string;
+using std::string_view;
+using std::u16string;
+using std::set;
+using std::map;
+using std::pair;
+using std::vector;
+using common::str::Charset;
 using common::container::FindInSet;
 using common::container::FindInMap;
 using common::container::FindInMapOrDefault;

@@ -150,7 +150,7 @@ private:
 #endif
     CtxResHandler ResHandler;
     std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
-    common::container::FrozenDenseSet<string_view> Extensions;
+    common::container::FrozenDenseSet<std::string_view> Extensions;
     const std::shared_ptr<SharedContextCore> SharedCore;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
@@ -207,7 +207,7 @@ public:
     const MsgType Type;
     const MsgSrc From;
     const MsgLevel Level;
-    u16string Msg;
+    std::u16string Msg;
 
     DebugMessage(const GLenum from, const GLenum type, const GLenum lv);
     ~DebugMessage();

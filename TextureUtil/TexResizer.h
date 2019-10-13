@@ -9,48 +9,48 @@
 
 namespace oglu::texutil
 {
-using common::PromiseResult;
-using namespace oclu;
 
 enum class ResizeMethod : uint8_t { OpenGL, Compute, OpenCL, CPU };
 
-class TEXUTILAPI TexResizer : public NonCopyable, public NonMovable
+class TEXUTILAPI TexResizer : public common::NonCopyable, public common::NonMovable
 {
 private:
     std::shared_ptr<TexUtilWorker> Worker;
     oglContext GLContext;
-    oclContext CLContext;
-    oclCmdQue CmdQue;
+    oclu::oclContext CLContext;
+    oclu::oclCmdQue CmdQue;
     oglDrawProgram GLResizer;
     oglComputeProgram GLResizer2;
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
     oglFBO OutputFrame;
-    oclKernel KerToImg, KerToDat3, KerToDat4;
-    common::PromiseResult<Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const ImageDataType format);
+    oclu::oclKernel KerToImg, KerToDat3, KerToDat4;
+    common::PromiseResult<xziar::img::Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const xziar::img::ImageDataType format);
 public:
     TexResizer(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexResizer();
-   /* static void CheckOutputFormat(const ImageDataType format);
+   /* static void CheckOutputFormat(const xziar::img::ImageDataType format);
     static void CheckOutputFormat(const TextureInnerFormat format);
     */
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
+    common::PromiseResult<oglTex2DS> ResizeToTex(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const xziar::img::TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
+    common::PromiseResult<oglTex2DS> ResizeToTex(const oglTex2D& tex, const uint16_t width, const uint16_t height, const xziar::img::TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const ImageView& img, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
+    common::PromiseResult<oglTex2DS> ResizeToTex(const xziar::img::ImageView& img, const uint16_t width, const uint16_t height, const xziar::img::TextureFormat output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<oglTex2DS> ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const TextureFormat output, const bool flipY = false);
+    common::PromiseResult<oglTex2DS> ResizeToTex(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const xziar::img::TextureFormat innerFormat, 
+        const uint16_t width, const uint16_t height, const xziar::img::TextureFormat output, const bool flipY = false);
 
     template<ResizeMethod>
-    PromiseResult<Image> ResizeToImg(const oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const oclu::oclImg2D& img, const bool isSRGB, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<Image> ResizeToImg(const oglTex2D& tex, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const oglTex2D& tex, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<Image> ResizeToImg(const ImageView& img, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const xziar::img::ImageView& img, const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
     template<ResizeMethod>
-    PromiseResult<Image> ResizeToImg(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const TextureFormat innerFormat, const uint16_t width, const uint16_t height, const ImageDataType output, const bool flipY = false);
+    common::PromiseResult<xziar::img::Image> ResizeToImg(const common::AlignedBuffer& data, const std::pair<uint32_t, uint32_t>& size, const xziar::img::TextureFormat innerFormat,
+        const uint16_t width, const uint16_t height, const xziar::img::ImageDataType output, const bool flipY = false);
 
 };
 

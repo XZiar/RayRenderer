@@ -1,4 +1,4 @@
-#include "oglRely.h"
+#include "oglPch.h"
 
 #if defined(_WIN32)
 #   pragma comment (lib, "opengl32.lib")// link Microsoft OpenGL lib

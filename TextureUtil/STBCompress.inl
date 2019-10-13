@@ -22,6 +22,8 @@
 
 namespace oglu::texutil::detail
 {
+using xziar::img::ImageView;
+using xziar::img::ImageDataType;
 
 //SIMD optimized according to stb's implementation
 static forceinline void CompressBC5Block(uint8_t * __restrict dest, uint8_t * __restrict buffer)

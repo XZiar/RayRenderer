@@ -23,7 +23,7 @@ MAKE_ENUM_BITFIELD(RBOFormat)
 
 namespace detail
 {
-class OGLUAPI _oglRenderBuffer : public NonMovable, public oglCtxObject<true>
+class OGLUAPI _oglRenderBuffer : public common::NonMovable, public oglCtxObject<true>
 {
     friend class _oglFrameBuffer;
 public:
@@ -47,14 +47,14 @@ enum class FBOStatus : uint8_t
 class oglFBO;
 namespace detail
 {
-class OGLUAPI _oglFrameBuffer : public NonMovable, public oglCtxObject<false>
+class OGLUAPI _oglFrameBuffer : public common::NonMovable, public oglCtxObject<false>
 {
     friend class _oglContext;
 public:
-    using FBOAttachment = variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, pair<oglTex2DArray, uint32_t>>;
+    using FBOAttachment = std::variant<std::monostate, Wrapper<detail::_oglRenderBuffer>, oglTex2D, std::pair<oglTex2DArray, uint32_t>>;
 private:
     GLuint FBOId;
-    vector<FBOAttachment> ColorAttachemnts;
+    std::vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
 public:

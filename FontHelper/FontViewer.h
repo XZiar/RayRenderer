@@ -1,7 +1,6 @@
 #pragma once
 
 #include "FontRely.h"
-#include "common/Controllable.hpp"
 
 namespace oglu
 {
@@ -10,7 +9,7 @@ namespace oglu
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class FONTHELPAPI FontViewer : public NonCopyable, public common::Controllable
+class FONTHELPAPI FontViewer : public common::NonCopyable, public common::Controllable
 {
 private:
     oglVBO viewRect;

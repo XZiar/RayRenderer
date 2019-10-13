@@ -59,13 +59,13 @@ struct IsVAComp<VARawComponent<ValType_, IsNormalize_, AsInteger_, Size_, Offset
 template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
 struct IsVAComp<VAComponent<T, IsNormalize_, Size_, Offset_>> : public std::true_type {};
 
-class OGLUAPI _oglVAO : public NonMovable, public oglCtxObject<false>
+class OGLUAPI _oglVAO : public common::NonMovable, public oglCtxObject<false>
 {
 protected:
     friend class _oglProgram;
     enum class DrawMethod : uint8_t { UnPrepared, Array, Arrays, Index, Indexs, IndirectArrays, IndirectIndexes };
     std::variant<std::monostate, GLsizei, std::vector<GLsizei>> Count;
-    std::variant<std::monostate, const void*, GLint, vector<const void*>, vector<GLint>> Offsets;
+    std::variant<std::monostate, const void*, GLint, std::vector<const void*>, std::vector<GLint>> Offsets;
     oglEBO IndexBuffer;
     oglIBO IndirectBuffer;
     GLuint VAOId;
@@ -74,7 +74,7 @@ protected:
     void bind() const noexcept;
     static void unbind() noexcept;
 public:
-    class OGLUAPI VAOPrep : public NonCopyable
+    class OGLUAPI VAOPrep : public common::NonCopyable
     {
         friend class _oglVAO;
     private:
@@ -163,7 +163,7 @@ public:
         ///<summary>Set draw size(using MultyDraw[Arrays/Elements])</summary>  
         ///<param name="offsets">offsets</param>
         ///<param name="sizes">sizes</param>
-        VAOPrep& SetDrawSize(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes);
+        VAOPrep& SetDrawSize(const std::vector<uint32_t>& offsets, const std::vector<uint32_t>& sizes);
         ///<summary>Set Indirect buffer</summary>  
         ///<param name="ibo">indirect buffer</param>
         VAOPrep& SetDrawSize(const oglIBO& ibo, GLint offset = 0, GLsizei size = 0);

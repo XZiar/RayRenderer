@@ -1,4 +1,4 @@
-#include "TexUtilRely.h"
+#include "TexUtilPch.h"
 #include "TexUtilWorker.h"
 
 
@@ -26,7 +26,7 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
         {
             CmdQue = oclCmdQue_::Create(CLContext, CLContext->GetGPUDevice());
             if (!CmdQue)
-                COMMON_THROW(BaseException, u"clQueue initialized failed!");
+                COMMON_THROW(common::BaseException, u"clQueue initialized failed!");
         }
         else
             texLog().warning(u"TexUtil has no shared CL context attached\n");

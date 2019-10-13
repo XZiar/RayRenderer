@@ -22,15 +22,15 @@ class OGLUAPI _oglShader : public oglCtxObject<true>
 {
     friend class _oglProgram;
 private:
-    string Src;
+    std::string Src;
     GLuint ShaderID;
 public:
     const ShaderType Type;
-    _oglShader(const ShaderType type, const string& txt);
+    _oglShader(const ShaderType type, const std::string& txt);
     ~_oglShader();
 
     void compile();
-    const string& SourceText() const { return Src; }
+    const std::string& SourceText() const { return Src; }
 };
 
 }
@@ -39,26 +39,26 @@ enum class ShaderPropertyType : uint8_t { Vector, Color, Range, Matrix, Float, B
 
 struct ShaderExtProperty
 {
-    string Name;
-    string Description;
+    std::string Name;
+    std::string Description;
     ShaderPropertyType Type;
     std::any Data;
-    ShaderExtProperty(string name, const ShaderPropertyType type, string desc = "", std::any data = {}) :
+    ShaderExtProperty(std::string name, const ShaderPropertyType type, std::string desc = "", std::any data = {}) :
         Name(std::move(name)), Description(std::move(desc)), Type(type), Data(std::move(data)) {}
     using Lesser = common::container::SetKeyLess<ShaderExtProperty, &ShaderExtProperty::Name>;
 };
 
 struct ShaderExtInfo
 {
-    set<ShaderExtProperty, ShaderExtProperty::Lesser> Properties;
-    map<string, string> ResMappings;
+    std::set<ShaderExtProperty, ShaderExtProperty::Lesser> Properties;
+    std::map<std::string, std::string> ResMappings;
 };
 
 struct ShaderConfig
 {
     using DefineVal = std::variant<std::monostate, int32_t, uint32_t, float, double, std::string>;
-    map<string, DefineVal> Defines;
-    map<string, string> Routines;
+    std::map<std::string, DefineVal> Defines;
+    std::map<std::string, std::string> Routines;
 };
 
 class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
@@ -66,19 +66,19 @@ class OGLUAPI oglShader : public Wrapper<detail::_oglShader>
 private:
 public:
     using Wrapper::Wrapper;
-    static oglShader LoadFromFile(const ShaderType type, const fs::path& path);
-    static vector<oglShader> LoadFromFiles(fs::path fname);
-    static vector<oglShader> LoadFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
-    static vector<oglShader> LoadDrawFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
+    static oglShader LoadFromFile(const ShaderType type, const common::fs::path& path);
+    static std::vector<oglShader> LoadFromFiles(common::fs::path fname);
+    static std::vector<oglShader> LoadFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
+    static std::vector<oglShader> LoadDrawFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
     { return LoadFromExSrc(src, info, config, false); }
-    static vector<oglShader> LoadComputeFromExSrc(const string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
+    static std::vector<oglShader> LoadComputeFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
     { return LoadFromExSrc(src, info, config, true, false); }
-    static vector<oglShader> LoadFromExSrc(const string& src, const ShaderConfig& config = {}) 
+    static std::vector<oglShader> LoadFromExSrc(const std::string& src, const ShaderConfig& config = {}) 
     {
         ShaderExtInfo dummy;
         return LoadFromExSrc(src, dummy, config);
     }
-    static string_view GetStageName(const ShaderType type);
+    static std::string_view GetStageName(const ShaderType type);
 };
 
 

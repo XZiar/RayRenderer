@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenGLUtil/oglException.h"
+#include "common/StringEx.hpp"
 #include <algorithm>
 
 using namespace common;
@@ -184,7 +185,7 @@ static void OGLStub()
                 catch (const OGLException& gle)
                 {
                     log().error(u"OpenGL shader fail:\n{}\n", gle.message);
-                    const auto buildLog = gle.data.has_value() ? std::any_cast<u16string>(&gle.data) : nullptr;
+                    const auto buildLog = gle.data.has_value() ? std::any_cast<std::u16string>(&gle.data) : nullptr;
                     if (buildLog)
                         log().error(u"Extra info:{}\n", *buildLog);
                 }

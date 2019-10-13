@@ -1,4 +1,4 @@
-#include "TexUtilRely.h"
+#include "TexUtilPch.h"
 #include "TexMipmap.h"
 #include "TexUtilWorker.h"
 #include "resource.h"
@@ -6,6 +6,11 @@
 
 namespace oglu::texutil
 {
+using std::string;
+using std::u16string;
+using std::vector;
+using common::PromiseResult;
+using namespace xziar::img;
 using namespace oclu;
 using namespace std::literals;
 
@@ -68,8 +73,8 @@ struct Info
 void TexMipmap::Test()
 {
     Image src(ImageDataType::RGBA);
-    const auto srcPath = fs::temp_directory_path() / u"src.png";
-    if (fs::exists(srcPath))
+    const auto srcPath = common::fs::temp_directory_path() / u"src.png";
+    if (common::fs::exists(srcPath))
         src = ReadImage(srcPath);
     else
     {
@@ -90,7 +95,7 @@ void TexMipmap::Test()
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
-    WriteImage(dst, fs::temp_directory_path() / u"dst.png");
+    WriteImage(dst, common::fs::temp_directory_path() / u"dst.png");
 
 
 
@@ -109,20 +114,20 @@ void TexMipmap::Test()
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
     outBuf->Read(CmdQue, dst3.GetRawPtr(), dst3.GetSize());
-    WriteImage(dst3, fs::temp_directory_path() / u"dst_.png");
+    WriteImage(dst3, common::fs::temp_directory_path() / u"dst_.png");
     //getchar();
 }
 void TexMipmap::Test2()
 {
     //Test();
-    Image src = xziar::img::ReadImage(fs::temp_directory_path() / u"src.png");
+    Image src = xziar::img::ReadImage(common::fs::temp_directory_path() / u"src.png");
     const auto pms = GenerateMipmaps(src, false);
     const auto mipmaps = pms->Wait();
     uint32_t i = 1;
-    xziar::img::WriteImage(src, fs::temp_directory_path() / ("mip_0.jpg"));
+    xziar::img::WriteImage(src, common::fs::temp_directory_path() / ("mip_0.jpg"));
     for (const auto& mm : mipmaps)
     {
-        xziar::img::WriteImage(mm, fs::temp_directory_path() / ("mip_" + std::to_string(i) + ".jpg"));
+        xziar::img::WriteImage(mm, common::fs::temp_directory_path() / ("mip_" + std::to_string(i) + ".jpg"));
         i++;
     }
     texLog().debug(u"Mipmap test2 totally cost {} us.\n", pms->ElapseNs() / 1000);
@@ -151,7 +156,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
     {
         return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
+            const auto bytes = common::linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
             auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
@@ -179,7 +184,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
                 pmss.push_back(pms);
             }
             agent.Await(pmss.back());
-            const uint64_t totalTime = Linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
             outBuf->Map(CmdQue, oclu::MapFlag::Read);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
@@ -189,7 +194,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
     {
         return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            const auto bytes = Linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
+            const auto bytes = common::linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
             auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
@@ -211,7 +216,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
                 pmss.push_back(pms);
             }
             agent.Await(pmss.back());
-            const uint64_t totalTime = Linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
             outBuf->Map(CmdQue, oclu::MapFlag::Read);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;

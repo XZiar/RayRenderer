@@ -9,24 +9,23 @@
 
 namespace oglu::texutil
 {
-using common::PromiseResult;
-using namespace oclu;
 
-class TEXUTILAPI TexMipmap : public NonCopyable, public NonMovable
+
+class TEXUTILAPI TexMipmap : public common::NonCopyable, public common::NonMovable
 {
 private:
     std::shared_ptr<TexUtilWorker> Worker;
     oglContext GLContext;
-    oclContext CLContext;
-    oclCmdQue CmdQue;
-    oclKernel DownsampleSrc;
-    oclKernel DownsampleMid;
-    oclKernel DownsampleRaw;
-    oclKernel DownsampleTest;
+    oclu::oclContext CLContext;
+    oclu::oclCmdQue CmdQue;
+    oclu::oclKernel DownsampleSrc;
+    oclu::oclKernel DownsampleMid;
+    oclu::oclKernel DownsampleRaw;
+    oclu::oclKernel DownsampleTest;
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();
-    PromiseResult<vector<Image>> GenerateMipmaps(const ImageView& src, const bool isSRGB = true, const uint8_t levels = 255);
+    common::PromiseResult<std::vector<xziar::img::Image>> GenerateMipmaps(const xziar::img::ImageView& src, const bool isSRGB = true, const uint8_t levels = 255);
 
     void Test();
     void Test2();

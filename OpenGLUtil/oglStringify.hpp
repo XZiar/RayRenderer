@@ -7,7 +7,7 @@ namespace oglu::detail
 
 using namespace std::literals;
 
-static const std::map<GLenum, string_view> GLENUM_STR =
+static const std::map<GLenum, std::string_view> GLENUM_STR =
 { 
     { GL_FLOAT, "float"sv },
     { GL_FLOAT_VEC2, "vec2"sv },

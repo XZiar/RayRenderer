@@ -17,18 +17,23 @@
 #endif
 
 
+
+#include "OpenGLUtil/oglProgram.h"
+#include "OpenGLUtil/oglTexture.h"
+#include "OpenGLUtil/oglVAO.h"
+#include "OpenCLUtil/oclProgram.h"
+#include "OpenCLUtil/oclContext.h"
+#include "OpenCLUtil/oclCmdQue.h"
+#include "OpenCLUtil/oclBuffer.h"
+#include "ImageUtil/ImageCore.h"
+#include "SystemCommon/FileEx.h"
+#include "common/Exceptions.hpp"
+#include "common/TimeUtil.hpp"
+#include "common/Controllable.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <string>
 #include <map>
-#include "common/Wrapper.hpp"
-#include "common/Exceptions.hpp"
-#include "common/TimeUtil.hpp"
-#include "SystemCommon/FileEx.h"
-#include "common/StrBase.hpp"
-#include "OpenGLUtil/OpenGLUtil.h"
-#include "OpenCLUtil/OpenCLUtil.h"
-#include "ImageUtil/ImageUtil.h"
 
 
 namespace ft
@@ -36,11 +41,3 @@ namespace ft
 class FreeTyper;
 }
 
-#ifdef FONTHELPER_EXPORT
-#include "MiniLogger/MiniLogger.h"
-namespace oglu
-{
-common::mlog::MiniLogger<false>& fntLog();
-string getShaderFromDLL(int32_t id);
-}
-#endif

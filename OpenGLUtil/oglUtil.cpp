@@ -1,11 +1,20 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglUtil.h"
 #include "oglException.h"
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"
+
+
 namespace oglu
 {
+using std::string;
+using std::string_view;
+using std::u16string;
+using std::set;
+using std::optional;
+using std::vector;
+using common::PromiseResult;
 
 
 void oglUtil::InitLatestVersion()

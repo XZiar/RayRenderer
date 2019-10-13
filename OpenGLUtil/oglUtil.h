@@ -47,13 +47,13 @@ private:
 public:
     //static void Init(const bool initLatestVer = false);
     static void InitLatestVersion();
-    static u16string GetVersionStr();
-    static optional<string_view> GetError();
-    static set<string_view, std::less<>> GetExtensions();
+    static std::u16string GetVersionStr();
+    static std::optional<std::string_view> GetError();
+    static std::set<std::string_view, std::less<>> GetExtensions();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
     static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
-    static PromiseResult<void> SyncGL();
-    static PromiseResult<void> ForceSyncGL();
+    static common::PromiseResult<void> SyncGL();
+    static common::PromiseResult<void> ForceSyncGL();
     static void MemBarrier(const GLMemBarrier mbar);
 };
 

@@ -1,4 +1,4 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglWorker.h"
 #include "oglUtil.h"
 #if defined(_WIN32)
@@ -11,6 +11,8 @@
 
 namespace oglu
 {
+using std::string;
+using std::u16string;
 
 void oglWorker::Start()
 {

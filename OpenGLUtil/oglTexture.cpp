@@ -1,4 +1,4 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglTexture.h"
 #include "oglContext.h"
 #include "oglException.h"
@@ -8,6 +8,11 @@
 
 namespace oglu
 {
+using std::string;
+using std::u16string;
+using std::u16string_view;
+using std::optional;
+using std::vector;
 using xziar::img::ImageDataType;
 using xziar::img::TextureFormat;
 using xziar::img::TexFormatUtil;

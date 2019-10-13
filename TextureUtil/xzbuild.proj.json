@@ -13,7 +13,8 @@
         "cpp":
         {
             "sources": ["*.cpp", {"-": "dllmain.cpp"}],
-            "defines": ["TEXUTIL_EXPORT"]
+            "defines": ["TEXUTIL_EXPORT"],
+            "pch": "TexUtilPch.h"
         },
         "rc":
         {

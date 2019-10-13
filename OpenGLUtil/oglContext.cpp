@@ -1,9 +1,8 @@
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglContext.h"
 #include "oglUtil.h"
 #include "oglException.h"
 #include "DSAWrapper.h"
-#include "StringCharset/Convert.h"
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
@@ -21,6 +20,9 @@
 
 namespace oglu
 {
+using std::string;
+using std::u16string;
+using std::vector;
 
 BindingState::BindingState()
 {
@@ -451,7 +453,7 @@ static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
     XGetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
     txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
     oglLog().warning(u"X11 report an error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code, 
-        common::strchset::to_u16string(txtBuf, str::Charset::UTF8));
+        common::strchset::to_u16string(txtBuf, common::str::Charset::UTF8));
     return 0;
 }
 #endif

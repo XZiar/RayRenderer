@@ -23,10 +23,10 @@ struct NodeBlock
 };
 
 template<class Key>
-class LRUPos : public NonCopyable
+class LRUPos : public common::NonCopyable
 {
 private:
-    vector<NodeBlock<Key>> Nodes;
+    std::vector<NodeBlock<Key>> Nodes;
     std::map<Key, uint16_t> lookup;
     LinkBlock Links[3];
     constexpr LinkBlock& Unused() { return Links[0]; }
@@ -202,7 +202,7 @@ class _oglProgram;
 
 //D:derived class type, T:resource type
 template<class D, class T, uint8_t Offset>
-class ResDister : public NonCopyable
+class ResDister : public common::NonCopyable
 {
 private:
     static GLint GetLimit(const GLenum prop)
@@ -249,7 +249,7 @@ public:
     ///<param name="prog">progID</param>
     ///<param name="objs">binding map requested from [loc] to [objID]</param>
     ///<param name="curBindings">current binding vectoe of [slot] indexed by [loc]</param>
-    void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, vector<GLint>& curBindings, const bool shouldPin = false)
+    void bindAll(const GLuint prog, const std::map<GLuint, T>& objs, std::vector<GLint>& curBindings, const bool shouldPin = false)
     {
         const std::pair<const GLuint, T> *rebinds[256]; uint32_t rebindCnt = 0;
         uint16_t bindCount = 0;

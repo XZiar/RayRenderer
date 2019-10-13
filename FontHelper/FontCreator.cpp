@@ -1,15 +1,15 @@
-#include "FontRely.h"
+#include "FontPch.h"
 #include "FontCreator.h"
-#include "OpenCLUtil/oclException.h"
-#include "3rdParty/freetype2/freetype2.h"
-#include "3rdParty/fmt/chrono.h"
-#include <cmath>
-#include "resource.h"
 
 namespace oglu
 {
+using std::byte;
 using std::string;
 using std::u16string;
+using std::vector;
+using common::BaseException;
+using common::SimpleTimer;
+using common::fs::path;
 using xziar::img::Image;
 using xziar::img::ImageDataType;
 using xziar::img::TextureFormat;
@@ -94,7 +94,7 @@ FontCreator::~FontCreator()
 
 }
 
-void FontCreator::reloadFont(const fs::path& fontpath)
+void FontCreator::reloadFont(const path& fontpath)
 {
     ft2 = std::make_unique<ft::FreeTyper>(fontpath, (uint16_t)124, (uint16_t)2);
 }
