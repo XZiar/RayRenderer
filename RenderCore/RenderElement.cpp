@@ -40,8 +40,8 @@ private:
     static boost::uuids::uuid GenerateUUID()
     {
         static boost::uuids::random_generator_mt19937 Generator;
-        static std::atomic_flag LockFlag = ATOMIC_FLAG_INIT;
-        common::SpinLocker locker(LockFlag);
+        static common::SpinLocker Lock;
+        const auto lock = Lock.LockScope();
         return Generator();
     }
     static boost::uuids::uuid GenerateUUID(const string_view& str)

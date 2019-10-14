@@ -2,7 +2,6 @@
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
 #include "common/IntToString.hpp"
-#include "common/SpinLock.hpp"
 
 
 

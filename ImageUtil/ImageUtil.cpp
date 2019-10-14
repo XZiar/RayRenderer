@@ -26,7 +26,7 @@ uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support)
 
 static vector<std::reference_wrapper<const ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
-    return common::linq::Linq::FromIterable(SUPPORT_MAP())
+    return common::linq::FromIterable(SUPPORT_MAP())
         .Select([&](const auto& support) { return std::pair(std::cref(*support), support->MatchExtension(ext, dataType, isRead)); })
         .Where([=](const auto& spPair) { return allowDisMatch || spPair.second > 0; })
         .OrderBy([](const auto& l, const auto& r) { return l.second > r.second; })

@@ -11,7 +11,6 @@ using std::u16string;
 using std::string_view;
 using std::u16string_view;
 using std::vector;
-using common::linq::Linq;
 using common::PromiseResult;
 using namespace std::literals::string_view_literals;
 
@@ -279,7 +278,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vect
         options.append("-DOCLU_LOCAL_MEM_SIZE=").append(std::to_string(lSize));
     }
     
-    auto devids = Linq::FromIterable(devs)
+    auto devids = common::linq::FromIterable(devs)
         .Select([](const auto& dev) { return dev->DeviceID; })
         .ToVector();
     cl_int ret = clBuildProgram(ProgID, static_cast<cl_uint>(devids.size()), 
@@ -289,7 +288,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vect
     if (devs.empty())
     {
         common::container::FrozenDenseSet<cl_device_id> devidset = GetProgDevs(ProgID);
-        devs2 = Linq::FromIterable(Context->Devices)
+        devs2 = common::linq::FromIterable(Context->Devices)
             .Where([&](const auto& dev) { return devidset.Has(dev->DeviceID); })
             .ToVector();
     }
@@ -353,7 +352,7 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const std::vector<oclD
 u16string oclProgram_::GetProgBuildLog(cl_program progID, const oclContext_& ctx,
     const common::container::FrozenDenseSet<cl_device_id>& dids)
 {
-    const auto devs = Linq::FromIterable(ctx.Devices)
+    const auto devs = common::linq::FromIterable(ctx.Devices)
         .Where([&](const auto& dev) { return dids.Has(dev->DeviceID); })
         .ToVector();
     return GetProgBuildLog(progID, devs);
@@ -376,7 +375,7 @@ oclProgram_::oclProgram_(oclProgStub* stub)
     const auto names = common::str::Split<char>(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
-    Kernels = Linq::FromIterable(KernelNames)
+    Kernels = common::linq::FromIterable(KernelNames)
         .Select([&](const auto& name) 
             { return std::unique_ptr<oclKernel_>(new oclKernel_(Context->Plat.get(), this, name)); })
         .ToVector();

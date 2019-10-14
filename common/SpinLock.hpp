@@ -43,46 +43,47 @@ struct EmptyLock
 struct SpinLocker : public NonCopyable
 {
 private:
-    std::atomic_flag& lock;
+    std::atomic_flag Flag = ATOMIC_FLAG_INIT;
 public:
-    SpinLocker(std::atomic_flag& flag) noexcept : lock(flag)
+    constexpr SpinLocker() noexcept { }
+    bool TryLock() noexcept
     {
-        Lock(lock);
+        return !Flag.test_and_set();
     }
-    ~SpinLocker() noexcept
+    void Lock() noexcept
     {
-        Unlock(lock);
-    }
-    static bool TryLock(std::atomic_flag& flag) noexcept
-    {
-        return !flag.test_and_set(/*std::memory_order_acquire*/);
-    }
-    static void Lock(std::atomic_flag& flag) noexcept
-    {
-        for (uint32_t i = 0; flag.test_and_set(/*std::memory_order_acquire*/); ++i)
+        for (uint32_t i = 0; Flag.test_and_set(); ++i)
         {
-            if (i > 16)
-                COMMON_PAUSE();
+            COMMON_PAUSE();
+            //if (i > 16)
         }
     }
-    static void Unlock(std::atomic_flag& flag) noexcept
+    void Unlock() noexcept
     {
-        flag.clear();
+        Flag.clear();
+    }
+    using ScopeType = detail::LockScope<SpinLocker, &SpinLocker::Lock, &SpinLocker::Unlock>;
+    ScopeType LockScope() noexcept
+    {
+        return ScopeType(*this);
     }
 };
 
-struct PreferSpinLock : public NonCopyable, public NonMovable //Strong-first
+
+struct PreferSpinLock : public NonCopyable //Strong-first
 {
 private:
-    std::atomic<uint32_t> Flag; //strong on half 16bit, weak on lower 16bit
+    std::atomic<uint32_t> Flag; //strong on high 16bit, weak on low 16bit
 public:
     constexpr PreferSpinLock() noexcept : Flag(0) { }
+    constexpr explicit PreferSpinLock(PreferSpinLock&& other) noexcept 
+        : Flag(other.Flag.exchange(0)) { }
     void LockWeak() noexcept
     {
-        uint32_t expected = Flag.load() & 0x0000ffff; //assume no writer
+        uint32_t expected = Flag.load() & 0x0000ffff; //assume no strong
         while (!Flag.compare_exchange_strong(expected, expected + 1))
         {
-            expected &= 0x0000ffff; //assume no writer
+            expected &= 0x0000ffff; //assume no strong
             COMMON_PAUSE();
         }
     }
@@ -93,7 +94,7 @@ public:
     void LockStrong() noexcept
     {
         Flag.fetch_add(0x00010000);
-        while((Flag.load() & 0x0000ffff) != 0) //loop until no reader
+        while((Flag.load() & 0x0000ffff) != 0) //loop until no weak
         {
             COMMON_PAUSE();
         }
@@ -102,22 +103,26 @@ public:
     {
         Flag.fetch_sub(0x00010000);
     }
-    auto WeakScope() noexcept
+    using WeakScopeType = detail::LockScope<PreferSpinLock, &PreferSpinLock::LockWeak, &PreferSpinLock::UnlockWeak>;
+    WeakScopeType WeakScope() noexcept
     {
-        return detail::LockScope<PreferSpinLock, &PreferSpinLock::LockWeak, &PreferSpinLock::UnlockWeak>(*this);
+        return WeakScopeType(*this);
     }
-    auto StrongScope() noexcept
+    using StrongScopeType = detail::LockScope<PreferSpinLock, &PreferSpinLock::LockStrong, &PreferSpinLock::UnlockStrong>;
+    StrongScopeType StrongScope() noexcept
     {
-        return detail::LockScope<PreferSpinLock, &PreferSpinLock::LockStrong, &PreferSpinLock::UnlockStrong>(*this);
+        return StrongScopeType(*this);
     }
 };
 
-struct WRSpinLock : public NonCopyable, public NonMovable //Writer-first
+struct WRSpinLock : public NonCopyable //Writer-first
 {
 private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr WRSpinLock() noexcept : Flag(0) { }
+    constexpr explicit WRSpinLock(WRSpinLock&& other) noexcept 
+        : Flag(other.Flag.exchange(0)) { }
     void LockRead() noexcept
     {
         uint32_t expected = Flag.load() & 0x7fffffff; //assume no writer
@@ -146,19 +151,22 @@ public:
     }
     void UnlockWrite() noexcept
     {
-        uint32_t expected = Flag.load() | 0x80000000;
-        while (!Flag.compare_exchange_weak(expected, expected - 0x80000000))
-        {
-            expected |= 0x80000000; //ensure there's a writer
-        }
+        Flag -= 0x80000000;
+        //uint32_t expected = Flag.load() | 0x80000000;
+        //while (!Flag.compare_exchange_weak(expected, expected - 0x80000000))
+        //{
+        //    expected |= 0x80000000; //ensure there's a writer
+        //}
     }
-    auto ReadScope() noexcept
+    using ReadScopeType = detail::LockScope<WRSpinLock, &WRSpinLock::LockRead, &WRSpinLock::UnlockRead>;
+    ReadScopeType ReadScope() noexcept
     {
-        return detail::LockScope<WRSpinLock, &WRSpinLock::LockRead, &WRSpinLock::UnlockRead>(*this);
+        return ReadScopeType(*this);
     }
-    auto WriteScope() noexcept
+    using WriteScopeType = detail::LockScope<WRSpinLock, &WRSpinLock::LockWrite, &WRSpinLock::UnlockWrite>;
+    WriteScopeType WriteScope() noexcept
     {
-        return detail::LockScope<WRSpinLock, &WRSpinLock::LockWrite, &WRSpinLock::UnlockWrite>(*this);
+        return WriteScopeType(*this);
     }
 };
 
@@ -168,6 +176,8 @@ private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr RWSpinLock() : Flag(0) { }
+    constexpr explicit RWSpinLock(RWSpinLock&& other) noexcept
+        : Flag(other.Flag.exchange(0)) { }
     void LockRead() noexcept
     {
         Flag++;
@@ -191,19 +201,22 @@ public:
     }
     void UnlockWrite() noexcept
     {
-        uint32_t expected = Flag.load() | 0x80000000;
-        while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
-        {
-            expected |= 0x80000000; //ensure there's a writer
-        }
+        Flag -= 0x80000000;
+        //uint32_t expected = Flag.load() | 0x80000000;
+        //while (!Flag.compare_exchange_weak(expected, expected & 0x7fffffff))
+        //{
+        //    expected |= 0x80000000; //ensure there's a writer
+        //}
     }
-    auto ReadScope() noexcept
+    using ReadScopeType = detail::LockScope<RWSpinLock, &RWSpinLock::LockRead, &RWSpinLock::UnlockRead>;
+    ReadScopeType ReadScope() noexcept
     {
-        return detail::LockScope<RWSpinLock, &RWSpinLock::LockRead, &RWSpinLock::UnlockRead>(*this);
+        return ReadScopeType(*this);
     }
-    auto WriteScope() noexcept
+    using WriteScopeType = detail::LockScope<RWSpinLock, &RWSpinLock::LockWrite, &RWSpinLock::UnlockWrite>;
+    WriteScopeType WriteScope() noexcept
     {
-        return detail::LockScope<RWSpinLock, &RWSpinLock::LockWrite, &RWSpinLock::UnlockWrite>(*this);
+        return WriteScopeType(*this);
     }
     //unsuported, may cause deadlock
     //void UpgradeToWrite()

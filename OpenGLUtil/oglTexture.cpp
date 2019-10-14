@@ -43,22 +43,22 @@ struct TexLogItem
 struct TexLogMap
 {
     std::map<GLuint, TexLogItem> TexMap;
-    std::atomic_flag MapLock = { }; 
+    common::SpinLocker MapLock;
     TexLogMap() {}
     TexLogMap(TexLogMap&& other) noexcept
     {
-        common::SpinLocker locker(MapLock);
-        common::SpinLocker locker2(other.MapLock);
+        const auto lock1 = MapLock.LockScope();
+        const auto lock2 = other.MapLock.LockScope();
         TexMap.swap(other.TexMap);
     }
     void Insert(TexLogItem&& item) 
     {
-        common::SpinLocker locker(MapLock);
+        const auto lock = MapLock.LockScope();
         TexMap.insert_or_assign(item.TexId, item);
     }
     void Remove(const GLuint texId) 
     {
-        common::SpinLocker locker(MapLock);
+        const auto lock = MapLock.LockScope();
         TexMap.erase(texId);
     }
 };

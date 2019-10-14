@@ -61,7 +61,7 @@ static std::atomic_uint32_t LatestVersion = 0;
 static std::map<void*, std::weak_ptr<oglContext_>> CTX_MAP;
 static std::map<void*, std::weak_ptr<oglContext_>> EXTERN_CTX_MAP;
 static common::RWSpinLock CTX_LOCK;
-std::atomic_flag EXTERN_CTX_LOCK, VER_LOCK;
+static common::SpinLocker EXTERN_CTX_LOCK, VER_LOCK;
 
 
 static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
@@ -134,7 +134,7 @@ void oglContext_::Init(const bool isCurrent)
     glGetIntegerv(GL_MINOR_VERSION, &minor);
     Version = major * 10 + minor;
     {
-        common::SpinLocker lock(VER_LOCK);
+        const auto lock = VER_LOCK.LockScope();
         if (Version > LatestVersion)
         {
             LatestVersion = Version;
@@ -438,7 +438,7 @@ oglContext oglContext_::Refresh()
         ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 #endif
         {
-            common::SpinLocker lock(EXTERN_CTX_LOCK);
+            const auto lock = EXTERN_CTX_LOCK.LockScope();
             EXTERN_CTX_MAP.emplace(hrc, ctx);
         }
         return ctx;
@@ -555,7 +555,7 @@ bool oglContext_::ReleaseExternContext(void* hrc)
 {
     size_t dels = 0;
     {
-        common::SpinLocker lock(EXTERN_CTX_LOCK);
+        const auto lock = EXTERN_CTX_LOCK.LockScope();
         dels = EXTERN_CTX_MAP.erase(hrc);
     }
     if (dels > 0)

@@ -214,6 +214,32 @@ TEST(Linq, MapCache)
     EXPECT_THAT(ret1, testing::ContainerEq(ret2));
 }
 
+TEST(Linq, FlatMap)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .SelectMany([](const auto) { return FromRange(0, 1, 1); })
+            .ToVector(),
+            testing::ElementsAre(0, 0, 0, 0));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .SelectMany([](const auto i) { return FromRange(0, i, 1); })
+            .ToVector(),
+            testing::ElementsAre(0, 0, 1, 0, 1, 2));
+    }
+    {
+        size_t selectCnt = 0, whereCnt = 0;
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .SelectMany([&](const auto i) { selectCnt++; return FromRange(0, i, 1); })
+            .Where([&](const auto i) { whereCnt++; return i > 0; })
+            .ToVector(),
+            testing::ElementsAre(1, 1, 2));
+        EXPECT_EQ(selectCnt, 4);
+        EXPECT_EQ(whereCnt, 6);
+    }
+}
+
 TEST(Linq, ModifySource)
 {
     std::vector<int32_t> data{ 1,2,3 };
@@ -232,6 +258,61 @@ TEST(Linq, ModifyNonCopyable)
         .Reduce([](bool ret, const auto& item) { return ret && (bool)item; }, true);
     EXPECT_TRUE(ret);
     EXPECT_THAT(data, testing::Each(testing::Pointee(0)));
+}
+
+TEST(Linq, Pair)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .Pair(FromRange<int32_t>(1, 4, 1))
+            .ToVector(),
+            testing::ElementsAre(std::pair{ 0,1 }, std::pair{ 1,2 }, std::pair{ 2,3 }));
+    } 
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .Pair(FromRange<int32_t>(1, 4, 1))
+            .Skip(2)
+            .ToVector(),
+            testing::ElementsAre(std::pair{ 2,3 }));
+    }
+    {
+        std::vector<int32_t> data1{ 1,2,3 };
+        std::vector<int32_t> data2{ 3,2,1 };
+        auto ret = FromIterable(data1).Pair(FromIterable(data2))
+            .Select([](const auto& p) { return (p.first++) + (p.second++); })
+            .ToVector();
+        EXPECT_THAT(ret, testing::ElementsAre(4, 4, 4));
+        EXPECT_THAT(data1, testing::ElementsAre(2, 3, 4));
+        EXPECT_THAT(data2, testing::ElementsAre(4, 3, 2));
+    }
+}
+
+TEST(Linq, Pairs)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .Pairs(FromRange<int32_t>(1, 4, 1))
+            .ToVector(),
+            testing::ElementsAre(std::tuple{ 0,1 }, std::tuple{ 1,2 }, std::tuple{ 2,3 }));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .Pairs(FromRange<int32_t>(1, 4, 1), FromRange<int32_t>(1, 4, 1))
+            .ToVector(),
+            testing::ElementsAre(std::tuple{ 0,1,1 }, std::tuple{ 1,2,2 }, std::tuple{ 2,3,3 }));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 4, 1)
+            .Pairs(FromRange<int32_t>(1, 4, 1), FromRange<int32_t>(1, 4, 1))
+            .Skip(2)
+            .ToVector(),
+            testing::ElementsAre(std::tuple{ 2,3,3 }));
+    }
+    {
+        EXPECT_EQ(FromRange<int32_t>(0, 4, 1)
+            .Pairs(FromRange<int32_t>(1, 4, 1))
+            .Count(), 3);
+    }
 }
 
 TEST(Linq, Basic)

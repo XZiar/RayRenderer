@@ -1,6 +1,6 @@
 ﻿#include "TestRely.h"
 #include "SystemCommon/FileEx.h"
-#include "common/UnifyLinq.hpp"
+#include "common/Linq2.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/StrCharset.hpp"
 #include "StringCharset/Detect.h"
@@ -63,14 +63,25 @@ static void TestStrConv()
     file::WriteAll(basePath / u"utf8-sample-myout.html", myout);
     //const auto rawget = gb18030_utf16_cvt.to_bytes(*(std::wstring*)&utf16);
     size_t idx = 0;
-    common::container::zip(u8raw, myout).foreach([&idx](auto raw, auto my)
+    const auto allMatch = common::linq::FromIterable(u8raw)
+        .Pair(common::linq::FromIterable(myout))
+        .AllIf([&idx](const auto& p)
+            {
+                auto [raw, my] = p;
+                const bool ret = raw == my;
+                if (!ret)
+                    log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(raw), (uint8_t)(my));
+                idx++;
+                return ret;
+            });
+    /*common::container::zip(u8raw, myout).foreach([&idx](auto raw, auto my)
     {
         if (*raw != *my)
             log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(*raw), (uint8_t)(*my));
         idx++;
-    });
+    });*/
 
-    log().success(u"Test String convert over!\n");
+    log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test String convert over!\n");
     getchar();
 }
 #pragma warning(default:4996)

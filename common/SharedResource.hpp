@@ -21,7 +21,7 @@ private:
 	using handle_type = std::weak_ptr<inner_type>;
 	handle_type hres;
 	CreateFunc creator;
-	std::atomic_flag lockObj = ATOMIC_FLAG_INIT;
+	SpinLocker Locker;
 public:
 	SharedResource(CreateFunc cfunc) : creator(cfunc) {}
 	~SharedResource() {}
@@ -32,7 +32,7 @@ public:
 			return res;
 		//may need initialize
 		{
-			SpinLocker locker(lockObj);//enter critical section
+			Locker.Lock();//enter critical section
 			//check again, someone may has created it
 			res = hres.lock();
 			if (res)

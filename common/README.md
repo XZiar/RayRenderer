@@ -32,6 +32,10 @@ Custom Exception model, inherit from std::runtime_error, with support of nested-
 
 C#-like Linq implementation. It is compile-time based.
 
+### [Linq2](./Linq2.hpp)
+
+New implememntation of Linq. Compile-time based, proper cache strategy, proper type-passthrough, with case-based optimization.
+
 ### [Stream](./Stream.hpp)
 
 Stream is an abstract resouce that can read data from or write data to. 

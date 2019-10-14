@@ -36,7 +36,7 @@ private:
     mutable RWSpinLock Lock;
     uint32_t UID;
 public:
-    Delegate() : Indexer(0), Lock(), UID(std::random_device()())
+    constexpr Delegate() : Indexer(0), Lock(), UID(std::random_device()())
     { }
     ~Delegate()
     {

@@ -3,7 +3,6 @@
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "common/MemoryStream.hpp"
-#include "common/SpinLock.hpp"
 #include "common/Linq2.hpp"
 #include <thread>
 #include <mutex>

@@ -65,7 +65,7 @@ private:
     const oclPlatform_& Plat;
     const oclProgram_& Prog;
     cl_kernel KernelID;
-    mutable std::atomic_flag ArgLock = ATOMIC_FLAG_INIT;
+    mutable common::SpinLocker ArgLock;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
     void CheckArgIdx(const uint32_t idx) const;
     template<size_t N>
@@ -82,9 +82,9 @@ private:
         friend class oclKernel_;
     private:
         const oclKernel_& Kernel;
+        common::SpinLocker::ScopeType KernelLock;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
-        common::SpinLocker KernelLock;
 
         template<size_t Idx>
         forceinline void SetArg() const
@@ -100,7 +100,8 @@ private:
                 SetArg<Idx - 1>();
         }
 
-        KernelCallSite(const oclKernel_* kernel, Args&& ... args) : Kernel(*kernel), Paras(std::forward<Args>(args)...), KernelLock(Kernel.ArgLock)
+        KernelCallSite(const oclKernel_* kernel, Args&& ... args) : Kernel(*kernel), 
+            KernelLock(Kernel.ArgLock.LockScope()), Paras(std::forward<Args>(args)...)
         {
             SetArg<sizeof...(Args) - 1>();
         }

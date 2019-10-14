@@ -44,10 +44,19 @@ struct NumericRangeSource
     constexpr NumericRangeSource(T current, T step, T end) noexcept : Current(current), Step(step), End(end) {}
     constexpr T GetCurrent() const noexcept { return Current; }
     constexpr void MoveNext() noexcept { Current += Step; }
-    constexpr bool IsEnd() const noexcept { return Step < 0 ? Current <= End : Current >= End; }
+    constexpr bool IsEnd() const noexcept 
+    { 
+        return Step < 0 ? Current <= End : Current >= End;
+    }
 
-    constexpr size_t Count() const noexcept { return static_cast<size_t>((End - Current) / Step); }
-    constexpr void MoveMultiple(const size_t count) noexcept { Current += static_cast<T>(count * Step); }
+    constexpr size_t Count() const noexcept 
+    { 
+        return IsEnd() ? 0 : static_cast<size_t>((End - Current) / Step);
+    }
+    constexpr void MoveMultiple(const size_t count) noexcept 
+    { 
+        Current += static_cast<T>(count * Step);
+    }
 };
 
 
@@ -191,7 +200,7 @@ protected:
     constexpr void MoveMultiple(const size_t count)
     {
         if constexpr (P::CanSkipMultiple)
-            return Prev.MoveMultiple(count);
+            Prev.MoveMultiple(count);
         else
             static_assert(common::AlwaysTrue<P>(), "Not movemultiple");
     }
@@ -247,7 +256,7 @@ public:
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = InType;
     static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = P::InvolveCache || ShouldCache;
+    static constexpr bool InvolveCache = P::InvolveCache;
     static constexpr bool IsCountable = P::IsCountable;
     static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
 
@@ -294,7 +303,7 @@ public:
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = InType;
     static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = P::InvolveCache || ShouldCache;
+    static constexpr bool InvolveCache = P::InvolveCache;
     static constexpr bool IsCountable = false;
     static constexpr bool CanSkipMultiple = false;
 
@@ -376,6 +385,196 @@ public:
 };
 
 
+template<typename P, typename Mapper>
+struct FlatMappedSource
+{
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using MidType = typename std::invoke_result_t<Mapper, InType>::ProviderType;
+    using OutType = typename MidType::OutType;
+    static constexpr bool ShouldCache = false;
+    static constexpr bool InvolveCache = MidType::InvolveCache;
+    static constexpr bool IsCountable = false;
+    static constexpr bool CanSkipMultiple = false;
+
+    Mapper Func;
+
+    constexpr FlatMappedSource(P&& prev, Mapper&& mapper) : Func(std::move(mapper)), Prev(std::move(prev))
+    {
+        LoadNextBatch();
+    }
+    constexpr OutType GetCurrent() const
+    {
+        return Middle->GetCurrent();
+    }
+    constexpr void MoveNext()
+    {
+        Middle->MoveNext();
+        if (Middle->IsEnd())
+        {
+            Middle.reset();
+            LoadNextBatch();
+        }
+    }
+    constexpr bool IsEnd() const
+    {
+        return !Middle.has_value();
+    }
+private:
+    P Prev;
+    mutable std::optional<MidType> Middle;
+    void LoadNextBatch()
+    {
+        while (!Prev.IsEnd())
+        {
+            auto tmp = Func(Prev.GetCurrent()).Provider;
+            Prev.MoveNext();
+            if (!tmp.IsEnd())
+            {
+                Middle.emplace(std::move(tmp));
+                break;
+            }
+        }
+    }
+};
+
+
+struct TupledSourceHelper
+{
+    template<typename OutType, typename Tuple, size_t... I>
+    constexpr static auto GetCurrent(Tuple&& t, std::index_sequence<I...>)
+    {
+        return OutType(std::get<I>(std::forward<Tuple>(t)).GetCurrent()...);
+    }
+    template<typename Tuple, size_t... I>
+    constexpr static void MoveNext(Tuple&& t, std::index_sequence<I...>)
+    {
+        (std::get<I>(std::forward<Tuple>(t)).MoveNext(), ...);
+    }
+    template<typename Tuple, size_t... I>
+    constexpr static bool IsEnd(Tuple&& t, std::index_sequence<I...>)
+    {
+        return (std::get<I>(std::forward<Tuple>(t)).IsEnd() || ...);
+    }
+    template<typename... Ns>
+    constexpr static size_t Count2(const size_t t, const Ns... ns)
+    {
+        if constexpr (sizeof...(Ns) == 0)
+            return t;
+        else
+            return std::min(t, Count2(ns...));
+    }
+    template<typename Tuple, size_t... I>
+    constexpr static size_t Count(Tuple&& t, std::index_sequence<I...>)
+    {
+        return Count2(std::get<I>(std::forward<Tuple>(t)).Count()...);
+    }
+    template<typename Tuple, size_t... I>
+    constexpr static void MoveMultiple(const size_t count, Tuple&& t, std::index_sequence<I...>)
+    {
+        (std::get<I>(std::forward<Tuple>(t)).MoveMultiple(count), ...);
+    }
+};
+
+template<typename... Ps>
+struct TupledSource
+{
+private:
+    std::tuple<Ps...> Prevs;
+    static constexpr auto Indexes = std::make_index_sequence<sizeof...(Ps)>{};
+public:
+    using InTypes = std::tuple<typename Ps::OutType...>;
+    using OutType = InTypes;
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = (... && Ps::IsCountable);
+    static constexpr bool CanSkipMultiple = (... && Ps::CanSkipMultiple);
+
+    constexpr TupledSource(Ps&&... prevs) : Prevs(std::forward<Ps>(prevs)...)
+    { }
+    constexpr OutType GetCurrent() const
+    {
+        return TupledSourceHelper::GetCurrent<OutType>(Prevs, Indexes);
+    }
+    constexpr void MoveNext()
+    {
+        TupledSourceHelper::MoveNext(Prevs, Indexes);
+    }
+    constexpr bool IsEnd() const
+    {
+        return TupledSourceHelper::IsEnd(Prevs, Indexes);
+    }
+    constexpr size_t Count() const
+    {
+        if constexpr (IsCountable)
+            return TupledSourceHelper::Count(Prevs, Indexes);
+        else
+            static_assert(common::AlwaysTrue<InTypes>(), "Not countable");
+    }
+    constexpr void MoveMultiple(const size_t count)
+    {
+        if constexpr (CanSkipMultiple)
+            TupledSourceHelper::MoveMultiple(count, Prevs, Indexes);
+        else
+            static_assert(common::AlwaysTrue<InTypes>(), "Not movemultiple");
+    }
+};
+
+
+template<typename P1, typename P2>
+struct PairedSource
+{
+private:
+    P1 Prev1;
+    P2 Prev2;
+public:
+    using InType1 = typename P1::OutType;
+    using InType2 = typename P2::OutType;
+    using PlainInType1 = std::conditional_t<std::is_reference_v<InType1>,
+        std::reference_wrapper<std::remove_reference_t<InType1>>,
+        std::remove_cv_t<InType1>>;
+    using PlainInType2 = std::conditional_t<std::is_reference_v<InType2>,
+        std::reference_wrapper<std::remove_reference_t<InType2>>,
+        std::remove_cv_t<InType2>>;
+    using OutType = std::pair<PlainInType1, PlainInType2>;
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = P1::IsCountable && P2::IsCountable;
+    static constexpr bool CanSkipMultiple = P1::CanSkipMultiple && P2::CanSkipMultiple;
+
+    constexpr PairedSource(P1&& prev1, P2&& prev2) : Prev1(std::move(prev1)), Prev2(std::move(prev2))
+    { }
+    constexpr OutType GetCurrent() const
+    {
+        return OutType{ Prev1.GetCurrent(), Prev2.GetCurrent() };
+    }
+    constexpr void MoveNext()
+    {
+        Prev1.MoveNext();
+        Prev2.MoveNext();
+    }
+    constexpr bool IsEnd() const
+    {
+        return Prev1.IsEnd() || Prev2.IsEnd();
+    }
+    constexpr size_t Count() const
+    {
+        if constexpr (IsCountable)
+            return std::min(Prev1.Count(), Prev2.Count());
+        else
+            static_assert(common::AlwaysTrue<P1>(), "Not countable");
+    }
+    constexpr void MoveMultiple(const size_t count)
+    {
+        if constexpr (CanSkipMultiple)
+            Prev1.MoveMultiple(count), Prev2.MoveMultiple(count);
+        else
+            static_assert(common::AlwaysTrue<P1>(), "Not movemultiple");
+    }
+};
+
+
 }
 
 
@@ -383,6 +582,8 @@ template<typename T>
 class Enumerable
 {
     friend class detail::EnumerableChecker;
+    template<typename> friend class Enumerable;
+    template<typename, typename> friend struct detail::FlatMappedSource;
 public:
     using ProviderType = T;
     using EleType = typename T::OutType;
@@ -479,6 +680,15 @@ public:
         return Select<ShouldCache>(std::forward<Mapper>(mapper));
     }
 
+    template<typename Mapper>
+    constexpr Enumerable<detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>> SelectMany(Mapper&& mapper)
+    {
+        static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
+        using MidType = std::invoke_result_t<Mapper, EleType>;
+        static_assert(common::is_specialization<MidType, Enumerable>::value, "mapper does not return an Enumerable");
+        return detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>(std::move(Provider), std::forward<Mapper>(mapper));
+    }
+
     template<typename Filter>
     constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> Where(Filter&& filter)
     {
@@ -486,6 +696,19 @@ public:
             || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
             "filter should accept EleType and return bool");
         return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
+    }
+
+
+    template<typename Other>
+    constexpr Enumerable<detail::PairedSource<T, Other>> Pair(Enumerable<Other>&& other)
+    {
+        return detail::PairedSource<T, Other>(std::move(Provider), std::move(other.Provider));
+    }
+
+    template<typename... Others>
+    constexpr Enumerable<detail::TupledSource<T, Others...>> Pairs(Enumerable<Others>&&... others)
+    {
+        return detail::TupledSource<T, Others...>(std::move(Provider), std::move(others.Provider)...);
     }
 
     template<typename Func>
@@ -627,6 +850,8 @@ public:
     std::vector<PlainEleType> ToVector()
     {
         std::vector<PlainEleType> ret;
+        if constexpr (T::IsCountable)
+            ret.reserve(Provider.Count());
         while (!Provider.IsEnd())
         {
             ret.emplace_back(Provider.GetCurrent());

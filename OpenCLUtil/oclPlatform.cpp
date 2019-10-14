@@ -11,7 +11,6 @@ using std::u16string;
 using std::string_view;
 using std::u16string_view;
 using std::vector;
-using common::linq::Linq;
 using common::str::Charset;
 
 
@@ -72,13 +71,13 @@ oclPlatform_::oclPlatform_(const cl_platform_id pID)
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, DeviceIDs.data(), nullptr);
 
     //const auto self = weak_from_this();
-    Devices = Linq::FromIterable(DeviceIDs)
+    Devices = common::linq::FromIterable(DeviceIDs)
         .Select([](const auto dID) { return oclDevice_(dID); })
         .ToVector();
 
     cl_device_id defDevID;
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
-    DefDevice = Linq::FromIterable(Devices)
+    DefDevice = common::linq::FromIterable(Devices)
         .Where([=](const auto& dev) { return dev.DeviceID == defDevID; })
         .Select([](const auto& dev) { return &dev; })
         .TryGetFirst().value_or(nullptr);
@@ -98,7 +97,9 @@ oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vect
 
 vector<oclDevice> oclPlatform_::GetDevices() const
 {
-    return Linq::FromIterable(Devices).Select([](const auto& dev) { return &dev; }).ToVector();
+    return common::linq::FromIterable(Devices)
+        .Select([](const auto& dev) { return &dev; })
+        .ToVector();
 }
 
 oclContext oclPlatform_::CreateContext() const
