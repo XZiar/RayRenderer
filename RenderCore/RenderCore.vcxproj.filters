@@ -112,6 +112,9 @@
     <ClInclude Include="Model\OBJSaver.hpp">
       <Filter>Model</Filter>
     </ClInclude>
+    <ClInclude Include="RenderCorePch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

@@ -1,15 +1,19 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "RenderPass.h"
 #include "SceneManager.h"
 
 
 namespace rayr
 {
+using common::str::Charset;
 using common::container::FindInSet;
 using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+
 
 RenderPassContext::RenderPassContext(const std::shared_ptr<Scene>& scene, const uint16_t ScreenWidth, const uint16_t ScreenHeight) 
     : TheScene(scene), ScreenSize(ScreenWidth, ScreenHeight)
@@ -57,12 +61,12 @@ RenderPass::RenderPass() : GLContext(oglu::oglContext_::CurrentContext())
 
 }
 
-void RenderPass::RegistDrawable(const Wrapper<Drawable>& drawable)
+void RenderPass::RegistDrawable(const std::shared_ptr<Drawable>& drawable)
 {
     WaitAddDrawables.push_back(drawable);
 }
 
-void RenderPass::UnregistDrawable(const Wrapper<Drawable>& drawable)
+void RenderPass::UnregistDrawable(const std::shared_ptr<Drawable>& drawable)
 {
     Drawables.erase(drawable);
     //WaitDelDrawables.push_back(drawable);
@@ -92,9 +96,9 @@ void RenderPass::Draw(RenderPassContext & context)
     OnDraw(context);
 }
 
-void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void RenderPass::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", strchset::to_u8string(GetName(), Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(GetName(), Charset::UTF16LE));
     auto jdrawables = context.NewArray();
     for (const auto& d : Drawables)
     {
@@ -105,9 +109,9 @@ void RenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     jself.Add("drawables", jdrawables);
 }
 
-void RenderPass::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
+void RenderPass::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
-    SetName(strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+    SetName(common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
 }
 
 
@@ -168,13 +172,13 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
 
 }
 
-void DefaultRenderPass::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void DefaultRenderPass::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     RenderPass::Serialize(context, jself);
     GLShader::Serialize(context, jself);
 }
 
-void DefaultRenderPass::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+void DefaultRenderPass::Deserialize(DeserializeUtil & context, const xziar::ejson::JObjectRef<true>& object)
 {
     RenderPass::Deserialize(context, object);
     GLShader::Deserialize(context, object);

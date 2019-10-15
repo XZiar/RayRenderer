@@ -65,15 +65,15 @@ public:
 public ref class Drawable : public Controllable, public IMovable
 {
 private:
-    const Wrapper<rayr::Drawable>* TempHandle;
+    const std::shared_ptr<rayr::Drawable>* TempHandle;
     initonly String^ DrawableType;
     initonly ObjectPropertyChangedEventHandler<PBRMaterial^>^ MaterialPropertyChangedCallback;
     void OnMaterialChanged(Object^ sender, PBRMaterial^ material, PropertyChangedEventArgs^ e);
     initonly ObservableProxyReadonlyContainer<PBRMaterial^>^ materials;
 internal:
     std::shared_ptr<rayr::Drawable> GetSelf();
-    Drawable(const Wrapper<rayr::Drawable>& drawable);
-    Drawable(Wrapper<rayr::Drawable>&& drawable);
+    Drawable(const std::shared_ptr<rayr::Drawable>& drawable);
+    Drawable(std::shared_ptr<rayr::Drawable>&& drawable);
     void ReleaseTempHandle();
     bool CreateMaterials();
 public:
@@ -94,11 +94,11 @@ public enum class LightType : int32_t
 public ref class Light : public Controllable, public IMovable
 {
 private:
-    const Wrapper<rayr::Light>* TempHandle;
+    const std::shared_ptr<rayr::Light>* TempHandle;
 internal:
     std::shared_ptr<rayr::Light> GetSelf();
-    Light(const Wrapper<rayr::Light>& light);
-    Light(Wrapper<rayr::Light>&& light);
+    Light(const std::shared_ptr<rayr::Light>& light);
+    Light(std::shared_ptr<rayr::Light>&& light);
     void ReleaseTempHandle();
 public:
     initonly LightType LgtType;
@@ -113,7 +113,7 @@ public ref class Camera : public Controllable, public IMovable
 {
 internal:
     std::shared_ptr<rayr::Camera> GetSelf();
-    Camera(const Wrapper<rayr::Camera>& camera);
+    Camera(const std::shared_ptr<rayr::Camera>& camera);
 public:
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);

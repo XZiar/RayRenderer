@@ -44,7 +44,7 @@ public:
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable, public Controllable
+class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     Light(const LightType type, const std::u16string& name);
@@ -59,8 +59,8 @@ public:
     std::u16string Name;
     virtual ~Light() override {}
     RESPAK_DECL_COMP_DESERIALIZE("rayr#Light")
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 #if COMPILER_MSVC
 #   pragma warning(pop)

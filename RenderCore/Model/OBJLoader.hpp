@@ -12,26 +12,26 @@ namespace rayr::detail
 class OBJLoder
 {
 private:
-    fs::path FilePath;
-    vector<uint8_t> Content;
+    common::fs::path FilePath;
+    std::vector<uint8_t> Content;
     size_t CurPos, Length;
 public:
-    Charset chset;
+    common::str::Charset chset;
     struct TextLine
     {
         uint64_t Type;
         std::string_view Line;
-        vector<std::string_view> Params;
-        Charset charset;
+        std::vector<std::string_view> Params;
+        common::str::Charset charset;
 
         TextLine() {}
 
-        TextLine(const Charset chset, const string& prefix) : Type(hash_(prefix)), charset(chset) {}
+        TextLine(const common::str::Charset chset, const string& prefix) : Type(hash_(prefix)), charset(chset) {}
 
         template<size_t N>
-        TextLine(const Charset chset, const char(&prefix)[N] = "EMPTY") : Type(hash_(prefix)), charset(chset) {}
+        TextLine(const common::str::Charset chset, const char(&prefix)[N] = "EMPTY") : Type(hash_(prefix)), charset(chset) {}
 
-        TextLine(const Charset chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
+        TextLine(const common::str::Charset chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
 
         TextLine(const TextLine& other) = default;
         TextLine(TextLine&& other) = default;
@@ -54,10 +54,10 @@ public:
         {
             if (Params.size() <= index)
                 return u"";
-            return strchset::to_u16string(Params[index], charset);
+            return common::strchset::to_u16string(Params[index], charset);
         }
 
-        u16string ToUString() const { return strchset::to_u16string(Line, charset); }
+        u16string ToUString() const { return common::strchset::to_u16string(Line, charset); }
 
         b3d::Coord2D ParamsToFloat2(size_t offset) const
         {
@@ -108,7 +108,7 @@ public:
         uint8_t ParseInts(const uint8_t idx, int32_t(&output)[N]) const
         {
             uint8_t cnt = 0;
-            str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
+            common::str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
             {
                 if (cnt < N)
                 {
@@ -125,7 +125,7 @@ public:
         uint8_t ParseFloats(const uint8_t idx, float(&output)[N]) const
         {
             uint8_t cnt = 0;
-            str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
+            common::str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
             {
                 if (cnt < N)
                 {
@@ -150,7 +150,7 @@ public:
         common::file::ReadAll(FilePath, Content);
         Length = Content.size() - 1;
         CurPos = 0;
-        chset = strchset::DetectEncoding(Content);
+        chset = common::strchset::DetectEncoding(Content);
         dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetName(chset));
     }
 
@@ -184,7 +184,7 @@ public:
         }
         TextLine textLine(chset, string_view((const char*)&Content[fromPos], lineLength));
 
-        str::SplitInto<char>(textLine.Line, [](const char ch)
+        common::str::SplitInto<char>(textLine.Line, [](const char ch)
         {
             return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
         }, textLine.Params, false);

@@ -1,11 +1,14 @@
 #include "RenderCore/RenderCore.h"
+#include "RenderCore/RenderPass.h"
+#include "RenderCore/SceneManager.h"
 #include "RenderCore/PostProcessor.h"
+#include "RenderCore/FontTest.h"
+#include "ImageUtil/ImageUtil.h"
+#include "FreeGLUTView/FreeGLUTView.h"
+#include "common/Linq2.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <memory>
-#include "FreeGLUTView/FreeGLUTView.h"
-#include "common/Linq2.hpp"
-#include "RenderCore/FontTest.h"
 
 
 using namespace glutview;
@@ -20,13 +23,13 @@ using namespace common;
 //OGLU_OPTIMUS_ENABLE_NV
 
 std::unique_ptr<rayr::RenderCore> tester;
-Wrapper<rayr::Drawable> CurObj;
+std::shared_ptr<rayr::Drawable> CurObj;
 uint16_t CurPipe = 0;
 FreeGLUTView window, wd2;
 bool isAnimate = false;
 bool isPostproc = true;
 
-static Wrapper<rayr::Drawable> LocateDrawable(const bool isPrev)
+static std::shared_ptr<rayr::Drawable> LocateDrawable(const bool isPrev)
 {
     const auto& drws = tester->GetScene()->GetDrawables();
     auto cur = drws.begin();
@@ -75,7 +78,7 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
         case Key::F3:
             {
                 const auto sceen = tester->Screenshot();
-                WriteImage(sceen, fs::temp_directory_path() / L"RayRenderer" / "sceen.png");
+                xziar::img::WriteImage(sceen, fs::temp_directory_path() / L"RayRenderer" / "sceen.png");
                 return;
             }
         default:
@@ -251,14 +254,14 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
     window->funOnClose = [&](FreeGLUTView wd) { isAnimate = false; tester.release(); };
     //if (false)
     {
-        const auto light = Wrapper<rayr::PointLight>(std::in_place);
+        const auto light = std::make_shared<rayr::PointLight>();
         light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         tester->GetScene()->AddLight(light);
         //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
 
     const auto ftest = common::linq::FromIterable(tester->GetRenderPasses())
-        .Select([](const auto& pipe) { return pipe.template cast_dynamic<rayr::FontTester>(); })
+        .Select([](const auto& pipe) { return std::dynamic_pointer_cast<rayr::FontTester>(pipe); })
         .Where([](const auto& pipe) { return (bool)pipe; })
         .TryGetFirst().value();
     fs::path basePath = u"C:\\Programs Temps\\RayRenderer";

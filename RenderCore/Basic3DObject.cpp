@@ -1,11 +1,18 @@
-#include "RenderCoreRely.h"
+#include "RenderCorePch.h"
 #include "Basic3DObject.h"
-#include "OpenGLUtil/PointEnhance.hpp"
 
 namespace rayr
 {
+using std::set;
+using std::map;
+using std::vector;
+using b3d::Vec3;
+using b3d::Normal;
+using b3d::Coord2D;
 using b3d::PI_float;
 using oglu::Point;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 
 Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), Sidelen(len)
@@ -43,12 +50,12 @@ void Pyramid::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, stri
     SetVAO(prog, vao);
 }
 
-void Pyramid::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Pyramid::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
     jself.Add<detail::JsonConv>(EJ_FIELD(Sidelen));
 }
-void Pyramid::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Pyramid::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Drawable::Deserialize(context, object);
 }
@@ -59,7 +66,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(Pyramid, float)
 }
 
 
-static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
+static vector<uint16_t> CreateSphere(common::container::vectorEx<Point>& pts, const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
 {
     const float rstep = 1.0f / (rings - 1);
     const float sstep = 1.0f / (sectors - 1);
@@ -100,7 +107,7 @@ static vector<uint16_t> CreateSphere(vectorEx<Point>& pts, const float radius, c
 
 Sphere::Sphere(const float r) : Drawable(this, TYPENAME), Radius(r)
 {
-    vectorEx<Point> pts;
+    common::container::vectorEx<Point> pts;
     auto indexs = CreateSphere(pts, Radius);
     vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
@@ -118,12 +125,12 @@ void Sphere::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, strin
     SetVAO(prog, vao);
 }
 
-void Sphere::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Sphere::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
     jself.Add(EJ_FIELD(Radius));
 }
-void Sphere::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Sphere::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Drawable::Deserialize(context, object);
 }
@@ -209,12 +216,12 @@ void Box::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&
     SetVAO(prog, vao);
 }
 
-void Box::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Box::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
     jself.Add<detail::JsonConv>("Size", Size);
 }
-void Box::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Box::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Drawable::Deserialize(context, object);
 }
@@ -250,13 +257,13 @@ void Plane::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
     SetVAO(prog, vao);
 }
 
-void Plane::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Plane::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
     jself.Add(EJ_FIELD(SideLen))
          .Add(EJ_FIELD(TexRepeat));
 }
-void Plane::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Plane::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Drawable::Deserialize(context, object);
 }

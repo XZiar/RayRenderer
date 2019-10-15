@@ -1,4 +1,4 @@
-#include "RenderCoreRely.h"
+#include "RenderCorePch.h"
 #include "ModelMesh.h"
 #include "OBJLoader.hpp"
 #include "MTLLoader.hpp"
@@ -8,6 +8,8 @@
 
 namespace rayr::detail
 {
+using std::vector;
+using common::str::Charset;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 using b3d::Vec3;
@@ -15,6 +17,8 @@ using b3d::Vec4;
 using b3d::Normal;
 using oglu::PointEx;
 using b3d::Coord2D;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 
 #if COMPILER_GCC
@@ -67,7 +71,7 @@ struct PTstubHasher
     }
 };
 
-static map<u16string, ModelMesh> MODEL_CACHE;
+static std::map<u16string, ModelMesh> MODEL_CACHE;
 
 ModelMesh _ModelMesh::GetModel(DeserializeUtil& context, const string& id)
 {
@@ -76,7 +80,7 @@ ModelMesh _ModelMesh::GetModel(DeserializeUtil& context, const string& id)
     return m;
 }
 
-ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
+ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
         return *md;
@@ -129,7 +133,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
     groups.clear();
     Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
     OBJLoder::TextLine line;
-    SimpleTimer tstTimer;
+    common::SimpleTimer tstTimer;
     while ((line = ldr.ReadLine()))
     {
         switch (line.Type)
@@ -163,7 +167,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
         case "f"_hash://face
             {
                 VecI4 tmpi, tmpidx;
-                const auto lim = min((size_t)4, line.Params.size() - 1);
+                const auto lim = common::min((size_t)4, line.Params.size() - 1);
                 if (lim < 3)
                 {
                     dizzLog().warning(u"too few params for face, ignored : {}\n", line.Line);
@@ -226,13 +230,13 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
     dizzLog().info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.x, size.y, size.z);
     MaterialMap = mtlLoader.GetMaterialMap();
 }
-catch (const FileException&)
+catch (const common::file::FileException&)
 {
     dizzLog().error(u"Fail to open obj file\t[{}]\n", objpath.u16string());
     COMMON_THROWEX(BaseException, u"fail to load model data");
 }
 
-void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
+void _ModelMesh::InitDataBuffers(const std::shared_ptr<oglu::oglWorker>& asyncer)
 {
     if (asyncer)
     {
@@ -266,7 +270,7 @@ void _ModelMesh::InitDataBuffers(const Wrapper<oglu::oglWorker>& asyncer)
     }
 }
 _ModelMesh::_ModelMesh(const u16string& fname) : mfname(fname) {}
-_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer) 
+_ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer) 
     : mfname(fname)
 {
     loadOBJ(mfname, texLoader);
@@ -275,12 +279,12 @@ _ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoad
 
 RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
 {
-    u16string name = strchset::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
+    u16string name = common::strchset::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
     return std::any(std::make_tuple(name));
 }
-void _ModelMesh::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void _ModelMesh::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("mfname", strchset::to_u8string(mfname, Charset::UTF16LE));
+    jself.Add("mfname", common::strchset::to_u8string(mfname, Charset::UTF16LE));
     jself.Add("size", ToJArray(context, size));
     jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
     jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));
@@ -298,7 +302,7 @@ void _ModelMesh::Serialize(SerializeUtil & context, ejson::JObject& jself) const
         context.AddObject(jmaterials, name, mat);
     jself.Add("materials", jmaterials);
 }
-void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void _ModelMesh::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     FromJArray(object.GetArray("size"), size);
     {
@@ -312,17 +316,17 @@ void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<t
         memcpy_s(indexs.data(), indexs.size() * sizeof(uint32_t), idxData.GetRawPtr(), idxData.GetSize());
     }
     groups = common::linq::FromContainer(object.GetArray("groups"))
-        .Cast<ejson::JObjectRef<true>>()
-        .Select([](const ejson::JObjectRef<true>& obj) { return std::pair{ obj.Get<string>("Name"), obj.Get<uint32_t>("Offset") }; })
+        .Cast<xziar::ejson::JObjectRef<true>>()
+        .Select([](const xziar::ejson::JObjectRef<true>& obj) { return std::pair{ obj.Get<string>("Name"), obj.Get<uint32_t>("Offset") }; })
         .ToVector();
     MaterialMap.clear();
     common::linq::FromContainer(object.GetObject("materials"))
         .IntoMap(MaterialMap, 
             [](const auto& kvpair) { return (string)kvpair.first; },
-            [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
+            [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(xziar::ejson::JObjectRef<true>(kvpair.second)).release()); });
 
-    const auto asyncer = context.GetCookie<Wrapper<oglu::oglWorker>>("oglWorker");
-    InitDataBuffers(asyncer ? *asyncer : Wrapper<oglu::oglWorker>());
+    const auto asyncer = context.GetCookie<std::shared_ptr<oglu::oglWorker>>("oglWorker");
+    InitDataBuffers(asyncer ? *asyncer : std::shared_ptr<oglu::oglWorker>());
 }
 
 

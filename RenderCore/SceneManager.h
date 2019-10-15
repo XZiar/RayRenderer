@@ -22,33 +22,33 @@ class RAYCOREAPI Scene : public xziar::respak::Serializable
     // TODO: make AddLight/AddObject able to be called by other thread?
     //       currently only changes are reported atomicly
 private:
-    map<boost::uuids::uuid, Wrapper<Drawable>> Drawables;
-    set<Wrapper<Drawable>> WaitDrawables;
-    vector<Wrapper<Light>> Lights;
-    Wrapper<Camera> MainCam;
+    std::map<boost::uuids::uuid, std::shared_ptr<Drawable>> Drawables;
+    std::set<std::shared_ptr<Drawable>> WaitDrawables;
+    std::vector<std::shared_ptr<Light>> Lights;
+    std::shared_ptr<Camera> MainCam;
     oglu::oglUBO LightUBO;
     uint32_t LightOnCount;
     AtomicBitfiled<SceneChange> SceneChanges = SceneChange::Light;
 public:
     Scene();
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#Scene")
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 
-    const map<boost::uuids::uuid, Wrapper<Drawable>>& GetDrawables() const { return Drawables; }
-    const vector<Wrapper<Light>>& GetLights() const { return Lights; }
-    const Wrapper<Camera>& GetCamera() const { return MainCam; }
+    const std::map<boost::uuids::uuid, std::shared_ptr<Drawable>>& GetDrawables() const { return Drawables; }
+    const std::vector<std::shared_ptr<Light>>& GetLights() const { return Lights; }
+    const std::shared_ptr<Camera>& GetCamera() const { return MainCam; }
     const oglu::oglUBO& GetLightUBO() const { return LightUBO; }
     uint32_t GetLightUBOCount() const { return LightOnCount; }
 
     void PrepareLight();
     void PrepareDrawable();
 
-    bool AddObject(const Wrapper<Drawable>& drawable);
-    bool AddLight(const Wrapper<Light>& light);
+    bool AddObject(const std::shared_ptr<Drawable>& drawable);
+    bool AddLight(const std::shared_ptr<Light>& light);
     bool DelObject(const boost::uuids::uuid& uid);
-    bool DelObject(const Wrapper<Drawable>& drawable) { return DelObject(drawable->GetUid()); }
-    bool DelLight(const Wrapper<Light>& light);
+    bool DelObject(const std::shared_ptr<Drawable>& drawable) { return DelObject(drawable->GetUid()); }
+    bool DelLight(const std::shared_ptr<Light>& light);
     void ReportChanged(const SceneChange target);
 };
 #if COMPILER_MSVC

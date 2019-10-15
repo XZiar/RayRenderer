@@ -14,10 +14,10 @@ std::shared_ptr<rayr::RenderPass> RenderPass::GetSelf()
     return std::dynamic_pointer_cast<rayr::RenderPass>(GetControl()); // virtual base require dynamic_cast
 }
 
-RenderPass::RenderPass(const Wrapper<rayr::RenderPass>& shader) : Controllable(shader)
+RenderPass::RenderPass(const std::shared_ptr<rayr::RenderPass>& shader) : Controllable(shader)
 {
 }
-RenderPass::RenderPass(Wrapper<rayr::RenderPass>&& shader) : Controllable(shader), TempHandle(new Wrapper<rayr::RenderPass>(shader))
+RenderPass::RenderPass(std::shared_ptr<rayr::RenderPass>&& shader) : Controllable(shader), TempHandle(new std::shared_ptr<rayr::RenderPass>(shader))
 {
 }
 void RenderPass::ReleaseTempHandle()
@@ -93,7 +93,7 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
 
 
 
-static gcroot<Drawable^> __cdecl ConvDrawable(Wrapper<rayr::Model>& theModel)
+static gcroot<Drawable^> __cdecl ConvDrawable(std::shared_ptr<rayr::Model>& theModel)
 {
     return gcnew Drawable(theModel);
 }
@@ -103,7 +103,7 @@ Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
     return NewDoAsync<&rayr::RenderCore::LoadModelAsync2, ConvDrawable>(*Core, ToU16Str(fname));
 }
 
-static gcroot<RenderPass^> ConvRenderPass(Wrapper<rayr::DefaultRenderPass>& pass)
+static gcroot<RenderPass^> ConvRenderPass(std::shared_ptr<rayr::DefaultRenderPass>& pass)
 {
     return gcnew RenderPass(pass);
 }

@@ -17,11 +17,11 @@ namespace Dizz
 public ref class RenderPass : public Controllable
 {
 private:
-    const Wrapper<rayr::RenderPass>* TempHandle;
+    const std::shared_ptr<rayr::RenderPass>* TempHandle;
 internal:
     std::shared_ptr<rayr::RenderPass> GetSelf();
-    RenderPass(const Wrapper<rayr::RenderPass>& shader);
-    RenderPass(Wrapper<rayr::RenderPass>&& shader);
+    RenderPass(const std::shared_ptr<rayr::RenderPass>& shader);
+    RenderPass(std::shared_ptr<rayr::RenderPass>&& shader);
     void ReleaseTempHandle();
 public:
     ~RenderPass() { this->!RenderPass(); }

@@ -13,12 +13,12 @@ MAKE_ENUM_BITFIELD(FontUpdate)
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI FontTester : public NonCopyable, public RenderPass
+class RAYCOREAPI FontTester : public common::NonCopyable, public RenderPass
 {
 private:
     static inline std::u16string TestName = u"FontTest";
-    Wrapper<oglu::FontCreator> FontCreator;
-    Wrapper<oglu::FontViewer> FontViewer;
+    std::shared_ptr<oglu::FontCreator> FontCreator;
+    std::shared_ptr<oglu::FontViewer> FontViewer;
     oglu::oglTex2DD FontTex;
     fs::path FontPath;
     char32_t CharBegin = U'我';
@@ -61,7 +61,9 @@ protected:
 public:
     oglu::oglFBO MiddleFrame;
     oglu::oglVAO VAOScreen;
-    FontTester(const oclu::oclContext ctx) : FontCreator(ctx), FontViewer(std::in_place)
+    FontTester(const oclu::oclContext ctx) : 
+        FontCreator(std::make_shared<oglu::FontCreator>(ctx)), 
+        FontViewer(std::make_shared<oglu::FontViewer>())
     {
         FontTex = oglu::oglTex2DDynamic_::Create();
         RegistControllable();
@@ -85,8 +87,8 @@ public:
         UpdateDemand.Add(FontUpdate::FONT | FontUpdate::TARGET);
     }
 
-    virtual void Serialize(SerializeUtil&, ejson::JObject&) const override {}
-    virtual void Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>&) override {}
+    virtual void Serialize(xziar::respak::SerializeUtil&, xziar::ejson::JObject&) const override {}
+    virtual void Deserialize(xziar::respak::DeserializeUtil&, const xziar::ejson::JObjectRef<true>&) override {}
     RESPAK_DECL_COMP_DESERIALIZE("rayr#FontTester")
 };
 

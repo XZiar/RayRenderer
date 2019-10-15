@@ -34,16 +34,16 @@ public:
 
 namespace detail
 {
-struct RAYCOREAPI _FakeTex : public NonCopyable, public xziar::respak::Serializable
+struct RAYCOREAPI _FakeTex : public common::NonCopyable, public xziar::respak::Serializable
 {
 public:
-    vector<common::AlignedBuffer> TexData;
+    std::vector<common::AlignedBuffer> TexData;
     u16string Name;
     xziar::img::TextureFormat TexFormat;
     uint32_t Width, Height;
     _FakeTex(common::AlignedBuffer&& texData, const xziar::img::TextureFormat format, const uint32_t width, const uint32_t height)
-        : TexData(vector<common::AlignedBuffer>{std::move(texData)}), TexFormat(format), Width(width), Height(height) {}
-    _FakeTex(vector<common::AlignedBuffer>&& texData, const xziar::img::TextureFormat format, const uint32_t width, const uint32_t height)
+        : TexData(std::vector<common::AlignedBuffer>{std::move(texData)}), TexFormat(format), Width(width), Height(height) {}
+    _FakeTex(std::vector<common::AlignedBuffer>&& texData, const xziar::img::TextureFormat format, const uint32_t width, const uint32_t height)
         : TexData(std::move(texData)), TexFormat(format), Width(width), Height(height) {}
     ~_FakeTex() {}
     uint8_t GetMipmapCount() const
@@ -51,8 +51,8 @@ public:
         return static_cast<uint8_t>(TexData.size());
     }
     RESPAK_DECL_COMP_DESERIALIZE("rayr#FakeTex")
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
@@ -72,7 +72,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable, public Controllable
+struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     virtual u16string_view GetControlType() const override
@@ -95,8 +95,8 @@ public:
     uint32_t WriteData(std::byte *ptr) const;
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#PBRMaterial")
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 #if COMPILER_MSVC
 #   pragma warning(pop)
@@ -127,13 +127,13 @@ struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable, public xziar
 {
 public:
     using Mapping = std::pair<detail::TexTag, uint16_t>;
-    using ArrangeMap = map<TexHolder, Mapping>;
+    using ArrangeMap = std::map<TexHolder, Mapping>;
 private:
-    vector<std::shared_ptr<PBRMaterial>> Materials;
+    std::vector<std::shared_ptr<PBRMaterial>> Materials;
     // tex -> (size, layer)
     ArrangeMap Arrangement;
-    map<detail::TexTag, oglu::oglTex2DArray> Textures;
-    map<detail::TexTag, uint8_t> TextureLookup;
+    std::map<detail::TexTag, oglu::oglTex2DArray> Textures;
+    std::map<detail::TexTag, uint8_t> TextureLookup;
 public:
     static constexpr size_t WriteSize = 12 * sizeof(float);
     static oglu::oglTex2DV GetCheckTex();
@@ -141,8 +141,8 @@ public:
     MultiMaterialHolder() { }
     MultiMaterialHolder(const uint8_t count);
 
-    vector<std::shared_ptr<PBRMaterial>>::iterator begin() { return Materials.begin(); }
-    vector<std::shared_ptr<PBRMaterial>>::iterator end() { return Materials.end(); }
+    std::vector<std::shared_ptr<PBRMaterial>>::iterator begin() { return Materials.begin(); }
+    std::vector<std::shared_ptr<PBRMaterial>>::iterator end() { return Materials.end(); }
     std::shared_ptr<PBRMaterial>& operator[](const size_t index) noexcept { return Materials[index]; }
     const std::shared_ptr<PBRMaterial>& operator[](const size_t index) const noexcept { return Materials[index]; }
     uint8_t GetSize()const { return static_cast<uint8_t>(Materials.size()); }
@@ -151,8 +151,8 @@ public:
     void BindTexture(oglu::ProgDraw& drawcall) const;
     uint32_t WriteData(std::byte *ptr) const; 
     
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#MultiMaterialHolder")
 };
 

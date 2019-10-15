@@ -5,7 +5,6 @@
 #endif
 
 #include "CommonRely.hpp"
-#include "Wrapper.hpp"
 #include <msclr/marshal_cppstd.h>
 #include <string_view>
 

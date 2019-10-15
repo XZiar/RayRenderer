@@ -1,8 +1,12 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "Camera.h"
 
 namespace rayr
 {
+using common::str::Charset;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+
 
 void Camera::RegistControllable()
 {
@@ -30,10 +34,10 @@ Camera::Camera() noexcept
     RegistControllable();
 }
 
-void Camera::Serialize(SerializeUtil&, ejson::JObject& jself) const
+void Camera::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 {
     using detail::JsonConv;
-    jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add<JsonConv>(EJ_FIELD(Position))
          .Add<JsonConv>(EJ_FIELD(Rotation))
          .Add<JsonConv>("Right", CamMat.x)
@@ -41,10 +45,10 @@ void Camera::Serialize(SerializeUtil&, ejson::JObject& jself) const
          .Add<JsonConv>("Toward", CamMat.z)
          .Add(EJ_FIELD(Fovy)).Add(EJ_FIELD(zNear)).Add(EJ_FIELD(zFar));
 }
-void Camera::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
+void Camera::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));
     object.TryGet<JsonConv>("Right", CamMat.x);

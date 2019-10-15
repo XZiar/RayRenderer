@@ -1,14 +1,16 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "GLShader.h"
 
 
 namespace rayr
 {
-
+using common::str::Charset;
 using namespace oglu;
 using namespace std::literals;
 using common::container::FindInSet;
 using common::container::FindInMap;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
@@ -62,14 +64,14 @@ void GLShader::RegistControllable()
     for (const auto&[type, shader] : Program->getShaders())
     {
         const auto stage = oglu::oglShader_::GetStageName(shader->Type);
-        const auto u16stage = strchset::to_u16string(stage);
+        const auto u16stage = common::strchset::to_u16string(stage);
         RegistItem<string>("Shader_" + string(stage), "Source", u16stage, ArgType::LongText, {}, u16stage + u"源码")
             .RegistGetterProxy<GLShader>([type=type](const GLShader& self)
             { return (*FindInMap(self.Program->getShaders(), type))->SourceText(); });
     }
     for (const auto& res : Program->getSubroutineResources())
     {
-        const auto u16name = strchset::to_u16string(res.Name, Charset::UTF8);
+        const auto u16name = common::strchset::to_u16string(res.Name, Charset::UTF8);
         auto rtNames = common::linq::FromIterable(res.Routines)
             .Select([](const auto& rt) { return rt.Name; }).ToVector();
         RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
@@ -82,8 +84,8 @@ void GLShader::RegistControllable()
         if (auto prop = common::container::FindInSet(props, res.Name); prop)
         {
             const GLint loc = res.location;
-            auto prep = RegistItem("Uniform_" + res.Name, "Uniform", strchset::to_u16string(res.Name, Charset::UTF8),
-                ArgType::RawValue, prop->Data, strchset::to_u16string(prop->Description, Charset::UTF8));
+            auto prep = RegistItem("Uniform_" + res.Name, "Uniform", common::strchset::to_u16string(res.Name, Charset::UTF8),
+                ArgType::RawValue, prop->Data, common::strchset::to_u16string(prop->Description, Charset::UTF8));
             if (prop->Type == oglu::ShaderPropertyType::Range && prop->Data.has_value())
             {
                 prep.AsType<std::pair<float, float>>()
@@ -122,9 +124,9 @@ constexpr size_t DefineUInt32 = common::get_variant_index_v<uint32_t,       oglu
 constexpr size_t DefineFloat  = common::get_variant_index_v<float,          oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineDouble = common::get_variant_index_v<double,         oglu::ShaderConfig::DefineVal>();
 constexpr size_t DefineString = common::get_variant_index_v<string,         oglu::ShaderConfig::DefineVal>();
-void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", strchset::to_u8string(Program->Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Program->Name, Charset::UTF16LE));
     jself.Add("source", context.PutResource(Source.data(), Source.size()));
     auto config = context.NewObject();
     {
@@ -137,7 +139,7 @@ void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
             {
                 using T = std::decay_t<decltype(rval)>;
                 if constexpr (std::is_same_v<T, std::monostate>)
-                    defines.Add(defName, ejson::JNull{});
+                    defines.Add(defName, xziar::ejson::JNull{});
                 else
                     defines.Add(defName, context.NewArray().Push(valtype, rval));
             }, val);
@@ -186,7 +188,7 @@ void GLShader::Serialize(SerializeUtil & context, ejson::JObject& jself) const
         jself.Add("Uniforms", uniforms);
     }
 }
-void GLShader::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
+void GLShader::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
     auto state = Program->State();
     for (const auto&[k,v] : object.GetObject("Subroutines"))
@@ -225,7 +227,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) { return kvpair.second.template AsValue<string>(); });
     }
-    u16string name = strchset::to_u16string(object.Get<string>("config"), Charset::UTF8);
+    u16string name = common::strchset::to_u16string(object.Get<string>("config"), Charset::UTF8);
     const auto srchandle = object.Get<string>("source");
     const auto source = context.GetResource(srchandle);
     return std::any(std::make_tuple(name, string(source.GetRawPtr<const char>(), source.GetSize()), config));

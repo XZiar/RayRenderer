@@ -3,11 +3,6 @@
 #include "Material.h"
 
 
-namespace oglu::texutil
-{
-class TexResizer;
-}
-
 namespace rayr
 {
 
@@ -20,7 +15,7 @@ private:
     std::shared_ptr<oglu::texutil::TexResizer> Resizer;
     std::shared_ptr<oglu::oglWorker> GLWorker;
     common::RWSpinLock CacheLock;
-    map<std::weak_ptr<void>, ImageView, std::owner_less<void>> ThumbnailMap;
+    std::map<std::weak_ptr<void>, ImageView, std::owner_less<void>> ThumbnailMap;
     common::PromiseResult<std::optional<ImageView>> InnerPrepareThumbnail(const TexHolder& holder);
 public:
 

@@ -1,18 +1,22 @@
-#include "RenderCoreRely.h"
+#include "RenderCorePch.h"
 #include "SceneManager.h"
 
-using namespace oglu;
-using common::container::ValSet;
-using common::container::FindInMap;
 
 namespace rayr
 {
+using common::str::Charset;
+using common::container::ValSet;
+using common::container::FindInMap;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+using namespace oglu;
+
 
 static constexpr uint32_t LightLimit = 16;
 
 Scene::Scene()
 {
-    MainCam.reset(std::in_place);
+    MainCam = std::make_shared<Camera>();
     LightUBO = oglu::oglUniformBuffer_::Create(LightLimit * Light::WriteSize);
 }
 
@@ -48,7 +52,7 @@ void Scene::PrepareLight()
     LightOnCount = onCnt;
 }
 
-bool Scene::AddObject(const Wrapper<Drawable>& drawable)
+bool Scene::AddObject(const std::shared_ptr<Drawable>& drawable)
 {
     const auto uid = drawable->GetUid();
     if (!Drawables.try_emplace(uid, drawable).second)
@@ -59,7 +63,7 @@ bool Scene::AddObject(const Wrapper<Drawable>& drawable)
     return true;
 }
 
-bool Scene::AddLight(const Wrapper<Light>& light)
+bool Scene::AddLight(const std::shared_ptr<Light>& light)
 {
     Lights.push_back(light);
     SceneChanges.Add(SceneChange::Light);
@@ -77,7 +81,7 @@ bool Scene::DelObject(const boost::uuids::uuid& uid)
     return true;
 }
 
-bool Scene::DelLight(const Wrapper<Light>& light)
+bool Scene::DelLight(const std::shared_ptr<Light>& light)
 {
     return false;
 }
@@ -87,7 +91,7 @@ void Scene::ReportChanged(const SceneChange target)
     SceneChanges.Add(target);
 }
 
-void Scene::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Scene::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     {
         auto jlights = context.NewArray();
@@ -104,14 +108,14 @@ void Scene::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     context.AddObject(jself, "Camera", *MainCam);
 }
 
-void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Scene::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     {
         Lights.clear();
         const auto jlights = object.GetArray("Lights");
         for (const auto ele : jlights)
         {
-            const ejson::JObjectRef<true> jlgt(ele);
+            const xziar::ejson::JObjectRef<true> jlgt(ele);
             Lights.push_back(context.DeserializeShare<Light>(jlgt));
         }
         ReportChanged(SceneChange::Light);
@@ -121,9 +125,9 @@ void Scene::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>&
         const auto jdrawables = object.GetArray("Drawables");
         for (const auto ele : jdrawables)
         {
-            const ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", strchset::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
-                strchset::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
+            const xziar::ejson::JObjectRef<true> jdrw(ele);
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::strchset::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
+                common::strchset::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)
                 WaitDrawables.insert(drw);

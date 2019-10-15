@@ -1,4 +1,4 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "TextureLoader.h"
 #include "TextureUtil/TexCompressor.h"
 #include "TextureUtil/TexMipmap.h"
@@ -8,6 +8,8 @@
 
 namespace rayr
 {
+using std::set;
+using std::vector;
 using common::file::FileErrReason;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
@@ -141,7 +143,7 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
     {
         return ReadImage(picPath);
     }
-    catch (const FileException& fe)
+    catch (const common::file::FileException& fe)
     {
         if (fe.reason == (FileErrReason::OpenFail | FileErrReason::NotExist))
             dizzLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());

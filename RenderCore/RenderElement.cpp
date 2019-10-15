@@ -1,4 +1,4 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "RenderElement.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
@@ -12,8 +12,13 @@
 
 namespace rayr
 {
+using std::map;
+using common::str::Charset;
 using oglu::oglTex2D;
 using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+using namespace b3d;
+
 
 struct DrawableHelper
 {
@@ -198,10 +203,10 @@ void Drawable::RegistControllable()
         .RegistMember<false>(&Drawable::Scale);
 }
 
-void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Drawable::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     using detail::JsonConv;
-    jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Uid", boost::uuids::to_string(Uid));
     jself.Add<JsonConv>(EJ_FIELD(Position));
     jself.Add<JsonConv>(EJ_FIELD(Rotation));
@@ -209,10 +214,10 @@ void Drawable::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     context.AddObject(jself, "material", MaterialHolder);
 }
 
-void Drawable::Deserialize(DeserializeUtil & context, const ejson::JObjectRef<true>& object)
+void Drawable::Deserialize(DeserializeUtil & context, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));

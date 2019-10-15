@@ -21,7 +21,7 @@ public ref class Light : public BaseViewModel
 internal:
     std::shared_ptr<rayr::Light> *light;
     initonly LightType type;
-    Light(const Wrapper<rayr::Light>& obj) : light(new std::shared_ptr<rayr::Light>(obj)), type(LightType(obj->Type)) { }
+    Light(const std::shared_ptr<rayr::Light>& obj) : light(new std::shared_ptr<rayr::Light>(obj)), type(LightType(obj->Type)) { }
 public:
     ~Light() { this->!Light(); }
     !Light() { delete light; }

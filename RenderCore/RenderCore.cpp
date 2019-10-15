@@ -1,24 +1,32 @@
-#include "RenderCoreRely.h"
+#include "RenderCorePch.h"
 #include "resource.h"
 #include "RenderCore.h"
+#include "SceneManager.h"
+#include "RenderPass.h"
+#include "GLShader.h"
 #include "FontTest.h"
 #include "ThumbnailManager.h"
 #include "TextureLoader.h"
 #include "PostProcessor.h"
+#include "Basic3DObject.h"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
-#include "Basic3DObject.h"
 #include "common/PromiseTaskSTD.hpp"
 #include <thread>
 #include <future>
 
-using common::container::FindInSet;
-using common::container::FindInMap;
-using common::container::ValSet;
 
 namespace rayr
 {
+using std::vector;
+using common::container::FindInSet;
+using common::container::FindInMap;
+using common::container::ValSet;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+using namespace oclu;
+using namespace oglu;
 
 
 RESPAK_IMPL_COMP_DESERIALIZE(FontTester, oclu::oclContext)
@@ -104,13 +112,13 @@ RenderCore::RenderCore()
     //MipMapper->Test2();
     ThumbMan = std::make_shared<ThumbnailManager>(TexWorker, GLWorker);
     PostProc = std::make_shared<PostProcessor>(CLSharedContext, CLQue);
-    TheScene.reset();
+    TheScene = std::make_unique<Scene>();
 
     InitShaders();
     PostProc->SetMidFrame(1280, 720, true);
     
     {
-        Wrapper<RenderPipeLine> basicPipeLine(std::in_place);
+        auto basicPipeLine = std::make_shared<RenderPipeLine>();
         const auto pbrPass = *RenderPasses.begin();
         basicPipeLine->Passes.push_back(pbrPass);
         basicPipeLine->Passes.push_back(PostProc);
@@ -118,8 +126,8 @@ RenderCore::RenderCore()
         PipeLines.insert(basicPipeLine);
     }
     {
-        Wrapper<RenderPipeLine> fontPipeLine(std::in_place);
-        Wrapper<FontTester> fontTest(CLContext);
+        auto fontPipeLine = std::make_shared<RenderPipeLine>();
+        auto fontTest = std::make_shared<FontTester>(CLContext);
         RenderPasses.insert(fontTest);
         fontPipeLine->Passes.push_back(fontTest);
         PipeLines.insert(fontPipeLine);
@@ -141,7 +149,7 @@ void RenderCore::InitShaders()
     ShaderConfig config;
     config.Routines["getNorm"] = "bothNormal";
     config.Routines["getAlbedo"] = "bothAlbedo";
-    Wrapper<DefaultRenderPass> prog3D(u"3D-pbr", getShaderFromDLL(IDR_SHADER_3DPBR), config);
+    auto prog3D = std::make_shared<DefaultRenderPass>(u"3D-pbr", getShaderFromDLL(IDR_SHADER_3DPBR), config);
     AddShader(prog3D);
     prog3D->Program->State()
         .SetSubroutine("lighter", "albedoOnly")
@@ -152,19 +160,19 @@ void RenderCore::InitShaders()
 void RenderCore::TestSceneInit()
 {
     const auto pbrPass = *RenderPasses.begin();
-    Wrapper<Pyramid> pyramid(1.0f);
+    auto pyramid = std::make_shared<Pyramid>(1.0f);
     pyramid->Name = u"Pyramid";
     pyramid->Position = { 0,0,0 };
     TheScene->AddObject(pyramid);
-    Wrapper<Sphere> ball(0.75f);
+    auto ball = std::make_shared<Sphere>(0.75f);
     ball->Name = u"Ball";
     ball->Position = { 1,0,0 };
     TheScene->AddObject(ball);
-    Wrapper<Box> box(0.5f, 1.0f, 2.0f);
+    auto box = std::make_shared<Box>(0.5f, 1.0f, 2.0f);
     box->Name = u"Box";
     box->Position = { 0,1,0 };
     TheScene->AddObject(box);
-    Wrapper<Plane> ground(500.0f, 50.0f);
+    auto ground = std::make_shared<Plane>(500.0f, 50.0f);
     ground->Name = u"Ground";
     ground->Position = { 0,-2,0 };
     TheScene->AddObject(ground);
@@ -206,14 +214,14 @@ vector<std::shared_ptr<common::Controllable>> RenderCore::GetControllables() con
     return controls;
 }
 
-void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrapper<Model>)> onFinish, std::function<void(const BaseException&)> onError) const
+void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(std::shared_ptr<Model>)> onFinish, std::function<void(const BaseException&)> onError) const
 {
     std::thread([onFinish, onError, this](const u16string name)
     {
         common::SetThreadName(u"AsyncLoader for Model");
         try
         {
-            Wrapper<Model> mod(name, TexLoader, GLWorker);
+            auto mod = std::make_shared<Model>(name, TexLoader, GLWorker);
             mod->Name = u"model";
             onFinish(mod);
         }
@@ -223,19 +231,19 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(Wrap
             if (onError)
                 onError(be);
             else
-                onFinish(Wrapper<Model>());
+                onFinish(std::shared_ptr<Model>());
         }
     }, fname).detach();
 }
 
-common::PromiseResult<Wrapper<Model>> RenderCore::LoadModelAsync2(const u16string& fname) const
+common::PromiseResult<std::shared_ptr<Model>> RenderCore::LoadModelAsync2(const u16string& fname) const
 {
     auto fut = std::async(std::launch::async, [&](const u16string name)
         {
             common::SetThreadName(u"AsyncLoader for Model");
             try
             {
-                Wrapper<Model> mod(name, TexLoader, GLWorker);
+                auto mod = std::make_shared<Model>(name, TexLoader, GLWorker);
                 mod->Name = u"model";
                 return mod;
             }
@@ -245,21 +253,21 @@ common::PromiseResult<Wrapper<Model>> RenderCore::LoadModelAsync2(const u16strin
                 throw be;
             }
         }, fname);
-    return PromiseResultSTD<Wrapper<Model>>::Get(std::move(fut));
+    return common::PromiseResultSTD<std::shared_ptr<Model>>::Get(std::move(fut));
 }
 
-void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(Wrapper<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError) const
+void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdName, std::function<void(std::shared_ptr<DefaultRenderPass>)> onFinish, std::function<void(const BaseException&)> onError) const
 {
     auto pms = GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
     {
-        auto shader = Wrapper<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
+        auto shader = std::make_shared<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
         shader->Program->State()
             .SetSubroutine("lighter", "tex0")
             .SetSubroutine("getNorm", "bothNormal")
             .SetSubroutine("getAlbedo", "bothAlbedo");
         return shader;
     }, u"load shader " + shdName, common::asyexe::StackSize::Big);
-    std::thread([onFinish, onError](common::PromiseResult<Wrapper<DefaultRenderPass>>&& pms)
+    std::thread([onFinish, onError](common::PromiseResult<std::shared_ptr<DefaultRenderPass>>&& pms)
     {
         common::SetThreadName(u"AsyncLoader for Shader");
         try
@@ -274,11 +282,11 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
     }, std::move(pms)).detach();
 }
 
-common::PromiseResult<Wrapper<DefaultRenderPass>> RenderCore::LoadShaderAsync2(const u16string& fname, const u16string& shdName) const
+common::PromiseResult<std::shared_ptr<DefaultRenderPass>> RenderCore::LoadShaderAsync2(const u16string& fname, const u16string& shdName) const
 {
     return GLWorker->InvokeShare([fname, shdName](const common::asyexe::AsyncAgent&)
         {
-            auto shader = Wrapper<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
+            auto shader = std::make_shared<DefaultRenderPass>(shdName, common::file::ReadAllText(fname));
             shader->Program->State()
                 .SetSubroutine("lighter", "tex0")
                 .SetSubroutine("getNorm", "bothNormal")
@@ -287,13 +295,13 @@ common::PromiseResult<Wrapper<DefaultRenderPass>> RenderCore::LoadShaderAsync2(c
         }, u"load shader " + shdName, common::asyexe::StackSize::Big);
 }
 
-bool RenderCore::AddShader(const Wrapper<DefaultRenderPass>& shader)
+bool RenderCore::AddShader(const std::shared_ptr<DefaultRenderPass>& shader)
 {
     if (!shader) return false;
     return RenderPasses.insert(shader).second;
 }
 
-bool RenderCore::DelShader(const Wrapper<DefaultRenderPass>& shader)
+bool RenderCore::DelShader(const std::shared_ptr<DefaultRenderPass>& shader)
 {
     return RenderPasses.erase(shader) > 0;
 }
@@ -339,11 +347,11 @@ void RenderCore::DeSerialize(const fs::path & fpath)
     deserializer.SetCookie("texLoader", TexLoader);
     TheScene = deserializer.DeserializeShare<Scene>(deserializer.Root.GetObject("scene"));
     {
-        vector<Wrapper<RenderPass>> tmpShaders;
+        vector<std::shared_ptr<RenderPass>> tmpShaders;
         const auto jpasses = deserializer.Root.GetArray("passes");
         for (const auto ele : jpasses)
         {
-            const ejson::JObjectRef<true> jpass(ele);
+            const xziar::ejson::JObjectRef<true> jpass(ele);
             const auto k = deserializer.DeserializeShare<RenderPass>(jpass);
             tmpShaders.push_back(k);
         }

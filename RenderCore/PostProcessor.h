@@ -14,7 +14,7 @@ MAKE_ENUM_BITFIELD(PostProcUpdate)
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI PostProcessor : public NonCopyable, public RenderPass
+class RAYCOREAPI PostProcessor : public common::NonCopyable, public RenderPass
 {
 private:
     struct FBOConfig
@@ -28,10 +28,10 @@ private:
     oglu::oglTex3DS LutTex;
     oglu::oglImg3D LutImg;
     oglu::oglComputeProgram LutGenerator;
-    Wrapper<GLShader> PostShader;
+    std::shared_ptr<GLShader> PostShader;
     oglu::oglVBO ScreenBox;
     AtomicBitfiled<PostProcUpdate> UpdateDemand = PostProcUpdate::LUT | PostProcUpdate::FBO;
-    array<uint32_t, 3> GroupCount;
+    std::array<uint32_t, 3> GroupCount;
     const uint32_t LutSize;
     FBOConfig MidFrameConfig;
     float Exposure = 0.0f;
@@ -53,7 +53,7 @@ public:
         return u"PostProcess"sv;
     }
     uint32_t GetLutSize() const { return LutSize; }
-    Wrapper<GLShader> GetShader() const { return PostShader; }
+    std::shared_ptr<GLShader> GetShader() const { return PostShader; }
     float GetExposure() const { return Exposure; }
     void SetExposure(const float exposure);
     void SetMidFrame(const uint16_t width, const uint16_t height, const bool needFloatDepth);
@@ -62,8 +62,8 @@ public:
     bool UpdateLUT();
     bool UpdateFBO();
 
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#PostProcessor")
 };
 #if COMPILER_MSVC

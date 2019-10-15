@@ -9,7 +9,7 @@ namespace rayr
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-struct RAYCOREAPI GLShader : public virtual Controllable, public virtual xziar::respak::Serializable
+struct RAYCOREAPI GLShader : public virtual common::Controllable, public virtual xziar::respak::Serializable
 {
 private:
     void RegistControllable();
@@ -24,8 +24,8 @@ public:
         using namespace std::literals;
         return u"GLShader"sv;
     }
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#GLShader")
 };
 #if COMPILER_MSVC

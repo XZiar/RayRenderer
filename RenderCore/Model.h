@@ -21,13 +21,13 @@ protected:
 public:
     static constexpr auto TYPENAME = u"Model";
     ModelMesh Mesh;
-    Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer = {});
+    Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer = {});
     ~Model() override;
-    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>& translator = map<string, string>()) override;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const std::map<string, string>& translator = std::map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#Drawable#Model")
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 
 }

@@ -10,125 +10,125 @@ using std::u16string;
 using common::ControlHelper;
 using System::Globalization::CultureInfo;
 
-static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,                     rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexUInt16  = common::get_variant_index_v<uint16_t,                 rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,                  rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexUInt32  = common::get_variant_index_v<uint32_t,                 rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,           rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,           rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,                   rayr::Controllable::ControlArg>();
-static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                rayr::Controllable::ControlArg>();
+static constexpr size_t ValIndexBool    = common::get_variant_index_v<bool,                     common::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt16  = common::get_variant_index_v<uint16_t,                 common::Controllable::ControlArg>();
+static constexpr size_t ValIndexInt32   = common::get_variant_index_v<int32_t,                  common::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt32  = common::get_variant_index_v<uint32_t,                 common::Controllable::ControlArg>();
+static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 common::Controllable::ControlArg>();
+static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    common::Controllable::ControlArg>();
+static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  common::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,           common::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,           common::Controllable::ControlArg>();
+static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,                   common::Controllable::ControlArg>();
+static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                common::Controllable::ControlArg>();
 
 
 #pragma managed(push, off)
-static bool GetBool(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static bool GetBool(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<bool>(item->Getter(*control, item->Id));
 }
-static uint16_t GetUInt16(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static uint16_t GetUInt16(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<uint16_t>(item->Getter(*control, item->Id));
 }
-static int32_t GetInt32(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static int32_t GetInt32(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<int32_t>(item->Getter(*control, item->Id));
 }
-static uint32_t GetUInt32(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static uint32_t GetUInt32(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<uint32_t>(item->Getter(*control, item->Id));
 }
-static uint64_t GetUInt64(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static uint64_t GetUInt64(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<uint64_t>(item->Getter(*control, item->Id));
 }
-static float GetFloat(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static float GetFloat(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<float>(item->Getter(*control, item->Id));
 }
-static std::pair<float, float> GetFloatPair(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static std::pair<float, float> GetFloatPair(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<std::pair<float, float>>(item->Getter(*control, item->Id));
 }
-static string GetStr(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static string GetStr(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<string>(item->Getter(*control, item->Id));
 }
-static u16string GetU16Str(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static u16string GetU16Str(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     return std::get<u16string>(item->Getter(*control, item->Id));
 }
-static std::tuple<float, float, float> GetVec3(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static std::tuple<float, float, float> GetVec3(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     const auto& val = std::get<miniBLAS::Vec3>(item->Getter(*control, item->Id));
     return { val.x,val.y,val.z };
 }
-static std::tuple<float, float, float, float> GetVec4(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static std::tuple<float, float, float, float> GetVec4(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     const auto& val = std::get<miniBLAS::Vec4>(item->Getter(*control, item->Id));
     return { val.x,val.y,val.z,val.w };
 }
 template<typename T>
-static std::u16string_view GetEnum(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static std::u16string_view GetEnum(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     const auto enums = std::any_cast<common::Controllable::EnumSet<T>>(&(item->Cookie));
     return enums ? enums->ConvertTo(std::get<T>(item->Getter(*control, item->Id))) : std::u16string_view{};
 }
 
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const bool arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const bool arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const uint16_t arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const uint16_t arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const int32_t arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const int32_t arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const uint32_t arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const uint32_t arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const uint64_t arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const uint64_t arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const float arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, string&& arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, string&& arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, u16string&& arg)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, u16string&& arg)
 {
     item->Setter(*control, item->Id, arg);
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const float x, const float y)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float x, const float y)
 {
     item->Setter(*control, item->Id, std::pair(x, y));
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const float x, const float y, const float z)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float x, const float y, const float z)
 {
     item->Setter(*control, item->Id, miniBLAS::Vec3(x, y, z));
 }
-static void SetArg(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const float x, const float y, const float z, const float w)
+static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float x, const float y, const float z, const float w)
 {
     item->Setter(*control, item->Id, miniBLAS::Vec4(x, y, z, w));
 }
 template<typename T>
-static void SetEnum(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control, const u16string& arg)
+static void SetEnum(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const u16string& arg)
 {
     const auto enums = std::any_cast<common::Controllable::EnumSet<T>>(&(item->Cookie));
     if (enums)
         item->Setter(*control, item->Id, enums->ConvertFrom(arg));
 }
-static void NotifyChanged(const rayr::Controllable::ControlItem* item, const std::shared_ptr<rayr::Controllable>& control)
+static void NotifyChanged(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
     if (item->Notifier)
         item->Notifier(*control, item->Id);
@@ -215,7 +215,7 @@ bool ControlItem::GetValue(const std::shared_ptr<common::Controllable>& control,
     if (!item) return false;
     switch (PtrItem->Type)
     {
-    case rayr::Controllable::ArgType::RawValue:
+    case common::Controllable::ArgType::RawValue:
         switch (PtrItem->TypeIdx)
         {
         case ValIndexBool:      arg = GetBool(PtrItem, control); break;
@@ -231,21 +231,21 @@ bool ControlItem::GetValue(const std::shared_ptr<common::Controllable>& control,
         case ValIndexU16Str:    arg = ToStr(GetU16Str(PtrItem, control)); break;
         default:                return false;
         } break;
-    case rayr::Controllable::ArgType::Color:
+    case common::Controllable::ArgType::Color:
         switch (PtrItem->TypeIdx)
         {
         case ValIndexVec3:      arg = ToColor(GetVec3(PtrItem, control)); break;
         case ValIndexVec4:      arg = ToColor(GetVec4(PtrItem, control)); break;
         default:                return false;
         } break;
-    case rayr::Controllable::ArgType::LongText:
+    case common::Controllable::ArgType::LongText:
         switch (PtrItem->TypeIdx)
         {
         case ValIndexStr:       arg = ToStr(GetStr(PtrItem, control)); break;
         case ValIndexU16Str:    arg = ToStr(GetU16Str(PtrItem, control)); break;
         default:                return false;
         } break;
-    case rayr::Controllable::ArgType::Enum:
+    case common::Controllable::ArgType::Enum:
         switch (PtrItem->TypeIdx)
         {
         case ValIndexStr:       arg = ToStr(GetStr(PtrItem, control)); break;
@@ -273,7 +273,7 @@ bool ControlItem::SetValue(const std::shared_ptr<common::Controllable>& control,
     if (!item) return false;
     switch (PtrItem->Type)
     {
-    case rayr::Controllable::ArgType::RawValue:
+    case common::Controllable::ArgType::RawValue:
         switch (item->TypeIdx)
         {
         case ValIndexBool:      SetArg(item, control, safe_cast<bool>(arg)); break;
@@ -301,7 +301,7 @@ bool ControlItem::SetValue(const std::shared_ptr<common::Controllable>& control,
         } break;
         default:                return false;
         } break;
-    case rayr::Controllable::ArgType::Color:
+    case common::Controllable::ArgType::Color:
     {
         auto color = safe_cast<System::Windows::Media::Color>(arg);
         switch (item->TypeIdx)
@@ -311,7 +311,7 @@ bool ControlItem::SetValue(const std::shared_ptr<common::Controllable>& control,
         default:                return false;
         }
     } break;
-    case rayr::Controllable::ArgType::LongText:
+    case common::Controllable::ArgType::LongText:
         switch (item->TypeIdx)
         {
         case ValIndexStr:       SetArg(item, control, ToCharStr(safe_cast<String^>(arg))); break;
@@ -319,7 +319,7 @@ bool ControlItem::SetValue(const std::shared_ptr<common::Controllable>& control,
         default:                return false;
         }
         break;
-    case rayr::Controllable::ArgType::Enum:
+    case common::Controllable::ArgType::Enum:
         switch (item->TypeIdx)
         {
         case ValIndexStr:       SetArg(item, control, ToCharStr(safe_cast<String^>(arg))); break;
@@ -339,9 +339,9 @@ bool ControlItem::SetValue(const std::shared_ptr<common::Controllable>& control,
 
 
 
-Controllable::Controllable(const std::shared_ptr<rayr::Controllable>& control)
+Controllable::Controllable(const std::shared_ptr<common::Controllable>& control)
 {
-    Control = new std::weak_ptr<rayr::Controllable>(control);
+    Control = new std::weak_ptr<common::Controllable>(control);
     controlType = ToStr(ControlHelper::GetControlType(*control));
     Categories = gcnew Dictionary<String^, String^>(0);
     ControlItems = gcnew Dictionary<String^, ControlItem^>(0);

@@ -1,23 +1,29 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "Material.h"
-#include "common/PromiseTaskSTD.hpp"
 
 namespace rayr
 {
+using std::set;
+using std::map;
+using std::vector;
+using common::str::Charset;
 using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using xziar::img::TextureFormat;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+
 
 namespace detail
 {
-RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, xziar::img::TextureFormat, uint32_t, uint32_t)
+RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, std::vector<common::AlignedBuffer>, xziar::img::TextureFormat, uint32_t, uint32_t)
 {
     const auto format = (xziar::img::TextureFormat)object.Get<uint16_t>("format");
     const auto width = object.Get<uint32_t>("width");
     const auto height = object.Get<uint32_t>("height");
     //const auto mipmap = object.Get<uint8_t>("mipmap");
-    vector<common::AlignedBuffer> data;
+    std::vector<common::AlignedBuffer> data;
     
     const auto jdata = object.GetArray("data");
     for (const auto ele : jdata)
@@ -28,12 +34,12 @@ RESPAK_IMPL_COMP_DESERIALIZE(_FakeTex, vector<common::AlignedBuffer>, xziar::img
 
     return std::tuple(std::move(data), format, width, height);
 }
-void _FakeTex::Serialize(SerializeUtil&, ejson::JObject&) const
+void _FakeTex::Serialize(SerializeUtil&, xziar::ejson::JObject&) const
 {
 }
-void _FakeTex::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
+void _FakeTex::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
 }
 }
 
@@ -144,7 +150,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
     if (holder.index() != 1 && holder.index() != 2)
         return {};
     auto jtex = context.NewObject();
-    jtex.Add("name", strchset::to_u8string(holder.GetName(), Charset::UTF16LE));
+    jtex.Add("name", common::strchset::to_u8string(holder.GetName(), Charset::UTF16LE));
     jtex.Add("format", (uint16_t)holder.GetInnerFormat());
     const auto[w, h] = holder.GetSize();
     jtex.Add("width", w);
@@ -185,9 +191,9 @@ static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& val
         return {};
     return context.DeserializeShare<detail::_FakeTex>(value);
 }
-void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void PBRMaterial::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("name", strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("name", common::strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
     jself.Add(EJ_FIELD(Metalness))
          .Add(EJ_FIELD(Roughness))
@@ -204,9 +210,9 @@ void PBRMaterial::Serialize(SerializeUtil & context, ejson::JObject& jself) cons
     jself.Add("RoughMap",   SerializeTex(RoughMap,   context));
     jself.Add("AOMap",      SerializeTex(AOMap,      context));
 }
-void PBRMaterial::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void PBRMaterial::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
     object.TryGet(EJ_FIELD(Metalness));
     object.TryGet(EJ_FIELD(Roughness));
@@ -443,18 +449,18 @@ uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
     return pos;
 }
 
-void MultiMaterialHolder::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void MultiMaterialHolder::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     auto jmaterials = context.NewArray();
     for (const auto& material : Materials)
         context.AddObject(jmaterials, *material);
     jself.Add("pbr", jmaterials);
 }
-void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void MultiMaterialHolder::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Materials.clear();
     for (const auto& material : object.GetArray("pbr"))
-        Materials.push_back(context.DeserializeShare<PBRMaterial>(ejson::JObjectRef<true>(material)));
+        Materials.push_back(context.DeserializeShare<PBRMaterial>(xziar::ejson::JObjectRef<true>(material)));
 }
 RESPAK_IMPL_SIMP_DESERIALIZE(MultiMaterialHolder)
 

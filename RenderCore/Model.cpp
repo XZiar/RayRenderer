@@ -1,12 +1,15 @@
-#include "RenderCoreRely.h"
+#include "RenderCorePch.h"
 #include "Model.h"
-#include "OpenGLUtil/oglWorker.h"
 
 
 namespace rayr
 {
+using std::map;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
+using b3d::Vec3;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
 
 
 MultiMaterialHolder Model::OnPrepareMaterial() const
@@ -24,17 +27,17 @@ MultiMaterialHolder Model::OnPrepareMaterial() const
 
 Model::Model(ModelMesh mesh) : Drawable(this, TYPENAME), Mesh(mesh)
 {
-    const auto resizer = 2 / max(max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
+    const auto resizer = 2 / common::max(common::max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
     Scale = Vec3(resizer, resizer, resizer);
 }
 
-Model::Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const Wrapper<oglu::oglWorker>& asyncer)
+Model::Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer)
     : Model(detail::_ModelMesh::GetModel(fname, texLoader, asyncer)) {}
 
 Model::~Model()
 {
     const auto mfname = Mesh->mfname;
-    Mesh.release();
+    Mesh.reset();
     detail::_ModelMesh::ReleaseModel(mfname);
 }
 
@@ -62,12 +65,12 @@ void Model::Draw(Drawcall& drawcall) const
         .Draw(GetVAO(drawcall.GetProg()));
 }
 
-void Model::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Model::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     Drawable::Serialize(context, jself);
     jself.Add("mesh", context.AddObject(*Mesh));
 }
-void Model::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object)
+void Model::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
     Drawable::Deserialize(context, object);
 }

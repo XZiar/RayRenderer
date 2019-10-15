@@ -17,8 +17,8 @@ class RenderPassContext
     friend class RenderPipeLine;
 private:
     std::shared_ptr<Scene> TheScene;
-    map<string, oglu::oglTex2D, std::less<>> Textures;
-    map<string, oglu::oglFBO, std::less<>> FrameBufs;
+    std::map<string, oglu::oglTex2D, std::less<>> Textures;
+    std::map<string, oglu::oglFBO, std::less<>> FrameBufs;
     std::pair<uint16_t, uint16_t> ScreenSize;
 public:
     RenderPassContext(const std::shared_ptr<Scene>& scene, const uint16_t ScreenWidth, const uint16_t ScreenHeight);
@@ -31,11 +31,11 @@ public:
     void SetTexture(const string_view& name, const oglu::oglTex2D& tex);
 };
 
-class RAYCOREAPI RenderPass : public virtual Controllable, public virtual xziar::respak::Serializable
+class RAYCOREAPI RenderPass : public virtual common::Controllable, public virtual xziar::respak::Serializable
 {
 private:
-    vector<std::weak_ptr<Drawable>> WaitAddDrawables;
-    vector<std::weak_ptr<Drawable>> WaitDelDrawables;
+    std::vector<std::weak_ptr<Drawable>> WaitAddDrawables;
+    std::vector<std::weak_ptr<Drawable>> WaitDelDrawables;
 protected:
     const oglu::oglContext GLContext;
     std::set<std::weak_ptr<Drawable>, std::owner_less<>> Drawables;
@@ -54,14 +54,14 @@ public:
     virtual void SetName(const u16string&) { }
     RenderPass();
     virtual ~RenderPass() {}
-    void RegistDrawable(const Wrapper<Drawable>& drawable);
-    void UnregistDrawable(const Wrapper<Drawable>& drawable);
+    void RegistDrawable(const std::shared_ptr<Drawable>& drawable);
+    void UnregistDrawable(const std::shared_ptr<Drawable>& drawable);
     void CleanDrawable();
     void Prepare(RenderPassContext& context);
     void Draw(RenderPassContext& context);
 
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 
 class RAYCOREAPI DefaultRenderPass : public RenderPass, public GLShader
@@ -80,12 +80,12 @@ protected:
 public:
     DefaultRenderPass(const u16string& name, const string& source, const oglu::ShaderConfig& config = {});
     ~DefaultRenderPass() {}
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#DefaultRenderPass")
 };
 
-class RAYCOREAPI RenderPipeLine : public Controllable
+class RAYCOREAPI RenderPipeLine : public common::Controllable
 {
 protected:
     const oglu::oglContext GLContext;
@@ -97,7 +97,7 @@ protected:
         return u"RenderPipeLine"sv;
     }
 public:
-    vector<std::shared_ptr<RenderPass>> Passes;
+    std::vector<std::shared_ptr<RenderPass>> Passes;
     RenderPipeLine();
     virtual ~RenderPipeLine() {}
     virtual void Prepare() {}

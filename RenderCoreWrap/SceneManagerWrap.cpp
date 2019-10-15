@@ -64,14 +64,14 @@ bool Drawable::CreateMaterials()
     }
     return true;
 }
-Drawable::Drawable(const Wrapper<rayr::Drawable>& drawable) : Controllable(drawable)
+Drawable::Drawable(const std::shared_ptr<rayr::Drawable>& drawable) : Controllable(drawable)
 {
     materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
     materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
     Uid = ToGuid(drawable->GetUid());
     DrawableType = ToStr(drawable->GetType());
 }
-Drawable::Drawable(Wrapper<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new Wrapper<rayr::Drawable>(drawable))
+Drawable::Drawable(std::shared_ptr<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new std::shared_ptr<rayr::Drawable>(drawable))
 {
     materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
     materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
@@ -113,11 +113,11 @@ std::shared_ptr<rayr::Light> Light::GetSelf()
     return std::static_pointer_cast<rayr::Light>(GetControl()); // type promised
 }
 
-Light::Light(const Wrapper<rayr::Light>& light) : Controllable(light)
+Light::Light(const std::shared_ptr<rayr::Light>& light) : Controllable(light)
 {
     LgtType = static_cast<LightType>(light->Type);
 }
-Light::Light(Wrapper<rayr::Light>&& light) : Controllable(light), TempHandle(new Wrapper<rayr::Light>(light))
+Light::Light(std::shared_ptr<rayr::Light>&& light) : Controllable(light), TempHandle(new std::shared_ptr<rayr::Light>(light))
 {
     LgtType = static_cast<LightType>((*TempHandle)->Type);
 }
@@ -146,21 +146,21 @@ String^ Light::ToString()
 }
 
 #pragma managed(push, off)
-static Wrapper<rayr::Light> CreateLight(rayr::LightType type)
+static std::shared_ptr<rayr::Light> CreateLight(rayr::LightType type)
 {
-    Wrapper<rayr::Light> light;
+    std::shared_ptr<rayr::Light> light;
     switch (type)
     {
     case rayr::LightType::Parallel:
-        light = Wrapper<rayr::ParallelLight>(std::in_place);
+        light = std::make_shared<rayr::ParallelLight>();
         light->Color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
         break;
     case rayr::LightType::Point:
-        light = Wrapper<rayr::PointLight>(std::in_place);
+        light = std::make_shared<rayr::PointLight>();
         light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         break;
     case rayr::LightType::Spot:
-        light = Wrapper<rayr::SpotLight>(std::in_place);
+        light = std::make_shared<rayr::SpotLight>();
         light->Color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
         break;
     }
@@ -179,7 +179,7 @@ std::shared_ptr<rayr::Camera> Camera::GetSelf()
     return std::static_pointer_cast<rayr::Camera>(GetControl()); // type promised
 }
 
-Camera::Camera(const Wrapper<rayr::Camera>& camera) : Controllable(camera)
+Camera::Camera(const std::shared_ptr<rayr::Camera>& camera) : Controllable(camera)
 {
 }
 

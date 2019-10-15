@@ -1,8 +1,13 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "Light.h"
 
 namespace rayr
 {
+using std::map;
+using common::str::Charset;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+
 
 void LightData::WriteData(std::byte *ptr) const
 {
@@ -55,9 +60,9 @@ void Light::RegistControllable()
     }
 }
 
-void Light::Serialize(SerializeUtil & context, ejson::JObject& jself) const
+void Light::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Name, Charset::UTF16LE));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Direction", detail::ToJArray(context, Direction));
     jself.Add("Color", detail::ToJArray(context, Color));
@@ -66,7 +71,7 @@ void Light::Serialize(SerializeUtil & context, ejson::JObject& jself) const
     jself.Add("LightType", static_cast<int32_t>(Type));
     jself.Add("IsOn", IsOn);
 }
-void Light::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object) 
+void Light::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object) 
 {
     detail::FromJArray(object.GetArray("Position"), Position);
     detail::FromJArray(object.GetArray("Direction"), Direction);
@@ -79,7 +84,7 @@ void Light::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
 RESPAK_IMPL_COMP_DESERIALIZE(Light, LightType, u16string)
 {
     return std::make_tuple(static_cast<LightType>(object.Get<int32_t>("LightType")),
-        strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+        common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
 }
 
 

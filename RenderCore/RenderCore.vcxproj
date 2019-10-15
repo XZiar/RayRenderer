@@ -101,7 +101,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>RenderCoreRely.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>RenderCorePch.h</PrecompiledHeaderFile>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
@@ -121,7 +121,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>RenderCoreRely.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>RenderCorePch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -142,7 +142,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>RenderCoreRely.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>RenderCorePch.h</PrecompiledHeaderFile>
       <AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
@@ -170,7 +170,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>RenderCoreRely.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>RenderCorePch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -246,6 +246,7 @@
     <ClInclude Include="Model\OBJSaver.hpp" />
     <ClInclude Include="PostProcessor.h" />
     <ClInclude Include="RenderCore.h" />
+    <ClInclude Include="RenderCorePch.h" />
     <ClInclude Include="RenderCoreRely.h" />
     <ClInclude Include="RenderCoreUtil.hpp" />
     <ClInclude Include="RenderElement.h" />

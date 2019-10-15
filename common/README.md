@@ -66,7 +66,7 @@ An ateempt to combine intrusive refrence counting with pimpl. It natively suppor
 
 It is used by inherit so we can expose operations natively without using `->`. However, seperating data and operation makes it harder to decide which part need to be keep by others.
 
-### [Wrapper](./Wrapper.hpp)
+### [Wrapper](./Wrapper.hpp) **Deprecated**
 
 Wrapper can be simply regarded as a combination of `shared_ptr` and `make_shared`. It is mostly my own taste and may not be recommended.
 

@@ -1,4 +1,4 @@
-﻿#include "RenderCoreRely.h"
+﻿#include "RenderCorePch.h"
 #include "PostProcessor.h"
 #include "SceneManager.h"
 #include "resource.h"
@@ -6,10 +6,12 @@
 
 namespace rayr
 {
-
 using namespace oclu;
 using namespace oglu;
 using namespace std::literals;
+using xziar::respak::SerializeUtil;
+using xziar::respak::DeserializeUtil;
+
 
 static const u16string PostProcessorName = u"后处理";
 
@@ -57,7 +59,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
     ScreenBox->Write(DatVert, sizeof(DatVert));
-    PostShader.reset(u"PostProcess", postSrc);
+    PostShader = std::make_shared<GLShader>(u"PostProcess", postSrc);
     VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
     VAOScreen->Prepare()
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
@@ -157,12 +159,12 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 }
 
 
-void PostProcessor::Serialize(SerializeUtil&, ejson::JObject& jself) const
+void PostProcessor::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 {
     jself.Add(EJ_FIELD(LutSize))
          .Add(EJ_FIELD(Exposure));
 }
-void PostProcessor::Deserialize(DeserializeUtil&, const ejson::JObjectRef<true>& object)
+void PostProcessor::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
     object.TryGet(EJ_FIELD(Exposure));
 }

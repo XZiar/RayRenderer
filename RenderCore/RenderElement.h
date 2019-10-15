@@ -5,19 +5,18 @@
 
 namespace rayr
 {
-using namespace common;
-using namespace b3d;
 
 
 #if COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI Drawable : public AlignBase<16>, public NonCopyable, public xziar::respak::Serializable, public Controllable
+class RAYCOREAPI Drawable : public common::AlignBase<16>, public common::NonCopyable,
+    public xziar::respak::Serializable, public common::Controllable
 {
 public:
     using Drawcall = oglu::ProgDraw;
-    Vec3 Position = Vec3::zero(), Rotation = Vec3::zero(), Scale = Vec3::one();
+    b3d::Vec3 Position = b3d::Vec3::zero(), Rotation = b3d::Vec3::zero(), Scale = b3d::Vec3::one();
     MultiMaterialHolder MaterialHolder;
     u16string Name;
     bool ShouldRender = true;
@@ -30,7 +29,7 @@ public:
     ///<summary>Prepare for specific shader program(Generate VAO)</summary>  
     ///<param name="prog">shader program</param>
     ///<param name="translator">mapping from common resource name to program's resource name</param>
-    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const map<string,string>& translator = map<string, string>()) = 0;
+    virtual void PrepareGL(const oglu::oglDrawProgram& prog, const std::map<string,string>& translator = std::map<string, string>()) = 0;
     virtual void Draw(Drawcall& drawcall) const;
 
     u16string GetType() const;
@@ -38,26 +37,26 @@ public:
 
     void Move(const float x, const float y, const float z)
     {
-        Position += Vec3(x, y, z);
+        Position += b3d::Vec3(x, y, z);
     }
-    void Move(const Vec3& offset)
+    void Move(const b3d::Vec3& offset)
     {
         Position += offset;
     }
     void Rotate(const float x, const float y, const float z)
     {
-        Rotate(Vec3(x, y, z));
+        Rotate(b3d::Vec3(x, y, z));
     }
-    void Rotate(const Vec3& angles)
+    void Rotate(const b3d::Vec3& angles)
     {
         Rotation += angles;
-        Rotation.RepeatClampPos(Vec3::Vec3_2PI());
+        Rotation.RepeatClampPos(b3d::Vec3::Vec3_2PI());
     }
     void PrepareMaterial();
     void AssignMaterial();
 
-    virtual void Serialize(SerializeUtil& context, ejson::JObject& object) const override;
-    virtual void Deserialize(DeserializeUtil& context, const ejson::JObjectRef<true>& object) override;
+    virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
+    virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 private:
     boost::uuids::uuid Uid;
     Drawable(const std::type_index type, const u16string& typeName);
@@ -73,7 +72,7 @@ protected:
     virtual MultiMaterialHolder OnPrepareMaterial() const;
     auto DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
     Drawcall& DrawPosition(Drawcall& prog) const;
-    ///<summary>Assign VAO into prog-sensative map</summary>  
+    ///<summary>Assign VAO into prog-sensative std::map</summary>  
     ///<param name="prog">target shader program</param>
     ///<param name="vao">saved VAO</param>
     void SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const;
