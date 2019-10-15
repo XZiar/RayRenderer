@@ -20,7 +20,6 @@ using common::BaseException;
 using common::str::Charset;
 using common::file::FileException;
 using common::fs::path;
-using common::linq::Linq;
 using common::container::FindInMap;
 using common::container::FindInSet;
 using common::container::FindInVec;
@@ -187,7 +186,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         catch (...)
         {
             COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property",
-                Linq::FromIterable(parts).Cast<string>().ToVector());
+                common::linq::FromIterable(parts).Cast<string>().ToVector());
         }
     }
     else

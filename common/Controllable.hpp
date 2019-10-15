@@ -2,7 +2,7 @@
 #include "CommonRely.hpp"
 #include "ContainerEx.hpp"
 #include "Exceptions.hpp"
-#include "Linq.hpp"
+#include "Linq2.hpp"
 #include "3DBasic/miniBLAS.hpp"
 #include <string>
 #include <string_view>
@@ -71,7 +71,9 @@ public:
         }
         std::vector<std::u16string_view> GetEnumNames() const
         {
-            return common::linq::Linq::FromIterable(Lookup).Select([](const auto& p) { return std::u16string_view(p.first); }).ToVector();
+            return common::linq::FromIterable(Lookup)
+                .Select([](const auto& p) { return std::u16string_view(p.first); })
+                .ToVector();
         }
         std::u16string_view ConvertTo(const T key) const
         {

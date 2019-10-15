@@ -28,7 +28,7 @@ It also has experiemental compile-time reflection support based on `FUNCSIG` mac
 
 Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
 
-### [Linq](./Linq.hpp)
+### [Linq](./Linq.hpp) **Deprecated**
 
 C#-like Linq implementation. It is compile-time based.
 

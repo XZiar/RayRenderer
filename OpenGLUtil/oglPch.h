@@ -7,7 +7,7 @@
 #include "MiniLogger/MiniLogger.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ImageUtil/TexFormat.h"
-#include "common/Linq.hpp"
+#include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include <algorithm>
 

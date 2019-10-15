@@ -25,7 +25,7 @@
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"
 #include "SystemCommon/FileEx.h"
-#include "common/Linq.hpp"
+#include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/PromiseTask.hpp"
 #include "SystemCommon/ThreadEx.h"
@@ -82,7 +82,6 @@ using common::PromiseResult;
 using common::BaseException;
 using common::container::vectorEx;
 using common::file::FileException;
-using common::linq::Linq;
 using str::Charset;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;

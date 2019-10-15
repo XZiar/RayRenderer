@@ -287,6 +287,127 @@ TEST(Linq, Pair)
     }
 }
 
+TEST(Linq, Cast)
+{
+    {
+        EXPECT_THAT(FromRange<float>(0, 2, 0.5f)
+            .Cast<uint32_t>()
+            .ToVector(),
+            testing::ElementsAre(0, 0, 1, 1));
+    }
+    {
+        std::string src = "here";
+        std::string_view sv = src;
+        const auto ret = FromRepeat(sv, 2)
+            .Cast<std::string>()
+            .ToVector();
+        src[2] = 'a', src[3] = 'r';
+        EXPECT_THAT(ret, testing::ElementsAre("here", "here"));
+    }
+}
+
+TEST(Linq, Concat)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 2, 1)
+            .Concat(FromRange<int32_t>(1, 2, 1))
+            .ToVector(),
+            testing::ElementsAre(0, 1, 1));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 0, 1)
+            .Concat(FromRange<int32_t>(1, 4, 1))
+            .ToVector(),
+            testing::ElementsAre(1, 2, 3));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(1, 4, 1)
+            .Concat(FromRange<int32_t>(1, 0, 1))
+            .ToVector(),
+            testing::ElementsAre(1, 2, 3));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(1, 0, 1)
+            .Concat(FromRange<int32_t>(1, 0, 1))
+            .ToVector(),
+            testing::ElementsAre());
+    }
+    {
+        std::vector<int32_t> data1{ 1,2,3 };
+        std::vector<int32_t> data2{ 3,2,1 };
+        auto ret = FromIterable(data1).Concat(FromIterable(data2))
+            .Select([](auto& p) { return p++; })
+            .ToVector();
+        EXPECT_THAT(ret, testing::ElementsAre(1, 2, 3, 3, 2, 1));
+        EXPECT_THAT(data1, testing::ElementsAre(2, 3, 4));
+        EXPECT_THAT(data2, testing::ElementsAre(4, 3, 2));
+    }
+    {
+        std::vector<int32_t> data1{ 1,2,3 };
+        const std::vector<int32_t> data2{ 3,2,1 };
+        auto ret = FromIterable(data1).Concat(FromIterable(data2))
+            .Select([](const auto& p) { return p; })
+            .ToVector();
+        EXPECT_THAT(ret, testing::ElementsAre(1, 2, 3, 3, 2, 1));
+        EXPECT_THAT(data1, testing::ElementsAre(1, 2, 3));
+        EXPECT_THAT(data2, testing::ElementsAre(3, 2, 1));
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, const int&>;
+        static_assert(std::is_same_v<kk, const int&>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, int&>;
+        static_assert(std::is_same_v<kk, const int&>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, const int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<int&, const int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int*, const int*>;
+        static_assert(std::is_same_v<kk, const int*>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int*, int*>;
+        static_assert(std::is_same_v<kk, const int*>, "xxx");
+    }
+}
+
+TEST(Linq, ConcatSkip)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(1, 4, 1)
+            .Concat(FromRange<int32_t>(1, 0, 1))
+            .Skip(2)
+            .ToVector(),
+            testing::ElementsAre(3));
+    }
+    {
+        EXPECT_THAT(FromRange<int32_t>(1, 4, 1)
+            .Concat(FromRange<int32_t>(1, 0, 1))
+            .Skip(4)
+            .ToVector(),
+            testing::ElementsAre());
+    }
+    {
+        std::vector<int32_t> data1{ 1,2,3 };
+        std::vector<int32_t> data2{ 3,2,1 };
+        auto ret = FromIterable(data1).Concat(FromIterable(data2))
+            .Skip(4)
+            .ToVector();
+        EXPECT_THAT(ret, testing::ElementsAre(2, 1));
+    }
+}
+
 TEST(Linq, Pairs)
 {
     {
@@ -312,6 +433,16 @@ TEST(Linq, Pairs)
         EXPECT_EQ(FromRange<int32_t>(0, 4, 1)
             .Pairs(FromRange<int32_t>(1, 4, 1))
             .Count(), 3);
+    }
+    {
+        std::vector<int32_t> data1{ 1,2,3 };
+        std::vector<int32_t> data2{ 3,2,1 };
+        auto ret = FromIterable(data1).Pairs(FromIterable(data2))
+            .Select([](const auto& p) { return (std::get<0>(p)++) + (std::get<1>(p)++); })
+            .ToVector();
+        EXPECT_THAT(ret, testing::ElementsAre(4, 4, 4));
+        EXPECT_THAT(data1, testing::ElementsAre(2, 3, 4));
+        EXPECT_THAT(data2, testing::ElementsAre(4, 3, 2));
     }
 }
 

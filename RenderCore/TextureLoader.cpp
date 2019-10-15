@@ -86,7 +86,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         if (proc.NeedMipmap)
         {
             const auto pms = MipMapper->GenerateMipmaps(imgview, type == TexLoadType::Color);
-            layers = Linq::FromIterable(agent.Await(pms)).template Cast<ImageView>().ToVector();
+            layers = common::linq::FromContainer(agent.Await(pms)).template Cast<ImageView>().ToVector();
         }
         layers.insert(layers.begin(), imgview);
         xziar::img::TextureFormat format = xziar::img::TextureFormat::EMPTY,

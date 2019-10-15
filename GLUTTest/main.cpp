@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <memory>
 #include "FreeGLUTView/FreeGLUTView.h"
-#include "common/Linq.hpp"
+#include "common/Linq2.hpp"
 #include "RenderCore/FontTest.h"
 
 
@@ -15,7 +15,7 @@ using std::wstring;
 using std::u16string;
 using std::vector;
 using namespace common;
-using common::linq::Linq;
+
 
 //OGLU_OPTIMUS_ENABLE_NV
 
@@ -68,7 +68,7 @@ void onKeyboard(FreeGLUTView wd, KeyEvent keyevent)
                 CurPipe++;
                 const auto& pps = tester->GetPipeLines();
                 CurPipe = static_cast<uint16_t>(CurPipe % pps.size());
-                const auto pipe = Linq::FromIterable(pps)
+                const auto pipe = common::linq::FromIterable(pps)
                     .Skip(CurPipe).TryGetFirst().value();
                 tester->ChangePipeLine(pipe);
             }
@@ -257,7 +257,7 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
         //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
     }
 
-    const auto ftest = Linq::FromIterable(tester->GetRenderPasses())
+    const auto ftest = common::linq::FromIterable(tester->GetRenderPasses())
         .Select([](const auto& pipe) { return pipe.template cast_dynamic<rayr::FontTester>(); })
         .Where([](const auto& pipe) { return (bool)pipe; })
         .TryGetFirst().value();

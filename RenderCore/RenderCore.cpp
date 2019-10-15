@@ -34,22 +34,22 @@ static int32_t JudgeVendor(const Vendors vendor)
     case Vendors::NVIDIA: return 1;
     case Vendors::AMD:    return 2;
     case Vendors::Intel:  return 3;
-    default:             return 4;
+    default:              return 4;
     }
 }
 
 static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, const oglContext glContext)
 {
-    const auto venderClPlat = Linq::FromIterable(oclUtil::GetPlatforms())
-        .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
+    const auto venderClPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
+        .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
         .OrderBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
     if (!venderClPlat)
         COMMON_THROWEX(BaseException, u"No avaliable OpenCL Platform found");
-    const auto glPlat = Linq::FromIterable(oclUtil::GetPlatforms())
-        .Where([](const auto& plat) { return Linq::FromIterable(plat->GetDevices())
+    const auto glPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
+        .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
             .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
         .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
         .TryGetFirst().value_or(oclPlatform{});

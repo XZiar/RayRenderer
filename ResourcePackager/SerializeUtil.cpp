@@ -2,7 +2,7 @@
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
 #include "common/Exceptions.hpp"
-#include "common/Linq.hpp"
+#include "common/Linq2.hpp"
 #include "3rdParty/boost.stacktrace/stacktrace.h"
 
 // ResFile Structure
@@ -32,7 +32,6 @@ using common::file::OpenFlag;
 using common::file::FileObject;
 using common::file::FileInputStream;
 using common::file::FileOutputStream;
-using common::linq::Linq;
 using common::container::FindInMap;
 
 static constexpr std::string_view TypeFieldName = "#Type";
@@ -140,7 +139,7 @@ string SerializeUtil::AddObject(ejson::JObject&& jobj, string id)
         return *it;
 
     const auto serType = jobj.Get<string_view>(TypeFieldName);
-    const auto ptPath = Linq::FromIterable(Filters)
+    const auto ptPath = common::linq::FromIterable(Filters)
         .Select([&](const auto& filter) { return filter(serType); })
         .Where([](const string& path) { return !path.empty(); })
         .TryGetFirst().value_or("/#globals");
@@ -235,7 +234,7 @@ DeserializeUtil::DeserializeUtil(const path & fileName)
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
-    Linq::FromIterable(Root.GetObject("#global_map"))
+    common::linq::FromContainer(Root.GetObject("#global_map"))
         .IntoMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
             [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
@@ -257,11 +256,11 @@ DeserializeUtil::DeserializeUtil(const path & fileName)
     ResReader->Read(indexsize, ResourceList.data());
     if (!sumdata.CheckSHA(ResourceUtil::SHA256(ResourceList.data(), indexsize)))
         COMMON_THROWEX(BaseException, u"wrong checksum for resource index");
-    if (Linq::FromIterable(ResourceList)
+    if (common::linq::FromIterable(ResourceList)
         .Where([index = 0u](const detail::ResourceItem& item) mutable { return item.GetIndex() != index++; })
         .TryGetFirst())
         COMMON_THROWEX(BaseException, u"wrong index list for resource index");
-    Linq::FromIterable(ResourceList)
+    common::linq::FromIterable(ResourceList)
         .IntoMap(ResourceSet, [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
             [index = 0](const auto&) mutable { return index++; });
 }

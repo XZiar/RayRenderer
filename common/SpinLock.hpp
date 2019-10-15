@@ -76,7 +76,7 @@ private:
     std::atomic<uint32_t> Flag; //strong on high 16bit, weak on low 16bit
 public:
     constexpr PreferSpinLock() noexcept : Flag(0) { }
-    constexpr explicit PreferSpinLock(PreferSpinLock&& other) noexcept 
+    explicit PreferSpinLock(PreferSpinLock&& other) noexcept 
         : Flag(other.Flag.exchange(0)) { }
     void LockWeak() noexcept
     {
@@ -121,7 +121,7 @@ private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr WRSpinLock() noexcept : Flag(0) { }
-    constexpr explicit WRSpinLock(WRSpinLock&& other) noexcept 
+    explicit WRSpinLock(WRSpinLock&& other) noexcept 
         : Flag(other.Flag.exchange(0)) { }
     void LockRead() noexcept
     {
@@ -176,7 +176,7 @@ private:
     std::atomic<uint32_t> Flag; //writer on most siginificant bit, reader on lower bits
 public:
     constexpr RWSpinLock() : Flag(0) { }
-    constexpr explicit RWSpinLock(RWSpinLock&& other) noexcept
+    explicit RWSpinLock(RWSpinLock&& other) noexcept
         : Flag(other.Flag.exchange(0)) { }
     void LockRead() noexcept
     {

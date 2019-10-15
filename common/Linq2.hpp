@@ -140,7 +140,7 @@ struct IteratorSource
 
     constexpr IteratorSource(TB begin, TE end) : Begin(std::move(begin)), End(std::move(end)) {}
     constexpr OutType GetCurrent() const { return *Begin; }
-    constexpr void MoveNext() { Begin++; }
+    constexpr void MoveNext() { ++Begin; }
     constexpr bool IsEnd() const { return !(Begin != End); }
     void MoveMultiple(size_t count) noexcept
     {
@@ -298,6 +298,7 @@ struct FilteredSource : std::conditional_t<P::InvolveCache, NestedCacheSource<P>
 {
 private:
     using BaseType = std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>;
+    mutable Filter Func;
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -306,8 +307,6 @@ public:
     static constexpr bool InvolveCache = P::InvolveCache;
     static constexpr bool IsCountable = false;
     static constexpr bool CanSkipMultiple = false;
-
-    Filter Func;
 
     constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
     {
@@ -354,6 +353,7 @@ struct MappedSource : public NestedSource<P>
 {
 private:
     using BaseType = NestedSource<P>;
+    mutable Mapper Func;
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -362,8 +362,6 @@ public:
     static constexpr bool InvolveCache = P::InvolveCache || ShouldCache;
     static constexpr bool IsCountable = P::IsCountable;
     static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
-
-    Mapper Func;
 
     constexpr MappedSource(P&& prev, Mapper&& mapper) : BaseType(std::move(prev)), Func(std::move(mapper))
     { }
@@ -388,6 +386,9 @@ public:
 template<typename P, typename Mapper>
 struct FlatMappedSource
 {
+private:
+    P Prev;
+    mutable Mapper Func;
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -398,9 +399,8 @@ public:
     static constexpr bool IsCountable = false;
     static constexpr bool CanSkipMultiple = false;
 
-    Mapper Func;
 
-    constexpr FlatMappedSource(P&& prev, Mapper&& mapper) : Func(std::move(mapper)), Prev(std::move(prev))
+    constexpr FlatMappedSource(P&& prev, Mapper&& mapper) : Prev(std::move(prev)), Func(std::move(mapper))
     {
         LoadNextBatch();
     }
@@ -422,7 +422,6 @@ public:
         return !Middle.has_value();
     }
 private:
-    P Prev;
     mutable std::optional<MidType> Middle;
     void LoadNextBatch()
     {
@@ -475,6 +474,14 @@ struct TupledSourceHelper
     {
         (std::get<I>(std::forward<Tuple>(t)).MoveMultiple(count), ...);
     }
+    /*template<typename T>
+    struct CheckRef
+    {
+        using Type = std::conditional_t<std::is_reference_v<T>,
+            std::reference_wrapper<std::remove_reference_t<T>>,
+            std::remove_cv_t<T>>;
+    };
+    template<typename T> using ProxyType = typename CheckRef<typename T::OutType>::Type;*/
 };
 
 template<typename... Ps>
@@ -484,7 +491,7 @@ private:
     std::tuple<Ps...> Prevs;
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(Ps)>{};
 public:
-    using InTypes = std::tuple<typename Ps::OutType...>;
+    using InTypes = std::tuple<typename Ps::OutType...>; // tuple support reference
     using OutType = InTypes;
     static constexpr bool ShouldCache = true;
     static constexpr bool InvolveCache = true;
@@ -531,13 +538,7 @@ private:
 public:
     using InType1 = typename P1::OutType;
     using InType2 = typename P2::OutType;
-    using PlainInType1 = std::conditional_t<std::is_reference_v<InType1>,
-        std::reference_wrapper<std::remove_reference_t<InType1>>,
-        std::remove_cv_t<InType1>>;
-    using PlainInType2 = std::conditional_t<std::is_reference_v<InType2>,
-        std::reference_wrapper<std::remove_reference_t<InType2>>,
-        std::remove_cv_t<InType2>>;
-    using OutType = std::pair<PlainInType1, PlainInType2>;
+    using OutType = std::pair<InType1, InType2>; // pair support reference
     static constexpr bool ShouldCache = true;
     static constexpr bool InvolveCache = true;
     static constexpr bool IsCountable = P1::IsCountable && P2::IsCountable;
@@ -575,8 +576,181 @@ public:
 };
 
 
+struct ConcatedSourceHelper
+{
+    template<typename T1, typename T2>
+    struct EqualChecker
+    {
+        static_assert(std::is_same_v<T1, T2>, "no common type deducted");
+        //static_assert(std::is_reference_v<T1> || !std::is_const_v<T1> || !KeepConst, "no common type deducted");
+        using Type = T1;
+    };
+    template<typename T1, typename T2, bool KeepConst>
+    struct ConstChecker
+    {
+        static constexpr bool NeedConst = (std::is_const_v<T1> || std::is_const_v<T2>) && KeepConst;
+        using Type_ = typename EqualChecker<std::remove_const_t<T1>, std::remove_const_t<T2>>::Type;
+        using Type = std::conditional_t<NeedConst,
+            std::add_const_t<Type_>,
+            Type_>;
+    };
+    template<typename T1, typename T2, bool KeepConst>
+    struct PointerChecker
+    {
+        static_assert(std::is_pointer_v<T1> == std::is_pointer_v<T2>, "no common type deducted(pointer/non-pointer)");
+        static constexpr bool IsPointer = std::is_pointer_v<T1>;
+        static constexpr bool NeedKeepConst = IsPointer || KeepConst;
+        using Type_ = typename ConstChecker<std::remove_pointer_t<T1>, std::remove_pointer_t<T2>, NeedKeepConst>::Type;
+        using Type = std::conditional_t<IsPointer,
+            std::add_pointer_t<Type_>,
+            Type_>;
+    };
+    template<typename T1, typename T2>
+    struct RefChecker
+    {
+        static constexpr bool IsRef = std::is_reference_v<T1> && std::is_reference_v<T2>;
+        using Type_ = typename PointerChecker<std::remove_reference_t<T1>, std::remove_reference_t<T2>, IsRef>::Type;
+        using Type = std::conditional_t<IsRef,
+            std::add_lvalue_reference_t<Type_>,
+            Type_>;
+    };
+    template<typename T1, typename T2>
+    using Type = typename RefChecker<T1, T2>::Type;
+    template<typename T1, typename T2>
+    using ConvCheckType = std::conditional_t<std::is_convertible_v<T1, T2>, T2, T1>;
+    template<typename T1, typename T2>
+    using Type2 = std::conditional_t<std::is_reference_v<ConvCheckType<T1, T2>>, 
+        ConvCheckType<T1, T2>, std::remove_const_t<ConvCheckType<T1, T2>>>;
+};
+template<typename P1, typename P2>
+struct ConcatedSource
+{
+private:
+    P1 Prev1;
+    P2 Prev2;
+    bool IsSrc2;
+public:
+    using InType1 = typename P1::OutType;
+    using InType2 = typename P2::OutType;
+    using OutType = ConcatedSourceHelper::Type<InType1, InType2>;
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = P1::IsCountable && P2::IsCountable;
+    static constexpr bool CanSkipMultiple = P1::CanSkipMultiple && P2::CanSkipMultiple && IsCountable;
+
+    constexpr ConcatedSource(P1&& prev1, P2&& prev2) : 
+        Prev1(std::move(prev1)), Prev2(std::move(prev2)), IsSrc2(Prev1.IsEnd())
+    { }
+    constexpr OutType GetCurrent() const
+    {
+        return IsSrc2 ? Prev2.GetCurrent() : Prev1.GetCurrent();
+    }
+    constexpr void MoveNext()
+    {
+        IsSrc2 ? Prev2.MoveNext() : Prev1.MoveNext();
+        if (!IsSrc2)
+            IsSrc2 = Prev1.IsEnd();
+    }
+    constexpr bool IsEnd() const
+    {
+        return IsSrc2 ? Prev2.IsEnd() : Prev1.IsEnd();
+    }
+    constexpr size_t Count() const
+    {
+        if constexpr (IsCountable)
+            return Prev1.Count() + Prev2.Count();
+        else
+            static_assert(common::AlwaysTrue<P1>(), "Not countable");
+    }
+    constexpr void MoveMultiple(const size_t count)
+    {
+        if constexpr (CanSkipMultiple)
+        {
+            const auto count1 = std::min(Prev1.Count(), count);
+            Prev1.MoveMultiple(count1);
+            Prev2.MoveMultiple(count - count1);
+        }
+        else
+            static_assert(common::AlwaysTrue<P1>(), "Not movemultiple");
+    }
+};
+
+
+template<typename P, typename T>
+struct CastedSource : public NestedSource<P>
+{
+private:
+    using BaseType = NestedSource<P>;
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = T;
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = P::IsCountable;
+    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+
+    constexpr CastedSource(P&& prev) : BaseType(std::move(prev))
+    { }
+    constexpr OutType GetCurrent() const
+    {
+        return static_cast<OutType>(this->GetCurrentFromPrev());
+    }
+    constexpr void MoveNext()
+    {
+        this->MoveNextFromPrev();
+    }
+    constexpr bool IsEnd() const
+    {
+        return this->Prev.IsEnd();
+    }
+
+    using BaseType::Count;
+    using BaseType::MoveMultiple;
+};
+
+
+template<typename P, typename T>
+struct CastCtorSource : public NestedSource<P>
+{
+private:
+    using BaseType = NestedSource<P>;
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = T;
+    static constexpr bool ShouldCache = true;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = P::IsCountable;
+    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+
+    constexpr CastCtorSource(P&& prev) : BaseType(std::move(prev))
+    { }
+    constexpr OutType GetCurrent() const
+    {
+        return OutType(this->GetCurrentFromPrev());
+    }
+    constexpr void MoveNext()
+    {
+        this->MoveNextFromPrev();
+    }
+    constexpr bool IsEnd() const
+    {
+        return this->Prev.IsEnd();
+    }
+
+    using BaseType::Count;
+    using BaseType::MoveMultiple;
+};
+
+
 }
 
+
+template<typename T>
+class Enumerable;
+template<typename T>
+inline constexpr Enumerable<T> ToEnumerable(T&& source);
 
 template<typename T>
 class Enumerable
@@ -698,7 +872,6 @@ public:
         return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
     }
 
-
     template<typename Other>
     constexpr Enumerable<detail::PairedSource<T, Other>> Pair(Enumerable<Other>&& other)
     {
@@ -709,6 +882,23 @@ public:
     constexpr Enumerable<detail::TupledSource<T, Others...>> Pairs(Enumerable<Others>&&... others)
     {
         return detail::TupledSource<T, Others...>(std::move(Provider), std::move(others.Provider)...);
+    }
+
+    template<typename Other>
+    constexpr Enumerable<detail::ConcatedSource<T, Other>> Concat(Enumerable<Other>&& other)
+    {
+        return detail::ConcatedSource<T, Other>(std::move(Provider), std::move(other.Provider));
+    }
+
+    template<typename DstType>
+    constexpr auto Cast()
+    {
+        if constexpr (std::is_convertible_v<EleType, DstType>)
+            return ToEnumerable(detail::CastedSource<T, DstType>(std::move(Provider)));
+        else if constexpr (std::is_constructible_v<DstType, EleType>)
+            return ToEnumerable(detail::CastCtorSource<T, DstType>(std::move(Provider)));
+        else
+            static_assert(common::AlwaysTrue<DstType>(), "cannot convert to or construct to the target type");
     }
 
     template<typename Func>
@@ -929,6 +1119,12 @@ private:
 };
 
 
+template<typename T>
+inline constexpr Enumerable<T> ToEnumerable(T&& source)
+{
+    return Enumerable<T>(std::forward<T>(source));
+}
+
 
 template<typename T>
 inline constexpr Enumerable<detail::NumericRangeSource<T>>
@@ -939,7 +1135,7 @@ FromRange(const T begin, const T end, const T step = static_cast<T>(1))
 
 
 template<typename T>
-inline constexpr Enumerable<detail::RepeatSource<T>>
+inline constexpr Enumerable<detail::RepeatSource<common::remove_cvref_t<T>>>
 FromRepeat(T&& val, const size_t count)
 {
     return Enumerable(detail::RepeatSource<common::remove_cvref_t<T>>(std::forward<T>(val), count));

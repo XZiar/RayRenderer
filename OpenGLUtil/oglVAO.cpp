@@ -13,7 +13,6 @@ namespace oglu
 using std::string;
 using std::u16string;
 using std::vector;
-using common::linq::Linq;
 
 MAKE_ENABLER_IMPL(oglVAO_)
 
@@ -88,15 +87,15 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets
     {
         vao.Method = DrawMethod::Indexs;
         const uint32_t idxSize = vao.IndexBuffer->IndexSize;
-        vao.Offsets = Linq::FromIterable(offsets)
-            .Select([=](const uint32_t off) { return (const void*)intptr_t(off * idxSize); })
+        vao.Offsets = common::linq::FromIterable(offsets)
+            .Select([=](const uint32_t off) { return reinterpret_cast<const void*>(intptr_t(off * idxSize)); })
             .ToVector();
     }
     else
     {
         vao.Method = DrawMethod::Arrays;
-        vao.Offsets = Linq::FromIterable(offsets)
-            .Select([=](const uint32_t off) { return (GLint)off; })
+        vao.Offsets = common::linq::FromIterable(offsets)
+            .Select([](const uint32_t off) { return static_cast<GLint>(off); })
             .ToVector();
     }
     return *this;

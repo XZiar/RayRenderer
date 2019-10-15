@@ -70,9 +70,9 @@ void RenderPass::UnregistDrawable(const Wrapper<Drawable>& drawable)
 
 void RenderPass::CleanDrawable()
 {
-    Drawables = Linq::FromIterable(Drawables)
+    Drawables = common::linq::FromIterable(Drawables)
         .Where([](const auto& d) { return !d.expired(); })
-        .ToSet<std::owner_less<>>();
+        .ToOrderSet<std::owner_less<>>();
 }
 
 void RenderPass::Prepare(RenderPassContext& context)

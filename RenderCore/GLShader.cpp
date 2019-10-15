@@ -9,7 +9,7 @@ using namespace oglu;
 using namespace std::literals;
 using common::container::FindInSet;
 using common::container::FindInMap;
-using common::linq::Linq;
+
 
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
     : Source(source), Config(config)
@@ -70,8 +70,8 @@ void GLShader::RegistControllable()
     for (const auto& res : Program->getSubroutineResources())
     {
         const auto u16name = strchset::to_u16string(res.Name, Charset::UTF8);
-        auto rtNames = Linq::FromIterable(res.Routines)
-            .Select([](const auto& rt) {return rt.Name; }).ToVector();
+        auto rtNames = common::linq::FromIterable(res.Routines)
+            .Select([](const auto& rt) { return rt.Name; }).ToVector();
         RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
             .RegistGetterProxy<GLShader>([&res](const GLShader& self) { return self.Program->GetSubroutine(res)->Name; })
             .RegistSetterProxy<GLShader>([&res](GLShader& self, const string& val) { self.Program->State().SetSubroutine(res.Name, val); });
@@ -203,7 +203,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
     ShaderConfig config;
     {
         const auto jconfig = object.GetObject("config");
-        Linq::FromIterable(jconfig.GetObject("defines"))
+        common::linq::FromContainer(jconfig.GetObject("defines"))
             .IntoMap(config.Defines,
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) -> ShaderConfig::DefineVal
@@ -220,8 +220,8 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
             default:            return {};
             }
         });
-        config.Routines = Linq::FromIterable(jconfig.GetObject("routines"))
-            .ToMap<std::map<string, string>>(
+        common::linq::FromContainer(jconfig.GetObject("routines"))
+            .IntoMap(config.Routines, 
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) { return kvpair.second.template AsValue<string>(); });
     }

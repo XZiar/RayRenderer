@@ -10,7 +10,6 @@ namespace rayr::detail
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
-using common::linq::Linq;
 using b3d::Vec3;
 using b3d::Vec4;
 using b3d::Normal;
@@ -312,13 +311,14 @@ void _ModelMesh::Deserialize(DeserializeUtil& context, const ejson::JObjectRef<t
         indexs.resize(idxData.GetSize() / sizeof(uint32_t));
         memcpy_s(indexs.data(), indexs.size() * sizeof(uint32_t), idxData.GetRawPtr(), idxData.GetSize());
     }
-    groups = Linq::FromIterable(object.GetArray("groups"))
+    groups = common::linq::FromContainer(object.GetArray("groups"))
         .Cast<ejson::JObjectRef<true>>()
         .Select([](const ejson::JObjectRef<true>& obj) { return std::pair{ obj.Get<string>("Name"), obj.Get<uint32_t>("Offset") }; })
         .ToVector();
     MaterialMap.clear();
-    Linq::FromIterable(object.GetObject("materials"))
-        .IntoMap(MaterialMap, [](const auto& kvpair) { return (string)kvpair.first; },
+    common::linq::FromContainer(object.GetObject("materials"))
+        .IntoMap(MaterialMap, 
+            [](const auto& kvpair) { return (string)kvpair.first; },
             [&](const auto& kvpair) { return PBRMaterial(*context.Deserialize<PBRMaterial>(ejson::JObjectRef<true>(kvpair.second)).release()); });
 
     const auto asyncer = context.GetCookie<Wrapper<oglu::oglWorker>>("oglWorker");
