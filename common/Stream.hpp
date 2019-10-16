@@ -2,6 +2,7 @@
 
 
 #include "CommonRely.hpp"
+#include "Exceptions.hpp"
 #include "ContainerHelper.hpp"
 
 #include <cstddef>
@@ -14,6 +15,15 @@ namespace common
 
 namespace io
 {
+
+
+namespace detail
+{
+template<typename T>
+struct InputStreamEnumerateSource;
+template<typename T>
+struct RandomInputStreamEnumerateSource;
+}
 
 
 class InputStream : public NonCopyable
@@ -105,6 +115,8 @@ public:
         return ReadInto_<Size>(output, 0, want);
     }
 
+    template<typename T>
+    detail::InputStreamEnumerateSource<T> GetEnumerator();
 };
 
 
@@ -163,11 +175,118 @@ public:
 
 class RandomInputStream  : public RandomStream, public InputStream
 {
+public:
+    template<typename T>
+    detail::RandomInputStreamEnumerateSource<T> GetEnumerator();
 };
 class RandomOutputStream : public RandomStream, public OutputStream
 {
 };
 
+
+namespace detail
+{
+template<typename T>
+struct InputStreamEnumerateSource
+{
+    static_assert(std::is_trivially_copyable_v<T>, "element type should be trivially copyable");
+    InputStream& Stream;
+    mutable bool HasReachNext = false;
+    using OutType = T;
+    static constexpr bool ShouldCache = false;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = false;
+    static constexpr bool CanSkipMultiple = true;
+
+    InputStreamEnumerateSource(InputStream& stream)
+        : Stream(stream) { }
+    InputStreamEnumerateSource(InputStreamEnumerateSource&& other)
+        : Stream(other.Stream) { }
+
+    constexpr OutType GetCurrent() const
+    {
+        T dat;
+        Stream.Read(dat);
+        HasReachNext = true;
+        return dat;
+    }
+    constexpr void MoveNext()
+    {
+        if (!HasReachNext)
+            Stream.Skip(sizeof(T));
+        HasReachNext = false;
+    }
+    constexpr bool IsEnd() const
+    {
+        return Stream.IsEnd();
+    }
+
+    constexpr void MoveMultiple(const size_t count) noexcept
+    {
+        Stream.Skip(sizeof(T) * count);
+    }
+};
+
+
+template<typename T>
+struct RandomInputStreamEnumerateSource
+{
+    static_assert(std::is_trivially_copyable_v<T>, "element type should be trivially copyable");
+    RandomInputStream& Stream;
+    mutable bool HasReachNext = false;
+    using OutType = T;
+    static constexpr bool ShouldCache = false;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = true;
+    static constexpr bool CanSkipMultiple = true;
+
+    RandomInputStreamEnumerateSource(RandomInputStream& stream)
+        : Stream(stream) { }
+    RandomInputStreamEnumerateSource(RandomInputStreamEnumerateSource&& other)
+        : Stream(other.Stream) { }
+
+    constexpr OutType GetCurrent() const
+    {
+        T dat;
+        Stream.Read(dat);
+        HasReachNext = true;
+        return dat;
+    }
+    constexpr void MoveNext()
+    {
+        if (!HasReachNext)
+            Stream.Skip(sizeof(T));
+        HasReachNext = false;
+    }
+    constexpr bool IsEnd() const
+    {
+        return Stream.IsEnd();
+    }
+
+    constexpr size_t Count() const noexcept
+    {
+        return Stream.GetSize() - Stream.CurrentPos();
+    }
+    constexpr void MoveMultiple(const size_t count) noexcept
+    {
+        const auto cnt = (HasReachNext && count > 1) ? count - 1 : count;
+        Stream.Skip(sizeof(T) * cnt);
+        HasReachNext = false;
+    }
+};
+}
+
+
+template<typename T>
+detail::InputStreamEnumerateSource<T> InputStream::GetEnumerator()
+{
+    return detail::InputStreamEnumerateSource<T>(*this);
+}
+template<typename T>
+detail::RandomInputStreamEnumerateSource<T> RandomInputStream::GetEnumerator()
+{
+    return detail::RandomInputStreamEnumerateSource<T>(*this);
+}
 
 
 class BufferedRandomInputStream : public RandomInputStream

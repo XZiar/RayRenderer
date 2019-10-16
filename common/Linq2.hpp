@@ -27,6 +27,28 @@ class EnumerableChecker;
 struct EnumerableEnd
 {};
 
+
+struct EnumerableObject
+{
+private:
+    template<typename T, typename = void>
+    struct CanGetEnumerator : std::false_type
+    { };
+    template<typename T>
+    struct CanGetEnumerator<T,
+        std::enable_if_t<true,
+        decltype(std::declval<T&>().GetEnumerator(), (void)0)
+        >> : std::true_type
+    { };
+public:
+    template<typename T>
+    static constexpr void Check()
+    {
+        static_assert(CanGetEnumerator<T>::value, "EnumerableObject should has a GetEnumerator method");
+    }
+};
+
+
 template<typename T>
 struct NumericRangeSource
 {
@@ -779,23 +801,35 @@ public:
 private:
     struct EnumerableIterator
     {
-        Enumerable<T>& Source;
-        constexpr EnumerableIterator(Enumerable<T>* source) : Source(*source) {}
-        decltype(auto) operator*() const
+        using iterator_category = std::input_iterator_tag;
+        using value_type = EleType;
+        using difference_type = std::ptrdiff_t;
+        using pointer = std::add_pointer_t<EleType>;
+        using reference = EleType;
+
+        Enumerable<T>* Source;
+        constexpr EnumerableIterator(Enumerable<T>* source) : Source(source) {}
+        constexpr decltype(auto) operator*() const
         {
-            return Source.Provider.GetCurrent();
+            return Source->Provider.GetCurrent();
         }
-        bool operator!=(const detail::EnumerableEnd&)
+        constexpr bool operator!=(const detail::EnumerableEnd&)
         {
-            return !Source.Provider.IsEnd();
+            return !Source->Provider.IsEnd();
         }
-        bool operator==(const detail::EnumerableEnd&)
+        constexpr bool operator==(const detail::EnumerableEnd&)
         {
-            return Source.Provider.IsEnd();
+            return Source->Provider.IsEnd();
         }
-        EnumerableIterator& operator++()
+        constexpr EnumerableIterator& operator++()
         {
-            Source.Provider.MoveNext();
+            Source->Provider.MoveNext();
+            return *this;
+        }
+        constexpr EnumerableIterator& operator+=(size_t n)
+        {
+            if (T::IsCountable && T::CanSkipMultiple)
+                Source->Skip(n);
             return *this;
         }
     };
@@ -1123,6 +1157,14 @@ template<typename T>
 inline constexpr Enumerable<T> ToEnumerable(T&& source)
 {
     return Enumerable<T>(std::forward<T>(source));
+}
+
+
+template<typename T>
+inline constexpr decltype(auto) FromEnumerableObject(T&& source)
+{
+    detail::EnumerableObject::Check<T>();
+    return ToEnumerable(source.GetEnumerator());
 }
 
 

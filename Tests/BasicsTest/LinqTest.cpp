@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "common/Linq2.hpp"
+#include "common/MemoryStream.hpp"
 
 using namespace common::linq;
 using common::linq::detail::EnumerableChecker;
@@ -306,6 +307,38 @@ TEST(Linq, Cast)
     }
 }
 
+TEST(Linq, ConcatTypeDeduct)
+{
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, const int&>;
+        static_assert(std::is_same_v<kk, const int&>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, int&>;
+        static_assert(std::is_same_v<kk, const int&>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, const int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<int&, const int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int&, int>;
+        static_assert(std::is_same_v<kk, int>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int*, const int*>;
+        static_assert(std::is_same_v<kk, const int*>, "xxx");
+    }
+    {
+        using kk = detail::ConcatedSourceHelper::Type<const int*, int*>;
+        static_assert(std::is_same_v<kk, const int*>, "xxx");
+    }
+}
+
 TEST(Linq, Concat)
 {
     {
@@ -351,34 +384,6 @@ TEST(Linq, Concat)
         EXPECT_THAT(ret, testing::ElementsAre(1, 2, 3, 3, 2, 1));
         EXPECT_THAT(data1, testing::ElementsAre(1, 2, 3));
         EXPECT_THAT(data2, testing::ElementsAre(3, 2, 1));
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int&, const int&>;
-        static_assert(std::is_same_v<kk, const int&>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int&, int&>;
-        static_assert(std::is_same_v<kk, const int&>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int&, const int>;
-        static_assert(std::is_same_v<kk, int>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<int&, const int>;
-        static_assert(std::is_same_v<kk, int>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int&, int>;
-        static_assert(std::is_same_v<kk, int>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int*, const int*>;
-        static_assert(std::is_same_v<kk, const int*>, "xxx");
-    }
-    {
-        using kk = detail::ConcatedSourceHelper::Type<const int*, int*>;
-        static_assert(std::is_same_v<kk, const int*>, "xxx");
     }
 }
 
@@ -444,6 +449,22 @@ TEST(Linq, Pairs)
         EXPECT_THAT(data1, testing::ElementsAre(2, 3, 4));
         EXPECT_THAT(data2, testing::ElementsAre(4, 3, 2));
     }
+}
+
+TEST(Linq, StreamLinq)
+{
+    std::vector<int32_t> dat = { 0,1,2,3,4 };
+    common::io::MemoryInputStream memStream(dat.data(), dat.size());
+    const auto ret1 = ToEnumerable(memStream.GetEnumerator<int32_t>())
+        .Skip(2)
+        .ToVector();
+    EXPECT_THAT(ret1, testing::ElementsAre(2, 3, 4));
+    memStream.SetPos(sizeof(int32_t));
+    common::io::InputStream& inStream = memStream;
+    const auto ret2 = ToEnumerable(inStream.GetEnumerator<int32_t>())
+        .Skip(2)
+        .ToVector();
+    EXPECT_THAT(ret2, testing::ElementsAre(3, 4));
 }
 
 TEST(Linq, Basic)

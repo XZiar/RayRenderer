@@ -50,6 +50,10 @@ template<bool IsConst>
 class JArrayIterator;
 template<bool IsConst>
 class JObjectIterator;
+template<bool IsConst>
+class JArrayEnumerableSource;
+template<bool IsConst>
+class JObjectEnumerableSource;
 }
 
 // mempool holder, provide node creation
@@ -387,6 +391,7 @@ class JDocRef : public DocumentHandle, public JNode<JDocRef<IsConst>>, public JP
     template<typename, bool> friend struct JPointerSupport;
     template<typename, bool> friend class JObjectLike;
     template<bool> friend class detail::JObjectIterator;
+    template<bool> friend class detail::JObjectEnumerableSource;
 protected:
     using InnerValType = std::conditional_t<IsConst, const rapidjson::Value*, rapidjson::Value*>;
     InnerValType Val;
@@ -495,16 +500,63 @@ class JArrayIterator : protected JDocRef<IsConst>
     template<typename, bool> friend class JArrayLike;
 private:
 public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
-    JArrayIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, typename JDocRef<IsConst>::InnerValType val) : JDocRef<IsConst>(mempool, val) {}
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = JDocRef<IsConst>;
+    using difference_type = std::ptrdiff_t;
+
+    JArrayIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, typename JDocRef<IsConst>::InnerValType val) 
+        : JDocRef<IsConst>(mempool, val) {}
     JArrayIterator<IsConst>& operator++()
     {
         this->Val++; return *this;
+    }
+    JArrayIterator<IsConst> operator++(int)
+    {
+        JArrayIterator<IsConst> ret(this->MemPool, this->Val);
+        this->Val++; return ret;
     }
     template<bool B>
     bool operator!=(const JArrayIterator<B>& other) const { return this->Val != other.Val; }
     JDocRef<IsConst> operator*() const
     {
         return *this;
+    }
+};
+template<bool IsConst>
+class JArrayEnumerableSource : protected JDocRef<IsConst>
+{
+    template<typename, bool> friend class JArrayLike;
+private:
+    using InnerValType = typename JDocRef<IsConst>::InnerValType;
+    size_t Index = 0;
+public:
+    using OutType = JDocRef<IsConst>;
+    static constexpr bool ShouldCache = false;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = true;
+    static constexpr bool CanSkipMultiple = true;
+
+    JArrayEnumerableSource(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val)
+        : JDocRef<IsConst>(mempool, val) {}
+
+    constexpr OutType GetCurrent() const noexcept 
+    { 
+        return JDocRef<IsConst>(this->MemPool, this->GetValRef()[Index]);
+    }
+    constexpr void MoveNext() noexcept { Index++; }
+    constexpr bool IsEnd() const noexcept
+    {
+        return Index >= this->GetValRef().Size();
+    }
+
+    constexpr size_t Count() const noexcept
+    {
+        const auto size = this->GetValRef().Size();
+        return size > Index ? size - Index : 0;
+    }
+    constexpr void MoveMultiple(const size_t count) noexcept
+    {
+        Index += count;
     }
 };
 
@@ -516,10 +568,21 @@ private:
     using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
     InnerValType InnerIterator;
 public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
-    JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), InnerIterator(val) {}
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = std::pair<std::string_view, JDocRef<IsConst>>;
+    using difference_type = std::ptrdiff_t;
+
+    JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) 
+        : DocumentHandle(mempool), InnerIterator(val) {}
     JObjectIterator<IsConst>& operator++()
     {
         InnerIterator++; return *this;
+    }
+    JObjectIterator<IsConst> operator++(int)
+    {
+        JObjectIterator<IsConst> ret(MemPool, InnerIterator);
+        InnerIterator++; 
+        return ret;
     }
     template<bool B>
     bool operator!=(const JObjectIterator<B>& other) const { return InnerIterator != other.InnerIterator; }
@@ -528,6 +591,51 @@ public: // gcc&clang need constructor to be public, although I've already make i
         std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
         JDocRef<IsConst> doc(MemPool, &InnerIterator->value);
         return { name, doc };
+    }
+};
+template<bool IsConst>
+class JObjectEnumerableSource : protected JDocRef<IsConst>
+{
+    template<typename, bool> friend class JArrayLike;
+private:
+    using InnerValType = typename JDocRef<IsConst>::InnerValType;
+    using InnerItType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
+    InnerItType InnerIterator;
+    size_t Index = 0;
+public:
+    using OutType = std::pair<std::string_view, JDocRef<IsConst>>;
+    static constexpr bool ShouldCache = false;
+    static constexpr bool InvolveCache = true;
+    static constexpr bool IsCountable = true;
+    static constexpr bool CanSkipMultiple = true;
+
+    JObjectEnumerableSource(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val)
+        : JDocRef<IsConst>(mempool, val), InnerIterator(this->GetValRef().MemberBegin()) {}
+
+    constexpr OutType GetCurrent() const noexcept
+    {
+        std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
+        JDocRef<IsConst> doc(this->MemPool, &InnerIterator->value);
+        return { name, doc };
+    }
+    constexpr void MoveNext() noexcept 
+    {
+        Index++; ++InnerIterator;
+    }
+    constexpr bool IsEnd() const noexcept
+    {
+        return Index >= this->GetValRef().MemberCount();
+    }
+
+    constexpr size_t Count() const noexcept
+    {
+        const auto size = this->GetValRef().MemberCount();
+        return size > Index ? size - Index : 0;
+    }
+    constexpr void MoveMultiple(const size_t count) noexcept
+    {
+        Index += count;
+        InnerIterator += count;
     }
 };
 }
@@ -580,6 +688,13 @@ public:
     {
         return detail::JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().End());
     }
+    detail::JArrayEnumerableSource<true> GetEnumerator() const
+    {
+        return detail::JArrayEnumerableSource<true>(
+            Parent::InnerMemPool(),
+            &static_cast<const Child*>(this)->ValRef()
+            );
+    }
     detail::JArrayIterator<IsConst> begin()
     {
         return detail::JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().Begin());
@@ -587,6 +702,13 @@ public:
     detail::JArrayIterator<IsConst> end()
     {
         return detail::JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().End());
+    }
+    detail::JArrayEnumerableSource<IsConst> GetEnumerator()
+    {
+        return detail::JArrayEnumerableSource<IsConst>(
+            Parent::InnerMemPool(), 
+            &static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef()
+            );
     }
 };
 
@@ -623,6 +745,13 @@ public:
     {
         return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberEnd());
     }
+    detail::JObjectEnumerableSource<true> GetEnumerator() const
+    {
+        return detail::JObjectEnumerableSource<true>(
+            Parent::InnerMemPool(),
+            &static_cast<const Child*> (this)->ValRef()
+            );
+    }
     detail::JObjectIterator<IsConst> begin()
     {
         return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberBegin());
@@ -630,6 +759,13 @@ public:
     detail::JObjectIterator<IsConst> end()
     {
         return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberEnd());
+    }
+    detail::JObjectEnumerableSource<IsConst> GetEnumerator()
+    {
+        return detail::JObjectEnumerableSource<IsConst>(
+            Parent::InnerMemPool(),
+            &static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef()
+            );
     }
 };
 

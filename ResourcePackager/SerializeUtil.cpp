@@ -234,7 +234,7 @@ DeserializeUtil::DeserializeUtil(const path & fileName)
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {
-    common::linq::FromContainer(Root.GetObject("#global_map"))
+    common::linq::FromEnumerableObject(Root.GetObject("#global_map"))
         .IntoMap(SharedObjectLookup, [](const auto& kvpair) { return kvpair.first; },
             [](const auto& kvpair) { return kvpair.second.template AsValue<string_view>(); });
 
@@ -257,8 +257,7 @@ DeserializeUtil::DeserializeUtil(const path & fileName)
     if (!sumdata.CheckSHA(ResourceUtil::SHA256(ResourceList.data(), indexsize)))
         COMMON_THROWEX(BaseException, u"wrong checksum for resource index");
     if (common::linq::FromIterable(ResourceList)
-        .Where([index = 0u](const detail::ResourceItem& item) mutable { return item.GetIndex() != index++; })
-        .TryGetFirst())
+        .ContainsIf([index = 0u](const detail::ResourceItem& item) mutable { return item.GetIndex() != index++; }))
         COMMON_THROWEX(BaseException, u"wrong index list for resource index");
     common::linq::FromIterable(ResourceList)
         .IntoMap(ResourceSet, [](const detail::ResourceItem& item) { return item.ExtractHandle(); },
