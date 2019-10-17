@@ -21,37 +21,47 @@ using std::byte;
 MAKE_ENABLER_IMPL(FileObject)
 
 
-const FileObject::FlagType* FileObject::ParseFlag(const OpenFlag flag)
-{
 #if defined(_WIN32)
+using FlagType = wchar_t;
 #   define StrText(x) L ##x
 #else
+using FlagType = char;
 #   define StrText(x) x
 #endif
-    switch ((uint8_t)flag)
+static constexpr const FlagType* ParseFlag(OpenFlag flag)
+{
+    const bool isText = HAS_FIELD(flag, OpenFlag::FLAG_TEXT);
+    flag = REMOVE_MASK(flag, OpenFlag::MASK_EXTEND, OpenFlag::FLAG_TEXT);
+    switch (flag)
     {
-    case 0b00001: return StrText("r");
-    case 0b00011: return StrText("r+");
-    case 0b00110: return StrText("w");
-    case 0b00111: return StrText("w+");
-    case 0b01110: return StrText("a");
-    case 0b01111: return StrText("a+");
-    case 0b10001: return StrText("rb");
-    case 0b10011: return StrText("r+b");
-    case 0b10110: return StrText("wb");
-    case 0b10111: return StrText("w+b");
-    case 0b11110: return StrText("ab");
-    case 0b11111: return StrText("a+b");
-    default:      return StrText("");
+    case OpenFlag::FLAG_READ:
+        return isText ? StrText("r")    : StrText("rb");
+    case OpenFlag::FLAG_READWRITE:
+        return isText ? StrText("r+")   : StrText("r+b");
+    case OpenFlag::FLAG_WRITE     | OpenFlag::FLAG_CREATE:
+        return isText ? StrText("wx")   : StrText("wxb");
+    case OpenFlag::FLAG_READWRITE | OpenFlag::FLAG_CREATE:
+        return isText ? StrText("w+x")  : StrText("w+xb");
+    case OpenFlag::FLAG_WRITE     | OpenFlag::FLAG_CREATE | OpenFlag::FLAG_TRUNC:
+        return isText ? StrText("w") : StrText("wb");
+    case OpenFlag::FLAG_READWRITE | OpenFlag::FLAG_CREATE | OpenFlag::FLAG_TRUNC:
+        return isText ? StrText("w+")   : StrText("w+b");
+    case OpenFlag::Append:
+        return isText ? StrText("a")    : StrText("ab");
+    case OpenFlag::Append | OpenFlag::FLAG_READ:
+        return isText ? StrText("a+")   : StrText("a+b");
+    default:      
+        return StrText("");
     }
-#undef StrText
 }
+#undef StrText
 
 
 FileObject::FileObject(const fs::path& path, FILE* fp, const OpenFlag flag) : 
     FilePath(path), fp(fp), Flag(flag)
 {
-    ::std::setvbuf(fp, NULL, _IOFBF, 16384);
+    const size_t bufSize = HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer) ? 0 : 16384;
+    ::std::setvbuf(fp, NULL, _IOFBF, bufSize);
 }
 FileObject::~FileObject()
 {
@@ -61,7 +71,7 @@ FileObject::~FileObject()
 
 std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const OpenFlag flag)
 {
-    if (!fs::exists(path))
+    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
         return {};
     FILE* fp;
 #if defined(_WIN32)
@@ -77,7 +87,7 @@ std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const Ope
 
 std::shared_ptr<FileObject> FileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
 {
-    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::CREATE))
+    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"target file not exist");
     FILE* fp;
 #if defined(_WIN32)
@@ -126,13 +136,13 @@ FILE* FileStream::GetFP() const { return File->fp; }
 
 void FileStream::WriteCheck() const
 {
-    if (!HAS_FIELD(File->Flag, OpenFlag::WRITE))
+    if (!HAS_FIELD(File->Flag, OpenFlag::FLAG_WRITE))
         COMMON_THROW(FileException, FileErrReason::WriteFail | FileErrReason::OpMismatch, File->FilePath, u"not opened for write");
 }
 
 void FileStream::ReadCheck() const
 {
-    if (!HAS_FIELD(File->Flag, OpenFlag::READ))
+    if (!HAS_FIELD(File->Flag, OpenFlag::FLAG_READ))
         COMMON_THROW(FileException, FileErrReason::ReadFail  | FileErrReason::OpMismatch, File->FilePath, u"not opened for read");
 }
 

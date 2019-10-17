@@ -230,7 +230,7 @@ uint32_t DeserializeUtil::RegistDeserializer(const std::string_view& type, const
 }
 
 DeserializeUtil::DeserializeUtil(const path & fileName)
-    : ResReader(std::make_unique<FileInputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::BINARY | OpenFlag::READ))),
+    : ResReader(std::make_unique<FileInputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::ReadBinary))),
     DocRoot(ejson::JDoc::Parse(common::file::ReadAllText(path(fileName).replace_extension(u".xzrp.json")))),
     Root(ejson::JObjectRef<true>(DocRoot))
 {

@@ -1,6 +1,6 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "common/FileExceptions.hpp"
+#include "common/FileBase.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
 
@@ -11,14 +11,6 @@
 namespace common::file
 {
 
-enum class OpenFlag : uint8_t
-{
-    READ = 0b1, WRITE = 0b10, CREATE = 0b100, TEXT = 0b00000, BINARY = 0b10000,
-    APPEND = 0b1110, TRUNC = 0b0110,
-    CreatNewBinary = CREATE | WRITE | BINARY, CreatNewText = CREATE | WRITE | TEXT,
-};
-MAKE_ENUM_BITFIELD(OpenFlag)
-
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -26,17 +18,11 @@ MAKE_ENUM_BITFIELD(OpenFlag)
 #endif
 
 
-class SYSCOMMONAPI FileObject : public std::enable_shared_from_this<FileObject>, public NonCopyable, public NonMovable
+class SYSCOMMONAPI FileObject : public NonCopyable, public NonMovable
 {
     friend class FileStream;
 private:
     MAKE_ENABLER();
-#if defined(_WIN32)
-    using FlagType = wchar_t;
-#else
-    using FlagType = char;
-#endif
-    static const FlagType* ParseFlag(const OpenFlag flag);
 
     fs::path FilePath;
     FILE* fp;
@@ -82,7 +68,6 @@ protected:
 
 class SYSCOMMONAPI FileInputStream : private FileStream, public io::RandomInputStream
 {
-    friend class FileObject;
 public:
     FileInputStream(std::shared_ptr<FileObject> file);
     FileInputStream(FileInputStream&& stream) noexcept;
@@ -106,7 +91,6 @@ public:
 
 class SYSCOMMONAPI FileOutputStream : private FileStream, public io::RandomOutputStream
 {
-    friend class FileObject;
 public:
     FileOutputStream(std::shared_ptr<FileObject> file);
     FileOutputStream(FileOutputStream&& stream) noexcept;
@@ -131,8 +115,7 @@ public:
 template<typename T>
 inline void ReadAll(const fs::path& fpath, T& output)
 {
-    static_assert(std::is_class_v<T>, "ReadAll should accept container object");
-    FileInputStream fis(FileObject::OpenThrow(fpath, OpenFlag::BINARY | OpenFlag::READ));
+    FileInputStream fis(FileObject::OpenThrow(fpath, OpenFlag::ReadBinary));
     fis.ReadInto(output, SIZE_MAX);
 }
 

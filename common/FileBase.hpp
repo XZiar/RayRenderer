@@ -7,6 +7,28 @@
 namespace common::file
 {
 
+enum class OpenFlag : uint16_t
+{
+    MASK_BASIC = 0xff00, MASK_EXTEND = 0xff00,
+    FLAG_READ = 0x1, FLAG_WRITE = 0x2, FLAG_READWRITE = FLAG_READ | FLAG_WRITE, FLAG_CREATE = 0x4, FLAG_TRUNC = 0x8,
+    FLAG_APPEND = 0x10, FLAG_TEXT = 0x20,
+
+    CreatNewBinary = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE, 
+    CreatNewText   = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE  | FLAG_TEXT,
+    ReadBinary     =                            FLAG_READ, 
+    ReadText       =                            FLAG_READ   | FLAG_TEXT,
+    Append         = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND,
+    AppendText     = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND | FLAG_TEXT,
+    Dummy_WX       = FLAG_CREATE              | FLAG_WRITE,
+    Dummy_RWX      = FLAG_CREATE              | FLAG_READWRITE,
+    Dummy_RW       = CreatNewBinary | FLAG_READ,
+    Dummy_AR       = Append         | FLAG_READ,
+
+    FLAG_SHARE_READ = 0x0100, FLAG_SHARE_WRITE  = 0x0200, FLAG_ASYNC = 0x0400,
+    FLAG_DontBuffer = 0x1000, FLAG_WriteThrough = 0x2000, FLAG_DeleteOnClose = 0x4000,
+};
+MAKE_ENUM_BITFIELD(OpenFlag)
+
 
 enum class FileErrReason : uint8_t 
 { 
@@ -33,7 +55,6 @@ constexpr inline std::u16string_view GetReasonOp(const FileErrReason reason)
 
 class FileException : public BaseException
 {
-public:
 public:
     fs::path filepath;
 public:

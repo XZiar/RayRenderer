@@ -104,7 +104,7 @@ protected:
     }
 public:
     FileBackend(const fs::path& path) : 
-        Stream(file::FileObject::OpenThrow(path, file::OpenFlag::APPEND | file::OpenFlag::CREATE | file::OpenFlag::BINARY))
+        Stream(file::FileObject::OpenThrow(path, file::OpenFlag::Append))
     { } // using binary to bypass encoding
     ~FileBackend() override { }
     void virtual OnPrint(const LogMessage& msg) override

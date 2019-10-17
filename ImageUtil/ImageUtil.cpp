@@ -45,10 +45,10 @@ Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
 #define USEBUF 1
 #if defined(USEBUF)
     BufferedRandomInputStream stream(
-        common::file::FileInputStream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::READ | common::file::OpenFlag::BINARY)),
+        common::file::FileInputStream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::ReadBinary)),
         65536);
 #else
-    common::file::FileInputStream stream(file::FileObject::OpenThrow(path, file::OpenFlag::READ | file::OpenFlag::BINARY));
+    common::file::FileInputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::ReadBinary));
 #endif
     ImgLog().debug(u"Read Image {}\n", path.u16string());
     return ReadImage(stream, GetExtName(path), dataType);

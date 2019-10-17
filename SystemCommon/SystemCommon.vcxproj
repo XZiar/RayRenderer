@@ -153,14 +153,18 @@
     <ClCompile Include="ColorConsole.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="FileEx.cpp" />
+    <ClCompile Include="FileMapperEx.cpp" />
     <ClCompile Include="LoopBase.cpp" />
+    <ClCompile Include="RawFileEx.cpp" />
     <ClCompile Include="ThreadEx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ColorConsole.h" />
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="FileEx.h" />
+    <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="LoopBase.h" />
+    <ClInclude Include="RawFileEx.h" />
     <ClInclude Include="SystemCommonRely.h" />
     <ClInclude Include="ThreadEx.h" />
   </ItemGroup>

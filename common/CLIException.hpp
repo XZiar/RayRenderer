@@ -6,7 +6,7 @@
 
 #include "CLICommonRely.hpp"
 #include "Exceptions.hpp"
-#include "FileExceptions.hpp"
+#include "FileBase.hpp"
 
 using namespace System;
 
