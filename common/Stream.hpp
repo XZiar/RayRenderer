@@ -32,10 +32,10 @@ private:
     template<size_t Size>
     forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
     {
-        if (offset + want > count)
+        if (offset >= count)
             return 0;
-        const auto avaliable = AvaliableSpace();
         want = std::min(want, count - offset);
+        const auto avaliable = AvaliableSpace();
         want = std::min(avaliable / Size, want);
         return want;
     }
@@ -128,8 +128,8 @@ private:
     {
         if (offset >= count)
             return 0;
-        const auto acceptable = AcceptableSpace();
         want = std::min(want, count - offset);
+        const auto acceptable = AcceptableSpace();
         want = std::min(acceptable / Size, want);
         return want;
     }

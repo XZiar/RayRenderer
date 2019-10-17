@@ -25,7 +25,11 @@
 #include <algorithm>
 #include <random>
 #include <atomic>
+#include <boost/predef/other/endian.h>
 
+
+
+inline constexpr bool IsLittleEndian = BOOST_ENDIAN_LITTLE_BYTE;
 
 
 template<uint8_t Base, uint8_t Exp>

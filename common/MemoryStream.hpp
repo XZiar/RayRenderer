@@ -98,6 +98,7 @@ private:
     std::byte* Ptr;
     size_t TotalSize, CurPos = 0;
 protected:
+    virtual bool IsGrowable() const noexcept { return false; }
     virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) { return { Ptr, TotalSize }; }
 public:
     template<typename T>
@@ -132,7 +133,7 @@ public:
 
     virtual size_t AcceptableSpace() override
     {
-        return TotalSize - CurPos;
+        return IsGrowable() ? SIZE_MAX : TotalSize - CurPos;
     };
     virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override
     {
@@ -209,10 +210,13 @@ public:
 template<typename T>
 class ContainerOutputStream : private detail::ContainerHolder<T>, public MemoryOutputStream
 {
+private:
+    static constexpr bool IsConst = std::is_const_v<T> || std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>;
 protected:
+    virtual bool IsGrowable() const noexcept override { return !IsConst; }
     virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) override
     {
-        if constexpr (std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>)
+        if constexpr (IsConst)
             return MemoryOutputStream::Grow(size);
         else
         {

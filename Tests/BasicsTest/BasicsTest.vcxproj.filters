@@ -28,6 +28,9 @@
     <ClCompile Include="RefObjTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="MemStreamTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">
