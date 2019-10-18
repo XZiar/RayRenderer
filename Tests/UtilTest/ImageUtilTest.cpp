@@ -47,7 +47,7 @@ void writeToFile(void* context, void* data, int size)
 
 static void STBSaveImage(const common::fs::path& fpath, const img::Image& img)
 {
-    auto stream = file::FileOutputStream(file::FileObject::OpenThrow(fpath, file::OpenFlag::CreatNewBinary));
+    auto stream = file::FileOutputStream(file::FileObject::OpenThrow(fpath, file::OpenFlag::CreateNewBinary));
     const auto ret = stbi_write_png_to_func(&writeToFile, &stream, 
         (int)img.GetWidth(), (int)img.GetHeight(), img.GetElementSize(), img.GetRawPtr(), 0);
     if (ret == 0)
@@ -173,7 +173,7 @@ static void TestImageUtil()
         auto img = img::ReadImage(fdata, u"tga");
         timer.Stop();
         log().debug(u"zextga read cost {} ms\n", timer.ElapseMs());
-        file::FileOutputStream(file::FileObject::OpenThrow(basePath / "head-raw.dat", file::OpenFlag::CreatNewBinary))
+        file::FileOutputStream(file::FileObject::OpenThrow(basePath / "head-raw.dat", file::OpenFlag::CreateNewBinary))
             .Write(img.GetSize(), img.GetRawPtr<uint8_t>());
         img::WriteImage(img, basePath / u"head2-zex.bmp");
     }

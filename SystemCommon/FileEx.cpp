@@ -58,47 +58,57 @@ static constexpr const FlagType* ParseFlag(OpenFlag flag)
 
 
 FileObject::FileObject(const fs::path& path, FILE* fp, const OpenFlag flag) : 
-    FilePath(path), fp(fp), Flag(flag)
+    FilePath(path), FHandle(fp), Flag(flag)
 {
-    const size_t bufSize = HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer) ? 0 : 16384;
-    ::std::setvbuf(fp, NULL, _IOFBF, bufSize);
+    if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
+        ::std::setvbuf(FHandle, NULL, _IONBF, 0);
+    else
+        ::std::setvbuf(FHandle, NULL, _IOFBF, 16384);
 }
 FileObject::~FileObject()
 {
-    if (fp != nullptr)
-        fclose(fp);
+    if (FHandle != nullptr)
+        fclose(FHandle);
 }
 
-std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const OpenFlag flag)
-{
-    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
-        return {};
-    FILE* fp;
 #if defined(_WIN32)
-    if (_wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag)) != 0)
-        return {};
+#   define ErrType errno_t
 #else
-    fp = fopen(path.u8string().c_str(), ParseFlag(flag));
-    if (fp == nullptr)
-        return {};
+#   define ErrType error_t
 #endif
-    return MAKE_ENABLER_SHARED(FileObject, path, fp, flag);
-}
-
-std::shared_ptr<FileObject> FileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
+static std::variant<FILE*, ErrType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
     if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"target file not exist");
-    FILE* fp;
+        return ENOENT;
+    FILE* fp = nullptr;
 #if defined(_WIN32)
     errno_t err = _wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag));
 #else
     fp = fopen(path.u8string().c_str(), ParseFlag(flag));
     error_t err = (fp == nullptr) ? errno : 0;
 #endif
-    switch (err)
+    if (fp != nullptr && err == 0)
+        return fp;
+    else
+        return err;
+}
+
+std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const OpenFlag flag)
+{
+    const auto ret = TryOpen(path, flag);
+    if (ret.index() == 0)
+        return MAKE_ENABLER_SHARED(FileObject, path, std::get<0>(ret), flag);
+    else
+        return {};
+}
+
+std::shared_ptr<FileObject> FileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
+{
+    const auto ret = TryOpen(path, flag);
+    if (ret.index() == 0)
+        return MAKE_ENABLER_SHARED(FileObject, path, std::get<0>(ret), flag);
+    switch (std::get<1>(ret))
     {
-    case 0:         return MAKE_ENABLER_SHARED(FileObject, path, fp, flag);
     case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist      , path, u"cannot open target file, not exists");
     case ENOMEM:    throw std::bad_alloc(/*"fopen reported no enough memory error"*/);
     case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny, path, u"cannot open target file, no permission");
@@ -115,12 +125,12 @@ FileStream::FileStream(std::shared_ptr<FileObject>&& file) noexcept :
 
 FileStream::~FileStream() { }
 
-bool FileStream::FSeek(const size_t offset, int32_t whence)
+bool FileStream::FSeek(const int64_t offset, SeekWhere whence)
 {
 #if defined(_WIN32)
-    return _fseeki64(GetFP(), offset, whence) == 0;
+    return _fseeki64(GetFP(), offset, common::enum_cast(whence)) == 0;
 #else
-    return fseeko64(GetFP(), offset, whence) == 0;
+    return fseeko64(GetFP(), offset, common::enum_cast(whence)) == 0;
 #endif
 }
 size_t FileStream::FTell() const
@@ -132,7 +142,7 @@ size_t FileStream::FTell() const
 #endif
 }
 
-FILE* FileStream::GetFP() const { return File->fp; }
+FILE* FileStream::GetFP() const { return File->FHandle; }
 
 void FileStream::WriteCheck() const
 {
@@ -160,9 +170,9 @@ void FileStream::CheckError(FileErrReason fileop)
 size_t FileStream::LeftSpace()
 {
     const auto cur = FTell();
-    FSeek(0, SEEK_END);
+    FSeek(0, SeekWhere::End);
     const auto flen = FTell();
-    FSeek((int64_t)cur, SEEK_SET);
+    SetPos(cur);
     return flen - cur;
 }
 
@@ -170,9 +180,9 @@ size_t FileStream::LeftSpace()
 size_t FileStream::GetSize()
 {
     const auto cur = FTell();
-    FSeek(0, SEEK_END);
+    FSeek(0, SeekWhere::End);
     const auto flen = FTell();
-    FSeek((int64_t)cur, SEEK_SET);
+    SetPos(cur);
     return flen;
 }
 size_t FileStream::CurrentPos() const
@@ -181,7 +191,17 @@ size_t FileStream::CurrentPos() const
 }
 bool FileStream::SetPos(const size_t offset)
 {
-    return FSeek((int64_t)offset, SEEK_SET);
+    uint64_t left = offset;
+    bool isFirst = true;
+    while (left > 0)
+    {
+        const uint64_t step = std::min<uint64_t>(offset, INT64_MAX);
+        if (!FSeek(static_cast<int64_t>(step), isFirst ? SeekWhere::Beginning : SeekWhere::Current))
+            return false;
+        left -= step;
+        isFirst = false;
+    }
+    return true;
 }
 
 
@@ -208,7 +228,15 @@ size_t FileInputStream::ReadMany(const size_t want, const size_t perSize, void* 
 }
 bool FileInputStream::Skip(const size_t len)
 {
-    return FSeek((int64_t)len, SEEK_CUR);
+    uint64_t left = len;
+    while (left > 0)
+    {
+        const uint64_t step = std::min<uint64_t>(len, INT64_MAX);
+        if (!FSeek(static_cast<int64_t>(step), SeekWhere::Current))
+            return false;
+        left -= step;
+    }
+    return true;
 }
 bool FileInputStream::IsEnd() { return feof(GetFP()) != 0; }
 std::byte FileInputStream::ReadByteNE(bool& isSuccess)

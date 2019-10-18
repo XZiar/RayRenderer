@@ -1,3 +1,4 @@
+#include "SystemCommonPch.h"
 #include "FileMapperEx.h"
 
 #include <cstddef>

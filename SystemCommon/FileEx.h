@@ -25,7 +25,7 @@ private:
     MAKE_ENABLER();
 
     fs::path FilePath;
-    FILE* fp;
+    FILE* FHandle;
     OpenFlag Flag;
 
     FileObject(const fs::path& path, FILE* fp, const OpenFlag flag);
@@ -34,7 +34,7 @@ public:
 
     const fs::path& Path() const { return FilePath; }
     std::u16string ExtName() const { return FilePath.extension().u16string(); }
-    FILE* Raw() { return fp; }
+    FILE* Raw() { return FHandle; }
 
     //==========Open=========//
 
@@ -51,7 +51,7 @@ protected:
     FileStream(std::shared_ptr<FileObject>&& file) noexcept;
     ~FileStream();
 
-    bool FSeek(const size_t offset, int32_t whence);
+    bool FSeek(const int64_t offset, const SeekWhere whence);
     size_t FTell() const;
     FILE* GetFP() const;
     void WriteCheck() const;
@@ -141,7 +141,7 @@ inline void WriteAll(const fs::path& fpath, const T& input)
 {
     using Helper = common::container::ContiguousHelper<T>;
     static_assert(Helper::IsContiguous, "WriteAll Only accept contiguous type");
-    FileOutputStream fis(FileObject::OpenThrow(fpath, OpenFlag::CreatNewBinary));
+    FileOutputStream fis(FileObject::OpenThrow(fpath, OpenFlag::CreateNewBinary));
     fis.Write(Helper::Count(input) * Helper::EleSize, Helper::Data(input));
 }
 

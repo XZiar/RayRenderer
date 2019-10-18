@@ -96,6 +96,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -109,6 +111,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -124,6 +128,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -143,6 +149,8 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>SYSCOMMON_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -152,10 +160,26 @@
   <ItemGroup>
     <ClCompile Include="ColorConsole.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
-    <ClCompile Include="FileEx.cpp" />
+    <ClCompile Include="FileEx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="FileMapperEx.cpp" />
-    <ClCompile Include="LoopBase.cpp" />
+    <ClCompile Include="LoopBase.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="RawFileEx.cpp" />
+    <ClCompile Include="SystemCommonRely.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="ThreadEx.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -165,6 +189,7 @@
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="LoopBase.h" />
     <ClInclude Include="RawFileEx.h" />
+    <ClInclude Include="SystemCommonPch.h" />
     <ClInclude Include="SystemCommonRely.h" />
     <ClInclude Include="ThreadEx.h" />
   </ItemGroup>

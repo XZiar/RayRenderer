@@ -1,16 +1,11 @@
-#pragma once
-#define WIN32_LEAN_AND_MEAN 1
-#define NOMINMAX 1
-#include <Windows.h>
+#include "SystemCommonPch.h"
 
+#if defined(_WIN32)
 namespace common
 {
 
-namespace detail
-{
-
 typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-inline uint32_t GetWinBuildImpl()
+static uint32_t GetWinBuildImpl()
 {
     HMODULE hMod = ::GetModuleHandleW(L"ntdll.dll");
     if (hMod)
@@ -27,13 +22,11 @@ inline uint32_t GetWinBuildImpl()
     return 0;
 }
 
-}
-
-inline uint32_t GetWinBuildNumber()
+uint32_t GetWinBuildNumber()
 {
-    static uint32_t verNum = detail::GetWinBuildImpl();
+    static uint32_t verNum = GetWinBuildImpl();
     return verNum;
 }
 
-
 }
+#endif

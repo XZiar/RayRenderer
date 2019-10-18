@@ -13,22 +13,23 @@ enum class OpenFlag : uint16_t
     FLAG_READ = 0x1, FLAG_WRITE = 0x2, FLAG_READWRITE = FLAG_READ | FLAG_WRITE, FLAG_CREATE = 0x4, FLAG_TRUNC = 0x8,
     FLAG_APPEND = 0x10, FLAG_TEXT = 0x20,
 
-    CreatNewBinary = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE, 
-    CreatNewText   = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE  | FLAG_TEXT,
-    ReadBinary     =                            FLAG_READ, 
-    ReadText       =                            FLAG_READ   | FLAG_TEXT,
-    Append         = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND,
-    AppendText     = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND | FLAG_TEXT,
-    Dummy_WX       = FLAG_CREATE              | FLAG_WRITE,
-    Dummy_RWX      = FLAG_CREATE              | FLAG_READWRITE,
-    Dummy_RW       = CreatNewBinary | FLAG_READ,
-    Dummy_AR       = Append         | FLAG_READ,
-
-    FLAG_SHARE_READ = 0x0100, FLAG_SHARE_WRITE  = 0x0200, FLAG_ASYNC = 0x0400,
+    FLAG_SHARE_READ = 0x0100, FLAG_SHARE_WRITE = 0x0200, FLAG_ASYNC = 0x0400,
     FLAG_DontBuffer = 0x1000, FLAG_WriteThrough = 0x2000, FLAG_DeleteOnClose = 0x4000,
+
+    CreateNewBinary = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE, 
+    CreateNewText   = FLAG_CREATE | FLAG_TRUNC | FLAG_WRITE  | FLAG_TEXT,
+    ReadBinary      =                            FLAG_READ               | FLAG_SHARE_READ, 
+    ReadText        =                            FLAG_READ   | FLAG_TEXT | FLAG_SHARE_READ,
+    Append          = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND,
+    AppendText      = FLAG_CREATE | FLAG_WRITE | FLAG_APPEND | FLAG_TEXT,
+    Dummy_WX        = FLAG_CREATE              | FLAG_WRITE,
+    Dummy_RWX       = FLAG_CREATE              | FLAG_READWRITE,
+    Dummy_RW        = CreateNewBinary | FLAG_READ,
+    Dummy_AR        = Append         | FLAG_READ,
 };
 MAKE_ENUM_BITFIELD(OpenFlag)
 
+enum class SeekWhere : int { Beginning = 0, Current = 1, End = 2 };
 
 enum class FileErrReason : uint8_t 
 { 
@@ -36,7 +37,7 @@ enum class FileErrReason : uint8_t
     MASK_OP   = 0xf0, MASK_REASON  = 0x0f,
     OpenFail  = 0x10, ReadFail     = 0x20, WriteFail      = 0x40, CloseFail   = 0x80,
     UnknowErr = 0, 
-    WrongParam, OpMismatch, IsDir, NotExist, AlreadyExist, PermissionDeny, WrongFormat, EndOfFile,
+    WrongParam, OpMismatch, IsDir, NotExist, AlreadyExist, PermissionDeny, WrongFormat, EndOfFile, SharingViolate
 };
 MAKE_ENUM_BITFIELD(FileErrReason)
 

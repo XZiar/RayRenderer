@@ -13,7 +13,8 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines":  ["SYSCOMMON_EXPORT"]
+            "defines":  ["SYSCOMMON_EXPORT"],
+            "pch": "SystemCommonPch.h"
         }
         
     }

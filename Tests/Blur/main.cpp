@@ -2,6 +2,7 @@
 #include "ImageUtil/ImageUtil.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
+#include "SystemCommon/RawFileEx.h"
 #include "common/MemoryStream.hpp"
 #include "common/Linq2.hpp"
 #include <thread>
@@ -125,6 +126,9 @@ int main()
     auto data = common::file::ReadAll<std::byte>(fpath);
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
     auto img1 = xziar::img::ReadImage(stream, u"JPG");
+    /*auto rf = common::file::RawFileObject::OpenThrow(fpath, common::file::OpenFlag::ReadBinary);
+    common::file::RawFileInputStream stream(rf);
+    auto img1 = xziar::img::ReadImage(stream, u"JPG");*/
 
     auto fpath2 = fpath;
     fpath2.replace_extension(".bmp");
@@ -134,5 +138,10 @@ int main()
     auto fpath3 = fpath;
     fpath3.replace_extension(".blur.jpg");
     xziar::img::WriteImage(img2, fpath3);
+    
+    /*auto rf2 = common::file::RawFileObject::OpenThrow(fpath3, common::file::OpenFlag::CreateNewBinary);
+    common::file::RawFileOutputStream stream2(rf2);
+    xziar::img::WriteImage(img2, stream2, u"jpg");*/
+
     getchar();
 }

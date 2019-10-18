@@ -1,30 +1,5 @@
+#include "SystemCommonPch.h"
 #include "ThreadEx.h"
-#include "StringCharset/Convert.h"
-#if defined(_WIN32)
-# define WIN32_LEAN_AND_MEAN 1
-# define NOMINMAX 1
-# include <Windows.h>
-# include <ProcessThreadsApi.h>
-# include "common/WinVersionHelper.hpp"
-#else
-//# define _GNU_SOURCE
-# include <errno.h>
-# include <pthread.h>
-# include <unistd.h>
-# include <sys/types.h>
-# include <sys/resource.h>
-# include <sys/wait.h>
-# include <sys/sysinfo.h>
-# if defined(__APPLE__)
-#   include <sys/sysctl.h>
-#   include <mach/mach_types.h>
-#   include <mach/thread_act.h>
-# else
-#   include <sched.h>
-#   include <sys/syscall.h>
-# endif
-#endif
-#include <thread>
 
 
 namespace common

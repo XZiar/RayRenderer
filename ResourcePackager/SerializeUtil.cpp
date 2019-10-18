@@ -83,8 +83,8 @@ bool ResourceItem::operator!=(const ResourceItem& other) const
 }
 
 SerializeUtil::SerializeUtil(const path& fileName)
-    : DocWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CreatNewBinary))),
-    ResWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::CreatNewBinary))),
+    : DocWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp.json"), OpenFlag::CreateNewBinary))),
+    ResWriter(std::make_unique<FileOutputStream>(FileObject::OpenThrow(path(fileName).replace_extension(u".xzrp"), OpenFlag::CreateNewBinary))),
     SharedMap(DocRoot.Add("#global_map", DocRoot.NewObject()).GetObject("#global_map")), Root(DocRoot)
 {
     auto config = DocRoot.NewObject();

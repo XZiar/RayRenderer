@@ -82,7 +82,7 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
 
 void WriteImage(const Image& image, const common::fs::path & path, const uint8_t quality)
 {
-    common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::CreatNewBinary));
+    common::file::FileOutputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::CreateNewBinary));
     ImgLog().debug(u"Write Image {}\n", path.u16string());
     WriteImage(image, stream, GetExtName(path), quality);
 }
@@ -97,7 +97,9 @@ void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16st
         {
             auto writer = support.GetWriter(stream, extName);
             ImgLog().debug(u"Using [{}]\n", support.Name);
-            return writer->Write(image, quality);
+            writer->Write(image, quality);
+            stream.Flush();
+            return;
         }
         catch (BaseException& be)
         {

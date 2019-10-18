@@ -1,14 +1,5 @@
+#include "SystemCommonPch.h"
 #include "ConsoleEx.h"
-#if defined(_WIN32)
-#  include <conio.h>
-#  define NOMINMAX 1
-#  define WIN32_LEAN_AND_MEAN 1
-#  include <Windows.h>
-#else
-#  include <termios.h>
-#  include <sys/ioctl.h>
-#  include <unistd.h>
-#endif
 
 
 char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho)

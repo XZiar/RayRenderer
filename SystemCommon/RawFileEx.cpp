@@ -1,14 +1,5 @@
+#include "SystemCommonPch.h"
 #include "RawFileEx.h"
-#if defined(_WIN32)
-# define WIN32_LEAN_AND_MEAN 1
-# define NOMINMAX 1
-# include <Windows.h>
-#else
-# include <unistd.h>
-# include <fcntl.h>
-# include <sys/types.h>
-# include <sys/stat.h>
-#endif
 #include <cstddef>
 #include <cstdio>
 #include <cstdint>
@@ -25,8 +16,7 @@ MAKE_ENABLER_IMPL(RawFileObject)
 
 RawFileObject::RawFileObject(const fs::path& path, const HandleType fileHandle, const OpenFlag flag) :
     FilePath(path), FileHandle(fileHandle), Flag(flag)
-{
-}
+{ }
 RawFileObject::~RawFileObject()
 {
 #if defined(_WIN32)
@@ -36,10 +26,14 @@ RawFileObject::~RawFileObject()
 #endif
 }
 
-std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, const OpenFlag flag)
+
+#if defined(_WIN32)
+#   define ErrType DWORD
+#else
+#   define ErrType error_t
+#endif
+static std::pair<RawFileObject::HandleType, ErrType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
-    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
-        return {};
 #if defined(_WIN32)
     DWORD accessMode = 0L, shareMode = 0L, createMode = 0, realFlag = FILE_ATTRIBUTE_NORMAL;
 
@@ -67,7 +61,9 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, con
         realFlag, 
         nullptr);
     if (handle == INVALID_HANDLE_VALUE)
-        return {};
+        return { nullptr, GetLastError() };
+    else
+        return { handle, 0 };
 #else
     int realFlag = O_LARGEFILE;
     if (HAS_FIELD(flag, OpenFlag::FLAG_READ))
@@ -106,43 +102,278 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, con
 # endif
 
     auto handle = open(path.string().c_str(), realFlag);
-
+    if (handle == -1)
+        return { handle, errno };
 # if defined(__APPLE__)
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         fcntl(handle, F_NOCACHE, 1);
 # endif
-    if (handle == -1)
-        return {};
+    return { handle, 0 };
 #endif
-    return MAKE_ENABLER_SHARED(RawFileObject, path, handle, flag);
+}
+
+std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, const OpenFlag flag)
+{
+    const auto ret = TryOpen(path, flag);
+    if (ret.second == 0)
+        return MAKE_ENABLER_SHARED(RawFileObject, path, ret.first, flag);
+    else
+        return {};
 }
 
 std::shared_ptr<RawFileObject> RawFileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
 {
-    if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist, path, u"target file not exist");
-    auto obj = OpenFile(path, flag);
-    if (obj)
-        return obj;
+    const auto ret = TryOpen(path, flag);
+    switch (ret.second)
+    {
+    case 0:
+        return MAKE_ENABLER_SHARED(RawFileObject, path, ret.first, flag);
 #if defined(_WIN32)
-    switch (GetLastError())
-    {
-    default:        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr,         path, u"cannot open target file");
-    }
+    case ERROR_FILE_NOT_FOUND:      
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,       path, u"cannot open target file, not exists");
+    case ERROR_ACCESS_DENIED:       
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny, path, u"cannot open target file, no permission");
+    case ERROR_FILE_EXISTS:
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist,   path, u"cannot open target file, already exists");
+    case ERROR_SHARING_VIOLATION:   
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::SharingViolate, path, u"cannot open target file, invalid params");
+    case ERROR_INVALID_PARAMETER:
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam,     path, u"cannot open target file, invalid params");
+
 #else
-    error_t err = errno;
-    switch (err)
-    {
     case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,          path, u"cannot open target file, not exists");
     case ENOMEM:    throw std::bad_alloc(/*"fopen reported no enough memory error"*/);
     case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny,    path, u"cannot open target file, no permission");
     case EEXIST:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist,      path, u"cannot open target file, already exists");
-    case EISDIR:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::IsDir,             path, u"cannot open target file, is a directory");
     case EINVAL:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam,        path, u"cannot open target file, invalid params");
+#endif
     default:        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::UnknowErr,         path, u"cannot open target file");
     }
+}
+
+RawFileStream::RawFileStream(std::shared_ptr<RawFileObject>&& file) noexcept :
+    File(std::move(file)) { }
+
+RawFileStream::~RawFileStream() { }
+
+RawFileObject::HandleType RawFileStream::GetHandle() const
+{
+    return File->FileHandle;
+}
+
+void RawFileStream::WriteCheck() const
+{
+    if (!HAS_FIELD(File->Flag, OpenFlag::FLAG_WRITE))
+        COMMON_THROW(FileException, FileErrReason::WriteFail | FileErrReason::OpMismatch, File->FilePath, u"not opened for write");
+}
+
+void RawFileStream::ReadCheck() const
+{
+    if (!HAS_FIELD(File->Flag, OpenFlag::FLAG_READ))
+        COMMON_THROW(FileException, FileErrReason::ReadFail | FileErrReason::OpMismatch, File->FilePath, u"not opened for read");
+}
+
+bool RawFileStream::FSeek(const int64_t offset, const SeekWhere whence)
+{
+#if defined(_WIN32)
+    LARGE_INTEGER tmp, newpos;
+    tmp.QuadPart = (LONGLONG)offset;
+    return SetFilePointerEx(File->FileHandle, tmp, &newpos, common::enum_cast(whence)) != 0;
+#else
+    return lseek64(File->FileHandle, offset, common::enum_cast(whence)) != -1;
 #endif
 }
+size_t RawFileStream::LeftSpace()
+{
+    const auto total = GetSize();
+    if (total == 0)
+        return 0;
+    const auto cur = CurrentPos();
+    return total - cur;
+}
+
+//==========RandomStream=========//
+size_t RawFileStream::GetSize()
+{
+#if defined(_WIN32)
+    LARGE_INTEGER tmp;
+    if (GetFileSizeEx(GetHandle(), &tmp))
+        return tmp.QuadPart;
+    else
+        return 0;
+#else
+    struct stat64 info;
+    if (fstat64(GetHandle(), &info) == 0)
+        return info.st_size;
+    else
+        return 0;
+#endif
+}
+size_t RawFileStream::CurrentPos() const
+{
+#if defined(_WIN32)
+    LARGE_INTEGER tmp, curpos;
+    tmp.QuadPart = 0;
+    if (SetFilePointerEx(GetHandle(), tmp, &curpos, FILE_CURRENT))
+        return curpos.QuadPart;
+    else
+        return 0;
+#else
+    const auto curpos = lseek64(GetHandle(), 0, SEEK_CUR);
+    if (curpos != -1)
+        return curpos;
+    else
+        return 0;
+#endif
+}
+bool RawFileStream::SetPos(const size_t offset)
+{
+    uint64_t left = offset;
+    bool isFirst = true;
+    while (left > 0)
+    {
+        const uint64_t step = std::min<uint64_t>(offset, INT64_MAX);
+        if (!FSeek(static_cast<int64_t>(step), isFirst ? SeekWhere::Beginning : SeekWhere::Current))
+            return false;
+        left -= step;
+        isFirst = false;
+    }
+    return true;
+}
+
+
+RawFileInputStream::RawFileInputStream(std::shared_ptr<RawFileObject> file) :
+    RawFileStream(std::move(file)) 
+{
+    ReadCheck();
+}
+
+RawFileInputStream::RawFileInputStream(RawFileInputStream&& stream) noexcept :
+    RawFileStream(std::move(stream.File)) { }
+
+RawFileInputStream::~RawFileInputStream() { }
+
+//==========InputStream=========//
+size_t RawFileInputStream::AvaliableSpace()
+{
+    return LeftSpace();
+}
+bool RawFileInputStream::Read(const size_t len, void* ptr)
+{
+    return ReadMany(len, 1, ptr) == len;
+}
+size_t RawFileInputStream::ReadMany(const size_t want, const size_t perSize, void* ptr)
+{
+    uint64_t left = want * perSize;
+    while (left > 0)
+    {
+#if defined(_WIN32)
+        const uint64_t need = std::min<uint64_t>(left, UINT32_MAX);
+        DWORD newread = 0;
+        if (!ReadFile(GetHandle(), ptr, static_cast<DWORD>(need), &newread, NULL) || newread == 0)
+            break;
+#else
+        const uint64_t need = std::min<uint64_t>(left, 0x7ffff000u);
+        const auto newread = read(GetHandle(), ptr, static_cast<uint32_t>(need));
+        if (newread == -1)
+            break;
+#endif
+        left -= newread;
+    }
+    return (want * perSize - left) / perSize;
+}
+bool RawFileInputStream::Skip(const size_t len)
+{
+    uint64_t left = len;
+    while (left > 0)
+    {
+        const uint64_t step = std::min<uint64_t>(len, INT64_MAX);
+        if (!FSeek(static_cast<int64_t>(step), SeekWhere::Current))
+            return false;
+        left -= step;
+    }
+    return true;
+}
+bool RawFileInputStream::IsEnd() { return LeftSpace() == 0; }
+
+
+//==========RandomStream=========//
+size_t RawFileInputStream::GetSize()
+{
+    return RawFileStream::GetSize();
+}
+size_t RawFileInputStream::CurrentPos() const
+{
+    return RawFileStream::CurrentPos();
+}
+bool RawFileInputStream::SetPos(const size_t offset)
+{
+    return RawFileStream::SetPos(offset);
+}
+
+
+RawFileOutputStream::RawFileOutputStream(std::shared_ptr<RawFileObject> file) :
+    RawFileStream(std::move(file)) {
+    WriteCheck();
+}
+
+RawFileOutputStream::RawFileOutputStream(RawFileOutputStream&& stream) noexcept : RawFileStream(std::move(stream.File)) { }
+
+RawFileOutputStream::~RawFileOutputStream() { Flush(); }
+
+//==========OutputStream=========//
+size_t RawFileOutputStream::AcceptableSpace()
+{
+    return SIZE_MAX;
+}
+bool RawFileOutputStream::Write(const size_t len, const void* ptr)
+{
+    return WriteMany(len, 1, ptr) == len;
+}
+size_t RawFileOutputStream::WriteMany(const size_t want, const size_t perSize, const void* ptr)
+{
+    uint64_t left = want * perSize;
+    while (left > 0)
+    {
+#if defined(_WIN32)
+        const uint64_t need = std::min<uint64_t>(left, UINT32_MAX);
+        DWORD newwrite = 0;
+        if (!WriteFile(GetHandle(), ptr, static_cast<DWORD>(need), &newwrite, NULL) || newwrite == 0)
+            break;
+#else
+        const uint64_t need = std::min<uint64_t>(left, 0x7ffff000u);
+        const auto newwrite = write(GetHandle(), ptr, static_cast<uint32_t>(need));
+        if (newwrite == -1)
+            break;
+#endif
+        left -= newwrite;
+    }
+    return (want * perSize - left) / perSize;
+}
+void RawFileOutputStream::Flush()
+{
+#if defined(_WIN32)
+    FlushFileBuffers(GetHandle());
+#else
+    fdatasync(GetHandle());
+#endif
+}
+
+//==========RandomStream=========//
+size_t RawFileOutputStream::GetSize()
+{
+    return RawFileStream::GetSize();
+}
+size_t RawFileOutputStream::CurrentPos() const
+{
+    return RawFileStream::CurrentPos();
+}
+bool RawFileOutputStream::SetPos(const size_t offset)
+{
+    return RawFileStream::SetPos(offset);
+}
+
+
 
 
 }
