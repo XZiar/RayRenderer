@@ -7,7 +7,7 @@
 
 namespace xziar::img::tga
 {
-using namespace common;
+
 
 namespace detail
 {
@@ -54,11 +54,11 @@ struct ColorMapInfo
 class IMGUTILAPI TgaReader : public ImgReader
 {
 private:
-    RandomInputStream& Stream;
+    common::io::RandomInputStream& Stream;
     detail::TgaHeader Header;
     int32_t Width, Height;
 public:
-    TgaReader(RandomInputStream& stream);
+    TgaReader(common::io::RandomInputStream& stream);
     virtual ~TgaReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -67,9 +67,9 @@ public:
 class IMGUTILAPI TgaWriter : public ImgWriter
 {
 private:
-    RandomOutputStream& Stream;
+    common::io::RandomOutputStream& Stream;
 public:
-    TgaWriter(RandomOutputStream& stream);
+    TgaWriter(common::io::RandomOutputStream& stream);
     virtual ~TgaWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -81,11 +81,11 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaWriter>(stream);
     }

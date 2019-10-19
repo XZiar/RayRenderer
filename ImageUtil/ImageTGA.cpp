@@ -7,6 +7,11 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
+using common::AlignedBuffer;
+using common::BaseException;
+using common::SimpleTimer;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
 
 
 TgaReader::TgaReader(RandomInputStream& stream) : Stream(stream)

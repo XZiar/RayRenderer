@@ -10,11 +10,6 @@
 
 namespace xziar::img
 {
-using common::io::RandomInputStream;
-using common::io::RandomOutputStream;
-using common::io::BufferedRandomInputStream;
-//using common::io::BufferedRandomOutputStream;
-
 
 class IMGUTILAPI ImgReader : public common::NonCopyable
 {
@@ -39,13 +34,14 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const std::u16string Name;
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string& ext) const = 0;
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string& ext) const = 0;
+    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const = 0;
     virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 
 
-IMGUTILAPI uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support);
+IMGUTILAPI uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support) noexcept;
+IMGUTILAPI bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept;
 template<typename T>
 inline uint32_t RegistImageSupport()
 {

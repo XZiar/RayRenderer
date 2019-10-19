@@ -5,10 +5,12 @@
 #include "FloatConvertor.hpp"
 
 #include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/FileEx.h"
 #include "StringCharset/Convert.h"
 
 #include "common/CopyEx.hpp"
 #include "common/Linq2.hpp"
+#include "common/SpinLock.hpp"
 #include "common/StringEx.hpp"
 #include "common/TimeUtil.hpp"
 

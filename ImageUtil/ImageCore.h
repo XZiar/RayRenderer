@@ -11,7 +11,6 @@
 namespace xziar::img
 {
 
-using common::BaseException;
 
 //[has-alpha|float|RGB channel]
 //[****7****|**6**|1.........0]
@@ -29,15 +28,16 @@ class ImageView;
 class IMGUTILAPI Image : protected common::AlignedBuffer
 {
     friend class ImageView;
+private:
+    void ResetSize(const uint32_t width, const uint32_t height);
 protected:
     uint32_t Width, Height;
     ImageDataType DataType;
     uint8_t ElementSize;
-    forceinline size_t CalcSize() const noexcept { return static_cast<size_t>(Width) * Height * ElementSize; }
     void CheckSizeLegal() const
     {
-        if (CalcSize() != Size)
-            COMMON_THROW(BaseException, u"Size not match");
+        if (static_cast<size_t>(Width)* Height* ElementSize != Size)
+            COMMON_THROW(common::BaseException, u"Size not match");
     }
 public:
     static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
@@ -63,15 +63,13 @@ public:
     size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
     {
-        Release();
-        Width = width, Height = height, Size = CalcSize();
-        zero ? AllocFill() : Alloc();
+        ResetSize(width, height);
+        if (zero) Fill();
     }
     void SetSize(const uint32_t width, const uint32_t height, const std::byte fill)
     {
-        Release();
-        Width = width, Height = height, Size = CalcSize();
-        AllocFill(fill);
+        ResetSize(width, height);
+        Fill(fill);
     }
     template<typename T>
     void SetSize(const std::tuple<T, T>& size, const bool zero = true)
@@ -231,7 +229,6 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noe
         return 0;
     }
 }
-
 
 }
 

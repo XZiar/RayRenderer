@@ -92,3 +92,4 @@
   - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Add GLFW
   - [ ] Add static control-item for Controllable
+  - [ ] Add OpenCL's codegen which can write code in C++ with template/type-safe support

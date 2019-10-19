@@ -1,6 +1,79 @@
 #pragma once
 
+/* Compier Test */
+
+#if defined(__clang__)
+#   define COMPILER_CLANG 1
+#elif defined(__GNUC__)
+#   define COMPILER_GCC 1
+#elif defined(_MSC_VER)
+#   define COMPILER_MSVC 1
+#elif defined(__MINGW32__) || defined(__MINGW64__)
+#   define COMPILER_MINGW 1
+#endif
+
+#ifndef COMPILER_CLANG
+#   define COMPILER_CLANG 0
+#endif
+#ifndef COMPILER_GCC
+#   define COMPILER_GCC 0
+#endif
+#ifndef COMPILER_MSVC
+#   define COMPILER_MSVC 0
+#endif
+#ifndef COMPILER_MINGW
+#   define COMPILER_MINGW 0
+#endif
+
+
+
+/* OS Test */
+
 #if defined(_WIN32)
+#   define COMMON_OS_WIN 1
+#elif defined(__APPLE__)
+#   define COMMON_OS_MACOS 1
+#elif defined(__linux__)
+#   define COMMON_OS_LINUX 1
+#elif defined(__FreeBSD__)
+#   define COMMON_OS_FREEBSD 1
+#endif
+
+#ifndef COMMON_OS_WIN
+#   define COMMON_OS_WIN 0
+#endif
+#ifndef COMMON_OS_MACOS
+#   define COMMON_OS_MACOS 0
+#endif
+#ifndef COMMON_OS_LINUX
+#   define COMMON_OS_LINUX 0
+#endif
+#ifndef COMMON_OS_FREEBSD
+#   define COMMON_OS_FREEBSD 0
+#endif
+#ifndef COMMON_OS_UNIX
+#   if COMMON_OS_MACOS || COMMON_OS_LINUX || COMMON_OS_FREEBSD || defined(__unix__)
+#       define COMMON_OS_UNIX 1
+#   else
+#       define COMMON_OS_UNIX 0
+#   endif
+#endif
+
+
+
+/* vectorcall fix */
+
+#if COMMON_OS_WIN && !defined(_MANAGED) && !defined(_M_CEE)
+#   define VECCALL __vectorcall
+#else
+#   define VECCALL 
+#endif
+
+
+
+/* dynamic library defines */
+
+#if defined(COMMON_OS_WIN)
 # ifdef COMMON_EXPORT
 #   define COMMONAPI _declspec(dllexport) 
 #   define COMMONTPL _declspec(dllexport) 
@@ -18,27 +91,78 @@
 # endif
 #endif
 
+
+
+/* inline-related */
+
+#if defined(_MSC_VER)
+#   define forceinline      __forceinline
+#   define forcenoinline    __declspec(noinline)
+#elif defined(__GNUC__)
+#   define forceinline      __inline__ __attribute__((always_inline))
+#   define forcenoinline    __attribute__((noinline))
+#   define _FILE_OFFSET_BITS 64
+#else
+#   define forceinline inline
+#   define forcenoinline 
+#endif
+
+
+
+/* basic include */
+
 #define __STDC_WANT_SECURE_LIB__ 1
 #define __STDC_WANT_LIB_EXT1__ 1
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <string>
-#include <new>
 #include <numeric>
 #include <type_traits> 
-#include <memory>
-#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
-#   include<variant>
-#endif
 
-#if defined(__cpp_lib_filesystem)
-#   include <filesystem>
+#if UINTPTR_MAX == UINT64_MAX
+#   define COMMON_OSBIT 64
 #else
-#   include <experimental/filesystem>
+#   define COMMON_OSBIT 32
 #endif
 
 
+
+/* *_s fix */
+
+#if defined(__GNUC__)
+#   if !defined(__STDC_LIB_EXT1__)
+#       include <errno.h>
+forceinline std::remove_reference<decltype(errno)>::type memcpy_s(void* dest, size_t destsz, const void* src, size_t count)
+{
+    if (count == 0)
+        return 0;
+    if (src == nullptr || dest == nullptr || destsz < count)
+    {
+        memset(dest, 0, destsz);
+        return EINVAL;
+    }
+    memcpy(dest, src, count);
+    return 0;
+}
+forceinline std::remove_reference<decltype(errno)>::type memmove_s(void* dest, size_t destsz, const void* src, size_t count)
+{
+    if (count == 0)
+        return 0;
+    if (src == nullptr || dest == nullptr)
+        return EINVAL;
+    if (destsz < count)
+        return ERANGE;
+    memmove(dest, src, count);
+    return 0;
+}
+#   endif
+#endif
+
+
+
+/* aligned allocation */
+
+#include <new>
 #if defined(__APPLE__)
 #   include <malloc/malloc.h>
 inline void* apple_malloc_align(const size_t size, const size_t align)
@@ -59,70 +183,17 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 #   define free_align(ptr) _aligned_free(ptr)
 #endif
 
-#if defined(_MSC_VER)
-#   define forceinline      __forceinline
-#   define forcenoinline    __declspec(noinline)
-#if defined(__STDC_LIB_EXT1__)
-#  define KKK 1
-# endif
-#elif defined(__GNUC__)
-#   define forceinline      __inline__ __attribute__((always_inline))
-#   define forcenoinline    __attribute__((noinline))
-#   if !defined(__STDC_LIB_EXT1__)
-#       include <errno.h>
-forceinline std::remove_reference<decltype(errno)>::type memcpy_s(void * dest, size_t destsz, const void * src, size_t count)
-{
-    if (count == 0)
-        return 0;
-    if (src == nullptr || dest == nullptr || destsz < count)
-    {
-        memset(dest, 0, destsz);
-        return EINVAL;
-    }
-    memcpy(dest, src, count);
-    return 0;
-}
-forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, size_t destsz, const void * src, size_t count)
-{
-    if (count == 0)
-        return 0;
-    if (src == nullptr || dest == nullptr)
-        return EINVAL;
-    if (destsz < count)
-        return ERANGE;
-    memmove(dest, src, count);
-    return 0;
-}
-#   define _FILE_OFFSET_BITS 64
-#   endif
+
+
+/* filesystem reuqiements */
+
+#if defined(__cpp_lib_filesystem)
+#   include <filesystem>
 #else
-#   define forceinline inline
-#   define forcenoinline 
+#   include <experimental/filesystem>
 #endif
 
-#if defined(_WIN32) && !defined(_MANAGED) && !defined(_M_CEE)
-#   define VECCALL __vectorcall
-#else
-#   define VECCALL 
-#endif
 
-#if defined(__clang__)
-#   define COMPILER_CLANG 1
-#elif defined(__GNUC__)
-#   define COMPILER_GCC 1
-#elif defined(_MSC_VER)
-#   define COMPILER_MSVC 1
-#endif
-
-#ifndef COMPILER_CLANG
-#   define COMPILER_CLANG 0
-#endif
-#ifndef COMPILER_GCC
-#   define COMPILER_GCC 0
-#endif
-#ifndef COMPILER_MSVC
-#   define COMPILER_MSVC 0
-#endif
 
 /*
 * Concatenate preprocessor tokens A and B without expanding macro definitions
@@ -153,8 +224,10 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void * dest, 
 #define UTF16ER(X) UTF16ER_NX(X)
 
 
-/*Hacker for std::make_shared/std::make_unique*/
 
+/* hacker for std::make_shared/std::make_unique */
+
+#include <memory>
 #define MAKE_ENABLER() struct make_enabler
 
 #define MAKE_ENABLER_IMPL(clz)                  \
@@ -169,6 +242,9 @@ struct clz::make_enabler : public clz           \
 #define MAKE_ENABLER_SHARED_CONST(clz, ...) std::static_pointer_cast<const clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
 #define MAKE_ENABLER_UNIQUE(clz, ...) std::make_unique<clz::make_enabler>(__VA_ARGS__)
 
+
+
+/* compile-time str hash support */
 
 /**
 ** @brief calculate simple hash for string, used for switch-string
@@ -205,6 +281,12 @@ inline constexpr uint64_t operator "" _hash(const char *str, size_t)
 }
 
 
+
+#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+#   include <variant>
+#endif
+
+
 namespace common
 {
 #if defined(__cpp_lib_filesystem)
@@ -212,6 +294,7 @@ namespace fs = std::filesystem;
 #else
 namespace fs = std::experimental::filesystem;
 #endif
+
 
 template<typename T>
 using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
@@ -282,6 +365,7 @@ inline constexpr size_t get_variant_index_v()
 }
 #endif
 
+
 template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
 constexpr const T& max(const T& left, const T& right)
 {
@@ -312,6 +396,41 @@ struct NonMovable
     NonMovable(const NonMovable&) noexcept = default;
     NonMovable& operator= (const NonMovable&) noexcept = default;
 };
+
+
+inline uint32_t TailZero(const uint32_t num) noexcept
+{
+#if COMPILER_MSVC
+    unsigned long idx = 0;
+    return _BitScanReverse(&idx, num) ? idx : UINT32_MAX;
+#else
+    return num == 0 ? UINT32_MAX : __builtin_ctz(num);
+#endif
+}
+
+inline uint32_t TailZero(const uint64_t num) noexcept
+{
+#if COMPILER_MSVC
+    unsigned long idx = 0;
+#   if COMMON_OSBIT == 64
+    return _BitScanReverse64(&idx, num) ? idx : UINT32_MAX;
+#   else
+    if (!_BitScanReverse(&idx, static_cast<uint32_t>(num)))
+    {
+        return _BitScanReverse(&idx, static_cast<uint32_t>(num >> 32)) ? idx + 32 : UINT32_MAX;
+    }
+    return idx;
+#   endif
+#else
+#   if COMMON_OSBIT == 64
+    return num == 0 ? UINT32_MAX : __builtin_ctzl(num);
+#   else
+    if (num == 0) return UINT32_MAX;
+    const auto loCnt = TailZero(static_cast<uint32_t>(num));
+    return loCnt == UINT32_MAX ? TailZero(static_cast<uint32_t>(num >> 32)) + 32 : loCnt;
+#   endif
+#endif
+}
 
 
 #if defined(__cpp_lib_string_view)

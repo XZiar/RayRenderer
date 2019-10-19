@@ -6,76 +6,134 @@
 namespace common
 {
 
-struct AlignedBuffer
+inline size_t EnsureAlignment(const size_t num)
+{
+    size_t base = 1;
+    return num == 0 ? base : (base << common::TailZero(num));
+}
+
+class AlignedBuffer
 {
     friend struct AlignBufLessor;
-private:
-    struct BufInfo
+public:
+    struct ExternBufInfo
     {
-        const size_t Size;
-        std::atomic_uint32_t RefCount;
-        const uint32_t Cookie = 0xabadcafe;
-        BufInfo(const size_t size) noexcept : Size(size), RefCount(1) {}
+        virtual ~ExternBufInfo() = 0;
+        virtual size_t GetSize() const noexcept = 0;
+        virtual std::uintptr_t GetPtr() const noexcept = 0;
     };
-    BufInfo* CoreInfo = nullptr;
-    constexpr std::byte* GetPtr() const noexcept
+    class BufInfo
     {
-        if (CoreInfo)
-            return reinterpret_cast<std::byte*>(CoreInfo) - CoreInfo->Size;
-        else
+        friend class AlignedBuffer;
+    private:
+        const ExternBufInfo* ExternInfo = nullptr;
+        size_t Size;
+        mutable std::atomic_uint32_t RefCount;
+        uint32_t Cookie;
+        BufInfo(const size_t size) noexcept : ExternInfo(nullptr), Size(size),
+            RefCount(1), Cookie(0xabadcafe) { }
+        BufInfo(std::unique_ptr<const ExternBufInfo>&& externInfo) noexcept : ExternInfo(externInfo.release()), Size(ExternInfo->GetSize()),
+            RefCount(1), Cookie(0xdeadbeef) { }
+    public:
+        static std::uintptr_t GetPtr(const BufInfo* info) noexcept
+        {
+            if (info)
+            {
+                if (info->ExternInfo)
+                    return info->ExternInfo->GetPtr();
+                else
+                    return reinterpret_cast<std::uintptr_t>(info) - info->Size;
+            }
+            else
+                return reinterpret_cast<std::uintptr_t>(nullptr);
+        }
+        static void AddReference(const BufInfo* info) noexcept
+        {
+            if (info)
+                info->RefCount++;
+        }
+        static bool ReduceReference(const BufInfo*& info) noexcept
+        {
+            if (info && info->RefCount-- == 1)
+            {
+                if (info->ExternInfo)
+                {
+                    delete info->ExternInfo;
+                    delete info;
+                }
+                else
+                {
+                    free_align(reinterpret_cast<void*>(GetPtr(info)));
+                }
+                info = nullptr;
+                return true;
+            }
+            return false;
+        }
+        [[nodiscard]] static std::byte* AllocNew(const size_t size, size_t& align, const BufInfo*& info) noexcept
+        {
+            align = EnsureAlignment(align);
+            ReduceReference(info);
+            if (size != 0)
+            {
+                constexpr size_t InfoAlign = alignof(BufInfo);
+                const size_t realSize = (size + InfoAlign - 1) / InfoAlign * InfoAlign;
+                const auto rawPtr = (std::uint8_t*)malloc_align(realSize + sizeof(BufInfo), align);
+                if (rawPtr != nullptr)
+                {
+                    info = new (rawPtr + realSize)BufInfo(realSize);
+                    return reinterpret_cast<std::byte*>(GetPtr(info));
+                }
+            }
             return nullptr;
-    }
-    void CopyCore() const noexcept
+        }
+    };
+private:
+    const BufInfo* CoreInfo;
+    AlignedBuffer(const BufInfo* coreInfo, std::byte* ptr, const size_t size, const size_t align) noexcept
+        : CoreInfo(coreInfo), Size(size), Align(align), Data(ptr)
     {
         if (CoreInfo)
             CoreInfo->RefCount++;
     }
 protected:
-    std::byte *Data = nullptr;
     size_t Size = 0;
     size_t Align = 0;
-    void Alloc() noexcept
+    std::byte* Data = nullptr;
+    void Fill(const std::byte fill = std::byte{ 0x0 }) noexcept
     {
-        const auto rawPtr = (std::uint8_t*)malloc_align(Size + sizeof(BufInfo), Align);
-        CoreInfo = new (rawPtr + Size)BufInfo(Size);
-        Data = GetPtr();
-    }
-    void AllocFill(const std::byte fill = std::byte{ 0x0 }) noexcept
-    {
-        Alloc();
-        memset(Data, std::to_integer<uint8_t>(fill), Size);
+        if (Data)
+            memset(Data, std::to_integer<uint8_t>(fill), Size);
     }
     void Release() noexcept
     {
-        if (CoreInfo)
-        {
-            if (--CoreInfo->RefCount == 0)
-                free_align(GetPtr());
-            CoreInfo = nullptr;
-        }
+        BufInfo::ReduceReference(CoreInfo);
         Data = nullptr;
         Size = 0;
     };
-
-    AlignedBuffer(BufInfo* coreInfo, std::byte *ptr, const size_t size, const size_t align = 64) noexcept
-        : CoreInfo(coreInfo), Data(ptr), Size(size), Align(align) { CopyCore(); }
+    void ReAlloc(const size_t size, size_t align)
+    {
+        Data = BufInfo::AllocNew(size, align, CoreInfo);
+        Size = size; Align = align;
+    }
 public:
-    constexpr AlignedBuffer() noexcept : Align(64) { }
-    AlignedBuffer(const size_t size, const size_t align = 64) noexcept : Size(size), Align(align)
+    constexpr AlignedBuffer() noexcept : CoreInfo(nullptr), Size(0), Align(64), Data(nullptr) { }
+    AlignedBuffer(const size_t size, const size_t align = 64) noexcept : 
+        CoreInfo(nullptr), Size(size), Align(align), Data(BufInfo::AllocNew(Size, Align, CoreInfo))
+    { }
+    AlignedBuffer(const size_t size, const std::byte fill, const size_t align = 64) noexcept : 
+        AlignedBuffer(size, align)
     {
-        Alloc();
+        Fill(fill);
     }
-    AlignedBuffer(const size_t size, const std::byte fill, const size_t align = 64) noexcept : Size(size), Align(align)
+    AlignedBuffer(const AlignedBuffer& other) noexcept : 
+        AlignedBuffer(other.Size, other.Align)
     {
-        AllocFill(fill);
-    }
-    AlignedBuffer(const AlignedBuffer& other) noexcept : Size(other.Size), Align(other.Align)
-    {
-        Alloc();
         if (Data)
             memcpy_s(Data, Size, other.Data, Size);
     }
-    AlignedBuffer(AlignedBuffer&& other) noexcept : CoreInfo(other.CoreInfo), Data(other.Data), Size(other.Size), Align(other.Align)
+    constexpr AlignedBuffer(AlignedBuffer&& other) noexcept : 
+        CoreInfo(other.CoreInfo), Size(other.Size), Align(other.Align), Data(other.Data)
     {
         other.CoreInfo = nullptr; other.Data = nullptr; other.Size = 0;
     }
@@ -85,12 +143,12 @@ public:
     {
         if (other.Align != Align || other.Size != Size)
         {
-            Release();
-            Size = other.Size;
-            Align = other.Align;
-            Alloc();
+            auto align = other.Align;
+            Data = BufInfo::AllocNew(other.Size, align, CoreInfo);
+            Align = align;
         }
-        memcpy_s(Data, Size, other.Data, Size);
+        if (Data)
+            memcpy_s(Data, Size, other.Data, Size);
         return *this;
     }
     AlignedBuffer& operator= (AlignedBuffer&& other) noexcept

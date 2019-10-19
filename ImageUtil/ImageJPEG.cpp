@@ -11,6 +11,10 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
+using common::AlignedBuffer;
+using common::SimpleTimer;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
 
 
 class BufferedStreamReader : public StreamReader

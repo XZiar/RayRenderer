@@ -6,7 +6,7 @@
 
 namespace xziar::img::bmp
 {
-using namespace common;
+
 
 namespace detail
 {
@@ -44,11 +44,11 @@ constexpr size_t BMP_INFO_SIZE = sizeof(BmpInfo);
 class IMGUTILAPI BmpReader : public ImgReader
 {
 private:
-    RandomInputStream& Stream;
+    common::io::RandomInputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpReader(RandomInputStream& stream);
+    BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
     virtual bool Validate() override;
     virtual Image Read(const ImageDataType dataType) override;
@@ -58,11 +58,11 @@ public:
 class IMGUTILAPI BmpWriter : public ImgWriter
 {
 private:
-    RandomOutputStream& Stream;
+    common::io::RandomOutputStream& Stream;
     detail::BmpHeader Header;
     detail::BmpInfo Info;
 public:
-    BmpWriter(RandomOutputStream& stream);
+    BmpWriter(common::io::RandomOutputStream& stream);
     virtual ~BmpWriter() override {};
     virtual void Write(const Image& image, const uint8_t quality) override;
 };
@@ -72,11 +72,11 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(RandomInputStream& stream, const std::u16string&) const override
+    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(RandomOutputStream& stream, const std::u16string&) const override
+    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpWriter>(stream);
     }

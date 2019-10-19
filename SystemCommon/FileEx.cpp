@@ -193,14 +193,14 @@ bool FileStream::SetPos(const size_t offset)
 {
     uint64_t left = offset;
     bool isFirst = true;
-    while (left > 0)
+    do
     {
         const uint64_t step = std::min<uint64_t>(offset, INT64_MAX);
         if (!FSeek(static_cast<int64_t>(step), isFirst ? SeekWhere::Beginning : SeekWhere::Current))
             return false;
         left -= step;
         isFirst = false;
-    }
+    } while (left > 0);
     return true;
 }
 

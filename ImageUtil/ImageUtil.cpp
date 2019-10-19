@@ -10,6 +10,17 @@ using std::string;
 using std::wstring;
 using std::u16string;
 using std::vector;
+using common::BaseException;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
+using common::io::BufferedRandomInputStream;
+
+
+static auto& AcuireSupportLock()
+{
+    static common::RWSpinLock Lock;
+    return Lock;
+}
 
 static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP()
 {
@@ -17,15 +28,29 @@ static vector<std::shared_ptr<ImgSupport>>& SUPPORT_MAP()
     return supports;
 }
 
-uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support)
+uint32_t RegistImageSupport(std::shared_ptr<ImgSupport> support) noexcept
 {
+    const auto lock = AcuireSupportLock().WriteScope();
     SUPPORT_MAP().emplace_back(support);
     return 0;
+}
+
+bool UnRegistImageSupport(const std::shared_ptr<ImgSupport>& support) noexcept
+{
+    const auto lock = AcuireSupportLock().WriteScope();
+    auto themap = SUPPORT_MAP();
+    if (auto it = std::find(themap.cbegin(), themap.cend(), support); it != themap.cend())
+    {
+        themap.erase(it);
+        return true;
+    }
+    return false;
 }
 
 
 static vector<std::reference_wrapper<const ImgSupport>> GenerateSupportList(const u16string& ext, const ImageDataType dataType, const bool isRead, const bool allowDisMatch)
 {
+    const auto lock = AcuireSupportLock().ReadScope();
     return common::linq::FromIterable(SUPPORT_MAP())
         .Select([&](const auto& support) { return std::pair(std::cref(*support), support->MatchExtension(ext, dataType, isRead)); })
         .Where([=](const auto& spPair) { return allowDisMatch || spPair.second > 0; })

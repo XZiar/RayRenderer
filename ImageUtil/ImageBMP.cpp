@@ -7,6 +7,10 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
+using common::AlignedBuffer;
+using common::SimpleTimer;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
 
 
 static void ReadUncompressed(Image& image, RandomInputStream& stream, bool needFlip, const detail::BmpInfo& info)

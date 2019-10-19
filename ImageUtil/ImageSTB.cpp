@@ -38,6 +38,11 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
+using common::AlignedBuffer;
+using common::BaseException;
+using common::SimpleTimer;
+using common::io::RandomInputStream;
+using common::io::RandomOutputStream;
 
 
 static int ReadStream(void *user, char *data, int size)
@@ -132,7 +137,7 @@ Image StbReader::Read(const ImageDataType dataType)
     }
     if (ret.Ptr == nullptr)
     {
-        COMMON_THROW(BaseException, strchset::to_u16string(stbi_failure_reason()));
+        COMMON_THROW(BaseException, common::strchset::to_u16string(stbi_failure_reason()));
     }
 
     ImageDataType retType;

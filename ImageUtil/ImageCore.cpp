@@ -11,7 +11,15 @@ using std::byte;
 using std::string;
 using std::wstring;
 using std::u16string;
+using common::BaseException;
 
+
+
+void Image::ResetSize(const uint32_t width, const uint32_t height)
+{
+    ReAlloc(static_cast<size_t>(width)* height* ElementSize, 64);
+    Width = width, Height = height;
+}
 
 void Image::FlipVertical()
 {
