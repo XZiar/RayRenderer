@@ -27,12 +27,7 @@ RawFileObject::~RawFileObject()
 }
 
 
-#if defined(_WIN32)
-#   define ErrType DWORD
-#else
-#   define ErrType error_t
-#endif
-static std::pair<RawFileObject::HandleType, ErrType> TryOpen(const fs::path& path, const OpenFlag flag)
+static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
 #if defined(_WIN32)
     DWORD accessMode = 0L, shareMode = 0L, createMode = 0, realFlag = FILE_ATTRIBUTE_NORMAL;
@@ -61,9 +56,9 @@ static std::pair<RawFileObject::HandleType, ErrType> TryOpen(const fs::path& pat
         realFlag, 
         nullptr);
     if (handle == INVALID_HANDLE_VALUE)
-        return { nullptr, GetLastError() };
+        return { };
     else
-        return { handle, 0 };
+        return { handle };
 #else
     int realFlag = O_LARGEFILE;
     if (HAS_FIELD(flag, OpenFlag::FLAG_READ))
@@ -103,20 +98,20 @@ static std::pair<RawFileObject::HandleType, ErrType> TryOpen(const fs::path& pat
 
     auto handle = open(path.string().c_str(), realFlag);
     if (handle == -1)
-        return { handle, errno };
+        return { };
 # if defined(__APPLE__)
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         fcntl(handle, F_NOCACHE, 1);
 # endif
-    return { handle, 0 };
+    return { handle };
 #endif
 }
 
 std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, const OpenFlag flag)
 {
     const auto ret = TryOpen(path, flag);
-    if (ret.second == 0)
-        return MAKE_ENABLER_SHARED(RawFileObject, path, ret.first, flag);
+    if (ret.has_value())
+        return MAKE_ENABLER_SHARED(RawFileObject, path, *ret, flag);
     else
         return {};
 }
@@ -124,11 +119,11 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, con
 std::shared_ptr<RawFileObject> RawFileObject::OpenThrow(const fs::path& path, const OpenFlag flag)
 {
     const auto ret = TryOpen(path, flag);
-    switch (ret.second)
-    {
-    case 0:
-        return MAKE_ENABLER_SHARED(RawFileObject, path, ret.first, flag);
+    if (ret.has_value())
+        return MAKE_ENABLER_SHARED(RawFileObject, path, *ret, flag);
 #if defined(_WIN32)
+    switch (GetLastError())
+    {
     case ERROR_FILE_NOT_FOUND:      
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,       path, u"cannot open target file, not exists");
     case ERROR_ACCESS_DENIED:       
@@ -136,11 +131,12 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenThrow(const fs::path& path, co
     case ERROR_FILE_EXISTS:
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::AlreadyExist,   path, u"cannot open target file, already exists");
     case ERROR_SHARING_VIOLATION:   
-        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::SharingViolate, path, u"cannot open target file, invalid params");
+        COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::SharingViolate, path, u"cannot open target file, conflict sharing");
     case ERROR_INVALID_PARAMETER:
         COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::WrongParam,     path, u"cannot open target file, invalid params");
-
 #else
+    switch (errno)
+    {
     case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist,          path, u"cannot open target file, not exists");
     case ENOMEM:    throw std::bad_alloc(/*"fopen reported no enough memory error"*/);
     case EACCES:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::PermissionDeny,    path, u"cannot open target file, no permission");

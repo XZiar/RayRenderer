@@ -123,12 +123,13 @@ int main()
     std::getline(std::cin, fname);
     common::fs::path fpath = fname;
 
-    auto data = common::file::ReadAll<std::byte>(fpath);
+    /*auto data = common::file::ReadAll<std::byte>(fpath);
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
-    auto img1 = xziar::img::ReadImage(stream, u"JPG");
+    auto img1 = xziar::img::ReadImage(stream, u"JPG");*/
     /*auto rf = common::file::RawFileObject::OpenThrow(fpath, common::file::OpenFlag::ReadBinary);
     common::file::RawFileInputStream stream(rf);
     auto img1 = xziar::img::ReadImage(stream, u"JPG");*/
+    auto img1 = xziar::img::ReadImage(fpath);
 
     auto fpath2 = fpath;
     fpath2.replace_extension(".bmp");

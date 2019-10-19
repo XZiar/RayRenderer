@@ -206,10 +206,6 @@ On windows, you need to manually initalize the helper in dllmain. On *nix, initi
 
 A wrapper to manage win32 DLL's delay-load feature.
 
-### [FileMapper](./FileMapper.h) **`buggy`** **`unfinished`**
-
-A wrapper to manage win32's file mapper
-
 ## License
 
 common (including its component) is licensed under the [MIT license](../License.txt).

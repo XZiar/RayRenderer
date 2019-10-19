@@ -6,8 +6,10 @@
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
 
+#include <cassert>
 #include <thread>
 #include <variant>
+#include <optional>
 #include <algorithm>
 #include <stdexcept>
 
@@ -26,6 +28,7 @@
 #   include <termios.h>
 #   include <unistd.h>
 #   include <sys/ioctl.h>
+#   include <sys/mman.h>
 #   include <sys/resource.h>
 #   include <sys/stat.h>
 #   include <sys/sysinfo.h>

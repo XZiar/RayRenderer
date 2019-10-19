@@ -11,6 +11,7 @@ using std::wstring;
 using std::u16string;
 using std::vector;
 using common::BaseException;
+using common::file::OpenFlag;
 using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 using common::io::BufferedRandomInputStream;
@@ -67,13 +68,14 @@ static u16string GetExtName(const common::fs::path& path)
 
 Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
 {
-#define USEBUF 1
-#if defined(USEBUF)
+#if defined(USEMAP) || true
+    auto stream = common::file::MapFileForRead(path);
+#elif defined(USEBUF) || true
     BufferedRandomInputStream stream(
-        common::file::FileInputStream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::ReadBinary)),
+        common::file::FileInputStream(common::file::FileObject::OpenThrow(path, OpenFlag::ReadBinary | OpenFlag::FLAG_DontBuffer)),
         65536);
 #else
-    common::file::FileInputStream stream(common::file::FileObject::OpenThrow(path, common::file::OpenFlag::ReadBinary));
+    common::file::FileInputStream stream(common::file::FileObject::OpenThrow(path, OpenFlag::ReadBinary));
 #endif
     ImgLog().debug(u"Read Image {}\n", path.u16string());
     return ReadImage(stream, GetExtName(path), dataType);

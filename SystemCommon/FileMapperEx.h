@@ -13,13 +13,10 @@
 namespace common::file
 {
 
-enum class OpenMappingFlag : uint8_t
+enum class MappingFlag : uint8_t
 {
-    READ = 0b1, WRITE = 0b10, CREATE = 0b100, TEXT = 0b00000, BINARY = 0b10000,
-    APPEND = 0b1110, TRUNC = 0b0110,
-    CreateNewBinary = CREATE | WRITE | BINARY, CreateNewText = CREATE | WRITE | TEXT,
+    ReadOnly, ReadWrite, CopyOnWrite
 };
-MAKE_ENUM_BITFIELD(OpenMappingFlag)
 
 
 #if COMPILER_MSVC
@@ -31,27 +28,34 @@ MAKE_ENUM_BITFIELD(OpenMappingFlag)
 class SYSCOMMONAPI FileMappingObject : public NonCopyable, public NonMovable
 {
     friend class FileMappingStream;
+public:
+#if defined(_WIN32)
+    using HandleType = std::pair<void*, void*>;
+#else
+    using HandleType = void*;
+#endif
 private:
     MAKE_ENABLER();
-#if defined(_WIN32)
-    using HandleType = void*;
-#else
-    using HandleType = int32_t;
-#endif
     std::shared_ptr<RawFileObject> RawFile;
-    std::byte* Ptr;
     HandleType MappingHandle;
-    OpenMappingFlag Flag;
+    std::byte* Ptr;
+    size_t Size;
+    MappingFlag Flag;
 
-    FileMappingObject(const fs::path& path, const HandleType fileHandle, const OpenMappingFlag flag);
+    FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
+        const HandleType handle, std::byte* ptr, const size_t size);
+    RawFileObject::HandleType GetRawFileHandle() const noexcept { return RawFile->FileHandle; }
 public:
     ~FileMappingObject();
 
-    const std::shared_ptr<RawFileObject>& GetRawFile() const { return RawFile; }
+    constexpr const std::shared_ptr<RawFileObject>& GetRawFile() const noexcept { return RawFile; }
+    const fs::path& Path() const noexcept { return RawFile->FilePath; }
     //==========Open=========//
 
-    static std::shared_ptr<FileMappingObject> OpenMapping(std::shared_ptr<RawFileObject> rawFile, const OpenMappingFlag flag);
-    static std::shared_ptr<FileMappingObject> OpenThrow(std::shared_ptr<RawFileObject> rawFile, const OpenMappingFlag flag);
+    static std::shared_ptr<FileMappingObject> OpenMapping(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag, 
+        const std::pair<uint64_t, uint64_t>& region = { 0, UINT64_MAX });
+    static std::shared_ptr<FileMappingObject> OpenThrow(std::shared_ptr<RawFileObject> rawFile, const MappingFlag flag, 
+        const std::pair<uint64_t, uint64_t>& region = { 0, UINT64_MAX });
 };
 
 
@@ -60,66 +64,44 @@ class SYSCOMMONAPI FileMappingStream
 protected:
     std::shared_ptr<FileMappingObject> MappingObject;
 
-    FileMappingStream(std::shared_ptr<FileMappingObject>&& file) noexcept;
+    FileMappingStream(std::shared_ptr<FileMappingObject>&& mapping) noexcept;
     ~FileMappingStream();
 
     void WriteCheck() const;
     void ReadCheck() const;
-    void CheckError(FileErrReason fileop);
-    size_t LeftSpace();
-
-    //==========RandomStream=========//
-    size_t GetSize();
-    size_t CurrentPos() const;
-    bool SetPos(const size_t offset);
+    std::byte* GetPtr() const noexcept;
+    size_t GetBytes() const noexcept;
+    void FlushRange(const size_t offset, const size_t len, const bool async = true) const;
 };
 
 
 class SYSCOMMONAPI FileMappingInputStream : private FileMappingStream, public io::MemoryInputStream
 {
 public:
-    FileMappingInputStream(std::shared_ptr<FileMappingObject> file);
+    FileMappingInputStream(std::shared_ptr<FileMappingObject> mapping);
     FileMappingInputStream(FileMappingInputStream&& stream) noexcept;
     virtual ~FileMappingInputStream() override;
-
-    //==========InputStream=========//
-    virtual size_t AvaliableSpace() override;
-    virtual bool Read(const size_t len, void* ptr) override;
-    virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override;
-    virtual bool Skip(const size_t len) override;
-    virtual bool IsEnd() override;
-    virtual std::byte ReadByteNE(bool& isSuccess) override;
-    virtual std::byte ReadByteME() override;
-
-    //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
-    virtual bool SetPos(const size_t offset) override;
 };
 
 
 class SYSCOMMONAPI FileMappingOutputStream : private FileMappingStream, public io::MemoryOutputStream
 {
+private:
+    std::pair<size_t, size_t> ModifyRange;
 public:
-    FileMappingOutputStream(std::shared_ptr<FileMappingObject> file);
+    FileMappingOutputStream(std::shared_ptr<FileMappingObject> mapping);
     FileMappingOutputStream(FileMappingOutputStream&& stream) noexcept;
     virtual ~FileMappingOutputStream() override;
-    
-    //==========OutputStream=========//
-    virtual size_t AcceptableSpace() override;
-    virtual bool Write(const size_t len, const void* ptr) override;
+    virtual bool SetPos(const size_t pos) override;
     virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override;
     virtual void Flush() override;
-
-    //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
-    virtual bool SetPos(const size_t offset) override;
 };
 
 #if COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 
+
+SYSCOMMONAPI FileMappingInputStream MapFileForRead(const fs::path& fpath);
 
 }

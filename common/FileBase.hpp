@@ -37,7 +37,8 @@ enum class FileErrReason : uint8_t
     MASK_OP   = 0xf0, MASK_REASON  = 0x0f,
     OpenFail  = 0x10, ReadFail     = 0x20, WriteFail      = 0x40, CloseFail   = 0x80,
     UnknowErr = 0, 
-    WrongParam, OpMismatch, IsDir, NotExist, AlreadyExist, PermissionDeny, WrongFormat, EndOfFile, SharingViolate
+    WrongParam, OpMismatch, IsDir, NotExist, AlreadyExist, PermissionDeny, WrongFormat, EndOfFile, 
+    SharingViolate
 };
 MAKE_ENUM_BITFIELD(FileErrReason)
 

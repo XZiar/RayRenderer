@@ -39,17 +39,29 @@ Others wakeup prevent sleeping    -> | Forbid | --|
 
 Some utilities aims to provide equal functionality on different OSs.
 
-### [FileEx.hpp](./FileEx.hpp)
+### [FileEx](./FileEx.h)
 
-Providing stream for files. FileStreams are acquired from `FileObject` which uses RAII to wrap file handle.
+Provide stream for files. FileStreams are acquired from `FileObject` which uses RAII to wrap file handle.
+
+### [RawFileEx](./RawFileEx.h)
+
+Provide native stream for files. RawFileStreams are acquired from `RawFileObject` which uses RAII to wrap raw file handle.
+
+Compared to [`FileEx`](./FileEx.h), it supports more native property like `non-buffering` or `share-access`, it can also be used to create filemapping.
+
+### [FileMapperEx](./FileMapperEx.h)
+
+Provide basic file mapping support with native file resources. `FileMappingStream` are basically MemoryStream, while it tries to handle flush.
+
+**Not fully tested**.
 
 ### [ConsoleEx](./ConsoleEx.h)
 
-Providing console-related operation, like quering console size. It also provides `getch`, `getche` for linux using `termios`.
+Provide console-related operation, like quering console size. It also provides `getch`, `getche` for linux using `termios`.
 
 ### [ColorConsole](./ColorConsole.h)
 
-Providing color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
+Provide color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
 
 [MiniLogger](../MiniLogger)'s `ConsoleBackend` is based on this.
 

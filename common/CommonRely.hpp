@@ -366,16 +366,45 @@ inline constexpr size_t get_variant_index_v()
 #endif
 
 
-template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+template<typename T>
 constexpr const T& max(const T& left, const T& right)
 {
+    static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? right : left;
 }
-template<class T, class = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+template<typename T>
 constexpr const T& min(const T& left, const T& right)
 {
+    static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? left : right;
 }
+template<typename T, typename U> 
+constexpr T saturate_cast(const U val)
+{
+    static_assert(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, "only support arithmetic type");
+    constexpr bool MaxFit = static_cast<std::make_unsigned_t<U>>(std::numeric_limits<U>::max())
+        <= static_cast<std::make_unsigned_t<T>>(std::numeric_limits<T>::max());
+    constexpr bool MinFit = static_cast<std::make_signed_t<U>>(std::numeric_limits<U>::min())
+        >= static_cast<std::make_signed_t<T>>(std::numeric_limits<T>::min());
+    if constexpr (MaxFit)
+    {
+        if constexpr (MinFit)
+            return val;
+        else
+            return static_cast<T>(max(static_cast<U>(std::numeric_limits<T>::min()), val));
+    }
+    else
+    {
+        if constexpr (MinFit)
+            return static_cast<T>(min(static_cast<U>(std::numeric_limits<T>::max()), val));
+        else
+            return static_cast<T>(min(
+                static_cast<U>(std::numeric_limits<T>::max()), 
+                max(static_cast<U>(std::numeric_limits<T>::min()), val)
+            ));
+    }
+}
+
 
 struct NonCopyable
 {
