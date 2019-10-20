@@ -72,10 +72,4 @@ constexpr inline T FromLEByteArray(const bytearray<sizeof(T)>& input)
 
 }
 
-#ifdef RESPAK_EXPORT
-#   include "MiniLogger/MiniLogger.h"
-namespace xziar::respak
-{
-common::mlog::MiniLogger<false>& rpakLog();
-}
-#endif
+

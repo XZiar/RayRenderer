@@ -1,11 +1,12 @@
 #pragma once
 #include "ResourcePackagerRely.h"
-#include "SystemCommon/FileEx.h"
 #include "common/ContainerEx.hpp"
+#include "common/FileBase.hpp"
 #include "common/EasierJson.hpp"
 #include <map>
 #include <unordered_map>
 #include <variant>
+#include <functional>
 
 
 #if COMPILER_MSVC

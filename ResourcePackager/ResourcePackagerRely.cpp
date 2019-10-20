@@ -1,4 +1,5 @@
 #include "ResourcePackagerRely.h"
+#include "MiniLogger/MiniLogger.h"
 
 namespace xziar::respak
 {

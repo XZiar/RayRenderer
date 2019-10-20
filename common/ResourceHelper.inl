@@ -11,11 +11,11 @@ static HMODULE& ThisDll()
     static HMODULE dll = nullptr;
     return dll;
 }
-void ResourceHelper::init(void* dll)
+void ResourceHelper::Init(void* dll)
 {
     ThisDll() = (HMODULE)dll;
 }
-std::vector<uint8_t> ResourceHelper::getData(const wchar_t *type, const int32_t id)
+common::span<const std::byte> ResourceHelper::GetData(const wchar_t *type, const int32_t id)
 {
     HMODULE hdll = ThisDll();
     const auto hRsrc = FindResource(hdll, (wchar_t*)intptr_t(id), type);
@@ -30,10 +30,7 @@ std::vector<uint8_t> ResourceHelper::getData(const wchar_t *type, const int32_t 
     LPVOID pBuffer = LockResource(hGlobal);
     if (NULL == pBuffer)
         COMMON_THROW(BaseException, u"Failed to lock resource");
-    std::vector<uint8_t> data;
-    data.resize(dwSize);
-    memcpy_s(data.data(), dwSize, pBuffer, dwSize);
-    return data;
+    return common::span<const std::byte>(reinterpret_cast<const std::byte*>(pBuffer), dwSize);
 }
 }
 #else
@@ -53,9 +50,9 @@ uint32_t RegistResource(const int32_t id, const char* ptrBegin, const char* ptrE
     return 0;
 }
 }
-void ResourceHelper::init(void* dll)
+void ResourceHelper::Init(void* dll)
 { }
-std::vector<uint8_t> ResourceHelper::getData(const wchar_t *, const int32_t id)
+common::span<const std::byte> ResourceHelper::GetData(const wchar_t *, const int32_t id)
 {
     const auto& resMap = RES_MAP();
     const auto res = resMap.find(id);
@@ -65,10 +62,7 @@ std::vector<uint8_t> ResourceHelper::getData(const wchar_t *, const int32_t id)
     const size_t size = res->second.second;
     if (0 == size)
         COMMON_THROW(BaseException, u"Resource has zero size");
-    std::vector<uint8_t> data;
-    data.resize(size);
-    memcpy_s(data.data(), size, ptr, size);
-    return data;
+    return common::span<const std::byte>(reinterpret_cast<const std::byte*>(ptr), size);
 }
 }
 

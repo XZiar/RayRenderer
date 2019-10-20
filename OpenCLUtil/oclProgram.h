@@ -5,6 +5,7 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclImage.h"
+#include "common/FileBase.hpp"
 #include "common/ContainerHelper.hpp"
 
 

@@ -73,6 +73,10 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
+* [gsl](https://github.com/microsoft/GSL) master@2019-10-09
+  
+  [MIT License](./3rdParty/gsl/LICENSE)
+
 * [GLEW](http://glew.sourceforge.net/)  2.1.0
 
   [Modified BSD & MIT License](./3rdParty/glew/license.txt)

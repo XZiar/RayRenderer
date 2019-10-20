@@ -6,6 +6,7 @@
 #include "oglVAO.h"
 #include "oglUtil.h"
 #include "3DElement.hpp"
+#include "common/ContainerEx.hpp"
 
 
 #if COMPILER_MSVC

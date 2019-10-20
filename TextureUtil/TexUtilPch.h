@@ -7,6 +7,7 @@
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
+#include "common/ContainerEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Linq2.hpp"
 #include "common/PromiseTaskSTD.hpp"
@@ -15,5 +16,5 @@
 namespace oglu::texutil
 {
 common::mlog::MiniLogger<false>& texLog();
-std::string getShaderFromDLL(int32_t id);
+std::string LoadShaderFromDLL(int32_t id);
 }

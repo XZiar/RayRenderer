@@ -58,9 +58,8 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     {
         log().error(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
     }
-    auto data = common::ResourceHelper::getData(L"BIN", id);
-    data.push_back('\0');
-    return string((const char*)data.data());
+    auto data = common::ResourceHelper::GetData(L"BIN", id);
+    return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
 void QuickTest()
@@ -74,7 +73,7 @@ void QuickTest()
 
 int main(int argc, char *argv[])
 {
-    common::ResourceHelper::init(nullptr);
+    common::ResourceHelper::Init(nullptr);
     log().info(u"UnitTest\n");
 
     if (argc > 1)
@@ -120,8 +119,8 @@ int main(int argc, char *argv[])
     else
     {
         log().error(u"Index out of range.\n");
-        const auto txtdat = common::ResourceHelper::getData(L"BIN", IDR_CL_TEST);
-        std::string_view txt((const char*)txtdat.data(), txtdat.size());
+        auto txtdat = common::ResourceHelper::GetData(L"BIN", IDR_CL_TEST);
+        std::string_view txt(reinterpret_cast<const char*>(txtdat.data()), txtdat.size());
         log().verbose(u"\n{}\n\n", txt);
     }
     ClearReturn();

@@ -2,6 +2,8 @@
 
 #include "ImageUtilRely.h"
 #include "ImageCore.h"
+#include "common/FileBase.hpp"
+
 
 namespace xziar::img
 {

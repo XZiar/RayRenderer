@@ -56,7 +56,7 @@ FontViewer::FontViewer()
     prog = oglDrawProgram_::Create(u"FontViewer");
     try
     {
-        prog->AddExtShaders(getShaderFromDLL(IDR_SHADER_PRINTFONT));
+        prog->AddExtShaders(LoadShaderFromDLL(IDR_SHADER_PRINTFONT));
     }
     catch (OGLException& gle)
     {

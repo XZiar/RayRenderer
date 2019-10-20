@@ -37,7 +37,7 @@ namespace rayr
 
 
 common::mlog::MiniLogger<false>& dizzLog();
-string getShaderFromDLL(int32_t id);
+std::string LoadShaderFromDLL(int32_t id);
 
 
 namespace detail

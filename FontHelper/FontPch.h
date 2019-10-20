@@ -10,5 +10,5 @@
 namespace oglu
 {
 common::mlog::MiniLogger<false>& fntLog();
-std::string getShaderFromDLL(int32_t id);
+std::string LoadShaderFromDLL(int32_t id);
 }

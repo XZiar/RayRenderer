@@ -20,6 +20,7 @@
 #include "StringCharset/Convert.h"
 #include "3rdParty/fmt/utfext.h"
 #include "common/CommonRely.hpp"
+#include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/SharedString.hpp"
 #include "common/EnumEx.hpp"

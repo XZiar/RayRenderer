@@ -25,7 +25,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         GLContext->SetSRGBFBO(true);
         GLContext->SetDepthTest(DepthTestType::OFF);
         GLResizer = oglDrawProgram_::Create(u"GLResizer");
-        const string shaderSrc = getShaderFromDLL(IDR_SHADER_GLRESIZER);
+        const string shaderSrc = LoadShaderFromDLL(IDR_SHADER_GLRESIZER);
         try
         {
             GLResizer->AddExtShaders(shaderSrc);
@@ -72,7 +72,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             try
             {
                 oclu::CLProgConfig config;
-                auto clProg = oclProgram_::CreateAndBuild(CLContext, getShaderFromDLL(IDR_SHADER_CLRESIZER), config);
+                auto clProg = oclProgram_::CreateAndBuild(CLContext, LoadShaderFromDLL(IDR_SHADER_CLRESIZER), config);
                 KerToImg = clProg->GetKernel("ResizeToImg");
                 KerToDat3 = clProg->GetKernel("ResizeToDat3");
                 KerToDat4 = clProg->GetKernel("ResizeToDat4");

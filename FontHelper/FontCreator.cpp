@@ -83,8 +83,8 @@ FontCreator::FontCreator(const oclu::oclContext ctx) : clCtx(ctx)
             lut[i] = i * i * 65536.0f;
     }
     
-    loadCL(getShaderFromDLL(IDR_SHADER_SDFTEST));
-    loadDownSampler(getShaderFromDLL(IDR_SHADER_DWNSAMP));
+    loadCL(LoadShaderFromDLL(IDR_SHADER_SDFTEST));
+    loadDownSampler(LoadShaderFromDLL(IDR_SHADER_DWNSAMP));
     testTex = oglTex2DDynamic_::Create();
     testTex->SetProperty(TextureFilterVal::Nearest, TextureWrapVal::Repeat);
 }
@@ -106,7 +106,7 @@ void FontCreator::reload(const string& src)
     kerSdfGray.reset();
     kerDownSamp.reset();
     loadCL(src);
-    loadDownSampler(getShaderFromDLL(IDR_SHADER_DWNSAMP));
+    loadDownSampler(LoadShaderFromDLL(IDR_SHADER_DWNSAMP));
 }
 
 void FontCreator::setChar(char32_t ch) const

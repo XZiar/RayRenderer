@@ -185,16 +185,6 @@ inline void* apple_malloc_align(const size_t size, const size_t align)
 
 
 
-/* filesystem reuqiements */
-
-#if defined(__cpp_lib_filesystem)
-#   include <filesystem>
-#else
-#   include <experimental/filesystem>
-#endif
-
-
-
 /*
 * Concatenate preprocessor tokens A and B without expanding macro definitions
 * (however, if invoked from a macro, macro arguments are expanded).
@@ -281,19 +271,8 @@ inline constexpr uint64_t operator "" _hash(const char *str, size_t)
 }
 
 
-
-#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
-#   include <variant>
-#endif
-
-
 namespace common
 {
-#if defined(__cpp_lib_filesystem)
-namespace fs = std::filesystem;
-#else
-namespace fs = std::experimental::filesystem;
-#endif
 
 
 template<typename T>
@@ -351,19 +330,18 @@ struct is_notequal_comparable<T, U,
 { };
 
 
-#if defined(__cpp_lib_variant)
-template <typename> struct variant_tag { };
-template <typename T, typename... Ts>
-inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>)
+
+template<typename T, template <typename...> class Base>
+struct TemplateDerivedHelper
 {
-    return std::variant<variant_tag<Ts>...>(variant_tag<T>()).index();
-}
-template <typename T, typename V>
-inline constexpr size_t get_variant_index_v()
-{
-    return get_variant_index<T>(variant_tag<V>());
-}
-#endif
+private:
+    template<typename... Ts>
+    static std::true_type is_derived_from_base_impl(const Base<Ts...>*);
+    static std::false_type is_derived_from_base_impl(const void*);
+public:
+    static constexpr bool IsDerivedFromBase = decltype(is_derived_from_base_impl(std::declval<T*>()))::value;
+};
+
 
 
 template<typename T>
@@ -378,7 +356,7 @@ constexpr const T& min(const T& left, const T& right)
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? left : right;
 }
-template<typename T, typename U> 
+template<typename T, typename U>
 constexpr T saturate_cast(const U val)
 {
     static_assert(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, "only support arithmetic type");
@@ -399,7 +377,7 @@ constexpr T saturate_cast(const U val)
             return static_cast<T>(min(static_cast<U>(std::numeric_limits<T>::max()), val));
         else
             return static_cast<T>(min(
-                static_cast<U>(std::numeric_limits<T>::max()), 
+                static_cast<U>(std::numeric_limits<T>::max()),
                 max(static_cast<U>(std::numeric_limits<T>::min()), val)
             ));
     }
@@ -462,13 +440,22 @@ inline uint32_t TailZero(const uint64_t num) noexcept
 }
 
 
+}
+
+
+
+/* u8 stringview extra support */
+
 #if defined(__cpp_lib_string_view)
-#include <string_view>
-#  if COMPILER_CLANG
-#    define U8STR_CONSTEXPR 
-#else
-#    define U8STR_CONSTEXPR constexpr
-#  endif
+#   include <string_view>
+#   if COMPILER_CLANG
+#       define U8STR_CONSTEXPR 
+#   else
+#       define U8STR_CONSTEXPR constexpr
+#   endif
+#endif
+namespace common
+{
 class u8StrView
 {
 private:
@@ -480,7 +467,7 @@ public:
     u8StrView& operator=(const u8StrView&) = delete;
     u8StrView& operator=(u8StrView&&) = delete;
     constexpr size_t Length() const noexcept { return Size; }
-   
+
     U8STR_CONSTEXPR u8StrView(const std::string_view& sv) noexcept :
         Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
     template<size_t N> U8STR_CONSTEXPR u8StrView(const char(&str)[N]) noexcept :
@@ -499,19 +486,51 @@ public:
     U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
 #endif
 };
-#  undef U8STR_CONSTEXPR
+}
+#undef U8STR_CONSTEXPR
+
+
+
+/* span compatible include */
+#if (defined(__cplusplus) && (__cplusplus >= 201709L)) && false
+#   include <span>
+namespace common
+{
+using std::dynamic_extent;
+template <class ElementType, std::ptrdiff_t Extent = dynamic_extent>
+using span = std::span<ElementType, Extent>;
+}
+#else
+#   include <3rdParty/gsl/span>
+namespace common
+{
+using gsl::dynamic_extent;
+template <class ElementType, std::ptrdiff_t Extent = dynamic_extent>
+using span = gsl::span<ElementType, Extent>;
+}
 #endif
 
 
-template<typename T, template <typename...> class Base>
-struct TemplateDerivedHelper
-{
-private:
-    template<typename... Ts>
-    static std::true_type is_derived_from_base_impl(const Base<Ts...>*);
-    static std::false_type is_derived_from_base_impl(const void*);
-public:
-    static constexpr bool IsDerivedFromBase = decltype(is_derived_from_base_impl(std::declval<T*>()))::value;
-};
 
+/* variant extra support */
+
+#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
+#   include <variant>
+namespace common
+{
+#if defined(__cpp_lib_variant)
+template <typename> struct variant_tag { };
+template <typename T, typename... Ts>
+inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>)
+{
+    return std::variant<variant_tag<Ts>...>(variant_tag<T>()).index();
 }
+template <typename T, typename V>
+inline constexpr size_t get_variant_index_v()
+{
+    return get_variant_index<T>(variant_tag<V>());
+}
+#endif
+}
+#endif
+

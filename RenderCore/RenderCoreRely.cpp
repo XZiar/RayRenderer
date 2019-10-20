@@ -16,11 +16,10 @@ MiniLogger<false>& dizzLog()
     return dizzlog;
 }
 
-string getShaderFromDLL(int32_t id)
+std::string LoadShaderFromDLL(int32_t id)
 {
-    auto data = ResourceHelper::getData(L"SHADER", id);
-    data.push_back('\0');
-    return string((const char*)data.data());
+    auto data = ResourceHelper::GetData(L"SHADER", id);
+    return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
 }

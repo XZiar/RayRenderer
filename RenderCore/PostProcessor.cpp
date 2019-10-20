@@ -34,7 +34,7 @@ void PostProcessor::RegistControllable()
 }
 
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize)
-    : PostProcessor(ctx, que, lutSize, getShaderFromDLL(IDR_SHADER_CLRLUTGL), getShaderFromDLL(IDR_SHADER_POSTPROC)) {}
+    : PostProcessor(ctx, que, lutSize, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL), LoadShaderFromDLL(IDR_SHADER_POSTPROC)) {}
 PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
     : CLContext(ctx), CmdQue(que), LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {

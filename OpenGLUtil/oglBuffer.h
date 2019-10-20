@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "common/CopyEx.hpp"
 
 
 #if COMPILER_MSVC

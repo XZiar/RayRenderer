@@ -10,6 +10,7 @@
 #include "StringCharset/Convert.h"
 
 #include "common/CopyEx.hpp"
+#include "common/FileBase.hpp"
 #include "common/Linq2.hpp"
 #include "common/SpinLock.hpp"
 #include "common/StringEx.hpp"

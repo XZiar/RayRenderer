@@ -1,7 +1,7 @@
 #pragma once
 
+#include "CommonRely.hpp"
 #include <cstdint>
-#include <vector>
 
 namespace common
 {
@@ -9,8 +9,8 @@ namespace common
 class ResourceHelper
 {
 public:
-	static void init(void* dll);
-	static std::vector<uint8_t> getData(const wchar_t *type, const int32_t id);
+	static void Init(void* dll);
+	static common::span<const std::byte> GetData(const wchar_t *type, const int32_t id);
 };
 
 }

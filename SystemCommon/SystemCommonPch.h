@@ -5,6 +5,7 @@
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
+#include "gsl/gsl_assert"
 
 #include <cassert>
 #include <thread>

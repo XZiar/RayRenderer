@@ -1,5 +1,6 @@
 #pragma once
 #include "common/AlignedBuffer.hpp"
+#include "common/FileBase.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <tuple>

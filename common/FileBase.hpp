@@ -4,6 +4,24 @@
 #include "EnumEx.hpp"
 #include <string_view>
 
+
+/* filesystem compatible include */
+
+#if defined(__cpp_lib_filesystem)
+#   include <filesystem>
+namespace common
+{
+namespace fs = std::filesystem;
+}
+#else
+#   include <experimental/filesystem>
+namespace common
+{
+namespace fs = std::experimental::filesystem;
+}
+#endif
+
+
 namespace common::file
 {
 

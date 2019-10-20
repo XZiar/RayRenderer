@@ -149,7 +149,7 @@ void RenderCore::InitShaders()
     ShaderConfig config;
     config.Routines["getNorm"] = "bothNormal";
     config.Routines["getAlbedo"] = "bothAlbedo";
-    auto prog3D = std::make_shared<DefaultRenderPass>(u"3D-pbr", getShaderFromDLL(IDR_SHADER_3DPBR), config);
+    auto prog3D = std::make_shared<DefaultRenderPass>(u"3D-pbr", LoadShaderFromDLL(IDR_SHADER_3DPBR), config);
     AddShader(prog3D);
     prog3D->Program->State()
         .SetSubroutine("lighter", "albedoOnly")

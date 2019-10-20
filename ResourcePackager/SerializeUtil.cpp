@@ -1,9 +1,11 @@
 #include "ResourcePackagerRely.h"
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
+#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/FileEx.h"
+#include "3rdParty/boost.stacktrace/stacktrace.h"
 #include "common/Exceptions.hpp"
 #include "common/Linq2.hpp"
-#include "3rdParty/boost.stacktrace/stacktrace.h"
 
 // ResFile Structure
 // |------------|
@@ -21,6 +23,7 @@
 
 
 
+
 namespace xziar::respak
 {
 using std::byte;
@@ -33,6 +36,8 @@ using common::file::FileObject;
 using common::file::FileInputStream;
 using common::file::FileOutputStream;
 using common::container::FindInMap;
+
+common::mlog::MiniLogger<false>& rpakLog();
 
 static constexpr std::string_view TypeFieldName = "#Type";
 static constexpr size_t RESITEM_SIZE = sizeof(detail::ResourceItem);

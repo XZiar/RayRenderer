@@ -7,7 +7,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		common::ResourceHelper::init(hinstDLL);
+		common::ResourceHelper::Init(hinstDLL);
 		break;
 	case DLL_PROCESS_DETACH:
 		break;

@@ -5,6 +5,8 @@
 
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
+#include "common/ContainerHelper.hpp"
+
 
 namespace oclu
 {
