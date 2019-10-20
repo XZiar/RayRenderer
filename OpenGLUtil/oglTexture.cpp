@@ -350,7 +350,7 @@ oglTex2DStatic_::oglTex2DStatic_(const uint32_t width, const uint32_t height, co
 }
 oglTex2DS oglTex2DStatic_::Create(const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const uint8_t mipmap)
 {
-    return MAKE_ENABLER_SHARED(oglTex2DStatic_, width, height, format, mipmap);
+    return MAKE_ENABLER_SHARED(oglTex2DStatic_, (width, height, format, mipmap));
 }
 
 void oglTex2DStatic_::SetData(const TextureFormat format, const void *data, const uint8_t level)
@@ -399,7 +399,7 @@ void oglTex2DDynamic_::CheckAndSetMetadata(const TextureFormat format, const uin
 }
 oglTex2DD oglTex2DDynamic_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglTex2DDynamic_);
+    return MAKE_ENABLER_SHARED(oglTex2DDynamic_, ());
 }
 
 void oglTex2DDynamic_::GenerateMipmap()
@@ -456,11 +456,11 @@ oglTex2DArray_::oglTex2DArray_(const oglTex2DArray& old, const uint32_t layerAdd
 }
 oglTex2DArray oglTex2DArray_::Create(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureFormat format, const uint8_t mipmap)
 {
-    return MAKE_ENABLER_SHARED(oglTex2DArray_, width, height, layers, format, mipmap);
+    return MAKE_ENABLER_SHARED(oglTex2DArray_, (width, height, layers, format, mipmap));
 }
 oglTex2DArray oglTex2DArray_::Create(const oglTex2DArray& old, const uint32_t layerAdd)
 {
-    return MAKE_ENABLER_SHARED(oglTex2DArray_, old, layerAdd);
+    return MAKE_ENABLER_SHARED(oglTex2DArray_, (old, layerAdd));
 }
 
 void oglTex2DArray_::CheckLayerRange(const uint32_t layer) const
@@ -613,7 +613,7 @@ oglTex3DStatic_::oglTex3DStatic_(const uint32_t width, const uint32_t height, co
 }
 oglTex3DS oglTex3DStatic_::Create(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const uint8_t mipmap)
 {
-    return MAKE_ENABLER_SHARED(oglTex3DStatic_, width, height, depth, format, mipmap);
+    return MAKE_ENABLER_SHARED(oglTex3DStatic_, (width, height, depth, format, mipmap));
 }
 
 
@@ -659,7 +659,7 @@ oglBufferTexture_::oglBufferTexture_() noexcept : oglTexBase_(TextureType::TexBu
 }
 //oglBufTex oglBufferTexture_::Create()
 //{
-//    return MAKE_ENABLER_SHARED(oglBufferTexture_);
+//    return MAKE_ENABLER_SHARED(oglBufferTexture_)();
 //}
 
 void oglBufferTexture_::SetBuffer(const TextureFormat format, const oglTBO& tbo)
@@ -722,13 +722,13 @@ void oglImgBase_::unbind() const noexcept
 oglImg2D_::oglImg2D_(const oglTex2D& tex, const TexImgUsage usage) : oglImgBase_(tex, usage, false) {}
 oglImg2D oglImg2D_::Create(const oglTex2D& tex, const TexImgUsage usage)
 {
-    return MAKE_ENABLER_SHARED(oglImg2D_, tex, usage);
+    return MAKE_ENABLER_SHARED(oglImg2D_, (tex, usage));
 }
 
 oglImg3D_::oglImg3D_(const oglTex3D& tex, const TexImgUsage usage) : oglImgBase_(tex, usage, true) {}
 oglImg3D oglImg3D_::Create(const oglTex3D& tex, const TexImgUsage usage)
 {
-    return MAKE_ENABLER_SHARED(oglImg3D_, tex, usage);
+    return MAKE_ENABLER_SHARED(oglImg3D_, (tex, usage));
 }
 
 

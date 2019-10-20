@@ -156,24 +156,24 @@ oclGLImage3D_::~oclGLImage3D_() {}
 
 
 oclGLInterBuf_::oclGLInterBuf_(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
-    : oclGLObject_<oclGLBuffer_>(MAKE_ENABLER_UNIQUE(oclGLBuffer_, ctx, flag, buf)) {}
+    : oclGLObject_<oclGLBuffer_>(MAKE_ENABLER_UNIQUE(oclGLBuffer_, (ctx, flag, buf))) { }
 oclGLInterBuf oclGLInterBuf_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglBuffer& buf)
 {
-    return MAKE_ENABLER_SHARED(oclGLInterBuf_, ctx, flag, buf);
+    return MAKE_ENABLER_SHARED(oclGLInterBuf_, (ctx, flag, buf));
 }
 
 oclGLInterImg2D_::oclGLInterImg2D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
-    : oclGLObject_<oclGLImage2D_>(MAKE_ENABLER_UNIQUE(oclGLImage2D_, ctx, flag, tex)) {}
+    : oclGLObject_<oclGLImage2D_>(MAKE_ENABLER_UNIQUE(oclGLImage2D_, (ctx, flag, tex))) { }
 oclGLInterImg2D oclGLInterImg2D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex2D& tex)
 {
-    return MAKE_ENABLER_SHARED(oclGLInterImg2D_, ctx, flag, tex);
+    return MAKE_ENABLER_SHARED(oclGLInterImg2D_, (ctx, flag, tex));
 }
 
 oclGLInterImg3D_::oclGLInterImg3D_(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
-    : oclGLObject_<oclGLImage3D_>(MAKE_ENABLER_UNIQUE(oclGLImage3D_, ctx, flag, tex)) {}
+    : oclGLObject_<oclGLImage3D_>(MAKE_ENABLER_UNIQUE(oclGLImage3D_, (ctx, flag, tex))) { }
 oclGLInterImg3D oclGLInterImg3D_::Create(const oclContext& ctx, const MemFlag flag, const oglu::oglTex3D& tex)
 {
-    return MAKE_ENABLER_SHARED(oclGLInterImg3D_, ctx, flag, tex);
+    return MAKE_ENABLER_SHARED(oclGLInterImg3D_, (ctx, flag, tex));
 }
 
 

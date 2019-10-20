@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::io::BufferedRandomInputStream">
+    <DisplayString Condition="BackStream == nullptr">{{Invalid}}</DisplayString>
+    <DisplayString Condition="BackStream != nullptr">{{BufStream, at[{BufBegin + BufPos}]}}</DisplayString>
+    <Expand>
+      <Item Name="[BackStream]">*BackStream</Item>
+      <Item Name="Buffer">Buffer</Item>
+      <Item Name="[pos]">BufBegin + BufPos</Item>
+      <Item Name="BufBegin">BufBegin</Item>
+      <Item Name="BufPos">BufPos</Item>
+      <Item Name="BufLen">BufLen</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::io::MemoryInputStream">
+    <DisplayString>{{MemInStream [{TotalSize}], at[{CurPos}]}}</DisplayString>
+    <Expand>
+      <Item Name="Ptr">Ptr</Item>
+      <Item Name="[Size]">TotalSize</Item>
+      <Item Name="CurPos">CurPos</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::io::MemoryOutputStream">
+    <DisplayString>{{MemOutStream [{TotalSize}], at[{CurPos}]}}</DisplayString>
+    <Expand>
+      <Item Name="Ptr">Ptr</Item>
+      <Item Name="[Size]">TotalSize</Item>
+      <Item Name="CurPos">CurPos</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

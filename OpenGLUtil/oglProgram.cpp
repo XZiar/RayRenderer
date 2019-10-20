@@ -825,7 +825,7 @@ ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat) noexcept
 
 oglDrawProgram oglu::oglDrawProgram_::Create(const std::u16string& name)
 {
-    return MAKE_ENABLER_SHARED(oglDrawProgram_, name);
+    return MAKE_ENABLER_SHARED(oglDrawProgram_, (name));
 }
 
 
@@ -1081,7 +1081,7 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
 
 oglComputeProgram oglu::oglComputeProgram_::Create(const std::u16string& name)
 {
-    return MAKE_ENABLER_SHARED(oglComputeProgram_, name);
+    return MAKE_ENABLER_SHARED(oglComputeProgram_, (name));
 }
 
 

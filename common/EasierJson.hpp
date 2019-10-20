@@ -20,12 +20,60 @@
 #include "3rdParty/rapidjson/prettywriter.h"
 #include "3rdParty/rapidjson/pointer.h"
 
+
 namespace xziar::ejson
 {
 using common::NonCopyable;
 using common::BaseException;
 using std::string;
 using std::string_view;
+
+
+
+
+/* u8 stringview extra support */
+
+#if defined(__cpp_lib_string_view)
+#   if COMPILER_CLANG
+#       define U8STR_CONSTEXPR 
+#   else
+#       define U8STR_CONSTEXPR constexpr
+#   endif
+#endif
+class u8StrView
+{
+private:
+    const uintptr_t Ptr;
+    const size_t Size;
+public:
+    constexpr u8StrView(const u8StrView& other) noexcept : Ptr(other.Ptr), Size(other.Size) {}
+    u8StrView(u8StrView&&) noexcept = delete;
+    u8StrView& operator=(const u8StrView&) = delete;
+    u8StrView& operator=(u8StrView&&) = delete;
+    constexpr size_t Length() const noexcept { return Size; }
+
+    U8STR_CONSTEXPR u8StrView(const std::string_view& sv) noexcept :
+        Ptr((uintptr_t)(sv.data())), Size(sv.length()) { }
+    template<size_t N> U8STR_CONSTEXPR u8StrView(const char(&str)[N]) noexcept :
+        Ptr((uintptr_t)(str)), Size(std::char_traits<char>::length(str)) { }
+
+    U8STR_CONSTEXPR const char* CharData() const noexcept { return (const char*)(Ptr); }
+    U8STR_CONSTEXPR operator std::string_view() const noexcept { return { CharData(), Length() }; }
+
+#if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
+    U8STR_CONSTEXPR u8StrView(const std::u8string_view& sv) noexcept :
+        Ptr((uintptr_t)(sv.data())), Size(sv.length()) { }
+    template<size_t N> U8STR_CONSTEXPR u8StrView(const char8_t(&str)[N]) noexcept :
+        Ptr((uintptr_t)(str)), Size(std::char_traits<char8_t>::length(str)) { }
+
+    U8STR_CONSTEXPR const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
+    U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
+#endif
+};
+#undef U8STR_CONSTEXPR
+
+
+
 
 template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst>
 class JComplexType;
@@ -97,7 +145,7 @@ public:
     {
         using PlainType = common::remove_cvref_t<T>;
         rapidjson::Value jstr;
-        if constexpr (std::is_same_v<common::u8StrView, PlainType>)
+        if constexpr (std::is_same_v<u8StrView, PlainType>)
             jstr.SetString(rapidjson::StringRef(str.CharData(), static_cast<uint32_t>(str.Length())));
         else if constexpr(std::is_same_v<string, PlainType>)
             jstr.SetString(str.data(), static_cast<uint32_t>(str.size()), mempool);
@@ -713,14 +761,14 @@ public:
 };
 
 template<typename Child, bool IsConst>
-class JObjectLike : public JComplexType<const common::u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>
+class JObjectLike : public JComplexType<const u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>
 {
     template<typename, typename, typename, bool>friend class JComplexType;
-    using Parent = JComplexType<const common::u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>;
+    using Parent = JComplexType<const u8StrView&, JObjectLike<Child, IsConst>, Child, IsConst>;
 private:
 
     template<typename Convertor, typename V, typename T>
-    static forceinline bool GetIf(V& valref, const common::u8StrView& name, T& val)
+    static forceinline bool GetIf(V& valref, const u8StrView& name, T& val)
     {
         if (auto it = valref.FindMember(name.CharData()); it != valref.MemberEnd())
             return Convertor::FromVal(it->value, val);

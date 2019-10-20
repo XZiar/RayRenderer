@@ -70,7 +70,7 @@ namespace common
 {
 
 template<typename T>
-inline constexpr std::enable_if_t<std::is_enum_v<T>, std::underlying_type_t<T>>
+[[nodiscard]] inline constexpr std::enable_if_t<std::is_enum_v<T>, std::underlying_type_t<T>>
 enum_cast(const T val)
 {
     return static_cast<std::underlying_type_t<T>>(val);
@@ -79,7 +79,7 @@ enum_cast(const T val)
 struct Enumer
 {
     template<auto E>
-    constexpr std::string_view ToName()
+    [[nodiscard]] constexpr std::string_view ToName() noexcept
     {
 #if COMPILER_MSVC
         std::string_view funcName = __FUNCSIG__;

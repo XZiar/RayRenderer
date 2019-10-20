@@ -17,8 +17,8 @@ MAKE_ENABLER_IMPL(FileMappingObject)
 
 
 FileMappingObject::FileMappingObject(std::shared_ptr<RawFileObject> file, const MappingFlag flag,
-    const HandleType handle, std::byte* ptr, const size_t size)
-    : RawFile(std::move(file)), MappingHandle(handle), Ptr(ptr), Size(size), Flag(flag)
+    const HandleType handle, const uint64_t offset, std::byte* ptr, const size_t size)
+    : RawFile(std::move(file)), Offset(offset), MappingHandle(handle), Ptr(ptr), Size(size), Flag(flag)
 { }
 
 
@@ -50,7 +50,7 @@ static std::tuple<uint64_t, uint64_t> HandleMappingAlign(const uint64_t offset)
     return { newOffset, padding };
 }
 
-static std::optional<std::tuple<FileMappingObject::HandleType, byte*, size_t>>
+static std::optional<std::tuple<FileMappingObject::HandleType, byte*, uint64_t, size_t>>
 TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std::pair<uint64_t, uint64_t>& region)
 {
     Ensures(region.second == UINT64_MAX || ((region.first + region.second) > region.first));
@@ -91,7 +91,7 @@ TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std:
         if (ptr != NULL)
         {
             const auto realPtr = reinterpret_cast<byte*>(ptr) + padding;
-            return std::tuple<FileMappingObject::HandleType, byte*, size_t>{ { mapHandle, ptr }, realPtr, realSize };
+            return std::make_tuple(FileMappingObject::HandleType{ mapHandle, ptr }, realPtr, offset, realSize);
         }
 
         CloseHandle(mapHandle);
@@ -120,7 +120,7 @@ TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std:
     if (ptr != MAP_FAILED)
     {
         const auto realPtr = reinterpret_cast<byte*>(ptr) + padding;
-        return std::tuple<FileMappingObject::HandleType, byte*, size_t>{ ptr, realPtr, realSize };
+        return std::make_tuple(ptr, realPtr, offset, realSize);
     }
     
     return {};
@@ -134,8 +134,8 @@ std::shared_ptr<FileMappingObject> FileMappingObject::OpenMapping(std::shared_pt
     {
         if (const auto ret = TryMap(rawFile->FileHandle, flag, region); ret.has_value())
         {
-            const auto& [handle, ptr, size] = *ret;
-            return MAKE_ENABLER_SHARED(FileMappingObject, std::move(rawFile), flag, handle, ptr, size);
+            const auto& [handle, ptr, offset, size] = *ret;
+            return MAKE_ENABLER_SHARED(FileMappingObject, (std::move(rawFile), flag, handle, offset, ptr, size));
         }
     }
     return {};
@@ -149,8 +149,8 @@ std::shared_ptr<FileMappingObject> FileMappingObject::OpenThrow(std::shared_ptr<
         COMMON_THROW(FileException, FileErrReason::OpenFail | err.value(), path, u"cannot map target file, not exists");
     if (const auto ret = TryMap(rawFile->FileHandle, flag, region); ret.has_value())
     {
-        const auto& [handle, ptr, size] = *ret;
-        return MAKE_ENABLER_SHARED(FileMappingObject, std::move(rawFile), flag, handle, ptr, size);
+        const auto& [handle, ptr, offset, size] = *ret;
+        return MAKE_ENABLER_SHARED(FileMappingObject, (std::move(rawFile), flag, handle, offset, ptr, size));
     }
 #if COMMON_OS_WIN
     switch (GetLastError())
@@ -207,7 +207,7 @@ inline std::byte* FileMappingStream::GetPtr() const noexcept { return MappingObj
 
 inline size_t FileMappingStream::GetBytes() const noexcept { return MappingObject->Size; }
 
-void FileMappingStream::FlushRange(const size_t offset, const size_t len, const bool async) const
+void FileMappingStream::FlushRange(const size_t offset, const size_t len, const bool async) const noexcept
 {
 #if COMMON_OS_WIN
     FlushViewOfFile(MappingObject->Ptr + offset, len);
@@ -250,7 +250,7 @@ FileMappingOutputStream::~FileMappingOutputStream()
         Flush();
 }
 
-bool FileMappingOutputStream::SetPos(const size_t pos)
+bool FileMappingOutputStream::SetPos(const size_t pos) noexcept
 {
     Flush();
     return MemoryOutputStream::SetPos(pos);
@@ -266,7 +266,7 @@ size_t FileMappingOutputStream::WriteMany(const size_t want, const size_t perSiz
     return cnt;
 }
 
-void FileMappingOutputStream::Flush()
+void FileMappingOutputStream::Flush() noexcept
 {
     FlushRange(ModifyRange.first, ModifyRange.second);
     ModifyRange.second = 0;

@@ -22,6 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.travis.yml = .travis.yml
 		dizz.png = dizz.png
 		License.txt = License.txt
+		NewIdea.md = NewIdea.md
 		README.md = README.md
 		TODO.md = TODO.md
 	EndProjectSection
@@ -33,9 +34,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{561A
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}"
 	ProjectSection(SolutionItems) = preProject
+		common\AlignedBufer.natvis = common\AlignedBufer.natvis
 		common\AlignedBuffer.hpp = common\AlignedBuffer.hpp
 		common\AlignedContainer.hpp = common\AlignedContainer.hpp
-		common\AlignedContainer.natvis = common\AlignedContainer.natvis
 		common\CLIAsync.hpp = common\CLIAsync.hpp
 		common\CLICommonRely.hpp = common\CLICommonRely.hpp
 		common\CLIException.hpp = common\CLIException.hpp
@@ -77,6 +78,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\StrBase.hpp = common\StrBase.hpp
 		common\StrCharset.hpp = common\StrCharset.hpp
 		common\Stream.hpp = common\Stream.hpp
+		common\Stream.natvis = common\Stream.natvis
 		common\StringEx.hpp = common\StringEx.hpp
 		common\Stringify.hpp = common\Stringify.hpp
 		common\TimeUtil.hpp = common\TimeUtil.hpp

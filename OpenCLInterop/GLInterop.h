@@ -73,7 +73,7 @@ public:
         std::shared_ptr<oclGLObject_<T>> Host;
         std::shared_ptr<GLInterop::GLResLocker> ResLocker;
         oclGLMem(std::shared_ptr<oclGLObject_<T>> host, const oclCmdQue& que, const cl_mem mem) :
-            Host(std::move(host)), ResLocker(MAKE_ENABLER_SHARED(GLInterop::GLResLocker, que, mem))
+            Host(std::move(host)), ResLocker(MAKE_ENABLER_SHARED(GLInterop::GLResLocker, (que, mem)))
         { }
     public:
         std::shared_ptr<T> Get() const

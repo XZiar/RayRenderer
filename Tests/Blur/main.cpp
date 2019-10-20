@@ -123,6 +123,13 @@ int main()
     std::getline(std::cin, fname);
     common::fs::path fpath = fname;
 
+    {
+        auto rf = common::file::RawFileObject::OpenThrow(fpath, common::file::OpenFlag::ReadBinary);
+        common::file::RawFileInputStream stream(rf);
+        stream.Skip(10);
+        common::io::BufferedRandomInputStream bs(std::move(stream), 65536);
+        bs.Skip(20);
+    }
     /*auto data = common::file::ReadAll<std::byte>(fpath);
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
     auto img1 = xziar::img::ReadImage(stream, u"JPG");*/

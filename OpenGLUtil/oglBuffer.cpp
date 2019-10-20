@@ -140,13 +140,13 @@ void oglBuffer_::Write(const void * const dat, const size_t size, const BufferWr
 oglPixelBuffer_::~oglPixelBuffer_() noexcept {}
 oglPBO oglPixelBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglPixelBuffer_);
+    return MAKE_ENABLER_SHARED(oglPixelBuffer_, ());
 }
 
 oglArrayBuffer_::~oglArrayBuffer_() noexcept {}
 oglVBO oglArrayBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglArrayBuffer_);
+    return MAKE_ENABLER_SHARED(oglArrayBuffer_, ());
 }
 
 
@@ -155,7 +155,7 @@ oglTextureBuffer_::oglTextureBuffer_() noexcept : oglBuffer_(BufferTypes::Textur
 oglTextureBuffer_::~oglTextureBuffer_() noexcept {}
 oglTBO oglTextureBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglTextureBuffer_);
+    return MAKE_ENABLER_SHARED(oglTextureBuffer_, ());
 }
 
 
@@ -175,7 +175,7 @@ oglUniformBuffer_::~oglUniformBuffer_() noexcept
 }
 oglUBO oglUniformBuffer_::Create(const size_t size)
 {
-    return MAKE_ENABLER_SHARED(oglUniformBuffer_, size);
+    return MAKE_ENABLER_SHARED(oglUniformBuffer_, (size));
 }
 
 struct UBOCtxConfig : public CtxResConfig<false, detail::UBOManager>
@@ -205,7 +205,7 @@ oglIndirectBuffer_::oglIndirectBuffer_() noexcept : oglBuffer_(BufferTypes::Indi
 oglIndirectBuffer_::~oglIndirectBuffer_() noexcept {}
 oglIBO oglIndirectBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglIndirectBuffer_);
+    return MAKE_ENABLER_SHARED(oglIndirectBuffer_, ());
 }
 
 void oglIndirectBuffer_::WriteCommands(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes, const bool isIndexed)
@@ -258,7 +258,7 @@ oglElementBuffer_::oglElementBuffer_() noexcept :
 oglElementBuffer_::~oglElementBuffer_() noexcept {}
 oglEBO oglElementBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglElementBuffer_);
+    return MAKE_ENABLER_SHARED(oglElementBuffer_, ());
 }
 
 void oglElementBuffer_::SetSize(const uint8_t elesize)

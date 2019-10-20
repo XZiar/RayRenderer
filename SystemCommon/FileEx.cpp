@@ -97,7 +97,7 @@ std::shared_ptr<FileObject> FileObject::OpenFile(const fs::path& path, const Ope
 {
     const auto ret = TryOpen(path, flag);
     if (ret.index() == 0)
-        return MAKE_ENABLER_SHARED(FileObject, path, std::get<0>(ret), flag);
+        return MAKE_ENABLER_SHARED(FileObject, (path, std::get<0>(ret), flag));
     else
         return {};
 }
@@ -106,7 +106,7 @@ std::shared_ptr<FileObject> FileObject::OpenThrow(const fs::path& path, const Op
 {
     const auto ret = TryOpen(path, flag);
     if (ret.index() == 0)
-        return MAKE_ENABLER_SHARED(FileObject, path, std::get<0>(ret), flag);
+        return MAKE_ENABLER_SHARED(FileObject, (path, std::get<0>(ret), flag));
     switch (std::get<1>(ret))
     {
     case ENOENT:    COMMON_THROW(FileException, FileErrReason::OpenFail | FileErrReason::NotExist      , path, u"cannot open target file, not exists");

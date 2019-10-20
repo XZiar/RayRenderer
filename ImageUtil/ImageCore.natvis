@@ -7,10 +7,10 @@
   <Type Name="xziar::img::Image">
     <Expand>
       <Item Name="[DataType]">DataType</Item>
-      <Synthetic Name="[type]" Condition="(DataType &amp; 0x40) == 0x0">
+      <Synthetic Name="[type]"     Condition="(DataType &amp; 0x40) == 0x0">
         <DisplayString>UINT8</DisplayString>
       </Synthetic>
-      <Synthetic Name="[type]" Condition="(DataType &amp; 0x40) != 0x0">
+      <Synthetic Name="[type]"     Condition="(DataType &amp; 0x40) != 0x0">
         <DisplayString>FLOAT32</DisplayString>
       </Synthetic>
       <Synthetic Name="[channels]" Condition="(DataType &amp; 0x8f) == 0x80">
@@ -33,12 +33,12 @@
       <Item Name="[data]" Condition="(DataType &amp; 0x40) == 0x0">(uint8_t*)Data</Item>
       <Item Name="[data]" Condition="(DataType &amp; 0x40) != 0x0">(float*)Data</Item>
       <Item Name="[stride]">Width * ElementSize</Item>
-      <Item Name="[size]" ExcludeView="simple">Width * Height * ElementSize</Item>
-      <ArrayItems Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) == 0x0">
+      <Item Name="[size]">Width * Height * ElementSize</Item>
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) == 0x0">
         <Size>Width * Height * ElementSize</Size>
-        <ValuePointer>Data</ValuePointer>
+        <ValuePointer>(const uint8_t*)Data</ValuePointer>
       </ArrayItems>
-      <ArrayItems Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) != 0x0">
+      <ArrayItems ExcludeView="simple" Condition="Data != nullptr &amp;&amp; (DataType &amp; 0x40) != 0x0">
         <Size>Width * Height</Size>
         <ValuePointer>(const float*)Data</ValuePointer>
       </ArrayItems>

@@ -4,7 +4,9 @@
   - [ ] Add async file operation (cross-platform)
   - [x] Add linq (iterator-based)
   - [ ] Move Contorllable into standalone project with better metadata management
-  - [ ] Implement new SIMD vector lib.
+  - [ ] Implement new SIMD vector lib
+  - [ ] Makes strcharset Linq-able
+  - [ ] Makes string split Linq-able
 
 * AsyncExecutor
   - [x] Add support for returning value

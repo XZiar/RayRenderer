@@ -36,13 +36,13 @@ private:
 public:
     ~RawFileObject();
 
-    const fs::path& Path() const { return FilePath; }
-    std::u16string ExtName() const { return FilePath.extension().u16string(); }
+    [[nodiscard]] const fs::path& Path() const { return FilePath; }
+    [[nodiscard]] std::u16string ExtName() const { return FilePath.extension().u16string(); }
 
     //==========Open=========//
 
-    static std::shared_ptr<RawFileObject> OpenFile(const fs::path& path, const OpenFlag flag);
-    static std::shared_ptr<RawFileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
+    [[nodiscard]] static std::shared_ptr<RawFileObject> OpenFile(const fs::path& path, const OpenFlag flag);
+    [[nodiscard]] static std::shared_ptr<RawFileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
 };
 
 
@@ -55,15 +55,15 @@ protected:
     RawFileStream(std::shared_ptr<RawFileObject>&& file) noexcept;
     ~RawFileStream();
 
-    RawFileObject::HandleType GetHandle() const;
+    [[nodiscard]] RawFileObject::HandleType GetHandle() const;
     void WriteCheck() const;
     void ReadCheck() const;
     bool FSeek(const int64_t offset, const SeekWhere whence);
-    size_t LeftSpace();
+    [[nodiscard]] size_t LeftSpace();
 
     //==========RandomStream=========//
-    size_t GetSize();
-    size_t CurrentPos() const;
+    [[nodiscard]] size_t GetSize();
+    [[nodiscard]] size_t CurrentPos() const;
     bool SetPos(const size_t offset);
 };
 
@@ -76,15 +76,15 @@ public:
     virtual ~RawFileInputStream() override;
 
     //==========InputStream=========//
-    virtual size_t AvaliableSpace() override;
+    [[nodiscard]] virtual size_t AvaliableSpace() override;
     virtual bool Read(const size_t len, void* ptr) override;
     virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override;
     virtual bool Skip(const size_t len) override;
-    virtual bool IsEnd() override;
+    [[nodiscard]] virtual bool IsEnd() override;
 
     //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
+    [[nodiscard]] virtual size_t GetSize() override;
+    [[nodiscard]] virtual size_t CurrentPos() const override;
     virtual bool SetPos(const size_t offset) override;
 };
 
@@ -103,8 +103,8 @@ public:
     virtual void Flush() override;
 
     //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
+    [[nodiscard]] virtual size_t GetSize() override;
+    [[nodiscard]] virtual size_t CurrentPos() const override;
     virtual bool SetPos(const size_t offset) override;
 };
 

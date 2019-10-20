@@ -6,11 +6,6 @@
 namespace common
 {
 
-inline size_t EnsureAlignment(const size_t num)
-{
-    size_t base = 1;
-    return num == 0 ? base : (base << common::TailZero(num));
-}
 
 class AlignedBuffer
 {
@@ -19,8 +14,8 @@ public:
     struct ExternBufInfo
     {
         virtual ~ExternBufInfo() = 0;
-        virtual size_t GetSize() const noexcept = 0;
-        virtual std::uintptr_t GetPtr() const noexcept = 0;
+        [[nodiscard]] virtual size_t GetSize() const noexcept = 0;
+        [[nodiscard]] virtual std::byte* GetPtr() const noexcept = 0;
     };
     class BufInfo
     {
@@ -35,17 +30,17 @@ public:
         BufInfo(std::unique_ptr<const ExternBufInfo>&& externInfo) noexcept : ExternInfo(externInfo.release()), Size(ExternInfo->GetSize()),
             RefCount(1), Cookie(0xdeadbeef) { }
     public:
-        static std::uintptr_t GetPtr(const BufInfo* info) noexcept
+        [[nodiscard]] static std::byte* GetPtr(const BufInfo* info) noexcept
         {
             if (info)
             {
                 if (info->ExternInfo)
                     return info->ExternInfo->GetPtr();
                 else
-                    return reinterpret_cast<std::uintptr_t>(info) - info->Size;
+                    return reinterpret_cast<std::byte*>(reinterpret_cast<uintptr_t>(info) - info->Size);
             }
             else
-                return reinterpret_cast<std::uintptr_t>(nullptr);
+                return nullptr;
         }
         static void AddReference(const BufInfo* info) noexcept
         {
@@ -63,26 +58,26 @@ public:
                 }
                 else
                 {
-                    free_align(reinterpret_cast<void*>(GetPtr(info)));
+                    free_align(GetPtr(info));
                 }
                 info = nullptr;
                 return true;
             }
             return false;
         }
-        [[nodiscard]] static std::byte* AllocNew(const size_t size, size_t& align, const BufInfo*& info) noexcept
+        [[nodiscard]] static std::byte* AllocNew(const size_t size, const size_t align, const BufInfo*& info) noexcept
         {
-            align = EnsureAlignment(align);
+            Ensures(IsPower2(align));
             ReduceReference(info);
             if (size != 0)
             {
                 constexpr size_t InfoAlign = alignof(BufInfo);
                 const size_t realSize = (size + InfoAlign - 1) / InfoAlign * InfoAlign;
-                const auto rawPtr = (std::uint8_t*)malloc_align(realSize + sizeof(BufInfo), align);
+                const auto rawPtr = (std::byte*)malloc_align(realSize + sizeof(BufInfo), align);
                 if (rawPtr != nullptr)
                 {
                     info = new (rawPtr + realSize)BufInfo(realSize);
-                    return reinterpret_cast<std::byte*>(GetPtr(info));
+                    return GetPtr(info);
                 }
             }
             return nullptr;
@@ -111,7 +106,7 @@ protected:
         Data = nullptr;
         Size = 0;
     };
-    void ReAlloc(const size_t size, size_t align)
+    void ReAlloc(const size_t size, size_t align) noexcept
     {
         Data = BufInfo::AllocNew(size, align, CoreInfo);
         Size = size; Align = align;
@@ -163,15 +158,22 @@ public:
         }
         return *this;
     }
-    std::byte& operator[](std::ptrdiff_t idx) noexcept { return Data[idx]; }
-    const std::byte& operator[] (std::ptrdiff_t idx) const noexcept { return Data[idx]; }
+
+    [[nodiscard]] constexpr size_t GetSize()      const noexcept { return Size; }
+    [[nodiscard]] constexpr size_t GetAlignment() const noexcept { return Align; }
+    
+    [[nodiscard]] constexpr       std::byte& operator[] (std::ptrdiff_t idx)       noexcept { return Data[idx]; }
+    [[nodiscard]] constexpr const std::byte& operator[] (std::ptrdiff_t idx) const noexcept { return Data[idx]; }
     template<typename T = std::byte>
-    constexpr T* GetRawPtr() noexcept { return reinterpret_cast<T*>(Data); }
+    [[nodiscard]] constexpr       T* GetRawPtr()         noexcept { return reinterpret_cast<T*>(Data); }
     template<typename T = std::byte>
-    constexpr const T* GetRawPtr() const noexcept { return reinterpret_cast<const T*>(Data); }
-    constexpr size_t GetSize() const noexcept { return Size; }
-    constexpr size_t GetAlignment() const noexcept { return Align; }
-    AlignedBuffer CreateSubBuffer(const size_t offset = 0, size_t size = SIZE_MAX) const
+    [[nodiscard]] constexpr const T* GetRawPtr()   const noexcept { return reinterpret_cast<const T*>(Data); }
+    template<typename T = std::byte>
+    [[nodiscard]] constexpr span<      T> AsSpan()       noexcept { return span<T>(GetRawPtr<T>(), Size / sizeof(T)); }
+    template<typename T = std::byte>
+    [[nodiscard]] constexpr span<const T> AsSpan() const noexcept { return span<T>(GetRawPtr<T>(), Size / sizeof(T)); }
+
+    [[nodiscard]] AlignedBuffer CreateSubBuffer(const size_t offset = 0, size_t size = SIZE_MAX) const
     {
         if (size == SIZE_MAX)
         {
@@ -183,6 +185,7 @@ public:
             throw std::bad_alloc(); // sub buffer range overflow
         return AlignedBuffer(CoreInfo, Data + offset, size, std::gcd(offset + Align, Align));
     }
+
     constexpr bool operator==(const AlignedBuffer& other) const noexcept
     {
         return Data == other.Data && Size == other.Size;

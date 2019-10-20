@@ -73,4 +73,7 @@
     <None Include="xzbuild.proj.json" />
     <None Include="README.md" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="FileStream.natvis" />
+  </ItemGroup>
 </Project>

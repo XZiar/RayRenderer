@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::AlignedBuffer::BufInfo">
+    <DisplayString Condition="Cookie == 0xabadcafe">
+      {{Embedded [{*(uint32_t*)&amp;RefCount}]ref, [{Size}]bytes}}
+    </DisplayString>
+    <DisplayString Condition="Cookie == 0xdeadbeef">
+      {{External [{*(uint32_t*)&amp;RefCount}]ref, [{Size}]bytes}}
+    </DisplayString>
+    <DisplayString Condition="Cookie != 0xabadcafe &amp;&amp; Cookie == 0xdeadbeef">
+      Broken
+    </DisplayString>
+    <Expand>
+      <Item Name="[data]" Condition="Cookie == 0xabadcafe">
+        (std::byte*)((uintptr_t)(this) - Size)
+      </Item>
+      <Item Name="[data]" Condition="Cookie == 0xdeadbeef">
+        ExternInfo->GetPtr()
+      </Item>
+      <Item Name="[size]">Size</Item>
+      <Item Name="[reference]">*(uint32_t*)&amp;RefCount</Item>
+      <Item Name="[extern]">ExternInfo</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::AlignedBuffer">
+    <DisplayString>
+      {{align[{Align}] size[{Size}]}}
+    </DisplayString>
+    <Expand>
+      <Item Name="[Info]">CoreInfo</Item>
+      <Item Name="[alignment]">Align</Item>
+      <Item Name="[data]">Data</Item>
+      <Item Name="[size]">Size</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

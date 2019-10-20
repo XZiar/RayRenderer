@@ -286,7 +286,7 @@ oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32
 
 oclImg2D oclImage2D_::Create(const oclContext & ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr)
 {
-    return MAKE_ENABLER_SHARED(oclImage2D_, ctx, flag, width, height, format, ptr);
+    return MAKE_ENABLER_SHARED(oclImage2D_, (ctx, flag, width, height, format, ptr));
 }
 
 
@@ -295,7 +295,7 @@ oclImage3D_::oclImage3D_(const oclContext& ctx, const MemFlag flag, const uint32
 { }
 oclImg3D oclImage3D_::Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr)
 {
-    return MAKE_ENABLER_SHARED(oclImage3D_, ctx, flag, width, height, depth, format, ptr);
+    return MAKE_ENABLER_SHARED(oclImage3D_, (ctx, flag, width, height, depth, format, ptr));
 }
 
 

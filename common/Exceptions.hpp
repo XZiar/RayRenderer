@@ -23,8 +23,9 @@ namespace detail
 class AnyException : public std::runtime_error, public std::enable_shared_from_this<AnyException>
 {
 protected:
-    const char* const TypeName;
-    explicit AnyException(const char* const type) : std::runtime_error(type), TypeName(type) {}
+    const char* TypeName;
+    explicit AnyException(const char* const type) : std::runtime_error(type), TypeName(type) { }
+    ~AnyException() override { }
     using std::runtime_error::what;
 };
 
@@ -33,7 +34,7 @@ class OtherException : public AnyException
     friend BaseException;
 public:
     static constexpr auto TYPENAME = "OtherException";
-    const char* What() const
+    [[nodiscard]] const char* What() const
     {
         if (!StdException)
             return "EMPTY";
@@ -48,7 +49,7 @@ public:
     }
     ~OtherException() override { }
 private:
-    const std::exception_ptr StdException;
+    std::exception_ptr StdException;
     OtherException(const std::exception& ex) : AnyException(TYPENAME), StdException(std::make_exception_ptr(ex))
     {}
     OtherException(const std::exception_ptr& exptr) : AnyException(TYPENAME), StdException(exptr)
@@ -76,7 +77,7 @@ public:
 };
 
 
-class BaseException : public detail::AnyException
+class [[nodiscard]] BaseException : public detail::AnyException
 {
     friend detail::ExceptionHelper;
 public:
@@ -113,23 +114,23 @@ public:
     BaseException(const BaseException& baseEx) = default;
     BaseException(BaseException&& baseEx) = default;
     ~BaseException() override {}
-    virtual std::shared_ptr<BaseException> clone() const
+    [[nodiscard]] virtual std::shared_ptr<BaseException> clone() const
     {
         return std::make_shared<BaseException>(*this);
     }
-    std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
-    const std::vector<StackTraceItem>& Stack() const
+    [[nodiscard]] std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
+    [[nodiscard]] constexpr const std::vector<StackTraceItem>& Stack() const
     {
         return StackTrace;
     }
-    std::vector<StackTraceItem> ExceptionStacks() const
+    [[nodiscard]] std::vector<StackTraceItem> ExceptionStacks() const
     {
         std::vector<StackTraceItem> ret;
         CollectStack(ret);
         return ret;
     }
     template<typename T, typename... Args>
-    static T CreateWithStack(StackTraceItem&& sti, Args... args)
+    [[nodiscard]] static T CreateWithStack(StackTraceItem&& sti, Args... args)
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         T ex(std::forward<Args>(args)...);
@@ -137,7 +138,7 @@ public:
         return ex;
     }
     template<typename T, typename... Args>
-    static T CreateWithStacks(std::vector<StackTraceItem>&& stacks, Args... args)
+    [[nodiscard]] static T CreateWithStacks(std::vector<StackTraceItem>&& stacks, Args... args)
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         T ex(std::forward<Args>(args)...);
@@ -145,13 +146,17 @@ public:
         return ex;
     }
 };
-#define EXCEPTION_CLONE_EX(type) static constexpr auto TYPENAME = #type;\
-    type(const type& ex) = default;\
-    virtual ::std::shared_ptr<::common::BaseException> clone() const override\
-    { return ::std::static_pointer_cast<::common::BaseException>(::std::make_shared<type>(*this)); }
+#define EXCEPTION_CLONE_EX(type)                                                    \
+    static constexpr auto TYPENAME = #type;                                         \
+    type(const type& ex) = default;                                                 \
+    [[nodiscard]] ::std::shared_ptr<::common::BaseException> clone() const override \
+    {                                                                               \
+        return ::std::static_pointer_cast<::common::BaseException>                  \
+            (::std::make_shared<type>(*this));                                      \
+    }                                                                               \
 
 
-inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException()
+[[nodiscard]] inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)

@@ -111,7 +111,7 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenFile(const fs::path& path, con
 {
     const auto ret = TryOpen(path, flag);
     if (ret.has_value())
-        return MAKE_ENABLER_SHARED(RawFileObject, path, *ret, flag);
+        return MAKE_ENABLER_SHARED(RawFileObject, (path, *ret, flag));
     else
         return {};
 }
@@ -120,7 +120,7 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenThrow(const fs::path& path, co
 {
     const auto ret = TryOpen(path, flag);
     if (ret.has_value())
-        return MAKE_ENABLER_SHARED(RawFileObject, path, *ret, flag);
+        return MAKE_ENABLER_SHARED(RawFileObject, (path, *ret, flag));
 #if defined(_WIN32)
     switch (GetLastError())
     {

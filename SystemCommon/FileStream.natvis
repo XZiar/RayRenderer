@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::file::FileObject">
+    <DisplayString>{{[{Flag}][{FilePath._Text,su}]}}</DisplayString>
+  </Type>
+  <Type Name="common::file::FileStream" Inheritable="true">
+    <DisplayString Condition="File == nullptr">{{Invalid File}}</DisplayString>
+    <DisplayString Condition="File != nullptr">{{FileStream [{File->FilePath._Text,su}]}}</DisplayString>
+    <Expand>
+      <Item Name="[path]">File->FilePath</Item>
+      <Item Name="[Flag]">File->Flag</Item>
+      <Item Name="[pos]">this->FTell()</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::file::RawFileObject">
+    <DisplayString>{{[{Flag}][{FilePath._Text,su}]}}</DisplayString>
+  </Type>
+  <Type Name="common::file::RawFileStream" Inheritable="true">
+    <DisplayString Condition="File == nullptr">{{Invalid RawFile}}</DisplayString>
+    <DisplayString Condition="File != nullptr">{{RawFileStream [{File->FilePath._Text,su}]}}</DisplayString>
+    <Expand>
+      <Item Name="[path]">File->FilePath</Item>
+      <Item Name="[Flag]">File->Flag</Item>
+      <Item Name="[Size]">this->GetSize()</Item>
+      <Item Name="[pos]">this->CurrentPos()</Item>
+      <Item Name="[IsEnd]">this->LeftSpace() == 0</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::file::FileMappingObject">
+    <DisplayString>{{FileMapping [{Offset}-{Size}][{Flag}][{RawFile->Flag}][{RawFile->FilePath._Text,su}]}}</DisplayString>
+    <Expand>
+      <Item Name="[file]">RawFile</Item>
+      <Item Name="[path]">RawFile->FilePath</Item>
+      <Item Name="[Flag]">RawFile->Flag</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::file::FileMappingInputStream" Inheritable="true">
+    <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
+    <DisplayString Condition="MappingObject != nullptr">
+      {{FileMappingInStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
+    </DisplayString>
+    <Expand>
+      <Item Name="[mapping]">*MappingObject</Item>
+      <Item Name="[file]">*MappingObject->RawFile</Item>
+      <Item Name="[path]">MappingObject->RawFile->FilePath</Item>
+      <Item Name="[FileFlag]">MappingObject->RawFile->Flag</Item>
+      <Item Name="[MapFlag]">MappingObject->Flag</Item>
+      <Item Name="Ptr">Ptr</Item>
+      <Item Name="[Size]">TotalSize</Item>
+      <Item Name="CurPos">CurPos</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::file::FileMappingOutputStream" Inheritable="true">
+    <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
+    <DisplayString Condition="MappingObject != nullptr">
+      {{FileMappingOutStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
+    </DisplayString>
+    <Expand>
+      <Item Name="[mapping]">*MappingObject</Item>
+      <Item Name="[file]">*MappingObject->RawFile</Item>
+      <Item Name="[path]">MappingObject->RawFile->FilePath</Item>
+      <Item Name="[FileFlag]">MappingObject->RawFile->Flag</Item>
+      <Item Name="[MapFlag]">MappingObject->Flag</Item>
+      <Item Name="Ptr">Ptr</Item>
+      <Item Name="[Size]">TotalSize</Item>
+      <Item Name="CurPos">CurPos</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

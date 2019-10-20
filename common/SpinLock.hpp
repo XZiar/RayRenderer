@@ -18,7 +18,7 @@ namespace common
 namespace detail
 {
 template<typename T, void(T::*Lock)(), void(T::*Unlock)()>
-struct LockScope
+struct [[nodiscard]] LockScope
 {
 private:
     T& Locker;

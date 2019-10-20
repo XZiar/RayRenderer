@@ -80,7 +80,7 @@ PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const b
 
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
 {
-    return MAKE_ENABLER_SHARED(oclBuffer_, ctx, AddMemHostCopyFlag(flag, ptr), size, ptr);
+    return MAKE_ENABLER_SHARED(oclBuffer_, (ctx, AddMemHostCopyFlag(flag, ptr), size, ptr));
 }
 
 

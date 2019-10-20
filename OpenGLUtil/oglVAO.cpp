@@ -243,7 +243,7 @@ void oglVAO_::Test() const noexcept
 
 oglVAO oglVAO_::Create(const VAODrawMode mode)
 {
-    return MAKE_ENABLER_SHARED(oglVAO_, mode);
+    return MAKE_ENABLER_SHARED(oglVAO_, (mode));
 }
 
 }

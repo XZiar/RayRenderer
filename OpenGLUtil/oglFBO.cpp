@@ -42,7 +42,7 @@ oglRenderBuffer_::oglRenderBuffer_(const uint32_t width, const uint32_t height, 
 }
 oglRBO oglRenderBuffer_::Create(const uint32_t width, const uint32_t height, const RBOFormat format)
 {
-    return MAKE_ENABLER_SHARED(oglRenderBuffer_, width, height, format);
+    return MAKE_ENABLER_SHARED(oglRenderBuffer_, (width, height, format));
 }
 
 oglRenderBuffer_::~oglRenderBuffer_()
@@ -61,7 +61,7 @@ oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX)
 }
 oglFBO oglFrameBuffer_::Create()
 {
-    return MAKE_ENABLER_SHARED(oglFrameBuffer_);
+    return MAKE_ENABLER_SHARED(oglFrameBuffer_, ());
 }
 
 oglFrameBuffer_::~oglFrameBuffer_()

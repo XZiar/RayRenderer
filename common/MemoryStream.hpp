@@ -19,31 +19,34 @@ private:
     size_t TotalSize, CurPos = 0;
 public:
     template<typename T>
+    MemoryInputStream(const span<T> srcSpan) noexcept : 
+        Ptr(common::as_bytes(srcSpan).data()), TotalSize(srcSpan.size_bytes()) { }
+    template<typename T>
     MemoryInputStream(const T* ptr, const size_t count) noexcept :
-        Ptr(reinterpret_cast<const std::byte*>(ptr)), TotalSize(count * sizeof(T)) {}
-    MemoryInputStream(MemoryInputStream&& stream) noexcept :
+        Ptr(reinterpret_cast<const std::byte*>(ptr)), TotalSize(count * sizeof(T)) { }
+    constexpr MemoryInputStream(MemoryInputStream&& stream) noexcept :
         Ptr(stream.Ptr), TotalSize(stream.TotalSize), CurPos(stream.CurPos)
     {
         stream.Ptr = nullptr; stream.TotalSize = stream.CurPos = 0;
     }
     virtual ~MemoryInputStream() override {}
 
-    std::pair<const std::byte*, size_t> ExposeAvaliable() const
+    [[nodiscard]] constexpr std::pair<const std::byte*, size_t> ExposeAvaliable() const
     {
         return { Ptr + CurPos, TotalSize - CurPos };
     }
 
     //==========RandomStream=========//
 
-    virtual size_t GetSize() override
+    [[nodiscard]] virtual size_t GetSize() noexcept override
     {
         return TotalSize;
     }
-    virtual size_t CurrentPos() const override
+    [[nodiscard]] virtual size_t CurrentPos() const noexcept override
     {
         return CurPos;
     }
-    virtual bool SetPos(const size_t pos) override
+    virtual bool SetPos(const size_t pos) noexcept override
     {
         if (pos >= TotalSize)
             return false;
@@ -53,11 +56,11 @@ public:
 
     //==========InputStream=========//
 
-    virtual size_t AvaliableSpace() override
+    [[nodiscard]] virtual size_t AvaliableSpace() noexcept override
     {
         return TotalSize - CurPos;
     };
-    virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override
+    virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) noexcept override
     {
         const size_t len = want * perSize;
         const auto avaliable = std::min(len, TotalSize - CurPos);
@@ -65,16 +68,16 @@ public:
         CurPos += avaliable;
         return avaliable / perSize;
     }
-    virtual bool Skip(const size_t len) override
+    virtual bool Skip(const size_t len) noexcept override
     {
         return SetPos(CurPos + len);
     }
-    virtual bool IsEnd() override
+    [[nodiscard]] virtual bool IsEnd() noexcept override
     {
         return CurPos >= TotalSize;
     }
 
-    forceinline virtual std::byte ReadByteNE(bool& isSuccess) override
+    [[nodiscard]] forceinline virtual std::byte ReadByteNE(bool& isSuccess) noexcept override
     {
         isSuccess = CurPos < TotalSize;
         if (isSuccess)
@@ -82,7 +85,7 @@ public:
         else
             return std::byte(0xff);
     }
-    forceinline virtual std::byte ReadByteME() override
+    [[nodiscard]] forceinline virtual std::byte ReadByteME() override
     {
         if (CurPos < TotalSize)
             return Ptr[CurPos++];
@@ -99,12 +102,15 @@ private:
     size_t TotalSize, CurPos = 0;
 protected:
     virtual bool IsGrowable() const noexcept { return false; }
-    virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) { return { Ptr, TotalSize }; }
+    [[nodiscard]] virtual std::pair<std::byte*, size_t> Grow(const size_t) { return { Ptr, TotalSize }; }
 public:
+    template<typename T>
+    MemoryOutputStream(const span<T> srcSpan) noexcept :
+        Ptr(common::as_writable_bytes(srcSpan).data()), TotalSize(srcSpan.size_bytes()) { }
     template<typename T>
     MemoryOutputStream(T* ptr, const size_t count) noexcept :
         Ptr(reinterpret_cast<std::byte*>(ptr)), TotalSize(count * sizeof(T)) {}
-    MemoryOutputStream(MemoryOutputStream&& stream) noexcept :
+    constexpr MemoryOutputStream(MemoryOutputStream&& stream) noexcept :
         Ptr(stream.Ptr), TotalSize(stream.TotalSize), CurPos(stream.CurPos)
     {
         stream.Ptr = nullptr; stream.TotalSize = stream.CurPos = 0;
@@ -113,15 +119,15 @@ public:
 
     //==========RandomStream=========//
 
-    virtual size_t GetSize() override
+    [[nodiscard]] virtual size_t GetSize() noexcept override
     {
         return TotalSize;
     }
-    virtual size_t CurrentPos() const override
+    [[nodiscard]] virtual size_t CurrentPos() const noexcept override
     {
         return CurPos;
     }
-    virtual bool SetPos(const size_t pos) override
+    virtual bool SetPos(const size_t pos) noexcept override
     {
         if (pos >= TotalSize)
             return false;
@@ -131,7 +137,7 @@ public:
 
     //==========OutputStream=========//
 
-    virtual size_t AcceptableSpace() override
+    [[nodiscard]] virtual size_t AcceptableSpace() noexcept override
     {
         return IsGrowable() ? SIZE_MAX : TotalSize - CurPos;
     };
@@ -164,9 +170,9 @@ private:
     static_assert(Helper::IsContiguous, "need a container that satisfies contiguous container concept");
 protected:
     ContainerHolder(T& container) : Container(&container) {}
-    ContainerHolder(T&& container) : Container(std::move(container)) {}
-    ContainerHolder(ContainerHolder<T>&& other) : Container(std::move(other.container)) {}
-    T* GetContainer()
+    constexpr ContainerHolder(T&& container) noexcept : Container(std::move(container)) {}
+    constexpr ContainerHolder(ContainerHolder<T>&& other) noexcept : Container(std::move(other.container)) {}
+    [[nodiscard]] constexpr T* GetContainer() noexcept
     {
         if (std::holds_alternative<T>(Container))
             return std::get_if<T>(&Container);
@@ -174,15 +180,15 @@ protected:
             return std::get<T*>(Container);
     }
 public:
-    constexpr static size_t GetElementSize()
+    [[nodiscard]] constexpr static size_t GetElementSize() noexcept
     {
         return Helper::EleSize;
     }
-    auto* GetPtr()
+    [[nodiscard]] constexpr auto* GetPtr() noexcept
     {
         return Helper::Data(*GetContainer());
     }
-    size_t GetCount()
+    [[nodiscard]] constexpr size_t GetCount() noexcept
     {
         return Helper::Count(*GetContainer());
     }
@@ -194,13 +200,13 @@ template<typename T>
 class ContainerInputStream : private detail::ContainerHolder<const T>, public MemoryInputStream
 {
 public:
-    ContainerInputStream(const T& container) 
+    ContainerInputStream(const T& container)  noexcept
         : detail::ContainerHolder<const T>(container),
         MemoryInputStream(this->GetPtr(), this->GetCount()) {}
-    ContainerInputStream(T&& container)
+    ContainerInputStream(T&& container) noexcept
         : detail::ContainerHolder<const T>(std::move(container)),
         MemoryInputStream(this->GetPtr(), this->GetCount()) {}
-    ContainerInputStream(ContainerInputStream<T>&& other)
+    ContainerInputStream(ContainerInputStream<T>&& other) noexcept
         : detail::ContainerHolder<const T>(std::move(other)),
         MemoryInputStream(std::move(other)) {}
     virtual ~ContainerInputStream() override {}
@@ -213,8 +219,8 @@ class ContainerOutputStream : private detail::ContainerHolder<T>, public MemoryO
 private:
     static constexpr bool IsConst = std::is_const_v<T> || std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>;
 protected:
-    virtual bool IsGrowable() const noexcept override { return !IsConst; }
-    virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) override
+    [[nodiscard]] virtual bool IsGrowable() const noexcept override { return !IsConst; }
+    [[nodiscard]] virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) noexcept(IsConst) override
     {
         if constexpr (IsConst)
             return MemoryOutputStream::Grow(size);
@@ -229,10 +235,10 @@ protected:
         }
     }
 public:
-    ContainerOutputStream(T& container)
+    ContainerOutputStream(T& container) noexcept
         : detail::ContainerHolder<T>(container),
         MemoryOutputStream(this->GetPtr(), this->GetCount()) {}
-    ContainerOutputStream(ContainerInputStream<T>&& other)
+    ContainerOutputStream(ContainerInputStream<T>&& other) noexcept
         : detail::ContainerHolder<T>(std::move(other)),
         MemoryOutputStream(std::move(other)) {}
     virtual ~ContainerOutputStream() override {}

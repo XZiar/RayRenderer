@@ -35,7 +35,7 @@ public:
     void Print(const ConsoleColor color, const std::u16string_view& str) const;
     void Print(const std::u16string_view& str) const;
 
-    static constexpr const char16_t(&GetColorStr(const ConsoleColor color))[6]
+    static constexpr const char16_t(&GetColorStr(const ConsoleColor color) noexcept)[6]
     {
         switch (color)
         {

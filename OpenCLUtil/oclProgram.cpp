@@ -309,7 +309,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vect
 
 oclProgram oclProgram_::oclProgStub::Finish()
 {
-    return MAKE_ENABLER_SHARED_CONST(oclProgram_, this);
+    return MAKE_ENABLER_SHARED(const oclProgram_, (this));
 }
 
 

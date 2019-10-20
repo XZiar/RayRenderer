@@ -64,14 +64,13 @@ struct NumericRangeSource
     T End;
 
     constexpr NumericRangeSource(T current, T step, T end) noexcept : Current(current), Step(step), End(end) {}
-    constexpr T GetCurrent() const noexcept { return Current; }
+    [[nodiscard]] constexpr T GetCurrent() const noexcept { return Current; }
     constexpr void MoveNext() noexcept { Current += Step; }
-    constexpr bool IsEnd() const noexcept 
+    [[nodiscard]] constexpr bool IsEnd() const noexcept
     { 
         return Step < 0 ? Current <= End : Current >= End;
     }
-
-    constexpr size_t Count() const noexcept 
+    [[nodiscard]] constexpr size_t Count() const noexcept
     { 
         return IsEnd() ? 0 : static_cast<size_t>((End - Current) / Step);
     }
@@ -96,10 +95,10 @@ struct RepeatSource
     size_t Avaliable;
 
     constexpr RepeatSource(T val, const size_t count) : Val(std::move(val)), Avaliable(count) {}
-    constexpr T GetCurrent() const { return Val; }
+    [[nodiscard]] constexpr T GetCurrent() const { return Val; }
     constexpr void MoveNext() noexcept { Avaliable--; }
-    constexpr bool IsEnd() const noexcept { return Avaliable == 0; }
-    constexpr size_t Count() const noexcept { return Avaliable; }
+    [[nodiscard]] constexpr bool IsEnd() const noexcept { return Avaliable == 0; }
+    [[nodiscard]] constexpr size_t Count() const noexcept { return Avaliable; }
     constexpr void MoveMultiple(const size_t count) noexcept { Avaliable -= count; }
 };
 
@@ -108,7 +107,7 @@ template<typename T>
 struct PassthroughGenerator
 {
     template<typename U>
-    T operator()(U& eng) const noexcept { return static_cast<T>(eng()); }
+    [[nodiscard]] T operator()(U& eng) const noexcept { return static_cast<T>(eng()); }
 };
 
 template<typename T, typename U>
@@ -124,10 +123,10 @@ struct RandomSource
     mutable U Generator;
 
     constexpr RandomSource(T&& eng, U&& gen) : Engine(std::move(eng)), Generator(std::move(gen)) {}
-    OutType GetCurrent() const { return Generator(Engine); }
+    [[nodiscard]] OutType GetCurrent() const { return Generator(Engine); }
     constexpr void MoveNext() noexcept { }
-    constexpr bool IsEnd() const noexcept { return false; }
-    constexpr size_t Count() const noexcept { return SIZE_MAX; }
+    [[nodiscard]] constexpr bool IsEnd() const noexcept { return false; }
+    [[nodiscard]] constexpr size_t Count() const noexcept { return SIZE_MAX; }
     void MoveMultiple(size_t count) noexcept 
     { 
         Engine.discard(count);
@@ -144,8 +143,8 @@ protected:
     template<typename U>
     ObjCache(U&& obj) : Object(std::make_unique<T>(obj)) {}
 
-    constexpr T& Obj() { return *Object; }
-    constexpr const T& Obj() const { return *Object; }
+    [[nodiscard]] constexpr T& Obj() { return *Object; }
+    [[nodiscard]] constexpr const T& Obj() const { return *Object; }
 };
 
 template<typename TB, typename TE>
@@ -161,9 +160,9 @@ struct IteratorSource
     TE End;
 
     constexpr IteratorSource(TB begin, TE end) : Begin(std::move(begin)), End(std::move(end)) {}
-    constexpr OutType GetCurrent() const { return *Begin; }
+    [[nodiscard]] constexpr OutType GetCurrent() const { return *Begin; }
     constexpr void MoveNext() { ++Begin; }
-    constexpr bool IsEnd() const { return !(Begin != End); }
+    [[nodiscard]] constexpr bool IsEnd() const { return !(Begin != End); }
     void MoveMultiple(size_t count) noexcept
     {
         std::advance(Begin, count);
@@ -204,7 +203,7 @@ protected:
     P Prev;
     constexpr NestedSource(P&& prev) : Prev(std::move(prev)) { }
 
-    constexpr InType GetCurrentFromPrev() const
+    [[nodiscard]] constexpr InType GetCurrentFromPrev() const
     {
         return Prev.GetCurrent();
     }
@@ -212,7 +211,7 @@ protected:
     {
         Prev.MoveNext();
     }
-    constexpr size_t Count() const
+    [[nodiscard]] constexpr size_t Count() const
     {
         if constexpr (P::IsCountable)
             return Prev.Count();
@@ -241,17 +240,17 @@ private:
 protected:
     constexpr NestedCacheSource(P&& prev) : NestedSource<P>(std::move(prev)) { }
 
-    constexpr std::add_lvalue_reference_t<PlainInType> GetCurrentRefFromPrev() const
+    [[nodiscard]] constexpr std::add_lvalue_reference_t<PlainInType> GetCurrentRefFromPrev() const
     {
         if (!Temp)
             Temp.emplace(this->Prev.GetCurrent());
         return *Temp;
     }
-    constexpr std::add_lvalue_reference_t<std::add_const_t<PlainInType>> GetCurrentConstRefFromPrev() const
+    [[nodiscard]] constexpr std::add_lvalue_reference_t<std::add_const_t<PlainInType>> GetCurrentConstRefFromPrev() const
     {
         return GetCurrentRefFromPrev();
     }
-    constexpr InType GetCurrentFromPrev() const
+    [[nodiscard]] constexpr InType GetCurrentFromPrev() const
     {
         if (Temp)
             return *std::move(Temp);
@@ -286,7 +285,7 @@ public:
 
     constexpr LimitSource(P&& prev, const size_t n) : BaseType(std::move(prev)), Avaliable(n)
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return this->GetCurrentFromPrev();
     }
@@ -298,12 +297,11 @@ public:
             this->MoveNextFromPrev();
         }
     }
-    constexpr bool IsEnd() const 
+    [[nodiscard]] constexpr bool IsEnd() const
     { 
         return Avaliable == 0 || this->Prev.IsEnd();
     }
-    
-    constexpr size_t Count() const
+    [[nodiscard]] constexpr size_t Count() const
     {
         return std::min(Avaliable, BaseType::Count());
     }
@@ -337,7 +335,7 @@ public:
             this->MoveNextFromPrev();
         }
     }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return this->GetCurrentFromPrev();
     }
@@ -348,13 +346,13 @@ public:
             this->MoveNextFromPrev();
         } while (!this->Prev.IsEnd() && !CheckCurrent());
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return this->Prev.IsEnd();
     }
 private:
     static constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
-    constexpr bool CheckCurrent() const
+    [[nodiscard]] constexpr bool CheckCurrent() const
     {
         //static_assert(AcceptConstRef || P::InvolveCache, "uncache value should not be filtered as non-const ref");
         if constexpr (P::InvolveCache)
@@ -387,7 +385,7 @@ public:
 
     constexpr MappedSource(P&& prev, Mapper&& mapper) : BaseType(std::move(prev)), Func(std::move(mapper))
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return Func(this->GetCurrentFromPrev());
     }
@@ -395,7 +393,7 @@ public:
     {
         this->MoveNextFromPrev();
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return this->Prev.IsEnd();
     }
@@ -426,7 +424,7 @@ public:
     {
         LoadNextBatch();
     }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return Middle->GetCurrent();
     }
@@ -439,7 +437,7 @@ public:
             LoadNextBatch();
         }
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return !Middle.has_value();
     }
@@ -464,7 +462,7 @@ private:
 struct TupledSourceHelper
 {
     template<typename OutType, typename Tuple, size_t... I>
-    constexpr static auto GetCurrent(Tuple&& t, std::index_sequence<I...>)
+    [[nodiscard]] constexpr static auto GetCurrent(Tuple&& t, std::index_sequence<I...>)
     {
         return OutType(std::get<I>(std::forward<Tuple>(t)).GetCurrent()...);
     }
@@ -474,12 +472,12 @@ struct TupledSourceHelper
         (std::get<I>(std::forward<Tuple>(t)).MoveNext(), ...);
     }
     template<typename Tuple, size_t... I>
-    constexpr static bool IsEnd(Tuple&& t, std::index_sequence<I...>)
+    [[nodiscard]] constexpr static bool IsEnd(Tuple&& t, std::index_sequence<I...>)
     {
         return (std::get<I>(std::forward<Tuple>(t)).IsEnd() || ...);
     }
     template<typename... Ns>
-    constexpr static size_t Count2(const size_t t, const Ns... ns)
+    [[nodiscard]] constexpr static size_t Count2(const size_t t, const Ns... ns)
     {
         if constexpr (sizeof...(Ns) == 0)
             return t;
@@ -487,7 +485,7 @@ struct TupledSourceHelper
             return std::min(t, Count2(ns...));
     }
     template<typename Tuple, size_t... I>
-    constexpr static size_t Count(Tuple&& t, std::index_sequence<I...>)
+    [[nodiscard]] constexpr static size_t Count(Tuple&& t, std::index_sequence<I...>)
     {
         return Count2(std::get<I>(std::forward<Tuple>(t)).Count()...);
     }
@@ -522,7 +520,7 @@ public:
 
     constexpr TupledSource(Ps&&... prevs) : Prevs(std::forward<Ps>(prevs)...)
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return TupledSourceHelper::GetCurrent<OutType>(Prevs, Indexes);
     }
@@ -530,11 +528,11 @@ public:
     {
         TupledSourceHelper::MoveNext(Prevs, Indexes);
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return TupledSourceHelper::IsEnd(Prevs, Indexes);
     }
-    constexpr size_t Count() const
+    [[nodiscard]] constexpr size_t Count() const
     {
         if constexpr (IsCountable)
             return TupledSourceHelper::Count(Prevs, Indexes);
@@ -568,7 +566,7 @@ public:
 
     constexpr PairedSource(P1&& prev1, P2&& prev2) : Prev1(std::move(prev1)), Prev2(std::move(prev2))
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return OutType{ Prev1.GetCurrent(), Prev2.GetCurrent() };
     }
@@ -577,11 +575,11 @@ public:
         Prev1.MoveNext();
         Prev2.MoveNext();
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return Prev1.IsEnd() || Prev2.IsEnd();
     }
-    constexpr size_t Count() const
+    [[nodiscard]] constexpr size_t Count() const
     {
         if constexpr (IsCountable)
             return std::min(Prev1.Count(), Prev2.Count());
@@ -663,7 +661,7 @@ public:
     constexpr ConcatedSource(P1&& prev1, P2&& prev2) : 
         Prev1(std::move(prev1)), Prev2(std::move(prev2)), IsSrc2(Prev1.IsEnd())
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return IsSrc2 ? Prev2.GetCurrent() : Prev1.GetCurrent();
     }
@@ -673,11 +671,11 @@ public:
         if (!IsSrc2)
             IsSrc2 = Prev1.IsEnd();
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return IsSrc2 ? Prev2.IsEnd() : Prev1.IsEnd();
     }
-    constexpr size_t Count() const
+    [[nodiscard]] constexpr size_t Count() const
     {
         if constexpr (IsCountable)
             return Prev1.Count() + Prev2.Count();
@@ -714,7 +712,7 @@ public:
 
     constexpr CastedSource(P&& prev) : BaseType(std::move(prev))
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return static_cast<OutType>(this->GetCurrentFromPrev());
     }
@@ -722,7 +720,7 @@ public:
     {
         this->MoveNextFromPrev();
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return this->Prev.IsEnd();
     }
@@ -748,7 +746,7 @@ public:
 
     constexpr CastCtorSource(P&& prev) : BaseType(std::move(prev))
     { }
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return OutType(this->GetCurrentFromPrev());
     }
@@ -756,7 +754,7 @@ public:
     {
         this->MoveNextFromPrev();
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return this->Prev.IsEnd();
     }
@@ -808,7 +806,7 @@ private:
         using reference = EleType;
 
         Enumerable<T>* Source;
-        constexpr EnumerableIterator(Enumerable<T>* source) : Source(source) {}
+        constexpr EnumerableIterator(Enumerable<T>* source) noexcept : Source(source) {}
         constexpr decltype(auto) operator*() const
         {
             return Source->Provider.GetCurrent();
@@ -834,24 +832,24 @@ private:
         }
     };
 public:
-    EnumerableIterator begin()
+    constexpr EnumerableIterator begin() noexcept
     {
         return this;
     }
-    EnumerableIterator begin() const
+    constexpr EnumerableIterator begin() const noexcept
     {
         return this;
     }
-    constexpr detail::EnumerableEnd end()
+    constexpr detail::EnumerableEnd end() noexcept
     {
         return {};
     }
-    constexpr detail::EnumerableEnd end() const
+    constexpr detail::EnumerableEnd end() const noexcept
     {
         return {};
     }
 
-    constexpr Enumerable<T>& Skip(size_t n)
+    [[nodiscard]] constexpr Enumerable<T>& Skip(size_t n)
     {
         if constexpr (T::CanSkipMultiple && T::IsCountable)
         {
@@ -866,13 +864,13 @@ public:
         return *this;
     }
 
-    constexpr Enumerable<detail::LimitSource<T>> Take(const size_t n)
+    [[nodiscard]] constexpr Enumerable<detail::LimitSource<T>> Take(const size_t n)
     {
         return detail::LimitSource<T>(std::move(Provider), n);
     }
 
     template<bool ForceCache, typename Mapper>
-    constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> Select(Mapper&& mapper)
+    [[nodiscard]] constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> Select(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using OutType = std::invoke_result_t<Mapper, EleType>;
@@ -880,7 +878,7 @@ public:
     }
 
     template<typename Mapper>
-    constexpr decltype(auto) Select(Mapper&& mapper)
+    [[nodiscard]] constexpr decltype(auto) Select(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using OutType = std::invoke_result_t<Mapper, EleType>;
@@ -889,7 +887,7 @@ public:
     }
 
     template<typename Mapper>
-    constexpr Enumerable<detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>> SelectMany(Mapper&& mapper)
+    [[nodiscard]] constexpr Enumerable<detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>> SelectMany(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using MidType = std::invoke_result_t<Mapper, EleType>;
@@ -898,7 +896,7 @@ public:
     }
 
     template<typename Filter>
-    constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> Where(Filter&& filter)
+    [[nodiscard]] constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> Where(Filter&& filter)
     {
         static_assert(std::is_invocable_r_v<bool, Filter, EleType>
             || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
@@ -907,25 +905,25 @@ public:
     }
 
     template<typename Other>
-    constexpr Enumerable<detail::PairedSource<T, Other>> Pair(Enumerable<Other>&& other)
+    [[nodiscard]] constexpr Enumerable<detail::PairedSource<T, Other>> Pair(Enumerable<Other>&& other)
     {
         return detail::PairedSource<T, Other>(std::move(Provider), std::move(other.Provider));
     }
 
     template<typename... Others>
-    constexpr Enumerable<detail::TupledSource<T, Others...>> Pairs(Enumerable<Others>&&... others)
+    [[nodiscard]] constexpr Enumerable<detail::TupledSource<T, Others...>> Pairs(Enumerable<Others>&&... others)
     {
         return detail::TupledSource<T, Others...>(std::move(Provider), std::move(others.Provider)...);
     }
 
     template<typename Other>
-    constexpr Enumerable<detail::ConcatedSource<T, Other>> Concat(Enumerable<Other>&& other)
+    [[nodiscard]] constexpr Enumerable<detail::ConcatedSource<T, Other>> Concat(Enumerable<Other>&& other)
     {
         return detail::ConcatedSource<T, Other>(std::move(Provider), std::move(other.Provider));
     }
 
     template<typename DstType>
-    constexpr auto Cast()
+    [[nodiscard]] constexpr auto Cast()
     {
         if constexpr (std::is_convertible_v<EleType, DstType>)
             return ToEnumerable(detail::CastedSource<T, DstType>(std::move(Provider)));
@@ -936,7 +934,7 @@ public:
     }
 
     template<typename Func>
-    Enumerable<detail::ContainedIteratorSource<std::vector<PlainEleType>>> OrderBy(Func&& comparator = {})
+    [[nodiscard]] Enumerable<detail::ContainedIteratorSource<std::vector<PlainEleType>>> OrderBy(Func&& comparator = {})
     {
         static_assert(std::is_invocable_r_v<bool, Func, const PlainEleType&, const PlainEleType&>, 
             "sort need a comparator that accepts two element and returns bool");
@@ -945,7 +943,7 @@ public:
         return detail::ContainedIteratorSource<std::vector<PlainEleType>>(std::move(tmp));
     }
 
-    constexpr size_t Count()
+    [[nodiscard]] constexpr size_t Count()
     {
         if constexpr (T::IsCountable)
             return Provider.Count();
@@ -973,7 +971,7 @@ public:
     }
 
     template<typename U, typename Func>
-    constexpr U Reduce(Func&& func, U data = {})
+    [[nodiscard]] constexpr U Reduce(Func&& func, U data = {})
     {
         static_assert(std::is_invocable_v<Func, U&, EleType>, "reduce function should accept target and element");
         while (!Provider.IsEnd())
@@ -988,23 +986,23 @@ public:
     }
 
     template<typename U = EleType>
-    constexpr U Sum(U data = {})
+    [[nodiscard]] constexpr U Sum(U data = {})
     {
         return Reduce([](U& ret, const auto& item) { ret += item; }, data);
     }
 
-    constexpr std::optional<PlainEleType> TryGetFirst() const
+    [[nodiscard]] constexpr std::optional<PlainEleType> TryGetFirst() const
     {
         return Provider.IsEnd() ? std::optional<PlainEleType>{} : Provider.GetCurrent();
     }
 
-    constexpr bool Empty() const
+    [[nodiscard]] constexpr bool Empty() const
     {
         return Provider.IsEnd();
     }
 
     template<typename U>
-    constexpr bool Contains(const U& obj)
+    [[nodiscard]] constexpr bool Contains(const U& obj)
     {
         while (!Provider.IsEnd())
         {
@@ -1025,7 +1023,7 @@ public:
         return false;
     }
     template<typename Func>
-    constexpr bool ContainsIf(Func&& judger)
+    [[nodiscard]] constexpr bool ContainsIf(Func&& judger)
     {
         static_assert(std::is_invocable_r_v<bool, Func, EleType>, "judger should accept element and return bool");
         while (!Provider.IsEnd())
@@ -1038,7 +1036,7 @@ public:
     }
 
     template<typename U>
-    constexpr bool All(const U& obj)
+    [[nodiscard]] constexpr bool All(const U& obj)
     {
         while (!Provider.IsEnd())
         {
@@ -1059,7 +1057,7 @@ public:
         return true;
     }
     template<typename Func>
-    constexpr bool AllIf(Func&& judger)
+    [[nodiscard]] constexpr bool AllIf(Func&& judger)
     {
         static_assert(std::is_invocable_r_v<bool, Func, EleType>, "judger should accept element and return bool");
         while (!Provider.IsEnd())
@@ -1071,7 +1069,7 @@ public:
         return true;
     }
 
-    std::vector<PlainEleType> ToVector()
+    [[nodiscard]] std::vector<PlainEleType> ToVector()
     {
         std::vector<PlainEleType> ret;
         if constexpr (T::IsCountable)
@@ -1083,7 +1081,7 @@ public:
         }
         return ret;
     }
-    std::list<PlainEleType> ToList()
+    [[nodiscard]] std::list<PlainEleType> ToList()
     {
         std::list<PlainEleType> ret;
         while (!Provider.IsEnd())
@@ -1094,7 +1092,7 @@ public:
         return ret;
     }
     template<typename Comparator = std::less<PlainEleType>>
-    std::set<PlainEleType, Comparator> ToOrderSet()
+    [[nodiscard]] std::set<PlainEleType, Comparator> ToOrderSet()
     {
         std::set<PlainEleType, Comparator> ret;
         while (!Provider.IsEnd())
@@ -1105,7 +1103,7 @@ public:
         return ret;
     }
     template<typename Hasher = std::hash<PlainEleType>>
-    std::unordered_set<PlainEleType, Hasher> ToHashSet()
+    [[nodiscard]] std::unordered_set<PlainEleType, Hasher> ToHashSet()
     {
         std::unordered_set<PlainEleType, Hasher> ret;
         while (!Provider.IsEnd())
@@ -1116,7 +1114,7 @@ public:
         return ret;
     }
     template<template<typename> typename Set>
-    auto ToAnySet()
+    [[nodiscard]] auto ToAnySet()
     {
         Set<PlainEleType> ret;
         while (!Provider.IsEnd())
@@ -1140,7 +1138,7 @@ public:
         }
     }
     template<template<typename, typename> typename Map, bool ShouldReplace = true, typename KeyF, typename ValF>
-    auto ToAnyMap(KeyF&& keyMapper, ValF&& valMapper)
+    [[nodiscard]] auto ToAnyMap(KeyF&& keyMapper, ValF&& valMapper)
     {
         using KeyType = std::invoke_result_t<KeyF, EleType>;
         using ValType = std::invoke_result_t<ValF, EleType>;
@@ -1154,14 +1152,14 @@ private:
 
 
 template<typename T>
-inline constexpr Enumerable<T> ToEnumerable(T&& source)
+[[nodiscard]] inline constexpr Enumerable<T> ToEnumerable(T&& source)
 {
     return Enumerable<T>(std::forward<T>(source));
 }
 
 
 template<typename T>
-inline constexpr decltype(auto) FromEnumerableObject(T&& source)
+[[nodiscard]] inline constexpr decltype(auto) FromEnumerableObject(T&& source)
 {
     detail::EnumerableObject::Check<T>();
     return ToEnumerable(source.GetEnumerator());
@@ -1169,7 +1167,7 @@ inline constexpr decltype(auto) FromEnumerableObject(T&& source)
 
 
 template<typename T>
-inline constexpr Enumerable<detail::NumericRangeSource<T>>
+[[nodiscard]] inline constexpr Enumerable<detail::NumericRangeSource<T>>
 FromRange(const T begin, const T end, const T step = static_cast<T>(1))
 {
     return Enumerable(detail::NumericRangeSource<T>(begin, step, end));
@@ -1177,7 +1175,7 @@ FromRange(const T begin, const T end, const T step = static_cast<T>(1))
 
 
 template<typename T>
-inline constexpr Enumerable<detail::RepeatSource<common::remove_cvref_t<T>>>
+[[nodiscard]] inline constexpr Enumerable<detail::RepeatSource<common::remove_cvref_t<T>>>
 FromRepeat(T&& val, const size_t count)
 {
     return Enumerable(detail::RepeatSource<common::remove_cvref_t<T>>(std::forward<T>(val), count));
@@ -1185,7 +1183,7 @@ FromRepeat(T&& val, const size_t count)
 
 
 template<typename T>
-inline constexpr auto
+[[nodiscard]] inline constexpr auto
 FromIterable(T& container)
 {
     return Enumerable(detail::IteratorSource(std::begin(container), std::end(container)));
@@ -1193,7 +1191,7 @@ FromIterable(T& container)
 
 
 template<typename T>
-inline constexpr auto
+[[nodiscard]] inline constexpr auto
 FromContainer(T&& container)
 {
     static_assert(std::is_rvalue_reference_v<decltype(container)>, "Only accept rvalue of container");
@@ -1203,7 +1201,7 @@ FromContainer(T&& container)
 
 template<typename... Args, typename Eng = std::mt19937, 
     typename Gen = detail::PassthroughGenerator<decltype(std::declval<Eng&>()())>>
-inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
+[[nodiscard]] inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
 FromRandom(Args... args)
 {
     return Enumerable(detail::RandomSource<Eng, Gen>(Eng(), Gen(std::forward<Args>(args)...)));
@@ -1211,7 +1209,7 @@ FromRandom(Args... args)
 
 template<typename Eng = std::mt19937,
     typename Gen = detail::PassthroughGenerator<decltype(std::declval<Eng&>()())>>
-inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
+[[nodiscard]] inline constexpr Enumerable<detail::RandomSource<Eng, Gen>>
 FromRandomSource(Eng&& eng = {}, Gen&& gen = {})
 {
     return Enumerable(detail::RandomSource<Eng, Gen>(std::move(eng), std::move(gen)));
@@ -1224,7 +1222,7 @@ class EnumerableChecker
 {
 public:
     template<typename T>
-    static constexpr auto& GetProvider(T& e)
+    [[nodiscard]] static constexpr auto& GetProvider(T& e)
     {
         return e.Provider;
     }

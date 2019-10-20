@@ -4,7 +4,7 @@
     <DisplayString>{{{File}:[{Line}]-{Func}}}</DisplayString>
   </Type>
   <Type Name="common::BaseException" Inheritable="false">
-    <DisplayString>{{{TypeName,s},{message},{data}}}</DisplayString>
+    <DisplayString>{{{TypeName,s},{message}}}</DisplayString>
     <Expand>
       <Item Name="message" ExcludeView="simple">message</Item>
       <Item Name="stack" ExcludeView="simple">StackTrace</Item>

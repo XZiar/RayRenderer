@@ -32,14 +32,14 @@ private:
 public:
     ~FileObject();
 
-    const fs::path& Path() const { return FilePath; }
-    std::u16string ExtName() const { return FilePath.extension().u16string(); }
-    FILE* Raw() { return FHandle; }
+    [[nodiscard]] const fs::path& Path() const { return FilePath; }
+    [[nodiscard]] std::u16string ExtName() const { return FilePath.extension().u16string(); }
+    [[nodiscard]] FILE* Raw() { return FHandle; }
 
     //==========Open=========//
 
-    static std::shared_ptr<FileObject> OpenFile(const fs::path& path, const OpenFlag flag);
-    static std::shared_ptr<FileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
+    [[nodiscard]] static std::shared_ptr<FileObject> OpenFile(const fs::path& path, const OpenFlag flag);
+    [[nodiscard]] static std::shared_ptr<FileObject> OpenThrow(const fs::path& path, const OpenFlag flag);
 };
 
 
@@ -52,16 +52,16 @@ protected:
     ~FileStream();
 
     bool FSeek(const int64_t offset, const SeekWhere whence);
-    size_t FTell() const;
-    FILE* GetFP() const;
+    [[nodiscard]] size_t FTell() const;
+    [[nodiscard]] FILE* GetFP() const;
     void WriteCheck() const;
     void ReadCheck() const;
     void CheckError(FileErrReason fileop);
-    size_t LeftSpace();
+    [[nodiscard]] size_t LeftSpace();
 
     //==========RandomStream=========//
-    size_t GetSize();
-    size_t CurrentPos() const;
+    [[nodiscard]] size_t GetSize();
+    [[nodiscard]] size_t CurrentPos() const;
     bool SetPos(const size_t offset);
 };
 
@@ -74,17 +74,17 @@ public:
     virtual ~FileInputStream() override;
 
     //==========InputStream=========//
-    virtual size_t AvaliableSpace() override;
+    [[nodiscard]] virtual size_t AvaliableSpace() override;
     virtual bool Read(const size_t len, void* ptr) override;
     virtual size_t ReadMany(const size_t want, const size_t perSize, void* ptr) override;
     virtual bool Skip(const size_t len) override;
-    virtual bool IsEnd() override;
-    virtual std::byte ReadByteNE(bool& isSuccess) override;
-    virtual std::byte ReadByteME() override;
+    [[nodiscard]] virtual bool IsEnd() override;
+    [[nodiscard]] virtual std::byte ReadByteNE(bool& isSuccess) override;
+    [[nodiscard]] virtual std::byte ReadByteME() override;
 
     //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
+    [[nodiscard]] virtual size_t GetSize() override;
+    [[nodiscard]] virtual size_t CurrentPos() const override;
     virtual bool SetPos(const size_t offset) override;
 };
 
@@ -103,8 +103,8 @@ public:
     virtual void Flush() override;
 
     //==========RandomStream=========//
-    virtual size_t GetSize() override;
-    virtual size_t CurrentPos() const override;
+    [[nodiscard]] virtual size_t GetSize() override;
+    [[nodiscard]] virtual size_t CurrentPos() const override;
     virtual bool SetPos(const size_t offset) override;
 };
 
@@ -120,7 +120,7 @@ inline void ReadAll(const fs::path& fpath, T& output)
 }
 
 template<typename T>
-inline std::vector<T> ReadAll(const fs::path& fpath)
+[[nodiscard]] inline std::vector<T> ReadAll(const fs::path& fpath)
 {
     std::vector<T> output;
     ReadAll(fpath, output);
@@ -128,7 +128,7 @@ inline std::vector<T> ReadAll(const fs::path& fpath)
 }
 
 template<typename Char = char>
-inline std::basic_string<Char> ReadAllText(const fs::path& fpath)
+[[nodiscard]] inline std::basic_string<Char> ReadAllText(const fs::path& fpath)
 {
     std::basic_string<Char> output;
     ReadAll(fpath, output);

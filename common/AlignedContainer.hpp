@@ -17,10 +17,10 @@ struct AlignBase
 {
 public:
 #if defined(__cpp_lib_gcd_lcm)
-    static constexpr size_t ALIGN_SIZE = std::lcm((size_t)Align, (size_t)32);
+    static constexpr size_t ALIGN_SIZE = std::lcm(Align, (size_t)32);
 #else
 #  message("C++17 unsupported, AlignSize may be incorrect")
-    static constexpr size_t ALIGN_SIZE = std::max((size_t)Align, (size_t)32);
+    static constexpr size_t ALIGN_SIZE = std::max(Align, (size_t)32);
 #endif
     static void* operator new(size_t size)
     {
@@ -40,6 +40,7 @@ public:
     }
 };
 
+
 template<typename T>
 struct AlignBaseHelper
 {
@@ -47,7 +48,7 @@ private:
     template<size_t Align>
     static std::true_type is_derived_from_alignbase_impl(const AlignBase<Align>*);
     static std::false_type is_derived_from_alignbase_impl(const void*);
-    static constexpr size_t GetAlignSize()
+    static constexpr size_t GetAlignSize() noexcept
     {
         if constexpr (IsDerivedFromAlignBase)
             return T::ALIGN_SIZE;
@@ -66,21 +67,21 @@ struct AlignAllocator
     using value_type = T;
     static constexpr size_t Align = AlignBaseHelper<T>::Align;
 
-    AlignAllocator() noexcept = default;
+    constexpr AlignAllocator() noexcept = default;
     template<class U>
-    AlignAllocator(const AlignAllocator<U>&) noexcept { }
+    constexpr AlignAllocator(const AlignAllocator<U>&) noexcept { }
 
     template<class U>
-    bool operator==(const AlignAllocator<U>&) const noexcept
+    constexpr bool operator==(const AlignAllocator<U>&) const noexcept
     {
         return true;
     }
     template<class U>
-    bool operator!=(const AlignAllocator<U>&) const noexcept
+    constexpr bool operator!=(const AlignAllocator<U>&) const noexcept
     {
         return false;
     }
-    T* allocate(const size_t n) const
+    [[nodiscard]] T* allocate(const size_t n) const
     {
         T *ptr = nullptr;
         if (n == 0)

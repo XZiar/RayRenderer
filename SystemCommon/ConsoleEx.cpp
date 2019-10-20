@@ -2,7 +2,7 @@
 #include "ConsoleEx.h"
 
 
-char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho)
+char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho) noexcept
 {
 #if defined(_WIN32)
     const auto ret = ShouldEcho ? _getche() : _getch();
@@ -33,7 +33,7 @@ char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho)
 #endif
 }
 
-std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize()
+std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize() noexcept
 {
 #if defined(_WIN32)
     CONSOLE_SCREEN_BUFFER_INFO csbi;

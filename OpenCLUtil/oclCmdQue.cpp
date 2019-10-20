@@ -44,7 +44,7 @@ void oclCmdQue_::Finish() const
 
 oclCmdQue oclCmdQue_::Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder)
 {
-    return MAKE_ENABLER_SHARED(oclCmdQue_, ctx, dev, enableProfiling, enableOutOfOrder);
+    return MAKE_ENABLER_SHARED(oclCmdQue_, (ctx, dev, enableProfiling, enableOutOfOrder));
 }
 
 

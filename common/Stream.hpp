@@ -30,7 +30,7 @@ class InputStream : public NonCopyable
 {
 private:
     template<size_t Size>
-    forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
+    [[nodiscard]] forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
     {
         if (offset >= count)
             return 0;
@@ -40,19 +40,19 @@ private:
         return want;
     }
     template<size_t Size, typename C>
-    forceinline size_t ReadInto_(C& output, const size_t offset, size_t want)
+    [[nodiscard]] forceinline size_t ReadInto_(C& output, const size_t offset, size_t want)
     {
         if (want == 0)
             return 0;
         return ReadMany(want, Size, &output[offset]);
     }
-    forceinline virtual std::byte ReadByteNE(bool& isSuccess)
+    [[nodiscard]] forceinline virtual std::byte ReadByteNE(bool& isSuccess)
     {
         std::byte data{ 0xff };
         isSuccess = ReadMany(1, 1, &data) == 1;
         return data;
     }
-    forceinline virtual std::byte ReadByteME()
+    [[nodiscard]] forceinline virtual std::byte ReadByteME()
     {
         std::byte data{ 0xff };
         if (ReadMany(1, 1, &data) != 1)
@@ -61,11 +61,11 @@ private:
             return data;
     }
 protected:
-    virtual size_t AvaliableSpace() { return SIZE_MAX; };
+    [[nodiscard]] virtual size_t AvaliableSpace() { return SIZE_MAX; };
 public:
     virtual size_t ReadMany(const size_t want, const size_t perSize, void * ptr) = 0;
     virtual bool Skip(const size_t len) = 0;
-    virtual bool IsEnd() { return AvaliableSpace() == 0; }
+    [[nodiscard]] virtual bool IsEnd() { return AvaliableSpace() == 0; }
     virtual ~InputStream() {}
 
     virtual bool Read(const size_t len, void* ptr) 
@@ -78,14 +78,14 @@ public:
         return Read(sizeof(T), &output);
     }
     template<typename T = std::byte>
-    T ReadByteNE() // without checking
+    [[nodiscard]] T ReadByteNE() noexcept // without checking
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         bool isSuccess = true;
         return static_cast<T>(ReadByteNE(isSuccess));
     }
     template<typename T = std::byte>
-    T ReadByte()
+    [[nodiscard]] T ReadByte()
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         return static_cast<T>(ReadByteME());
@@ -116,7 +116,7 @@ public:
     }
 
     template<typename T>
-    detail::InputStreamEnumerateSource<T> GetEnumerator();
+    [[nodiscard]] detail::InputStreamEnumerateSource<T> GetEnumerator();
 };
 
 
@@ -124,7 +124,7 @@ class OutputStream : public NonCopyable
 {
 private:
     template<size_t Size>
-    forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
+    [[nodiscard]] forceinline size_t CalcCount(const size_t offset, const size_t count, size_t want)
     {
         if (offset >= count)
             return 0;
@@ -167,8 +167,8 @@ public:
 class RandomStream : public NonCopyable
 {
 public:
-    virtual size_t GetSize() = 0;
-    virtual size_t CurrentPos() const = 0;
+    [[nodiscard]] virtual size_t GetSize() = 0;
+    [[nodiscard]] virtual size_t CurrentPos() const = 0;
     virtual bool SetPos(const size_t offset) = 0;
 };
 
@@ -177,7 +177,7 @@ class RandomInputStream  : public RandomStream, public InputStream
 {
 public:
     template<typename T>
-    detail::RandomInputStreamEnumerateSource<T> GetEnumerator();
+    [[nodiscard]] detail::RandomInputStreamEnumerateSource<T> GetEnumerator();
 };
 class RandomOutputStream : public RandomStream, public OutputStream
 {
@@ -203,7 +203,7 @@ struct InputStreamEnumerateSource
     InputStreamEnumerateSource(InputStreamEnumerateSource&& other)
         : Stream(other.Stream) { }
 
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         T dat;
         Stream.Read(dat);
@@ -216,7 +216,7 @@ struct InputStreamEnumerateSource
             Stream.Skip(sizeof(T));
         HasReachNext = false;
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return Stream.IsEnd();
     }
@@ -245,7 +245,7 @@ struct RandomInputStreamEnumerateSource
     RandomInputStreamEnumerateSource(RandomInputStreamEnumerateSource&& other)
         : Stream(other.Stream) { }
 
-    constexpr OutType GetCurrent() const
+    [[nodiscard]] constexpr OutType GetCurrent() const
     {
         T dat;
         Stream.Read(dat);
@@ -258,12 +258,12 @@ struct RandomInputStreamEnumerateSource
             Stream.Skip(sizeof(T));
         HasReachNext = false;
     }
-    constexpr bool IsEnd() const
+    [[nodiscard]] constexpr bool IsEnd() const
     {
         return Stream.IsEnd();
     }
 
-    constexpr size_t Count() const noexcept
+    [[nodiscard]] constexpr size_t Count() const noexcept
     {
         return Stream.GetSize() - Stream.CurrentPos();
     }
@@ -316,12 +316,12 @@ protected:
         BackStream->SetPos(BufBegin);
         BufPos = BufLen = 0;
     }
-    forceinline size_t CurrentPos_() const
+    [[nodiscard]] forceinline size_t CurrentPos_() const
     {
         return BufBegin + BufPos;
     }
     //copy as many as possible
-    forceinline size_t UseBuffer(void* ptr, const size_t want)
+    [[nodiscard]] forceinline size_t UseBuffer(void* ptr, const size_t want)
     {
         const auto bufBytes = std::min(BufLen - BufPos, want);
         memcpy_s(ptr, want, Buffer.GetRawPtr() + BufPos, bufBytes);
@@ -345,13 +345,13 @@ public:
     }
     virtual ~BufferedRandomInputStream() override {}
 
-    std::unique_ptr<RandomInputStream> Release()
+    [[nodiscard]] std::unique_ptr<RandomInputStream> Release()
     {
         FlushPos();
         return std::move(BackStream);
     }
 
-    std::pair<const std::byte*, size_t> ExposeAvaliable() const
+    [[nodiscard]] std::pair<const std::byte*, size_t> ExposeAvaliable() const
     {
         return { Buffer.GetRawPtr() + BufPos, BufLen - BufPos };
     }
@@ -362,11 +362,11 @@ public:
 
     //==========RandomStream=========//
 
-    virtual size_t GetSize() override
+    [[nodiscard]] virtual size_t GetSize() override
     {
         return BackStream->GetSize();
     }
-    virtual size_t CurrentPos() const override
+    [[nodiscard]] virtual size_t CurrentPos() const override
     {
         return CurrentPos_();
     }
@@ -393,7 +393,7 @@ public:
 
     //==========InputStream=========//
 
-    virtual size_t AvaliableSpace() override
+    [[nodiscard]] virtual size_t AvaliableSpace() override
     {
         return BackStream->GetSize() - CurrentPos_();
     };
@@ -423,12 +423,12 @@ public:
     {
         return SetPos(CurrentPos_() + len);
     }
-    virtual bool IsEnd() override 
+    [[nodiscard]] virtual bool IsEnd() override
     { 
         return (BufPos >= BufLen) && BackStream->IsEnd();
     }
 
-    forceinline virtual std::byte ReadByteNE(bool& isSuccess) override
+    [[nodiscard]] forceinline virtual std::byte ReadByteNE(bool& isSuccess) override
     {
         if (BufPos >= BufLen)
             LoadBuffer();
@@ -438,7 +438,7 @@ public:
         else
             return std::byte(0xff);
     }
-    forceinline virtual std::byte ReadByteME() override
+    [[nodiscard]] forceinline virtual std::byte ReadByteME() override
     {
         if (BufPos >= BufLen)
             LoadBuffer();

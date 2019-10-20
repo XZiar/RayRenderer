@@ -71,6 +71,11 @@
 
 
 
+/* c++ version compatible defines */
+
+
+
+
 /* dynamic library defines */
 
 #if defined(COMMON_OS_WIN)
@@ -118,6 +123,7 @@
 #include <cstring>
 #include <numeric>
 #include <type_traits> 
+#include "3rdParty/gsl/gsl_assert"
 
 #if UINTPTR_MAX == UINT64_MAX
 #   define COMMON_OSBIT 64
@@ -165,7 +171,7 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void* dest, s
 #include <new>
 #if defined(__APPLE__)
 #   include <malloc/malloc.h>
-inline void* apple_malloc_align(const size_t size, const size_t align)
+[[nodiscard]] inline void* apple_malloc_align(const size_t size, const size_t align)
 {
     void* ptr = nullptr;
     if (posix_memalign(&ptr, align, size))
@@ -228,9 +234,9 @@ struct clz::make_enabler : public clz           \
         clz(std::forward<Args>(args)...) { }    \
 };                                              \
 
-#define MAKE_ENABLER_SHARED(clz, ...) std::static_pointer_cast<clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
-#define MAKE_ENABLER_SHARED_CONST(clz, ...) std::static_pointer_cast<const clz>(std::make_shared<clz::make_enabler>(__VA_ARGS__))
-#define MAKE_ENABLER_UNIQUE(clz, ...) std::make_unique<clz::make_enabler>(__VA_ARGS__)
+
+#define MAKE_ENABLER_SHARED(clz, arg)       std::static_pointer_cast<clz>(std::make_shared<std::decay_t<clz>::make_enabler>arg)
+#define MAKE_ENABLER_UNIQUE(clz, arg)       std::make_unique<std::decay_t<clz>::make_enabler>arg
 
 
 
@@ -242,7 +248,7 @@ struct clz::make_enabler : public clz           \
 ** @return uint64_t the hash
 **/
 template<typename T>
-inline constexpr uint64_t hash_(const T& str)
+[[nodiscard]] inline constexpr uint64_t hash_(const T& str) noexcept
 {
     uint64_t hash = 0;
     for (size_t a = 0, len = str.length(); a < len; ++a)
@@ -254,7 +260,7 @@ inline constexpr uint64_t hash_(const T& str)
 ** @param str c-string for the text
 ** @return uint64_t the hash
 **/
-inline constexpr uint64_t hash_(const char *str)
+[[nodiscard]] inline constexpr uint64_t hash_(const char *str) noexcept
 {
     uint64_t hash = 0;
     for (; *str != '\0'; ++str)
@@ -265,7 +271,7 @@ inline constexpr uint64_t hash_(const char *str)
 ** @brief calculate simple hash for string, used for switch-string
 ** @return uint64_t the hash
 **/
-inline constexpr uint64_t operator "" _hash(const char *str, size_t)
+[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char *str, size_t) noexcept
 {
     return hash_(str);
 }
@@ -284,10 +290,19 @@ constexpr bool AlwaysTrue() { return true; }
 
 
 template<typename T, typename... Args>
-constexpr bool MatchAny(const T& obj, Args... args)
+[[nodiscard]] constexpr bool MatchAny(const T& obj, Args... args)
 {
     return (... || (obj == args));
 }
+
+
+template<typename T>
+[[nodiscard]] forceinline constexpr bool IsPower2(const T num)
+{
+    static_assert(std::is_unsigned_v<T>, "only for unsigned type");
+    return (num & (num - 1)) == 0; 
+}
+
 
 
 template<template<typename...> class Base, typename...Ts>
@@ -345,19 +360,19 @@ public:
 
 
 template<typename T>
-constexpr const T& max(const T& left, const T& right)
+[[nodiscard]] constexpr const T& max(const T& left, const T& right)
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? right : left;
 }
 template<typename T>
-constexpr const T& min(const T& left, const T& right)
+[[nodiscard]] constexpr const T& min(const T& left, const T& right)
 {
     static_assert(std::is_arithmetic_v<T>, "only support arithmetic type");
     return left < right ? left : right;
 }
 template<typename T, typename U>
-constexpr T saturate_cast(const U val)
+[[nodiscard]] constexpr T saturate_cast(const U val)
 {
     static_assert(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>, "only support arithmetic type");
     constexpr bool MaxFit = static_cast<std::make_unsigned_t<U>>(std::numeric_limits<U>::max())
@@ -405,7 +420,7 @@ struct NonMovable
 };
 
 
-inline uint32_t TailZero(const uint32_t num) noexcept
+[[nodiscard]] inline uint32_t TailZero(const uint32_t num) noexcept
 {
 #if COMPILER_MSVC
     unsigned long idx = 0;
@@ -415,7 +430,7 @@ inline uint32_t TailZero(const uint32_t num) noexcept
 #endif
 }
 
-inline uint32_t TailZero(const uint64_t num) noexcept
+[[nodiscard]] inline uint32_t TailZero(const uint64_t num) noexcept
 {
 #if COMPILER_MSVC
     unsigned long idx = 0;
@@ -444,69 +459,25 @@ inline uint32_t TailZero(const uint64_t num) noexcept
 
 
 
-/* u8 stringview extra support */
-
-#if defined(__cpp_lib_string_view)
-#   include <string_view>
-#   if COMPILER_CLANG
-#       define U8STR_CONSTEXPR 
-#   else
-#       define U8STR_CONSTEXPR constexpr
-#   endif
-#endif
-namespace common
-{
-class u8StrView
-{
-private:
-    const intptr_t Ptr;
-    const size_t Size;
-public:
-    constexpr u8StrView(const u8StrView& other) noexcept : Ptr(other.Ptr), Size(other.Size) {}
-    u8StrView(u8StrView&&) noexcept = delete;
-    u8StrView& operator=(const u8StrView&) = delete;
-    u8StrView& operator=(u8StrView&&) = delete;
-    constexpr size_t Length() const noexcept { return Size; }
-
-    U8STR_CONSTEXPR u8StrView(const std::string_view& sv) noexcept :
-        Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
-    template<size_t N> U8STR_CONSTEXPR u8StrView(const char(&str)[N]) noexcept :
-        Ptr((intptr_t)(str)), Size(std::char_traits<char>::length(str)) { }
-
-    U8STR_CONSTEXPR const char* CharData() const noexcept { return (const char*)(Ptr); }
-    U8STR_CONSTEXPR operator std::string_view() const noexcept { return { CharData(), Length() }; }
-
-#if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
-    U8STR_CONSTEXPR u8StrView(const std::u8string_view& sv) noexcept :
-        Ptr((intptr_t)(sv.data())), Size(sv.length()) { }
-    template<size_t N> U8STR_CONSTEXPR u8StrView(const char8_t(&str)[N]) noexcept :
-        Ptr((intptr_t)(str)), Size(std::char_traits<char8_t>::length(str)) { }
-
-    U8STR_CONSTEXPR const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
-    U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
-#endif
-};
-}
-#undef U8STR_CONSTEXPR
-
-
-
 /* span compatible include */
 #if (defined(__cplusplus) && (__cplusplus >= 201709L)) && false
 #   include <span>
 namespace common
 {
-using std::dynamic_extent;
-template <class ElementType, std::ptrdiff_t Extent = dynamic_extent>
+template <class ElementType, ptrdiff_t Extent = std::dynamic_extent>
 using span = std::span<ElementType, Extent>;
+template <class ElementType, size_t Extent> using as_bytes = std::as_bytes<ElementType, Extent>;
+template <class ElementType, size_t Extent> using as_writable_bytes = std::as_writable_bytes<ElementType, Extent>;
 }
 #else
-#   include <3rdParty/gsl/span>
+#   include "3rdParty/gsl/span"
 namespace common
 {
-using gsl::dynamic_extent;
-template <class ElementType, std::ptrdiff_t Extent = dynamic_extent>
+template <class ElementType, ptrdiff_t Extent = gsl::dynamic_extent>
 using span = gsl::span<ElementType, Extent>;
+using gsl::as_bytes;
+constexpr auto as_writable_bytes = [](auto&& t) constexpr -> decltype(auto) { return gsl::as_writeable_bytes(t); };
+//using gsl::as_writeable_bytes;
 }
 #endif
 
@@ -514,7 +485,6 @@ using span = gsl::span<ElementType, Extent>;
 
 /* variant extra support */
 
-#if (defined(_HAS_CXX17) && _HAS_CXX17) || (defined(__cplusplus) && (__cplusplus >= 201703L))
 #   include <variant>
 namespace common
 {
@@ -532,5 +502,4 @@ inline constexpr size_t get_variant_index_v()
 }
 #endif
 }
-#endif
 

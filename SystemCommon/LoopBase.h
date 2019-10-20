@@ -66,10 +66,10 @@ private:
     std::unique_ptr<LoopExecutor> Host;
 protected:
     enum class LoopState : uint8_t { Continue, Finish, Sleep };
-    bool IsRunning() const;
+    [[nodiscard]] bool IsRunning() const;
     void Wakeup() const;
     virtual LoopState OnLoop() = 0;
-    virtual bool SleepCheck() noexcept { return true; }; // double check if should sleep
+    [[nodiscard]] virtual bool SleepCheck() noexcept { return true; }; // double check if should sleep
     virtual bool OnStart(std::any) noexcept { return true; }
     virtual void OnStop() noexcept {}
     virtual bool OnError(std::exception_ptr) noexcept { return false; }
@@ -87,8 +87,8 @@ protected:
 public:
     virtual ~LoopBase();
 
-    static std::unique_ptr<LoopExecutor> GetThreadedExecutor(LoopBase& loop);
-    static std::unique_ptr<LoopExecutor> GetInplaceExecutor(LoopBase& loop);
+    [[nodiscard]] static std::unique_ptr<LoopExecutor> GetThreadedExecutor(LoopBase& loop);
+    [[nodiscard]] static std::unique_ptr<LoopExecutor> GetInplaceExecutor(LoopBase& loop);
 };
 
 #if COMPILER_MSVC
