@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <!--<Type Name="common::detail::PromiseResult_&lt;*&gt;">
+    <DisplayString>{{PromiseResult}}</DisplayString>
+    <Expand>
+      <Item Name="HasPrepared">*(bool*)(&amp;this->HasPrepared)</Item>
+      <Item Name="[State]">this->State()</Item>
+    </Expand>
+  </Type>-->
+  <Type Name="common::detail::PromiseResultCore">
+    <DisplayString>{{PromiseResult}}</DisplayString>
+    <Expand>
+      <Item Name="HasPrepared">*(bool*)(&amp;this->HasPrepared)</Item>
+      <Item Name="[State]">this->State()</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

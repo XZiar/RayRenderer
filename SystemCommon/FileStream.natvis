@@ -34,36 +34,33 @@
       <Item Name="[Flag]">RawFile->Flag</Item>
     </Expand>
   </Type>
-  <Type Name="common::file::FileMappingInputStream" Inheritable="true">
+  <Type Name="common::file::FileMappingStream" Inheritable="true">
+    <Expand>
+      <Item Name="[mapping]">*MappingObject</Item>
+      <Item Name="[file]">*MappingObject->RawFile</Item>
+      <Item Name="[path]">MappingObject->RawFile->FilePath</Item>
+      <Item Name="[FileFlag]">MappingObject->RawFile->Flag</Item>
+      <Item Name="[MapFlag]">MappingObject->Flag</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::file::FileMappingInputStream">
     <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
     <DisplayString Condition="MappingObject != nullptr">
       {{FileMappingInStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
     </DisplayString>
     <Expand>
-      <Item Name="[mapping]">*MappingObject</Item>
-      <Item Name="[file]">*MappingObject->RawFile</Item>
-      <Item Name="[path]">MappingObject->RawFile->FilePath</Item>
-      <Item Name="[FileFlag]">MappingObject->RawFile->Flag</Item>
-      <Item Name="[MapFlag]">MappingObject->Flag</Item>
-      <Item Name="Ptr">Ptr</Item>
-      <Item Name="[Size]">TotalSize</Item>
-      <Item Name="CurPos">CurPos</Item>
+      <ExpandedItem>*(common::file::FileMappingStream*)this,nd</ExpandedItem>
+      <ExpandedItem>*(common::io::MemoryInputStream*)this,nd</ExpandedItem>
     </Expand>
   </Type>
-  <Type Name="common::file::FileMappingOutputStream" Inheritable="true">
+  <Type Name="common::file::FileMappingOutputStream">
     <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
     <DisplayString Condition="MappingObject != nullptr">
       {{FileMappingOutStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
     </DisplayString>
     <Expand>
-      <Item Name="[mapping]">*MappingObject</Item>
-      <Item Name="[file]">*MappingObject->RawFile</Item>
-      <Item Name="[path]">MappingObject->RawFile->FilePath</Item>
-      <Item Name="[FileFlag]">MappingObject->RawFile->Flag</Item>
-      <Item Name="[MapFlag]">MappingObject->Flag</Item>
-      <Item Name="Ptr">Ptr</Item>
-      <Item Name="[Size]">TotalSize</Item>
-      <Item Name="CurPos">CurPos</Item>
+      <ExpandedItem>*(common::file::FileMappingStream*)this,nd</ExpandedItem>
+      <ExpandedItem>*(common::io::MemoryOutputStream*)this,nd</ExpandedItem>
     </Expand>
   </Type>
 </AutoVisualizer>

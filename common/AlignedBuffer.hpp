@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AlignedBase.hpp"
 #include "CommonRely.hpp"
 #include <atomic>
 

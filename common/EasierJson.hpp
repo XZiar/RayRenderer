@@ -57,8 +57,8 @@ public:
     template<size_t N> U8STR_CONSTEXPR u8StrView(const char(&str)[N]) noexcept :
         Ptr((uintptr_t)(str)), Size(std::char_traits<char>::length(str)) { }
 
-    U8STR_CONSTEXPR const char* CharData() const noexcept { return (const char*)(Ptr); }
-    U8STR_CONSTEXPR operator std::string_view() const noexcept { return { CharData(), Length() }; }
+    [[nodiscard]] U8STR_CONSTEXPR const char* CharData() const noexcept { return (const char*)(Ptr); }
+    [[nodiscard]] U8STR_CONSTEXPR operator std::string_view() const noexcept { return { CharData(), Length() }; }
 
 #if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
     U8STR_CONSTEXPR u8StrView(const std::u8string_view& sv) noexcept :
@@ -66,8 +66,8 @@ public:
     template<size_t N> U8STR_CONSTEXPR u8StrView(const char8_t(&str)[N]) noexcept :
         Ptr((uintptr_t)(str)), Size(std::char_traits<char8_t>::length(str)) { }
 
-    U8STR_CONSTEXPR const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
-    U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
+    [[nodiscard]] U8STR_CONSTEXPR const char8_t* U8Data() const noexcept { return (const char8_t*)(Ptr); }
+    [[nodiscard]] U8STR_CONSTEXPR operator std::u8string_view() const noexcept { return { U8Data(), Length() }; }
 #endif
 };
 #undef U8STR_CONSTEXPR
@@ -116,11 +116,11 @@ public:
 
     rapidjson::MemoryPoolAllocator<>& GetMemPool() { return *MemPool; }
     template<typename T>
-    JObject NewObject(const T& data);
+    [[nodiscard]] JObject NewObject(const T& data);
     template<typename T>
-    JArray NewArray(const T& data);
-    JObject NewObject();
-    JArray NewArray();
+    [[nodiscard]] JArray NewArray(const T& data);
+    [[nodiscard]] JObject NewObject();
+    [[nodiscard]] JArray NewArray();
 };
 
 struct SharedUtil
@@ -338,15 +338,15 @@ struct JNode
 {
     friend struct JNodeHash;
 public:
-    rapidjson::Value& ValRef()
+    [[nodiscard]] rapidjson::Value& ValRef()
     {
         return static_cast<Child*>(this)->GetValRef();
     }
-    const rapidjson::Value& ValRef() const
+    [[nodiscard]] const rapidjson::Value& ValRef() const
     {
         return static_cast<const Child*>(this)->GetValRef();
     }
-    string Stringify(const bool pretty = false) const
+    [[nodiscard]] string Stringify(const bool pretty = false) const
     {
         rapidjson::StringBuffer strBuf;
         if (pretty)
@@ -375,7 +375,7 @@ public:
             ValRef().Accept(writer);
         }
     }
-    bool IsNull() const 
+    [[nodiscard]] bool IsNull() const
     {
         const auto valptr = &ValRef();
         return (valptr == nullptr) || valptr->IsNull();
@@ -397,12 +397,12 @@ public:
 template<typename Child, bool IsConst>
 struct JPointerSupport
 {
-    JDocRef<IsConst> GetFromPath(const string_view& path);
-    JDocRef<true> GetFromPath(const string_view& path) const;
+    [[nodiscard]] JDocRef<IsConst> GetFromPath(const string_view& path);
+    [[nodiscard]] JDocRef<true> GetFromPath(const string_view& path) const;
     template<typename = std::enable_if_t<!IsConst>>
-    JObjectRef<false> GetOrCreateObjectFromPath(const string_view& path);
+    [[nodiscard]] JObjectRef<false> GetOrCreateObjectFromPath(const string_view& path);
     template<typename = std::enable_if_t<!IsConst>>
-    JArrayRef<false> GetOrCreateArrayFromPath(const string_view& path);
+    [[nodiscard]] JArrayRef<false> GetOrCreateArrayFromPath(const string_view& path);
 };
 
 // JSON Document
@@ -417,11 +417,11 @@ protected:
     rapidjson::Value Val;
     JDoc(const rapidjson::Type type) : DocumentHandle(), Val(type) {}
     JDoc(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, const rapidjson::Type type) : DocumentHandle(mempool), Val(type) {}
-    rapidjson::Value& GetValRef() { return Val; }
-    const rapidjson::Value& GetValRef() const { return Val; }
+    [[nodiscard]] rapidjson::Value& GetValRef() { return Val; }
+    [[nodiscard]] const rapidjson::Value& GetValRef() const { return Val; }
 public:
-    explicit operator rapidjson::Value() { return std::move(Val); }
-    static JDoc Parse(const string& json)
+    [[nodiscard]] explicit operator rapidjson::Value() { return std::move(Val); }
+    [[nodiscard]] static JDoc Parse(const string& json)
     {
         JDoc doc(rapidjson::kNullType);
         rapidjson::Document rawdoc(doc.MemPool.get());
@@ -445,8 +445,8 @@ protected:
     InnerValType Val;
     JDocRef(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) : DocumentHandle(mempool), Val(val) {}
     template<bool R = !IsConst>
-    std::enable_if_t<R, rapidjson::Value&> GetValRef() { return *Val; }
-    const rapidjson::Value& GetValRef() const { return *Val; }
+    [[nodiscard]] std::enable_if_t<R, rapidjson::Value&> GetValRef() { return *Val; }
+    [[nodiscard]] const rapidjson::Value& GetValRef() const { return *Val; }
 public:
     template<bool OtherConst, typename = std::enable_if_t<IsConst || (IsConst == OtherConst)>>
     explicit JDocRef(const JDocRef<OtherConst>& doc) : DocumentHandle(doc.MemPool), Val(doc.Val) {}
@@ -455,9 +455,9 @@ public:
     template<bool R = IsConst, typename = std::enable_if_t<R>>
     explicit JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<bool R = !IsConst, typename = std::enable_if_t<R>>
-    explicit operator rapidjson::Value() { return std::move(Val); }
+    [[nodiscard]] explicit operator rapidjson::Value() { return std::move(Val); }
     template<typename T, typename Convertor = JsonConvertor>
-    T AsValue(T val = {}) const
+    [[nodiscard]] T AsValue(T val = {}) const
     {
         Convertor::FromVal(*Val, val);
         return val;
@@ -494,7 +494,7 @@ template<typename KeyType, typename KeyChecker, typename ValHolder, bool IsConst
 class JComplexType
 {
 protected:
-    const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& InnerMemPool() const
+    [[nodiscard]] const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& InnerMemPool() const
     {
         return static_cast<const DocumentHandle*>(static_cast<const ValHolder*>(this))->MemPool;
     }
@@ -510,13 +510,13 @@ public:
         return TryGet<JsonConvertor>(key, val);
     }
     template<typename T, typename Convertor = JsonConvertor>
-    T Get(KeyType key, T val = {}) const
+    [[nodiscard]] T Get(KeyType key, T val = {}) const
     {
         TryGet<Convertor>(key, val);
         return val;
     }
-    JObjectRef<true> GetObject(KeyType key) const;
-    JArrayRef<true> GetArray(KeyType key) const;
+    [[nodiscard]] JObjectRef<true> GetObject(KeyType key) const;
+    [[nodiscard]] JArrayRef<true> GetArray(KeyType key) const;
 
     template<typename Convertor, typename T, bool R = !IsConst, typename = std::enable_if_t<R>>
     bool TryGet(KeyType key, T& val)
@@ -529,15 +529,15 @@ public:
         return TryGet<JsonConvertor>(key, val);
     }
     template<typename T, typename Convertor = JsonConvertor, bool R = !IsConst, typename = std::enable_if_t<R>>
-    T Get(KeyType key, T val = {})
+    [[nodiscard]] T Get(KeyType key, T val = {})
     {
         TryGet<Convertor>(key, val);
         return val;
     }
     template<bool R = !IsConst>
-    std::enable_if_t<R, JObjectRef<false>> GetObject(KeyType key);
+    [[nodiscard]] std::enable_if_t<R, JObjectRef<false>> GetObject(KeyType key);
     template<bool R = !IsConst>
-    std::enable_if_t<R, JArrayRef<false>> GetArray(KeyType key);
+    [[nodiscard]] std::enable_if_t<R, JArrayRef<false>> GetArray(KeyType key);
 };
 
 namespace detail
@@ -587,17 +587,17 @@ public:
     JArrayEnumerableSource(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val)
         : JDocRef<IsConst>(mempool, val) {}
 
-    constexpr OutType GetCurrent() const noexcept 
+    [[nodiscard]] constexpr OutType GetCurrent() const noexcept
     { 
         return JDocRef<IsConst>(this->MemPool, this->GetValRef()[Index]);
     }
     constexpr void MoveNext() noexcept { Index++; }
-    constexpr bool IsEnd() const noexcept
+    [[nodiscard]] constexpr bool IsEnd() const noexcept
     {
         return Index >= this->GetValRef().Size();
     }
 
-    constexpr size_t Count() const noexcept
+    [[nodiscard]] constexpr size_t Count() const noexcept
     {
         const auto size = this->GetValRef().Size();
         return size > Index ? size - Index : 0;
@@ -660,7 +660,7 @@ public:
     JObjectEnumerableSource(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val)
         : JDocRef<IsConst>(mempool, val), InnerIterator(this->GetValRef().MemberBegin()) {}
 
-    constexpr OutType GetCurrent() const noexcept
+    [[nodiscard]] constexpr OutType GetCurrent() const noexcept
     {
         std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
         JDocRef<IsConst> doc(this->MemPool, &InnerIterator->value);
@@ -670,12 +670,12 @@ public:
     {
         Index++; ++InnerIterator;
     }
-    constexpr bool IsEnd() const noexcept
+    [[nodiscard]] constexpr bool IsEnd() const noexcept
     {
         return Index >= this->GetValRef().MemberCount();
     }
 
-    constexpr size_t Count() const noexcept
+    [[nodiscard]] constexpr size_t Count() const noexcept
     {
         const auto size = this->GetValRef().MemberCount();
         return size > Index ? size - Index : 0;
@@ -703,7 +703,7 @@ private:
         return false;
     }
     template<typename Convertor, typename... Ts, size_t... Indexes>
-    size_t InnerTryGetMany(const rapidjson::SizeType offset, std::index_sequence<Indexes...>, Ts&... val) const
+    [[nodiscard]] size_t InnerTryGetMany(const rapidjson::SizeType offset, std::index_sequence<Indexes...>, Ts&... val) const
     {
         const auto& valref = static_cast<const Child*>(this)->ValRef();
         return (0 + ... + GetIf<Convertor>(valref, static_cast<rapidjson::SizeType>(Indexes + offset), val));
@@ -728,30 +728,30 @@ public:
     {
         return TryGetMany<JsonConvertor>(offset, val...);
     }
-    detail::JArrayIterator<true> begin() const
+    [[nodiscard]] detail::JArrayIterator<true> begin() const
     {
         return detail::JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().Begin());
     }
-    detail::JArrayIterator<true> end() const
+    [[nodiscard]] detail::JArrayIterator<true> end() const
     {
         return detail::JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().End());
     }
-    detail::JArrayEnumerableSource<true> GetEnumerator() const
+    [[nodiscard]] detail::JArrayEnumerableSource<true> GetEnumerator() const
     {
         return detail::JArrayEnumerableSource<true>(
             Parent::InnerMemPool(),
             &static_cast<const Child*>(this)->ValRef()
             );
     }
-    detail::JArrayIterator<IsConst> begin()
+    [[nodiscard]] detail::JArrayIterator<IsConst> begin()
     {
         return detail::JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().Begin());
     }
-    detail::JArrayIterator<IsConst> end()
+    [[nodiscard]] detail::JArrayIterator<IsConst> end()
     {
         return detail::JArrayIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().End());
     }
-    detail::JArrayEnumerableSource<IsConst> GetEnumerator()
+    [[nodiscard]] detail::JArrayEnumerableSource<IsConst> GetEnumerator()
     {
         return detail::JArrayEnumerableSource<IsConst>(
             Parent::InnerMemPool(), 
@@ -785,30 +785,30 @@ protected:
         self.ValRef().AddMember(key, value, mempool);
     }
 public:
-    detail::JObjectIterator<true> begin() const
+    [[nodiscard]] detail::JObjectIterator<true> begin() const
     {
         return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberBegin());
     }
-    detail::JObjectIterator<true> end() const
+    [[nodiscard]] detail::JObjectIterator<true> end() const
     {
         return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberEnd());
     }
-    detail::JObjectEnumerableSource<true> GetEnumerator() const
+    [[nodiscard]] detail::JObjectEnumerableSource<true> GetEnumerator() const
     {
         return detail::JObjectEnumerableSource<true>(
             Parent::InnerMemPool(),
             &static_cast<const Child*> (this)->ValRef()
             );
     }
-    detail::JObjectIterator<IsConst> begin()
+    [[nodiscard]] detail::JObjectIterator<IsConst> begin()
     {
         return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberBegin());
     }
-    detail::JObjectIterator<IsConst> end()
+    [[nodiscard]] detail::JObjectIterator<IsConst> end()
     {
         return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberEnd());
     }
-    detail::JObjectEnumerableSource<IsConst> GetEnumerator()
+    [[nodiscard]] detail::JObjectEnumerableSource<IsConst> GetEnumerator()
     {
         return detail::JObjectEnumerableSource<IsConst>(
             Parent::InnerMemPool(),

@@ -24,7 +24,8 @@
     <DisplayString>{{MemOutStream [{TotalSize}], at[{CurPos}]}}</DisplayString>
     <Expand>
       <Item Name="Ptr">Ptr</Item>
-      <Item Name="[Size]">TotalSize</Item>
+      <Item Name="[Size]" Condition="IsGrowable() == false">TotalSize</Item>
+      <Item Name="[CurSize]" Condition="IsGrowable() == true">TotalSize</Item>
       <Item Name="CurPos">CurPos</Item>
     </Expand>
   </Type>

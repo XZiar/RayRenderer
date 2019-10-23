@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <!--<Type Name="common::detail::PromiseResult_&lt;*&gt;">
+    <DisplayString>{{PromiseResult}}</DisplayString>
+    <Expand>
+      <Item Name="HasPrepared">*(bool*)(&amp;this->HasPrepared)</Item>
+      <Item Name="[State]">this->State()</Item>
+    </Expand>
+  </Type>-->
+  <Type Name="xziar::ejson::JNode&lt;*&gt;">
+    <DisplayString Condition="IsNull() != true">{{JNode}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JNode [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">ValRef()</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JDoc">
+    <DisplayString Condition="IsNull() != true">{{JDoc}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JDoc [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">Val</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JArrayRef&lt;*&gt;">
+    <DisplayString Condition="IsNull() != true">{{JArrayRef}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JArrayRef [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">ValRef()</Item>
+      <Item Name="[Count]">ValRef().Size()</Item>
+      <ArrayItems ExcludeView="simple" Condition="IsNull() == false">
+        <Size>ValRef().Size()</Size>
+        <ValuePointer>(const rapidjson::Value*)ValRef().Begin()</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JArray">
+    <DisplayString Condition="IsNull() != true">{{JArray}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JArray [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">ValRef()</Item>
+      <Item Name="[Count]">ValRef().Size()</Item>
+      <ArrayItems ExcludeView="simple" Condition="IsNull() == false">
+        <Size>ValRef().Size()</Size>
+        <ValuePointer>(const rapidjson::Value*)ValRef().Begin()</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JObjectRef&lt;*&gt;">
+    <DisplayString Condition="IsNull() != true">{{JObjectRef}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JObjectRef [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">ValRef()</Item>
+      <Item Name="[Count]">ValRef().MemberCount()</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JObject">
+    <DisplayString Condition="IsNull() != true">{{JObject}}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{JObject [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="[Value]">ValRef()</Item>
+      <Item Name="[Count]">ValRef().MemberCount()</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

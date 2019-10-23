@@ -166,31 +166,6 @@ forceinline std::remove_reference<decltype(errno)>::type memmove_s(void* dest, s
 
 
 
-/* aligned allocation */
-
-#include <new>
-#if defined(__APPLE__)
-#   include <malloc/malloc.h>
-[[nodiscard]] inline void* apple_malloc_align(const size_t size, const size_t align)
-{
-    void* ptr = nullptr;
-    if (posix_memalign(&ptr, align, size))
-        return nullptr;
-    return ptr;
-}
-#   define malloc_align(size, align) apple_malloc_align((size), (align))
-#   define free_align(ptr) free(ptr)
-#elif defined(__GNUC__)
-#   include <malloc.h>
-#   define malloc_align(size, align) memalign((align), (size))
-#   define free_align(ptr) free(ptr)
-#elif defined(_MSC_VER)
-#   define malloc_align(size, align) _aligned_malloc((size), (align))
-#   define free_align(ptr) _aligned_free(ptr)
-#endif
-
-
-
 /*
 * Concatenate preprocessor tokens A and B without expanding macro definitions
 * (however, if invoked from a macro, macro arguments are expanded).
@@ -466,8 +441,8 @@ namespace common
 {
 template <class ElementType, ptrdiff_t Extent = std::dynamic_extent>
 using span = std::span<ElementType, Extent>;
-template <class ElementType, size_t Extent> using as_bytes = std::as_bytes<ElementType, Extent>;
-template <class ElementType, size_t Extent> using as_writable_bytes = std::as_writable_bytes<ElementType, Extent>;
+using std::as_bytes;
+using std::as_writable_bytes;
 }
 #else
 #   include "3rdParty/gsl/span"

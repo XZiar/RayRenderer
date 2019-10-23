@@ -1,6 +1,8 @@
 #pragma once
 
+#include "AlignedBase.hpp"
 #include "CommonRely.hpp"
+#include <cstdlib>
 #include <atomic>
 #include <vector>
 #include <deque>
@@ -12,60 +14,12 @@
 namespace common
 {
 
-template<size_t Align>
-struct AlignBase
-{
-public:
-#if defined(__cpp_lib_gcd_lcm)
-    static constexpr size_t ALIGN_SIZE = std::lcm(Align, (size_t)32);
-#else
-#  message("C++17 unsupported, AlignSize may be incorrect")
-    static constexpr size_t ALIGN_SIZE = std::max(Align, (size_t)32);
-#endif
-    static void* operator new(size_t size)
-    {
-        return malloc_align(size, ALIGN_SIZE);
-    };
-    static void operator delete(void* p)
-    {
-        return free_align(p);
-    }
-    static void* operator new[](size_t size)
-    {
-        return malloc_align(size, ALIGN_SIZE);
-    };
-    static void operator delete[](void* p)
-    {
-        return free_align(p);
-    }
-};
-
-
-template<typename T>
-struct AlignBaseHelper
-{
-private:
-    template<size_t Align>
-    static std::true_type is_derived_from_alignbase_impl(const AlignBase<Align>*);
-    static std::false_type is_derived_from_alignbase_impl(const void*);
-    static constexpr size_t GetAlignSize() noexcept
-    {
-        if constexpr (IsDerivedFromAlignBase)
-            return T::ALIGN_SIZE;
-        else
-            return AlignBase<alignof(T)>::ALIGN_SIZE;
-    }
-public:
-    static constexpr bool IsDerivedFromAlignBase = decltype(is_derived_from_alignbase_impl(std::declval<T*>()))::value;
-    static constexpr size_t Align = GetAlignSize();
-};
-
-
 template <class T>
 struct AlignAllocator
 {
     using value_type = T;
     static constexpr size_t Align = AlignBaseHelper<T>::Align;
+    static constexpr auto IsMultiple = sizeof(T) % Align == 0;
 
     constexpr AlignAllocator() noexcept = default;
     template<class U>
@@ -88,7 +42,12 @@ struct AlignAllocator
             return ptr;
         if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
             throw std::bad_array_new_length();
-        ptr = (T*)malloc_align(n * sizeof(T), Align);
+
+        if constexpr (IsMultiple && false)
+            ptr = reinterpret_cast<T*>(aligned_alloc(Align, n * sizeof(T)));
+        else
+            ptr = reinterpret_cast<T*>(malloc_align(n * sizeof(T), Align));
+
         if (!ptr)
             throw std::bad_alloc();
         else
@@ -96,7 +55,11 @@ struct AlignAllocator
     }
     void deallocate(T* const p, const size_t) const noexcept
     {
-        free_align(p);
+        if (p == nullptr) return;
+        if constexpr (IsMultiple && false)
+            std::free(p);
+        else
+            free_align(p);
     }
 };
 
