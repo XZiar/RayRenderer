@@ -14,7 +14,7 @@ class ThumbnailManager;
 
 constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1)) == 0; }
 
-struct RAYCOREAPI RawMaterialData : public common::AlignBase<16>
+struct RAYCOREAPI RawMaterialData
 {
 public:
     b3d::Vec4 ambient, diffuse, specular, emission;
@@ -72,7 +72,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-struct RAYCOREAPI PBRMaterial : public common::AlignBase<16>, public xziar::respak::Serializable, public common::Controllable
+struct RAYCOREAPI PBRMaterial : public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     virtual u16string_view GetControlType() const override

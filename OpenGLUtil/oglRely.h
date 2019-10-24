@@ -33,6 +33,9 @@
 #if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"
 #endif
+#if !COMMON_OVER_ALIGNED
+#   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
+#endif
 
 
 #include <cstddef>

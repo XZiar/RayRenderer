@@ -27,7 +27,7 @@
     </Expand>
   </Type>
   <Type Name="common::file::FileMappingObject">
-    <DisplayString>{{FileMapping [{Offset}-{Size}][{Flag}][{RawFile->Flag}][{RawFile->FilePath._Text,su}]}}</DisplayString>
+    <DisplayString>{{FileMapping {{{Offset}~{Size}}} [Map: {Flag}, File: {RawFile->Flag}] [{RawFile->FilePath._Text,su}]}}</DisplayString>
     <Expand>
       <Item Name="[file]">RawFile</Item>
       <Item Name="[path]">RawFile->FilePath</Item>
@@ -46,7 +46,7 @@
   <Type Name="common::file::FileMappingInputStream">
     <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
     <DisplayString Condition="MappingObject != nullptr">
-      {{FileMappingInStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
+      {{FileMappingInStream {{{MappingObject->Offset}~{MappingObject->Size}}}, at[{CurPos}] [{MappingObject->RawFile->FilePath._Text,su}]}}
     </DisplayString>
     <Expand>
       <ExpandedItem>*(common::file::FileMappingStream*)this,nd</ExpandedItem>
@@ -56,7 +56,7 @@
   <Type Name="common::file::FileMappingOutputStream">
     <DisplayString Condition="MappingObject == nullptr">{{Invalid FileMapping}}</DisplayString>
     <DisplayString Condition="MappingObject != nullptr">
-      {{FileMappingOutStream [{MappingObject->Offset}-{MappingObject->Size}, at[{CurPos}]][{MappingObject->RawFile->FilePath._Text,su}]}}
+      {{FileMappingOutStream {{{MappingObject->Offset}~{MappingObject->Size}}}, at[{CurPos}] [{MappingObject->RawFile->FilePath._Text,su}]}}
     </DisplayString>
     <Expand>
       <ExpandedItem>*(common::file::FileMappingStream*)this,nd</ExpandedItem>

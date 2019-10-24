@@ -6,6 +6,10 @@
 #if COMMON_SIMD_LV < 20
 #   error require at least SSE2
 #endif
+#if !COMMON_OVER_ALIGNED
+#   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
+#endif
+
 
 namespace common
 {
@@ -30,23 +34,23 @@ template<typename T, typename E>
 struct Int128Common : public CommonOperators<T>
 {
     // logic operations
-    forceinline T VECCALL VECCALL And(const T& other) const
+    forceinline T VECCALL And(const T& other) const
     {
         return _mm_and_si128(*static_cast<const T*>(this), other);
     }
-    forceinline T VECCALL VECCALL Or(const T& other) const
+    forceinline T VECCALL Or(const T& other) const
     {
         return _mm_or_si128(*static_cast<const T*>(this), other);
     }
-    forceinline T VECCALL VECCALL Xor(const T& other) const
+    forceinline T VECCALL Xor(const T& other) const
     {
         return _mm_xor_si128(*static_cast<const T*>(this), other);
     }
-    forceinline T VECCALL VECCALL AndNot(const T& other) const
+    forceinline T VECCALL AndNot(const T& other) const
     {
         return _mm_andnot_si128(*static_cast<const T*>(this), other);
     }
-    forceinline T VECCALL VECCALL Not() const
+    forceinline T VECCALL Not() const
     {
         return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
     }
@@ -219,7 +223,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
     {
         return _mm_and_ps(Data, other.Data);
     }
-    forceinline F32x4 VECCALL VECCALL Or(const F32x4& other) const
+    forceinline F32x4 VECCALL Or(const F32x4& other) const
     {
         return _mm_or_ps(Data, other.Data);
     }
@@ -598,7 +602,7 @@ struct alignas(__m128i) I8x16 : public I8Common16<I8x16, int8_t>, public detail:
     using I8Common16<I8x16, int8_t>::I8Common16;
 
     // arithmetic operations
-    forceinline I8x16 VECCALL VECCALL SatAdd(const I8x16& other) const { return _mm_adds_epi8(Data, other.Data); }
+    forceinline I8x16 VECCALL SatAdd(const I8x16& other) const { return _mm_adds_epi8(Data, other.Data); }
     forceinline I8x16 SatSub(const I8x16& other) const { return _mm_subs_epi8(Data, other.Data); }
 #if COMMON_SIMD_LV >= 41
     forceinline I8x16 VECCALL Max(const I8x16& other) const { return _mm_max_epi8(Data, other.Data); }

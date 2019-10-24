@@ -31,7 +31,7 @@ private:
     {
         auto ptrcnt = GetCountor();
         if (ptrcnt && (*ptrcnt)-- == 1)
-            free_align(ptrcnt);
+            free(ptrcnt);
     }
 public:
     using value_type = const Char;
@@ -39,7 +39,7 @@ public:
     {
         if (length > 0 && str != nullptr)
         {
-            if (uint8_t* ptr = (uint8_t*)malloc_align(Offset + sizeof(Char) * length, 64); ptr)
+            if (uint8_t* ptr = (uint8_t*)malloc(Offset + sizeof(Char) * length); ptr)
             {
                 new (ptr)std::atomic_uint32_t(1);
                 Char* const ptrText = reinterpret_cast<Char*>(ptr + Offset);

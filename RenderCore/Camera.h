@@ -9,7 +9,7 @@ namespace rayr
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI Camera : public common::AlignBase<32>, public xziar::respak::Serializable, public common::Controllable
+class RAYCOREAPI Camera : public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     virtual u16string_view GetControlType() const override

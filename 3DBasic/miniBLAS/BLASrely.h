@@ -1,11 +1,15 @@
 #pragma once
 
 #include "common/CommonRely.hpp"
-#include "common/AlignedContainer.hpp"
+#include "common/AlignedBase.hpp"
 #include "common/SIMD.hpp"
 #include <cstdint>
 #include <type_traits>
 #include <cmath>
+
+#if !COMMON_OVER_ALIGNED
+#   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
+#endif
 
 
 //#pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )

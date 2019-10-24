@@ -7,21 +7,20 @@
 /* aligned allocation */
 
 #include <new>
-#if COMMON_OS_MACOS && false // posix_memalign doesnot allow arbitrary size
+#include <cstdlib>
+#if COMMON_OS_MACOS
 #   include <malloc/malloc.h>
-[[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
-{
-    void* ptr = nullptr;
-    if (posix_memalign(&ptr, align, size))
-        return nullptr;
-    return ptr;
-}
-forceinline void free_align(void* ptr) noexcept
-{
-    free(ptr);
-}
-#elif COMMON_OS_LINUX || COMMON_OS_FREEBSD
+#else
 #   include <malloc.h>
+#endif
+
+
+
+namespace common
+{
+
+
+#if COMMON_OS_LINUX || COMMON_OS_FREEBSD
 [[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
 {
     return memalign(align, size);
@@ -30,8 +29,7 @@ forceinline void free_align(void* ptr) noexcept
 {
     free(ptr);
 }
-#elif COMMON_OS_WIN
-#   include <malloc.h>
+#elif COMMON_OS_WIN && COMPILER_MSVC
 [[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
 {
     return _aligned_malloc(size, align);
@@ -44,55 +42,75 @@ forceinline void free_align(void* ptr) noexcept
 [[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
 {
     static_assert(alignof(std::max_align_t) >= alignof(size_t), "malloc should at least satisfy alignment of size_t");
-    if (align == 0 || !common::IsPower2(align) || SIZE_MAX - size < 2 * align)
+    constexpr size_t infoPadding = sizeof(size_t);
+    constexpr size_t infoPaddingMask = ~(sizeof(size_t) - 1);
+
+    const size_t extraPadding = align - 1 + infoPadding;
+    if (align == 0 || !common::IsPower2(align) || SIZE_MAX - size < extraPadding)
         return nullptr;
 
-    const auto ptr = malloc(size + 2 * align);
+    const auto ptr = malloc(size + extraPadding);
     if (ptr == nullptr)
         return nullptr;
     auto offset = uintptr_t(ptr) % align;
-    if (offset == 0) offset = align;
-    
+    if (offset < infoPadding) offset += align;
+
     const auto newptrval = uintptr_t(ptr) + offset;
-    uint8_t* const baseoffset = reinterpret_cast<uint8_t*>(newptrval - 1);
-    if (offset <= 255)
-    {
-        *baseoffset = static_cast<uint8_t>(offset);
-    }
-    else
-    {
-        *baseoffset = 0;
-        *reinterpret_cast<size_t*>(newptrval - 2 * sizeof(size_t)) = offset;
-    }
+    const auto offsetptrval = (newptrval & infoPaddingMask) - infoPadding;
+    *reinterpret_cast<size_t*>(offsetptrval) = offset;
 
     return reinterpret_cast<void*>(newptrval);
 }
 forceinline void free_align(void* ptr) noexcept
 {
+    constexpr size_t infoPadding = sizeof(size_t);
+    constexpr size_t infoPaddingMask = ~(sizeof(size_t) - 1);
+
     if (ptr == nullptr) return;
-    const auto ptrval = uintptr_t(ptr);
-    const auto baseoffset = *reinterpret_cast<const uint8_t*>(ptrval - 1);
-    const size_t offset = baseoffset == 0 ?
-        *reinterpret_cast<const size_t*>(ptrval - 2 * sizeof(size_t)) :
-        baseoffset;
-    free(reinterpret_cast<void*>(ptrval - offset));
+
+    const auto newptrval = uintptr_t(ptr);
+    const auto offsetptrval = (newptrval & infoPaddingMask) - infoPadding;
+    const size_t offset = *reinterpret_cast<const size_t*>(offsetptrval);
+
+    free(reinterpret_cast<void*>(newptrval - offset));
 }
 #endif
 
 
-namespace common
+[[nodiscard]] forceinline void* mallocn_align(const size_t size, const size_t align) noexcept
 {
+    if (align == 0 || !common::IsPower2(align) || size % align != 0)
+        return nullptr;
+#if COMMON_OS_UNIX
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, align, size))
+        return nullptr;
+    return ptr;
+    //#elif COMMON_OS_WIN && COMPILER_MSVC
+#else
+    return malloc_align(size, align);
+#endif
+}
+forceinline void freen_align(void* ptr) noexcept
+{
+#if COMMON_OS_UNIX
+    free(ptr);
+    //#elif COMMON_OS_WIN && COMPILER_MSVC
+#else
+    free_align(ptr);
+#endif
+}
+
+
 
 template<size_t Align>
 struct AlignBase
 {
     static_assert(Align != 0 && common::IsPower2(Align), "Alignment should be non-zero and power-of-2");
+    template<typename> friend struct AlignBaseHelper;
+private:
+    static constexpr size_t ALIGN_SIZE = Align;
 public:
-#if defined(__cpp_lib_gcd_lcm)
-    static constexpr size_t ALIGN_SIZE = std::lcm(Align, (size_t)32);
-#else
-    static constexpr size_t ALIGN_SIZE = std::max(Align, (size_t)32);
-#endif
     static void* operator new(size_t size) noexcept
     {
         return malloc_align(size, ALIGN_SIZE);
@@ -124,7 +142,7 @@ private:
         if constexpr (IsDerivedFromAlignBase)
             return T::ALIGN_SIZE;
         else
-            return AlignBase<alignof(T)>::ALIGN_SIZE;
+            return alignof(T);
     }
 public:
     static constexpr bool IsDerivedFromAlignBase = decltype(is_derived_from_alignbase_impl(std::declval<T*>()))::value;

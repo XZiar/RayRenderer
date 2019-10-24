@@ -7,6 +7,10 @@
 #if COMMON_SIMD_LV < 100
 #   error require at least AVX
 #endif
+#if !COMMON_OVER_ALIGNED
+#   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
+#endif
+
 
 namespace common
 {

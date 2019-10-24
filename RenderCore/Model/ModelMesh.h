@@ -12,7 +12,7 @@ class Model;
 namespace detail
 {
 
-class alignas(b3d::Vec3)_ModelMesh : public common::NonCopyable, public common::AlignBase<alignof(b3d::Vec3)>, public xziar::respak::Serializable
+class alignas(b3d::Vec3)_ModelMesh : public common::NonCopyable, public xziar::respak::Serializable
 {
     friend class ::rayr::Model;
 private:
@@ -22,7 +22,7 @@ private:
 public:
     b3d::Vec3 size;
 private:
-    common::container::vectorEx<oglu::PointEx> pts;
+    std::vector<oglu::PointEx> pts;
     std::vector<uint32_t> indexs;
     std::vector<std::pair<string, uint32_t>> groups;
     std::map<string, PBRMaterial> MaterialMap;

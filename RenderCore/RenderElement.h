@@ -11,7 +11,7 @@ namespace rayr
 #   pragma warning(push)
 #   pragma warning(disable:4275)
 #endif
-class RAYCOREAPI Drawable : public common::AlignBase<16>, public common::NonCopyable,
+class RAYCOREAPI Drawable : public common::NonCopyable,
     public xziar::respak::Serializable, public common::Controllable
 {
 public:

@@ -17,7 +17,7 @@ namespace miniBLAS
 
 /*a vector contains 4 element(int32 or float)*/
 template<typename T>
-class alignas(16) Vec4Base : public common::AlignBase<16>
+class alignas(16) Vec4Base
 {
 private:
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");

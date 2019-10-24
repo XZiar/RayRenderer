@@ -8,7 +8,7 @@ namespace oglu
 {
 
 
-class alignas(16) Point : public common::AlignBase<16>
+class alignas(16) Point
 {
 public:
     b3d::Vec3 pos;
@@ -42,7 +42,7 @@ public:
     PointEx(const b3d::Vec3 &v, const b3d::Normal &n, const b3d::Vec3 &t3, const b3d::Vec4 &tanNorm = b3d::Vec4::zero()) noexcept : Point(v, n, t3), tan(tanNorm) { };
 };
 
-struct alignas(32) Triangle : public common::AlignBase<32>
+struct alignas(32) Triangle
 {
 public:
     b3d::Vec3 points[3];

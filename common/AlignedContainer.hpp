@@ -19,7 +19,8 @@ struct AlignAllocator
 {
     using value_type = T;
     static constexpr size_t Align = AlignBaseHelper<T>::Align;
-    static constexpr auto IsMultiple = sizeof(T) % Align == 0;
+    static constexpr auto IsOverAligned = Align > alignof(std::max_align_t);
+    static constexpr auto IsMultiple = sizeof(T) % Align == 0 && sizeof(T) >= Align;
 
     constexpr AlignAllocator() noexcept = default;
     template<class U>
@@ -43,8 +44,10 @@ struct AlignAllocator
         if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
             throw std::bad_array_new_length();
 
-        if constexpr (IsMultiple && false)
-            ptr = reinterpret_cast<T*>(aligned_alloc(Align, n * sizeof(T)));
+        if constexpr (!IsOverAligned)
+            ptr = reinterpret_cast<T*>(malloc(n * sizeof(T), Align));
+        else if constexpr (IsMultiple)
+            ptr = reinterpret_cast<T*>(mallocn_align(n * sizeof(T), Align));
         else
             ptr = reinterpret_cast<T*>(malloc_align(n * sizeof(T), Align));
 
@@ -56,8 +59,10 @@ struct AlignAllocator
     void deallocate(T* const p, const size_t) const noexcept
     {
         if (p == nullptr) return;
-        if constexpr (IsMultiple && false)
-            std::free(p);
+        if constexpr (!IsOverAligned)
+            free(p);
+        else if constexpr (IsMultiple)
+            freen_align(p);
         else
             free_align(p);
     }

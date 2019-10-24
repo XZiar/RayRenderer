@@ -66,11 +66,11 @@ RESPAK_IMPL_COMP_DESERIALIZE(Pyramid, float)
 }
 
 
-static vector<uint16_t> CreateSphere(common::container::vectorEx<Point>& pts, const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
+static std::pair<vector<Point>, vector<uint16_t>> CreateSphere(const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
 {
     const float rstep = 1.0f / (rings - 1);
     const float sstep = 1.0f / (sectors - 1);
-    pts.clear();
+    std::vector<Point> pts;
     pts.reserve(rings*sectors);
     uint16_t rcnt = rings, scnt = sectors;
     for (float r = 0; rcnt--; r += rstep)
@@ -102,13 +102,12 @@ static vector<uint16_t> CreateSphere(common::container::vectorEx<Point>& pts, co
             indexs.push_back(static_cast<uint16_t>(idx0 + sectors + 1));
         }
     }
-    return indexs;
+    return { pts,indexs };
 }
 
 Sphere::Sphere(const float r) : Drawable(this, TYPENAME), Radius(r)
 {
-    common::container::vectorEx<Point> pts;
-    auto indexs = CreateSphere(pts, Radius);
+    const auto [pts,indexs] = CreateSphere(Radius);
     vbo = oglu::oglArrayBuffer_::Create();
     vbo->Write(pts);
     ebo = oglu::oglElementBuffer_::Create();

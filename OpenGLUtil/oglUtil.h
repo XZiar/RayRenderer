@@ -11,7 +11,7 @@ using b3d::Vec4;
 using b3d::Mat3x3;
 using b3d::Mat4x4;
 enum class TransformType : uint8_t { RotateXYZ, Rotate, Translate, Scale };
-struct OGLUAPI TransformOP : public common::AlignBase<alignof(Vec4)>
+struct OGLUAPI TransformOP
 {
     Vec4 vec;
     TransformType type;

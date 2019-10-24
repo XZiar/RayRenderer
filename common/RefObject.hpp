@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "AlignedBase.hpp"
 #include <type_traits>
 #include <utility>
 #include <atomic>

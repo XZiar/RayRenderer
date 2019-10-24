@@ -31,20 +31,13 @@ struct EnumerableEnd
 struct EnumerableObject
 {
 private:
-    template<typename T, typename = void>
-    struct CanGetEnumerator : std::false_type
-    { };
     template<typename T>
-    struct CanGetEnumerator<T,
-        std::enable_if_t<true,
-        decltype(std::declval<T&>().GetEnumerator(), (void)0)
-        >> : std::true_type
-    { };
+    using GetEnumeratorTyper = decltype(std::declval<T&>().GetEnumerator());
 public:
     template<typename T>
     static constexpr void Check()
     {
-        static_assert(CanGetEnumerator<T>::value, "EnumerableObject should has a GetEnumerator method");
+        static_assert(common::is_detected_v<GetEnumeratorTyper, T>, "EnumerableObject should has a GetEnumerator method");
     }
 };
 

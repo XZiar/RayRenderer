@@ -164,17 +164,21 @@ The best practise should be acquiring the resource only once, and keep a copy of
 
 ## Container Components
 
-### [AlignedContainer](./AlignedContainer.hpp)
+### [AlignedBase](./AlignedBase.hpp)
+
+Provide aligned memory management. Strict aligned malloc `malloc_align` is provided just as `std::aligned_alloc`. Weak aligned malloc `mallocn_align` which support non-multiple-alignment size is also provided.
 
 * **`AlignBase<size_t>`** custom base that support aligned memory allocation when created on heap
 
-* **`AlignAllocator`** custom allocator that support aligned memory management
+### [AlignedContainer](./AlignedContainer.hpp)
+
+* **`AlignAllocator`** custom allocator that support arbitrary aligned memory management
 
 std containers with `AlignAllocator` is defined under `common::container` as xxx**Ex**.
 
 ### [AlignedBuffer](./AlignedBuffer.hpp)
 
-A non-typed aligned memory space, provide sub-buffer creation and mamnagement(using reference counter).
+A non-typed aligned memory space, provide sub-buffer creation and shared-lifetime mamnagement(using reference counter).
 
 ### [ContainerHelper](./ContainerHelper.hpp)
 

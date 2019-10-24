@@ -1,7 +1,6 @@
 #pragma once
 
 #include "oglRely.h"
-#include "common/AlignedContainer.hpp"
 #include "3DElement.hpp"
 
 namespace oglu
@@ -10,39 +9,35 @@ namespace convert
 {
 
 OGLUAPI void ConvertToHalf(const float* __restrict src, b3d::half* __restrict dst, size_t size);
-forceinline common::container::vectorEx<b3d::half> ConvertToHalf(const float* __restrict src, const size_t size)
+forceinline std::vector<b3d::half> ConvertToHalf(const float* __restrict src, const size_t size)
 {
-    common::container::vectorEx<b3d::half> ret(size);
+    std::vector<b3d::half> ret(size);
     ConvertToHalf(src, ret.data(), size);
     return ret;
 }
-template<typename A>
-forceinline common::container::vectorEx<b3d::half> ConvertToHalf(const std::vector<float, A>& src)
+forceinline std::vector<b3d::half> ConvertToHalf(const common::span<const float> src)
 {
     return ConvertToHalf(src.data(), src.size());
 }
-template<typename A>
-forceinline void ConvertToHalf(const std::vector<float, A>& src, b3d::half* __restrict dst, const size_t size)
+forceinline void ConvertToHalf(const common::span<const float> src, b3d::half* __restrict dst, const size_t size)
 {
-    ConvertToHalf(src.data(), dst, std::min(src.size(), size));
+    ConvertToHalf(src.data(), dst, std::min<size_t>(src.size(), size));
 }
 
 OGLUAPI void ConvertFromHalf(const b3d::half* __restrict src, float* __restrict dst, size_t size);
-forceinline common::container::vectorEx<float> ConvertFromHalf(const b3d::half* __restrict src, const size_t size)
+forceinline std::vector<float> ConvertFromHalf(const b3d::half* __restrict src, const size_t size)
 {
-    common::container::vectorEx<float> ret(size);
+    std::vector<float> ret(size);
     ConvertFromHalf(src, ret.data(), size);
     return ret;
 }
-template<typename A>
-forceinline common::container::vectorEx<float> ConvertFromHalf(const std::vector<b3d::half, A>& src)
+forceinline std::vector<float> ConvertFromHalf(const common::span<const b3d::half> src)
 {
     return ConvertFromHalf(src.data(), src.size());
 }
-template<typename A>
-forceinline void ConvertFromHalf(const std::vector<b3d::half, A>& src, float* __restrict dst, const size_t size)
+forceinline void ConvertFromHalf(const common::span<const b3d::half> src, float* __restrict dst, const size_t size)
 {
-    ConvertFromHalf(src.data(), dst, std::min(src.size(), size));
+    ConvertFromHalf(src.data(), dst, std::min<size_t>(src.size(), size));
 }
 
 

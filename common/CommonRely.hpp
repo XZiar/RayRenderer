@@ -61,6 +61,53 @@
 
 
 
+/* C++ language test */
+
+#if COMPILER_MSVC
+#   if defined(_MSVC_LANG)
+#       define COMMON_CPP_TIME _MSVC_LANG
+#   else
+#       define COMMON_CPP_TIME __cplusplus
+#   endif
+#else
+#   define COMMON_CPP_TIME __cplusplus
+#endif
+
+#if COMMON_CPP_TIME >= 201703L 
+#   define COMMON_CPP_17 1
+#elif COMMON_CPP_TIME >= 201402L 
+#   define COMMON_CPP_14 1
+#elif COMMON_CPP_TIME >= 201103L 
+#   define COMMON_CPP_11 1
+#elif COMMON_CPP_TIME >= 199711L
+#   define COMMON_CPP_03 1
+#endif
+
+#ifndef COMMON_CPP_17
+#   define COMMON_CPP_17 0
+#endif
+#ifndef COMMON_CPP_14
+#   define COMMON_CPP_14 0
+#endif
+#ifndef COMMON_CPP_11
+#   define COMMON_CPP_11 0
+#endif
+#ifndef COMMON_CPP_03
+#   define COMMON_CPP_03 0
+#endif
+
+
+
+/* over-aligned support */
+
+#if COMMON_CPP_17 && defined(__cpp_aligned_new) && __cpp_aligned_new >= 201606L
+#   define COMMON_OVER_ALIGNED 1
+#else
+#   define COMMON_OVER_ALIGNED 0
+#endif
+
+
+
 /* vectorcall fix */
 
 #if COMMON_OS_WIN && !defined(_MANAGED) && !defined(_M_CEE)
@@ -277,6 +324,18 @@ template<typename T>
     static_assert(std::is_unsigned_v<T>, "only for unsigned type");
     return (num & (num - 1)) == 0; 
 }
+
+
+
+template <typename, template <typename...> typename Op, typename... T>
+struct is_detected_impl : std::false_type {};
+template <template <typename...> typename Op, typename... T>
+struct is_detected_impl<std::void_t<Op<T...>>, Op, T...> : std::true_type {};
+
+template <template <typename...> typename Op, typename... T>
+using is_detected = is_detected_impl<void, Op, T...>;
+template <template <typename...> typename Op, typename... T>
+inline constexpr bool is_detected_v = is_detected_impl<void, Op, T...>::value;
 
 
 

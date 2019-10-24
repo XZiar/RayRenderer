@@ -128,7 +128,7 @@ public:
 };
 
 
-class OGLUAPI oglProgram_ : public common::NonMovable, public common::AlignBase<32>, 
+class OGLUAPI oglProgram_ : public common::NonMovable, 
     public detail::oglCtxObject<true>, public std::enable_shared_from_this<oglProgram_>
 {
     friend class TextureManager;
