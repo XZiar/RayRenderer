@@ -86,6 +86,10 @@ public:
     {
         return StrView;
     }
+    constexpr operator const common::span<const Char>() const noexcept
+    {
+        return common::span<const Char>(StrView.data(), StrView.size());
+    }
 
     decltype(auto) begin() const
     {

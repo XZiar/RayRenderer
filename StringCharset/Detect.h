@@ -26,16 +26,16 @@ public:
     CharsetDetector(CharsetDetector&&) noexcept = default;
     ~CharsetDetector();
     CharsetDetector& operator=(CharsetDetector&&) noexcept = default;
-    bool HandleData(const void *data, const size_t len) const;
+    bool HandleData(const common::span<const std::byte> data) const;
     void Reset() const;
     void EndData() const;
     std::string GetEncoding() const;
     common::str::Charset DetectEncoding() const
     {
-        return common::str::toCharset(GetEncoding());
+        return common::str::toCharset(this->GetEncoding());
     }
 };
-std::string STRCHSETAPI GetEncoding(const void *data, const size_t len);
+std::string STRCHSETAPI GetEncoding(const common::span<const std::byte> data);
 
 #if COMPILER_MSVC
 #   pragma warning(pop)
@@ -45,9 +45,7 @@ std::string STRCHSETAPI GetEncoding(const void *data, const size_t len);
 template<typename T>
 inline common::str::Charset DetectEncoding(const T& cont)
 {
-    using Helper = common::container::ContiguousHelper<T>;
-    static_assert(Helper::IsContiguous, "only accept contiguous container as input");
-    return common::str::toCharset(GetEncoding(Helper::Data(cont), Helper::Count(cont) * Helper::EleSize));
+    return common::str::toCharset(GetEncoding(detail::ToByteSpan(cont)));
 }
 
 
