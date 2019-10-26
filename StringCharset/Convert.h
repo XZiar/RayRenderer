@@ -29,11 +29,6 @@ template<typename Char>
 {
     return to_string(common::span<const Char>(str, size), outchset, inchset);
 }
-template<typename Char>
-[[nodiscard]] inline std::string to_string(const Char* str,                     const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
-{
-    return to_string(str, std::char_traits<Char>::length(str), outchset, inchset);
-}
 
 
 template<typename T>
@@ -45,11 +40,6 @@ template<typename Char>
 [[nodiscard]] inline std::u32string to_u32string(const Char* str, const size_t size,    const Charset inchset = Charset::ASCII)
 {
     return to_u32string(common::span<const Char>(str, size), inchset);
-}
-template<typename Char>
-[[nodiscard]] inline std::u32string to_u32string(const Char* str,                       const Charset inchset = Charset::ASCII)
-{
-    return to_u32string(str, std::char_traits<Char>::length(str), inchset);
 }
 
 
@@ -63,11 +53,6 @@ template<typename Char>
 {
     return to_u16string(common::span<const Char>(str, size), inchset);
 }
-template<typename Char>
-[[nodiscard]] inline std::u16string to_u16string(const Char* str,                       const Charset inchset = Charset::ASCII)
-{
-    return to_u16string(str, std::char_traits<Char>::length(str), inchset);
-}
 
 
 template<typename T>
@@ -79,11 +64,6 @@ template<typename Char>
 [[nodiscard]] inline std::string to_u8string(const Char* str, const size_t size,    const Charset inchset = Charset::ASCII)
 {
     return to_u8string(common::span<const Char>(str, size), inchset);
-}
-template<typename Char>
-[[nodiscard]] inline std::string to_u8string(const Char* str,                       const Charset inchset = Charset::ASCII)
-{
-    return to_u8string(str, std::char_traits<Char>::length(str), inchset);
 }
 
 
@@ -98,11 +78,6 @@ template<typename Char>
 {
     return detail::ToULEng(std::basic_string_view<Char>(str, size), inchset, true);
 }
-template<typename Char>
-[[nodiscard]] inline auto ToUpperEng(const Char* str,                                       const Charset inchset = Charset::ASCII)
-{
-    return detail::ToULEng(std::basic_string_view<Char>(str), inchset, true);
-}
 
 
 template<typename T>
@@ -115,12 +90,6 @@ template<typename Char>
 {
     return detail::ToULEng(std::basic_string_view<Char>(str, size), inchset, false);
 }
-template<typename Char>
-[[nodiscard]] inline auto ToLowerEng(const Char* str,                                       const Charset inchset = Charset::ASCII)
-{
-    return detail::ToULEng(std::basic_string_view<Char>(str), inchset, false);
-}
-
 
 
 }

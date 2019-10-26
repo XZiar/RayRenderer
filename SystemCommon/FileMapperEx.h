@@ -70,8 +70,7 @@ protected:
 
     void WriteCheck() const;
     void ReadCheck() const;
-    [[nodiscard]] std::byte* GetPtr() const noexcept;
-    [[nodiscard]] size_t GetBytes() const noexcept;
+    [[nodiscard]] common::span<std::byte> GetSpan() const noexcept;
     void FlushRange(const size_t offset, const size_t len, const bool async = true) const noexcept;
 };
 

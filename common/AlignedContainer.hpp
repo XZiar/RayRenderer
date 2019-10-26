@@ -45,7 +45,7 @@ struct AlignAllocator
             throw std::bad_array_new_length();
 
         if constexpr (!IsOverAligned)
-            ptr = reinterpret_cast<T*>(malloc(n * sizeof(T), Align));
+            ptr = reinterpret_cast<T*>(malloc(n * sizeof(T)));
         else if constexpr (IsMultiple)
             ptr = reinterpret_cast<T*>(mallocn_align(n * sizeof(T), Align));
         else

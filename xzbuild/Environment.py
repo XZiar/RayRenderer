@@ -26,6 +26,7 @@ _intrinMap = \
 def collectEnv(paras:dict) -> dict:
     solDir = os.getcwd()
     env = {"rootDir": solDir, "target": "Debug", "paras": paras}
+    env["verbose"] = "verbose" in paras
     env["arch"] = paras.get("arch", "native")
     is64Bits = sys.maxsize > 2**32
     env["platform"] = "x64" if is64Bits else "x86"

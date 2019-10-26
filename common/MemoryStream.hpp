@@ -21,9 +21,6 @@ public:
     template<typename T>
     MemoryInputStream(const span<T> srcSpan) noexcept : 
         Ptr(common::as_bytes(srcSpan).data()), TotalSize(srcSpan.size_bytes()) { }
-    template<typename T>
-    MemoryInputStream(const T* ptr, const size_t count) noexcept :
-        Ptr(reinterpret_cast<const std::byte*>(ptr)), TotalSize(count * sizeof(T)) { }
     constexpr MemoryInputStream(MemoryInputStream&& stream) noexcept :
         Ptr(stream.Ptr), TotalSize(stream.TotalSize), CurPos(stream.CurPos)
     {
@@ -100,18 +97,15 @@ class MemoryOutputStream : public RandomOutputStream
 private:
     std::byte* Ptr;
     size_t TotalSize, CurPos = 0;
+    bool IsGrowable;
 protected:
-    virtual bool IsGrowable() const noexcept { return false; }
-    [[nodiscard]] virtual std::pair<std::byte*, size_t> Grow(const size_t) { return { Ptr, TotalSize }; }
+    [[nodiscard]] virtual common::span<std::byte> Grow(const size_t) { return common::span<std::byte>(Ptr, TotalSize); }
 public:
     template<typename T>
-    MemoryOutputStream(const span<T> srcSpan) noexcept :
-        Ptr(common::as_writable_bytes(srcSpan).data()), TotalSize(srcSpan.size_bytes()) { }
-    template<typename T>
-    MemoryOutputStream(T* ptr, const size_t count) noexcept :
-        Ptr(reinterpret_cast<std::byte*>(ptr)), TotalSize(count * sizeof(T)) {}
+    MemoryOutputStream(const span<T> srcSpan, const bool isGrowable = false) noexcept :
+        Ptr(common::as_writable_bytes(srcSpan).data()), TotalSize(srcSpan.size_bytes()), IsGrowable(isGrowable) { }
     constexpr MemoryOutputStream(MemoryOutputStream&& stream) noexcept :
-        Ptr(stream.Ptr), TotalSize(stream.TotalSize), CurPos(stream.CurPos)
+        Ptr(stream.Ptr), TotalSize(stream.TotalSize), CurPos(stream.CurPos), IsGrowable(stream.IsGrowable)
     {
         stream.Ptr = nullptr; stream.TotalSize = stream.CurPos = 0;
     }
@@ -139,7 +133,7 @@ public:
 
     [[nodiscard]] virtual size_t AcceptableSpace() noexcept override
     {
-        return IsGrowable() ? SIZE_MAX : TotalSize - CurPos;
+        return IsGrowable ? SIZE_MAX : TotalSize - CurPos;
     };
     virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) override
     {
@@ -147,7 +141,8 @@ public:
         size_t acceptable = TotalSize - CurPos;
         if (acceptable < len)
         {
-            std::tie(Ptr, TotalSize) = Grow(len - acceptable);
+            const auto newspan = Grow(len - acceptable);
+            Ptr = newspan.data(), TotalSize = newspan.size();
             acceptable = TotalSize - CurPos;
         }
         const auto avaliable = std::min(len, acceptable);
@@ -169,6 +164,7 @@ private:
     using Helper = common::container::ContiguousHelper<std::remove_cv_t<T>>;
     static_assert(Helper::IsContiguous, "need a container that satisfies contiguous container concept");
 protected:
+    using EleType = std::conditional_t<std::is_const_v<T>, std::add_const_t<typename Helper::EleType>, typename Helper::EleType>;
     ContainerHolder(T& container) : Container(&container) {}
     constexpr ContainerHolder(T&& container) noexcept : Container(std::move(container)) {}
     constexpr ContainerHolder(ContainerHolder<T>&& other) noexcept : Container(std::move(other.container)) {}
@@ -184,13 +180,9 @@ public:
     {
         return Helper::EleSize;
     }
-    [[nodiscard]] constexpr auto* GetPtr() noexcept
+    [[nodiscard]] constexpr auto GetSpan() noexcept
     {
-        return Helper::Data(*GetContainer());
-    }
-    [[nodiscard]] constexpr size_t GetCount() noexcept
-    {
-        return Helper::Count(*GetContainer());
+        return common::span<EleType>(Helper::Data(*GetContainer()), Helper::Count(*GetContainer()));
     }
 };
 }
@@ -202,10 +194,10 @@ class ContainerInputStream : private detail::ContainerHolder<const T>, public Me
 public:
     ContainerInputStream(const T& container)  noexcept
         : detail::ContainerHolder<const T>(container),
-        MemoryInputStream(this->GetPtr(), this->GetCount()) {}
+        MemoryInputStream(this->GetSpan()) {}
     ContainerInputStream(T&& container) noexcept
         : detail::ContainerHolder<const T>(std::move(container)),
-        MemoryInputStream(this->GetPtr(), this->GetCount()) {}
+        MemoryInputStream(this->GetSpan()) {}
     ContainerInputStream(ContainerInputStream<T>&& other) noexcept
         : detail::ContainerHolder<const T>(std::move(other)),
         MemoryInputStream(std::move(other)) {}
@@ -219,8 +211,7 @@ class ContainerOutputStream : private detail::ContainerHolder<T>, public MemoryO
 private:
     static constexpr bool IsConst = std::is_const_v<T> || std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>;
 protected:
-    [[nodiscard]] virtual bool IsGrowable() const noexcept override { return !IsConst; }
-    [[nodiscard]] virtual std::pair<std::byte*, size_t> Grow([[maybe_unused]] const size_t size) noexcept(IsConst) override
+    [[nodiscard]] virtual common::span<std::byte> Grow([[maybe_unused]] const size_t size) noexcept(IsConst) override
     {
         if constexpr (IsConst)
             return MemoryOutputStream::Grow(size);
@@ -231,13 +222,13 @@ protected:
             const auto newSize = GetSize() + size + eleSize - 1;
             const auto newCount = newSize / eleSize;
             container->resize(newCount);
-            return { reinterpret_cast<std::byte*>(this->GetPtr()), newCount * eleSize };
+            return common::as_writable_bytes(this->GetSpan());
         }
     }
 public:
     ContainerOutputStream(T& container) noexcept
         : detail::ContainerHolder<T>(container),
-        MemoryOutputStream(this->GetPtr(), this->GetCount()) {}
+        MemoryOutputStream(this->GetSpan(), !IsConst) {}
     ContainerOutputStream(ContainerInputStream<T>&& other) noexcept
         : detail::ContainerHolder<T>(std::move(other)),
         MemoryOutputStream(std::move(other)) {}

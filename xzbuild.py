@@ -34,14 +34,14 @@ def makeit(proj:Project, env:dict, action:str):
     os.chdir(projDir)
     doClean = 0
     buildObj = ""
-    if action == "build" or action == "rebuild":
+    if env["verbose"] and (action == "build" or action == "rebuild"):
         for t in proj.targets:
             t.printSources()
     if action == "clean" or action == "rebuild":
         doClean = 1
     if action == "clean":
         buildObj = "clean"
-    cmd = f'make {buildObj} OBJPATH="{env["objpath"]}" SOLPATH="{rootDir}" CLEAN={doClean} -f {rootDir}/XZBuildMakeCore.mk -j{env["threads"]}'
+    cmd = f'make {buildObj} OBJPATH="{env["objpath"]}" SOLPATH="{rootDir}" CLEAN={doClean} -f {rootDir}/XZBuildMakeCore.mk -j{env["threads"]} VERBOSE={1 if env["verbose"] else 0}'
     #print(cmd)
     ret = subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)

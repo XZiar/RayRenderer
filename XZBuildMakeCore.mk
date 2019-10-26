@@ -8,6 +8,8 @@ STATICLINKER	?= ar
 DYNAMICLINKER	?= g++
 APPLINKER		?= g++
 
+VERBOSE			?= 0
+
 #ANSI Colors
 CLR_BLACK	:= \033[90m
 CLR_RED		:= \033[91m
@@ -50,7 +52,6 @@ CPPINCPATHS	:= $(patsubst %, -I"%", $(cpp_incpaths)) $(INCPATH)
 CUDAINCPATHS	:= $(patsubst %, -I"%", $(cuda_incpaths)) $(INCPATH)
 ASMINCPATHS	:= $(patsubst %, -I"%", $(asm_incpaths)) $(INCPATH)
 NASMINCPATHS	:= $(patsubst %, -I"%", $(nasm_incpaths)) $(INCPATH)
-
 
 ### section OBJs
 CXXOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs) $(cuda_srcs))
@@ -96,6 +97,20 @@ DEP_MK	:= xzbuild.proj.json
 
 
 ###============================================================================
+### beautify print
+ifeq ($(VERBOSE), 0)
+define BuildProgress
+    @echo "$(CLR_GREEN)$(1) $(CLR_BLUE)[$(2)] $(CLR_WHITE)$(3) $(CLR_CLEAR)"
+    @$(4)
+endef
+else
+define BuildProgress
+	$(4)
+endef
+endif
+
+
+###============================================================================
 ### stage targets
 ifeq ($(BUILD_TYPE), static)
 APP		:= $(APPPATH)lib$(NAME).a
@@ -123,16 +138,19 @@ clean:
 ### main targets
 ifeq ($(BUILD_TYPE), static)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
+#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
+	$(eval $@_bcmd := $(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS))
+	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
+#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
+	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
+	$(call BuildProgress,link   ,  dll, $(APP), $($@_bcmd))
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP)
+#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
+	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
+	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 endif
 
 ### dependent includes
@@ -143,36 +161,42 @@ endif
 ### pch targets
 $(OBJPATH)/%.gch: % $(DEP_MK)
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	@echo "#pragma once" > $(basename $@)
+	@echo "" > $(basename $@)
 endif
 ifneq (($(filter $<,$(cpp_pch))), ) # cpp pch
-	$(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else ifneq (($(filter $<,$(c_pch))), ) # c pch
-	$(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else
 $(error unknown pch file target)
 endif
+	$(call BuildProgress,compile,  pch, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### cxx targets
 $(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
-	$(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@
+	$(eval $@_bcmd := $(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(call BuildProgress,compile,    c, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### asm targets
 $(OBJPATH)/%.asm.o: %.asm $(DEP_MK)
-	$(NASMCOMPILER) $(NASMINCPATHS) $(nasm_flags) $< -o $@
+	$(eval $@_bcmd := $(NASMCOMPILER) $(NASMINCPATHS) $(nasm_flags) $< -o $@)
+	$(call BuildProgress,compile, nasm, $<, $($@_bcmd))
 
 $(OBJPATH)/%.S.o: %.S $(DEP_MK)
-	$(ASMCOMPILER) $(ASMINCPATHS) $(asm_flags) -MMD -MP -fPIC -c $< -o $@
+	$(eval $@_bcmd := $(ASMCOMPILER) $(ASMINCPATHS) $(asm_flags) -MMD -MP -fPIC -c $< -o $@)
+	$(call BuildProgress,compile,  asm, $<, $($@_bcmd))
 
 
 ###============================================================================
@@ -185,13 +209,17 @@ $(OBJPATH)/%.rc.o: %.rc $(DEP_MK)
 ### ispc targets
 # ispc's dependency file is still buggy, so only generate it but not use it
 $(OBJPATH)/%.ispc.o: %.ispc $(DEP_MK)
-	$(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@
+	$(eval $@_bcmd := $(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@)
+	$(call BuildProgress,compile, ispc, $<, $($@_bcmd))
 #	sed -i '1s/^(null):/$@:/g' $(patsubst %.ispc.o, %.ispc.d, $@)
-	ld -r $(patsubst %, $(OBJPATH)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@
+	$(eval $@_bcmd := ld -r $(patsubst %, $(OBJPATH)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@)
+	$(call BuildProgress,merge  , ispc, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### cuda targets
 $(OBJPATH)/%.cu.o: %.cu $(PCH_CPP) $(DEP_MK)
-	$(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -MM -MF $(patsubst %.cu.o, %.cu.d, $@)
-	$(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -o $@
+	$(eval $@_bcmd := $(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -MM -MF $(patsubst %.cu.o, %.cu.d, $@))
+	$(call BuildProgress,depend , cuda, $<, $($@_bcmd))
+	$(eval $@_bcmd := $(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -o $@)
+	$(call BuildProgress,compile, cuda, $<, $($@_bcmd))

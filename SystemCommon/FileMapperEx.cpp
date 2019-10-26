@@ -203,9 +203,7 @@ void FileMappingStream::WriteCheck() const
 void FileMappingStream::ReadCheck() const
 { }
 
-inline std::byte* FileMappingStream::GetPtr() const noexcept { return MappingObject->Ptr; }
-
-inline size_t FileMappingStream::GetBytes() const noexcept { return MappingObject->Size; }
+common::span<std::byte> FileMappingStream::GetSpan() const noexcept { return common::span<std::byte>(MappingObject->Ptr,MappingObject->Size); }
 
 void FileMappingStream::FlushRange(const size_t offset, const size_t len, const bool async) const noexcept
 {
@@ -224,7 +222,7 @@ void FileMappingStream::FlushRange(const size_t offset, const size_t len, const 
 
 FileMappingInputStream::FileMappingInputStream(std::shared_ptr<FileMappingObject> mapping)
     : FileMappingStream(std::move(mapping)), 
-    MemoryInputStream(this->GetPtr(), this->GetBytes()) { }
+    MemoryInputStream(this->GetSpan()) { }
 
 FileMappingInputStream::FileMappingInputStream(FileMappingInputStream&& stream) noexcept
     : FileMappingStream(std::move(stream.MappingObject)),
@@ -236,7 +234,7 @@ FileMappingInputStream::~FileMappingInputStream()
 
 FileMappingOutputStream::FileMappingOutputStream(std::shared_ptr<FileMappingObject> mapping)
     : FileMappingStream(std::move(mapping)),
-    MemoryOutputStream(this->GetPtr(), this->GetBytes()),
+    MemoryOutputStream(this->GetSpan()),
     ModifyRange({ 0,0 }) { }
 
 FileMappingOutputStream::FileMappingOutputStream(FileMappingOutputStream&& stream) noexcept
