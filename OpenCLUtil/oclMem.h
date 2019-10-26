@@ -57,9 +57,9 @@ private:
         //MAKE_ENABLER();
         const oclCmdQue Queue;
         const oclMem_& Mem;
-        void* Pointer;
+        common::span<std::byte> MemSpace;
     public:
-        oclMapPtr_(oclCmdQue que, const oclMem_& mem, void* pointer);
+        oclMapPtr_(oclCmdQue que, const oclMem_& mem, common::span<std::byte> space);
         ~oclMapPtr_();
     };
 protected:
@@ -67,7 +67,7 @@ protected:
     const cl_mem MemID;
     const MemFlag Flag;
     oclMem_(oclContext ctx, cl_mem mem, const MemFlag flag);
-    virtual void* MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
+    virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
 public:
     virtual ~oclMem_();
     oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);
@@ -78,13 +78,15 @@ class OCLUAPI oclMapPtr
 {
     friend class oclMem_;
 private:
+    class oclMemInfo;
     std::shared_ptr<const oclMem_::oclMapPtr_> Ptr;
-    oclMapPtr(std::shared_ptr<const oclMem_::oclMapPtr_> ptr) : Ptr(std::move(ptr)) { }
+    oclMapPtr(std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept : Ptr(std::move(ptr)) { }
 public:
-    constexpr oclMapPtr() {}
-    void* Get() const;
+    constexpr oclMapPtr() noexcept {}
+    common::span<std::byte> Get() const noexcept;
     template<typename T>
-    T* AsType() const { return reinterpret_cast<T*>(Get()); }
+    common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
+    common::AlignedBuffer AsBuffer() const noexcept;
 };
 
 

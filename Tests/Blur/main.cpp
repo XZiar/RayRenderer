@@ -84,7 +84,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
 
     const auto coeff = ComputeCoeff(sigma);
     auto rawBuf = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize());
-    pms = rawBuf->Write(cmdque, image.GetRawPtr(), image.GetSize(), 0, false);
+    pms = rawBuf->WriteSpan(cmdque, image.AsSpan<uint32_t>(), 0, false);
     pms->Wait();
     const auto time1 = pms->ElapseNs() / 1e6f;
     auto midBuf1 = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
@@ -99,7 +99,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     const auto time3 = pmsY->ElapseNs() / 1e6f;
     xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
     img2.SetSize(image.GetWidth(), image.GetHeight());
-    rawBuf->Read(cmdque, img2.GetRawPtr(), width*height*4, false);
+    rawBuf->ReadSpan(cmdque, img2.AsSpan(), 0, false);
     pms->Wait();
     const auto time4 = pms->ElapseNs() / 1e6f;
     log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);

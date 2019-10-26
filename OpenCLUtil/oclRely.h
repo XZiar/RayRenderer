@@ -26,6 +26,7 @@
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
+#include "gsl/gsl_assert"
 
 #include <cstdio>
 #include <memory>

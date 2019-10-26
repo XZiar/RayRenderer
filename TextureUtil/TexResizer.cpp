@@ -174,7 +174,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         if (isSRGB)
             format |= TextureFormat::MASK_SRGB;
         auto tex = oglTex2DStatic_::Create(img->Width, img->Height, format);
-        tex->SetData(img->GetFormat(), ptr.Get());
+        tex->SetData(img->GetFormat(), ptr.Get().data());
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
         return (oglTex2D)tex;

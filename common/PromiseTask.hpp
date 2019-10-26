@@ -38,6 +38,7 @@ public:
         return State();
     }
     uint64_t virtual ElapseNs() { return 0; };
+    uint64_t virtual ChainedElapseNs() { return ElapseNs(); };
 };
 
 template<typename T>

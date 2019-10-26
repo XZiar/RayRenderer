@@ -108,4 +108,14 @@ oclDevice oclContext_::GetGPUDevice() const
     return gpuDev == Devices.cend() ? oclDevice{} : *gpuDev;
 }
 
+void oclContext_::SetDebugResource(const bool shouldEnable) const
+{
+    DebugResource = shouldEnable;
+}
+
+bool oclContext_::ShouldDebugResurce() const
+{
+    return DebugResource;
+}
+
 }

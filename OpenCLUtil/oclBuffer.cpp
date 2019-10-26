@@ -33,27 +33,26 @@ oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t s
 
 oclBuffer_::~oclBuffer_()
 { 
-    oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
+    if (Context->ShouldDebugResurce())
+        oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
 }
 
-void* oclBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
+common::span<std::byte> oclBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
 {
     cl_event e;
     cl_int ret;
     const auto ptr = clEnqueueMapBuffer(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, &e, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clBuffer");
-    return ptr;
+    return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Size);
 }
 
-PromiseResult<void> oclBuffer_::Read(const oclCmdQue& que, void *buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset, const bool shouldBlock) const
 {
-    if (offset >= Size)
-        COMMON_THROW(BaseException, u"offset overflow");
-    else if (offset + size > Size)
-        COMMON_THROW(BaseException, u"read size overflow");
+    Ensures(offset < Size); // offset overflow
+    Ensures(offset + buf.size() <= Size); // read size overflow
     cl_event e;
-    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
+    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clMemory");
     if (shouldBlock)
@@ -62,14 +61,12 @@ PromiseResult<void> oclBuffer_::Read(const oclCmdQue& que, void *buf, const size
         return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
-PromiseResult<void> oclBuffer_::Write(const oclCmdQue& que, const void * const buf, const size_t size, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset, const bool shouldBlock) const
 {
-    if (offset >= Size)
-        COMMON_THROW(BaseException, u"offset overflow");
-    else if (offset + size > Size)
-        COMMON_THROW(BaseException, u"write size overflow"); 
+    Ensures(offset < Size); // offset overflow
+    Ensures(offset + buf.size() <= Size); // write size overflow
     cl_event e;
-    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, size, buf, 0, nullptr, &e);
+    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
     if (shouldBlock)

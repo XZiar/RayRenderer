@@ -115,7 +115,6 @@ void TestStacktrace()
 
 int main()
 {
-    std::vector<int> kk;
 
     TestLinq();
     printf("\n\n");

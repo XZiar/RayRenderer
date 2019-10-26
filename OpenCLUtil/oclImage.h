@@ -43,7 +43,7 @@ protected:
     const xziar::img::TextureFormat Format;
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr = nullptr);
-    virtual void* MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
+    virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
 public:
     virtual ~oclImage_();
     common::PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;

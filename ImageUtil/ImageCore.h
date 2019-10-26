@@ -55,6 +55,7 @@ public:
     }
 
     using common::AlignedBuffer::GetSize;
+    using common::AlignedBuffer::AsSpan;
     uint32_t GetWidth() const noexcept { return Width; }
     uint32_t GetHeight() const noexcept { return Height; }
     ImageDataType GetDataType() const noexcept { return DataType; }

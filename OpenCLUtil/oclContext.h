@@ -25,19 +25,25 @@ class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovabl
     friend class oclImage_;
 private:
     MAKE_ENABLER();
+    oclContext_(std::shared_ptr<const oclPlatform_> plat, std::vector<cl_context_properties> props, const std::vector<oclDevice>& devices);
+public:
+    ~oclContext_();
+    std::u16string GetPlatformName() const;
+    Vendors GetVendor() const;
+    oclDevice GetGPUDevice() const;
+    void SetDebugResource(const bool shouldEnable) const;
+    bool ShouldDebugResurce() const;
+
+private:
     const std::shared_ptr<const oclPlatform_> Plat;
     cl_context Context = nullptr;
-    oclContext_(std::shared_ptr<const oclPlatform_> plat, std::vector<cl_context_properties> props, const std::vector<oclDevice>& devices);
 public:
     std::vector<oclDevice> Devices;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
     mutable common::Delegate<const std::u16string&> OnMessage;
-
-    ~oclContext_();
-    std::u16string GetPlatformName() const;
-    Vendors GetVendor() const;
-    oclDevice GetGPUDevice() const;
+private:
+    mutable std::atomic_bool DebugResource = false;
 };
 MAKE_ENABLER_IMPL(oclContext_)
 

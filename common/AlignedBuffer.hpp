@@ -14,10 +14,11 @@ class AlignedBuffer
 public:
     struct ExternBufInfo
     {
-        virtual ~ExternBufInfo() = 0;
+        virtual ~ExternBufInfo() {}
         [[nodiscard]] virtual size_t GetSize() const noexcept = 0;
         [[nodiscard]] virtual std::byte* GetPtr() const noexcept = 0;
     };
+private:
     class BufInfo
     {
         friend class AlignedBuffer;
@@ -84,7 +85,6 @@ public:
             return nullptr;
         }
     };
-private:
     const BufInfo* CoreInfo;
     AlignedBuffer(const BufInfo* coreInfo, std::byte* ptr, const size_t size, const size_t align) noexcept
         : CoreInfo(coreInfo), Size(size), Align(align), Data(ptr)
@@ -92,6 +92,9 @@ private:
         if (CoreInfo)
             CoreInfo->RefCount++;
     }
+    AlignedBuffer(std::unique_ptr<const ExternBufInfo>&& externInfo, const size_t align) noexcept
+        : CoreInfo(new BufInfo(std::move(externInfo))), Size(CoreInfo->Size), Align(align), Data(BufInfo::GetPtr(CoreInfo))
+    { }
 protected:
     size_t Size = 0;
     size_t Align = 0;
@@ -170,9 +173,9 @@ public:
     template<typename T = std::byte>
     [[nodiscard]] constexpr const T* GetRawPtr()   const noexcept { return reinterpret_cast<const T*>(Data); }
     template<typename T = std::byte>
-    [[nodiscard]] constexpr span<      T> AsSpan()       noexcept { return span<T>(GetRawPtr<T>(), Size / sizeof(T)); }
+    [[nodiscard]] constexpr span<      T> AsSpan()       noexcept { return span<      T>(GetRawPtr<T>(), Size / sizeof(T)); }
     template<typename T = std::byte>
-    [[nodiscard]] constexpr span<const T> AsSpan() const noexcept { return span<T>(GetRawPtr<T>(), Size / sizeof(T)); }
+    [[nodiscard]] constexpr span<const T> AsSpan() const noexcept { return span<const T>(GetRawPtr<T>(), Size / sizeof(T)); }
 
     [[nodiscard]] AlignedBuffer CreateSubBuffer(const size_t offset = 0, size_t size = SIZE_MAX) const
     {
@@ -190,6 +193,11 @@ public:
     constexpr bool operator==(const AlignedBuffer& other) const noexcept
     {
         return Data == other.Data && Size == other.Size;
+    }
+
+    static AlignedBuffer CreateBuffer(std::unique_ptr<const ExternBufInfo>&& externInfo, const size_t align = sizeof(std::max_align_t)) noexcept
+    {
+        return AlignedBuffer(std::move(externInfo), align);
     }
 };
 

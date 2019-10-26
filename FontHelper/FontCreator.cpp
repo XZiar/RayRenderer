@@ -244,7 +244,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         else
         {
             const auto midPtr = middleBuf->Map(clQue, oclu::MapFlag::Read);
-            const int16_t* __restrict distsq = midPtr.AsType<const int16_t>();
+            const int16_t* __restrict distsq = midPtr.AsType<const int16_t>().data();
             fntLog().verbose(u"post-process start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             Image fin(ImageDataType::GRAY);

@@ -73,6 +73,13 @@ protected:
         clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
         return to - from;
     }
+    uint64_t ChainedElapseNs()
+    {
+        auto time = ElapseNs();
+        for (std::shared_ptr<oclPromiseCore> prev = Prev; prev; prev = prev->Prev)
+            time += prev->ElapseNs();
+        return time;
+    }
     const cl_event& GetEvent() { return Event; }
 };
 
@@ -106,6 +113,11 @@ public:
     { 
         return oclPromiseCore::ElapseNs();
     }
+    uint64_t ChainedElapseNs() override 
+    { 
+        return oclPromiseCore::ChainedElapseNs();
+    };
+
 };
 
 

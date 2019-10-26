@@ -83,18 +83,18 @@ void TexMipmap::Test()
             src.GetRawPtr<uint32_t>()[i] = i | 0xff000000u;
     }
     auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, src.GetSize());
-    inBuf->Write(CmdQue, src.GetRawPtr(), src.GetSize());
-    auto midBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
-    auto mid2Buf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 8);
-    auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly, src.GetSize() / 4);
-    auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, sizeof(Info) * 2);
+    inBuf->WriteSpan(CmdQue, src.AsSpan());
+    auto midBuf  = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess,  src.GetSize() / 2);
+    auto mid2Buf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess,  src.GetSize() / 8);
+    auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly,  src.GetSize() / 4);
+    auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly  | MemFlag::HostWriteOnly, sizeof(Info) * 2);
     Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth() / 2, src.GetHeight() / 2} };
-    infoBuf->Write(CmdQue, &info, sizeof(info));
+    infoBuf->Write(CmdQue, info);
     const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms->Wait();
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->Read(CmdQue, dst.GetRawPtr(), dst.GetSize());
+    outBuf->ReadSpan(CmdQue, dst.AsSpan());
     WriteImage(dst, common::fs::temp_directory_path() / u"dst.png");
 
 
@@ -104,7 +104,7 @@ void TexMipmap::Test()
     pms2->Wait();
     const auto time2 = pms2->ElapseNs();
     Image dst2(ImageDataType::RGBA); dst2.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->Read(CmdQue, dst2.GetRawPtr(), dst2.GetSize());
+    outBuf->ReadSpan(CmdQue, dst2.AsSpan());
     WriteImage(dst2, fs::temp_directory_path() / u"dst2.png");
     */
 
@@ -113,7 +113,7 @@ void TexMipmap::Test()
     pms3->Wait();
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->Read(CmdQue, dst3.GetRawPtr(), dst3.GetSize());
+    outBuf->ReadSpan(CmdQue, dst3.AsSpan());
     WriteImage(dst3, common::fs::temp_directory_path() / u"dst_.png");
     //getchar();
 }
