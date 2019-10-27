@@ -60,8 +60,8 @@ private:
 public:
     TgaReader(common::io::RandomInputStream& stream);
     virtual ~TgaReader() override {};
-    virtual bool Validate() override;
-    virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual bool Validate() override;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
 };
 
 class IMGUTILAPI TgaWriter : public ImgWriter
@@ -81,15 +81,15 @@ class IMGUTILAPI TgaSupport : public ImgSupport
 public:
     TgaSupport() : ImgSupport(u"Tga") {}
     virtual ~TgaSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<TgaWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"TGA" ? 240 : 0;
     }

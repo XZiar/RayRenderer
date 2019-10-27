@@ -19,8 +19,8 @@ private:
 public:
     StbReader(common::io::RandomInputStream& stream);
     virtual ~StbReader() override;
-    virtual bool Validate() override;
-    virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual bool Validate() override;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
 };
 
 class IMGUTILAPI StbWriter : public ImgWriter
@@ -39,15 +39,15 @@ class IMGUTILAPI StbSupport : public ImgSupport
 public:
     StbSupport() : ImgSupport(u"Stb") {}
     virtual ~StbSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<StbReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const override
     {
         return std::make_unique<StbWriter>(stream, ext);
     }
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool IsRead) const override;
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool IsRead) const override;
 };
 
 

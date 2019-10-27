@@ -454,7 +454,7 @@ TEST(Linq, Pairs)
 TEST(Linq, StreamLinq)
 {
     std::vector<int32_t> dat = { 0,1,2,3,4 };
-    common::io::MemoryInputStream memStream(dat.data(), dat.size());
+    common::io::MemoryInputStream memStream(common::to_span(dat));
     const auto ret1 = ToEnumerable(memStream.GetEnumerator<int32_t>())
         .Skip(2)
         .ToVector();

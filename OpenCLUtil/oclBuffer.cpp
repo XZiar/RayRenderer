@@ -54,11 +54,23 @@ PromiseResult<void> oclBuffer_::ReadSpan(const oclCmdQue& que, common::span<std:
     cl_event e;
     auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clMemory");
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
     if (shouldBlock)
         return {};
     else
         return std::make_shared<oclPromise<void>>(e, que, 0);
+}
+
+common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const oclCmdQue& que, const size_t offset) const
+{
+    Ensures(offset < Size); // offset overflow
+    const auto size = Size - offset;
+    common::AlignedBuffer buf(size);
+    cl_event e;
+    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, size, buf.GetRawPtr(), 0, nullptr, &e);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
+    return std::make_shared<oclPromise<common::AlignedBuffer>>(e, que, std::move(buf));
 }
 
 PromiseResult<void> oclBuffer_::WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset, const bool shouldBlock) const

@@ -115,6 +115,12 @@ void TestStacktrace()
 
 int main()
 {
+    uint32_t ll[] = { 0,2 };
+    common::span<uint32_t> kk(ll);
+    const auto& l2 = ll;
+    common::span<const uint32_t> k1(l2);
+    common::span<const uint32_t> k2 = common::to_span(l2);
+
 
     TestLinq();
     printf("\n\n");

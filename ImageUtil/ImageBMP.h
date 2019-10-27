@@ -50,8 +50,8 @@ private:
 public:
     BmpReader(common::io::RandomInputStream& stream);
     virtual ~BmpReader() override {};
-    virtual bool Validate() override;
-    virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual bool Validate() override;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
 };
 
 
@@ -72,15 +72,15 @@ class IMGUTILAPI BmpSupport : public ImgSupport {
 public:
     BmpSupport();
     virtual ~BmpSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<BmpWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"BMP" ? 240 : 0;
     }

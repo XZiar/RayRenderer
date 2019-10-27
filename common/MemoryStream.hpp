@@ -2,6 +2,7 @@
 
 
 #include "Stream.hpp"
+#include "ContainerHelper.hpp"
 #include "AlignedBuffer.hpp"
 #include <variant>
 #include <tuple>

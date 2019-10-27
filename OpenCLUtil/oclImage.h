@@ -44,17 +44,17 @@ protected:
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr = nullptr);
     virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
+    size_t CalculateSize() const;
 public:
     virtual ~oclImage_();
-    common::PromiseResult<void> Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock = true) const;
-    common::PromiseResult<void> Write(const oclCmdQue que, const common::AlignedBuffer& data, const bool shouldBlock = true) const
-    { return Write(que, data.GetRawPtr(), data.GetSize(), shouldBlock); }
-    common::PromiseResult<void> Write(const oclCmdQue que, const xziar::img::Image& image, const bool shouldBlock = true) const;
 
-    common::PromiseResult<void> Read(const oclCmdQue que, void *data, const bool shouldBlock = true) const;
+    common::PromiseResult<void> ReadSpan(const oclCmdQue que, common::span<std::byte> buf, const bool shouldBlock = true) const;
     common::PromiseResult<void> Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
     common::PromiseResult<xziar::img::Image> Read(const oclCmdQue que) const;
     common::PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
+
+    common::PromiseResult<void> WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock = true) const;
+    common::PromiseResult<void> Write(const oclCmdQue que, const xziar::img::ImageView image, const bool shouldBlock = true) const;
 
     std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
     xziar::img::TextureFormat GetFormat() const { return Format; }

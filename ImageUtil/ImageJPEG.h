@@ -9,16 +9,7 @@ namespace xziar::img::jpeg
 {
 using namespace common;
 struct JpegHelper;
-
-class StreamReader : public NonCopyable, public NonMovable
-{
-public:
-    using MemSpan = std::pair<const std::byte*, size_t>;
-    virtual ~StreamReader() {}
-    virtual MemSpan Rewind() = 0;
-    virtual MemSpan ReadFromStream() = 0;
-    virtual MemSpan SkipStream(size_t len) = 0;
-};
+class StreamReader;
 
 
 class IMGUTILAPI JpegReader : public ImgReader
@@ -33,8 +24,8 @@ private:
 public:
     JpegReader(common::io::RandomInputStream& stream);
     virtual ~JpegReader() override;
-    virtual bool Validate() override;
-    virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual bool Validate() override;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
 };
 
 class IMGUTILAPI JpegWriter : public ImgWriter
@@ -57,15 +48,15 @@ class IMGUTILAPI JpegSupport : public ImgSupport
 public:
     JpegSupport() : ImgSupport(u"Jpeg") {}
     virtual ~JpegSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<JpegReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<JpegWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return (ext == u"JPEG" || ext == u"JPG") ? 240 : 0;
     }

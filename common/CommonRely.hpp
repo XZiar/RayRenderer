@@ -531,17 +531,24 @@ namespace detail
 template<typename T>
 using HasValueType = typename T::value_type;
 }
+template <typename T, size_t N>
+constexpr auto to_span(T(&arr)[N]) noexcept
+{
+    return common::span<T>(arr, N);
+
+}
 template <typename T>
-auto to_span(T&& arg)
+constexpr auto to_span(T&& arg) noexcept
 {
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<U>)
         return arg;
     else if constexpr (common::is_detected_v<detail::HasValueType, U>)
     {
-        using EleType = std::conditional_t<std::is_const_v<T>, std::add_const_t<typename U::value_type>, typename U::value_type>;
+        constexpr auto IsConst = std::is_const_v<std::remove_reference_t<T>>;
+        using EleType = std::conditional_t<IsConst, std::add_const_t<typename U::value_type>, typename U::value_type>;
         if constexpr (std::is_constructible_v<common::span<EleType>, T>)
-            return common::span<EleType>(arg);
+            return common::span<EleType>(std::forward<T>(arg));
         else if constexpr (std::is_convertible_v<T, common::span<EleType>>)
             return (common::span<EleType>)arg;
         else

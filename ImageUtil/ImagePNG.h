@@ -17,8 +17,8 @@ private:
 public:
     PngReader(common::io::RandomInputStream& stream);
     virtual ~PngReader() override;
-    virtual bool Validate() override;
-    virtual Image Read(const ImageDataType dataType) override;
+    [[nodiscard]] virtual bool Validate() override;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) override;
 };
 
 class IMGUTILAPI PngWriter : public ImgWriter
@@ -38,15 +38,15 @@ class IMGUTILAPI PngSupport : public ImgSupport
 public:
     PngSupport() : ImgSupport(u"Png") {}
     virtual ~PngSupport() override {}
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<PngReader>(stream);
     }
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string&) const override
     {
         return std::make_unique<PngWriter>(stream);
     }
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType, const bool) const override
     { 
         return ext == u"PNG" ? 240 : 0;
     }

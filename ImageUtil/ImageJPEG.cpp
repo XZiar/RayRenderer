@@ -17,6 +17,16 @@ using common::io::RandomInputStream;
 using common::io::RandomOutputStream;
 
 
+class StreamReader : public NonCopyable, public NonMovable
+{
+public:
+    using MemSpan = common::span<const std::byte>;
+    virtual ~StreamReader() {}
+    [[nodiscard]] virtual MemSpan Rewind() = 0;
+    [[nodiscard]] virtual MemSpan ReadFromStream() = 0;
+    [[nodiscard]] virtual MemSpan SkipStream(size_t len) = 0;
+};
+
 class BufferedStreamReader : public StreamReader
 {
 private:
@@ -24,19 +34,19 @@ private:
 public:
     BufferedStreamReader(common::io::BufferedRandomInputStream& stream) : Stream(stream) {}
     virtual ~BufferedStreamReader() override {}
-    virtual MemSpan Rewind() override
+    [[nodiscard]] virtual MemSpan Rewind() override
     {
         Stream.SetPos(0);
         return Stream.ExposeAvaliable();
     }
-    virtual MemSpan ReadFromStream() override
+    [[nodiscard]] virtual MemSpan ReadFromStream() override
     {
         Stream.LoadNext();
         return Stream.ExposeAvaliable();
     }
-    virtual MemSpan SkipStream(size_t len) override
+    [[nodiscard]] virtual MemSpan SkipStream(size_t len) override
     {
-        const auto totalLen = Stream.ExposeAvaliable().second + len;
+        const auto totalLen = Stream.ExposeAvaliable().size() + len;
         Stream.Skip(totalLen);
         return Stream.ExposeAvaliable();
     }
@@ -50,24 +60,24 @@ private:
 public:
     BasicStreamReader(common::io::RandomInputStream& stream, const size_t bufSize) : Stream(stream), Buffer(bufSize) {}
     virtual ~BasicStreamReader() override {}
-    virtual MemSpan Rewind() override
+    [[nodiscard]] virtual MemSpan Rewind() override
     {
         Stream.SetPos(0);
         return ReadFromStream();
     }
-    virtual MemSpan ReadFromStream() override
+    [[nodiscard]] virtual MemSpan ReadFromStream() override
     {
         const auto avaliable = Stream.ReadMany(Buffer.GetSize(), 1, Buffer.GetRawPtr());
-        return { Buffer.GetRawPtr(), avaliable };
+        return Buffer.AsSpan().first(avaliable);
     }
-    virtual MemSpan SkipStream(size_t len) override
+    [[nodiscard]] virtual MemSpan SkipStream(size_t len) override
     {
         Stream.Skip(len);
         return ReadFromStream();
     }
 };
 
-static std::unique_ptr<StreamReader> GetReader(RandomInputStream& stream)
+[[nodiscard]] static std::unique_ptr<StreamReader> GetReader(RandomInputStream& stream)
 {
     if (auto bufStream = dynamic_cast<common::io::BufferedRandomInputStream*>(&stream))
         return std::make_unique<BufferedStreamReader>(*bufStream);
@@ -83,12 +93,12 @@ struct JpegHelper
     static void EmptyCompFunc([[maybe_unused]] j_compress_ptr cinfo)
     { }
 
-    forceinline static void SetMemSpan(j_decompress_ptr cinfo, const StreamReader::MemSpan& span)
+    forceinline static void SetMemSpan(j_decompress_ptr cinfo, const StreamReader::MemSpan span)
     {
-        if (span.second > 0)
+        if (span.size() > 0)
         {
-            cinfo->src->bytes_in_buffer = span.second;
-            cinfo->src->next_input_byte = reinterpret_cast<const uint8_t*>(span.first);
+            cinfo->src->bytes_in_buffer = span.size();
+            cinfo->src->next_input_byte = reinterpret_cast<const uint8_t*>(span.data());
         }
         else
         {
@@ -200,19 +210,19 @@ JpegReader::JpegReader(RandomInputStream& stream) : Stream(stream)
         auto jpegSource = new jpeg_source_mgr();
         JpegSource = jpegSource;
         decompStruct->src = jpegSource;
-        jpegSource->init_source = JpegHelper::InitStream;
+        jpegSource->init_source       = JpegHelper::InitStream;
         jpegSource->fill_input_buffer = JpegHelper::ReadFromStream;
-        jpegSource->skip_input_data = JpegHelper::SkipStream;
+        jpegSource->skip_input_data   = JpegHelper::SkipStream;
         jpegSource->resync_to_restart = jpeg_resync_to_restart;
-        jpegSource->term_source = JpegHelper::EmptyDecompFunc;
-        jpegSource->bytes_in_buffer = 0;
+        jpegSource->term_source       = JpegHelper::EmptyDecompFunc;
+        jpegSource->bytes_in_buffer   = 0;
     }
 
     auto jpegErrorHandler = new jpeg_error_mgr();
-    JpegErrorHandler = jpegErrorHandler;
+    JpegErrorHandler  = jpegErrorHandler;
     decompStruct->err = jpegErrorHandler;
     jpeg_std_error(jpegErrorHandler);
-    jpegErrorHandler->error_exit = JpegHelper::OnError;
+    jpegErrorHandler->error_exit   = JpegHelper::OnError;
     jpegErrorHandler->emit_message = JpegHelper::OnReport;
 }
 
@@ -293,17 +303,17 @@ JpegWriter::JpegWriter(RandomOutputStream& stream) : Stream(stream), Buffer(6553
     auto jpegDest = new jpeg_destination_mgr();
     JpegDest = jpegDest;
     compStruct->dest = jpegDest;
-    jpegDest->init_destination = JpegHelper::EmptyCompFunc;
+    jpegDest->init_destination    = JpegHelper::EmptyCompFunc;
     jpegDest->empty_output_buffer = JpegHelper::WriteToStream;
-    jpegDest->term_destination = JpegHelper::FlushToStream;
-    jpegDest->free_in_buffer = Buffer.GetSize();
-    jpegDest->next_output_byte = Buffer.GetRawPtr<uint8_t>();
+    jpegDest->term_destination    = JpegHelper::FlushToStream;
+    jpegDest->free_in_buffer      = Buffer.GetSize();
+    jpegDest->next_output_byte    = Buffer.GetRawPtr<uint8_t>();
 
     auto jpegErrorHandler = new jpeg_error_mgr();
     JpegErrorHandler = jpegErrorHandler;
-    compStruct->err = jpegErrorHandler;
+    compStruct->err  = jpegErrorHandler;
     jpeg_std_error(jpegErrorHandler);
-    jpegErrorHandler->error_exit = JpegHelper::OnError;
+    jpegErrorHandler->error_exit   = JpegHelper::OnError;
     jpegErrorHandler->emit_message = JpegHelper::OnReport;
 }
 

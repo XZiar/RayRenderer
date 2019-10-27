@@ -103,27 +103,27 @@ MAKE_ENUM_BITFIELD(TextureFormat)
 
 struct TexFormatUtil
 {
-    constexpr static bool IsMonoColor(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsMonoColor(const TextureFormat format) noexcept
     {
         return HAS_FIELD(format, TextureFormat::CHANNEL_A);
     }
-    constexpr static bool IsPlainType(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsPlainType(const TextureFormat format) noexcept
     {
         return (format & TextureFormat::MASK_DTYPE_CAT) == TextureFormat::DTYPE_CAT_PLAIN;
     }
-    constexpr static bool IsCompositeType(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsCompositeType(const TextureFormat format) noexcept
     {
         return (format & TextureFormat::MASK_DTYPE_CAT) == TextureFormat::DTYPE_CAT_COMP;
     }
-    constexpr static bool IsCompressType(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsCompressType(const TextureFormat format) noexcept
     {
         return (format & TextureFormat::MASK_DTYPE_CAT) == TextureFormat::DTYPE_CAT_COMPRESS;
     }
-    constexpr static bool IsSRGBType(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsSRGBType(const TextureFormat format) noexcept
     {
         return HAS_FIELD(format, TextureFormat::MASK_SRGB);
     }
-    constexpr static bool IsNormalized(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool IsNormalized(const TextureFormat format) noexcept
     {
         const auto category = format & TextureFormat::MASK_DTYPE_CAT;
         const auto dtype = format & TextureFormat::MASK_DTYPE_RAW;
@@ -139,11 +139,11 @@ struct TexFormatUtil
             return true;
         }
     }
-    constexpr static bool HasAlpha(const TextureFormat format) noexcept
+    [[nodiscard]] constexpr static bool HasAlpha(const TextureFormat format) noexcept
     {
         return HAS_FIELD(format, TextureFormat::CHANNEL_A);
     }
-    constexpr static TextureFormat FromImageDType(const ImageDataType dtype, const bool normalized = true) noexcept
+    [[nodiscard]] constexpr static TextureFormat FromImageDType(const ImageDataType dtype, const bool normalized = true) noexcept
     {
         TextureFormat baseFormat = HAS_FIELD(dtype, ImageDataType::FLOAT_MASK) ?
             TextureFormat::DTYPE_FLOAT :
@@ -161,7 +161,7 @@ struct TexFormatUtil
         default:                    return TextureFormat::ERROR;
         }
     }
-    constexpr static uint8_t BitPerPixel(const TextureFormat dformat) noexcept
+    [[nodiscard]] constexpr static uint8_t BitPerPixel(const TextureFormat dformat) noexcept
     {
         const auto category = dformat & TextureFormat::MASK_DTYPE_CAT;
         switch (category)
@@ -242,7 +242,7 @@ struct TexFormatUtil
             return 0;
         }
     }
-    constexpr static ImageDataType ToImageDType(const TextureFormat format, const bool relaxConvert = false) noexcept
+    [[nodiscard]] constexpr static ImageDataType ToImageDType(const TextureFormat format, const bool relaxConvert = false) noexcept
     {
         if ((format & TextureFormat::MASK_DTYPE_CAT) != TextureFormat::DTYPE_CAT_PLAIN)
             return ImageDataType::UNKNOWN_RESERVE;
@@ -275,8 +275,8 @@ struct TexFormatUtil
         default:                                return ImageDataType::UNKNOWN_RESERVE;
         }
     }
-    static IMGUTILAPI std::string GetFormatDetail(const TextureFormat format) noexcept;
-    static IMGUTILAPI std::u16string_view GetFormatName(const TextureFormat format) noexcept;
+    [[nodiscard]] static IMGUTILAPI std::string GetFormatDetail(const TextureFormat format) noexcept;
+    [[nodiscard]] static IMGUTILAPI std::u16string_view GetFormatName(const TextureFormat format) noexcept;
 
 };
 

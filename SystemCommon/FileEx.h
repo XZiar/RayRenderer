@@ -116,7 +116,7 @@ template<typename T>
 inline void ReadAll(const fs::path& fpath, T& output)
 {
     FileInputStream fis(FileObject::OpenThrow(fpath, OpenFlag::ReadBinary));
-    fis.ReadInto(output, SIZE_MAX);
+    fis.ReadTo(output, SIZE_MAX);
 }
 
 template<typename T>

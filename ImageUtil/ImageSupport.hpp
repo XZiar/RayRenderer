@@ -16,8 +16,8 @@ class IMGUTILAPI ImgReader : public common::NonCopyable
 protected:
 public:
     virtual ~ImgReader() {}
-    virtual bool Validate() = 0;
-    virtual Image Read(const ImageDataType dataType) = 0;
+    [[nodiscard]] virtual bool Validate() = 0;
+    [[nodiscard]] virtual Image Read(const ImageDataType dataType) = 0;
 };
 
 class IMGUTILAPI ImgWriter : public common::NonCopyable
@@ -34,9 +34,9 @@ protected:
     virtual ~ImgSupport() {}
 public:
     const std::u16string Name;
-    virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string& ext) const = 0;
-    virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const = 0;
-    virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<ImgReader> GetReader(common::io::RandomInputStream& stream, const std::u16string& ext) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<ImgWriter> GetWriter(common::io::RandomOutputStream& stream, const std::u16string& ext) const = 0;
+    [[nodiscard]] virtual uint8_t MatchExtension(const std::u16string& ext, const ImageDataType dataType, const bool IsRead) const = 0;
 };
 
 

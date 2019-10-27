@@ -30,48 +30,28 @@ public:
     virtual ~oclBuffer_();
     common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0, const bool shouldBlock = true) const;
     template<typename T>
-    common::PromiseResult<void> Read(const oclCmdQue& que, T& buf, const size_t offset = 0, const bool shouldBlock = true) const
-    {
-        return ReadSpan(que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
-    }
-    template<typename T>
     common::PromiseResult<void> ReadSpan(const oclCmdQue& que, T& buf, const size_t offset = 0, const bool shouldBlock = true) const
     {
         return ReadSpan(que, common::as_writable_bytes(common::to_span(buf)), offset, shouldBlock);
     }
-    //template<class T>
-    //common::PromiseResult<std::vector<T>> Read(const oclCmdQue& que, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
-    //{
-    //    Ensures(offset < Size); // offset overflow
-    //    if (count == 0)
-    //        count = (Size - offset) / sizeof(T);
-    //    Ensures(count * sizeof(T) + offset <= Size); // read size overflow
-    //    buf.resize(count);
-    //    return Read(que, buf.data(), count * sizeof(T), offset, shouldBlock);
-    //}
-    common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset = 0, const bool shouldBlock = true) const;
     template<typename T>
-    common::PromiseResult<void> Write(const oclCmdQue& que, const T& buf, const size_t offset = 0, const bool shouldBlock = true) const
+    common::PromiseResult<void> Read(const oclCmdQue& que, T& buf, const size_t offset = 0, const bool shouldBlock = true) const
     {
-        return WriteSpan(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
+        return ReadSpan(que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
     }
+    common::PromiseResult<common::AlignedBuffer> Read(const oclCmdQue& que, const size_t offset = 0) const;
+
+    common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset = 0, const bool shouldBlock = true) const;
     template<typename T>
     common::PromiseResult<void> WriteSpan(const oclCmdQue& que, const T& buf, const size_t offset = 0, const bool shouldBlock = true) const
     {
         return WriteSpan(que, common::as_bytes(common::to_span(buf)), offset, shouldBlock);
     }
-    /*template<typename T>
-    common::PromiseResult<void> WriteSpan(const oclCmdQue& que, const T& buf, size_t count = 0, const size_t offset = 0, const bool shouldBlock = true) const
+    template<typename T>
+    common::PromiseResult<void> Write(const oclCmdQue& que, const T& buf, const size_t offset = 0, const bool shouldBlock = true) const
     {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "Only accept contiguous type");
-        const auto vcount = Helper::Count(buf);
-        if (count == 0)
-            count = vcount;
-        else if (count > vcount)
-            COMMON_THROW(common::BaseException, u"write size overflow");
-        return Write(que, Helper::Data(buf), count * Helper::EleSize, offset * Helper::EleSize, shouldBlock);
-    }*/
+        return WriteSpan(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
+    }
 
     static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };

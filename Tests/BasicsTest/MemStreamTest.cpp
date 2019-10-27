@@ -9,7 +9,7 @@ TEST(MemStream, ReadByte)
 {
     {
         std::vector<uint8_t> dat = { 0,1,2 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 3);
         EXPECT_EQ(memStream.ReadByte(), std::byte{ 0 });
         EXPECT_FALSE(memStream.IsEnd());
@@ -20,7 +20,7 @@ TEST(MemStream, ReadByte)
     }
     {
         std::vector<uint16_t> dat = { 0x0102, 0x4567 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 4);
         EXPECT_EQ(memStream.ReadByte(), std::byte{ IsLittleEndian ? 0x02 : 0x01 });
         EXPECT_FALSE(memStream.IsEnd());
@@ -38,7 +38,7 @@ TEST(MemStream, Read)
 {
     {
         std::vector<uint8_t> dat = { 0,1,2 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 3);
         std::byte ret1;
         std::uint16_t ret2;
@@ -53,7 +53,7 @@ TEST(MemStream, Read)
     }
     {
         std::vector<uint16_t> dat = { 0x0102, 0x4567 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 4);
         std::byte ret1;
         std::uint16_t ret2;
@@ -77,7 +77,7 @@ TEST(MemStream, SetPos)
 {
     {
         std::vector<uint8_t> dat = { 0,1,2,3,4,5,6,7,8,9 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 10);
         EXPECT_EQ(memStream.CurrentPos(), 0);
 
@@ -105,7 +105,7 @@ TEST(MemStream, Skip)
 {
     {
         std::vector<uint8_t> dat = { 0,1,2,3,4,5,6,7,8,9 };
-        MemoryInputStream memStream(dat.data(), dat.size());
+        MemoryInputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 10);
         EXPECT_EQ(memStream.CurrentPos(), 0);
 
@@ -129,18 +129,18 @@ TEST(MemStream, Skip)
 TEST(MemStream, ReadInto)
 {
     std::vector<uint8_t> dat = { 0,1,2,3,4,5 };
-    MemoryInputStream memStream(dat.data(), dat.size());
+    MemoryInputStream memStream(common::to_span(dat));
     EXPECT_EQ(memStream.GetSize(), 6);
 
     std::vector<uint8_t> ret;
-    EXPECT_EQ(memStream.ReadInto(ret, dat.size()), dat.size());
+    EXPECT_EQ(memStream.ReadTo(ret, dat.size()), dat.size());
     EXPECT_EQ(ret.size(), dat.size());
     EXPECT_THAT(ret, testing::ContainerEq(ret));
     EXPECT_TRUE(memStream.IsEnd());
 
     EXPECT_TRUE(memStream.SetPos(4));
     EXPECT_EQ(memStream.CurrentPos(), 4);
-    EXPECT_EQ(memStream.ReadInto(ret, 10), 2);
+    EXPECT_EQ(memStream.ReadTo(ret, 10), 2);
     EXPECT_EQ(ret.size(), 2);
     EXPECT_THAT(ret, testing::ElementsAre(uint8_t(4), uint8_t(5)));
     EXPECT_TRUE(memStream.IsEnd());
@@ -185,7 +185,7 @@ TEST(MemStream, Write)
     {
         std::vector<uint8_t> dat(4, 0);
         EXPECT_THAT(dat, testing::Each(uint8_t(0)));
-        MemoryOutputStream memStream(dat.data(), dat.size());
+        MemoryOutputStream memStream(dat);
         EXPECT_EQ(memStream.GetSize(), 4);
         
         uint8_t b1 = 0x1;
@@ -208,7 +208,7 @@ TEST(MemStream, Write)
 
         std::vector<uint32_t> dat(src.size(), 0);
         EXPECT_THAT(dat, testing::Each(0u));
-        MemoryOutputStream memStream(dat.data(), dat.size());
+        MemoryOutputStream memStream(dat);
         EXPECT_EQ(memStream.GetSize(), src.size() * sizeof(uint32_t));
 
         EXPECT_EQ(memStream.WriteFrom(src), src.size());

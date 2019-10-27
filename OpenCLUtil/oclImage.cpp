@@ -9,6 +9,7 @@ namespace oclu
 using common::BaseException;
 using common::PromiseResult;
 using xziar::img::Image;
+using xziar::img::ImageView;
 using xziar::img::TexFormatUtil;
 using xziar::img::TextureFormat;
 
@@ -209,39 +210,19 @@ common::span<std::byte> oclImage_::MapObject(const cl_command_queue& que, const 
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), size);
 }
 
-
-PromiseResult<void> oclImage_::Write(const oclCmdQue que, const void *data, const size_t size, const bool shouldBlock) const
+size_t oclImage_::CalculateSize() const
 {
-    constexpr size_t origin[3] = { 0,0,0 };
-    if (Width*Height*Depth*TexFormatUtil::BitPerPixel(Format) / 8 > size)
-        COMMON_THROW(BaseException, u"write size not sufficient");
-    const size_t region[3] = { Width,Height,Depth };
-    cl_event e;
-    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
-    if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
-    if (shouldBlock)
-        return {};
-    else
-        return std::make_shared<oclPromise<void>>(e, que, 0);
+    return Width * Height * Depth * TexFormatUtil::BitPerPixel(Format) / 8;
 }
 
-PromiseResult<void> oclImage_::Write(const oclCmdQue que, const Image& image, const bool shouldBlock) const
+PromiseResult<void> oclImage_::ReadSpan(const oclCmdQue que, common::span<std::byte> buf, const bool shouldBlock) const
 {
-    if (image.GetWidth() != Width || image.GetHeight() != Height * Depth)
-        COMMON_THROW(BaseException, u"write image size mismatch");
-    const auto wantFormat = xziar::img::TexFormatUtil::ToImageDType(Format, true);
-    if (wantFormat != image.GetDataType())
-        COMMON_THROW(OCLWrongFormatException, u"image datatype mismatch", Format, std::any(image.GetDataType()));
-    return Write(que, image.GetRawPtr(), image.GetSize(), shouldBlock);
-}
+    Ensures(CalculateSize() <= size_t(buf.size())); // write size not sufficient
 
-PromiseResult<void> oclImage_::Read(const oclCmdQue que, void *data, const bool shouldBlock) const
-{
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, data, 0, nullptr, &e);
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     if (shouldBlock)
@@ -254,7 +235,7 @@ PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const boo
 {
     image = Image(xziar::img::TexFormatUtil::ToImageDType(Format, true));
     image.SetSize(Width, Height*Depth);
-    return oclImage_::Read(que, image.GetRawPtr(), shouldBlock);
+    return oclImage_::ReadSpan(que, image.AsSpan(), shouldBlock);
 }
 
 PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
@@ -272,7 +253,7 @@ PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
 
 PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
 {
-    common::AlignedBuffer buffer(Width * Height * Depth * xziar::img::TexFormatUtil::BitPerPixel(Format) / 8);
+    common::AlignedBuffer buffer(CalculateSize());
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
@@ -280,6 +261,41 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) con
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return std::make_shared<oclPromise<common::AlignedBuffer>>(e, que, std::move(buffer));
+}
+
+PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock) const
+{
+    Ensures(CalculateSize() < size_t(buf.size())); // write size not sufficient
+
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,Depth };
+    cl_event e;
+    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, buf.data(), 0, nullptr, &e);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
+    if (shouldBlock)
+        return {};
+    else
+        return std::make_shared<oclPromise<void>>(e, que, 0);
+}
+
+PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image, const bool shouldBlock) const
+{
+    Ensures(image.GetWidth()    == Width); // write image size mismatch
+    Ensures(image.GetHeight()   == Height * Depth); // write image size mismatch
+    const auto wantFormat = xziar::img::TexFormatUtil::ToImageDType(Format, true);
+    Ensures(image.GetDataType() == wantFormat); // image datatype mismatch
+
+    constexpr size_t origin[3] = { 0,0,0 };
+    const size_t region[3] = { Width,Height,Depth };
+    cl_event e;
+    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
+    if (ret != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
+    if (shouldBlock)
+        return {};
+    else
+        return std::make_shared<oclPromise<void>>(e, que, 0);
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)

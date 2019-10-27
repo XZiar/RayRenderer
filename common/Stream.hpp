@@ -3,7 +3,8 @@
 
 #include "CommonRely.hpp"
 #include "Exceptions.hpp"
-#include "ContainerHelper.hpp"
+#include "AlignedBuffer.hpp"
+//#include "ContainerHelper.hpp"
 
 #include <cstddef>
 #include <cstdio>
@@ -39,12 +40,15 @@ private:
         want = std::min(avaliable / Size, want);
         return want;
     }
-    template<size_t Size, typename C>
-    [[nodiscard]] forceinline size_t ReadInto_(C& output, const size_t offset, size_t want)
+    template<typename T>
+    [[nodiscard]] forceinline size_t ReadInto_(const common::span<T> space, size_t offset, size_t want)
     {
-        if (want == 0)
+        Ensures(size_t(space.size()) >= offset);
+        constexpr size_t EleSize = sizeof(T);
+        const auto actual = CalcCount<EleSize>(offset, space.size(), want);
+        if (actual == 0)
             return 0;
-        return ReadMany(want, Size, &output[offset]);
+        return ReadMany(actual, EleSize, space.data() + offset);
     }
     [[nodiscard]] forceinline virtual std::byte ReadByteNE(bool& isSuccess)
     {
@@ -91,28 +95,29 @@ public:
         return static_cast<T>(ReadByteME());
     }
 
-    template<typename T, size_t N>
-    forceinline size_t ReadInto(T(&output)[N], const size_t offset = 0, size_t count = N)
+    template<typename T>
+    forceinline size_t ReadInto(T& output, size_t offset = 0, size_t count = SIZE_MAX)
     {
-        constexpr size_t Size = sizeof(T);
-        const auto want = CalcCount<Size>(offset, N, count);
-        return ReadInto_<Size>(output, offset, want);
-    }
-    template<typename T, size_t N>
-    forceinline size_t ReadInto(std::array<T, N>& output, const size_t offset = 0, size_t count = N)
-    {
-        constexpr size_t Size = sizeof(T);
-        const auto want = CalcCount<Size>(offset, N, count);
-        return ReadInto_<Size>(output, offset, want);
+        return ReadInto_(common::to_span(output), offset, count);
     }
 
-    template<class T>
-    size_t ReadInto(T& output, size_t count)
+    template<typename T>
+    forceinline size_t ReadTo(T& output, size_t count = SIZE_MAX)
     {
-        constexpr size_t Size = sizeof(typename T::value_type);
-        const auto want = CalcCount<Size>(0, SIZE_MAX, count);
-        output.resize(want);
-        return ReadInto_<Size>(output, 0, want);
+        constexpr auto EleSize = sizeof(typename T::value_type);
+        const auto actual = CalcCount<EleSize>(0, SIZE_MAX, count);
+        if (actual == 0)
+            return 0;
+        output.resize(actual);
+        return ReadMany(actual, EleSize, output.data());
+    }
+    template<typename T>
+    forceinline std::vector<T> ReadToVector(size_t count = SIZE_MAX)
+    {
+        std::vector<T> output;
+        const auto actual = ReadTo(output, count);
+        output.resize(actual);
+        return output;
     }
 
     template<typename T>
@@ -133,10 +138,20 @@ private:
         want = std::min(acceptable / Size, want);
         return want;
     }
+    template<typename T>
+    size_t WriteFrom_(const common::span<T> space, size_t offset, size_t want)
+    {
+        Ensures(size_t(space.size()) >= offset);
+        constexpr size_t EleSize = sizeof(T);
+        const auto actual = CalcCount<EleSize>(offset, space.size(), want);
+        if (actual == 0)
+            return 0;
+        return WriteMany(actual, EleSize, space.data() + offset);
+    }
 protected:
     virtual size_t AcceptableSpace() { return SIZE_MAX; };
 public:
-    virtual size_t WriteMany(const size_t want, const size_t perSize, const void * ptr) = 0;
+    virtual size_t WriteMany(const size_t want, const size_t perSize, const void* ptr) = 0;
     virtual void Flush() {}
     virtual ~OutputStream() {}
 
@@ -145,21 +160,15 @@ public:
         return WriteMany(len, 1, ptr) == len;
     }
     template<typename T>
-    bool Write(const T& output)
+    forceinline bool Write(const T& output)
     {
         return Write(sizeof(T), &output);
     }
 
-    template<class T>
-    size_t WriteFrom(const T& input, size_t offset = 0, size_t count = SIZE_MAX)
+    template<typename T>
+    forceinline size_t WriteFrom(const T& input, size_t offset = 0, size_t count = SIZE_MAX)
     {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "Only accept contiguous type");
-        constexpr size_t EleSize = Helper::EleSize;
-        const auto want = CalcCount<EleSize>(offset, Helper::Count(input), count);
-        if (want == 0)
-            return 0;
-        return WriteMany(want, EleSize, Helper::Data(input) + offset);
+        return WriteFrom_(common::to_span(input), offset, count);
     }
 };
 
@@ -351,9 +360,9 @@ public:
         return std::move(BackStream);
     }
 
-    [[nodiscard]] std::pair<const std::byte*, size_t> ExposeAvaliable() const
+    [[nodiscard]] common::span<const std::byte> ExposeAvaliable() const
     {
-        return { Buffer.GetRawPtr() + BufPos, BufLen - BufPos };
+        return Buffer.AsSpan().subspan(BufPos);
     }
     void LoadNext()
     {

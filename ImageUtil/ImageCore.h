@@ -40,7 +40,7 @@ protected:
             COMMON_THROW(common::BaseException, u"Size not match");
     }
 public:
-    static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
+    [[nodiscard]] static constexpr uint8_t GetElementSize(const ImageDataType dataType) noexcept;
     Image(const ImageDataType dataType = ImageDataType::RGBA) noexcept : Width(0), Height(0), DataType(dataType), ElementSize(GetElementSize(DataType))
     { }
     Image(const common::AlignedBuffer& data, const uint32_t width, const uint32_t height, const ImageDataType dataType = ImageDataType::RGBA)
@@ -56,12 +56,12 @@ public:
 
     using common::AlignedBuffer::GetSize;
     using common::AlignedBuffer::AsSpan;
-    uint32_t GetWidth() const noexcept { return Width; }
-    uint32_t GetHeight() const noexcept { return Height; }
-    ImageDataType GetDataType() const noexcept { return DataType; }
-    uint8_t GetElementSize() const noexcept { return ElementSize; }
-    size_t RowSize() const noexcept { return static_cast<size_t>(Width) * ElementSize; }
-    size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
+    [[nodiscard]] uint32_t      GetWidth()       const noexcept { return Width;       }
+    [[nodiscard]] uint32_t      GetHeight()      const noexcept { return Height;      }
+    [[nodiscard]] ImageDataType GetDataType()    const noexcept { return DataType;    }
+    [[nodiscard]] uint8_t       GetElementSize() const noexcept { return ElementSize; }
+    [[nodiscard]] size_t RowSize()    const noexcept { return static_cast<size_t>(Width) * ElementSize; }
+    [[nodiscard]] size_t PixelCount() const noexcept { return static_cast<size_t>(Width) * Height; }
     void SetSize(const uint32_t width, const uint32_t height, const bool zero = true)
     {
         ResetSize(width, height);
@@ -77,20 +77,20 @@ public:
     {
         SetSize(static_cast<uint32_t>(std::get<0>(size)), static_cast<uint32_t>(std::get<1>(size)), zero);
     }
-    bool IsGray() const noexcept { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
+    [[nodiscard]] bool IsGray() const noexcept { return REMOVE_MASK(DataType, ImageDataType::ALPHA_MASK, ImageDataType::FLOAT_MASK) == ImageDataType::GRAY; }
 
     template<typename T = std::byte>
-    T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
+    [[nodiscard]] T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) noexcept
     {
         return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
     template<typename T = std::byte>
-    const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
+    [[nodiscard]] const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {
         return reinterpret_cast<T*>(Data + (static_cast<size_t>(row) * Width + col) * ElementSize);
     }
     template<typename T = std::byte>
-    std::vector<T*> GetRowPtrs(const size_t offset = 0)
+    [[nodiscard]] std::vector<T*> GetRowPtrs(const size_t offset = 0)
     {
         std::vector<T*> pointers(Height, nullptr);
         T *rawPtr = GetRawPtr<T>();
@@ -100,7 +100,7 @@ public:
         return pointers;
     }
     template<typename T = std::byte>
-    std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
+    [[nodiscard]] std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
     {
         std::vector<const T*> pointers(Height, nullptr);
         const T *rawPtr = GetRawPtr<T>();
@@ -110,11 +110,11 @@ public:
         return pointers;
     }
 
-    const common::AlignedBuffer& GetData() const noexcept
+    [[nodiscard]] const common::AlignedBuffer& GetData() const noexcept
     {
         return *static_cast<const common::AlignedBuffer*>(this);
     }
-    common::AlignedBuffer ExtractData() noexcept
+    [[nodiscard]] common::AlignedBuffer ExtractData() noexcept
     {
         common::AlignedBuffer data = std::move(*this);
         Width = Height = 0; ElementSize = 0;
@@ -124,9 +124,9 @@ public:
     void FlipVertical();
     void FlipHorizontal();
     void Rotate180();
-    Image FlipToVertical() const;
-    Image FlipToHorizontal() const;
-    Image RotateTo180() const;
+    [[nodiscard]] Image FlipToVertical() const;
+    [[nodiscard]] Image FlipToHorizontal() const;
+    [[nodiscard]] Image RotateTo180() const;
     ///<summary>Place other image into current image</summary>  
     ///<param name="other">image being putted</param>
     ///<param name="srcX">image source's left-top position</param>
@@ -139,9 +139,9 @@ public:
     ///<param name="height">height</param>
     void Resize(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true);
 
-    Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
-    Image ConvertToFloat(const float floatRange = 1) const;
+    [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
+    [[nodiscard]] Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
+    [[nodiscard]] Image ConvertToFloat(const float floatRange = 1) const;
 };
 
 class IMGUTILAPI ImageView : protected Image
@@ -177,7 +177,13 @@ public:
         Width = imgview.Width; Height = imgview.Height; DataType = imgview.DataType; ElementSize = imgview.ElementSize;
         return *this;
     }
-    const Image& AsRawImage() const noexcept { return *static_cast<const Image*>(this); }
+    [[nodiscard]] const Image& AsRawImage() const noexcept { return *static_cast<const Image*>(this); }
+    template<typename T = std::byte>
+    [[nodiscard]] constexpr common::span<const T> AsSpan() const noexcept 
+    { 
+        return common::span<const T>(GetRawPtr<T>(), Size / sizeof(T));
+    }
+
     using Image::GetSize;
     using Image::GetWidth;
     using Image::GetHeight;
@@ -195,12 +201,12 @@ public:
     using Image::IsGray;
     using Image::ExtractData;
     template<typename T = std::byte>
-    const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
+    [[nodiscard]] const T* GetRawPtr(const uint32_t row = 0, const uint32_t col = 0) const noexcept
     {
         return reinterpret_cast<T*>(Data + (row * Width + col) * ElementSize);
     }
     template<typename T = std::byte>
-    std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
+    [[nodiscard]] std::vector<const T*> GetRowPtrs(const size_t offset = 0) const
     {
         std::vector<const T*> pointers(Height, nullptr);
         const T *rawPtr = GetRawPtr<T>();

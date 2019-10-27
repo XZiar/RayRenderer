@@ -10,12 +10,12 @@ using common::str::Charset;
 
 namespace detail
 {
-STRCHSETAPI [[nodiscard]] std::string    to_string   (const common::span<const std::byte> data, const Charset outchset, const Charset inchset);
-STRCHSETAPI [[nodiscard]] std::u32string to_u32string(const common::span<const std::byte> data, const Charset inchset);
-STRCHSETAPI [[nodiscard]] std::u16string to_u16string(const common::span<const std::byte> data, const Charset inchset);
-STRCHSETAPI [[nodiscard]] std::string    to_u8string (const common::span<const std::byte> data, const Charset inchset);
+[[nodiscard]] STRCHSETAPI std::string    to_string   (const common::span<const std::byte> data, const Charset outchset, const Charset inchset);
+[[nodiscard]] STRCHSETAPI std::u32string to_u32string(const common::span<const std::byte> data, const Charset inchset);
+[[nodiscard]] STRCHSETAPI std::u16string to_u16string(const common::span<const std::byte> data, const Charset inchset);
+[[nodiscard]] STRCHSETAPI std::string    to_u8string (const common::span<const std::byte> data, const Charset inchset);
 template<typename Char>
-STRCHSETAPI [[nodiscard]] std::basic_string<Char> ToULEng(const std::basic_string_view<Char> str, const Charset inchset, const bool isUpper);
+[[nodiscard]] STRCHSETAPI std::basic_string<Char> ToULEng(const std::basic_string_view<Char> str, const Charset inchset, const bool isUpper);
 }
 
 

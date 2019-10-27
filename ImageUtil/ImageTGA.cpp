@@ -76,8 +76,7 @@ public:
             }break;
         case 15:
             {
-                std::vector<uint16_t> tmp(count);
-                reader.ReadInto(tmp, count);
+                const auto tmp = reader.template ReadToVector<uint16_t>(count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
                     convert::BGR15ToRGBAs(destPtr, tmp.data(), tmp.size());
@@ -86,8 +85,7 @@ public:
             }break;
         case 16:
             {
-                std::vector<uint16_t> tmp(count);
-                reader.ReadInto(tmp, count);
+                const auto tmp = reader.template ReadToVector<uint16_t>(count);
                 uint32_t * __restrict destPtr = output.GetRawPtr<uint32_t>();
                 if (isOutputRGB)
                     convert::BGR16ToRGBAs(destPtr, tmp.data(), count);
@@ -131,8 +129,7 @@ public:
         case 15:
         case 16:
             {
-                std::vector<uint16_t> tmp(count);
-                reader.ReadInto(tmp, count);
+                const auto tmp = reader.template ReadToVector<uint16_t>(count);
                 auto * __restrict destPtr = output.GetRawPtr();
                 if (isOutputRGB)
                     convert::BGR15ToRGBs(destPtr, tmp.data(), count);
@@ -183,15 +180,13 @@ public:
             uint32_t * __restrict destPtr = image.GetRawPtr<uint32_t>();
             if (header.PixelDepth == 8)
             {
-                std::vector<uint8_t> idxes;
-                reader.ReadInto(idxes, count);
+                const auto idxes = reader.template ReadToVector<uint8_t>(count);
                 for (auto idx : idxes)
                     *destPtr++ = mapPtr[idx];
             }
             else if (header.PixelDepth == 16)
             {
-                std::vector<uint16_t> idxes;
-                reader.ReadInto(idxes, count);
+                const auto idxes = reader.template ReadToVector<uint16_t>(count);
                 for (auto idx : idxes)
                     *destPtr++ = mapPtr[idx];
             }
@@ -202,8 +197,7 @@ public:
             auto * __restrict destPtr = image.GetRawPtr();
             if (header.PixelDepth == 8)
             {
-                std::vector<uint8_t> idxes;
-                reader.ReadInto(idxes, count);
+                const auto idxes = reader.template ReadToVector<uint8_t>(count);
                 for (auto idx : idxes)
                 {
                     const size_t idx3 = idx * 3;
@@ -214,8 +208,7 @@ public:
             }
             else if (header.PixelDepth == 16)
             {
-                std::vector<uint16_t> idxes;
-                reader.ReadInto(idxes, count);
+                const auto idxes = reader.template ReadToVector<uint16_t>(count);
                 for (auto idx : idxes)
                 {
                     const size_t idx3 = idx * 3;
@@ -594,10 +587,14 @@ public:
         : Stream(stream), ElementSize(elementDepth == 15 ? 2 : (elementDepth / 8)) {}
     void Skip(const size_t offset = 0) { Stream.Skip(offset); }
 
-    template<class T>
-    size_t ReadInto(T& output, size_t count)
+    template<typename T>
+    forceinline std::vector<T> ReadToVector(size_t count)
     {
-        return Read(count * sizeof(typename T::value_type), output.data()) ? count : 0;
+        constexpr auto EleSize = sizeof(T);
+        std::vector<T> output;
+        output.resize(count);
+        Read(count * EleSize, output.data());
+        return output;
     }
 
     bool Read(const size_t len, void *ptr)
