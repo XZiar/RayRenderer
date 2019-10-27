@@ -42,7 +42,7 @@ inline constexpr std::basic_string_view<Char> ToStringView(const T& str)
     else if constexpr (std::is_convertible_v<const T&, const Char*>)
         return static_cast<const Char*>(str);
     else
-        static_assert(AlwaysTrue<Char>(), "cannot be cast to string_view");
+        static_assert(!AlwaysTrue<Char>(), "cannot be cast to string_view");
 }
 
 template<typename Char, typename A>

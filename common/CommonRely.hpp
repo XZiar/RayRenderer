@@ -338,7 +338,6 @@ template <template <typename...> typename Op, typename... T>
 inline constexpr bool is_detected_v = is_detected_impl<void, Op, T...>::value;
 
 
-
 template<template<typename...> class Base, typename...Ts>
 std::true_type is_base_of_template_impl(const Base<Ts...>*);
 template<template<typename...> class Base>
@@ -358,26 +357,21 @@ struct is_specialization2<Template<Vs...>, Template> : std::true_type {};
 #endif
 
 
-template<typename T, typename U, typename = void>
-struct is_equal_comparable : std::false_type
-{ };
-template<typename T, typename U>
-struct is_equal_comparable<T, U,
-    std::enable_if_t<true,
-    decltype(std::declval<const T&>() == std::declval<const U&>(), (void)0)
-    >> : std::true_type
-{ };
-
-template<typename T, typename U, typename = void>
-struct is_notequal_comparable : std::false_type
-{ };
-template<typename T, typename U>
-struct is_notequal_comparable<T, U,
-    std::enable_if_t<true,
-    decltype(std::declval<const T&>() != std::declval<const U&>(), (void)0)
-    >> : std::true_type
-{ };
-
+namespace detail
+{
+template<typename T>
+using HasValueTypeCheck = typename T::value_type;
+template<typename A, typename B>
+using EqualCompareCheck = decltype(std::declval<const A&>() == std::declval<const B&>());
+template<typename A, typename B>
+using NotEqualCompareCheck = decltype(std::declval<const A&>() != std::declval<const B&>());
+}
+template<typename T>
+inline constexpr bool has_valuetype_v = is_detected_v<detail::HasValueTypeCheck, T>;
+template<typename A, typename B>
+inline constexpr bool is_equal_comparable_v = common::is_detected_v<detail::EqualCompareCheck, A, B>;
+template<typename A, typename B>
+inline constexpr bool is_notequal_comparable_v = common::is_detected_v<detail::NotEqualCompareCheck, A, B>;
 
 
 template<typename T, template <typename...> class Base>
@@ -526,11 +520,6 @@ inline constexpr bool is_span_v = gsl::details::is_span<T>::value;
 #endif
 namespace common
 {
-namespace detail
-{
-template<typename T>
-using HasValueType = typename T::value_type;
-}
 template <typename T, size_t N>
 constexpr auto to_span(T(&arr)[N]) noexcept
 {
@@ -543,7 +532,7 @@ constexpr auto to_span(T&& arg) noexcept
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<U>)
         return arg;
-    else if constexpr (common::is_detected_v<detail::HasValueType, U>)
+    else if constexpr (common::has_valuetype_v<U>)
     {
         constexpr auto IsConst = std::is_const_v<std::remove_reference_t<T>>;
         using EleType = std::conditional_t<IsConst, std::add_const_t<typename U::value_type>, typename U::value_type>;

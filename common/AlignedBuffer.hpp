@@ -3,6 +3,7 @@
 #include "AlignedBase.hpp"
 #include "CommonRely.hpp"
 #include <atomic>
+#include <memory>
 
 namespace common
 {
@@ -69,7 +70,7 @@ private:
         }
         [[nodiscard]] static std::byte* AllocNew(const size_t size, const size_t align, const BufInfo*& info) noexcept
         {
-            Ensures(IsPower2(align));
+            Expects(IsPower2(align));
             ReduceReference(info);
             if (size != 0)
             {
@@ -144,6 +145,7 @@ public:
         {
             auto align = other.Align;
             Data = BufInfo::AllocNew(other.Size, align, CoreInfo);
+            Size = other.Size;
             Align = align;
         }
         if (Data)

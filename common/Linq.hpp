@@ -55,7 +55,7 @@ struct EnumerableHelper
         else if constexpr (common::is_specialization<T, std::tuple>::value)
             return std::get<0>(data);
         else
-            static_assert(common::AlwaysTrue<T>());
+            static_assert(!common::AlwaysTrue<T>());
     }
     template<typename T>
     static const auto& ValueMapper(const T& data)
@@ -65,7 +65,7 @@ struct EnumerableHelper
         else if constexpr (common::is_specialization<T, std::tuple>::value)
             return std::get<1>(data);
         else
-            static_assert(common::AlwaysTrue<T>());
+            static_assert(!common::AlwaysTrue<T>());
     }
 };
 
@@ -681,7 +681,7 @@ auto Enumerable<Child, EleType>::Cast()
     else if constexpr (std::is_constructible_v<Type, EleType>)
         return CastCtorSource<Child, Type>(std::move(*static_cast<Child*>(this)));
     else
-        static_assert(common::AlwaysTrue<Type>(), "cannot convert to or construct to the target type");
+        static_assert(!common::AlwaysTrue<Type>(), "cannot convert to or construct to the target type");
 }
 
 

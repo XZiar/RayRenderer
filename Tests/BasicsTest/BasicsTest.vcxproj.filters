@@ -31,6 +31,12 @@
     <ClCompile Include="MemStreamTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="AlignBufTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="SplitTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

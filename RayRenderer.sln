@@ -84,6 +84,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\Stream.natvis = common\Stream.natvis
 		common\StringEx.hpp = common\StringEx.hpp
 		common\Stringify.hpp = common\Stringify.hpp
+		common\StringLinq.hpp = common\StringLinq.hpp
 		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\Wrapper.hpp = common\Wrapper.hpp
 	EndProjectSection

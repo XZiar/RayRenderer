@@ -209,14 +209,14 @@ protected:
         if constexpr (P::IsCountable)
             return Prev.Count();
         else
-            static_assert(common::AlwaysTrue<P>(), "Not countable");
+            static_assert(!common::AlwaysTrue<P>(), "Not countable");
     }
     constexpr void MoveMultiple(const size_t count)
     {
         if constexpr (P::CanSkipMultiple)
             Prev.MoveMultiple(count);
         else
-            static_assert(common::AlwaysTrue<P>(), "Not movemultiple");
+            static_assert(!common::AlwaysTrue<P>(), "Not movemultiple");
     }
 };
 
@@ -530,14 +530,14 @@ public:
         if constexpr (IsCountable)
             return TupledSourceHelper::Count(Prevs, Indexes);
         else
-            static_assert(common::AlwaysTrue<InTypes>(), "Not countable");
+            static_assert(!common::AlwaysTrue<InTypes>(), "Not countable");
     }
     constexpr void MoveMultiple(const size_t count)
     {
         if constexpr (CanSkipMultiple)
             TupledSourceHelper::MoveMultiple(count, Prevs, Indexes);
         else
-            static_assert(common::AlwaysTrue<InTypes>(), "Not movemultiple");
+            static_assert(!common::AlwaysTrue<InTypes>(), "Not movemultiple");
     }
 };
 
@@ -577,14 +577,14 @@ public:
         if constexpr (IsCountable)
             return std::min(Prev1.Count(), Prev2.Count());
         else
-            static_assert(common::AlwaysTrue<P1>(), "Not countable");
+            static_assert(!common::AlwaysTrue<P1>(), "Not countable");
     }
     constexpr void MoveMultiple(const size_t count)
     {
         if constexpr (CanSkipMultiple)
             Prev1.MoveMultiple(count), Prev2.MoveMultiple(count);
         else
-            static_assert(common::AlwaysTrue<P1>(), "Not movemultiple");
+            static_assert(!common::AlwaysTrue<P1>(), "Not movemultiple");
     }
 };
 
@@ -673,7 +673,7 @@ public:
         if constexpr (IsCountable)
             return Prev1.Count() + Prev2.Count();
         else
-            static_assert(common::AlwaysTrue<P1>(), "Not countable");
+            static_assert(!common::AlwaysTrue<P1>(), "Not countable");
     }
     constexpr void MoveMultiple(const size_t count)
     {
@@ -684,7 +684,7 @@ public:
             Prev2.MoveMultiple(count - count1);
         }
         else
-            static_assert(common::AlwaysTrue<P1>(), "Not movemultiple");
+            static_assert(!common::AlwaysTrue<P1>(), "Not movemultiple");
     }
 };
 
@@ -923,7 +923,7 @@ public:
         else if constexpr (std::is_constructible_v<DstType, EleType>)
             return ToEnumerable(detail::CastCtorSource<T, DstType>(std::move(Provider)));
         else
-            static_assert(common::AlwaysTrue<DstType>(), "cannot convert to or construct to the target type");
+            static_assert(!common::AlwaysTrue<DstType>(), "cannot convert to or construct to the target type");
     }
 
     template<typename Func>
@@ -999,18 +999,18 @@ public:
     {
         while (!Provider.IsEnd())
         {
-            if constexpr (common::is_equal_comparable<U, EleType>::value)
+            if constexpr (common::is_equal_comparable_v<U, EleType>)
             {
                 if (obj == Provider.GetCurrent())
                     return true;
             }
-            else if constexpr (common::is_notequal_comparable<U, EleType>::value)
+            else if constexpr (common::is_notequal_comparable_v<U, EleType>)
             {
                 if (!(obj != Provider.GetCurrent()))
                     return true;
             }
             else
-                static_assert(common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
+                static_assert(!common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
             Provider.MoveNext();
         }
         return false;
@@ -1033,18 +1033,18 @@ public:
     {
         while (!Provider.IsEnd())
         {
-            if constexpr (common::is_equal_comparable<U, EleType>::value)
+            if constexpr (common::is_equal_comparable_v<U, EleType>)
             {
                 if (!(obj == Provider.GetCurrent()))
                     return false;
             }
-            else if constexpr (common::is_notequal_comparable<U, EleType>::value)
+            else if constexpr (common::is_notequal_comparable_v<U, EleType>)
             {
                 if (obj != Provider.GetCurrent())
                     return false;
             }
             else
-                static_assert(common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
+                static_assert(!common::AlwaysTrue<U>(), "Type U is not eq/ne comparable with EleType");
             Provider.MoveNext();
         }
         return true;

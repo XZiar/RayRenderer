@@ -40,7 +40,7 @@ common::span<const std::byte> ToByteSpan(T&& arg)
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<T>)
         return common::as_bytes(arg);
-    else if constexpr (common::is_detected_v<common::detail::HasValueType, U>)
+    else if constexpr (common::has_valuetype_v<U>)
         return ToByteSpan(common::span<std::add_const_t<typename U::value_type>>(arg));
     else if constexpr (std::is_convertible_v<T, common::span<const std::byte>>)
         return arg;
@@ -54,7 +54,7 @@ template <typename T>
 auto ToStringView(T&& arg)
 {
     using U = common::remove_cvref_t<T>;
-    if constexpr (common::is_detected_v<common::detail::HasValueType, U>)
+    if constexpr (common::has_valuetype_v<U>)
         return std::basic_string_view(arg.data(), arg.size());
     else if constexpr (std::is_pointer_v<U>)
         return ToByteSpan(std::basic_string_view(arg));

@@ -46,7 +46,7 @@ inline constexpr GLenum ParseType()
     else if constexpr (std::is_same_v<Val, int16_t>) return GL_SHORT;
     else if constexpr (std::is_same_v<Val, uint8_t>) return GL_UNSIGNED_BYTE;
     else if constexpr (std::is_same_v<Val, int8_t>) return GL_BYTE;
-    else static_assert(common::AlwaysTrue<Val>(), "unsupported type");
+    else static_assert(!common::AlwaysTrue<Val>(), "unsupported type");
 }
 template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
 struct VAComponent : public VARawComponent<ParseType<T>(), IsNormalize_, IsNormalize_ ? false : std::is_integral_v<T>, Size_, Offset_>

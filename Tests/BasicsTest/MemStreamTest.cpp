@@ -151,6 +151,11 @@ TEST(MemStream, ReadInto)
     EXPECT_EQ(memStream.ReadInto(ret2, 1), 2);
     EXPECT_THAT(ret2, testing::ElementsAreArray(std::array<uint8_t, 4>{10, 4, 5, 7}));
     EXPECT_TRUE(memStream.IsEnd());
+
+    EXPECT_TRUE(memStream.SetPos(4));
+    EXPECT_EQ(memStream.CurrentPos(), 4);
+    EXPECT_THAT(memStream.ReadToVector<uint8_t>(), testing::ElementsAre(uint8_t(4), uint8_t(5)));
+
 }
 
 
@@ -185,7 +190,7 @@ TEST(MemStream, Write)
     {
         std::vector<uint8_t> dat(4, 0);
         EXPECT_THAT(dat, testing::Each(uint8_t(0)));
-        MemoryOutputStream memStream(dat);
+        MemoryOutputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), 4);
         
         uint8_t b1 = 0x1;
@@ -208,7 +213,7 @@ TEST(MemStream, Write)
 
         std::vector<uint32_t> dat(src.size(), 0);
         EXPECT_THAT(dat, testing::Each(0u));
-        MemoryOutputStream memStream(dat);
+        MemoryOutputStream memStream(common::to_span(dat));
         EXPECT_EQ(memStream.GetSize(), src.size() * sizeof(uint32_t));
 
         EXPECT_EQ(memStream.WriteFrom(src), src.size());

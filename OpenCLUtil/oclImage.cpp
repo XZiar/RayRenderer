@@ -217,7 +217,7 @@ size_t oclImage_::CalculateSize() const
 
 PromiseResult<void> oclImage_::ReadSpan(const oclCmdQue que, common::span<std::byte> buf, const bool shouldBlock) const
 {
-    Ensures(CalculateSize() <= size_t(buf.size())); // write size not sufficient
+    Expects(CalculateSize() <= size_t(buf.size())); // write size not sufficient
 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
@@ -265,7 +265,7 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) con
 
 PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock) const
 {
-    Ensures(CalculateSize() < size_t(buf.size())); // write size not sufficient
+    Expects(CalculateSize() < size_t(buf.size())); // write size not sufficient
 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
@@ -281,10 +281,10 @@ PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const
 
 PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image, const bool shouldBlock) const
 {
-    Ensures(image.GetWidth()    == Width); // write image size mismatch
-    Ensures(image.GetHeight()   == Height * Depth); // write image size mismatch
+    Expects(image.GetWidth()    == Width); // write image size mismatch
+    Expects(image.GetHeight()   == Height * Depth); // write image size mismatch
     const auto wantFormat = xziar::img::TexFormatUtil::ToImageDType(Format, true);
-    Ensures(image.GetDataType() == wantFormat); // image datatype mismatch
+    Expects(image.GetDataType() == wantFormat); // image datatype mismatch
 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };

@@ -43,7 +43,7 @@ private:
     template<typename T>
     [[nodiscard]] forceinline size_t ReadInto_(const common::span<T> space, size_t offset, size_t want)
     {
-        Ensures(size_t(space.size()) >= offset);
+        Expects(size_t(space.size()) >= offset);
         constexpr size_t EleSize = sizeof(T);
         const auto actual = CalcCount<EleSize>(offset, space.size(), want);
         if (actual == 0)
@@ -141,7 +141,7 @@ private:
     template<typename T>
     size_t WriteFrom_(const common::span<T> space, size_t offset, size_t want)
     {
-        Ensures(size_t(space.size()) >= offset);
+        Expects(size_t(space.size()) >= offset);
         constexpr size_t EleSize = sizeof(T);
         const auto actual = CalcCount<EleSize>(offset, space.size(), want);
         if (actual == 0)

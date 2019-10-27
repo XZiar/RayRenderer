@@ -49,8 +49,8 @@ common::span<std::byte> oclBuffer_::MapObject(const cl_command_queue& que, const
 
 PromiseResult<void> oclBuffer_::ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset, const bool shouldBlock) const
 {
-    Ensures(offset < Size); // offset overflow
-    Ensures(offset + buf.size() <= Size); // read size overflow
+    Expects(offset < Size); // offset overflow
+    Expects(offset + buf.size() <= Size); // read size overflow
     cl_event e;
     auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
@@ -63,7 +63,7 @@ PromiseResult<void> oclBuffer_::ReadSpan(const oclCmdQue& que, common::span<std:
 
 common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const oclCmdQue& que, const size_t offset) const
 {
-    Ensures(offset < Size); // offset overflow
+    Expects(offset < Size); // offset overflow
     const auto size = Size - offset;
     common::AlignedBuffer buf(size);
     cl_event e;
@@ -75,8 +75,8 @@ common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const oclCmdQue& q
 
 PromiseResult<void> oclBuffer_::WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset, const bool shouldBlock) const
 {
-    Ensures(offset < Size); // offset overflow
-    Ensures(offset + buf.size() <= Size); // write size overflow
+    Expects(offset < Size); // offset overflow
+    Expects(offset + buf.size() <= Size); // write size overflow
     cl_event e;
     const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)

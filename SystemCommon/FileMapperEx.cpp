@@ -53,8 +53,8 @@ static std::tuple<uint64_t, uint64_t> HandleMappingAlign(const uint64_t offset)
 static std::optional<std::tuple<FileMappingObject::HandleType, byte*, uint64_t, size_t>>
 TryMap (RawFileObject::HandleType fileHandle, const MappingFlag flag, const std::pair<uint64_t, uint64_t>& region)
 {
-    Ensures(region.second == UINT64_MAX || ((region.first + region.second) > region.first));
-    Ensures(region.second == UINT64_MAX || ((region.first + region.second) > region.second));
+    Expects(region.second == UINT64_MAX || ((region.first + region.second) > region.first));
+    Expects(region.second == UINT64_MAX || ((region.first + region.second) > region.second));
 #if COMMON_OS_WIN
     LARGE_INTEGER realMapSize;
     if (!GetFileSizeEx(fileHandle, &realMapSize))
