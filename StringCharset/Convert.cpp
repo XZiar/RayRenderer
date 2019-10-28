@@ -8,29 +8,28 @@ namespace detail
 {
 
 template<typename Char, typename Dest>
-static std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Charset inchset)
+[[nodiscard]] forceinline std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Charset inchset)
 {
     using namespace common::str::detail;
-    const auto ptr = reinterpret_cast<const uint8_t*>(data.data());
-    const auto size = data.size();
+    const std::basic_string_view<uint8_t> str(reinterpret_cast<const uint8_t*>(data.data()), data.size());
     switch (inchset)
     {
     case Charset::ASCII:
-        return std::basic_string<Char>(ptr, ptr + size);
+        return std::basic_string<Char>(str.cbegin(), str.cend());
     case Charset::UTF8:
-        return CharsetConvertor<UTF8   , Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<UTF8   , Dest, uint8_t, Char>::Convert(str);
     case Charset::UTF16LE:
-        return CharsetConvertor<UTF16LE, Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<UTF16LE, Dest, uint8_t, Char>::Convert(str);
     case Charset::UTF16BE:
-        return CharsetConvertor<UTF16BE, Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<UTF16BE, Dest, uint8_t, Char>::Convert(str);
     case Charset::UTF32LE:
-        return CharsetConvertor<UTF32LE, Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<UTF32LE, Dest, uint8_t, Char>::Convert(str);
     case Charset::UTF32BE:
-        return CharsetConvertor<UTF32BE, Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<UTF32BE, Dest, uint8_t, Char>::Convert(str);
     case Charset::GB18030:
-        return CharsetConvertor<GB18030, Dest, uint8_t, Char>::Convert(ptr, size);
+        return CharsetConvertor<GB18030, Dest, uint8_t, Char>::Convert(str);
     default:
-        return {};
+        COMMON_THROW(BaseException, u"unknown charset", inchset);
     }
 }
 
@@ -54,7 +53,7 @@ std::string to_string(const common::span<const std::byte> data, const Charset ou
     case Charset::GB18030:
         return ConvertString<char, GB18030>(data, inchset);
     default:
-        return {};
+        COMMON_THROW(BaseException, u"unknown charset", outchset);
     }
 }
 

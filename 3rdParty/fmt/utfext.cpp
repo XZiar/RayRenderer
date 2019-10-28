@@ -15,7 +15,7 @@ FMT_API std::size_t strftime(char16_t *str, std::size_t count, const char16_t *f
 {
     static thread_local std::string buffer;
     buffer.resize(count);
-    const auto u7format = common::strchset::to_string(format, std::char_traits<char16_t>::length(format), Charset::UTF7, Charset::UTF16LE);
+    const auto u7format = common::strchset::to_string(std::u16string_view(format), Charset::UTF7, Charset::UTF16LE);
     const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
     for (size_t idx = 0; idx < ret;)
         *str++ = buffer[idx++];
@@ -26,7 +26,7 @@ FMT_API std::size_t strftime(char32_t *str, std::size_t count, const char32_t *f
 {
     static thread_local std::string buffer;
     buffer.resize(count);
-    const auto u7format = common::strchset::to_string(format, std::char_traits<char32_t>::length(format), Charset::UTF7, Charset::UTF32LE);
+    const auto u7format = common::strchset::to_string(std::u32string_view(format), Charset::UTF7, Charset::UTF32LE);
     const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
     for (size_t idx = 0; idx < ret;)
         *str++ = buffer[idx++];

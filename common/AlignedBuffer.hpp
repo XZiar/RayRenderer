@@ -94,7 +94,8 @@ private:
             CoreInfo->RefCount++;
     }
     AlignedBuffer(std::unique_ptr<const ExternBufInfo>&& externInfo, const size_t align) noexcept
-        : CoreInfo(new BufInfo(std::move(externInfo))), Size(CoreInfo->Size), Align(align), Data(BufInfo::GetPtr(CoreInfo))
+        : CoreInfo(new BufInfo(std::move(externInfo))), Size(CoreInfo->Size), 
+        Align(std::gcd<uintptr_t>(reinterpret_cast<uintptr_t>(BufInfo::GetPtr(CoreInfo)), align)), Data(BufInfo::GetPtr(CoreInfo))
     { }
 protected:
     size_t Size = 0;

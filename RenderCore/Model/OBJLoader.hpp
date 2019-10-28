@@ -108,16 +108,12 @@ public:
         uint8_t ParseInts(const uint8_t idx, int32_t(&output)[N]) const
         {
             uint8_t cnt = 0;
-            common::str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
-            {
-                if (cnt < N)
-                {
-                    if (len == 0)
-                        output[cnt++] = 0;
-                    else
-                        output[cnt++] = atoi(substr);
-                }
-            });
+            common::str::SplitStream(Params[idx], '/', true)
+                .Take(N)
+                .ForEach([&cnt, &output](const auto sv)
+                    {
+                        output[cnt++] = sv.empty() ? 0 : atoi(sv.data());
+                    });
             return cnt;
         }
 
@@ -125,16 +121,12 @@ public:
         uint8_t ParseFloats(const uint8_t idx, float(&output)[N]) const
         {
             uint8_t cnt = 0;
-            common::str::SplitAndDo(Params[idx], '/', [&cnt, &output](const char *substr, const size_t len)
-            {
-                if (cnt < N)
-                {
-                    if (len == 0)
-                        output[cnt++] = 0;
-                    else
-                        output[cnt++] = atof(substr);
-                }
-            });
+            common::str::SplitStream(Params[idx], '/', true)
+                .Take(N)
+                .ForEach([&cnt, &output](const auto sv)
+                    {
+                        output[cnt++] = sv.empty() ? 0 : atof(sv.data());
+                    });
             return cnt;
         }
 
@@ -184,10 +176,10 @@ public:
         }
         TextLine textLine(chset, string_view((const char*)&Content[fromPos], lineLength));
 
-        common::str::SplitInto<char>(textLine.Line, [](const char ch)
-        {
-            return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
-        }, textLine.Params, false);
+        textLine.Params = common::str::Split(textLine.Line, [](const char ch)
+            {
+                return (uint8_t)(ch) < uint8_t(0x21) || (uint8_t)(ch) == uint8_t(0x7f);//non-graph character
+            }, false);
         if (textLine.Params.size() == 0)
             return { chset, "EMPTY" };
 

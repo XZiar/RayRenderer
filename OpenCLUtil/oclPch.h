@@ -4,6 +4,7 @@
 #include "StringCharset/Convert.h"
 
 #include "common/Linq2.hpp"
+#include "common/StringLinq.hpp"
 #include "common/StringEx.hpp"
 #include "common/ContainerHelper.hpp"
 

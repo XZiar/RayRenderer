@@ -1,58 +1,42 @@
 #pragma once
 
 
-#include <string>
 #include <string_view>
-#include <vector>
 #include <type_traits>
 
 namespace common::str
 {
 
-namespace detail
+template<typename T>
+[[nodiscard]] inline constexpr auto ToStringView(T&& val) noexcept
 {
-
-
-template <typename Char, class T>
-inline constexpr bool is_str_vector_v()
-{
-    if constexpr(TemplateDerivedHelper<T, std::vector>::IsDerivedFromBase)
-        return std::is_same_v<Char, typename T::value_type>;
-    return false;
-}
-
-template<typename T, typename Char>
-using CanBeStringView = std::enable_if_t<
-    is_str_vector_v<Char, T>() ||
-    (!std::is_convertible_v<const T&, const Char*> &&
-        (std::is_convertible_v<const T&, const std::basic_string_view<Char>&> ||
-            std::is_convertible_v<const T&, const std::basic_string<Char>&>
-        )
-    )
->;
-
-
-template<typename Char, typename T, class = CanBeStringView<T, Char>>
-inline constexpr std::basic_string_view<Char> ToStringView(const T& str)
-{
-    if constexpr (std::is_convertible_v<const T&, const std::basic_string_view<Char>&>)
-        return str;
-    else if constexpr (std::is_convertible_v<const T&, const std::basic_string<Char>&>)
-        return static_cast<const std::basic_string<Char>&>(str);
-    else if constexpr (std::is_convertible_v<const T&, const Char*>)
-        return static_cast<const Char*>(str);
+    using U = std::decay_t<T>;
+    if constexpr (std::is_pointer_v<U>)
+        return std::basic_string_view(val);
+    else if constexpr (common::has_valuetype_v<U>)
+    {
+        using Char = typename U::value_type;
+        if constexpr (std::is_constructible_v<std::basic_string_view<Char>, T>)
+            return std::basic_string_view<Char>(std::forward<T>(val));
+        else if constexpr (std::is_convertible_v<T, std::basic_string_view<Char>>)
+            return (std::basic_string_view<Char>)val;
+        else if constexpr (std::is_constructible_v<common::span<const Char>, T>)
+        {
+            common::span<const Char> space(std::forward<T>(val));
+            return std::basic_string_view<Char>(space.data(), space.size());
+        }
+        else if constexpr (std::is_convertible_v<T, common::span<const Char>>)
+        {
+            auto space = (common::span<const Char>)val;
+            return std::basic_string_view<Char>(space.data(), space.size());
+        }
+        else
+            static_assert(!common::AlwaysTrue<T>(), "with value_type, still not able to be converted into string_view");
+    }
     else
-        static_assert(!AlwaysTrue<Char>(), "cannot be cast to string_view");
+        static_assert(!common::AlwaysTrue<T>(), "unsupported type to be converted into string_view");
 }
 
-template<typename Char, typename A>
-inline constexpr std::basic_string_view<Char> ToStringView(const std::vector<Char, A>& str) noexcept
-{
-    return std::basic_string_view<Char>(str.data(), str.size());
-}
-
-
-}
 
 enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32LE, UTF32BE };
 

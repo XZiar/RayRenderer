@@ -120,11 +120,15 @@ It uses shared_ptr to implicitly manage memory resources, which will lead to mor
 
 ### [StringEx](./StringEx.hpp)
 
-Some useful utilities for string operations like split, concat...
+Some useful utilities for string operations。
 
-`split` is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
+* `ToStringView` convert an arg to a string_view, support type with `value_type` and str pointer.
+* `IsBeginWith` similar functionality for C++20's `*.starts_with()`
+* `ifind_first` case-insensitive find for string.
 
-`concat` uses C++11's variadic template to detect string's length and pre-alloc memory. I am not sure if recursive func calling would be inlined, so it may in fact hurt performance. Anyway, it's just a toy.
+### [StringLinq](./StringLinq.hpp)
+
+provide Linq-based string split operation. It is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
 
 ### [StrCharset](./StrCharset.hpp)
 
@@ -179,6 +183,8 @@ std containers with `AlignAllocator` is defined under `common::container` as xxx
 ### [AlignedBuffer](./AlignedBuffer.hpp)
 
 A non-typed aligned memory space, provide sub-buffer creation and shared-lifetime mamnagement(using reference counter).
+
+It also support external memory allocation by inherit `AlignedBuffer::ExternBufInfo`.
 
 ### [ContainerHelper](./ContainerHelper.hpp)
 

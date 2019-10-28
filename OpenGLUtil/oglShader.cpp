@@ -119,27 +119,24 @@ static vector<string_view> ExtractParams(const string_view& paramPart, const siz
     const auto p3 = paramPart.find_last_of(")");
     if (p2 < p3)
     {
-        bool inRegion = false;
-        common::str::SplitAndDo<char>(paramPart.substr(p2 + 1, p3 - p2 - 1), [&](const char ch)
-        {
-            if (ch == '"')
+        return common::str::SplitStream(paramPart.substr(p2 + 1, p3 - p2 - 1), [inRegion = false](const char ch) mutable
             {
-                inRegion = !inRegion;
-                return false;
-            }
-            return !inRegion && ch == ',';
-        }, [&](const char *pos, size_t len)
-        {
-            while (len > 0 && *pos == ' ')
-                len--, pos++;
-            while (len > 0 && pos[len - 1] == ' ')
-                len--;
-            if (len > 1 && *pos == '"' && pos[len - 1] == '"')
-                len-=2, pos++;
-            params.emplace_back(pos, len);
-        }, true);
+                if (ch == '"')
+                {
+                    inRegion = !inRegion;
+                    return false;
+                }
+                return !inRegion && ch == ',';
+            }, true)
+        .Select([](std::string_view sv)// (const char* pos, size_t len)
+            {
+                sv = common::str::TrimStringView(sv, ' ');
+                sv = common::str::TrimPairStringView(sv, '"');
+                return sv;
+            })
+        .ToVector();
     }
-    return params;
+    return {};
 }
 
 struct OgluAttribute
@@ -288,66 +285,66 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
 
     finalShader.reserve(src.size() + 1024);
     info.ResMappings.insert_or_assign("DrawID", "ogluDrawId");
-    common::str::SplitAndDo<char>(src, '\n',
-        [&](const char *pos, size_t len) 
+    for (std::string_view line : common::str::SplitStream(src, '\n', true))
+    {
+        const size_t curLine = lines.size();
+        if (!line.empty() && line.back() == '\r')
+            line.remove_suffix(1); // fix for "\r\n"
+        lines.push_back(line);
+        const auto p0 = line.find_first_not_of(' ');
+        const string_view realline = line.substr(p0 == string_view::npos ? 0 : p0);
+        if (realline.size() <= 6) continue;
+
+        if (common::str::IsBeginWith(realline, "#version"))
         {
-            const size_t curLine = lines.size();
-            if (pos[len - 1] == '\r') len--; // fix for "\r\n"
-            string_view line(pos, len);
-            lines.push_back(line);
-            const auto p0 = line.find_first_not_of(' ');
-            const string_view realline = line.substr(p0 == string_view::npos ? 0 : p0);
-            if (realline.size() <= 6) return;
-            if (common::str::IsBeginWith(realline, "#version"))
+            verLineNum = curLine;
+        }
+        else if (common::str::IsBeginWith(realline, "//@OGLU@"))
+        {
+            OgluAttribute ogluAttr(realline.substr(8));
+            switch (hash_(ogluAttr.Name))
             {
-                verLineNum = curLine;
+            case "Mapping"_hash:
+                if (ogluAttr.Params.size() == 2)
+                    info.ResMappings.insert_or_assign(string(ogluAttr.Params[0]), string(ogluAttr.Params[1]));
+                break;
+            case "Stage"_hash:
+                initLineNum = curLine;
+                stypes.insert(ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
+                break;
+            case "Property"_hash:
+                if (auto prop = ParseExtProperty(ogluAttr.Params))
+                    info.Properties.emplace(prop.value());
+                break;
+            default:
+                break;
             }
-            else if (common::str::IsBeginWith(realline, "//@OGLU@"))
+        }
+        else if (common::str::IsBeginWith(realline, "OGLU_ROUTINE("))
+        {
+            const auto& [it, ret] = routines.insert(RoutineItem(line, curLine));
+            if (!ret)
+                oglLog().warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
+        }
+        else if (common::str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
+        {
+            const auto sub = RoutineItem::TryParseSubroutine(line);
+            if (sub.has_value())
             {
-                OgluAttribute ogluAttr(realline.substr(8));
-                switch (hash_(ogluAttr.Name))
+                const auto ptrRoutine = FindInVec(routines, [&](const auto& r) { return r.RoutineName == sub->first; });// FindInSet(routines, sub->first);
+                if (ptrRoutine)
                 {
-                case "Mapping"_hash:
-                    if (ogluAttr.Params.size() == 2)
-                        info.ResMappings.insert_or_assign(string(ogluAttr.Params[0]), string(ogluAttr.Params[1]));
-                    break;
-                case "Stage"_hash:
-                    initLineNum = curLine;
-                    stypes.insert(ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
-                    break;
-                case "Property"_hash:
-                    if (auto prop = ParseExtProperty(ogluAttr.Params))
-                        info.Properties.emplace(prop.value());
-                    break;
-                default:
-                    break;
-                }
-            }
-            else if(common::str::IsBeginWith(realline, "OGLU_ROUTINE("))
-            {
-                const auto&[it,ret] = routines.insert(RoutineItem(line, curLine));
-                if (!ret)
-                    oglLog().warning(u"Repeat routine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->LineNum]));
-            }
-            else if(common::str::IsBeginWith(realline, "OGLU_SUBROUTINE("))
-            {
-                const auto sub = RoutineItem::TryParseSubroutine(line);
-                if (sub.has_value())
-                {
-                    const auto ptrRoutine = FindInVec(routines, [&](const auto& r) { return r.RoutineName == sub->first; });// FindInSet(routines, sub->first);
-                    if (ptrRoutine)
-                    {
-                        const auto&[it, ret] = ptrRoutine->Subroutines.emplace(sub->second, curLine);
-                        if (!ret)
-                            oglLog().warning(u"Repeat subroutine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->second]));
-                    }
-                    else
-                        oglLog().warning(u"No routine [{}] found for subroutine [{}]\n", sub->first, sub->second);
+                    const auto& [it, ret] = ptrRoutine->Subroutines.emplace(sub->second, curLine);
+                    if (!ret)
+                        oglLog().warning(u"Repeat subroutine found: [{}]\n Previous was: [{}]\n", line, std::get<string_view>(lines[it->second]));
                 }
                 else
-                    oglLog().warning(u"Unknown subroutine declare: [{}]\n", line);
+                    oglLog().warning(u"No routine [{}] found for subroutine [{}]\n", sub->first, sub->second);
             }
-        }, true);
+            else
+                oglLog().warning(u"Unknown subroutine declare: [{}]\n", line);
+        }
+    }
 
     const string_view partHead = verLineNum == string::npos ? "" : string_view(src.data(), std::get<string_view>(lines[verLineNum]).data() - src.data());
     if (initLineNum == string::npos) 

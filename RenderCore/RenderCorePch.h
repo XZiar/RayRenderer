@@ -19,6 +19,7 @@
 #include "common/Linq2.hpp"
 #include "common/PromiseTaskSTD.hpp"
 #include "common/StringEx.hpp"
+#include "common/StringLinq.hpp"
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/multi_index_container.hpp>

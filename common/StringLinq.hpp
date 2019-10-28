@@ -2,6 +2,7 @@
 
 #include "Linq2.hpp"
 #include "SharedString.hpp"
+#include "StrBase.hpp"
 #include <string>
 #include <string_view>
 
@@ -11,31 +12,6 @@ namespace common::str
 
 namespace detail
 {
-
-template<typename T>
-[[nodiscard]] inline constexpr auto ToStringView(T&& val) noexcept
-{
-    using U = std::decay_t<T>;
-    static_assert(common::has_valuetype_v<U>, "only accept type that defined value_type");
-    using Char = typename U::value_type;
-    if constexpr (std::is_constructible_v<std::basic_string_view<Char>, T>)
-        return std::basic_string_view<Char>(std::forward<T>(val));
-    else if constexpr (std::is_convertible_v<T, std::basic_string_view<Char>>)
-        return (std::basic_string_view<Char>)val;
-    else if constexpr (std::is_constructible_v<common::span<const Char>, T>)
-    {
-        common::span<const Char> space(std::forward<T>(val));
-        return std::basic_string_view<Char>(space.data(), space.size());
-    }
-    else if constexpr (std::is_convertible_v<T, common::span<const Char>>)
-    {
-        auto space = (common::span<const Char>)val;
-        return std::basic_string_view<Char>(space.data(), space.size());
-    }
-    else
-        static_assert(!common::AlwaysTrue<T>(), "connot be converted into string_view");
-}
-
 
 template<typename Char, typename Judger>
 struct SplitSource
@@ -122,6 +98,13 @@ template<typename Char, typename T, typename Judger>
 }
 
 
+/**
+ ** @brief split source into an enumerable using judger
+ ** @param src string source
+ ** @param judger a delim or a function that accepts one element and return (bool) whether it is delim
+ ** @param keepblank whether should keep blank slice
+ ** @return an enumerable that can retrieve slices
+ **/
 template<typename T, typename Judger>
 [[nodiscard]] inline constexpr auto SplitStream(T&& source, Judger&& judger, const bool keepblank = true) noexcept
 {
@@ -141,7 +124,7 @@ template<typename T, typename Judger>
         }
         else
         {
-            return detail::ToSplitStream<Char>(detail::ToStringView(std::forward<T>(source)), 
+            return detail::ToSplitStream<Char>(ToStringView(std::forward<T>(source)), 
                 std::forward<Judger>(judger), keepblank);
         }
     }
@@ -151,6 +134,20 @@ template<typename T, typename Judger>
     }
 }
 
+
+/**
+ ** @brief split source into a vector of slice using judger
+ ** @param src string source
+ ** @param judger a delim or a function that accepts one element and return (bool) whether it is delim
+ ** @param keepblank whether should keep blank slice
+ ** @return an vector that contains all slices
+ **/
+template<typename T, typename Judger>
+[[nodiscard]] inline constexpr auto Split(T&& source, Judger&& judger, const bool keepblank = true) noexcept
+{
+    return SplitStream(std::forward<T>(source), std::forward<Judger>(judger), keepblank)
+        .ToVector();
+}
 
 }
 

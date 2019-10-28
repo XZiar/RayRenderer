@@ -50,18 +50,6 @@ common::span<const std::byte> ToByteSpan(T&& arg)
         static_assert(!common::AlwaysTrue<T>(), "unsupported");
 }
 
-template <typename T>
-auto ToStringView(T&& arg)
-{
-    using U = common::remove_cvref_t<T>;
-    if constexpr (common::has_valuetype_v<U>)
-        return std::basic_string_view(arg.data(), arg.size());
-    else if constexpr (std::is_pointer_v<U>)
-        return ToByteSpan(std::basic_string_view(arg));
-    else
-        static_assert(!common::AlwaysTrue<T>(), "unsupported");
-}
-
 
 }
 

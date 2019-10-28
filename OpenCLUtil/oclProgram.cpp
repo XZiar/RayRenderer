@@ -372,7 +372,7 @@ oclProgram_::oclProgram_(oclProgStub* stub)
     clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
     if (len > 0)
         buf.pop_back(); //null-terminated
-    const auto names = common::str::Split<char>(buf, ';', false);
+    const auto names = common::str::Split(buf, ';', false);
     KernelNames.assign(names.cbegin(), names.cend());
 
     Kernels = common::linq::FromIterable(KernelNames)

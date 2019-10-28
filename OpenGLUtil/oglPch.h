@@ -9,6 +9,7 @@
 #include "ImageUtil/TexFormat.h"
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
+#include "common/StringLinq.hpp"
 #include "common/CopyEx.hpp"
 #include "common/ContainerEx.hpp"
 #include <algorithm>

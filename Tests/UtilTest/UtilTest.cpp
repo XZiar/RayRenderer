@@ -126,12 +126,8 @@ int main(int argc, char *argv[])
     }
     ClearReturn();
     getchar();
-    static_assert(common::str::detail::is_str_vector_v<char, std::vector<char, common::AlignAllocator<char>>>(), "");
-    static_assert(common::str::detail::is_str_vector_v<char, std::vector<char>>(), "");
-    static_assert(common::str::detail::is_str_vector_v<char, common::container::vectorEx<char>>(), "");
     static_assert(common::is_specialization<std::vector<char>, std::vector>::value, "");
     static_assert(common::is_specialization<std::vector<char, common::AlignAllocator<char>>, std::vector>::value, "");
-    static_assert(std::is_same_v<void, common::str::detail::CanBeStringView<std::string, char>>, "can't be sv");
     static_assert(common::str::IsBeginWith("here", "here"), "is not begin");
 
 }

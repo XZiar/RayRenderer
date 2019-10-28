@@ -3,7 +3,7 @@
 #include "OpenCLUtil/oclException.h"
 #include "StringCharset/Convert.h"
 #include "common/Linq2.hpp"
-#include "common/StringEx.hpp"
+#include "common/StringLinq.hpp"
 
 
 using namespace common;
@@ -81,14 +81,15 @@ static void OCLStub()
                 {
                     ClearReturn();
                     if (line.size() == 0) break;
-                    const auto parts = common::str::Split(&line[1], line.size() - 1, '=');
+                    const auto parts = common::str::Split(line, '=');
+                    string key(parts[0].substr(1));
                     switch (line.front())
                     {
                     case '#':
                         if (parts.size() > 1)
-                            config.Defines[string(parts[0])] = string(parts[1].cbegin(), parts.back().cend());
+                            config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
                         else
-                            config.Defines[string(parts[0])] = std::monostate{};
+                            config.Defines[key] = std::monostate{};
                         continue;
                     }
                     break;

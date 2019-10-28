@@ -1,7 +1,7 @@
 #include "TestRely.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenGLUtil/oglException.h"
-#include "common/StringEx.hpp"
+#include "common/StringLinq.hpp"
 #include <algorithm>
 
 using namespace common;
@@ -155,20 +155,21 @@ static void OGLStub()
                 string line;
                 while (cin >> line)
                 {
-                    cin.ignore(1024, '\n');
+                    ClearReturn();
                     if (line.size() == 0) break;
-                    const auto parts = common::str::Split(&line[1], line.size() - 1, '=');
+                    const auto parts = common::str::Split(line, '=');
+                    string key(parts[0].substr(1));
                     switch (line.front())
                     {
                     case '#':
                         if (parts.size() > 1)
-                            config.Defines.insert_or_assign(string(parts[0]), string(parts[1].cbegin(), parts.back().cend()));
+                            config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
                         else
-                            config.Defines.insert_or_assign(string(parts[0]), std::monostate{});
+                            config.Defines[key] = std::monostate{};
                         continue;
                     case '@':
                         if (parts.size() == 2)
-                            config.Routines.insert_or_assign(string(parts[0]), string(parts[1]));
+                            config.Routines.insert_or_assign(key, string(parts[1]));
                         continue;
                     }
                     break;
