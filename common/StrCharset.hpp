@@ -3,7 +3,6 @@
 #include "CommonRely.hpp"
 #include "Exceptions.hpp"
 #include "StrBase.hpp"
-#include "ContainerHelper.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -49,6 +48,8 @@ struct ConvertByteBase
 struct UTF7 : public ConvertCPBase, public ConvertByteBase
 {
     using ElementType = char;
+    static constexpr size_t MinBytes = 1;
+    static constexpr size_t MaxBytes = 1;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
         if (size >= 1 && src[0] > 0)
@@ -84,9 +85,11 @@ struct UTF7 : public ConvertCPBase, public ConvertByteBase
 struct UTF32 : public ConvertCPBase
 {
     using ElementType = char32_t;
+    static constexpr size_t MinBytes = 4;
+    static constexpr size_t MaxBytes = 4;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
-        if (size >= 1 && src[0] < 0x200000)
+        if (size >= 1u && src[0] < 0x200000u)
         {
             return { src[0], 1 };
         }
@@ -94,7 +97,7 @@ struct UTF32 : public ConvertCPBase
     }
     [[nodiscard]] forceinline static constexpr uint8_t To(const char32_t src, const size_t size, ElementType* __restrict const dest) noexcept
     {
-        if (size >= 1 && src < 0x200000)
+        if (size >= 1u && src < 0x200000u)
         {
             dest[0] = src;
             return 1;
@@ -116,7 +119,7 @@ struct UTF32LE : public UTF32, public ConvertByteBase
     }
     [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 1 && src < 0x200000u)
+        if (size >= 1u && src < 0x200000u)
         {
             dest[0] = static_cast<uint8_t>(src);       dest[1] = static_cast<uint8_t>(src >> 8);
             dest[2] = static_cast<uint8_t>(src >> 16); dest[3] = static_cast<uint8_t>(src >> 24);
@@ -139,7 +142,7 @@ struct UTF32BE : public UTF32, public ConvertByteBase
     }
     [[nodiscard]] forceinline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 1 && src < 0x200000)
+        if (size >= 1u && src < 0x200000u)
         {
             dest[3] = static_cast<uint8_t>(src);       dest[2] = static_cast<uint8_t>(src >> 8);
             dest[1] = static_cast<uint8_t>(src >> 16); dest[0] = static_cast<uint8_t>(src >> 24);
@@ -216,6 +219,8 @@ private:
     }
 public:
     using ElementType = char;
+    static constexpr size_t MinBytes = 1;
+    static constexpr size_t MaxBytes = 4;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
         return InnerFrom(src, size);
@@ -237,6 +242,8 @@ public:
 struct UTF16 : public ConvertCPBase
 {
     using ElementType = char32_t;
+    static constexpr size_t MinBytes = 2;
+    static constexpr size_t MaxBytes = 2;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const char16_t* __restrict const src, const size_t size) noexcept
     {
         if (size == 0)
@@ -264,7 +271,7 @@ struct UTF16 : public ConvertCPBase
             dest[0] = (char16_t)src;
             return 1;
         }
-        if (size >= 2 && src < 0x200000)
+        if (size >= 2 && src < 0x200000u)
         {
             const auto tmp = src - 0x10000;
             dest[0] = char16_t(0xd800 | (tmp >> 10)), dest[1] = char16_t(0xdc00 | (tmp & 0x3ff));
@@ -306,7 +313,7 @@ struct UTF16BE : public UTF16, public ConvertByteBase
             dest[1] = src & 0xff;
             return 2;
         }
-        if (size >= 4 && src < 0x200000)
+        if (size >= 4 && src < 0x200000u)
         {
             const auto tmp = src - 0x10000;
             dest[0] = uint8_t(0xd8 | (tmp >> 18)), dest[1] = ((tmp >> 10) & 0xff);
@@ -349,7 +356,7 @@ struct UTF16LE : public UTF16, public ConvertByteBase
             dest[0] = src & 0xff;
             return 2;
         }
-        if (size >= 4 && src < 0x200000)
+        if (size >= 4 && src < 0x200000u)
         {
             const auto tmp = src - 0x10000;
             dest[1] = uint8_t(0xd8 | (tmp >> 18)), dest[0] = ((tmp >> 10) & 0xff);
@@ -445,6 +452,8 @@ private:
     }
 public:
     using ElementType = char;
+    static constexpr size_t MinBytes = 1;
+    static constexpr size_t MaxBytes = 4;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
         return InnerFrom(src, size);
@@ -465,38 +474,38 @@ public:
 
 
 template<class From, typename CharT, typename Consumer>
-inline void ForEachChar(const CharT* __restrict const str, const size_t size, Consumer consumer)
+inline void ForEachChar(const std::basic_string_view<CharT> str, Consumer consumer)
 {
     static_assert(std::is_base_of_v<ConvertByteBase, From>, "Covertor [From] should support ConvertByteBase");
-    const uint8_t* __restrict src = reinterpret_cast<const uint8_t*>(str);
-    for (size_t srcBytes = size * sizeof(CharT); srcBytes > 0;)
+    const uint8_t* __restrict src = reinterpret_cast<const uint8_t*>(str.data());
+    for (size_t bytes = str.size() * sizeof(CharT); bytes > 0;)
     {
-        const auto[codepoint, len] = From::FromBytes(src, srcBytes);
+        const auto[codepoint, len] = From::FromBytes(src, bytes);
         if (codepoint == InvalidChar)//fail
         {
             //move to next element
-            srcBytes -= sizeof(CharT);
+            bytes -= sizeof(CharT);
             src += sizeof(CharT);
             continue;
         }
         else
         {
-            srcBytes -= len;
+            bytes -= len;
             src += len;
+            if (consumer(codepoint))
+                return;
         }
-        if (consumer(codepoint))
-            return;
     }
 }
 
 template<class From1, class From2, typename CharT1, typename CharT2, typename Consumer>
-inline void ForEachCharPair(const CharT1* __restrict const str1, const size_t size1, const CharT2* __restrict const str2, const size_t size2, Consumer consumer)
+inline void ForEachCharPair(const std::basic_string_view<CharT1> str1, const std::basic_string_view<CharT2> str2, Consumer consumer)
 {
     static_assert(std::is_base_of_v<ConvertByteBase, From1>, "Covertor [From1] should support ConvertByteBase");
     static_assert(std::is_base_of_v<ConvertByteBase, From2>, "Covertor [From2] should support ConvertByteBase");
-    const uint8_t* __restrict src1 = reinterpret_cast<const uint8_t*>(str1);
-    const uint8_t* __restrict src2 = reinterpret_cast<const uint8_t*>(str2);
-    for (size_t srcBytes1 = size1 * sizeof(CharT1), srcBytes2 = size2 * sizeof(CharT2); srcBytes1 > 0 && srcBytes2 > 0;)
+    const uint8_t* __restrict src1 = reinterpret_cast<const uint8_t*>(str1.data());
+    const uint8_t* __restrict src2 = reinterpret_cast<const uint8_t*>(str2.data());
+    for (size_t srcBytes1 = str1.size() * sizeof(CharT1), srcBytes2 = str2.data() * sizeof(CharT2); srcBytes1 > 0 && srcBytes2 > 0;)
     {
         const auto[cp1, len1] = From1::FromBytes(src1, srcBytes1);
         const auto[cp2, len2] = From2::FromBytes(src2, srcBytes2);
@@ -516,9 +525,9 @@ inline void ForEachCharPair(const CharT1* __restrict const str1, const size_t si
         {
             srcBytes1 -= len1, srcBytes2 -= len2;
             src1 += len1, src2 += len2;
+            if (consumer(cp1, cp2))
+                return;
         }
-        if (consumer(cp1, cp2))
-            return;
     }
 }
 
@@ -526,83 +535,112 @@ template<class From, class To, typename SrcType, typename DestType>
 class CharsetConvertor
 {
     static_assert(std::is_base_of_v<ConvertByteBase, From>, "Covertor [From] should support ConvertByteBase");
-    static_assert(std::is_base_of_v<ConvertByteBase, To>, "Covertor [To] should support ConvertByteBase");
+    static_assert(std::is_base_of_v<ConvertByteBase, To>  , "Covertor [To]   should support ConvertByteBase");
 private:
-    forceinline static char32_t Dummy(const char32_t in) { return in; }
+    forceinline static constexpr char32_t Dummy(const char32_t in) noexcept { return in; }
+    forceinline static constexpr size_t CalcDestCount(const size_t srcCount) noexcept
+    {
+        const size_t srcSize = sizeof(SrcType) * srcCount;
+        return srcSize / sizeof(DestType);
+    }
+    template<size_t UnitSize>
+    forceinline static constexpr std::pair<size_t, size_t> CalcUnitDestCount(const size_t srcCount) noexcept
+    {
+        Expects(UnitSize % sizeof(SrcType) == 0);
+        Expects(UnitSize % sizeof(DestType) == 0);
+        Expects(UnitSize >= sizeof(SrcType));
+        Expects(UnitSize >= sizeof(DestType));
+        const size_t srcSize = sizeof(SrcType) * srcCount;
+        const size_t unitCount = srcSize / UnitSize;
+        const size_t memSpace = unitCount * UnitSize;
+        const size_t dstCount = memSpace / sizeof(DestType);
+        return { unitCount, dstCount };
+    }
 public:
     template<typename TransformFunc>
-    static std::basic_string<DestType> Transform(const SrcType* __restrict const str, const size_t size, TransformFunc transFunc)
+    static std::basic_string<DestType> Transform(const std::basic_string_view<SrcType> str, TransformFunc transFunc)
     {
-        std::basic_string<DestType> ret((size * 4) + 3 / sizeof(DestType), 0);//reserve space fit for all codepoint
-        const uint8_t* __restrict src = reinterpret_cast<const uint8_t*>(str);
-        size_t cacheidx = 0;
-        for (size_t srcBytes = size * sizeof(SrcType); srcBytes > 0;)
+        const size_t maxCpCount = sizeof(SrcType) * str.size() / From::MinBytes;
+        const size_t maxDstCount = 1 + (maxCpCount * To::MinBytes / sizeof(DestType));
+
+        std::basic_string<DestType> ret(maxDstCount, 0); // reserve space fit for all codepoint
+        const uint8_t* __restrict src = reinterpret_cast<const uint8_t*>(str.data());
+              uint8_t* __restrict dst = reinterpret_cast<      uint8_t*>(ret.data());
+              size_t srcAvalibale = str.size() * sizeof(SrcType);
+        const size_t dstAvaliable = ret.size() * sizeof(DestType);
+              size_t outBytes = 0;
+        while (srcAvalibale > 0 && outBytes < dstAvaliable)
         {
-            auto[codepoint, len] = From::FromBytes(src, srcBytes);
-            codepoint = transFunc(codepoint);
+            const auto [codepoint, len1] = From::FromBytes(src, srcAvalibale);
+            const auto newCp = transFunc(codepoint);
             if (codepoint == InvalidChar)//fail
             {
                 //move to next element
-                srcBytes -= sizeof(SrcType);
+                srcAvalibale -= sizeof(SrcType);
                 src += sizeof(SrcType);
                 continue;
             }
             else
             {
-                srcBytes -= len;
-                src += len;
+                srcAvalibale -= len1;
+                src += len1;
             }
-            uint8_t* __restrict dest = reinterpret_cast<uint8_t*>(ret.data()) + cacheidx;
-            const auto len2 = To::ToBytes(codepoint, sizeof(char32_t), dest);
+
+            const auto len2 = To::ToBytes(newCp, dstAvaliable, dst);
             if (len2 == 0)//fail
             {
                 ;//do nothing, skip
             }
             else
             {
-                cacheidx += len2;
+                outBytes += len2;
+                dst += len2;
             }
         }
-        const auto destSize = (cacheidx + sizeof(DestType) - 1) / sizeof(DestType);
-        ret.resize(destSize);
+        const auto outCount = (outBytes + (sizeof(DestType) - 1)) / sizeof(DestType);
+        ret.resize(outCount);
         return ret;
     }
     static std::basic_string<DestType> Convert(const std::basic_string_view<SrcType> str)
     {
-        if constexpr (std::is_same_v<From, To> && sizeof(SrcType) == sizeof(DestType))
+        if constexpr (std::is_same_v<From, To>)
         {
-            return std::basic_string<DestType>(str.cbegin(), str.cend());
+            if constexpr (sizeof(SrcType) == sizeof(DestType))
+                return std::basic_string<DestType>(str.cbegin(), str.cend());
+            else
+            {
+                const size_t count = CalcDestCount(str.size());
+                std::basic_string<DestType> ret(count, DestType(0));
+                memcpy_s(ret.data(), ret.size() * sizeof(DestType), str.data(), count * sizeof(DestType));
+                return ret;
+            }
         }
-        /* special optimize for UTF16 */
+        /* specialize for UTF16's swap endian */
         else if constexpr (std::is_base_of_v<UTF16, From> && std::is_base_of_v<UTF16, To>)
         {
             //static_assert(sizeof(SrcType) <= 2 && sizeof(DestType) <= 2, "char size too big for UTF16");
-            Ensures(sizeof(SrcType) <= 2 && sizeof(DestType) <= 2);
-            const auto destcount = (str.size() * sizeof(SrcType) + sizeof(DestType) - 1) / sizeof(DestType);
-            const auto destcount2 = ((destcount * sizeof(DestType) + 1) / 2) * 2 / sizeof(DestType);
-            std::basic_string<DestType> ret(destcount2, (DestType)0);
+            const auto [unitCount, dstCount] = CalcUnitDestCount<2>(str.size());
+            std::basic_string<DestType> ret(dstCount, (DestType)0);
             const uint8_t * __restrict srcPtr = reinterpret_cast<const uint8_t*>(str.data());
             uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(ret.data());
-            for (auto procCnt = str.size() * sizeof(SrcType) / 2; procCnt--; srcPtr += 2, destPtr += 2)
+            for (size_t idx = 0; idx++ < unitCount; srcPtr += 2, destPtr += 2)
                 destPtr[0] = srcPtr[1], destPtr[1] = srcPtr[0];
             return ret;
         }
-        /* special optimize for UTF32 */
+        /* specialize for UTF32's swap endian */
         else if constexpr (std::is_base_of_v<UTF32, From> && std::is_base_of_v<UTF32, To>)
         {
             //static_assert(sizeof(SrcType) <= 4 && sizeof(DestType) <= 4, "char size too big for UTF32");
-            Ensures(sizeof(SrcType) <= 4 && sizeof(DestType) <= 4);
-            const auto destcount = (str.size() * sizeof(SrcType) + sizeof(DestType) - 1) / sizeof(DestType);
-            const auto destcount2 = ((destcount * sizeof(DestType) + 3) / 4) * 4 / sizeof(DestType);
-            std::basic_string<DestType> ret(destcount2, (DestType)0);
-            const uint8_t * __restrict srcPtr = reinterpret_cast<const uint8_t*>(str.data());
-            uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(ret.data());
-            for (auto procCnt = str.size() * sizeof(SrcType) / 4; procCnt--; srcPtr += 4, destPtr += 4)
+            const auto [unitCount, dstCount] = CalcUnitDestCount<4>(str.size());
+            std::basic_string<DestType> ret(dstCount, (DestType)0);
+            const uint8_t* __restrict srcPtr = reinterpret_cast<const uint8_t*>(str.data());
+            uint8_t* __restrict destPtr = reinterpret_cast<uint8_t*>(ret.data());
+            for (size_t idx = 0; idx++ < unitCount; srcPtr += 4, destPtr += 4)
                 destPtr[0] = srcPtr[3], destPtr[1] = srcPtr[2], destPtr[2] = srcPtr[1], destPtr[3] = srcPtr[0];
             return ret;
         }
         else
-            return Transform(str.data(), str.size(), Dummy);
+            return Transform(str, Dummy);
     }
 };
 
@@ -621,20 +659,20 @@ template<typename Dest, typename Src>
 
 
 template<typename Char>
-[[nodiscard]] forceinline constexpr bool CheckInput(const Charset inchset) noexcept
+[[nodiscard]] forceinline constexpr bool CheckChsetType(const Charset inchset) noexcept
 {
     switch (inchset)
     {
     case Charset::ASCII:
     case Charset::UTF8:
     case Charset::GB18030:
-        return sizeof(Char) <= 1;
+        return (sizeof(Char) <= 1) && (1 % sizeof(Char) == 0);
     case Charset::UTF16LE:
     case Charset::UTF16BE:
-        return sizeof(Char) <= 2;
+        return (sizeof(Char) <= 2) && (2 % sizeof(Char) == 0);
     case Charset::UTF32LE:
     case Charset::UTF32BE:
-        return sizeof(Char) <= 4;
+        return (sizeof(Char) <= 4) && (4 % sizeof(Char) == 0);
     default: // should not enter, unsupported charset
         return false;
     }
@@ -654,7 +692,7 @@ template<typename T>
 {
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;
-    Expects(detail::CheckInput<Char>(inchset));
+    Expects(detail::CheckChsetType<Char>(inchset));
     if (outchset == inchset)//just copy
         return std::string(reinterpret_cast<const char*>(&str.front()), reinterpret_cast<const char*>(&str.back() + 1));
     switch (inchset)
@@ -811,7 +849,7 @@ template<typename T>
 {
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;
-    Expects(detail::CheckInput<Char>(inchset));
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
@@ -840,7 +878,7 @@ template<typename T>
 {
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;
-    Expects(detail::CheckInput<Char>(inchset));
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
@@ -869,7 +907,7 @@ template<typename T>
 {
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;
-    Expects(detail::CheckInput<Char>(inchset));
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
@@ -900,7 +938,7 @@ template<typename T>
     using To = std::conditional_t<sizeof(wchar_t) == sizeof(char32_t), detail::UTF32LE, detail::UTF16LE>;
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;
-    Expects(detail::CheckInput<Char>(inchset));
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
@@ -937,219 +975,180 @@ template<typename T>
 }
 
 
-template<typename Char, typename Consumer>
-inline void ForEachChar(const Char* str, const size_t size, const Consumer& consumer, const Charset inchset = Charset::ASCII)
+template<typename T, typename Consumer>
+inline void ForEachChar(const T& str_, const Consumer& consumer, const Charset inchset = Charset::ASCII)
 {
-    Expects(detail::CheckInput<Char>(inchset));
+    const auto str = ToStringView(str_);
+    using Char = typename decltype(str)::value_type;
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
-        detail::ForEachChar<detail::UTF7,    Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF7,    Char, Consumer>(str, consumer);
     case Charset::UTF8:
-        detail::ForEachChar<detail::UTF8,    Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF8,    Char, Consumer>(str, consumer);
     case Charset::UTF16LE:
-        detail::ForEachChar<detail::UTF16LE, Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF16LE, Char, Consumer>(str, consumer);
     case Charset::UTF16BE:
-        detail::ForEachChar<detail::UTF16BE, Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF16BE, Char, Consumer>(str, consumer);
     case Charset::UTF32LE:
-        detail::ForEachChar<detail::UTF32LE, Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF32LE, Char, Consumer>(str, consumer);
     case Charset::UTF32BE:
-        detail::ForEachChar<detail::UTF32BE, Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::UTF32BE, Char, Consumer>(str, consumer);
     case Charset::GB18030:
-        detail::ForEachChar<detail::GB18030, Char, Consumer>(str, size, consumer);
+        detail::ForEachChar<detail::GB18030, Char, Consumer>(str, consumer);
     default:
         Expects(false);
         COMMON_THROW(BaseException, u"unsupported charset");
     }
-}
-template<typename T, typename Consumer>
-inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, void>
-    ForEachChar(const T& str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
-{
-    using Helper = common::container::ContiguousHelper<T>;
-    return ForEachChar(Helper::Data(str), Helper::Count(str), consumer, inchset);
-}
-template<typename Char, typename Consumer>
-inline void ForEachChar(const Char *str, const Consumer& consumer, const Charset inchset = Charset::ASCII)
-{
-    return ForEachChar(str, std::char_traits<Char>::length(str), consumer, inchset);
 }
 
 
 namespace detail
 {
-forceinline constexpr char32_t EngUpper(const char32_t in)
+forceinline constexpr char32_t EngUpper(const char32_t in) noexcept
 {
     if (in >= U'a' && in <= U'z')
         return in - U'a' + U'A';
-    else return in;
+    else 
+        return in;
 }
-forceinline constexpr char32_t EngLower(const char32_t in)
+forceinline constexpr char32_t EngLower(const char32_t in) noexcept
 {
     if (in >= U'A' && in <= U'Z')
         return in - U'A' + U'a';
-    else return in;
-}
+    else 
+        return in;
 }
 
-
-template<typename Char>
-inline std::basic_string<Char> ToUpperEng(const Char *str, const size_t size, const Charset inchset = Charset::ASCII)
+template<typename Char, typename T, typename TransFunc>
+std::basic_string<Char> DirectTransform(const std::basic_string_view<T> src, TransFunc&& trans)
 {
-    Expects(detail::CheckInput<Char>(inchset));
+    static_assert(std::is_invocable_r_v<Char, TransFunc, T>, "TransFunc should accept SrcChar and return DstChar");
+    std::basic_string<Char> ret;
+    ret.reserve(src.size());
+    std::transform(src.cbegin(), src.cend(), std::back_inserter(ret), trans);
+    return ret;
+}
+}
+
+
+template<typename T>
+inline auto ToUpperEng(const T& str_, const Charset inchset = Charset::ASCII)
+{
+    const auto str = ToStringView(str_);
+    using Char = typename decltype(str)::value_type;
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
-    {//can only be 1-byte string
-        std::basic_string<Char> ret;
-        ret.reserve(size);
-        std::transform(str, str + size, std::back_inserter(ret), [](const Char ch) { return (ch >= 'a' && ch <= 'z') ? (Char)(ch - 'a' + 'A') : ch; });
-        return ret;
-    }
+        // each element is determined
+        return detail::DirectTransform<Char>(str, [](const Char ch) { return (ch >= 'a' && ch <= 'z') ? (Char)(ch - 'a' + 'A') : ch; });
     case Charset::UTF8:
-        return detail::CharsetConvertor<detail::UTF8,    detail::UTF8,    Char, Char>::Transform(str, size, detail::EngUpper);
+        return detail::CharsetConvertor<detail::UTF8,    detail::UTF8,    Char, Char>::Transform(str, detail::EngUpper);
     case Charset::UTF16LE:
-        return detail::CharsetConvertor<detail::UTF16LE, detail::UTF16LE, Char, Char>::Transform(str, size, detail::EngUpper);
+        return detail::CharsetConvertor<detail::UTF16LE, detail::UTF16LE, Char, Char>::Transform(str, detail::EngUpper);
     case Charset::UTF16BE:
-        return detail::CharsetConvertor<detail::UTF16BE, detail::UTF16BE, Char, Char>::Transform(str, size, detail::EngUpper);
+        return detail::CharsetConvertor<detail::UTF16BE, detail::UTF16BE, Char, Char>::Transform(str, detail::EngUpper);
     case Charset::UTF32LE:
         if constexpr (std::is_same_v<Char, char32_t>)
-        {
-            std::basic_string<Char> ret; ret.reserve(size);
-            std::transform(str, str + size, std::back_inserter(ret), detail::EngUpper);
-            return ret;
-        }
+            // each element is determined
+            return detail::DirectTransform<Char>(str, detail::EngUpper);
         else
-            return detail::CharsetConvertor<detail::UTF32LE, detail::UTF32LE, Char, Char>::Transform(str, size, detail::EngUpper);
+            return detail::CharsetConvertor<detail::UTF32LE, detail::UTF32LE, Char, Char>::Transform(str, detail::EngUpper);
     case Charset::UTF32BE:
-        return detail::CharsetConvertor<detail::UTF32BE, detail::UTF32BE, Char, Char>::Transform(str, size, detail::EngUpper);
+        return detail::CharsetConvertor<detail::UTF32BE, detail::UTF32BE, Char, Char>::Transform(str, detail::EngUpper);
     case Charset::GB18030:
-        return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, size, detail::EngUpper);
+        return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, detail::EngUpper);
     default:
         Expects(false);
         COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
+
+
 template<typename T>
-inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename T::value_type>>
-    ToUpperEng(const T& str, const Charset inchset = Charset::ASCII)
+inline auto ToLowerEng(const T& str_, const Charset inchset = Charset::ASCII)
 {
-    using Helper = common::container::ContiguousHelper<T>;
-    return ToUpperEng(Helper::Data(str), Helper::Count(str), inchset);
-}
-template<typename Char>
-inline void ToUpperEng(const Char *str, const Charset inchset = Charset::ASCII)
-{
-    return ToUpperEng(str, std::char_traits<Char>::length(str), inchset);
-}
-
-
-template<typename Char>
-inline std::basic_string<Char> ToLowerEng(const Char *str, const size_t size, const Charset inchset = Charset::ASCII)
-{
-    Expects(detail::CheckInput<Char>(inchset));
+    const auto str = ToStringView(str_);
+    using Char = typename decltype(str)::value_type;
+    Expects(detail::CheckChsetType<Char>(inchset));
     switch (inchset)
     {
     case Charset::ASCII:
-    {    //can only be 1-byte string
-        std::basic_string<Char> ret;
-        ret.reserve(size);
-        std::transform(str, str + size, std::back_inserter(ret), [](const Char ch) { return (ch >= 'A' && ch <= 'Z') ? (Char)(ch - 'A' + 'a') : ch; });
-        return ret;
-    }
+        // each element is determined
+        return detail::DirectTransform<Char>(str, [](const Char ch) { return (ch >= 'A' && ch <= 'Z') ? (Char)(ch - 'A' + 'a') : ch; });
     case Charset::UTF8:
-        return detail::CharsetConvertor<detail::UTF8,    detail::UTF8,    Char, Char>::Transform(str, size, detail::EngLower);
+        return detail::CharsetConvertor<detail::UTF8,    detail::UTF8,    Char, Char>::Transform(str, detail::EngLower);
     case Charset::UTF16LE:
-        return detail::CharsetConvertor<detail::UTF16LE, detail::UTF16LE, Char, Char>::Transform(str, size, detail::EngLower);
+        return detail::CharsetConvertor<detail::UTF16LE, detail::UTF16LE, Char, Char>::Transform(str, detail::EngLower);
     case Charset::UTF16BE:
-        return detail::CharsetConvertor<detail::UTF16BE, detail::UTF16BE, Char, Char>::Transform(str, size, detail::EngLower);
+        return detail::CharsetConvertor<detail::UTF16BE, detail::UTF16BE, Char, Char>::Transform(str, detail::EngLower);
     case Charset::UTF32LE:
         if constexpr (std::is_same_v<Char, char32_t>)
-        {
-            std::basic_string<Char> ret; ret.reserve(size);
-            std::transform(str, str + size, std::back_inserter(ret), detail::EngLower);
-            return ret;
-        }
+            // each element is determined
+            return detail::DirectTransform<Char>(str, detail::EngUpper);
         else
-            return detail::CharsetConvertor<detail::UTF32LE, detail::UTF32LE, Char, Char>::Transform(str, size, detail::EngLower);
+            return detail::CharsetConvertor<detail::UTF32LE, detail::UTF32LE, Char, Char>::Transform(str, detail::EngLower);
     case Charset::UTF32BE:
-        return detail::CharsetConvertor<detail::UTF32BE, detail::UTF32BE, Char, Char>::Transform(str, size, detail::EngLower);
+        return detail::CharsetConvertor<detail::UTF32BE, detail::UTF32BE, Char, Char>::Transform(str, detail::EngLower);
     case Charset::GB18030:
-        return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, size, detail::EngLower);
+        return detail::CharsetConvertor<detail::GB18030, detail::GB18030, Char, Char>::Transform(str, detail::EngLower);
     default:
         Expects(false);
         COMMON_THROW(BaseException, u"unsupported charset");
     }
 }
-template<typename T>
-inline std::enable_if_t<container::ContiguousHelper<T>::IsContiguous, std::basic_string<typename T::value_type>>
-    ToLowerEng(const T& str, const Charset inchset = Charset::ASCII)
-{
-    using Helper = common::container::ContiguousHelper<T>;
-    return ToLowerEng(Helper::Data(str), Helper::Count(str), inchset);
-}
-template<typename Char>
-inline void ToLowerEng(const Char *str, const Charset inchset = Charset::ASCII)
-{
-    return ToLowerEng(str, std::char_traits<Char>::length(str), inchset);
-}
+
 
 
 namespace detail
 {
 template<class From1, class From2, typename CharT1, typename CharT2>
-inline bool CaseInsensitiveCompare(const CharT1 *str, const size_t size1, const CharT2 *prefix, const size_t size2)
+inline bool CaseInsensitiveCompare(const std::basic_string_view<CharT1> str, const std::basic_string_view<CharT2> prefix)
 {
     bool isEqual = true;
-    ForEachCharPair(str, size1, prefix, size2, [&](const char32_t ch1, const char32_t ch2) 
+    ForEachCharPair<From1, From2>(str, prefix, [&](const char32_t ch1, const char32_t ch2) 
     {
-        const auto ch3 = (ch1 >= U'a' && ch1 <= U'z') ? (ch1 - U'a' + U'A') : ch1;
-        const auto ch4 = (ch2 >= U'a' && ch2 <= U'z') ? (ch2 - U'a' + U'A') : ch2;
-        isEqual = ch3 == ch4;
+        const auto ch1New = (ch1 >= U'a' && ch1 <= U'z') ? (ch1 - U'a' + U'A') : ch1;
+        const auto ch2New = (ch2 >= U'a' && ch2 <= U'z') ? (ch2 - U'a' + U'A') : ch2;
+        isEqual = (ch1New == ch2New);
         return !isEqual;
     });
     return isEqual;
 }
 }
-template<typename Char>
-inline bool IsIBeginWith(const Char *str, const size_t size1, const Char *prefix, const size_t size2, const Charset strchset = Charset::ASCII)
+template<typename T1, typename T2>
+inline bool IsIBeginWith(const T1& str_, const T2& prefix_, const Charset strchset = Charset::ASCII)
 {
-    if (size2 > size1)
+    const auto str = ToStringView(str_);
+    using Char = typename decltype(str)::value_type;
+    const auto prefix = ToStringView(prefix_);
+    using CharP = typename decltype(prefix)::value_type;
+    static_assert(std::is_same_v<Char, CharP>, "str and prefix should be of the same char_type");
+    if (prefix.size() > str.size())
         return false;
-    Expects(detail::CheckInput<Char>(strchset));
+    Expects(detail::CheckChsetType<Char>(strchset));
     switch (strchset)
     {
     case Charset::ASCII:
-        return detail::CaseInsensitiveCompare<detail::UTF7,    detail::UTF7,    Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF7,    detail::UTF7,    Char, Char>(str, prefix);
     case Charset::UTF8:
-        return detail::CaseInsensitiveCompare<detail::UTF8,    detail::UTF8,    Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF8,    detail::UTF8,    Char, Char>(str, prefix);
     case Charset::UTF16LE:
-        return detail::CaseInsensitiveCompare<detail::UTF16LE, detail::UTF16LE, Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF16LE, detail::UTF16LE, Char, Char>(str, prefix);
     case Charset::UTF16BE:
-        return detail::CaseInsensitiveCompare<detail::UTF16BE, detail::UTF16BE, Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF16BE, detail::UTF16BE, Char, Char>(str, prefix);
     case Charset::UTF32LE:
-        return detail::CaseInsensitiveCompare<detail::UTF32LE, detail::UTF32LE, Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF32LE, detail::UTF32LE, Char, Char>(str, prefix);
     case Charset::UTF32BE:
-        return detail::CaseInsensitiveCompare<detail::UTF32BE, detail::UTF32BE, Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::UTF32BE, detail::UTF32BE, Char, Char>(str, prefix);
     case Charset::GB18030:
-        return detail::CaseInsensitiveCompare<detail::GB18030, detail::GB18030, Char, Char>(str, size1, prefix, size2);
+        return detail::CaseInsensitiveCompare<detail::GB18030, detail::GB18030, Char, Char>(str, prefix);
     default:
         Expects(false);
         COMMON_THROW(BaseException, u"unsupported charset");
     }
-}
-template<typename T1, typename T2>
-inline std::enable_if_t<container::ContiguousHelper<T1>::IsContiguous && container::ContiguousHelper<T2>::IsContiguous, bool>
-    IsIBeginWith(const T1& str, const T2& prefix, const Charset strchset = Charset::ASCII)
-{
-    using Helper1 = common::container::ContiguousHelper<T1>;
-    using Helper2 = common::container::ContiguousHelper<T2>;
-    return IsIBeginWith(Helper1::Data(str), Helper1::Count(str), Helper2::Data(prefix), Helper2::Count(prefix), strchset);
-}
-template<typename Char>
-inline bool IsIBeginWith(const Char *str, const Char *prefix, const Charset strchset = Charset::ASCII)
-{
-    return IsIBeginWith(str, std::char_traits<Char>::length(str), prefix, std::char_traits<Char>::length(prefix), strchset);
 }
 
 

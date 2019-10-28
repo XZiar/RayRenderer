@@ -56,16 +56,14 @@ static void TestStrConv()
     memcpy_s(&csvdest[2], csvdest.size() - 2, utf16.data(), utf16.size() * 2);
     file::WriteAll(basePath / u"utf8-sample-utf16.html", csvdest);
 
-    std::wstring_convert<gb18030_utf16_cvter> gb18030_utf16_cvt(new gb18030_utf16_cvter());
     const auto myget = str::to_string(utf16, Charset::GB18030, Charset::UTF16LE);
     file::WriteAll(basePath / u"utf8-sample-gb18030.html", myget);
     const auto myout = str::to_u8string(myget, Charset::GB18030);
     file::WriteAll(basePath / u"utf8-sample-myout.html", myout);
-    //const auto rawget = gb18030_utf16_cvt.to_bytes(*(std::wstring*)&utf16);
-    size_t idx = 0;
-    const auto allMatch = common::linq::FromIterable(u8raw)
-        .Pair(common::linq::FromIterable(myout))
-        .AllIf([&idx](const auto& p)
+    {
+        const auto allMatch = common::linq::FromIterable(u8raw)
+            .Pair(common::linq::FromIterable(myout))
+            .AllIf([idx = 0](const auto& p) mutable
             {
                 auto [raw, my] = p;
                 const bool ret = raw == my;
@@ -74,14 +72,26 @@ static void TestStrConv()
                 idx++;
                 return ret;
             });
-    /*common::container::zip(u8raw, myout).foreach([&idx](auto raw, auto my)
+        log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test gb18030->utf8 convert over!\n");
+    }
+    if (false) // will throw exception for unknown codepoint
     {
-        if (*raw != *my)
-            log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(*raw), (uint8_t)(*my));
-        idx++;
-    });*/
+        std::wstring_convert<gb18030_utf16_cvter> gb18030_utf16_cvt(new gb18030_utf16_cvter());
+        const auto refget = gb18030_utf16_cvt.to_bytes(*(const std::wstring*) &utf16);
+        const auto allMatch = common::linq::FromIterable(refget)
+            .Pair(common::linq::FromIterable(myget))
+            .AllIf([idx = 0](const auto& p) mutable
+            {
+                auto [ref, my] = p;
+                const bool ret = ref == my;
+                if (!ret)
+                    log().debug(u"diff at byte {} : Raw {:#x}\tMy {:#x}\n", idx, (uint8_t)(ref), (uint8_t)(my));
+                idx++;
+                return ret;
+            });
+        log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test utf16->gb18030 convert over!\n");
+    }
 
-    log().log(allMatch ? LogLevel::Success : LogLevel::Error, u"Test String convert over!\n");
     getchar();
 }
 #pragma warning(default:4996)
