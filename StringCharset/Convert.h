@@ -15,7 +15,9 @@ namespace detail
 [[nodiscard]] STRCHSETAPI std::u32string to_u32string(const common::span<const std::byte> data, const Charset inchset);
 [[nodiscard]] STRCHSETAPI std::string    to_u8string (const common::span<const std::byte> data, const Charset inchset);
 template<typename Char>
-[[nodiscard]] STRCHSETAPI std::basic_string<Char> ToULEng(const std::basic_string_view<Char> str, const Charset inchset, const bool isUpper);
+[[nodiscard]] STRCHSETAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> str, const Charset inchset);
+template<typename Char>
+[[nodiscard]] STRCHSETAPI std::basic_string<Char> ToLEng(const std::basic_string_view<Char> str, const Charset inchset);
 }
 
 
@@ -68,24 +70,24 @@ template<typename Char>
 template<typename T>
 [[nodiscard]] inline auto ToUpperEng(const T& str,                                          const Charset inchset = Charset::ASCII)
 {
-    return detail::ToULEng(str::ToStringView(str), inchset, true);
+    return detail::ToUEng(str::ToStringView(str), inchset);
 }
 template<typename Char>
 [[nodiscard]] inline std::basic_string<Char> ToUpperEng(const Char* str, const size_t size, const Charset inchset = Charset::ASCII)
 {
-    return detail::ToULEng(std::basic_string_view<Char>(str, size), inchset, true);
+    return detail::ToUEng(std::basic_string_view<Char>(str, size), inchset);
 }
 
 
 template<typename T>
 [[nodiscard]] inline auto ToLowerEng(const T& str,                                          const Charset inchset = Charset::ASCII)
 {
-    return detail::ToULEng(str::ToStringView(str), inchset, false);
+    return detail::ToLEng(str::ToStringView(str), inchset);
 }
 template<typename Char>
 [[nodiscard]] inline std::basic_string<Char> ToLowerEng(const Char* str, const size_t size, const Charset inchset = Charset::ASCII)
 {
-    return detail::ToULEng(std::basic_string_view<Char>(str, size), inchset, false);
+    return detail::ToLEng(std::basic_string_view<Char>(str, size), inchset);
 }
 
 

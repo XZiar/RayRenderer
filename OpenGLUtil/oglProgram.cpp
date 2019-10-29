@@ -445,12 +445,16 @@ bool oglProgram_::oglProgStub::AddExtShaders(const std::string& src, const Shade
 oglDrawProgram oglProgram_::oglProgStub::LinkDrawProgram(const std::u16string& name)
 {
     CheckCurrent();
+    if (Shaders.find(ShaderType::Vertex) == Shaders.cend() || Shaders.find(ShaderType::Fragment) == Shaders.cend())
+        return {};
     return MAKE_ENABLER_SHARED(oglDrawProgram_, (name, this));
 }
 
 oglComputeProgram oglProgram_::oglProgStub::LinkComputeProgram(const std::u16string& name)
 {
     CheckCurrent();
+    if (Shaders.find(ShaderType::Compute) == Shaders.cend())
+        return {};
     return MAKE_ENABLER_SHARED(oglComputeProgram_, (name, this));
 }
 

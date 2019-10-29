@@ -30,15 +30,13 @@ static void FGTest()
     const auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
     ctx->UseContext();
     window->SetTitle("FGTest");
-    auto drawer = oglDrawProgram_::Create(u"MainDrawer");
+    auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     auto screenBox = oglArrayBuffer_::Create();
     auto basicVAO = oglVAO_::Create(VAODrawMode::Triangles);
     auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
-    auto lutGenerator = oglComputeProgram_::Create(u"ColorLut");
-    lutGenerator->AddExtShaders(LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
-    lutGenerator->Link();
+    auto lutGenerator = oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     lutGenerator->State()
         .SetSubroutine("ToneMap","ACES")
         .SetImage(lutImg, "result");
@@ -50,17 +48,6 @@ static void FGTest()
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
         screenBox->Write(DatVert, sizeof(DatVert));
-        try
-        {
-            const auto src = LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST);
-            drawer->AddExtShaders(src);
-            drawer->Link();
-        }
-        catch (const OGLException& gle)
-        {
-            log().error(u"2D OpenGL shader fail:\n{}\n", gle.message);
-            COMMON_THROW(BaseException, u"2D OpenGL shader fail");
-        }
         basicVAO->Prepare()
             .SetFloat(screenBox, drawer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)

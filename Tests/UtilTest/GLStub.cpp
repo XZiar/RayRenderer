@@ -175,28 +175,22 @@ static void OGLStub()
                     break;
                 }
             }
-            auto AssembleProg = [&config, &shaderSrc](auto& prog) 
+            try
             {
-                try
-                {
-                    prog->AddExtShaders(shaderSrc, config);
-                    if (prog->getShaders().size() > 0)
-                        prog->Link();
-                }
-                catch (const OGLException& gle)
-                {
-                    log().error(u"OpenGL shader fail:\n{}\n", gle.message);
-                    const auto buildLog = gle.data.has_value() ? std::any_cast<std::u16string>(&gle.data) : nullptr;
-                    if (buildLog)
-                        log().error(u"Extra info:{}\n", *buildLog);
-                }
-            };
-            auto drawProg = oglDrawProgram_::Create(u"Draw Prog");
-            auto compProg = oglComputeProgram_::Create(u"Compute Prog");
-            log().info(u"Try Draw Program\n");
-            AssembleProg(drawProg);
-            log().info(u"Try Compute Program\n");
-            AssembleProg(compProg);
+                auto stub = oglProgram_::Create();
+                stub.AddExtShaders(shaderSrc, config);
+                log().info(u"Try Draw Program\n");
+                [[maybe_unused]] auto drawProg = stub.LinkDrawProgram(u"Draw Prog");
+                log().info(u"Try Compute Program\n");
+                [[maybe_unused]] auto compProg = stub.LinkComputeProgram(u"Compute Prog");
+            }
+            catch (const OGLException & gle)
+            {
+                log().error(u"OpenGL shader fail:\n{}\n", gle.message);
+                const auto buildLog = gle.data.has_value() ? std::any_cast<std::u16string>(&gle.data) : nullptr;
+                if (buildLog)
+                    log().error(u"Extra info:{}\n", *buildLog);
+            }
         }
         catch (const BaseException& be)
         {

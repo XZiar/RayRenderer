@@ -56,11 +56,13 @@ private:
             {
                 if (info->ExternInfo)
                 {
+                    Expects(info->Cookie == 0xdeadbeef);
                     delete info->ExternInfo;
                     delete info;
                 }
                 else
                 {
+                    Expects(info->Cookie == 0xabadcafe);
                     free_align(GetPtr(info));
                 }
                 info = nullptr;

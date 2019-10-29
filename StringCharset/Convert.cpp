@@ -17,17 +17,17 @@ template<typename Char, typename Dest>
     case Charset::ASCII:
         return std::basic_string<Char>(str.cbegin(), str.cend());
     case Charset::UTF8:
-        return CharsetConvertor<UTF8   , Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<UTF8   , Dest, uint8_t, Char>(str);
     case Charset::UTF16LE:
-        return CharsetConvertor<UTF16LE, Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<UTF16LE, Dest, uint8_t, Char>(str);
     case Charset::UTF16BE:
-        return CharsetConvertor<UTF16BE, Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<UTF16BE, Dest, uint8_t, Char>(str);
     case Charset::UTF32LE:
-        return CharsetConvertor<UTF32LE, Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<UTF32LE, Dest, uint8_t, Char>(str);
     case Charset::UTF32BE:
-        return CharsetConvertor<UTF32BE, Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<UTF32BE, Dest, uint8_t, Char>(str);
     case Charset::GB18030:
-        return CharsetConvertor<GB18030, Dest, uint8_t, Char>::Convert(str);
+        return CharsetProcess::Convert<GB18030, Dest, uint8_t, Char>(str);
     default:
         COMMON_THROW(BaseException, u"unknown charset", inchset);
     }
@@ -72,14 +72,24 @@ std::string     to_u8string (const common::span<const std::byte> data, const Cha
 
 
 template<typename Char>
-STRCHSETAPI std::basic_string<Char> ToULEng(const std::basic_string_view<Char> str, const Charset inchset, const bool isUpper)
+STRCHSETAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> str, const Charset inchset)
 {
-    return isUpper ? common::str::ToUpperEng(str, inchset) : common::str::ToLowerEng(str, inchset);
+    return common::str::ToUpperEng_(str, inchset);
 }
-template STRCHSETAPI std::basic_string<char>     ToULEng(const std::basic_string_view<char>     str, const Charset inchset, const bool isUpper);
-template STRCHSETAPI std::basic_string<wchar_t>  ToULEng(const std::basic_string_view<wchar_t>  str, const Charset inchset, const bool isUpper);
-template STRCHSETAPI std::basic_string<char16_t> ToULEng(const std::basic_string_view<char16_t> str, const Charset inchset, const bool isUpper);
-template STRCHSETAPI std::basic_string<char32_t> ToULEng(const std::basic_string_view<char32_t> str, const Charset inchset, const bool isUpper);
+template STRCHSETAPI std::basic_string<char>     ToUEng(const std::basic_string_view<char>     str, const Charset inchset);
+template STRCHSETAPI std::basic_string<wchar_t>  ToUEng(const std::basic_string_view<wchar_t>  str, const Charset inchset);
+template STRCHSETAPI std::basic_string<char16_t> ToUEng(const std::basic_string_view<char16_t> str, const Charset inchset);
+template STRCHSETAPI std::basic_string<char32_t> ToUEng(const std::basic_string_view<char32_t> str, const Charset inchset);
+
+template<typename Char>
+STRCHSETAPI std::basic_string<Char> ToLEng(const std::basic_string_view<Char> str, const Charset inchset)
+{
+    return common::str::ToLowerEng_(str, inchset);
+}
+template STRCHSETAPI std::basic_string<char>     ToLEng(const std::basic_string_view<char>     str, const Charset inchset);
+template STRCHSETAPI std::basic_string<wchar_t>  ToLEng(const std::basic_string_view<wchar_t>  str, const Charset inchset);
+template STRCHSETAPI std::basic_string<char16_t> ToLEng(const std::basic_string_view<char16_t> str, const Charset inchset);
+template STRCHSETAPI std::basic_string<char32_t> ToLEng(const std::basic_string_view<char32_t> str, const Charset inchset);
 
 }
 
