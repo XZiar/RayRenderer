@@ -9,10 +9,11 @@ using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 
 
-void LightData::WriteData(std::byte *ptr) const
+void LightData::WriteData(const common::span<std::byte> space) const
 {
-    float *ptrFloat = reinterpret_cast<float*>(ptr);
-    uint32_t *ptrI32 = reinterpret_cast<uint32_t*>(ptr);
+    Expects(space.size() >= Light::WriteSize);
+    float *ptrFloat = reinterpret_cast<float*>(space.data());
+    uint32_t *ptrI32 = reinterpret_cast<uint32_t*>(space.data());
     Color.save(ptrFloat);
     ptrI32[3] = (int32_t)Type;
     const float cosOuter = std::cos(b3d::ang2rad(CutoffOuter)),

@@ -16,11 +16,9 @@ using xziar::respak::DeserializeUtil;
 GLShader::GLShader(const u16string& name, const string& source, const oglu::ShaderConfig& config) 
     : Source(source), Config(config)
 {
-    Program = oglDrawProgram_::Create(name);
     try
     {
-        Program->AddExtShaders(source, Config);
-        Program->Link();
+        Program = oglDrawProgram_::Create(name, Source, Config);
     }
     catch (const OGLException& gle)
     {

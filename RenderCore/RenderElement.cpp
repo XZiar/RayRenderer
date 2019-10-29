@@ -121,7 +121,7 @@ void Drawable::PrepareMaterial()
 void Drawable::AssignMaterial()
 {
     MaterialHolder.Refresh();
-    MaterialHolder.WriteData(MaterialUBO->GetPersistentPtr().AsType<std::byte>());
+    MaterialHolder.WriteData(MaterialUBO->GetPersistentPtr());
 }
 
 void Drawable::Draw(Drawcall& drawcall) const

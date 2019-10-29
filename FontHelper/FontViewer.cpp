@@ -53,24 +53,14 @@ void FontViewer::RegisterControllable()
 
 FontViewer::FontViewer()
 {
-    prog = oglDrawProgram_::Create(u"FontViewer");
     try
     {
-        prog->AddExtShaders(LoadShaderFromDLL(IDR_SHADER_PRINTFONT));
+        prog = oglDrawProgram_::Create(u"FontViewer", LoadShaderFromDLL(IDR_SHADER_PRINTFONT));
     }
     catch (OGLException& gle)
     {
-        fntLog().error(u"OpenGL compile fail:\n{}\n", gle.message);
+        fntLog().error(u"OpenGL create glProgram:\n{}\n", gle.message);
         COMMON_THROW(BaseException, u"OpenGL compile fail");
-    }
-    try
-    {
-        prog->Link();
-    }
-    catch (OGLException& gle)
-    {
-        fntLog().error(u"Fail to link Program:\n{}\n", gle.message);
-        COMMON_THROW(BaseException, u"link Program error");
     }
 
     viewVAO = oglVAO_::Create(VAODrawMode::Triangles);

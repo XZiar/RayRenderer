@@ -54,12 +54,12 @@ private:
     {
         friend class oclMapPtr;
     private:
-        //MAKE_ENABLER();
-        const oclCmdQue Queue;
-        const oclMem_& Mem;
+        oclCmdQue Queue;
+        oclMem_& Mem;
         common::span<std::byte> MemSpace;
     public:
-        oclMapPtr_(oclCmdQue que, const oclMem_& mem, common::span<std::byte> space);
+        MAKE_ENABLER();
+        oclMapPtr_(oclCmdQue&& que, oclMem_* mem, const MapFlag mapFlag);
         ~oclMapPtr_();
     };
 protected:
@@ -79,8 +79,9 @@ class OCLUAPI oclMapPtr
     friend class oclMem_;
 private:
     class oclMemInfo;
+    oclMem Mem;
     std::shared_ptr<const oclMem_::oclMapPtr_> Ptr;
-    oclMapPtr(std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept : Ptr(std::move(ptr)) { }
+    oclMapPtr(oclMem mem, std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept : Mem(mem), Ptr(std::move(ptr)) { }
 public:
     constexpr oclMapPtr() noexcept {}
     common::span<std::byte> Get() const noexcept;

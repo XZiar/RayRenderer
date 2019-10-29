@@ -75,11 +75,11 @@ private:
         friend class oglBuffer_;
         friend class oglMapPtr;
     private:
-        void* Pointer = nullptr;
-        GLuint BufferID;
-        size_t Size;
+        oglBuffer_& Buffer;
+        common::span<std::byte> MemSpace;
         MapFlag Flag;
     public:
+        MAKE_ENABLER();
         oglMapPtr_(oglBuffer_* buf, const MapFlag flags);
         ~oglMapPtr_();
     };
@@ -96,7 +96,7 @@ public:
     virtual ~oglBuffer_() noexcept;
 
     oglMapPtr Map(const MapFlag flags);
-    oglMapPtr GetPersistentPtr() const;
+    common::span<std::byte> GetPersistentPtr() const;
 
     void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
     template<typename T>
@@ -315,13 +315,14 @@ class OGLUAPI oglMapPtr
 {
     friend class oglBuffer_;
 private:
+    oglBuffer Buf;
     std::shared_ptr<const oglBuffer_::oglMapPtr_> Ptr;
-    oglMapPtr(std::shared_ptr<const oglBuffer_::oglMapPtr_> ptr) : Ptr(std::move(ptr)) { }
+    oglMapPtr(oglBuffer&& buf, std::shared_ptr<const oglBuffer_::oglMapPtr_> ptr) : Buf(std::move(buf)), Ptr(std::move(ptr)) { }
 public:
     constexpr oglMapPtr() {}
-    void* Get() const { return Ptr->Pointer; }
+    common::span<std::byte> Get() const noexcept;
     template<typename T>
-    T* AsType() const { return reinterpret_cast<T*>(Get()); }
+    common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
 };
 
 

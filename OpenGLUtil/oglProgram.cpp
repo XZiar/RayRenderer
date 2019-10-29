@@ -121,9 +121,39 @@ struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
 };
 static ProgRecCtxConfig PROGREC_CTXCFG;
 
-oglProgram_::oglProgram_(const u16string& name) : Name(name)
+oglProgram_::oglProgram_(const u16string& name, const oglProgStub* stub, const bool isDraw) : Name(name)
 {
     ProgramID = glCreateProgram();
+    for (const auto& [type, shader] : stub->Shaders)
+    {
+        if ((type != ShaderType::Compute) == isDraw)
+        {
+            Shaders.emplace(type, shader);
+            glAttachShader(ProgramID, shader->ShaderID);
+        }
+    }
+    glLinkProgram(ProgramID);
+
+    int result;
+    glGetProgramiv(ProgramID, GL_LINK_STATUS, &result);
+    int len;
+    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &len);
+    string logstr((size_t)len, '\0');
+    glGetProgramInfoLog(ProgramID, len, &len, logstr.data());
+    if (len > 0 && logstr.back() == '\0')
+        logstr.pop_back(); //null-terminated so pop back
+    const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
+    if (!result)
+    {
+        oglLog().warning(u"Link program failed.\n{}\n", logdat);
+        glDeleteProgram(ProgramID);
+        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
+    }
+    oglLog().success(u"Link program success.\n{}\n", logdat);
+    ExtInfo = stub->ExtInfo;
+    InitLocs();
+    InitSubroutines();
+    FilterProperties();
 }
 
 oglProgram_::~oglProgram_()
@@ -387,64 +417,41 @@ void oglProgram_::FilterProperties()
 }
 
 
-void oglProgram_::AddShader(const oglShader& shader)
+oglProgram_::oglProgStub::oglProgStub()
+{ }
+
+oglProgram_::oglProgStub::~oglProgStub()
+{ }
+
+void oglProgram_::oglProgStub::AddShader(oglShader shader)
 {
     CheckCurrent();
-    if (Shaders.try_emplace(shader->Type, shader).second)
-        glAttachShader(ProgramID, shader->ShaderID);
-    else
-        oglLog().warning(u"Repeat adding shader {} to program [{}], ignored\n", shader->ShaderID, Name);
+    [[maybe_unused]] const auto [it, newitem] = Shaders.insert_or_assign(shader->Type, std::move(shader));
+    if (!newitem)
+        oglLog().warning(u"Repeat adding shader {}, replaced\n", shader->ShaderID);
 }
 
+bool oglProgram_::oglProgStub::AddExtShaders(const std::string& src, const ShaderConfig& config)
+{
+    const auto s = oglShader_::LoadFromExSrc(src, ExtInfo, config);
+    for (auto shader : s)
+    {
+        shader->compile();
+        AddShader(shader);
+    }
+    return !s.empty();
+}
 
-void oglProgram_::Link()
+oglDrawProgram oglProgram_::oglProgStub::LinkDrawProgram(const std::u16string& name)
 {
     CheckCurrent();
-    glLinkProgram(ProgramID);
+    return MAKE_ENABLER_SHARED(oglDrawProgram_, (name, this));
+}
 
-    int result;
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &result);
-    int len;
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &len);
-    string logstr((size_t)len, '\0');
-    glGetProgramInfoLog(ProgramID, len, &len, logstr.data());
-    if (len > 0 && logstr.back() == '\0')
-        logstr.pop_back(); //null-terminated so pop back
-    const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
-    if (!result)
-    {
-        oglLog().warning(u"Link program failed.\n{}\n", logdat);
-        glDeleteProgram(ProgramID);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
-    }
-    oglLog().success(u"Link program success.\n{}\n", logdat);
-    InitLocs();
-    InitSubroutines();
-    FilterProperties();
-
-    map<string, string> defaultMapping =
-    {
-        { "ProjectMat",  "oglu_matProj" },
-        { "ViewMat",     "oglu_matView" },
-        { "ModelMat",    "oglu_matModel" },
-        { "MVPNormMat",  "oglu_matNormal" },
-        { "MVPMat",      "oglu_matMVP" },
-        { "CamPosVec",   "oglu_camPos" },
-        { "DrawID",      "oglu_drawId" },
-        { "VertPos",     "oglu_vertPos" },
-        { "VertNorm",    "oglu_vertNorm" },
-        { "VertTexc",    "oglu_texPos" },
-        { "VertColor",   "oglu_vertColor" },
-        { "VertTan",     "oglu_vertTan" },
-    };
-    ExtInfo.ResMappings.merge(defaultMapping);
-    ResNameMapping.clear(); 
-    for (const auto&[target, name] : ExtInfo.ResMappings)
-    {
-        if (auto obj = FindInSet(ProgRess, name); obj)
-            ResNameMapping.insert_or_assign(target, obj);
-    }
-    OnPrepare();
+oglComputeProgram oglProgram_::oglProgStub::LinkComputeProgram(const std::u16string& name)
+{
+    CheckCurrent();
+    return MAKE_ENABLER_SHARED(oglComputeProgram_, (name, this));
 }
 
 
@@ -486,6 +493,11 @@ const SubroutineResource::Routine* oglProgram_::GetSubroutine(const SubroutineRe
 ProgState oglProgram_::State() noexcept
 {
     return ProgState(*this);
+}
+
+oglProgram_::oglProgStub oglProgram_::Create()
+{
+    return oglProgStub();
 }
 
 
@@ -775,9 +787,32 @@ ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_vi
 }
 
 
-void oglDrawProgram_::OnPrepare()
+oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* stub)
+    : oglProgram_(name, stub, true)
 {
-    for (const auto&[target, res] : ResNameMapping)
+    map<string, string> defaultMapping =
+    {
+        { "ProjectMat",  "oglu_matProj" },
+        { "ViewMat",     "oglu_matView" },
+        { "ModelMat",    "oglu_matModel" },
+        { "MVPNormMat",  "oglu_matNormal" },
+        { "MVPMat",      "oglu_matMVP" },
+        { "CamPosVec",   "oglu_camPos" },
+        { "DrawID",      "oglu_drawId" },
+        { "VertPos",     "oglu_vertPos" },
+        { "VertNorm",    "oglu_vertNorm" },
+        { "VertTexc",    "oglu_texPos" },
+        { "VertColor",   "oglu_vertColor" },
+        { "VertTan",     "oglu_vertTan" },
+    };
+    ExtInfo.ResMappings.merge(defaultMapping);
+    ResNameMapping.clear();
+    for (const auto& [target, varName] : ExtInfo.ResMappings)
+    {
+        if (auto obj = FindInSet(ProgRess, varName); obj)
+            ResNameMapping.insert_or_assign(target, obj);
+    }
+    for (const auto& [target, res] : ResNameMapping)
     {
         switch (hash_(target))
         {
@@ -789,17 +824,6 @@ void oglDrawProgram_::OnPrepare()
         case "CamPosVec"_hash:   Uni_camPos    = res->location; break; //camera position
         }
     }
-}
-
-bool oglDrawProgram_::AddExtShaders(const string& src, const ShaderConfig& config)
-{
-    const auto s = oglShader_::LoadDrawFromExSrc(src, ExtInfo, config);
-    for (auto shader : s)
-    {
-        shader->compile();
-        AddShader(shader);
-    }
-    return !s.empty();
 }
 
 void oglDrawProgram_::SetProject(const Mat4x4& projMat)
@@ -823,9 +847,11 @@ ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat) noexcept
     return Draw(modelMat, (Mat3x3)modelMat);
 }
 
-oglDrawProgram oglu::oglDrawProgram_::Create(const std::u16string& name)
+oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
 {
-    return MAKE_ENABLER_SHARED(oglDrawProgram_, (name));
+    auto stub = oglProgram_::Create();
+    stub.AddExtShaders(extSrc, config);
+    return stub.LinkDrawProgram(name);
 }
 
 
@@ -1056,22 +1082,13 @@ ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view
 }
 
 
-
-bool oglComputeProgram_::AddExtShaders(const string& src, const ShaderConfig& config)
-{
-    const auto s = oglShader_::LoadComputeFromExSrc(src, ExtInfo, config);
-    if (s.empty())
-        return false;// COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no available Computer Shader found");
-    auto shader = *s.cbegin();
-    shader->compile();
-    AddShader(shader);
-    return true;
-}
-void oglComputeProgram_::OnPrepare()
+oglComputeProgram_::oglComputeProgram_(const std::u16string& name, const oglProgStub* stub)
+    : oglProgram_(name, stub, false)
 {
     glGetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
     oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
+
 void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const uint32_t groupZ)
 {
     CheckCurrent();
@@ -1079,10 +1096,13 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
     glDispatchCompute(groupX, groupY, groupZ);
 }
 
-oglComputeProgram oglu::oglComputeProgram_::Create(const std::u16string& name)
+oglComputeProgram oglComputeProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
 {
-    return MAKE_ENABLER_SHARED(oglComputeProgram_, (name));
+    auto stub = oglProgram_::Create();
+    stub.AddExtShaders(extSrc, config);
+    return stub.LinkComputeProgram(name);
 }
+
 
 
 }

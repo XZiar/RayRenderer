@@ -136,6 +136,21 @@ class OGLUAPI oglProgram_ : public common::NonMovable,
     friend class ProgState;
     friend class ProgDraw;
 protected:
+    class OGLUAPI oglProgStub : public detail::oglCtxObject<true>
+    {
+        friend class oglProgram_;
+    private:
+        std::map<ShaderType, oglShader> Shaders;
+        ShaderExtInfo ExtInfo;
+    public:
+        oglProgStub();
+        ~oglProgStub();
+        void AddShader(oglShader shader);
+        bool AddExtShaders(const std::string& src, const ShaderConfig& config = {});
+        oglDrawProgram LinkDrawProgram(const std::u16string& name);
+        oglComputeProgram LinkComputeProgram(const std::u16string& name);
+    };
+
     std::map<ShaderType, oglShader> Shaders;
     ShaderExtInfo ExtInfo;
     std::map<std::string, const ProgramResource*, std::less<>> ResNameMapping;
@@ -152,14 +167,13 @@ protected:
     GLuint ProgramID = 0; //zero means invalid program
 
     static bool usethis(oglProgram_& prog, const bool change = true);
-    oglProgram_(const std::u16string& name);
+    oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw);
     void RecoverState();
     void InitLocs();
     void InitSubroutines();
     void FilterProperties();
-    virtual void OnPrepare() = 0;
     GLint GetLoc(const ProgramResource* res, GLenum valtype) const;
-    GLint GetLoc(const std::string& name,         GLenum valtype) const;
+    GLint GetLoc(const std::string& name,    GLenum valtype) const;
 
     void SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
     void SetTexture(detail::TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
@@ -179,10 +193,10 @@ protected:
     void SetUniform(const GLint pos, const int32_t val,           const bool keep = true);
     void SetUniform(const GLint pos, const uint32_t val,          const bool keep = true);
     void SetUniform(const GLint pos, const float val,             const bool keep = true);
+
 public:
     std::u16string Name;
     virtual ~oglProgram_();
-    virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) = 0;
 
     const std::set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
     const std::set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ExtInfo.Properties; }
@@ -190,8 +204,6 @@ public:
     const std::map<ShaderType, oglShader>& getShaders() const { return Shaders; }
     const std::map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
-    void AddShader(const oglShader& shader);
-    void Link();
     GLint GetLoc(const std::string& name) const;
     const ProgramResource* GetResource(const std::string& name) const { return common::container::FindInSet(ProgRess, name); }
     const SubroutineResource* GetSubroutines(const std::string& name) const { return common::container::FindInSet(SubroutineRess, name); }
@@ -222,15 +234,18 @@ public:
     void SetUniform(const std::string& name, const int32_t val)              { SetUniform(GetLoc(name, GL_INT         ), val); }
     void SetUniform(const std::string& name, const uint32_t val)             { SetUniform(GetLoc(name, GL_UNSIGNED_INT), val); }
     void SetUniform(const std::string& name, const float val)                { SetUniform(GetLoc(name, GL_FLOAT       ), val); }
+    
+    static oglProgStub Create();
 };
 
 
 class OGLUAPI oglDrawProgram_ : public oglProgram_
 {
     friend class ProgDraw;
+    friend class oglProgram_::oglProgStub;
 private:
     MAKE_ENABLER();
-    using oglProgram_::oglProgram_;
+    oglDrawProgram_(const std::u16string& name, const oglProgStub* stub);
 
     b3d::Mat4x4 matrix_Proj, matrix_View;
     GLint
@@ -240,11 +255,9 @@ private:
         Uni_normalMat = GL_INVALID_INDEX,
         Uni_mvpMat    = GL_INVALID_INDEX,
         Uni_camPos    = GL_INVALID_INDEX;
-    virtual void OnPrepare() override;
 public:
     virtual ~oglDrawProgram_() override {}
 
-    virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) override;
     //void RegisterLocation();
     void SetProject(const b3d::Mat4x4 &);
     void SetView(const b3d::Mat4x4 &);
@@ -254,7 +267,7 @@ public:
     template<typename Iterator>
     ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
 
-    static oglDrawProgram Create(const std::u16string& name);
+    static oglDrawProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
 };
 
 class OGLUAPI ProgDraw
@@ -349,21 +362,19 @@ ProgDraw oglDrawProgram_::Draw(const Iterator& begin, const Iterator& end) noexc
 
 class OGLUAPI oglComputeProgram_ : public oglProgram_
 {
+    friend class oglProgram_::oglProgStub;
 private:
     MAKE_ENABLER();
-    using oglProgram_::oglProgram_;
+    oglComputeProgram_(const std::u16string& name, const oglProgStub* stub);
     std::array<uint32_t, 3> LocalSize = { 0, 0, 0 };
-    virtual void OnPrepare() override;
-    using oglProgram_::AddShader;
 public:
     virtual ~oglComputeProgram_() override {}
 
-    virtual bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}) override;
     const std::array<uint32_t, 3>& GetLocalSize() const { return LocalSize; }
 
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
 
-    static oglComputeProgram Create(const std::u16string& name);
+    static oglComputeProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
 };
 
 

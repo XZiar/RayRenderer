@@ -7,7 +7,7 @@ namespace oclu
 {
 using xziar::img::TexFormatUtil;
 
-//MAKE_ENABLER_IMPL(oclMem_::oclMapPtr_)
+MAKE_ENABLER_IMPL(oclMem_::oclMapPtr_)
 
 
 common::span<std::byte> oclMapPtr::Get() const noexcept { return Ptr->MemSpace; }
@@ -33,8 +33,11 @@ common::AlignedBuffer oclMapPtr::AsBuffer() const noexcept
 }
 
 
-oclMem_::oclMapPtr_::oclMapPtr_(oclCmdQue que, const oclMem_& mem, common::span<std::byte> space) :
-    Queue(std::move(que)), Mem(mem), MemSpace(space) {}
+oclMem_::oclMapPtr_::oclMapPtr_(oclCmdQue&& que, oclMem_* mem, const MapFlag mapFlag) :
+    Queue(std::move(que)), Mem(*mem)
+{
+    MemSpace = Mem.MapObject(Queue->CmdQue, mapFlag);
+}
 
 oclMem_::oclMapPtr_::~oclMapPtr_()
 {
@@ -63,9 +66,7 @@ oclMem_::~oclMem_()
 
 oclMapPtr oclMem_::Map(oclCmdQue que, const MapFlag mapFlag)
 {
-    auto rawptr = MapObject(que->CmdQue, mapFlag);
-    auto ptr = new oclMapPtr_(std::move(que), *this, rawptr);
-    return oclMapPtr(std::shared_ptr<const oclMapPtr_>(shared_from_this(), ptr));
+    return oclMapPtr(shared_from_this(), MAKE_ENABLER_SHARED(const oclMapPtr_, (std::move(que), this, mapFlag)));
 }
 
 //oclMapPtr oclMem_::PersistMap(const oclCmdQue& que)

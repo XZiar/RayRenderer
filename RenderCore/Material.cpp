@@ -105,20 +105,20 @@ PBRMaterial::PBRMaterial(const std::u16string& name)
     RegistControllable();
 }
 
-uint32_t PBRMaterial::WriteData(std::byte *ptr) const
-{
-    float *ptrFloat = reinterpret_cast<float*>(ptr);
-    Vec4 basic(Albedo, Metalness);
-    if (UseDiffuseMap)
-        basic.x *= -1.0f;
-    if (UseNormalMap)
-        basic.y *= -1.0f;
-    basic.save(ptrFloat);
-    ptrFloat[4] = Roughness;
-    ptrFloat[5] = Specular;
-    ptrFloat[6] = AO;
-    return 8 * sizeof(float);
-}
+//uint32_t PBRMaterial::WriteData(std::byte *ptr) const
+//{
+//    float *ptrFloat = reinterpret_cast<float*>(ptr);
+//    Vec4 basic(Albedo, Metalness);
+//    if (UseDiffuseMap)
+//        basic.x *= -1.0f;
+//    if (UseNormalMap)
+//        basic.y *= -1.0f;
+//    basic.save(ptrFloat);
+//    ptrFloat[4] = Roughness;
+//    ptrFloat[5] = Specular;
+//    ptrFloat[6] = AO;
+//    return 8 * sizeof(float);
+//}
 
 
 void PBRMaterial::RegistControllable()
@@ -427,13 +427,16 @@ static forceinline uint32_t PackMapPos(const MultiMaterialHolder::ArrangeMap& ma
     return uint32_t((bank->second << 16) | layer);
 }
 
-uint32_t MultiMaterialHolder::WriteData(std::byte *ptr) const
+uint32_t MultiMaterialHolder::WriteData(common::span<std::byte> space) const
 {
     uint32_t pos = 0;
     for (const auto& mat : Materials)
     {
-        float *ptrFloat = reinterpret_cast<float*>(ptr + pos);
-        uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(ptr + pos);
+        const auto subSpace = space.subspan(pos);
+        if (subSpace.size() < WriteSize) 
+            break;
+        float *ptrFloat = reinterpret_cast<float*>(subSpace.data());
+        uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(subSpace.data());
         Vec4 basic(mat->Albedo, mat->Metalness);
         basic.save(ptrFloat);
         ptrFloat[4] = mat->Roughness;

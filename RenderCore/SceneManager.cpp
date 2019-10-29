@@ -43,11 +43,12 @@ void Scene::PrepareLight()
     {
         if (!lgt->IsOn)
             continue;
-        onCnt++;
-        lgt->WriteData(ptr.AsType<std::byte>() + pos);
-        pos += Light::WriteSize;
-        if (pos >= LightUBO->Size())
+        const auto subSpace = ptr.subspan(pos);
+        if (subSpace.size() < Light::WriteSize)
             break;
+        lgt->WriteData(subSpace);
+        pos += Light::WriteSize;
+        onCnt++;
     }
     LightOnCount = onCnt;
 }

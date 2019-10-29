@@ -13,6 +13,7 @@ using std::string;
 using std::u16string;
 using std::vector;
 
+MAKE_ENABLER_IMPL(oglBuffer_::oglMapPtr_)
 MAKE_ENABLER_IMPL(oglPixelBuffer_)
 MAKE_ENABLER_IMPL(oglArrayBuffer_)
 MAKE_ENABLER_IMPL(oglTextureBuffer_)
@@ -39,8 +40,8 @@ constexpr static GLenum ParseBufferWriteMode(const BufferWriteMode type)
 }
 
 
-oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) : 
-    BufferID(buf->BufferID), Size(buf->BufSize), Flag(flags)
+oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) :
+    Buffer(*buf), Flag(flags)
 {
     GLenum access;
     if (HAS_FIELD(Flag, MapFlag::MapRead) && !HAS_FIELD(Flag, MapFlag::MapWrite))
@@ -50,13 +51,14 @@ oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) :
     else
         access = GL_READ_WRITE;
 
-    Pointer = DSA->ogluMapNamedBuffer(BufferID, access);
+    const auto ptr = DSA->ogluMapNamedBuffer(Buffer.BufferID, access);
+    MemSpace = common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Buffer.BufSize);
 }
 
 oglBuffer_::oglMapPtr_::~oglMapPtr_()
 {
-    if (DSA->ogluUnmapNamedBuffer(BufferID) == GL_FALSE)
-        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", BufferID, Size);
+    if (DSA->ogluUnmapNamedBuffer(Buffer.BufferID) == GL_FALSE)
+        oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", Buffer.BufferID, MemSpace.size());
 }
 
 
@@ -108,19 +110,18 @@ oglMapPtr oglBuffer_::Map(const MapFlag flags)
     if (newPersist)
     {
         PersistentMap(flags);
-        return GetPersistentPtr();
+        return oglMapPtr({}, std::shared_ptr<const oglMapPtr_>(shared_from_this(), &*PersistentPtr));
     }
     else
     {
         bind();
-        oglMapPtr_* ptr = new oglMapPtr_(this, flags);
-        return oglMapPtr(std::shared_ptr<const oglMapPtr_>(shared_from_this(), ptr));
+        return oglMapPtr(shared_from_this(), MAKE_ENABLER_SHARED(const oglMapPtr_, (this, flags)));
     }
 }
 
-oglMapPtr oglBuffer_::GetPersistentPtr() const
+common::span<std::byte> oglBuffer_::GetPersistentPtr() const
 {
-    return oglMapPtr(std::shared_ptr<const oglMapPtr_>(shared_from_this(), &*PersistentPtr));
+    return PersistentPtr->MemSpace;
 }
 
 void oglBuffer_::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
@@ -128,7 +129,7 @@ void oglBuffer_::Write(const void * const dat, const size_t size, const BufferWr
     CheckCurrent();
     if (PersistentPtr && HAS_FIELD(PersistentPtr->Flag, MapFlag::MapWrite))
     {
-        memcpy_s(PersistentPtr->Pointer, BufSize, dat, size);
+        memcpy_s(PersistentPtr->MemSpace.data(), BufSize, dat, size);
     }
     else
     {
@@ -273,5 +274,11 @@ void oglElementBuffer_::SetSize(const uint8_t elesize)
         IndexType = GL_UNSIGNED_INT; return;
     }
 }
+
+common::span<std::byte> oglMapPtr::Get() const noexcept
+{
+    return Ptr->MemSpace;
+}
+
 
 }

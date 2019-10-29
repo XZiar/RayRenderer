@@ -43,9 +43,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     LutImg = oglu::oglImg3D_::Create(LutTex, oglu::TexImgUsage::WriteOnly);
     ShaderConfig config;
     config.Routines["ToneMap"] = "ACES";
-    LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut");
-    LutGenerator->AddExtShaders(lutSrc, config);
-    LutGenerator->Link();
+    LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut", lutSrc, config);
     const auto& localSize = LutGenerator->GetLocalSize();
     GroupCount = { LutSize / localSize[0], LutSize / localSize[1], LutSize / localSize[2] };
     LutGenerator->State()

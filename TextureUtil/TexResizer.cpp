@@ -24,25 +24,21 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         CmdQue = Worker->CmdQue;
         GLContext->SetSRGBFBO(true);
         GLContext->SetDepthTest(DepthTestType::OFF);
-        GLResizer = oglDrawProgram_::Create(u"GLResizer");
-        const string shaderSrc = LoadShaderFromDLL(IDR_SHADER_GLRESIZER);
+        const auto shaderTxt = LoadShaderFromDLL(IDR_SHADER_GLRESIZER);
         try
         {
-            GLResizer->AddExtShaders(shaderSrc);
-            GLResizer->Link();
+            GLResizer = oglDrawProgram_::Create(u"GLResizer", shaderTxt);
         }
         catch (const OGLException& gle)
         {
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
-        GLResizer2 = oglComputeProgram_::Create(u"GLResizer2");
         try
         {
-            GLResizer2->AddExtShaders(shaderSrc);
-            GLResizer2->Link();
+            GLResizer2 = oglComputeProgram_::Create(u"GLResizer2", shaderTxt);
         }
-        catch (const OGLException& gle)
+        catch (const OGLException & gle)
         {
             texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
             texLog().warning(u"Compute Shader is disabled");

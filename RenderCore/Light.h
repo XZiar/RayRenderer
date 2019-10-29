@@ -37,7 +37,7 @@ public:
         const auto rMat = b3d::Mat3x3::RotateMatXYZ(radius);
         Direction = rMat * Direction;
     }
-    void WriteData(std::byte *ptr) const;
+    void WriteData(const common::span<std::byte> space) const;
 };
 
 #if COMPILER_MSVC

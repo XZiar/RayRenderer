@@ -92,7 +92,7 @@ public:
     std::u16string Name;
     PBRMaterial(const std::u16string& name = u"");
     virtual ~PBRMaterial() override {}
-    uint32_t WriteData(std::byte *ptr) const;
+    //uint32_t WriteData(std::byte *ptr) const;
 
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#PBRMaterial")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
@@ -149,7 +149,7 @@ public:
 
     void Refresh();
     void BindTexture(oglu::ProgDraw& drawcall) const;
-    uint32_t WriteData(std::byte *ptr) const; 
+    uint32_t WriteData(common::span<std::byte> space) const;
     
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
