@@ -28,7 +28,7 @@ template<typename T>
     return detail::to_string(detail::ToByteSpan(cont), outchset, inchset);
 }
 template<typename T>
-[[nodiscard]] inline std::string    to_u8string (const T& cont, const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline std::string to_u8string(const T& cont, const Charset inchset = Charset::ASCII)
 {
     return detail::to_u8string(detail::ToByteSpan(cont), inchset);
 }
@@ -50,7 +50,7 @@ template<typename Char>
     return detail::to_string(detail::ToByteSpan(common::span<const Char>(str, len)), outchset, inchset);
 }
 template<typename Char>
-[[nodiscard]] inline std::string    to_u8string (const Char* str, const size_t len, const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline std::string to_u8string(const Char* str, const size_t len, const Charset inchset = Charset::ASCII)
 {
     return detail::to_u8string(detail::ToByteSpan(common::span<const Char>(str, len)), inchset);
 }
@@ -68,7 +68,7 @@ template<typename Char>
 
 
 template<typename T>
-[[nodiscard]] inline auto ToUpperEng(const T& str,                                          const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline auto ToUpperEng(const T& str, const Charset inchset = Charset::ASCII)
 {
     return detail::ToUEng(str::ToStringView(str), inchset);
 }
@@ -80,7 +80,7 @@ template<typename Char>
 
 
 template<typename T>
-[[nodiscard]] inline auto ToLowerEng(const T& str,                                          const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline auto ToLowerEng(const T& str, const Charset inchset = Charset::ASCII)
 {
     return detail::ToLEng(str::ToStringView(str), inchset);
 }
