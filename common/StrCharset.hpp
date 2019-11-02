@@ -81,6 +81,7 @@ struct UTF7 : public ConvertCPBase, public ConvertByteBase
     }
 };
 
+
 struct UTF32 : public ConvertCPBase
 {
     using ElementType = char32_t;
@@ -107,7 +108,7 @@ struct UTF32LE : public UTF32, public ConvertByteBase
 {
     [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
     {
-        if (size >= 4)
+        if (size >= 4u)
         {
             const uint32_t ch = src[0] | (src[1] << 8) | (src[2] << 16) | (src[3] << 24);
             if (ch < 0x200000u)
@@ -117,7 +118,7 @@ struct UTF32LE : public UTF32, public ConvertByteBase
     }
     [[nodiscard]] inline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 1u && src < 0x200000u)
+        if (size >= 4u && src < 0x200000u)
         {
             dest[0] = static_cast<uint8_t>(src);       dest[1] = static_cast<uint8_t>(src >> 8);
             dest[2] = static_cast<uint8_t>(src >> 16); dest[3] = static_cast<uint8_t>(src >> 24);
@@ -130,7 +131,7 @@ struct UTF32BE : public UTF32, public ConvertByteBase
 {
     [[nodiscard]] inline static constexpr std::pair<char32_t, uint32_t> FromBytes(const uint8_t* __restrict const src, const size_t size) noexcept
     {
-        if (size >= 4)
+        if (size >= 4u)
         {
             const uint32_t ch = src[3] | (src[2] << 8) | (src[1] << 16) | (src[0] << 24);
             if (ch < 0x200000u)
@@ -140,7 +141,7 @@ struct UTF32BE : public UTF32, public ConvertByteBase
     }
     [[nodiscard]] inline static constexpr uint8_t ToBytes(const char32_t src, const size_t size, uint8_t* __restrict const dest) noexcept
     {
-        if (size >= 1u && src < 0x200000u)
+        if (size >= 4u && src < 0x200000u)
         {
             dest[3] = static_cast<uint8_t>(src);       dest[2] = static_cast<uint8_t>(src >> 8);
             dest[1] = static_cast<uint8_t>(src >> 16); dest[0] = static_cast<uint8_t>(src >> 24);
@@ -216,7 +217,7 @@ private:
         return 0;
     }
 public:
-    using ElementType = char;
+    using ElementType = u8ch_t;
     static constexpr size_t MaxOutputUnit = 4;
     [[nodiscard]] forceinline static constexpr std::pair<char32_t, uint32_t> From(const ElementType* __restrict const src, const size_t size) noexcept
     {
@@ -286,7 +287,7 @@ struct UTF16BE : public UTF16, public ConvertByteBase
             return { (src[0] << 8) | src[1], 2 };
         if (src[0] < 0xdc)//2 unit
         {
-            if (size >= 2 && src[2] >= 0xdc && src[2] <= 0xdf)
+            if (size >= 4 && src[2] >= 0xdc && src[2] <= 0xdf)
                 return { (((src[0] & 0x3) << 18) | (src[1] << 10) | ((src[2] & 0x3) << 8) | src[3]) + 0x10000, 4 };
         }
         return InvalidCharPair;
@@ -631,23 +632,23 @@ template<typename Dst, typename Src>
 
 
 template<typename Char>
-[[nodiscard]] inline std::string to_u8string_impl(const std::basic_string_view<Char> str, const Charset inchset)
+[[nodiscard]] inline u8string to_u8string_impl(const std::basic_string_view<Char> str, const Charset inchset)
 {
     switch (inchset)
     {
     case Charset::ASCII:
     case Charset::UTF8:
-        return DirectCopyStr<char>(str);
+        return DirectCopyStr<u8ch_t>(str);
     case Charset::UTF16LE:
-        return Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF8, char>());
+        return Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF8, u8ch_t>());
     case Charset::UTF16BE:
-        return Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF8, char>());
+        return Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF8, u8ch_t>());
     case Charset::UTF32LE:
-        return Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF8, char>());
+        return Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF8, u8ch_t>());
     case Charset::UTF32BE:
-        return Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF8, char>());
+        return Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF8, u8ch_t>());
     case Charset::GB18030:
-        return Transform(GetDecoder<GB18030>(str), GetEncoder<UTF8, char>());
+        return Transform(GetDecoder<GB18030>(str), GetEncoder<UTF8, u8ch_t>());
     default: // should not enter, to please compiler
         Expects(false);
         return {};
@@ -781,7 +782,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline std::string to_u8string(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline u8string to_u8string(const T& str_, const Charset inchset = Charset::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {

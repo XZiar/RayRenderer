@@ -7,13 +7,16 @@
 namespace common::strchset
 {
 using common::str::Charset;
+using common::str::u8string;
+using common::str::u8ch_t;
+
 
 namespace detail
 {
 [[nodiscard]] STRCHSETAPI std::string    to_string   (const common::span<const std::byte> data, const Charset outchset, const Charset inchset);
 [[nodiscard]] STRCHSETAPI std::u16string to_u16string(const common::span<const std::byte> data, const Charset inchset);
 [[nodiscard]] STRCHSETAPI std::u32string to_u32string(const common::span<const std::byte> data, const Charset inchset);
-[[nodiscard]] STRCHSETAPI std::string    to_u8string (const common::span<const std::byte> data, const Charset inchset);
+[[nodiscard]] STRCHSETAPI u8string       to_u8string (const common::span<const std::byte> data, const Charset inchset);
 template<typename Char>
 [[nodiscard]] STRCHSETAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> str, const Charset inchset);
 template<typename Char>
@@ -28,7 +31,7 @@ template<typename T>
     return detail::to_string(detail::ToByteSpan(cont), outchset, inchset);
 }
 template<typename T>
-[[nodiscard]] inline std::string to_u8string(const T& cont, const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline u8string    to_u8string(const T& cont, const Charset inchset = Charset::ASCII)
 {
     return detail::to_u8string(detail::ToByteSpan(cont), inchset);
 }
@@ -50,7 +53,7 @@ template<typename Char>
     return detail::to_string(detail::ToByteSpan(common::span<const Char>(str, len)), outchset, inchset);
 }
 template<typename Char>
-[[nodiscard]] inline std::string to_u8string(const Char* str, const size_t len, const Charset inchset = Charset::ASCII)
+[[nodiscard]] inline u8string    to_u8string(const Char* str, const size_t len, const Charset inchset = Charset::ASCII)
 {
     return detail::to_u8string(detail::ToByteSpan(common::span<const Char>(str, len)), inchset);
 }

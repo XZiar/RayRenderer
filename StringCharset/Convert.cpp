@@ -65,9 +65,9 @@ std::u16string  to_u16string(const common::span<const std::byte> data, const Cha
 {
     return ConvertString<char16_t, common::str::detail::UTF16LE>(data, inchset);
 }
-std::string     to_u8string (const common::span<const std::byte> data, const Charset inchset)
+u8string        to_u8string (const common::span<const std::byte> data, const Charset inchset)
 {
-    return ConvertString<char    , common::str::detail::UTF8   >(data, inchset);
+    return ConvertString<u8ch_t    , common::str::detail::UTF8   >(data, inchset);
 }
 
 
@@ -94,6 +94,11 @@ template STRCHSETAPI std::basic_string<wchar_t>  ToLEng(const std::basic_string_
 template STRCHSETAPI std::basic_string<char16_t> ToLEng(const std::basic_string_view<char16_t> str, const Charset inchset);
 template STRCHSETAPI std::basic_string<char32_t> ToLEng(const std::basic_string_view<char32_t> str, const Charset inchset);
 
+
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template STRCHSETAPI std::basic_string<u8ch_t>   ToUEng(const std::basic_string_view<u8ch_t>   str, const Charset inchset);
+template STRCHSETAPI std::basic_string<u8ch_t>   ToLEng(const std::basic_string_view<u8ch_t>   str, const Charset inchset);
+#endif
 }
 
 }
