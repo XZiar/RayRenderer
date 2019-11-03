@@ -503,7 +503,9 @@ struct is_span : std::false_type { };
 template <typename ElementType, size_t Extent>
 struct is_span<std::span<ElementType, Extent>> : std::true_type { };
 }
-template <typename T>
+template<typename T>
+using is_span = detail::is_span<common::remove_cvref_t<T>>;
+template<typename T>
 inline constexpr bool is_span_v = detail::is_span<common::remove_cvref_t<T>>::value;
 }
 #else
@@ -514,20 +516,41 @@ template <class ElementType, ptrdiff_t Extent = gsl::dynamic_extent>
 using span = gsl::span<ElementType, Extent>;
 using gsl::as_bytes;
 inline constexpr auto as_writable_bytes = [](auto&& t) constexpr -> decltype(auto) { return gsl::as_writeable_bytes(t); };
-template <typename T>
+template<typename T>
+using is_span = gsl::details::is_span<T>;
+template<typename T>
 inline constexpr bool is_span_v = gsl::details::is_span<T>::value;
 }
 #endif
 namespace common
 {
+namespace detail
+{
+template<typename T>
+using CanAsSpan = decltype(std::declval<T&>().AsSpan());
+struct CannotToSpan
+{
+    template<typename T>
+    constexpr auto operator()(T&& arg) noexcept
+    {
+        static_assert(!common::AlwaysTrue<T>(), "unsupported");
+    }
+};
+struct SkipToSpan
+{
+    template<typename T>
+    constexpr auto operator()(T&&) noexcept
+    { }
+};
+}
 template <typename T, size_t N>
-constexpr auto to_span(T(&arr)[N]) noexcept
+[[nodiscard]] constexpr auto to_span(T(&arr)[N]) noexcept
 {
     return common::span<T>(arr, N);
 
 }
-template <typename T>
-constexpr auto to_span(T&& arg) noexcept
+template <typename T, typename Fallback = detail::CannotToSpan>
+[[nodiscard]] constexpr auto to_span(T&& arg) noexcept
 {
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<U>)
@@ -541,11 +564,17 @@ constexpr auto to_span(T&& arg) noexcept
         else if constexpr (std::is_convertible_v<T, common::span<EleType>>)
             return (common::span<EleType>)arg;
         else
-            static_assert(!common::AlwaysTrue<T>(), "unsupported");
+            return Fallback()(std::forward<T>(arg));
+    }
+    else if constexpr (common::is_detected_v<detail::CanAsSpan, T>)
+    {
+        return to_span(arg.AsSpan());
     }
     else 
-        static_assert(!common::AlwaysTrue<T>(), "unsupported");
+        return Fallback()(std::forward<T>(arg));
 }
+template<typename X>
+inline constexpr bool CanToSpan = !std::is_same_v<decltype(to_span<X&, detail::SkipToSpan>(std::declval<X&>())), void>;
 }
 
 

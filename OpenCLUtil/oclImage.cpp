@@ -228,7 +228,7 @@ PromiseResult<void> oclImage_::ReadSpan(const oclCmdQue que, common::span<std::b
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromise<void>>(e, que, 0);
+        return oclPromise<void>::Create(e, que);
 }
 
 PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
@@ -248,7 +248,7 @@ PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
     const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<oclPromise<Image>>(e, que, std::move(img));
+    return oclPromise<Image>::Create(e, que, std::move(img));
 }
 
 PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
@@ -260,7 +260,7 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) con
     const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return std::make_shared<oclPromise<common::AlignedBuffer>>(e, que, std::move(buffer));
+    return oclPromise<common::AlignedBuffer>::Create(e, que, std::move(buffer));
 }
 
 PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock) const
@@ -276,7 +276,7 @@ PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromise<void>>(e, que, 0);
+        return oclPromise<void>::Create(e, que);
 }
 
 PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image, const bool shouldBlock) const
@@ -295,7 +295,7 @@ PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image,
     if (shouldBlock)
         return {};
     else
-        return std::make_shared<oclPromise<void>>(e, que, 0);
+        return oclPromise<void>::Create(e, que);
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)

@@ -159,56 +159,59 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const oclDevice& dev, co
     return info;
 }
 
-void oclKernel_::CheckArgIdx(const uint32_t idx) const
+
+
+oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
+    Kernel(kernel->Prog.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
+{ }
+
+void oclKernel_::CallSiteInternal::CheckArgIdx(const uint32_t idx) const
 {
-    if (idx >= ArgsInfo.size())
+    if (idx >= Kernel->ArgsInfo.size())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
 }
 
-void oclKernel_::SetArg(const uint32_t idx, const oclBuffer_& buf) const
+void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
 {
-    CheckArgIdx(idx);
-    auto ret = clSetKernelArg(KernelID, idx, sizeof(cl_mem), &buf.MemID);
+    auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-void oclKernel_::SetArg(const uint32_t idx, const oclImage_& img) const
+void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & img) const
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(KernelID, idx, sizeof(cl_mem), &img.MemID);
+    auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-void oclKernel_::SetArg(const uint32_t idx, const void* dat, const size_t size) const
+void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, const size_t size) const
 {
     CheckArgIdx(idx);
-    auto ret = clSetKernelArg(KernelID, idx, size, dat);
+    auto ret = clSetKernelArg(Kernel->KernelID, idx, size, dat);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<void> oclKernel_::Run(const PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t* worksize, bool isBlock, const size_t* workoffset, const size_t* localsize) const
+PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const std::vector<common::PromiseResult<void>>& pmss,
+    const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     cl_int ret;
     cl_event e;
-    cl_uint ecount = 0;
-    const cl_event* depend = nullptr;
-    auto clpms = std::dynamic_pointer_cast<oclPromise<void>>(pms);
-    if (clpms)
-        depend = &clpms->GetEvent(), ecount = 1;
-    ret = clEnqueueNDRangeKernel(que->CmdQue, KernelID, workdim, workoffset, worksize, localsize, ecount, depend, &e);
+    std::vector<cl_event> evts; evts.reserve(pmss.size());
+    std::vector<std::shared_ptr<oclPromiseCore>> clpmss; clpmss.reserve(pmss.size());
+    for (const auto pms : pmss)
+        if (auto clpms = std::dynamic_pointer_cast<oclPromise<void>>(pms); clpms)
+            clpmss.push_back(clpms), evts.push_back(clpms->GetEvent());
+    cl_uint ecount = static_cast<cl_uint>(evts.size());
+    const cl_event* depend = ecount == 0 ? nullptr : &evts.front();
+    ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, ecount, depend, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
-    if (isBlock)
-    {
-        clWaitForEvents(1, &e);
-        return {};
-    }
-    else
-        return std::make_shared<oclPromise<void>>(e, que, 0, clpms);
+    return oclPromise<void>::Create(clpmss, e, que);
 }
+
 
 
 static vector<cl_device_id> GetProgDevs(cl_program progID)

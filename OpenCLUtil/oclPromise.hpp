@@ -15,14 +15,12 @@ class oclPromiseCore
     friend class oclImage_;
     friend class oclKernel_;
 protected:
-    const std::shared_ptr<oclPromiseCore> Prev;
     const cl_event Event;
-    const std::exception_ptr Exception;
     const oclCmdQue Queue;
-    oclPromiseCore(const cl_event e, oclCmdQue que, std::shared_ptr<oclPromiseCore> prev)
-        : Prev(std::move(prev)), Event(e), Queue(std::move(que)) { }
-    oclPromiseCore(const std::exception_ptr ex, const cl_event e, oclCmdQue que, std::shared_ptr<oclPromiseCore> prev)
-        : Prev(std::move(prev)), Event(e), Exception(ex), Queue(std::move(que)) { }
+    std::variant<std::monostate, std::vector<std::shared_ptr<oclPromiseCore>>, std::shared_ptr<oclPromiseCore>> Prev;
+    template<typename T>
+    oclPromiseCore(T&& prev, const cl_event e, oclCmdQue que)
+        : Event(e), Queue(std::move(que)), Prev(std::move(prev)) { }
     ~oclPromiseCore()
     {
         if (Event)
@@ -30,15 +28,11 @@ protected:
     }
     void Flush()
     {
-        if (Exception)
-            std::rethrow_exception(Exception);
         clFlush(Queue->CmdQue);
     }
     common::PromiseState State()
     {
         using common::PromiseState;
-        if (Exception)
-            return PromiseState::Error;
         cl_int status;
         const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
         if (ret != CL_SUCCESS)
@@ -53,32 +47,43 @@ protected:
         }
         switch (status)
         {
-        case CL_QUEUED: return PromiseState::Unissued;
-        case CL_SUBMITTED: return PromiseState::Issued;
-        case CL_RUNNING: return PromiseState::Executing;
-        case CL_COMPLETE: return PromiseState::Success;
-        default: return PromiseState::Invalid;
+        case CL_QUEUED:     return PromiseState::Unissued;
+        case CL_SUBMITTED:  return PromiseState::Issued;
+        case CL_RUNNING:    return PromiseState::Executing;
+        case CL_COMPLETE:   return PromiseState::Success;
+        default:            return PromiseState::Invalid;
         }
     }
     void Wait()
     {
-        if (Exception)
-            std::rethrow_exception(Exception);
         clWaitForEvents(1, &Event);
     }
     uint64_t ElapseNs()
     {
-        uint64_t from = 0, to = 0;
-        clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &from, nullptr);
-        clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
-        return to - from;
+        if (Event)
+        {
+            uint64_t from = 0, to = 0;
+            clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &from, nullptr);
+            clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
+            return to - from;
+        }
+        return 0;
     }
     uint64_t ChainedElapseNs()
     {
         auto time = ElapseNs();
-        for (std::shared_ptr<oclPromiseCore> prev = Prev; prev; prev = prev->Prev)
-            time += prev->ElapseNs();
-        return time;
+        switch (Prev.index())
+        {
+        case 2: return time + std::get<2>(Prev)->ChainedElapseNs();
+        case 1:
+            for (const auto& prev : std::get<1>(Prev))
+            {
+                time += prev->ChainedElapseNs();
+            }
+            return time;
+        default:
+        case 0: return time;
+        }
     }
     const cl_event& GetEvent() { return Event; }
 };
@@ -86,28 +91,40 @@ protected:
 template<typename T>
 class oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore
 {
-    friend class oclBuffer_;
-    friend class oclImage_;
+    //friend class oclBuffer_;
+    //friend class oclImage_;
 private:
-    std::conditional_t<std::is_same_v<T, void>, uint32_t, T> Result;
+    using RDataType = std::conditional_t<std::is_same_v<T, void>, uint32_t, T>;
+    std::variant<std::monostate, std::exception_ptr, RDataType> Result;
     virtual void PreparePms() override
-    { 
+    {
+        if (Result.index() == 1)
+            std::rethrow_exception(std::get<1>(Result));
         Flush();
     }
     common::PromiseState virtual State() override
     {
+        if (Result.index() == 1)
+            return common::PromiseState::Error;
         return oclPromiseCore::State();
     }
     T WaitPms() override
     {
+        if (Result.index() == 1)
+            std::rethrow_exception(std::get<1>(Result));
         oclPromiseCore::Wait();
         if constexpr(!std::is_same_v<T, void>)
-            return std::move(Result);
+            return std::move(std::get<2>(Result));
     }
+
 public:
-    template<typename U>
-    oclPromise(const cl_event e, oclCmdQue que, U&& data, std::shared_ptr<oclPromiseCore> prev = {})
-        : oclPromiseCore(e, std::move(que), std::move(prev)), Result(std::forward<U>(data)) { }
+    template<typename P>
+    oclPromise(P&& prev, const cl_event e, oclCmdQue que)
+        : oclPromiseCore(std::forward<P>(prev), e, std::move(que)) { }
+    template<typename P>
+    oclPromise(P&& prev, const cl_event e, oclCmdQue que, RDataType data)
+        : oclPromiseCore(std::forward<P>(prev), e, std::move(que)), Result(std::move(data)) { }
+
     ~oclPromise() override { }
     uint64_t ElapseNs() override 
     { 
@@ -118,7 +135,42 @@ public:
         return oclPromiseCore::ChainedElapseNs();
     };
 
+
+    static std::shared_ptr<oclPromise> Create(const cl_event e, oclCmdQue que)
+    {
+        static_assert(std::is_same_v<T, void>, "Need return value");
+        return std::make_shared<oclPromise>(std::monostate{}, e, que);
+    }
+    template<typename U>
+    static std::shared_ptr<oclPromise> Create(const cl_event e, oclCmdQue que, U&& data)
+    {
+        static_assert(!std::is_same_v<T, void>, "Don't want return value");
+        return std::make_shared<oclPromise>(std::monostate{}, e, que, std::forward<U>(data));
+    }
+    static std::shared_ptr<oclPromise> Create(std::shared_ptr<oclPromiseCore> prev, const cl_event e, oclCmdQue que)
+    {
+        static_assert(std::is_same_v<T, void>, "Need return value");
+        return std::make_shared<oclPromise>(std::move(prev), e, que);
+    }
+    template<typename U>
+    static std::shared_ptr<oclPromise> Create(std::shared_ptr<oclPromiseCore> prev, const cl_event e, oclCmdQue que, U&& data)
+    {
+        static_assert(!std::is_same_v<T, void>, "Don't want return value");
+        return std::make_shared<oclPromise>(std::move(prev), e, que, std::forward<U>(data));
+    }
+    static std::shared_ptr<oclPromise> Create(std::vector<std::shared_ptr<oclPromiseCore>> prev, const cl_event e, oclCmdQue que)
+    {
+        static_assert(std::is_same_v<T, void>, "Need return value");
+        return std::make_shared<oclPromise>(std::move(prev), e, que);
+    }
+    template<typename U>
+    static std::shared_ptr<oclPromise> Create(std::vector<std::shared_ptr<oclPromiseCore>> prev, const cl_event e, oclCmdQue que, U&& data)
+    {
+        static_assert(!std::is_same_v<T, void>, "Don't want return value");
+        return std::make_shared<oclPromise>(std::move(prev), e, que, std::forward<U>(data));
+    }
 };
+
 
 
 }

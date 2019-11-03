@@ -129,10 +129,16 @@ struct SharedUtil
     constexpr static bool IsString()
     {
         using PlainType = common::remove_cvref_t<T>;
-        if constexpr (std::is_same_v<string, PlainType> || std::is_same_v<string_view, PlainType>)
+        if constexpr (std::is_same_v<std::string, PlainType> || std::is_same_v<std::string_view, PlainType>)
             return true;
-        if constexpr (std::is_convertible_v<const T&, string_view> || std::is_convertible_v<const T&, string>)
+        if constexpr (std::is_convertible_v<const T&, std::string_view> || std::is_convertible_v<const T&, std::string>)
             return true;
+#if defined(__cpp_char8_t) && defined(__cpp_lib_char8_t)
+        if constexpr (std::is_same_v<std::u8string, PlainType> || std::is_same_v<std::u8string_view, PlainType>)
+            return true;
+        if constexpr (std::is_convertible_v<const T&, std::u8string_view> || std::is_convertible_v<const T&, std::u8string>)
+            return true;
+#endif
         return false;
     }
 };

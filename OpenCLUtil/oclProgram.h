@@ -68,7 +68,6 @@ private:
     cl_kernel KernelID;
     mutable common::SpinLocker ArgLock;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
-    void CheckArgIdx(const uint32_t idx) const;
     template<size_t N>
     constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
     {
@@ -77,43 +76,75 @@ private:
                 return localsize;
         return nullptr;
     }
+    struct OCLUAPI CallSiteInternal
+    {
+        oclKernel Kernel;
+        common::SpinLocker::ScopeType KernelLock;
+
+        CallSiteInternal(const oclKernel_* kernel);
+        void CheckArgIdx(const uint32_t idx) const;
+        void SetArg(const uint32_t idx, const oclBuffer_& buf) const;
+        void SetArg(const uint32_t idx, const oclImage_& img) const;
+        void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
+        template<typename T>
+        void SetSpanArg(const uint32_t idx, const T& dat) const
+        {
+            using Helper = common::container::ContiguousHelper<T>;
+            static_assert(Helper::IsContiguous, "Only accept contiguous type");
+            return SetArg(idx, Helper::Data(dat), Helper::Count(dat) * Helper::EleSize);
+        }
+        template<typename T>
+        void SetSimpleArg(const uint32_t idx, const T& dat) const
+        {
+            static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
+            return SetArg(idx, &dat, sizeof(T));
+        }
+        common::PromiseResult<void> Run(const uint8_t dim, const std::vector<common::PromiseResult<void>>& pms,
+            const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
+    };
+
     template<uint8_t N, typename... Args>
-    class KernelCallSite
+    class KernelCallSite : protected CallSiteInternal
     {
         friend class oclKernel_;
     private:
-        const oclKernel_& Kernel;
-        common::SpinLocker::ScopeType KernelLock;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
 
         template<size_t Idx>
-        forceinline void SetArg() const
+        forceinline void InitArg() const
         {
+            CheckArgIdx(Idx);
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
             if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
-                Kernel.SetArg(Idx, *std::get<Idx>(Paras));
+                SetArg(Idx, *std::get<Idx>(Paras));
             else if constexpr (common::container::ContiguousHelper<ArgType>::IsContiguous)
-                Kernel.SetSpanArg(Idx, std::get<Idx>(Paras));
+                SetSpanArg(Idx, std::get<Idx>(Paras));
             else
-                Kernel.SetSimpleArg(Idx, std::get<Idx>(Paras));
+                SetSimpleArg(Idx, std::get<Idx>(Paras));
             if constexpr (Idx != 0)
-                SetArg<Idx - 1>();
+                InitArg<Idx - 1>();
         }
 
-        KernelCallSite(const oclKernel_* kernel, Args&& ... args) : Kernel(*kernel), 
-            KernelLock(Kernel.ArgLock.LockScope()), Paras(std::forward<Args>(args)...)
+        KernelCallSite(const oclKernel_* kernel, Args&& ... args) : 
+            CallSiteInternal(kernel), Paras(std::forward<Args>(args)...)
         {
-            SetArg<sizeof...(Args) - 1>();
+            InitArg<sizeof...(Args) - 1>();
         }
     public:
+        common::PromiseResult<void> operator()(const std::vector<common::PromiseResult<void>>& pms,
+            const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        {
+            return Run(N, pms, que, worksize, workoffset, CheckLocalSize(localsize));
+        }
+        common::PromiseResult<void> operator()(const common::PromiseResult<void>& pms, 
+            const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        {
+            return Run(N, std::vector<common::PromiseResult<void>>{ pms }, que, worksize, workoffset, CheckLocalSize(localsize));
+        }
         common::PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Kernel.Run({}, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
-        }
-        common::PromiseResult<void> operator()(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
-        {
-            return Kernel.Run(pms, N, que, worksize, false, workoffset, CheckLocalSize(localsize));
+            return Run(N, std::vector<common::PromiseResult<void>>{}, que, worksize, workoffset, CheckLocalSize(localsize));
         }
     };
 public:
@@ -128,52 +159,6 @@ public:
     {
         static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
         return GetSubgroupInfo(dev, N, localsize);
-    }
-    void SetArg(const uint32_t idx, const oclBuffer_& buf) const;
-    void SetArg(const uint32_t idx, const oclImage_& img) const;
-    void SetArg(const uint32_t idx, const void *dat, const size_t size) const;
-    template<class T>
-    void SetSimpleArg(const uint32_t idx, const T& dat) const
-    {
-        static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
-        return SetArg(idx, &dat, sizeof(T));
-    }
-    template<typename T>
-    void SetSpanArg(const uint32_t idx, const T& dat) const
-    {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "Only accept contiguous type");
-        return SetArg(idx, Helper::Data(dat), Helper::Count(dat) * Helper::EleSize);
-    }
-    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const;
-    template<uint8_t N>
-    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
-    {
-        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run(pms, N, que, worksize, isBlock, workoffset, nullptr);
-    }
-    template<uint8_t N>
-    common::PromiseResult<void> Run(const common::PromiseResult<void>& pms, const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
-    {
-        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run(pms, N, que, worksize, isBlock, workoffset, localsize);
-    }
-
-    common::PromiseResult<void> Run(const uint32_t workdim, const oclCmdQue& que, const size_t *worksize, bool isBlock = true, const size_t *workoffset = nullptr, const size_t *localsize = nullptr) const
-    {
-        return Run({}, workdim, que, worksize, isBlock, workoffset, localsize);
-    }
-    template<uint8_t N>
-    common::PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
-    {
-        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run({}, N, que, worksize, isBlock, workoffset, nullptr);
-    }
-    template<uint8_t N>
-    common::PromiseResult<void> Run(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N], bool isBlock = true, const size_t(&workoffset)[N] = { 0 }) const
-    {
-        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        return Run({}, N, que, worksize, isBlock, workoffset, localsize);
     }
     template<uint8_t N, typename... Args>
     auto Call(Args&&... args) const
