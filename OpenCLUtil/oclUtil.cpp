@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "oclUtil.h"
+#include "oclPromise.hpp"
 
 namespace oclu
 {
@@ -125,6 +126,13 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -1005: return u"CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR"sv;
     default: return u"Unknown OpenCL error"sv;
     }
+}
+
+void oclUtil::WaitMany(common::PromiseStub promises)
+{
+    const auto [clpmss, evts] = oclPromiseCore::ParsePms(promises);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    clWaitForEvents(evtCnt, evtPtr);
 }
 
 

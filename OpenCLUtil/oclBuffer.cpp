@@ -47,44 +47,44 @@ common::span<std::byte> oclBuffer_::MapObject(const cl_command_queue& que, const
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Size);
 }
 
-PromiseResult<void> oclBuffer_::ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // read size overflow
     cl_event e;
-    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
-    if (shouldBlock)
-        return {};
-    else
-        return oclPromise<void>::Create(e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const oclCmdQue& que, const size_t offset) const
+common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const common::PromiseStub& pmss, const oclCmdQue& que, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     const auto size = Size - offset;
     common::AlignedBuffer buf(size);
     cl_event e;
-    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, size, buf.GetRawPtr(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, size, buf.GetRawPtr(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
-    return oclPromise<common::AlignedBuffer>::Create(e, que, std::move(buf));
+    return oclPromise<common::AlignedBuffer>::Create(std::move(clpmss), e, que, std::move(buf));
 }
 
-PromiseResult<void> oclBuffer_::WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset, const bool shouldBlock) const
+PromiseResult<void> oclBuffer_::WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // write size overflow
     cl_event e;
-    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, offset, buf.size(), buf.data(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
-    if (shouldBlock)
-        return {};
-    else
-        return oclPromise<void>::Create(e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)

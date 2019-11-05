@@ -28,29 +28,61 @@ protected:
 public:
     const size_t Size;
     virtual ~oclBuffer_();
-    common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0, const bool shouldBlock = true) const;
-    template<typename T>
-    common::PromiseResult<void> ReadSpan(const oclCmdQue& que, T& buf, const size_t offset = 0, const bool shouldBlock = true) const
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0) const;
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0) const
     {
-        return ReadSpan(que, common::as_writable_bytes(common::to_span(buf)), offset, shouldBlock);
+        return ReadSpan({}, que, buf, offset);
     }
     template<typename T>
-    common::PromiseResult<void> Read(const oclCmdQue& que, T& buf, const size_t offset = 0, const bool shouldBlock = true) const
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, T& buf, const size_t offset = 0) const
     {
-        return ReadSpan(que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
+        return ReadSpan(pmss, que, common::as_writable_bytes(common::to_span(buf)), offset);
     }
-    common::PromiseResult<common::AlignedBuffer> Read(const oclCmdQue& que, const size_t offset = 0) const;
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const oclCmdQue& que, T& buf, const size_t offset = 0) const
+    {
+        return ReadSpan({}, que, common::as_writable_bytes(common::to_span(buf)), offset);
+    }
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> Read(const common::PromiseStub& pmss, const oclCmdQue& que, T& buf, const size_t offset = 0) const
+    {
+        return ReadSpan(pmss, que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset);
+    }
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> Read(const oclCmdQue& que, T& buf, const size_t offset = 0) const
+    {
+        return ReadSpan({}, que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset);
+    }
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read(const common::PromiseStub& pmss, const oclCmdQue& que, const size_t offset = 0) const;
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read(const oclCmdQue& que, const size_t offset = 0) const
+    {
+        return Read({}, que, offset);
+    }
 
-    common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset = 0, const bool shouldBlock = true) const;
-    template<typename T>
-    common::PromiseResult<void> WriteSpan(const oclCmdQue& que, const T& buf, const size_t offset = 0, const bool shouldBlock = true) const
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset = 0) const;
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset = 0) const
     {
-        return WriteSpan(que, common::as_bytes(common::to_span(buf)), offset, shouldBlock);
+        return WriteSpan({}, que, common::as_bytes(common::to_span(buf)), offset);
     }
     template<typename T>
-    common::PromiseResult<void> Write(const oclCmdQue& que, const T& buf, const size_t offset = 0, const bool shouldBlock = true) const
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, const T& buf, const size_t offset = 0) const
     {
-        return WriteSpan(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
+        return WriteSpan(pmss, que, common::as_bytes(common::to_span(buf)), offset);
+    }
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const oclCmdQue& que, const T& buf, const size_t offset = 0) const
+    {
+        return WriteSpan({}, que, common::as_bytes(common::to_span(buf)), offset);
+    }
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> Write(const common::PromiseStub& pmss, const oclCmdQue& que, const T& buf, const size_t offset = 0) const
+    {
+        return WriteSpan(pmss, que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
+    }
+    template<typename T>
+    [[nodiscard]] common::PromiseResult<void> Write(const oclCmdQue& que, const T& buf, const size_t offset = 0) const
+    {
+        return WriteSpan({}, que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
     }
 
     [[nodiscard]] static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);

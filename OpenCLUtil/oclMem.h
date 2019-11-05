@@ -67,7 +67,7 @@ protected:
     const cl_mem MemID;
     const MemFlag Flag;
     oclMem_(oclContext ctx, cl_mem mem, const MemFlag flag);
-    virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
+    [[nodiscard]] virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
 public:
     virtual ~oclMem_();
     [[nodiscard]] oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oclPch.h"
+#include "oclCmdQue.h"
 
 namespace oclu
 {
@@ -41,13 +42,6 @@ protected:
         case 1:  return pmss[0];
         default: return std::move(pmss);
         }
-    }
-    [[nodiscard]] static PrevType TrimPms(std::shared_ptr<oclPromiseCore>&& pms) noexcept
-    {
-        if (pms)
-            return std::move(pms);
-        else
-            return std::monostate{};
     }
 
     const cl_event Event;
@@ -124,7 +118,7 @@ protected:
     [[nodiscard]] const cl_event& GetEvent() { return Event; }
 public:
     [[nodiscard]] static std::pair<std::vector<std::shared_ptr<oclPromiseCore>>, oclEvents>
-        ParsePms(oclPromiseStub pmss) noexcept
+        ParsePms(const common::PromiseStub& pmss) noexcept
     {
         auto clpmss = pmss.FilterOut<oclPromiseCore>();
         auto evts = common::linq::FromIterable(clpmss)
@@ -147,9 +141,9 @@ private:
     std::variant<std::monostate, std::exception_ptr, RDataType> Result;
     virtual void PreparePms() override
     {
+        Flush();
         if (Result.index() == 1)
             std::rethrow_exception(std::get<1>(Result));
-        Flush();
     }
     [[nodiscard]] common::PromiseState virtual State() override
     {
@@ -169,10 +163,10 @@ private:
 public:
     oclPromise(std::exception_ptr ex)
         : oclPromiseCore(std::monostate{}, nullptr, {}), Result(ex) { }
-    oclPromise(PrevType&& prev, const cl_event e, oclCmdQue que)
-        : oclPromiseCore(std::move(prev), e, std::move(que)) { }
-    oclPromise(PrevType&& prev, const cl_event e, oclCmdQue que, RDataType data)
-        : oclPromiseCore(std::move(prev), e, std::move(que)), Result(std::move(data)) { }
+    oclPromise(PrevType&& prev, const cl_event e, const oclCmdQue& que)
+        : oclPromiseCore(std::move(prev), e, que) { }
+    oclPromise(PrevType&& prev, const cl_event e, const oclCmdQue& que, RDataType&& data)
+        : oclPromiseCore(std::move(prev), e, que), Result(std::move(data)) { }
 
     ~oclPromise() override { }
     [[nodiscard]] uint64_t ElapseNs() override

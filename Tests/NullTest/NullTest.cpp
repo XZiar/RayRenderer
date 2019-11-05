@@ -53,10 +53,20 @@ void TestStacktrace()
     }
 }
 
-std::variant<int&, std::vector<int>&> ll;
+struct ppl
+{
+    std::vector<std::shared_ptr<void>> ptrs;
+    template<typename... Args>
+    ppl(std::shared_ptr<Args>... args)
+    {
+        (ptrs.push_back(args), ...);
+    }
+};
 
 int main()
 {
+
+    const auto pp = ppl{ std::shared_ptr<int>(), std::shared_ptr<float>() };
     printf("\n\n");
 
     TestStacktrace();

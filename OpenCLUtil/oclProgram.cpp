@@ -194,7 +194,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, oclPromiseStub pmss,
+PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     cl_int ret;

@@ -44,13 +44,13 @@ protected:
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr = nullptr);
     virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
-    size_t CalculateSize() const;
+    [[nodiscard]] size_t CalculateSize() const;
 public:
     virtual ~oclImage_();
 
-    [[nodiscard]] common::PromiseResult<void> ReadSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<std::byte> buf) const;
-    [[nodiscard]] common::PromiseResult<xziar::img::Image> Read(oclPromiseStub pmss, const oclCmdQue& que) const;
-    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> ReadRaw(oclPromiseStub pmss, const oclCmdQue& que) const;
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf) const;
+    [[nodiscard]] common::PromiseResult<xziar::img::Image> Read(const common::PromiseStub& pmss, const oclCmdQue& que) const;
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> ReadRaw(const common::PromiseStub& pmss, const oclCmdQue& que) const;
     [[nodiscard]] common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf) const
     {
         return ReadSpan({}, que, buf);
@@ -64,8 +64,8 @@ public:
         return ReadRaw({}, que);
     }
 
-    [[nodiscard]] common::PromiseResult<void> WriteSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<const std::byte> buf) const;
-    [[nodiscard]] common::PromiseResult<void> Write(oclPromiseStub pmss, const oclCmdQue& que, const xziar::img::ImageView image) const;
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf) const;
+    [[nodiscard]] common::PromiseResult<void> Write(const common::PromiseStub& pmss, const oclCmdQue& que, const xziar::img::ImageView image) const;
     [[nodiscard]] common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf) const
     {
         return WriteSpan({}, que, buf);
@@ -78,7 +78,7 @@ public:
     [[nodiscard]] std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
     [[nodiscard]] xziar::img::TextureFormat GetFormat() const { return Format; }
 
-    static bool CheckFormatCompatible(xziar::img::TextureFormat format);
+    [[nodiscard]] static bool CheckFormatCompatible(xziar::img::TextureFormat format);
 };
 
 class OCLUAPI oclImage2D_ : public oclImage_ 

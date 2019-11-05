@@ -154,10 +154,10 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
 
     fntLog().verbose(u"prepare start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
     timer.Start(); 
-    auto inputBuf = oclBuffer_::Create(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::UseHost, buffer1.GetSize(), buffer1.GetRawPtr());
-    auto infoBuf = oclBuffer_::Create(clCtx, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, finfos.size() * sizeof(FontInfo), finfos.data());
+    auto inputBuf  = oclBuffer_::Create(clCtx, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::UseHost,  buffer1.GetSize(), buffer1.GetRawPtr());
+    auto infoBuf   = oclBuffer_::Create(clCtx, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::HostCopy, finfos.size() * sizeof(FontInfo), finfos.data());
     common::AlignedBuffer buffer2(fontCount * fontCount * fontsizelim / 4 * fontsizelim / 4 * sizeof(uint8_t), 4096);
-    auto outputBuf = oclBuffer_::Create(clCtx, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, buffer2.GetSize(), buffer2.GetRawPtr());
+    auto outputBuf = oclBuffer_::Create(clCtx, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost,  buffer2.GetSize(), buffer2.GetRawPtr());
     timer.Stop();
     fntLog().verbose(u"prepare cost {} us\n", timer.ElapseUs());
     if (true)

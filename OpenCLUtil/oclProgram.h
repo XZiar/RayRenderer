@@ -97,7 +97,7 @@ private:
             static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
             return SetArg(idx, &dat, sizeof(T));
         }
-        [[nodiscard]] common::PromiseResult<void> Run(const uint8_t dim, oclPromiseStub pmss,
+        [[nodiscard]] common::PromiseResult<void> Run(const uint8_t dim, const common::PromiseStub& pmss,
             const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
     };
 
@@ -130,7 +130,7 @@ private:
             InitArg<sizeof...(Args) - 1>();
         }
     public:
-        [[nodiscard]] common::PromiseResult<void> operator()(oclPromiseStub pmss,
+        [[nodiscard]] common::PromiseResult<void> operator()(const common::PromiseStub& pmss,
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
             return Run(N, pmss, que, worksize, workoffset, CheckLocalSize(localsize));
@@ -138,7 +138,7 @@ private:
         [[nodiscard]] common::PromiseResult<void> operator()(
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Run(N, common::PromiseResult<void>{}, que, worksize, workoffset, CheckLocalSize(localsize));
+            return Run(N, {}, que, worksize, workoffset, CheckLocalSize(localsize));
         }
     };
 public:

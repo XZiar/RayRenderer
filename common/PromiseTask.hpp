@@ -152,4 +152,77 @@ inline constexpr void EnsurePromiseResult()
 }
 
 
+class [[nodiscard]] PromiseStub : public NonCopyable
+{
+private:
+    std::variant<
+        std::monostate,
+        std::reference_wrapper<const common::PromiseResult<void>>,
+        std::reference_wrapper<const std::vector<common::PromiseResult<void>>>,
+        std::reference_wrapper<const std::initializer_list<common::PromiseResult<void>>>,
+        std::vector<std::shared_ptr<detail::PromiseResultCore>>
+    > Promises;
+public:
+    constexpr PromiseStub() noexcept : Promises() { }
+    constexpr PromiseStub(const common::PromiseResult<void>& promise) noexcept :
+        Promises(promise) { }
+    constexpr PromiseStub(const std::vector<common::PromiseResult<void>>& promises) noexcept :
+        Promises(promises) { }
+    constexpr PromiseStub(const std::initializer_list<common::PromiseResult<void>>& promises) noexcept :
+        Promises(promises) { }
+    template<typename... Args>
+    constexpr PromiseStub(const common::PromiseResult<Args>&... promises) noexcept
+    {
+        static_assert(sizeof...(Args) > 0, "should atleast give 1 argument");
+        std::vector<std::shared_ptr<detail::PromiseResultCore>> pmss;
+        pmss.reserve(sizeof...(Args));
+        (pmss.push_back(promises), ...);
+    }
+
+    constexpr size_t size() const noexcept
+    {
+        switch (Promises.index())
+        {
+        case 0: return 0;
+        case 1: return 1;
+        case 2: return std::get<2>(Promises).get().size();
+        case 3: return std::get<3>(Promises).get().size();
+        case 4: return std::get<4>(Promises)      .size();
+        default:return 0;
+        }
+    }
+
+    template<typename T>
+    constexpr std::vector<std::shared_ptr<T>> FilterOut() const noexcept
+    {
+        std::vector<std::shared_ptr<T>> ret;
+        switch (Promises.index())
+        {
+        case 1:
+            if (auto pms = std::dynamic_pointer_cast<T>(std::get<1>(Promises).get()); pms)
+                ret.push_back(pms);
+            break;
+        case 2:
+            for (const auto& pms : std::get<2>(Promises).get())
+                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
+                    ret.push_back(pms2);
+            break;
+        case 3:
+            for (const auto& pms : std::get<3>(Promises).get())
+                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
+                    ret.push_back(pms2);
+            break;
+        case 4:
+            for (const auto& pms : std::get<4>(Promises))
+                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
+                    ret.push_back(pms2);
+            break;
+        default:
+            break;
+        }
+        return ret;
+    }
+};
+
+
 }

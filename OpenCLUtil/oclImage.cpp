@@ -215,7 +215,7 @@ size_t oclImage_::CalculateSize() const
     return Width * Height * Depth * TexFormatUtil::BitPerPixel(Format) / 8;
 }
 
-PromiseResult<void> oclImage_::ReadSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<std::byte> buf) const
+PromiseResult<void> oclImage_::ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf) const
 {
     Expects(CalculateSize() <= size_t(buf.size())); // write size not sufficient
 
@@ -230,7 +230,7 @@ PromiseResult<void> oclImage_::ReadSpan(oclPromiseStub pmss, const oclCmdQue& qu
     return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-PromiseResult<Image> oclImage_::Read(oclPromiseStub pmss, const oclCmdQue& que) const
+PromiseResult<Image> oclImage_::Read(const common::PromiseStub& pmss, const oclCmdQue& que) const
 {
     Image img(xziar::img::TexFormatUtil::ToImageDType(Format, true));
     img.SetSize(Width, Height*Depth);
@@ -245,7 +245,7 @@ PromiseResult<Image> oclImage_::Read(oclPromiseStub pmss, const oclCmdQue& que) 
     return oclPromise<Image>::Create(std::move(clpmss), e, que, std::move(img));
 }
 
-PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(oclPromiseStub pmss, const oclCmdQue& que) const
+PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const common::PromiseStub& pmss, const oclCmdQue& que) const
 {
     common::AlignedBuffer buffer(CalculateSize());
     constexpr size_t origin[3] = { 0,0,0 };
@@ -259,7 +259,7 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(oclPromiseStub pmss, con
     return oclPromise<common::AlignedBuffer>::Create(std::move(clpmss), e, que, std::move(buffer));
 }
 
-PromiseResult<void> oclImage_::WriteSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<const std::byte> buf) const
+PromiseResult<void> oclImage_::WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf) const
 {
     Expects(CalculateSize() < size_t(buf.size())); // write size not sufficient
 
@@ -274,7 +274,7 @@ PromiseResult<void> oclImage_::WriteSpan(oclPromiseStub pmss, const oclCmdQue& q
     return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-PromiseResult<void> oclImage_::Write(oclPromiseStub pmss, const oclCmdQue& que, const ImageView image) const
+PromiseResult<void> oclImage_::Write(const common::PromiseStub& pmss, const oclCmdQue& que, const ImageView image) const
 {
     Expects(image.GetWidth()    == Width); // write image size mismatch
     Expects(image.GetHeight()   == Height * Depth); // write image size mismatch

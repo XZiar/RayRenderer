@@ -83,18 +83,19 @@ void TexMipmap::Test()
             src.GetRawPtr<uint32_t>()[i] = i | 0xff000000u;
     }
     auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostWriteOnly, src.GetSize());
-    inBuf->WriteSpan(CmdQue, src.AsSpan());
+    auto pmsIn = inBuf->WriteSpan(CmdQue, src.AsSpan());
     auto midBuf  = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess,  src.GetSize() / 2);
     auto mid2Buf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess,  src.GetSize() / 8);
     auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly,  src.GetSize() / 4);
     auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly  | MemFlag::HostWriteOnly, sizeof(Info) * 2);
     Info info[]{ {src.GetWidth(),src.GetHeight()}, {src.GetWidth() / 2, src.GetHeight() / 2} };
-    infoBuf->Write(CmdQue, info);
-    const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)(CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
+    auto pmsInfo = infoBuf->Write(CmdQue, info);
+    const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)
+        ({ pmsIn, pmsInfo }, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms->Wait();
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->ReadSpan(CmdQue, dst.AsSpan());
+    outBuf->ReadSpan(CmdQue, dst.AsSpan())->Wait();
     WriteImage(dst, common::fs::temp_directory_path() / u"dst.png");
 
 
@@ -109,11 +110,12 @@ void TexMipmap::Test()
     */
 
 
-    const auto pms3 = DownsampleRaw->Call<2>(inBuf, infoBuf, (uint8_t)0, outBuf)(pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
+    const auto pms3 = DownsampleRaw->Call<2>(inBuf, infoBuf, (uint8_t)0, outBuf)
+        (pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
     pms3->Wait();
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->ReadSpan(CmdQue, dst3.AsSpan());
+    outBuf->ReadSpan(CmdQue, dst3.AsSpan())->Wait();
     WriteImage(dst3, common::fs::temp_directory_path() / u"dst_.png");
     //getchar();
 }
@@ -156,35 +158,35 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
     {
         return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            const auto bytes = common::linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
+            const auto bytes = common::linq::FromIterable(infos)
+                .Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
-            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
-            auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
-            auto midBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess, src.GetSize() / 2);
-            auto outBuf = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
+            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
+            auto inBuf   = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+            auto midBuf  = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostNoAccess                    , src.GetSize() / 2);
+            auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost , mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
-            vector<PromiseResult<void>> pmss;
+            PromiseResult<void> pms;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
                 images.emplace_back(mainBuf.CreateSubBuffer(offset, info.SrcWidth * info.SrcHeight), info.SrcWidth / 2, info.SrcHeight / 2, ImageDataType::RGBA);
                 offset += info.SrcWidth * info.SrcHeight;
-                PromiseResult<void> pms;
                 if (idx == 0)
                 {
-                    pms = DownsampleSrc->Call<2>(inBuf, infoBuf, idx, midBuf, outBuf)(CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
+                    pms = DownsampleSrc->Call<2>(inBuf, infoBuf, idx, midBuf, outBuf)
+                        (CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
                 }
                 else
                 {
                     pms = DownsampleMid->Call<2>((idx & 1) == 0 ? inBuf : midBuf, infoBuf, idx, (idx & 1) == 0 ? midBuf : inBuf, outBuf)
-                        (pmss.back(), CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
+                        (pms, CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
                 }
-                pmss.push_back(pms);
             }
-            agent.Await(pmss.back());
-            const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            agent.Await(pms);
+            const uint64_t totalTime = pms->ChainedElapseNs();
             outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
@@ -194,29 +196,26 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
     {
         return Worker->AddTask([this, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent)
         {
-            const auto bytes = common::linq::FromIterable(infos).Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
+            const auto bytes = common::linq::FromIterable(infos)
+                .Reduce([](uint32_t& sum, const Info& info) { sum += info.SrcWidth * info.SrcHeight; }, 0u);
             common::AlignedBuffer mainBuf(bytes, 4096);
             vector<Image> images;
-            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
-            auto inBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
-            auto outBuf = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost, mainBuf.GetSize(), mainBuf.GetRawPtr());
+            auto infoBuf = oclBuffer_::Create(CLContext, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::HostCopy, sizeof(Info) * infos.size(), infos.data());
+            auto inBuf   = oclBuffer_::Create(CLContext, MemFlag::ReadOnly  | MemFlag::HostNoAccess | MemFlag::HostCopy, src.GetSize(), src.GetRawPtr());
+            auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost,  mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
-            vector<PromiseResult<void>> pmss;
+            PromiseResult<void> pms;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
                 images.emplace_back(mainBuf.CreateSubBuffer(offset, info.SrcWidth * info.SrcHeight), info.SrcWidth / 2, info.SrcHeight / 2, ImageDataType::RGBA);
                 offset += info.SrcWidth * info.SrcHeight;
-                PromiseResult<void> prev;
-                if (!pmss.empty()) 
-                    prev = pmss.back();
-                const auto pms = DownsampleRaw->Call<2>(idx == 0 ? inBuf : outBuf, infoBuf, idx, outBuf)
-                    (prev, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY });
-                pmss.push_back(pms);
+                pms = DownsampleRaw->Call<2>(idx == 0 ? inBuf : outBuf, infoBuf, idx, outBuf)
+                    (pms, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY });
             }
-            agent.Await(pmss.back());
-            const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
+            agent.Await(pms);
+            const uint64_t totalTime = pms->ChainedElapseNs();
             outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
