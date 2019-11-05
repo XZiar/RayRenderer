@@ -185,7 +185,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
             }
             agent.Await(pmss.back());
             const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
-            outBuf->Map(CmdQue, oclu::MapFlag::Read);
+            outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });
@@ -217,7 +217,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
             }
             agent.Await(pmss.back());
             const uint64_t totalTime = common::linq::FromIterable(pmss).Select([](const auto& pms) { return pms->ElapseNs(); }).Sum((uint64_t)0);
-            outBuf->Map(CmdQue, oclu::MapFlag::Read);
+            outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
         });

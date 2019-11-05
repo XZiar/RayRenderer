@@ -6,7 +6,6 @@
 #include "oclBuffer.h"
 #include "oclImage.h"
 #include "common/FileBase.hpp"
-#include "common/ContainerHelper.hpp"
 
 
 
@@ -69,7 +68,7 @@ private:
     mutable common::SpinLocker ArgLock;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
     template<size_t N>
-    constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
+    [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
     {
         for (size_t i = 0; i < N; ++i)
             if (localsize[i] != 0)
@@ -89,9 +88,8 @@ private:
         template<typename T>
         void SetSpanArg(const uint32_t idx, const T& dat) const
         {
-            using Helper = common::container::ContiguousHelper<T>;
-            static_assert(Helper::IsContiguous, "Only accept contiguous type");
-            return SetArg(idx, Helper::Data(dat), Helper::Count(dat) * Helper::EleSize);
+            const auto space = common::as_bytes(common::to_span(dat));
+            return SetArg(idx, space.data(), space.size());
         }
         template<typename T>
         void SetSimpleArg(const uint32_t idx, const T& dat) const
@@ -99,12 +97,12 @@ private:
             static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
             return SetArg(idx, &dat, sizeof(T));
         }
-        common::PromiseResult<void> Run(const uint8_t dim, const std::vector<common::PromiseResult<void>>& pms,
+        [[nodiscard]] common::PromiseResult<void> Run(const uint8_t dim, oclPromiseStub pmss,
             const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
     };
 
     template<uint8_t N, typename... Args>
-    class KernelCallSite : protected CallSiteInternal
+    class [[nodiscard]] KernelCallSite : protected CallSiteInternal
     {
         friend class oclKernel_;
     private:
@@ -118,7 +116,7 @@ private:
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
             if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
                 SetArg(Idx, *std::get<Idx>(Paras));
-            else if constexpr (common::container::ContiguousHelper<ArgType>::IsContiguous)
+            else if constexpr (common::CanToSpan<ArgType>)
                 SetSpanArg(Idx, std::get<Idx>(Paras));
             else
                 SetSimpleArg(Idx, std::get<Idx>(Paras));
@@ -132,19 +130,15 @@ private:
             InitArg<sizeof...(Args) - 1>();
         }
     public:
-        common::PromiseResult<void> operator()(const std::vector<common::PromiseResult<void>>& pms,
+        [[nodiscard]] common::PromiseResult<void> operator()(oclPromiseStub pmss,
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Run(N, pms, que, worksize, workoffset, CheckLocalSize(localsize));
+            return Run(N, pmss, que, worksize, workoffset, CheckLocalSize(localsize));
         }
-        common::PromiseResult<void> operator()(const common::PromiseResult<void>& pms, 
+        [[nodiscard]] common::PromiseResult<void> operator()(
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
-            return Run(N, std::vector<common::PromiseResult<void>>{ pms }, que, worksize, workoffset, CheckLocalSize(localsize));
-        }
-        common::PromiseResult<void> operator()(const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
-        {
-            return Run(N, std::vector<common::PromiseResult<void>>{}, que, worksize, workoffset, CheckLocalSize(localsize));
+            return Run(N, common::PromiseResult<void>{}, que, worksize, workoffset, CheckLocalSize(localsize));
         }
     };
 public:
@@ -152,16 +146,16 @@ public:
     std::vector<KernelArgInfo> ArgsInfo;
     ~oclKernel_();
 
-    WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev) const;
-    std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize) const;
+    [[nodiscard]] WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev) const;
+    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize) const;
     template<uint8_t N>
-    std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const size_t(&localsize)[N]) const
+    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const size_t(&localsize)[N]) const
     {
         static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
         return GetSubgroupInfo(dev, N, localsize);
     }
     template<uint8_t N, typename... Args>
-    auto Call(Args&&... args) const
+    [[nodiscard]] auto Call(Args&&... args) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         if (sizeof...(Args) != ArgsInfo.size())
@@ -194,10 +188,10 @@ private:
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
     common::container::FrozenDenseSet<cl_device_id> DeviceIDs;
 
-    static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
-    static std::u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
-    static std::u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
-    class OCLUAPI oclProgStub : public common::NonCopyable
+    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
+    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
+    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
+    class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
     {
         friend class oclProgram_;
     private:
@@ -209,22 +203,22 @@ private:
         ~oclProgStub();
         void Build(const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
         void Build(const CLProgConfig& config, const oclDevice dev) { Build(config, std::vector<oclDevice>{ dev }); }
-        std::u16string GetBuildLog(const oclDevice& dev) const { return GetProgBuildLog(ProgID, dev->DeviceID); }
-        oclProgram Finish();
+        [[nodiscard]] std::u16string GetBuildLog(const oclDevice& dev) const { return GetProgBuildLog(ProgID, dev->DeviceID); }
+        [[nodiscard]] oclProgram Finish();
     };
     oclProgram_(oclProgStub* stub);
 public:
     ~oclProgram_();
-    oclKernel GetKernel(const std::string_view& name) const;
-    auto GetKernels() const
+    [[nodiscard]] oclKernel GetKernel(const std::string_view& name) const;
+    [[nodiscard]] auto GetKernels() const
     {
         return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);
     }
-    const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
-    std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Context, DeviceIDs); }
+    [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
+    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Context, DeviceIDs); }
 
-    static oclProgStub Create(const oclContext& ctx, const std::string& str);
-    static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
+    [[nodiscard]] static oclProgStub Create(const oclContext& ctx, const std::string& str);
+    [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
 };
 
 

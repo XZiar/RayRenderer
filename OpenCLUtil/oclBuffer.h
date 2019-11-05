@@ -53,7 +53,7 @@ public:
         return WriteSpan(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset, shouldBlock);
     }
 
-    static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
+    [[nodiscard]] static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };
 
 

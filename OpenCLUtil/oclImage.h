@@ -48,16 +48,35 @@ protected:
 public:
     virtual ~oclImage_();
 
-    common::PromiseResult<void> ReadSpan(const oclCmdQue que, common::span<std::byte> buf, const bool shouldBlock = true) const;
-    common::PromiseResult<void> Read(const oclCmdQue que, xziar::img::Image& image, const bool shouldBlock = true) const;
-    common::PromiseResult<xziar::img::Image> Read(const oclCmdQue que) const;
-    common::PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue que) const;
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<std::byte> buf) const;
+    [[nodiscard]] common::PromiseResult<xziar::img::Image> Read(oclPromiseStub pmss, const oclCmdQue& que) const;
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> ReadRaw(oclPromiseStub pmss, const oclCmdQue& que) const;
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf) const
+    {
+        return ReadSpan({}, que, buf);
+    }
+    [[nodiscard]] common::PromiseResult<xziar::img::Image> Read(const oclCmdQue& que) const
+    {
+        return Read({}, que);
+    }
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> ReadRaw(const oclCmdQue& que) const
+    {
+        return ReadRaw({}, que);
+    }
 
-    common::PromiseResult<void> WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock = true) const;
-    common::PromiseResult<void> Write(const oclCmdQue que, const xziar::img::ImageView image, const bool shouldBlock = true) const;
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<const std::byte> buf) const;
+    [[nodiscard]] common::PromiseResult<void> Write(oclPromiseStub pmss, const oclCmdQue& que, const xziar::img::ImageView image) const;
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const oclCmdQue& que, common::span<const std::byte> buf) const
+    {
+        return WriteSpan({}, que, buf);
+    }
+    [[nodiscard]] common::PromiseResult<void> Write(const oclCmdQue& que, const xziar::img::ImageView image) const
+    {
+        return Write({}, que, image);
+    }
 
-    std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
-    xziar::img::TextureFormat GetFormat() const { return Format; }
+    [[nodiscard]] std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Depth }; }
+    [[nodiscard]] xziar::img::TextureFormat GetFormat() const { return Format; }
 
     static bool CheckFormatCompatible(xziar::img::TextureFormat format);
 };
@@ -71,12 +90,12 @@ protected:
 public:
     using oclImage_::Width; using oclImage_::Height;
 
-    static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr = nullptr);
-    static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
+    [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr = nullptr);
+    [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
     {
         return Create(ctx, flag, width, height, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized));
     }
-    static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const xziar::img::Image& image, const bool isNormalized = true)
+    [[nodiscard]] static oclImg2D Create(const oclContext& ctx, const MemFlag flag, const xziar::img::Image& image, const bool isNormalized = true)
     {
         return Create(ctx, flag, image.GetWidth(), image.GetHeight(), xziar::img::TexFormatUtil::FromImageDType(image.GetDataType(), isNormalized), image.GetRawPtr());
     }
@@ -91,8 +110,8 @@ protected:
 public:
     using oclImage_::Width; using oclImage_::Height; using oclImage_::Depth;
     
-    static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr = nullptr);
-    static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
+    [[nodiscard]] static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr = nullptr);
+    [[nodiscard]] static oclImg3D Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::ImageDataType dtype, const bool isNormalized = true)
     {
         return Create(ctx, flag, width, height, depth, xziar::img::TexFormatUtil::FromImageDType(dtype, isNormalized));
     }

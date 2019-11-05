@@ -194,22 +194,17 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const std::vector<common::PromiseResult<void>>& pmss,
+PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, oclPromiseStub pmss,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     cl_int ret;
     cl_event e;
-    std::vector<cl_event> evts; evts.reserve(pmss.size());
-    std::vector<std::shared_ptr<oclPromiseCore>> clpmss; clpmss.reserve(pmss.size());
-    for (const auto pms : pmss)
-        if (auto clpms = std::dynamic_pointer_cast<oclPromise<void>>(pms); clpms)
-            clpmss.push_back(clpms), evts.push_back(clpms->GetEvent());
-    cl_uint ecount = static_cast<cl_uint>(evts.size());
-    const cl_event* depend = ecount == 0 ? nullptr : &evts.front();
-    ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, ecount, depend, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
-    return oclPromise<void>::Create(clpmss, e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
 

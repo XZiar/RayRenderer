@@ -170,7 +170,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         pms->Wait();
         timer.Stop();
         fntLog().verbose(u"OpenCl [sdfGray4] cost {}us ({}us by OCL)\n", timer.ElapseUs(), pms->ElapseNs() / 1000);
-        outputBuf->Map(clQue, oclu::MapFlag::Read);
+        outputBuf->Flush(clQue);
 
         fntLog().verbose(u"post-merging start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
         timer.Start();
@@ -215,7 +215,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             kerDownSamp->Call<1>(infoBuf, middleBuf, outputBuf)(clQue, worksize, localsize)->Wait();
             timer.Stop();
             fntLog().verbose(u"OpenCl[clDownSampler] cost {} us\n", timer.ElapseUs());
-            outputBuf->Map(clQue, oclu::MapFlag::Read);
+            outputBuf->Flush(clQue);
 
             fntLog().verbose(u"post-merging start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();

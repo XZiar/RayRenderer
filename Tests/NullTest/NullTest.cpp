@@ -53,11 +53,10 @@ void TestStacktrace()
     }
 }
 
-
+std::variant<int&, std::vector<int>&> ll;
 
 int main()
 {
-
     printf("\n\n");
 
     TestStacktrace();

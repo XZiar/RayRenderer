@@ -26,7 +26,7 @@ enum class MemFlag : cl_mem_flags
 };
 MAKE_ENUM_BITFIELD(MemFlag)
 
-constexpr MemFlag AddMemHostCopyFlag(const MemFlag flag, const void* ptr)
+[[nodiscard]] constexpr MemFlag AddMemHostCopyFlag(const MemFlag flag, const void* ptr)
 {
     if (ptr != nullptr && (flag & MemFlag::UseHost) == MemFlag::Empty)
         return flag | MemFlag::HostCopy;
@@ -70,7 +70,8 @@ protected:
     virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
 public:
     virtual ~oclMem_();
-    oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);
+    [[nodiscard]] oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);
+    void Flush(const oclCmdQue& que);
 };
 
 
@@ -84,10 +85,10 @@ private:
     oclMapPtr(oclMem mem, std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept : Mem(mem), Ptr(std::move(ptr)) { }
 public:
     constexpr oclMapPtr() noexcept {}
-    common::span<std::byte> Get() const noexcept;
+    [[nodiscard]] common::span<std::byte> Get() const noexcept;
     template<typename T>
-    common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
-    common::AlignedBuffer AsBuffer() const noexcept;
+    [[nodiscard]] common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
+    [[nodiscard]] common::AlignedBuffer AsBuffer() const noexcept;
 };
 
 

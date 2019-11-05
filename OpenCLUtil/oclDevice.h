@@ -36,9 +36,9 @@ public:
     bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     DeviceType Type;
 
-    std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
+    [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
 
-    static std::u16string_view GetDeviceTypeName(const DeviceType type);
+    [[nodiscard]] static std::u16string_view GetDeviceTypeName(const DeviceType type);
 };
 
 

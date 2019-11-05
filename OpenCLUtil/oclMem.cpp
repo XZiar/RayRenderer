@@ -69,6 +69,18 @@ oclMapPtr oclMem_::Map(oclCmdQue que, const MapFlag mapFlag)
     return oclMapPtr(shared_from_this(), MAKE_ENABLER_SHARED(const oclMapPtr_, (std::move(que), this, mapFlag)));
 }
 
+void oclMem_::Flush(const oclCmdQue& que)
+{
+    if (HAS_FIELD(Flag, MemFlag::UseHost))
+    {
+        [[maybe_unused]] const auto dummy = Map(que, MapFlag::Read);
+    }
+    else
+    {
+        que->Flush();
+    }
+}
+
 //oclMapPtr oclMem_::PersistMap(const oclCmdQue& que)
 //{
 //    MapFlag mapFlag;

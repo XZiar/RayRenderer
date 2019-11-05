@@ -12,11 +12,11 @@ class OCLUAPI oclUtil
 {
     friend class GLInterop;
 private:
-    static common::mlog::MiniLogger<false>& GetOCLLog();
+    [[nodiscard]] static common::mlog::MiniLogger<false>& GetOCLLog();
 public:
     static void LogCLInfo();
-    static const std::vector<oclPlatform>& GetPlatforms();
-    static std::u16string_view GetErrorString(const cl_int err);
+    [[nodiscard]] static const std::vector<oclPlatform>& GetPlatforms();
+    [[nodiscard]] static std::u16string_view GetErrorString(const cl_int err);
 };
 
 }

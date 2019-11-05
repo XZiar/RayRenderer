@@ -215,71 +215,66 @@ size_t oclImage_::CalculateSize() const
     return Width * Height * Depth * TexFormatUtil::BitPerPixel(Format) / 8;
 }
 
-PromiseResult<void> oclImage_::ReadSpan(const oclCmdQue que, common::span<std::byte> buf, const bool shouldBlock) const
+PromiseResult<void> oclImage_::ReadSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<std::byte> buf) const
 {
     Expects(CalculateSize() <= size_t(buf.size())); // write size not sufficient
 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, buf.data(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    if (shouldBlock)
-        return {};
-    else
-        return oclPromise<void>::Create(e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-PromiseResult<void> oclImage_::Read(const oclCmdQue que, Image& image, const bool shouldBlock) const
-{
-    image = Image(xziar::img::TexFormatUtil::ToImageDType(Format, true));
-    image.SetSize(Width, Height*Depth);
-    return oclImage_::ReadSpan(que, image.AsSpan(), shouldBlock);
-}
-
-PromiseResult<Image> oclImage_::Read(const oclCmdQue que) const
+PromiseResult<Image> oclImage_::Read(oclPromiseStub pmss, const oclCmdQue& que) const
 {
     Image img(xziar::img::TexFormatUtil::ToImageDType(Format, true));
     img.SetSize(Width, Height*Depth);
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return oclPromise<Image>::Create(e, que, std::move(img));
+    return oclPromise<Image>::Create(std::move(clpmss), e, que, std::move(img));
 }
 
-PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const oclCmdQue que) const
+PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(oclPromiseStub pmss, const oclCmdQue& que) const
 {
     common::AlignedBuffer buffer(CalculateSize());
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
-    return oclPromise<common::AlignedBuffer>::Create(e, que, std::move(buffer));
+    return oclPromise<common::AlignedBuffer>::Create(std::move(clpmss), e, que, std::move(buffer));
 }
 
-PromiseResult<void> oclImage_::WriteSpan(const oclCmdQue que, common::span<const std::byte> buf, const bool shouldBlock) const
+PromiseResult<void> oclImage_::WriteSpan(oclPromiseStub pmss, const oclCmdQue& que, common::span<const std::byte> buf) const
 {
     Expects(CalculateSize() < size_t(buf.size())); // write size not sufficient
 
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, buf.data(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
-    if (shouldBlock)
-        return {};
-    else
-        return oclPromise<void>::Create(e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image, const bool shouldBlock) const
+PromiseResult<void> oclImage_::Write(oclPromiseStub pmss, const oclCmdQue& que, const ImageView image) const
 {
     Expects(image.GetWidth()    == Width); // write image size mismatch
     Expects(image.GetHeight()   == Height * Depth); // write image size mismatch
@@ -289,13 +284,12 @@ PromiseResult<void> oclImage_::Write(const oclCmdQue que, const ImageView image,
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, shouldBlock ? CL_TRUE : CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 0, nullptr, &e);
+    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
+    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
-    if (shouldBlock)
-        return {};
-    else
-        return oclPromise<void>::Create(e, que);
+    return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)

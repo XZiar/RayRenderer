@@ -37,9 +37,9 @@ public:
     ~oclCmdQue_();
     void Flush() const;
     void Finish() const;
-    bool SupportImplicitGLSync() const { return Device->SupportImplicitGLSync; }
+    [[nodiscard]] bool SupportImplicitGLSync() const { return Device->SupportImplicitGLSync; }
 
-    static oclCmdQue Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling = true, const bool enableOutOfOrder = false);
+    [[nodiscard]] static oclCmdQue Create(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling = true, const bool enableOutOfOrder = false);
 };
 
 }

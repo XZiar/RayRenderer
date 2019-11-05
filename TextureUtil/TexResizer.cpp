@@ -286,7 +286,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
         auto pms = ker->Call<2>(img, outBuf, 1u, info)(CmdQue, worksize);
         agent.Await(common::PromiseResult<void>(pms));
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
-        outBuf->Map(CmdQue, oclu::MapFlag::Read);
+        outBuf->Flush(CmdQue);
         outBuf.reset();
         Image result(std::move(buffer), width, height, HAS_FIELD(output, ImageDataType::ALPHA_MASK) ? ImageDataType::RGBA : ImageDataType::RGB);
         if (flipY)

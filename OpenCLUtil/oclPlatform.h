@@ -35,12 +35,12 @@ private:
 public:
     std::u16string Name, Ver;
     Vendors PlatVendor;
-    std::vector<oclDevice> GetDevices() const;
-    const common::container::FrozenDenseSet<std::string>& GetExtensions() const { return Extensions; }
-    oclDevice GetDefaultDevice() const { return DefDevice; }
-    oclContext CreateContext(const std::vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
-    oclContext CreateContext(oclDevice dev) const { return CreateContext(std::vector<oclDevice>{ dev }); }
-    oclContext CreateContext() const;
+    [[nodiscard]] std::vector<oclDevice> GetDevices() const;
+    [[nodiscard]] const common::container::FrozenDenseSet<std::string>& GetExtensions() const { return Extensions; }
+    [[nodiscard]] oclDevice GetDefaultDevice() const { return DefDevice; }
+    [[nodiscard]] oclContext CreateContext(const std::vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
+    [[nodiscard]] oclContext CreateContext(oclDevice dev) const { return CreateContext(std::vector<oclDevice>{ dev }); }
+    [[nodiscard]] oclContext CreateContext() const;
 };
 
 

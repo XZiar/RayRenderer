@@ -28,11 +28,11 @@ private:
     oclContext_(std::shared_ptr<const oclPlatform_> plat, std::vector<cl_context_properties> props, const std::vector<oclDevice>& devices);
 public:
     ~oclContext_();
-    std::u16string GetPlatformName() const;
-    Vendors GetVendor() const;
-    oclDevice GetGPUDevice() const;
+    [[nodiscard]] std::u16string GetPlatformName() const;
+    [[nodiscard]] Vendors GetVendor() const;
+    [[nodiscard]] oclDevice GetGPUDevice() const;
     void SetDebugResource(const bool shouldEnable) const;
-    bool ShouldDebugResurce() const;
+    [[nodiscard]] bool ShouldDebugResurce() const;
 
 private:
     const std::shared_ptr<const oclPlatform_> Plat;
