@@ -140,7 +140,7 @@ ifeq ($(BUILD_TYPE), static)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
 	$(eval $@_bcmd := $(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS))
-	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
+	$(call BuildProgress,link   ,  lib, $(APP), $($@_bcmd))
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"

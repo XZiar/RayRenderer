@@ -5,6 +5,16 @@
 #include "oglContext.h"
 #include "oglBuffer.h"
 
+#if COMMON_OS_WIN
+#   include "GL/wglext.h"
+#elif COMMON_OS_UNIX
+#   include "glew/glxew.h"
+#   include "GL/glxext.h"
+#else
+#   error "unknown os"
+#endif
+
+
 namespace oglu
 {
 
@@ -32,12 +42,6 @@ static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
 
 extern GLuint GetCurFBO();
 
-static void GLAPIENTRY ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index)
-{
-    glBindVertexArray(vaobj);
-    glEnableVertexAttribArray(index);
-    glBindVertexArray(0);
-}
 
 static void GLAPIENTRY ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures)
 {
@@ -342,12 +346,76 @@ static void GLAPIENTRY ogluMultiDrawElementsIndirectI(GLenum mode, GLenum type, 
     }
 }
 
+template<typename T>
+static forceinline T QueryFunc_(const std::string_view name)
+{
+#if COMMON_OS_WIN
+    return reinterpret_cast<T>(wglGetProcAddress(name.data()));
+#else 
+    return reinterpret_cast<T>(glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data())));
+#endif
+}
+template<typename T>
+[[nodiscard]] static forceinline T QueryFunc_(const T func)
+{
+    return func;
+}
+
+template<typename T, typename Arg, typename... Args>
+static forceinline void QueryFunc(T& target, const Arg& arg, const Args&... args)
+{
+    const auto ret = QueryFunc_<T>(arg);
+    if constexpr (sizeof...(Args) == 0)
+        target = ret;
+    else
+    {
+        if (ret != nullptr)
+            target = ret;
+        else
+            QueryFunc(target, args...);
+    }
+}
+
+
+
 void InitDSAFuncs(DSAFuncs& dsa)
 {
-    dsa.ogluNamedBufferData = DecideFunc(glNamedBufferData, glNamedBufferDataEXT);
-    dsa.ogluMapNamedBuffer = DecideFunc(glMapNamedBuffer, glMapNamedBufferEXT);
-    dsa.ogluUnmapNamedBuffer = DecideFunc(glUnmapNamedBuffer, glUnmapNamedBufferEXT);
-    dsa.ogluEnableVertexArrayAttrib = DecideFunc(glEnableVertexArrayAttrib, glEnableVertexArrayAttribEXT, &ogluEnableVertexArrayAttrib);
+#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) "gl" name sfx
+#define WITH_SUFFIXS(name, ...) BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
+#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(dsa.oglu, name),          WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(dsa.oglu, name),_), WITH_SUFFIXS(#name, __VA_ARGS__))
+
+    // buffer related
+    QUERY_FUNC (GenBuffers,                 "", "ARB");
+    QUERY_FUNC (DeleteBuffers,              "", "ARB");
+    QUERY_FUNC (BufferStorage,              "", "EXT");
+    QUERY_FUNC (BindBuffer,                 "", "ARB");
+    QUERY_FUNC (BufferData,                 "", "ARB");
+    QUERY_FUNC (BufferSubData,              "", "ARB");
+    QUERY_FUNC (MapBuffer,                  "", "ARB");
+    QUERY_FUNC (UnmapBuffer,                "", "ARB");
+    QUERY_FUNC (BindBufferBase,             "", "EXT", "NV");
+    QUERY_FUNC (BindBufferRange,            "", "EXT", "NV");
+    QUERY_FUNC_(NamedBufferStorage,         "", "EXT");
+    QUERY_FUNC_(NamedBufferData,            "", "EXT");
+    QUERY_FUNC_(NamedBufferSubData,         "", "EXT");
+    QUERY_FUNC_(MapNamedBuffer,             "", "EXT");
+    QUERY_FUNC_(UnmapNamedBuffer,           "", "EXT");
+
+    // vao related
+    QUERY_FUNC (GenVertexArrays,            "", "ARB");
+    QUERY_FUNC (DeleteVertexArrays,         "", "ARB");
+    QUERY_FUNC (BindVertexArray,            "", "ARB");
+    QUERY_FUNC (EnableVertexAttribArray,    "", "ARB");
+    QUERY_FUNC_(EnableVertexArrayAttrib,    "", "EXT");
+    QUERY_FUNC_(VertexAttribIPointer,       "", "ARB");
+    QUERY_FUNC_(VertexAttribLPointer,       "", "EXT");
+    QUERY_FUNC_(VertexAttribPointer,        "", "ARB");
+    QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
+    QUERY_FUNC (MultiDrawArrays,            "", "EXT");
+    QUERY_FUNC (MultiDrawElements,          "", "EXT");
+
 
     dsa.ogluCreateTextures = DecideFunc(glCreateTextures, &ogluCreateTextures);
     dsa.ogluGetTextureLevelParameteriv = DecideFunc(std::pair{ glGetTextureLevelParameteriv, &ogluGetTextureLevelParameterivARB }, glGetTextureLevelParameterivEXT);
@@ -380,6 +448,78 @@ void InitDSAFuncs(DSAFuncs& dsa)
 
     dsa.ogluMultiDrawArraysIndirect = DecideFunc(std::pair{ glMultiDrawArraysIndirect, &ogluMultiDrawArraysIndirect }, std::pair{ glDrawArraysInstancedBaseInstance, &ogluMultiDrawArraysIndirectIB }, &ogluMultiDrawArraysIndirectI);
     dsa.ogluMultiDrawElementsIndirect = DecideFunc(std::pair{ glMultiDrawElementsIndirect, &ogluMultiDrawElementsIndirect }, std::pair{ glDrawElementsInstancedBaseVertexBaseInstance, &ogluMultiDrawElementsIndirectIB }, &ogluMultiDrawElementsIndirectI);
+}
+
+#define CALL_EXISTS(func, ...)      \
+    if (func)                       \
+    { return func(__VA_ARGS__); }   \
+    else                            \
+
+
+void DSAFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
+{
+    CALL_EXISTS(ogluNamedBufferStorage_, buffer, size, data, flags)
+    {
+        DSA->ogluBindBuffer(target, buffer);
+        DSA->ogluBufferStorage(target, size, data, flags);
+    }
+}
+void DSAFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
+{
+    CALL_EXISTS(ogluNamedBufferData_, buffer, size, data, usage)
+    {
+        DSA->ogluBindBuffer(target, buffer);
+        DSA->ogluBufferData(target, size, data, usage);
+    }
+}
+void DSAFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
+{
+    CALL_EXISTS(ogluNamedBufferSubData_, buffer, offset, size, data)
+    {
+        DSA->ogluBindBuffer(target, buffer);
+        DSA->ogluBufferSubData(target, offset, size, data);
+    }
+}
+void* DSAFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
+{
+    CALL_EXISTS(ogluMapNamedBuffer_, buffer, access)
+    {
+        DSA->ogluBindBuffer(target, buffer);
+        return DSA->ogluMapBuffer(target, access);
+    }
+}
+GLboolean DSAFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
+{
+    CALL_EXISTS(ogluUnmapNamedBuffer_, buffer)
+    {
+        DSA->ogluBindBuffer(target, buffer);
+        return DSA->ogluUnmapBuffer(target);
+    }
+}
+
+void DSAFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
+{
+    CALL_EXISTS(ogluEnableVertexArrayAttrib_, vaobj, index)
+    {
+        ogluBindVertexArray(vaobj); // ensure be in binding
+        ogluEnableVertexAttribArray(index);
+        // ogluBindVertexArray(0); // may be in binding
+    }
+}
+void DSAFuncs::ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
+{
+    const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
+    ogluVertexAttribPointer_(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
+}
+void DSAFuncs::ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+{
+    const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
+    ogluVertexAttribIPointer_(index, size, type, stride, pointer);
+}
+void DSAFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+{
+    const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
+    ogluVertexAttribLPointer_(index, size, type, stride, pointer);
 }
 
 }

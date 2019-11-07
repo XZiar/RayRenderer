@@ -56,7 +56,7 @@ PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& 
     ScreenBox = oglu::oglArrayBuffer_::Create();
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
-    ScreenBox->Write(DatVert, sizeof(DatVert));
+    ScreenBox->WriteSpan(DatVert);
     PostShader = std::make_shared<GLShader>(u"PostProcess", postSrc);
     VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
     VAOScreen->Prepare()

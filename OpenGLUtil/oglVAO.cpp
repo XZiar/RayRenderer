@@ -32,22 +32,22 @@ void oglVAO_::VAOPrep::End() noexcept
     }
 }
 
-void oglVAO_::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void oglVAO_::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        glVertexAttribIPointer(attridx, size, valType, stride, (const void*)intptr_t(offset));
-        glVertexAttribDivisor(attridx, divisor);
+        DSA->ogluVertexAttribIPointer(attridx, size, valType, stride, offset);
+        DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }
-void oglVAO_::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor)
+void oglVAO_::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        glVertexAttribPointer(attridx, size, valType, isNormalize ? GL_TRUE : GL_FALSE, stride, (const void*)intptr_t(offset));
-        glVertexAttribDivisor(attridx, divisor);
+        DSA->ogluVertexAttribPointer(attridx, size, valType, isNormalize, stride, offset);
+        DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }
 
@@ -66,7 +66,7 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSize(const uint32_t offset, const uin
     if (vao.IndexBuffer)
     {
         vao.Method = DrawMethod::Index;
-        vao.Offsets = (void*)intptr_t(offset * vao.IndexBuffer->IndexSize);
+        vao.Offsets = (void*)uintptr_t(offset * vao.IndexBuffer->IndexSize);
     }
     else
     {
@@ -122,11 +122,11 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
 {
     oglVBO Construct() const
     {
-        std::vector<int32_t> ids(4096);
-        for (int32_t i = 0; i < 4096; ++i)
+        std::vector<uint32_t> ids(4096);
+        for (uint32_t i = 0; i < 4096; ++i)
             ids[i] = i;
         auto drawIdVBO = oglArrayBuffer_::Create();
-        drawIdVBO->Write(ids.data(), ids.size() * sizeof(int32_t));
+        drawIdVBO->WriteSpan(ids);
         oglLog().success(u"new DrawIdVBO generated.\n");
         return drawIdVBO;
     }
@@ -147,23 +147,23 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId(const std::shared_ptr<oglDrawProgr
 void oglVAO_::bind() const noexcept
 {
     CheckCurrent();
-    glBindVertexArray(VAOId);
+    DSA->ogluBindVertexArray(VAOId);
 }
 
 void oglVAO_::unbind() noexcept
 {
-    glBindVertexArray(0);
+    DSA->ogluBindVertexArray(0);
 }
 
 oglVAO_::oglVAO_(const VAODrawMode mode) noexcept : VAOId(GL_INVALID_INDEX), DrawMode(mode)
 {
-    glGenVertexArrays(1, &VAOId);
+    DSA->ogluGenVertexArrays(1, &VAOId);
 }
 
 oglVAO_::~oglVAO_() noexcept
 {
     if (!EnsureValid()) return;
-    glDeleteVertexArrays(1, &VAOId);
+    DSA->ogluDeleteVertexArrays(1, &VAOId);
 }
 
 oglVAO_::VAOPrep oglVAO_::Prepare() noexcept
@@ -179,10 +179,10 @@ void oglVAO_::Draw(const uint32_t size, const uint32_t offset) const noexcept
     switch (Method)
     {
     case DrawMethod::Array:
-        glDrawArrays((GLenum)DrawMode, offset, size);
+        glDrawArrays(common::enum_cast(DrawMode), offset, size);
         break;
     case DrawMethod::Index:
-        glDrawElements((GLenum)DrawMode, size, IndexBuffer->IndexType, (const void*)intptr_t(offset * IndexBuffer->IndexSize));
+        glDrawElements(common::enum_cast(DrawMode), size, IndexBuffer->IndexType, (const void*)intptr_t(offset * IndexBuffer->IndexSize));
         break;
     default:
         oglLog().error(u"Only array/index mode support ranged draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
@@ -197,33 +197,33 @@ void oglVAO_::Draw() const noexcept
     switch (Method)
     {
     case DrawMethod::Array:
-        glDrawArrays((GLenum)DrawMode, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        glDrawArrays(common::enum_cast(DrawMode), std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::Index:
-        glDrawElements((GLenum)DrawMode, std::get<GLsizei>(Count), IndexBuffer->IndexType, std::get<const void*>(Offsets));
+        glDrawElements(common::enum_cast(DrawMode), std::get<GLsizei>(Count), IndexBuffer->IndexType, std::get<const void*>(Offsets));
         break;
     case DrawMethod::Arrays:
         {
             const auto& sizes = std::get<vector<GLsizei>>(Count);
-            glMultiDrawArrays((GLenum)DrawMode, std::get<vector<GLint>>(Offsets).data(), sizes.data(), (GLsizei)sizes.size());
+            DSA->ogluMultiDrawArrays(common::enum_cast(DrawMode), std::get<vector<GLint>>(Offsets).data(), sizes.data(), (GLsizei)sizes.size());
         } break;
     case DrawMethod::Indexs:
         {
             const auto& sizes = std::get<vector<GLsizei>>(Count);
-            glMultiDrawElements((GLenum)DrawMode, sizes.data(), IndexBuffer->IndexType, std::get<vector<const void*>>(Offsets).data(), (GLsizei)sizes.size());
+            DSA->ogluMultiDrawElements(common::enum_cast(DrawMode), sizes.data(), IndexBuffer->IndexType, std::get<vector<const void*>>(Offsets).data(), (GLsizei)sizes.size());
             //const auto& offsets = std::get<vector<const void*>>(Offsets).data();
             //for (size_t i = 0; i < sizes.size(); ++i)
             //{
-            //    //glDrawElementsBaseVertex((GLenum)DrawMode, sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 0);
-            //    //glDrawElementsInstancedBaseInstance((GLenum)DrawMode, sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 1, 0);
-            //    glDrawElementsInstancedBaseVertexBaseInstance((GLenum)DrawMode, sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 1, 0, 0);
+            //    //glDrawElementsBaseVertex(common::enum_cast(DrawMode), sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 0);
+            //    //glDrawElementsInstancedBaseInstance(common::enum_cast(DrawMode), sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 1, 0);
+            //    glDrawElementsInstancedBaseVertexBaseInstance(common::enum_cast(DrawMode), sizes[i], IndexBuffer->IndexType, (void*)offsets[i], 1, 0, 0);
             //}
         } break;
     case DrawMethod::IndirectArrays:
-        DSA->ogluMultiDrawArraysIndirect((GLenum)DrawMode, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        DSA->ogluMultiDrawArraysIndirect(common::enum_cast(DrawMode), IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::IndirectIndexes:
-        DSA->ogluMultiDrawElementsIndirect((GLenum)DrawMode, IndexBuffer->IndexType, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        DSA->ogluMultiDrawElementsIndirect(common::enum_cast(DrawMode), IndexBuffer->IndexType, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::UnPrepared:
         oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);

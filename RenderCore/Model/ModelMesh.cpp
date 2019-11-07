@@ -252,7 +252,7 @@ void _ModelMesh::InitDataBuffers(const std::shared_ptr<oglu::oglWorker>& asyncer
         return;
     }
     vbo = oglu::oglArrayBuffer_::Create();
-    vbo->Write(pts);
+    vbo->WriteSpan(pts);
     ebo = oglu::oglElementBuffer_::Create();
     ebo->WriteCompact(indexs);
     {

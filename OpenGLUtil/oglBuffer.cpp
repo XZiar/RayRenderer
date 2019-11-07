@@ -51,13 +51,13 @@ oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) :
     else
         access = GL_READ_WRITE;
 
-    const auto ptr = DSA->ogluMapNamedBuffer(Buffer.BufferID, access);
+    const auto ptr = DSA->ogluMapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID, access);
     MemSpace = common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Buffer.BufSize);
 }
 
 oglBuffer_::oglMapPtr_::~oglMapPtr_()
 {
-    if (DSA->ogluUnmapNamedBuffer(Buffer.BufferID) == GL_FALSE)
+    if (DSA->ogluUnmapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID) == GL_FALSE)
         oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", Buffer.BufferID, MemSpace.size());
 }
 
@@ -65,9 +65,9 @@ oglBuffer_::oglMapPtr_::~oglMapPtr_()
 oglBuffer_::oglBuffer_(const BufferTypes type) noexcept :
     BufSize(0), BufferID(GL_INVALID_INDEX), BufferType(type)
 {
-    glGenBuffers(1, &BufferID);
-    glBindBuffer(common::enum_cast(BufferType), BufferID);
-    glBindBuffer(common::enum_cast(BufferType), 0);
+    DSA->ogluGenBuffers(1, &BufferID);
+    DSA->ogluBindBuffer(common::enum_cast(BufferType), BufferID);
+    DSA->ogluBindBuffer(common::enum_cast(BufferType), 0);
 }
 
 oglBuffer_::~oglBuffer_() noexcept
@@ -76,7 +76,7 @@ oglBuffer_::~oglBuffer_() noexcept
     if (PersistentPtr)
         PersistentPtr.reset();
     if (BufferID != GL_INVALID_INDEX)
-        glDeleteBuffers(1, &BufferID);
+        DSA->ogluDeleteBuffers(1, &BufferID);
     else
         oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
 }
@@ -84,7 +84,7 @@ oglBuffer_::~oglBuffer_() noexcept
 void oglBuffer_::bind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(common::enum_cast(BufferType), BufferID);
+    DSA->ogluBindBuffer(common::enum_cast(BufferType), BufferID);
     //if (BufferType== BufferType::Indirect)
         //oglLog().verbose(u"binding ibo[{}].\n", BufferID);
 }
@@ -92,14 +92,14 @@ void oglBuffer_::bind() const noexcept
 void oglBuffer_::unbind() const noexcept
 {
     CheckCurrent();
-    glBindBuffer(common::enum_cast(BufferType), 0);
+    DSA->ogluBindBuffer(common::enum_cast(BufferType), 0);
 }
 
 void oglBuffer_::PersistentMap(MapFlag flags)
 {
-    oglBuffer_::bind();
     flags |= MapFlag::CoherentMap | MapFlag::PersistentMap;
-    glBufferStorage(common::enum_cast(BufferType), BufSize, nullptr, common::enum_cast(flags & MapFlag::PrepareMask));
+    DSA->ogluNamedBufferStorage(common::enum_cast(BufferType), BufferID, BufSize, nullptr, 
+        common::enum_cast(flags & MapFlag::PrepareMask));
     PersistentPtr.emplace(this, flags);
 }
 
@@ -124,17 +124,17 @@ common::span<std::byte> oglBuffer_::GetPersistentPtr() const
     return PersistentPtr->MemSpace;
 }
 
-void oglBuffer_::Write(const void * const dat, const size_t size, const BufferWriteMode mode)
+void oglBuffer_::WriteSpan(const common::span<const std::byte> space, const BufferWriteMode mode)
 {
     CheckCurrent();
     if (PersistentPtr && HAS_FIELD(PersistentPtr->Flag, MapFlag::MapWrite))
     {
-        memcpy_s(PersistentPtr->MemSpace.data(), BufSize, dat, size);
+        memcpy_s(PersistentPtr->MemSpace.data(), BufSize, space.data(), space.size());
     }
     else
     {
-        DSA->ogluNamedBufferData(BufferID, size, dat, ParseBufferWriteMode(mode));
-        BufSize = size;
+        DSA->ogluNamedBufferData(common::enum_cast(BufferType), BufferID, space.size(), space.data(), ParseBufferWriteMode(mode));
+        BufSize = space.size();
     }
 }
 
@@ -165,7 +165,7 @@ oglUniformBuffer_::oglUniformBuffer_(const size_t size) noexcept : oglBuffer_(Bu
     BufSize = size;
     PersistentMap(MapFlag::MapWrite);
     vector<uint8_t> empty(size);
-    Write(empty, BufferWriteMode::StreamDraw);
+    WriteSpan(empty, BufferWriteMode::StreamDraw);
 }
 
 oglUniformBuffer_::~oglUniformBuffer_() noexcept
@@ -192,7 +192,7 @@ detail::UBOManager& oglUniformBuffer_::getUBOMan()
 void oglUniformBuffer_::bind(const uint16_t pos) const
 {
     CheckCurrent();
-    glBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
+    DSA->ogluBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
 }
 
 
@@ -221,7 +221,7 @@ void oglIndirectBuffer_::WriteCommands(const vector<uint32_t>& offsets, const ve
         vector<DrawElementsIndirectCommand> commands;
         for (size_t i = 0; i < count; ++i)
             commands.push_back(DrawElementsIndirectCommand{ sizes[i], 1, offsets[i], 0, (GLuint)i });
-        Write(commands);
+        WriteSpan(commands);
         Commands = std::move(commands);
     }
     else
@@ -229,7 +229,7 @@ void oglIndirectBuffer_::WriteCommands(const vector<uint32_t>& offsets, const ve
         vector<DrawArraysIndirectCommand> commands;
         for (size_t i = 0; i < count; ++i)
             commands.push_back(DrawArraysIndirectCommand{ sizes[i], 1, offsets[i], (GLuint)i });
-        Write(commands);
+        WriteSpan(commands);
         Commands = std::move(commands);
     }
 }
@@ -241,13 +241,13 @@ void oglIndirectBuffer_::WriteCommands(const uint32_t offset, const uint32_t siz
     if (isIndexed)
     {
         DrawElementsIndirectCommand command{ size, 1, offset, 0, 0 };
-        Write(&command, sizeof(DrawElementsIndirectCommand));
+        Write(command);
         Commands = vector<DrawElementsIndirectCommand>{ command };
     }
     else
     {
         DrawArraysIndirectCommand command{ size, 1, offset, 0 };
-        Write(&command, sizeof(DrawArraysIndirectCommand));
+        Write(command);
         Commands = vector<DrawArraysIndirectCommand>{ command };
     }
 }

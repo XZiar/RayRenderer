@@ -72,7 +72,7 @@ FontViewer::FontViewer()
             pd({ 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f });
         Point DatVert[] = { pa,pb,pc, pd,pc,pb };
 
-        viewRect->Write(DatVert, sizeof(DatVert));
+        viewRect->WriteSpan(DatVert);
         viewVAO->Prepare()
             .SetFloat(viewRect, prog->GetLoc("@VertPos"), sizeof(Point), 2, 0)
             .SetFloat(viewRect, prog->GetLoc("@VertColor"), sizeof(Point), 3, sizeof(Vec3))

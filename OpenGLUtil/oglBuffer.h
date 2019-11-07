@@ -92,20 +92,28 @@ protected:
     void unbind() const noexcept;
     oglBuffer_(const BufferTypes type) noexcept;
     void PersistentMap(MapFlag flags);
+
+    void WriteSpan(const common::span<const std::byte> space, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
+    template<typename T>
+    void WriteSpan(const common::span<T> space, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        WriteSpan(common::as_bytes(space), mode);
+    }
+    template<typename T>
+    void WriteSpan(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        WriteSpan(common::as_bytes(common::to_span(cont)), mode);
+    }
+    template<typename T>
+    void Write(const T& obj, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
+    {
+        WriteSpan(common::span<const std::byte>(reinterpret_cast<const std::byte*>(&obj), sizeof(T)), mode);
+    }
 public:
     virtual ~oglBuffer_() noexcept;
 
     oglMapPtr Map(const MapFlag flags);
     common::span<std::byte> GetPersistentPtr() const;
-
-    void Write(const void * const dat, const size_t size, const BufferWriteMode mode = BufferWriteMode::StaticDraw);
-    template<typename T>
-    void Write(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-    {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "need contiguous container type");
-        Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
-    }
 };
 
 
@@ -118,6 +126,8 @@ private:
     oglPixelBuffer_() noexcept : oglBuffer_(BufferTypes::Pixel) { }
 public:
     virtual ~oglPixelBuffer_() noexcept override;
+    using oglBuffer_::WriteSpan;
+    //using oglBuffer_::Write;
 
     static oglPBO Create();
 };
@@ -131,6 +141,8 @@ private:
     oglArrayBuffer_() noexcept : oglBuffer_(BufferTypes::Array) { }
 public:
     virtual ~oglArrayBuffer_() noexcept override;
+    using oglBuffer_::WriteSpan;
+    //using oglBuffer_::Write;
 
     static oglVBO Create();
 };
@@ -144,6 +156,8 @@ private:
     oglTextureBuffer_() noexcept;
 public:
     virtual ~oglTextureBuffer_() noexcept override;
+    using oglBuffer_::WriteSpan;
+    //using oglBuffer_::Write;
 
     static oglTBO Create();
 };
@@ -163,6 +177,8 @@ protected:
 public:
     virtual ~oglUniformBuffer_() noexcept override;
     size_t Size() const { return BufSize; };
+    using oglBuffer_::WriteSpan;
+    //using oglBuffer_::Write;
 
     static oglUBO Create(const size_t size);
 };
@@ -207,8 +223,10 @@ public:
     ///<param name="size">size</param>
     ///<param name="isIndexed">Indexed commands or not</param>
     void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
-    const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const { return std::get<std::vector<DrawElementsIndirectCommand>>(Commands); }
-    const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const { return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); }
+    const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const 
+    { return std::get<std::vector<DrawElementsIndirectCommand>>(Commands); }
+    const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const 
+    { return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); }
 
     static oglIBO Create();
 };
@@ -232,22 +250,13 @@ public:
     template<typename T>
     void Write(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "need contiguous container type");
-        static_assert(std::is_integral_v<typename Helper::EleType> && sizeof(typename Helper::EleType) <= 4, "input type should be of integeral type and no more than uint32_t");
-        SetSize(Helper::EleSize);
-        oglBuffer_::Write(Helper::Data(cont), Helper::EleSize * Helper::Count(cont), mode);
-    }
-    ///<summary>Write index</summary>  
-    ///<param name="dat">index ptr</param>
-    ///<param name="count">index count</param>
-    ///<param name="mode">buffer write mode</param>
-    template<class T>
-    void Write(const T * const dat, const size_t count, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
-    {
-        static_assert(std::is_integral_v<T> && sizeof(T) <= 4, "input type should be of integeral type and no more than uint32_t");
-        SetSize(sizeof(T));
-        oglBuffer_::Write(dat, IndexSize*count, mode);
+        const auto space = common::to_span(cont);
+        using EleType = typename decltype(space)::value_type; 
+        static_assert(std::is_integral_v<EleType> && std::is_unsigned_v<EleType> && sizeof(EleType) <= 4,
+            "input type should be unsigned integeral type and no more than uint32_t");
+
+        SetSize(sizeof(EleType));
+        oglBuffer_::WriteSpan(space, mode);
     }
     ///<summary>Compact and write index</summary>  
     ///<param name="cont">index container</param>
@@ -255,13 +264,13 @@ public:
     template<typename T>
     void WriteCompact(const T& cont, const BufferWriteMode mode = BufferWriteMode::StaticDraw)
     {
-        using Helper = common::container::ContiguousHelper<T>;
-        static_assert(Helper::IsContiguous, "need contiguous container type");
-        static_assert(std::is_integral_v<typename Helper::EleType>, "input type should be of integeral type");
+        const auto space = common::to_span(cont);
+        using EleType = typename decltype(space)::value_type;
+        static_assert(std::is_integral_v<EleType> && std::is_unsigned_v<EleType>, 
+            "input type should be unsigned integeral type");
         
-        const auto* ptr = Helper::Data(cont);
-        const size_t count = Helper::Count(cont);
-
+        const auto ptr = space.data();
+        const auto count = space.size();
         auto [minptr, maxptr] = std::minmax_element(ptr, ptr + count);
         if (*minptr < 0)
             COMMON_THROW(common::BaseException, u"element buffer cannot appear negatve value");
@@ -270,37 +279,40 @@ public:
         if (maxval <= UINT8_MAX)
         {
             if constexpr (sizeof(T) == 1)
-                Write(ptr, count, mode);
+                Write(space, mode);
             else
             {
                 common::AlignedBuffer newdata(count * 1);
                 common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), ptr, count);
-                Write(newdata.GetRawPtr<uint8_t>(), count, mode);
+                SetSize(1);
+                oglBuffer_::WriteSpan(newdata, mode);
             }
         }
         else if (maxval <= UINT16_MAX)
         {
             if constexpr(sizeof(T) == 2)
-                Write(ptr, count, mode);
+                Write(space, mode);
             else
             {
                 common::AlignedBuffer newdata(count * 2);
                 common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), ptr, count);
-                Write(newdata.GetRawPtr<uint16_t>(), count, mode);
+                SetSize(2);
+                oglBuffer_::WriteSpan(newdata, mode);
             }
         }
         else if (maxval <= UINT32_MAX)
         {
             if constexpr(sizeof(T) == 4)
-                Write(ptr, count, mode);
+                Write(space, mode);
             else
             {
-                std::vector<uint32_t> newdat;
-                newdat.reserve(count);
+                std::vector<uint32_t> newdata;
+                newdata.reserve(count);
                 const auto *cur = ptr, *end = ptr + count;
                 while (cur != end)
-                    newdat.push_back(static_cast<uint32_t>(*cur++));
-                Write(newdat, mode);
+                    newdata.push_back(static_cast<uint32_t>(*cur++));
+                SetSize(4);
+                oglBuffer_::WriteSpan(newdata, mode);
             }
         }
         else

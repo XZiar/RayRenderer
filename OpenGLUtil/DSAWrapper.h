@@ -11,10 +11,45 @@ struct DSAFuncs
     template<typename T>
     static void Bind(const T& obj) { obj->bind(); }
     
-    void  (GLAPIENTRY *ogluNamedBufferData) (GLuint buffer, GLsizeiptr size, const void *data, GLenum usage) = nullptr;
-    void* (GLAPIENTRY *ogluMapNamedBuffer) (GLuint buffer, GLenum access) = nullptr;
-    GLboolean (GLAPIENTRY *ogluUnmapNamedBuffer) (GLuint buffer) = nullptr;
-    void  (GLAPIENTRY *ogluEnableVertexArrayAttrib) (GLuint vaobj, GLuint index) = nullptr;
+    void (GLAPIENTRY *ogluGenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
+    void (GLAPIENTRY *ogluDeleteBuffers) (GLsizei n, const GLuint* buffers) = nullptr;
+    void (GLAPIENTRY *ogluBufferStorage) (GLenum target, GLsizeiptr size, const void* data, GLbitfield flags) = nullptr;
+    void (GLAPIENTRY *ogluBindBuffer) (GLenum target, GLuint buffer) = nullptr;
+    void (GLAPIENTRY *ogluBufferData) (GLenum target, GLsizeiptr size, const void* data, GLenum usage) = nullptr;
+    void (GLAPIENTRY *ogluBufferSubData) (GLenum target, GLintptr offset, GLsizeiptr size, const void* data) = nullptr;
+    void* (GLAPIENTRY *ogluMapBuffer) (GLenum target, GLenum access) = nullptr;
+    GLboolean (GLAPIENTRY *ogluUnmapBuffer) (GLenum target) = nullptr;
+    void (GLAPIENTRY *ogluBindBufferBase) (GLenum target, GLuint index, GLuint buffer) = nullptr;
+    void (GLAPIENTRY *ogluBindBufferRange) (GLenum target, GLuint index, GLuint buffer, GLintptr offset, GLsizeiptr size) = nullptr;
+    void (GLAPIENTRY *ogluNamedBufferStorage_) (GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) = nullptr;
+    void (GLAPIENTRY *ogluNamedBufferData_) (GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) = nullptr;
+    void (GLAPIENTRY *ogluNamedBufferSubData_) (GLuint buffer, GLintptr offset, GLsizeiptr size, const void *data) = nullptr;
+    void* (GLAPIENTRY *ogluMapNamedBuffer_) (GLuint buffer, GLenum access) = nullptr;
+    GLboolean (GLAPIENTRY *ogluUnmapNamedBuffer_) (GLuint buffer) = nullptr;
+
+    void ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const;
+    void ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const;
+    void ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const;
+    [[nodiscard]] void* ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const;
+    GLboolean ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const;
+    
+    void (GLAPIENTRY *ogluGenVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
+    void (GLAPIENTRY *ogluDeleteVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
+    void (GLAPIENTRY *ogluBindVertexArray) (GLuint vaobj) = nullptr;
+    void (GLAPIENTRY *ogluEnableVertexAttribArray) (GLuint index) = nullptr;
+    void (GLAPIENTRY *ogluEnableVertexArrayAttrib_) (GLuint vaobj, GLuint index) = nullptr;
+    void (GLAPIENTRY *ogluVertexAttribIPointer_) (GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer) = nullptr;
+    void (GLAPIENTRY *ogluVertexAttribLPointer_) (GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer) = nullptr;
+    void (GLAPIENTRY *ogluVertexAttribPointer_) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer) = nullptr;
+    void (GLAPIENTRY *ogluVertexAttribDivisor) (GLuint index, GLuint divisor) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawArrays) (GLenum mode, const GLint* first, const GLsizei* count, GLsizei drawcount) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawElements) (GLenum mode, const GLsizei* count, GLenum type, const void* const* indices, GLsizei drawcount) = nullptr;
+
+
+    void ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const;
+    void ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const;
+    void ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const;
+    void ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const;
 
     void (GLAPIENTRY *ogluCreateTextures) (GLenum target, GLsizei n, GLuint* textures) = nullptr;
     void (GLAPIENTRY *ogluGetTextureLevelParameteriv) (GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;

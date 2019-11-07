@@ -47,7 +47,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         const Vec4 paf(-1.0f, -1.0f, 0.0f, 1.0f), pbf(1.0f, -1.0f, 1.0f, 1.0f), pcf(-1.0f, 1.0f, 0.0f, 0.0f), pdf(1.0f, 1.0f, 1.0f, 0.0f);
         const Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb, paf,pbf,pcf, pdf,pcf,pbf };
-        ScreenBox->Write(DatVert, sizeof(DatVert));
+        ScreenBox->WriteSpan(DatVert);
 
         NormalVAO = oglVAO_::Create(VAODrawMode::Triangles);
         NormalVAO->Prepare()

@@ -171,7 +171,7 @@ public:
     constexpr PromiseStub(const std::initializer_list<common::PromiseResult<void>>& promises) noexcept :
         Promises(promises) { }
     template<typename... Args>
-    constexpr PromiseStub(const common::PromiseResult<Args>&... promises) noexcept
+    PromiseStub(const common::PromiseResult<Args>&... promises) noexcept
     {
         static_assert(sizeof...(Args) > 0, "should atleast give 1 argument");
         std::vector<std::shared_ptr<detail::PromiseResultCore>> pmss;

@@ -89,10 +89,10 @@ public:
         oglVAO_& vao;
         bool isEmpty;
         VAOPrep(oglVAO_& vao_) noexcept;
-        void SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
-        void SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor);
+        void SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
+        void SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
         template<typename T>
-        void SetAttrib(const uint16_t eleSize, const GLint offset, const GLint attridx)
+        void SetAttrib(const uint16_t eleSize, const size_t offset, const GLint attridx)
         {
             static_assert(detail::IsVAComp<T>::value, "Attribe descriptor should be VARawComponent or VAComponent");
             if constexpr(T::AsInteger)
@@ -101,7 +101,7 @@ public:
                 SetFloat(T::ValType, T::IsNormalize, attridx, eleSize, T::Size, offset + T::Offset, 0);
         }
         template<typename Tuple, size_t N, std::size_t... Indexes>
-        void SetAttribs(const uint16_t eleSize, const GLint offset, const GLint(&attridx)[N], std::index_sequence<Indexes...>)
+        void SetAttribs(const uint16_t eleSize, const size_t offset, const GLint(&attridx)[N], std::index_sequence<Indexes...>)
         {
             (SetAttrib<std::tuple_element_t<Indexes, Tuple>>(eleSize, offset, attridx[Indexes]), ...);
         }
@@ -117,7 +117,7 @@ public:
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
         template<typename Val = uint32_t>
-        VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
+        VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
         {
             static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
             vao.CheckCurrent();
@@ -133,7 +133,7 @@ public:
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
         template<typename Val = float>
-        VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const GLint offset, GLuint divisor = 0)
+        VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
         {
             vao.CheckCurrent();
             vbo->bind();
@@ -146,7 +146,7 @@ public:
         ///<param name="offset">offset(byte) od the 1st elements</param>
         ///<param name="attridx">vertex attribute index</param>
         template<typename T, size_t N, typename C = typename T::ComponentType>
-        VAOPrep& SetAttribs(const oglVBO& vbo, const GLint offset, const GLint(&attridx)[N])
+        VAOPrep& SetAttribs(const oglVBO& vbo, const size_t offset, const GLint(&attridx)[N])
         {
             static_assert(common::is_specialization<C, std::tuple>::value, "ComponentType should be tuple of VAComponent");
             static_assert(std::tuple_size_v<C> == N, "attrib index size mismatch with component count");
