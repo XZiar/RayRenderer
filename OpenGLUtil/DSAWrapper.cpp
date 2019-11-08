@@ -43,214 +43,9 @@ static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
 extern GLuint GetCurFBO();
 
 
-static void GLAPIENTRY ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures)
-{
-    glGenTextures(n, textures);
-    glActiveTexture(GL_TEXTURE0);
-    for (int32_t i = 0; i < n; ++i)
-        glBindTexture(target, textures[i]);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluGetTextureLevelParameterivARB(GLuint texture, GLenum, GLint level, GLenum pname, GLint* params)
-{
-    glGetTextureLevelParameteriv(texture, level, pname, params);
-}
-static void GLAPIENTRY ogluTextureParameteriARB(GLuint texture, GLenum, GLenum pname, GLint param)
-{
-    glTextureParameteri(texture, pname, param);
-}
-static void GLAPIENTRY ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureSubImage1DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void *pixels)
-{
-    glTextureSubImage1D(texture, level, xoffset, width, format, type, pixels);
-}
-static void GLAPIENTRY ogluTextureSubImage2DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels)
-{
-    glTextureSubImage2D(texture, level, xoffset, yoffset, width, height, format, type, pixels);
-}
-static void GLAPIENTRY ogluTextureSubImage3DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels)
-{
-    glTextureSubImage3D(texture, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
-}
-static void GLAPIENTRY ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluGetTextureImageARB(GLuint texture, GLenum, GLint level, GLenum format, GLenum type, size_t bufSize, void *pixels)
-{
-    glGetTextureImage(texture, level, format, type, bufSize > INT32_MAX ? INT32_MAX : (GLsizei)bufSize, pixels);
-}
-static void GLAPIENTRY ogluGetTextureImageEXT(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t, void *pixels)
-{
-    glGetTextureImageEXT(texture, target, level, format, type, pixels);
-}
-static void GLAPIENTRY ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexImage1D(target, level, internalformat, width, border, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage1DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data)
-{
-    glCompressedTextureSubImage1D(texture, level, xoffset, width, format, imageSize, data);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage2DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data)
-{
-    glCompressedTextureSubImage2D(texture, level, xoffset, yoffset, width, height, format, imageSize, data);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage3DARB(GLuint texture, GLenum, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data)
-{
-    glCompressedTextureSubImage3D(texture, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexSubImage1D(target, level, xoffset, width, format, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluGetCompressedTextureImageARB(GLuint texture, GLenum, GLint level, size_t bufSize, void *img)
-{
-    glGetCompressedTextureImage(texture, level, bufSize > INT32_MAX ? INT32_MAX : (GLsizei)bufSize, img);
-}
-static void GLAPIENTRY ogluGetCompressedTextureImageEXT(GLuint texture, GLenum target, GLint level, size_t, void *img)
-{
-    glGetCompressedTextureImageEXT(texture, target, level, img);
-}
-static void GLAPIENTRY ogluTextureStorage1DARB(GLuint texture, GLenum, GLsizei levels, GLenum internalformat, GLsizei width)
-{
-    glTextureStorage1D(texture, levels, internalformat, width);
-}
-static void GLAPIENTRY ogluTextureStorage2DARB(GLuint texture, GLenum, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
-{
-    glTextureStorage2D(texture, levels, internalformat, width, height);
-}
-static void GLAPIENTRY ogluTextureStorage3DARB(GLuint texture, GLenum, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
-{
-    glTextureStorage3D(texture, levels, internalformat, width, height, depth);
-}
-static void GLAPIENTRY ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexStorage1D(target, levels, internalformat, width);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexStorage2D(target, levels, internalformat, width, height);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexStorage3D(target, levels, internalformat, width, height, depth);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluBindTextureUnitARB(GLuint unit, GLenum, GLuint texture)
-{
-    glBindTextureUnit(unit, texture);
-}
-static void GLAPIENTRY ogluBindTextureUnitEXT(GLuint unit, GLenum target, GLuint texture)
-{
-    glBindMultiTextureEXT(GL_TEXTURE0 + unit, target, texture);
-}
-static void GLAPIENTRY ogluBindTextureUnit(GLuint unit, GLenum target, GLuint texture)
-{
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(target, texture);
-}
-static void GLAPIENTRY ogluGenerateTextureMipmapARB(GLuint texture, GLenum)
-{
-    glGenerateTextureMipmap(texture);
-}
-static void GLAPIENTRY ogluGenerateTextureMipmap(GLuint texture, GLenum target)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glGenerateMipmap(target);
-    glBindTexture(target, 0);
-}
-static void GLAPIENTRY ogluTextureBufferARB(GLuint texture, GLenum, GLenum internalformat, GLuint buffer)
-{
-    glTextureBuffer(texture, internalformat, buffer);
-}
-static void GLAPIENTRY ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer)
-{
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(target, texture);
-    glTexBuffer(target, internalformat, buffer);
-    glBindTexture(target, 0);
-}
+
+
+
 
 static void GLAPIENTRY ogluCreateFramebuffers(GLsizei n, GLuint *framebuffers)
 {
@@ -303,48 +98,7 @@ static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum at
 }
 
 
-static void GLAPIENTRY ogluMultiDrawArraysIndirect(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    DSAFuncs::Bind(indirect); //IBO not included in VAO
-    glMultiDrawArraysIndirect(mode, (const void*)(intptr_t)(offset * sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand)), primcount, 0);
-}
-static void GLAPIENTRY ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    DSAFuncs::Bind(indirect); //IBO not included in VAO
-    glMultiDrawElementsIndirect(mode, type, (const void*)(intptr_t)(offset * sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand)), primcount, 0);
-}
-static void GLAPIENTRY ogluMultiDrawArraysIndirectIB(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    const auto& cmd = &indirect->GetArrayCommands()[offset];
-    for (GLsizei i = 0; i < primcount; i++)
-    {
-        glDrawArraysInstancedBaseInstance(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
-    }
-}
-static void GLAPIENTRY ogluMultiDrawElementsIndirectIB(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    const auto& cmd = &indirect->GetElementCommands()[offset];
-    for (GLsizei i = 0; i < primcount; i++)
-    {
-        glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd[i].count, type, (const void*)(intptr_t)cmd[i].firstIndex, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
-    }
-}
-static void GLAPIENTRY ogluMultiDrawArraysIndirectI(GLenum mode, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    const auto& cmd = &indirect->GetArrayCommands()[offset];
-    for (GLsizei i = 0; i < primcount; i++)
-    {
-        glDrawArraysInstanced(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
-    }
-}
-static void GLAPIENTRY ogluMultiDrawElementsIndirectI(GLenum mode, GLenum type, const oglIBO& indirect, GLint offset, GLsizei primcount)
-{
-    const auto& cmd = &indirect->GetElementCommands()[offset];
-    for (GLsizei i = 0; i < primcount; i++)
-    {
-        glDrawElementsInstanced(mode, cmd[i].count, type, (const void*)(intptr_t)cmd[i].firstIndex, cmd[i].instanceCount);
-    }
-}
+
 
 template<typename T>
 static forceinline T QueryFunc_(const std::string_view name)
@@ -387,115 +141,156 @@ void InitDSAFuncs(DSAFuncs& dsa)
 #define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(dsa.oglu, name),_), WITH_SUFFIXS(#name, __VA_ARGS__))
 
     // buffer related
-    QUERY_FUNC (GenBuffers,                 "", "ARB");
-    QUERY_FUNC (DeleteBuffers,              "", "ARB");
-    QUERY_FUNC (BufferStorage,              "", "EXT");
-    QUERY_FUNC (BindBuffer,                 "", "ARB");
-    QUERY_FUNC (BufferData,                 "", "ARB");
-    QUERY_FUNC (BufferSubData,              "", "ARB");
-    QUERY_FUNC (MapBuffer,                  "", "ARB");
-    QUERY_FUNC (UnmapBuffer,                "", "ARB");
-    QUERY_FUNC (BindBufferBase,             "", "EXT", "NV");
-    QUERY_FUNC (BindBufferRange,            "", "EXT", "NV");
-    QUERY_FUNC_(NamedBufferStorage,         "", "EXT");
-    QUERY_FUNC_(NamedBufferData,            "", "EXT");
-    QUERY_FUNC_(NamedBufferSubData,         "", "EXT");
-    QUERY_FUNC_(MapNamedBuffer,             "", "EXT");
-    QUERY_FUNC_(UnmapNamedBuffer,           "", "EXT");
+    QUERY_FUNC (GenBuffers,                     "", "ARB");
+    QUERY_FUNC (DeleteBuffers,                  "", "ARB");
+    QUERY_FUNC (BindBuffer,                     "", "ARB");
+    QUERY_FUNC (BindBufferBase,                 "", "EXT", "NV");
+    QUERY_FUNC (BindBufferRange,                "", "EXT", "NV");
+    QUERY_FUNC_(NamedBufferStorage,             "", "EXT");
+    QUERY_FUNC_(BufferStorage,                  "", "EXT");
+    QUERY_FUNC_(NamedBufferData,                "", "EXT");
+    QUERY_FUNC_(BufferData,                     "", "ARB");
+    QUERY_FUNC_(NamedBufferSubData,             "", "EXT");
+    QUERY_FUNC_(BufferSubData,                  "", "ARB");
+    QUERY_FUNC_(MapNamedBuffer,                 "", "EXT");
+    QUERY_FUNC_(MapBuffer,                      "", "ARB");
+    QUERY_FUNC_(UnmapNamedBuffer,               "", "EXT");
+    QUERY_FUNC_(UnmapBuffer,                    "", "ARB");
 
     // vao related
-    QUERY_FUNC (GenVertexArrays,            "", "ARB");
-    QUERY_FUNC (DeleteVertexArrays,         "", "ARB");
-    QUERY_FUNC (BindVertexArray,            "", "ARB");
-    QUERY_FUNC (EnableVertexAttribArray,    "", "ARB");
-    QUERY_FUNC_(EnableVertexArrayAttrib,    "", "EXT");
-    QUERY_FUNC_(VertexAttribIPointer,       "", "ARB");
-    QUERY_FUNC_(VertexAttribLPointer,       "", "EXT");
-    QUERY_FUNC_(VertexAttribPointer,        "", "ARB");
-    QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
-    QUERY_FUNC (MultiDrawArrays,            "", "EXT");
-    QUERY_FUNC (MultiDrawElements,          "", "EXT");
+    QUERY_FUNC (GenVertexArrays,                "", "ARB");
+    QUERY_FUNC (DeleteVertexArrays,             "", "ARB");
+    QUERY_FUNC (BindVertexArray,                "", "ARB");
+    QUERY_FUNC (EnableVertexAttribArray,        "", "ARB");
+    QUERY_FUNC_(EnableVertexArrayAttrib,        "", "EXT");
+    QUERY_FUNC_(VertexAttribIPointer,           "", "ARB");
+    QUERY_FUNC_(VertexAttribLPointer,           "", "EXT");
+    QUERY_FUNC_(VertexAttribPointer,            "", "ARB");
+    QUERY_FUNC (VertexAttribDivisor,            "", "ARB", "EXT", "NV");
 
+    // draw related
+    QUERY_FUNC (MultiDrawArrays,                                "", "EXT");
+    QUERY_FUNC (MultiDrawElements,                              "", "EXT");
+    QUERY_FUNC_(MultiDrawArraysIndirect,                        "", "EXT", "AMD");
+    QUERY_FUNC_(DrawArraysInstancedBaseInstance,                "", "EXT");
+    QUERY_FUNC_(DrawArraysInstanced,                            "", "ARB", "EXT", "NV", "ANGLE");
+    QUERY_FUNC_(MultiDrawElementsIndirect,                      "", "EXT", "AMD");
+    QUERY_FUNC_(DrawElementsInstancedBaseVertexBaseInstance,    "", "EXT");
+    QUERY_FUNC_(DrawElementsInstancedBaseInstance,              "", "EXT");
+    QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV", "ANGLE");
 
-    dsa.ogluCreateTextures = DecideFunc(glCreateTextures, &ogluCreateTextures);
-    dsa.ogluGetTextureLevelParameteriv = DecideFunc(std::pair{ glGetTextureLevelParameteriv, &ogluGetTextureLevelParameterivARB }, glGetTextureLevelParameterivEXT);
-    dsa.ogluTextureParameteri = DecideFunc(std::pair{ glTextureParameteri, &ogluTextureParameteriARB }, glTextureParameteriEXT);
-    dsa.ogluTextureImage1D = DecideFunc(glTextureImage1DEXT, &ogluTextureImage1D);
-    dsa.ogluTextureImage2D = DecideFunc(glTextureImage2DEXT, &ogluTextureImage2D);
-    dsa.ogluTextureImage3D = DecideFunc(glTextureImage3DEXT, &ogluTextureImage3D);
-    dsa.ogluTextureSubImage1D = DecideFunc(std::pair{ glTextureSubImage1D, &ogluTextureSubImage1DARB }, glTextureSubImage1DEXT, &ogluTextureSubImage1D);
-    dsa.ogluTextureSubImage2D = DecideFunc(std::pair{ glTextureSubImage2D, &ogluTextureSubImage2DARB }, glTextureSubImage2DEXT, &ogluTextureSubImage2D);
-    dsa.ogluTextureSubImage3D = DecideFunc(std::pair{ glTextureSubImage3D, &ogluTextureSubImage3DARB }, glTextureSubImage3DEXT, &ogluTextureSubImage3D);
-    dsa.ogluGetTextureImage = DecideFunc(std::pair{ glGetTextureImage, &ogluGetTextureImageARB }, std::pair{ glGetTextureImageEXT, &ogluGetTextureImageEXT });
-    dsa.ogluCompressedTextureImage1D = DecideFunc(glCompressedTextureImage1DEXT, &ogluCompressedTextureImage1D);
-    dsa.ogluCompressedTextureImage2D = DecideFunc(glCompressedTextureImage2DEXT, &ogluCompressedTextureImage2D);
-    dsa.ogluCompressedTextureImage3D = DecideFunc(glCompressedTextureImage3DEXT, &ogluCompressedTextureImage3D);
-    dsa.ogluCompressedTextureSubImage1D = DecideFunc(std::pair{ glCompressedTextureSubImage1D, &ogluCompressedTextureSubImage1DARB }, glCompressedTextureSubImage1DEXT, &ogluCompressedTextureSubImage1D);
-    dsa.ogluCompressedTextureSubImage2D = DecideFunc(std::pair{ glCompressedTextureSubImage2D, &ogluCompressedTextureSubImage2DARB }, glCompressedTextureSubImage2DEXT, &ogluCompressedTextureSubImage2D);
-    dsa.ogluCompressedTextureSubImage3D = DecideFunc(std::pair{ glCompressedTextureSubImage3D, &ogluCompressedTextureSubImage3DARB }, glCompressedTextureSubImage3DEXT, &ogluCompressedTextureSubImage3D);
-    dsa.ogluGetCompressedTextureImage = DecideFunc(std::pair{ glGetCompressedTextureImage, &ogluGetCompressedTextureImageARB }, std::pair{ glGetCompressedTextureImageEXT, &ogluGetCompressedTextureImageEXT });
-    dsa.ogluTextureStorage1D = DecideFunc(std::pair{ glTextureStorage1D, &ogluTextureStorage1DARB }, glTextureStorage1DEXT, &ogluTextureStorage1D);
-    dsa.ogluTextureStorage2D = DecideFunc(std::pair{ glTextureStorage2D, &ogluTextureStorage2DARB }, glTextureStorage2DEXT, &ogluTextureStorage2D);
-    dsa.ogluTextureStorage3D = DecideFunc(std::pair{ glTextureStorage3D, &ogluTextureStorage3DARB }, glTextureStorage3DEXT, &ogluTextureStorage3D);
-    dsa.ogluBindTextureUnit = DecideFunc(std::pair{ glBindTextureUnit, &ogluBindTextureUnitARB }, std::pair{ glBindMultiTextureEXT, &ogluBindTextureUnitEXT }, &ogluBindTextureUnit);
-    dsa.ogluGenerateTextureMipmap = DecideFunc(std::pair{ glGenerateTextureMipmap, &ogluGenerateTextureMipmapARB }, glGenerateTextureMipmapEXT, &ogluGenerateTextureMipmap);
-    dsa.ogluTextureBuffer = DecideFunc(std::pair{ glTextureBuffer, &ogluTextureBufferARB }, glTextureBufferEXT, &ogluTextureBuffer);
+    //texture related
+    QUERY_FUNC (ActiveTexture,                  "", "ARB");
+    QUERY_FUNC_(CreateTextures,                 "");
+    QUERY_FUNC_(BindTextureUnit,                "");
+    QUERY_FUNC_(BindMultiTextureEXT,            "");
+    QUERY_FUNC (BindImageTexture,               "", "EXT");
+    QUERY_FUNC (TextureView,                    "", "EXT");
+    QUERY_FUNC_(TextureBuffer,                  "");
+    QUERY_FUNC_(TextureBufferEXT,               "");
+    QUERY_FUNC_(TexBuffer,                      "", "ARB", "EXT");
+    QUERY_FUNC_(GenerateTextureMipmap,          "");
+    QUERY_FUNC_(GenerateTextureMipmapEXT,       "");
+    QUERY_FUNC_(GenerateMipmap,                 "", "EXT");
+    QUERY_FUNC_(TextureParameteri,              "");
+    QUERY_FUNC_(TextureParameteriEXT,           "");
+    QUERY_FUNC_(TextureSubImage1D,              "");
+    QUERY_FUNC_(TextureSubImage1DEXT,           "");
+    QUERY_FUNC_(TextureSubImage2D,              "");
+    QUERY_FUNC_(TextureSubImage2DEXT,           "");
+    QUERY_FUNC_(TextureSubImage3D,              "");
+    QUERY_FUNC_(TextureSubImage3DEXT,           "");
+    QUERY_FUNC_(TexSubImage3D,                  "", "EXT", "NV");
+    QUERY_FUNC_(TextureImage1DEXT,              "");
+    QUERY_FUNC_(TextureImage2DEXT,              "");
+    QUERY_FUNC_(TextureImage3DEXT,              "");
+    QUERY_FUNC_(TexImage3D,                     "", "EXT", "NV");
+    QUERY_FUNC_(CompressedTextureSubImage1D,    "");
+    QUERY_FUNC_(CompressedTextureSubImage1DEXT, "");
+    QUERY_FUNC_(CompressedTextureSubImage2D,    "");
+    QUERY_FUNC_(CompressedTextureSubImage2DEXT, "");
+    QUERY_FUNC_(CompressedTextureSubImage3D,    "");
+    QUERY_FUNC_(CompressedTextureSubImage3DEXT, "");
+    QUERY_FUNC_(CompressedTexSubImage1D,        "", "ARB");
+    QUERY_FUNC_(CompressedTexSubImage2D,        "", "ARB");
+    QUERY_FUNC_(CompressedTexSubImage3D,        "", "ARB");
+    QUERY_FUNC_(CompressedTextureImage1DEXT,    "");
+    QUERY_FUNC_(CompressedTextureImage2DEXT,    "");
+    QUERY_FUNC_(CompressedTextureImage3DEXT,    "");
+    QUERY_FUNC_(CompressedTexImage1D,           "", "ARB");
+    QUERY_FUNC_(CompressedTexImage2D,           "", "ARB");
+    QUERY_FUNC_(CompressedTexImage3D,           "", "ARB");
+    QUERY_FUNC (CopyImageSubData,               "", "EXT", "NV");
+    QUERY_FUNC_(TextureStorage1D,               "");
+    QUERY_FUNC_(TextureStorage1DEXT,            "");
+    QUERY_FUNC_(TextureStorage2D,               "");
+    QUERY_FUNC_(TextureStorage2DEXT,            "");
+    QUERY_FUNC_(TextureStorage3D,               "");
+    QUERY_FUNC_(TextureStorage3DEXT,            "");
+    QUERY_FUNC_(TexStorage1D,                   "", "EXT");
+    QUERY_FUNC_(TexStorage2D,                   "", "EXT");
+    QUERY_FUNC_(TexStorage3D,                   "", "EXT");
+    QUERY_FUNC (ClearTexImage,                  "", "EXT");
+    QUERY_FUNC (ClearTexSubImage,               "", "EXT");
+    QUERY_FUNC_(GetTextureLevelParameteriv,     "");
+    QUERY_FUNC_(GetTextureLevelParameterivEXT,  "");
+    QUERY_FUNC_(GetTextureImage,                "");
+    QUERY_FUNC_(GetTextureImageEXT,             "");
+    QUERY_FUNC_(GetCompressedTextureImage,      "");
+    QUERY_FUNC_(GetCompressedTextureImageEXT,   "");
+    QUERY_FUNC_(GetCompressedTexImage,          "", "ARB");
 
+    
     dsa.ogluCreateFramebuffers = DecideFunc(std::pair{ glNamedFramebufferTexture, glCreateFramebuffers }, std::pair{ glNamedFramebufferTextureEXT, glGenFramebuffers }, ogluCreateFramebuffers);
     dsa.ogluFramebufferTexture = DecideFunc(std::pair{ glNamedFramebufferTexture, &ogluFramebufferTextureARB }, std::pair{ glNamedFramebufferTextureEXT, &ogluFramebufferTextureEXT }, &ogluFramebufferTexture);
     dsa.ogluFramebufferTextureLayer = DecideFunc(std::pair{ glNamedFramebufferTextureLayer, &ogluFramebufferTextureLayerARB }, glNamedFramebufferTextureLayerEXT, &ogluFramebufferTextureLayer);
     dsa.ogluFramebufferRenderbuffer = DecideFunc(glNamedFramebufferRenderbuffer, glNamedFramebufferRenderbufferEXT, &ogluFramebufferRenderbuffer);
-
-    dsa.ogluMultiDrawArraysIndirect = DecideFunc(std::pair{ glMultiDrawArraysIndirect, &ogluMultiDrawArraysIndirect }, std::pair{ glDrawArraysInstancedBaseInstance, &ogluMultiDrawArraysIndirectIB }, &ogluMultiDrawArraysIndirectI);
-    dsa.ogluMultiDrawElementsIndirect = DecideFunc(std::pair{ glMultiDrawElementsIndirect, &ogluMultiDrawElementsIndirect }, std::pair{ glDrawElementsInstancedBaseVertexBaseInstance, &ogluMultiDrawElementsIndirectIB }, &ogluMultiDrawElementsIndirectI);
 }
 
-#define CALL_EXISTS(func, ...)      \
-    if (func)                       \
-    { return func(__VA_ARGS__); }   \
-    else                            \
+#define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 
 
 void DSAFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
 {
     CALL_EXISTS(ogluNamedBufferStorage_, buffer, size, data, flags)
     {
-        DSA->ogluBindBuffer(target, buffer);
-        DSA->ogluBufferStorage(target, size, data, flags);
+        ogluBindBuffer(target, buffer);
+        ogluBufferStorage_(target, size, data, flags);
     }
 }
 void DSAFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
 {
     CALL_EXISTS(ogluNamedBufferData_, buffer, size, data, usage)
     {
-        DSA->ogluBindBuffer(target, buffer);
-        DSA->ogluBufferData(target, size, data, usage);
+        ogluBindBuffer(target, buffer);
+        ogluBufferData_(target, size, data, usage);
     }
 }
 void DSAFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
 {
     CALL_EXISTS(ogluNamedBufferSubData_, buffer, offset, size, data)
     {
-        DSA->ogluBindBuffer(target, buffer);
-        DSA->ogluBufferSubData(target, offset, size, data);
+        ogluBindBuffer(target, buffer);
+        ogluBufferSubData_(target, offset, size, data);
     }
 }
 void* DSAFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
 {
     CALL_EXISTS(ogluMapNamedBuffer_, buffer, access)
     {
-        DSA->ogluBindBuffer(target, buffer);
-        return DSA->ogluMapBuffer(target, access);
+        ogluBindBuffer(target, buffer);
+        return ogluMapBuffer_(target, access);
     }
 }
 GLboolean DSAFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
 {
     CALL_EXISTS(ogluUnmapNamedBuffer_, buffer)
     {
-        DSA->ogluBindBuffer(target, buffer);
-        return DSA->ogluUnmapBuffer(target);
+        ogluBindBuffer(target, buffer);
+        return ogluUnmapBuffer_(target);
     }
 }
+
 
 void DSAFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
 {
@@ -521,5 +316,301 @@ void DSAFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, G
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
     ogluVertexAttribLPointer_(index, size, type, stride, pointer);
 }
+
+
+void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const
+{
+    if (ogluMultiDrawArraysIndirect_)
+    {
+        ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
+        const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
+        ogluMultiDrawArraysIndirect_(mode, pointer, primcount, 0);
+    }
+    else if (ogluDrawArraysInstancedBaseInstance_)
+    {
+        const auto& cmd = indirect.GetArrayCommands();
+        for (GLsizei i = offset; i < primcount; i++)
+        {
+            ogluDrawArraysInstancedBaseInstance_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
+        }
+    }
+    else if (ogluDrawArraysInstanced_)
+    {
+        const auto& cmd = indirect.GetArrayCommands();
+        for (GLsizei i = offset; i < primcount; i++)
+        {
+            ogluDrawArraysInstanced_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
+        }
+    }
+    else
+    {
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
+    }
+}
+void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const
+{
+    if (ogluMultiDrawElementsIndirect_)
+    {
+        ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
+        const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
+        ogluMultiDrawElementsIndirect_(mode, type, pointer, primcount, 0);
+    }
+    else if (ogluDrawElementsInstancedBaseVertexBaseInstance_)
+    {
+        const auto& cmd = indirect.GetElementCommands();
+        for (GLsizei i = offset; i < primcount; i++)
+        {
+            const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
+            ogluDrawElementsInstancedBaseVertexBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
+        }
+    }
+    else if (ogluDrawElementsInstancedBaseInstance_)
+    {
+        const auto& cmd = indirect.GetElementCommands();
+        for (GLsizei i = offset; i < primcount; i++)
+        {
+            const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
+            ogluDrawElementsInstancedBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseInstance); // baseInstance ignored
+        }
+    }
+    else if (ogluDrawElementsInstanced_)
+    {
+        const auto& cmd = indirect.GetElementCommands();
+        for (GLsizei i = offset; i < primcount; i++)
+        {
+            const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
+            ogluDrawElementsInstanced_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount); // baseInstance & baseVertex ignored
+        }
+    }
+    else
+    {
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawElementsIndirect");
+    }
+}
+
+
+void DSAFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) const
+{
+    CALL_EXISTS(ogluCreateTextures_, target, n, textures)
+    {
+        glGenTextures(n, textures);
+        ogluActiveTexture(GL_TEXTURE0);
+        for (GLsizei i = 0; i < n; ++i)
+            glBindTexture(target, textures[i]);
+        glBindTexture(target, 0);
+    }
+}
+void DSAFuncs::ogluBindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
+{
+    CALL_EXISTS(ogluBindTextureUnit_,                   unit,         texture)
+    CALL_EXISTS(ogluBindMultiTextureEXT_, GL_TEXTURE0 + unit, target, texture)
+    {
+        ogluActiveTexture(GL_TEXTURE0 + unit);
+        glBindTexture(target, texture);
+    }
+}
+void DSAFuncs::ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
+{
+    CALL_EXISTS(ogluTextureBuffer_,    target,         internalformat, buffer)
+    CALL_EXISTS(ogluTextureBufferEXT_, target, target, internalformat, buffer)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexBuffer_(target, internalformat, buffer);
+        glBindTexture(target, 0);
+    }
+}
+void DSAFuncs::ogluGenerateTextureMipmap(GLuint texture, GLenum target) const
+{
+    CALL_EXISTS(ogluGenerateTextureMipmap_,    texture)
+    CALL_EXISTS(ogluGenerateTextureMipmapEXT_, texture, target)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluGenerateMipmap_(target);
+    }
+}
+void DSAFuncs::ogluTextureParameteri(GLuint texture, GLenum target, GLenum pname, GLint param) const
+{
+    CALL_EXISTS(ogluTextureParameteri_,    texture,         pname, param)
+    CALL_EXISTS(ogluTextureParameteriEXT_, texture, target, pname, param)
+    {
+        glBindTexture(target, texture);
+        glTexParameteri(target, pname, param);
+    }
+}
+void DSAFuncs::ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureSubImage1D_,    texture,         level, xoffset, width, format, type, pixels)
+    CALL_EXISTS(ogluTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, type, pixels)
+    CALL_EXISTS(ogluTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
+    CALL_EXISTS(ogluTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureImage1DEXT_, texture, target, level, internalformat, width, border, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
+{
+    CALL_EXISTS(ogluTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, format, type, pixels)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexImage3D_(target, level, internalformat, width, height, depth, border, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureSubImage1D_,    texture,         level, xoffset, width, format, imageSize, data)
+    CALL_EXISTS(ogluCompressedTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexSubImage1D_(target, level, xoffset, width, format, imageSize, data);
+    }
+}
+void DSAFuncs::ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, imageSize, data)
+    CALL_EXISTS(ogluCompressedTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexSubImage2D_(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+    }
+}
+void DSAFuncs::ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
+    CALL_EXISTS(ogluCompressedTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
+    }
+}
+void DSAFuncs::ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureImage1DEXT_, texture, target, level, internalformat, width, border, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexImage1D_(target, level, internalformat, width, border, imageSize, data);
+    }
+}
+void DSAFuncs::ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexImage2D_(target, level, internalformat, width, height, border, imageSize, data);
+    }
+}
+void DSAFuncs::ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void* data) const
+{
+    CALL_EXISTS(ogluCompressedTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, imageSize, data)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluCompressedTexImage3D_(target, level, internalformat, width, height, depth, border, imageSize, data);
+    }
+}
+void DSAFuncs::ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
+{
+    CALL_EXISTS(ogluTextureStorage1D_,    texture,         levels, internalformat, width)
+    CALL_EXISTS(ogluTextureStorage1DEXT_, texture, target, levels, internalformat, width)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexStorage1D_(target, levels, internalformat, width);
+    }
+}
+void DSAFuncs::ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
+{
+    CALL_EXISTS(ogluTextureStorage2D_,    texture,         levels, internalformat, width, height)
+    CALL_EXISTS(ogluTextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexStorage2D_(target, levels, internalformat, width, height);
+    }
+}
+void DSAFuncs::ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
+{
+    CALL_EXISTS(ogluTextureStorage3D_,    texture,         levels, internalformat, width, height, depth)
+    CALL_EXISTS(ogluTextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
+    {
+        ogluActiveTexture(GL_TEXTURE0);
+        glBindTexture(target, texture);
+        ogluTexStorage3D_(target, levels, internalformat, width, height, depth);
+    }
+}
+void DSAFuncs::ogluGetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const
+{
+    CALL_EXISTS(ogluGetTextureLevelParameteriv_,    texture,         level, pname, params)
+    CALL_EXISTS(ogluGetTextureLevelParameterivEXT_, texture, target, level, pname, params)
+    {
+        glBindTexture(target, texture);
+        glGetTexLevelParameteriv(target, level, pname, params);
+    }
+}
+void DSAFuncs::ogluGetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
+{
+    CALL_EXISTS(ogluGetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
+    CALL_EXISTS(ogluGetTextureImageEXT_, texture, target, level, format, type, pixels)
+    {
+        glBindTexture(target, texture);
+        glGetTexImage(target, level, format, type, pixels);
+    }
+}
+void DSAFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
+{
+    CALL_EXISTS(ogluGetCompressedTextureImage_,    texture,         level, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), img)
+    CALL_EXISTS(ogluGetCompressedTextureImageEXT_, texture, target, level, img)
+    {
+        glBindTexture(target, texture);
+        ogluGetCompressedTexImage_(target, level, img);
+    }
+}
+
+
 
 }

@@ -128,7 +128,7 @@ oglTexBase_::~oglTexBase_() noexcept
 void oglTexBase_::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
-    DSA->ogluBindTextureUnit(pos, common::enum_cast(Type), textureID);
+    DSA->ogluBindTextureUnit(pos, textureID, common::enum_cast(Type));
     //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
     //glActiveTexture(GL_TEXTURE0 + pos);
     //glBindTexture((GLenum)Type, textureID);
@@ -234,7 +234,7 @@ void oglTexBase_::Clear(const TextureFormat format)
     CheckCurrent();
     const auto[datatype, comptype] = OGLTexUtil::ParseFormat(format, true);
     for (int32_t level = 0; level < Mipmap; ++level)
-        glClearTexImage(textureID, level, datatype, comptype, nullptr);
+        DSA->ogluClearTexImage(textureID, level, datatype, comptype, nullptr);
 }
 
 bool oglTexBase_::IsCompressed() const
@@ -309,12 +309,12 @@ oglTex2DView_::oglTex2DView_(const oglTex2DStatic_& tex, const TextureFormat for
 {
     Width = tex.Width, Height = tex.Height, Mipmap = tex.Mipmap; InnerFormat = format;
     Name = tex.Name + u"-View";
-    glTextureView(textureID, GL_TEXTURE_2D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
+    DSA->ogluTextureView(textureID, GL_TEXTURE_2D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
 }
 oglTex2DView_::oglTex2DView_(const oglTex2DArray_& tex, const TextureFormat format, const uint32_t layer) : oglTex2D_(false)
 {
     Width = tex.Width, Height = tex.Height, Mipmap = tex.Mipmap; InnerFormat = format;
-    glTextureView(textureID, GL_TEXTURE_2D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, layer, 1);
+    DSA->ogluTextureView(textureID, GL_TEXTURE_2D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, layer, 1);
 }
 static void CheckCompatible(const TextureFormat formatA, const TextureFormat formatB)
 {
@@ -481,7 +481,7 @@ void oglTex2DArray_::SetTextureLayer(const uint32_t layer, const oglTex2D& tex)
         oglLog().warning(u"tex[{}][{}] has different innerFormat with texarr[{}][{}].\n", tex->textureID, (uint16_t)tex->InnerFormat, textureID, (uint16_t)InnerFormat);
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
-        glCopyImageSubData(tex->textureID, common::enum_cast(tex->Type), i, 0, 0, 0,
+        DSA->ogluCopyImageSubData(tex->textureID, common::enum_cast(tex->Type), i, 0, 0, 0,
             textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, layer,
             tex->Width >> i, tex->Height >> i, 1);
     }
@@ -528,7 +528,7 @@ void oglTex2DArray_::SetTextureLayers(const uint32_t destLayer, const oglTex2DAr
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"too few mipmap level");
     for (uint8_t i = 0; i < Mipmap; ++i)
     {
-        glCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
+        DSA->ogluCopyImageSubData(tex->textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, srcLayer,
             textureID, GL_TEXTURE_2D_ARRAY, i, 0, 0, destLayer,
             tex->Width, tex->Height, layerCount);
     }
@@ -596,7 +596,7 @@ oglTex3DView_::oglTex3DView_(const oglTex3DStatic_& tex, const TextureFormat for
 {
     Width = tex.Width, Height = tex.Height, Depth = tex.Depth, Mipmap = tex.Mipmap; InnerFormat = format;
     Name = tex.Name + u"-View";
-    glTextureView(textureID, GL_TEXTURE_3D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
+    DSA->ogluTextureView(textureID, GL_TEXTURE_3D, tex.textureID, OGLTexUtil::GetInnerFormat(InnerFormat), 0, Mipmap, 0, 1);
 }
 
 oglTex3DStatic_::oglTex3DStatic_(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const uint8_t mipmap) : oglTex3D_(true)
@@ -712,7 +712,7 @@ void oglImgBase_::bind(const uint16_t pos) const noexcept
     case TexImgUsage::ReadWrite:    usage = GL_READ_WRITE; break;
     // Assume won't have unexpected Usage
     }
-    glBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, usage, OGLTexUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
+    DSA->ogluBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, usage, OGLTexUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
 }
 
 void oglImgBase_::unbind() const noexcept

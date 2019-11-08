@@ -88,7 +88,7 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets
         vao.Method = DrawMethod::Indexs;
         const uint32_t idxSize = vao.IndexBuffer->IndexSize;
         vao.Offsets = common::linq::FromIterable(offsets)
-            .Select([=](const uint32_t off) { return reinterpret_cast<const void*>(intptr_t(off * idxSize)); })
+            .Select([=](const uint32_t off) { return reinterpret_cast<const void*>(uintptr_t(off * idxSize)); })
             .ToVector();
     }
     else
@@ -220,10 +220,10 @@ void oglVAO_::Draw() const noexcept
             //}
         } break;
     case DrawMethod::IndirectArrays:
-        DSA->ogluMultiDrawArraysIndirect(common::enum_cast(DrawMode), IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        DSA->ogluMultiDrawArraysIndirect(common::enum_cast(DrawMode), *IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::IndirectIndexes:
-        DSA->ogluMultiDrawElementsIndirect(common::enum_cast(DrawMode), IndexBuffer->IndexType, IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        DSA->ogluMultiDrawElementsIndirect(common::enum_cast(DrawMode), IndexBuffer->IndexType, *IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::UnPrepared:
         oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
