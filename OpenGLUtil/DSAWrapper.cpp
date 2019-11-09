@@ -20,153 +20,88 @@ namespace oglu
 
 thread_local const DSAFuncs* DSA = nullptr;
 
+
 template<typename T>
-static forceinline T DecideFunc() { return nullptr; }
-template<typename T, typename... Ts>
-static forceinline T DecideFunc(const T& func, Ts... funcs)
+static void QueryFunc(T& target, const std::string_view tarName, 
+    const std::pair<bool, bool> shouldPrint, const std::initializer_list<std::string_view> names)
 {
-    if constexpr (sizeof...(Ts) > 0)
-        return func ? func : DecideFunc<T>(funcs...);
-    else
-        return func ? func : nullptr;
-}
-template<typename T, typename T2, typename... Ts>
-static forceinline T DecideFunc(const std::pair<T2, T>& func, Ts... funcs)
-{
-    if constexpr (sizeof...(Ts) > 0)
-        return func.first ? func.second : DecideFunc<T>(funcs...);
-    else
-        return func.first ? func.second : nullptr;
-}
-
-
-extern GLuint GetCurFBO();
-
-
-
-
-
-
-static void GLAPIENTRY ogluCreateFramebuffers(GLsizei n, GLuint *framebuffers)
-{
-    glGenFramebuffers(n, framebuffers);
-    for (int i = 0; i < n; ++i)
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
-    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
-}
-static void GLAPIENTRY ogluFramebufferTextureARB(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
-{
-    glNamedFramebufferTexture(framebuffer, attachment, texture, level);
-}
-static void GLAPIENTRY ogluFramebufferTextureEXT(GLuint framebuffer, GLenum attachment, GLenum, GLuint texture, GLint level)
-{
-    glNamedFramebufferTextureEXT(framebuffer, attachment, texture, level);
-}
-static void GLAPIENTRY ogluFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
-{
-    switch (textarget)
+    const auto [printSuc, printFail] = shouldPrint;
+    for (const auto& name : names)
     {
-    case GL_TEXTURE_1D:
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glFramebufferTexture1D(framebuffer, attachment, textarget, texture, level);
-        glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
-        break;
-    case GL_TEXTURE_2D:
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glFramebufferTexture2D(framebuffer, attachment, textarget, texture, level);
-        glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
-        break;
-    default:
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported texture argument when calling Non-DSA FramebufferTexture");
-    }
-}
-static void GLAPIENTRY ogluFramebufferTextureLayerARB(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer)
-{
-    glNamedFramebufferTextureLayer(framebuffer, attachment, texture, level, layer);
-}
-static void GLAPIENTRY ogluFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer)
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, texture, level, layer);
-    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
-}
-static void GLAPIENTRY ogluFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
-{
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, GetCurFBO());
-}
-
-
-
-
-template<typename T>
-static forceinline T QueryFunc_(const std::string_view name)
-{
 #if COMMON_OS_WIN
-    return reinterpret_cast<T>(wglGetProcAddress(name.data()));
+        const auto ptr = wglGetProcAddress(name.data());
 #else 
-    return reinterpret_cast<T>(glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data())));
+        const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
 #endif
-}
-template<typename T>
-[[nodiscard]] static forceinline T QueryFunc_(const T func)
-{
-    return func;
-}
-
-template<typename T, typename Arg, typename... Args>
-static forceinline void QueryFunc(T& target, const Arg& arg, const Args&... args)
-{
-    const auto ret = QueryFunc_<T>(arg);
-    if constexpr (sizeof...(Args) == 0)
-        target = ret;
-    else
-    {
-        if (ret != nullptr)
-            target = ret;
-        else
-            QueryFunc(target, args...);
+        if (ptr)
+        {
+            target = reinterpret_cast<T>(ptr);
+            if (printSuc)
+                oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, name, (void*)ptr);
+            return;
+        }
     }
+    target = nullptr;
+    if (printFail)
+        oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
 }
 
+
+static std::atomic<uint32_t>& GetDSADebugPrint() noexcept
+{
+    static std::atomic<uint32_t> ShouldPrint = 0;
+    return ShouldPrint;
+}
+void SetDSAShouldPrint(const bool printSuc, const bool printFail) noexcept
+{
+    const uint32_t val = (printSuc ? 0x1u : 0x0u) | (printFail ? 0x2u : 0x0u);
+    GetDSADebugPrint() = val;
+}
+static std::pair<bool, bool> GetDSAShouldPrint() noexcept
+{
+    const uint32_t val = GetDSADebugPrint();
+    const bool printSuc  = (val & 0x1u) == 0x1u;
+    const bool printFail = (val & 0x2u) == 0x2u;
+    return { printSuc, printFail };
+}
 
 
 void InitDSAFuncs(DSAFuncs& dsa)
 {
+    const auto shouldPrint = GetDSAShouldPrint();
 #define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) "gl" name sfx
-#define WITH_SUFFIXS(name, ...) BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
 
-#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(dsa.oglu, name),          WITH_SUFFIXS(#name, __VA_ARGS__))
-#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(dsa.oglu, name),_), WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(dsa.oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(dsa.oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
 
     // buffer related
-    QUERY_FUNC (GenBuffers,                     "", "ARB");
-    QUERY_FUNC (DeleteBuffers,                  "", "ARB");
-    QUERY_FUNC (BindBuffer,                     "", "ARB");
-    QUERY_FUNC (BindBufferBase,                 "", "EXT", "NV");
-    QUERY_FUNC (BindBufferRange,                "", "EXT", "NV");
-    QUERY_FUNC_(NamedBufferStorage,             "", "EXT");
-    QUERY_FUNC_(BufferStorage,                  "", "EXT");
-    QUERY_FUNC_(NamedBufferData,                "", "EXT");
-    QUERY_FUNC_(BufferData,                     "", "ARB");
-    QUERY_FUNC_(NamedBufferSubData,             "", "EXT");
-    QUERY_FUNC_(BufferSubData,                  "", "ARB");
-    QUERY_FUNC_(MapNamedBuffer,                 "", "EXT");
-    QUERY_FUNC_(MapBuffer,                      "", "ARB");
-    QUERY_FUNC_(UnmapNamedBuffer,               "", "EXT");
-    QUERY_FUNC_(UnmapBuffer,                    "", "ARB");
+    QUERY_FUNC (GenBuffers,             "", "ARB");
+    QUERY_FUNC (DeleteBuffers,          "", "ARB");
+    QUERY_FUNC (BindBuffer,             "", "ARB");
+    QUERY_FUNC (BindBufferBase,         "", "EXT", "NV");
+    QUERY_FUNC (BindBufferRange,        "", "EXT", "NV");
+    QUERY_FUNC_(NamedBufferStorage,     "", "EXT");
+    QUERY_FUNC_(BufferStorage,          "", "EXT");
+    QUERY_FUNC_(NamedBufferData,        "", "EXT");
+    QUERY_FUNC_(BufferData,             "", "ARB");
+    QUERY_FUNC_(NamedBufferSubData,     "", "EXT");
+    QUERY_FUNC_(BufferSubData,          "", "ARB");
+    QUERY_FUNC_(MapNamedBuffer,         "", "EXT");
+    QUERY_FUNC_(MapBuffer,              "", "ARB");
+    QUERY_FUNC_(UnmapNamedBuffer,       "", "EXT");
+    QUERY_FUNC_(UnmapBuffer,            "", "ARB");
 
     // vao related
-    QUERY_FUNC (GenVertexArrays,                "", "ARB");
-    QUERY_FUNC (DeleteVertexArrays,             "", "ARB");
-    QUERY_FUNC (BindVertexArray,                "", "ARB");
-    QUERY_FUNC (EnableVertexAttribArray,        "", "ARB");
-    QUERY_FUNC_(EnableVertexArrayAttrib,        "", "EXT");
-    QUERY_FUNC_(VertexAttribIPointer,           "", "ARB");
-    QUERY_FUNC_(VertexAttribLPointer,           "", "EXT");
-    QUERY_FUNC_(VertexAttribPointer,            "", "ARB");
-    QUERY_FUNC (VertexAttribDivisor,            "", "ARB", "EXT", "NV");
+    QUERY_FUNC (GenVertexArrays,            "", "ARB");
+    QUERY_FUNC (DeleteVertexArrays,         "", "ARB");
+    QUERY_FUNC (BindVertexArray,            "", "ARB");
+    QUERY_FUNC (EnableVertexAttribArray,    "", "ARB");
+    QUERY_FUNC_(EnableVertexArrayAttrib,    "", "EXT");
+    QUERY_FUNC_(VertexAttribIPointer,       "", "ARB");
+    QUERY_FUNC_(VertexAttribLPointer,       "", "EXT");
+    QUERY_FUNC_(VertexAttribPointer,        "", "ARB");
+    QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
 
     // draw related
     QUERY_FUNC (MultiDrawArrays,                                "", "EXT");
@@ -240,11 +175,45 @@ void InitDSAFuncs(DSAFuncs& dsa)
     QUERY_FUNC_(GetCompressedTextureImageEXT,   "");
     QUERY_FUNC_(GetCompressedTexImage,          "", "ARB");
 
+    //rbo related
+    QUERY_FUNC_(GenRenderbuffers,                               "", "EXT");
+    QUERY_FUNC_(CreateRenderbuffers,                            "");
+    QUERY_FUNC (DeleteRenderbuffers,                            "", "EXT");
+    QUERY_FUNC_(BindRenderbuffer,                               "", "EXT");
+    QUERY_FUNC_(NamedRenderbufferStorage,                       "", "EXT");
+    QUERY_FUNC_(RenderbufferStorage,                            "", "EXT");
+    QUERY_FUNC_(NamedRenderbufferStorageMultisample,            "", "EXT");
+    QUERY_FUNC_(RenderbufferStorageMultisample,                 "", "EXT", "NV", "ANGLE", "APPLE");
+    QUERY_FUNC_(NamedRenderbufferStorageMultisampleCoverageEXT, "");
+    QUERY_FUNC_(RenderbufferStorageMultisampleCoverageNV,       "");
+    QUERY_FUNC_(GetRenderbufferParameteriv,                     "", "EXT");
+
     
-    dsa.ogluCreateFramebuffers = DecideFunc(std::pair{ glNamedFramebufferTexture, glCreateFramebuffers }, std::pair{ glNamedFramebufferTextureEXT, glGenFramebuffers }, ogluCreateFramebuffers);
-    dsa.ogluFramebufferTexture = DecideFunc(std::pair{ glNamedFramebufferTexture, &ogluFramebufferTextureARB }, std::pair{ glNamedFramebufferTextureEXT, &ogluFramebufferTextureEXT }, &ogluFramebufferTexture);
-    dsa.ogluFramebufferTextureLayer = DecideFunc(std::pair{ glNamedFramebufferTextureLayer, &ogluFramebufferTextureLayerARB }, glNamedFramebufferTextureLayerEXT, &ogluFramebufferTextureLayer);
-    dsa.ogluFramebufferRenderbuffer = DecideFunc(glNamedFramebufferRenderbuffer, glNamedFramebufferRenderbufferEXT, &ogluFramebufferRenderbuffer);
+    //fbo related
+    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &dsa.MaxColorAttachment);
+    QUERY_FUNC_(GenFramebuffers,                            "", "EXT");
+    QUERY_FUNC_(CreateFramebuffers,                         "", "EXT");
+    QUERY_FUNC (DeleteFramebuffers,                         "", "EXT");
+    QUERY_FUNC_(BindFramebuffer,                            "", "EXT");
+    QUERY_FUNC_(BlitNamedFramebuffer,                       "");
+    QUERY_FUNC_(BlitFramebuffer,                            "", "EXT");
+    QUERY_FUNC_(NamedFramebufferRenderbuffer,               "", "EXT");
+    QUERY_FUNC_(FramebufferRenderbuffer,                    "", "EXT");
+    QUERY_FUNC_(NamedFramebufferTexture1DEXT,               "");
+    QUERY_FUNC_(FramebufferTexture1D,                       "", "EXT");
+    QUERY_FUNC_(NamedFramebufferTexture2DEXT,               "");
+    QUERY_FUNC_(FramebufferTexture2D,                       "", "EXT");
+    QUERY_FUNC_(NamedFramebufferTexture3DEXT,               "");
+    QUERY_FUNC_(FramebufferTexture3D,                       "", "EXT");
+    QUERY_FUNC_(NamedFramebufferTexture,                    "", "EXT");
+    QUERY_FUNC_(FramebufferTexture,                         "", "EXT");
+    QUERY_FUNC_(NamedFramebufferTextureLayer,               "", "EXT");
+    QUERY_FUNC_(FramebufferTextureLayer,                    "", "EXT");
+    QUERY_FUNC_(CheckNamedFramebufferStatus,                "", "EXT");
+    QUERY_FUNC_(CheckFramebufferStatus,                     "", "EXT");
+    QUERY_FUNC_(GetNamedFramebufferAttachmentParameteriv,   "", "EXT");
+    QUERY_FUNC_(GetFramebufferAttachmentParameteriv,        "", "EXT");
+
 }
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
@@ -608,6 +577,204 @@ void DSAFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLin
     {
         glBindTexture(target, texture);
         ogluGetCompressedTexImage_(target, level, img);
+    }
+}
+
+
+void DSAFuncs::ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
+{
+    CALL_EXISTS(ogluCreateRenderbuffers_, n, renderbuffers)
+    {
+        ogluGenRenderbuffers_(n, renderbuffers);
+        for (GLsizei i = 0; i < n; ++i)
+            ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffers[i]);
+    }
+}
+void DSAFuncs::ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const
+{
+    CALL_EXISTS(ogluNamedRenderbufferStorage_, renderbuffer, internalformat, width, height)
+    {
+        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        ogluRenderbufferStorage_(GL_RENDERBUFFER, internalformat, width, height);
+    }
+}
+void DSAFuncs::ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const
+{
+    CALL_EXISTS(ogluNamedRenderbufferStorageMultisample_, renderbuffer, samples, internalformat, width, height)
+    {
+        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        ogluRenderbufferStorageMultisample_(GL_RENDERBUFFER, samples, internalformat, width, height);
+    }
+}
+void DSAFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const
+{
+    CALL_EXISTS(ogluNamedRenderbufferStorageMultisampleCoverageEXT_, renderbuffer, coverageSamples, colorSamples, internalformat, width, height)
+    if (ogluRenderbufferStorageMultisampleCoverageNV_)
+    {
+        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        ogluRenderbufferStorageMultisampleCoverageNV_(GL_RENDERBUFFER, coverageSamples, colorSamples, internalformat, width, height);
+    }
+    else
+    {
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for RenderbufferStorageMultisampleCoverage");
+    }
+}
+
+
+struct DSAFuncs::FBOBinder : public common::NonCopyable
+{
+    common::SpinLocker::ScopeType Lock;
+    const DSAFuncs& DSA;
+    bool ChangeRead, ChangeDraw;
+    FBOBinder(const DSAFuncs* dsa) noexcept :
+        Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(true), ChangeDraw(true)
+    { }
+    FBOBinder(const DSAFuncs* dsa, const GLuint newReadFBO) noexcept :
+        Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
+    {
+        if (DSA.ReadFBO != newReadFBO)
+            ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newReadFBO);
+    }
+    FBOBinder(const DSAFuncs* dsa, const std::pair<GLuint, GLuint> newFBO) noexcept :
+        Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
+    {
+        if (DSA.ReadFBO != newFBO.first)
+            ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO.first);
+        if (DSA.DrawFBO != newFBO.second)
+            ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO.second);
+    }
+    FBOBinder(const DSAFuncs* dsa, const GLenum target, const GLuint newFBO) noexcept :
+        Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
+    {
+        if (target == GL_READ_FRAMEBUFFER || GL_FRAMEBUFFER)
+        {
+            if (DSA.ReadFBO != newFBO)
+                ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO);
+        }
+        if (target == GL_DRAW_FRAMEBUFFER || GL_FRAMEBUFFER)
+        {
+            if (DSA.DrawFBO != newFBO)
+                ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO);
+        }
+    }
+    ~FBOBinder()
+    {
+        if (ChangeRead)
+            DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, DSA.ReadFBO);
+        if (ChangeDraw)
+            DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, DSA.DrawFBO);
+    }
+};
+void DSAFuncs::RefreshFBOState() const
+{
+    const auto lock = DataLock.LockScope();
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
+}
+void DSAFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
+{
+    CALL_EXISTS(ogluCreateFramebuffers_, n, framebuffers)
+    {
+        ogluGenFramebuffers_(n, framebuffers);
+        const auto backup = FBOBinder(this);
+        for (GLsizei i = 0; i < n; ++i)
+            ogluBindFramebuffer_(GL_READ_FRAMEBUFFER_BINDING, framebuffers[i]);
+    }
+}
+void DSAFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
+{
+    const auto lock = DataLock.LockScope();
+    ogluBindFramebuffer_(target, framebuffer);
+    if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER)
+        ReadFBO = framebuffer;
+    if (target == GL_DRAW_FRAMEBUFFER || target == GL_FRAMEBUFFER)
+        DrawFBO = framebuffer;
+}
+void DSAFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const
+{
+    CALL_EXISTS(ogluBlitNamedFramebuffer_, readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
+    {
+        const auto backup = FBOBinder(this, { readFramebuffer, drawFramebuffer });
+        ogluBlitFramebuffer_(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+    }
+}
+void DSAFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
+{
+    CALL_EXISTS(ogluNamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
+    {
+        const auto backup = FBOBinder(this, framebuffer);
+        ogluFramebufferRenderbuffer_(GL_READ_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
+    }
+}
+void DSAFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
+{
+    CALL_EXISTS(ogluNamedFramebufferTexture_, framebuffer, attachment, texture, level)
+    if (ogluFramebufferTexture_)
+    {
+        const auto backup = FBOBinder(this, framebuffer);
+        ogluFramebufferTexture_(GL_READ_FRAMEBUFFER, attachment, texture, level);
+    }
+    else
+    {
+        switch (textarget)
+        {
+        case GL_TEXTURE_1D:
+            CALL_EXISTS(ogluNamedFramebufferTexture1DEXT_, framebuffer, attachment, textarget, texture, level)
+            {
+                const auto backup = FBOBinder(this, framebuffer);
+                ogluFramebufferTexture1D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level);
+            }
+            break;
+        case GL_TEXTURE_2D:
+            CALL_EXISTS(ogluNamedFramebufferTexture2DEXT_, framebuffer, attachment, textarget, texture, level)
+            {
+                const auto backup = FBOBinder(this, framebuffer);
+                ogluFramebufferTexture2D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level);
+            }
+            break;
+        default:
+            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTexture");
+        }
+    }
+}
+void DSAFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const
+{
+    CALL_EXISTS(ogluNamedFramebufferTextureLayer_, framebuffer, attachment, texture, level, layer)
+    if (ogluFramebufferTextureLayer_)
+    {
+        const auto backup = FBOBinder(this, framebuffer);
+        ogluFramebufferTextureLayer_(GL_READ_FRAMEBUFFER, attachment, texture, level, layer);
+    }
+    else
+    {
+        switch (textarget)
+        {
+        case GL_TEXTURE_3D:
+            CALL_EXISTS(ogluNamedFramebufferTexture3DEXT_, framebuffer, attachment, textarget, texture, level, layer)
+            {
+                const auto backup = FBOBinder(this, framebuffer);
+                ogluFramebufferTexture3D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level, layer);
+            }
+            break;
+        default:
+            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTextureLayer");
+        }
+    }
+}
+GLenum DSAFuncs::ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const
+{
+    CALL_EXISTS(ogluCheckNamedFramebufferStatus_, framebuffer, target)
+    {
+        const auto backup = FBOBinder(this, target, framebuffer);
+        return ogluCheckFramebufferStatus_(target);
+    }
+}
+void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const
+{
+    CALL_EXISTS(ogluGetNamedFramebufferAttachmentParameteriv_, framebuffer, attachment, pname, params)
+    {
+        const auto backup = FBOBinder(this, framebuffer);
+        ogluGetFramebufferAttachmentParameteriv_(GL_READ_FRAMEBUFFER, attachment, pname, params);
     }
 }
 

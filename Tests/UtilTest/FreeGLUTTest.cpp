@@ -47,7 +47,7 @@ static void FGTest()
     {
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
-        screenBox->Write(DatVert, sizeof(DatVert));
+        screenBox->WriteSpan(DatVert);
         basicVAO->Prepare()
             .SetFloat(screenBox, drawer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)

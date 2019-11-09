@@ -8,9 +8,7 @@ class oglIndirectBuffer_;
 
 struct DSAFuncs
 {
-    template<typename T>
-    static void Bind(const T& obj) { obj->bind(); }
-    
+    mutable common::SpinLocker DataLock;
     // buffer related
 
     void      (GLAPIENTRY *ogluGenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
@@ -37,7 +35,7 @@ struct DSAFuncs
     
     // vao related
     
-    void (GLAPIENTRY *ogluGenVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
+    void (GLAPIENTRY *ogluGenVertexArrays) (GLsizei n, GLuint* arrays) = nullptr;
     void (GLAPIENTRY *ogluDeleteVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
     void (GLAPIENTRY *ogluBindVertexArray) (GLuint vaobj) = nullptr;
     void (GLAPIENTRY *ogluEnableVertexAttribArray) (GLuint index) = nullptr;
@@ -153,12 +151,62 @@ struct DSAFuncs
     void ogluGetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const;
     void ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const;
 
+    // rbo related
 
+    void (GLAPIENTRY *ogluGenRenderbuffers_) (GLsizei n, GLuint* renderbuffers) = nullptr;
+    void (GLAPIENTRY *ogluCreateRenderbuffers_) (GLsizei n, GLuint* renderbuffers) = nullptr;
+    void (GLAPIENTRY *ogluDeleteRenderbuffers) (GLsizei n, const GLuint* renderbuffers) = nullptr;
+    void (GLAPIENTRY *ogluBindRenderbuffer_) (GLenum target, GLuint renderbuffer) = nullptr;
+    void (GLAPIENTRY *ogluNamedRenderbufferStorage_) (GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluRenderbufferStorage_) (GLenum target, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluNamedRenderbufferStorageMultisample_) (GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluRenderbufferStorageMultisample_) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluNamedRenderbufferStorageMultisampleCoverageEXT_) (GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluRenderbufferStorageMultisampleCoverageNV_) (GLenum target, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) = nullptr;
+    void (GLAPIENTRY *ogluGetRenderbufferParameteriv_) (GLenum target, GLenum pname, GLint* params) = nullptr;
 
-    void (GLAPIENTRY *ogluCreateFramebuffers) (GLsizei n, GLuint *framebuffers) = nullptr;
-    void (GLAPIENTRY *ogluFramebufferTexture) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
-    void (GLAPIENTRY *ogluFramebufferTextureLayer) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
-    void (GLAPIENTRY *ogluFramebufferRenderbuffer) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
+    void ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const;
+    void ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const;
+    void ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const;
+    void ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const;
+
+    // fbo related
+
+    mutable GLuint ReadFBO = 0, DrawFBO = 0;
+    GLint MaxColorAttachment = 0;
+    struct FBOBinder;
+    void   (GLAPIENTRY *ogluGenFramebuffers_) (GLsizei n, GLuint* framebuffers) = nullptr;
+    void   (GLAPIENTRY *ogluCreateFramebuffers_) (GLsizei n, GLuint *framebuffers) = nullptr;
+    void   (GLAPIENTRY *ogluDeleteFramebuffers) (GLsizei n, const GLuint* framebuffers) = nullptr;
+    void   (GLAPIENTRY *ogluBindFramebuffer_) (GLenum target, GLuint framebuffer) = nullptr;
+    void   (GLAPIENTRY *ogluBlitNamedFramebuffer_) (GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
+    void   (GLAPIENTRY *ogluBlitFramebuffer_) (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
+    void   (GLAPIENTRY *ogluNamedFramebufferRenderbuffer_) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
+    void   (GLAPIENTRY *ogluFramebufferRenderbuffer_) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
+    void   (GLAPIENTRY *ogluNamedFramebufferTexture1DEXT_) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
+    void   (GLAPIENTRY *ogluFramebufferTexture1D_) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
+    void   (GLAPIENTRY *ogluNamedFramebufferTexture2DEXT_) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
+    void   (GLAPIENTRY *ogluFramebufferTexture2D_) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
+    void   (GLAPIENTRY *ogluNamedFramebufferTexture3DEXT_) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset) = nullptr;
+    void   (GLAPIENTRY *ogluFramebufferTexture3D_) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) = nullptr;
+    void   (GLAPIENTRY *ogluNamedFramebufferTexture_) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level);
+    void   (GLAPIENTRY *ogluFramebufferTexture_) (GLenum target, GLenum attachment, GLuint texture, GLint level);
+    void   (GLAPIENTRY *ogluNamedFramebufferTextureLayer_) (GLuint framebuffer, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
+    void   (GLAPIENTRY *ogluFramebufferTextureLayer_) (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer) = nullptr;
+    GLenum (GLAPIENTRY *ogluCheckNamedFramebufferStatus_) (GLuint framebuffer, GLenum target) = nullptr;
+    GLenum (GLAPIENTRY *ogluCheckFramebufferStatus_) (GLenum target) = nullptr;
+    void   (GLAPIENTRY *ogluGetNamedFramebufferAttachmentParameteriv_) (GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetFramebufferAttachmentParameteriv_) (GLenum target, GLenum attachment, GLenum pname, GLint* params) = nullptr;
+    
+    void RefreshFBOState() const;
+    void ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const;
+    void ogluBindFramebuffer(GLenum target, GLuint framebuffer) const;
+    void ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const;
+    void ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const;
+    void ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const;
+    void ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const;
+    [[nodiscard]] GLenum ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const;
+    void ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const;
 
 };
 extern thread_local const DSAFuncs* DSA;

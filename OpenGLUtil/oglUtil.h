@@ -44,6 +44,7 @@ class OGLUAPI oglUtil
 {
 private:
 public:
+    static void SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept;
     static void InitLatestVersion();
     static std::u16string GetVersionStr();
     static std::optional<std::string_view> GetError();

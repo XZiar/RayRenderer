@@ -17,6 +17,12 @@ using std::vector;
 using common::PromiseResult;
 
 
+void SetDSAShouldPrint(const bool printSuc, const bool printFail) noexcept;
+void oglUtil::SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept
+{
+    SetDSAShouldPrint(printSuc, printFail);
+}
+
 void oglUtil::InitLatestVersion()
 {
     constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
