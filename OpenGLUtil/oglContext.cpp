@@ -281,8 +281,8 @@ void oglContext_::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     DbgLimit = { type, src, minLV };
-    if (glDebugMessageCallback)
-        glDebugMessageCallback(onMsg, &DbgLimit);
+    if (DSA->ogluDebugMessageCallback)
+        DSA->ogluDebugMessageCallback(onMsg, &DbgLimit);
 }
 
 void oglContext_::SetDepthTest(const DepthTestType type)
@@ -336,12 +336,12 @@ void oglContext_::SetDepthClip(const bool fix)
     CHECKCURRENT();
     if (fix)
     {
-        glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+        DSA->ogluClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
         glClearDepth(0.0f);
     }
     else
     {
-        glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+        DSA->ogluClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
         glClearDepth(1.0f);
     }
 }

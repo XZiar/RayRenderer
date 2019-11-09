@@ -1,5 +1,5 @@
 #pragma once
-#include "oglRely.h"
+#include "oglPch.h"
 #include "AsyncExecutor/AsyncAgent.h"
 
 namespace oglu
@@ -13,24 +13,24 @@ protected:
     GLuint Query;
     oglPromiseCore()
     {
-        glGenQueries(1, &Query);
-        glGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
-        glQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
-        SyncObj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        DSA->ogluGenQueries(1, &Query);
+        DSA->ogluGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
+        DSA->ogluQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        SyncObj = DSA->ogluFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         glFlush(); //ensure sync object sended
     }
     ~oglPromiseCore()
     {
         if (EnsureValid())
         {
-            glDeleteSync(SyncObj);
-            glDeleteQueries(1, &Query);
+            DSA->ogluDeleteSync(SyncObj);
+            DSA->ogluDeleteQueries(1, &Query);
         }
     }
     common::PromiseState State()
     {
         CheckCurrent();
-        switch (glClientWaitSync(SyncObj, 0, 0))
+        switch (DSA->ogluClientWaitSync(SyncObj, 0, 0))
         {
         case GL_TIMEOUT_EXPIRED:
             return common::PromiseState::Executing;
@@ -49,7 +49,7 @@ protected:
     void Wait()
     {
         CheckCurrent();
-        while (glClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+        while (DSA->ogluClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
         { }
     }
     uint64_t ElapseNs()
@@ -57,7 +57,7 @@ protected:
         if (TimeEnd == 0)
         {
             CheckCurrent();
-            glGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
+            DSA->ogluGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
         }
         if (TimeEnd == 0)
             return 0;

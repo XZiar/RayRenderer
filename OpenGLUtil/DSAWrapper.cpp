@@ -95,8 +95,8 @@ void InitDSAFuncs(DSAFuncs& dsa)
     // vao related
     QUERY_FUNC (GenVertexArrays,            "", "ARB");
     QUERY_FUNC (DeleteVertexArrays,         "", "ARB");
-    QUERY_FUNC (BindVertexArray,            "", "ARB");
-    QUERY_FUNC (EnableVertexAttribArray,    "", "ARB");
+    QUERY_FUNC_(BindVertexArray,            "", "ARB");
+    QUERY_FUNC_(EnableVertexAttribArray,    "", "ARB");
     QUERY_FUNC_(EnableVertexArrayAttrib,    "", "EXT");
     QUERY_FUNC_(VertexAttribIPointer,       "", "ARB");
     QUERY_FUNC_(VertexAttribLPointer,       "", "EXT");
@@ -108,11 +108,11 @@ void InitDSAFuncs(DSAFuncs& dsa)
     QUERY_FUNC (MultiDrawElements,                              "", "EXT");
     QUERY_FUNC_(MultiDrawArraysIndirect,                        "", "EXT", "AMD");
     QUERY_FUNC_(DrawArraysInstancedBaseInstance,                "", "EXT");
-    QUERY_FUNC_(DrawArraysInstanced,                            "", "ARB", "EXT", "NV", "ANGLE");
+    QUERY_FUNC_(DrawArraysInstanced,                            "", "ARB", "EXT", "NV");
     QUERY_FUNC_(MultiDrawElementsIndirect,                      "", "EXT", "AMD");
     QUERY_FUNC_(DrawElementsInstancedBaseVertexBaseInstance,    "", "EXT");
     QUERY_FUNC_(DrawElementsInstancedBaseInstance,              "", "EXT");
-    QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV", "ANGLE");
+    QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV");
 
     //texture related
     QUERY_FUNC (ActiveTexture,                  "", "ARB");
@@ -183,7 +183,7 @@ void InitDSAFuncs(DSAFuncs& dsa)
     QUERY_FUNC_(NamedRenderbufferStorage,                       "", "EXT");
     QUERY_FUNC_(RenderbufferStorage,                            "", "EXT");
     QUERY_FUNC_(NamedRenderbufferStorageMultisample,            "", "EXT");
-    QUERY_FUNC_(RenderbufferStorageMultisample,                 "", "EXT", "NV", "ANGLE", "APPLE");
+    QUERY_FUNC_(RenderbufferStorageMultisample,                 "", "EXT", "NV", "APPLE");
     QUERY_FUNC_(NamedRenderbufferStorageMultisampleCoverageEXT, "");
     QUERY_FUNC_(RenderbufferStorageMultisampleCoverageNV,       "");
     QUERY_FUNC_(GetRenderbufferParameteriv,                     "", "EXT");
@@ -214,7 +214,147 @@ void InitDSAFuncs(DSAFuncs& dsa)
     QUERY_FUNC_(GetNamedFramebufferAttachmentParameteriv,   "", "EXT");
     QUERY_FUNC_(GetFramebufferAttachmentParameteriv,        "", "EXT");
 
+    //shader related
+    QUERY_FUNC (CreateShader,       "");
+    QUERY_FUNC (DeleteShader,       "");
+    QUERY_FUNC (ShaderSource,       "");
+    QUERY_FUNC (CompileShader,      "");
+    QUERY_FUNC (GetShaderInfoLog,   "");
+    QUERY_FUNC (GetShaderSource,    "");
+    QUERY_FUNC (GetShaderiv,        "");
+
+    //program related
+    QUERY_FUNC (CreateProgram,                      "");
+    QUERY_FUNC (DeleteProgram,                      "");
+    QUERY_FUNC (AttachShader,                       "");
+    QUERY_FUNC (DetachShader,                       "");
+    QUERY_FUNC (LinkProgram,                        "");
+    QUERY_FUNC (UseProgram,                         "");
+    QUERY_FUNC (DispatchCompute,                    "");
+    QUERY_FUNC (DispatchComputeIndirect,            "");
+
+    QUERY_FUNC_(Uniform1f,                          "");
+    QUERY_FUNC_(Uniform1fv,                         "");
+    QUERY_FUNC_(Uniform1i,                          "");
+    QUERY_FUNC_(Uniform1iv,                         "");
+    QUERY_FUNC_(Uniform2f,                          "");
+    QUERY_FUNC_(Uniform2fv,                         "");
+    QUERY_FUNC_(Uniform2i,                          "");
+    QUERY_FUNC_(Uniform2iv,                         "");
+    QUERY_FUNC_(Uniform3f,                          "");
+    QUERY_FUNC_(Uniform3fv,                         "");
+    QUERY_FUNC_(Uniform3i,                          "");
+    QUERY_FUNC_(Uniform3iv,                         "");
+    QUERY_FUNC_(Uniform4f,                          "");
+    QUERY_FUNC_(Uniform4fv,                         "");
+    QUERY_FUNC_(Uniform4i,                          "");
+    QUERY_FUNC_(Uniform4iv,                         "");
+    QUERY_FUNC_(UniformMatrix2fv,                   "");
+    QUERY_FUNC_(UniformMatrix3fv,                   "");
+    QUERY_FUNC_(UniformMatrix4fv,                   "");
+
+    QUERY_FUNC (ProgramUniform1d,                   "");
+    QUERY_FUNC (ProgramUniform1dv,                  "");
+    QUERY_FUNC (ProgramUniform1f,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform1fv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform1i,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform1iv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform1ui,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform1uiv,                 "", "EXT");
+    QUERY_FUNC (ProgramUniform2d,                   "");
+    QUERY_FUNC (ProgramUniform2dv,                  "");
+    QUERY_FUNC (ProgramUniform2f,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform2fv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform2i,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform2iv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform2ui,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform2uiv,                 "", "EXT");
+    QUERY_FUNC (ProgramUniform3d,                   "");
+    QUERY_FUNC (ProgramUniform3dv,                  "");
+    QUERY_FUNC (ProgramUniform3f,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform3fv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform3i,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform3iv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform3ui,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform3uiv,                 "", "EXT");
+    QUERY_FUNC (ProgramUniform4d,                   "");
+    QUERY_FUNC (ProgramUniform4dv,                  "");
+    QUERY_FUNC (ProgramUniform4f,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform4fv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform4i,                   "", "EXT");
+    QUERY_FUNC (ProgramUniform4iv,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform4ui,                  "", "EXT");
+    QUERY_FUNC (ProgramUniform4uiv,                 "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix2dv,            "");
+    QUERY_FUNC (ProgramUniformMatrix2fv,            "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix2x3dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix2x3fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix2x4dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix2x4fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix3dv,            "");
+    QUERY_FUNC (ProgramUniformMatrix3fv,            "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix3x2dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix3x2fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix3x4dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix3x4fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix4dv,            "");
+    QUERY_FUNC (ProgramUniformMatrix4fv,            "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix4x2dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix4x2fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformMatrix4x3dv,          "");
+    QUERY_FUNC (ProgramUniformMatrix4x3fv,          "", "EXT");
+
+    QUERY_FUNC (GetUniformfv,                       "");
+    QUERY_FUNC (GetUniformiv,                       "");
+    QUERY_FUNC (GetUniformuiv,                      "");
+    QUERY_FUNC (GetProgramInfoLog,                  "");
+    QUERY_FUNC (GetProgramiv,                       "");
+    QUERY_FUNC (GetProgramInterfaceiv,              "");
+    QUERY_FUNC (GetProgramResourceIndex,            "");
+    QUERY_FUNC (GetProgramResourceLocation,         "");
+    QUERY_FUNC (GetProgramResourceLocationIndex,    "");
+    QUERY_FUNC (GetProgramResourceName,             "");
+    QUERY_FUNC (GetProgramResourceiv,               "");
+    QUERY_FUNC (GetActiveSubroutineName,            "");
+    QUERY_FUNC (GetActiveSubroutineUniformName,     "");
+    QUERY_FUNC (GetActiveSubroutineUniformiv,       "");
+    QUERY_FUNC (GetProgramStageiv,                  "");
+    QUERY_FUNC (GetSubroutineIndex,                 "");
+    QUERY_FUNC (GetSubroutineUniformLocation,       "");
+    QUERY_FUNC (GetUniformSubroutineuiv,            "");
+    QUERY_FUNC (UniformSubroutinesuiv,              "");
+    QUERY_FUNC (GetActiveUniformBlockName,          "");
+    QUERY_FUNC (GetActiveUniformBlockiv,            "");
+    QUERY_FUNC (GetActiveUniformName,               "");
+    QUERY_FUNC (GetActiveUniformsiv,                "");
+    QUERY_FUNC (GetIntegeri_v,                      "");
+    QUERY_FUNC (GetUniformBlockIndex,               "");
+    QUERY_FUNC (GetUniformIndices,                  "");
+    QUERY_FUNC (UniformBlockBinding,                "");
+
+    //query related
+    QUERY_FUNC (GenQueries,             "");
+    QUERY_FUNC (DeleteQueries,          "");
+    QUERY_FUNC (BeginQuery,             "");
+    QUERY_FUNC (QueryCounter,           "");
+    QUERY_FUNC (GetQueryObjectiv,       "");
+    QUERY_FUNC (GetQueryObjectuiv,      "");
+    QUERY_FUNC (GetQueryObjecti64v,     "", "EXT");
+    QUERY_FUNC (GetQueryObjectui64v,    "", "EXT");
+    QUERY_FUNC (GetQueryiv,             "");
+    QUERY_FUNC (FenceSync,              "", "APPLE");
+    QUERY_FUNC (DeleteSync,             "", "APPLE");
+    QUERY_FUNC (ClientWaitSync,         "", "APPLE");
+    QUERY_FUNC (WaitSync,               "", "APPLE");
+    QUERY_FUNC (GetInteger64v,          "", "APPLE");
+    QUERY_FUNC (GetSynciv,              "", "APPLE");
+
+    //others
+    QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
+    QUERY_FUNC (ClipControl,            "");
 }
+
+constexpr auto kkk = sizeof(DSAFuncs);
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 
@@ -261,13 +401,40 @@ GLboolean DSAFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
 }
 
 
+struct VAOBinder : public common::NonCopyable
+{
+    common::SpinLocker::ScopeType Lock;
+    const DSAFuncs& DSA;
+    bool Changed;
+    VAOBinder(const DSAFuncs* dsa, GLuint newVAO) noexcept :
+        Lock(dsa->DataLock.LockScope()), DSA(*dsa), Changed(false)
+    {
+        if (newVAO != DSA.VAO)
+            Changed = true, DSA.ogluBindVertexArray_(newVAO);
+    }
+    ~VAOBinder()
+    {
+        if (Changed)
+            DSA.ogluBindVertexArray_(DSA.VAO);
+    }
+};
+void DSAFuncs::RefreshVAOState() const
+{
+    const auto lock = DataLock.LockScope();
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
+}
+void DSAFuncs::ogluBindVertexArray(GLuint vaobj) const
+{
+    const auto lock = DataLock.LockScope();
+    ogluBindVertexArray_(vaobj);
+    VAO = vaobj;
+}
 void DSAFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
 {
     CALL_EXISTS(ogluEnableVertexArrayAttrib_, vaobj, index)
     {
-        ogluBindVertexArray(vaobj); // ensure be in binding
-        ogluEnableVertexAttribArray(index);
-        // ogluBindVertexArray(0); // may be in binding
+        ogluBindVertexArray_(vaobj); // ensure be in binding
+        ogluEnableVertexAttribArray_(index);
     }
 }
 void DSAFuncs::ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
@@ -621,7 +788,7 @@ void DSAFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuff
 }
 
 
-struct DSAFuncs::FBOBinder : public common::NonCopyable
+struct FBOBinder : public common::NonCopyable
 {
     common::SpinLocker::ScopeType Lock;
     const DSAFuncs& DSA;
@@ -646,12 +813,12 @@ struct DSAFuncs::FBOBinder : public common::NonCopyable
     FBOBinder(const DSAFuncs* dsa, const GLenum target, const GLuint newFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
-        if (target == GL_READ_FRAMEBUFFER || GL_FRAMEBUFFER)
+        if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         {
             if (DSA.ReadFBO != newFBO)
                 ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO);
         }
-        if (target == GL_DRAW_FRAMEBUFFER || GL_FRAMEBUFFER)
+        if (target == GL_DRAW_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         {
             if (DSA.DrawFBO != newFBO)
                 ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO);

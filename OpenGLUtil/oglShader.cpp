@@ -33,30 +33,30 @@ oglShader_::oglShader_(const ShaderType type, const string & txt) :
     Src(txt), ShaderID(GL_INVALID_INDEX), Type(type)
 {
     auto ptr = txt.c_str();
-    ShaderID = glCreateShader(common::enum_cast(type));
-    glShaderSource(ShaderID, 1, &ptr, NULL);
+    ShaderID = DSA->ogluCreateShader(common::enum_cast(type));
+    DSA->ogluShaderSource(ShaderID, 1, &ptr, NULL);
 }
 
 oglShader_::~oglShader_()
 {
     if (ShaderID != GL_INVALID_INDEX)
-        glDeleteShader(ShaderID);
+        DSA->ogluDeleteShader(ShaderID);
 }
 
 void oglShader_::compile()
 {
     CheckCurrent();
-    glCompileShader(ShaderID);
+    DSA->ogluCompileShader(ShaderID);
 
     GLint result;
 
-    glGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
+    DSA->ogluGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
     if (!result)
     {
         GLsizei len = 0;
-        glGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
+        DSA->ogluGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
-        glGetShaderInfoLog(ShaderID, len, &len, logstr.data());
+        DSA->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);

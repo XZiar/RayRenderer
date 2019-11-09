@@ -6,9 +6,19 @@ namespace oglu
 
 class oglIndirectBuffer_;
 
+
+struct ExtFuncs
+{
+
+};
+
 struct DSAFuncs
 {
+    friend struct VAOBinder;
+    friend struct FBOBinder;
+private:
     mutable common::SpinLocker DataLock;
+public:
     // buffer related
 
     void      (GLAPIENTRY *ogluGenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
@@ -35,16 +45,19 @@ struct DSAFuncs
     
     // vao related
     
+    mutable GLuint VAO = 0;
     void (GLAPIENTRY *ogluGenVertexArrays) (GLsizei n, GLuint* arrays) = nullptr;
     void (GLAPIENTRY *ogluDeleteVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
-    void (GLAPIENTRY *ogluBindVertexArray) (GLuint vaobj) = nullptr;
-    void (GLAPIENTRY *ogluEnableVertexAttribArray) (GLuint index) = nullptr;
+    void (GLAPIENTRY *ogluBindVertexArray_) (GLuint vaobj) = nullptr;
+    void (GLAPIENTRY *ogluEnableVertexAttribArray_) (GLuint index) = nullptr;
     void (GLAPIENTRY *ogluEnableVertexArrayAttrib_) (GLuint vaobj, GLuint index) = nullptr;
     void (GLAPIENTRY *ogluVertexAttribIPointer_) (GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer) = nullptr;
     void (GLAPIENTRY *ogluVertexAttribLPointer_) (GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer) = nullptr;
     void (GLAPIENTRY *ogluVertexAttribPointer_) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer) = nullptr;
     void (GLAPIENTRY *ogluVertexAttribDivisor) (GLuint index, GLuint divisor) = nullptr;
 
+    void RefreshVAOState() const;
+    void ogluBindVertexArray(GLuint vaobj) const;
     void ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const;
     void ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const;
     void ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const;
@@ -174,7 +187,6 @@ struct DSAFuncs
 
     mutable GLuint ReadFBO = 0, DrawFBO = 0;
     GLint MaxColorAttachment = 0;
-    struct FBOBinder;
     void   (GLAPIENTRY *ogluGenFramebuffers_) (GLsizei n, GLuint* framebuffers) = nullptr;
     void   (GLAPIENTRY *ogluCreateFramebuffers_) (GLsizei n, GLuint *framebuffers) = nullptr;
     void   (GLAPIENTRY *ogluDeleteFramebuffers) (GLsizei n, const GLuint* framebuffers) = nullptr;
@@ -207,6 +219,148 @@ struct DSAFuncs
     void ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const;
     [[nodiscard]] GLenum ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const;
     void ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const;
+
+    // shader related
+    
+    GLuint (GLAPIENTRY *ogluCreateShader) (GLenum type) = nullptr;
+    void   (GLAPIENTRY *ogluDeleteShader) (GLuint shader) = nullptr;
+    void   (GLAPIENTRY *ogluShaderSource) (GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length) = nullptr;
+    void   (GLAPIENTRY *ogluCompileShader) (GLuint shader) = nullptr;
+    void   (GLAPIENTRY *ogluGetShaderInfoLog) (GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog) = nullptr;
+    void   (GLAPIENTRY *ogluGetShaderSource) (GLuint obj, GLsizei maxLength, GLsizei* length, GLchar* source) = nullptr;
+    void   (GLAPIENTRY *ogluGetShaderiv) (GLuint shader, GLenum pname, GLint* param) = nullptr;
+    
+    //program related
+    
+    GLuint (GLAPIENTRY *ogluCreateProgram) () = nullptr;
+    void   (GLAPIENTRY *ogluDeleteProgram) (GLuint program) = nullptr;
+    void   (GLAPIENTRY *ogluAttachShader) (GLuint program, GLuint shader) = nullptr;
+    void   (GLAPIENTRY *ogluDetachShader) (GLuint program, GLuint shader) = nullptr;
+    void   (GLAPIENTRY *ogluLinkProgram) (GLuint program) = nullptr;
+    void   (GLAPIENTRY *ogluUseProgram) (GLuint program) = nullptr;
+    void   (GLAPIENTRY *ogluDispatchCompute) (GLuint num_groups_x, GLuint num_groups_y, GLuint num_groups_z) = nullptr;
+    void   (GLAPIENTRY *ogluDispatchComputeIndirect) (GLintptr indirect) = nullptr;
+    
+    void   (GLAPIENTRY *ogluUniform1f_) (GLint location, GLfloat v0) = nullptr;
+    void   (GLAPIENTRY *ogluUniform1fv_) (GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform1i_) (GLint location, GLint v0) = nullptr;
+    void   (GLAPIENTRY *ogluUniform1iv_) (GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform2f_) (GLint location, GLfloat v0, GLfloat v1) = nullptr;
+    void   (GLAPIENTRY *ogluUniform2fv_) (GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform2i_) (GLint location, GLint v0, GLint v1) = nullptr;
+    void   (GLAPIENTRY *ogluUniform2iv_) (GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform3f_) (GLint location, GLfloat v0, GLfloat v1, GLfloat v2) = nullptr;
+    void   (GLAPIENTRY *ogluUniform3fv_) (GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform3i_) (GLint location, GLint v0, GLint v1, GLint v2) = nullptr;
+    void   (GLAPIENTRY *ogluUniform3iv_) (GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform4f_) (GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) = nullptr;
+    void   (GLAPIENTRY *ogluUniform4fv_) (GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniform4i_) (GLint location, GLint v0, GLint v1, GLint v2, GLint v3) = nullptr;
+    void   (GLAPIENTRY *ogluUniform4iv_) (GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniformMatrix2fv_) (GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniformMatrix3fv_) (GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluUniformMatrix4fv_) (GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1d) (GLuint program, GLint location, GLdouble x) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1dv) (GLuint program, GLint location, GLsizei count, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1f) (GLuint program, GLint location, GLfloat x) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1fv) (GLuint program, GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1i) (GLuint program, GLint location, GLint x) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1iv) (GLuint program, GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1ui) (GLuint program, GLint location, GLuint x) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform1uiv) (GLuint program, GLint location, GLsizei count, const GLuint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2d) (GLuint program, GLint location, GLdouble x, GLdouble y) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2dv) (GLuint program, GLint location, GLsizei count, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2f) (GLuint program, GLint location, GLfloat x, GLfloat y) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2fv) (GLuint program, GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2i) (GLuint program, GLint location, GLint x, GLint y) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2iv) (GLuint program, GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2ui) (GLuint program, GLint location, GLuint x, GLuint y) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform2uiv) (GLuint program, GLint location, GLsizei count, const GLuint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3d) (GLuint program, GLint location, GLdouble x, GLdouble y, GLdouble z) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3dv) (GLuint program, GLint location, GLsizei count, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3f) (GLuint program, GLint location, GLfloat x, GLfloat y, GLfloat z) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3fv) (GLuint program, GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3i) (GLuint program, GLint location, GLint x, GLint y, GLint z) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3iv) (GLuint program, GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3ui) (GLuint program, GLint location, GLuint x, GLuint y, GLuint z) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform3uiv) (GLuint program, GLint location, GLsizei count, const GLuint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4d) (GLuint program, GLint location, GLdouble x, GLdouble y, GLdouble z, GLdouble w) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4dv) (GLuint program, GLint location, GLsizei count, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4f) (GLuint program, GLint location, GLfloat x, GLfloat y, GLfloat z, GLfloat w) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4fv) (GLuint program, GLint location, GLsizei count, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4i) (GLuint program, GLint location, GLint x, GLint y, GLint z, GLint w) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4iv) (GLuint program, GLint location, GLsizei count, const GLint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4ui) (GLuint program, GLint location, GLuint x, GLuint y, GLuint z, GLuint w) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniform4uiv) (GLuint program, GLint location, GLsizei count, const GLuint* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2x3dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2x3fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2x4dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix2x4fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3x2dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3x2fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3x4dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix3x4fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4x2dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4x2fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4x3dv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLdouble* value) = nullptr;
+    void   (GLAPIENTRY *ogluProgramUniformMatrix4x3fv) (GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat* value) = nullptr;
+    
+    void   (GLAPIENTRY *ogluGetUniformfv) (GLuint program, GLint location, GLfloat* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetUniformiv) (GLuint program, GLint location, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetUniformuiv) (GLuint program, GLint location, GLuint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramInfoLog) (GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramiv) (GLuint program, GLenum pname, GLint* param) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramInterfaceiv) (GLuint program, GLenum programInterface, GLenum pname, GLint* params) = nullptr;
+    GLuint (GLAPIENTRY *ogluGetProgramResourceIndex) (GLuint program, GLenum programInterface, const GLchar* name) = nullptr;
+    GLint  (GLAPIENTRY *ogluGetProgramResourceLocation) (GLuint program, GLenum programInterface, const GLchar* name) = nullptr;
+    GLint  (GLAPIENTRY *ogluGetProgramResourceLocationIndex) (GLuint program, GLenum programInterface, const GLchar* name) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramResourceName) (GLuint program, GLenum programInterface, GLuint index, GLsizei bufSize, GLsizei* length, GLchar* name) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramResourceiv) (GLuint program, GLenum programInterface, GLuint index, GLsizei propCount, const GLenum* props, GLsizei bufSize, GLsizei* length, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveSubroutineName) (GLuint program, GLenum shadertype, GLuint index, GLsizei bufsize, GLsizei* length, GLchar* name) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveSubroutineUniformName) (GLuint program, GLenum shadertype, GLuint index, GLsizei bufsize, GLsizei* length, GLchar* name) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveSubroutineUniformiv) (GLuint program, GLenum shadertype, GLuint index, GLenum pname, GLint* values) = nullptr;
+    void   (GLAPIENTRY *ogluGetProgramStageiv) (GLuint program, GLenum shadertype, GLenum pname, GLint* values) = nullptr;
+    GLuint (GLAPIENTRY *ogluGetSubroutineIndex) (GLuint program, GLenum shadertype, const GLchar* name) = nullptr;
+    GLint  (GLAPIENTRY *ogluGetSubroutineUniformLocation) (GLuint program, GLenum shadertype, const GLchar* name) = nullptr;
+    void   (GLAPIENTRY *ogluGetUniformSubroutineuiv) (GLenum shadertype, GLint location, GLuint* params) = nullptr;
+    void   (GLAPIENTRY *ogluUniformSubroutinesuiv) (GLenum shadertype, GLsizei count, const GLuint* indices) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveUniformBlockName) (GLuint program, GLuint uniformBlockIndex, GLsizei bufSize, GLsizei* length, GLchar* uniformBlockName) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveUniformBlockiv) (GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveUniformName) (GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei* length, GLchar* uniformName) = nullptr;
+    void   (GLAPIENTRY *ogluGetActiveUniformsiv) (GLuint program, GLsizei uniformCount, const GLuint* uniformIndices, GLenum pname, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetIntegeri_v) (GLenum target, GLuint index, GLint* data) = nullptr;
+    GLuint (GLAPIENTRY *ogluGetUniformBlockIndex) (GLuint program, const GLchar* uniformBlockName) = nullptr;
+    void   (GLAPIENTRY *ogluGetUniformIndices) (GLuint program, GLsizei uniformCount, const GLchar* const* uniformNames, GLuint* uniformIndices) = nullptr;
+    void   (GLAPIENTRY *ogluUniformBlockBinding) (GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding) = nullptr;
+
+    // query related
+
+    void   (GLAPIENTRY *ogluGenQueries) (GLsizei n, GLuint* ids) = nullptr;
+    void   (GLAPIENTRY *ogluDeleteQueries) (GLsizei n, const GLuint* ids) = nullptr;
+    void   (GLAPIENTRY *ogluBeginQuery) (GLenum target, GLuint id) = nullptr;
+    void   (GLAPIENTRY *ogluQueryCounter) (GLuint id, GLenum target) = nullptr;
+    void   (GLAPIENTRY *ogluGetQueryObjectiv) (GLuint id, GLenum pname, GLint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetQueryObjectuiv) (GLuint id, GLenum pname, GLuint* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetQueryObjecti64v) (GLuint id, GLenum pname, GLint64* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetQueryObjectui64v) (GLuint id, GLenum pname, GLuint64* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetQueryiv) (GLenum target, GLenum pname, GLint* params) = nullptr;
+    GLsync (GLAPIENTRY *ogluFenceSync) (GLenum condition, GLbitfield flags) = nullptr;
+    void   (GLAPIENTRY *ogluDeleteSync) (GLsync GLsync) = nullptr;
+    GLenum (GLAPIENTRY *ogluClientWaitSync) (GLsync GLsync, GLbitfield flags, GLuint64 timeout) = nullptr;
+    void   (GLAPIENTRY *ogluWaitSync) (GLsync GLsync, GLbitfield flags, GLuint64 timeout) = nullptr;
+    void   (GLAPIENTRY *ogluGetInteger64v) (GLenum pname, GLint64* params) = nullptr;
+    void   (GLAPIENTRY *ogluGetSynciv) (GLsync GLsync, GLenum pname, GLsizei bufSize, GLsizei* length, GLint* values) = nullptr;
+
+    // others
+
+    void (GLAPIENTRY *ogluDebugMessageCallback) (GLDEBUGPROC callback, const void* userParam) = nullptr;
+    void (GLAPIENTRY *ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
 
 };
 extern thread_local const DSAFuncs* DSA;
