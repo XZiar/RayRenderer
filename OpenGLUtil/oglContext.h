@@ -13,6 +13,7 @@ namespace oglu
 {
 class oglUtil;
 struct BindingState;
+class PlatFuncs;
 struct DSAFuncs;
 class oglContext_;
 using oglContext = std::shared_ptr<oglContext_>;
@@ -69,6 +70,27 @@ enum class DepthTestType : GLenum
     GreaterEqual = 0x0206/*GL_GEQUAL*/
 };
 enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
+
+enum class GLMemBarrier : GLbitfield 
+{
+    VertAttrib = 0x00000001     /*GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT*/,
+    EBO        = 0x00000002     /*GL_ELEMENT_ARRAY_BARRIER_BIT*/,
+    Unifrom    = 0x00000004     /*GL_UNIFORM_BARRIER_BIT*/,
+    TexFetch   = 0x00000008     /*GL_TEXTURE_FETCH_BARRIER_BIT*/,
+    Image      = 0x00000020     /*GL_SHADER_IMAGE_ACCESS_BARRIER_BIT*/,
+    Command    = 0x00000040     /*GL_COMMAND_BARRIER_BIT*/,
+    PBO        = 0x00000080     /*GL_PIXEL_BUFFER_BARRIER_BIT*/,
+    TexUpdate  = 0x00000100     /*GL_TEXTURE_UPDATE_BARRIER_BIT*/,
+    Buffer     = 0x00000200     /*GL_BUFFER_UPDATE_BARRIER_BIT*/,
+    FBO        = 0x00000400     /*GL_FRAMEBUFFER_BARRIER_BIT*/,
+    TransFB    = 0x00000800     /*GL_TRANSFORM_FEEDBACK_BARRIER_BIT*/,
+    Atomic     = 0x00001000     /*GL_ATOMIC_COUNTER_BARRIER_BIT*/,
+    SSBO       = 0x00002000     /*GL_SHADER_STORAGE_BARRIER_BIT*/,
+    BufMap     = 0x00004000     /*GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT*/,
+    Query      = 0x00008000     /*GL_QUERY_BUFFER_BARRIER_BIT*/,
+    All        = 0xFFFFFFFF     /*GL_ALL_BARRIER_BITS*/,
+};
+MAKE_ENUM_BITFIELD(GLMemBarrier)
 
 
 struct CtxResCfg
@@ -156,6 +178,7 @@ class OGLUAPI oglContext_ : public common::NonCopyable, public std::enable_share
     friend class oglProgram_;
     friend class oglWorker;
     friend class oglUtil;
+    friend class PlatFuncs;
     friend struct BindingState;
     friend class ::oclu::GLInterop;
     friend class ::oclu::oclPlatform_;
@@ -175,7 +198,6 @@ private:
     unsigned long DRW;
 #endif
     detail::CtxResHandler ResHandler;
-    std::unique_ptr<DSAFuncs, void(*)(DSAFuncs*)> DSAs;
     common::container::FrozenDenseSet<std::string_view> Extensions;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
@@ -221,6 +243,7 @@ public:
     void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
     void SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);
     miniBLAS::VecI4 GetViewPort() const;
+    void MemBarrier(const GLMemBarrier mbar);
 
 
 

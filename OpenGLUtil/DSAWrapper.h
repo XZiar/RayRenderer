@@ -1,16 +1,76 @@
 #pragma once
 #include "oglRely.h"
+#include "common/ContainerEx.hpp"
+
+
+//#if defined(__gl_h_) || defined(__GL_H__) || defined(_GL_H) || defined(__X_GL_H)
+//#   error should not include gl.h
+//#endif
+//
+//
+//#if COMMON_OS_WIN
+//#   define APIENTRY __stdcall
+//#   define WINGDIAPI _declspec(dllimport)
+//#   include <GL/gl.h>
+//#   include "GL/glext.h"
+//#elif COMMON_OS_UNIX
+//#   define APIENTRY
+//#   include <GL/gl.h>
+//#   include "GL/glext.h"
+//#else
+//#   error "unknown os"
+//#endif
+#ifndef GLAPIENTRY
+#   define GLAPIENTRY APIENTRY
+#endif
 
 namespace oglu
 {
 
 class oglIndirectBuffer_;
+class oglContext_;
 
 
-struct ExtFuncs
+class PlatFuncs
 {
+#if COMMON_OS_WIN
+private:
+    const char* (GLAPIENTRY *wglGetExtensionsStringARB_) (void* hDC) = nullptr;
+    const char* (GLAPIENTRY *wglGetExtensionsStringEXT_) () = nullptr;
+    common::container::FrozenDenseSet<std::string_view> GetExtensions(void* hdc) const;
+public:
+    void* (GLAPIENTRY *wglCreateContextAttribsARB_) (void* hDC, void* hShareContext, const int* attribList) = nullptr;
+#else
+private:
+    void* (*glXGetCurrentDisplay_) () = nullptr;
+    common::container::FrozenDenseSet<std::string_view> GetExtensions(void* dpy, int screen) const;
+public:
+    using GLXFBConfig = void*;
+    void* (*glXCreateContextAttribsARB_) (void* dpy, GLXFBConfig config, void* share_context, bool direct, const int* attrib_list);
+#endif
+public:
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    
+    PlatFuncs();
+    bool SupportFlushControl() const;
 
+    static void* GetCurrentDeviceContext();
+    static void* GetCurrentGLContext();
+    static void  DeleteGLContext(void* hDC, void* hRC);
+    static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
+    static void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs);
+#if COMMON_OS_WIN
+    static bool  MakeGLContextCurrent(void* hDC, void* hRC);
+    static uint32_t GetSystemError();
+#else
+    static bool  MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC);
+    static unsigned long GetCurrentDrawable();
+    static int32_t GetSystemError();
+#endif
 };
+extern thread_local const PlatFuncs* PlatFunc;
+
+
 
 struct DSAFuncs
 {
@@ -359,11 +419,24 @@ public:
 
     // others
 
-    void (GLAPIENTRY *ogluDebugMessageCallback) (GLDEBUGPROC callback, const void* userParam) = nullptr;
-    void (GLAPIENTRY *ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
 
+    GLenum         (GLAPIENTRY *ogluGetError) () = nullptr;
+    void           (GLAPIENTRY *ogluGetFloatv) (GLenum pname, GLfloat* params) = nullptr;
+    void           (GLAPIENTRY *ogluGetIntegerv) (GLenum pname, GLint* params) = nullptr;
+    using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+    const GLubyte* (GLAPIENTRY *ogluGetStringi) (GLenum name, GLuint index) = nullptr;
+    void           (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
+    void           (GLAPIENTRY *ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
+    void           (GLAPIENTRY *ogluMemoryBarrier) (GLbitfield barriers) = nullptr;
+
+    DSAFuncs();
+    common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 };
 extern thread_local const DSAFuncs* DSA;
-void InitDSAFuncs(DSAFuncs& dsa);
 
 }
+
+
+#ifdef WINGDIAPI
+#   undef WINGDIAPI
+#endif

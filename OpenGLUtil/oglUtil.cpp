@@ -64,19 +64,6 @@ optional<string_view> oglUtil::GetError()
     }
 }
 
-set<string_view, std::less<>> oglUtil::GetExtensions()
-{
-    set<string_view, std::less<>> exts;
-    int32_t count;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &count);
-    for(int32_t i = 0; i < count; i++) 
-    {
-        const GLubyte *ext = glGetStringi(GL_EXTENSIONS, i);
-        exts.emplace(reinterpret_cast<const char*>(ext));
-    }
-    return exts;
-}
-
 
 void oglUtil::applyTransform(Mat4x4& matModel, const TransformOP& op)
 {
@@ -140,10 +127,6 @@ PromiseResult<void> oglUtil::ForceSyncGL()
     return std::make_shared<oglPromiseVoid2>();
 }
 
-void oglUtil::MemBarrier(const GLMemBarrier mbar)
-{
-    glMemoryBarrier((GLenum)mbar);
-}
 
 
 }

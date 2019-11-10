@@ -19,16 +19,27 @@
 
 
 #include "ImageUtil/ImageCore.h"
-#include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
 #include "common/PromiseTask.hpp"
+#include "common/CommonRely.hpp"
 
-#define GLEW_STATIC
-#include "3rdParty/glew/glew.h"
 
+#if COMMON_OS_WIN
+#   define APIENTRY __stdcall
+#   define WINGDIAPI _declspec(dllimport)
+#   include <GL/gl.h>
+#   include "GL/glext.h"
+#elif COMMON_OS_UNIX
+#   define APIENTRY
+#   include <GL/gl.h>
+#   include "GL/glext.h"
+#endif
+#ifdef WINGDIAPI
+#   undef WINGDIAPI
+#endif
 
 #if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"
@@ -99,6 +110,8 @@ using GLfloat    = float;
 using GLclampf   = float;
 using GLdouble   = double;
 using GLclampd   = double;
+using GLchar     = char;
+using GLsync     = void*;
 
 
 class oglWorker;

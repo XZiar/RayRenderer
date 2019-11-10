@@ -19,27 +19,6 @@ struct OGLUAPI TransformOP
 };
 
 
-enum class GLMemBarrier : GLenum 
-{
-    VertAttrib = 0x00000001     /*GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT*/,
-    EBO        = 0x00000002     /*GL_ELEMENT_ARRAY_BARRIER_BIT*/,
-    Unifrom    = 0x00000004     /*GL_UNIFORM_BARRIER_BIT*/,
-    TexFetch   = 0x00000008     /*GL_TEXTURE_FETCH_BARRIER_BIT*/,
-    Image      = 0x00000020     /*GL_SHADER_IMAGE_ACCESS_BARRIER_BIT*/,
-    Command    = 0x00000040     /*GL_COMMAND_BARRIER_BIT*/,
-    PBO        = 0x00000080     /*GL_PIXEL_BUFFER_BARRIER_BIT*/,
-    TexUpdate  = 0x00000100     /*GL_TEXTURE_UPDATE_BARRIER_BIT*/,
-    Buffer     = 0x00000200     /*GL_BUFFER_UPDATE_BARRIER_BIT*/,
-    FBO        = 0x00000400     /*GL_FRAMEBUFFER_BARRIER_BIT*/,
-    TransFB    = 0x00000800     /*GL_TRANSFORM_FEEDBACK_BARRIER_BIT*/,
-    Atomic     = 0x00001000     /*GL_ATOMIC_COUNTER_BARRIER_BIT*/,
-    SSBO       = 0x00002000     /*GL_SHADER_STORAGE_BARRIER_BIT*/,
-    BufMap     = 0x00004000     /*GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT*/,
-    Query      = 0x00008000     /*GL_QUERY_BUFFER_BARRIER_BIT*/,
-    All        = 0xFFFFFFFF     /*GL_ALL_BARRIER_BITS*/,
-};
-MAKE_ENUM_BITFIELD(GLMemBarrier)
-
 class OGLUAPI oglUtil
 {
 private:
@@ -48,12 +27,10 @@ public:
     static void InitLatestVersion();
     static std::u16string GetVersionStr();
     static std::optional<std::string_view> GetError();
-    static std::set<std::string_view, std::less<>> GetExtensions();
     static void applyTransform(Mat4x4& matModel, const TransformOP& op);
     static void applyTransform(Mat4x4& matModel, Mat3x3& matNormal, const TransformOP& op);
     static common::PromiseResult<void> SyncGL();
     static common::PromiseResult<void> ForceSyncGL();
-    static void MemBarrier(const GLMemBarrier mbar);
 };
 
 }

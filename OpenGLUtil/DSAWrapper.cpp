@@ -5,11 +5,28 @@
 #include "oglContext.h"
 #include "oglBuffer.h"
 
+
+#undef APIENTRY
 #if COMMON_OS_WIN
+#   define WIN32_LEAN_AND_MEAN 1
+#   define NOMINMAX 1
+#   include <Windows.h>
 #   include "GL/wglext.h"
+//fucking wingdi defines some terrible macro
+#   undef ERROR
+#   pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 #elif COMMON_OS_UNIX
-#   include "glew/glxew.h"
+#   include <X11/X.h>
+#   include <X11/Xlib.h>
+#   include <GL/glx.h>
 #   include "GL/glxext.h"
+//fucking X11 defines some terrible macro
+#   undef Success
+#   undef Always
+#   undef None
+#   undef Bool
+#   undef Int
+#   pragma message("Compiling OpenGLUtil with glx-ext[" STRINGIZE(GLX_GLXEXT_VERSION) "]")
 #else
 #   error "unknown os"
 #endif
@@ -17,9 +34,85 @@
 
 namespace oglu
 {
+template<typename T>
+struct ResourceKeeper
+{
+    std::map<void*, std::unique_ptr<T>> Map;
+    common::SpinLocker Locker;
+    auto Lock() { return Locker.LockScope(); }
+    T* FindOrCreate(void* key) 
+    { 
+        const auto lock = Lock();
+        if (const auto funcs = common::container::FindInMap(Map, key); funcs)
+            return funcs->get();
+        else
+        {
+            const auto [it, ret] = Map.emplace(key, std::make_unique<T>());
+            return it->second.get();
+        }
+    }
+    void Remove(void* key)
+    {
+        const auto lock = Lock();
+        Map.erase(key);
+    }
+};
+thread_local const PlatFuncs* PlatFunc = nullptr;
+thread_local const DSAFuncs*  DSA      = nullptr;
 
-thread_local const DSAFuncs* DSA = nullptr;
+static auto& GetPlatFuncsMap()
+{
+    static ResourceKeeper<PlatFuncs> PlatFuncMap;
+    return PlatFuncMap;
+}
+static auto& GetDSAFuncsMap()
+{
+    static ResourceKeeper<DSAFuncs> DSAFuncMap;
+    return DSAFuncMap;
+}
+static void PreparePlatFuncs(void* hDC)
+{
+    if (hDC == nullptr)
+        PlatFunc = nullptr;
+    else
+    {
+        auto& rmap = GetPlatFuncsMap();
+        PlatFunc = rmap.FindOrCreate(hDC);
+    }
+}
+static void PrepareDSAFuncs(void* hRC)
+{
+    if (hRC == nullptr)
+        DSA = nullptr;
+    else
+    {
+        auto& rmap = GetDSAFuncsMap();
+        DSA = rmap.FindOrCreate(hRC);
+    }
+}
 
+#if COMMON_OS_UNIX
+static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
+{
+    thread_local std::string txtBuf;
+    txtBuf.resize(1024, '\0');
+    XGetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
+    txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
+    oglLog().warning(u"X11 report an error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code,
+        common::strchset::to_u16string(txtBuf, common::str::Charset::UTF8));
+    return 0;
+}
+#endif
+
+
+static void ShowQuerySuc (const std::string_view tarName, const std::string_view name, void* ptr)
+{
+    oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, name, (void*)ptr);
+}
+static void ShowQueryFail(const std::string_view tarName)
+{
+    oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
+}
 
 template<typename T>
 static void QueryFunc(T& target, const std::string_view tarName, 
@@ -30,24 +123,26 @@ static void QueryFunc(T& target, const std::string_view tarName,
     {
 #if COMMON_OS_WIN
         const auto ptr = wglGetProcAddress(name.data());
-#else 
+#elif COMMON_OS_MACOS
+        const auto ptr = NSGLGetProcAddress(name.data());
+#else
         const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
 #endif
         if (ptr)
         {
             target = reinterpret_cast<T>(ptr);
             if (printSuc)
-                oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, name, (void*)ptr);
+                ShowQuerySuc(tarName, name, (void*)ptr);
             return;
         }
     }
     target = nullptr;
     if (printFail)
-        oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
+        ShowQueryFail(tarName);
 }
 
 
-static std::atomic<uint32_t>& GetDSADebugPrint() noexcept
+static std::atomic<uint32_t>& GetDebugPrintCore() noexcept
 {
     static std::atomic<uint32_t> ShouldPrint = 0;
     return ShouldPrint;
@@ -55,25 +150,233 @@ static std::atomic<uint32_t>& GetDSADebugPrint() noexcept
 void SetDSAShouldPrint(const bool printSuc, const bool printFail) noexcept
 {
     const uint32_t val = (printSuc ? 0x1u : 0x0u) | (printFail ? 0x2u : 0x0u);
-    GetDSADebugPrint() = val;
+    GetDebugPrintCore() = val;
 }
 static std::pair<bool, bool> GetDSAShouldPrint() noexcept
 {
-    const uint32_t val = GetDSADebugPrint();
+    const uint32_t val = GetDebugPrintCore();
     const bool printSuc  = (val & 0x1u) == 0x1u;
     const bool printFail = (val & 0x2u) == 0x2u;
     return { printSuc, printFail };
 }
 
 
-void InitDSAFuncs(DSAFuncs& dsa)
+
+
+#if COMMON_OS_WIN
+common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(void* hdc) const
+{
+    const char* exts = nullptr;
+    if (wglGetExtensionsStringARB_)
+    {
+        exts = wglGetExtensionsStringARB_(hdc);
+    }
+    else if (wglGetExtensionsStringEXT_)
+    {
+        exts = wglGetExtensionsStringEXT_();
+    }
+    else
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for wglGetExtensionsString");
+    return common::str::Split(exts, ' ', false);
+}
+#else
+common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(void* dpy, int screen) const
+{
+    const char* exts = glXQueryExtensionsString((Display*)dpy, screen);
+    return common::str::Split(exts, ' ', false);
+}
+#endif
+
+PlatFuncs::PlatFuncs()
 {
     const auto shouldPrint = GetDSAShouldPrint();
+
+#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) name sfx
+#define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
+#define QUERY_FUNC(name, ...)  QueryFunc(name,          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC_(name, ...) QueryFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+    
+#if COMMON_OS_WIN
+    QUERY_FUNC_(wglGetExtensionsStringARB,  "");
+    QUERY_FUNC_(wglGetExtensionsStringEXT,  "");
+    Extensions = GetExtensions(wglGetCurrentDC());
+    QUERY_FUNC_(wglCreateContextAttribsARB, "");
+#else
+    QUERY_FUNC_(glXGetCurrentDisplay,       "");
+    const auto display = glXGetCurrentDisplay_();
+    Extensions = GetExtensions(display, DefaultScreen(display));
+    QUERY_FUNC_(glXCreateContextAttribsARB, "");
+#endif
+    
+
+#undef WITH_SUFFIX
+#undef WITH_SUFFIXS
+#undef QUERY_FUNC
+#undef QUERY_FUNC_
+}
+
+
+bool PlatFuncs::SupportFlushControl() const
+{
+#if COMMON_OS_WIN
+    return Extensions.Has("WGL_ARB_context_flush_control");
+#else
+    return Extensions.Has("GLX_ARB_context_flush_control");
+#endif
+}
+
+
+void* PlatFuncs::GetCurrentDeviceContext()
+{
+#if COMMON_OS_WIN
+    const auto hDC = wglGetCurrentDC();
+#else
+    const auto hDC = glXGetCurrentDisplay();
+    XSetErrorHandler(&TmpXErrorHandler);
+#endif
+    PreparePlatFuncs(hDC);
+    return hDC;
+}
+void* PlatFuncs::GetCurrentGLContext()
+{
+    GetCurrentDeviceContext();
+#if COMMON_OS_WIN
+    const auto hRC = wglGetCurrentContext();
+#else
+    const auto hRC = glXGetCurrentContext();
+#endif
+    PrepareDSAFuncs(hRC);
+    return hRC;
+}
+void  PlatFuncs::DeleteGLContext([[maybe_unused]] void* hDC, void* hRC)
+{
+#if COMMON_OS_WIN
+    wglDeleteContext((HGLRC)hRC);
+#else
+    glXDestroyContext((Display*)hDC, (GLXContext)hRC);
+#endif
+    GetDSAFuncsMap().Remove(hRC);
+}
+#if COMMON_OS_WIN
+bool  PlatFuncs::MakeGLContextCurrent(void* hDC, void* hRC)
+{
+    const bool ret = wglMakeCurrent((HDC)hDC, (HGLRC)hRC);
+#else
+bool  PlatFuncs::MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC)
+{
+    const bool ret = glXMakeCurrent((Display*)hDC, DRW, (GLXContext)hRC);
+#endif
+    if (ret)
+    {
+        PreparePlatFuncs(hDC);
+        PrepareDSAFuncs(hRC);
+    }
+    return ret;
+}
+#if COMMON_OS_WIN
+uint32_t PlatFuncs::GetSystemError()
+{
+    return GetLastError();
+}
+#else
+unsigned long PlatFuncs::GetCurrentDrawable()
+{
+    return glXGetCurrentDrawable();
+}
+int32_t  PlatFuncs::GetSystemError()
+{
+    return errno;
+}
+#endif
+std::vector<int32_t> PlatFuncs::GenerateContextAttrib(const uint32_t version, bool needFlushControl)
+{
+    std::vector<int32_t> ctxAttrb;
+#if COMMON_OS_WIN
+    ctxAttrb.insert(ctxAttrb.end(),
+    {
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
+    });
+    constexpr int32_t VerMajor  = WGL_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t VerMinor  = WGL_CONTEXT_MINOR_VERSION_ARB;
+    constexpr int32_t FlushFlag = WGL_CONTEXT_RELEASE_BEHAVIOR_ARB;
+    constexpr int32_t FlushVal  = WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+#else
+    ctxAttrb.insert(ctxAttrb.end(),
+    {
+        GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+        GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB
+    });
+    constexpr int32_t VerMajor  = GLX_CONTEXT_MAJOR_VERSION_ARB;
+    constexpr int32_t VerMinor  = GLX_CONTEXT_MINOR_VERSION_ARB;
+    constexpr int32_t FlushFlag = GLX_CONTEXT_RELEASE_BEHAVIOR_ARB;
+    constexpr int32_t FlushVal  = GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+    needFlushControl = false;
+#endif
+    if (version != 0)
+    {
+        ctxAttrb.insert(ctxAttrb.end(),
+            {
+                VerMajor, static_cast<int32_t>(version / 10),
+                VerMinor, static_cast<int32_t>(version % 10),
+            });
+    }
+    if (needFlushControl && PlatFunc->SupportFlushControl())
+    {
+        ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
+    }
+    ctxAttrb.push_back(0);
+    return ctxAttrb;
+}
+void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs)
+{
+    if (prevCtx == nullptr || PlatFunc == nullptr)
+    {
+        return nullptr;
+    }
+    else
+    {
+#if defined(_WIN32)
+        const auto newHrc = PlatFunc->wglCreateContextAttribsARB_(
+            prevCtx->Hdc, isShared ? prevCtx->Hrc : nullptr, attribs);
+        return newHrc;
+#else
+        static int visual_attribs[] =
+        {
+            GLX_X_RENDERABLE, true,
+            GLX_RENDER_TYPE, GLX_RGBA_BIT,
+            GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+            GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+            GLX_DOUBLEBUFFER, true,
+            GLX_RED_SIZE, 8,
+            GLX_GREEN_SIZE, 8,
+            GLX_BLUE_SIZE, 8,
+            GLX_ALPHA_SIZE, 8,
+            GLX_DEPTH_SIZE, 24,
+            GLX_STENCIL_SIZE, 8,
+            0
+        };
+        int num_fbc = 0;
+        const auto fbc = glXChooseFBConfig(
+            (Display*)prevCtx->Hdc, DefaultScreen((Display*)prevCtx->Hdc), visual_attribs, &num_fbc);
+        const auto newHrc = PlatFunc->glXCreateContextAttribsARB_(
+            prevCtx->Hdc, fbc[0], isShared ? prevCtx->Hrc : nullptr, true, attribs);
+        return newHrc;
+#endif
+    }
+}
+
+
+
+
+DSAFuncs::DSAFuncs()
+{
+    const auto shouldPrint = GetDSAShouldPrint();
+
 #define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) "gl" name sfx
 #define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
-
-#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(dsa.oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
-#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(dsa.oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
 
     // buffer related
     QUERY_FUNC (GenBuffers,             "", "ARB");
@@ -190,7 +493,7 @@ void InitDSAFuncs(DSAFuncs& dsa)
 
     
     //fbo related
-    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &dsa.MaxColorAttachment);
+    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &MaxColorAttachment);
     QUERY_FUNC_(GenFramebuffers,                            "", "EXT");
     QUERY_FUNC_(CreateFramebuffers,                         "", "EXT");
     QUERY_FUNC (DeleteFramebuffers,                         "", "EXT");
@@ -350,8 +653,24 @@ void InitDSAFuncs(DSAFuncs& dsa)
     QUERY_FUNC (GetSynciv,              "", "APPLE");
 
     //others
+#define DIRECT_FUNC(name) PPCAT(oglu, name) = &PPCAT(gl, name)
+    DIRECT_FUNC(GetError);
+    DIRECT_FUNC(GetFloatv);
+    DIRECT_FUNC(GetIntegerv);
+    QUERY_FUNC (GetStringi,             "");
     QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
     QUERY_FUNC (ClipControl,            "");
+#ifdef MemoryBarrier
+#   undef MemoryBarrier
+#endif
+    QUERY_FUNC (MemoryBarrier,          "", "EXT");
+
+
+#undef WITH_SUFFIX
+#undef WITH_SUFFIXS
+#undef QUERY_FUNC
+#undef QUERY_FUNC_
+#undef DIRECT_FUNC
 }
 
 constexpr auto kkk = sizeof(DSAFuncs);
@@ -421,7 +740,7 @@ struct VAOBinder : public common::NonCopyable
 void DSAFuncs::RefreshVAOState() const
 {
     const auto lock = DataLock.LockScope();
-    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
+    ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
 }
 void DSAFuncs::ogluBindVertexArray(GLuint vaobj) const
 {
@@ -835,8 +1154,8 @@ struct FBOBinder : public common::NonCopyable
 void DSAFuncs::RefreshFBOState() const
 {
     const auto lock = DataLock.LockScope();
-    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
-    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
+    ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
+    ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
 }
 void DSAFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
 {
@@ -944,6 +1263,31 @@ void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
         ogluGetFramebufferAttachmentParameteriv_(GL_READ_FRAMEBUFFER, attachment, pname, params);
     }
 }
+
+
+common::container::FrozenDenseSet<std::string_view> DSAFuncs::GetExtensions() const
+{
+    if (ogluGetStringi)
+    {
+        GLint count;
+        ogluGetIntegerv(GL_NUM_EXTENSIONS, &count);
+        std::vector<std::string_view> exts;
+        exts.reserve(count);
+        for (GLint i = 0; i < count; i++)
+        {
+            const GLubyte* ext = ogluGetStringi(GL_EXTENSIONS, i);
+            exts.emplace_back(reinterpret_cast<const char*>(ext));
+        }
+        return exts;
+    }
+    else
+    {
+        const GLubyte* exts = glGetString(GL_EXTENSIONS);
+        return common::str::Split(reinterpret_cast<const char*>(exts), ' ', false);
+    }
+}
+
+
 
 
 

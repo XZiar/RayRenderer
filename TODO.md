@@ -31,7 +31,7 @@
   - [x] Add context-sesative dispatching for version-based functions 
   - [ ] Seperate sampler and texture
   - [ ] Seperate VAO bindings
-  - [ ] Remove explicit include of glew
+  - [x] Remove explicit include of glew
   - [x] Reduce hazzlement of TexDataType and TexInnerType
   - [ ] Re-design object creation
   * TextureUtil
@@ -91,7 +91,7 @@
   - [x] Port core components to Linux 
   - [ ] Move to .net core 3.0 with WPF/Winform
   - [ ] Add Vulkan backend
-  - [ ] Replace glew since it lacks support for multi-thread & multi-contxt
+  - [x] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Add GLFW
   - [ ] Add static control-item for Controllable
   - [ ] Add OpenCL's codegen which can write code in C++ with template/type-safe support

@@ -69,6 +69,9 @@ oglContext InitContext()
     HGLRC tmpRC = wglCreateContext(tmpDC);
     wglMakeCurrent(tmpDC, tmpRC);
 
+    const auto pp1 = wglGetProcAddress("wglChoosePixelFormatARB");
+    const auto pp2 = wglGetProcAddress("wglGetExtensionsStringARB");
+
     auto ctx = CreateContext();
     oglContext_::ReleaseExternContext(tmpRC);
     wglDeleteContext(tmpRC);

@@ -36,12 +36,27 @@ static void FGTest()
     auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
-    auto lutGenerator = oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
-    lutGenerator->State()
-        .SetSubroutine("ToneMap","ACES")
-        .SetImage(lutImg, "result");
-    lutGenerator->SetUniform("step", 1.0f / 64);
-    lutGenerator->SetUniform("exposure", 1.0f);
+    oglComputeProgram lutGenerator;
+    try 
+    {
+        lutGenerator = oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+        lutGenerator->State()
+            .SetSubroutine("ToneMap", "ACES")
+            .SetImage(lutImg, "result");
+        lutGenerator->SetUniform("step", 1.0f / 64);
+        lutGenerator->SetUniform("exposure", 1.0f);
+        lutGenerator->Run(64, 64, 64);
+        oglUtil::ForceSyncGL()->Wait();
+        const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
+        Image img(ImageDataType::RGBA);
+        img.SetSize(64, 64 * 64);
+        memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
+        //xziar::img::WriteImage(img, u"lut.png");
+    }
+    catch (const oglu::OGLException & gle)
+    {
+        log().warning(u"Failed to load LUT Generator:\n{}\n", gle.message);
+    }
     float lutZ = 0.5f;
     bool shouldLut = false;
     {
@@ -53,15 +68,6 @@ static void FGTest()
             .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         drawer->State().SetTexture(lutTex, "lut");
-    }
-    {
-        lutGenerator->Run(64, 64, 64);
-        oglUtil::ForceSyncGL()->Wait();
-        const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
-        Image img(ImageDataType::RGBA);
-        img.SetSize(64, 64 * 64);
-        memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
-        //xziar::img::WriteImage(img, u"lut.png");
     }
     window->funDisp = [&](FreeGLUTView) 
     { 
