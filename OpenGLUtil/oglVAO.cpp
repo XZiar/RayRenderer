@@ -32,21 +32,41 @@ void oglVAO_::VAOPrep::End() noexcept
     }
 }
 
-void oglVAO_::VAOPrep::SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
+static constexpr GLenum ParseVAValType(const VAValType type)
+{
+    switch (type)
+    {
+    case VAValType::Double:     return GL_DOUBLE;
+    case VAValType::Float:      return GL_FLOAT;
+    case VAValType::Half:       return GL_HALF_FLOAT;
+    case VAValType::U32:        return GL_UNSIGNED_INT;
+    case VAValType::I32:        return GL_INT;
+    case VAValType::U16:        return GL_UNSIGNED_SHORT;
+    case VAValType::I16:        return GL_SHORT;
+    case VAValType::U8:         return GL_UNSIGNED_BYTE;
+    case VAValType::I8:         return GL_BYTE;
+    case VAValType::U10_2:      return GL_UNSIGNED_INT_2_10_10_10_REV;
+    case VAValType::I10_2:      return GL_INT_2_10_10_10_REV;
+    case VAValType::UF11_10:    return GL_UNSIGNED_INT_10F_11F_11F_REV;
+    default:                    return GL_INVALID_ENUM;
+    }
+}
+
+void oglVAO_::VAOPrep::SetInteger(const VAValType valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        DSA->ogluVertexAttribIPointer(attridx, size, valType, stride, offset);
+        DSA->ogluVertexAttribIPointer(attridx, size, ParseVAValType(valType), stride, offset);
         DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }
-void oglVAO_::VAOPrep::SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
+void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
-        DSA->ogluVertexAttribPointer(attridx, size, valType, isNormalize, stride, offset);
+        DSA->ogluVertexAttribPointer(attridx, size, ParseVAValType(valType), isNormalize, stride, offset);
         DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }

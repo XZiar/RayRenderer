@@ -27,19 +27,19 @@
 #include "common/CommonRely.hpp"
 
 
-#if COMMON_OS_WIN
-#   define APIENTRY __stdcall
-#   define WINGDIAPI _declspec(dllimport)
-#   include <GL/gl.h>
-#   include "GL/glext.h"
-#elif COMMON_OS_UNIX
-#   define APIENTRY
-#   include <GL/gl.h>
-#   include "GL/glext.h"
-#endif
-#ifdef WINGDIAPI
-#   undef WINGDIAPI
-#endif
+//#if COMMON_OS_WIN
+//#   define APIENTRY __stdcall
+//#   define WINGDIAPI _declspec(dllimport)
+//#   include <GL/gl.h>
+//#   include "GL/glext.h"
+//#elif COMMON_OS_UNIX
+//#   define APIENTRY
+//#   include <GL/gl.h>
+//#   include "GL/glext.h"
+//#endif
+//#ifdef WINGDIAPI
+//#   undef WINGDIAPI
+//#endif
 
 #if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"

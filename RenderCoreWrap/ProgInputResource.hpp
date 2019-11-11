@@ -7,9 +7,19 @@ namespace OpenGLUtil
 {
 
 #pragma managed(push, off)
-inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const GLint location)
+inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::GLint location)
 {
-    return common::container::FindInMap(prog.lock()->getCurUniforms(), (GLint)location);
+    return common::container::FindInMap(prog.lock()->getCurUniforms(), (oglu::GLint)location);
+}
+template<typename... Args>
+inline void SetProgVec(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::ProgramResource* loc, Args&&... args)
+{
+    prog.lock()->SetVec(loc, std::forward<Args>(args)...);
+}
+template<typename... Args>
+inline void SetProgUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::ProgramResource* loc, Args&&... args)
+{
+    prog.lock()->SetUniform(loc, std::forward<Args>(args)...);
 }
 #pragma managed(pop)
 
@@ -90,7 +100,7 @@ protected:
     };
     virtual void SetValue(float val) override
     {
-        Prog.lock()->SetUniform(ptrRes, val);
+        SetProgUniform(Prog, ptrRes, val);
     };
 internal:
     RangedProgInputRes_Float(const std::weak_ptr<oglu::oglProgram_>* ptrProg, const oglu::ProgramResource& res, const oglu::ShaderExtProperty& prop)
@@ -110,12 +120,12 @@ protected:
         auto ptr = GetValue();
         if (!ptr)
         {
-            Prog.lock()->SetVec(ptrRes, val, val);
+            SetProgVec(Prog, ptrRes, val, val);
         }
         else
         {
             const auto& c2d = std::get<b3d::Coord2D>(*ptr);
-            Prog.lock()->SetVec(ptrRes, isLow ? val : c2d.u, isLow ? c2d.v : val);
+            SetProgVec(Prog, ptrRes, isLow ? val : c2d.u, isLow ? c2d.v : val);
         }
     };
 internal:
@@ -144,7 +154,7 @@ public:
         }
         void set(System::Windows::Media::Color value)
         {
-            Prog.lock()->SetVec(ptrRes, value.ScR, value.ScG, value.ScB, value.ScA);
+            SetProgVec(Prog, ptrRes, value.ScR, value.ScG, value.ScB, value.ScA);
             RaisePropertyChanged("Value");
         }
     }
@@ -167,7 +177,7 @@ public:
         }
         void set(bool value)
         {
-            Prog.lock()->SetUniform(ptrRes, value);
+            SetProgUniform(Prog, ptrRes, value);
             RaisePropertyChanged("Value");
         }
     }

@@ -4,6 +4,21 @@
 #include "common/StringLinq.hpp"
 #include <algorithm>
 
+#if COMMON_OS_WIN
+#   define WIN32_LEAN_AND_MEAN 1
+#   define NOMINMAX 1
+#   include <Windows.h>
+#   pragma comment(lib, "Opengl32.lib")
+#else
+#   include <X11/X.h>
+#   include <X11/Xlib.h>
+#   include <GL/gl.h>
+#   include <GL/glx.h>
+//fucking X11 defines some terrible macro
+#   undef Always
+#endif
+
+
 using namespace common;
 using namespace common::mlog;
 using namespace oglu;
@@ -33,10 +48,6 @@ oglContext CreateContext()
     return ctx;
 }
 #if defined(_WIN32)
-#   define WIN32_LEAN_AND_MEAN 1
-#   define NOMINMAX 1
-#   include <Windows.h>
-#   pragma comment(lib, "Opengl32.lib")
 oglContext InitContext()
 {
     HWND tmpWND = CreateWindow(
@@ -78,12 +89,6 @@ oglContext InitContext()
     return ctx;
 }
 #else
-#   include <X11/X.h>
-#   include <X11/Xlib.h>
-#   include <GL/gl.h>
-#   include <GL/glx.h>
-//fucking X11 defines some terrible macro
-#   undef Always
 oglContext InitContext()
 {
     static int visual_attribs[] = 

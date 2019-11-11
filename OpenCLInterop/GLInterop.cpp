@@ -1,4 +1,5 @@
 #include "GLInterop.h"
+#include "OpenGLUtil/oglUtil.h"
 
 #if defined(_WIN32)
 #   pragma comment (lib, "opengl32.lib") // link Microsoft OpenGL lib
@@ -18,7 +19,7 @@ MAKE_ENABLER_IMPL(oclGLInterImg3D_)
 GLInterop::GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Queue(que), Mem(mem)
 {
     if (!Queue->SupportImplicitGLSync())
-        glFinish();
+        oglu::oglUtil::ForceSyncGL()->Wait();
     cl_int ret = clEnqueueAcquireGLObjects(Queue->CmdQue, 1, &mem, 0, nullptr, nullptr);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");

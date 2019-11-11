@@ -459,17 +459,33 @@ oglComputeProgram oglProgram_::oglProgStub::LinkComputeProgram(const std::u16str
 }
 
 
-GLint oglProgram_::GetLoc(const ProgramResource* res, GLenum valtype) const
+GLenum oglProgram_::ParseUniformType(const UniformType type)
 {
-    if (res && res->Valtype == valtype)
+    switch (type)
+    {
+    case UniformType::FLOAT:    return GL_FLOAT;
+    case UniformType::UINT:     return GL_UNSIGNED_INT;
+    case UniformType::INT:      return GL_INT;
+    case UniformType::BOOL:     return GL_BOOL;
+    case UniformType::VEC4:     return GL_FLOAT_VEC4;
+    case UniformType::VEC3:     return GL_FLOAT_VEC3;
+    case UniformType::VEC2:     return GL_FLOAT_VEC2;
+    case UniformType::MAT4:     return GL_FLOAT_MAT4;
+    case UniformType::MAT3:     return GL_FLOAT_MAT3;
+    default:                    return GL_INVALID_ENUM;
+    }
+}
+GLint oglProgram_::GetLoc(const ProgramResource* res, UniformType valtype) const
+{
+    if (res && res->Valtype == ParseUniformType(valtype))
         return res->location;
     return GL_INVALID_INDEX;
 }
-GLint oglProgram_::GetLoc(const string& name, GLenum valtype) const
+GLint oglProgram_::GetLoc(const string_view name,     UniformType valtype) const
 {
     auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
         : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
-    if (obj && obj->Valtype == valtype)
+    if (obj && obj->Valtype == ParseUniformType(valtype))
         return obj->location;
     return GL_INVALID_INDEX;
 }

@@ -13,18 +13,32 @@ namespace OpenGLUtil
 using std::string;
 using std::u16string;
 
-public enum class DepthTestType : GLenum
+public enum class DepthTestType : oglu::GLenum
 {
-    OFF = GL_INVALID_INDEX, Never = GL_NEVER, Equal = GL_EQUAL, NotEqual = GL_NOTEQUAL, Always = GL_ALWAYS,
-    Less = GL_LESS, LessEqual = GL_LEQUAL, Greater = GL_GREATER, GreaterEqual = GL_GEQUAL
+#define COPY_ENUM(x) x = common::enum_cast(::oglu::DepthTestType::x)
+    COPY_ENUM(OFF),
+    COPY_ENUM(Never),
+    COPY_ENUM(Equal),
+    COPY_ENUM(NotEqual),
+    COPY_ENUM(Always),
+    COPY_ENUM(Less),
+    COPY_ENUM(LessEqual),
+    COPY_ENUM(Greater),
+    COPY_ENUM(GreaterEqual),
+#undef COPY_ENUM
 };
 public enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
 public enum class ShaderType : uint32_t
 {
-    Vertex = GL_VERTEX_SHADER, Geometry = GL_GEOMETRY_SHADER, Fragment = GL_FRAGMENT_SHADER,
-    TessCtrl = GL_TESS_CONTROL_SHADER, TessEval = GL_TESS_EVALUATION_SHADER,
-    Compute = GL_COMPUTE_SHADER
+#define COPY_ENUM(x) x = common::enum_cast(::oglu::ShaderType::x)
+    COPY_ENUM(Vertex),
+    COPY_ENUM(Geometry), 
+    COPY_ENUM(Fragment),
+    COPY_ENUM(TessCtrl), 
+    COPY_ENUM(TessEval),
+    COPY_ENUM(Compute),
+#undef COPY_ENUM
 };
 
 public ref class ProgramResource : public BaseViewModel

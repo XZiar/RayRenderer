@@ -3,23 +3,23 @@
 #include "common/ContainerEx.hpp"
 
 
-//#if defined(__gl_h_) || defined(__GL_H__) || defined(_GL_H) || defined(__X_GL_H)
-//#   error should not include gl.h
-//#endif
-//
-//
-//#if COMMON_OS_WIN
-//#   define APIENTRY __stdcall
-//#   define WINGDIAPI _declspec(dllimport)
-//#   include <GL/gl.h>
-//#   include "GL/glext.h"
-//#elif COMMON_OS_UNIX
-//#   define APIENTRY
-//#   include <GL/gl.h>
-//#   include "GL/glext.h"
-//#else
-//#   error "unknown os"
-//#endif
+#if defined(__gl_h_) || defined(__GL_H__) || defined(_GL_H) || defined(__X_GL_H)
+#   error should not include gl.h
+#endif
+
+
+#if COMMON_OS_WIN
+#   define APIENTRY __stdcall
+#   define WINGDIAPI _declspec(dllimport)
+#   include <GL/gl.h>
+#   include "GL/glext.h"
+#elif COMMON_OS_UNIX
+#   define APIENTRY
+#   include <GL/gl.h>
+#   include "GL/glext.h"
+#else
+#   error "unknown os"
+#endif
 #ifndef GLAPIENTRY
 #   define GLAPIENTRY APIENTRY
 #endif

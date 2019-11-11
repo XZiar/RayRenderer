@@ -158,7 +158,7 @@ MultiMaterialHolder Drawable::OnPrepareMaterial() const
 auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
 {
     using oglu::Point;
-    const GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
+    const oglu::GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
     return std::move(vao->Prepare().SetAttribs<Point>(vbo, 0, attrs).SetDrawId(prog));
 }
 

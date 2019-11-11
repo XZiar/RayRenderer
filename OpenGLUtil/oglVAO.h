@@ -22,7 +22,9 @@ enum class VAODrawMode : GLenum
     Triangles = 0x0004/*GL_TRIANGLES*/
 };
 
-template<GLenum ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
+enum class VAValType : uint8_t { Double, Float, Half, U32, I32, U16, I16, U8, I8, U10_2, I10_2, UF11_10 };
+
+template<VAValType ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
 struct VARawComponent
 {
     static constexpr auto ValType = ValType_;
@@ -31,21 +33,25 @@ struct VARawComponent
     static constexpr auto Size = Size_;
     static constexpr auto Offset = Offset_;
     static_assert(Size > 0 && Size <= 4, "Size should be [1~4]");
-    static_assert(ValType != GL_INT_2_10_10_10_REV || Size != 4, "GL_INT_2_10_10_10_REV only accept size of 4");
-    static_assert(ValType != GL_UNSIGNED_INT_2_10_10_10_REV || Size != 4, "GL_UNSIGNED_INT_2_10_10_10_REV only accept size of 4");
-    static_assert(ValType != GL_UNSIGNED_INT_10F_11F_11F_REV || Size != 3, "GL_UNSIGNED_INT_10F_11F_11F_REV  only accept size of 3");
+    static_assert(ValType != VAValType::I10_2   || Size != 4, "GL_INT_2_10_10_10_REV only accept size of 4");
+    static_assert(ValType != VAValType::U10_2   || Size != 4, "GL_UNSIGNED_INT_2_10_10_10_REV only accept size of 4");
+    static_assert(ValType != VAValType::UF11_10 || Size != 3, "GL_UNSIGNED_INT_10F_11F_11F_REV only accept size of 3");
+
+    //static_assert(ValType != GL_INT_2_10_10_10_REV || Size != 4, "GL_INT_2_10_10_10_REV only accept size of 4");
+    //static_assert(ValType != GL_UNSIGNED_INT_2_10_10_10_REV || Size != 4, "GL_UNSIGNED_INT_2_10_10_10_REV only accept size of 4");
+    //static_assert(ValType != GL_UNSIGNED_INT_10F_11F_11F_REV || Size != 3, "GL_UNSIGNED_INT_10F_11F_11F_REV  only accept size of 3");
 };
 template<typename Val>
-inline constexpr GLenum ParseType()
+inline constexpr VAValType ParseType()
 {
-    if constexpr (std::is_same_v<Val, float>) return GL_FLOAT;
-    else if constexpr (std::is_same_v<Val, b3d::half>) return GL_HALF_FLOAT;
-    else if constexpr (std::is_same_v<Val, uint32_t>) return GL_UNSIGNED_INT;
-    else if constexpr (std::is_same_v<Val, int32_t>) return GL_INT;
-    else if constexpr (std::is_same_v<Val, uint16_t>) return GL_UNSIGNED_SHORT;
-    else if constexpr (std::is_same_v<Val, int16_t>) return GL_SHORT;
-    else if constexpr (std::is_same_v<Val, uint8_t>) return GL_UNSIGNED_BYTE;
-    else if constexpr (std::is_same_v<Val, int8_t>) return GL_BYTE;
+         if constexpr (std::is_same_v<Val, float>)      return VAValType::Float;
+    else if constexpr (std::is_same_v<Val, b3d::half>)  return VAValType::Half;
+    else if constexpr (std::is_same_v<Val, uint32_t>)   return VAValType::U32;
+    else if constexpr (std::is_same_v<Val, int32_t>)    return VAValType::I32;
+    else if constexpr (std::is_same_v<Val, uint16_t>)   return VAValType::U16;
+    else if constexpr (std::is_same_v<Val, int16_t>)    return VAValType::I16;
+    else if constexpr (std::is_same_v<Val, uint8_t>)    return VAValType::U8;
+    else if constexpr (std::is_same_v<Val, int8_t>)     return VAValType::I8;
     else static_assert(!common::AlwaysTrue<Val>(), "unsupported type");
 }
 template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
@@ -58,7 +64,7 @@ namespace detail
 {
 template<typename T>
 struct IsVAComp : public std::false_type {};
-template <GLenum ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
+template <VAValType ValType_, bool IsNormalize_, bool AsInteger_, uint8_t Size_, size_t Offset_>
 struct IsVAComp<VARawComponent<ValType_, IsNormalize_, AsInteger_, Size_, Offset_>> : public std::true_type {};
 template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
 struct IsVAComp<VAComponent<T, IsNormalize_, Size_, Offset_>> : public std::true_type {};
@@ -89,8 +95,8 @@ public:
         oglVAO_& vao;
         bool isEmpty;
         VAOPrep(oglVAO_& vao_) noexcept;
-        void SetInteger(const GLenum valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
-        void SetFloat(const GLenum valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
+        void SetInteger(const VAValType valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
+        void SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
         template<typename T>
         void SetAttrib(const uint16_t eleSize, const size_t offset, const GLint attridx)
         {

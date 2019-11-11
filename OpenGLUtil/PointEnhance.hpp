@@ -100,10 +100,10 @@ struct PointExCompressed
 {
 public:
     using ComponentType = std::tuple<
-        VARawComponent<GL_SHORT, true, false, 3, 0>,
-        VARawComponent<GL_SHORT, true, false, 3, 16>,
-        VARawComponent<GL_INT_2_10_10_10_REV, true, false, 4, 32>,
-        VARawComponent<GL_INT_2_10_10_10_REV, true, false, 4, 48>>;
+        VARawComponent<VAValType::I16,   true, false, 3, 0>,
+        VARawComponent<VAValType::I16,   true, false, 3, 16>,
+        VARawComponent<VAValType::I10_2, true, false, 4, 32>,
+        VARawComponent<VAValType::I10_2, true, false, 4, 48>>;
     int16_t Pos[4];
     int16_t TCoord[2];
     uint32_t Norm;
