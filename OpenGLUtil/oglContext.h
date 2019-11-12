@@ -95,7 +95,7 @@ MAKE_ENUM_BITFIELD(GLMemBarrier)
 
 struct CtxResCfg
 {
-    virtual bool IsEagerRelease() const = 0;
+    [[nodiscard]] virtual bool IsEagerRelease() const = 0;
 };
 template<bool EagerRelease, typename T>
 struct CtxResConfig : public CtxResCfg
@@ -122,8 +122,8 @@ public:
     template<typename... Args>
     AnyCtxRes(Args&&... args) : Res(std::forward<Args>(args)...) {}
     virtual ~AnyCtxRes() override {}
-    T* Ptr() { return &Res; }
-    const T* Ptr() const { return &Res; }
+    [[nodiscard]] T* Ptr() { return &Res; }
+    [[nodiscard]] const T* Ptr() const { return &Res; }
     operator T& () { return Res; }
     operator const T& () const { return Res; }
     T* operator->() { return &Res; }
@@ -140,7 +140,7 @@ public:
     ///<param name="creator">callable that create resource with given key</param>
     ///<returns>resource(pointer)</returns>
     template<typename T, bool Dummy>
-    T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
+    [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
         ContextResource** obj = nullptr;
         {
@@ -215,14 +215,14 @@ private:
     void FinishGL();
 public:
     ~oglContext_();
-    const auto& GetExtensions() const { return *Extensions; }
+    [[nodiscard]] const auto& GetExtensions() const { return *Extensions; }
 
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
     //void SetRetain(const bool isRetain);
     template<bool IsShared, typename T, bool Dummy>
-    T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
+    [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
         if constexpr (IsShared)
             return SharedCore->ResHandler.GetOrCreate(cfg);
@@ -234,24 +234,24 @@ public:
     void SetDepthTest(const DepthTestType type);
     void SetFaceCulling(const FaceCullingType type);
     void SetDepthClip(const bool fix);
-    DepthTestType GetDepthTest() const { return DepthTestFunc; }
-    FaceCullingType GetFaceCulling() const { return FaceCulling; }
+    [[nodiscard]] DepthTestType GetDepthTest() const { return DepthTestFunc; }
+    [[nodiscard]] FaceCullingType GetFaceCulling() const { return FaceCulling; }
 
     void SetSRGBFBO(const bool isEnable);
     void ClearFBO();
     
     void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
     void SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);
-    miniBLAS::VecI4 GetViewPort() const;
+    [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
 
 
 
-    static uint32_t GetLatestVersion();
-    static oglContext CurrentContext();
-    static oglContext Refresh();
-    static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
-    static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
+    [[nodiscard]] static uint32_t GetLatestVersion();
+    [[nodiscard]] static oglContext CurrentContext();
+    [[nodiscard]] static oglContext Refresh();
+    [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
+    [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
     static bool ReleaseExternContext();
     static bool ReleaseExternContext(void* hrc);
 };

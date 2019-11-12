@@ -36,10 +36,6 @@ It's bitfield arrangement is listed below
 
 ## Dependency
 
-* [zlib](http://www.zlib.net/zlib.html)  1.2.11
-
-  [zlib License](../3rdParty/zlib/license.txt)
-
 * [zlib-ng](https://github.com/Dead2/zlib-ng)  1.9.9 develop@2019-08-11
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)

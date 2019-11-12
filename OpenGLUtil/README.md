@@ -6,7 +6,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## GL Dependency
 
-* [OpenGL Header](../3rdParty/GL) 20190911
+* [OpenGL Header](../3rdParty/GL) 20191029
 
 * [KHR API Header](../3rdParty/KHR) 20190424
 
@@ -63,19 +63,9 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
-* [common](../common)
-  * Wrapper      -- an extended version of stl's shared_ptr
-  * Exception    -- an exception model with support for nested-exception, strong-type, Unicode message, arbitrary extra data 
-  * StringEx     -- some useful operation for string, including encoding-conversion
-  * ContainerEx  -- some useful operation for finding in containers, and self-contained map.
-
 * [3DBasic](../3DBasic)
   * Basic component -- providing basic 3d data structure
   * Camera -- an uvn camera
-
-* [glew](../3rdParty/glew)
-
-  low-level OpenGL API supporter.
 
 * [MiniLogger](../MiniLogger)
   
@@ -89,19 +79,19 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
   provide async-execution environment for OpenGL workers.
 
-* C++17 required
-  * optional -- used for some return value
-  * variant  -- used for uniform value storage
-  * any      -- used for uniform value storage
-  * tuple    -- used for some internal structure
-
 ## Feature
+
+### Wrap OpenGL function calls
+
+OpenGL function calls (including GL 1.1) are all wrapped by OpenGLUtil and is context-based.
+
+However, OpenGLUtil cannot control ouside calls to GL-functions, so try to seperate usage of internal and externel contexts and remember refresh state which switch context boundrary.
 
 ### DSA support
 
 OpenGL provide **Direct State Access** functionality via [EXT](http://www.opengl.org/registry/specs/EXT/direct_state_access.txt) and [ARB](http://www.opengl.org/registry/specs/ARB/direct_state_access.txt) extension. OpenGLUtil will try to use DSA function (ARB prior to EXT). But when DSA is not available, OpenGLUtil will try to emulate it.
 
-The DSA support is context-based, since `glew` only defined global function without consideration of context. Some binding units (usually lower one) are reserved for DSA emulation and other operations.
+The DSA support is context-based. Some binding units (usually lower one) should be reserved for DSA emulation and other operations.
 
 The DSA support is intended for internal use and is not exposed.
 
@@ -156,11 +146,9 @@ Some common resources are widely used by shaders, so mapping is added to an vert
 
 #### DrawId
 
-`DrawId` is useful when performing multi-draw or indirect rendering. It allows vertex shader to know which primitives it is drawing. However, [`gl_DrawID` requires `ARB_shader_draw_parameters`](https://www.khronos.org/opengl/wiki/Built-in_Variable_(GLSL)#Vertex_shader_inputs).
+`DrawId` is useful when performing multi-draw or indirect rendering. It allows vertex shader to know which primitives it is drawing. However, `gl_DrawID` requires [`ARB_shader_draw_parameters`](https://www.khronos.org/opengl/wiki/Built-in_Variable_(GLSL)#Vertex_shader_inputs). For those who does not support that extension, common solution is to [use vertex attribute with divisor](https://www.g-truc.net/post-0518.html). 
 
-For those who does not support [`ARB_shader_draw_parameters`](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_draw_parameters.txt), common solution is to [use vertex attribute with divisor](https://www.g-truc.net/post-0518.html). 
-
-OpenGLUtil provides a wrapper `ogluDrawId` to support both situation. When preparing the VAO, `VAOPrep` need to call `SetDrawId(prog)` even if `ARB_shader_draw_parameters` exists (when the extension exists, no target vertex attribute is defined so the operation is just ignored).
+OpenGLUtil provides a wrapper `ogluDrawId` to support both situation. When preparing the VAO, `VAOPrep` need to call `SetDrawId(prog)` even if `ARB_shader_draw_parameters` exists (when the extension exists, no target vertex attribute is defined so the operation will just be ignored).
 
 ### Resource Management
 
@@ -183,11 +171,11 @@ Drawcalls are expensive. After wrapping, it's more expensive since state needed 
 
 In order to reduce binding state changing, LRU cache is used. But uniform values are not handled in that way.
 
-Each time you call oglProgram's `draw()`, an `ProgDraw` is created with current global state. ProgDraw will restore program state after it's deconstructed, so avoid creating too many `ProgDraw`.
+Each time you call oglProgram's `draw()`, an `ProgDraw` is created with current global state. ProgDraw will restore program state after it's deconstructed, so **avoid creating too many `ProgDraw`**.
 
 Setting value to uniform / binding ubo or tex resources in `ProgDraw` is temporal, but setting them in `ProgState` or `oglProgram` is global.
 
-`ProgDraw` will enforce current context to use corresponding glProgram, and assumes that state kept until it is destroyed. So avoid keeping more than one `ProgDraw` at the same time in a single thread.
+`ProgDraw` will enforce current context to use corresponding glProgram, and assumes that state kept until it is destroyed. In rder to prevent mistakes, `ProgDraw` will cause a spinlock in the thread, so more than one `ProgDraw` at the same time will hang the app.
 
 ### Multi-thread Worker
 

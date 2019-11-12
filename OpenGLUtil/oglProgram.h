@@ -277,6 +277,7 @@ class OGLUAPI ProgDraw
     friend class oglDrawProgram_;
 private:
     oglDrawProgram_& Prog;
+    common::SpinLocker::ScopeType Lock;
     detail::TextureManager& TexMan;
     detail::TexImgManager& ImgMan;
     detail::UBOManager& UboMan;

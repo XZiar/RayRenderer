@@ -81,7 +81,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Modified BSD & MIT License](./3rdParty/glew/license.txt)
 
-* [FreeGLUT](http://freeglut.sourceforge.net)  3.2.0 RC1
+* [FreeGLUT](http://freeglut.sourceforge.net)  3.2.1
 
   [MIT License](./3rdParty/freeglut/license.txt)
 

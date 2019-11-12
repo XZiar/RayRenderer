@@ -875,8 +875,10 @@ oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::st
 }
 
 
+thread_local common::SpinLocker ProgDrawLocker;
 ProgDraw::ProgDraw(oglDrawProgram_& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-    : Prog(prog), TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
+    : Prog(prog), Lock(ProgDrawLocker.LockScope()),
+    TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
 {
     oglProgram_::usethis(Prog);
     SetPosition(modelMat, normMat);
