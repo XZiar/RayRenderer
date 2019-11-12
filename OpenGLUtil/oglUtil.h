@@ -2,7 +2,11 @@
 #include "oglRely.h"
 #include "3DElement.hpp"
 
+#if COMMON_OS_WIN
 #define OGLU_OPTIMUS_ENABLE_NV extern "C" { _declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001; }
+#else
+#define OGLU_OPTIMUS_ENABLE_NV 
+#endif
 
 namespace oglu
 {

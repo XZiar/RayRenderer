@@ -19,18 +19,24 @@ MAKE_ENABLER_IMPL(oclGLInterImg3D_)
 GLInterop::GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Queue(que), Mem(mem)
 {
     if (!Queue->SupportImplicitGLSync())
-        oglu::oglUtil::ForceSyncGL()->Wait();
-    cl_int ret = clEnqueueAcquireGLObjects(Queue->CmdQue, 1, &mem, 0, nullptr, nullptr);
+        oglu::oglContext_::CurrentContext()->FinishGL();
+    cl_event evt = nullptr;
+    cl_int ret = clEnqueueAcquireGLObjects(Queue->CmdQue, 1, &mem, 0, nullptr, &evt);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");
+    if (evt)
+        clWaitForEvents(1, &evt);
 }
 GLInterop::GLResLocker::~GLResLocker()
 {
     if (!Queue->SupportImplicitGLSync())
         Queue->Flush(); // assume promise is correctly waited before relase lock
-    cl_int ret = clEnqueueReleaseGLObjects(Queue->CmdQue, 1, &Mem, 0, nullptr, nullptr);
+    cl_event evt = nullptr;
+    cl_int ret = clEnqueueReleaseGLObjects(Queue->CmdQue, 1, &Mem, 0, nullptr, &evt);
     if (ret != CL_SUCCESS)
         oclUtil::GetOCLLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
+    if (evt)
+        clWaitForEvents(1, &evt);
 }
 
 //common::mlog::MiniLogger<false>& GLInterop::GetOCLLog()

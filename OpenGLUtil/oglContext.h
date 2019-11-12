@@ -198,8 +198,8 @@ private:
     unsigned long DRW;
 #endif
     detail::CtxResHandler ResHandler;
-    common::container::FrozenDenseSet<std::string_view> Extensions;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
+    const common::container::FrozenDenseSet<std::string_view>* Extensions = nullptr;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
@@ -215,7 +215,7 @@ private:
     void FinishGL();
 public:
     ~oglContext_();
-    const auto& GetExtensions() const { return Extensions; }
+    const auto& GetExtensions() const { return *Extensions; }
 
     bool UseContext(const bool force = false);
     bool UnloadContext();
@@ -252,6 +252,7 @@ public:
     static oglContext Refresh();
     static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
     static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
+    static bool ReleaseExternContext();
     static bool ReleaseExternContext(void* hrc);
 };
 

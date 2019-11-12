@@ -339,7 +339,7 @@ void oglProgram_::InitSubroutines()
 
 static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
 {
-    const auto glType = (GLenum)res.Valtype;
+    const auto glType = res.Valtype;
     switch (prop.Type)
     {
     case ShaderPropertyType::Vector: return (glType >= GL_FLOAT_VEC2 && glType <= GL_INT_VEC4) || (glType >= GL_BOOL_VEC2 && glType <= GL_BOOL_VEC4) ||

@@ -14,6 +14,7 @@
 #   include "GL/wglext.h"
 //fucking wingdi defines some terrible macro
 #   undef ERROR
+#   undef MemoryBarrier
 #   pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 #elif COMMON_OS_UNIX
 #   include <X11/X.h>
@@ -147,12 +148,12 @@ static std::atomic<uint32_t>& GetDebugPrintCore() noexcept
     static std::atomic<uint32_t> ShouldPrint = 0;
     return ShouldPrint;
 }
-void SetDSAShouldPrint(const bool printSuc, const bool printFail) noexcept
+void SetFuncShouldPrint(const bool printSuc, const bool printFail) noexcept
 {
     const uint32_t val = (printSuc ? 0x1u : 0x0u) | (printFail ? 0x2u : 0x0u);
     GetDebugPrintCore() = val;
 }
-static std::pair<bool, bool> GetDSAShouldPrint() noexcept
+static std::pair<bool, bool> GetFuncShouldPrint() noexcept
 {
     const uint32_t val = GetDebugPrintCore();
     const bool printSuc  = (val & 0x1u) == 0x1u;
@@ -189,7 +190,7 @@ common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(voi
 
 PlatFuncs::PlatFuncs()
 {
-    const auto shouldPrint = GetDSAShouldPrint();
+    const auto shouldPrint = GetFuncShouldPrint();
 
 #define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) name sfx
 #define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
@@ -207,22 +208,20 @@ PlatFuncs::PlatFuncs()
     Extensions = GetExtensions(display, DefaultScreen(display));
     QUERY_FUNC_(glXCreateContextAttribsARB, "");
 #endif
+
+#if COMMON_OS_WIN
+    SupportFlushControl = Extensions.Has("WGL_ARB_context_flush_control");
+    SupportSRGB = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
+#else
+    SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
+    SupportSRGB = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
+#endif
     
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS
 #undef QUERY_FUNC
 #undef QUERY_FUNC_
-}
-
-
-bool PlatFuncs::SupportFlushControl() const
-{
-#if COMMON_OS_WIN
-    return Extensions.Has("WGL_ARB_context_flush_control");
-#else
-    return Extensions.Has("GLX_ARB_context_flush_control");
-#endif
 }
 
 
@@ -239,7 +238,7 @@ void* PlatFuncs::GetCurrentDeviceContext()
 }
 void* PlatFuncs::GetCurrentGLContext()
 {
-    GetCurrentDeviceContext();
+    [[maybe_unused]] const auto dummy = GetCurrentDeviceContext();
 #if COMMON_OS_WIN
     const auto hRC = wglGetCurrentContext();
 #else
@@ -321,7 +320,7 @@ std::vector<int32_t> PlatFuncs::GenerateContextAttrib(const uint32_t version, bo
                 VerMinor, static_cast<int32_t>(version % 10),
             });
     }
-    if (needFlushControl && PlatFunc->SupportFlushControl())
+    if (needFlushControl && PlatFunc->SupportFlushControl)
     {
         ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
     }
@@ -371,12 +370,14 @@ void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShare
 
 DSAFuncs::DSAFuncs()
 {
-    const auto shouldPrint = GetDSAShouldPrint();
+    const auto shouldPrint = GetFuncShouldPrint();
 
 #define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) "gl" name sfx
 #define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
 #define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
 #define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define DIRECT_FUNC(name)  PPCAT(oglu, name)          = &PPCAT(gl, name)
+#define DIRECT_FUNC_(name) PPCAT(PPCAT(oglu, name),_) = &PPCAT(gl, name)
 
     // buffer related
     QUERY_FUNC (GenBuffers,             "", "ARB");
@@ -407,6 +408,8 @@ DSAFuncs::DSAFuncs()
     QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
 
     // draw related
+    DIRECT_FUNC(DrawArrays);
+    DIRECT_FUNC(DrawElements);
     QUERY_FUNC (MultiDrawArrays,                                "", "EXT");
     QUERY_FUNC (MultiDrawElements,                              "", "EXT");
     QUERY_FUNC_(MultiDrawArraysIndirect,                        "", "EXT", "AMD");
@@ -418,8 +421,11 @@ DSAFuncs::DSAFuncs()
     QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV");
 
     //texture related
-    QUERY_FUNC (ActiveTexture,                  "", "ARB");
+    DIRECT_FUNC(GenTextures);
     QUERY_FUNC_(CreateTextures,                 "");
+    DIRECT_FUNC(DeleteTextures);
+    QUERY_FUNC (ActiveTexture,                  "", "ARB");
+    DIRECT_FUNC(BindTexture);
     QUERY_FUNC_(BindTextureUnit,                "");
     QUERY_FUNC_(BindMultiTextureEXT,            "");
     QUERY_FUNC (BindImageTexture,               "", "EXT");
@@ -653,18 +659,38 @@ DSAFuncs::DSAFuncs()
     QUERY_FUNC (GetSynciv,              "", "APPLE");
 
     //others
-#define DIRECT_FUNC(name) PPCAT(oglu, name) = &PPCAT(gl, name)
     DIRECT_FUNC(GetError);
     DIRECT_FUNC(GetFloatv);
     DIRECT_FUNC(GetIntegerv);
+    DIRECT_FUNC(GetString);
     QUERY_FUNC (GetStringi,             "");
+    DIRECT_FUNC(IsEnabled);
+    DIRECT_FUNC(Enable);
+    DIRECT_FUNC(Disable);
+    DIRECT_FUNC(Finish);
+    DIRECT_FUNC(Flush);
     QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
-    QUERY_FUNC (ClipControl,            "");
-#ifdef MemoryBarrier
-#   undef MemoryBarrier
-#endif
+    DIRECT_FUNC(DepthFunc);
+    DIRECT_FUNC(CullFace);
+    DIRECT_FUNC(FrontFace);
+    DIRECT_FUNC(Clear);
+    DIRECT_FUNC(Viewport);
+    QUERY_FUNC (ViewportArrayv,         "", "NV");
+    QUERY_FUNC (ViewportIndexedf,       "", "NV");
+    QUERY_FUNC (ViewportIndexedfv,      "", "NV");
+    DIRECT_FUNC_(ClearDepth);
+    QUERY_FUNC_(ClearDepthf,            "");
+    QUERY_FUNC (ClipControl,            "", "EXT");
     QUERY_FUNC (MemoryBarrier,          "", "EXT");
 
+
+    Extensions = GetExtensions();
+    SupportDebug            = ogluDebugMessageCallback != nullptr;
+    SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
+    SupportClipControl      = ogluClipControl != nullptr;
+    SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
+    SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
+    SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS
@@ -848,7 +874,7 @@ void DSAFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) co
 {
     CALL_EXISTS(ogluCreateTextures_, target, n, textures)
     {
-        glGenTextures(n, textures);
+        ogluGenTextures(n, textures);
         ogluActiveTexture(GL_TEXTURE0);
         for (GLsizei i = 0; i < n; ++i)
             glBindTexture(target, textures[i]);
@@ -1265,6 +1291,16 @@ void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
 }
 
 
+void DSAFuncs::ogluClearDepth(GLclampd d) const
+{
+    CALL_EXISTS(ogluClearDepth_, d)
+    CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
+    {
+        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
+    }
+}
+
+
 common::container::FrozenDenseSet<std::string_view> DSAFuncs::GetExtensions() const
 {
     if (ogluGetStringi)
@@ -1282,11 +1318,26 @@ common::container::FrozenDenseSet<std::string_view> DSAFuncs::GetExtensions() co
     }
     else
     {
-        const GLubyte* exts = glGetString(GL_EXTENSIONS);
+        const GLubyte* exts = ogluGetString(GL_EXTENSIONS);
         return common::str::Split(reinterpret_cast<const char*>(exts), ' ', false);
     }
 }
-
+std::optional<std::string_view> DSAFuncs::GetError() const
+{
+    const auto err = ogluGetError();
+    switch (err)
+    {
+    case GL_NO_ERROR:                       return {};
+    case GL_INVALID_ENUM:                   return "GL_INVALID_ENUM";
+    case GL_INVALID_VALUE:                  return "GL_INVALID_VALUE";
+    case GL_INVALID_OPERATION:              return "GL_INVALID_OPERATION";
+    case GL_INVALID_FRAMEBUFFER_OPERATION:  return "GL_INVALID_FRAMEBUFFER_OPERATION";
+    case GL_OUT_OF_MEMORY:                  return "GL_OUT_OF_MEMORY";
+    case GL_STACK_UNDERFLOW:                return "GL_STACK_UNDERFLOW";
+    case GL_STACK_OVERFLOW:                 return "GL_STACK_OVERFLOW";
+    default:                                return "UNKNOWN_ERROR";
+    }
+}
 
 
 

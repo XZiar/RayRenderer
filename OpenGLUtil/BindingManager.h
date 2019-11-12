@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oglRely.h"
+#include "oglPch.h"
 #include "oglTexture.h"
 #include "oglBuffer.h"
 #include "oglContext.h"
@@ -208,13 +208,13 @@ private:
     static GLint GetLimit(const GLenum prop)
     {
         GLint maxs;
-        glGetIntegerv(prop, &maxs);
+        DSA->ogluGetIntegerv(prop, &maxs);
         return maxs;
     }
     static uint8_t GetSize(const GLenum prop)
     {
         GLint maxs;
-        glGetIntegerv(prop, &maxs);
+        DSA->ogluGetIntegerv(prop, &maxs);
         maxs -= Offset;
         return static_cast<uint8_t>(maxs > 255 ? 255 : maxs);
     }

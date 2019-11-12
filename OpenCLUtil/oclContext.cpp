@@ -43,7 +43,11 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
 oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
     : Plat(std::move(plat)), Devices(devices)
 {
-    OnMessage += [](const auto& msg) { oclLog().verbose(u"{}\n", msg); };
+    OnMessage += [](const auto& msg) 
+    { 
+        if (!common::str::IsBeginWith(msg, u"Performance hint:"))
+            oclLog().verbose(u"{}\n", msg);
+    };
 
     cl_int ret;
     vector<cl_device_id> DeviceIDs;
@@ -56,7 +60,7 @@ oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, 
     }
     constexpr cl_context_properties intelDiagnostics = CL_CONTEXT_DIAGNOSTICS_LEVEL_BAD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_GOOD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_NEUTRAL_INTEL;
     if (supportIntelDiag)
-        props.insert(props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics });
+        props.insert(--props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics });
     Context = clCreateContext(props.data(), (cl_uint)DeviceIDs.size(), DeviceIDs.data(), &onNotify, this, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot create opencl-context");

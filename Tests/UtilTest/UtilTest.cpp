@@ -57,7 +57,7 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     }
     catch (const common::file::FileException& fe)
     {
-        log().error(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
+        log().warning(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
     }
     auto data = common::ResourceHelper::GetData(L"BIN", id);
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());

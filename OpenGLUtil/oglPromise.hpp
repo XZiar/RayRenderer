@@ -17,7 +17,7 @@ protected:
         DSA->ogluGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
         DSA->ogluQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
         SyncObj = DSA->ogluFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-        glFlush(); //ensure sync object sended
+        DSA->ogluFlush(); //ensure sync object sended
     }
     ~oglPromiseCore()
     {

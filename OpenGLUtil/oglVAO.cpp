@@ -199,10 +199,10 @@ void oglVAO_::Draw(const uint32_t size, const uint32_t offset) const noexcept
     switch (Method)
     {
     case DrawMethod::Array:
-        glDrawArrays(common::enum_cast(DrawMode), offset, size);
+        DSA->ogluDrawArrays(common::enum_cast(DrawMode), offset, size);
         break;
     case DrawMethod::Index:
-        glDrawElements(common::enum_cast(DrawMode), size, IndexBuffer->IndexType, (const void*)intptr_t(offset * IndexBuffer->IndexSize));
+        DSA->ogluDrawElements(common::enum_cast(DrawMode), size, IndexBuffer->IndexType, (const void*)intptr_t(offset * IndexBuffer->IndexSize));
         break;
     default:
         oglLog().error(u"Only array/index mode support ranged draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
@@ -217,10 +217,10 @@ void oglVAO_::Draw() const noexcept
     switch (Method)
     {
     case DrawMethod::Array:
-        glDrawArrays(common::enum_cast(DrawMode), std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        DSA->ogluDrawArrays(common::enum_cast(DrawMode), std::get<GLint>(Offsets), std::get<GLsizei>(Count));
         break;
     case DrawMethod::Index:
-        glDrawElements(common::enum_cast(DrawMode), std::get<GLsizei>(Count), IndexBuffer->IndexType, std::get<const void*>(Offsets));
+        DSA->ogluDrawElements(common::enum_cast(DrawMode), std::get<GLsizei>(Count), IndexBuffer->IndexType, std::get<const void*>(Offsets));
         break;
     case DrawMethod::Arrays:
         {

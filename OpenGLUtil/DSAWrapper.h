@@ -12,6 +12,7 @@
 #   define APIENTRY __stdcall
 #   define WINGDIAPI _declspec(dllimport)
 #   include <GL/gl.h>
+#   undef WINGDIAPI
 #   include "GL/glext.h"
 #elif COMMON_OS_UNIX
 #   define APIENTRY
@@ -37,7 +38,7 @@ class PlatFuncs
 private:
     const char* (GLAPIENTRY *wglGetExtensionsStringARB_) (void* hDC) = nullptr;
     const char* (GLAPIENTRY *wglGetExtensionsStringEXT_) () = nullptr;
-    common::container::FrozenDenseSet<std::string_view> GetExtensions(void* hdc) const;
+    [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions(void* hdc) const;
 public:
     void* (GLAPIENTRY *wglCreateContextAttribsARB_) (void* hDC, void* hShareContext, const int* attribList) = nullptr;
 #else
@@ -50,22 +51,23 @@ public:
 #endif
 public:
     common::container::FrozenDenseSet<std::string_view> Extensions;
-    
-    PlatFuncs();
-    bool SupportFlushControl() const;
+    bool SupportFlushControl;
+    bool SupportSRGB;
 
-    static void* GetCurrentDeviceContext();
-    static void* GetCurrentGLContext();
+    PlatFuncs();
+
+    [[nodiscard]] static void* GetCurrentDeviceContext();
+    [[nodiscard]] static void* GetCurrentGLContext();
     static void  DeleteGLContext(void* hDC, void* hRC);
-    static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
-    static void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs);
+    [[nodiscard]] static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
+    [[nodiscard]] static void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs);
 #if COMMON_OS_WIN
-    static bool  MakeGLContextCurrent(void* hDC, void* hRC);
-    static uint32_t GetSystemError();
+    [[nodiscard]] static bool  MakeGLContextCurrent(void* hDC, void* hRC);
+    [[nodiscard]] static uint32_t GetSystemError();
 #else
-    static bool  MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC);
-    static unsigned long GetCurrentDrawable();
-    static int32_t GetSystemError();
+    [[nodiscard]] static bool  MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC);
+    [[nodiscard]] static unsigned long GetCurrentDrawable();
+    [[nodiscard]] static int32_t GetSystemError();
 #endif
 };
 extern thread_local const PlatFuncs* PlatFunc;
@@ -104,7 +106,6 @@ public:
     GLboolean ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const;
     
     // vao related
-    
     mutable GLuint VAO = 0;
     void (GLAPIENTRY *ogluGenVertexArrays) (GLsizei n, GLuint* arrays) = nullptr;
     void (GLAPIENTRY *ogluDeleteVertexArrays) (GLsizei n, const GLuint* arrays) = nullptr;
@@ -124,7 +125,8 @@ public:
     void ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const;
 
     // draw related
-    
+    void (GLAPIENTRY *ogluDrawArrays) (GLenum mode, GLint first, GLsizei count) = nullptr;
+    void (GLAPIENTRY *ogluDrawElements) (GLenum mode, GLsizei count, GLenum type, const void* indices) = nullptr;
     void (GLAPIENTRY *ogluMultiDrawArrays) (GLenum mode, const GLint* first, const GLsizei* count, GLsizei drawcount) = nullptr;
     void (GLAPIENTRY *ogluMultiDrawElements) (GLenum mode, const GLsizei* count, GLenum type, const void* const* indices, GLsizei drawcount) = nullptr;
     void (GLAPIENTRY *ogluMultiDrawArraysIndirect_) (GLenum mode, const void* indirect, GLsizei primcount, GLsizei stride) = nullptr;
@@ -139,9 +141,11 @@ public:
     void ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const;
 
     // texture related
-
-    void (GLAPIENTRY *ogluActiveTexture) (GLenum texture) = nullptr;
+    void (GLAPIENTRY *ogluGenTextures) (GLsizei n, GLuint* textures) = nullptr;
     void (GLAPIENTRY *ogluCreateTextures_) (GLenum target, GLsizei n, GLuint* textures) = nullptr;
+    void (GLAPIENTRY *ogluDeleteTextures) (GLsizei n, const GLuint* textures) = nullptr;
+    void (GLAPIENTRY *ogluActiveTexture) (GLenum texture) = nullptr;
+    void (GLAPIENTRY *ogluBindTexture) (GLenum target, GLuint texture) = nullptr;
     void (GLAPIENTRY *ogluBindTextureUnit_) (GLuint unit, GLuint texture) = nullptr;
     void (GLAPIENTRY *ogluBindMultiTextureEXT_) (GLuint unit, GLenum target, GLuint texture) = nullptr;
     void (GLAPIENTRY *ogluBindImageTexture) (GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format) = nullptr;
@@ -225,7 +229,6 @@ public:
     void ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const;
 
     // rbo related
-
     void (GLAPIENTRY *ogluGenRenderbuffers_) (GLsizei n, GLuint* renderbuffers) = nullptr;
     void (GLAPIENTRY *ogluCreateRenderbuffers_) (GLsizei n, GLuint* renderbuffers) = nullptr;
     void (GLAPIENTRY *ogluDeleteRenderbuffers) (GLsizei n, const GLuint* renderbuffers) = nullptr;
@@ -244,7 +247,6 @@ public:
     void ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const;
 
     // fbo related
-
     mutable GLuint ReadFBO = 0, DrawFBO = 0;
     GLint MaxColorAttachment = 0;
     void   (GLAPIENTRY *ogluGenFramebuffers_) (GLsizei n, GLuint* framebuffers) = nullptr;
@@ -281,7 +283,6 @@ public:
     void ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const;
 
     // shader related
-    
     GLuint (GLAPIENTRY *ogluCreateShader) (GLenum type) = nullptr;
     void   (GLAPIENTRY *ogluDeleteShader) (GLuint shader) = nullptr;
     void   (GLAPIENTRY *ogluShaderSource) (GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length) = nullptr;
@@ -291,7 +292,6 @@ public:
     void   (GLAPIENTRY *ogluGetShaderiv) (GLuint shader, GLenum pname, GLint* param) = nullptr;
     
     //program related
-    
     GLuint (GLAPIENTRY *ogluCreateProgram) () = nullptr;
     void   (GLAPIENTRY *ogluDeleteProgram) (GLuint program) = nullptr;
     void   (GLAPIENTRY *ogluAttachShader) (GLuint program, GLuint shader) = nullptr;
@@ -400,7 +400,6 @@ public:
     void   (GLAPIENTRY *ogluUniformBlockBinding) (GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding) = nullptr;
 
     // query related
-
     void   (GLAPIENTRY *ogluGenQueries) (GLsizei n, GLuint* ids) = nullptr;
     void   (GLAPIENTRY *ogluDeleteQueries) (GLsizei n, const GLuint* ids) = nullptr;
     void   (GLAPIENTRY *ogluBeginQuery) (GLenum target, GLuint id) = nullptr;
@@ -418,25 +417,48 @@ public:
     void   (GLAPIENTRY *ogluGetSynciv) (GLsync GLsync, GLenum pname, GLsizei bufSize, GLsizei* length, GLint* values) = nullptr;
 
     // others
-
-
+    using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * message, const void* userParam);
+    bool SupportDebug;
+    bool SupportSRGB;
+    bool SupportClipControl;
+    bool SupportImageLoadStore;
+    bool SupportComputeShader;
+    bool SupportTessShader;
     GLenum         (GLAPIENTRY *ogluGetError) () = nullptr;
     void           (GLAPIENTRY *ogluGetFloatv) (GLenum pname, GLfloat* params) = nullptr;
     void           (GLAPIENTRY *ogluGetIntegerv) (GLenum pname, GLint* params) = nullptr;
-    using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+    const GLubyte* (GLAPIENTRY *ogluGetString) (GLenum name) = nullptr;
     const GLubyte* (GLAPIENTRY *ogluGetStringi) (GLenum name, GLuint index) = nullptr;
+    GLboolean      (GLAPIENTRY *ogluIsEnabled) (GLenum cap) = nullptr;
+    void           (GLAPIENTRY *ogluEnable) (GLenum cap) = nullptr;
+    void           (GLAPIENTRY *ogluDisable) (GLenum cap) = nullptr;
+    void           (GLAPIENTRY *ogluFinish) () = nullptr;
+    void           (GLAPIENTRY *ogluFlush) () = nullptr;
     void           (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
+    void           (GLAPIENTRY *ogluDepthFunc) (GLenum func) = nullptr;
+    void           (GLAPIENTRY *ogluCullFace) (GLenum mode) = nullptr;
+    void           (GLAPIENTRY *ogluFrontFace) (GLenum mode) = nullptr;
+    void           (GLAPIENTRY *ogluClear) (GLbitfield mask) = nullptr;
+    void           (GLAPIENTRY *ogluViewport) (GLint x, GLint y, GLsizei width, GLsizei height) = nullptr;
+    void           (GLAPIENTRY *ogluViewportArrayv) (GLuint first, GLsizei count, const GLfloat* v) = nullptr;
+    void           (GLAPIENTRY *ogluViewportIndexedf) (GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h) = nullptr;
+    void           (GLAPIENTRY *ogluViewportIndexedfv) (GLuint index, const GLfloat* v) = nullptr;
+    void           (GLAPIENTRY *ogluClearDepth_) (GLclampd d) = nullptr;
+    void           (GLAPIENTRY *ogluClearDepthf_) (GLclampf f) = nullptr;
     void           (GLAPIENTRY *ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
     void           (GLAPIENTRY *ogluMemoryBarrier) (GLbitfield barriers) = nullptr;
 
+    void ogluClearDepth(GLclampd d) const;
+    
     DSAFuncs();
-    common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
+private:
+    [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
+public:
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    [[nodiscard]] std::optional<std::string_view> GetError() const;
 };
 extern thread_local const DSAFuncs* DSA;
 
 }
 
 
-#ifdef WINGDIAPI
-#   undef WINGDIAPI
-#endif

@@ -32,6 +32,10 @@ MAKE_ENABLER_IMPL(oglShader_)
 oglShader_::oglShader_(const ShaderType type, const string & txt) :
     Src(txt), ShaderID(GL_INVALID_INDEX), Type(type)
 {
+    if (Type == ShaderType::Compute && !DSA->SupportComputeShader)
+        oglLog().warning(u"Attempt to create ComputeShader on unsupported context\n");
+    else if ((Type == ShaderType::TessCtrl || Type == ShaderType::TessEval) && !DSA->SupportTessShader)
+        oglLog().warning(u"Attempt to create TessShader on unsupported context\n");
     auto ptr = txt.c_str();
     ShaderID = DSA->ogluCreateShader(common::enum_cast(type));
     DSA->ogluShaderSource(ShaderID, 1, &ptr, NULL);

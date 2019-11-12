@@ -105,13 +105,13 @@ oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noex
     if (shouldBindType)
         DSA->ogluCreateTextures(common::enum_cast(Type), 1, &textureID);
     else
-        glGenTextures(1, &textureID);
+        DSA->ogluGenTextures(1, &textureID);
     if (const auto e = oglUtil::GetError(); e.has_value())
         oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
     /*if (shouldBindType)
     {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture((GLenum)Type, textureID);
+        DSA->ogluActiveTexture(GL_TEXTURE0);
+        DSA->ogluBindTexture((GLenum)Type, textureID);
     }*/
     RegistTexture(*this);
 }
@@ -122,21 +122,17 @@ oglTexBase_::~oglTexBase_() noexcept
     UnregistTexture(*this);
     //force unbind texture, since texID may be reused after releasaed
     getTexMan().forcePop(textureID);
-    glDeleteTextures(1, &textureID);
+    DSA->ogluDeleteTextures(1, &textureID);
 }
 
 void oglTexBase_::bind(const uint16_t pos) const noexcept
 {
     CheckCurrent();
     DSA->ogluBindTextureUnit(pos, textureID, common::enum_cast(Type));
-    //glBindMultiTextureEXT(GL_TEXTURE0 + pos, (GLenum)Type, textureID);
-    //glActiveTexture(GL_TEXTURE0 + pos);
-    //glBindTexture((GLenum)Type, textureID);
 }
 
 void oglTexBase_::unbind() const noexcept
 {
-    //glBindTexture((GLenum)Type, 0);
 }
 
 void oglTexBase_::CheckMipmapLevel(const uint8_t level) const
@@ -687,6 +683,8 @@ oglImgBase_::oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const b
     : InnerTex(tex), Usage(usage), IsLayered(isLayered)
 {
     tex->CheckCurrent();
+    if (!DSA->SupportImageLoadStore)
+        oglLog().warning(u"Attempt to create oglImg on unsupported context\n");
     if (!InnerTex)
         COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
     const auto format = InnerTex->GetInnerFormat();

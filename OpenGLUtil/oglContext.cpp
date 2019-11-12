@@ -123,10 +123,10 @@ void oglContext_::Init(const bool isCurrent)
             LatestVersion = Version;
             oglLog().info(u"update API Version to [{}.{}]\n", major, minor);
         }
-        Extensions = DSA->GetExtensions();
+        Extensions = &DSA->Extensions;
     }
     DSA->ogluGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
-    if (glIsEnabled(GL_CULL_FACE))
+    if (DSA->ogluIsEnabled(GL_CULL_FACE))
     {
         GLint cullingMode;
         DSA->ogluGetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
@@ -149,13 +149,14 @@ void oglContext_::Init(const bool isCurrent)
 void oglContext_::FinishGL()
 {
     CHECKCURRENT();
-    glFinish();
+    DSA->ogluFinish();
 }
 
 oglContext_::~oglContext_()
 {
 #if defined(_DEBUG)
-    oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
+    if (!IsExternal)
+        oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
     ResHandler.Release();
     //if (!IsRetain)
@@ -252,11 +253,13 @@ void oglContext_::Release()
 void oglContext_::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 {
     CHECKCURRENT();
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     DbgLimit = { type, src, minLV };
-    if (DSA->ogluDebugMessageCallback)
+    if (DSA->SupportDebug)
+    {
+        DSA->ogluEnable(GL_DEBUG_OUTPUT);
+        DSA->ogluEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         DSA->ogluDebugMessageCallback(onMsg, &DbgLimit);
+    }
 }
 
 void oglContext_::SetDepthTest(const DepthTestType type)
@@ -265,7 +268,7 @@ void oglContext_::SetDepthTest(const DepthTestType type)
     switch (type)
     {
     case DepthTestType::OFF: 
-        glDisable(GL_DEPTH_TEST); 
+        DSA->ogluDisable(GL_DEPTH_TEST);
         break;
     case DepthTestType::Never:
     case DepthTestType::Always:
@@ -275,8 +278,8 @@ void oglContext_::SetDepthTest(const DepthTestType type)
     case DepthTestType::LessEqual:
     case DepthTestType::Greater:
     case DepthTestType::GreaterEqual:
-        glEnable(GL_DEPTH_TEST); 
-        glDepthFunc(common::enum_cast(type));
+        DSA->ogluEnable(GL_DEPTH_TEST);
+        DSA->ogluDepthFunc(common::enum_cast(type));
         break;
     default:
         oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
@@ -291,13 +294,13 @@ void oglContext_::SetFaceCulling(const FaceCullingType type)
     switch (type)
     {
     case FaceCullingType::OFF:
-        glDisable(GL_CULL_FACE); break;
+        DSA->ogluDisable(GL_CULL_FACE); break;
     case FaceCullingType::CullCW:
-        glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CCW); break;
+        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_BACK); DSA->ogluFrontFace(GL_CCW); break;
     case FaceCullingType::CullCCW:
-        glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CW); break;
+        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_BACK); DSA->ogluFrontFace(GL_CW); break;
     case FaceCullingType::CullAll:
-        glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); break;
+        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_FRONT_AND_BACK); break;
     default:
         oglLog().warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
         return;
@@ -308,37 +311,51 @@ void oglContext_::SetFaceCulling(const FaceCullingType type)
 void oglContext_::SetDepthClip(const bool fix)
 {
     CHECKCURRENT();
-    if (fix)
+    if (DSA->SupportClipControl)
     {
-        DSA->ogluClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-        glClearDepth(0.0f);
+        if (fix)
+        {
+            DSA->ogluClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+            DSA->ogluClearDepth(0.0f);
+        }
+        else
+        {
+            DSA->ogluClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+            DSA->ogluClearDepth(1.0f);
+        }
     }
     else
     {
-        DSA->ogluClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
-        glClearDepth(1.0f);
+        oglLog().warning(u"ClipControl not supported on the context, ignored");
     }
 }
 
 void oglContext_::SetSRGBFBO(const bool isEnable)
 {
     CHECKCURRENT();
-    if (isEnable)
-        glEnable(GL_FRAMEBUFFER_SRGB);
+    if (DSA->SupportSRGB)
+    {
+        if (isEnable)
+            DSA->ogluEnable(GL_FRAMEBUFFER_SRGB);
+        else
+            DSA->ogluDisable(GL_FRAMEBUFFER_SRGB);
+    }
     else
-        glDisable(GL_FRAMEBUFFER_SRGB);
+    {
+        oglLog().warning(u"sRGB FBO not supported on the context, ignored");
+    }
 }
 
 void oglContext_::ClearFBO()
 {
     CHECKCURRENT();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    DSA->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void oglContext_::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
 {
     CHECKCURRENT();
-    glViewport(x, y, (GLsizei)width, (GLsizei)height);
+    DSA->ogluViewport(x, y, (GLsizei)width, (GLsizei)height);
 }
 
 miniBLAS::VecI4 oglContext_::GetViewPort() const
@@ -451,10 +468,14 @@ oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, u
 {
     if (version == 0) 
         version = LatestVersion;
-    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, ctx->Extensions.Has("GL_KHR_context_flush_control"));
+    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, ctx->Extensions->Has("GL_KHR_context_flush_control"));
     return NewContext(ctx, isShared, ctxAttrb.data());
 }
 
+bool oglContext_::ReleaseExternContext()
+{
+    return ReleaseExternContext(PlatFuncs::GetCurrentGLContext());
+}
 bool oglContext_::ReleaseExternContext(void* hrc)
 {
     size_t dels = 0;
@@ -470,7 +491,7 @@ bool oglContext_::ReleaseExternContext(void* hrc)
     }
     else
     {
-        oglLog().warning(u"unretained HRC[{:p}] was requesr release.\n", hrc);
+        oglLog().warning(u"unretained HRC[{:p}] was request to release.\n", hrc);
         return false;
     }
 }

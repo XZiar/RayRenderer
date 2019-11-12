@@ -66,9 +66,9 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
     {
         sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
         dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
-        sharedCtx->OnMessage += [](const u16string& errtxt) 
+        sharedCtx->OnMessage += [](const u16string& txt) 
         { 
-            dizzLog().error(u"Error from shared CLContext:\t{}\n", errtxt);
+            dizzLog().verbose(u"From shared CLContext:\t{}\n", txt);
         };
     }
     if (glPlat == venderClPlat)
@@ -76,9 +76,9 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
     else
     {
         defCtx = venderClPlat->CreateContext();
-        defCtx->OnMessage += [](const u16string& errtxt)
+        defCtx->OnMessage += [](const u16string& txt)
         { 
-            dizzLog().error(u"Error from CLContext:\t{}\n", errtxt); 
+            dizzLog().verbose(u"From CLContext:\t{}\n", txt);
         };
     }
     dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
@@ -140,8 +140,8 @@ RenderCore::~RenderCore()
 
 void RenderCore::RefreshContext() const
 {
-    oglContext_::Refresh();
-    GLContext->UseContext();
+    //oglContext_::Refresh();
+    GLContext->UseContext(true);
 }
 
 void RenderCore::InitShaders()

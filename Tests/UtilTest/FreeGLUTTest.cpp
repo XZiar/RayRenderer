@@ -36,10 +36,10 @@ static void FGTest()
     auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
-    oglComputeProgram lutGenerator;
     try 
     {
-        lutGenerator = oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+        const auto lutGenerator = 
+            oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
         lutGenerator->State()
             .SetSubroutine("ToneMap", "ACES")
             .SetImage(lutImg, "result");
@@ -71,8 +71,7 @@ static void FGTest()
     }
     window->funDisp = [&](FreeGLUTView) 
     { 
-        oglContext_::Refresh(); 
-        ctx->UseContext(); 
+        ctx->UseContext(true); 
         drawer->Draw()
             .SetUniform("lutZ", lutZ)
             .SetUniform("shouldLut", shouldLut ? 1 : 0)
@@ -80,8 +79,7 @@ static void FGTest()
     };
     window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)
     {
-        oglContext_::Refresh();
-        ctx->UseContext();
+        ctx->UseContext(true);
         ctx->SetViewPort(0, 0, w, h);
         log().verbose(u"Resize to [{},{}].\n", w, h);
     };
@@ -115,13 +113,13 @@ static void FGTest()
     // window->funDropFile = onDropFile;
     window->funOnClose = [&](FreeGLUTView) 
     { 
-        auto oldCtx = oglContext_::Refresh(); 
         ctx->UseContext();
         drawer.reset();
         screenBox.reset();
         basicVAO.reset();
+        lutTex.reset();
+        lutImg.reset();
         ctx->Release();
-        oldCtx->UseContext();
     };
     FreeGLUTViewRun();
     window.reset();

@@ -17,10 +17,10 @@ using std::vector;
 using common::PromiseResult;
 
 
-void SetDSAShouldPrint(const bool printSuc, const bool printFail) noexcept;
+void SetFuncShouldPrint(const bool printSuc, const bool printFail) noexcept;
 void oglUtil::SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept
 {
-    SetDSAShouldPrint(printSuc, printFail);
+    SetFuncShouldPrint(printSuc, printFail);
 }
 
 void oglUtil::InitLatestVersion()
@@ -42,26 +42,14 @@ void oglUtil::InitLatestVersion()
 }
 u16string oglUtil::GetVersionStr()
 {
-    const auto str = (const char*)glGetString(GL_VERSION);
+    const auto str = (const char*)DSA->ogluGetString(GL_VERSION);
     const auto len = strlen(str);
     return u16string(str, str + len);
 }
 
 optional<string_view> oglUtil::GetError()
 {
-    const auto err = glGetError();
-    switch (err)
-    {
-    case GL_NO_ERROR:                       return {};
-    case GL_INVALID_ENUM:                   return "GL_INVALID_ENUM";
-    case GL_INVALID_VALUE:                  return "GL_INVALID_VALUE";
-    case GL_INVALID_OPERATION:              return "GL_INVALID_OPERATION";
-    case GL_INVALID_FRAMEBUFFER_OPERATION:  return "GL_INVALID_FRAMEBUFFER_OPERATION";
-    case GL_OUT_OF_MEMORY:                  return "GL_OUT_OF_MEMORY";
-    case GL_STACK_UNDERFLOW:                return "GL_STACK_UNDERFLOW";
-    case GL_STACK_OVERFLOW:                 return "GL_STACK_OVERFLOW";
-    default:                                return "UNKNOWN ERROR";
-    }
+    return DSA->GetError();
 }
 
 
