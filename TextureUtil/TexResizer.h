@@ -23,7 +23,7 @@ private:
     oglComputeProgram GLResizer2;
     oglVBO ScreenBox;
     oglVAO NormalVAO, FlipYVAO;
-    oglFBO OutputFrame;
+    oglFBO2D OutputFrame;
     oclu::oclKernel KerToImg, KerToDat3, KerToDat4;
     common::PromiseResult<xziar::img::Image> ExtractImage(common::PromiseResult<oglTex2DS>&& pmsTex, const xziar::img::ImageDataType format);
 public:

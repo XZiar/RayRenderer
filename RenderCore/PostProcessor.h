@@ -41,7 +41,7 @@ private:
 protected:
     PostProcessor(const uint32_t lutSize, const string& postSrc);
 public:
-    oglu::oglFBO MiddleFrame;
+    oglu::oglFBO2D MiddleFrame;
     oglu::oglVAO VAOScreen;
     virtual void OnPrepare(RenderPassContext& context) override;
     virtual void OnDraw(RenderPassContext& context) override;

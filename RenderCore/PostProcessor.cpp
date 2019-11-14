@@ -74,29 +74,36 @@ class PostProcessor::RenderLutGen : public PostProcessor::LutGen
 {
 private:
     oglu::oglDrawProgram LutGenerator;
-    oglu::oglImg3D LutImg;
+    oglu::oglVBO ScreenBox;
+    oglu::oglFBO3D LUTFrame;
+    oglu::oglVAO VAOScreen;
+    oglu::oglTex3DS LutTex;
+    uint32_t LutSize;
 public:
-    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc)
+    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc) : 
+        LutTex(tex), LutSize(lutSize)
     {
         ShaderConfig config;
         config.Routines["ToneMap"] = "ACES";
         LutGenerator = oglu::oglDrawProgram_::Create(u"ColorLut", lutSrc, config);
 
-        /*FBOTex = oglu::oglTex2DStatic_::Create(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
-        FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-        PostShader->Program->State().SetTexture(FBOTex, "scene");
-        MiddleFrame->AttachColorTexture(FBOTex, 0);
-        auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
-        MiddleFrame->AttachDepthStencilBuffer(mainRBO);
-        dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
-            MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");*/
+        ScreenBox = oglu::oglArrayBuffer_::Create();
+        const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
+        Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
+        ScreenBox->WriteSpan(DatVert);
+        VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
+        VAOScreen->Prepare()
+            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetDrawSize(0, 6);
 
-        LutImg = oglu::oglImg3D_::Create(tex, oglu::TexImgUsage::WriteOnly);
-        LutGenerator->State()
-            .SetImage(LutImg, "result");
-        LutGenerator->SetUniform("step", 1.0f / (lutSize - 1));
+        LUTFrame = oglu::oglFrameBuffer3D_::Create();
+        LUTFrame->AttachColorTexture(tex, 0);
+        dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
+
+        LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
         LutGenerator->SetUniform("exposure", 1.0f);
-        LutGenerator->SetUniform("lutSize", lutSize);
+        LutGenerator->SetUniform("lutSize", LutSize);
     }
     RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) :
         RenderLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
@@ -106,7 +113,14 @@ public:
 
     void UpdateLUT(const float exposure) override
     {
+        const auto ctx = oglu::oglContext_::CurrentContext();
+        LUTFrame->Use();
+        ctx->SetViewPort(0, 0, LutSize, LutSize);
+        LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
+        LutGenerator->Draw()
+            .Draw(VAOScreen);
 
+        const auto lutvals = LutTex->GetData(xziar::img::TextureFormat::RGB10A2);
     }
 };
 
@@ -117,16 +131,24 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
 {
     LutTex = oglu::oglTex3DStatic_::Create(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    try
+    
+    if (oglu::oglComputeProgram_::CheckSupport() && oglu::oglImgBase_::CheckSupport()/* && false*/)
     {
-        LutGenerator = std::make_unique<ComputeLutGen>(LutSize, LutTex);
+        try
+        {
+            LutGenerator = std::make_unique<ComputeLutGen>(LutSize, LutTex);
+        }
+        catch (const BaseException & be)
+        {
+            dizzLog().warning(u"unable to create copmpute lut generator:\n {}\n", be.message);
+        }
     }
-    catch (const BaseException & be)
+    if (!LutGenerator)
     {
         LutGenerator = std::make_unique<RenderLutGen>(LutSize, LutTex);
     }
 
-    MiddleFrame = oglu::oglFrameBuffer_::Create();
+    MiddleFrame = oglu::oglFrameBuffer2D_::Create();
     ScreenBox = oglu::oglArrayBuffer_::Create();
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };

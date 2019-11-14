@@ -1,8 +1,8 @@
-#version 330
+#version 330 core
 #extension GL_ARB_shading_language_420pack	: require
 #extension GL_ARB_shader_subroutine			: require
 #extension GL_ARB_shader_image_load_store	: require
-//@OGLU@Stage("VERT", "FRAG", "COMP")
+//@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 
 #if defined(OGLU_VERT) || defined(OGLU_FRAG)
 GLVARY perVert
@@ -15,12 +15,9 @@ GLVARY perVert
 
 //@OGLU@Mapping(VertPos, "vertPos")
 layout(location = 0) in vec2 vertPos;
-//@OGLU@Mapping(VertTexc, "vertTexc")
-layout(location = 1) in vec2 vertTexc;
 
 void main()
 {
-    tpos = vertTexc;
     gl_Position = vec4(vertPos.xy, 1.0f, 1.0f);
 }
 
@@ -159,22 +156,41 @@ void main()
 }
 #endif
 
+#if defined(OGLU_GEOM)
+uniform int lutSize;
+layout (triangles) in;
+layout (triangle_strip, max_vertices = 192) out;
+void main()
+{
+    for (int layer = 0; layer < lutSize; ++layer)
+    {
+        for(int i = 0; i < gl_in.length(); ++i)
+        {
+            ogluSetLayer(layer);
+            gl_Position = gl_in[i].gl_Position;
+            EmitVertex();
+        }
+        EndPrimitive();
+    }
+}
+
+#endif
+
 #if defined(OGLU_FRAG)
-writeonly uniform image3D result;
 uniform int lutSize;
 in vec4 gl_FragCoord;
 out vec4 FragColor;
 void main()
 {
-    const int xIdx = int(tpos.x * (lutSize - 1));
-    const int yIdx = int(tpos.y * (lutSize * lutSize - 1));
-    const vec3 lutPos = vec3(tpos.x, yIdx % lutSize, yIdx / lutSize);
+    const int xIdx = int(gl_FragCoord.x);
+    const int yIdx = int(lutSize - gl_FragCoord.y);
+    const int zIdx = ogluLayer;
+    const ivec3 lutPos = ivec3(xIdx, yIdx, zIdx);
     const vec3 srcColor = lutPos * step;
     const vec3 linearColor = LogUEToLinear(srcColor);
     const vec3 acesColor = ToneMap(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
     const vec4 color = vec4(srgbColor, 1.0f);
-    imageStore(result, ivec3(lutPos), color);
-    //FragColor = color;
+    FragColor = color;
 }
 #endif

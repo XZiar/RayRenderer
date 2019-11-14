@@ -236,7 +236,7 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
-int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
+int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
@@ -273,4 +273,16 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[])
 
     FreeGLUTViewRun();
     return 0;
+}
+catch (const BaseException & be)
+{
+    printf("Error: %s\n", common::strchset::to_u8string(be.message, common::str::Charset::UTF16LE).c_str());
+    for (const auto& stk : be.Stack())
+    {
+        printf("at\t [%s] : line %d (%s)\n",
+            common::strchset::to_u8string(stk.Func, common::str::Charset::UTF16LE).c_str(),
+            stk.Line,
+            common::strchset::to_u8string(stk.File, common::str::Charset::UTF16LE).c_str()
+            );
+    }
 }

@@ -279,7 +279,8 @@ public:
 ///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI oglTex2DArray_ : public oglTexBase_
 {
-    friend class oglFrameBuffer_;
+    friend class oglFrameBuffer2D_;
+    friend class oglFrameBuffer3D_;
     friend class oglTex2DView_;
 private:
     MAKE_ENABLER();
@@ -313,6 +314,7 @@ class OGLUAPI oglTex3D_ : public oglTexBase_, protected oglTexCommon_<oglTex3D_>
 {
     friend oglTexCommon_<oglTex3D_>;
     friend class ::oclu::oclGLBuffer_;
+    friend class oglFrameBuffer3D_;
 protected:
     uint32_t Width, Height, Depth;
 
@@ -406,6 +408,8 @@ protected:
     oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const bool isLayered);
 public:
     TextureType GetType() const { return InnerTex->Type; }
+
+    [[nodiscard]] static bool CheckSupport();
 };
 
 class OGLUAPI oglImg2D_ : public oglImgBase_

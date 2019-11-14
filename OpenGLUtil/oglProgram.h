@@ -149,7 +149,7 @@ protected:
         oglProgStub();
         ~oglProgStub();
         void AddShader(oglShader shader);
-        bool AddExtShaders(const std::string& src, const ShaderConfig& config = {});
+        bool AddExtShaders(const std::string& src, const ShaderConfig& config = {}, const bool allowCompute = true, const bool allowDraw = true);
         oglDrawProgram LinkDrawProgram(const std::u16string& name);
         oglComputeProgram LinkComputeProgram(const std::u16string& name);
     };
@@ -360,6 +360,7 @@ public:
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
 
     static oglComputeProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
+    [[nodiscard]] static bool CheckSupport();
 };
 
 

@@ -34,14 +34,17 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
-        try
+        if (oglComputeProgram_::CheckSupport())
         {
-            GLResizer2 = oglComputeProgram_::Create(u"GLResizer2", shaderTxt);
-        }
-        catch (const OGLException & gle)
-        {
-            texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
-            texLog().warning(u"Compute Shader is disabled");
+            try
+            {
+                GLResizer2 = oglComputeProgram_::Create(u"GLResizer2", shaderTxt);
+            }
+            catch (const OGLException & gle)
+            {
+                texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
+                texLog().warning(u"Compute Shader is disabled");
+            }
         }
         ScreenBox = oglArrayBuffer_::Create();
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
@@ -60,7 +63,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
-        OutputFrame = oglFrameBuffer_::Create();
+        OutputFrame = oglFrameBuffer2D_::Create();
         OutputFrame->Use();
 
         if (CLContext)

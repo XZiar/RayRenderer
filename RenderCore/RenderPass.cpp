@@ -207,6 +207,8 @@ void RenderPipeLine::Render(RenderPassContext context)
         pass->Prepare(context);
     }
     oglu::oglFrameBuffer_::UseDefault();
+    const auto [scw, sch] = context.GetScreenSize();
+    GLContext->SetViewPort(0, 0, scw, sch);
     GLContext->SetSRGBFBO(true);
     for (auto& pass : Passes)
     {

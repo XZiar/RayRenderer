@@ -431,9 +431,9 @@ void oglProgram_::oglProgStub::AddShader(oglShader shader)
         oglLog().warning(u"Repeat adding shader {}, replaced\n", shader->ShaderID);
 }
 
-bool oglProgram_::oglProgStub::AddExtShaders(const std::string& src, const ShaderConfig& config)
+bool oglProgram_::oglProgStub::AddExtShaders(const std::string& src, const ShaderConfig& config, const bool allowCompute, const bool allowDraw)
 {
-    const auto s = oglShader_::LoadFromExSrc(src, ExtInfo, config);
+    const auto s = oglShader_::LoadFromExSrc(src, ExtInfo, config, allowCompute, allowDraw);
     for (auto shader : s)
     {
         shader->compile();
@@ -870,7 +870,7 @@ ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat) noexcept
 oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
 {
     auto stub = oglProgram_::Create();
-    stub.AddExtShaders(extSrc, config);
+    stub.AddExtShaders(extSrc, config, false, true);
     return stub.LinkDrawProgram(name);
 }
 
@@ -1121,8 +1121,13 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
 oglComputeProgram oglComputeProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
 {
     auto stub = oglProgram_::Create();
-    stub.AddExtShaders(extSrc, config);
+    stub.AddExtShaders(extSrc, config, true, false);
     return stub.LinkComputeProgram(name);
+}
+
+bool oglu::oglComputeProgram_::CheckSupport()
+{
+    return DSA->SupportComputeShader;
 }
 
 

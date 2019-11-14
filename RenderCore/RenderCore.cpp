@@ -378,7 +378,7 @@ xziar::img::Image RenderCore::Screenshot()
 {
     RefreshContext();
     const auto width = WindowWidth & 0xfffc, height = WindowHeight & 0xfffc;
-    auto ssFBO = oglu::oglFrameBuffer_::Create();
+    auto ssFBO = oglu::oglFrameBuffer2D_::Create();
     auto ssTex = oglu::oglTex2DStatic_::Create(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);

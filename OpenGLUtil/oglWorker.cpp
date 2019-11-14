@@ -13,6 +13,7 @@ void oglWorker::Start()
     const auto curCtx = oglContext_::CurrentContext();
     ShareContext = oglContext_::NewContext(curCtx, true);
     IsolateContext = oglContext_::NewContext(curCtx, false);
+    std::promise<void> pms1, pms2;
     ShareExecutor.Start([&]()
     {
         const auto& prefix = u"[oglShare]" + Name;
@@ -23,6 +24,7 @@ void oglWorker::Start()
         }
         oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, ShareContext->Hdc, ShareContext->Hrc, oglUtil::GetVersionStr());
         ShareContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
+        pms1.set_value();
     }, [&]()
     {
         const auto& prefix = u"[oglShare]" + Name;
@@ -42,7 +44,8 @@ void oglWorker::Start()
         }
         oglLog().info(u"{} use HDC[{}] HRC[{}], GL version {}\n", prefix, IsolateContext->Hdc, IsolateContext->Hrc, oglUtil::GetVersionStr());
         IsolateContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-    }, [&]()
+        pms2.set_value();
+        }, [&]()
     {
         const auto& prefix = u"[oglIsolate]" + Name;
         if (!IsolateContext->UnloadContext())
@@ -51,6 +54,8 @@ void oglWorker::Start()
         }
         IsolateContext.reset();
     });
+    pms1.get_future().wait();
+    pms2.get_future().wait();
 }
 
 

@@ -14,6 +14,10 @@ class oglRenderBuffer_;
 using oglRBO = std::shared_ptr<oglRenderBuffer_>;
 class oglFrameBuffer_;
 using oglFBO = std::shared_ptr<oglFrameBuffer_>;
+class oglFrameBuffer2D_;
+using oglFBO2D = std::shared_ptr<oglFrameBuffer2D_>;
+class oglFrameBuffer3D_;
+using oglFBO3D = std::shared_ptr<oglFrameBuffer3D_>;
 
 
 
@@ -55,17 +59,34 @@ class OGLUAPI oglFrameBuffer_ : public common::NonMovable, public detail::oglCtx
 {
     friend class oglContext_;
 public:
-    using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, std::pair<oglTex2DArray, uint32_t>>;
-private:
-    MAKE_ENABLER();
+    using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
+protected:
     GLuint FBOId;
     std::vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
     oglFrameBuffer_();
+    static GLuint GetID(const oglRBO& rbo);
+    static GLuint GetID(const oglTexBase& tex);
 public:
     ~oglFrameBuffer_();
     FBOStatus CheckStatus() const;
+    void Use() const;
+    std::pair<GLuint, GLuint> DebugBinding() const;
+
+    static void UseDefault();
+    static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+};
+
+
+class OGLUAPI oglFrameBuffer2D_ : public oglFrameBuffer_
+{
+    friend class oglContext_;
+private:
+    MAKE_ENABLER();
+    oglFrameBuffer2D_();
+public:
+    ~oglFrameBuffer2D_();
     void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment);
     void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
     void AttachColorTexture(const oglRBO& rbo, const uint8_t attachment);
@@ -75,15 +96,31 @@ public:
     void AttachStencilTexture(const oglRBO& rbo);
     void AttachDepthStencilBuffer(const oglRBO& rbo);
 
-    void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-    void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-    void Use() const;
-    std::pair<GLuint, GLuint> DebugBinding() const;
+    void BlitColorTo(const oglFBO2D& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorFrom(const oglFBO2D& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+
+    static oglFBO2D Create();
+};
 
 
-    static oglFBO Create();
-    static void UseDefault();
-    static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+class OGLUAPI oglFrameBuffer3D_ : public oglFrameBuffer_
+{
+    friend class oglContext_;
+private:
+    MAKE_ENABLER();
+    uint32_t LayerCount = 0;
+    oglFrameBuffer3D_();
+    void CheckLayerMatch(const uint32_t layer);
+public:
+    ~oglFrameBuffer3D_();
+    void AttachColorTexture(const oglTex3D& tex, const uint8_t attachment);
+    void AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment);
+    void AttachDepthTexture(const oglTex3D& tex);
+    void AttachDepthTexture(const oglTex2DArray& tex);
+    void AttachStencilTexture(const oglTex3D& tex);
+    void AttachStencilTexture(const oglTex2DArray& tex);
+
+    static oglFBO3D Create();
 };
 
 

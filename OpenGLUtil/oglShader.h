@@ -67,7 +67,7 @@ public:
     static std::vector<oglShader> LoadFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config, const bool allowCompute = true, const bool allowDraw = true);
     static std::vector<oglShader> LoadDrawFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
     {
-        return LoadFromExSrc(src, info, config, false);
+        return LoadFromExSrc(src, info, config, false, true);
     }
     static std::vector<oglShader> LoadComputeFromExSrc(const std::string& src, ShaderExtInfo& info, const ShaderConfig& config = {})
     {

@@ -697,6 +697,11 @@ oglImgBase_::oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const b
         COMMON_THROW(OGLWrongFormatException, u"TexImg does not support some composite texture type", format);
 }
 
+bool oglu::oglImgBase_::CheckSupport()
+{
+    return DSA->SupportImageLoadStore;
+}
+
 GLuint oglImgBase_::GetTextureID() const noexcept { return InnerTex ? InnerTex->textureID : GL_INVALID_INDEX; }
 
 void oglImgBase_::bind(const uint16_t pos) const noexcept
