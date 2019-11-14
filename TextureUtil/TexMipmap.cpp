@@ -23,32 +23,35 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
         GLContext = Worker->GLContext;
         CLContext = Worker->CLContext;
         CmdQue = Worker->CmdQue;
-        try
+        if (CLContext)
         {
-            oclu::CLProgConfig config;
-            config.Defines["CountX"] = GroupX;
-            config.Defines["CountY"] = GroupY;
-            auto clProg = oclProgram_::CreateAndBuild(CLContext, LoadShaderFromDLL(IDR_SHADER_MIPMAP), config);
-            DownsampleSrc = clProg->GetKernel("Downsample_SrcH");
-            if (!DownsampleSrc)
-                DownsampleSrc = clProg->GetKernel("Downsample_Src");
-            DownsampleMid = clProg->GetKernel("Downsample_MidH");
-            if (!DownsampleMid)
-                DownsampleMid = clProg->GetKernel("Downsample_Mid");
-            DownsampleRaw = clProg->GetKernel("Downsample_RawH");
-            if (!DownsampleRaw)
-                DownsampleRaw = clProg->GetKernel("Downsample_Raw");
-            DownsampleTest = clProg->GetKernel("Downsample_Src2");
-            /*const auto wgInfo = DownsampleSrc->GetWorkGroupInfo(CLContext->Devices[0]);
-            texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
-                wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);*/
-        }
-        catch (OCLException& cle)
-        {
-            u16string buildLog;
-            if (cle.data.has_value())
-                buildLog = std::any_cast<u16string>(cle.data);
-            texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+            try
+            {
+                oclu::CLProgConfig config;
+                config.Defines["CountX"] = GroupX;
+                config.Defines["CountY"] = GroupY;
+                auto clProg = oclProgram_::CreateAndBuild(CLContext, LoadShaderFromDLL(IDR_SHADER_MIPMAP), config);
+                DownsampleSrc = clProg->GetKernel("Downsample_SrcH");
+                if (!DownsampleSrc)
+                    DownsampleSrc = clProg->GetKernel("Downsample_Src");
+                DownsampleMid = clProg->GetKernel("Downsample_MidH");
+                if (!DownsampleMid)
+                    DownsampleMid = clProg->GetKernel("Downsample_Mid");
+                DownsampleRaw = clProg->GetKernel("Downsample_RawH");
+                if (!DownsampleRaw)
+                    DownsampleRaw = clProg->GetKernel("Downsample_Raw");
+                DownsampleTest = clProg->GetKernel("Downsample_Src2");
+                /*const auto wgInfo = DownsampleSrc->GetWorkGroupInfo(CLContext->Devices[0]);
+                texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
+                    wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);*/
+            }
+            catch (OCLException & cle)
+            {
+                u16string buildLog;
+                if (cle.data.has_value())
+                    buildLog = std::any_cast<u16string>(cle.data);
+                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+            }
         }
     })->Wait();
 }
@@ -151,7 +154,7 @@ static vector<Info> GenerateInfo(uint32_t width, uint32_t height, const uint8_t 
     return infos;
 }
 
-PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, const bool isSRGB, const uint8_t levels)
+PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, const bool isSRGB, const uint8_t levels)
 {
     auto infos = GenerateInfo(src.GetWidth(), src.GetHeight(), levels);
     if (isSRGB)
@@ -221,6 +224,39 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmaps(const ImageView& src, co
             return images;
         });
     }
+}
+
+
+PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCPU(const ImageView src, const bool isSRGB, const uint8_t levels)
+{
+    auto infos = GenerateInfo(src.GetWidth(), src.GetHeight(), levels);
+    return Worker->AddTask([this, isSRGB, src, infos = std::move(infos)](const common::asyexe::AsyncAgent& agent) mutable
+    {
+        vector<Image> images;
+        auto img = src;
+        uint64_t totalTime = 0;
+        common::SimpleTimer timer;
+        for (uint8_t idx = 0; idx < infos.size(); ++idx)
+        {
+            const auto& info = infos[idx];
+            timer.Start();
+            images.emplace_back(img.ResizeTo(info.SrcWidth / 2, info.SrcHeight / 2, isSRGB, false));
+            timer.Stop();
+            totalTime += timer.ElapseNs();
+            img = images.back();
+            agent.YieldThis();
+        }
+        texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
+        return images;
+    });
+}
+
+common::PromiseResult<std::vector<xziar::img::Image>> TexMipmap::GenerateMipmaps(const xziar::img::ImageView src, const bool isSRGB, const uint8_t levels)
+{
+    if (CLContext)
+        return GenerateMipmapsCL (src, isSRGB, levels);
+    else
+        return GenerateMipmapsCPU(src, isSRGB, levels);
 }
 
 

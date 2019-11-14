@@ -208,11 +208,17 @@ void Image::PlaceImage(const Image& src, const uint32_t srcX, const uint32_t src
 
 void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha)
 {
+    *this = ResizeTo(width, height, isSRGB, mulAlpha);
+}
+
+Image Image::ResizeTo(uint32_t width, uint32_t height, const bool isSRGB, const bool mulAlpha) const
+{
     if (width == 0 && height == 0)
         COMMON_THROW(BaseException, u"image size cannot be all zero!");
     width = width == 0 ? (uint32_t)((uint64_t)height * Width / Height) : width;
     height = height == 0 ? (uint32_t)((uint64_t)width * Height / Width) : height;
-    common::AlignedBuffer output(static_cast<size_t>(width)*height*ElementSize);
+    Image output(DataType);
+    output.SetSize(width, height);
 
     const auto datatype = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? STBIR_TYPE_FLOAT : STBIR_TYPE_UINT8;
     const int32_t channel = HAS_FIELD(DataType, ImageDataType::FLOAT_MASK) ? ElementSize / sizeof(float) : ElementSize;
@@ -226,11 +232,10 @@ void Image::Resize(uint32_t width, uint32_t height, const bool isSRGB, const boo
         flag |= STBIR_ALPHA_CHANNEL_NONE;
     stbir_resize(Data, (int32_t)Width, (int32_t)Height, 0, output.GetRawPtr(), (int32_t)width, (int32_t)height, 0,
         datatype, channel, ElementSize - 1, flag,
-        STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE, 
+        STBIR_EDGE_REFLECT, STBIR_EDGE_REFLECT, STBIR_FILTER_TRIANGLE, STBIR_FILTER_TRIANGLE,
         isSRGB ? STBIR_COLORSPACE_SRGB : STBIR_COLORSPACE_LINEAR, nullptr);
 
-    *reinterpret_cast<common::AlignedBuffer*>(this) = output;
-    Width = width, Height = height;
+    return output;
 }
 
 

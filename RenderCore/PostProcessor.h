@@ -22,16 +22,16 @@ private:
         uint16_t Width, Height;
         bool NeedFloatDepth;
     };
-    oclu::oclContext CLContext;
-    oclu::oclCmdQue CmdQue;
+    class LutGen;
+    class ComputeLutGen;
+    class RenderLutGen;
+
     oglu::oglTex2DS FBOTex;
     oglu::oglTex3DS LutTex;
-    oglu::oglImg3D LutImg;
-    oglu::oglComputeProgram LutGenerator;
+    std::unique_ptr<LutGen> LutGenerator;
     std::shared_ptr<GLShader> PostShader;
     oglu::oglVBO ScreenBox;
     AtomicBitfiled<PostProcUpdate> UpdateDemand = PostProcUpdate::LUT | PostProcUpdate::FBO;
-    std::array<uint32_t, 3> GroupCount;
     const uint32_t LutSize;
     FBOConfig MidFrameConfig;
     float Exposure = 0.0f;
@@ -39,13 +39,13 @@ private:
     void RegistControllable();
     void FixMidFrame();
 protected:
-    PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc);
+    PostProcessor(const uint32_t lutSize, const string& postSrc);
 public:
     oglu::oglFBO MiddleFrame;
     oglu::oglVAO VAOScreen;
     virtual void OnPrepare(RenderPassContext& context) override;
     virtual void OnDraw(RenderPassContext& context) override;
-    PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize = 32);
+    PostProcessor(const uint32_t lutSize = 32);
     ~PostProcessor();
     virtual u16string_view GetControlType() const override
     {

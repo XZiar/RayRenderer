@@ -139,6 +139,10 @@ public:
     ///<param name="height">height</param>
     void Resize(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true);
 
+    ///<summary>Resize the image</summary>  
+    ///<param name="width">width</param>
+    ///<param name="height">height</param>
+    Image ResizeTo(uint32_t width, uint32_t height, const bool isSRGB = false, const bool mulAlpha = true) const;
     [[nodiscard]] Image Region(const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertTo(const ImageDataType dataType, const uint32_t x = 0, const uint32_t y = 0, uint32_t w = 0, uint32_t h = 0) const;
     [[nodiscard]] Image ConvertToFloat(const float floatRange = 1) const;
@@ -195,6 +199,7 @@ public:
     using Image::FlipToVertical;
     using Image::FlipToHorizontal;
     using Image::RotateTo180;
+    using Image::ResizeTo;
     using Image::Region;
     using Image::ConvertTo;
     using Image::ConvertToFloat;

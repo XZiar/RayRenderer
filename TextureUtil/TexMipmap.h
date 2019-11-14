@@ -22,10 +22,15 @@ private:
     oclu::oclKernel DownsampleMid;
     oclu::oclKernel DownsampleRaw;
     oclu::oclKernel DownsampleTest;
+    common::PromiseResult<std::vector<xziar::img::Image>> GenerateMipmapsCL
+        (const xziar::img::ImageView src, const bool isSRGB, const uint8_t levels);
+    common::PromiseResult<std::vector<xziar::img::Image>> GenerateMipmapsCPU
+        (const xziar::img::ImageView src, const bool isSRGB, const uint8_t levels);
 public:
     TexMipmap(const std::shared_ptr<TexUtilWorker>& worker);
     ~TexMipmap();
-    common::PromiseResult<std::vector<xziar::img::Image>> GenerateMipmaps(const xziar::img::ImageView& src, const bool isSRGB = true, const uint8_t levels = 255);
+    common::PromiseResult<std::vector<xziar::img::Image>> GenerateMipmaps
+        (const xziar::img::ImageView src, const bool isSRGB = true, const uint8_t levels = 255);
 
     void Test();
     void Test2();

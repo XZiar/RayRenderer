@@ -54,40 +54,47 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
         .OrderBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
-    if (!venderClPlat)
-        COMMON_THROWEX(BaseException, u"No avaliable OpenCL Platform found");
-    const auto glPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
-        .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
-            .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
-        .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
-        .TryGetFirst().value_or(oclPlatform{});
-    oclContext defCtx, sharedCtx;
-    if (glPlat)
+    if (venderClPlat)
     {
-        sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
-        dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
-        sharedCtx->OnMessage += [](const u16string& txt) 
-        { 
-            dizzLog().verbose(u"From shared CLContext:\t{}\n", txt);
-        };
+        const auto glPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
+            .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
+                .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
+            .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
+            .TryGetFirst().value_or(oclPlatform{});
+        oclContext defCtx, sharedCtx;
+        if (glPlat)
+        {
+            sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
+            dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
+            sharedCtx->OnMessage += [](const u16string& txt)
+            {
+                dizzLog().verbose(u"From shared CLContext:\t{}\n", txt);
+            };
+        }
+        if (glPlat == venderClPlat)
+            defCtx = sharedCtx;
+        else
+        {
+            defCtx = venderClPlat->CreateContext();
+            defCtx->OnMessage += [](const u16string& txt)
+            {
+                dizzLog().verbose(u"From CLContext:\t{}\n", txt);
+            };
+        }
+        dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
+        return { defCtx, sharedCtx };
     }
-    if (glPlat == venderClPlat)
-        defCtx = sharedCtx;
     else
     {
-        defCtx = venderClPlat->CreateContext();
-        defCtx->OnMessage += [](const u16string& txt)
-        { 
-            dizzLog().verbose(u"From CLContext:\t{}\n", txt);
-        };
+        dizzLog().warning(u"No avaliable OpenCL Platform found\n");
+        return {};
     }
-    dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
-    return { defCtx, sharedCtx };
 }
 
 
 RenderCore::RenderCore()
 {
+    oglu::oglUtil::InitLatestVersion();
     const auto oriCtx = oglu::oglContext_::Refresh();
     //oriCtx->SetRetain(true);
     GLContext = oglu::oglContext_::NewContext(oriCtx);
@@ -98,11 +105,13 @@ RenderCore::RenderCore()
     GLContext->SetSRGBFBO(true);
     //GLContext->SetFaceCulling(FaceCullingType::CullCW);
     {
-        const auto ctxs = CreateOCLContext(Vendors::NVIDIA, GLContext);
-        CLContext = ctxs.first; CLSharedContext = ctxs.second;
-        CLQue = oclCmdQue_::Create(CLSharedContext, CLSharedContext->GetGPUDevice());
-        if (!CLQue)
-            COMMON_THROWEX(BaseException, u"clQueue initialized failed!");
+        std::tie(CLContext, CLSharedContext) = CreateOCLContext(Vendors::NVIDIA, GLContext);
+        if (CLSharedContext)
+        {
+            CLQue = oclCmdQue_::Create(CLSharedContext, CLSharedContext->GetGPUDevice());
+            if (!CLQue)
+                COMMON_THROWEX(BaseException, u"clQueue initialized failed!");
+        }
     }
     GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
@@ -111,7 +120,7 @@ RenderCore::RenderCore()
     TexLoader = std::make_shared<TextureLoader>(MipMapper);
     //MipMapper->Test2();
     ThumbMan = std::make_shared<ThumbnailManager>(TexWorker, GLWorker);
-    PostProc = std::make_shared<PostProcessor>(CLSharedContext, CLQue);
+    PostProc = std::make_shared<PostProcessor>();
     TheScene = std::make_unique<Scene>();
 
     InitShaders();
@@ -125,6 +134,7 @@ RenderCore::RenderCore()
         RenderTask = basicPipeLine;
         PipeLines.insert(basicPipeLine);
     }
+    if (CLContext)
     {
         auto fontPipeLine = std::make_shared<RenderPipeLine>();
         auto fontTest = std::make_shared<FontTester>(CLContext);

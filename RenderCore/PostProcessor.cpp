@@ -33,24 +33,98 @@ void PostProcessor::RegistControllable()
     AddCategory("MidFrame", u"渲染纹理");
 }
 
-PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize)
-    : PostProcessor(ctx, que, lutSize, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL), LoadShaderFromDLL(IDR_SHADER_POSTPROC)) {}
-PostProcessor::PostProcessor(const oclu::oclContext ctx, const oclu::oclCmdQue& que, const uint32_t lutSize, const string& lutSrc, const string& postSrc)
-    : CLContext(ctx), CmdQue(que), LutSize(lutSize), MidFrameConfig({ 64,64,true })
+class PostProcessor::LutGen
+{
+public:
+    virtual ~LutGen() { }
+    virtual void UpdateLUT(const float exposure) = 0;
+};
+class PostProcessor::ComputeLutGen : public PostProcessor::LutGen
+{
+private:
+    oglu::oglComputeProgram LutGenerator;
+    std::array<uint32_t, 3> GroupCount;
+    oglu::oglImg3D LutImg;
+public:
+    ComputeLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc)
+    {
+        ShaderConfig config;
+        config.Routines["ToneMap"] = "ACES";
+        LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut", lutSrc, config);
+        const auto& localSize = LutGenerator->GetLocalSize();
+        GroupCount = { lutSize / localSize[0], lutSize / localSize[1], lutSize / localSize[2] };
+        LutImg = oglu::oglImg3D_::Create(tex, oglu::TexImgUsage::WriteOnly);
+        LutGenerator->State()
+            .SetImage(LutImg, "result");
+        LutGenerator->SetUniform("step", 1.0f / (lutSize - 1));
+        LutGenerator->SetUniform("exposure", 1.0f);
+    }
+    ComputeLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) : 
+        ComputeLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
+    { }
+    ~ComputeLutGen() override { }
+
+    void UpdateLUT(const float exposure) override
+    {
+        LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
+        LutGenerator->Run(GroupCount[0], GroupCount[1], GroupCount[2]);
+    }
+};
+class PostProcessor::RenderLutGen : public PostProcessor::LutGen
+{
+private:
+    oglu::oglDrawProgram LutGenerator;
+    oglu::oglImg3D LutImg;
+public:
+    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc)
+    {
+        ShaderConfig config;
+        config.Routines["ToneMap"] = "ACES";
+        LutGenerator = oglu::oglDrawProgram_::Create(u"ColorLut", lutSrc, config);
+
+        /*FBOTex = oglu::oglTex2DStatic_::Create(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
+        FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
+        PostShader->Program->State().SetTexture(FBOTex, "scene");
+        MiddleFrame->AttachColorTexture(FBOTex, 0);
+        auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
+        MiddleFrame->AttachDepthStencilBuffer(mainRBO);
+        dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
+            MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");*/
+
+        LutImg = oglu::oglImg3D_::Create(tex, oglu::TexImgUsage::WriteOnly);
+        LutGenerator->State()
+            .SetImage(LutImg, "result");
+        LutGenerator->SetUniform("step", 1.0f / (lutSize - 1));
+        LutGenerator->SetUniform("exposure", 1.0f);
+        LutGenerator->SetUniform("lutSize", lutSize);
+    }
+    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) :
+        RenderLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
+    {
+    }
+    ~RenderLutGen() override { }
+
+    void UpdateLUT(const float exposure) override
+    {
+
+    }
+};
+
+PostProcessor::PostProcessor(const uint32_t lutSize)
+    : PostProcessor(lutSize, LoadShaderFromDLL(IDR_SHADER_POSTPROC)) {}
+PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
+    : LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {
     LutTex = oglu::oglTex3DStatic_::Create(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    LutImg = oglu::oglImg3D_::Create(LutTex, oglu::TexImgUsage::WriteOnly);
-    ShaderConfig config;
-    config.Routines["ToneMap"] = "ACES";
-    LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut", lutSrc, config);
-    const auto& localSize = LutGenerator->GetLocalSize();
-    GroupCount = { LutSize / localSize[0], LutSize / localSize[1], LutSize / localSize[2] };
-    LutGenerator->State()
-        .SetImage(LutImg, "result");
-    LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
-    LutGenerator->SetUniform("exposure", 1.0f);
-
+    try
+    {
+        LutGenerator = std::make_unique<ComputeLutGen>(LutSize, LutTex);
+    }
+    catch (const BaseException & be)
+    {
+        LutGenerator = std::make_unique<RenderLutGen>(LutSize, LutTex);
+    }
 
     MiddleFrame = oglu::oglFrameBuffer_::Create();
     ScreenBox = oglu::oglArrayBuffer_::Create();
@@ -102,8 +176,7 @@ bool PostProcessor::UpdateLUT()
 {
     if (UpdateDemand.Extract(PostProcUpdate::LUT))
     {
-        LutGenerator->SetUniform("exposure", std::pow(2.0f, Exposure));
-        LutGenerator->Run(GroupCount[0], GroupCount[1], GroupCount[2]);
+        LutGenerator->UpdateLUT(Exposure);
         return true;
     }
     return false;
@@ -166,12 +239,10 @@ void PostProcessor::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef
 {
     object.TryGet(EJ_FIELD(Exposure));
 }
-RESPAK_IMPL_COMP_DESERIALIZE(PostProcessor, oclu::oclContext, oclu::oclCmdQue, uint32_t)
+RESPAK_IMPL_COMP_DESERIALIZE(PostProcessor, uint32_t)
 {
     const auto lutSize = object.Get<uint32_t>("LutSize");
-    const auto clCtx = context.GetCookie<oclu::oclContext>("CLSharedContext");
-    const auto clQue = context.GetCookie<oclu::oclCmdQue>("CLQueue");
-    return std::any(std::tuple(*clCtx, *clQue, lutSize));
+    return std::any(std::tuple(lutSize));
 }
 
 }

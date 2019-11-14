@@ -206,6 +206,7 @@ void RenderPipeLine::Render(RenderPassContext context)
     {
         pass->Prepare(context);
     }
+    oglu::oglFrameBuffer_::UseDefault();
     GLContext->SetSRGBFBO(true);
     for (auto& pass : Passes)
     {

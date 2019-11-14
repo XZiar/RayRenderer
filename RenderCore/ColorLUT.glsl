@@ -1,6 +1,7 @@
 #version 330
-#extension GL_ARB_shading_language_420pack : require
-#extension GL_ARB_shader_subroutine : require
+#extension GL_ARB_shading_language_420pack	: require
+#extension GL_ARB_shader_subroutine			: require
+#extension GL_ARB_shader_image_load_store	: require
 //@OGLU@Stage("VERT", "FRAG", "COMP")
 
 #if defined(OGLU_VERT) || defined(OGLU_FRAG)
@@ -159,6 +160,7 @@ void main()
 #endif
 
 #if defined(OGLU_FRAG)
+writeonly uniform image3D result;
 uniform int lutSize;
 in vec4 gl_FragCoord;
 out vec4 FragColor;
@@ -166,11 +168,13 @@ void main()
 {
     const int xIdx = int(tpos.x * (lutSize - 1));
     const int yIdx = int(tpos.y * (lutSize * lutSize - 1));
-    const vec3 srcColor = vec3(tpos.x, (yIdx % lutSize) * step, (yIdx / lutSize) * step);
+    const vec3 lutPos = vec3(tpos.x, yIdx % lutSize, yIdx / lutSize);
+    const vec3 srcColor = lutPos * step;
     const vec3 linearColor = LogUEToLinear(srcColor);
     const vec3 acesColor = ToneMap(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
     const vec4 color = vec4(srgbColor, 1.0f);
-    FragColor = color;
+    imageStore(result, ivec3(lutPos), color);
+    //FragColor = color;
 }
 #endif
