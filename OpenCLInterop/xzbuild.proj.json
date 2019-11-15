@@ -2,7 +2,7 @@
     "name": "OpenCLInterop",
     "type": "dynamic",
     "description": "OpenCL Interoperation Utility",
-    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCLICDLoader", "OpenCLUtil", "OpenGLUtil"],
+    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCL", "OpenCLUtil", "OpenGLUtil"],
     "library": 
     {
         "static": [],

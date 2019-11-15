@@ -17,5 +17,11 @@
  */
 
 #include <stdbool.h>
+#include <windows.h>
 
-bool khrIcdOsVendorsEnumerateDXGK(void);
+extern const LUID ZeroLuid;
+
+BOOL adapterAdd(const char* szName, LUID luid);
+
+// Do not free the memory returned by this function.
+const char* getOpenCLRegKeyName(void);

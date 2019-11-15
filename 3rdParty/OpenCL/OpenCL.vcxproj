@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{5C5933E1-4992-47F8-87ED-7921735157BA}</ProjectGuid>
-    <RootNamespace>OpenCLICDLoader</RootNamespace>
+    <RootNamespace>OpenCL</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -178,11 +178,13 @@
     <ClInclude Include="icd_dispatch.h" />
     <ClInclude Include="icd_envvars.h" />
     <ClInclude Include="icd_platform.h" />
+    <ClInclude Include="icd_windows.h" />
     <ClInclude Include="icd_windows_dxgk.h" />
     <ClInclude Include="icd_windows_hkr.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="OpenCL.def" />
+    <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>

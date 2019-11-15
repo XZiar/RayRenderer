@@ -18,7 +18,7 @@ It currently only provide support with OpenGL.
 
 ## Dependency
 
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.4 [License](../3rdParty/OpenCL_ICD_Loader/LICENSE.txt)
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.4 [License](../3rdParty/OpenCL/LICENSE)
 
   OpenCL ICD Loader.
 

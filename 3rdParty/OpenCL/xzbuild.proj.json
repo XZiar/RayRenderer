@@ -1,8 +1,8 @@
 {
-    "name": "OpenCLICDLoader",
+    "name": "OpenCL",
     "type": "dynamic",
     "description": "The OpenCL ICD Loader",
-    "version": "2.2.4",
+    "version": "2.2.5",
     "dependency": [],
     "library": 
     {

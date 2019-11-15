@@ -241,7 +241,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CL", "CL", "{1C8E3D45-3BDA-
 		3rdParty\CL\README.md = 3rdParty\CL\README.md
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL_ICD_Loader", "3rdParty\OpenCL_ICD_Loader\OpenCL_ICD_Loader.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL", "3rdParty\OpenCL\OpenCL.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpuid", "3rdParty\cpuid\cpuid.vcxproj", "{8F5ADF15-4807-4EC9-888E-290C1A3169A4}"
 EndProject
