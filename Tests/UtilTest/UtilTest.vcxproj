@@ -225,6 +225,7 @@
     <ClInclude Include="TestRely.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ColorLUT.glsl" />
     <None Include="test.cl" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>

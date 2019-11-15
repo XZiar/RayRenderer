@@ -146,6 +146,7 @@ struct DRAWIDCtxConfig : public CtxResConfig<true, oglVBO>
         for (uint32_t i = 0; i < 4096; ++i)
             ids[i] = i;
         auto drawIdVBO = oglArrayBuffer_::Create();
+        drawIdVBO->SetName(u"ogluDrawID");
         drawIdVBO->WriteSpan(ids);
         oglLog().success(u"new DrawIdVBO generated.\n");
         return drawIdVBO;
@@ -190,6 +191,12 @@ oglVAO_::VAOPrep oglVAO_::Prepare() noexcept
 {
     CheckCurrent();
     return VAOPrep(*this);
+}
+
+void oglVAO_::SetName(std::u16string name) noexcept
+{
+    Name = std::move(name);
+    DSA->ogluSetObjectLabel(GL_VERTEX_ARRAY, VAOId, Name);
 }
 
 void oglVAO_::Draw(const uint32_t size, const uint32_t offset) const noexcept

@@ -91,19 +91,22 @@ public:
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
         ScreenBox->WriteSpan(DatVert);
+        ScreenBox->SetName(u"LutScreenBox");
         VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
+        VAOScreen->SetName(u"LutVAO");
         VAOScreen->Prepare()
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
 
         LUTFrame = oglu::oglFrameBuffer3D_::Create();
+        LUTFrame->SetName(u"LutFBO");
         LUTFrame->AttachColorTexture(tex, 0);
         dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
 
         LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
         LutGenerator->SetUniform("exposure", 1.0f);
-        LutGenerator->SetUniform("lutSize", LutSize);
+        LutGenerator->SetUniform("lutSize", (int32_t)LutSize);
     }
     RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) :
         RenderLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
@@ -120,7 +123,7 @@ public:
         LutGenerator->Draw()
             .Draw(VAOScreen);
 
-        const auto lutvals = LutTex->GetData(xziar::img::TextureFormat::RGB10A2);
+        //const auto lutvals = LutTex->GetData(xziar::img::TextureFormat::RGB10A2);
     }
 };
 
@@ -130,9 +133,10 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
     : LutSize(lutSize), MidFrameConfig({ 64,64,true })
 {
     LutTex = oglu::oglTex3DStatic_::Create(LutSize, LutSize, LutSize, xziar::img::TextureFormat::RGB10A2);
+    LutTex->SetName(u"PostProcLUT");
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     
-    if (oglu::oglComputeProgram_::CheckSupport() && oglu::oglImgBase_::CheckSupport()/* && false*/)
+    if (oglu::oglComputeProgram_::CheckSupport() && oglu::oglImgBase_::CheckSupport() && false)
     {
         try
         {
@@ -149,12 +153,15 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
     }
 
     MiddleFrame = oglu::oglFrameBuffer2D_::Create();
+    MiddleFrame->SetName(u"PostProcFBO");
     ScreenBox = oglu::oglArrayBuffer_::Create();
+    ScreenBox->SetName(u"PostProcScreenBox");
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
     Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
     ScreenBox->WriteSpan(DatVert);
     PostShader = std::make_shared<GLShader>(u"PostProcess", postSrc);
     VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
+    VAOScreen->SetName(u"PostProcVAO");
     VAOScreen->Prepare()
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
         .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
@@ -209,10 +216,12 @@ bool PostProcessor::UpdateFBO()
     if (UpdateDemand.Extract(PostProcUpdate::FBO))
     {
         FBOTex = oglu::oglTex2DStatic_::Create(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
+        FBOTex->SetName(u"PostProcFBTex");
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         PostShader->Program->State().SetTexture(FBOTex, "scene");
         MiddleFrame->AttachColorTexture(FBOTex, 0);
         auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
+        mainRBO->SetName(u"PostProcRBO");
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);
         dizzLog().info(u"FBO resize to [{}x{}], status:{}\n", MidFrameConfig.Width, MidFrameConfig.Height,
             MiddleFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
@@ -226,11 +235,11 @@ void PostProcessor::OnPrepare(RenderPassContext& context)
     if (EnablePostProcess)
     {
         UpdateFBO();
+        UpdateLUT();
         MiddleFrame->Use();
         GLContext->ClearFBO();
         context.SetTexture("MainFBTex", FBOTex);
         context.SetFrameBuffer("MainFB", MiddleFrame);
-        UpdateLUT();
     }
 }
 

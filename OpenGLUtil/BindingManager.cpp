@@ -9,7 +9,7 @@ namespace oglu::detail
 
 GLuint TextureManager::getID(const oglTexBase& obj) const
 {
-    return obj->textureID;
+    return obj->TextureID;
 }
 
 void TextureManager::innerBind(const oglTexBase& obj, const uint16_t slot) const

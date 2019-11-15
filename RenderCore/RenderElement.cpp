@@ -116,6 +116,7 @@ void Drawable::PrepareMaterial()
 {
     MaterialHolder = OnPrepareMaterial();
     MaterialUBO = oglu::oglUniformBuffer_::Create(32 * MultiMaterialHolder::WriteSize);
+    MaterialUBO->SetName(u"MaterialData");
 }
 
 void Drawable::AssignMaterial()

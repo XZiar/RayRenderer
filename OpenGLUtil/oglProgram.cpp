@@ -124,6 +124,7 @@ static ProgRecCtxConfig PROGREC_CTXCFG;
 oglProgram_::oglProgram_(const u16string& name, const oglProgStub* stub, const bool isDraw) : Name(name)
 {
     ProgramID = DSA->ogluCreateProgram();
+    DSA->ogluSetObjectLabel(GL_PROGRAM, ProgramID, name);
     for (const auto& [type, shader] : stub->Shaders)
     {
         if ((type != ShaderType::Compute) == isDraw)

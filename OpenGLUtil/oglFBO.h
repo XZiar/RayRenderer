@@ -43,13 +43,18 @@ class OGLUAPI oglRenderBuffer_ : public common::NonMovable, public detail::oglCt
     friend class oglFrameBuffer_;
 private:
     MAKE_ENABLER();
+    std::u16string Name;
     GLuint RBOId;
     const RBOFormat InnerFormat;
     const uint32_t Width, Height;
     oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format);
 public:
     ~oglRenderBuffer_();
-    RBOFormat GetType() const { return InnerFormat & RBOFormat::TYPE_MASK; }
+    
+    void SetName(std::u16string name) noexcept;
+   
+    RBOFormat GetType() const noexcept { return InnerFormat & RBOFormat::TYPE_MASK; }
+    std::u16string_view GetName() const noexcept { return Name; }
 
     static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
 };
@@ -61,6 +66,7 @@ class OGLUAPI oglFrameBuffer_ : public common::NonMovable, public detail::oglCtx
 public:
     using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
 protected:
+    std::u16string Name;
     GLuint FBOId;
     std::vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
@@ -70,9 +76,13 @@ protected:
     static GLuint GetID(const oglTexBase& tex);
 public:
     ~oglFrameBuffer_();
+
+    void SetName(std::u16string name) noexcept;
+
     FBOStatus CheckStatus() const;
     void Use() const;
     std::pair<GLuint, GLuint> DebugBinding() const;
+    std::u16string_view GetName() const noexcept { return Name; }
 
     static void UseDefault();
     static std::pair<GLuint, GLuint> DebugBinding(GLuint id);

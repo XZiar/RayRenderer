@@ -416,8 +416,17 @@ public:
     void   (GLAPIENTRY *ogluGetInteger64v) (GLenum pname, GLint64* params) = nullptr;
     void   (GLAPIENTRY *ogluGetSynciv) (GLsync GLsync, GLenum pname, GLsizei bufSize, GLsizei* length, GLint* values) = nullptr;
 
-    // others
+    // debug
+    GLint MaxLabelLen = 0;
     using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * message, const void* userParam);
+    void (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
+    void (GLAPIENTRY *ogluObjectLabel_) (GLenum identifier, GLuint name, GLsizei length, const GLchar* label) = nullptr;
+    void (GLAPIENTRY *ogluObjectPtrLabel_) (void* ptr, GLsizei length, const GLchar* label) = nullptr;
+
+    void ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const;
+    void ogluSetObjectLabel(GLsync sync, std::u16string_view name) const;
+
+    // others
     bool SupportDebug;
     bool SupportSRGB;
     bool SupportClipControl;
@@ -434,7 +443,6 @@ public:
     void           (GLAPIENTRY *ogluDisable) (GLenum cap) = nullptr;
     void           (GLAPIENTRY *ogluFinish) () = nullptr;
     void           (GLAPIENTRY *ogluFlush) () = nullptr;
-    void           (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
     void           (GLAPIENTRY *ogluDepthFunc) (GLenum func) = nullptr;
     void           (GLAPIENTRY *ogluCullFace) (GLenum mode) = nullptr;
     void           (GLAPIENTRY *ogluFrontFace) (GLenum mode) = nullptr;

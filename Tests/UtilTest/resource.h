@@ -3,6 +3,7 @@
 // Used by Resource.rc
 #define IDR_CL_TEST                     108
 #define IDR_GL_FGTEST                   109
+#define IDR_GL_FGLUT                    110
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

@@ -18,6 +18,7 @@ Scene::Scene()
 {
     MainCam = std::make_shared<Camera>();
     LightUBO = oglu::oglUniformBuffer_::Create(LightLimit * Light::WriteSize);
+    LightUBO->SetName(u"LightData");
 }
 
 void Scene::PrepareDrawable()

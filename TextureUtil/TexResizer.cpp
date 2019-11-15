@@ -50,20 +50,24 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         const Vec4 paf(-1.0f, -1.0f, 0.0f, 1.0f), pbf(1.0f, -1.0f, 1.0f, 1.0f), pcf(-1.0f, 1.0f, 0.0f, 0.0f), pdf(1.0f, 1.0f, 1.0f, 0.0f);
         const Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb, paf,pbf,pcf, pdf,pcf,pbf };
+        ScreenBox->SetName(u"TexResizerScreenBox");
         ScreenBox->WriteSpan(DatVert);
 
         NormalVAO = oglVAO_::Create(VAODrawMode::Triangles);
+        NormalVAO->SetName(u"TexResizerNormalVAO");
         NormalVAO->Prepare()
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         FlipYVAO = oglVAO_::Create(VAODrawMode::Triangles);
+        FlipYVAO->SetName(u"TexResizerFlipYVAO");
         FlipYVAO->Prepare()
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
         OutputFrame = oglFrameBuffer2D_::Create();
+        OutputFrame->SetName(u"TexResizerFBO");
         OutputFrame->Use();
 
         if (CLContext)

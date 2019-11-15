@@ -52,11 +52,11 @@ xziar::img::TextureFormat TexHolder::GetInnerFormat() const
     default: return xziar::img::TextureFormat::ERROR;
     }
 }
-u16string TexHolder::GetName() const
+u16string_view TexHolder::GetName() const
 {
     switch (index())
     {
-    case 1: return std::get<oglTex2D>(*this)->Name;
+    case 1: return std::get<oglTex2D>(*this)->GetName();
     case 2: return std::get<FakeTex>(*this)->Name;
     default: return u"";
     }
@@ -246,7 +246,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
         }
         chkTex->SetData(xziar::img::TextureFormat::RGBA8, pixs.data());
         const auto texv = chkTex->GetTextureView();
-        texv->Name = u"Check Image";
+        texv->SetName(u"Check Image");
         dizzLog().verbose(u"new CheckTex generated.\n");
         return texv;
     }
@@ -375,15 +375,20 @@ void MultiMaterialHolder::Refresh()
         if (texarr)
         {
             objLayer = (uint16_t)std::get<2>(texarr->GetSize());
-            const auto texname = texarr->Name;
+            const auto texname = texarr->GetName();
             texarr = oglu::oglTex2DArray_::Create(texarr, (uint32_t)(texs.size()));
-            texarr->Name = texname;
+            texarr->SetName(u16string(texname));
         }
         else
         {
             texarr = oglu::oglTex2DArray_::Create(tid.Info.Width, tid.Info.Height, (uint16_t)(texs.size()), tid.Info.Format, tid.Info.Mipmap);
             const auto[w, h, l] = texarr->GetSize();
-            texarr->Name = fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(FMT_STRING(u"MatTexArr {}@{}x{}x{}"), xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()), w, h, l));
+            texarr->SetName(
+                fmt::to_string(common::mlog::detail::StrFormater::ToU16Str(
+                    FMT_STRING(u"MatTexArr {}@{}x{}x{}"),
+                    xziar::img::TexFormatUtil::GetFormatName(texarr->GetInnerFormat()),
+                    w, h, l)
+                ));
         }
         texarr->SetProperty(oglu::TextureFilterVal::BothLinear, oglu::TextureWrapVal::Repeat);
         for (const auto& tex : texs)

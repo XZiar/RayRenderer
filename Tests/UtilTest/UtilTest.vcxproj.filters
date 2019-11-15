@@ -54,6 +54,7 @@
   <ItemGroup>
     <None Include="test.cl" />
     <None Include="xzbuild.proj.json" />
+    <None Include="ColorLUT.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">

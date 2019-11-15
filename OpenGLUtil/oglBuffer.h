@@ -84,6 +84,7 @@ private:
         ~oglMapPtr_();
     };
 protected:
+    std::u16string Name;
     std::optional<oglMapPtr_> PersistentPtr;
     size_t BufSize;
     GLuint BufferID;
@@ -112,8 +113,11 @@ protected:
 public:
     virtual ~oglBuffer_() noexcept;
 
+    void SetName(std::u16string name) noexcept;
     oglMapPtr Map(const MapFlag flags);
+
     common::span<std::byte> GetPersistentPtr() const;
+    std::u16string_view GetName() const noexcept { return Name; }
 };
 
 

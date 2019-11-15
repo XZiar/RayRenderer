@@ -62,7 +62,7 @@ cl_mem GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const
     cl_int errcode;
     if (xziar::img::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx.Context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->textureID, &errcode);
+    const auto id = clCreateFromGLTexture(ctx.Context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->TextureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glTexture");
     return id;

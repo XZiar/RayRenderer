@@ -61,7 +61,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
 {
     using std::variant<std::monostate, oglu::oglTex2D, FakeTex>::variant;
     xziar::img::TextureFormat GetInnerFormat() const;
-    u16string GetName() const;
+    std::u16string_view GetName() const;
     std::pair<uint32_t, uint32_t> GetSize() const;
     std::weak_ptr<void> GetWeakRef() const;
     uint8_t GetMipmapCount() const;

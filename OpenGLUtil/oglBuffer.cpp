@@ -119,6 +119,12 @@ oglMapPtr oglBuffer_::Map(const MapFlag flags)
     }
 }
 
+void oglBuffer_::SetName(std::u16string name) noexcept
+{
+    Name = std::move(name);
+    DSA->ogluSetObjectLabel(GL_BUFFER, BufferID, Name);
+}
+
 common::span<std::byte> oglBuffer_::GetPersistentPtr() const
 {
     return PersistentPtr->MemSpace;

@@ -52,6 +52,12 @@ oglRenderBuffer_::~oglRenderBuffer_()
     DSA->ogluDeleteRenderbuffers(1, &RBOId);
 }
 
+void oglRenderBuffer_::SetName(std::u16string name) noexcept
+{
+    Name = std::move(name);
+    DSA->ogluSetObjectLabel(GL_RENDERBUFFER, RBOId, Name);
+}
+
 
 oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX)
 {
@@ -65,13 +71,19 @@ oglFrameBuffer_::~oglFrameBuffer_()
     DSA->ogluDeleteFramebuffers(1, &FBOId);
 }
 
+void oglFrameBuffer_::SetName(std::u16string name) noexcept
+{
+    Name = std::move(name);
+    DSA->ogluSetObjectLabel(GL_FRAMEBUFFER, FBOId, Name);
+}
+
 GLuint oglFrameBuffer_::GetID(const oglRBO& rbo)
 {
     return rbo->RBOId;
 }
 GLuint oglFrameBuffer_::GetID(const oglTexBase& tex)
 {
-    return tex->textureID;
+    return tex->TextureID;
 }
 
 FBOStatus oglFrameBuffer_::CheckStatus() const

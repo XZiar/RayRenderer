@@ -21,6 +21,43 @@ static MiniLogger<false>& log()
     return logger;
 }
 
+struct Lutter
+{
+    oglu::oglDrawProgram LutGenerator;
+    oglu::oglVBO ScreenBox;
+    oglu::oglFBO3D LUTFrame;
+    oglu::oglVAO VAOScreen;
+    oglu::oglTex3DS LutTex;
+    uint32_t LutSize;
+    Lutter(const uint32_t lutSize, const oglu::oglTex3DS tex) : LutTex(tex), LutSize(lutSize)
+    {
+        LutGenerator = oglDrawProgram_::Create(u"Lutter", LoadShaderFallback(u"ColorLUT.glsl", IDR_GL_FGLUT));
+        ScreenBox = oglu::oglArrayBuffer_::Create();
+        {
+            const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
+            Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
+            ScreenBox->WriteSpan(DatVert);
+        }
+        VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
+        VAOScreen->Prepare()
+            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetDrawSize(0, 6);
+        LUTFrame = oglu::oglFrameBuffer3D_::Create();
+        LUTFrame->AttachColorTexture(LutTex, 0);
+        LutGenerator->SetUniform("step", 1.0f / (64 - 1));
+        LutGenerator->SetUniform("exposure", 1.0f);
+        LutGenerator->SetUniform("lutSize", 64);
+    }
+    void DoLut(const oglContext& ctx)
+    {
+        LUTFrame->Use();
+        ctx->SetViewPort(0, 0, 64, 64);
+        LutGenerator->Draw()
+            .Draw(VAOScreen);
+    }
+};
+
 static void FGTest()
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
@@ -33,15 +70,15 @@ static void FGTest()
     auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     auto screenBox = oglArrayBuffer_::Create();
     auto basicVAO = oglVAO_::Create(VAODrawMode::Triangles);
-    auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
+    auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGB10A2);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
-    if (oglComputeProgram_::CheckSupport())
+    if (oglComputeProgram_::CheckSupport() && false)
     {
         try
         {
             const auto lutGenerator =
                 oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+            auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
             lutGenerator->State()
                 .SetSubroutine("ToneMap", "ACES")
                 .SetImage(lutImg, "result");
@@ -60,6 +97,11 @@ static void FGTest()
             log().warning(u"Failed to load LUT Generator:\n{}\n", gle.message);
         }
     }
+
+    auto lutter = std::make_unique<Lutter>(64, lutTex);
+    int32_t width = 0, height = 0;
+
+
     float lutZ = 0.5f;
     bool shouldLut = false;
     {
@@ -75,6 +117,12 @@ static void FGTest()
     window->funDisp = [&](FreeGLUTView) 
     { 
         ctx->UseContext(true); 
+        if (shouldLut)
+        {
+            lutter->DoLut(ctx);
+            oglu::oglFrameBuffer_::UseDefault();
+            ctx->SetViewPort(0, 0, width, height);
+        }
         drawer->Draw()
             .SetUniform("lutZ", lutZ)
             .SetUniform("shouldLut", shouldLut ? 1 : 0)
@@ -84,6 +132,7 @@ static void FGTest()
     {
         ctx->UseContext(true);
         ctx->SetViewPort(0, 0, w, h);
+        width = w, height = h;
         log().verbose(u"Resize to [{},{}].\n", w, h);
     };
     window->funMouseEvent = [&](FreeGLUTView wd, MouseEvent evt)
@@ -121,7 +170,7 @@ static void FGTest()
         screenBox.reset();
         basicVAO.reset();
         lutTex.reset();
-        lutImg.reset();
+        lutter.release();
         ctx->Release();
     };
     FreeGLUTViewRun();

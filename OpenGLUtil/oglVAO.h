@@ -77,6 +77,7 @@ class OGLUAPI oglVAO_ : public common::NonMovable, public detail::oglCtxObject<f
 private:
     MAKE_ENABLER();
     enum class DrawMethod : uint8_t { UnPrepared, Array, Arrays, Index, Indexs, IndirectArrays, IndirectIndexes };
+    std::u16string Name;
     std::variant<std::monostate, GLsizei, std::vector<GLsizei>> Count;
     std::variant<std::monostate, const void*, GLint, std::vector<const void*>, std::vector<GLint>> Offsets;
     oglEBO IndexBuffer;
@@ -185,8 +186,10 @@ public:
     ~oglVAO_() noexcept;
 
     VAOPrep Prepare() noexcept;
+    void SetName(std::u16string name) noexcept;
     void Draw(const uint32_t size, const uint32_t offset = 0) const noexcept;
     void Draw() const noexcept;
+    std::u16string_view GetName() const noexcept { return Name; }
 
     void Test() const noexcept;
 

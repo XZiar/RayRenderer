@@ -106,9 +106,10 @@ class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObje
     friend struct TexLogItem;
     friend class ::oclu::GLInterop;
 protected:
+    std::u16string Name;
     const TextureType Type;
     xziar::img::TextureFormat InnerFormat;
-    GLuint textureID;
+    GLuint TextureID;
     uint8_t Mipmap;
     static detail::TextureManager& getTexMan() noexcept;
     explicit oglTexBase_(const TextureType type, const bool shouldBindType) noexcept;
@@ -121,7 +122,6 @@ protected:
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
     void Clear(const xziar::img::TextureFormat format);
 public:
-    std::u16string Name;
     virtual ~oglTexBase_() noexcept;
     void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
     void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
@@ -131,9 +131,11 @@ public:
     }
     void SetProperty(const TextureFilterVal filtertype) { SetProperty(filtertype, filtertype); }
     virtual void SetProperty(const TextureWrapVal wraptype) = 0;
+    void SetName(std::u16string name) noexcept;
     bool IsCompressed() const;
     uint8_t GetMipmapCount() const noexcept { return Mipmap; }
     xziar::img::TextureFormat GetInnerFormat() const noexcept { return InnerFormat; }
+    std::u16string_view GetName() const noexcept { return Name; }
 };
 
 template<typename Base>

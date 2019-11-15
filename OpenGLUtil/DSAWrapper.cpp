@@ -658,6 +658,11 @@ DSAFuncs::DSAFuncs()
     QUERY_FUNC (GetInteger64v,          "", "APPLE");
     QUERY_FUNC (GetSynciv,              "", "APPLE");
 
+    //debug
+    QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
+    QUERY_FUNC_(ObjectLabel,            "");
+    QUERY_FUNC_(ObjectPtrLabel,         "");
+
     //others
     DIRECT_FUNC(GetError);
     DIRECT_FUNC(GetFloatv);
@@ -669,7 +674,6 @@ DSAFuncs::DSAFuncs()
     DIRECT_FUNC(Disable);
     DIRECT_FUNC(Finish);
     DIRECT_FUNC(Flush);
-    QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
     DIRECT_FUNC(DepthFunc);
     DIRECT_FUNC(CullFace);
     DIRECT_FUNC(FrontFace);
@@ -685,6 +689,7 @@ DSAFuncs::DSAFuncs()
 
 
     Extensions = GetExtensions();
+    ogluGetIntegerv(GL_MAX_LABEL_LENGTH, &MaxLabelLen);
     SupportDebug            = ogluDebugMessageCallback != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ogluClipControl != nullptr;
@@ -1287,6 +1292,28 @@ void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
     {
         const auto backup = FBOBinder(this, framebuffer);
         ogluGetFramebufferAttachmentParameteriv_(GL_READ_FRAMEBUFFER, attachment, pname, params);
+    }
+}
+
+
+void DSAFuncs::ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const
+{
+    if (ogluObjectLabel_)
+    {
+        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        ogluObjectLabel_(type, id,
+            static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+}
+void DSAFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
+{
+    if (ogluObjectPtrLabel_)
+    {
+        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        ogluObjectPtrLabel_(sync,
+            static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
 

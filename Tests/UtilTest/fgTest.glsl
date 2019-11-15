@@ -56,17 +56,18 @@ float getNoise()
 
 void main() 
 {
-    FragColor.x = (pos.x + 1.0f)/2.0f;
-    FragColor.y = (pos.y + 1.0f)/2.0f;
-    FragColor.xy = tpos;
-    FragColor.z = getNoise();// (pos.x + pos.y) / 2.0f;
-    //FragColor.xyz = vec3(getNoise());
-    FragColor.xyz *= lutZ;
     if (shouldLut > 0)
     {
         vec3 lutpos = vec3(tpos, lutZ);
-        lutpos = LinearToLogUE(FragColor.xyz);
+        //lutpos = LinearToLogUE(FragColor.xyz);
         FragColor.xyz = texture(lut, lutpos * lutOffset.x + lutOffset.y).rgb;
+    }
+    else
+    {
+        FragColor.x = (pos.x + 1.0f)/2.0f;
+        FragColor.y = (pos.y + 1.0f)/2.0f;
+        FragColor.xy = tpos;
+        FragColor.z = getNoise();
     }
     FragColor.w = 1.0f;
 }

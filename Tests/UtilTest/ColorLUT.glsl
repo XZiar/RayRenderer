@@ -1,6 +1,7 @@
 #version 330 core
 #extension GL_ARB_shading_language_420pack	: require
 #extension GL_ARB_shader_subroutine			: require
+//#extension GL_ARB_shader_image_load_store	: require
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 
 #if defined(OGLU_VERT) || defined(OGLU_FRAG)
@@ -8,9 +9,6 @@ GLVARY perVert
 {
     vec2 tpos;
 };
-#endif
-#if defined(OGLU_COMP)
-#   extension GL_ARB_shader_image_load_store	: require
 #endif
 
 #ifdef OGLU_VERT
@@ -32,25 +30,8 @@ void main()
 //@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 5.0)
 uniform float exposure = 1.0f;
 
-OGLU_ROUTINE(ToneMapping, ToneMap, vec3, const vec3 color)
 
-OGLU_SUBROUTINE(ToneMapping, NoTone)
-{
-    return color;
-}
-
-OGLU_SUBROUTINE(ToneMapping, Reinhard)
-{
-    const vec3 lum = exposure * color;
-    return lum / (lum + 1.0f);
-}
-
-OGLU_SUBROUTINE(ToneMapping, ExpTone)
-{
-    return 1.0f - exp(color * -exposure);
-}
-
-OGLU_SUBROUTINE(ToneMapping, ACES)
+vec3 ToneMapping(const vec3 color)
 {
     const float A = 2.51f;
     const float B = 0.03f;
@@ -151,7 +132,7 @@ void main()
 {
     const vec3 srcColor = gl_GlobalInvocationID.xyz * step;
     const vec3 linearColor = LogUEToLinear(srcColor);
-    const vec3 acesColor = ToneMap(linearColor);
+    const vec3 acesColor = ToneMapping(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
     const vec4 color = vec4(srgbColor, 1.0f);
     imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
@@ -185,12 +166,12 @@ out vec4 FragColor;
 void main()
 {
     const int xIdx = int(gl_FragCoord.x);
-    const int yIdx = int(/*lutSize - */gl_FragCoord.y);
+    const int yIdx = int(lutSize - gl_FragCoord.y);
     const int zIdx = ogluLayer;
     const ivec3 lutPos = ivec3(xIdx, yIdx, zIdx);
     const vec3 srcColor = lutPos * step;
     const vec3 linearColor = LogUEToLinear(srcColor);
-    const vec3 acesColor = ToneMap(linearColor);
+    const vec3 acesColor = ToneMapping(linearColor);
     const vec3 srgbColor = LinearToSRGB(acesColor);
     const vec4 color = vec4(srgbColor, 1.0f);
     FragColor = color;
