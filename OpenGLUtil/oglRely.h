@@ -113,6 +113,8 @@ using GLclampd   = double;
 using GLchar     = char;
 using GLsync     = void*;
 
+inline constexpr GLenum GLInvalidEnum = UINT32_MAX;
+
 
 class oglWorker;
 struct DSAFuncs;

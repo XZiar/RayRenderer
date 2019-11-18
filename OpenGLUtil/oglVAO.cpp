@@ -101,7 +101,7 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets
     vao.CheckCurrent();
     const auto count = offsets.size();
     if (count != sizes.size())
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
     vao.Count.emplace<vector<GLsizei>>(sizes.cbegin(), sizes.cend());
     if (vao.IndexBuffer)
     {
@@ -124,13 +124,13 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizeFrom(const oglIBO& ibo, GLint offset, GLsizei size)
 {
     if ((bool)vao.IndexBuffer != ibo->IsIndexed())
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
     if (offset > ibo->Count || offset < 0)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset exceed ebo size.");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"offset exceed ebo size.");
     if (size == 0)
         size = ibo->Count - offset;
     else if (size + offset > ibo->Count)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"draw size exceed ebo size.");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"draw size exceed ebo size.");
     vao.IndirectBuffer = ibo;
     vao.Method = ibo->IsIndexed() ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
     vao.Count = size;

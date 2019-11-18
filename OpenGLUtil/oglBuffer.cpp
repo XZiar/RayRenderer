@@ -220,7 +220,7 @@ void oglIndirectBuffer_::WriteCommands(const vector<uint32_t>& offsets, const ve
     CheckCurrent();
     const auto count = offsets.size();
     if (count != sizes.size())
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
     Count = (GLsizei)count;
     if (isIndexed)
     {

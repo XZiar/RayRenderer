@@ -29,6 +29,13 @@ FreeGLUTView window, wd2;
 bool isAnimate = false;
 bool isPostproc = true;
 
+
+static common::mlog::MiniLogger<false>& log()
+{
+    static common::mlog::MiniLogger<false> logger(u"GLUTTest", { common::mlog::GetConsoleBackend() });
+    return logger;
+}
+
 static std::shared_ptr<rayr::Drawable> LocateDrawable(const bool isPrev)
 {
     const auto& drws = tester->GetScene()->GetDrawables();
@@ -173,7 +180,7 @@ void onMouseEvent(FreeGLUTView wd, MouseEvent msevent)
         } break;
     case MouseEventType::Wheel:
         tester->GetScene()->GetCamera()->Move(0, 0, (float)msevent.dx);
-        printf("camera at %5f,%5f,%5f\n", tester->GetScene()->GetCamera()->Position.x, tester->GetScene()->GetCamera()->Position.y, tester->GetScene()->GetCamera()->Position.z);
+        // printf("camera at %5f,%5f,%5f\n", tester->GetScene()->GetCamera()->Position.x, tester->GetScene()->GetCamera()->Position.y, tester->GetScene()->GetCamera()->Position.z);
         break;
     default:
         return;
@@ -236,9 +243,22 @@ auto FindPath()
     return shdpath.parent_path().parent_path() / u"RenderCore";
 }
 
+
+void PrintException(const common::BaseException& be)
+{
+    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
+    fmt::basic_memory_buffer<char16_t> buf;
+    for (const auto& stack : be.Stack())
+        fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+    log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
+
+    if (const auto inEx = std::dynamic_pointer_cast<common::BaseException>(be.NestedException()); inEx)
+        PrintException(*inEx);
+}
+
 int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 {
-    printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
+    log().info("miniBLAS intrin:[{}]\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
     window = std::make_shared<glutview::detail::_FreeGLUTView>();
     tester.reset(new rayr::RenderCore());
@@ -276,13 +296,5 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 }
 catch (const BaseException & be)
 {
-    printf("Error: %s\n", common::strchset::to_u8string(be.message, common::str::Charset::UTF16LE).c_str());
-    for (const auto& stk : be.Stack())
-    {
-        printf("at\t [%s] : line %d (%s)\n",
-            common::strchset::to_u8string(stk.Func, common::str::Charset::UTF16LE).c_str(),
-            stk.Line,
-            common::strchset::to_u8string(stk.File, common::str::Charset::UTF16LE).c_str()
-            );
-    }
+    PrintException(be);
 }

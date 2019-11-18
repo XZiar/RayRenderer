@@ -148,7 +148,7 @@ oglProgram_::oglProgram_(const u16string& name, const oglProgStub* stub, const b
     {
         oglLog().warning(u"Link program failed.\n{}\n", logdat);
         DSA->ogluDeleteProgram(ProgramID);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
     }
     oglLog().success(u"Link program success.\n{}\n", logdat);
     ExtInfo = stub->ExtInfo;

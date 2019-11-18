@@ -13,9 +13,7 @@
 #include "common/CopyEx.hpp"
 #include "common/ContainerEx.hpp"
 
-#include <boost/preprocessor/punctuation/comma_if.hpp>
-#include <boost/preprocessor/seq/for_each_i.hpp>
-#include <boost/preprocessor/variadic/to_seq.hpp>
+#include "boost.stacktrace/stacktrace.h"
 
 #include <algorithm>
 

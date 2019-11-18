@@ -201,17 +201,17 @@ public:
     std::u16string Name;
     virtual ~oglProgram_();
 
-    const std::set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
-    const std::set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ExtInfo.Properties; }
-    const std::set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
-    const std::map<ShaderType, oglShader>& getShaders() const { return Shaders; }
-    const std::map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
+    [[nodiscard]] const std::set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
+    [[nodiscard]] const std::set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ExtInfo.Properties; }
+    [[nodiscard]] const std::set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
+    [[nodiscard]] const std::map<ShaderType, oglShader>& getShaders() const { return Shaders; }
+    [[nodiscard]] const std::map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
-    GLint GetLoc(const std::string& name) const;
-    const ProgramResource* GetResource(const std::string& name) const { return common::container::FindInSet(ProgRess, name); }
-    const SubroutineResource* GetSubroutines(const std::string& name) const { return common::container::FindInSet(SubroutineRess, name); }
-    const SubroutineResource::Routine* GetSubroutine(const std::string& sruname);
-    const SubroutineResource::Routine* GetSubroutine(const SubroutineResource& sru);
+    [[nodiscard]] GLint GetLoc(const std::string& name) const;
+    [[nodiscard]] const ProgramResource* GetResource(const std::string& name) const { return common::container::FindInSet(ProgRess, name); }
+    [[nodiscard]] const SubroutineResource* GetSubroutines(const std::string& name) const { return common::container::FindInSet(SubroutineRess, name); }
+    [[nodiscard]] const SubroutineResource::Routine* GetSubroutine(const std::string& sruname);
+    [[nodiscard]] const SubroutineResource::Routine* GetSubroutine(const SubroutineResource& sru);
     ProgState State() noexcept;template<typename T>
     void SetVec    (const T& name, const b3d::Coord2D& vec)        { SetUniform(GetLoc(name, UniformType::VEC2 ), vec); }
     template<typename T>
@@ -237,7 +237,7 @@ public:
     template<typename T>
     void SetVec    (const T& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); }
     
-    static oglProgStub Create();
+    [[nodiscard]] static oglProgStub Create();
 };
 
 
@@ -264,12 +264,12 @@ public:
     void SetProject(const b3d::Mat4x4 &);
     void SetView(const b3d::Mat4x4 &);
 
-    ProgDraw Draw(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
-    ProgDraw Draw(const b3d::Mat4x4& modelMat = b3d::Mat4x4::identity()) noexcept;
+    [[nodiscard]] ProgDraw Draw(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
+    [[nodiscard]] ProgDraw Draw(const b3d::Mat4x4& modelMat = b3d::Mat4x4::identity()) noexcept;
     template<typename Iterator>
-    ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
+    [[nodiscard]] ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
 
-    static oglDrawProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
+    [[nodiscard]] static oglDrawProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
 };
 
 class OGLUAPI ProgDraw
@@ -355,11 +355,11 @@ private:
 public:
     virtual ~oglComputeProgram_() override {}
 
-    const std::array<uint32_t, 3>& GetLocalSize() const { return LocalSize; }
+    [[nodiscard]] const std::array<uint32_t, 3>& GetLocalSize() const { return LocalSize; }
 
     void Run(const uint32_t groupX, const uint32_t groupY = 1, const uint32_t groupZ = 1);
 
-    static oglComputeProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
+    [[nodiscard]] static oglComputeProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
     [[nodiscard]] static bool CheckSupport();
 };
 

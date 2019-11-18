@@ -30,7 +30,7 @@ static GLenum ParseRBOFormat(const RBOFormat format)
     case RBOFormat::RGBA8U:             return GL_RGBA8UI;
     case RBOFormat::RGBAf:              return GL_RGBA32F;
     case RBOFormat::RGB10A2:            return GL_RGB10_A2;
-    default: COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Unknown RBOFormat.");
+    default: COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Unknown RBOFormat.");
     }
 }
 
@@ -154,7 +154,7 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglTex2D& tex, const uint8_t at
 void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment)
 {
     if (layer >= tex->Layers)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"texture layer overflow");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"texture layer overflow");
     CheckCurrent();
     DSA->ogluNamedFramebufferTextureLayer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0, layer);
     ColorAttachemnts[attachment] = std::make_pair(tex, layer);
@@ -163,7 +163,7 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint3
 void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
 {
     if (rbo->GetType() != RBOFormat::TYPE_COLOR)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, GetID(rbo));
     ColorAttachemnts[attachment] = rbo;
@@ -179,7 +179,7 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglTex2D& tex)
 void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_DEPTH)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo;
@@ -195,7 +195,7 @@ void oglFrameBuffer2D_::AttachStencilTexture(const oglTex2D& tex)
 void oglFrameBuffer2D_::AttachStencilTexture(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_STENCIL)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     StencilAttachment = rbo;
@@ -204,7 +204,7 @@ void oglFrameBuffer2D_::AttachStencilTexture(const oglRBO& rbo)
 void oglFrameBuffer2D_::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
     if (rbo->GetType() != RBOFormat::TYPE_DEPTH_STENCIL)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
     CheckCurrent();
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo; StencilAttachment = rbo;
@@ -245,7 +245,7 @@ oglFrameBuffer3D_::~oglFrameBuffer3D_()
 void oglFrameBuffer3D_::CheckLayerMatch(const uint32_t layer)
 {
     if (LayerCount != 0 && LayerCount != layer)
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Layered Framebuffer's layer not match");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Layered Framebuffer's layer not match");
     LayerCount = layer;
 }
 

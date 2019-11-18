@@ -112,7 +112,7 @@ void FontCreator::reload(const string& src)
 void FontCreator::setChar(char32_t ch) const
 {
     auto[img, width, height] = ft2->getChBitmap(ch);
-    testTex->SetData(TextureFormat::R8, width, height, img.GetRawPtr());
+    testTex->SetData(TextureFormat::R8, width, height, img.AsSpan());
 }
 
 Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const

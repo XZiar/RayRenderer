@@ -53,10 +53,10 @@ public:
     
     void SetName(std::u16string name) noexcept;
    
-    RBOFormat GetType() const noexcept { return InnerFormat & RBOFormat::TYPE_MASK; }
-    std::u16string_view GetName() const noexcept { return Name; }
+    [[nodiscard]] RBOFormat GetType() const noexcept { return InnerFormat & RBOFormat::TYPE_MASK; }
+    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
-    static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
+    [[nodiscard]] static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
 };
 
 
@@ -72,8 +72,8 @@ protected:
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
     oglFrameBuffer_();
-    static GLuint GetID(const oglRBO& rbo);
-    static GLuint GetID(const oglTexBase& tex);
+    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
+    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
 public:
     ~oglFrameBuffer_();
 
@@ -81,11 +81,11 @@ public:
 
     FBOStatus CheckStatus() const;
     void Use() const;
-    std::pair<GLuint, GLuint> DebugBinding() const;
-    std::u16string_view GetName() const noexcept { return Name; }
+    [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
+    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
     static void UseDefault();
-    static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+    [[nodiscard]] static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
 };
 
 
@@ -109,7 +109,7 @@ public:
     void BlitColorTo(const oglFBO2D& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
     void BlitColorFrom(const oglFBO2D& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
 
-    static oglFBO2D Create();
+    [[nodiscard]] static oglFBO2D Create();
 };
 
 
@@ -130,7 +130,7 @@ public:
     void AttachStencilTexture(const oglTex3D& tex);
     void AttachStencilTexture(const oglTex2DArray& tex);
 
-    static oglFBO3D Create();
+    [[nodiscard]] static oglFBO3D Create();
 };
 
 

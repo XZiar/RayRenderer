@@ -61,6 +61,9 @@
     <ClCompile Include="oglVAO.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\boost.stacktrace\boost.stacktrace.vcxproj">
+      <Project>{73e340bf-05df-4582-b3c8-83f6ef60bd87}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\cpuid\cpuid.vcxproj">
       <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
     </ProjectReference>

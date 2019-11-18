@@ -114,10 +114,10 @@ public:
     virtual ~oglBuffer_() noexcept;
 
     void SetName(std::u16string name) noexcept;
-    oglMapPtr Map(const MapFlag flags);
+    [[nodiscard]] oglMapPtr Map(const MapFlag flags);
 
-    common::span<std::byte> GetPersistentPtr() const;
-    std::u16string_view GetName() const noexcept { return Name; }
+    [[nodiscard]] common::span<std::byte> GetPersistentPtr() const;
+    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 };
 
 
@@ -133,7 +133,7 @@ public:
     using oglBuffer_::WriteSpan;
     //using oglBuffer_::Write;
 
-    static oglPBO Create();
+    [[nodiscard]] static oglPBO Create();
 };
 
 
@@ -148,7 +148,7 @@ public:
     using oglBuffer_::WriteSpan;
     //using oglBuffer_::Write;
 
-    static oglVBO Create();
+    [[nodiscard]] static oglVBO Create();
 };
 
 
@@ -163,7 +163,7 @@ public:
     using oglBuffer_::WriteSpan;
     //using oglBuffer_::Write;
 
-    static oglTBO Create();
+    [[nodiscard]] static oglTBO Create();
 };
 
 
@@ -176,15 +176,15 @@ private:
     MAKE_ENABLER();
     oglUniformBuffer_(const size_t size) noexcept;
 protected:
-    static detail::UBOManager& getUBOMan();
+    [[nodiscard]] static detail::UBOManager& getUBOMan();
     void bind(const uint16_t pos) const;
 public:
     virtual ~oglUniformBuffer_() noexcept override;
-    size_t Size() const { return BufSize; };
+    [[nodiscard]] size_t Size() const { return BufSize; };
     using oglBuffer_::WriteSpan;
     //using oglBuffer_::Write;
 
-    static oglUBO Create(const size_t size);
+    [[nodiscard]] static oglUBO Create(const size_t size);
 };
 
 
@@ -214,7 +214,7 @@ public:
 protected:
     std::variant<std::vector<DrawElementsIndirectCommand>, std::vector<DrawArraysIndirectCommand>> Commands;
     GLsizei Count = 0;
-    bool IsIndexed() const;
+    [[nodiscard]] bool IsIndexed() const;
 public:
     virtual ~oglIndirectBuffer_() noexcept override;
     ///<summary>Write indirect draw commands</summary>  
@@ -227,12 +227,16 @@ public:
     ///<param name="size">size</param>
     ///<param name="isIndexed">Indexed commands or not</param>
     void WriteCommands(const uint32_t offset, const uint32_t size, const bool isIndexed);
-    const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const 
-    { return std::get<std::vector<DrawElementsIndirectCommand>>(Commands); }
-    const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const 
-    { return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); }
+    [[nodiscard]] const std::vector<DrawElementsIndirectCommand>& GetElementCommands() const
+    { 
+        return std::get<std::vector<DrawElementsIndirectCommand>>(Commands);
+    }
+    [[nodiscard]] const std::vector<DrawArraysIndirectCommand>& GetArrayCommands() const
+    { 
+        return std::get<std::vector<DrawArraysIndirectCommand>>(Commands); 
+    }
 
-    static oglIBO Create();
+    [[nodiscard]] static oglIBO Create();
 };
 
 
@@ -323,7 +327,7 @@ public:
             COMMON_THROW(common::BaseException, u"input should be no more than uint32_t");
     }
 
-    static oglEBO Create();
+    [[nodiscard]] static oglEBO Create();
 };
 
 
@@ -336,9 +340,12 @@ private:
     oglMapPtr(oglBuffer&& buf, std::shared_ptr<const oglBuffer_::oglMapPtr_> ptr) : Buf(std::move(buf)), Ptr(std::move(ptr)) { }
 public:
     constexpr oglMapPtr() {}
-    common::span<std::byte> Get() const noexcept;
+    [[nodiscard]] common::span<std::byte> Get() const noexcept;
     template<typename T>
-    common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
+    [[nodiscard]] common::span<T> AsType() const noexcept 
+    { 
+        return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T));
+    }
 };
 
 

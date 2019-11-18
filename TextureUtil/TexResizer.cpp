@@ -177,7 +177,7 @@ static oglTex2D ConvertCLToTex(const oclImg2D& img, const oclCmdQue& que, const 
         if (isSRGB)
             format |= TextureFormat::MASK_SRGB;
         auto tex = oglTex2DStatic_::Create(img->Width, img->Height, format);
-        tex->SetData(img->GetFormat(), ptr.Get().data());
+        tex->SetData(img->GetFormat(), ptr.Get());
         tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
         agent.Await(oglUtil::SyncGL());
         return (oglTex2D)tex;
@@ -187,9 +187,9 @@ static oglTex2DS ConvertDataToTex(const common::AlignedBuffer& data, const std::
 {
     auto tex = oglTex2DStatic_::Create(size.first, size.second, innerFormat);
     if (TexFormatUtil::IsCompressType(innerFormat))
-        tex->SetCompressedData(data.GetRawPtr(), data.GetSize());
+        tex->SetCompressedData(data.AsSpan());
     else
-        tex->SetData(innerFormat, data.GetRawPtr());
+        tex->SetData(innerFormat, data.AsSpan());
     tex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::ClampEdge);
     return tex;
 }
@@ -336,7 +336,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenCL
     {
         const auto img = agent.Await(pms);
         auto tex = oglTex2DStatic_::Create(width, height, output);
-        tex->SetData(xziar::img::TexFormatUtil::FromImageDType(img.GetDataType(), true), img.GetRawPtr());
+        tex->SetData(xziar::img::TexFormatUtil::FromImageDType(img.GetDataType(), true), img.AsSpan());
         agent.Await(oglUtil::SyncGL());
         return tex;
     });

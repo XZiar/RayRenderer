@@ -185,15 +185,15 @@ public:
     };
     ~oglVAO_() noexcept;
 
-    VAOPrep Prepare() noexcept;
+    [[nodiscard]] VAOPrep Prepare() noexcept;
     void SetName(std::u16string name) noexcept;
     void Draw(const uint32_t size, const uint32_t offset = 0) const noexcept;
     void Draw() const noexcept;
-    std::u16string_view GetName() const noexcept { return Name; }
+    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
     void Test() const noexcept;
 
-    static oglVAO Create(const VAODrawMode);
+    [[nodiscard]] static oglVAO Create(const VAODrawMode);
 };
 
 

@@ -63,14 +63,18 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
-void QuickTest()
+void PrintException(const common::BaseException& be)
 {
-    common::AlignedBuffer buf(65536, 32);
-    auto buf1 = buf.CreateSubBuffer(16, 32768);
-    buf = common::AlignedBuffer(16384, 64);
-    auto buf11 = buf1.CreateSubBuffer(32, 120);
-    buf1 = buf;
+    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
+    fmt::basic_memory_buffer<char16_t> buf;
+    for (const auto& stack : be.Stack())
+        fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+    log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
+    
+    if (const auto inEx = std::dynamic_pointer_cast<common::BaseException>(be.NestedException()); inEx)
+        PrintException(*inEx);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -91,7 +95,6 @@ int main(int argc, char *argv[])
     timer.Start();
     log().info(u"Select One To Execute...");
     timer.Stop();
-    QuickTest();
     if (argc > 2)
         idx = (uint32_t)std::stoul(argv[2]);
     else
@@ -110,11 +113,7 @@ int main(int argc, char *argv[])
         }
         catch (const common::BaseException& be)
         {
-            log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
-            fmt::basic_memory_buffer<char16_t> buf;
-            for (const auto& stack : be.Stack())
-                fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-            log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
+            PrintException(be);
         }
     }
     else

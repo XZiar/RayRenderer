@@ -236,7 +236,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
     oglu::oglTex2DV Construct() const 
     { 
         auto chkTex = oglu::oglTex2DStatic_::Create(128, 128, xziar::img::TextureFormat::SRGBA8);
-        std::array<uint32_t, 128 * 128> pixs{};
+        std::vector<uint32_t> pixs(128 * 128);
         for (uint32_t a = 0, idx = 0; a < 128; ++a)
         {
             for (uint32_t b = 0; b < 128; ++b)
@@ -244,7 +244,7 @@ struct CheckTexCtxConfig : public oglu::CtxResConfig<true, oglu::oglTex2DV>
                 pixs[idx++] = ((a / 32) & 0x1) == ((b / 32) & 0x1) ? 0xff0f0f0fu : 0xffa0a0a0u;
             }
         }
-        chkTex->SetData(xziar::img::TextureFormat::RGBA8, pixs.data());
+        chkTex->SetData(xziar::img::TextureFormat::RGBA8, pixs);
         const auto texv = chkTex->GetTextureView();
         texv->SetName(u"Check Image");
         dizzLog().verbose(u"new CheckTex generated.\n");

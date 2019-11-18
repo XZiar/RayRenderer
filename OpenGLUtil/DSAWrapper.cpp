@@ -5,6 +5,10 @@
 #include "oglContext.h"
 #include "oglBuffer.h"
 
+#include <boost/preprocessor/punctuation/comma_if.hpp>
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+
 
 #undef APIENTRY
 #if COMMON_OS_WIN
@@ -177,7 +181,7 @@ common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(voi
         exts = wglGetExtensionsStringEXT_();
     }
     else
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for wglGetExtensionsString");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for wglGetExtensionsString");
     return common::str::Split(exts, ' ', false);
 }
 #else
@@ -830,7 +834,7 @@ void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_
     }
     else
     {
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
     }
 }
 void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const
@@ -870,7 +874,7 @@ void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const ogl
     }
     else
     {
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawElementsIndirect");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawElementsIndirect");
     }
 }
 
@@ -1133,7 +1137,7 @@ void DSAFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuff
     }
     else
     {
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for RenderbufferStorageMultisampleCoverage");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for RenderbufferStorageMultisampleCoverage");
     }
 }
 
@@ -1250,7 +1254,7 @@ void DSAFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment
             }
             break;
         default:
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTexture");
+            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTexture");
         }
     }
 }
@@ -1274,7 +1278,7 @@ void DSAFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attac
             }
             break;
         default:
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTextureLayer");
+            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling FramebufferTextureLayer");
         }
     }
 }
@@ -1323,7 +1327,7 @@ void DSAFuncs::ogluClearDepth(GLclampd d) const
     CALL_EXISTS(ogluClearDepth_, d)
     CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
     {
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
     }
 }
 

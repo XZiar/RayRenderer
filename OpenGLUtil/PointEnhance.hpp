@@ -60,7 +60,7 @@ public:
     }
 };
 
-inline bool CheckInvertNormal(const Point& pt0, const Point& pt1, const Point& pt2)
+inline bool CheckInvertNormal(const Point& pt0, const Point& pt1, const Point& pt2) noexcept
 {
     const auto edge1 = pt1.pos - pt0.pos, edge2 = pt2.pos - pt0.pos;
     const auto norm = edge1.cross(edge2);
@@ -70,7 +70,7 @@ inline bool CheckInvertNormal(const Point& pt0, const Point& pt1, const Point& p
     return false;
 }
 
-inline void FixInvertNormal(Point& pt0, Point& pt1, Point& pt2)
+inline void FixInvertNormal(Point& pt0, Point& pt1, Point& pt2) noexcept
 {
     const auto edge1 = pt1.pos - pt0.pos, edge2 = pt2.pos - pt0.pos;
     const auto norm = edge1.cross(edge2);
@@ -79,7 +79,7 @@ inline void FixInvertNormal(Point& pt0, Point& pt1, Point& pt2)
     if (norm.dot(pt2.norm) < 0) pt2.norm.negatived();
 }
 
-inline void GenerateTanPoint(PointEx& pt0, PointEx& pt1, PointEx& pt2)
+inline void GenerateTanPoint(PointEx& pt0, PointEx& pt1, PointEx& pt2) noexcept
 {
     const auto edge1 = pt1.pos - pt0.pos, edge2 = pt2.pos - pt0.pos;
     const auto du1 = pt1.tcoord.u - pt0.tcoord.u, dv1 = pt1.tcoord.v - pt0.tcoord.v,
@@ -108,7 +108,7 @@ public:
     int16_t TCoord[2];
     uint32_t Norm;
     uint32_t Tan;
-    static uint32_t CompressVec4(const b3d::Vec4& v)
+    [[nodiscard]] static uint32_t CompressVec4(const b3d::Vec4& v) noexcept
     {
         const auto int9V = v * 512.f;
         const auto x = ((int32_t)int9V.x) & 0x3ff, y = ((int32_t)int9V.y) & 0x3ff, z = ((int32_t)int9V.x) & 0x3ff;

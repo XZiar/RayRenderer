@@ -34,7 +34,7 @@ BindingState::BindingState()
 thread_local oglContext InnerCurCtx{ };
 
 #if defined(_DEBUG)
-#define CHECKCURRENT() if (!InnerCurCtx || InnerCurCtx.get() != this) COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+#define CHECKCURRENT() if (!InnerCurCtx || InnerCurCtx.get() != this) COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
 #else
 #define CHECKCURRENT()
 #endif
@@ -514,7 +514,7 @@ void oglCtxObject<true>::CheckCurrent() const
 {
 #if defined(_DEBUG)
     if (!InnerCurCtx || Context.owner_before(InnerCurCtx->SharedCore) || InnerCurCtx->SharedCore.owner_before(Context))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
 #endif
 }
 template<>
@@ -522,7 +522,7 @@ void oglCtxObject<false>::CheckCurrent() const
 {
 #if defined(_DEBUG)
     if (Context.owner_before(InnerCurCtx) || InnerCurCtx.owner_before(Context))
-        COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"operate without UseContext");
 #endif
 }
 template<>

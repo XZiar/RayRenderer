@@ -2,7 +2,7 @@
     "name": "OpenGLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenGL Utility",
-    "dependency": ["fmt", "cpuid", "MiniLogger", "ImageUtil", "AsyncExecutor", "StringCharset", "SystemCommon"],
+    "dependency": ["fmt", "cpuid", "MiniLogger", "ImageUtil", "AsyncExecutor", "StringCharset", "SystemCommon", "boost.stacktrace"],
     "library": 
     {
         "static": [],

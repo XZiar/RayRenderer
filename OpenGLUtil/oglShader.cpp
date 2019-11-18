@@ -63,7 +63,7 @@ void oglShader_::compile()
         DSA->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
-        COMMON_THROW(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
     }
 }
 
@@ -186,7 +186,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         }
         catch (...)
         {
-            COMMON_THROW(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property",
+            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property",
                 common::linq::FromIterable(parts).Cast<string>().ToVector());
         }
     }
@@ -386,13 +386,13 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
             version = std::stoi(mth[2]);
             constexpr std::array vers{ 110u,120u,130u,140u,150u,330u,400u,410u,420u,430u,440u,450u,460u };
             if (!std::binary_search(vers.cbegin(), vers.cend(), version))
-                COMMON_THROW(BaseException, u"unsupported GLSL version");
+                COMMON_THROWEX(BaseException, u"unsupported GLSL version");
         }
     }
     if (version == UINT32_MAX)
-        COMMON_THROW(BaseException, u"no correct GLSL version found");
+        COMMON_THROWEX(BaseException, u"no correct GLSL version found");
     if (stypes.empty())
-        COMMON_THROW(BaseException, u"Invalid shader source");
+        COMMON_THROWEX(BaseException, u"Invalid shader source");
     //apply routines
     for (const auto&[rname, srname] : config.Routines)
     {

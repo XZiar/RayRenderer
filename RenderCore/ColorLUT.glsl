@@ -161,7 +161,7 @@ void main()
 #if defined(OGLU_GEOM)
 uniform int lutSize;
 layout (triangles) in;
-layout (triangle_strip, max_vertices = 192) out;
+layout (triangle_strip, max_vertices = 144) out;
 void main()
 {
     for (int layer = 0; layer < lutSize; ++layer)
