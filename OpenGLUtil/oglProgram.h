@@ -87,23 +87,6 @@ public:
 };
 
 
-enum class ProgramMappingTarget : uint64_t 
-{ 
-    ProjectMat = "ProjectMat"_hash,
-    ViewMat    = "ViewMat"_hash,
-    ModelMat   = "ModelMat"_hash,
-    MVPMat     = "MVPMat"_hash,
-    MVPNormMat = "MVPNormMat"_hash,
-    CamPosVec  = "CamPosVec"_hash,
-    VertPos    = "VertPos"_hash,
-    VertNorm   = "VertNorm"_hash,
-    VertTexc   = "VertTexc"_hash,
-    VertColor  = "VertColor"_hash,
-    VertTan    = "VertTan"_hash,
-    DrawID     = "DrawID"_hash,
-};
-
-
 ///<summary>ProgState, use to batch set program binding states</summary>  
 class OGLUAPI ProgState : public common::NonCopyable
 {
@@ -248,26 +231,10 @@ class OGLUAPI oglDrawProgram_ : public oglProgram_
 private:
     MAKE_ENABLER();
     oglDrawProgram_(const std::u16string& name, const oglProgStub* stub);
-
-    b3d::Mat4x4 matrix_Proj, matrix_View;
-    GLint
-        Uni_projMat   = -1,
-        Uni_viewMat   = -1,
-        Uni_modelMat  = -1,
-        Uni_normalMat = -1,
-        Uni_mvpMat    = -1,
-        Uni_camPos    = -1;
 public:
     virtual ~oglDrawProgram_() override {}
 
-    //void RegisterLocation();
-    void SetProject(const b3d::Mat4x4 &);
-    void SetView(const b3d::Mat4x4 &);
-
-    [[nodiscard]] ProgDraw Draw(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
-    [[nodiscard]] ProgDraw Draw(const b3d::Mat4x4& modelMat = b3d::Mat4x4::identity()) noexcept;
-    template<typename Iterator>
-    [[nodiscard]] ProgDraw Draw(const Iterator& begin, const Iterator& end) noexcept;
+    [[nodiscard]] ProgDraw Draw() noexcept;
 
     [[nodiscard]] static oglDrawProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
 };
@@ -287,7 +254,7 @@ private:
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     std::map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
     std::map<GLint, UniformValue> UniValBackup;
-    ProgDraw(oglDrawProgram_& prog_, const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat) noexcept;
+    ProgDraw(oglDrawProgram_& prog_) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {
@@ -305,8 +272,6 @@ public:
     ///<returns>self</returns>
     ProgDraw& Restore(const bool quick = false);
     std::weak_ptr<oglDrawProgram_> GetProg() const noexcept;
-    ProgDraw& SetPosition(const b3d::Mat4x4& modelMat, const b3d::Mat3x3& normMat);
-    ProgDraw& SetPosition(const b3d::Mat4x4& modelMat) { return SetPosition(modelMat, (b3d::Mat3x3)modelMat); }
     ///<summary>draw actual vao</summary>  
     ///<param name="size">elements count being drawed</param>
     ///<param name="offset">elements offset</param>
@@ -330,19 +295,19 @@ public:
     ProgDraw& SetUniform(const T& res, Args&&... args) { Prog.SetUniform(res, std::forward<Args>(args)...); return *this; }
 };
 
-template<typename Iterator>
-ProgDraw oglDrawProgram_::Draw(const Iterator& begin, const Iterator& end) noexcept
-{
-    static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
-    b3d::Mat4x4 matModel = b3d::Mat4x4::identity();
-    b3d::Mat3x3 matNormal = b3d::Mat3x3::identity();
-    for (auto cur = begin; cur != end; ++cur)
-    {
-        const TransformOP& trans = *cur;
-        oglUtil::applyTransform(matModel, matNormal, trans);
-    }
-    return Draw(matModel, matNormal);
-}
+//template<typename Iterator>
+//ProgDraw oglDrawProgram_::Draw(const Iterator& begin, const Iterator& end) noexcept
+//{
+//    static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
+//    b3d::Mat4x4 matModel = b3d::Mat4x4::identity();
+//    b3d::Mat3x3 matNormal = b3d::Mat3x3::identity();
+//    for (auto cur = begin; cur != end; ++cur)
+//    {
+//        const TransformOP& trans = *cur;
+//        oglUtil::applyTransform(matModel, matNormal, trans);
+//    }
+//    return Draw(matModel, matNormal);
+//}
 
 
 class OGLUAPI oglComputeProgram_ : public oglProgram_

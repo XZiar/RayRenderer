@@ -127,10 +127,10 @@ void Drawable::AssignMaterial()
 
 void Drawable::Draw(Drawcall& drawcall) const
 {
-    MaterialHolder.BindTexture(drawcall);
+    MaterialHolder.BindTexture(drawcall.Drawer);
     DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
-        .Draw(GetVAO(drawcall.GetProg()));
+        .Draw(GetVAO(drawcall.Drawer.GetProg()));
 }
 
 u16string Drawable::GetType() const
@@ -163,10 +163,15 @@ auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, 
     return std::move(vao->Prepare().SetAttribs<Point>(vbo, 0, attrs).SetDrawId(prog));
 }
 
-Drawable::Drawcall& Drawable::DrawPosition(Drawcall& drawcall) const
+oglu::ProgDraw& Drawable::DrawPosition(Drawcall& drawcall) const
 {
-    Mat3x3 matNormal = Mat3x3::RotateMatXYZ(Rotation);
-    return drawcall.SetPosition(Mat4x4::TranslateMat(Position) * Mat4x4(matNormal * Mat3x3::ScaleMat(Scale)), matNormal);
+    const auto normMat = Mat3x3::RotateMatXYZ(Rotation);
+    const auto modelMat = Mat4x4::TranslateMat(Position) * Mat4x4(normMat * Mat3x3::ScaleMat(Scale));
+    const auto mvpMat = drawcall.PVMat * modelMat;
+    return drawcall.Drawer
+        .SetMat("@MVPMat", mvpMat)
+        .SetMat("@ModelMat", modelMat)
+        .SetMat("@MVPNormMat", normMat);
 }
 
 void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const

@@ -253,7 +253,7 @@ void PostProcessor::OnDraw(RenderPassContext& context)
         const auto cam = context.GetScene()->GetCamera();
         //const auto ow = cam->Width, oh = cam->Height;
 
-        PostShader->Program->SetView(cam->GetView());
+        //PostShader->Program->SetView(cam->GetView());
         PostShader->Program->SetVec("vecCamPos", cam->Position);
 
         PostShader->Program->Draw().Draw(VAOScreen);

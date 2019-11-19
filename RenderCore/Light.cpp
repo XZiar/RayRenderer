@@ -11,7 +11,7 @@ using xziar::respak::DeserializeUtil;
 
 void LightData::WriteData(const common::span<std::byte> space) const
 {
-    Expects(space.size() >= Light::WriteSize);
+    Expects((size_t)space.size() >= Light::WriteSize);
     float *ptrFloat = reinterpret_cast<float*>(space.data());
     uint32_t *ptrI32 = reinterpret_cast<uint32_t*>(space.data());
     Color.save(ptrFloat);

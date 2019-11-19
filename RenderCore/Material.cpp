@@ -438,7 +438,7 @@ uint32_t MultiMaterialHolder::WriteData(common::span<std::byte> space) const
     for (const auto& mat : Materials)
     {
         const auto subSpace = space.subspan(pos);
-        if (subSpace.size() < WriteSize) 
+        if ((size_t)subSpace.size() < WriteSize)
             break;
         float *ptrFloat = reinterpret_cast<float*>(subSpace.data());
         uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(subSpace.data());
@@ -447,11 +447,11 @@ uint32_t MultiMaterialHolder::WriteData(common::span<std::byte> space) const
         ptrFloat[4] = mat->Roughness;
         ptrFloat[5] = mat->Specular;
         ptrFloat[6] = mat->AO;
-        ptrU32[7] = PackMapPos(Arrangement, TextureLookup, mat->AOMap, mat->UseAOMap);
-        ptrU32[8] = PackMapPos(Arrangement, TextureLookup, mat->DiffuseMap, mat->UseDiffuseMap);
-        ptrU32[9] = PackMapPos(Arrangement, TextureLookup, mat->NormalMap, mat->UseNormalMap);
-        ptrU32[10] = PackMapPos(Arrangement, TextureLookup, mat->MetalMap, mat->UseMetalMap);
-        ptrU32[11] = PackMapPos(Arrangement, TextureLookup, mat->RoughMap, mat->UseRoughMap);
+        ptrU32[7]   = PackMapPos(Arrangement, TextureLookup, mat->AOMap, mat->UseAOMap);
+        ptrU32[8]   = PackMapPos(Arrangement, TextureLookup, mat->DiffuseMap, mat->UseDiffuseMap);
+        ptrU32[9]   = PackMapPos(Arrangement, TextureLookup, mat->NormalMap, mat->UseNormalMap);
+        ptrU32[10]  = PackMapPos(Arrangement, TextureLookup, mat->MetalMap, mat->UseMetalMap);
+        ptrU32[11]  = PackMapPos(Arrangement, TextureLookup, mat->RoughMap, mat->UseRoughMap);
         pos += WriteSize;
     }
     return pos;

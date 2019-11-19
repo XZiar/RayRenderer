@@ -59,10 +59,10 @@ void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string
 
 void Model::Draw(Drawcall& drawcall) const
 {
-    MaterialHolder.BindTexture(drawcall);
+    MaterialHolder.BindTexture(drawcall.Drawer);
     DrawPosition(drawcall)
         .SetUBO(MaterialUBO, "materialBlock")
-        .Draw(GetVAO(drawcall.GetProg()));
+        .Draw(GetVAO(drawcall.Drawer.GetProg()));
 }
 
 void Model::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const

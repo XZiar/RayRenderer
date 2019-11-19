@@ -4,12 +4,6 @@ A C++ wrapper of modern OpenGL.
 
 It aims at providing a OOP wrapper which makes OpenGL's states transparent to upper programmers.
 
-## GL Dependency
-
-* [OpenGL Header](../3rdParty/GL) 20191029
-
-* [KHR API Header](../3rdParty/KHR) 20190424
-
 ## Componoent
 
 * **oglShader**  OpenGL Shader
@@ -41,8 +35,8 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   Draw calls are finally fired by oglVAO
 
 * **oglFBO**  OpenGL Framebuffer object
-  
-  It provides wrapper of FBO
+  * oglFBO2D -- 2D Framebuffer
+  * oglFBO3D -- Layered Framebuffer
 
 * **oglProgram**  OpenGL Program
   
@@ -63,9 +57,12 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
+* [OpenGL Header](../3rdParty/GL) 20191029
+
+* [KHR API Header](../3rdParty/KHR) 20190424
+
 * [3DBasic](../3DBasic)
   * Basic component -- providing basic 3d data structure
-  * Camera -- an uvn camera
 
 * [MiniLogger](../MiniLogger)
   
@@ -87,13 +84,17 @@ OpenGL function calls (including GL 1.1) are all wrapped by OpenGLUtil and is co
 
 However, OpenGLUtil cannot control ouside calls to GL-functions, so try to seperate usage of internal and externel contexts and remember refresh state which switch context boundrary.
 
+### Platform function support
+
+OpenGLUtil provide wrapper of platform-related calls, support both WGL and GLX. It is set as threadlocal variable whenever tries to get current DeviceContext.
+
 ### DSA support
 
-OpenGL provide **Direct State Access** functionality via [EXT](http://www.opengl.org/registry/specs/EXT/direct_state_access.txt) and [ARB](http://www.opengl.org/registry/specs/ARB/direct_state_access.txt) extension. OpenGLUtil will try to use DSA function (ARB prior to EXT). But when DSA is not available, OpenGLUtil will try to emulate it.
+OpenGL provide **Direct State Access** functionality. [ARB](http://www.opengl.org/registry/specs/ARB/direct_state_access.txt) and [EXT](http://www.opengl.org/registry/specs/EXT/direct_state_access.txt) extensions are prioritily used, but Non-DSA function can be used to emulate DSA calls.
 
 The DSA support is context-based. Some binding units (usually lower one) should be reserved for DSA emulation and other operations.
 
-The DSA support is intended for internal use and is not exposed.
+The DSA support is intended for internal use and is not exposed. It is set as threadlocal variable whenever tries to get current RenderContext.
 
 ### Shader
 
@@ -140,15 +141,17 @@ Some common resources are widely used by shaders, so mapping is added to an vert
 
 `FuncName` should be `Mapping`. The syntax is `//@OGLU@Mapping(Type, VariableName)`, where `Type` is one of the following: 
 
-`ProjectMat`, `ViewMat`, `ModelMat`, `MVPMat`, `MVPNormMat`, `CamPosVec`, `VertPos` for uniforms.
-
-`VertNorm`, `VertTexc`, `VertColor`, `VertTan` for vertex attributes.
-
 #### DrawId
 
 `DrawId` is useful when performing multi-draw or indirect rendering. It allows vertex shader to know which primitives it is drawing. However, `gl_DrawID` requires [`ARB_shader_draw_parameters`](https://www.khronos.org/opengl/wiki/Built-in_Variable_(GLSL)#Vertex_shader_inputs). For those who does not support that extension, common solution is to [use vertex attribute with divisor](https://www.g-truc.net/post-0518.html). 
 
 OpenGLUtil provides a wrapper `ogluDrawId` to support both situation. When preparing the VAO, `VAOPrep` need to call `SetDrawId(prog)` even if `ARB_shader_draw_parameters` exists (when the extension exists, no target vertex attribute is defined so the operation will just be ignored).
+
+#### glLayer
+
+`gl_Layer` will be used for layered rendering, while using it in Fragment Shader requires glsl 4.3. For those version under 4.3, an varying variable will be provided to emulate it.
+
+OpenGLUtil provides a wrapper `ogluLayer` to support both situation. In this case `ogluSetLayer(int)` shoud be called to properly set layerID.
 
 ### Resource Management
 

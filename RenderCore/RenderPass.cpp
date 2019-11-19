@@ -151,18 +151,21 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     {
         oglu::oglFrameBuffer_::UseDefault();
     }
-    Program->SetProject(cam->GetProjection(float(scw) / sch));
-    Program->SetView(cam->GetView());
-    Program->SetVec("vecCamPos", cam->Position);
+    // set camera data
+    const auto projMat = cam->GetProjection(float(scw) / sch);
+    const auto viewMat = cam->GetView();
+    Program->SetMat("@ProjectMat", projMat);
+    Program->SetMat("@ProjectMat", viewMat);
+    Program->SetVec("@vecCamPos", cam->Position);
     {
-        auto drawcall = Program->Draw();
+        Drawable::Drawcall drawcall(Program, projMat, viewMat);
         for (const auto& d : Drawables)
         {
             const auto drw = d.lock();
             if (!drw || !drw->ShouldRender)
                 continue;
             drw->Draw(drawcall);
-            drawcall.Restore(true);
+            drawcall.Drawer.Restore(true);
         }
     }
     if (needNewCam)

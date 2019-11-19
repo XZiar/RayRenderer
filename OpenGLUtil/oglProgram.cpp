@@ -813,18 +813,7 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
 {
     map<string, string> defaultMapping =
     {
-        { "ProjectMat",  "oglu_matProj" },
-        { "ViewMat",     "oglu_matView" },
-        { "ModelMat",    "oglu_matModel" },
-        { "MVPNormMat",  "oglu_matNormal" },
-        { "MVPMat",      "oglu_matMVP" },
-        { "CamPosVec",   "oglu_camPos" },
-        { "DrawID",      "oglu_drawId" },
-        { "VertPos",     "oglu_vertPos" },
-        { "VertNorm",    "oglu_vertNorm" },
-        { "VertTexc",    "oglu_texPos" },
-        { "VertColor",   "oglu_vertColor" },
-        { "VertTan",     "oglu_vertTan" },
+        { "DrawID",      "ogluDrawId" }
     };
     ExtInfo.ResMappings.merge(defaultMapping);
     ResNameMapping.clear();
@@ -833,39 +822,12 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
         if (auto obj = FindInSet(ProgRess, varName); obj)
             ResNameMapping.insert_or_assign(target, obj);
     }
-    for (const auto& [target, res] : ResNameMapping)
-    {
-        switch (hash_(target))
-        {
-        case "ProjectMat"_hash:  Uni_projMat   = res->location; break; //projectMatrix
-        case "ViewMat"_hash:     Uni_viewMat   = res->location; break; //viewMatrix
-        case "ModelMat"_hash:    Uni_modelMat  = res->location; break; //modelMatrix
-        case "MVPMat"_hash:      Uni_mvpMat    = res->location; break; //model-view-project-Matrix
-        case "MVPNormMat"_hash:  Uni_normalMat = res->location; break; //model-view-project-Matrix
-        case "CamPosVec"_hash:   Uni_camPos    = res->location; break; //camera position
-        }
-    }
 }
 
-void oglDrawProgram_::SetProject(const Mat4x4& projMat)
-{
-    matrix_Proj = projMat;
-    SetUniform(Uni_projMat, matrix_Proj);
-}
 
-void oglDrawProgram_::SetView(const Mat4x4 & viewMat)
+ProgDraw oglDrawProgram_::Draw() noexcept
 {
-    matrix_View = viewMat;
-    SetUniform(Uni_viewMat, matrix_View);
-}
-
-ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
-{
-    return ProgDraw(*this, modelMat, normMat);
-}
-ProgDraw oglDrawProgram_::Draw(const Mat4x4& modelMat) noexcept
-{
-    return Draw(modelMat, (Mat3x3)modelMat);
+    return ProgDraw(*this);
 }
 
 oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
@@ -877,12 +839,11 @@ oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::st
 
 
 thread_local common::SpinLocker ProgDrawLocker;
-ProgDraw::ProgDraw(oglDrawProgram_& prog, const Mat4x4& modelMat, const Mat3x3& normMat) noexcept
+ProgDraw::ProgDraw(oglDrawProgram_& prog) noexcept
     : Prog(prog), Lock(ProgDrawLocker.LockScope()),
     TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
 {
     oglProgram_::usethis(Prog);
-    SetPosition(modelMat, normMat);
 }
 ProgDraw::~ProgDraw()
 {
@@ -958,17 +919,7 @@ std::weak_ptr<oglDrawProgram_> ProgDraw::GetProg() const noexcept
     return std::dynamic_pointer_cast<oglDrawProgram_>(Prog.shared_from_this());
 }
 
-ProgDraw& ProgDraw::SetPosition(const Mat4x4& modelMat, const Mat3x3& normMat)
-{
-    if (Prog.Uni_mvpMat != (GLint)GL_INVALID_INDEX)
-    {
-        const auto mvpMat = Prog.matrix_Proj * Prog.matrix_View * modelMat;
-        Prog.SetUniform(Prog.Uni_mvpMat, mvpMat);
-    }
-    Prog.SetUniform(Prog.Uni_modelMat, modelMat, false);
-    Prog.SetUniform(Prog.Uni_normalMat, normMat, false);
-    return *this;
-}
+
 ProgDraw& ProgDraw::Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     Prog.SetTexture(TexMan, TexCache);
