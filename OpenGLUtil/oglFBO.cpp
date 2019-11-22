@@ -8,6 +8,7 @@
 namespace oglu
 {
 MAKE_ENABLER_IMPL(oglRenderBuffer_)
+MAKE_ENABLER_IMPL(oglDefaultFrameBuffer_)
 MAKE_ENABLER_IMPL(oglFrameBuffer2D_)
 MAKE_ENABLER_IMPL(oglFrameBuffer3D_)
 
@@ -59,16 +60,28 @@ void oglRenderBuffer_::SetName(std::u16string name) noexcept
 }
 
 
-oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX)
+oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX), Width(0), Height(0)
 {
     DSA->ogluCreateFramebuffers(1, &FBOId);
     ColorAttachemnts.resize(DSA->MaxColorAttachment);
 }
+oglFrameBuffer_::oglFrameBuffer_(const GLuint id) : FBOId(id), Width(0), Height(0)
+{ }
 
 oglFrameBuffer_::~oglFrameBuffer_()
 {
     if (!EnsureValid()) return;
     DSA->ogluDeleteFramebuffers(1, &FBOId);
+}
+
+void oglFrameBuffer_::CheckSizeMatch(const uint32_t width, const uint32_t height)
+{
+    if (Width != 0 && Width != width)
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Framebuffer's width  not match");
+    if (Height != 0 && Height != height)
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Framebuffer's height not match");
+    Width = width; Height = height;
+    RefreshViewPort();
 }
 
 void oglFrameBuffer_::SetName(std::u16string name) noexcept
@@ -84,6 +97,12 @@ GLuint oglFrameBuffer_::GetID(const oglRBO& rbo)
 GLuint oglFrameBuffer_::GetID(const oglTexBase& tex)
 {
     return tex->TextureID;
+}
+
+void oglFrameBuffer_::RefreshViewPort() const
+{
+    if (DSA->DrawFBO == FBOId)
+        DSA->ogluViewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
 }
 
 FBOStatus oglFrameBuffer_::CheckStatus() const
@@ -118,16 +137,12 @@ void oglFrameBuffer_::Use() const
 {
     CheckCurrent();
     DSA->ogluBindFramebuffer(GL_FRAMEBUFFER, FBOId);
+    RefreshViewPort();
 }
 
 std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding() const
 {
     return oglFrameBuffer_::DebugBinding(FBOId);
-}
-
-void oglFrameBuffer_::UseDefault()
-{
-    DSA->ogluBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding(GLuint id)
@@ -139,7 +154,54 @@ std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding(GLuint id)
 }
 
 
-oglFrameBuffer2D_::oglFrameBuffer2D_() : oglFrameBuffer_()
+static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    const auto& [x0, y0, x1, y1] = rect;
+    DSA->ogluBlitNamedFramebuffer(from, to, x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+void oglFrameBuffer2DBase_::BlitColorTo(const oglFBO2DBase& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    CheckCurrent();
+    to->CheckCurrent();
+    BlitColor(FBOId, to->FBOId, rect);
+}
+void oglFrameBuffer2DBase_::BlitColorFrom(const oglFBO2DBase& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
+{
+    CheckCurrent();
+    from->CheckCurrent();
+    BlitColor(from->FBOId, FBOId, rect);
+}
+
+
+oglDefaultFrameBuffer_::oglDefaultFrameBuffer_() : oglFrameBuffer2DBase_(0)
+{
+    const auto viewport = oglContext_::CurrentContext()->GetViewPort();
+    Width = viewport.z; Height = viewport.w;
+}
+
+oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
+{ }
+
+void oglDefaultFrameBuffer_::SetWindowSize(const uint32_t width, const uint32_t height)
+{
+    Width = width; Height = height;
+    RefreshViewPort();
+}
+
+struct DefFBOCtxConfig : public CtxResConfig<false, oglDefaultFBO>
+{
+    oglDefaultFBO Construct() const { return MAKE_ENABLER_SHARED(oglDefaultFrameBuffer_, ()); }
+};
+static DefFBOCtxConfig DEFFBO_CTXCFG;
+
+oglDefaultFBO oglDefaultFrameBuffer_::Get()
+{
+    return oglContext_::CurrentContext()->GetOrCreate<false>(DEFFBO_CTXCFG);
+}
+
+
+oglFrameBuffer2D_::oglFrameBuffer2D_() : oglFrameBuffer2DBase_()
 { }
 oglFrameBuffer2D_::~oglFrameBuffer2D_()
 { }
@@ -147,24 +209,25 @@ oglFrameBuffer2D_::~oglFrameBuffer2D_()
 void oglFrameBuffer2D_::AttachColorTexture(const oglTex2D& tex, const uint8_t attachment)
 {
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
 }
 
 void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment)
 {
-    if (layer >= tex->Layers)
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"texture layer overflow");
+    Expects(layer < tex->Layers); // u"texture layer overflow"
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTextureLayer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0, layer);
     ColorAttachemnts[attachment] = std::make_pair(tex, layer);
 }
 
 void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
 {
-    if (rbo->GetType() != RBOFormat::TYPE_COLOR)
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+    Expects(rbo->GetType() == RBOFormat::TYPE_COLOR); // u"rbo type missmatch"
     CheckCurrent();
+    CheckSizeMatch(rbo);
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, GetID(rbo));
     ColorAttachemnts[attachment] = rbo;
 }
@@ -172,15 +235,16 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t atta
 void oglFrameBuffer2D_::AttachDepthTexture(const oglTex2D& tex)
 {
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     DepthAttachment = tex;
 }
 
 void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
 {
-    if (rbo->GetType() != RBOFormat::TYPE_DEPTH)
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+    Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH); // u"rbo type missmatch"
     CheckCurrent();
+    CheckSizeMatch(rbo);
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo;
 }
@@ -188,47 +252,27 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
 void oglFrameBuffer2D_::AttachStencilTexture(const oglTex2D& tex)
 {
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     StencilAttachment = tex;
 }
 
 void oglFrameBuffer2D_::AttachStencilTexture(const oglRBO& rbo)
 {
-    if (rbo->GetType() != RBOFormat::TYPE_STENCIL)
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+    Expects(rbo->GetType() == RBOFormat::TYPE_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
+    CheckSizeMatch(rbo);
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     StencilAttachment = rbo;
 }
 
 void oglFrameBuffer2D_::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
-    if (rbo->GetType() != RBOFormat::TYPE_DEPTH_STENCIL)
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"rbo type missmatch");
+    Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
+    CheckSizeMatch(rbo);
     DSA->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo; StencilAttachment = rbo;
-}
-
-static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
-{
-    const auto& [x0, y0, x1, y1] = rect;
-    DSA->ogluBlitNamedFramebuffer(from, to, x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-}
-
-void oglFrameBuffer2D_::BlitColorTo(const oglFBO2D& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
-{
-    CheckCurrent();
-    if (to)
-        to->CheckCurrent();
-    BlitColor(FBOId, to ? to->FBOId : 0, rect);
-}
-void oglFrameBuffer2D_::BlitColorFrom(const oglFBO2D& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
-{
-    CheckCurrent();
-    if (from)
-        from->CheckCurrent();
-    BlitColor(from ? from->FBOId : 0, FBOId, rect);
 }
 
 oglFBO2D oglFrameBuffer2D_::Create()
@@ -253,6 +297,7 @@ void oglFrameBuffer3D_::AttachColorTexture(const oglTex3D& tex, const uint8_t at
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_3D, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
 }
@@ -261,6 +306,7 @@ void oglFrameBuffer3D_::AttachColorTexture(const oglTex2DArray& tex, const uint8
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
 }
@@ -269,6 +315,7 @@ void oglFrameBuffer3D_::AttachDepthTexture(const oglTex3D& tex)
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     DepthAttachment = tex;
 }
@@ -277,6 +324,7 @@ void oglFrameBuffer3D_::AttachDepthTexture(const oglTex2DArray& tex)
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     DepthAttachment = tex;
 }
@@ -285,6 +333,7 @@ void oglFrameBuffer3D_::AttachStencilTexture(const oglTex3D& tex)
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     StencilAttachment = tex;
 }
@@ -293,6 +342,7 @@ void oglFrameBuffer3D_::AttachStencilTexture(const oglTex2DArray& tex)
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
+    CheckSizeMatch(tex);
     DSA->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     StencilAttachment = tex;
 }

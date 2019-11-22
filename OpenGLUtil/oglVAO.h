@@ -71,7 +71,9 @@ struct IsVAComp<VAComponent<T, IsNormalize_, Size_, Offset_>> : public std::true
 }
 
 
-class OGLUAPI oglVAO_ : public common::NonMovable, public detail::oglCtxObject<false>
+class OGLUAPI oglVAO_ : 
+    public common::NonMovable, 
+    public detail::oglCtxObject<false>  // GL Container objects
 {
     friend class oglProgram_;
 private:

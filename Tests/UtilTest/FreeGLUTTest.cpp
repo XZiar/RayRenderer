@@ -52,7 +52,7 @@ struct Lutter
     void DoLut(const oglContext& ctx)
     {
         LUTFrame->Use();
-        ctx->SetViewPort(0, 0, 64, 64);
+        //ctx->SetViewPort(0, 0, 64, 64);
         LutGenerator->Draw()
             .Draw(VAOScreen);
     }
@@ -120,8 +120,8 @@ static void FGTest()
         if (shouldLut)
         {
             lutter->DoLut(ctx);
-            oglu::oglFrameBuffer_::UseDefault();
-            ctx->SetViewPort(0, 0, width, height);
+            oglu::oglDefaultFrameBuffer_::Get()->Use();
+            //ctx->SetViewPort(0, 0, width, height);
         }
         drawer->Draw()
             .SetUniform("lutZ", lutZ)
@@ -131,7 +131,7 @@ static void FGTest()
     window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)
     {
         ctx->UseContext(true);
-        ctx->SetViewPort(0, 0, w, h);
+        oglDefaultFrameBuffer_::Get()->SetWindowSize(w, h);
         width = w, height = h;
         log().verbose(u"Resize to [{},{}].\n", w, h);
     };

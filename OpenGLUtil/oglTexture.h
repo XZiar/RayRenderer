@@ -126,15 +126,15 @@ protected:
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
     void Clear(const xziar::img::TextureFormat format);
 public:
-    virtual ~oglTexBase_() noexcept;
+    virtual ~oglTexBase_();
     void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
-    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype) 
-    {
-        SetProperty(filtertype, filtertype); 
-        SetProperty(wraptype);
-    }
     void SetProperty(const TextureFilterVal filtertype) { SetProperty(filtertype, filtertype); }
     virtual void SetProperty(const TextureWrapVal wraptype) = 0;
+    void SetProperty(const TextureFilterVal filtertype, const TextureWrapVal wraptype)
+    {
+        SetProperty(filtertype, filtertype);
+        SetProperty(wraptype);
+    }
     void SetName(std::u16string name) noexcept;
 
     [[nodiscard]] bool IsCompressed() const;
@@ -142,6 +142,7 @@ public:
     [[nodiscard]] xziar::img::TextureFormat GetInnerFormat() const noexcept { return InnerFormat; }
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 };
+
 
 template<typename Base>
 struct oglTexCommon_
@@ -178,7 +179,6 @@ struct oglTexCommon_
     }
 };
 
-class oglTex2DView_;
 
 class OGLUAPI oglTex2D_ : public oglTexBase_, protected oglTexCommon_<oglTex2D_>
 {
@@ -196,14 +196,17 @@ protected:
     using oglTexCommon_<oglTex2D_>::SetData;
     using oglTexCommon_<oglTex2D_>::SetCompressedData;
 public:
+    ~oglTex2D_() override;
+    void SetProperty(const TextureWrapVal wraptype) override;
+
     [[nodiscard]] std::pair<uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height }; }
-    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
     using oglTexBase_::SetProperty;
     [[nodiscard]] std::optional<std::vector<uint8_t>> GetCompressedData(const uint8_t level = 0);
     [[nodiscard]] std::vector<uint8_t> GetData(const xziar::img::TextureFormat format, const uint8_t level = 0);
     [[nodiscard]] xziar::img::Image GetImage(const xziar::img::ImageDataType format, const bool flipY = true, const uint8_t level = 0);
 };
+
 
 class oglTex2DArray_;
 class oglTex2DStatic_;
@@ -307,6 +310,7 @@ public:
 ///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI oglTex2DArray_ : public oglTexBase_
 {
+    friend class oglFrameBuffer_;
     friend class oglFrameBuffer2D_;
     friend class oglFrameBuffer3D_;
     friend class oglTex2DView_;
@@ -318,8 +322,10 @@ private:
     oglTex2DArray_(const oglTex2DArray& old, const uint32_t layerAdd);
     void CheckLayerRange(const uint32_t layer) const;
 public:
+    ~oglTex2DArray_() override;
+    void SetProperty(const TextureWrapVal wraptype) override;
+
     [[nodiscard]] std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const { return { Width, Height, Layers }; }
-    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype); };
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT) { SetWrapProperty(wrapS, wrapT); }
     using oglTexBase_::SetProperty;
     void SetTextureLayer(const uint32_t layer, const oglTex2D& tex);
@@ -342,6 +348,7 @@ class OGLUAPI oglTex3D_ : public oglTexBase_, protected oglTexCommon_<oglTex3D_>
 {
     friend oglTexCommon_<oglTex3D_>;
     friend class ::oclu::oclGLBuffer_;
+    friend class oglFrameBuffer_;
     friend class oglFrameBuffer3D_;
 protected:
     uint32_t Width, Height, Depth;
@@ -354,7 +361,9 @@ protected:
     using oglTexCommon_<oglTex3D_>::SetData;
     using oglTexCommon_<oglTex3D_>::SetCompressedData;
 public:
-    virtual void SetProperty(const TextureWrapVal wraptype) override { SetWrapProperty(wraptype, wraptype, wraptype); };
+    ~oglTex3D_() override;
+    void SetProperty(const TextureWrapVal wraptype) override;;
+    
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR) { SetWrapProperty(wrapS, wrapT, wrapR); }
     using oglTexBase_::SetProperty;
     [[nodiscard]] std::tuple<uint32_t, uint32_t, uint32_t> GetSize() const noexcept { return { Width, Height, Depth }; }
@@ -414,7 +423,7 @@ protected:
     oglTBO InnerBuf;
 public:
     //static oglBufTex Create();
-    virtual ~oglBufferTexture_() noexcept {}
+    ~oglBufferTexture_() override;
     void SetBuffer(const xziar::img::TextureFormat format, const oglTBO& tbo);
 };
 

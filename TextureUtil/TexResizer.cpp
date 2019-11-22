@@ -66,10 +66,6 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
-        OutputFrame = oglFrameBuffer2D_::Create();
-        OutputFrame->SetName(u"TexResizerFBO");
-        OutputFrame->Use();
-
         if (CLContext)
         {
             try
@@ -111,7 +107,6 @@ TexResizer::~TexResizer()
         ScreenBox.reset();
         NormalVAO.reset();
         FlipYVAO.reset();
-        OutputFrame.reset();
     })->Wait();
 }
 
@@ -203,11 +198,11 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
         auto outtex = oglTex2DStatic_::Create(width, height, output);
         outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
 
-        OutputFrame->AttachColorTexture(outtex, 0);
-        //oglRBO mainRBO(width, height, oglu::RBOFormat::Depth);
-        //OutputFrame->AttachDepthTexture(mainRBO);
-        texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, OutputFrame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-        GLContext->SetViewPort(0, 0, width, height);
+        const auto frame = oglFrameBuffer2D_::Create();
+        frame->SetName(u"TexResizerFBO");
+        frame->AttachColorTexture(outtex, 0);
+        texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, frame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
+        frame->Use();
         GLContext->ClearFBO();
         GLResizer->Draw()
             .SetTexture(tex, "tex")

@@ -213,7 +213,7 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
 {
     RefreshContext();
     WindowWidth = static_cast<uint16_t>(std::clamp<uint32_t>(w, 8, UINT16_MAX)), WindowHeight = static_cast<uint16_t>(std::clamp<uint32_t>(h, 8, UINT16_MAX));
-    GLContext->SetViewPort(0, 0, WindowWidth, WindowHeight);
+    oglDefaultFrameBuffer_::Get()->SetWindowSize(WindowWidth, WindowHeight);
 }
 
 vector<std::shared_ptr<common::Controllable>> RenderCore::GetControllables() const noexcept
@@ -383,7 +383,7 @@ xziar::img::Image RenderCore::Screenshot()
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
     ssFBO->AttachColorTexture(ssTex, 0);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
-    ssFBO->BlitColorFrom({}, { 0, 0, (int32_t)width, (int32_t)height });
+    ssFBO->BlitColorFrom(oglu::oglDefaultFrameBuffer_::Get(), { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);
 }
 

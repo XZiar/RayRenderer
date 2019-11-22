@@ -118,7 +118,6 @@ public:
     {
         const auto ctx = oglu::oglContext_::CurrentContext();
         LUTFrame->Use();
-        ctx->SetViewPort(0, 0, LutSize, LutSize);
         LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
         LutGenerator->Draw()
             .Draw(VAOScreen);
@@ -247,7 +246,7 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 {
     if (EnablePostProcess)
     {
-        oglu::oglFrameBuffer_::UseDefault();
+        oglu::oglDefaultFrameBuffer_::Get()->Use();
         GLContext->SetSRGBFBO(false);
 
         const auto cam = context.GetScene()->GetCamera();

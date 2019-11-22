@@ -143,13 +143,11 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     const auto[scw, sch] = context.GetScreenSize();
     if (needNewCam)
     {
-        const auto[w, h] = fboTex->GetSize();
         fbo->Use();
-        GLContext->SetViewPort(0, 0, w, h);
     }
     else
     {
-        oglu::oglFrameBuffer_::UseDefault();
+        oglu::oglDefaultFrameBuffer_::Get()->Use();
     }
     // set camera data
     const auto projMat = cam->GetProjection(float(scw) / sch);
@@ -167,10 +165,6 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
             drw->Draw(drawcall);
             drawcall.Drawer.Restore(true);
         }
-    }
-    if (needNewCam)
-    {
-        GLContext->SetViewPort(0, 0, scw, sch);
     }
 
 }
@@ -209,9 +203,7 @@ void RenderPipeLine::Render(RenderPassContext context)
     {
         pass->Prepare(context);
     }
-    oglu::oglFrameBuffer_::UseDefault();
-    const auto [scw, sch] = context.GetScreenSize();
-    GLContext->SetViewPort(0, 0, scw, sch);
+    oglu::oglDefaultFrameBuffer_::Get()->Use();
     GLContext->SetSRGBFBO(true);
     for (auto& pass : Passes)
     {

@@ -116,7 +116,7 @@ oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noex
     RegistTexture(*this);
 }
 
-oglTexBase_::~oglTexBase_() noexcept
+oglTexBase_::~oglTexBase_()
 {
     if (!EnsureValid()) return;
     UnregistTexture(*this);
@@ -247,6 +247,14 @@ bool oglTexBase_::IsCompressed() const
     return ret != GL_FALSE;
 }
 
+
+oglTex2D_::~oglTex2D_()
+{ }
+
+void oglTex2D_::SetProperty(const TextureWrapVal wraptype) 
+{ 
+    SetWrapProperty(wraptype, wraptype);
+}
 
 void oglTex2D_::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data, const uint8_t level)
 {
@@ -442,6 +450,14 @@ void oglTex2DDynamic_::SetCompressedData(const TextureFormat format, const uint3
 }
 
 
+oglTex2DArray_::~oglTex2DArray_()
+{ }
+
+void oglTex2DArray_::SetProperty(const TextureWrapVal wraptype) 
+{ 
+    SetWrapProperty(wraptype, wraptype);
+}
+
 oglTex2DArray_::oglTex2DArray_(const uint32_t width, const uint32_t height, const uint32_t layers, const TextureFormat format, const uint8_t mipmap)
     : oglTexBase_(TextureType::Tex2DArray, true)
 {
@@ -549,6 +565,14 @@ oglTex2DV oglTex2DArray_::ViewTextureLayer(const uint32_t layer, const TextureFo
     return tex;
 }
 
+
+oglTex3D_::~oglTex3D_()
+{ }
+
+void oglTex3D_::SetProperty(const TextureWrapVal wraptype) 
+{ 
+    SetWrapProperty(wraptype, wraptype, wraptype);
+}
 
 void oglTex3D_::SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void * data, const uint8_t level)
 {
@@ -658,8 +682,10 @@ oglTex3DV oglTex3DStatic_::GetTextureView(const TextureFormat format) const
 
 
 oglBufferTexture_::oglBufferTexture_() noexcept : oglTexBase_(TextureType::TexBuf, true)
-{
-}
+{ }
+
+oglBufferTexture_::~oglBufferTexture_()
+{ }
 //oglBufTex oglBufferTexture_::Create()
 //{
 //    return MAKE_ENABLER_SHARED(oglBufferTexture_)();

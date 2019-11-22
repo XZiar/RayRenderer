@@ -352,11 +352,11 @@ void oglContext_::ClearFBO()
     DSA->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void oglContext_::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
-{
-    CHECKCURRENT();
-    DSA->ogluViewport(x, y, (GLsizei)width, (GLsizei)height);
-}
+//void oglContext_::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
+//{
+//    CHECKCURRENT();
+//    DSA->ogluViewport(x, y, (GLsizei)width, (GLsizei)height);
+//}
 
 miniBLAS::VecI4 oglContext_::GetViewPort() const
 {

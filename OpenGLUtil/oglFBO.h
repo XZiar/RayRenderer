@@ -14,6 +14,10 @@ class oglRenderBuffer_;
 using oglRBO = std::shared_ptr<oglRenderBuffer_>;
 class oglFrameBuffer_;
 using oglFBO = std::shared_ptr<oglFrameBuffer_>;
+class oglFrameBuffer2DBase_;
+using oglFBO2DBase = std::shared_ptr<oglFrameBuffer2DBase_>;
+class oglDefaultFrameBuffer_;
+using oglDefaultFBO = std::shared_ptr<oglDefaultFrameBuffer_>;
 class oglFrameBuffer2D_;
 using oglFBO2D = std::shared_ptr<oglFrameBuffer2D_>;
 class oglFrameBuffer3D_;
@@ -45,8 +49,8 @@ private:
     MAKE_ENABLER();
     std::u16string Name;
     GLuint RBOId;
-    const RBOFormat InnerFormat;
-    const uint32_t Width, Height;
+    RBOFormat InnerFormat;
+    uint32_t Width, Height;
     oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format);
 public:
     ~oglRenderBuffer_();
@@ -60,20 +64,32 @@ public:
 };
 
 
-class OGLUAPI oglFrameBuffer_ : public common::NonMovable, public detail::oglCtxObject<false>
+class OGLUAPI oglFrameBuffer_ : 
+    public common::NonMovable, 
+    public detail::oglCtxObject<false> // GL Container objects
 {
     friend class oglContext_;
 public:
     using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
+private:
+    void CheckSizeMatch(const uint32_t width, const uint32_t height);
 protected:
+    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
+    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
+
     std::u16string Name;
     GLuint FBOId;
     std::vector<FBOAttachment> ColorAttachemnts;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
+    uint32_t Width, Height;
     oglFrameBuffer_();
-    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
-    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
+    oglFrameBuffer_(const GLuint id);
+    void RefreshViewPort() const;
+    void CheckSizeMatch(const oglRBO& rbo)          { CheckSizeMatch(rbo->Width, rbo->Height); }
+    void CheckSizeMatch(const oglTex2D& tex)        { CheckSizeMatch(tex->Width, tex->Height); }
+    void CheckSizeMatch(const oglTex2DArray& tex)   { CheckSizeMatch(tex->Width, tex->Height); }
+    void CheckSizeMatch(const oglTex3D& tex)        { CheckSizeMatch(tex->Width, tex->Height); }
 public:
     ~oglFrameBuffer_();
 
@@ -84,12 +100,38 @@ public:
     [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
-    static void UseDefault();
     [[nodiscard]] static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
 };
 
 
-class OGLUAPI oglFrameBuffer2D_ : public oglFrameBuffer_
+class OGLUAPI oglFrameBuffer2DBase_ : public oglFrameBuffer_
+{
+    friend class oglContext_;
+protected:
+    using oglFrameBuffer_::oglFrameBuffer_;
+public:
+    void BlitColorTo(const oglFBO2DBase& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorFrom(const oglFBO2DBase& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+};
+
+
+class OGLUAPI oglDefaultFrameBuffer_ : public oglFrameBuffer2DBase_
+{
+    friend class oglContext_;
+    friend struct DefFBOCtxConfig;
+private:
+    MAKE_ENABLER();
+    oglDefaultFrameBuffer_();
+public:
+    ~oglDefaultFrameBuffer_();
+
+    void SetWindowSize(const uint32_t width, const uint32_t height);
+
+    [[nodiscard]] static oglDefaultFBO Get();
+};
+
+
+class OGLUAPI oglFrameBuffer2D_ : public oglFrameBuffer2DBase_
 {
     friend class oglContext_;
 private:
@@ -105,9 +147,6 @@ public:
     void AttachStencilTexture(const oglTex2D& tex);
     void AttachStencilTexture(const oglRBO& rbo);
     void AttachDepthStencilBuffer(const oglRBO& rbo);
-
-    void BlitColorTo(const oglFBO2D& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-    void BlitColorFrom(const oglFBO2D& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
 
     [[nodiscard]] static oglFBO2D Create();
 };
