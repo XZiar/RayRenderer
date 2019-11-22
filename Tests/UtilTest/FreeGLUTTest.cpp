@@ -54,7 +54,7 @@ struct Lutter
         LUTFrame->Use();
         //ctx->SetViewPort(0, 0, 64, 64);
         LutGenerator->Draw()
-            .Draw(VAOScreen);
+            .DrawInstance(VAOScreen, 64);
     }
 };
 

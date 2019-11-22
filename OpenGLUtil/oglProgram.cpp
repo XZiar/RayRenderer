@@ -920,13 +920,27 @@ std::weak_ptr<oglDrawProgram_> ProgDraw::GetProg() const noexcept
 }
 
 
-ProgDraw& ProgDraw::Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset)
+ProgDraw& ProgDraw::DrawRange(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     Prog.SetTexture(TexMan, TexCache);
     Prog.SetImage(ImgMan, ImgCache);
     Prog.SetUBO(UboMan, UBOCache);
     Prog.SetSubroutine();
-    vao->Draw(size, offset);
+    vao->RangeDraw(size, offset);
+    TexCache.clear();
+    ImgCache.clear();
+    UBOCache.clear();
+    return *this;
+}
+
+ProgDraw& oglu::ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base)
+{
+    Prog.SetTexture(TexMan, TexCache);
+    Prog.SetImage(ImgMan, ImgCache);
+    Prog.SetUBO(UboMan, UBOCache);
+    Prog.SetSubroutine();
+    Prog.SetUniform(Prog.GetLoc("@BaseInstance", oglProgram_::UniformType::INT), static_cast<int32_t>(base), false);
+    vao->InstanceDraw(count, base);
     TexCache.clear();
     ImgCache.clear();
     UBOCache.clear();

@@ -129,16 +129,18 @@ public:
     void (GLAPIENTRY *ogluDrawElements) (GLenum mode, GLsizei count, GLenum type, const void* indices) = nullptr;
     void (GLAPIENTRY *ogluMultiDrawArrays) (GLenum mode, const GLint* first, const GLsizei* count, GLsizei drawcount) = nullptr;
     void (GLAPIENTRY *ogluMultiDrawElements) (GLenum mode, const GLsizei* count, GLenum type, const void* const* indices, GLsizei drawcount) = nullptr;
-    void (GLAPIENTRY *ogluMultiDrawArraysIndirect_) (GLenum mode, const void* indirect, GLsizei primcount, GLsizei stride) = nullptr;
-    void (GLAPIENTRY *ogluDrawArraysInstancedBaseInstance_) (GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance) = nullptr;
-    void (GLAPIENTRY *ogluDrawArraysInstanced_) (GLenum mode, GLint first, GLsizei count, GLsizei primcount);
-    void (GLAPIENTRY *ogluMultiDrawElementsIndirect_) (GLenum mode, GLenum type, const void* indirect, GLsizei primcount, GLsizei stride) = nullptr;
-    void (GLAPIENTRY *ogluDrawElementsInstancedBaseVertexBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount, GLint basevertex, GLuint baseinstance) = nullptr;
-    void (GLAPIENTRY *ogluDrawElementsInstancedBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount, GLuint baseinstance) = nullptr;
-    void (GLAPIENTRY *ogluDrawElementsInstanced_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount) = nullptr;
+    void (GLAPIENTRY *ogluMultiDrawArraysIndirect_) (GLenum mode, const void* indirect, GLsizei drawcount, GLsizei stride) = nullptr;
+    void (GLAPIENTRY *ogluDrawArraysInstancedBaseInstance_) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance) = nullptr;
+    void (GLAPIENTRY *ogluDrawArraysInstanced_) (GLenum mode, GLint first, GLsizei count, GLsizei instancecount);
+    void (GLAPIENTRY *ogluMultiDrawElementsIndirect_) (GLenum mode, GLenum type, const void* indirect, GLsizei drawcount, GLsizei stride) = nullptr;
+    void (GLAPIENTRY *ogluDrawElementsInstancedBaseVertexBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance) = nullptr;
+    void (GLAPIENTRY *ogluDrawElementsInstancedBaseInstance_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount, GLuint baseinstance) = nullptr;
+    void (GLAPIENTRY *ogluDrawElementsInstanced_) (GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei instancecount) = nullptr;
 
-    void ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const;
-    void ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const;
+    void ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const;
+    void ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const;
+    void ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const;
+    void ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const;
 
     // texture related
     void (GLAPIENTRY *ogluGenTextures) (GLsizei n, GLuint* textures) = nullptr;
@@ -427,12 +429,6 @@ public:
     void ogluSetObjectLabel(GLsync sync, std::u16string_view name) const;
 
     // others
-    bool SupportDebug;
-    bool SupportSRGB;
-    bool SupportClipControl;
-    bool SupportImageLoadStore;
-    bool SupportComputeShader;
-    bool SupportTessShader;
     GLenum         (GLAPIENTRY *ogluGetError) () = nullptr;
     void           (GLAPIENTRY *ogluGetFloatv) (GLenum pname, GLfloat* params) = nullptr;
     void           (GLAPIENTRY *ogluGetIntegerv) (GLenum pname, GLint* params) = nullptr;
@@ -458,6 +454,14 @@ public:
 
     void ogluClearDepth(GLclampd d) const;
     
+    bool SupportDebug           = false;
+    bool SupportSRGB            = false;
+    bool SupportClipControl     = false;
+    bool SupportImageLoadStore  = false;
+    bool SupportComputeShader   = false;
+    bool SupportTessShader      = false;
+    bool SupportBaseInstance    = false;
+
     DSAFuncs();
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;

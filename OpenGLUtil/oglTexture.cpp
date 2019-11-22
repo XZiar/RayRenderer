@@ -853,7 +853,6 @@ GLenum OGLTexUtil::GetInnerFormat(const TextureFormat format) noexcept
 bool OGLTexUtil::ParseFormat(const TextureFormat format, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept
 {
     const auto category = format & TextureFormat::MASK_DTYPE_CAT;
-    const auto dtype = format & TextureFormat::MASK_DTYPE_RAW;
     const bool normalized = TexFormatUtil::IsNormalized(format);
     switch (category)
     {

@@ -700,6 +700,7 @@ DSAFuncs::DSAFuncs()
     SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
+    SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS
@@ -808,18 +809,40 @@ void DSAFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, G
 }
 
 
-void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const
+void DSAFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
+{
+    CALL_EXISTS(ogluDrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
+    CALL_EXISTS(ogluDrawArraysInstanced_, mode, first, count, static_cast<GLsizei>(instancecount)) // baseInstance ignored
+    {
+        for (uint32_t i = 0; i < instancecount; i++)
+        {
+            ogluDrawArrays(mode, first, count);
+        }
+    }
+}
+void DSAFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
+{
+    CALL_EXISTS(ogluDrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
+    CALL_EXISTS(ogluDrawElementsInstanced_, mode, count, type, indices, static_cast<GLsizei>(instancecount)) // baseInstance ignored
+    {
+        for (uint32_t i = 0; i < instancecount; i++)
+        {
+            ogluDrawElements(mode, count, type, indices);
+        }
+    }
+}
+void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
     if (ogluMultiDrawArraysIndirect_)
     {
         ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
         const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
-        ogluMultiDrawArraysIndirect_(mode, pointer, primcount, 0);
+        ogluMultiDrawArraysIndirect_(mode, pointer, drawcount, 0);
     }
     else if (ogluDrawArraysInstancedBaseInstance_)
     {
         const auto& cmd = indirect.GetArrayCommands();
-        for (GLsizei i = offset; i < primcount; i++)
+        for (GLsizei i = offset; i < drawcount; i++)
         {
             ogluDrawArraysInstancedBaseInstance_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
         }
@@ -827,7 +850,7 @@ void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_
     else if (ogluDrawArraysInstanced_)
     {
         const auto& cmd = indirect.GetArrayCommands();
-        for (GLsizei i = offset; i < primcount; i++)
+        for (GLsizei i = offset; i < drawcount; i++)
         {
             ogluDrawArraysInstanced_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
         }
@@ -837,18 +860,18 @@ void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
     }
 }
-void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei primcount) const
+void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
     if (ogluMultiDrawElementsIndirect_)
     {
         ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
         const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
-        ogluMultiDrawElementsIndirect_(mode, type, pointer, primcount, 0);
+        ogluMultiDrawElementsIndirect_(mode, type, pointer, drawcount, 0);
     }
     else if (ogluDrawElementsInstancedBaseVertexBaseInstance_)
     {
         const auto& cmd = indirect.GetElementCommands();
-        for (GLsizei i = offset; i < primcount; i++)
+        for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
             ogluDrawElementsInstancedBaseVertexBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
@@ -857,7 +880,7 @@ void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const ogl
     else if (ogluDrawElementsInstancedBaseInstance_)
     {
         const auto& cmd = indirect.GetElementCommands();
-        for (GLsizei i = offset; i < primcount; i++)
+        for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
             ogluDrawElementsInstancedBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseInstance); // baseInstance ignored
@@ -866,7 +889,7 @@ void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const ogl
     else if (ogluDrawElementsInstanced_)
     {
         const auto& cmd = indirect.GetElementCommands();
-        for (GLsizei i = offset; i < primcount; i++)
+        for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
             ogluDrawElementsInstanced_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount); // baseInstance & baseVertex ignored

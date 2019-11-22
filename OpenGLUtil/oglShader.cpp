@@ -197,15 +197,24 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 constexpr static auto OGLU_DEFS = R"(
 #line 100000
 #extension GL_ARB_shader_draw_parameters : enable
+#extension GL_ARB_draw_instanced : enable
+#extension GL_EXT_draw_instanced : enable
 #if defined(OGLU_VERT)
+
 #   define GLVARY out
+
 #   if defined(GL_ARB_shader_draw_parameters) && GL_ARB_shader_draw_parameters
 #       define ogluDrawId gl_DrawIDARB
+#       define ogluBaseInstance gl_BaseInstance
 #   else
         //@OGLU@Mapping(DrawID, "ogluDrawId")
         in int ogluDrawId;
+        //@OGLU@Mapping(BaseInstance, "ogluBaseInstance")
+        uniform int ogluBaseInstance;
 #   endif
+
 #elif defined(OGLU_GEOM)
+
 #   if __VERSION__ >= 430
 #       define ogluLayer gl_Layer
         void ogluSetLayer(int layer)
@@ -219,15 +228,21 @@ constexpr static auto OGLU_DEFS = R"(
             gl_Layer = ogluLayer = layer;
         }
 #   endif
+
 #elif defined(OGLU_FRAG)
+
 #   define GLVARY in
+
 #   if __VERSION__ >= 430
 #       define ogluLayer gl_Layer
 #   else
         flat in int ogluLayer;
 #   endif
+
 #else
+
 #   define GLVARY 
+
 #endif
 )"sv;
 

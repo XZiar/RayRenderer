@@ -272,11 +272,16 @@ public:
     ///<returns>self</returns>
     ProgDraw& Restore(const bool quick = false);
     std::weak_ptr<oglDrawProgram_> GetProg() const noexcept;
-    ///<summary>draw actual vao</summary>  
+    ///<summary>draw vao range</summary>  
     ///<param name="size">elements count being drawed</param>
     ///<param name="offset">elements offset</param>
     ///<returns>self</returns>
-    ProgDraw& Draw(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
+    ProgDraw& DrawRange(const oglVAO& vao, const uint32_t size, const uint32_t offset = 0);
+    ///<summary>instanced draw actual vao</summary>  
+    ///<param name="count">instance count being drawed</param>
+    ///<param name="base">base instance</param>
+    ///<returns>self</returns>
+    ProgDraw& DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base = 0);
     ProgDraw& Draw(const oglVAO& vao);
     ProgDraw& SetTexture(const oglTexBase& tex, const std::string& name, const GLuint idx = 0);
     ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);

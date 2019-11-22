@@ -362,7 +362,7 @@ protected:
     using oglTexCommon_<oglTex3D_>::SetCompressedData;
 public:
     ~oglTex3D_() override;
-    void SetProperty(const TextureWrapVal wraptype) override;;
+    void SetProperty(const TextureWrapVal wraptype) override;
     
     void SetProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR) { SetWrapProperty(wrapS, wrapT, wrapR); }
     using oglTexBase_::SetProperty;

@@ -3,12 +3,6 @@
 #extension GL_ARB_shader_subroutine			: require
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 
-#if defined(OGLU_VERT) || defined(OGLU_FRAG)
-GLVARY perVert
-{
-    vec2 tpos;
-};
-#endif
 #if defined(OGLU_COMP)
 #   extension GL_ARB_shader_image_load_store	: require
 #endif
@@ -17,10 +11,12 @@ GLVARY perVert
 
 //@OGLU@Mapping(VertPos, "vertPos")
 layout(location = 0) in vec2 vertPos;
+flat out int layerIdx;
 
 void main()
 {
     gl_Position = vec4(vertPos.xy, 1.0f, 1.0f);
+    layerIdx = gl_InstanceID;
 }
 
 #endif
@@ -159,21 +155,23 @@ void main()
 #endif
 
 #if defined(OGLU_GEOM)
+
 uniform int lutSize;
+
 layout (triangles) in;
-layout (triangle_strip, max_vertices = 144) out;
+layout (triangle_strip, max_vertices = 3) out;
+
+flat in int layerIdx[];
+
 void main()
 {
-    for (int layer = 0; layer < lutSize; ++layer)
+    for(int i = 0; i < gl_in.length(); ++i)
     {
-        for(int i = 0; i < gl_in.length(); ++i)
-        {
-            ogluSetLayer(layer);
-            gl_Position = gl_in[i].gl_Position;
-            EmitVertex();
-        }
-        EndPrimitive();
+        ogluSetLayer(layerIdx[i]);
+        gl_Position = gl_in[i].gl_Position;
+        EmitVertex();
     }
+    EndPrimitive();
 }
 
 #endif

@@ -189,8 +189,9 @@ public:
 
     [[nodiscard]] VAOPrep Prepare() noexcept;
     void SetName(std::u16string name) noexcept;
-    void Draw(const uint32_t size, const uint32_t offset = 0) const noexcept;
+    void RangeDraw(const uint32_t size, const uint32_t offset = 0) const noexcept;
     void Draw() const noexcept;
+    void InstanceDraw(const uint32_t count, const uint32_t base = 0) const noexcept;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
     void Test() const noexcept;

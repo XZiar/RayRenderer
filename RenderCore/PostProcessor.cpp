@@ -120,7 +120,8 @@ public:
         LUTFrame->Use();
         LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
         LutGenerator->Draw()
-            .Draw(VAOScreen);
+            .DrawInstance(VAOScreen, LutSize);
+            //.Draw(VAOScreen);
 
         //const auto lutvals = LutTex->GetData(xziar::img::TextureFormat::RGB10A2);
     }

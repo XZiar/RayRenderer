@@ -58,7 +58,8 @@ void oglVAO_::VAOPrep::SetInteger(const VAValType valType, const GLint attridx, 
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
         DSA->ogluVertexAttribIPointer(attridx, size, ParseVAValType(valType), stride, offset);
-        DSA->ogluVertexAttribDivisor(attridx, divisor);
+        if (divisor != 0)
+            DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }
 void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
@@ -67,7 +68,8 @@ void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize,
     {
         DSA->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
         DSA->ogluVertexAttribPointer(attridx, size, ParseVAValType(valType), isNormalize, stride, offset);
-        DSA->ogluVertexAttribDivisor(attridx, divisor);
+        if (divisor != 0)
+            DSA->ogluVertexAttribDivisor(attridx, divisor);
     }
 }
 
@@ -199,7 +201,7 @@ void oglVAO_::SetName(std::u16string name) noexcept
     DSA->ogluSetObjectLabel(GL_VERTEX_ARRAY, VAOId, Name);
 }
 
-void oglVAO_::Draw(const uint32_t size, const uint32_t offset) const noexcept
+void oglVAO_::RangeDraw(const uint32_t size, const uint32_t offset) const noexcept
 {
     CheckCurrent();
     bind();
@@ -251,6 +253,49 @@ void oglVAO_::Draw() const noexcept
         break;
     case DrawMethod::IndirectIndexes:
         DSA->ogluMultiDrawElementsIndirect(common::enum_cast(DrawMode), IndexBuffer->IndexType, *IndirectBuffer, std::get<GLint>(Offsets), std::get<GLsizei>(Count));
+        break;
+    case DrawMethod::UnPrepared:
+        oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
+        break;
+    }
+    unbind();
+}
+
+void oglVAO_::InstanceDraw(const uint32_t count, const uint32_t base) const noexcept
+{
+    CheckCurrent();
+    bind();
+    switch (Method)
+    {
+    case DrawMethod::Array:
+        DSA->ogluDrawArraysInstanced(common::enum_cast(DrawMode), std::get<GLint>(Offsets), std::get<GLsizei>(Count), count, base);
+        break;
+    case DrawMethod::Index:
+        DSA->ogluDrawElementsInstanced(common::enum_cast(DrawMode), std::get<GLsizei>(Count), IndexBuffer->IndexType, std::get<const void*>(Offsets), count, base);
+        break;
+    case DrawMethod::Arrays:
+    {
+        const auto& sizes = std::get<vector<GLsizei>>(Count);
+        const auto& offsets = std::get<vector<GLint>>(Offsets);
+        for (size_t i = 0; i < sizes.size(); i++)
+        {
+            DSA->ogluDrawArraysInstanced(common::enum_cast(DrawMode), 
+                offsets[i], sizes[i], count, base);
+        }
+    } break;
+    case DrawMethod::Indexs:
+    {
+        const auto& sizes = std::get<vector<GLsizei>>(Count);
+        const auto& offsets = std::get<vector<const void*>>(Offsets);
+        for (size_t i = 0; i < sizes.size(); i++)
+        {
+            DSA->ogluDrawElementsInstanced(common::enum_cast(DrawMode),
+                sizes[i], IndexBuffer->IndexType, offsets[i], count, base);
+        }
+    } break;
+    case DrawMethod::IndirectArrays:
+    case DrawMethod::IndirectIndexes:
+        oglLog().error(u"indirect draw not support when manually instance draw, this vao[{}] has mode [{}].\n", VAOId, (uint8_t)Method);
         break;
     case DrawMethod::UnPrepared:
         oglLog().error(u"drawing an unprepared VAO [{}]\n", VAOId);
