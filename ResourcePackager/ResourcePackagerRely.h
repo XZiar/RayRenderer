@@ -8,7 +8,12 @@
 #   define RESPAKAPI _declspec(dllimport)
 # endif
 #else
-# define RESPAKAPI
+# ifdef RESPAK_EXPORT
+#   define RESPAKAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define RESPAKAPI
+# endif
 #endif
 
 

@@ -29,6 +29,9 @@ class Project:
         self.targets = []
         self.linkflags = data.get("linkflags", [])
         self.libDirs = []
+        self.expmap = data.get("expmap", "")
+        if self.expmap:
+            self.linkflags += [f"-Wl,--version-script -Wl,{self.expmap}"]
         pass
 
     def solveTarget(self, env:dict):
@@ -52,20 +55,25 @@ class Project:
         pass
 
     def writeMakefile(self, env:dict):
-        deps = set(self.dependency)
-        if self.type == "executable":
+        def solveNestedDeps(deps:set, dtype:str):
             checked = deps.copy()
-            wanted = [proj for proj in self.dependency if proj.type == "dynamic"]
+            wanted = [proj for proj in deps if proj.type == dtype]
             nestedDeps = set()
             while len(wanted) > 0:
                 p = wanted[0]
-                dyndep = set(proj for proj in p.dependency if proj.type == "dynamic")
-                nestedDeps |= dyndep
-                newdep = dyndep - checked
-                wanted.extend(newdep)
-                checked |= newdep
+                matchDeps = set(proj for proj in p.dependency if proj.type == dtype)
+                nestedDeps |= matchDeps
+                newDeps = matchDeps - checked
+                wanted.extend(newDeps)
+                checked |= newDeps
                 del wanted[0]
-            deps = list(nestedDeps | deps)
+            return nestedDeps
+
+        deps = set(self.dependency)
+        nestedStatic  = solveNestedDeps(deps, "static")  if self.type != "static"     else set()
+        nestedDynamic = solveNestedDeps(deps, "dynamic") if self.type == "executable" else set()
+
+        deps = list(deps | nestedStatic | nestedDynamic)
         self.libStatic  += [proj.name for proj in deps if proj.type == "static"]
         self.libDynamic += [proj.name for proj in deps if proj.type == "dynamic"]
 
@@ -75,12 +83,12 @@ class Project:
             file.write("# xzbuild per project file\n")
             file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
             file.write("\n\n# Project [{}]\n\n".format(self.name))
-            writeItem(file, "NAME", self.name)
-            writeItem(file, "BUILD_TYPE", self.type)
-            writeItems(file, "LINKFLAGS", self.linkflags)
-            writeItems(file, "libDynamic", self.libDynamic)
-            writeItems(file, "libStatic", self.libStatic)
-            writeItems(file, "xz_libDir", self.libDirs, state="+")
+            writeItem (file, "NAME",        self.name)
+            writeItem (file, "BUILD_TYPE",  self.type)
+            writeItems(file, "LINKFLAGS",   self.linkflags)
+            writeItems(file, "libDynamic",  self.libDynamic)
+            writeItems(file, "libStatic",   self.libStatic)
+            writeItems(file, "xz_libDir",   self.libDirs, state="+")
             for t in self.targets:
                 t.write(file)
 

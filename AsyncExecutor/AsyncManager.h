@@ -60,8 +60,7 @@ private:
 protected:
     common::SimpleTimer TaskTimer; // execution timer
     AsyncTaskStatus Status = AsyncTaskStatus::New;
-    AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize) : Name(name),
-        StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) { }
+    AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize);
     void BeginTask();
     void SumPartialTime();
     void FinishTask(const detail::AsyncTaskStatus status, AsyncTaskTime& taskTime);
@@ -69,7 +68,7 @@ private:
     uint64_t ElapseTime = 0; // execution time
     const uint32_t StackSize;
 public:
-    virtual ~AsyncTaskNodeBase() {}
+    virtual ~AsyncTaskNodeBase();
 };
 
 template<typename RetType>

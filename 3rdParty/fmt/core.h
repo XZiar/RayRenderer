@@ -164,6 +164,7 @@
 #  else
 #    ifdef FMT_EXPORT
 #      define FMT_API __attribute__((visibility("default")))
+#      define FMT_EXTERN_TEMPLATE_API FMT_API
 #    endif
 #  endif
 #endif

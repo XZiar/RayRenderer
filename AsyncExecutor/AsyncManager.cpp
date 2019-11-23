@@ -10,6 +10,10 @@ namespace common::asyexe
 
 namespace detail
 {
+
+AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize) : Name(name),
+    StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) 
+{ }
 void AsyncTaskNodeBase::BeginTask()
 {
     Status = detail::AsyncTaskStatus::Ready;
@@ -26,6 +30,8 @@ void AsyncTaskNodeBase::FinishTask(const detail::AsyncTaskStatus status, AsyncTa
     taskTime.ElapseTime = ElapseTime;
     Status = status;
 }
+AsyncTaskNodeBase::~AsyncTaskNodeBase() { }
+
 }
 
 

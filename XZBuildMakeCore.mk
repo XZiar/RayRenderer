@@ -149,7 +149,7 @@ $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
+	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
 	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 endif
 

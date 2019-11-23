@@ -11,7 +11,8 @@ from .Environment import findAppInPath
 
 
 class BuildTarget(metaclass=abc.ABCMeta):
-    @abc.abstractstaticmethod
+    @staticmethod
+    @abc.abstractmethod
     def prefix() -> str:
         pass
     @staticmethod
@@ -63,7 +64,8 @@ class BuildTarget(metaclass=abc.ABCMeta):
 
 
 class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
-    @abc.abstractstaticmethod
+    @staticmethod
+    @abc.abstractmethod
     def langVersion() -> str:
         pass
 
@@ -74,6 +76,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.debugLevel = "-g3"
         self.optimize = ""
         self.version = ""
+        self.visibility = "hidden"
         super().__init__(targets, env)
 
     def solveTarget(self, targets, env:dict):
@@ -89,6 +92,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
                 self.flags += ["-flto"]
         cxx = targets.get("cxx")
         if cxx is not None:
+            self.visibility = cxx.get("visibility", self.visibility)
             a,_ = solveElementList(cxx, "debug", env)
             self.debugLevel = a[0] if len(a)>0 else self.debugLevel
             a,_ = solveElementList(cxx, "optimize", env)
@@ -103,6 +107,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         target = targets[self.prefix()]
         self.pch = target.get("pch", "")
         self.version = target.get("version", self.langVersion())
+        self.visibility = target.get("visibility", self.visibility)
         a,_ = solveElementList(target, "debug", env)
         self.debugLevel = a[0] if len(a)>0 else self.debugLevel
         a,_ = solveElementList(target, "optimize", env)
@@ -112,12 +117,14 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         a,d = solveElementList(target, "incpath", env)
         self.incpath = combineElements(self.incpath, a, d)
 
+        self.flags += [f"-fvisibility={self.visibility}"]
+
     def write(self, file):
         super().write(file)
         writeItems(file, self.prefix()+"_defs", self.defines)
         writeItems(file, self.prefix()+"_incpaths", self.incpath)
         writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
-        writeItem(file, self.prefix()+"_pch", self.pch)
+        writeItem (file, self.prefix()+"_pch", self.pch)
 
 
 class CPPTarget(CXXTarget):

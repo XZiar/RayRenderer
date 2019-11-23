@@ -12,7 +12,8 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp", "posix/stack_traits.cpp"]
+            "sources": ["*.cpp", "posix/stack_traits.cpp"],
+            "visibility": "default"
         },
         "asm":
         {

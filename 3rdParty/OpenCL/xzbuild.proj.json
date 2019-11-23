@@ -9,12 +9,14 @@
         "static": [],
         "dynamic": ["dl"]
     },
+    "expmap": "icd_exports.map",
     "targets":
     {
         "cxx":
         {
             "defines": ["OpenCL_EXPORTS", "CL_TARGET_OPENCL_VERSION=220", "HAVE_SECURE_GETENV"],
-            "flags": ["-Wno-format", "-Wno-overlength-strings"]
+            "flags": ["-Wno-format", "-Wno-overlength-strings"],
+            "visibility": "default"
         },
         "c":
         {
@@ -29,6 +31,5 @@
         {
             "sources": ["*.rc"]
         }
-    },
-    "linkflags": ["-Wl,--version-script -Wl,icd_exports.map"]
+    }
 }

@@ -14,7 +14,7 @@
         "cpp":
         {
             "sources": ["*.cc", "*.cpp"],
-            "flags":  []
+            "defines":  ["FMT_EXPORT", "FMT_LOCALE"]
         }
         
     }

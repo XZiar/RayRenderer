@@ -81,7 +81,7 @@ static uint32_t DUMMY_{0} = common::detail::RegistResource({0}, &_binary_{1}_sta
         fp.write(cpp)
     with open(os.path.join(objdir, rcfile+".d"), "w") as fp:
         fp.write(dep)
-    cmd = "g++ -fPIC -std=c++11 -I. -c {0} -o {0}.o".format(cppfpath)
+    cmd = "g++ -fPIC -std=c++11 -fvisibility=hidden -I. -c {0} -o {0}.o".format(cppfpath)
     print(cmd)
     retcode = call(cmd, shell=True)
     objs = " ".join([r.objpath for r in ress])
