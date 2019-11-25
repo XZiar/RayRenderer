@@ -20,6 +20,7 @@
 
 #include "ImageUtil/ImageCore.h"
 #include "common/EnumEx.hpp"
+#include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"

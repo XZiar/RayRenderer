@@ -45,5 +45,18 @@ namespace WPFTest
             var dllname = name + (Environment.Is64BitProcess ? ".x64.dll" : ".x86.dll");
             return Assembly.LoadFrom(dllname);
         }
+
+        private void AppStartup(object sender, StartupEventArgs e)
+        {
+            
+            var idx = Array.FindIndex(e.Args, arg => arg.StartsWith("--renderdoc"));
+            if (idx != -1)
+            {
+                var arg = e.Args[idx];
+                var path = arg.Length > 11 ? arg.Substring(12) : "";
+                Dizz.RenderCore.InjectRenderDoc(path);
+                Dizz.RenderCore.InitGLEnvironment();
+            }
+        }
     }
 }

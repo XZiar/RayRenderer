@@ -4,7 +4,6 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
-#include "oglUtil.h"
 #include "3DElement.hpp"
 #include "common/ContainerEx.hpp"
 
@@ -299,20 +298,6 @@ public:
     template<typename T, typename... Args>
     ProgDraw& SetUniform(const T& res, Args&&... args) { Prog.SetUniform(res, std::forward<Args>(args)...); return *this; }
 };
-
-//template<typename Iterator>
-//ProgDraw oglDrawProgram_::Draw(const Iterator& begin, const Iterator& end) noexcept
-//{
-//    static_assert(std::is_same_v<TransformOP, std::iterator_traits<Iterator>::value_type>, "Element insinde the range should be TransformOP.");
-//    b3d::Mat4x4 matModel = b3d::Mat4x4::identity();
-//    b3d::Mat3x3 matNormal = b3d::Mat3x3::identity();
-//    for (auto cur = begin; cur != end; ++cur)
-//    {
-//        const TransformOP& trans = *cur;
-//        oglUtil::applyTransform(matModel, matNormal, trans);
-//    }
-//    return Draw(matModel, matNormal);
-//}
 
 
 class OGLUAPI oglComputeProgram_ : public oglProgram_

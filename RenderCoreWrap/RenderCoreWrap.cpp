@@ -176,4 +176,14 @@ Action<String^>^ RenderCore::Screenshot()
 }
 
 
+void RenderCore::InjectRenderDoc(String^ dllPath)
+{
+    oglu::oglUtil::InJectRenderDoc(ToU16Str(dllPath));
+}
+void RenderCore::InitGLEnvironment()
+{
+    oglu::oglUtil::InitGLEnvironment();
+}
+
+
 }

@@ -56,6 +56,9 @@ public:
 
     PlatFuncs();
 
+    static void InitEnvironment();
+    static void InJectRenderDoc(const common::fs::path& dllPath);
+
     [[nodiscard]] static void* GetCurrentDeviceContext();
     [[nodiscard]] static void* GetCurrentGLContext();
     static void  DeleteGLContext(void* hDC, void* hRC);

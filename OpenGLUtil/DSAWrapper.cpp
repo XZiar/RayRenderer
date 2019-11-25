@@ -21,6 +21,7 @@
 #   undef MemoryBarrier
 #   pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 #elif COMMON_OS_UNIX
+#   include <dlfcn.h>
 #   include <X11/X.h>
 #   include <X11/Xlib.h>
 #   include <GL/glx.h>
@@ -229,13 +230,124 @@ PlatFuncs::PlatFuncs()
 }
 
 
+#if COMMON_OS_UNIX
+struct X11Initor
+{
+    X11Initor()
+    {
+        XInitThreads();
+        XSetErrorHandler(&TmpXErrorHandler);
+    }
+};
+#endif
+
+void PlatFuncs::InJectRenderDoc(const common::fs::path& dllPath)
+{
+#if COMMON_OS_WIN
+    if (common::fs::exists(dllPath))
+        LoadLibrary(dllPath.c_str());
+    else
+        LoadLibrary(L"renderdoc.dll");
+#else
+    if (common::fs::exists(dllPath))
+        dlopen(dllPath.c_str(), RTLD_LAZY);
+    else
+        dlopen("renderdoc.dll", RTLD_LAZY);
+#endif
+}
+void PlatFuncs::InitEnvironment()
+{
+#if COMMON_OS_WIN
+
+    HWND tmpWND = CreateWindow(
+        L"Static", L"Fake Window",          // window class, title
+        WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
+        0, 0,                               // position x, y
+        1, 1,                               // width, height
+        NULL, NULL,                         // parent window, menu
+        nullptr, NULL);                     // instance, param
+    HDC tmpDC = GetDC(tmpWND);
+    static PIXELFORMATDESCRIPTOR pfd =      // pfd Tells Windows How We Want Things To Be
+    {
+        sizeof(PIXELFORMATDESCRIPTOR),      // Size Of This Pixel Format Descriptor
+        1,                                  // Version Number
+        PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/ | PFD_GENERIC_ACCELERATED,
+        PFD_TYPE_RGBA,                      // Request An RGBA Format
+        32,                                 // Select Our Color Depth
+        0, 0, 0, 0, 0, 0,                   // Color Bits Ignored
+        0, 0,                               // No Alpha Buffer, Shift Bit Ignored
+        0, 0, 0, 0, 0,                      // No Accumulation Buffer, Accumulation Bits Ignored
+        24,                                 // 24Bit Z-Buffer (Depth Buffer) 
+        8,                                  // 8Bit Stencil Buffer
+        0,                                  // No Auxiliary Buffer
+        PFD_MAIN_PLANE,                     // Main Drawing Layer
+        0,                                  // Reserved
+        0, 0, 0                             // Layer Masks Ignored
+    };
+    const int PixelFormat = ChoosePixelFormat(tmpDC, &pfd);
+    SetPixelFormat(tmpDC, PixelFormat, &pfd);
+    HGLRC tmpRC = wglCreateContext(tmpDC);
+    wglMakeCurrent(tmpDC, tmpRC);
+
+    wglMakeCurrent(nullptr, nullptr);
+    wglDeleteContext(tmpRC);
+    DeleteDC(tmpDC);
+    DestroyWindow(tmpWND);
+
+#else
+    
+    XInitThreads();
+    XSetErrorHandler(&TmpXErrorHandler);
+    static int visual_attribs[] =
+    {
+        GLX_X_RENDERABLE, true,
+        GLX_RENDER_TYPE, GLX_RGBA_BIT,
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+        GLX_DOUBLEBUFFER, true,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_ALPHA_SIZE, 8,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
+        0
+    };
+    const char* const disp = getenv("DISPLAY");
+    Display* display = XOpenDisplay(disp ? disp : ":0.0");
+    /* open display */
+    if (!display)
+    {
+        oglLog().error(u"Failed to open display\n");
+        return;
+    }
+
+    /* get framebuffer configs, any is usable (might want to add proper attribs) */
+    int fbcount = 0;
+    ::GLXFBConfig* fbc = glXChooseFBConfig(display, DefaultScreen(display), visual_attribs, &fbcount);
+    if (!fbc)
+    {
+        oglLog().error(u"Failed to get FBConfig\n");
+        return;
+    }
+    XVisualInfo* vi = glXGetVisualFromFBConfig(display, fbc[0]);
+    const auto tmpRC = glXCreateContext(display, vi, 0, GL_TRUE);
+    Window win = DefaultRootWindow(display);
+    glXMakeCurrent(display, win, tmpRC);
+
+    glXMakeCurrent(nullptr, win, nullptr);
+    glXDestroyContext(display, tmpRC);
+
+#endif
+}
+
 void* PlatFuncs::GetCurrentDeviceContext()
 {
 #if COMMON_OS_WIN
     const auto hDC = wglGetCurrentDC();
 #else
+    static X11Initor initor;
     const auto hDC = glXGetCurrentDisplay();
-    XSetErrorHandler(&TmpXErrorHandler);
 #endif
     PreparePlatFuncs(hDC);
     return hDC;

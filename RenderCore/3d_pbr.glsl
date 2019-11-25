@@ -1,7 +1,7 @@
 #version 330 core
 #extension GL_ARB_shading_language_420pack : require
 #extension GL_ARB_shader_subroutine : require
-#extension GL_ARB_gpu_shader5 : require
+#extension GL_ARB_gpu_shader5 : enable
 precision mediump float;
 precision lowp sampler2D;
 //@OGLU@Stage("VERT", "FRAG")
@@ -76,7 +76,7 @@ void main()
     norm = matModel3 * vertNorm;
     tannorm = vec4(matModel3 * vertTan.xyz, vertTan.w);
     tpos = vertTexc;
-    drawId = ogluDrawId;
+    drawId = uint(ogluDrawId);
 }
 
 #endif
@@ -86,6 +86,34 @@ void main()
 #ifdef OGLU_FRAG
 
 uniform sampler2DArray texs[16];
+
+#if defined(GL_ARB_gpu_shader5) && GL_ARB_gpu_shader5
+#   define SampleTex(idx, pos) texture(texs[idx], pos)
+#else
+    vec4 SampleTex(const uint idx, const vec3 pos)
+    {
+        switch (idx)
+        {
+        case 0u:  return texture(texs[0],  pos); 
+        case 1u:  return texture(texs[1],  pos); 
+        case 2u:  return texture(texs[2],  pos); 
+        case 3u:  return texture(texs[3],  pos); 
+        case 4u:  return texture(texs[4],  pos); 
+        case 5u:  return texture(texs[5],  pos); 
+        case 6u:  return texture(texs[6],  pos); 
+        case 7u:  return texture(texs[7],  pos); 
+        case 8u:  return texture(texs[8],  pos); 
+        case 9u:  return texture(texs[9],  pos); 
+        case 10u: return texture(texs[10], pos); 
+        case 11u: return texture(texs[11], pos); 
+        case 12u: return texture(texs[12], pos); 
+        case 13u: return texture(texs[13], pos); 
+        case 14u: return texture(texs[14], pos); 
+        case 15u: return texture(texs[15], pos); 
+        default: return vec4(0.f);
+        }
+    }
+#endif
 
 //@OGLU@Property("srgbTexture", BOOL, "whether input texture is srgb space")
 //uniform bool srgbTexture = true;
@@ -120,7 +148,7 @@ OGLU_SUBROUTINE(NormalCalc, mappedNormal)
     const uint bank = pos >> 16;
     const float layer = float(pos & 0xffffu);//let it be wrong
     const vec3 newtpos = vec3(tpos, layer);
-    const vec2 ptNormRG = texture(texs[bank], newtpos).rg * 2.0f - 1.0f;
+    const vec2 ptNormRG = SampleTex(bank, newtpos).rg * 2.0f - 1.0f;
     const vec3 ptNormTex = vec3(ptNormRG, sqrt(1.0f - dot(ptNormRG, ptNormRG)));
     const vec3 ptNorm2 = TBN * ptNormTex;
     return ptNorm2;
@@ -140,7 +168,7 @@ OGLU_SUBROUTINE(AlbedoCalc, mappedAlbedo)
     const uint bank = pos >> 16;
     const float layer = float(pos & 0xffffu);
     const vec3 newtpos = vec3(tpos, layer);
-    return texture(texs[bank], newtpos).rgb;
+    return SampleTex(bank, newtpos).rgb;
 }
 OGLU_SUBROUTINE(AlbedoCalc, bothAlbedo)
 {
@@ -186,7 +214,7 @@ float ClampDot(const vec3 v1, const vec3 v2)
 
 OGLU_SUBROUTINE(LightModel, tex0)
 {
-    const vec4 texColor = texture(texs[0], vec3(tpos, 0.0f));
+    const vec4 texColor = SampleTex(0u, vec3(tpos, 0.0f));
     return texColor.rgb;
 }
 OGLU_SUBROUTINE(LightModel, tanvec)
@@ -221,13 +249,13 @@ OGLU_SUBROUTINE(LightModel, view)
 OGLU_SUBROUTINE(LightModel, lgt0p2l)
 {
     vec3 p2l, color;
-    parseLight(0, p2l, color);
+    parseLight(0u, p2l, color);
     return (p2l + 1.0f) * 0.5f;
 }
 OGLU_SUBROUTINE(LightModel, lgt0color)
 {
     vec3 p2l, color;
-    parseLight(0, p2l, color);
+    parseLight(0u, p2l, color);
     return color;
 }
 OGLU_SUBROUTINE(LightModel, drawidx)
@@ -300,7 +328,7 @@ void PBR(const lowp vec3 albedo, inout lowp vec3 diffuseColor, inout lowp vec3 s
     //Geometry Obstruction
     const float geoObs = G_SchlickGGX(n_eye, k, one_k);
 
-    for (int id = 0; id < lightCount; id++)
+    for (uint id = 0u; id < lightCount; id++)
     {
         vec3 p2l, lgtColor;
         if(!parseLight(id, p2l, lgtColor))

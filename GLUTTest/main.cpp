@@ -256,8 +256,17 @@ void PrintException(const common::BaseException& be)
         PrintException(*inEx);
 }
 
+#if COMMON_OS_UNIX
+#   include <X11/Xlib.h>
+#endif
+
 int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 {
+    oglu::oglUtil::InitGLEnvironment();
+#if COMMON_OS_UNIX
+    XInitThreads();
+    getchar(); // hack for linux's attach
+#endif
     log().info("miniBLAS intrin:[{}]\n", miniBLAS::miniBLAS_intrin());
     FreeGLUTViewInit();
     window = std::make_shared<glutview::detail::_FreeGLUTView>();

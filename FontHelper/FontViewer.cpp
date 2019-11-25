@@ -9,6 +9,7 @@ namespace oglu
 using std::string;
 using std::u16string;
 using common::BaseException;
+using b3d::Vec3;
 
 
 static const u16string FontViewControlName = u"文本";
