@@ -32,35 +32,35 @@ MAKE_ENABLER_IMPL(oglShader_)
 oglShader_::oglShader_(const ShaderType type, const string & txt) :
     Src(txt), ShaderID(GL_INVALID_INDEX), Type(type)
 {
-    if (Type == ShaderType::Compute && !DSA->SupportComputeShader)
+    if (Type == ShaderType::Compute && !CtxFunc->SupportComputeShader)
         oglLog().warning(u"Attempt to create ComputeShader on unsupported context\n");
-    else if ((Type == ShaderType::TessCtrl || Type == ShaderType::TessEval) && !DSA->SupportTessShader)
+    else if ((Type == ShaderType::TessCtrl || Type == ShaderType::TessEval) && !CtxFunc->SupportTessShader)
         oglLog().warning(u"Attempt to create TessShader on unsupported context\n");
     auto ptr = txt.c_str();
-    ShaderID = DSA->ogluCreateShader(common::enum_cast(type));
-    DSA->ogluShaderSource(ShaderID, 1, &ptr, NULL);
+    ShaderID = CtxFunc->ogluCreateShader(common::enum_cast(type));
+    CtxFunc->ogluShaderSource(ShaderID, 1, &ptr, NULL);
 }
 
 oglShader_::~oglShader_()
 {
     if (ShaderID != GL_INVALID_INDEX)
-        DSA->ogluDeleteShader(ShaderID);
+        CtxFunc->ogluDeleteShader(ShaderID);
 }
 
 void oglShader_::compile()
 {
     CheckCurrent();
-    DSA->ogluCompileShader(ShaderID);
+    CtxFunc->ogluCompileShader(ShaderID);
 
     GLint result;
 
-    DSA->ogluGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
+    CtxFunc->ogluGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
     if (!result)
     {
         GLsizei len = 0;
-        DSA->ogluGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
+        CtxFunc->ogluGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
-        DSA->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
+        CtxFunc->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::strchset::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         oglLog().verbose(u"source:\n{}\n\n", Src);

@@ -14,7 +14,7 @@ namespace oglu
 class oglUtil;
 struct BindingState;
 class PlatFuncs;
-struct DSAFuncs;
+class CtxFuncs;
 class oglContext_;
 using oglContext = std::shared_ptr<oglContext_>;
 
@@ -192,6 +192,7 @@ public:
     };
 private:
     MAKE_ENABLER();
+    struct oglMarker;
     void *Hdc, *Hrc;
 #if defined(_WIN32)
 #else
@@ -200,6 +201,7 @@ private:
     detail::CtxResHandler ResHandler;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
     const common::container::FrozenDenseSet<std::string_view>* Extensions = nullptr;
+    std::weak_ptr<oglMarker> CurrentRangeMarker;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
@@ -240,11 +242,9 @@ public:
     void SetSRGBFBO(const bool isEnable);
     void ClearFBO();
     
-    /*void SetViewPort(const miniBLAS::VecI4& viewport) { SetViewPort(viewport.x, viewport.y, viewport.z, viewport.w); }
-    void SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height);*/
     [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
-
+    std::shared_ptr<void> DeclareRange(std::u16string_view name);
 
 
     [[nodiscard]] static uint32_t GetLatestVersion();

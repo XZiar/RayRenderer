@@ -208,13 +208,13 @@ private:
     static GLint GetLimit(const GLenum prop)
     {
         GLint maxs;
-        DSA->ogluGetIntegerv(prop, &maxs);
+        CtxFunc->ogluGetIntegerv(prop, &maxs);
         return maxs;
     }
     static uint8_t GetSize(const GLenum prop)
     {
         GLint maxs;
-        DSA->ogluGetIntegerv(prop, &maxs);
+        CtxFunc->ogluGetIntegerv(prop, &maxs);
         maxs -= Offset;
         return static_cast<uint8_t>(maxs > 255 ? 255 : maxs);
     }

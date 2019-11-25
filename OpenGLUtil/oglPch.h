@@ -1,5 +1,5 @@
 #pragma once
-#include "DSAWrapper.h"
+#include "GLFuncWrapper.h"
 #include "oglRely.h"
 #include "StringCharset/Convert.h"
 #include "SystemCommon/FileEx.h"

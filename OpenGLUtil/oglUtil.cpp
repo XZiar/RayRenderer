@@ -52,14 +52,14 @@ void oglUtil::InitLatestVersion()
 }
 u16string oglUtil::GetVersionStr()
 {
-    const auto str = (const char*)DSA->ogluGetString(GL_VERSION);
+    const auto str = (const char*)CtxFunc->ogluGetString(GL_VERSION);
     const auto len = strlen(str);
     return u16string(str, str + len);
 }
 
 optional<string_view> oglUtil::GetError()
 {
-    return DSA->GetError();
+    return CtxFunc->GetError();
 }
 
 
@@ -124,7 +124,6 @@ PromiseResult<void> oglUtil::ForceSyncGL()
 {
     return std::make_shared<oglPromiseVoid2>();
 }
-
 
 
 }

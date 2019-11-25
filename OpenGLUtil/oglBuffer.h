@@ -10,6 +10,7 @@
 
 namespace oglu
 {
+class CtxFuncs;
 class oglMapPtr;
 
 class oglBuffer_;
@@ -191,7 +192,7 @@ public:
 class OGLUAPI oglIndirectBuffer_ : public oglBuffer_
 {
     friend class oglVAO_;
-    friend struct ::oglu::DSAFuncs;
+    friend class CtxFuncs;
 private:
     MAKE_ENABLER();
     oglIndirectBuffer_() noexcept;

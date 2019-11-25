@@ -45,7 +45,7 @@ void Scene::PrepareLight()
         if (!lgt->IsOn)
             continue;
         const auto subSpace = ptr.subspan(pos);
-        if (subSpace.size() < Light::WriteSize)
+        if ((size_t)subSpace.size() < Light::WriteSize)
             break;
         lgt->WriteData(subSpace);
         pos += Light::WriteSize;

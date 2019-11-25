@@ -21,7 +21,7 @@
   <ItemGroup>
     <ClInclude Include="3DElement.hpp" />
     <ClInclude Include="DataTypeConvert.h" />
-    <ClInclude Include="DSAWrapper.h" />
+    <ClInclude Include="GLFuncWrapper.h" />
     <ClInclude Include="oglPch.h" />
     <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
@@ -42,7 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DataTypeConvert.cpp" />
-    <ClCompile Include="DSAWrapper.cpp" />
+    <ClCompile Include="GLFuncWrapper.cpp" />
     <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglContext.cpp" />

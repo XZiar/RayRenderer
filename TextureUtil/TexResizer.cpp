@@ -11,6 +11,7 @@ using std::string_view;
 using std::u16string;
 using common::BaseException;
 using common::PromiseResult;
+using b3d::Vec4;
 using namespace xziar::img;
 using namespace oclu;
 using namespace std::literals;

@@ -136,6 +136,8 @@ void DefaultRenderPass::OnPrepare(RenderPassContext& context)
 
 void DefaultRenderPass::OnDraw(RenderPassContext& context)
 {
+    const auto drawMaker = GLContext->DeclareRange(u"Draw-DefaultPass");
+
     const auto cam = context.GetScene()->GetCamera();
     const auto fboTex = context.GetTexture("MainFBTex");
     const auto fbo = context.GetFrameBuffer("MainFB");
@@ -162,6 +164,7 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
             const auto drw = d.lock();
             if (!drw || !drw->ShouldRender)
                 continue;
+            const auto maker = GLContext->DeclareRange(u"Draw-" + drw->Name);
             drw->Draw(drawcall);
             drawcall.Drawer.Restore(true);
         }
@@ -199,15 +202,22 @@ RenderPipeLine::RenderPipeLine() : GLContext(oglu::oglContext_::CurrentContext()
 
 void RenderPipeLine::Render(RenderPassContext context)
 {
-    for (auto& pass : Passes)
+    const auto drawMarker = GLContext->DeclareRange(u"MainDraw");
     {
-        pass->Prepare(context);
+        const auto maker = GLContext->DeclareRange(u"Draw-Prepare");
+        for (auto& pass : Passes)
+        {
+            pass->Prepare(context);
+        }
     }
     oglu::oglDefaultFrameBuffer_::Get()->Use();
     GLContext->SetSRGBFBO(true);
-    for (auto& pass : Passes)
     {
-        pass->Draw(context);
+        const auto maker = GLContext->DeclareRange(u"Draw-Draw");
+        for (auto& pass : Passes)
+        {
+            pass->Draw(context);
+        }
     }
 }
 

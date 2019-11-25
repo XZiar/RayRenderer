@@ -77,7 +77,7 @@ extern thread_local const PlatFuncs* PlatFunc;
 
 
 
-struct DSAFuncs
+class CtxFuncs
 {
     friend struct VAOBinder;
     friend struct FBOBinder;
@@ -423,13 +423,20 @@ public:
 
     // debug
     GLint MaxLabelLen = 0;
+    GLsizei MaxMessageLen = 0;
     using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * message, const void* userParam);
     void (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
     void (GLAPIENTRY *ogluObjectLabel_) (GLenum identifier, GLuint name, GLsizei length, const GLchar* label) = nullptr;
     void (GLAPIENTRY *ogluObjectPtrLabel_) (void* ptr, GLsizei length, const GLchar* label) = nullptr;
+    void (GLAPIENTRY *ogluPushDebugGroup_) (GLenum source, GLuint id, GLsizei length, const GLchar* message) = nullptr;
+    void (GLAPIENTRY *ogluPopDebugGroup_) () = nullptr;
+    void (GLAPIENTRY *ogluPushGroupMarkerEXT_) (GLsizei length, const GLchar* marker) = nullptr;
+    void (GLAPIENTRY *ogluPopGroupMarkerEXT_) () = nullptr;
 
     void ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const;
     void ogluSetObjectLabel(GLsync sync, std::u16string_view name) const;
+    void ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const;
+    void ogluPopDebugGroup() const;
 
     // others
     GLenum         (GLAPIENTRY *ogluGetError) () = nullptr;
@@ -465,14 +472,14 @@ public:
     bool SupportTessShader      = false;
     bool SupportBaseInstance    = false;
 
-    DSAFuncs();
+    CtxFuncs();
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:
     common::container::FrozenDenseSet<std::string_view> Extensions;
     [[nodiscard]] std::optional<std::string_view> GetError() const;
 };
-extern thread_local const DSAFuncs* DSA;
+extern thread_local const CtxFuncs* CtxFunc;
 
 }
 

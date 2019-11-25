@@ -2,7 +2,6 @@
 #include "oglContext.h"
 #include "oglUtil.h"
 #include "oglException.h"
-#include "DSAWrapper.h"
 
 
 namespace oglu
@@ -15,20 +14,20 @@ BindingState::BindingState()
 {
     HRC = PlatFuncs::GetCurrentGLContext();
     const oglContext ctx = oglContext_::CurrentContext();
-    DSA->ogluGetIntegerv(GL_CURRENT_PROGRAM, &Prog);
-    DSA->ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, &VAO);
-    DSA->ogluGetIntegerv(GL_FRAMEBUFFER_BINDING, &FBO);
-    DSA->ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &DFB);
-    DSA->ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &RFB);
-    DSA->ogluGetIntegerv(GL_ARRAY_BUFFER_BINDING, &VBO);
+    CtxFunc->ogluGetIntegerv(GL_CURRENT_PROGRAM, &Prog);
+    CtxFunc->ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, &VAO);
+    CtxFunc->ogluGetIntegerv(GL_FRAMEBUFFER_BINDING, &FBO);
+    CtxFunc->ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &DFB);
+    CtxFunc->ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &RFB);
+    CtxFunc->ogluGetIntegerv(GL_ARRAY_BUFFER_BINDING, &VBO);
     if (ctx->Version >= 40)
-        DSA->ogluGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &IBO);
+        CtxFunc->ogluGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &IBO);
     else
         IBO = 0;
-    DSA->ogluGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &EBO);
-    DSA->ogluGetIntegerv(GL_TEXTURE_BINDING_2D, &Tex2D);
-    DSA->ogluGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &Tex2DArray);
-    DSA->ogluGetIntegerv(GL_TEXTURE_BINDING_3D, &Tex3D);
+    CtxFunc->ogluGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &EBO);
+    CtxFunc->ogluGetIntegerv(GL_TEXTURE_BINDING_2D, &Tex2D);
+    CtxFunc->ogluGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &Tex2DArray);
+    CtxFunc->ogluGetIntegerv(GL_TEXTURE_BINDING_3D, &Tex3D);
 }
 
 thread_local oglContext InnerCurCtx{ };
@@ -49,6 +48,10 @@ static common::SpinLocker EXTERN_CTX_LOCK, VER_LOCK;
 
 static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
+    if (type == GL_DEBUG_TYPE_MARKER || type == GL_DEBUG_TYPE_PUSH_GROUP || type == GL_DEBUG_TYPE_POP_GROUP)
+        return;
+    if (source == GL_DEBUG_SOURCE_THIRD_PARTY && (id >= OGLUMsgIdMin && id <= OGLUMsgIdMax))
+        return;
     DebugMessage msg(source, type, severity);
     const oglContext_::DBGLimit& limit = *reinterpret_cast<const oglContext_::DBGLimit*>(userParam);
     if (((limit.src & msg.From) != MsgSrc::Empty)
@@ -113,8 +116,8 @@ void oglContext_::Init(const bool isCurrent)
         UseContext();
     }
     int32_t major = 0, minor = 0;
-    DSA->ogluGetIntegerv(GL_MAJOR_VERSION, &major);
-    DSA->ogluGetIntegerv(GL_MINOR_VERSION, &minor);
+    CtxFunc->ogluGetIntegerv(GL_MAJOR_VERSION, &major);
+    CtxFunc->ogluGetIntegerv(GL_MINOR_VERSION, &minor);
     Version = major * 10 + minor;
     {
         const auto lock = VER_LOCK.LockScope();
@@ -123,19 +126,19 @@ void oglContext_::Init(const bool isCurrent)
             LatestVersion = Version;
             oglLog().info(u"update API Version to [{}.{}]\n", major, minor);
         }
-        Extensions = &DSA->Extensions;
+        Extensions = &CtxFunc->Extensions;
     }
-    DSA->ogluGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
-    if (DSA->ogluIsEnabled(GL_CULL_FACE))
+    CtxFunc->ogluGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
+    if (CtxFunc->ogluIsEnabled(GL_CULL_FACE))
     {
         GLint cullingMode;
-        DSA->ogluGetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
+        CtxFunc->ogluGetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
         if (cullingMode == GL_FRONT_AND_BACK)
             FaceCulling = FaceCullingType::CullAll;
         else
         {
             GLint frontFace = GL_CCW;
-            DSA->ogluGetIntegerv(GL_FRONT_FACE, &frontFace);
+            CtxFunc->ogluGetIntegerv(GL_FRONT_FACE, &frontFace);
             FaceCulling = ((cullingMode == GL_BACK) ^ (frontFace == GL_CW)) ? FaceCullingType::CullCW : FaceCullingType::CullCCW;
         }
     }
@@ -149,7 +152,7 @@ void oglContext_::Init(const bool isCurrent)
 void oglContext_::FinishGL()
 {
     CHECKCURRENT();
-    DSA->ogluFinish();
+    CtxFunc->ogluFinish();
 }
 
 oglContext_::~oglContext_()
@@ -254,11 +257,11 @@ void oglContext_::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 {
     CHECKCURRENT();
     DbgLimit = { type, src, minLV };
-    if (DSA->SupportDebug)
+    if (CtxFunc->SupportDebug)
     {
-        DSA->ogluEnable(GL_DEBUG_OUTPUT);
-        DSA->ogluEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        DSA->ogluDebugMessageCallback(onMsg, &DbgLimit);
+        CtxFunc->ogluEnable(GL_DEBUG_OUTPUT);
+        CtxFunc->ogluEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        CtxFunc->ogluDebugMessageCallback(onMsg, &DbgLimit);
     }
 }
 
@@ -268,7 +271,7 @@ void oglContext_::SetDepthTest(const DepthTestType type)
     switch (type)
     {
     case DepthTestType::OFF: 
-        DSA->ogluDisable(GL_DEPTH_TEST);
+        CtxFunc->ogluDisable(GL_DEPTH_TEST);
         break;
     case DepthTestType::Never:
     case DepthTestType::Always:
@@ -278,8 +281,8 @@ void oglContext_::SetDepthTest(const DepthTestType type)
     case DepthTestType::LessEqual:
     case DepthTestType::Greater:
     case DepthTestType::GreaterEqual:
-        DSA->ogluEnable(GL_DEPTH_TEST);
-        DSA->ogluDepthFunc(common::enum_cast(type));
+        CtxFunc->ogluEnable(GL_DEPTH_TEST);
+        CtxFunc->ogluDepthFunc(common::enum_cast(type));
         break;
     default:
         oglLog().warning(u"Unsupported depth test type [{}]\n", (uint32_t)type);
@@ -294,13 +297,13 @@ void oglContext_::SetFaceCulling(const FaceCullingType type)
     switch (type)
     {
     case FaceCullingType::OFF:
-        DSA->ogluDisable(GL_CULL_FACE); break;
+        CtxFunc->ogluDisable(GL_CULL_FACE); break;
     case FaceCullingType::CullCW:
-        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_BACK); DSA->ogluFrontFace(GL_CCW); break;
+        CtxFunc->ogluEnable(GL_CULL_FACE); CtxFunc->ogluCullFace(GL_BACK); CtxFunc->ogluFrontFace(GL_CCW); break;
     case FaceCullingType::CullCCW:
-        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_BACK); DSA->ogluFrontFace(GL_CW); break;
+        CtxFunc->ogluEnable(GL_CULL_FACE); CtxFunc->ogluCullFace(GL_BACK); CtxFunc->ogluFrontFace(GL_CW); break;
     case FaceCullingType::CullAll:
-        DSA->ogluEnable(GL_CULL_FACE); DSA->ogluCullFace(GL_FRONT_AND_BACK); break;
+        CtxFunc->ogluEnable(GL_CULL_FACE); CtxFunc->ogluCullFace(GL_FRONT_AND_BACK); break;
     default:
         oglLog().warning(u"Unsupported face culling type [{}]\n", (uint32_t)type);
         return;
@@ -311,17 +314,17 @@ void oglContext_::SetFaceCulling(const FaceCullingType type)
 void oglContext_::SetDepthClip(const bool fix)
 {
     CHECKCURRENT();
-    if (DSA->SupportClipControl)
+    if (CtxFunc->SupportClipControl)
     {
         if (fix)
         {
-            DSA->ogluClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-            DSA->ogluClearDepth(0.0f);
+            CtxFunc->ogluClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+            CtxFunc->ogluClearDepth(0.0f);
         }
         else
         {
-            DSA->ogluClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
-            DSA->ogluClearDepth(1.0f);
+            CtxFunc->ogluClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+            CtxFunc->ogluClearDepth(1.0f);
         }
     }
     else
@@ -333,12 +336,12 @@ void oglContext_::SetDepthClip(const bool fix)
 void oglContext_::SetSRGBFBO(const bool isEnable)
 {
     CHECKCURRENT();
-    if (DSA->SupportSRGB)
+    if (CtxFunc->SupportSRGB)
     {
         if (isEnable)
-            DSA->ogluEnable(GL_FRAMEBUFFER_SRGB);
+            CtxFunc->ogluEnable(GL_FRAMEBUFFER_SRGB);
         else
-            DSA->ogluDisable(GL_FRAMEBUFFER_SRGB);
+            CtxFunc->ogluDisable(GL_FRAMEBUFFER_SRGB);
     }
     else
     {
@@ -349,28 +352,50 @@ void oglContext_::SetSRGBFBO(const bool isEnable)
 void oglContext_::ClearFBO()
 {
     CHECKCURRENT();
-    DSA->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 //void oglContext_::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
 //{
 //    CHECKCURRENT();
-//    DSA->ogluViewport(x, y, (GLsizei)width, (GLsizei)height);
+//    CtxFunc->ogluViewport(x, y, (GLsizei)width, (GLsizei)height);
 //}
 
 miniBLAS::VecI4 oglContext_::GetViewPort() const
 {
     CHECKCURRENT();
     miniBLAS::VecI4 viewport;
-    DSA->ogluGetIntegerv(GL_VIEWPORT, viewport);
+    CtxFunc->ogluGetIntegerv(GL_VIEWPORT, viewport);
     return viewport;
 }
 
 void oglContext_::MemBarrier(const GLMemBarrier mbar)
 {
-    DSA->ogluMemoryBarrier(common::enum_cast(mbar));
+    CHECKCURRENT();
+    CtxFunc->ogluMemoryBarrier(common::enum_cast(mbar));
 }
 
+struct oglContext_::oglMarker
+{
+    oglContext Context;
+    std::shared_ptr<oglContext_::oglMarker> Previous;
+    oglMarker(oglContext_* ctx) : Context(ctx->shared_from_this()), 
+        Previous(ctx->CurrentRangeMarker.lock())
+    { }
+    ~oglMarker()
+    {
+        CtxFunc->ogluPopDebugGroup();
+        Context->CurrentRangeMarker = Previous;
+    }
+};
+std::shared_ptr<void> oglContext_::DeclareRange(std::u16string_view name)
+{
+    CHECKCURRENT();
+    CtxFunc->ogluPushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, OGLUMsgIdMin, name);
+    const auto marker = std::make_shared<oglMarker>(this);
+    CurrentRangeMarker = marker;
+    return marker;
+}
 
 uint32_t oglContext_::GetLatestVersion()
 {

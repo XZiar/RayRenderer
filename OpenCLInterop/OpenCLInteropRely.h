@@ -9,7 +9,7 @@
 # endif
 #else
 # ifdef OCLIOP_EXPORT
-#   define OCLIOPAPI __attribute__((visibility("default")))
+#   define OCLIOPAPI [[gnu::visibility("default")]]
 #   define COMMON_EXPORT
 # else
 #   define OCLIOPAPI

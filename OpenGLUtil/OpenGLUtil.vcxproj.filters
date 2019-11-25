@@ -66,13 +66,13 @@
     <ClInclude Include="oglWorker.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DSAWrapper.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="DataTypeConvert.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="oglPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GLFuncWrapper.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -110,10 +110,10 @@
     <ClCompile Include="oglWorker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="DSAWrapper.cpp">
+    <ClCompile Include="DataTypeConvert.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="DataTypeConvert.cpp">
+    <ClCompile Include="GLFuncWrapper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

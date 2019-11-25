@@ -9,7 +9,7 @@
 # endif
 #else
 # ifdef OGLU_EXPORT
-#   define OGLUAPI __attribute__((visibility("default")))
+#   define OGLUAPI [[gnu::visibility("default")]]
 #   define COMMON_EXPORT
 # else
 #   define OGLUAPI
@@ -27,20 +27,15 @@
 #include "common/PromiseTask.hpp"
 #include "common/CommonRely.hpp"
 
+#if COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wmismatched-tags"
+#endif
+#include "3rdParty/half/half.hpp"
+#if COMPILER_CLANG
+#   pragma clang diagnostic pop
+#endif
 
-//#if COMMON_OS_WIN
-//#   define APIENTRY __stdcall
-//#   define WINGDIAPI _declspec(dllimport)
-//#   include <GL/gl.h>
-//#   include "GL/glext.h"
-//#elif COMMON_OS_UNIX
-//#   define APIENTRY
-//#   include <GL/gl.h>
-//#   include "GL/glext.h"
-//#endif
-//#ifdef WINGDIAPI
-//#   undef WINGDIAPI
-//#endif
 
 #if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"
@@ -66,14 +61,6 @@
 #include <optional>
 #include <variant>
 #include <atomic>
-#if COMPILER_CLANG
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wmismatched-tags"
-#endif
-#include "3rdParty/half/half.hpp"
-#if COMPILER_CLANG
-#   pragma clang diagnostic pop
-#endif
 
 
 #if COMPILER_MSVC
@@ -115,10 +102,11 @@ using GLchar     = char;
 using GLsync     = void*;
 
 inline constexpr GLenum GLInvalidEnum = UINT32_MAX;
+inline constexpr GLuint OGLUMsgIdMin = 0xdeafbeef;
+inline constexpr GLuint OGLUMsgIdMax = 0xdeafcafe;
 
 
 class oglWorker;
-struct DSAFuncs;
 class oglContext_;
 
 

@@ -13,24 +13,24 @@ protected:
     GLuint Query;
     oglPromiseCore()
     {
-        DSA->ogluGenQueries(1, &Query);
-        DSA->ogluGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
-        DSA->ogluQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
-        SyncObj = DSA->ogluFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-        DSA->ogluFlush(); //ensure sync object sended
+        CtxFunc->ogluGenQueries(1, &Query);
+        CtxFunc->ogluGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
+        CtxFunc->ogluQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        SyncObj = CtxFunc->ogluFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        CtxFunc->ogluFlush(); //ensure sync object sended
     }
     ~oglPromiseCore()
     {
         if (EnsureValid())
         {
-            DSA->ogluDeleteSync(SyncObj);
-            DSA->ogluDeleteQueries(1, &Query);
+            CtxFunc->ogluDeleteSync(SyncObj);
+            CtxFunc->ogluDeleteQueries(1, &Query);
         }
     }
     common::PromiseState State()
     {
         CheckCurrent();
-        switch (DSA->ogluClientWaitSync(SyncObj, 0, 0))
+        switch (CtxFunc->ogluClientWaitSync(SyncObj, 0, 0))
         {
         case GL_TIMEOUT_EXPIRED:
             return common::PromiseState::Executing;
@@ -49,7 +49,7 @@ protected:
     void Wait()
     {
         CheckCurrent();
-        while (DSA->ogluClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
+        while (CtxFunc->ogluClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
         { }
     }
     uint64_t ElapseNs()
@@ -57,7 +57,7 @@ protected:
         if (TimeEnd == 0)
         {
             CheckCurrent();
-            DSA->ogluGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
+            CtxFunc->ogluGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
         }
         if (TimeEnd == 0)
             return 0;

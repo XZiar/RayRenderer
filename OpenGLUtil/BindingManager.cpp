@@ -19,7 +19,7 @@ void TextureManager::innerBind(const oglTexBase& obj, const uint16_t slot) const
 
 void TextureManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
 {
-    DSA->ogluProgramUniform1i(prog, loc, slot);
+    CtxFunc->ogluProgramUniform1i(prog, loc, slot);
 }
 
 
@@ -35,7 +35,7 @@ void TexImgManager::innerBind(const oglImgBase& obj, const uint16_t slot) const
 
 void TexImgManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
 {
-    DSA->ogluProgramUniform1i(prog, loc, slot);
+    CtxFunc->ogluProgramUniform1i(prog, loc, slot);
 }
 
 
@@ -51,7 +51,7 @@ void UBOManager::innerBind(const oglUBO& obj, const uint16_t slot) const
 
 void UBOManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
 {
-    DSA->ogluUniformBlockBinding(prog, loc, slot);
+    CtxFunc->ogluUniformBlockBinding(prog, loc, slot);
 }
 
 }

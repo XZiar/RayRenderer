@@ -11,6 +11,7 @@ using namespace oglu;
 using namespace std::literals;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
+using b3d::Vec4;
 
 
 static const u16string PostProcessorName = u"后处理";
@@ -116,7 +117,6 @@ public:
 
     void UpdateLUT(const float exposure) override
     {
-        const auto ctx = oglu::oglContext_::CurrentContext();
         LUTFrame->Use();
         LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
         LutGenerator->Draw()
@@ -234,6 +234,7 @@ void PostProcessor::OnPrepare(RenderPassContext& context)
 {
     if (EnablePostProcess)
     {
+        const auto maker = oglContext_::CurrentContext()->DeclareRange(u"PostProcess-Prepare");
         UpdateFBO();
         UpdateLUT();
         MiddleFrame->Use();
@@ -247,6 +248,7 @@ void PostProcessor::OnDraw(RenderPassContext& context)
 {
     if (EnablePostProcess)
     {
+        const auto maker = oglContext_::CurrentContext()->DeclareRange(u"PostProcess-Draw");
         oglu::oglDefaultFrameBuffer_::Get()->Use();
         GLContext->SetSRGBFBO(false);
 

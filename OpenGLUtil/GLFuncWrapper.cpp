@@ -1,5 +1,5 @@
 #include "oglPch.h"
-#include "DSAWrapper.h"
+#include "GLFuncWrapper.h"
 #include "oglUtil.h"
 #include "oglException.h"
 #include "oglContext.h"
@@ -64,17 +64,17 @@ struct ResourceKeeper
     }
 };
 thread_local const PlatFuncs* PlatFunc = nullptr;
-thread_local const DSAFuncs*  DSA      = nullptr;
+thread_local const CtxFuncs*  CtxFunc  = nullptr;
 
 static auto& GetPlatFuncsMap()
 {
     static ResourceKeeper<PlatFuncs> PlatFuncMap;
     return PlatFuncMap;
 }
-static auto& GetDSAFuncsMap()
+static auto& GetCtxFuncsMap()
 {
-    static ResourceKeeper<DSAFuncs> DSAFuncMap;
-    return DSAFuncMap;
+    static ResourceKeeper<CtxFuncs> CtxFuncMap;
+    return CtxFuncMap;
 }
 static void PreparePlatFuncs(void* hDC)
 {
@@ -86,14 +86,14 @@ static void PreparePlatFuncs(void* hDC)
         PlatFunc = rmap.FindOrCreate(hDC);
     }
 }
-static void PrepareDSAFuncs(void* hRC)
+static void PrepareCtxFuncs(void* hRC)
 {
     if (hRC == nullptr)
-        DSA = nullptr;
+        CtxFunc = nullptr;
     else
     {
-        auto& rmap = GetDSAFuncsMap();
-        DSA = rmap.FindOrCreate(hRC);
+        auto& rmap = GetCtxFuncsMap();
+        CtxFunc = rmap.FindOrCreate(hRC);
     }
 }
 
@@ -360,7 +360,7 @@ void* PlatFuncs::GetCurrentGLContext()
 #else
     const auto hRC = glXGetCurrentContext();
 #endif
-    PrepareDSAFuncs(hRC);
+    PrepareCtxFuncs(hRC);
     return hRC;
 }
 void  PlatFuncs::DeleteGLContext([[maybe_unused]] void* hDC, void* hRC)
@@ -370,7 +370,7 @@ void  PlatFuncs::DeleteGLContext([[maybe_unused]] void* hDC, void* hRC)
 #else
     glXDestroyContext((Display*)hDC, (GLXContext)hRC);
 #endif
-    GetDSAFuncsMap().Remove(hRC);
+    GetCtxFuncsMap().Remove(hRC);
 }
 #if COMMON_OS_WIN
 bool  PlatFuncs::MakeGLContextCurrent(void* hDC, void* hRC)
@@ -384,7 +384,7 @@ bool  PlatFuncs::MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC)
     if (ret)
     {
         PreparePlatFuncs(hDC);
-        PrepareDSAFuncs(hRC);
+        PrepareCtxFuncs(hRC);
     }
     return ret;
 }
@@ -484,7 +484,7 @@ void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShare
 
 
 
-DSAFuncs::DSAFuncs()
+CtxFuncs::CtxFuncs()
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
@@ -777,7 +777,10 @@ DSAFuncs::DSAFuncs()
     //debug
     QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
     QUERY_FUNC_(ObjectLabel,            "");
-    QUERY_FUNC_(ObjectPtrLabel,         "");
+    QUERY_FUNC_(PushDebugGroup,         "");
+    QUERY_FUNC_(PopDebugGroup,          "");
+    QUERY_FUNC_(PushGroupMarkerEXT,     "");
+    QUERY_FUNC_(PopGroupMarkerEXT,      "");
 
     //others
     DIRECT_FUNC(GetError);
@@ -806,6 +809,7 @@ DSAFuncs::DSAFuncs()
 
     Extensions = GetExtensions();
     ogluGetIntegerv(GL_MAX_LABEL_LENGTH, &MaxLabelLen);
+    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH, &MaxMessageLen);
     SupportDebug            = ogluDebugMessageCallback != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ogluClipControl != nullptr;
@@ -821,12 +825,12 @@ DSAFuncs::DSAFuncs()
 #undef DIRECT_FUNC
 }
 
-constexpr auto kkk = sizeof(DSAFuncs);
+//constexpr auto kkk = sizeof(CtxFuncs);
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 
 
-void DSAFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
+void CtxFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
 {
     CALL_EXISTS(ogluNamedBufferStorage_, buffer, size, data, flags)
     {
@@ -834,7 +838,7 @@ void DSAFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr s
         ogluBufferStorage_(target, size, data, flags);
     }
 }
-void DSAFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
+void CtxFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
 {
     CALL_EXISTS(ogluNamedBufferData_, buffer, size, data, usage)
     {
@@ -842,7 +846,7 @@ void DSAFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size
         ogluBufferData_(target, size, data, usage);
     }
 }
-void DSAFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
+void CtxFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
 {
     CALL_EXISTS(ogluNamedBufferSubData_, buffer, offset, size, data)
     {
@@ -850,7 +854,7 @@ void DSAFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr off
         ogluBufferSubData_(target, offset, size, data);
     }
 }
-void* DSAFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
+void* CtxFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
 {
     CALL_EXISTS(ogluMapNamedBuffer_, buffer, access)
     {
@@ -858,7 +862,7 @@ void* DSAFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) 
         return ogluMapBuffer_(target, access);
     }
 }
-GLboolean DSAFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
+GLboolean CtxFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
 {
     CALL_EXISTS(ogluUnmapNamedBuffer_, buffer)
     {
@@ -871,9 +875,9 @@ GLboolean DSAFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
 struct VAOBinder : public common::NonCopyable
 {
     common::SpinLocker::ScopeType Lock;
-    const DSAFuncs& DSA;
+    const CtxFuncs& DSA;
     bool Changed;
-    VAOBinder(const DSAFuncs* dsa, GLuint newVAO) noexcept :
+    VAOBinder(const CtxFuncs* dsa, GLuint newVAO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), Changed(false)
     {
         if (newVAO != DSA.VAO)
@@ -885,18 +889,18 @@ struct VAOBinder : public common::NonCopyable
             DSA.ogluBindVertexArray_(DSA.VAO);
     }
 };
-void DSAFuncs::RefreshVAOState() const
+void CtxFuncs::RefreshVAOState() const
 {
     const auto lock = DataLock.LockScope();
     ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
 }
-void DSAFuncs::ogluBindVertexArray(GLuint vaobj) const
+void CtxFuncs::ogluBindVertexArray(GLuint vaobj) const
 {
     const auto lock = DataLock.LockScope();
     ogluBindVertexArray_(vaobj);
     VAO = vaobj;
 }
-void DSAFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
+void CtxFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
 {
     CALL_EXISTS(ogluEnableVertexArrayAttrib_, vaobj, index)
     {
@@ -904,24 +908,24 @@ void DSAFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
         ogluEnableVertexAttribArray_(index);
     }
 }
-void DSAFuncs::ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
+void CtxFuncs::ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
     ogluVertexAttribPointer_(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
 }
-void DSAFuncs::ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+void CtxFuncs::ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
     ogluVertexAttribIPointer_(index, size, type, stride, pointer);
 }
-void DSAFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+void CtxFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
     ogluVertexAttribLPointer_(index, size, type, stride, pointer);
 }
 
 
-void DSAFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
+void CtxFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
 {
     CALL_EXISTS(ogluDrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
     CALL_EXISTS(ogluDrawArraysInstanced_, mode, first, count, static_cast<GLsizei>(instancecount)) // baseInstance ignored
@@ -932,7 +936,7 @@ void DSAFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, 
         }
     }
 }
-void DSAFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
+void CtxFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
 {
     CALL_EXISTS(ogluDrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
     CALL_EXISTS(ogluDrawElementsInstanced_, mode, count, type, indices, static_cast<GLsizei>(instancecount)) // baseInstance ignored
@@ -943,7 +947,7 @@ void DSAFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type
         }
     }
 }
-void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
+void CtxFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
     if (ogluMultiDrawArraysIndirect_)
     {
@@ -972,7 +976,7 @@ void DSAFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
     }
 }
-void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
+void CtxFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
     if (ogluMultiDrawElementsIndirect_)
     {
@@ -1014,7 +1018,7 @@ void DSAFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const ogl
 }
 
 
-void DSAFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) const
+void CtxFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) const
 {
     CALL_EXISTS(ogluCreateTextures_, target, n, textures)
     {
@@ -1025,7 +1029,7 @@ void DSAFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) co
         glBindTexture(target, 0);
     }
 }
-void DSAFuncs::ogluBindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
+void CtxFuncs::ogluBindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
 {
     CALL_EXISTS(ogluBindTextureUnit_,                   unit,         texture)
     CALL_EXISTS(ogluBindMultiTextureEXT_, GL_TEXTURE0 + unit, target, texture)
@@ -1034,7 +1038,7 @@ void DSAFuncs::ogluBindTextureUnit(GLuint unit, GLuint texture, GLenum target) c
         glBindTexture(target, texture);
     }
 }
-void DSAFuncs::ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
+void CtxFuncs::ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
 {
     CALL_EXISTS(ogluTextureBuffer_,    target,         internalformat, buffer)
     CALL_EXISTS(ogluTextureBufferEXT_, target, target, internalformat, buffer)
@@ -1045,7 +1049,7 @@ void DSAFuncs::ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalf
         glBindTexture(target, 0);
     }
 }
-void DSAFuncs::ogluGenerateTextureMipmap(GLuint texture, GLenum target) const
+void CtxFuncs::ogluGenerateTextureMipmap(GLuint texture, GLenum target) const
 {
     CALL_EXISTS(ogluGenerateTextureMipmap_,    texture)
     CALL_EXISTS(ogluGenerateTextureMipmapEXT_, texture, target)
@@ -1055,7 +1059,7 @@ void DSAFuncs::ogluGenerateTextureMipmap(GLuint texture, GLenum target) const
         ogluGenerateMipmap_(target);
     }
 }
-void DSAFuncs::ogluTextureParameteri(GLuint texture, GLenum target, GLenum pname, GLint param) const
+void CtxFuncs::ogluTextureParameteri(GLuint texture, GLenum target, GLenum pname, GLint param) const
 {
     CALL_EXISTS(ogluTextureParameteri_,    texture,         pname, param)
     CALL_EXISTS(ogluTextureParameteriEXT_, texture, target, pname, param)
@@ -1064,7 +1068,7 @@ void DSAFuncs::ogluTextureParameteri(GLuint texture, GLenum target, GLenum pname
         glTexParameteri(target, pname, param);
     }
 }
-void DSAFuncs::ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureSubImage1D_,    texture,         level, xoffset, width, format, type, pixels)
     CALL_EXISTS(ogluTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, type, pixels)
@@ -1074,7 +1078,7 @@ void DSAFuncs::ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level,
         glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
     }
 }
-void DSAFuncs::ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, type, pixels)
     CALL_EXISTS(ogluTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, type, pixels)
@@ -1084,7 +1088,7 @@ void DSAFuncs::ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level,
         glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
     }
 }
-void DSAFuncs::ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
     CALL_EXISTS(ogluTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
@@ -1094,7 +1098,7 @@ void DSAFuncs::ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level,
         ogluTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
     }
 }
-void DSAFuncs::ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureImage1DEXT_, texture, target, level, internalformat, width, border, format, type, pixels)
     {
@@ -1103,7 +1107,7 @@ void DSAFuncs::ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GL
         glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
     }
 }
-void DSAFuncs::ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, format, type, pixels)
     {
@@ -1112,7 +1116,7 @@ void DSAFuncs::ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GL
         glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
     }
 }
-void DSAFuncs::ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
     CALL_EXISTS(ogluTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, format, type, pixels)
     {
@@ -1121,7 +1125,7 @@ void DSAFuncs::ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GL
         ogluTexImage3D_(target, level, internalformat, width, height, depth, border, format, type, pixels);
     }
 }
-void DSAFuncs::ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureSubImage1D_,    texture,         level, xoffset, width, format, imageSize, data)
     CALL_EXISTS(ogluCompressedTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, imageSize, data)
@@ -1131,7 +1135,7 @@ void DSAFuncs::ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GL
         ogluCompressedTexSubImage1D_(target, level, xoffset, width, format, imageSize, data);
     }
 }
-void DSAFuncs::ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, imageSize, data)
     CALL_EXISTS(ogluCompressedTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, imageSize, data)
@@ -1141,7 +1145,7 @@ void DSAFuncs::ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GL
         ogluCompressedTexSubImage2D_(target, level, xoffset, yoffset, width, height, format, imageSize, data);
     }
 }
-void DSAFuncs::ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
     CALL_EXISTS(ogluCompressedTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
@@ -1151,7 +1155,7 @@ void DSAFuncs::ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GL
         ogluCompressedTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
     }
 }
-void DSAFuncs::ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureImage1DEXT_, texture, target, level, internalformat, width, border, imageSize, data)
     {
@@ -1160,7 +1164,7 @@ void DSAFuncs::ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint
         ogluCompressedTexImage1D_(target, level, internalformat, width, border, imageSize, data);
     }
 }
-void DSAFuncs::ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, imageSize, data)
     {
@@ -1169,7 +1173,7 @@ void DSAFuncs::ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint
         ogluCompressedTexImage2D_(target, level, internalformat, width, height, border, imageSize, data);
     }
 }
-void DSAFuncs::ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void* data) const
 {
     CALL_EXISTS(ogluCompressedTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, imageSize, data)
     {
@@ -1178,7 +1182,7 @@ void DSAFuncs::ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint
         ogluCompressedTexImage3D_(target, level, internalformat, width, height, depth, border, imageSize, data);
     }
 }
-void DSAFuncs::ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
+void CtxFuncs::ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
 {
     CALL_EXISTS(ogluTextureStorage1D_,    texture,         levels, internalformat, width)
     CALL_EXISTS(ogluTextureStorage1DEXT_, texture, target, levels, internalformat, width)
@@ -1188,7 +1192,7 @@ void DSAFuncs::ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei level
         ogluTexStorage1D_(target, levels, internalformat, width);
     }
 }
-void DSAFuncs::ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
 {
     CALL_EXISTS(ogluTextureStorage2D_,    texture,         levels, internalformat, width, height)
     CALL_EXISTS(ogluTextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
@@ -1198,7 +1202,7 @@ void DSAFuncs::ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei level
         ogluTexStorage2D_(target, levels, internalformat, width, height);
     }
 }
-void DSAFuncs::ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
+void CtxFuncs::ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
 {
     CALL_EXISTS(ogluTextureStorage3D_,    texture,         levels, internalformat, width, height, depth)
     CALL_EXISTS(ogluTextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
@@ -1208,7 +1212,7 @@ void DSAFuncs::ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei level
         ogluTexStorage3D_(target, levels, internalformat, width, height, depth);
     }
 }
-void DSAFuncs::ogluGetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const
+void CtxFuncs::ogluGetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const
 {
     CALL_EXISTS(ogluGetTextureLevelParameteriv_,    texture,         level, pname, params)
     CALL_EXISTS(ogluGetTextureLevelParameterivEXT_, texture, target, level, pname, params)
@@ -1217,7 +1221,7 @@ void DSAFuncs::ogluGetTextureLevelParameteriv(GLuint texture, GLenum target, GLi
         glGetTexLevelParameteriv(target, level, pname, params);
     }
 }
-void DSAFuncs::ogluGetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
+void CtxFuncs::ogluGetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
 {
     CALL_EXISTS(ogluGetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
     CALL_EXISTS(ogluGetTextureImageEXT_, texture, target, level, format, type, pixels)
@@ -1226,7 +1230,7 @@ void DSAFuncs::ogluGetTextureImage(GLuint texture, GLenum target, GLint level, G
         glGetTexImage(target, level, format, type, pixels);
     }
 }
-void DSAFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
+void CtxFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
 {
     CALL_EXISTS(ogluGetCompressedTextureImage_,    texture,         level, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), img)
     CALL_EXISTS(ogluGetCompressedTextureImageEXT_, texture, target, level, img)
@@ -1237,7 +1241,7 @@ void DSAFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLin
 }
 
 
-void DSAFuncs::ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
+void CtxFuncs::ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
 {
     CALL_EXISTS(ogluCreateRenderbuffers_, n, renderbuffers)
     {
@@ -1246,7 +1250,7 @@ void DSAFuncs::ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
             ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffers[i]);
     }
 }
-void DSAFuncs::ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const
 {
     CALL_EXISTS(ogluNamedRenderbufferStorage_, renderbuffer, internalformat, width, height)
     {
@@ -1254,7 +1258,7 @@ void DSAFuncs::ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internal
         ogluRenderbufferStorage_(GL_RENDERBUFFER, internalformat, width, height);
     }
 }
-void DSAFuncs::ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const
 {
     CALL_EXISTS(ogluNamedRenderbufferStorageMultisample_, renderbuffer, samples, internalformat, width, height)
     {
@@ -1262,7 +1266,7 @@ void DSAFuncs::ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsi
         ogluRenderbufferStorageMultisample_(GL_RENDERBUFFER, samples, internalformat, width, height);
     }
 }
-void DSAFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const
 {
     CALL_EXISTS(ogluNamedRenderbufferStorageMultisampleCoverageEXT_, renderbuffer, coverageSamples, colorSamples, internalformat, width, height)
     if (ogluRenderbufferStorageMultisampleCoverageNV_)
@@ -1280,18 +1284,18 @@ void DSAFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuff
 struct FBOBinder : public common::NonCopyable
 {
     common::SpinLocker::ScopeType Lock;
-    const DSAFuncs& DSA;
+    const CtxFuncs& DSA;
     bool ChangeRead, ChangeDraw;
-    FBOBinder(const DSAFuncs* dsa) noexcept :
+    FBOBinder(const CtxFuncs* dsa) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(true), ChangeDraw(true)
     { }
-    FBOBinder(const DSAFuncs* dsa, const GLuint newReadFBO) noexcept :
+    FBOBinder(const CtxFuncs* dsa, const GLuint newReadFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
         if (DSA.ReadFBO != newReadFBO)
             ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newReadFBO);
     }
-    FBOBinder(const DSAFuncs* dsa, const std::pair<GLuint, GLuint> newFBO) noexcept :
+    FBOBinder(const CtxFuncs* dsa, const std::pair<GLuint, GLuint> newFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
         if (DSA.ReadFBO != newFBO.first)
@@ -1299,7 +1303,7 @@ struct FBOBinder : public common::NonCopyable
         if (DSA.DrawFBO != newFBO.second)
             ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO.second);
     }
-    FBOBinder(const DSAFuncs* dsa, const GLenum target, const GLuint newFBO) noexcept :
+    FBOBinder(const CtxFuncs* dsa, const GLenum target, const GLuint newFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
         if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER)
@@ -1321,13 +1325,13 @@ struct FBOBinder : public common::NonCopyable
             DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, DSA.DrawFBO);
     }
 };
-void DSAFuncs::RefreshFBOState() const
+void CtxFuncs::RefreshFBOState() const
 {
     const auto lock = DataLock.LockScope();
     ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
     ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
 }
-void DSAFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
+void CtxFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
 {
     CALL_EXISTS(ogluCreateFramebuffers_, n, framebuffers)
     {
@@ -1337,7 +1341,7 @@ void DSAFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
             ogluBindFramebuffer_(GL_READ_FRAMEBUFFER_BINDING, framebuffers[i]);
     }
 }
-void DSAFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
+void CtxFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
 {
     const auto lock = DataLock.LockScope();
     ogluBindFramebuffer_(target, framebuffer);
@@ -1346,7 +1350,7 @@ void DSAFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
     if (target == GL_DRAW_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         DrawFBO = framebuffer;
 }
-void DSAFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const
+void CtxFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const
 {
     CALL_EXISTS(ogluBlitNamedFramebuffer_, readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
     {
@@ -1354,7 +1358,7 @@ void DSAFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFrame
         ogluBlitFramebuffer_(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
     }
 }
-void DSAFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
+void CtxFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
 {
     CALL_EXISTS(ogluNamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
     {
@@ -1362,7 +1366,7 @@ void DSAFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attac
         ogluFramebufferRenderbuffer_(GL_READ_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
     }
 }
-void DSAFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
+void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
 {
     CALL_EXISTS(ogluNamedFramebufferTexture_, framebuffer, attachment, texture, level)
     if (ogluFramebufferTexture_)
@@ -1393,7 +1397,7 @@ void DSAFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment
         }
     }
 }
-void DSAFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const
+void CtxFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const
 {
     CALL_EXISTS(ogluNamedFramebufferTextureLayer_, framebuffer, attachment, texture, level, layer)
     if (ogluFramebufferTextureLayer_)
@@ -1417,7 +1421,7 @@ void DSAFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attac
         }
     }
 }
-GLenum DSAFuncs::ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const
+GLenum CtxFuncs::ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const
 {
     CALL_EXISTS(ogluCheckNamedFramebufferStatus_, framebuffer, target)
     {
@@ -1425,7 +1429,7 @@ GLenum DSAFuncs::ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum targ
         return ogluCheckFramebufferStatus_(target);
     }
 }
-void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const
+void CtxFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const
 {
     CALL_EXISTS(ogluGetNamedFramebufferAttachmentParameteriv_, framebuffer, attachment, pname, params)
     {
@@ -1435,7 +1439,7 @@ void DSAFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
 }
 
 
-void DSAFuncs::ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const
+void CtxFuncs::ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const
 {
     if (ogluObjectLabel_)
     {
@@ -1445,7 +1449,7 @@ void DSAFuncs::ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view na
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
-void DSAFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
+void CtxFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
 {
     if (ogluObjectPtrLabel_)
     {
@@ -1455,9 +1459,31 @@ void DSAFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
+void CtxFuncs::ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const
+{
+    if (ogluPushDebugGroup_)
+    {
+        const auto str = common::strchset::to_u8string(message, common::str::Charset::UTF16LE);
+        ogluPushDebugGroup_(source, id,
+            static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+    else if (ogluPushGroupMarkerEXT_)
+    {
+        const auto str = common::strchset::to_u8string(message, common::str::Charset::UTF16LE);
+        ogluPushGroupMarkerEXT_(0, reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+}
+void CtxFuncs::ogluPopDebugGroup() const
+{
+    if (ogluPopDebugGroup_)
+        ogluPopDebugGroup_();
+    else if (ogluPopGroupMarkerEXT_)
+        ogluPopGroupMarkerEXT_();
+}
 
 
-void DSAFuncs::ogluClearDepth(GLclampd d) const
+void CtxFuncs::ogluClearDepth(GLclampd d) const
 {
     CALL_EXISTS(ogluClearDepth_, d)
     CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
@@ -1467,7 +1493,7 @@ void DSAFuncs::ogluClearDepth(GLclampd d) const
 }
 
 
-common::container::FrozenDenseSet<std::string_view> DSAFuncs::GetExtensions() const
+common::container::FrozenDenseSet<std::string_view> CtxFuncs::GetExtensions() const
 {
     if (ogluGetStringi)
     {
@@ -1488,7 +1514,7 @@ common::container::FrozenDenseSet<std::string_view> DSAFuncs::GetExtensions() co
         return common::str::Split(reinterpret_cast<const char*>(exts), ' ', false);
     }
 }
-std::optional<std::string_view> DSAFuncs::GetError() const
+std::optional<std::string_view> CtxFuncs::GetError() const
 {
     const auto err = ogluGetError();
     switch (err)
