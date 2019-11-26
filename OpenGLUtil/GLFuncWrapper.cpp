@@ -777,6 +777,8 @@ CtxFuncs::CtxFuncs()
     //debug
     QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
     QUERY_FUNC_(ObjectLabel,            "");
+    QUERY_FUNC_(LabelObjectEXT,         "");
+    QUERY_FUNC_(ObjectPtrLabel,         "");
     QUERY_FUNC_(PushDebugGroup,         "");
     QUERY_FUNC_(PopDebugGroup,          "");
     QUERY_FUNC_(PushGroupMarkerEXT,     "");
@@ -1439,13 +1441,36 @@ void CtxFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
 }
 
 
-void CtxFuncs::ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const
+void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const
 {
     if (ogluObjectLabel_)
     {
         const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
-        ogluObjectLabel_(type, id,
+        ogluObjectLabel_(identifier, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+    else if (ogluLabelObjectEXT_)
+    {
+        GLenum type;
+        switch (identifier)
+        {
+        case GL_BUFFER:             type = GL_BUFFER_OBJECT_EXT;            break;
+        case GL_SHADER:             type = GL_SHADER_OBJECT_EXT;            break;
+        case GL_PROGRAM:            type = GL_PROGRAM_OBJECT_EXT;           break;
+        case GL_VERTEX_ARRAY:       type = GL_VERTEX_ARRAY_OBJECT_EXT;      break;
+        case GL_QUERY:              type = GL_QUERY_OBJECT_EXT;             break;
+        case GL_PROGRAM_PIPELINE:   type = GL_PROGRAM_PIPELINE_OBJECT_EXT;  break;
+        case GL_TRANSFORM_FEEDBACK: type = GL_TRANSFORM_FEEDBACK;           break;
+        case GL_SAMPLER:            type = GL_SAMPLER;                      break;
+        case GL_TEXTURE:            type = GL_TEXTURE;                      break;
+        case GL_RENDERBUFFER:       type = GL_RENDERBUFFER;                 break;
+        case GL_FRAMEBUFFER:        type = GL_FRAMEBUFFER;                  break;
+        default:                    return;
+        }
+        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        ogluLabelObjectEXT_(type, id,
+            static_cast<GLsizei>(str.size()),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }

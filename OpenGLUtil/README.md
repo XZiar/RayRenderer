@@ -109,7 +109,7 @@ It's main purpose is to merge multiple shader into one, which reduces redundant 
 
 `FuncName` should be `Stage`. Variadic arguments will be used to indicate what component this file should include(`VERT`, `FRAG`, `GEOM`...).
 
-Merged Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+Merged Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined just after the version statement, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
 
 #### Uniform Description
 
@@ -134,6 +134,8 @@ OpenGLUtil provide a wrapper to cover both runtime dispatch and compile-time dis
 The syntax is `OGLU_ROUTINE(type, routinename, return-type, [arg, ...args])` and `OGLU_SUBROUTINE(type, funcname)`. The `OGLU_ROUTINE` defines both `subroutine type` and `subroutine uniform`, and `OGLU_SUBROUTINE` defines the `specific fucntion`. 
 
 Normally, it's just a wrapper for OpenGL's subroutine. When a subroutine selection is statically specified in `ShaderConfig`, `routinename` become a macro of `funcname` and subroutine definition is gone. As a result, all usages of the subroutine will directly go to the specific function, while other selection functions can still be explicitly used.
+
+If there's any dynamic subroutine, a request of extension `GL_ARB_shader_subroutine` will be placed into the shader.
 
 #### Resource Mapping
 

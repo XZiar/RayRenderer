@@ -66,7 +66,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(Pyramid, float)
 }
 
 
-static std::pair<vector<Point>, vector<uint16_t>> CreateSphere(const float radius, const uint16_t rings = 80, const uint16_t sectors = 80)
+static std::pair<vector<Point>, vector<uint16_t>> CreateSphere(const float radius, const uint16_t rings = 32, const uint16_t sectors = 32)
 {
     const float rstep = 1.0f / (rings - 1);
     const float sstep = 1.0f / (sectors - 1);

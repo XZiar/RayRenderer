@@ -1,12 +1,16 @@
 ## TODO list for RayRenderer
 
 * common
-  - [ ] Add async file operation (cross-platform)
   - [x] Add linq (iterator-based)
   - [ ] Move Contorllable into standalone project with better metadata management
+  - [ ] Add static control-item for Controllable
   - [ ] Implement new SIMD vector lib
   - [ ] Makes strcharset Linq-able
-  - [ ] Makes string split Linq-able
+  - [x] Makes string split Linq-able
+
+* SystemCommon
+  - [ ] Add async file operation (cross-platform)
+  - [ ] Add hugepage memory allocation
 
 * AsyncExecutor
   - [x] Add support for returning value
@@ -25,7 +29,7 @@
   - [x] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
   - [x] Add Intel's ISPC tex-compressor as texture compresser
-  - [ ] Add debugging support
+  - [x] Add debugging support (renderdoc)
   - [x] Move Camera component out of OpenGLUtil (shouldn't handle here)
   - [x] Combine subroutine with macro-based static dispatch
   - [x] Add context-sesative dispatching for version-based functions 
@@ -33,7 +37,9 @@
   - [ ] Seperate VAO bindings
   - [x] Remove explicit include of glew
   - [x] Reduce hazzlement of TexDataType and TexInnerType
-  - [ ] Re-design object creation
+  - [x] Re-design object creation
+  - [x] Replace glew since it lacks support for multi-thread & multi-contxt
+  - [ ] Re-design ResourceMappingManager
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL
@@ -75,6 +81,7 @@
   - [ ] Change to move convinient mouse+keyboard operation
   - [ ] More buttons and proper icon
   - [x] Develop AnyDock
+  - [ ] Fix scrollview's crash when switching to other selection
 
 * AnyDock
   - [ ] Repalce with DockPanel to provide better Dock State
@@ -91,7 +98,8 @@
   - [x] Port core components to Linux 
   - [ ] Move to .net core 3.0 with WPF/Winform
   - [ ] Add Vulkan backend
-  - [x] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Add GLFW
-  - [ ] Add static control-item for Controllable
-  - [ ] Add OpenCL's codegen which can write code in C++ with template/type-safe support
+  - [ ] Add FancyCL codegen which can write code in C++ with template/type-safe support and emit compute langs
+  - [ ] Add custom window host (for OGL/vulkan)
+
+

@@ -427,13 +427,14 @@ public:
     using DebugCallback = void (GLAPIENTRY*)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * message, const void* userParam);
     void (GLAPIENTRY *ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
     void (GLAPIENTRY *ogluObjectLabel_) (GLenum identifier, GLuint name, GLsizei length, const GLchar* label) = nullptr;
+    void (GLAPIENTRY *ogluLabelObjectEXT_) (GLenum type, GLuint object, GLsizei length, const GLchar* label) = nullptr;
     void (GLAPIENTRY *ogluObjectPtrLabel_) (void* ptr, GLsizei length, const GLchar* label) = nullptr;
     void (GLAPIENTRY *ogluPushDebugGroup_) (GLenum source, GLuint id, GLsizei length, const GLchar* message) = nullptr;
     void (GLAPIENTRY *ogluPopDebugGroup_) () = nullptr;
     void (GLAPIENTRY *ogluPushGroupMarkerEXT_) (GLsizei length, const GLchar* marker) = nullptr;
     void (GLAPIENTRY *ogluPopGroupMarkerEXT_) () = nullptr;
 
-    void ogluSetObjectLabel(GLenum type, GLuint id, std::u16string_view name) const;
+    void ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const;
     void ogluSetObjectLabel(GLsync sync, std::u16string_view name) const;
     void ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const;
     void ogluPopDebugGroup() const;
