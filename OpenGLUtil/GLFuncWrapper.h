@@ -77,7 +77,7 @@ extern thread_local const PlatFuncs* PlatFunc;
 
 
 
-class CtxFuncs
+class CtxFuncs : public ContextCapability
 {
     friend struct VAOBinder;
     friend struct FBOBinder;
@@ -465,19 +465,10 @@ public:
 
     void ogluClearDepth(GLclampd d) const;
     
-    bool SupportDebug           = false;
-    bool SupportSRGB            = false;
-    bool SupportClipControl     = false;
-    bool SupportImageLoadStore  = false;
-    bool SupportComputeShader   = false;
-    bool SupportTessShader      = false;
-    bool SupportBaseInstance    = false;
-
     CtxFuncs();
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:
-    common::container::FrozenDenseSet<std::string_view> Extensions;
     [[nodiscard]] std::optional<std::string_view> GetError() const;
 };
 extern thread_local const CtxFuncs* CtxFunc;

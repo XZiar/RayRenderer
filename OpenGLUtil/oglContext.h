@@ -1,7 +1,6 @@
 #pragma once
 #include "oglRely.h"
 #include "3DElement.hpp"
-#include "common/ContainerEx.hpp"
 
 
 #if COMPILER_MSVC
@@ -200,12 +199,10 @@ private:
 #endif
     detail::CtxResHandler ResHandler;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
-    const common::container::FrozenDenseSet<std::string_view>* Extensions = nullptr;
     std::weak_ptr<oglMarker> CurrentRangeMarker;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
-    uint32_t Version = 0;
     bool IsExternal;
     //bool IsRetain = false;
 #if defined(_WIN32)
@@ -216,8 +213,9 @@ private:
     void Init(const bool isCurrent);
     void FinishGL();
 public:
+    const ContextCapability* Capability = nullptr;
     ~oglContext_();
-    [[nodiscard]] const auto& GetExtensions() const { return *Extensions; }
+    [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
 
     bool UseContext(const bool force = false);
     bool UnloadContext();

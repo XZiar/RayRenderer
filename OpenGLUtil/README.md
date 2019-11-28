@@ -41,15 +41,19 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 * **oglProgram**  OpenGL Program
   
   It's like a "shader" in other engine, with resources slot binding with uniforms, UBOs, textures, etc. 
+  * oglDrawProgram -- Program which runs on graphics pipeline
+  * oglcomputeProgram -- Program which runs on compute pipeline
 
 * **oglContext**  OpenGL Context
 
-  Wrapper for WGLContext(HGLRC/HDC) or GLXContext(GLXWindow,GLXDrawable). It provide message callback, context-sensitive resource management, and context-related state setting.
+  Wrapper for WGLContext(HGLRC/HDC) or GLXContext(GLXWindow,GLXDrawable). It provide message callback, context-sensitive resource management, and some context-related state setting.
  
   It's important to keep track on what context this thread is using since object are shared between shared_contexts but bindings and some states are not.
-  In fact objects has a weak-reference to its context(or shared-context base), and most operations need to check it in DEBUG mode.
+  In fact objects has a weak-reference to its context(or shared-context base), and most operations will check if it is in a compatible context(maybe shared) when under DEBUG mode.
 
   It's also important to make OpenGLUtil know current context, since it uses threadlocal to keep track of current context and is not aware of outside modification.
+
+  oglContext exposes current context's capabilities via `Capability` member.
 
 * **oglUtil**  OpenGL Utility
   
@@ -75,6 +79,19 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 * [AsyncExecutor](../AsyncExecutor)
 
   provide async-execution environment for OpenGL workers.
+
+* [boost.stacktrace](../3rdParty/boost.stacktrace)
+
+  provide detail stacktrace when throwing exceptions
+
+## Requirements
+
+Although OpenGLUtil tries to cover difference between versions and try to provide as much functionality as possible, there's still some minimum requirements to allow it works correctly.
+
+* ([WGL_ARB_extensions_string](https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_extensions_string.txt) or [WGL_EXT_extensions_string](https://www.khronos.org/registry/OpenGL/extensions/EXT/WGL_EXT_extensions_string.txt)) (Windows), ([GLX_ARB_get_proc_address](https://www.khronos.org/registry/OpenGL/extensions/ARB/GLX_ARB_get_proc_address.txt)) (*nux) required.
+* [WGL_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_create_context.txt) (Windows), [GLX_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/GLX_ARB_create_context.txt) (*nix) required.
+* [GL_ARB_program_interface_query](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_program_interface_query.txt) required for oglProgram, since it tries to introspect program's info.
+* GL3.0 required for Core Profile Context.
 
 ## Feature
 
@@ -135,7 +152,7 @@ The syntax is `OGLU_ROUTINE(type, routinename, return-type, [arg, ...args])` and
 
 Normally, it's just a wrapper for OpenGL's subroutine. When a subroutine selection is statically specified in `ShaderConfig`, `routinename` become a macro of `funcname` and subroutine definition is gone. As a result, all usages of the subroutine will directly go to the specific function, while other selection functions can still be explicitly used.
 
-If there's any dynamic subroutine, a request of extension `GL_ARB_shader_subroutine` will be placed into the shader.
+If there's any dynamic subroutine, a request of extension `GL_ARB_shader_subroutine` will be placed into the shader. Since OpenGLUtil cannot identify ifdef blocks, the request is `enable` rather than `require`, and the compiler should still throw the error when not supported.
 
 #### Resource Mapping
 

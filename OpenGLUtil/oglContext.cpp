@@ -13,14 +13,13 @@ using std::vector;
 BindingState::BindingState()
 {
     HRC = PlatFuncs::GetCurrentGLContext();
-    const oglContext ctx = oglContext_::CurrentContext();
     CtxFunc->ogluGetIntegerv(GL_CURRENT_PROGRAM, &Prog);
     CtxFunc->ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, &VAO);
     CtxFunc->ogluGetIntegerv(GL_FRAMEBUFFER_BINDING, &FBO);
     CtxFunc->ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &DFB);
     CtxFunc->ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &RFB);
     CtxFunc->ogluGetIntegerv(GL_ARRAY_BUFFER_BINDING, &VBO);
-    if (ctx->Version >= 40)
+    if (CtxFunc->SupportIndirectDraw)
         CtxFunc->ogluGetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &IBO);
     else
         IBO = 0;
@@ -43,7 +42,7 @@ static std::atomic_uint32_t LatestVersion = 0;
 static std::map<void*, std::weak_ptr<oglContext_>> CTX_MAP;
 static std::map<void*, std::weak_ptr<oglContext_>> EXTERN_CTX_MAP;
 static common::RWSpinLock CTX_LOCK;
-static common::SpinLocker EXTERN_CTX_LOCK, VER_LOCK;
+static common::SpinLocker EXTERN_CTX_LOCK;
 
 
 static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
@@ -115,18 +114,18 @@ void oglContext_::Init(const bool isCurrent)
         oldCtx = oglContext_::CurrentContext();
         UseContext();
     }
-    int32_t major = 0, minor = 0;
-    CtxFunc->ogluGetIntegerv(GL_MAJOR_VERSION, &major);
-    CtxFunc->ogluGetIntegerv(GL_MINOR_VERSION, &minor);
-    Version = major * 10 + minor;
+    Capability = CtxFunc;
     {
-        const auto lock = VER_LOCK.LockScope();
-        if (Version > LatestVersion)
+        uint32_t oldVer = LatestVersion.load();
+        bool updated = false;
+        while (oldVer < CtxFunc->Version)
         {
-            LatestVersion = Version;
-            oglLog().info(u"update API Version to [{}.{}]\n", major, minor);
+            updated = LatestVersion.compare_exchange_weak(oldVer, CtxFunc->Version);
+            if (updated)
+                break;
         }
-        Extensions = &CtxFunc->Extensions;
+        if (updated)
+            oglLog().info(u"update API Version to [{}.{}]\n", CtxFunc->Version / 10, CtxFunc->Version % 10);
     }
     CtxFunc->ogluGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (CtxFunc->ogluIsEnabled(GL_CULL_FACE))
@@ -493,7 +492,8 @@ oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, u
 {
     if (version == 0) 
         version = LatestVersion;
-    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, ctx->Extensions->Has("GL_KHR_context_flush_control"));
+    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, 
+        ctx->Capability->Extensions.Has("GL_KHR_context_flush_control"));
     return NewContext(ctx, isShared, ctxAttrb.data());
 }
 

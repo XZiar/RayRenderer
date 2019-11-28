@@ -810,15 +810,24 @@ CtxFuncs::CtxFuncs()
 
 
     Extensions = GetExtensions();
-    ogluGetIntegerv(GL_MAX_LABEL_LENGTH, &MaxLabelLen);
-    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH, &MaxMessageLen);
+    {
+        int32_t major = 0, minor = 0;
+        ogluGetIntegerv(GL_MAJOR_VERSION, &major);
+        ogluGetIntegerv(GL_MINOR_VERSION, &minor);
+        Version = major * 10 + minor;
+    }
     SupportDebug            = ogluDebugMessageCallback != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ogluClipControl != nullptr;
-    SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
+    SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
+    SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
+    SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
+
+    ogluGetIntegerv(GL_MAX_LABEL_LENGTH, &MaxLabelLen);
+    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH, &MaxMessageLen);
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS
@@ -827,7 +836,7 @@ CtxFuncs::CtxFuncs()
 #undef DIRECT_FUNC
 }
 
-//constexpr auto kkk = sizeof(CtxFuncs);
+constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 

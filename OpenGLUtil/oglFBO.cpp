@@ -139,6 +139,16 @@ void oglFrameBuffer_::Use() const
     RefreshViewPort();
 }
 
+void oglFrameBuffer_::Discard()
+{
+
+}
+
+void oglFrameBuffer_::Clear()
+{
+
+}
+
 std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding() const
 {
     return oglFrameBuffer_::DebugBinding(FBOId);

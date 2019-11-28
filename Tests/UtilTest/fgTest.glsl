@@ -1,9 +1,7 @@
 #version 330 core
 #extension GL_ARB_shading_language_420pack : require
-#extension GL_ARB_shader_subroutine : require
-//#extension GL_ARB_gpu_shader5 : require
 
-//@OGLU@Stage("VERT", "FRAG", "COMP")
+//@OGLU@Stage("VERT", "FRAG")
 
 //Range compression
 vec3 LinearToLogUE(const vec3 val)
@@ -95,56 +93,3 @@ vec3 SRGBToLinear(const vec3 color)
     return ret;
 }
 
-//Tonemappings
-#ifdef OGLU_COMP
-
-//@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 5.0)
-uniform float exposure = 1.0f;
-
-OGLU_ROUTINE(ToneMapping, ToneMap, vec3, const vec3 color)
-
-OGLU_SUBROUTINE(ToneMapping, NoTone)
-{
-    return color;
-}
-
-OGLU_SUBROUTINE(ToneMapping, Reinhard)
-{
-    const vec3 lum = exposure * color;
-    return lum / (lum + 1.0f);
-}
-
-OGLU_SUBROUTINE(ToneMapping, ExpTone)
-{
-    return 1.0f - exp(color * -exposure);
-}
-
-OGLU_SUBROUTINE(ToneMapping, ACES)
-{
-    const float A = 2.51f;
-    const float B = 0.03f;
-    const float C = 2.43f;
-    const float D = 0.59f;
-    const float E = 0.14f;
-
-    const vec3 lum = exposure * color;
-    return (lum * (A * lum + B)) / (lum * (C * lum + D) + E);
-}
-
-
-writeonly uniform image3D result;
-uniform float step;
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-void main()
-{
-    const vec3 srcColor = gl_GlobalInvocationID.xyz * step;
-    const vec3 linearColor = LogUEToLinear(srcColor);
-    const vec3 acesColor = ToneMap(linearColor);
-    const vec3 srgbColor = LinearToSRGB(acesColor);
-    //const vec4 color = vec4(srgbColor, 1.0f);
-    const vec4 color = vec4(srgbColor, 1.0f);
-    imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
-}
-
-
-#endif

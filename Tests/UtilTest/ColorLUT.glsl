@@ -1,7 +1,8 @@
 #version 330 core
 #extension GL_ARB_shading_language_420pack	: require
-#extension GL_ARB_shader_subroutine			: require
-//#extension GL_ARB_shader_image_load_store	: require
+#if defined(OGLU_COMP)
+#   extension GL_ARB_shader_image_load_store	: require
+#endif
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 
 

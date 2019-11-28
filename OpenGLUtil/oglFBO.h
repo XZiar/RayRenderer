@@ -95,8 +95,10 @@ public:
 
     void SetName(std::u16string name) noexcept;
 
-    FBOStatus CheckStatus() const;
+    [[nodiscard]] FBOStatus CheckStatus() const;
     void Use() const;
+    void Discard();
+    void Clear();
     [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 

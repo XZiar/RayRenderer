@@ -440,7 +440,11 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     for (const auto& sr : routines)
         hasSubroutine = sr.Apply(lines) || hasSubroutine;
     if (hasSubroutine)
-        extReqs.append("#extension GL_ARB_shader_subroutine : require\r\n");
+    {
+        extReqs.append("#extension GL_ARB_shader_subroutine : enable\r\n");
+        if (!CtxFunc->SupportSubroutine)
+            oglLog().warning(u"subroutine requested on a unspported context.\n");
+    }
 
     //apply defines
     string defs;

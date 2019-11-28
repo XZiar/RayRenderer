@@ -20,6 +20,7 @@
 
 #include "ImageUtil/ImageCore.h"
 #include "common/EnumEx.hpp"
+#include "common/ContainerEx.hpp"
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
@@ -132,6 +133,24 @@ public:
 };
 
 }
+
+
+struct ContextCapability
+{
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    uint32_t Version            = 0;
+    bool SupportDebug           = false;
+    bool SupportSRGB            = false;
+    bool SupportClipControl     = false;
+    bool SupportComputeShader   = false;
+    bool SupportTessShader      = false;
+    bool SupportImageLoadStore  = false;
+    bool SupportSubroutine      = false;
+    bool SupportIndirectDraw    = false;
+    bool SupportBaseInstance    = false;
+};
+
+
 }
 
 

@@ -279,54 +279,62 @@ void oglProgram_::InitSubroutines()
         constexpr std::u16string_view tmp = u"SubRoutine Resource: \n";
         strBuffer.append(tmp.data(), tmp.data() + tmp.size());
     }
-    string nameBuf;
-    for (const auto stype : common::container::KeySet(Shaders))
+    if (CtxFunc->SupportSubroutine)
     {
-        const auto stage = common::enum_cast(stype);
-        GLint count;
-        CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
-        GLint maxNameLen = 0;
-        CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
+        string nameBuf;
+        for (const auto stype : common::container::KeySet(Shaders))
         {
-            GLint maxUNameLen = 0;
-            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
-            maxNameLen = std::max(maxNameLen, maxUNameLen);
-        }
-        nameBuf.resize(maxNameLen);
-        for (int a = 0; a < count; ++a)
-        {
-            string uniformName;
+            const auto stage = common::enum_cast(stype);
+            GLint count;
+            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
+            GLint maxNameLen = 0;
+            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
             {
-                GLint nameLen = 0;
-                CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &nameLen, nameBuf.data());
-                uniformName.assign(nameBuf, 0, nameLen);
+                GLint maxUNameLen = 0;
+                CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
+                maxNameLen = std::max(maxNameLen, maxUNameLen);
             }
-            auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
-            fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
-            GLint srcnt = 0;
-            CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
-            vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
-            CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
-            
-            vector<SubroutineResource::Routine> routines;
-            for (const auto subridx : compSRs)
+            nameBuf.resize(maxNameLen);
+            for (int a = 0; a < count; ++a)
             {
-                string subrName;
+                string uniformName;
                 {
                     GLint nameLen = 0;
-                    CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
-                    subrName.assign(nameBuf, 0, nameLen);
+                    CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &nameLen, nameBuf.data());
+                    uniformName.assign(nameBuf, 0, nameLen);
                 }
-                fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
-                routines.push_back(SubroutineResource::Routine(subrName, subridx));
+                auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
+                fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
+                GLint srcnt = 0;
+                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
+                vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
+                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
+
+                vector<SubroutineResource::Routine> routines;
+                for (const auto subridx : compSRs)
+                {
+                    string subrName;
+                    {
+                        GLint nameLen = 0;
+                        CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
+                        subrName.assign(nameBuf, 0, nameLen);
+                    }
+                    fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
+                    routines.push_back(SubroutineResource::Routine(subrName, subridx));
+                }
+                const auto it = SubroutineRess.emplace(stype, uniformLoc, uniformName, std::move(routines)).first;
+                for (auto& routine : it->Routines)
+                    subrLookup[&routine] = &(*it);
             }
-            const auto it = SubroutineRess.emplace(stype, uniformLoc, uniformName, std::move(routines)).first;
-            for (auto& routine : it->Routines)
-                subrLookup[&routine] = &(*it);
+            GLint locCount = 0;
+            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
+            SubroutineSettings[stype].resize(locCount);
         }
-        GLint locCount = 0;
-        CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
-        SubroutineSettings[stype].resize(locCount);
+    }
+    else
+    {
+        constexpr std::u16string_view tmp = u"Unsupport on this context\n";
+        strBuffer.append(tmp.data(), tmp.data() + tmp.size());
     }
     oglLog().debug(strBuffer);
     
