@@ -59,6 +59,47 @@ void oglRenderBuffer_::SetName(std::u16string name) noexcept
 }
 
 
+oglFrameBuffer_::FBOClear::FBOClear(oglFrameBuffer_* fbo) : NewFBO(*fbo), OldFBOId(CtxFunc->DrawFBO)
+{
+    NewFBO.Use();
+}
+
+oglFrameBuffer_::FBOClear::~FBOClear()
+{
+    CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, OldFBOId);
+}
+
+oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearColors(const b3d::Vec4& color)
+{
+    CtxFunc->ogluClearColor(color.x, color.y, color.z, color.w);
+    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT);
+    return *this;
+}
+
+oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearDepth(const float depth)
+{
+    CtxFunc->ogluClearDepth(depth);
+    CtxFunc->ogluClear(GL_DEPTH_BUFFER_BIT);
+    return *this;
+}
+
+oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearStencil(const GLint stencil)
+{
+    CtxFunc->ogluClearStencil(stencil);
+    CtxFunc->ogluClear(GL_STENCIL_BUFFER_BIT);
+    return *this;
+}
+
+oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearAll(const b3d::Vec4& color, const float depth, const GLint stencil)
+{
+    CtxFunc->ogluClearColor(color.x, color.y, color.z, color.w);
+    CtxFunc->ogluClearDepth(depth);
+    CtxFunc->ogluClearStencil(stencil);
+    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    return *this;
+}
+
+
 oglFrameBuffer_::oglFrameBuffer_() : FBOId(GL_INVALID_INDEX), Width(0), Height(0)
 {
     CtxFunc->ogluCreateFramebuffers(1, &FBOId);
@@ -71,6 +112,13 @@ oglFrameBuffer_::~oglFrameBuffer_()
 {
     if (!EnsureValid()) return;
     CtxFunc->ogluDeleteFramebuffers(1, &FBOId);
+}
+
+GLenum oglFrameBuffer_::CheckIfBinded() const
+{
+    if (CtxFunc->DrawFBO == FBOId) return GL_DRAW_FRAMEBUFFER;
+    if (CtxFunc->ReadFBO == FBOId) return GL_READ_FRAMEBUFFER;
+    return GLInvalidEnum;
 }
 
 void oglFrameBuffer_::CheckSizeMatch(const uint32_t width, const uint32_t height)
@@ -98,10 +146,22 @@ GLuint oglFrameBuffer_::GetID(const oglTexBase& tex)
     return tex->TextureID;
 }
 
-void oglFrameBuffer_::RefreshViewPort() const
+void oglFrameBuffer_::RefreshViewPort()
 {
     if (CtxFunc->DrawFBO == FBOId)
+    {
         CtxFunc->ogluViewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
+        SizeChanged = false;
+    }
+}
+
+void oglFrameBuffer_::EnsureChanges()
+{
+    if (SizeChanged)
+    {
+        Use();
+        RefreshViewPort();
+    }
 }
 
 FBOStatus oglFrameBuffer_::CheckStatus() const
@@ -132,21 +192,38 @@ FBOStatus oglFrameBuffer_::CheckStatus() const
     }
 }
 
-void oglFrameBuffer_::Use() const
+void oglFrameBuffer_::Use()
 {
     CheckCurrent();
-    CtxFunc->ogluBindFramebuffer(GL_FRAMEBUFFER, FBOId);
+    CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOId);
     RefreshViewPort();
 }
 
-void oglFrameBuffer_::Discard()
-{
 
+void oglFrameBuffer_::DiscardColor(const uint8_t attachment)
+{
+    const GLenum slot = GL_COLOR_ATTACHMENT0 + attachment;
+    CtxFunc->ogluInvalidateNamedFramebufferData(FBOId, 1, &slot);
+}
+void oglFrameBuffer_::DiscardDepth()
+{
+    const GLenum slot = GL_DEPTH_ATTACHMENT;
+    CtxFunc->ogluInvalidateNamedFramebufferData(FBOId, 1, &slot);
+}
+void oglFrameBuffer_::DiscardStencil()
+{
+    const GLenum slot = GL_STENCIL_ATTACHMENT;
+    CtxFunc->ogluInvalidateNamedFramebufferData(FBOId, 1, &slot);
 }
 
-void oglFrameBuffer_::Clear()
+oglFrameBuffer_::FBOClear oglFrameBuffer_::Clear()
 {
+    return FBOClear(this);
+}
 
+void oglFrameBuffer_::ClearAll()
+{
+    FBOClear(this).ClearAll();
 }
 
 std::pair<GLuint, GLuint> oglFrameBuffer_::DebugBinding() const
@@ -173,12 +250,16 @@ void oglFrameBuffer2DBase_::BlitColorTo(const oglFBO2DBase& to, const std::tuple
 {
     CheckCurrent();
     to->CheckCurrent();
+    EnsureChanges();
+    to->EnsureChanges();
     BlitColor(FBOId, to->FBOId, rect);
 }
 void oglFrameBuffer2DBase_::BlitColorFrom(const oglFBO2DBase& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     CheckCurrent();
     from->CheckCurrent();
+    EnsureChanges();
+    from->EnsureChanges();
     BlitColor(from->FBOId, FBOId, rect);
 }
 
@@ -195,6 +276,7 @@ oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
 void oglDefaultFrameBuffer_::SetWindowSize(const uint32_t width, const uint32_t height)
 {
     Width = width; Height = height;
+    SizeChanged = true;
     RefreshViewPort();
 }
 
@@ -360,6 +442,7 @@ oglFBO3D oglFrameBuffer3D_::Create()
 {
     return MAKE_ENABLER_SHARED(oglFrameBuffer3D_, ());
 }
+
 
 
 

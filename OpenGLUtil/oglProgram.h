@@ -5,8 +5,6 @@
 #include "oglTexture.h"
 #include "oglVAO.h"
 #include "3DElement.hpp"
-#include "common/ContainerEx.hpp"
-
 
 #if COMPILER_MSVC
 #   pragma warning(push)

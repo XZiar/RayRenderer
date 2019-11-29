@@ -20,6 +20,7 @@
 
 #include "ImageUtil/ImageCore.h"
 #include "common/EnumEx.hpp"
+#include "common/AtomicUtil.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
@@ -138,6 +139,7 @@ public:
 struct ContextCapability
 {
     common::container::FrozenDenseSet<std::string_view> Extensions;
+    std::u16string VersionString;
     uint32_t Version            = 0;
     bool SupportDebug           = false;
     bool SupportSRGB            = false;

@@ -1,6 +1,5 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "RenderCoreUtil.hpp"
 #include "RenderPass.h"
 #include "GLShader.h"
 
@@ -31,7 +30,7 @@ private:
     std::unique_ptr<LutGen> LutGenerator;
     std::shared_ptr<GLShader> PostShader;
     oglu::oglVBO ScreenBox;
-    AtomicBitfiled<PostProcUpdate> UpdateDemand = PostProcUpdate::LUT | PostProcUpdate::FBO;
+    common::AtomicBitfield<PostProcUpdate> UpdateDemand = PostProcUpdate::LUT | PostProcUpdate::FBO;
     const uint32_t LutSize;
     FBOConfig MidFrameConfig;
     float Exposure = 0.0f;

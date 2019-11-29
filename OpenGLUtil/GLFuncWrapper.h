@@ -260,6 +260,9 @@ public:
     void   (GLAPIENTRY *ogluBindFramebuffer_) (GLenum target, GLuint framebuffer) = nullptr;
     void   (GLAPIENTRY *ogluBlitNamedFramebuffer_) (GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
     void   (GLAPIENTRY *ogluBlitFramebuffer_) (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
+    void   (GLAPIENTRY *ogluInvalidateNamedFramebufferData_) (GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) = nullptr;
+    void   (GLAPIENTRY *ogluInvalidateFramebuffer_) (GLenum target, GLsizei numAttachments, const GLenum* attachments) = nullptr;
+    void   (GLAPIENTRY *ogluDiscardFramebufferEXT_) (GLenum target, GLsizei numAttachments, const GLenum* attachments) = nullptr;
     void   (GLAPIENTRY *ogluNamedFramebufferRenderbuffer_) (GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
     void   (GLAPIENTRY *ogluFramebufferRenderbuffer_) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) = nullptr;
     void   (GLAPIENTRY *ogluNamedFramebufferTexture1DEXT_) (GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) = nullptr;
@@ -276,16 +279,23 @@ public:
     GLenum (GLAPIENTRY *ogluCheckFramebufferStatus_) (GLenum target) = nullptr;
     void   (GLAPIENTRY *ogluGetNamedFramebufferAttachmentParameteriv_) (GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) = nullptr;
     void   (GLAPIENTRY *ogluGetFramebufferAttachmentParameteriv_) (GLenum target, GLenum attachment, GLenum pname, GLint* params) = nullptr;
-    
+    void   (GLAPIENTRY *ogluClear) (GLbitfield mask) = nullptr;
+    void   (GLAPIENTRY *ogluClearColor) (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) = nullptr;
+    void   (GLAPIENTRY *ogluClearDepth_) (GLclampd d) = nullptr;
+    void   (GLAPIENTRY *ogluClearDepthf_) (GLclampf f) = nullptr;
+    void   (GLAPIENTRY *ogluClearStencil) (GLint s) = nullptr;
+
     void RefreshFBOState() const;
     void ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const;
     void ogluBindFramebuffer(GLenum target, GLuint framebuffer) const;
     void ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const;
+    void ogluInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) const;
     void ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const;
     void ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const;
     void ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const;
     [[nodiscard]] GLenum ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const;
     void ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const;
+    void ogluClearDepth(GLclampd d) const;
 
     // shader related
     GLuint (GLAPIENTRY *ogluCreateShader) (GLenum type) = nullptr;
@@ -453,18 +463,13 @@ public:
     void           (GLAPIENTRY *ogluDepthFunc) (GLenum func) = nullptr;
     void           (GLAPIENTRY *ogluCullFace) (GLenum mode) = nullptr;
     void           (GLAPIENTRY *ogluFrontFace) (GLenum mode) = nullptr;
-    void           (GLAPIENTRY *ogluClear) (GLbitfield mask) = nullptr;
     void           (GLAPIENTRY *ogluViewport) (GLint x, GLint y, GLsizei width, GLsizei height) = nullptr;
     void           (GLAPIENTRY *ogluViewportArrayv) (GLuint first, GLsizei count, const GLfloat* v) = nullptr;
     void           (GLAPIENTRY *ogluViewportIndexedf) (GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h) = nullptr;
     void           (GLAPIENTRY *ogluViewportIndexedfv) (GLuint index, const GLfloat* v) = nullptr;
-    void           (GLAPIENTRY *ogluClearDepth_) (GLclampd d) = nullptr;
-    void           (GLAPIENTRY *ogluClearDepthf_) (GLclampf f) = nullptr;
     void           (GLAPIENTRY *ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
     void           (GLAPIENTRY *ogluMemoryBarrier) (GLbitfield barriers) = nullptr;
 
-    void ogluClearDepth(GLclampd d) const;
-    
     CtxFuncs();
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;

@@ -24,6 +24,7 @@
 #include "ResourcePackager/SerializeUtil.h"
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
+#include "common/AtomicUtil.hpp"
 #include "common/Controllable.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"

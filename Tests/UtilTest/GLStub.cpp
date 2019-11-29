@@ -138,7 +138,7 @@ oglContext InitContext()
 static void OGLStub()
 {
     const auto ctx = InitContext();
-    log().success(u"GL Context Version: [{}]\n", oglu::oglUtil::GetVersionStr());
+    log().success(u"GL Context Version: [{}]\n", ctx->Capability->VersionString);
     while (true)
     {
         log().info(u"input opengl file:");

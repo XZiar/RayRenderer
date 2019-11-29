@@ -1,6 +1,8 @@
 #pragma once
 #include "oglRely.h"
 #include "oglTexture.h"
+#include "3DElement.hpp"
+#include <bitset>
 
 
 #if COMPILER_MSVC
@@ -72,8 +74,21 @@ class OGLUAPI oglFrameBuffer_ :
 public:
     using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
 private:
+    GLenum CheckIfBinded() const;
     void CheckSizeMatch(const uint32_t width, const uint32_t height);
 protected:
+    class OGLUAPI FBOClear : public common::NonCopyable
+    {
+        oglFrameBuffer_& NewFBO;
+        GLuint OldFBOId;
+    public:
+        FBOClear(oglFrameBuffer_* fbo);
+        ~FBOClear();
+        FBOClear& ClearColors(const b3d::Vec4& color = b3d::Vec4::zero());
+        FBOClear& ClearDepth(const float depth = 0.f);
+        FBOClear& ClearStencil(const GLint stencil = 0);
+        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const GLint stencil = 0);
+    };
     [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
     [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
 
@@ -83,9 +98,12 @@ protected:
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
     uint32_t Width, Height;
+    bool SizeChanged = false;
+
     oglFrameBuffer_();
     oglFrameBuffer_(const GLuint id);
-    void RefreshViewPort() const;
+    void RefreshViewPort();
+    void EnsureChanges();
     void CheckSizeMatch(const oglRBO& rbo)          { CheckSizeMatch(rbo->Width, rbo->Height); }
     void CheckSizeMatch(const oglTex2D& tex)        { CheckSizeMatch(tex->Width, tex->Height); }
     void CheckSizeMatch(const oglTex2DArray& tex)   { CheckSizeMatch(tex->Width, tex->Height); }
@@ -96,9 +114,12 @@ public:
     void SetName(std::u16string name) noexcept;
 
     [[nodiscard]] FBOStatus CheckStatus() const;
-    void Use() const;
-    void Discard();
-    void Clear();
+    void Use();
+    void DiscardColor(const uint8_t attachment = 0);
+    void DiscardDepth();
+    void DiscardStencil();
+    FBOClear Clear();
+    void ClearAll();
     [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 

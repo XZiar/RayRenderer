@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "RenderCoreRely.h"
-#include "RenderCoreUtil.hpp"
 #include "RenderPass.h"
 #include "FontHelper/FontHelper.h"
 
@@ -23,7 +22,7 @@ private:
     fs::path FontPath;
     char32_t CharBegin = U'我';
     uint32_t CharCount = 16;
-    AtomicBitfiled<FontUpdate> UpdateDemand = FontUpdate::FONT | FontUpdate::TARGET;
+    common::AtomicBitfield<FontUpdate> UpdateDemand = FontUpdate::FONT | FontUpdate::TARGET;
     void RegistControllable()
     {
         RegistItem<std::u16string>("Name", "", u"名称")

@@ -1,6 +1,5 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "RenderCoreUtil.hpp"
 #include "RenderElement.h"
 #include "Light.h"
 #include "Camera.h"
@@ -28,7 +27,7 @@ private:
     std::shared_ptr<Camera> MainCam;
     oglu::oglUBO LightUBO;
     uint32_t LightOnCount;
-    AtomicBitfiled<SceneChange> SceneChanges = SceneChange::Light;
+    common::AtomicBitfield<SceneChange> SceneChanges = SceneChange::Light;
 public:
     Scene();
     RESPAK_DECL_SIMP_DESERIALIZE("rayr#Scene")

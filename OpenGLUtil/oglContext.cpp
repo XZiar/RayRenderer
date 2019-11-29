@@ -115,18 +115,9 @@ void oglContext_::Init(const bool isCurrent)
         UseContext();
     }
     Capability = CtxFunc;
-    {
-        uint32_t oldVer = LatestVersion.load();
-        bool updated = false;
-        while (oldVer < CtxFunc->Version)
-        {
-            updated = LatestVersion.compare_exchange_weak(oldVer, CtxFunc->Version);
-            if (updated)
-                break;
-        }
-        if (updated)
-            oglLog().info(u"update API Version to [{}.{}]\n", CtxFunc->Version / 10, CtxFunc->Version % 10);
-    }
+    if (common::UpdateAtomicMaximum(LatestVersion, CtxFunc->Version))
+        oglLog().info(u"update API Version to [{}.{}]\n", CtxFunc->Version / 10, CtxFunc->Version % 10);
+
     CtxFunc->ogluGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (CtxFunc->ogluIsEnabled(GL_CULL_FACE))
     {
@@ -348,11 +339,6 @@ void oglContext_::SetSRGBFBO(const bool isEnable)
     }
 }
 
-void oglContext_::ClearFBO()
-{
-    CHECKCURRENT();
-    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
 
 //void oglContext_::SetViewPort(const int32_t x, const int32_t y, const uint32_t width, const uint32_t height)
 //{

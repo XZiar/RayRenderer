@@ -19,7 +19,7 @@ TexUtilWorker::TexUtilWorker(oglContext&& glContext, const oclContext& clContext
             texLog().error(u"TexUtil cannot use GL context\n");
             return;
         }
-        texLog().info(u"TexUtil use GL context with version {}\n", oglUtil::GetVersionStr());
+        texLog().info(u"TexUtil use GL context with version {}\n", GLContext->Capability->VersionString);
         GLContext->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
 
         if (CLContext)

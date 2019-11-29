@@ -238,7 +238,7 @@ void PostProcessor::OnPrepare(RenderPassContext& context)
         UpdateFBO();
         UpdateLUT();
         MiddleFrame->Use();
-        GLContext->ClearFBO();
+        MiddleFrame->ClearAll();
         context.SetTexture("MainFBTex", FBOTex);
         context.SetFrameBuffer("MainFB", MiddleFrame);
     }

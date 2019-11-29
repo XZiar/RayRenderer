@@ -238,7 +238,6 @@ public:
     [[nodiscard]] FaceCullingType GetFaceCulling() const { return FaceCulling; }
 
     void SetSRGBFBO(const bool isEnable);
-    void ClearFBO();
     
     [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);

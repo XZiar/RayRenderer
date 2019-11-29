@@ -492,8 +492,8 @@ CtxFuncs::CtxFuncs()
 #define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
 #define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
 #define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
-#define DIRECT_FUNC(name)  PPCAT(oglu, name)          = &PPCAT(gl, name)
-#define DIRECT_FUNC_(name) PPCAT(PPCAT(oglu, name),_) = &PPCAT(gl, name)
+#define PLAIN_FUNC(name)  PPCAT(oglu, name)          = &PPCAT(gl, name)
+#define PLAIN_FUNC_(name) PPCAT(PPCAT(oglu, name),_) = &PPCAT(gl, name)
 
     // buffer related
     QUERY_FUNC (GenBuffers,             "", "ARB");
@@ -524,8 +524,8 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
 
     // draw related
-    DIRECT_FUNC(DrawArrays);
-    DIRECT_FUNC(DrawElements);
+    PLAIN_FUNC (DrawArrays);
+    PLAIN_FUNC (DrawElements);
     QUERY_FUNC (MultiDrawArrays,                                "", "EXT");
     QUERY_FUNC (MultiDrawElements,                              "", "EXT");
     QUERY_FUNC_(MultiDrawArraysIndirect,                        "", "EXT", "AMD");
@@ -537,11 +537,11 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV");
 
     //texture related
-    DIRECT_FUNC(GenTextures);
+    PLAIN_FUNC (GenTextures);
     QUERY_FUNC_(CreateTextures,                 "");
-    DIRECT_FUNC(DeleteTextures);
+    PLAIN_FUNC (DeleteTextures);
     QUERY_FUNC (ActiveTexture,                  "", "ARB");
-    DIRECT_FUNC(BindTexture);
+    PLAIN_FUNC (BindTexture);
     QUERY_FUNC_(BindTextureUnit,                "");
     QUERY_FUNC_(BindMultiTextureEXT,            "");
     QUERY_FUNC (BindImageTexture,               "", "EXT");
@@ -622,6 +622,9 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(BindFramebuffer,                            "", "EXT");
     QUERY_FUNC_(BlitNamedFramebuffer,                       "");
     QUERY_FUNC_(BlitFramebuffer,                            "", "EXT");
+    QUERY_FUNC_(InvalidateNamedFramebufferData,             "");
+    QUERY_FUNC_(InvalidateFramebuffer,                      "");
+    QUERY_FUNC_(DiscardFramebufferEXT,                      "");
     QUERY_FUNC_(NamedFramebufferRenderbuffer,               "", "EXT");
     QUERY_FUNC_(FramebufferRenderbuffer,                    "", "EXT");
     QUERY_FUNC_(NamedFramebufferTexture1DEXT,               "");
@@ -638,6 +641,11 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(CheckFramebufferStatus,                     "", "EXT");
     QUERY_FUNC_(GetNamedFramebufferAttachmentParameteriv,   "", "EXT");
     QUERY_FUNC_(GetFramebufferAttachmentParameteriv,        "", "EXT");
+    PLAIN_FUNC (Clear);
+    PLAIN_FUNC (ClearColor);
+    PLAIN_FUNC_(ClearDepth);
+    QUERY_FUNC_(ClearDepthf,                                "");
+    PLAIN_FUNC (ClearStencil);
 
     //shader related
     QUERY_FUNC (CreateShader,       "");
@@ -785,32 +793,31 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(PopGroupMarkerEXT,      "");
 
     //others
-    DIRECT_FUNC(GetError);
-    DIRECT_FUNC(GetFloatv);
-    DIRECT_FUNC(GetIntegerv);
-    DIRECT_FUNC(GetString);
+    PLAIN_FUNC (GetError);
+    PLAIN_FUNC (GetFloatv);
+    PLAIN_FUNC (GetIntegerv);
+    PLAIN_FUNC (GetString);
     QUERY_FUNC (GetStringi,             "");
-    DIRECT_FUNC(IsEnabled);
-    DIRECT_FUNC(Enable);
-    DIRECT_FUNC(Disable);
-    DIRECT_FUNC(Finish);
-    DIRECT_FUNC(Flush);
-    DIRECT_FUNC(DepthFunc);
-    DIRECT_FUNC(CullFace);
-    DIRECT_FUNC(FrontFace);
-    DIRECT_FUNC(Clear);
-    DIRECT_FUNC(Viewport);
+    PLAIN_FUNC (IsEnabled);
+    PLAIN_FUNC (Enable);
+    PLAIN_FUNC (Disable);
+    PLAIN_FUNC (Finish);
+    PLAIN_FUNC (Flush);
+    PLAIN_FUNC (DepthFunc);
+    PLAIN_FUNC (CullFace);
+    PLAIN_FUNC (FrontFace);
+    PLAIN_FUNC (Viewport);
     QUERY_FUNC (ViewportArrayv,         "", "NV");
     QUERY_FUNC (ViewportIndexedf,       "", "NV");
     QUERY_FUNC (ViewportIndexedfv,      "", "NV");
-    DIRECT_FUNC_(ClearDepth);
-    QUERY_FUNC_(ClearDepthf,            "");
     QUERY_FUNC (ClipControl,            "", "EXT");
     QUERY_FUNC (MemoryBarrier,          "", "EXT");
 
 
     Extensions = GetExtensions();
     {
+        VersionString = common::strchset::to_u16string(
+            reinterpret_cast<const char*>(ogluGetString(GL_VERSION)), common::str::Charset::UTF8);
         int32_t major = 0, minor = 0;
         ogluGetIntegerv(GL_MAJOR_VERSION, &major);
         ogluGetIntegerv(GL_MINOR_VERSION, &minor);
@@ -833,7 +840,7 @@ CtxFuncs::CtxFuncs()
 #undef WITH_SUFFIXS
 #undef QUERY_FUNC
 #undef QUERY_FUNC_
-#undef DIRECT_FUNC
+#undef PLAIN_FUNC
 }
 
 constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
@@ -1369,6 +1376,16 @@ void CtxFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFrame
         ogluBlitFramebuffer_(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
     }
 }
+void CtxFuncs::ogluInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) const
+{
+    CALL_EXISTS(ogluInvalidateNamedFramebufferData_, framebuffer, numAttachments, attachments)
+    const auto invalidator = ogluInvalidateFramebuffer_ ? ogluInvalidateFramebuffer_ : ogluDiscardFramebufferEXT_;
+    if (invalidator)
+    {
+        const auto backup = FBOBinder(this, framebuffer);
+        invalidator(GL_READ_FRAMEBUFFER, numAttachments, attachments);
+    }
+}
 void CtxFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
 {
     CALL_EXISTS(ogluNamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
@@ -1448,6 +1465,14 @@ void CtxFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
         ogluGetFramebufferAttachmentParameteriv_(GL_READ_FRAMEBUFFER, attachment, pname, params);
     }
 }
+void CtxFuncs::ogluClearDepth(GLclampd d) const
+{
+    CALL_EXISTS(ogluClearDepth_, d)
+    CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
+    {
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
+    }
+}
 
 
 void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const
@@ -1514,16 +1539,6 @@ void CtxFuncs::ogluPopDebugGroup() const
         ogluPopDebugGroup_();
     else if (ogluPopGroupMarkerEXT_)
         ogluPopGroupMarkerEXT_();
-}
-
-
-void CtxFuncs::ogluClearDepth(GLclampd d) const
-{
-    CALL_EXISTS(ogluClearDepth_, d)
-    CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
-    {
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
-    }
 }
 
 

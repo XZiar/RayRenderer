@@ -204,7 +204,6 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
         frame->AttachColorTexture(outtex, 0);
         texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, frame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
         frame->Use();
-        GLContext->ClearFBO();
         GLResizer->Draw()
             .SetTexture(tex, "tex")
             .SetSubroutine("ColorConv", GetSubroutine(tex->GetInnerFormat(), output))
