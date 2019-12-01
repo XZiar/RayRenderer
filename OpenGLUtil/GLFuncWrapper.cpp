@@ -40,6 +40,8 @@
 
 namespace oglu
 {
+constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
+
 template<typename T>
 struct ResourceKeeper
 {
@@ -615,7 +617,6 @@ CtxFuncs::CtxFuncs()
 
     
     //fbo related
-    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &MaxColorAttachment);
     QUERY_FUNC_(GenFramebuffers,                            "", "EXT");
     QUERY_FUNC_(CreateFramebuffers,                         "", "EXT");
     QUERY_FUNC (DeleteFramebuffers,                         "", "EXT");
@@ -646,6 +647,14 @@ CtxFuncs::CtxFuncs()
     PLAIN_FUNC_(ClearDepth);
     QUERY_FUNC_(ClearDepthf,                                "");
     PLAIN_FUNC (ClearStencil);
+    QUERY_FUNC_(ClearNamedFramebufferiv,                    "");
+    QUERY_FUNC_(ClearBufferiv,                              "");
+    QUERY_FUNC_(ClearNamedFramebufferuiv,                   "");
+    QUERY_FUNC_(ClearBufferuiv,                             "");
+    QUERY_FUNC_(ClearNamedFramebufferfv,                    "");
+    QUERY_FUNC_(ClearBufferfv,                              "");
+    QUERY_FUNC_(ClearNamedFramebufferfi,                    "");
+    QUERY_FUNC_(ClearBufferfi,                              "");
 
     //shader related
     QUERY_FUNC (CreateShader,       "");
@@ -832,9 +841,11 @@ CtxFuncs::CtxFuncs()
     SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
     SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
-
-    ogluGetIntegerv(GL_MAX_LABEL_LENGTH, &MaxLabelLen);
-    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH, &MaxMessageLen);
+    
+    ogluGetIntegerv(GL_MAX_COLOR_ATTACHMENTS,       &MaxColorAttachment);
+    ogluGetIntegerv(GL_MAX_DRAW_BUFFERS,            &MaxDrawBuffers);
+    ogluGetIntegerv(GL_MAX_LABEL_LENGTH,            &MaxLabelLen);
+    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,    &MaxMessageLen);
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS
@@ -843,7 +854,6 @@ CtxFuncs::CtxFuncs()
 #undef PLAIN_FUNC
 }
 
-constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 
@@ -1307,12 +1317,6 @@ struct FBOBinder : public common::NonCopyable
     FBOBinder(const CtxFuncs* dsa) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(true), ChangeDraw(true)
     { }
-    FBOBinder(const CtxFuncs* dsa, const GLuint newReadFBO) noexcept :
-        Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
-    {
-        if (DSA.ReadFBO != newReadFBO)
-            ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newReadFBO);
-    }
     FBOBinder(const CtxFuncs* dsa, const std::pair<GLuint, GLuint> newFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
@@ -1356,7 +1360,7 @@ void CtxFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
         ogluGenFramebuffers_(n, framebuffers);
         const auto backup = FBOBinder(this);
         for (GLsizei i = 0; i < n; ++i)
-            ogluBindFramebuffer_(GL_READ_FRAMEBUFFER_BINDING, framebuffers[i]);
+            ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, framebuffers[i]);
     }
 }
 void CtxFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
@@ -1382,16 +1386,16 @@ void CtxFuncs::ogluInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei nu
     const auto invalidator = ogluInvalidateFramebuffer_ ? ogluInvalidateFramebuffer_ : ogluDiscardFramebufferEXT_;
     if (invalidator)
     {
-        const auto backup = FBOBinder(this, framebuffer);
-        invalidator(GL_READ_FRAMEBUFFER, numAttachments, attachments);
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        invalidator(GL_DRAW_FRAMEBUFFER, numAttachments, attachments);
     }
 }
 void CtxFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
 {
     CALL_EXISTS(ogluNamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
     {
-        const auto backup = FBOBinder(this, framebuffer);
-        ogluFramebufferRenderbuffer_(GL_READ_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluFramebufferRenderbuffer_(GL_DRAW_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
     }
 }
 void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
@@ -1399,8 +1403,8 @@ void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment
     CALL_EXISTS(ogluNamedFramebufferTexture_, framebuffer, attachment, texture, level)
     if (ogluFramebufferTexture_)
     {
-        const auto backup = FBOBinder(this, framebuffer);
-        ogluFramebufferTexture_(GL_READ_FRAMEBUFFER, attachment, texture, level);
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluFramebufferTexture_(GL_DRAW_FRAMEBUFFER, attachment, texture, level);
     }
     else
     {
@@ -1409,15 +1413,15 @@ void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment
         case GL_TEXTURE_1D:
             CALL_EXISTS(ogluNamedFramebufferTexture1DEXT_, framebuffer, attachment, textarget, texture, level)
             {
-                const auto backup = FBOBinder(this, framebuffer);
-                ogluFramebufferTexture1D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level);
+                const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+                ogluFramebufferTexture1D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
             }
             break;
         case GL_TEXTURE_2D:
             CALL_EXISTS(ogluNamedFramebufferTexture2DEXT_, framebuffer, attachment, textarget, texture, level)
             {
-                const auto backup = FBOBinder(this, framebuffer);
-                ogluFramebufferTexture2D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level);
+                const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+                ogluFramebufferTexture2D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
             }
             break;
         default:
@@ -1430,8 +1434,8 @@ void CtxFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attac
     CALL_EXISTS(ogluNamedFramebufferTextureLayer_, framebuffer, attachment, texture, level, layer)
     if (ogluFramebufferTextureLayer_)
     {
-        const auto backup = FBOBinder(this, framebuffer);
-        ogluFramebufferTextureLayer_(GL_READ_FRAMEBUFFER, attachment, texture, level, layer);
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluFramebufferTextureLayer_(GL_DRAW_FRAMEBUFFER, attachment, texture, level, layer);
     }
     else
     {
@@ -1440,8 +1444,8 @@ void CtxFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attac
         case GL_TEXTURE_3D:
             CALL_EXISTS(ogluNamedFramebufferTexture3DEXT_, framebuffer, attachment, textarget, texture, level, layer)
             {
-                const auto backup = FBOBinder(this, framebuffer);
-                ogluFramebufferTexture3D_(GL_READ_FRAMEBUFFER, attachment, textarget, texture, level, layer);
+                const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+                ogluFramebufferTexture3D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level, layer);
             }
             break;
         default:
@@ -1461,8 +1465,8 @@ void CtxFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, 
 {
     CALL_EXISTS(ogluGetNamedFramebufferAttachmentParameteriv_, framebuffer, attachment, pname, params)
     {
-        const auto backup = FBOBinder(this, framebuffer);
-        ogluGetFramebufferAttachmentParameteriv_(GL_READ_FRAMEBUFFER, attachment, pname, params);
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluGetFramebufferAttachmentParameteriv_(GL_DRAW_FRAMEBUFFER, attachment, pname, params);
     }
 }
 void CtxFuncs::ogluClearDepth(GLclampd d) const
@@ -1471,6 +1475,38 @@ void CtxFuncs::ogluClearDepth(GLclampd d) const
     CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
     {
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
+    }
+}
+void CtxFuncs::ogluClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint* value) const
+{
+    CALL_EXISTS(ogluClearNamedFramebufferiv_, framebuffer, buffer, drawbuffer, value)
+    {
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluClearBufferiv_(buffer, drawbuffer, value);
+    }
+}
+void CtxFuncs::ogluClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint* value) const
+{
+    CALL_EXISTS(ogluClearNamedFramebufferuiv_, framebuffer, buffer, drawbuffer, value)
+    {
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluClearBufferuiv_(buffer, drawbuffer, value);
+    }
+}
+void CtxFuncs::ogluClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat* value) const
+{
+    CALL_EXISTS(ogluClearNamedFramebufferfv_, framebuffer, buffer, drawbuffer, value)
+    {
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluClearBufferfv_(buffer, drawbuffer, value);
+    }
+}
+void CtxFuncs::ogluClearNamedFramebufferDepthStencil(GLuint framebuffer, GLfloat depth, GLint stencil) const
+{
+    CALL_EXISTS(ogluClearNamedFramebufferfi_, framebuffer, GL_DEPTH_STENCIL, 0, depth, stencil)
+    {
+        const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
+        ogluClearBufferfi_(GL_DEPTH_STENCIL, 0, depth, stencil);
     }
 }
 

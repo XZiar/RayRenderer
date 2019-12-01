@@ -76,7 +76,7 @@ class PostProcessor::RenderLutGen : public PostProcessor::LutGen
 private:
     oglu::oglDrawProgram LutGenerator;
     oglu::oglVBO ScreenBox;
-    oglu::oglFBO3D LUTFrame;
+    oglu::oglFBOLayered LUTFrame;
     oglu::oglVAO VAOScreen;
     oglu::oglTex3DS LutTex;
     uint32_t LutSize;
@@ -100,7 +100,7 @@ public:
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
 
-        LUTFrame = oglu::oglFrameBuffer3D_::Create();
+        LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->SetName(u"LutFBO");
         LUTFrame->AttachColorTexture(tex, 0);
         dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");

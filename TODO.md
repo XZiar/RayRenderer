@@ -40,6 +40,7 @@
   - [x] Re-design object creation
   - [x] Replace glew since it lacks support for multi-thread & multi-contxt
   - [ ] Re-design ResourceMappingManager
+  - [ ] Add proper drawstate setting
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL

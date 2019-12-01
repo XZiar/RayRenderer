@@ -18,6 +18,7 @@ using xziar::respak::DeserializeUtil;
 RenderPassContext::RenderPassContext(const std::shared_ptr<Scene>& scene, const uint16_t ScreenWidth, const uint16_t ScreenHeight) 
     : TheScene(scene), ScreenSize(ScreenWidth, ScreenHeight)
 {
+    SetFrameBuffer("MainFB", oglu::oglDefaultFrameBuffer_::Get());
 }
 
 const std::shared_ptr<Scene>& RenderPassContext::GetScene() const
@@ -139,18 +140,10 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
     const auto drawMaker = GLContext->DeclareRange(u"Draw-DefaultPass");
 
     const auto cam = context.GetScene()->GetCamera();
-    const auto fboTex = context.GetTexture("MainFBTex");
     const auto fbo = context.GetFrameBuffer("MainFB");
-    const bool needNewCam = fboTex && fbo;
     const auto[scw, sch] = context.GetScreenSize();
-    if (needNewCam)
-    {
-        fbo->Use();
-    }
-    else
-    {
-        oglu::oglDefaultFrameBuffer_::Get()->Use();
-    }
+
+    fbo->Use();
     // set camera data
     const auto projMat = cam->GetProjection(float(scw) / sch);
     const auto viewMat = cam->GetView();

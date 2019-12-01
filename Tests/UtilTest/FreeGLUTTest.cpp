@@ -25,7 +25,7 @@ struct Lutter
 {
     oglu::oglDrawProgram LutGenerator;
     oglu::oglVBO ScreenBox;
-    oglu::oglFBO3D LUTFrame;
+    oglu::oglFBOLayered LUTFrame;
     oglu::oglVAO VAOScreen;
     oglu::oglTex3DS LutTex;
     uint32_t LutSize;
@@ -43,7 +43,7 @@ struct Lutter
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
-        LUTFrame = oglu::oglFrameBuffer3D_::Create();
+        LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex, 0);
         LutGenerator->SetUniform("step", 1.0f / (64 - 1));
         LutGenerator->SetUniform("exposure", 1.0f);
@@ -52,6 +52,7 @@ struct Lutter
     void DoLut(const oglContext& ctx)
     {
         LUTFrame->Use();
+        LUTFrame->ClearAll();
         //ctx->SetViewPort(0, 0, 64, 64);
         LutGenerator->Draw()
             .DrawInstance(VAOScreen, 64);
@@ -66,6 +67,7 @@ static void FGTest()
     oglUtil::InitLatestVersion();
     const auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
     ctx->UseContext();
+    log().info(u"Def FBO is [{}]\n", oglu::oglDefaultFrameBuffer_::Get()->IsSrgb() ? "SRGB" : "Linear");
     window->SetTitle("FGTest");
     auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     auto screenBox = oglArrayBuffer_::Create();
@@ -117,12 +119,14 @@ static void FGTest()
     window->funDisp = [&](FreeGLUTView) 
     { 
         ctx->UseContext(true); 
+        const auto defFBO = oglu::oglDefaultFrameBuffer_::Get();
         if (shouldLut)
         {
             lutter->DoLut(ctx);
-            oglu::oglDefaultFrameBuffer_::Get()->Use();
             //ctx->SetViewPort(0, 0, width, height);
         }
+        defFBO->Use();
+        defFBO->ClearAll();
         drawer->Draw()
             .SetUniform("lutZ", lutZ)
             .SetUniform("shouldLut", shouldLut ? 1 : 0)

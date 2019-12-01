@@ -16,21 +16,22 @@ class oglRenderBuffer_;
 using oglRBO = std::shared_ptr<oglRenderBuffer_>;
 class oglFrameBuffer_;
 using oglFBO = std::shared_ptr<oglFrameBuffer_>;
-class oglFrameBuffer2DBase_;
-using oglFBO2DBase = std::shared_ptr<oglFrameBuffer2DBase_>;
 class oglDefaultFrameBuffer_;
 using oglDefaultFBO = std::shared_ptr<oglDefaultFrameBuffer_>;
+class oglCustomFrameBuffer_;
+using oglCustomFBO = std::shared_ptr<oglCustomFrameBuffer_>;
 class oglFrameBuffer2D_;
 using oglFBO2D = std::shared_ptr<oglFrameBuffer2D_>;
-class oglFrameBuffer3D_;
-using oglFBO3D = std::shared_ptr<oglFrameBuffer3D_>;
+class oglLayeredFrameBuffer_;
+using oglFBOLayered = std::shared_ptr<oglLayeredFrameBuffer_>;
 
 
 
 enum class RBOFormat : uint8_t
 {
-    TYPE_MASK = 0xf0,
-    TYPE_DEPTH = 0x10, TYPE_STENCIL = 0x20, TYPE_DEPTH_STENCIL = 0x30, TYPE_COLOR = 0x40,
+    MASK_TYPE  = 0xe0,
+    TYPE_DEPTH = 0x80, TYPE_STENCIL = 0x40, TYPE_DEPTH_STENCIL = 0xc0, TYPE_COLOR = 0x20,
+    MASK_SRGB  = 0x10,
     Depth   = TYPE_DEPTH   | 0x0, Depth16  = TYPE_DEPTH   | 0x1, Depth24  = TYPE_DEPTH   | 0x2, Depth32   = TYPE_DEPTH   | 0x3,
     Stencil = TYPE_STENCIL | 0x0, Stencil1 = TYPE_STENCIL | 0x1, Stencil8 = TYPE_STENCIL | 0x2, Stencil16 = TYPE_STENCIL | 0x3,
     RGBA8   = TYPE_COLOR   | 0x0, RGBA8U   = TYPE_COLOR   | 0x1, RGBAf    = TYPE_COLOR   | 0x2, RGB10A2   = TYPE_COLOR   | 0x3,
@@ -46,7 +47,7 @@ enum class FBOStatus : uint8_t
 
 class OGLUAPI oglRenderBuffer_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-    friend class oglFrameBuffer_;
+    friend class oglCustomFrameBuffer_;
 private:
     MAKE_ENABLER();
     std::u16string Name;
@@ -59,7 +60,8 @@ public:
     
     void SetName(std::u16string name) noexcept;
    
-    [[nodiscard]] RBOFormat GetType() const noexcept { return InnerFormat & RBOFormat::TYPE_MASK; }
+    [[nodiscard]] RBOFormat GetType() const noexcept { return InnerFormat & RBOFormat::MASK_TYPE; }
+    [[nodiscard]] bool IsSrgb() const noexcept { return HAS_FIELD(InnerFormat, RBOFormat::MASK_SRGB); }
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
 
     [[nodiscard]] static oglRBO Create(const uint32_t width, const uint32_t height, const RBOFormat format);
@@ -72,14 +74,14 @@ class OGLUAPI oglFrameBuffer_ :
 {
     friend class oglContext_;
 public:
-    using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
 private:
     GLenum CheckIfBinded() const;
-    void CheckSizeMatch(const uint32_t width, const uint32_t height);
 protected:
     class OGLUAPI FBOClear : public common::NonCopyable
     {
+    protected:
         oglFrameBuffer_& NewFBO;
+    private:
         GLuint OldFBOId;
     public:
         FBOClear(oglFrameBuffer_* fbo);
@@ -87,74 +89,110 @@ protected:
         FBOClear& ClearColors(const b3d::Vec4& color = b3d::Vec4::zero());
         FBOClear& ClearDepth(const float depth = 0.f);
         FBOClear& ClearStencil(const GLint stencil = 0);
-        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const GLint stencil = 0);
+        FBOClear& ClearDepthStencil(const float depth = 0.f, const GLint stencil = 0);
+        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const GLint stencil = 0)
+        {
+            return ClearColors(color).ClearDepthStencil(depth, stencil);
+        }
     };
-    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
-    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
 
-    std::u16string Name;
     GLuint FBOId;
-    std::vector<FBOAttachment> ColorAttachemnts;
-    FBOAttachment DepthAttachment;
-    FBOAttachment StencilAttachment;
     uint32_t Width, Height;
-    bool SizeChanged = false;
 
-    oglFrameBuffer_();
     oglFrameBuffer_(const GLuint id);
-    void RefreshViewPort();
-    void EnsureChanges();
-    void CheckSizeMatch(const oglRBO& rbo)          { CheckSizeMatch(rbo->Width, rbo->Height); }
-    void CheckSizeMatch(const oglTex2D& tex)        { CheckSizeMatch(tex->Width, tex->Height); }
-    void CheckSizeMatch(const oglTex2DArray& tex)   { CheckSizeMatch(tex->Width, tex->Height); }
-    void CheckSizeMatch(const oglTex3D& tex)        { CheckSizeMatch(tex->Width, tex->Height); }
+    /// return if delay update viewport
+    bool SetViewPort(const uint32_t width, const uint32_t height);
 public:
-    ~oglFrameBuffer_();
-
-    void SetName(std::u16string name) noexcept;
+    virtual ~oglFrameBuffer_();
 
     [[nodiscard]] FBOStatus CheckStatus() const;
+    [[nodiscard]] virtual bool IsSrgb() const = 0;
+
     void Use();
     void DiscardColor(const uint8_t attachment = 0);
     void DiscardDepth();
     void DiscardStencil();
     FBOClear Clear();
     void ClearAll();
-    [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
-    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
-
-    [[nodiscard]] static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+    void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
+    void BlitColorFrom(const oglFBO& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
 };
 
 
-class OGLUAPI oglFrameBuffer2DBase_ : public oglFrameBuffer_
+class OGLUAPI oglDefaultFrameBuffer_ : public oglFrameBuffer_
 {
-    friend class oglContext_;
-protected:
-    using oglFrameBuffer_::oglFrameBuffer_;
-public:
-    void BlitColorTo(const oglFBO2DBase& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-    void BlitColorFrom(const oglFBO2DBase& from, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
-};
-
-
-class OGLUAPI oglDefaultFrameBuffer_ : public oglFrameBuffer2DBase_
-{
-    friend class oglContext_;
     friend struct DefFBOCtxConfig;
 private:
     MAKE_ENABLER();
+    bool IsSrgbColor;
     oglDefaultFrameBuffer_();
 public:
-    ~oglDefaultFrameBuffer_();
+    ~oglDefaultFrameBuffer_() override;
+
+    [[nodiscard]] bool IsSrgb() const override;
 
     void SetWindowSize(const uint32_t width, const uint32_t height);
+    FBOClear Clear();
 
     [[nodiscard]] static oglDefaultFBO Get();
 };
 
 
-class OGLUAPI oglFrameBuffer2D_ : public oglFrameBuffer2DBase_
+class OGLUAPI oglCustomFrameBuffer_ : public oglFrameBuffer_
+{
+public:
+    using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
+private:
+    void CheckAttachmentMatch(const uint32_t width, const uint32_t height, const bool isSrgb, const bool checkSrgb);
+protected:
+    std::vector<FBOAttachment> ColorAttachemnts;
+    FBOAttachment DepthAttachment;
+    FBOAttachment StencilAttachment;
+    std::u16string Name;
+    std::optional<bool> IsSrgbColor;
+
+    oglCustomFrameBuffer_();
+    void CheckAttachmentMatch(const oglRBO& rbo, const bool checkSrgb)
+    { 
+        CheckAttachmentMatch(rbo->Width, rbo->Height, rbo->IsSrgb(), checkSrgb);
+    }
+    void CheckAttachmentMatch(const oglTex2D& tex, const bool checkSrgb)
+    { 
+        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+    }
+    void CheckAttachmentMatch(const oglTex2DArray& tex, const bool checkSrgb)
+    { 
+        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+    }
+    void CheckAttachmentMatch(const oglTex3D& tex, const bool checkSrgb)
+    { 
+        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+    }
+    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
+    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
+public:
+    class OGLUAPI FBOClear : public oglFrameBuffer_::FBOClear
+    {
+        friend class oglCustomFrameBuffer_;
+    private:
+        using oglFrameBuffer_::FBOClear::FBOClear;
+    public:
+
+    };
+
+    ~oglCustomFrameBuffer_() override;
+    [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
+    [[nodiscard]] bool IsSrgb() const override;
+    [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
+
+    void SetName(std::u16string name) noexcept;
+    FBOClear Clear();
+
+    [[nodiscard]] static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+};
+
+
+class OGLUAPI oglFrameBuffer2D_ : public oglCustomFrameBuffer_
 {
     friend class oglContext_;
 private:
@@ -175,16 +213,16 @@ public:
 };
 
 
-class OGLUAPI oglFrameBuffer3D_ : public oglFrameBuffer_
+class OGLUAPI oglLayeredFrameBuffer_ : public oglCustomFrameBuffer_
 {
     friend class oglContext_;
 private:
     MAKE_ENABLER();
     uint32_t LayerCount = 0;
-    oglFrameBuffer3D_();
+    oglLayeredFrameBuffer_();
     void CheckLayerMatch(const uint32_t layer);
 public:
-    ~oglFrameBuffer3D_();
+    ~oglLayeredFrameBuffer_() override;
     void AttachColorTexture(const oglTex3D& tex, const uint8_t attachment);
     void AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment);
     void AttachDepthTexture(const oglTex3D& tex);
@@ -192,7 +230,7 @@ public:
     void AttachStencilTexture(const oglTex3D& tex);
     void AttachStencilTexture(const oglTex2DArray& tex);
 
-    [[nodiscard]] static oglFBO3D Create();
+    [[nodiscard]] static oglFBOLayered Create();
 };
 
 

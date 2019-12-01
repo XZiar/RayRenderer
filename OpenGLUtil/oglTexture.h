@@ -103,7 +103,7 @@ class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObje
 {
     friend class detail::TextureManager;
     friend class oglImgBase_;
-    friend class oglFrameBuffer_;
+    friend class oglCustomFrameBuffer_;
     friend class oglProgram_;
     friend class ProgState;
     friend class ProgDraw;
@@ -184,7 +184,7 @@ class OGLUAPI oglTex2D_ : public oglTexBase_, protected oglTexCommon_<oglTex2D_>
 {
     friend oglTexCommon_<oglTex2D_>;
     friend class oglTex2DArray_;
-    friend class oglFrameBuffer_;
+    friend class oglCustomFrameBuffer_;
 protected:
     uint32_t Width, Height;
 
@@ -310,9 +310,9 @@ public:
 ///<summary>Texture2D Array, immutable only</summary>  
 class OGLUAPI oglTex2DArray_ : public oglTexBase_
 {
-    friend class oglFrameBuffer_;
+    friend class oglCustomFrameBuffer_;
     friend class oglFrameBuffer2D_;
-    friend class oglFrameBuffer3D_;
+    friend class oglLayeredFrameBuffer_;
     friend class oglTex2DView_;
 private:
     MAKE_ENABLER();
@@ -348,8 +348,8 @@ class OGLUAPI oglTex3D_ : public oglTexBase_, protected oglTexCommon_<oglTex3D_>
 {
     friend oglTexCommon_<oglTex3D_>;
     friend class ::oclu::oclGLBuffer_;
-    friend class oglFrameBuffer_;
-    friend class oglFrameBuffer3D_;
+    friend class oglCustomFrameBuffer_;
+    friend class oglLayeredFrameBuffer_;
 protected:
     uint32_t Width, Height, Depth;
 
