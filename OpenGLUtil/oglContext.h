@@ -146,16 +146,17 @@ public:
             auto lock = Lock.ReadScope();
             obj = common::container::FindInMap(Resources, &cfg);
         }
-        if (obj)
-            return *dynamic_cast<AnyCtxRes<T>*>(*obj);
-        T ele = cfg.Construct();// create first, in case chained creation
+        if (!obj)
         {
-            auto lock = Lock.WriteScope();
-            obj = common::container::FindInMap(Resources, &cfg);
-            if (!obj)
-                obj = &Resources.emplace(&cfg, new AnyCtxRes<T>(std::move(ele))).first->second;
-            return *dynamic_cast<AnyCtxRes<T>*>(*obj);
+            T ele = cfg.Construct();// create first, in case chained creation
+            {
+                auto lock = Lock.WriteScope();
+                obj = common::container::FindInMap(Resources, &cfg);
+                if (!obj)
+                    obj = &Resources.emplace(&cfg, new AnyCtxRes<T>(std::move(ele))).first->second;
+            }
         }
+        return *dynamic_cast<AnyCtxRes<T>*>(*obj);
     }
     void Release();
 };

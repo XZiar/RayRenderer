@@ -201,7 +201,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::OpenGL
 
         const auto frame = oglFrameBuffer2D_::Create();
         frame->SetName(u"TexResizerFBO");
-        frame->AttachColorTexture(outtex, 0);
+        frame->AttachColorTexture(outtex);
         texLog().info(u"FBO resize to [{}x{}], status:{}\n", width, height, frame->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
         frame->Use();
         GLResizer->Draw()

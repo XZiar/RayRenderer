@@ -40,7 +40,8 @@
 
 namespace oglu
 {
-constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
+constexpr auto PlatFuncsSize = sizeof(PlatFuncs);
+constexpr auto CtxFuncsSize  = sizeof(CtxFuncs);
 
 template<typename T>
 struct ResourceKeeper
@@ -825,6 +826,8 @@ CtxFuncs::CtxFuncs()
 
     Extensions = GetExtensions();
     {
+        VendorString = common::strchset::to_u16string(
+            reinterpret_cast<const char*>(ogluGetString(GL_VENDOR)), common::str::Charset::UTF8);
         VersionString = common::strchset::to_u16string(
             reinterpret_cast<const char*>(ogluGetString(GL_VERSION)), common::str::Charset::UTF8);
         int32_t major = 0, minor = 0;
@@ -1588,8 +1591,7 @@ common::container::FrozenDenseSet<std::string_view> CtxFuncs::GetExtensions() co
         exts.reserve(count);
         for (GLint i = 0; i < count; i++)
         {
-            const GLubyte* ext = ogluGetStringi(GL_EXTENSIONS, i);
-            exts.emplace_back(reinterpret_cast<const char*>(ext));
+            exts.emplace_back(ogluGetStringi(GL_EXTENSIONS, i));
         }
         return exts;
     }

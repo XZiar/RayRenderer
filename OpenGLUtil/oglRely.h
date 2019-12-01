@@ -139,6 +139,7 @@ public:
 struct ContextCapability
 {
     common::container::FrozenDenseSet<std::string_view> Extensions;
+    std::u16string VendorString;
     std::u16string VersionString;
     uint32_t Version            = 0;
     bool SupportDebug           = false;

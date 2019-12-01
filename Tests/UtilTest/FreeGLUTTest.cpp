@@ -44,7 +44,7 @@ struct Lutter
             .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
-        LUTFrame->AttachColorTexture(LutTex, 0);
+        LUTFrame->AttachColorTexture(LutTex);
         LutGenerator->SetUniform("step", 1.0f / (64 - 1));
         LutGenerator->SetUniform("exposure", 1.0f);
         LutGenerator->SetUniform("lutSize", 64);

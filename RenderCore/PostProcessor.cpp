@@ -102,7 +102,7 @@ public:
 
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->SetName(u"LutFBO");
-        LUTFrame->AttachColorTexture(tex, 0);
+        LUTFrame->AttachColorTexture(tex);
         dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
 
         LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
@@ -219,7 +219,7 @@ bool PostProcessor::UpdateFBO()
         FBOTex->SetName(u"PostProcFBTex");
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
         PostShader->Program->State().SetTexture(FBOTex, "scene");
-        MiddleFrame->AttachColorTexture(FBOTex, 0);
+        MiddleFrame->AttachColorTexture(FBOTex);
         auto mainRBO = oglRenderBuffer_::Create(MidFrameConfig.Width, MidFrameConfig.Height, MidFrameConfig.NeedFloatDepth ? RBOFormat::Depth32Stencil8 : RBOFormat::Depth24Stencil8);
         mainRBO->SetName(u"PostProcRBO");
         MiddleFrame->AttachDepthStencilBuffer(mainRBO);

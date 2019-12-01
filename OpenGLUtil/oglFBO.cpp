@@ -59,11 +59,40 @@ void oglRenderBuffer_::SetName(std::u16string name) noexcept
 }
 
 
-oglFrameBuffer_::FBOClear::FBOClear(oglFrameBuffer_* fbo) : NewFBO(*fbo), OldFBOId(CtxFunc->DrawFBO)
+struct FBOCtxInfo
 {
-    NewFBO.Use();
-}
+    oglDefaultFBO DefaultFBO;
+    oglFBO CurrentFBO;
+    common::RWSpinLock Lock;
+    FBOCtxInfo()
+    {
+        DefaultFBO = MAKE_ENABLER_SHARED(oglDefaultFrameBuffer_, ());
+        CurrentFBO = DefaultFBO;
+    }
+    void Use(oglFrameBuffer_* fbo)
+    {
+        const auto lock = Lock.WriteScope();
+        CurrentFBO = fbo->shared_from_this();
+    }
+};
+struct FBOCtxConfig : public CtxResConfig<false, std::unique_ptr<FBOCtxInfo>>
+{
+    std::unique_ptr<FBOCtxInfo> Construct() const
+    {
+        return std::make_unique<FBOCtxInfo>();
+    }
+};
+static FBOCtxConfig FBO_CTXCFG;
 
+
+common::RWSpinLock::ReadScopeType oglFrameBuffer_::FBOClear::AcquireLock(oglFrameBuffer_& fbo)
+{
+    fbo.Use();
+    return oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG)->Lock.ReadScope();
+}
+oglFrameBuffer_::FBOClear::FBOClear(oglFrameBuffer_* fbo) : 
+    NewFBO(*fbo), OldFBOId(CtxFunc->DrawFBO), Lock(AcquireLock(NewFBO))
+{ }
 oglFrameBuffer_::FBOClear::~FBOClear()
 {
     CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, OldFBOId);
@@ -92,10 +121,17 @@ oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearDepthStencil(const fl
 }
 
 
+
 oglFrameBuffer_::oglFrameBuffer_(const GLuint id) : FBOId(id), Width(0), Height(0)
 { }
 oglFrameBuffer_::~oglFrameBuffer_()
 { }
+bool oglFrameBuffer_::CheckIsSrgb(const GLenum attachment) const
+{
+    GLint isSrgb = GL_LINEAR;
+    CtxFunc->ogluGetNamedFramebufferAttachmentParameteriv(FBOId, attachment, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &isSrgb);
+    return isSrgb == GL_SRGB;
+}
 
 GLenum oglFrameBuffer_::CheckIfBinded() const
 {
@@ -150,6 +186,7 @@ void oglFrameBuffer_::Use()
     CheckCurrent();
     CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOId);
     CtxFunc->ogluViewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
+    oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG)->Use(this);
 }
 
 
@@ -203,9 +240,7 @@ oglDefaultFrameBuffer_::oglDefaultFrameBuffer_() : oglFrameBuffer_(0)
 {
     const auto viewport = oglContext_::CurrentContext()->GetViewPort(); 
     Width = viewport.z; Height = viewport.w;
-    GLint isSrgb = GL_LINEAR;
-    CtxFunc->ogluGetNamedFramebufferAttachmentParameteriv(0, GL_BACK_LEFT, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &isSrgb);
-    IsSrgbColor = isSrgb == GL_SRGB;
+    IsSrgbColor = CheckIsSrgb(GL_BACK_LEFT);
 }
 oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
 { }
@@ -213,6 +248,20 @@ oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
 bool oglDefaultFrameBuffer_::IsSrgb() const
 {
     return IsSrgbColor;
+}
+
+GLenum oglDefaultFrameBuffer_::GetAttachPoint(const std::string_view name) const
+{
+    switch (hash_(name))
+    {
+    case "default"_hash:
+    case "left"_hash:
+        return GL_BACK_LEFT;
+    case "right"_hash:
+        return GL_BACK_RIGHT;
+    default:
+        return GL_NONE;
+    }
 }
 
 
@@ -226,18 +275,9 @@ oglFrameBuffer_::FBOClear oglDefaultFrameBuffer_::Clear()
     return FBOClear(this);
 }
 
-struct DefFBOCtxConfig : public CtxResConfig<false, oglDefaultFBO>
-{
-    oglDefaultFBO Construct() const 
-    {
-        return MAKE_ENABLER_SHARED(oglDefaultFrameBuffer_, ());
-    }
-};
-static DefFBOCtxConfig DEFFBO_CTXCFG;
-
 oglDefaultFBO oglDefaultFrameBuffer_::Get()
 {
-    return oglContext_::CurrentContext()->GetOrCreate<false>(DEFFBO_CTXCFG);
+    return oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG)->DefaultFBO;
 }
 
 
@@ -245,6 +285,7 @@ oglCustomFrameBuffer_::oglCustomFrameBuffer_() : oglFrameBuffer_(GL_INVALID_INDE
 {
     CtxFunc->ogluCreateFramebuffers(1, &FBOId);
     ColorAttachemnts.resize(CtxFunc->MaxColorAttachment);
+    ColorAttachNames.resize(CtxFunc->MaxColorAttachment);
 }
 oglCustomFrameBuffer_::~oglCustomFrameBuffer_()
 {
@@ -252,25 +293,32 @@ oglCustomFrameBuffer_::~oglCustomFrameBuffer_()
     CtxFunc->ogluDeleteFramebuffers(1, &FBOId);
 }
 
-bool oglCustomFrameBuffer_::IsSrgb() const
+bool oglCustomFrameBuffer_::IsSrgb(const uint8_t attachment) const
 {
-    return IsSrgbColor.value();
+    Expects(attachment < ColorAttachemnts.size()); // u"attachment index overflow"
+    Expects(ColorAttachemnts[attachment].index() != 0); // u"attachment should not be empty"
+    return CheckIsSrgb(GL_COLOR_ATTACHMENT0 + attachment);
 }
 
-void oglCustomFrameBuffer_::CheckAttachmentMatch(const uint32_t width, const uint32_t height, const bool isSrgb, const bool checkSrgb)
+GLenum oglCustomFrameBuffer_::GetAttachPoint(const std::string_view name) const
+{
+    GLenum ret = GL_COLOR_ATTACHMENT0;
+    for (const auto& tarName : ColorAttachNames)
+    {
+        if (name == tarName)
+            return ret;
+        ret++;
+    }
+    return GL_NONE;
+}
+
+void oglCustomFrameBuffer_::CheckAttachmentMatch(const uint32_t width, const uint32_t height)
 {
     if (Width != 0 && Width != width)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Framebuffer's width  not match");
     if (Height != 0 && Height != height)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Framebuffer's height not match");
     SetViewPort(width, height);
-    if (checkSrgb)
-    {
-        if (!IsSrgbColor.has_value())
-            IsSrgbColor = isSrgb;
-        else if (IsSrgbColor.value() != isSrgb)
-            oglLog().warning(u"Framebuffer[{}]'s attachment has different state of srgb", Name);
-    }
 }
 
 GLuint oglCustomFrameBuffer_::GetID(const oglRBO& rbo)
@@ -312,36 +360,36 @@ oglFrameBuffer2D_::oglFrameBuffer2D_() : oglCustomFrameBuffer_()
 oglFrameBuffer2D_::~oglFrameBuffer2D_()
 { }
 
-void oglFrameBuffer2D_::AttachColorTexture(const oglTex2D& tex, const uint8_t attachment)
+void oglFrameBuffer2D_::AttachColorTexture(const oglTex2D& tex, const uint8_t attachment, const std::string_view name)
 {
     CheckCurrent();
-    CheckAttachmentMatch(tex, true);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D, GetID(tex), 0);
-    ColorAttachemnts[attachment] = tex;
+    oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
 
-void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment)
+void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment, const std::string_view name)
 {
     Expects(layer < tex->Layers); // u"texture layer overflow"
     CheckCurrent();
-    CheckAttachmentMatch(tex, true);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTextureLayer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0, layer);
-    ColorAttachemnts[attachment] = std::make_pair(tex, layer);
+    oglCustomFrameBuffer_::AttachColorTexture(attachment, name, std::make_pair(tex, layer));
 }
 
-void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment)
+void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t attachment, const std::string_view name)
 {
     Expects(rbo->GetType() == RBOFormat::TYPE_COLOR); // u"rbo type missmatch"
     CheckCurrent();
-    CheckAttachmentMatch(rbo, true);
+    CheckAttachmentMatch(rbo);
     CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, GetID(rbo));
-    ColorAttachemnts[attachment] = rbo;
+    oglCustomFrameBuffer_::AttachColorTexture(attachment, name, rbo);
 }
 
 void oglFrameBuffer2D_::AttachDepthTexture(const oglTex2D& tex)
 {
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     DepthAttachment = tex;
 }
@@ -350,7 +398,7 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
 {
     Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH); // u"rbo type missmatch"
     CheckCurrent();
-    CheckAttachmentMatch(rbo, false);
+    CheckAttachmentMatch(rbo);
     CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo;
 }
@@ -358,7 +406,7 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
 void oglFrameBuffer2D_::AttachStencilTexture(const oglTex2D& tex)
 {
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     StencilAttachment = tex;
 }
@@ -367,7 +415,7 @@ void oglFrameBuffer2D_::AttachStencilTexture(const oglRBO& rbo)
 {
     Expects(rbo->GetType() == RBOFormat::TYPE_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
-    CheckAttachmentMatch(rbo, false);
+    CheckAttachmentMatch(rbo);
     CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     StencilAttachment = rbo;
 }
@@ -376,7 +424,7 @@ void oglFrameBuffer2D_::AttachDepthStencilBuffer(const oglRBO& rbo)
 {
     Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
-    CheckAttachmentMatch(rbo, false);
+    CheckAttachmentMatch(rbo);
     CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo; StencilAttachment = rbo;
 }
@@ -399,29 +447,31 @@ void oglLayeredFrameBuffer_::CheckLayerMatch(const uint32_t layer)
     LayerCount = layer;
 }
 
-void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex3D& tex, const uint8_t attachment)
+void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex3D& tex, const uint8_t attachment, const std::string_view name)
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
-    CheckAttachmentMatch(tex, true);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_3D, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
+    oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
 
-void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment)
+void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment, const std::string_view name)
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
-    CheckAttachmentMatch(tex, true);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
+    oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
 
 void oglLayeredFrameBuffer_::AttachDepthTexture(const oglTex3D& tex)
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     DepthAttachment = tex;
 }
@@ -430,7 +480,7 @@ void oglLayeredFrameBuffer_::AttachDepthTexture(const oglTex2DArray& tex)
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     DepthAttachment = tex;
 }
@@ -439,7 +489,7 @@ void oglLayeredFrameBuffer_::AttachStencilTexture(const oglTex3D& tex)
 {
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     StencilAttachment = tex;
 }
@@ -448,7 +498,7 @@ void oglLayeredFrameBuffer_::AttachStencilTexture(const oglTex2DArray& tex)
 {
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
-    CheckAttachmentMatch(tex, false);
+    CheckAttachmentMatch(tex);
     CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     StencilAttachment = tex;
 }

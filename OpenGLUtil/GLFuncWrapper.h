@@ -470,7 +470,7 @@ public:
     void           (GLAPIENTRYP ogluGetFloatv) (GLenum pname, GLfloat* params) = nullptr;
     void           (GLAPIENTRYP ogluGetIntegerv) (GLenum pname, GLint* params) = nullptr;
     const GLubyte* (GLAPIENTRYP ogluGetString) (GLenum name) = nullptr;
-    const GLubyte* (GLAPIENTRYP ogluGetStringi) (GLenum name, GLuint index) = nullptr;
+    const char*    (GLAPIENTRYP ogluGetStringi) (GLenum name, GLuint index) = nullptr;
     GLboolean      (GLAPIENTRYP ogluIsEnabled) (GLenum cap) = nullptr;
     void           (GLAPIENTRYP ogluEnable) (GLenum cap) = nullptr;
     void           (GLAPIENTRYP ogluDisable) (GLenum cap) = nullptr;

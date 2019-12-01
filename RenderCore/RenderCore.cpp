@@ -381,7 +381,7 @@ xziar::img::Image RenderCore::Screenshot()
     auto ssFBO = oglu::oglFrameBuffer2D_::Create();
     auto ssTex = oglu::oglTex2DStatic_::Create(width, height, xziar::img::TextureFormat::SRGBA8);
     ssTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);
-    ssFBO->AttachColorTexture(ssTex, 0);
+    ssFBO->AttachColorTexture(ssTex);
     dizzLog().info(u"Screenshot FBO [{}x{}], status:{}\n", width, height, ssFBO->CheckStatus() == oglu::FBOStatus::Complete ? u"complete" : u"not complete");
     ssFBO->BlitColorFrom(oglu::oglDefaultFrameBuffer_::Get(), { 0, 0, (int32_t)width, (int32_t)height });
     return ssTex->GetImage(xziar::img::ImageDataType::RGBA);

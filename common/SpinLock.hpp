@@ -18,18 +18,23 @@ namespace common
 namespace detail
 {
 template<typename T, void(T::*Lock)(), void(T::*Unlock)()>
-struct [[nodiscard]] LockScope
+struct [[nodiscard]] LockScope : NonCopyable
 {
 private:
-    T& Locker;
+    T* Locker;
 public:
-    constexpr LockScope(T& locker) noexcept : Locker(locker)
+    constexpr LockScope(T* locker) noexcept : Locker(locker)
     {
-        (Locker.*Lock)();
+        (Locker->*Lock)();
+    }
+    constexpr LockScope(LockScope&& locker) noexcept : Locker(locker.Locker)
+    {
+        locker.Locker = nullptr;
     }
     ~LockScope() noexcept
     {
-        (Locker.*Unlock)();
+        if (Locker)
+            (Locker->*Unlock)();
     }
 };
 }
@@ -65,7 +70,7 @@ public:
     using ScopeType = detail::LockScope<SpinLocker, &SpinLocker::Lock, &SpinLocker::Unlock>;
     ScopeType LockScope() noexcept
     {
-        return ScopeType(*this);
+        return ScopeType(this);
     }
 };
 
@@ -106,12 +111,12 @@ public:
     using WeakScopeType = detail::LockScope<PreferSpinLock, &PreferSpinLock::LockWeak, &PreferSpinLock::UnlockWeak>;
     WeakScopeType WeakScope() noexcept
     {
-        return WeakScopeType(*this);
+        return WeakScopeType(this);
     }
     using StrongScopeType = detail::LockScope<PreferSpinLock, &PreferSpinLock::LockStrong, &PreferSpinLock::UnlockStrong>;
     StrongScopeType StrongScope() noexcept
     {
-        return StrongScopeType(*this);
+        return StrongScopeType(this);
     }
 };
 
@@ -161,12 +166,12 @@ public:
     using ReadScopeType = detail::LockScope<WRSpinLock, &WRSpinLock::LockRead, &WRSpinLock::UnlockRead>;
     ReadScopeType ReadScope() noexcept
     {
-        return ReadScopeType(*this);
+        return ReadScopeType(this);
     }
     using WriteScopeType = detail::LockScope<WRSpinLock, &WRSpinLock::LockWrite, &WRSpinLock::UnlockWrite>;
     WriteScopeType WriteScope() noexcept
     {
-        return WriteScopeType(*this);
+        return WriteScopeType(this);
     }
 };
 
@@ -211,12 +216,12 @@ public:
     using ReadScopeType = detail::LockScope<RWSpinLock, &RWSpinLock::LockRead, &RWSpinLock::UnlockRead>;
     ReadScopeType ReadScope() noexcept
     {
-        return ReadScopeType(*this);
+        return ReadScopeType(this);
     }
     using WriteScopeType = detail::LockScope<RWSpinLock, &RWSpinLock::LockWrite, &RWSpinLock::UnlockWrite>;
     WriteScopeType WriteScope() noexcept
     {
-        return WriteScopeType(*this);
+        return WriteScopeType(this);
     }
     //unsuported, may cause deadlock
     //void UpgradeToWrite()

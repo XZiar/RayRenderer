@@ -70,6 +70,7 @@ public:
 
 class OGLUAPI oglFrameBuffer_ : 
     public common::NonMovable, 
+    public std::enable_shared_from_this<oglFrameBuffer_>,
     public detail::oglCtxObject<false> // GL Container objects
 {
     friend class oglContext_;
@@ -82,7 +83,9 @@ protected:
     protected:
         oglFrameBuffer_& NewFBO;
     private:
+        static common::RWSpinLock::ReadScopeType AcquireLock(oglFrameBuffer_& fbo);
         GLuint OldFBOId;
+        common::RWSpinLock::ReadScopeType Lock;
     public:
         FBOClear(oglFrameBuffer_* fbo);
         ~FBOClear();
@@ -100,13 +103,14 @@ protected:
     uint32_t Width, Height;
 
     oglFrameBuffer_(const GLuint id);
+    bool CheckIsSrgb(const GLenum attachment) const;
     /// return if delay update viewport
     bool SetViewPort(const uint32_t width, const uint32_t height);
 public:
     virtual ~oglFrameBuffer_();
 
     [[nodiscard]] FBOStatus CheckStatus() const;
-    [[nodiscard]] virtual bool IsSrgb() const = 0;
+    [[nodiscard]] virtual GLenum GetAttachPoint(const std::string_view name) const = 0;
 
     void Use();
     void DiscardColor(const uint8_t attachment = 0);
@@ -121,7 +125,8 @@ public:
 
 class OGLUAPI oglDefaultFrameBuffer_ : public oglFrameBuffer_
 {
-    friend struct DefFBOCtxConfig;
+    friend struct FBOCtxInfo;
+    friend class oglContext_;
 private:
     MAKE_ENABLER();
     bool IsSrgbColor;
@@ -129,7 +134,8 @@ private:
 public:
     ~oglDefaultFrameBuffer_() override;
 
-    [[nodiscard]] bool IsSrgb() const override;
+    [[nodiscard]] bool IsSrgb() const;
+    [[nodiscard]] GLenum GetAttachPoint(const std::string_view name) const override;
 
     void SetWindowSize(const uint32_t width, const uint32_t height);
     FBOClear Clear();
@@ -143,33 +149,39 @@ class OGLUAPI oglCustomFrameBuffer_ : public oglFrameBuffer_
 public:
     using FBOAttachment = std::variant<std::monostate, oglRBO, oglTex2D, oglTex3D, oglTex2DArray, std::pair<oglTex2DArray, uint32_t>>;
 private:
-    void CheckAttachmentMatch(const uint32_t width, const uint32_t height, const bool isSrgb, const bool checkSrgb);
+    void CheckAttachmentMatch(const uint32_t width, const uint32_t height);
 protected:
     std::vector<FBOAttachment> ColorAttachemnts;
+    std::vector<std::string> ColorAttachNames;
     FBOAttachment DepthAttachment;
     FBOAttachment StencilAttachment;
     std::u16string Name;
-    std::optional<bool> IsSrgbColor;
 
     oglCustomFrameBuffer_();
-    void CheckAttachmentMatch(const oglRBO& rbo, const bool checkSrgb)
+    void CheckAttachmentMatch(const oglRBO& rbo)
     { 
-        CheckAttachmentMatch(rbo->Width, rbo->Height, rbo->IsSrgb(), checkSrgb);
+        CheckAttachmentMatch(rbo->Width, rbo->Height);
     }
-    void CheckAttachmentMatch(const oglTex2D& tex, const bool checkSrgb)
+    void CheckAttachmentMatch(const oglTex2D& tex)
     { 
-        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+        CheckAttachmentMatch(tex->Width, tex->Height);
     }
-    void CheckAttachmentMatch(const oglTex2DArray& tex, const bool checkSrgb)
+    void CheckAttachmentMatch(const oglTex2DArray& tex)
     { 
-        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+        CheckAttachmentMatch(tex->Width, tex->Height);
     }
-    void CheckAttachmentMatch(const oglTex3D& tex, const bool checkSrgb)
+    void CheckAttachmentMatch(const oglTex3D& tex)
     { 
-        CheckAttachmentMatch(tex->Width, tex->Height, xziar::img::TexFormatUtil::IsSRGBType(tex->GetInnerFormat()), checkSrgb);
+        CheckAttachmentMatch(tex->Width, tex->Height);
     }
     [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
     [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
+    template<typename T>
+    void AttachColorTexture(const uint8_t attachment, const std::string_view name, T&& obj)
+    {
+        ColorAttachemnts[attachment] = std::forward<T>(obj);
+        ColorAttachNames[attachment] = name;
+    }
 public:
     class OGLUAPI FBOClear : public oglFrameBuffer_::FBOClear
     {
@@ -182,7 +194,8 @@ public:
 
     ~oglCustomFrameBuffer_() override;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
-    [[nodiscard]] bool IsSrgb() const override;
+    [[nodiscard]] bool IsSrgb(const uint8_t attachment) const;
+    [[nodiscard]] GLenum GetAttachPoint(const std::string_view name) const override;
     [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
 
     void SetName(std::u16string name) noexcept;
@@ -200,9 +213,21 @@ private:
     oglFrameBuffer2D_();
 public:
     ~oglFrameBuffer2D_();
-    void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment);
-    void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment);
-    void AttachColorTexture(const oglRBO& rbo, const uint8_t attachment);
+    void AttachColorTexture(const oglTex2D& tex, const uint8_t attachment, const std::string_view name);
+    void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer, const uint8_t attachment, const std::string_view name);
+    void AttachColorTexture(const oglRBO& rbo, const uint8_t attachment, const std::string_view name);
+    void AttachColorTexture(const oglTex2D& tex)
+    {
+        AttachColorTexture(tex, 0, "default");
+    }
+    void AttachColorTexture(const oglTex2DArray& tex, const uint32_t layer)
+    {
+        AttachColorTexture(tex, layer, 0, "default");
+    }
+    void AttachColorTexture(const oglRBO& rbo)
+    {
+        AttachColorTexture(rbo, 0, "default");
+    }
     void AttachDepthTexture(const oglTex2D& tex);
     void AttachDepthTexture(const oglRBO& rbo);
     void AttachStencilTexture(const oglTex2D& tex);
@@ -223,8 +248,16 @@ private:
     void CheckLayerMatch(const uint32_t layer);
 public:
     ~oglLayeredFrameBuffer_() override;
-    void AttachColorTexture(const oglTex3D& tex, const uint8_t attachment);
-    void AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment);
+    void AttachColorTexture(const oglTex3D& tex, const uint8_t attachment, const std::string_view name);
+    void AttachColorTexture(const oglTex2DArray& tex, const uint8_t attachment, const std::string_view name);
+    void AttachColorTexture(const oglTex3D& tex)
+    {
+        AttachColorTexture(tex, 0, "default");
+    }
+    void AttachColorTexture(const oglTex2DArray& tex)
+    {
+        AttachColorTexture(tex, 0, "default");
+    }
     void AttachDepthTexture(const oglTex3D& tex);
     void AttachDepthTexture(const oglTex2DArray& tex);
     void AttachStencilTexture(const oglTex3D& tex);
