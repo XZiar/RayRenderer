@@ -1,6 +1,7 @@
 #include "oglPch.h"
 #include "oglException.h"
 #include "oglProgram.h"
+#include "oglFBO.h"
 #include "oglContext.h"
 #include "oglUtil.h"
 #include "BindingManager.h"
@@ -43,18 +44,19 @@ static T ProgResGetValue(const GLuint pid, const GLenum type, const GLint ifidx,
 
 string_view ProgramResource::GetTypeName() const noexcept
 {
-    switch (ResType & ProgResType::CategoryMask)
+    switch (ResType & ProgResType::MASK_CATEGORY)
     {
-    case ProgResType::InputCat:   return "Attrib"sv;
-    case ProgResType::UBOCat:     return "UniBlk"sv;
-    case ProgResType::UniformCat:
-        switch (ResType&ProgResType::TypeCatMask)
+    case ProgResType::CAT_INPUT:    return "Attrib"sv;
+    case ProgResType::CAT_OUTPUT:   return "Output"sv;
+    case ProgResType::CAT_UBO:      return "UniBlk"sv;
+    case ProgResType::CAT_UNIFORM:
+        switch (ResType & ProgResType::MASK_TYPE_CAT)
         {
-        case ProgResType::TexType:    return "TexUni"sv;
-        case ProgResType::ImgType:    return "ImgUni"sv;
-        default:                      return "Other"sv;
+        case ProgResType::TYPE_TEX: return "TexUni"sv;
+        case ProgResType::TYPE_IMG: return "ImgUni"sv;
+        default:                    return "RawUni"sv;
         }
-    default:                      return "Other"sv;
+    default:                        return "Other "sv;
     }
 }
 
@@ -70,7 +72,7 @@ string_view ProgramResource::GetValTypeName() const noexcept
     }
 }
 
-ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint ProgramID, const GLint idx)
+static ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint ProgramID, const GLint idx)
 {
     ProgramResource progres;
     progres.Name = name;
@@ -80,7 +82,7 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint P
     if (type == GL_UNIFORM_BLOCK)
     {
         progres.Valtype = GL_UNIFORM_BLOCK;
-        progres.ResType |= ProgResType::UBOCat;
+        progres.ResType |= ProgResType::CAT_UBO;
         progres.location = CtxFunc->ogluGetProgramResourceIndex(ProgramID, type, name.c_str());
         progres.size = ProgResGetValue<uint16_t>(ProgramID, type, idx, GL_BUFFER_DATA_SIZE);
         progres.len = 1;
@@ -91,19 +93,22 @@ ProgramResource GenProgRes(const string& name, const GLenum type, const GLuint P
         switch (type)
         {
         case GL_PROGRAM_INPUT:
-            progres.ResType |= ProgResType::InputCat;
+            progres.ResType |= ProgResType::CAT_INPUT;
+            break;
+        case GL_PROGRAM_OUTPUT:
+            progres.ResType |= ProgResType::CAT_OUTPUT;
             break;
         case GL_UNIFORM:
-            progres.ResType |= ProgResType::UniformCat;
+            progres.ResType |= ProgResType::CAT_UNIFORM;
             if (progres.Valtype >= GL_IMAGE_1D && progres.Valtype <= GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY)
-                progres.ResType |= ProgResType::ImgType;
+                progres.ResType |= ProgResType::TYPE_IMG;
             else if ((progres.Valtype >= GL_SAMPLER_1D && progres.Valtype <= GL_SAMPLER_2D_RECT_SHADOW)
                 || (progres.Valtype >= GL_SAMPLER_1D_ARRAY && progres.Valtype <= GL_SAMPLER_CUBE_SHADOW)
                 || (progres.Valtype >= GL_INT_SAMPLER_1D && progres.Valtype <= GL_UNSIGNED_INT_SAMPLER_BUFFER)
                 || (progres.Valtype >= GL_SAMPLER_2D_MULTISAMPLE && progres.Valtype <= GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY))
-                progres.ResType |= ProgResType::TexType;
+                progres.ResType |= ProgResType::TYPE_TEX;
             else
-                progres.ResType |= ProgResType::PrimitiveType;
+                progres.ResType |= ProgResType::TYPE_PRIMITIVE;
             break;
         }
         progres.location = CtxFunc->ogluGetProgramResourceLocation(ProgramID, type, name.c_str());
@@ -202,7 +207,7 @@ void oglProgram_::InitLocs()
     CheckCurrent();
     set<ProgramResource, ProgramResource::Lesser> dataMap;
     string nameBuf;
-    GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT };
+    GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT,GL_PROGRAM_OUTPUT };
     for (const GLenum dtype : datatypes)
     {
         GLint cnt = 0;
@@ -243,22 +248,25 @@ void oglProgram_::InitLocs()
     GLuint maxUniLoc = 0;
     for (const auto& info : dataMap)
     {
-        switch (info.ResType & ProgResType::CategoryMask)
+        const auto resCategory = info.ResType & ProgResType::MASK_CATEGORY;
+        switch (resCategory)
         {
-        case ProgResType::InputCat:
-            AttrRess.insert(info); break;
-        case ProgResType::UBOCat:
+        case ProgResType::CAT_INPUT:
+            InputRess.insert(info); break;
+        case ProgResType::CAT_OUTPUT:
+            OutputRess.insert(info); break;
+        case ProgResType::CAT_UBO:
             UBORess.insert(info); break;
-        case ProgResType::UniformCat:
-            switch (info.ResType & ProgResType::TypeCatMask)
+        case ProgResType::CAT_UNIFORM:
+            switch (info.ResType & ProgResType::MASK_TYPE_CAT)
             {
-            case ProgResType::TexType:  TexRess.insert(info); break;
-            case ProgResType::ImgType:  ImgRess.insert(info); break;
+            case ProgResType::TYPE_TEX:  TexRess.insert(info); break;
+            case ProgResType::TYPE_IMG:  ImgRess.insert(info); break;
             default:                    break;
             } break;
         default:                break;
         }
-        if ((info.ResType & ProgResType::CategoryMask) != ProgResType::InputCat)
+        if (resCategory != ProgResType::CAT_INPUT && resCategory != ProgResType::CAT_OUTPUT)
             maxUniLoc = common::max(maxUniLoc, info.location + info.len);
         ProgRess.insert(info);
         oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
@@ -835,7 +843,7 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
 
 ProgDraw oglDrawProgram_::Draw() noexcept
 {
-    return ProgDraw(*this);
+    return ProgDraw(this);
 }
 
 oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)
@@ -847,12 +855,16 @@ oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::st
 
 
 thread_local common::SpinLocker ProgDrawLocker;
-ProgDraw::ProgDraw(oglDrawProgram_& prog) noexcept
-    : Prog(prog), Lock(ProgDrawLocker.LockScope()),
+ProgDraw::ProgDraw(oglDrawProgram_* prog, FBOIntpType&& fboInfo) noexcept
+    : Prog(*prog), FBO(std::move(fboInfo.first)),
+    Lock(ProgDrawLocker.LockScope()), FBOLock(std::move(fboInfo.second)),
     TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
 {
     oglProgram_::usethis(Prog);
+
 }
+ProgDraw::ProgDraw(oglDrawProgram_* prog) noexcept : ProgDraw(prog, oglFrameBuffer_::LockCurFBOLock())
+{ }
 ProgDraw::~ProgDraw()
 {
     Restore();
@@ -867,15 +879,15 @@ ProgDraw& ProgDraw::Restore(const bool quick)
         {
             switch (binding.second)
             {
-            case ProgResType::TexType:
+            case ProgResType::TYPE_TEX:
                 if (const auto ptrTex = FindInMap(Prog.TexBindings, pos); ptrTex)
                     TexCache.insert_or_assign(pos, *ptrTex);
                 break;
-            case ProgResType::ImgType:
+            case ProgResType::TYPE_IMG:
                 if (const auto ptrImg = FindInMap(Prog.ImgBindings, pos); ptrImg)
                     ImgCache.insert_or_assign(pos, *ptrImg);
                 break;
-            case ProgResType::UBOCat:
+            case ProgResType::CAT_UBO:
                 if (const auto ptrUbo = FindInMap(Prog.UBOBindings, pos); ptrUbo)
                     UBOCache.insert_or_assign(pos, *ptrUbo);
                 break;
@@ -894,11 +906,11 @@ ProgDraw& ProgDraw::Restore(const bool quick)
             {
                 switch (binding.second)
                 {
-                case ProgResType::TexType:
-                case ProgResType::ImgType:
+                case ProgResType::TYPE_TEX:
+                case ProgResType::TYPE_IMG:
                     CtxFunc->ogluProgramUniform1i(Prog.ProgramID, pos, obj = val);
                     break;
-                case ProgResType::UBOCat:
+                case ProgResType::CAT_UBO:
                     CtxFunc->ogluUniformBlockBinding(Prog.ProgramID, pos, obj = val);
                     break;
                 default: break;
@@ -977,7 +989,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const string& name, const 
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TexType);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
     }
     return *this;
 }
@@ -989,7 +1001,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TexType);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
     }
     return *this;
 }
@@ -1003,7 +1015,7 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const string& name, const GL
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::ImgType);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
     }
     return *this;
 }
@@ -1015,7 +1027,7 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const GLuint pos)
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::ImgType);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
     }
     return *this;
 }
@@ -1029,7 +1041,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const string& name, const GLuint i
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::UBOCat);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
     }
     return *this;
 }
@@ -1041,7 +1053,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
         if (oldVal != (GLint)GL_INVALID_INDEX)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::UBOCat);
+            UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
     }
     return *this;
 }

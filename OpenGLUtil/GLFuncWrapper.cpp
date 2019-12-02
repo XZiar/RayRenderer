@@ -624,6 +624,7 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(BindFramebuffer,                            "", "EXT");
     QUERY_FUNC_(BlitNamedFramebuffer,                       "");
     QUERY_FUNC_(BlitFramebuffer,                            "", "EXT");
+    QUERY_FUNC (DrawBuffers,                                "", "ARB", "ATI");
     QUERY_FUNC_(InvalidateNamedFramebufferData,             "");
     QUERY_FUNC_(InvalidateFramebuffer,                      "");
     QUERY_FUNC_(DiscardFramebufferEXT,                      "");

@@ -264,6 +264,7 @@ public:
     void   (GLAPIENTRYP ogluBindFramebuffer_) (GLenum target, GLuint framebuffer) = nullptr;
     void   (GLAPIENTRYP ogluBlitNamedFramebuffer_) (GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
     void   (GLAPIENTRYP ogluBlitFramebuffer_) (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) = nullptr;
+    void   (GLAPIENTRYP ogluDrawBuffers) (GLsizei n, const GLenum* bufs) = nullptr;
     void   (GLAPIENTRYP ogluInvalidateNamedFramebufferData_) (GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) = nullptr;
     void   (GLAPIENTRYP ogluInvalidateFramebuffer_) (GLenum target, GLsizei numAttachments, const GLenum* attachments) = nullptr;
     void   (GLAPIENTRYP ogluDiscardFramebufferEXT_) (GLenum target, GLsizei numAttachments, const GLenum* attachments) = nullptr;

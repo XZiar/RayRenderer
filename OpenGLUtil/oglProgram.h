@@ -27,9 +27,12 @@ using UniformValue = std::variant<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3
 
 enum class ProgResType : uint16_t 
 { 
-    Empty = 0, CategoryMask = 0xf000, TypeMask = 0x0fff, TypeCatMask = 0x0f00, FullCatMask = 0xff00, RawTypeMask = 0x00ff,
-    InputCat = 0x0000, UniformCat = 0x1000, UBOCat = 0x2000,
-    PrimitiveType = 0x000, TexType = 0x100, ImgType = 0x200,
+    Empty = 0, 
+    MASK_CATEGORY = 0xf000,
+    CAT_INPUT = 0x0000, CAT_OUTPUT = 0x1000, CAT_UNIFORM = 0x2000, CAT_UBO = 0x3000,
+    MASK_TYPE_CAT = 0x0f00,
+    TYPE_PRIMITIVE = 0x000, TYPE_TEX = 0x100, TYPE_IMG = 0x200,
+    MASK_TYPE_DETAIL = 0x00ff, MASK_FULLCAT = 0xff00,
     Tex1D = 0x100, Tex2D = 0x110, Tex3D = 0x120, TexCube = 0x130, Tex1DArray = 0x140, Tex2DArray = 0x150,
     Img1D = 0x200, Img2D = 0x210, Img3D = 0x220, ImgCube = 0x230, Img1DArray = 0x240, Img2DArray = 0x250,
 };
@@ -137,7 +140,7 @@ protected:
     std::map<ShaderType, oglShader> Shaders;
     ShaderExtInfo ExtInfo;
     std::map<std::string, const ProgramResource*, std::less<>> ResNameMapping;
-    std::set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess, AttrRess;
+    std::set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess, InputRess, OutputRess;
     std::set<SubroutineResource, SubroutineResource::Lesser> SubroutineRess;
     std::map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     std::map<GLint, UniformValue> UniValCache;
@@ -236,12 +239,16 @@ public:
     [[nodiscard]] static oglDrawProgram Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config = {});
 };
 
+class oglFrameBuffer_;
 class OGLUAPI ProgDraw
 {
     friend class oglDrawProgram_;
 private:
+    using FBOIntpType = std::pair<std::shared_ptr<oglFrameBuffer_>, common::RWSpinLock::ReadScopeType>;
     oglDrawProgram_& Prog;
+    std::shared_ptr<oglFrameBuffer_> FBO;
     common::SpinLocker::ScopeType Lock;
+    common::RWSpinLock::ReadScopeType FBOLock;
     detail::TextureManager& TexMan;
     detail::TexImgManager& ImgMan;
     detail::UBOManager& UboMan;
@@ -251,7 +258,8 @@ private:
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     std::map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
     std::map<GLint, UniformValue> UniValBackup;
-    ProgDraw(oglDrawProgram_& prog_) noexcept;
+    ProgDraw(oglDrawProgram_* prog, FBOIntpType&& fboInfo) noexcept;
+    ProgDraw(oglDrawProgram_* prog) noexcept;
     template<typename T>
     GLint GetLoc(const T& res, const GLenum valtype)
     {

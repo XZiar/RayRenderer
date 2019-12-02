@@ -74,21 +74,24 @@ class OGLUAPI oglFrameBuffer_ :
     public detail::oglCtxObject<false> // GL Container objects
 {
     friend class oglContext_;
-public:
+    friend class ProgDraw;
 private:
+    static std::pair<oglFBO, common::RWSpinLock::ReadScopeType> LockCurFBOLock();
     GLenum CheckIfBinded() const;
 protected:
     class OGLUAPI FBOClear : public common::NonCopyable
     {
     protected:
         oglFrameBuffer_& NewFBO;
+        forceinline GLuint NewFBOId() const noexcept { return NewFBO.FBOId; }
+        forceinline void BindDraws(const common::span<GLenum> bindings) { NewFBO.BindDraws(bindings); }
     private:
         static common::RWSpinLock::ReadScopeType AcquireLock(oglFrameBuffer_& fbo);
         GLuint OldFBOId;
         common::RWSpinLock::ReadScopeType Lock;
     public:
         FBOClear(oglFrameBuffer_* fbo);
-        ~FBOClear();
+        virtual ~FBOClear();
         FBOClear& ClearColors(const b3d::Vec4& color = b3d::Vec4::zero());
         FBOClear& ClearDepth(const float depth = 0.f);
         FBOClear& ClearStencil(const GLint stencil = 0);
@@ -99,6 +102,7 @@ protected:
         }
     };
 
+    std::vector<GLenum> DrawBindings;
     GLuint FBOId;
     uint32_t Width, Height;
 
@@ -106,6 +110,7 @@ protected:
     bool CheckIsSrgb(const GLenum attachment) const;
     /// return if delay update viewport
     bool SetViewPort(const uint32_t width, const uint32_t height);
+    void BindDraws(const common::span<GLenum> bindings);
 public:
     virtual ~oglFrameBuffer_();
 
@@ -113,9 +118,6 @@ public:
     [[nodiscard]] virtual GLenum GetAttachPoint(const std::string_view name) const = 0;
 
     void Use();
-    void DiscardColor(const uint8_t attachment = 0);
-    void DiscardDepth();
-    void DiscardStencil();
     FBOClear Clear();
     void ClearAll();
     void BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect);
@@ -132,6 +134,17 @@ private:
     bool IsSrgbColor;
     oglDefaultFrameBuffer_();
 public:
+    class OGLUAPI FBOClear : public oglFrameBuffer_::FBOClear
+    {
+        friend class oglDefaultFrameBuffer_;
+    private:
+        using oglFrameBuffer_::FBOClear::FBOClear;
+    public:
+        FBOClear& DiscardColors();
+        FBOClear& DiscardDepth();
+        FBOClear& DiscardStencil();
+        FBOClear& DiscardDepthStencil();
+    };
     ~oglDefaultFrameBuffer_() override;
 
     [[nodiscard]] bool IsSrgb() const;
@@ -174,10 +187,10 @@ protected:
     { 
         CheckAttachmentMatch(tex->Width, tex->Height);
     }
-    [[nodiscard]] static GLuint GetID(const oglRBO& rbo);
-    [[nodiscard]] static GLuint GetID(const oglTexBase& tex);
+    [[nodiscard]] forceinline static GLuint GetID(const oglRBO&     rbo) noexcept { return rbo->RBOId; }
+    [[nodiscard]] forceinline static GLuint GetID(const oglTexBase& tex) noexcept { return tex->TextureID; }
     template<typename T>
-    void AttachColorTexture(const uint8_t attachment, const std::string_view name, T&& obj)
+    forceinline void AttachColorTexture(const uint8_t attachment, const std::string_view name, T&& obj) noexcept
     {
         ColorAttachemnts[attachment] = std::forward<T>(obj);
         ColorAttachNames[attachment] = name;
@@ -187,9 +200,16 @@ public:
     {
         friend class oglCustomFrameBuffer_;
     private:
-        using oglFrameBuffer_::FBOClear::FBOClear;
+        oglCustomFrameBuffer_& TheFBO;
+        std::vector<std::optional<b3d::Vec4>> ColorClears; // there should be at most 32 attachemnts
+        FBOClear(oglCustomFrameBuffer_* fbo);
     public:
-
+        ~FBOClear() override;
+        FBOClear& ClearColor(const uint8_t attachment, const b3d::Vec4& color = b3d::Vec4::zero());
+        FBOClear& DiscardColor(const uint8_t attachment);
+        FBOClear& DiscardDepth();
+        FBOClear& DiscardStencil();
+        FBOClear& DiscardDepthStencil();
     };
 
     ~oglCustomFrameBuffer_() override;
