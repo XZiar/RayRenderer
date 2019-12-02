@@ -475,6 +475,10 @@ public:
         Data.resize(data.size());
         std::partial_sort_copy(data.cbegin(), data.cend(), Data.begin(), Data.end(), Compare());
     }
+    FrozenDenseSet(std::vector<T>&& data) : Data(std::move(data))
+    {
+        std::sort(Data.begin(), Data.end(), Compare());
+    }
     decltype(auto) begin() const { return Data.cbegin();}
     decltype(auto) end() const { return Data.cend();}
 
@@ -483,6 +487,15 @@ public:
     bool Has(E&& element) const
     {
         return std::binary_search(Data.cbegin(), Data.cend(), element, Compare());
+    }
+    template<typename E>
+    const T* Find(E&& element) const
+    {
+        const auto ret = std::lower_bound(Data.cbegin(), Data.cend(), element, Compare());
+        if (ret != Data.cend() && !Compare()(element, *ret))
+            return &*ret;
+        else
+            return nullptr;
     }
 };
 

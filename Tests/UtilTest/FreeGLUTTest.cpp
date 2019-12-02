@@ -39,9 +39,9 @@ struct Lutter
             ScreenBox->WriteSpan(DatVert);
         }
         VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
-        VAOScreen->Prepare()
-            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        VAOScreen->Prepare(LutGenerator)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
@@ -110,9 +110,9 @@ static void FGTest()
         const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
         Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
         screenBox->WriteSpan(DatVert);
-        basicVAO->Prepare()
-            .SetFloat(screenBox, drawer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-            .SetFloat(screenBox, drawer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        basicVAO->Prepare(drawer)
+            .SetFloat(screenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
+            .SetFloat(screenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         drawer->State().SetTexture(lutTex, "lut");
     }

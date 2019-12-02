@@ -10,6 +10,7 @@ using common::asyexe::AsyncAgent;
 using b3d::Vec3;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
+using namespace std::string_view_literals;
 
 
 MultiMaterialHolder Model::OnPrepareMaterial() const
@@ -43,13 +44,11 @@ Model::~Model()
 
 void Model::PrepareGL(const oglu::oglDrawProgram& prog, const map<string, string>&)
 {
-    using oglu::PointEx;
     auto vao = oglu::oglVAO_::Create(oglu::VAODrawMode::Triangles);
-    const oglu::GLint attrs[4] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc"), prog->GetLoc("@VertTan") };
     {
-        auto vaoprep = std::move(vao->Prepare()
-            .SetAttribs<PointEx>(Mesh->vbo, 0, attrs)
-            .SetDrawId(prog)
+        auto vaoprep = std::move(vao->Prepare(prog)
+            .SetAttribs<oglu::PointEx>(Mesh->vbo, 0, { "@VertPos"sv,"@VertNorm"sv,"@VertTexc"sv,"@VertTan"sv })
+            .SetDrawId()
             .SetIndex(Mesh->ebo));
         Mesh->PrepareVAO(vaoprep);
     }

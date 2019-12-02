@@ -74,10 +74,10 @@ FontViewer::FontViewer()
         Point DatVert[] = { pa,pb,pc, pd,pc,pb };
 
         viewRect->WriteSpan(DatVert);
-        viewVAO->Prepare()
-            .SetFloat(viewRect, prog->GetLoc("@VertPos"), sizeof(Point), 2, 0)
-            .SetFloat(viewRect, prog->GetLoc("@VertColor"), sizeof(Point), 3, sizeof(Vec3))
-            .SetFloat(viewRect, prog->GetLoc("@VertTexc"), sizeof(Point), 2, 2 * sizeof(Vec3))
+        viewVAO->Prepare(prog)
+            .SetFloat(viewRect, "@VertPos",   sizeof(Point), 2, 0 * sizeof(Vec3))
+            .SetFloat(viewRect, "@VertColor", sizeof(Point), 3, 1 * sizeof(Vec3))
+            .SetFloat(viewRect, "@VertTexc",  sizeof(Point), 2, 2 * sizeof(Vec3))
             .SetDrawSize(0, 6);
     }
     prog->State().SetSubroutine("fontRenderer", "sdfMid");

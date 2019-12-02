@@ -103,7 +103,8 @@ using GLclampd   = double;
 using GLchar     = char;
 using GLsync     = void*;
 
-inline constexpr GLenum GLInvalidEnum = UINT32_MAX;
+inline constexpr GLenum GLInvalidEnum  = UINT32_MAX;
+inline constexpr GLint  GLInvalidIndex = -1;
 inline constexpr GLuint OGLUMsgIdMin = 0xdeafbeef;
 inline constexpr GLuint OGLUMsgIdMax = 0xdeafcafe;
 

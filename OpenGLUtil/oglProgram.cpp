@@ -60,7 +60,6 @@ string_view ProgramResource::GetTypeName() const noexcept
     }
 }
 
-
 string_view ProgramResource::GetValTypeName() const noexcept
 {
     switch (Valtype)
@@ -116,6 +115,52 @@ static ProgramResource GenProgRes(const string& name, const GLenum type, const G
         progres.len = ProgResGetValue<GLuint>(ProgramID, type, idx, GL_ARRAY_SIZE);
     }
     return progres;
+}
+
+
+void MappingResourceSolver::Init(const std::vector<ProgramResource>& resources, const std::map<std::string, std::string>& mappings)
+{
+    Resources = resources;
+    const auto indexed = common::linq::FromIterable(Resources)
+        .Select([](const auto& res) { return std::pair(res.location, &res); })
+        .ToVector();
+    IndexedResources = indexed;
+
+    std::vector<std::tuple<size_t, size_t, const ProgramResource*>> mapped;
+    mapped.reserve(mappings.size());
+    size_t index = 0;
+    for (const auto& [name, varName] : mappings)
+    {
+        if (const auto ptr = Resources.Find(varName); ptr)
+        {
+            MappedNames.append(name);
+            mapped.emplace_back(index, name.size(), ptr);
+            index += name.size();
+        }
+    }
+    Mappings = common::linq::FromIterable(mapped)
+        .Select([this](const auto& tp) 
+            {
+                const auto& [idx, len, ptr] = tp;
+                return MappingPair({ &MappedNames[idx], len }, ptr);
+            })
+        .ToVector();
+}
+const ProgramResource* MappingResourceSolver::GetResource(const GLint location) const noexcept
+{
+    const auto targetPair = IndexedResources.Find(location);
+    return targetPair ? targetPair->second : nullptr;
+}
+const ProgramResource* MappingResourceSolver::GetResource(std::string_view name) const noexcept
+{
+    if (!name.empty() && name[0] == '@')
+    {
+        name.remove_prefix(1);
+        const auto targetPair = Mappings.Find(name);
+        return targetPair ? targetPair->second : nullptr;
+    }
+    else
+        return Resources.Find(name);
 }
 
 
@@ -205,7 +250,7 @@ void oglProgram_::RecoverState()
 void oglProgram_::InitLocs()
 {
     CheckCurrent();
-    set<ProgramResource, ProgramResource::Lesser> dataMap;
+    ProgRess.clear();
     string nameBuf;
     GLenum datatypes[] = { GL_UNIFORM_BLOCK,GL_UNIFORM,GL_PROGRAM_INPUT,GL_PROGRAM_OUTPUT };
     for (const GLenum dtype : datatypes)
@@ -230,7 +275,7 @@ void oglProgram_::InitLocs()
                 arraylen = atoi(nameBuf.c_str() + cutpos + 1) + 1;
             }
             nameBuf.resize(resName.size());
-            if (auto it = FindInSet(dataMap, nameBuf))
+            if (auto it = FindInSet(ProgRess, nameBuf))
             {
                 it->len = common::max(it->len, arraylen);
                 continue;
@@ -238,23 +283,19 @@ void oglProgram_::InitLocs()
 
             ProgramResource datinfo = GenProgRes(nameBuf, dtype, ProgramID, a);
 
-            if (datinfo.location != (GLint)GL_INVALID_INDEX)
+            if (datinfo.location != GLInvalidIndex)
             {
-                dataMap.insert(datinfo); //must not exist
+                ProgRess.insert(datinfo); //must not exist
             }
         }
     }
-    oglLog().debug(u"Active {} locations\n", dataMap.size());
+    oglLog().debug(u"Active {} resources\n", ProgRess.size());
     GLuint maxUniLoc = 0;
-    for (const auto& info : dataMap)
+    for (const auto& info : ProgRess)
     {
         const auto resCategory = info.ResType & ProgResType::MASK_CATEGORY;
         switch (resCategory)
         {
-        case ProgResType::CAT_INPUT:
-            InputRess.insert(info); break;
-        case ProgResType::CAT_OUTPUT:
-            OutputRess.insert(info); break;
         case ProgResType::CAT_UBO:
             UBORess.insert(info); break;
         case ProgResType::CAT_UNIFORM:
@@ -268,7 +309,6 @@ void oglProgram_::InitLocs()
         }
         if (resCategory != ProgResType::CAT_INPUT && resCategory != ProgResType::CAT_OUTPUT)
             maxUniLoc = common::max(maxUniLoc, info.location + info.len);
-        ProgRess.insert(info);
         oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
     UniBindCache.clear();
@@ -838,8 +878,22 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
         if (auto obj = FindInSet(ProgRess, varName); obj)
             ResNameMapping.insert_or_assign(target, obj);
     }
-}
 
+    std::vector<ProgramResource> inputRess, outputRess;
+    for (const auto& info : ProgRess)
+    {
+        const auto resCategory = info.ResType & ProgResType::MASK_CATEGORY;
+        switch (resCategory)
+        {
+        case ProgResType::CAT_INPUT:    inputRess. push_back(info); break;
+        case ProgResType::CAT_OUTPUT:   outputRess.push_back(info); break;
+        default:                        break;
+        }
+    }
+    InputRess .Init(inputRess,  ExtInfo.ResMappings);
+    OutputRess.Init(outputRess, ExtInfo.ResMappings);
+}
+oglDrawProgram_::~oglDrawProgram_() { }
 
 ProgDraw oglDrawProgram_::Draw() noexcept
 {

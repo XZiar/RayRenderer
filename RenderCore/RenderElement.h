@@ -80,7 +80,7 @@ protected:
 
     void RegistControllable();
     virtual MultiMaterialHolder OnPrepareMaterial() const;
-    auto DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare());
+    auto DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare(prog));
     oglu::ProgDraw& DrawPosition(Drawcall& prog) const;
     ///<summary>Assign VAO into prog-sensative std::map</summary>  
     ///<param name="prog">target shader program</param>

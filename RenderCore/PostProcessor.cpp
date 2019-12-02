@@ -95,9 +95,9 @@ public:
         ScreenBox->SetName(u"LutScreenBox");
         VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
         VAOScreen->SetName(u"LutVAO");
-        VAOScreen->Prepare()
-            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, LutGenerator->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        VAOScreen->Prepare(LutGenerator)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
 
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
@@ -162,9 +162,9 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
     PostShader = std::make_shared<GLShader>(u"PostProcess", postSrc);
     VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
     VAOScreen->SetName(u"PostProcVAO");
-    VAOScreen->Prepare()
-        .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-        .SetFloat(ScreenBox, PostShader->Program->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+    VAOScreen->Prepare(PostShader->Program)
+        .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
+        .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
         .SetDrawSize(0, 6);
     PostShader->Program->State()
         .SetSubroutine("ToneMap", "ACES")

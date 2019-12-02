@@ -87,6 +87,30 @@ public:
 };
 
 
+class OGLUAPI MappingResourceSolver : public common::NonCopyable, public common::NonMovable
+{
+private:
+    using MappingPair = std::pair<std::string_view, const ProgramResource*>;
+    using IndexedPair = std::pair<GLint, const ProgramResource*>;
+    std::string MappedNames;
+    common::container::FrozenDenseSet<ProgramResource, ProgramResource::Lesser> Resources;
+    common::container::FrozenDenseSet<IndexedPair,
+        common::container::SetKeyLess<IndexedPair, &IndexedPair::first>> IndexedResources;
+    common::container::FrozenDenseSet<MappingPair,
+        common::container::SetKeyLess<MappingPair, &MappingPair::first>> Mappings;
+public:
+    MappingResourceSolver() { }
+    void Init(const std::vector<ProgramResource>& resources, const std::map<std::string, std::string>& mappings);
+    const ProgramResource* GetResource(const GLint location) const noexcept;
+    const ProgramResource* GetResource(std::string_view name) const noexcept;
+    GLint GetLocation(std::string_view name) const noexcept
+    {
+        const auto res = GetResource(name);
+        return res ? res->location : GLInvalidIndex;
+    }
+};
+
+
 ///<summary>ProgState, use to batch set program binding states</summary>  
 class OGLUAPI ProgState : public common::NonCopyable
 {
@@ -140,7 +164,7 @@ protected:
     std::map<ShaderType, oglShader> Shaders;
     ShaderExtInfo ExtInfo;
     std::map<std::string, const ProgramResource*, std::less<>> ResNameMapping;
-    std::set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess, InputRess, OutputRess;
+    std::set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess;
     std::set<SubroutineResource, SubroutineResource::Lesser> SubroutineRess;
     std::map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     std::map<GLint, UniformValue> UniValCache;
@@ -232,7 +256,8 @@ private:
     MAKE_ENABLER();
     oglDrawProgram_(const std::u16string& name, const oglProgStub* stub);
 public:
-    virtual ~oglDrawProgram_() override {}
+    MappingResourceSolver InputRess, OutputRess;
+    ~oglDrawProgram_() override;
 
     [[nodiscard]] ProgDraw Draw() noexcept;
 

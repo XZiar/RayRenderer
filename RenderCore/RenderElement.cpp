@@ -17,6 +17,7 @@ using common::str::Charset;
 using oglu::oglTex2D;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
+using namespace std::string_view_literals;
 using namespace b3d;
 
 
@@ -156,11 +157,11 @@ MultiMaterialHolder Drawable::OnPrepareMaterial() const
 }
 
 
-auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare())
+auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, const oglu::oglVBO& vbo) -> decltype(vao->Prepare(prog))
 {
-    using oglu::Point;
-    const oglu::GLint attrs[3] = { prog->GetLoc("@VertPos"), prog->GetLoc("@VertNorm"), prog->GetLoc("@VertTexc") };
-    return std::move(vao->Prepare().SetAttribs<Point>(vbo, 0, attrs).SetDrawId(prog));
+    return std::move(vao->Prepare(prog)
+        .SetAttribs<oglu::Point>(vbo, 0, { "@VertPos"sv, "@VertNorm"sv, "@VertTexc"sv })
+        .SetDrawId());
 }
 
 oglu::ProgDraw& Drawable::DrawPosition(Drawcall& drawcall) const

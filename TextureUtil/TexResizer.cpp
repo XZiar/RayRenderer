@@ -56,15 +56,15 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
 
         NormalVAO = oglVAO_::Create(VAODrawMode::Triangles);
         NormalVAO->SetName(u"TexResizerNormalVAO");
-        NormalVAO->Prepare()
-            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        NormalVAO->Prepare(GLResizer)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         FlipYVAO = oglVAO_::Create(VAODrawMode::Triangles);
         FlipYVAO->SetName(u"TexResizerFlipYVAO");
-        FlipYVAO->Prepare()
-            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertPos"), sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, GLResizer->GetLoc("@VertTexc"), sizeof(Vec4), 2, sizeof(float) * 2)
+        FlipYVAO->Prepare(GLResizer)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
         if (CLContext)

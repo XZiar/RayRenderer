@@ -201,7 +201,7 @@ public:
         friend class oglCustomFrameBuffer_;
     private:
         oglCustomFrameBuffer_& TheFBO;
-        std::vector<std::optional<b3d::Vec4>> ColorClears; // there should be at most 32 attachemnts
+        std::vector<std::optional<b3d::Vec4>> ColorClears;
         FBOClear(oglCustomFrameBuffer_* fbo);
     public:
         ~FBOClear() override;

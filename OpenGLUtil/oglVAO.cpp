@@ -16,19 +16,29 @@ using std::vector;
 MAKE_ENABLER_IMPL(oglVAO_)
 
 
-oglVAO_::VAOPrep::VAOPrep(oglVAO_& vao_) noexcept :vao(vao_), isEmpty(false)
+oglVAO_::VAOPrep::VAOPrep(oglVAO_* vao, const oglDrawProgram_& prog) noexcept : 
+    VAO(vao), Prog(prog)
 {
-    vao.bind();
+    VAO->bind();
 }
-
-void oglVAO_::VAOPrep::End() noexcept
+oglVAO_::VAOPrep::~VAOPrep()
 {
-    vao.CheckCurrent();
-    if (!isEmpty)
+    if (VAO)
     {
-        isEmpty = true;
+        VAO->CheckCurrent();
         oglVAO_::unbind();
     }
+}
+
+GLint oglVAO_::VAOPrep::GetLoc(const std::string_view name) const noexcept
+{
+    return Prog.InputRess.GetLocation(name);
+}
+void oglVAO_::VAOPrep::GetLocs(const common::span<const std::string_view> names, const common::span<GLint> idxs) const noexcept
+{
+    size_t i = 0;
+    for (const auto& name : names)
+        idxs[i++] = Prog.InputRess.GetLocation(name);
 }
 
 static constexpr GLenum ParseVAValType(const VAValType type)
@@ -55,7 +65,7 @@ void oglVAO_::VAOPrep::SetInteger(const VAValType valType, const GLint attridx, 
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
-        CtxFunc->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
+        CtxFunc->ogluEnableVertexArrayAttrib(VAO->VAOId, attridx);//vertex attr index
         CtxFunc->ogluVertexAttribIPointer(attridx, size, ParseVAValType(valType), stride, offset);
         if (divisor != 0)
             CtxFunc->ogluVertexAttribDivisor(attridx, divisor);
@@ -65,7 +75,7 @@ void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize,
 {
     if (attridx != (GLint)GL_INVALID_INDEX)
     {
-        CtxFunc->ogluEnableVertexArrayAttrib(vao.VAOId, attridx);//vertex attr index
+        CtxFunc->ogluEnableVertexArrayAttrib(VAO->VAOId, attridx);//vertex attr index
         CtxFunc->ogluVertexAttribPointer(attridx, size, ParseVAValType(valType), isNormalize, stride, offset);
         if (divisor != 0)
             CtxFunc->ogluVertexAttribDivisor(attridx, divisor);
@@ -74,48 +84,48 @@ void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize,
 
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetIndex(const oglEBO& ebo)
 {
-    vao.CheckCurrent();
+    VAO->CheckCurrent();
     ebo->bind();
-    vao.IndexBuffer = ebo;
+    VAO->IndexBuffer = ebo;
     return *this;
 }
 
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSize(const uint32_t offset, const uint32_t size)
 {
-    vao.CheckCurrent();
-    vao.Count = (GLsizei)size;
-    if (vao.IndexBuffer)
+    VAO->CheckCurrent();
+    VAO->Count = (GLsizei)size;
+    if (VAO->IndexBuffer)
     {
-        vao.Method = DrawMethod::Index;
-        vao.Offsets = (void*)uintptr_t(offset * vao.IndexBuffer->IndexSize);
+        VAO->Method = DrawMethod::Index;
+        VAO->Offsets = (void*)uintptr_t(offset * VAO->IndexBuffer->IndexSize);
     }
     else
     {
-        vao.Method = DrawMethod::Array;
-        vao.Offsets = (GLint)offset;
+        VAO->Method = DrawMethod::Array;
+        VAO->Offsets = (GLint)offset;
     }
     return *this;
 }
 
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets, const vector<uint32_t>& sizes)
 {
-    vao.CheckCurrent();
+    VAO->CheckCurrent();
     const auto count = offsets.size();
     if (count != sizes.size())
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"offset and size should be of the same size.");
-    vao.Count.emplace<vector<GLsizei>>(sizes.cbegin(), sizes.cend());
-    if (vao.IndexBuffer)
+    VAO->Count.emplace<vector<GLsizei>>(sizes.cbegin(), sizes.cend());
+    if (VAO->IndexBuffer)
     {
-        vao.Method = DrawMethod::Indexs;
-        const uint32_t idxSize = vao.IndexBuffer->IndexSize;
-        vao.Offsets = common::linq::FromIterable(offsets)
+        VAO->Method = DrawMethod::Indexs;
+        const uint32_t idxSize = VAO->IndexBuffer->IndexSize;
+        VAO->Offsets = common::linq::FromIterable(offsets)
             .Select([=](const uint32_t off) { return reinterpret_cast<const void*>(uintptr_t(off * idxSize)); })
             .ToVector();
     }
     else
     {
-        vao.Method = DrawMethod::Arrays;
-        vao.Offsets = common::linq::FromIterable(offsets)
+        VAO->Method = DrawMethod::Arrays;
+        VAO->Offsets = common::linq::FromIterable(offsets)
             .Select([](const uint32_t off) { return static_cast<GLint>(off); })
             .ToVector();
     }
@@ -124,7 +134,7 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizes(const vector<uint32_t>& offsets
 
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizeFrom(const oglIBO& ibo, GLint offset, GLsizei size)
 {
-    if ((bool)vao.IndexBuffer != ibo->IsIndexed())
+    if ((bool)VAO->IndexBuffer != ibo->IsIndexed())
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Unmatched ebo state and ibo's target.");
     if (offset > ibo->Count || offset < 0)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"offset exceed ebo size.");
@@ -132,10 +142,10 @@ oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawSizeFrom(const oglIBO& ibo, GLint off
         size = ibo->Count - offset;
     else if (size + offset > ibo->Count)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"draw size exceed ebo size.");
-    vao.IndirectBuffer = ibo;
-    vao.Method = ibo->IsIndexed() ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
-    vao.Count = size;
-    vao.Offsets = offset;
+    VAO->IndirectBuffer = ibo;
+    VAO->Method = ibo->IsIndexed() ? DrawMethod::IndirectIndexes : DrawMethod::IndirectArrays;
+    VAO->Count = size;
+    VAO->Offsets = offset;
     return *this;
 }
 
@@ -157,12 +167,12 @@ static DRAWIDCtxConfig DRAWID_CTX_CFG;
 
 oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId(const GLint attridx)
 {
-    vao.CheckCurrent();
+    VAO->CheckCurrent();
     return SetInteger<int32_t>(oglContext_::CurrentContext()->GetOrCreate<true>(DRAWID_CTX_CFG), attridx, sizeof(int32_t), 1, 0, 1);
 }
-oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId(const std::shared_ptr<oglDrawProgram_>& prog)
+oglVAO_::VAOPrep& oglVAO_::VAOPrep::SetDrawId()
 {
-    return SetDrawId(prog->GetLoc("@DrawID"));
+    return SetDrawId(Prog.InputRess.GetLocation("@DrawID"));
 }
 
 
@@ -188,10 +198,10 @@ oglVAO_::~oglVAO_() noexcept
     CtxFunc->ogluDeleteVertexArrays(1, &VAOId);
 }
 
-oglVAO_::VAOPrep oglVAO_::Prepare() noexcept
+oglVAO_::VAOPrep oglVAO_::Prepare(const std::shared_ptr<oglDrawProgram_>& prog) noexcept
 {
     CheckCurrent();
-    return VAOPrep(*this);
+    return VAOPrep(this, *prog);
 }
 
 void oglVAO_::SetName(std::u16string name) noexcept

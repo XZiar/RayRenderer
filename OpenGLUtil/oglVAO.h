@@ -95,9 +95,11 @@ public:
     {
         friend class oglVAO_;
     private:
-        oglVAO_& vao;
-        bool isEmpty;
-        VAOPrep(oglVAO_& vao_) noexcept;
+        oglVAO_* VAO;
+        const oglDrawProgram_& Prog;
+        VAOPrep(oglVAO_* vao, const oglDrawProgram_& prog) noexcept;
+        GLint GetLoc(const std::string_view name) const noexcept;
+        void GetLocs(const common::span<const std::string_view> names, const common::span<GLint> idxs) const noexcept;
         void SetInteger(const VAValType valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
         void SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
         template<typename T>
@@ -115,61 +117,78 @@ public:
             (SetAttrib<std::tuple_element_t<Indexes, Tuple>>(eleSize, offset, attridx[Indexes]), ...);
         }
     public:
-        VAOPrep(VAOPrep&& other) noexcept : vao(other.vao), isEmpty(other.isEmpty) { other.isEmpty = true; }
-        ~VAOPrep() noexcept { End(); }
-        void End() noexcept;
+        VAOPrep(VAOPrep&& other) noexcept : VAO(other.VAO), Prog(other.Prog) { other.VAO = nullptr; }
+        ~VAOPrep();
         ///<summary>Set single Vertex Attribute(integer)</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array</param>
-        ///<param name="attridx">vertex attribute index</param>
+        ///<param name="attr">vertex attribute index or name</param>
         ///<param name="stride">size(byte) of a group of data</param>
         ///<param name="size">count of {ValueType} taken as an element</param>
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
-        template<typename Val = uint32_t>
-        VAOPrep& SetInteger(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
+        template<typename Attr, typename Val = uint32_t>
+        VAOPrep& SetInteger(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
         {
             static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
-            vao.CheckCurrent();
-            vbo->bind();
-            SetInteger(ParseType<Val>(), attridx, stride, size, offset, divisor);
-            return *this;
+            if constexpr (std::is_same_v<Attr, GLint>)
+            {
+                VAO->CheckCurrent();
+                vbo->bind();
+                SetInteger(ParseType<Val>(), attr, stride, size, offset, divisor);
+                return *this;
+            }
+            else
+                return SetInteger(vbo, GetLoc(attr), stride, size, offset, divisor);
         }
         ///<summary>Set single Vertex Attribute(float)</summary>  
         ///<param name="vbo">vertex attribute datasource, must be array</param>
-        ///<param name="attridx">vertex attribute index</param>
+        ///<param name="attr">vertex attribute index or name</param>
         ///<param name="stride">size(byte) of a group of data</param>
         ///<param name="size">count of {ValueType} taken as an element</param>
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
-        template<typename Val = float>
-        VAOPrep& SetFloat(const oglVBO& vbo, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
+        template<typename Attr, typename Val = float>
+        VAOPrep& SetFloat(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
         {
-            vao.CheckCurrent();
-            vbo->bind();
-            SetFloat(ParseType<Val>(), std::is_integral_v<Val>, attridx, stride, size, offset, divisor);
-            return *this;
+            if constexpr (std::is_same_v<Attr, GLint>)
+            {
+                VAO->CheckCurrent();
+                vbo->bind();
+                SetFloat(ParseType<Val>(), std::is_integral_v<Val>, attr, stride, size, offset, divisor);
+                return *this;
+            }
+            else
+                return SetFloat(vbo, GetLoc(attr), stride, size, offset, divisor);
         }
         ///<summary>Set multiple Vertex Attributed</summary>  
-        ///<typeparam name="T">Data Type, should contain ComponentType member type as attributes mapping</param>
+        ///<typeparam name="T">Data Type, should contain ComponentType member type as attributes mapping</typeparam>
         ///<param name="vbo">vertex attribute datasource, must be array</param>
         ///<param name="offset">offset(byte) od the 1st elements</param>
-        ///<param name="attridx">vertex attribute index</param>
-        template<typename T, size_t N, typename C = typename T::ComponentType>
-        VAOPrep& SetAttribs(const oglVBO& vbo, const size_t offset, const GLint(&attridx)[N])
+        ///<param name="attr">vertex attribute indexes or names</param>
+        template<typename T, typename Attr, size_t N, typename C = typename T::ComponentType>
+        VAOPrep& SetAttribs(const oglVBO& vbo, const size_t offset, const Attr(&attr)[N])
         {
             static_assert(common::is_specialization<C, std::tuple>::value, "ComponentType should be tuple of VAComponent");
             static_assert(std::tuple_size_v<C> == N, "attrib index size mismatch with component count");
-            vao.CheckCurrent();
+            VAO->CheckCurrent();
             vbo->bind();
-            SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attridx, std::make_index_sequence<N>{});
+            if constexpr (std::is_same_v<Attr, GLint>)
+            {
+                SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attr, std::make_index_sequence<N>{});
+            }
+            else
+            {
+                GLint attrIdx[N] = { GLInvalidIndex };
+                GetLocs(attr, attrIdx);
+                SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attrIdx, std::make_index_sequence<N>{});
+            }
             return *this;
         }
         ///<summary>Set DrawId</summary>  
         ///<param name="attridx">drawID attribute index</param>
         VAOPrep& SetDrawId(const GLint attridx);
         ///<summary>Set DrawId</summary>  
-        ///<param name="prog">drawProgram</param>
-        VAOPrep& SetDrawId(const std::shared_ptr<oglDrawProgram_>& prog);
+        VAOPrep& SetDrawId();
         ///<summary>Set Indexed buffer</summary>  
         ///<param name="ebo">element buffer</param>
         VAOPrep& SetIndex(const oglEBO& ebo);
@@ -187,7 +206,9 @@ public:
     };
     ~oglVAO_() noexcept;
 
-    [[nodiscard]] VAOPrep Prepare() noexcept;
+    ///<summary>Prepare VAO</summary>  
+    ///<param name="prog">drawProgram</param>
+    [[nodiscard]] VAOPrep Prepare(const std::shared_ptr<oglDrawProgram_>& prog) noexcept;
     void SetName(std::u16string name) noexcept;
     void RangeDraw(const uint32_t size, const uint32_t offset = 0) const noexcept;
     void Draw() const noexcept;
