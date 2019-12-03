@@ -225,8 +225,8 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
         b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
         const auto& localSize = GLResizer2->GetLocalSize();
         GLResizer2->SetVec("coordStep", coordStep);
-        GLResizer2->SetUniform("isSrgbDst", HAS_FIELD(output, TextureFormat::MASK_SRGB));
-        GLResizer2->SetUniform("isFlipY", flipY);
+        GLResizer2->SetVal("isSrgbDst", HAS_FIELD(output, TextureFormat::MASK_SRGB));
+        GLResizer2->SetVal("isFlipY", flipY);
         GLResizer2->State()
             .SetTexture(tex, "tex")
             .SetImage(outimg, "result")

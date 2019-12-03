@@ -118,7 +118,7 @@ static ProgramResource GenProgRes(const string& name, const GLenum type, const G
 }
 
 
-void MappingResourceSolver::Init(const std::vector<ProgramResource>& resources, const std::map<std::string, std::string>& mappings)
+void MappingResource::Init(std::vector<ProgramResource>&& resources, const std::map<std::string, std::string>& mappings)
 {
     Resources = resources;
     const auto indexed = common::linq::FromIterable(Resources)
@@ -146,12 +146,12 @@ void MappingResourceSolver::Init(const std::vector<ProgramResource>& resources, 
             })
         .ToVector();
 }
-const ProgramResource* MappingResourceSolver::GetResource(const GLint location) const noexcept
+const ProgramResource* MappingResource::GetResource(const GLint location) const noexcept
 {
     const auto targetPair = IndexedResources.Find(location);
     return targetPair ? targetPair->second : nullptr;
 }
-const ProgramResource* MappingResourceSolver::GetResource(std::string_view name) const noexcept
+const ProgramResource* MappingResource::GetResource(std::string_view name) const noexcept
 {
     if (!name.empty() && name[0] == '@')
     {
@@ -162,7 +162,14 @@ const ProgramResource* MappingResourceSolver::GetResource(std::string_view name)
     else
         return Resources.Find(name);
 }
-
+std::vector<std::pair<std::string_view, GLint>> MappingResource::GetBindingNames() const noexcept
+{
+    return common::linq::FromIterable(Resources)
+        .Select([](const auto& res) { return std::pair<std::string_view, GLint>(res.Name, res.location); })
+        .Concat(common::linq::FromIterable(Mappings)
+            .Select([](const auto& pair) { return std::pair(pair.first, pair.second->location); }))
+        .ToVector();
+}
 
 
 struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
@@ -171,7 +178,7 @@ struct ProgRecCtxConfig : public CtxResConfig<false, GLuint>
 };
 static ProgRecCtxConfig PROGREC_CTXCFG;
 
-oglProgram_::oglProgram_(const u16string& name, const oglProgStub* stub, const bool isDraw) : Name(name)
+oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw) : Name(name)
 {
     ProgramID = CtxFunc->ogluCreateProgram();
     CtxFunc->ogluSetObjectLabel(GL_PROGRAM, ProgramID, name);
@@ -201,10 +208,10 @@ oglProgram_::oglProgram_(const u16string& name, const oglProgStub* stub, const b
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
     }
     oglLog().success(u"Link program success.\n{}\n", logdat);
-    ExtInfo = stub->ExtInfo;
-    InitLocs();
+    InitLocs(stub->ExtInfo);
     InitSubroutines();
-    FilterProperties();
+    FilterProperties(stub->ExtInfo);
+    TmpExtInfo = stub->ExtInfo;
 }
 
 oglProgram_::~oglProgram_()
@@ -247,7 +254,7 @@ void oglProgram_::RecoverState()
 }
 
 
-void oglProgram_::InitLocs()
+void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
 {
     CheckCurrent();
     ProgRess.clear();
@@ -291,26 +298,34 @@ void oglProgram_::InitLocs()
     }
     oglLog().debug(u"Active {} resources\n", ProgRess.size());
     GLuint maxUniLoc = 0;
+    std::vector<ProgramResource> uniformRess, uboRess, texRess, imgRess;
+
     for (const auto& info : ProgRess)
     {
         const auto resCategory = info.ResType & ProgResType::MASK_CATEGORY;
         switch (resCategory)
         {
         case ProgResType::CAT_UBO:
-            UBORess.insert(info); break;
+            uboRess.push_back(info); break;
         case ProgResType::CAT_UNIFORM:
             switch (info.ResType & ProgResType::MASK_TYPE_CAT)
             {
-            case ProgResType::TYPE_TEX:  TexRess.insert(info); break;
-            case ProgResType::TYPE_IMG:  ImgRess.insert(info); break;
-            default:                    break;
+            case ProgResType::TYPE_TEX:         texRess.    push_back(info); break;
+            case ProgResType::TYPE_IMG:         imgRess.    push_back(info); break;
+            case ProgResType::TYPE_PRIMITIVE:   uniformRess.push_back(info); break;
+            default:                            break;
             } break;
-        default:                break;
+        default: break;
         }
         if (resCategory != ProgResType::CAT_INPUT && resCategory != ProgResType::CAT_OUTPUT)
             maxUniLoc = common::max(maxUniLoc, info.location + info.len);
         oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
+    UniformRess.Init(std::move(uniformRess), extInfo.ResMappings);
+    UBORess.    Init(std::move(uboRess    ), extInfo.ResMappings);
+    TexRess.    Init(std::move(texRess    ), extInfo.ResMappings);
+    ImgRess.    Init(std::move(imgRess    ), extInfo.ResMappings);
+
     UniBindCache.clear();
     UniBindCache.resize(maxUniLoc, GL_INVALID_INDEX);
 }
@@ -412,17 +427,17 @@ static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
     }
 }
 
-void oglProgram_::FilterProperties()
+void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
 {
     CheckCurrent();
-    set<ShaderExtProperty, ShaderExtProperty::Lesser> newProperties;
-    for (const auto& prop : ExtInfo.Properties)
+    ShaderProps.clear();
+    for (const auto& prop : extInfo.Properties)
     {
         oglLog().debug(u"prop[{}], typeof [{}], data[{}]\n", prop.Name, (uint8_t)prop.Type, prop.Data.has_value() ? "Has" : "None");
         if (auto res = FindInSet(ProgRess, prop.Name))
             if (MatchType(prop, *res))
             {
-                newProperties.insert(prop);
+                ShaderProps.insert(prop);
                 switch (prop.Type)
                 {
                 case ShaderPropertyType::Color:
@@ -470,7 +485,6 @@ void oglProgram_::FilterProperties()
         else
             oglLog().warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
     }
-    ExtInfo.Properties.swap(newProperties);
 }
 
 
@@ -515,45 +529,6 @@ oglComputeProgram oglProgram_::oglProgStub::LinkComputeProgram(const std::u16str
     return MAKE_ENABLER_SHARED(oglComputeProgram_, (name, this));
 }
 
-
-GLenum oglProgram_::ParseUniformType(const UniformType type)
-{
-    switch (type)
-    {
-    case UniformType::FLOAT:    return GL_FLOAT;
-    case UniformType::UINT:     return GL_UNSIGNED_INT;
-    case UniformType::INT:      return GL_INT;
-    case UniformType::BOOL:     return GL_BOOL;
-    case UniformType::VEC4:     return GL_FLOAT_VEC4;
-    case UniformType::VEC3:     return GL_FLOAT_VEC3;
-    case UniformType::VEC2:     return GL_FLOAT_VEC2;
-    case UniformType::MAT4:     return GL_FLOAT_MAT4;
-    case UniformType::MAT3:     return GL_FLOAT_MAT3;
-    default:                    return GL_INVALID_ENUM;
-    }
-}
-GLint oglProgram_::GetLoc(const ProgramResource* res, UniformType valtype) const
-{
-    if (res && res->Valtype == ParseUniformType(valtype))
-        return res->location;
-    return GL_INVALID_INDEX;
-}
-GLint oglProgram_::GetLoc(const string_view name,     UniformType valtype) const
-{
-    auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
-        : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
-    if (obj && obj->Valtype == ParseUniformType(valtype))
-        return obj->location;
-    return GL_INVALID_INDEX;
-}
-GLint oglProgram_::GetLoc(const string& name) const
-{
-    auto obj = (name.empty() || name[0] != '@') ? FindInSet(ProgRess, name) 
-        : FindInMap(ResNameMapping, string_view(&name[1], name.length() - 1), std::in_place).value_or(nullptr);
-    if (obj)
-        return obj->location;
-    return GL_INVALID_INDEX;
-}
 
 const SubroutineResource::Routine* oglProgram_::GetSubroutine(const string& sruname)
 {
@@ -679,94 +654,121 @@ void oglProgram_::SetSubroutine(const SubroutineResource* subr, const Subroutine
     oldRoutine = routine;
 }
 
-void oglProgram_::SetUniform(const GLint pos, const b3d::Coord2D& vec, const bool keep)
+
+template<typename T>
+forceinline static bool CheckResource(const ProgramResource* res, const T&)
+{
+    if (res && res->location != GLInvalidIndex)
+    {
+        const auto valType = res->Valtype;
+        if constexpr (std::is_same_v<T, b3d::Coord2D>)
+            return valType == GL_FLOAT_VEC2;
+        else if constexpr (std::is_same_v<T, miniBLAS::Vec3>)
+            return valType == GL_FLOAT_VEC2 || valType == GL_FLOAT_VEC3;
+        else if constexpr (std::is_same_v<T, miniBLAS::Vec4>)
+            return valType == GL_FLOAT_VEC2 || valType == GL_FLOAT_VEC3 || valType == GL_FLOAT_VEC4;
+        else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3>)
+            return valType == GL_FLOAT_MAT3;
+        else if constexpr (std::is_same_v<T, miniBLAS::Mat4x4>)
+            return valType == GL_FLOAT_MAT4;
+        else if constexpr (std::is_same_v<T, bool>)
+            return valType == GL_BOOL;
+        else if constexpr (std::is_floating_point_v<T>)
+            return valType == GL_FLOAT;
+        else if constexpr (std::is_integral_v<T>)
+            return valType == GL_INT || valType == GL_UNSIGNED_INT || valType == GL_FLOAT;
+    }
+    return false;
+}
+
+void oglProgram_::SetVec_(const ProgramResource* res, const b3d::Coord2D& vec, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, vec))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, vec);
-        CtxFunc->ogluProgramUniform2fv(ProgramID, pos, 1, vec);
+            UniValCache.insert_or_assign(res->location, vec);
+        CtxFunc->ogluProgramUniform2fv(ProgramID, res->location, 1, vec);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Vec3& vec, const bool keep)
+void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, vec))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, vec);
-        CtxFunc->ogluProgramUniform3fv(ProgramID, pos, 1, vec);
+            UniValCache.insert_or_assign(res->location, vec);
+        CtxFunc->ogluProgramUniform3fv(ProgramID, res->location, 1, vec);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Vec4& vec, const bool keep)
+void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, vec))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, vec);
-        CtxFunc->ogluProgramUniform4fv(ProgramID, pos, 1, vec);
+            UniValCache.insert_or_assign(res->location, vec);
+        CtxFunc->ogluProgramUniform4fv(ProgramID, res->location, 1, vec);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep)
+void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& mat, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, mat))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, mat);
-        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
+            UniValCache.insert_or_assign(res->location, mat);
+        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep)
+void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& mat, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, mat))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, mat);
-        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, pos, 1, GL_FALSE, mat.inv());
+            UniValCache.insert_or_assign(res->location, mat);
+        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const bool val, const bool keep)
+void oglProgram_::SetVal_(const ProgramResource* res, const bool val, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, val))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, val);
-        CtxFunc->ogluProgramUniform1i(ProgramID, pos, val);
+            UniValCache.insert_or_assign(res->location, val);
+        CtxFunc->ogluProgramUniform1i(ProgramID, res->location, val);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const int32_t val, const bool keep)
+void oglProgram_::SetVal_(const ProgramResource* res, const float val, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, val))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, val);
-        CtxFunc->ogluProgramUniform1i(ProgramID, pos, val);
+            UniValCache.insert_or_assign(res->location, val);
+        CtxFunc->ogluProgramUniform1f(ProgramID, res->location, val);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const uint32_t val, const bool keep)
+void oglProgram_::SetVal_(const ProgramResource* res, const int32_t val, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, val))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, val);
-        CtxFunc->ogluProgramUniform1ui(ProgramID, pos, val);
+            UniValCache.insert_or_assign(res->location, val);
+        CtxFunc->ogluProgramUniform1i(ProgramID, res->location, val);
     }
 }
-void oglProgram_::SetUniform(const GLint pos, const float val, const bool keep)
+void oglProgram_::SetVal_(const ProgramResource* res, const uint32_t val, const bool keep)
 {
     CheckCurrent();
-    if (pos != (GLint)GL_INVALID_INDEX)
+    if (CheckResource(res, val))
     {
         if (keep)
-            UniValCache.insert_or_assign(pos, val);
-        CtxFunc->ogluProgramUniform1f(ProgramID, pos, val);
+            UniValCache.insert_or_assign(res->location, val);
+        CtxFunc->ogluProgramUniform1ui(ProgramID, res->location, val);
     }
 }
 
@@ -780,12 +782,12 @@ ProgState::~ProgState()
 }
 
 
-ProgState& ProgState::SetTexture(const oglTexBase& tex, const string& name, const GLuint idx)
+ProgState& ProgState::SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.TexRess.find(name);
-    if (it != Prog.TexRess.end() && idx < it->len)//legal
+    const auto res = Prog.TexRess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         Prog.TexBindings.insert_or_assign(pos, tex);
     }
     return *this;
@@ -800,12 +802,12 @@ ProgState& ProgState::SetTexture(const oglTexBase& tex, const GLuint pos)
     return *this;
 }
 
-ProgState& ProgState::SetImage(const oglImgBase& img, const string& name, const GLuint idx)
+ProgState& ProgState::SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.ImgRess.find(name);
-    if (it != Prog.ImgRess.end() && idx < it->len)//legal
+    const auto res = Prog.ImgRess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         Prog.ImgBindings.insert_or_assign(pos, img);
     }
     return *this;
@@ -820,12 +822,12 @@ ProgState& ProgState::SetImage(const oglImgBase& img, const GLuint pos)
     return *this;
 }
 
-ProgState& ProgState::SetUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+ProgState& ProgState::SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.UBORess.find(name);
-    if (it != Prog.UBORess.end() && idx < it->len)//legal
+    const auto res = Prog.UBORess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         Prog.UBOBindings.insert_or_assign(pos, ubo);
     }
     return *this;
@@ -867,31 +869,33 @@ ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_vi
 oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* stub)
     : oglProgram_(name, stub, true)
 {
-    map<string, string> defaultMapping =
-    {
-        { "DrawID",      "ogluDrawId" }
-    };
-    ExtInfo.ResMappings.merge(defaultMapping);
-    ResNameMapping.clear();
-    for (const auto& [target, varName] : ExtInfo.ResMappings)
-    {
-        if (auto obj = FindInSet(ProgRess, varName); obj)
-            ResNameMapping.insert_or_assign(target, obj);
-    }
-
+    auto& mappings = TmpExtInfo->ResMappings;
     std::vector<ProgramResource> inputRess, outputRess;
+    std::optional<const ProgramResource*> defaultOutput;
     for (const auto& info : ProgRess)
     {
         const auto resCategory = info.ResType & ProgResType::MASK_CATEGORY;
         switch (resCategory)
         {
-        case ProgResType::CAT_INPUT:    inputRess. push_back(info); break;
-        case ProgResType::CAT_OUTPUT:   outputRess.push_back(info); break;
-        default:                        break;
+        case ProgResType::CAT_INPUT:    
+            inputRess. push_back(info); 
+            break;
+        case ProgResType::CAT_OUTPUT:   
+            outputRess.push_back(info); 
+            if (info.location == 0)
+                defaultOutput = &info;
+            break;
+        default: 
+            break;
         }
     }
-    InputRess .Init(inputRess,  ExtInfo.ResMappings);
-    OutputRess.Init(outputRess, ExtInfo.ResMappings);
+    
+    mappings.insert_or_assign("DrawID", "ogluDrawId");
+    if (defaultOutput.has_value())
+        mappings.insert_or_assign("default", (**defaultOutput).Name);
+    InputRess .Init(std::move(inputRess ), mappings);
+    OutputRess.Init(std::move(outputRess), mappings);
+    TmpExtInfo.reset();
 }
 oglDrawProgram_::~oglDrawProgram_() { }
 
@@ -909,13 +913,25 @@ oglDrawProgram oglDrawProgram_::Create(const std::u16string& name, const std::st
 
 
 thread_local common::SpinLocker ProgDrawLocker;
-ProgDraw::ProgDraw(oglDrawProgram_* prog, FBOIntpType&& fboInfo) noexcept
-    : Prog(*prog), FBO(std::move(fboInfo.first)),
+ProgDraw::ProgDraw(oglDrawProgram_* prog, FBOPairType&& fboInfo) noexcept
+    : Prog(*prog), FBO(*fboInfo.first),
     Lock(ProgDrawLocker.LockScope()), FBOLock(std::move(fboInfo.second)),
     TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
 {
     oglProgram_::usethis(Prog);
-
+    // bind outputs
+    std::vector<GLenum> outputs(CtxFunc->MaxDrawBuffers, GL_NONE);
+    GLint maxPos = 0;
+    for (const auto& [name, loc] : Prog.OutputRess.GetBindingNames())
+    {
+        if (outputs[loc] == GL_NONE)
+        {
+            const auto bindPoint = FBO.GetAttachPoint(name);
+            if (bindPoint != GL_NONE)
+                maxPos = std::max(maxPos, loc), outputs[loc] = bindPoint;
+        }
+    }
+    FBO.BindDraws(common::to_span(outputs).subspan(0, maxPos + 1));
 }
 ProgDraw::ProgDraw(oglDrawProgram_* prog) noexcept : ProgDraw(prog, oglFrameBuffer_::LockCurFBOLock())
 { }
@@ -976,7 +992,18 @@ ProgDraw& ProgDraw::Restore(const bool quick)
 
     for (const auto&[pos, val] : UniValBackup)
     {
-        std::visit([&, pos=pos](auto&& arg) { Prog.SetUniform(pos, arg, false); }, val);
+        switch (val.index())
+        {
+        case 0: Prog.SetVec_(pos, std::get<0>(val), false); break;
+        case 1: Prog.SetVec_(pos, std::get<1>(val), false); break;
+        case 2: Prog.SetVec_(pos, std::get<2>(val), false); break;
+        case 3: Prog.SetMat_(pos, std::get<3>(val), false); break;
+        case 4: Prog.SetMat_(pos, std::get<4>(val), false); break;
+        case 5: Prog.SetVal_(pos, std::get<5>(val), false); break;
+        case 6: Prog.SetVal_(pos, std::get<6>(val), false); break;
+        case 7: Prog.SetVal_(pos, std::get<7>(val), false); break;
+        case 8: Prog.SetVal_(pos, std::get<8>(val), false); break;
+        }
     }
     UniValBackup.clear();
     if (!SubroutineCache.empty())
@@ -1007,13 +1034,13 @@ ProgDraw& ProgDraw::DrawRange(const oglVAO& vao, const uint32_t size, const uint
     return *this;
 }
 
-ProgDraw& oglu::ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base)
+ProgDraw& ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base)
 {
     Prog.SetTexture(TexMan, TexCache);
     Prog.SetImage(ImgMan, ImgCache);
     Prog.SetUBO(UboMan, UBOCache);
     Prog.SetSubroutine();
-    Prog.SetUniform(Prog.GetLoc("@BaseInstance", oglProgram_::UniformType::INT), static_cast<int32_t>(base), false);
+    Prog.SetVal_(Prog.InputRess.GetResource("@BaseInstance"), static_cast<int32_t>(base), false);
     vao->InstanceDraw(count, base);
     TexCache.clear();
     ImgCache.clear();
@@ -1034,15 +1061,15 @@ ProgDraw& ProgDraw::Draw(const oglVAO& vao)
     return *this;
 }
 
-ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const string& name, const GLuint idx)
+ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.TexRess.find(name);
-    if (it != Prog.TexRess.cend() && idx < it->len)
+    const auto res = Prog.TexRess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
     }
     return *this;
@@ -1054,21 +1081,21 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
     {
         TexCache.insert_or_assign(pos, tex);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
     }
     return *this;
 }
 
-ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const string& name, const GLuint idx)
+ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.ImgRess.find(name);
-    if (it != Prog.ImgRess.cend() && idx < it->len)
+    const auto res = Prog.ImgRess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
     }
     return *this;
@@ -1080,21 +1107,21 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const GLuint pos)
     {
         ImgCache.insert_or_assign(pos, img);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
     }
     return *this;
 }
 
-ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const string& name, const GLuint idx)
+ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx)
 {
-    const auto it = Prog.UBORess.find(name);
-    if (it != Prog.UBORess.cend() && idx < it->len)//legal
+    const auto res = Prog.UBORess.GetResource(name);
+    if (res && idx < res->len) // legal
     {
-        const auto pos = it->location + idx;
+        const auto pos = res->location + idx;
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
     }
     return *this;
@@ -1106,7 +1133,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
     {
         UBOCache.insert_or_assign(pos, ubo);
         const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != (GLint)GL_INVALID_INDEX)
+        if (oldVal != GLInvalidIndex)
             UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
     }
     return *this;
@@ -1165,7 +1192,7 @@ oglComputeProgram oglComputeProgram_::Create(const std::u16string& name, const s
     return stub.LinkComputeProgram(name);
 }
 
-bool oglu::oglComputeProgram_::CheckSupport()
+bool oglComputeProgram_::CheckSupport()
 {
     return CtxFunc->SupportComputeShader;
 }

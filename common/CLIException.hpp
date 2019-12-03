@@ -101,7 +101,7 @@ public:
         using std::u16string_view;
         stacktrace = "";
         for(const auto& stack : be.Stack())
-            stacktrace += String::Format("at [{0}] : line {1} ({2})", 
+            stacktrace += String::Format("at [{0}] : line {1} ({2})\r\n", 
                 ToStr((const u16string_view&)stack.Func), stack.Line, ToStr((const u16string_view&)stack.File));
     }
 };

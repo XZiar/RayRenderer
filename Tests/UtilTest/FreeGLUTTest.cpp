@@ -45,9 +45,9 @@ struct Lutter
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
-        LutGenerator->SetUniform("step", 1.0f / (64 - 1));
-        LutGenerator->SetUniform("exposure", 1.0f);
-        LutGenerator->SetUniform("lutSize", 64);
+        LutGenerator->SetVal("step", 1.0f / (64 - 1));
+        LutGenerator->SetVal("exposure", 1.0f);
+        LutGenerator->SetVal("lutSize", 64);
     }
     void DoLut(const oglContext& ctx)
     {
@@ -84,8 +84,8 @@ static void FGTest()
             lutGenerator->State()
                 .SetSubroutine("ToneMap", "ACES")
                 .SetImage(lutImg, "result");
-            lutGenerator->SetUniform("step", 1.0f / 64);
-            lutGenerator->SetUniform("exposure", 1.0f);
+            lutGenerator->SetVal("step", 1.0f / 64);
+            lutGenerator->SetVal("exposure", 1.0f);
             lutGenerator->Run(64, 64, 64);
             oglUtil::ForceSyncGL()->Wait();
             const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
@@ -128,8 +128,8 @@ static void FGTest()
         defFBO->Use();
         defFBO->ClearAll();
         drawer->Draw()
-            .SetUniform("lutZ", lutZ)
-            .SetUniform("shouldLut", shouldLut ? 1 : 0)
+            .SetVal("lutZ", lutZ)
+            .SetVal("shouldLut", shouldLut ? 1 : 0)
             .Draw(basicVAO); 
     };
     window->funReshape = [&](FreeGLUTView, const int32_t w, const int32_t h)

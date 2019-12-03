@@ -82,8 +82,15 @@ void RenderCore::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEven
 
 void RenderCore::Draw()
 {
-    Core->Draw();
-    theScene->PrepareScene();
+    try
+    {
+        Core->Draw();
+        theScene->PrepareScene();
+    }
+    catch (common::BaseException& be)
+    {
+        throw gcnew Common::CPPException(be);
+    }
 }
 
 void RenderCore::Resize(const uint32_t w, const uint32_t h)

@@ -19,7 +19,7 @@ inline void SetProgVec(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu:
 template<typename... Args>
 inline void SetProgUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::ProgramResource* loc, Args&&... args)
 {
-    prog.lock()->SetUniform(loc, std::forward<Args>(args)...);
+    prog.lock()->SetVal(loc, std::forward<Args>(args)...);
 }
 #pragma managed(pop)
 

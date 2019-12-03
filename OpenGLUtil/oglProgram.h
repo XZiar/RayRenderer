@@ -22,7 +22,7 @@ class oglComputeProgram_;
 using oglComputeProgram = std::shared_ptr<oglComputeProgram_>;
 
 
-using UniformValue = std::variant<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
+using UniformValue = std::variant<b3d::Coord2D, miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, bool, float, int32_t, uint32_t>;
 
 
 enum class ProgResType : uint16_t 
@@ -87,7 +87,7 @@ public:
 };
 
 
-class OGLUAPI MappingResourceSolver : public common::NonCopyable, public common::NonMovable
+class OGLUAPI MappingResource : public common::NonCopyable, public common::NonMovable
 {
 private:
     using MappingPair = std::pair<std::string_view, const ProgramResource*>;
@@ -99,15 +99,21 @@ private:
     common::container::FrozenDenseSet<MappingPair,
         common::container::SetKeyLess<MappingPair, &MappingPair::first>> Mappings;
 public:
-    MappingResourceSolver() { }
-    void Init(const std::vector<ProgramResource>& resources, const std::map<std::string, std::string>& mappings);
+    MappingResource() { }
+    void Init(std::vector<ProgramResource>&& resources, const std::map<std::string, std::string>& mappings);
     const ProgramResource* GetResource(const GLint location) const noexcept;
     const ProgramResource* GetResource(std::string_view name) const noexcept;
+    forceinline const ProgramResource* GetResource(const ProgramResource* res) const noexcept
+    {
+        const auto& ress = Resources.RawData();
+        return (&ress[0] <= res) && (&ress.back() >= res) ? res : nullptr;
+    }
     GLint GetLocation(std::string_view name) const noexcept
     {
         const auto res = GetResource(name);
         return res ? res->location : GLInvalidIndex;
     }
+    std::vector<std::pair<std::string_view, GLint>> GetBindingNames() const noexcept;
 };
 
 
@@ -121,13 +127,13 @@ private:
     ProgState(ProgState&& other) = default;
 public:
     ~ProgState();
-    ProgState& SetTexture(const oglTexBase& tex, const std::string& name, const GLuint idx = 0);
+    ProgState& SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
-    ProgState& SetImage(const oglImgBase& img, const std::string& name, const GLuint idx = 0);
+    ProgState& SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetImage(const oglImgBase& img, const GLuint pos);
-    ProgState& SetUBO(const oglUBO& ubo, const std::string& name, const GLuint idx = 0);
+    ProgState& SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx = 0);
     //no check on pos, carefully use
     ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
@@ -142,9 +148,6 @@ class OGLUAPI oglProgram_ : public common::NonMovable,
     friend class UBOManager;
     friend class ProgState;
     friend class ProgDraw;
-private:
-    enum class UniformType : uint8_t { FLOAT, UINT, INT, BOOL, VEC4, VEC3, VEC2, MAT4, MAT3 };
-    static GLenum ParseUniformType(const UniformType type);
 protected:
     class OGLUAPI oglProgStub : public detail::oglCtxObject<true>
     {
@@ -162,9 +165,10 @@ protected:
     };
 
     std::map<ShaderType, oglShader> Shaders;
-    ShaderExtInfo ExtInfo;
-    std::map<std::string, const ProgramResource*, std::less<>> ResNameMapping;
-    std::set<ProgramResource, ProgramResource::Lesser> ProgRess, TexRess, ImgRess, UBORess;
+    std::optional<ShaderExtInfo> TmpExtInfo;
+    std::set<ShaderExtProperty, ShaderExtProperty::Lesser> ShaderProps;
+    std::set<ProgramResource, ProgramResource::Lesser> ProgRess;
+    MappingResource UniformRess, UBORess, TexRess, ImgRess;
     std::set<SubroutineResource, SubroutineResource::Lesser> SubroutineRess;
     std::map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     std::map<GLint, UniformValue> UniValCache;
@@ -179,11 +183,9 @@ protected:
     static bool usethis(oglProgram_& prog, const bool change = true);
     oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw);
     void RecoverState();
-    void InitLocs();
+    void InitLocs(const ShaderExtInfo& extInfo);
     void InitSubroutines();
-    void FilterProperties();
-    GLint GetLoc(const ProgramResource* res,  UniformType valtype) const;
-    GLint GetLoc(const std::string_view name, UniformType valtype) const;
+    void FilterProperties(const ShaderExtInfo& extInfo);
 
     void SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
     void SetTexture(detail::TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
@@ -194,55 +196,61 @@ protected:
     void SetSubroutine();
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
-    void SetUniform(const GLint pos, const b3d::Coord2D& vec,     const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Vec3& vec,   const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Vec4& vec,   const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Mat4x4& mat, const bool keep = true);
-    void SetUniform(const GLint pos, const miniBLAS::Mat3x3& mat, const bool keep = true);
-    void SetUniform(const GLint pos, const bool val,              const bool keep = true);
-    void SetUniform(const GLint pos, const int32_t val,           const bool keep = true);
-    void SetUniform(const GLint pos, const uint32_t val,          const bool keep = true);
-    void SetUniform(const GLint pos, const float val,             const bool keep = true);
+    void SetVec_(const ProgramResource* res, const b3d::Coord2D& vec,     const bool keep = true);
+    void SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec,   const bool keep = true);
+    void SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec,   const bool keep = true);
+    void SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& mat, const bool keep = true);
+    void SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& mat, const bool keep = true);
+    void SetVal_(const ProgramResource* res, const bool val,              const bool keep = true);
+    void SetVal_(const ProgramResource* res, const float val,             const bool keep = true);
+    void SetVal_(const ProgramResource* res, const int32_t val,           const bool keep = true);
+    void SetVal_(const ProgramResource* res, const uint32_t val,          const bool keep = true);
 
 public:
     std::u16string Name;
     virtual ~oglProgram_();
 
     [[nodiscard]] const std::set<ProgramResource, ProgramResource::Lesser>& getResources() const { return ProgRess; }
-    [[nodiscard]] const std::set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ExtInfo.Properties; }
+    [[nodiscard]] const std::set<ShaderExtProperty, ShaderExtProperty::Lesser>& getResourceProperties() const { return ShaderProps; }
     [[nodiscard]] const std::set<SubroutineResource, SubroutineResource::Lesser>& getSubroutineResources() const { return SubroutineRess; }
     [[nodiscard]] const std::map<ShaderType, oglShader>& getShaders() const { return Shaders; }
     [[nodiscard]] const std::map<GLint, UniformValue>& getCurUniforms() const { return UniValCache; }
 
-    [[nodiscard]] GLint GetLoc(const std::string& name) const;
     [[nodiscard]] const ProgramResource* GetResource(const std::string& name) const { return common::container::FindInSet(ProgRess, name); }
     [[nodiscard]] const SubroutineResource* GetSubroutines(const std::string& name) const { return common::container::FindInSet(SubroutineRess, name); }
     [[nodiscard]] const SubroutineResource::Routine* GetSubroutine(const std::string& sruname);
     [[nodiscard]] const SubroutineResource::Routine* GetSubroutine(const SubroutineResource& sru);
-    ProgState State() noexcept;template<typename T>
-    void SetVec    (const T& name, const b3d::Coord2D& vec)        { SetUniform(GetLoc(name, UniformType::VEC2 ), vec); }
-    template<typename T>
-    void SetVec    (const T& name, const miniBLAS::Vec3& vec)      { SetUniform(GetLoc(name, UniformType::VEC3 ), vec); }
-    template<typename T>
-    void SetVec    (const T& name, const miniBLAS::Vec4& vec)      { SetUniform(GetLoc(name, UniformType::VEC4 ), vec); }
-    template<typename T>
-    void SetMat    (const T& name, const miniBLAS::Mat3x3& mat)    { SetUniform(GetLoc(name, UniformType::MAT3 ), mat); }
-    template<typename T>
-    void SetMat    (const T& name, const miniBLAS::Mat4x4& mat)    { SetUniform(GetLoc(name, UniformType::MAT4 ), mat); }
-    template<typename T>
-    void SetUniform(const T& name, const bool val)                 { SetUniform(GetLoc(name, UniformType::BOOL ), val); }
-    template<typename T>
-    void SetUniform(const T& name, const int32_t val)              { SetUniform(GetLoc(name, UniformType::INT  ), val); }
-    template<typename T>
-    void SetUniform(const T& name, const uint32_t val)             { SetUniform(GetLoc(name, UniformType::UINT ), val); }
-    template<typename T>
-    void SetUniform(const T& name, const float val)                { SetUniform(GetLoc(name, UniformType::FLOAT), val); }
-    template<typename T>
-    void SetVec    (const T& name, const float x, const float y)                               { SetVec(name, b3d::Coord2D  (x, y)      ); }
-    template<typename T>
-    void SetVec    (const T& name, const float x, const float y, const float z)                { SetVec(name, miniBLAS::Vec3(x, y, z)   ); }
-    template<typename T>
-    void SetVec    (const T& name, const float x, const float y, const float z, const float w) { SetVec(name, miniBLAS::Vec4(x, y, z, w)); }
+    ProgState State() noexcept;
+    template<typename K, typename V>
+    forceinline void SetVec(const K& name, const V& vec)
+    { 
+        SetVec_(UniformRess.GetResource(name), vec);
+    }
+    template<typename K, typename V>
+    forceinline void SetMat(const K& name, const V& mat)
+    { 
+        SetMat_(UniformRess.GetResource(name), mat);
+    }
+    template<typename K, typename V>
+    forceinline void SetVal(const K& name, const V val)
+    { 
+        SetVal_(UniformRess.GetResource(name), val);
+    }
+    template<typename K>
+    forceinline void SetVec(const K& name, const float x, const float y)
+    { 
+        SetVec_(UniformRess.GetResource(name), b3d::Coord2D  (x, y)      );
+    }
+    template<typename K>
+    forceinline void SetVec(const K& name, const float x, const float y, const float z)
+    { 
+        SetVec_(UniformRess.GetResource(name), miniBLAS::Vec3(x, y, z)   );
+    }
+    template<typename K>
+    forceinline void SetVec(const K& name, const float x, const float y, const float z, const float w)
+    { 
+        SetVec_(UniformRess.GetResource(name), miniBLAS::Vec4(x, y, z, w));
+    }
     
     [[nodiscard]] static oglProgStub Create();
 };
@@ -256,7 +264,7 @@ private:
     MAKE_ENABLER();
     oglDrawProgram_(const std::u16string& name, const oglProgStub* stub);
 public:
-    MappingResourceSolver InputRess, OutputRess;
+    MappingResource InputRess, OutputRess;
     ~oglDrawProgram_() override;
 
     [[nodiscard]] ProgDraw Draw() noexcept;
@@ -269,9 +277,9 @@ class OGLUAPI ProgDraw
 {
     friend class oglDrawProgram_;
 private:
-    using FBOIntpType = std::pair<std::shared_ptr<oglFrameBuffer_>, common::RWSpinLock::ReadScopeType>;
+    using FBOPairType = std::pair<std::shared_ptr<oglFrameBuffer_>, common::RWSpinLock::ReadScopeType>;
     oglDrawProgram_& Prog;
-    std::shared_ptr<oglFrameBuffer_> FBO;
+    oglFrameBuffer_& FBO;
     common::SpinLocker::ScopeType Lock;
     common::RWSpinLock::ReadScopeType FBOLock;
     detail::TextureManager& TexMan;
@@ -282,17 +290,17 @@ private:
     std::map<GLuint, oglUBO> UBOCache;
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
     std::map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
-    std::map<GLint, UniformValue> UniValBackup;
-    ProgDraw(oglDrawProgram_* prog, FBOIntpType&& fboInfo) noexcept;
+    std::map<const ProgramResource*, UniformValue> UniValBackup;
+    ProgDraw(oglDrawProgram_* prog, FBOPairType&& fboInfo) noexcept;
     ProgDraw(oglDrawProgram_* prog) noexcept;
     template<typename T>
-    GLint GetLoc(const T& res, const GLenum valtype)
+    const ProgramResource* BeforeSetVal(const T& name)
     {
-        const GLint loc = Prog.GetLoc(res, valtype);
-        if (loc != -1)
-            if (const auto it = common::container::FindInMap(Prog.UniValCache, loc))
-                UniValBackup.insert_or_assign(loc, *it);
-        return loc;
+        const auto res = Prog.UniformRess.GetResource(name);
+        if (res && res->location != GLInvalidIndex)
+            if (const auto it = common::container::FindInMap(Prog.UniValCache, res->location))
+                UniValBackup.insert_or_assign(res, *it);
+        return res;
     }
 public:
     ProgDraw(ProgDraw&& other) noexcept = default;
@@ -313,21 +321,41 @@ public:
     ///<returns>self</returns>
     ProgDraw& DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base = 0);
     ProgDraw& Draw(const oglVAO& vao);
-    ProgDraw& SetTexture(const oglTexBase& tex, const std::string& name, const GLuint idx = 0);
+    ProgDraw& SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx = 0);
     ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);
-    ProgDraw& SetImage(const oglImgBase& img, const std::string& name, const GLuint idx = 0);
+    ProgDraw& SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx = 0);
     ProgDraw& SetImage(const oglImgBase& img, const GLuint pos);
-    ProgDraw& SetUBO(const oglUBO& ubo, const std::string& name, const GLuint idx = 0);
+    ProgDraw& SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
     ProgDraw& SetSubroutine(const std::string_view& subrName, const std::string_view& routineName);
 
-    template<typename T, typename... Args> 
-    ProgDraw& SetVec    (const T& res, Args&&... args) { Prog.SetVec    (res, std::forward<Args>(args)...); return *this; }
+    template<typename T, typename Arg> 
+    ProgDraw& SetVec(const T& name, Arg&& arg)
+    { 
+        Prog.SetVec_(BeforeSetVal(name), std::forward<Arg>(arg), false);
+        return *this;
+    }
+    template<typename T, typename Arg>
+    ProgDraw& SetMat(const T& name, Arg&& arg)
+    { 
+        Prog.SetMat_(BeforeSetVal(name), std::forward<Arg>(arg), false);
+        return *this;
+    }
     template<typename T, typename... Args>
-    ProgDraw& SetMat    (const T& res, Args&&... args) { Prog.SetMat    (res, std::forward<Args>(args)...); return *this; }
-    template<typename T, typename... Args>
-    ProgDraw& SetUniform(const T& res, Args&&... args) { Prog.SetUniform(res, std::forward<Args>(args)...); return *this; }
+    ProgDraw& SetVal(const T& name, Args&&... args)
+    {
+        const auto res = BeforeSetVal(name);
+        if constexpr(sizeof...(Args) == 1)
+            Prog.SetVal_(res, std::forward<Args>(args)..., false);
+        else if constexpr (sizeof...(Args) == 2)
+            Prog.SetVal_(res, b3d::Coord2D  (std::forward<Args>(args)...), false);
+        else if constexpr (sizeof...(Args) == 3)
+            Prog.SetVal_(res, miniBLAS::Vec3(std::forward<Args>(args)...), false);
+        else if constexpr (sizeof...(Args) == 4)
+            Prog.SetVal_(res, miniBLAS::Vec4(std::forward<Args>(args)...), false);
+        return *this;
+    }
 };
 
 

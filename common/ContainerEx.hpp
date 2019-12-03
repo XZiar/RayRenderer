@@ -482,7 +482,7 @@ public:
     decltype(auto) begin() const { return Data.cbegin();}
     decltype(auto) end() const { return Data.cend();}
 
-
+    const std::vector<T>& RawData() const noexcept { return Data; }
     template<typename E>
     bool Has(E&& element) const
     {

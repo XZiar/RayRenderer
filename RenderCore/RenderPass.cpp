@@ -131,7 +131,7 @@ bool DefaultRenderPass::OnRegistDrawable(const std::shared_ptr<Drawable>& drawab
 void DefaultRenderPass::OnPrepare(RenderPassContext& context)
 {
     const auto& scene = context.GetScene();
-    Program->SetUniform("lightCount", scene->GetLightUBOCount());
+    Program->SetVal("lightCount", scene->GetLightUBOCount());
     Program->State().SetUBO(scene->GetLightUBO(), "lightBlock");
 }
 

@@ -47,7 +47,7 @@ static void SetProgUniform(const common::Controllable& control, const oglu::Prog
     else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3> || std::is_same_v<T, miniBLAS::Mat4x4>)
         dynamic_cast<const GLShader&>(control).Program->SetMat(res, val);
     else
-        dynamic_cast<const GLShader&>(control).Program->SetUniform(res, val);
+        dynamic_cast<const GLShader&>(control).Program->SetVal(res, val);
 }
 void GLShader::RegistControllable()
 {

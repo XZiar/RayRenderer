@@ -91,6 +91,7 @@ Although OpenGLUtil tries to cover difference between versions and try to provid
 * ([WGL_ARB_extensions_string](https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_extensions_string.txt) or [WGL_EXT_extensions_string](https://www.khronos.org/registry/OpenGL/extensions/EXT/WGL_EXT_extensions_string.txt)) (Windows), ([GLX_ARB_get_proc_address](https://www.khronos.org/registry/OpenGL/extensions/ARB/GLX_ARB_get_proc_address.txt)) (*nux) required.
 * [WGL_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_create_context.txt) (Windows), [GLX_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/GLX_ARB_create_context.txt) (*nix) required.
 * [GL_ARB_program_interface_query](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_program_interface_query.txt) required for oglProgram, since it tries to introspect program's info.
+* [ARB_separate_shader_objects](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_separate_shader_objects.txt) required for oglProgram, since it uses `glProgramUniform` to get/set uniforms
 * GL3.0 required for Core Profile Context.
 
 ## Feature

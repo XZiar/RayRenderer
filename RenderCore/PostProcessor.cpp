@@ -57,8 +57,8 @@ public:
         LutImg = oglu::oglImg3D_::Create(tex, oglu::TexImgUsage::WriteOnly);
         LutGenerator->State()
             .SetImage(LutImg, "result");
-        LutGenerator->SetUniform("step", 1.0f / (lutSize - 1));
-        LutGenerator->SetUniform("exposure", 1.0f);
+        LutGenerator->SetVal("step", 1.0f / (lutSize - 1));
+        LutGenerator->SetVal("exposure", 1.0f);
     }
     ComputeLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) : 
         ComputeLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
@@ -67,7 +67,7 @@ public:
 
     void UpdateLUT(const float exposure) override
     {
-        LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
+        LutGenerator->SetVal("exposure", std::pow(2.0f, exposure));
         LutGenerator->Run(GroupCount[0], GroupCount[1], GroupCount[2]);
     }
 };
@@ -105,9 +105,9 @@ public:
         LUTFrame->AttachColorTexture(tex);
         dizzLog().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
 
-        LutGenerator->SetUniform("step", 1.0f / (LutSize - 1));
-        LutGenerator->SetUniform("exposure", 1.0f);
-        LutGenerator->SetUniform("lutSize", (int32_t)LutSize);
+        LutGenerator->SetVal("step", 1.0f / (LutSize - 1));
+        LutGenerator->SetVal("exposure", 1.0f);
+        LutGenerator->SetVal("lutSize", (int32_t)LutSize);
     }
     RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex) :
         RenderLutGen(lutSize, tex, LoadShaderFromDLL(IDR_SHADER_CLRLUTGL))
@@ -118,7 +118,7 @@ public:
     void UpdateLUT(const float exposure) override
     {
         LUTFrame->Use();
-        LutGenerator->SetUniform("exposure", std::pow(2.0f, exposure));
+        LutGenerator->SetVal("exposure", std::pow(2.0f, exposure));
         LutGenerator->Draw()
             .DrawInstance(VAOScreen, LutSize);
             //.Draw(VAOScreen);
@@ -152,8 +152,6 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
         LutGenerator = std::make_unique<RenderLutGen>(LutSize, LutTex);
     }
 
-    MiddleFrame = oglu::oglFrameBuffer2D_::Create();
-    MiddleFrame->SetName(u"PostProcFBO");
     ScreenBox = oglu::oglArrayBuffer_::Create();
     ScreenBox->SetName(u"PostProcScreenBox");
     const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
@@ -215,6 +213,8 @@ bool PostProcessor::UpdateFBO()
 {
     if (UpdateDemand.Extract(PostProcUpdate::FBO))
     {
+        MiddleFrame = oglu::oglFrameBuffer2D_::Create();
+        MiddleFrame->SetName(u"PostProcFBO");
         FBOTex = oglu::oglTex2DStatic_::Create(MidFrameConfig.Width, MidFrameConfig.Height, xziar::img::TextureFormat::RG11B10);
         FBOTex->SetName(u"PostProcFBTex");
         FBOTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::Repeat);

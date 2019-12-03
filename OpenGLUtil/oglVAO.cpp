@@ -63,7 +63,7 @@ static constexpr GLenum ParseVAValType(const VAValType type)
 
 void oglVAO_::VAOPrep::SetInteger(const VAValType valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
-    if (attridx != (GLint)GL_INVALID_INDEX)
+    if (attridx != GLInvalidIndex)
     {
         CtxFunc->ogluEnableVertexArrayAttrib(VAO->VAOId, attridx);//vertex attr index
         CtxFunc->ogluVertexAttribIPointer(attridx, size, ParseVAValType(valType), stride, offset);
@@ -73,7 +73,7 @@ void oglVAO_::VAOPrep::SetInteger(const VAValType valType, const GLint attridx, 
 }
 void oglVAO_::VAOPrep::SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor)
 {
-    if (attridx != (GLint)GL_INVALID_INDEX)
+    if (attridx != GLInvalidIndex)
     {
         CtxFunc->ogluEnableVertexArrayAttrib(VAO->VAOId, attridx);//vertex attr index
         CtxFunc->ogluVertexAttribPointer(attridx, size, ParseVAValType(valType), isNormalize, stride, offset);
