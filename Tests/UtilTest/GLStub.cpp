@@ -34,15 +34,15 @@ static MiniLogger<false>& log()
 oglContext CreateContext()
 {
     oglContext_::Refresh();
-    oglu::oglUtil::SetFuncLoadingDebug(true, true);
     oglUtil::InitLatestVersion();
-    oglu::oglUtil::SetFuncLoadingDebug(false, false);
     // uint32_t major, minor;
     // log().info(u"Input major and minor version...");
     // std::cin >> major >> minor;
     // std::cin.ignore();
     // auto ctx = oglContext::NewContext(oglContext::CurrentContext(), false, { (uint8_t)major,(uint8_t)minor });
+    oglu::oglUtil::SetFuncLoadingDebug(true, true);
     auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
+    oglu::oglUtil::SetFuncLoadingDebug(false, false);
     ctx->UseContext();
     ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     return ctx;

@@ -1,7 +1,7 @@
 {
     "name": "fmt",
     "type": "dynamic",
-    "version": "6.0.0",
+    "version": "6.1.0",
     "description": "A modern formatting library",
     "dependency": ["StringCharset"],
     "library": 
