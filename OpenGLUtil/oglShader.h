@@ -35,6 +35,7 @@ struct ShaderExtProperty
 struct ShaderExtInfo
 {
     std::set<ShaderExtProperty, ShaderExtProperty::Lesser> Properties;
+    std::map<std::string, std::vector<std::pair<std::string, size_t>>> EmulateRoutines;
     std::map<std::string, std::string> ResMappings;
 };
 

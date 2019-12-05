@@ -262,6 +262,7 @@ class OGLUAPI oglDrawProgram_ : public oglProgram_
     friend class oglProgram_::oglProgStub;
 private:
     MAKE_ENABLER();
+    std::vector<std::pair<std::string_view, GLint>> OutputBindings;
     oglDrawProgram_(const std::u16string& name, const oglProgStub* stub);
 public:
     MappingResource InputRess, OutputRess;

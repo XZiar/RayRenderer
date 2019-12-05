@@ -220,45 +220,6 @@ protected:
     }
 };
 
-template<typename P>
-struct NestedCacheSource : NestedSource<P>
-{
-private:
-    using InType = typename P::OutType;
-    //using PlainInType = std::remove_cv_t<InType>;
-    using PlainInType = std::conditional_t<std::is_reference_v<InType>,
-        std::reference_wrapper<std::remove_reference_t<InType>>,
-        std::remove_cv_t<InType>>;
-
-protected:
-    constexpr NestedCacheSource(P&& prev) : NestedSource<P>(std::move(prev)) { }
-
-    [[nodiscard]] constexpr std::add_lvalue_reference_t<PlainInType> GetCurrentRefFromPrev() const
-    {
-        if (!Temp)
-            Temp.emplace(this->Prev.GetCurrent());
-        return *Temp;
-    }
-    [[nodiscard]] constexpr std::add_lvalue_reference_t<std::add_const_t<PlainInType>> GetCurrentConstRefFromPrev() const
-    {
-        return GetCurrentRefFromPrev();
-    }
-    [[nodiscard]] constexpr InType GetCurrentFromPrev() const
-    {
-        if (Temp)
-            return *std::move(Temp);
-        else
-            return this->Prev.GetCurrent();
-    }
-    constexpr void MoveNextFromPrev()
-    {
-        Temp.reset();
-        this->Prev.MoveNext();
-    }
-private:
-    mutable std::optional<PlainInType> Temp;
-};
-
 
 template<typename P>
 struct LimitSource : public NestedSource<P>
@@ -307,10 +268,10 @@ public:
 
 
 template<typename P, typename Filter>
-struct FilteredSource : std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>
+struct FilteredSource : public NestedSource<P>
 {
 private:
-    using BaseType = std::conditional_t<P::InvolveCache, NestedCacheSource<P>, NestedSource<P>>;
+    using BaseType = NestedSource<P>;
     mutable Filter Func;
 public:
     using InType = typename P::OutType;
@@ -323,40 +284,40 @@ public:
 
     constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
     {
-        while (!this->Prev.IsEnd() && !CheckCurrent())
-        {
-            this->MoveNextFromPrev();
-        }
+        LoopUntilSatisfy();
     }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
-        return this->GetCurrentFromPrev();
+        if constexpr (P::InvolveCache)
+            return *std::move(Temp);
+        else
+            return this->GetCurrentFromPrev();
     }
     constexpr void MoveNext()
     {
-        do
-        {
-            this->MoveNextFromPrev();
-        } while (!this->Prev.IsEnd() && !CheckCurrent());
+        this->MoveNextFromPrev();
+        LoopUntilSatisfy();
     }
     [[nodiscard]] constexpr bool IsEnd() const
     {
         return this->Prev.IsEnd();
     }
 private:
-    static constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
-    [[nodiscard]] constexpr bool CheckCurrent() const
+    using TmpType = std::conditional_t<P::InvolveCache, std::optional<PlainInType>, uint8_t>;
+    mutable TmpType Temp;
+    constexpr void LoopUntilSatisfy()
     {
-        //static_assert(AcceptConstRef || P::InvolveCache, "uncache value should not be filtered as non-const ref");
-        if constexpr (P::InvolveCache)
+        while (!this->Prev.IsEnd())
         {
-            if constexpr(AcceptConstRef)
-                return Func(this->GetCurrentConstRefFromPrev());
-            else
-                return Func(this->GetCurrentRefFromPrev());
+            auto obj = std::move(this->GetCurrentFromPrev());
+            if (Func(obj))
+            {
+                if constexpr (P::InvolveCache)
+                    Temp.emplace(std::move(obj));
+                return;
+            }
+            this->MoveNextFromPrev();
         }
-        else
-            return Func(this->GetCurrentFromPrev());
     }
 };
 
@@ -966,13 +927,19 @@ public:
     template<typename U, typename Func>
     [[nodiscard]] constexpr U Reduce(Func&& func, U data = {})
     {
-        static_assert(std::is_invocable_v<Func, U&, EleType>, "reduce function should accept target and element");
+        [[maybe_unused]] size_t idx = 0;
         while (!Provider.IsEnd())
         {
-            if constexpr (std::is_invocable_r_v<U, Func, const U&, EleType>)
+            if constexpr (std::is_invocable_v<U, Func, const U&, EleType, size_t>)
+                data = func(data, Provider.GetCurrent(), idx++);
+            else if constexpr (std::is_invocable_v<Func, U&, EleType, size_t>)
+                func(data, Provider.GetCurrent(), idx++);
+            else if constexpr (std::is_invocable_r_v<U, Func, const U&, EleType>)
                 data = func(data, Provider.GetCurrent());
-            else
+            else if constexpr (std::is_invocable_v<Func, U&, EleType>)
                 func(data, Provider.GetCurrent());
+            else
+                static_assert(!AlwaysTrue<U>, "reduce function should accept target and element, and maybe index");
             Provider.MoveNext();
         }
         return data;

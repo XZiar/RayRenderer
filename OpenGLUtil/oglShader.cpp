@@ -288,24 +288,64 @@ struct RoutineItem
         }
         return false;
     }
-    bool Apply(vector<std::variant<string_view, string>>& lines) const
+    bool Apply(const bool emulate, vector<std::variant<string_view, string>>& lines, 
+        std::map<std::string, std::vector<std::pair<std::string, size_t>>>& emulateOutput) const
     {
         static thread_local fmt::basic_memory_buffer<char> buf;
-        const bool remainDynamic = Subroutine.empty();
+        std::string entry, prefix;
+        if (!Subroutine.empty())
+            entry  = "#define {1} {4}", 
+            prefix = "";
+        else if (!emulate)
+            entry  = "subroutine {2} {0}({3}); subroutine uniform {0} {1};", 
+            prefix = "subroutine("s.append(RoutineName).append(") ");
+        else
+        {
+            std::vector<std::pair<std::string, size_t>> emulateInfo;
+            const auto args = FuncParams.empty() ?
+                "" :
+                common::str::SplitStream(FuncParams, ',')
+                    .Select([](const auto& param) { return param.substr(param.find_last_of(" ") + 1); })
+                    .Reduce([](string& ret, const auto& arg, size_t idx)
+                        {
+                            if (idx > 0) ret.append(", ");
+                            ret.append(arg);
+                        }, string());
+            entry.append("uniform uint {0};\r\n");
+            for (const auto& [srname, srline] : Subroutines)
+            {
+                fmt::format_to(std::back_inserter(entry), "{} {}({});\r\n", ReturnType, srname, FuncParams);
+            }
+            entry.append("{2} {1}({3})\r\n");
+            entry.append("{{\r\n");
+            entry.append("    switch ({0})\r\n");
+            entry.append("    {{\r\n");
+            for(const auto & [srname, srline] : Subroutines)
+            {
+                fmt::format_to(std::back_inserter(entry), "    case {}: return {}({});\r\n", srline, srname, args);
+                emulateInfo.emplace_back(srname, srline);
+            }
+            entry.append("    }}\r\n");
+            entry.append("}}\r\n");
+            entry.append("#line ").append(std::to_string(LineNum + 1)).append("\r\n");
+            prefix = "";
+            const bool notReplace = emulateOutput.insert_or_assign(std::string(RoutineName), std::move(emulateInfo)).second;
+            if (!notReplace)
+                oglLog().warning(u"Routine [{}]'s previous emulate info is overwrited, may cause bug.", RoutineName);
+        }
+
         {
             buf.resize(0);
-            fmt::format_to(buf, remainDynamic ? "subroutine {2} {0}({3}); subroutine uniform {0} {1};" : "#define {1} {4}",
-                RoutineName, RoutineVal, ReturnType, FuncParams, Subroutine);
+            fmt::format_to(buf, entry, RoutineName, RoutineVal, ReturnType, FuncParams, Subroutine);
             lines[LineNum] = string(buf.data(), buf.size());
         }
-        const string srprefix = remainDynamic ? "subroutine("s.append(RoutineName).append(") ") : ""s;
         for (const auto&[srname, srline] : Subroutines)
         {
             buf.resize(0);
-            fmt::format_to(buf, "{0}{1} {2}({3})", srprefix, ReturnType, srname, FuncParams);
+            fmt::format_to(buf, "{0}{1} {2}({3})", prefix, ReturnType, srname, FuncParams);
             lines[srline] = string(buf.data(), buf.size());
         }
-        return remainDynamic;
+        return Subroutine.empty();
     }
     static std::optional<std::pair<string_view, string_view>> TryParseSubroutine(const string_view& line)
     {
@@ -436,14 +476,15 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         else
             oglLog().warning(u"Unknown routine [{}] with subroutine [{}] in the config.\n", rname, srname);
     }
+    const bool needEmulate = !CtxFunc->SupportSubroutine;
     bool hasSubroutine = false;
     for (const auto& sr : routines)
-        hasSubroutine = sr.Apply(lines) || hasSubroutine;
+        hasSubroutine = sr.Apply(needEmulate, lines, info.EmulateRoutines) || hasSubroutine;
     if (hasSubroutine)
     {
         extReqs.append("#extension GL_ARB_shader_subroutine : enable\r\n");
         if (!CtxFunc->SupportSubroutine)
-            oglLog().warning(u"subroutine requested on a unspported context.\n");
+            oglLog().warning(u"subroutine requested on a unspported context, will try to emulate it.\n");
     }
 
     //apply defines

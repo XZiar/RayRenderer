@@ -895,6 +895,7 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
         mappings.insert_or_assign("default", (**defaultOutput).Name);
     InputRess .Init(std::move(inputRess ), mappings);
     OutputRess.Init(std::move(outputRess), mappings);
+    OutputBindings = OutputRess.GetBindingNames();
     TmpExtInfo.reset();
 }
 oglDrawProgram_::~oglDrawProgram_() { }
@@ -922,7 +923,7 @@ ProgDraw::ProgDraw(oglDrawProgram_* prog, FBOPairType&& fboInfo) noexcept
     // bind outputs
     std::vector<GLenum> outputs(CtxFunc->MaxDrawBuffers, GL_NONE);
     GLint maxPos = 0;
-    for (const auto& [name, loc] : Prog.OutputRess.GetBindingNames())
+    for (const auto& [name, loc] : Prog.OutputBindings)
     {
         if (outputs[loc] == GL_NONE)
         {
