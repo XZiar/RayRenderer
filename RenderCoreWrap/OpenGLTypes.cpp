@@ -18,11 +18,10 @@ ProgramResource::ProgramResource(const oglu::ProgramResource& res)
 
 
 SubroutineResource::SubroutineResource(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::SubroutineResource& res)
-    : Prog(prog), cppname(res.Name)
+    : Prog(prog), cppname(res.GetName())
 {
     name = ToStr(cppname);
-    stage = (ShaderType)res.Stage;
-    for (const auto& routine : res.Routines)
+    for (const auto& routine : res.GetRoutines())
         routines->Add(ToStr(routine.Name));
     current = ToStr(Prog.lock()->GetSubroutine(cppname)->Name);
 }

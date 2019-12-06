@@ -70,20 +70,26 @@ public:
         friend class oglProgram_;
         friend class ProgState;
         friend class ProgDraw;
-        const std::string Name;
+        std::string_view Name;
+        using Lesser = common::container::SetKeyLess<Routine, &Routine::Name>;
     private:
-        const GLuint Id;
-        Routine(const std::string& name, const GLuint id) : Name(name), Id(id) {}
+        const SubroutineResource* Host;
+        GLuint Id;
+        constexpr Routine(const SubroutineResource* host, const std::string_view name, const GLuint id) noexcept 
+            : Name(name), Host(host), Id(id) { }
     };
-    const std::string Name;
-    const std::vector<Routine> Routines;
-    const ShaderType Stage;
+    SubroutineResource(const ShaderType sType, const GLint location, const std::string_view name) noexcept
+        : Name(name), Stage(sType), UniLoc(location) {}
 private:
-    const GLint UniLoc;
+    std::string Name;
+    mutable std::string SRNames;
+    mutable common::container::FrozenDenseSet<Routine, Routine::Lesser> Routines;
+    ShaderType Stage;
+    GLint UniLoc;
 public:
-    SubroutineResource(const ShaderType sType, const GLint location, const std::string& name, std::vector<Routine>&& routines)
-        : Name(name), Routines(std::move(routines)), Stage(sType), UniLoc(location) {}
     using Lesser = common::container::SetKeyLess<SubroutineResource, &SubroutineResource::Name>;
+    constexpr const std::string& GetName() const noexcept { return Name; }
+    constexpr const std::vector<Routine>& GetRoutines() const noexcept { return Routines.RawData(); }
 };
 
 
@@ -137,7 +143,7 @@ public:
     //no check on pos, carefully use
     ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
-    ProgState& SetSubroutine(const std::string_view& subrName, const std::string_view& routineName);
+    ProgState& SetSubroutine(const std::string_view subrName, const std::string_view routineName);
 };
 
 
@@ -170,7 +176,6 @@ protected:
     std::set<ProgramResource, ProgramResource::Lesser> ProgRess;
     MappingResource UniformRess, UBORess, TexRess, ImgRess;
     std::set<SubroutineResource, SubroutineResource::Lesser> SubroutineRess;
-    std::map<const SubroutineResource::Routine*, const SubroutineResource*> subrLookup;
     std::map<GLint, UniformValue> UniValCache;
     std::vector<GLint> UniBindCache; 
     std::map<GLuint, oglTexBase> TexBindings;
@@ -187,6 +192,9 @@ protected:
     void InitSubroutines();
     void FilterProperties(const ShaderExtInfo& extInfo);
 
+    std::pair<const SubroutineResource*, const SubroutineResource::Routine*> LocateSubroutine
+        (const std::string_view subrName, const std::string_view routineName) const noexcept;
+
     void SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
     void SetTexture(detail::TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
     void SetImage(detail::TexImgManager& texMan, const GLint pos, const oglImgBase& tex, const bool shouldPin = false);
@@ -194,6 +202,7 @@ protected:
     void SetUBO(detail::UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
     void SetUBO(detail::UBOManager& uboMan, const std::map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void SetSubroutine();
+    void SetSubroutine(const SubroutineResource::Routine* routine);
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
     void SetVec_(const ProgramResource* res, const b3d::Coord2D& vec,     const bool keep = true);
@@ -329,7 +338,7 @@ public:
     ProgDraw& SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx = 0);
     ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
-    ProgDraw& SetSubroutine(const std::string_view& subrName, const std::string_view& routineName);
+    ProgDraw& SetSubroutine(const std::string_view subrName, const std::string_view routineName);
 
     template<typename T, typename Arg> 
     ProgDraw& SetVec(const T& name, Arg&& arg)

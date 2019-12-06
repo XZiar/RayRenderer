@@ -63,14 +63,12 @@ private:
     const std::weak_ptr<oglu::oglProgram_>& Prog;
     const std::string& cppname;
     initonly String^ name;
-    initonly ShaderType stage;
     initonly List<String^>^ routines = gcnew List<String^>();
     String^ current;
 internal:
     SubroutineResource(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::SubroutineResource& res);
 public:
     CLI_READONLY_PROPERTY(String^, Name, name);
-    CLI_READONLY_PROPERTY(ShaderType, Stage, stage);
     CLI_READONLY_PROPERTY(List<String^>^, Routines, routines);
     property String^ Current
     {

@@ -58,11 +58,11 @@ void LoggerBackend::Print(LogMessage* msg)
 }
 
 
-namespace detail
+namespace detail::detail
 {
 
 template<>
-MINILOGAPI fmt::basic_memory_buffer<char>& StrFormater::GetBuffer<char>(const bool needClear)
+MINILOGAPI fmt::basic_memory_buffer<char>& GetBuffer<char>(const bool needClear)
 {
     static thread_local fmt::basic_memory_buffer<char> out;
     if (needClear)
@@ -70,7 +70,7 @@ MINILOGAPI fmt::basic_memory_buffer<char>& StrFormater::GetBuffer<char>(const bo
     return out;
 }
 template<>
-MINILOGAPI fmt::basic_memory_buffer<char16_t>& StrFormater::GetBuffer<char16_t>(const bool needClear)
+MINILOGAPI fmt::basic_memory_buffer<char16_t>& GetBuffer<char16_t>(const bool needClear)
 {
     static thread_local fmt::basic_memory_buffer<char16_t> out;
     if (needClear)
@@ -78,7 +78,7 @@ MINILOGAPI fmt::basic_memory_buffer<char16_t>& StrFormater::GetBuffer<char16_t>(
     return out;
 }
 template<>
-MINILOGAPI fmt::basic_memory_buffer<char32_t>& StrFormater::GetBuffer<char32_t>(const bool needClear)
+MINILOGAPI fmt::basic_memory_buffer<char32_t>& GetBuffer<char32_t>(const bool needClear)
 {
     static thread_local fmt::basic_memory_buffer<char32_t> out;
     if (needClear)
@@ -86,7 +86,7 @@ MINILOGAPI fmt::basic_memory_buffer<char32_t>& StrFormater::GetBuffer<char32_t>(
     return out;
 }
 template<>
-MINILOGAPI fmt::basic_memory_buffer<wchar_t>& StrFormater::GetBuffer<wchar_t>(const bool needClear)
+MINILOGAPI fmt::basic_memory_buffer<wchar_t>& GetBuffer<wchar_t>(const bool needClear)
 {
     static thread_local fmt::basic_memory_buffer<wchar_t> out;
     if (needClear)

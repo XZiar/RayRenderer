@@ -69,12 +69,12 @@ void GLShader::RegistControllable()
     }
     for (const auto& res : Program->getSubroutineResources())
     {
-        const auto u16name = common::strchset::to_u16string(res.Name, Charset::UTF8);
-        auto rtNames = common::linq::FromIterable(res.Routines)
-            .Select([](const auto& rt) { return rt.Name; }).ToVector();
-        RegistItem<string>("Subroutine_" + res.Name, "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
-            .RegistGetterProxy<GLShader>([&res](const GLShader& self) { return self.Program->GetSubroutine(res)->Name; })
-            .RegistSetterProxy<GLShader>([&res](GLShader& self, const string& val) { self.Program->State().SetSubroutine(res.Name, val); });
+        const auto u16name = common::strchset::to_u16string(res.GetName(), Charset::UTF8);
+        auto rtNames = common::linq::FromIterable(res.GetRoutines())
+            .Select([](const auto& rt) { return string(rt.Name); }).ToVector();
+        RegistItem<string>("Subroutine_" + res.GetName(), "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
+            .RegistGetterProxy<GLShader>([&res](const GLShader& self) { return string(self.Program->GetSubroutine(res)->Name); })
+            .RegistSetterProxy<GLShader>([&res](GLShader& self, const string& val) { self.Program->State().SetSubroutine(res.GetName(), val); });
     }
     const auto& props = Program->getResourceProperties();
     for (const auto& res : Program->getResources())
@@ -155,7 +155,7 @@ void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
         {
             const auto sr = Program->GetSubroutine(sru);
             if (sr)
-                subroutines.Add(sru.Name, sr->Name);
+                subroutines.Add(sru.GetName(), sr->Name);
         }
         jself.Add("Subroutines", subroutines);
     }

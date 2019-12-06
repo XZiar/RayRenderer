@@ -108,6 +108,12 @@ MINILOGAPI std::shared_ptr<LoggerBackend> GetFileBackend(const fs::path& path);
 
 namespace detail
 {
+namespace detail
+{
+template<typename Char>
+MINILOGAPI fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear);
+}
+
 struct MINILOGAPI StrFormater
 {
 private:
@@ -125,7 +131,10 @@ private:
     }
 public:
     template<typename Char>
-    static fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear = true);
+    static fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear = true)
+    {
+        return detail::GetBuffer<Char>(needClear);
+    }
     template<typename T, typename... Args>
     static decltype(auto) ToU16Str(const T& formatter, Args&&... args)
     {

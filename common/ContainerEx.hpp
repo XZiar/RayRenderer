@@ -479,17 +479,17 @@ public:
     {
         std::sort(Data.begin(), Data.end(), Compare());
     }
-    decltype(auto) begin() const { return Data.cbegin();}
-    decltype(auto) end() const { return Data.cend();}
+    decltype(auto) begin() const noexcept { return Data.cbegin();}
+    decltype(auto) end() const noexcept { return Data.cend();}
 
-    const std::vector<T>& RawData() const noexcept { return Data; }
+    constexpr const std::vector<T>& RawData() const noexcept { return Data; }
     template<typename E>
-    bool Has(E&& element) const
+    constexpr bool Has(E&& element) const
     {
         return std::binary_search(Data.cbegin(), Data.cend(), element, Compare());
     }
     template<typename E>
-    const T* Find(E&& element) const
+    constexpr const T* Find(E&& element) const
     {
         const auto ret = std::lower_bound(Data.cbegin(), Data.cend(), element, Compare());
         if (ret != Data.cend() && !Compare()(element, *ret))

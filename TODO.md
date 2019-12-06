@@ -98,7 +98,7 @@
   - [ ] Add GacUI
   - [x] Port some utilities to Linux 
   - [x] Port core components to Linux 
-  - [ ] Move to .net core 3.0 with WPF/Winform
+  - [ ] Move to .net core 3.1 with WPF/Winform
   - [ ] Add Vulkan backend
   - [ ] Add GLFW
   - [ ] Add FancyCL codegen which can write code in C++ with template/type-safe support and emit compute langs

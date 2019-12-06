@@ -334,7 +334,6 @@ void oglProgram_::InitSubroutines()
 {
     CheckCurrent();
     SubroutineRess.clear();
-    subrLookup.clear();
     SubroutineBindings.clear();
     SubroutineSettings.clear();
     fmt::basic_memory_buffer<char16_t> strBuffer;
@@ -358,36 +357,39 @@ void oglProgram_::InitSubroutines()
                 maxNameLen = std::max(maxNameLen, maxUNameLen);
             }
             nameBuf.resize(maxNameLen);
-            for (int a = 0; a < count; ++a)
+            for (GLint a = 0; a < count; ++a)
             {
-                string uniformName;
-                {
-                    GLint nameLen = 0;
-                    CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &nameLen, nameBuf.data());
-                    uniformName.assign(nameBuf, 0, nameLen);
-                }
-                auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
+                GLint uniformNameLen = 0;
+                CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &uniformNameLen, nameBuf.data());
+                const string_view uniformName(nameBuf.data(), uniformNameLen);
+                const auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
                 fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
+                auto& sr = *SubroutineRess.emplace(stype, uniformLoc, uniformName).first;
+                
                 GLint srcnt = 0;
                 CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
-                vector<GLint> compSRs(srcnt, GL_INVALID_INDEX);
-                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, compSRs.data());
-
-                vector<SubroutineResource::Routine> routines;
-                for (const auto subridx : compSRs)
-                {
-                    string subrName;
+                vector<GLint> srIDs(srcnt, GL_INVALID_INDEX);
+                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, srIDs.data());
+                const auto srinfos = common::linq::FromIterable(srIDs)
+                    .Select([&](const auto subridx)
                     {
-                        GLint nameLen = 0;
-                        CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &nameLen, nameBuf.data());
-                        subrName.assign(nameBuf, 0, nameLen);
-                    }
-                    fmt::format_to(strBuffer, FMT_STRING(u"--[{}]: {}\n"), subridx, subrName);
-                    routines.push_back(SubroutineResource::Routine(subrName, subridx));
-                }
-                const auto it = SubroutineRess.emplace(stype, uniformLoc, uniformName, std::move(routines)).first;
-                for (auto& routine : it->Routines)
-                    subrLookup[&routine] = &(*it);
+                        GLint srNameLen = 0;
+                        CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &srNameLen, nameBuf.data());
+                        const string_view subrName(nameBuf.data(), srNameLen);
+                        sr.SRNames.append(subrName);
+                        fmt::format_to(strBuffer, FMT_STRING(u"--[{:^4}]: {}\n"), subridx, subrName);
+                        return std::pair(subridx, srNameLen);
+                    })
+                    .ToVector();
+                sr.Routines = common::linq::FromIterable(srinfos)
+                    .Select([&, offset = size_t(0)](const auto& info) mutable
+                    {
+                        string_view subrName(&sr.SRNames[offset], info.second);
+                        SubroutineResource::Routine routine(&sr, subrName, info.first);
+                        offset += info.second;
+                        return routine;
+                    })
+                    .ToVector();
             }
             GLint locCount = 0;
             CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
@@ -403,7 +405,7 @@ void oglProgram_::InitSubroutines()
     
     for (const auto& subr : SubroutineRess)
     {
-        const auto& routine = subr.Routines[0];
+        const auto& routine = subr.GetRoutines()[0];
         SubroutineBindings[&subr] = &routine;
         SubroutineSettings[subr.Stage][subr.UniLoc] = routine.Id;
     }
@@ -485,6 +487,21 @@ void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
         else
             oglLog().warning(u"ExtProp [{}] cannot find active uniform\n", prop.Name);
     }
+}
+
+std::pair<const SubroutineResource*, const SubroutineResource::Routine*> oglProgram_::LocateSubroutine(const std::string_view subrName, const std::string_view routineName) const noexcept
+{
+    if (auto pSubr = FindInSet(SubroutineRess, subrName); pSubr)
+    {
+        
+        if (auto pRoutine = pSubr->Routines.Find(routineName); pRoutine)
+            return { pSubr, pRoutine };
+        else
+            oglLog().warning(u"cannot find routine {} for subroutine {}\n", routineName, subrName);
+    }
+    else
+        oglLog().warning(u"cannot find subroutine {}\n", subrName);
+    return { nullptr, nullptr };
 }
 
 
@@ -643,6 +660,15 @@ void oglProgram_::SetSubroutine()
         if (cnt > 0)
             CtxFunc->ogluUniformSubroutinesuiv(common::enum_cast(stype), cnt, subrs.data());
     }
+}
+
+void oglProgram_::SetSubroutine(const SubroutineResource::Routine* routine)
+{
+    const auto& sr = *routine->Host;
+    if (SubroutineRess.find(sr) != SubroutineRess.cend())
+        SetSubroutine(&sr, routine);
+    else
+        oglLog().warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Name);
 }
 
 void oglProgram_::SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine)
@@ -844,24 +870,15 @@ ProgState& ProgState::SetUBO(const oglUBO& ubo, const GLuint pos)
 
 ProgState& ProgState::SetSubroutine(const SubroutineResource::Routine* routine)
 {
-    if (auto pSubr = FindInMap(Prog.subrLookup, routine))
-        Prog.SetSubroutine(*pSubr, routine);
-    else
-        oglLog().warning(u"cannot find subroutine for routine {}\n", routine->Name);
+    Prog.SetSubroutine(routine);
     return *this;
 }
 
-ProgState& ProgState::SetSubroutine(const string_view& subrName, const string_view& routineName)
+ProgState& ProgState::SetSubroutine(const string_view subrName, const string_view routineName)
 {
-    if (auto pSubr = FindInSet(Prog.SubroutineRess, subrName))
-    {
-        if (auto pRoutine = FindInVec(pSubr->Routines, [&routineName](const SubroutineResource::Routine& routine) { return routine.Name == routineName; }))
-            Prog.SetSubroutine(pSubr, pRoutine);
-        else
-            oglLog().warning(u"cannot find routine {} for subroutine {}\n", routineName, subrName);
-    }
-    else
-        oglLog().warning(u"cannot find subroutine {}\n", subrName);
+    const auto [pSubr, pRoutine] = Prog.LocateSubroutine(subrName, routineName);
+    if (pSubr && pRoutine)
+        Prog.SetSubroutine(pSubr, pRoutine);
     return *this;
 }
 
@@ -1142,32 +1159,27 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
 
 ProgDraw& ProgDraw::SetSubroutine(const SubroutineResource::Routine* routine)
 {
-    if (auto pSubr = FindInMap(Prog.subrLookup, routine))
+    const auto& sr = *routine->Host;
+    if (Prog.SubroutineRess.find(sr) != Prog.SubroutineRess.cend())
     {
-        if (auto pOldRoutine = FindInMap(Prog.SubroutineBindings, *pSubr))
-            SubroutineCache.try_emplace(*pSubr, *pOldRoutine);
-        Prog.SetSubroutine(*pSubr, routine);
+        if (auto pOldRoutine = FindInMap(Prog.SubroutineBindings, &sr))
+            SubroutineCache.try_emplace(&sr, *pOldRoutine);
+        Prog.SetSubroutine(&sr, routine);
     }
     else
-        oglLog().warning(u"cannot find subroutine for routine {}\n", routine->Name);
+        oglLog().warning(u"routine [{}]-[{}] not in prog [{}]\n", sr.Name, routine->Name, Prog.Name);
     return *this;
 }
 
-ProgDraw& ProgDraw::SetSubroutine(const string_view& subrName, const string_view& routineName)
+ProgDraw& ProgDraw::SetSubroutine(const string_view subrName, const string_view routineName)
 {
-    if (auto pSubr = FindInSet(Prog.SubroutineRess, subrName))
+    const auto [pSubr, pRoutine] = Prog.LocateSubroutine(subrName, routineName);
+    if (pSubr && pRoutine)
     {
-        if (auto pRoutine = FindInVec(pSubr->Routines, [&routineName](const SubroutineResource::Routine& routine) { return routine.Name == routineName; }))
-        {
-            if (auto pOldRoutine = FindInMap(Prog.SubroutineBindings, pSubr))
-                SubroutineCache.try_emplace(pSubr, *pOldRoutine);
-            Prog.SetSubroutine(pSubr, pRoutine);
-        }
-        else
-            oglLog().warning(u"cannot find routine {} for subroutine {}\n", routineName, subrName);
+        if (auto pOldRoutine = FindInMap(Prog.SubroutineBindings, pSubr))
+            SubroutineCache.try_emplace(pSubr, *pOldRoutine);
+        Prog.SetSubroutine(pSubr, pRoutine);
     }
-    else
-        oglLog().warning(u"cannot find subroutine {}\n", subrName);
     return *this;
 }
 
