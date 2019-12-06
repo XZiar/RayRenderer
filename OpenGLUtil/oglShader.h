@@ -34,8 +34,13 @@ struct ShaderExtProperty
 
 struct ShaderExtInfo
 {
+    struct EmSubroutine
+    {
+        std::string UniformName;
+        std::vector<std::pair<std::string, size_t>> Routines;
+    };
     std::set<ShaderExtProperty, ShaderExtProperty::Lesser> Properties;
-    std::map<std::string, std::vector<std::pair<std::string, size_t>>> EmulateRoutines;
+    std::map<std::string, EmSubroutine> EmulateSubroutines;
     std::map<std::string, std::string> ResMappings;
 };
 

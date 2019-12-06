@@ -196,7 +196,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 }
 
 constexpr static auto OGLU_EXT_REQS = R"(
-#line 100000
+#line 100000 1 // OGLU_EXT_REQS
 #if defined(OGLU_VERT)
 #   extension GL_ARB_shader_draw_parameters : enable
 #endif
@@ -207,7 +207,7 @@ constexpr static auto OGLU_EXT_REQS = R"(
 )";
 
 constexpr static auto OGLU_DEFS = R"(
-#line 110000
+#line 110000 2 // OGLU_DEFS
 #if defined(OGLU_VERT)
 
 #   define GLVARY out
@@ -289,7 +289,7 @@ struct SubroutineItem
         return false;
     }
     void Apply(const bool emulate, vector<std::variant<string_view, string>>& lines, 
-        std::map<std::string, std::vector<std::pair<std::string, size_t>>>& emulateOutput) const
+        std::map<std::string, ShaderExtInfo::EmSubroutine>& emulateOutput) const
     {
         static thread_local fmt::basic_memory_buffer<char> buf;
         std::string entry, prefix;
@@ -301,7 +301,8 @@ struct SubroutineItem
             prefix = "subroutine("s.append(SubroutineName).append(") ");
         else
         {
-            std::vector<std::pair<std::string, size_t>> emulateInfo;
+            ShaderExtInfo::EmSubroutine emulateInfo;
+            emulateInfo.UniformName = SubroutineName;
             const auto args = FuncParams.empty() ?
                 "" :
                 common::str::SplitStream(FuncParams, ',')
@@ -312,6 +313,7 @@ struct SubroutineItem
                             ret.append(arg);
                         }, string());
             entry.append("uniform uint {0};\r\n");
+            entry.append("#line 100000 3 // OGLU_SR ").append(SubroutineName).append("\r\n");
             for (const auto& [routine, rtline] : Routines)
             {
                 fmt::format_to(std::back_inserter(entry), "{} {}({});\r\n", ReturnType, routine, FuncParams);
@@ -323,13 +325,13 @@ struct SubroutineItem
             for(const auto & [srname, srline] : Routines)
             {
                 fmt::format_to(std::back_inserter(entry), "    case {}: return {}({});\r\n", srline, srname, args);
-                emulateInfo.emplace_back(srname, srline);
+                emulateInfo.Routines.emplace_back(srname, srline);
             }
             entry.append("    }}\r\n");
             entry.append("}}\r\n");
             entry.append("#line ").append(std::to_string(LineNum + 1)).append("\r\n");
             prefix = "";
-            const bool notReplace = emulateOutput.insert_or_assign(std::string(SubroutineName), std::move(emulateInfo)).second;
+            const bool notReplace = emulateOutput.insert_or_assign(std::string(RoutineVal), std::move(emulateInfo)).second;
             if (!notReplace)
                 oglLog().warning(u"Routine [{}]'s previous emulate info is overwrited, may cause bug.", SubroutineName);
         }
@@ -477,7 +479,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     }
     const bool needEmulate = !CtxFunc->SupportSubroutine;
     for (const auto& sr : subroutines)
-        sr.Apply(needEmulate, lines, info.EmulateRoutines);
+        sr.Apply(needEmulate, lines, info.EmulateSubroutines);
     if (common::linq::FromIterable(subroutines)
         .ContainsIf([](const auto& sr) { return sr.Routine.empty(); }))
     {

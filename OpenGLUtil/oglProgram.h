@@ -78,13 +78,13 @@ public:
         constexpr Routine(const SubroutineResource* host, const std::string_view name, const GLuint id) noexcept 
             : Name(name), Host(host), Id(id) { }
     };
-    SubroutineResource(const ShaderType sType, const GLint location, const std::string_view name) noexcept
+    SubroutineResource(const GLenum sType, const GLint location, const std::string_view name) noexcept
         : Name(name), Stage(sType), UniLoc(location) {}
 private:
     std::string Name;
     mutable std::string SRNames;
     mutable common::container::FrozenDenseSet<Routine, Routine::Lesser> Routines;
-    ShaderType Stage;
+    GLenum Stage;
     GLint UniLoc;
 public:
     using Lesser = common::container::SetKeyLess<SubroutineResource, &SubroutineResource::Name>;
@@ -182,14 +182,14 @@ protected:
     std::map<GLuint, oglImgBase> ImgBindings;
     std::map<GLuint, oglUBO> UBOBindings;
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineBindings;
-    std::map<ShaderType, std::vector<GLuint>> SubroutineSettings;
+    std::map<GLenum, std::vector<GLuint>> SubroutineSettings;
     GLuint ProgramID = 0; //zero means invalid program
 
     static bool usethis(oglProgram_& prog, const bool change = true);
     oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw);
     void RecoverState();
     void InitLocs(const ShaderExtInfo& extInfo);
-    void InitSubroutines();
+    void InitSubroutines(const ShaderExtInfo& extInfo);
     void FilterProperties(const ShaderExtInfo& extInfo);
 
     std::pair<const SubroutineResource*, const SubroutineResource::Routine*> LocateSubroutine

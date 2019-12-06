@@ -827,7 +827,6 @@ public:
     [[nodiscard]] constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> Select(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
-        using OutType = std::invoke_result_t<Mapper, EleType>;
         return detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>(std::move(Provider), std::forward<Mapper>(mapper));
     }
 

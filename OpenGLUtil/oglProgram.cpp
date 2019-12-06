@@ -209,7 +209,7 @@ oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, co
     }
     oglLog().success(u"Link program success.\n{}\n", logdat);
     InitLocs(stub->ExtInfo);
-    InitSubroutines();
+    InitSubroutines(stub->ExtInfo);
     FilterProperties(stub->ExtInfo);
     TmpExtInfo = stub->ExtInfo;
 }
@@ -330,17 +330,12 @@ void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
     UniBindCache.resize(maxUniLoc, GL_INVALID_INDEX);
 }
 
-void oglProgram_::InitSubroutines()
+void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
 {
     CheckCurrent();
     SubroutineRess.clear();
     SubroutineBindings.clear();
     SubroutineSettings.clear();
-    fmt::basic_memory_buffer<char16_t> strBuffer;
-    {
-        constexpr std::u16string_view tmp = u"SubRoutine Resource: \n";
-        strBuffer.append(tmp.data(), tmp.data() + tmp.size());
-    }
     if (CtxFunc->SupportSubroutine)
     {
         string nameBuf;
@@ -363,8 +358,7 @@ void oglProgram_::InitSubroutines()
                 CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &uniformNameLen, nameBuf.data());
                 const string_view uniformName(nameBuf.data(), uniformNameLen);
                 const auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
-                fmt::format_to(strBuffer, u"SubRoutine {} at [{}]:\n", uniformName, uniformLoc);
-                auto& sr = *SubroutineRess.emplace(stype, uniformLoc, uniformName).first;
+                auto& sr = *SubroutineRess.emplace(stage, uniformLoc, uniformName).first;
                 
                 GLint srcnt = 0;
                 CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
@@ -375,9 +369,7 @@ void oglProgram_::InitSubroutines()
                     {
                         GLint srNameLen = 0;
                         CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &srNameLen, nameBuf.data());
-                        const string_view subrName(nameBuf.data(), srNameLen);
-                        sr.SRNames.append(subrName);
-                        fmt::format_to(strBuffer, FMT_STRING(u"--[{:^4}]: {}\n"), subridx, subrName);
+                        sr.SRNames.append(nameBuf.data(), srNameLen);
                         return std::pair(subridx, srNameLen);
                     })
                     .ToVector();
@@ -393,22 +385,48 @@ void oglProgram_::InitSubroutines()
             }
             GLint locCount = 0;
             CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
-            SubroutineSettings[stype].resize(locCount);
+            SubroutineSettings[stage].resize(locCount);
         }
     }
-    else
-    {
-        constexpr std::u16string_view tmp = u"Unsupport on this context\n";
-        strBuffer.append(tmp.data(), tmp.data() + tmp.size());
-    }
-    oglLog().debug(strBuffer);
     
+    if (!extInfo.EmulateSubroutines.empty())
+    {
+        oglLog().warning(u"Detected emulated subroutine. Native subroutine {}.\n", CtxFunc->SupportSubroutine ? u"support" : u"unsupport");
+        for (const auto& [srname, srinfo] : extInfo.EmulateSubroutines)
+        {
+            const auto uniRes = UniformRess.GetResource(srinfo.UniformName);
+            if (!uniRes) continue; // may be optimized or not in the stage
+            auto& sr = *SubroutineRess.emplace(GLInvalidEnum, uniRes->location, srname).first;
+            for (const auto& routine : srinfo.Routines)
+                sr.SRNames.append(routine.first);
+            sr.Routines = common::linq::FromIterable(srinfo.Routines)
+                .Select([&, offset = size_t(0)](const auto& info) mutable
+                {
+                    string_view subrName(&sr.SRNames[offset], info.first.size());
+                    SubroutineResource::Routine routine(&sr, subrName, static_cast<GLuint>(info.second));
+                    offset += info.first.size();
+                    return routine;
+                })
+                .ToVector();
+        }
+    }
+    
+    u16string strBuffer;
+    auto strBuf = std::back_inserter(strBuffer);
     for (const auto& subr : SubroutineRess)
     {
+        fmt::format_to(strBuf, u"SubRoutine {} {} at [{}]:\n", subr.Name, subr.Stage == GLInvalidEnum ? u"(Emulated)" : u"", subr.UniLoc);
+        for (const auto& routine : subr.Routines)
+        {
+            fmt::format_to(strBuf, FMT_STRING(u"--[{:^4}]: {}\n"), routine.Id, routine.Name);
+        }
         const auto& routine = subr.GetRoutines()[0];
         SubroutineBindings[&subr] = &routine;
-        SubroutineSettings[subr.Stage][subr.UniLoc] = routine.Id;
+        if (subr.Stage != GLInvalidEnum)
+            SubroutineSettings[subr.Stage][subr.UniLoc] = routine.Id;
     }
+    if (!strBuffer.empty())
+        oglLog().debug(u"SubRoutine Resource: \n{}", strBuffer);
 }
 
 static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
@@ -418,12 +436,12 @@ static bool MatchType(const ShaderExtProperty& prop, const ProgramResource& res)
     {
     case ShaderPropertyType::Vector: return (glType >= GL_FLOAT_VEC2 && glType <= GL_INT_VEC4) || (glType >= GL_BOOL_VEC2 && glType <= GL_BOOL_VEC4) ||
         (glType >= GL_UNSIGNED_INT_VEC2 && glType <= GL_UNSIGNED_INT_VEC4) || (glType >= GL_DOUBLE_VEC2 && glType <= GL_DOUBLE_VEC4);
-    case ShaderPropertyType::Bool: return glType == GL_BOOL;
-    case ShaderPropertyType::Int: return glType == GL_INT;
-    case ShaderPropertyType::Uint: return glType == GL_UNSIGNED_INT;
-    case ShaderPropertyType::Float: return glType == GL_FLOAT;
-    case ShaderPropertyType::Color: return glType == GL_FLOAT_VEC4;
-    case ShaderPropertyType::Range: return glType == GL_FLOAT_VEC2;
+    case ShaderPropertyType::Bool:   return glType == GL_BOOL;
+    case ShaderPropertyType::Int:    return glType == GL_INT;
+    case ShaderPropertyType::Uint:   return glType == GL_UNSIGNED_INT;
+    case ShaderPropertyType::Float:  return glType == GL_FLOAT;
+    case ShaderPropertyType::Color:  return glType == GL_FLOAT_VEC4;
+    case ShaderPropertyType::Range:  return glType == GL_FLOAT_VEC2;
     case ShaderPropertyType::Matrix: return (glType >= GL_FLOAT_MAT2 && glType <= GL_FLOAT_MAT4) || (glType >= GL_DOUBLE_MAT2 && glType <= GL_DOUBLE_MAT4x3);
     default: return false;
     }
@@ -493,7 +511,6 @@ std::pair<const SubroutineResource*, const SubroutineResource::Routine*> oglProg
 {
     if (auto pSubr = FindInSet(SubroutineRess, subrName); pSubr)
     {
-        
         if (auto pRoutine = pSubr->Routines.Find(routineName); pRoutine)
             return { pSubr, pRoutine };
         else
@@ -654,11 +671,18 @@ void oglProgram_::SetUBO(detail::UBOManager& uboMan, const map<GLuint, oglUBO>& 
 void oglProgram_::SetSubroutine()
 {
     CheckCurrent();
-    for (const auto&[stype, subrs] : SubroutineSettings)
+    for (const auto&[stage, subrs] : SubroutineSettings)
     {
         GLsizei cnt = (GLsizei)subrs.size();
         if (cnt > 0)
-            CtxFunc->ogluUniformSubroutinesuiv(common::enum_cast(stype), cnt, subrs.data());
+            CtxFunc->ogluUniformSubroutinesuiv(stage, cnt, subrs.data());
+    }
+    for (const auto [subr, routine] : SubroutineBindings)
+    {
+        if (subr->Stage == GLInvalidEnum) // emulate subroutine
+        {
+            CtxFunc->ogluProgramUniform1ui(ProgramID, subr->UniLoc, routine->Id);
+        }
     }
 }
 
@@ -675,9 +699,12 @@ void oglProgram_::SetSubroutine(const SubroutineResource* subr, const Subroutine
 {
     CheckCurrent();
     auto& oldRoutine = SubroutineBindings[subr];
-    auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc];
-    srvec = routine->Id;
     oldRoutine = routine;
+    if (subr->Stage != GLInvalidEnum)
+    {
+        auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc];
+        srvec = routine->Id;
+    }
 }
 
 

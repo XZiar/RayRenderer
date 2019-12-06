@@ -141,19 +141,21 @@ The syntax is `//@OGLU@Property(UniformName, UniformType, [Description], [MinVal
 
 Uniform's initial value will be read after linked in oglProgram, but not all of them are supported.
 
-#### Dynamic & Static Subroutine
+#### Dynamic & Emulate & Static Subroutine
 
 OpenGL 4.0 introduced [**subroutine**](https://www.khronos.org/opengl/wiki/Shader_Subroutine), which provide easy runtime dispatch capability.
 
-However, **subroutine** could be costly and will prevent optimization. Most upper shader would choose to conditional compiling using macro. 
+However, **subroutine** could be costly and will prevent optimization. Most upper shader would choose to conditional compiling using macro. Also, some old platform does not support it, although it has been wide emulated using id+switch.
 
-OpenGLUtil provide a wrapper to cover both runtime dispatch and compile-time dispatch.
+OpenGLUtil provide a wrapper to cover all these three solution: **runtime dispatch**, **emulate subroutine** and **compile-time dispatch**.
 
 The syntax is `OGLU_ROUTINE(type, routinename, return-type, [arg, ...args])` and `OGLU_SUBROUTINE(type, funcname)`. The `OGLU_ROUTINE` defines both `subroutine type` and `subroutine uniform`, and `OGLU_SUBROUTINE` defines the `specific fucntion`. 
 
 Normally, it's just a wrapper for OpenGL's subroutine. When a subroutine selection is statically specified in `ShaderConfig`, `routinename` become a macro of `funcname` and subroutine definition is gone. As a result, all usages of the subroutine will directly go to the specific function, while other selection functions can still be explicitly used.
 
-If there's any dynamic subroutine, a request of extension `GL_ARB_shader_subroutine` will be placed into the shader. Since OpenGLUtil cannot identify ifdef blocks, the request is `enable` rather than `require`, and the compiler should still throw the error when not supported.
+If there's any dynamic subroutine, a request of extension `GL_ARB_shader_subroutine` will be placed into the shader.
+
+If the runtime detectes that context does not support subroutine, it will generate selection uniform and wrapper function with switches to emulate the functionality. The id of subroutine's routine will be statically assigned using their line number. It is possible for compiler to optimize out the uniform, so weather the subroutine is active is still decided by the OpenGL runtime. 
 
 #### Resource Mapping
 
@@ -198,7 +200,7 @@ Each time you call oglProgram's `draw()`, an `ProgDraw` is created with current 
 
 Setting value to uniform / binding ubo or tex resources in `ProgDraw` is temporal, but setting them in `ProgState` or `oglProgram` is global.
 
-`ProgDraw` will enforce current context to use corresponding glProgram, and assumes that state kept until it is destroyed. In rder to prevent mistakes, `ProgDraw` will cause a spinlock in the thread, so more than one `ProgDraw` at the same time will hang the app.
+`ProgDraw` will enforce current context to use corresponding glProgram, and assumes that state kept until it is destroyed. In rder to prevent mistakes, `ProgDraw` will cause a spinlock in the thread, so more than one `ProgDraw` at the same time will hang the app. It will also lock current FBO, so you will not be able to change FBO when `ProgDraw` has not been destructed.
 
 ### Multi-thread Worker
 
@@ -206,7 +208,7 @@ There is an optional worker, which can provide multi-thread operation ability. O
 
 * Share Worker
 
-  It has unique GL-context, but shared with object context(according to wgl's spec, buffer objects are shared but VAOs are not shared).
+  It has unique GL-context, but shared with object context(according to OpenGL's spec, [container objects](https://www.khronos.org/opengl/wiki/OpenGL_Object#Container_objects) like `FBO`,`ProgPipeline`,`TransFormFeedback`,`VAO`  are not shared).
   
   It's useful for uploading/downloading data
 
